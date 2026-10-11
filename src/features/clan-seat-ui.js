@@ -612,7 +612,7 @@
   function persist() { if (typeof window.saveLocal === 'function') window.saveLocal(); }
   function needServer() {
     if (!signedIn()) { toast('Sign in to act for the hold', 'kill'); return true; }
-    if (!supported()) { toast('The hold is not chartered on the server yet', 'kill'); return true; }
+    if (!supported()) { toast('The hold is not chartered in the realm yet', 'kill'); return true; }
     return false;
   }
 
@@ -907,7 +907,7 @@
     var d = await call('clan_vice_set', { p_clan_id: clanId(), p_user: userId, p_grant: !!grant },
       function (o) { return { out: o }; });
     if (d.action === 'unsupported') {
-      toast('Vice leaders need the clan governance migration on this project', 'kill');
+      toast('Vice leaders are not available yet', 'kill');
       _viceSupport = 'unsupported'; renderIfOpen(); return false;
     }
     var r = C().reduceViceSet(200,
@@ -2054,7 +2054,7 @@
          as the pending dash, the glyph the rest of the game uses for that state. */
       if (c.known === false) {
         return '<span class="hr-cs-qty is-pending"' + insp + title + '><span class="bal-pending" role="status" '
-          + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + label + '</span>';
+          + 'title="Waiting for the realm">—</span>/' + nfmt(c.need) + ' ' + label + '</span>';
       }
       return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '"' + insp + title + '>' +
         (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + label + '</span>';
@@ -2650,9 +2650,9 @@
      fill — the same discipline muster/raids/leaderboards use. */
   function degradedHtml(clan) {
     if (_support === 'unsupported') {
-      return '<div class="hr-cs-note">This hold is not chartered on the server yet &mdash; the Clan Seat tables ' +
-        'have not been created. Everything above is real; the Standing, Storehouse, Work Orders and Tavern ' +
-        'appear the moment the migration is run. Nothing is lost in the meantime.</div>' +
+      return '<div class="hr-cs-note">This hold is not chartered in the realm yet. Everything above is real; ' +
+        'the Standing, Storehouse, Work Orders and Tavern open as soon as the Clan Seat does. ' +
+        'Nothing is lost in the meantime.</div>' +
         '<div class="hr-cs-line" style="margin-top:10px"><span class="hr-cs-label">Treasury</span>' +
         '<span class="hr-cs-val"><b>' + n(clan.treasury) + '</b> gold</span></div>' +
         '<div class="hr-cs-acts"><button class="btn btn-sm btn-danger" data-cs="leave">Leave the hold</button></div>';
@@ -3032,8 +3032,8 @@
 
         sections.push({ kind: 'rows', title: 'The Board',
           empty: _board === null
-            ? 'The Barkeep has not posted yet &mdash; the Board is not running on this hold\'s server. ' +
-              'Until it is there are no tasks, and inventing some would be a lie.'
+            ? 'The Barkeep has not posted yet &mdash; the Board is not open for this hold. ' +
+              'Until it is, there are no tasks to take.'
             : 'No tasks posted for this period.',
           rows: (_board || []).map(function (t) {
             return {

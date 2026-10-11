@@ -30,5 +30,5 @@ export const SCREEN_PRIMERS = Object.freeze({
   'panel-journal': row('Your Journal',
     'Everything you have done is kept here: what you have found, what you have hunted, the deeds you have earned and the realm\'s count of your days. Every figure is the realm\'s own.'),
   'panel-social': row('Leaderboards',
-    'Every board here is ranked by the realm from what the server has counted, and your own place is pinned to each one. Find your name, then find the name just above it.'),
+    'Every board here is ranked from what the realm has counted, and your own place is pinned to each one. Find your name, then find the name just above it.'),
 });

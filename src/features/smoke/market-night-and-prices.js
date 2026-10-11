@@ -973,7 +973,7 @@ export default [
       assert(/even with your/.test(outmatched), 'with no provable need the old verdict must stand: ' + outmatched);
 
       const html = NP.fightBlockHtml(f, { owned: true, serverEatOn: true, foodQty: 3, cookable: null });
-      assert(/A fighter earns no food of its own/.test(html) && /Fish for food/.test(html),
+      assert(/Fighting earns no food/.test(html) && /Fish for food/.test(html),
         'no food source is named for a fighter with nothing to cook: ' + html);
       assert(!/Fish for food/.test(NP.fightBlockHtml(f, { owned: true, serverEatOn: true, cookable: { qty: 4, name: 'Raw Shrimp' } })),
         'the fish door showed when the bag already holds something to cook');
@@ -1177,7 +1177,7 @@ export default [
       assert(rows.length === 4, 'The Four Hearthfinds is not four rows: ' + rows.length);
       const locked = rows.filter((r) => r.id === 'worldroot_seed')[0];
       assert(locked && locked.found === false
-        && locked.text === 'Worldroot Seed — not yet found. Somewhere in ordinary trees, yews, duskwood.',
+        && locked.text === 'Worldroot Seed — not yet found. It turns up while chopping ordinary trees, yews or duskwood.',
         'the locked collection row drifted from the ruled sentence — ' + (locked && locked.text));
 
       G.collection.worldroot_seed = 1;
@@ -2900,7 +2900,7 @@ export default [
       assert(live.length === 0,
         'THE b341 BUG: ' + live.length + ' of ' + rows.length + ' rows are still tappable while auto-eat is '
         + 'locked — tapping one closes the overlay as if it took, and nothing is set');
-      assert(/locked/i.test(ov.textContent) && /Store/i.test(ov.textContent),
+      assert(/locked/i.test(ov.textContent) && /Bounty Shop/i.test(ov.textContent),
         'the picker does not say WHY it is refusing, so a disabled row reads as broken: ' + ov.textContent.slice(0, 160));
       assert(!rows.some((r) => r.classList.contains('is-on')),
         'a locked picker still marks a row as the active selection — there is no active selection');

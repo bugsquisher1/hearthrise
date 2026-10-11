@@ -150,7 +150,7 @@ export function bankPanelHtml(view) {
     : 'The realm has not sent your Depot yet — reload if this persists.';
   return '<div class="bp-head"><h3>Depot</h3>'
     + '<div class="bp-sub">Store what you are not carrying. The Depot is kept by the realm, '
-    + 'not by this device — every move is the server\'s.</div></div>'
+    + 'not by this device, so it is waiting for you wherever you play.</div></div>'
     + '<input type="text" class="bp-search" id="bp-search" placeholder="Search your items..." '
     + 'value="' + esc(v.search) + '" />'
     + '<div class="bp-cols">'

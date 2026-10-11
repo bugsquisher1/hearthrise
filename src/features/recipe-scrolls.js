@@ -55,7 +55,7 @@ export const RECIPE_READ_TOASTS = Object.freeze({
   already_learned:  'You already know that recipe — the scroll is untouched.',
   insufficient_item:'That scroll is not in your bag',
   unknown_recipe:   'That scroll teaches nothing the realm knows',
-  recipe_daily_cap: 'That is enough reading for today',
+  recipe_daily_cap: 'You have read all the scrolls you can for today',
   no_character:     'Your character is still loading — try again in a moment',
   intent_mismatch:  'That went out twice — try again in a moment',
   rate_limited:     'Slow down a moment, then try again',

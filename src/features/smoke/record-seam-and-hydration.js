@@ -637,7 +637,7 @@ export default [
   () => tryRun('BAL-PENDING-SAME: the balance dash is unchanged and a count dash never names the balance', () => {
     const B = window.HearthriseBalance;
     assert(B && typeof B.balanceMarkup === 'function', 'balance.js did not load');
-    assert(B.balanceMarkup({}, 'gold') === '<span class="bal-pending" role="status" aria-label="Balance not loaded yet" title="Waiting for the server — your balance will appear in a moment.">—</span>',
+    assert(B.balanceMarkup({}, 'gold') === '<span class="bal-pending" role="status" aria-label="Balance not loaded yet" title="Waiting for the realm — your balance will appear in a moment.">—</span>',
       'the unknown-balance markup moved: ' + B.balanceMarkup({}, 'gold'));
     assert(typeof B.countMarkup === 'function' && /Not counted yet/.test(B.countMarkup(null)) && !/Balance not loaded yet|role=/.test(B.countMarkup(null)),
       'countMarkup(null) must say "Not counted yet" with no live region: ' + (B.countMarkup && B.countMarkup(null)));

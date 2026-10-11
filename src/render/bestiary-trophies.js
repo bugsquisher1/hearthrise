@@ -287,7 +287,7 @@ export function badgeHtml(id) {
   const name = stageName(stage) || ('Stage ' + stage);
   const held = isClaimed(id, stage);
   return '<span class="trophy-badge trophy-s' + stage + (held ? ' is-claimed' : '') + '" title="'
-    + esc(name + ' — ' + killsOfMonster(id).toLocaleString() + ' kills, per the server'
+    + esc(name + ' — ' + killsOfMonster(id).toLocaleString() + ' kills, as the realm counts them'
       + (held ? ' · trophy claimed' : ' · trophy not claimed yet')) + '">'
     + gly('uiMedal', 13) + '<b>' + esc(name) + '</b></span>';
 }

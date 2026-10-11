@@ -1928,14 +1928,14 @@ export default [
       let r = row();
       assert(!r.hasPicker, 'auto-eat picker must not render when the trait is not owned');
       assert(/^Eat /.test(r.btn) && !r.disabled, 'a manual Eat button must be offered, got: ' + r.btn);
-      assert(/Store unlock/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
+      assert(/unlocked in the Bounty Shop/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
 
       // Trait owned → picker appears and the note explains the threshold.
       G.traits = { auto_eat: true, auto_eat_2: true };
       window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
       r = row();
       assert(r.hasPicker, 'auto-eat picker must render once the trait is owned');
-      assert(/falls below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
+      assert(/is below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
       assert(/never auto-eaten/i.test(r.note), 'the note must say Feasts are never auto-eaten, got: ' + r.note);
 
       // Full HP → Eat is an honest disabled state, not a silent no-op.

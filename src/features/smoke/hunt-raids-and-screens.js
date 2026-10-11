@@ -1361,7 +1361,7 @@ export default [
     const text = (G) => String(H.__awayBankingRow(G)).replace(/<[^>]+>/g, '');
     for (const G of [{}, { activeMonster: 'slime' }]) {
       const pend = withCap(null, () => text(G));
-      assert(/the limit is being confirmed/i.test(pend), 'pending cap copy must read as pending: ' + pend);
+      assert(/checking how long it can run/i.test(pend), 'pending cap copy must read as pending: ' + pend);
       assert(!/[—–]| - /.test(pend), 'pending cap copy has a dash mid-sentence: ' + pend);
       assert(!/\b\d+h\b/.test(pend), 'pending cap copy printed hours: ' + pend);
     }
@@ -1582,7 +1582,7 @@ export default [
     try {
       window.openBuyback();
       const body = document.getElementById('bb-modal-body');
-      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
+      assert(/Buy-back is not open yet/.test(body.textContent), 'the closed reason is missing');
       const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
       assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
       const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);

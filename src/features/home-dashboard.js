@@ -985,7 +985,7 @@
       return '<div class="hd-card hd-mini hd-bank is-on"><div class="mi">' +
         gly('uiIdle', 20, '', 'var(--green)') + '</div>' +
         '<div class="hd-bank-txt">' + (cap == null
-          ? 'Banking offline while you are away. The limit is being confirmed.'
+          ? 'Banking offline while you are away. Checking how long it can run.'
           : 'Banking offline — <b>up to ' + capTxt + '</b> while you are away.') + '</div></div>';
     }
     var why = running
@@ -995,8 +995,8 @@
       gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
       '<div class="hd-bank-txt">' + why +
       (cap == null
-        ? ' Fighting, gathering or crafting banks offline; the limit is being confirmed.'
-        : ' Fighting, gathering or crafting banks up to ' + capTxt + ' offline.') + '</div></div>';
+        ? ' Fighting, gathering or crafting keeps earning while you are away. Checking how long it can run.'
+        : ' Fighting, gathering or crafting keeps earning for up to ' + capTxt + ' while you are away.') + '</div></div>';
   }
 
   /* b227 — this used to be a private regex table that only ever saw a task's
@@ -1336,7 +1336,7 @@
       var _rn = (!pending && _RN0) ? _RN0.getState(G) : null;
       if (pending) {
         var _HBr = window.HearthriseBalance;
-        rankLine = _HBr ? _HBr.pendingMarkup({ label: 'Renown not loaded yet', hint: 'Waiting for the server — your rank will appear in a moment.' })
+        rankLine = _HBr ? _HBr.pendingMarkup({ label: 'Renown not loaded yet', hint: 'Waiting for the realm — your rank will appear in a moment.' })
           : '<span class="bal-pending">—</span>';
       } else if (_rn) {
         /* THE headline: `rank · N Renown`, and nothing under it (Tyler,
@@ -1436,7 +1436,7 @@
     if (pending) {
       html += '<div class="hd-wrap"><div class="hd-card hd-mini hd-pending" role="status">' +
         '<div class="mi">' + gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
-        '<div>Reading your character from the server… nothing has been lost.</div></div></div>';
+        '<div>Reading your character from the realm… nothing has been lost.</div></div></div>';
       root.innerHTML = html;
       wire(root, [], null, null, null);
       return;
@@ -1591,7 +1591,7 @@
         // Rewards are plain numbers in the data ("400"). Pairing them with the
         // gold glyph is what makes a number read as currency instead of as a
         // second progress figure sitting next to "0 / 50".
-        var reward = t.reward != null ? String(t.reward) : (t.rewardText || '');
+        var reward = t.reward != null ? (typeof t.reward === 'number' ? t.reward.toLocaleString('en-US') : String(t.reward)) : (t.rewardText || '');
         var rewardHtml = reward
           ? (/^\d[\d,]*$/.test(reward.trim())
               ? gly('gold', 13, '', 'var(--gold-2)') + '<span>' + esc(reward) + '</span>'
@@ -1647,7 +1647,7 @@
             // UNKNOWN reads as pending, not as a shortfall — and it is NOT
             // marked `short`, because we do not know that it is.
             if (have === null) {
-              return '<span><i class="bal-pending" role="status" title="Waiting for the server">—</i>/'
+              return '<span><i class="bal-pending" role="status" title="Waiting for the realm">—</i>/'
                 + num(need) + ' ' + esc(itemName(k)) + '</span>';
             }
             // Clamp to the requirement: "1,000/400 Gold" reads as a shortfall
@@ -1714,7 +1714,7 @@
                  surfaces move together. */
               (r.canBuy
                 ? (!r.serverKnown
-                  ? '<button class="hd-cta ghost" disabled title="Waiting for the server to confirm '
+                  ? '<button class="hd-cta ghost" disabled title="Waiting for the realm to confirm '
                     + 'which heroes this account owns">'
                     + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
                   : (r.afford === false

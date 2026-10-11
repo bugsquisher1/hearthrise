@@ -1313,7 +1313,7 @@ window._cookingPaused=cookingPaused;
    an error. "no ingredients and no progress will be lost" is load-bearing: the
    doArtisanAction/startArtisan guards below make it TRUE (nothing consumed,
    nothing declared, nothing retired). */
-window._COOKING_PAUSE_MSG='Cooking is being upgraded — We’re moving Cooking onto the new server system so your progress is saved reliably. It’s temporarily unavailable — no ingredients and no progress will be lost. Back shortly. Thanks for your patience.';
+window._COOKING_PAUSE_MSG='Cooking is closed for an upgrade and will be back shortly. No ingredients or progress will be lost. Thanks for your patience.';
 /* Clear an ORPHANED cooking pointer left in a save written before the pause, so
    a reload never re-arms a live cook (no XP flash, no ingredient debit, no
    activity card). Quiet — cooking was downgraded, never declared, so there is
@@ -2665,7 +2665,7 @@ function confirmIAP(p,platform){
         <button class="btn btn-block" id="iap-cancel">Cancel</button>
         <button class="btn btn-block btn-gem" id="iap-confirm">Confirm</button>
       </div>
-      <div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;margin-top:10px">Receipts validated server-side. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Apple In-App Purchase.':platform==='android'?'Google Play Billing.':platform==='steam'?'Steamworks Microtransactions.':'Mock billing.'}</div>`;
+      <div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;margin-top:10px">Nothing is granted until the receipt is confirmed. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Paid through the App Store.':platform==='android'?'Paid through Google Play.':platform==='steam'?'Paid through Steam.':'Test checkout.'}</div>`;
     m.classList.add('show');
     const cleanup=v=>{m.classList.remove('show');res(v);};
     document.getElementById('iap-cancel').onclick=()=>cleanup(false);
@@ -3398,7 +3398,7 @@ function blessingLimitNote(){
   if(!PB || typeof PB.atLimit !== 'function') return '';
   let hit = false;
   try{ hit = activeBonusKeys().some(function(k){ return PB.atLimit(k); }); }catch(e){ return ''; }
-  return hit ? ' · <b style="color:var(--gold-2)">the boost budget is at its limit</b>' : '';
+  return hit ? ' · <b style="color:var(--gold-2)">your bonuses are at their limit</b>' : '';
 }
 function blessingNote(){
   if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
@@ -3643,7 +3643,7 @@ function notifyBankFull(){
   var now=Date.now();
   if(now-_bankFullAt<8000) return;          /* one nag per 8s, not per drop */
   _bankFullAt=now;
-  if(typeof notify==='function') notify('Bank full ('+bankUsed()+'/'+bankCap()+'). Buy more space in the bag.','kill');
+  if(typeof notify==='function') notify('Your bag is full ('+bankUsed()+'/'+bankCap()+'). Tap Buy space on your bag to make room.','kill');
 }
 function buyBankSpaceGold(){
   if(typeof G==='undefined')return false;
@@ -4598,7 +4598,7 @@ function completeBounty(){
            "0 reward"/failed, never consume). One calm notice; the next kill
            re-enters completeBounty, tops the counter up again, and retries (the
            active_bounty row is the server once-guard, so the retry pays once). */
-        if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Verifying your kills with the server — keep fighting to lock it in.','info'); }
+        if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Checking your kills — keep fighting and they will count.','info'); }
         /* ROOT: do not wait for "the next kill". The plausibility cap grows with
            elapsed-since-accept, so a bounty the player STOPPED at target still
            locks in on a timer as the cap catches up to the observed count. */
@@ -5040,9 +5040,9 @@ const QUEST_DEFS=[
    note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
   /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
-     "in all" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
-  {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
-  {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
+     "your first" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
+  {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
+  {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
   {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'oak_rod',qty:1},note:'Sixty meals cooked. A better rod means more fish for the pan.',done:false},
   {id:'road_gather',chain:'road',type:'gather',mirror:'stats.evGather',label:'Gather 500 resources',goal:500,progress:0,reward:{gold:1000},note:'Five hundred loads hauled. The homestead is built on this.',done:false},
   {id:'road_hunt',chain:'road',type:'kill_any',mirror:'stats.evKillAny',label:'Defeat 500 monsters',goal:500,progress:0,reward:{gold:1500,item:'bone_key',qty:1},note:'Five hundred down. The Crypt of Bones opens at combat 25, and this key fits its door.',done:false},
@@ -5204,8 +5204,8 @@ function ensureRetentionState(){
    (this table, src/data/goal-catalogue.js DAILY_TASK_REWARDS, and the SQL) and
    tests/goal-catalogue-drift.mjs fails the build if only one of them moves. */
 const DAILY_TASK_POOL=[
-  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:600, done:false}),
-  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:1400, done:false}),
+  ()=>({id:'daily_kill',     type:'kill_any', label:'Defeat 25 monsters',       goal:25, progress:0, reward:600, done:false}),
+  ()=>({id:'daily_kill_big', type:'kill_any', label:'Defeat 60 monsters',       goal:60, progress:0, reward:1400, done:false}),
   ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
   ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
   /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
@@ -5227,7 +5227,7 @@ const DAILY_TASK_POOL=[
         const goal=Math.max(6,n*3);
         return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
                 goal, progress:0, reward:goal*30, done:false}; },
-  ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
+  ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 dishes',           goal:12, progress:0, reward:400, done:false}),
   /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
      (artisan actions are ~2.4-4.6 s and run unattended), which made these two
      the cheapest gold in the game by an order of magnitude. 40 items ≈ 40
@@ -7378,8 +7378,8 @@ function renderCombat(){
   const _foodNote = !foods.length
     ? 'No Provisions in your bag. Cook fish or bake bread — Feasts &amp; Draughts heal too, but only when you use them by hand.'
     : _hasAutoEat
-      ? `Auto-eat spends one Provision on each swing your HP falls below ${_threshPct}% — one per swing, so a big heal-back takes a few swings. Feasts &amp; Draughts are never auto-eaten.`
-      : `Auto-eat is a Store unlock — until then, healing in combat is manual: press Eat beside your champion.`;
+      ? `Auto-Eat eats one Provision on each swing while your health is below ${_threshPct}%, so a big heal takes a few swings. Feasts &amp; Draughts are never auto-eaten.`
+      : `Auto-Eat is unlocked in the Bounty Shop. Until then, heal by hand: press Eat beside your champion.`;
   el.innerHTML=`
     ${renderBountyPanel()}
     <div class="arena">
@@ -7389,7 +7389,7 @@ function renderCombat(){
     </div>
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
     <div class="cbt-food">
-      ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-eat:
+      ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-Eat:
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
             ${(_eatLab && _eatLab.state!=='off' && _eatLab.state!=='food') ? `<option value="" disabled selected hidden>${_eatLab.text}</option>` : ''}
             <option value="">Off</option>
@@ -7743,7 +7743,7 @@ function equipVerdictOutcome(v,before,ops,key){
   if(!(v&&v.applied))restoreEquipSnapshot(before);
   const msg=(M&&typeof M.equipRefusalMessage==='function')
     ? M.equipRefusalMessage(o==='rate-limited'?'rate_limited':(v&&v.error))
-    : 'The server refused that gear change.';
+    : 'That gear change did not go through.';
   try{ if(typeof notify==='function')notify(msg,'kill'); }catch(e){}
   return v;
 }
@@ -8106,7 +8106,7 @@ function enchantVerdictOutcome(v,runeId,key){
   if(o==='malformed')return v;
   const msg=(E&&typeof E.enchantRefusalMessage==='function')
     ? E.enchantRefusalMessage(o==='rate-limited'?'rate_limited':(v&&v.error))
-    : 'The server refused that enchant.';
+    : 'That enchant did not go through.';
   try{ if(typeof notify==='function')notify(msg,'kill'); }catch(e){}
   return v;
 }
@@ -8354,7 +8354,7 @@ function onItemTap(id){
      something true when the food is not eligible or the trait is not owned. */
   if(d.heals){
     if(typeof window.setAutoEatFood === 'function'){ window.setAutoEatFood(id); return; }
-    G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;
+    G.foodSlot=id;notify(`Auto-Eat: ${d.n}`,'info');return;
   }
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
@@ -9019,7 +9019,7 @@ const TRAITS={
      numbers live in src/core/auto-eat.js AUTO_EAT_TIERS, shared with the
      server's away simulation, and tests/auto-eat-authority.mjs binds these
      prices to that table. */
-  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',desc:'Eats for you the moment your health drops below a quarter, INCLUDING while you\'re away — your fights stop being ninety seconds long.'},
+  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',desc:'Eats for you when your health drops below a quarter, even while you\'re away, so your fights last far longer.'},
   auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — unlocks the full threshold slider in Settings → Gameplay instead of the fixed quarter. Requires Auto-Eat I.'},
 };
 window.TRAITS=TRAITS;
@@ -9066,7 +9066,7 @@ const TRAIT_BUY_TOASTS={
   already_owned:'Already unlocked',
   insufficient_marks:'Not enough Bounty Marks — hunt bounties to earn them',
   insufficient_gold:'Not enough gold',
-  trait_daily_cap:'That is enough upgrades for today',
+  trait_daily_cap:'You have bought all the upgrades you can for today',
   no_character:'Your character is still loading — try again in a moment',
   bad_slot:'Your character is still loading — try again in a moment',
   rate_limited:'Slow down a moment, then try again',
@@ -9088,7 +9088,7 @@ function traitBuyToast(res){
   if(TRAIT_BUY_TOASTS[reason]) return TRAIT_BUY_TOASTS[reason];
   const outcome=String((res&&res.outcome)||'');
   if(outcome==='unreachable'||outcome==='timeout') return 'No connection — your unlock did not go through';
-  if(outcome==='unavailable') return 'The server is busy — try that again in a moment';
+  if(outcome==='unavailable') return 'The realm is busy — try again in a moment';
   return 'That upgrade is unavailable right now';
 }
 function buyTrait(id){
@@ -9595,7 +9595,7 @@ function saveLoadout(idx){
   renderInvNew();
 }
 function applyLoadout(idx){
-  const l = G.loadouts[idx]; if(!l || !l.set){ notify('Slot is empty — long-press to save current kit', 'kill'); return; }
+  const l = G.loadouts[idx]; if(!l || !l.set){ notify('Empty slot — long-press to save your current kit', 'kill'); return; }
   /* ⚠ ONE SNAPSHOT FOR THE WHOLE KIT, so the fifteen slots below leave as ONE
      equip request (the wire takes a map). Fifteen calls would spend half the
      shared 30/min accrue bucket on one tap, run fifteen collects, and — because
@@ -9704,9 +9704,9 @@ function clearLoadout(idx){
    cannot invent its own.
    ════════════════════════════════════════════════════════ */
 const _FOOD_KIND_META_FALLBACK = {
-  provision:{label:'Provision', verb:'Eat',   blurb:'Healing food. Auto-eat can use this.'},
-  feast:    {label:'Feast',     verb:'Use',   blurb:'Eaten for a timed buff. Auto-eat never spends it.'},
-  draught:  {label:'Draught',   verb:'Drink', blurb:'Drunk for a timed buff. Auto-eat never spends it.'},
+  provision:{label:'Provision', verb:'Eat',   blurb:'Healing food. Auto-Eat can use this.'},
+  feast:    {label:'Feast',     verb:'Use',   blurb:'Eaten for a timed buff. Auto-Eat never uses it.'},
+  draught:  {label:'Draught',   verb:'Drink', blurb:'Drunk for a timed buff. Auto-Eat never uses it.'},
 };
 const _FOOD_VERB_PAST = {Eat:'Ate', Drink:'Drank', Use:'Used'};
 /* Mirrors data/items.js foodKindOf for the boot window before the ESM data
@@ -9793,16 +9793,16 @@ window.eatBestProvision = function(){
 window.setAutoEatFood = function(id){
   const info = foodUseInfo(id);
   if(!info || !info.autoEatable){
-    notify('Auto-eat only uses Provisions — ' + ((ITEMS[id]||{}).n || id) + ' must be eaten by hand.','kill');
+    notify('Auto-Eat only uses Provisions — ' + ((ITEMS[id]||{}).n || id) + ' must be eaten by hand.','kill');
     return false;
   }
   if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
-    notify('Auto-eat is locked — unlock it in the Store.','kill');
+    notify('Auto-Eat is locked — unlock it in the Bounty Shop.','kill');
     return false;
   }
   G.foodSlot = id;   /* kept in step for old saves / loadout presets */
   const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
-  if(_A && _A.setEat) _A.setEat({foodId:id, enabled:true}, {announce:true}); if(!_live) notify('Auto-eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
+  if(_A && _A.setEat) _A.setEat({foodId:id, enabled:true}, {announce:true}); if(!_live) notify('Auto-Eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
   if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
   return true;
 };
@@ -9811,7 +9811,7 @@ window.setCombatAutoEat = function(value){
   if(!value){
     G.foodSlot = null;
     const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
-    if(_A && _A.setEat) _A.setEat({foodId:null, enabled:false}, {announce:true}); if(!_live) notify('Auto-eat off.','info');
+    if(_A && _A.setEat) _A.setEat({foodId:null, enabled:false}, {announce:true}); if(!_live) notify('Auto-Eat off.','info');
     if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
     return false;
   }
@@ -9860,7 +9860,7 @@ window.openAutoEatPicker = function(){
   const offRow = `<button class="aep-row${(!_locked && _lab && _lab.state === 'off')?' is-on':''}"${_locked?' disabled':''}${_act(`''`)}>
       <span class="aep-ic">—</span><span class="aep-nm">Off — heal by hand</span></button>`;
   const empty = _locked
-    ? '<div class="aep-empty">Auto-eat is locked. Unlock it in the Store to choose a food — until then, heal by hand with the Eat button beside your champion.</div>'
+    ? '<div class="aep-empty">Auto-Eat is locked. Unlock it in the Bounty Shop to choose a food; until then, heal by hand with the Eat button beside your champion.</div>'
     : (foods.length ? '' : '<div class="aep-empty">No Provisions in your bag. Cook fish or bake bread first — Feasts &amp; Draughts are eaten by hand only.</div>');
   let ov = document.getElementById('aep-overlay');
   if(!ov){
@@ -9869,7 +9869,7 @@ window.openAutoEatPicker = function(){
     ov.addEventListener('click', e=>{ if(e.target===ov) window.closeAutoEatPicker(); });
   }
   ov.innerHTML = `<div class="aep-modal" role="dialog" aria-label="Choose auto-eat food">
-      <div class="aep-head"><span>Auto-eat food</span><button class="aep-x" onclick="closeAutoEatPicker()" aria-label="Close">✕</button></div>
+      <div class="aep-head"><span>Auto-Eat food</span><button class="aep-x" onclick="closeAutoEatPicker()" aria-label="Close">✕</button></div>
       <div class="aep-body">${empty}${offRow}${rows}</div>
       <div class="aep-note">${_lab ? 'Now: ' + esc(_lab.text) + '. ' : ''}Spends one Provision when your HP drops low. Feasts &amp; Draughts are never auto-eaten.</div>
     </div>`;
@@ -9970,7 +9970,7 @@ function openInvDetail(id){
        player actually owns. Everything else gets a sentence, not a button. */
     if(_food.autoEatable && typeof hasTrait === 'function' && hasTrait('auto_eat')
        && !_autoEatUsesThis(id)){
-      acts.push(`<button class="btn" onclick="setAutoEatFood('${id}');closeInvDetail()">Set as auto-eat food</button>`);
+      acts.push(`<button class="btn" onclick="setAutoEatFood('${id}');closeInvDetail()">Set as Auto-Eat food</button>`);
     }
   }
   if(it.kind === 'upgrade' || it.upgradesTo){
@@ -10032,9 +10032,9 @@ function openInvDetail(id){
     if(_food.autoEatable){
       if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
         const _tae=(window.TRAITS&&window.TRAITS.auto_eat)||{cost:100,currency:'marks'};const cost=_tae.cost.toLocaleString()+(_tae.currency==='marks'?' Bounty Marks':'g');
-        bits.push(`You have not unlocked Auto-Eat yet (${cost} in the Store) — for now, heal by hand from here or the Combat screen.`);
+        bits.push(`You have not unlocked Auto-Eat yet (${cost} in the Bounty Shop). For now, heal by hand from here or the Combat screen.`);
       } else if(_autoEatUsesThis(id)){
-        bits.push('Auto-eat is currently using this food.');
+        bits.push('Auto-Eat is using this food.');
       }
     }
     foodNote = `<div class="inv-detail-note">${bits.join(' ')}</div>`;
@@ -10688,7 +10688,7 @@ const BOUNTY_SHOP = [
   {id:'auto_bounty_1', name:'Auto-Accept I',     glyph:'uiSpark',     cost:80, desc:'Auto-accept the next bounty after each turn-in.', flag:'autoBounty', value:1},
   {id:'free_reroll_2', name:'+1 Free Reroll/day',glyph:'uiClock',     cost:50, desc:'Adds one free reroll per day.', flag:'extraRerolls', incr:true},
   {id:'mark_pouch',    name:'Hunter\'s Pouch',   glyph:'uiCoinStack', cost:200,desc:'+10% gold from bounty turn-ins forever.', flag:'goldBoost', value:0.10},
-  {id:'cosmetic_cape', name:'Hunter Cloak',      glyph:'uiCape',      cost:300,desc:'Cosmetic cloak unlock (Hearth Hall slot).', flag:'cosmeticCloak', value:true},
+  {id:'cosmetic_cape', name:'Hunter Cloak',      glyph:'uiCape',      cost:300,desc:'A cosmetic cloak for your Hearth Hall.', flag:'cosmeticCloak', value:true},
 ];
 
 /* ── WHAT THE BOUNTY SHOP SELLS = the board's own upgrades PLUS everything
@@ -10802,7 +10802,7 @@ function renderBountyTab(){
     const kpiRow = '';
     const unlockHtml = window.HearthriseSignposts ? window.HearthriseSignposts.bountyStripHtml({level:lv, clientMayPay:bountyClientMayPay(), bounty:window.HearthriseCore.bounty}) : '';
     /* Pull ChatGPT's renderBountyPanel HTML */
-    const boardHtml = (typeof renderBountyPanel === 'function') ? renderBountyPanel() : '<div class="empty">Bounty system not ready.</div>';
+    const boardHtml = (typeof renderBountyPanel === 'function') ? renderBountyPanel() : '<div class="empty">The Bounty Board is still loading.</div>';
     board.innerHTML = kpiRow + boardHtml + unlockHtml;
   }
 
@@ -10830,7 +10830,7 @@ function renderBountyTab(){
         : (typeof window.clientMayWriteRecordField !== 'function' || window.clientMayWriteRecordField('marks'));
       const dead = owned || !sellable || !can;
       const label = owned ? 'Owned' : (sellable ? 'Buy' : 'Unavailable');
-      return `<div class="bounty-shop-row${sellable?'':' is-unavailable'}" data-offer="${it.id}"${sellable?'':' title="Bounty Marks are held by the server and this upgrade has no server purchase yet."'}>
+      return `<div class="bounty-shop-row${sellable?'':' is-unavailable'}" data-offer="${it.id}"${sellable?'':' title="This upgrade cannot be bought yet."'}>
         <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>
         <span class="price">${(window.HR&&window.HR.amount)?window.HR.amount('bountyHunter',cost,13,'--gold-2'):cost+' Marks'}</span>
@@ -12242,7 +12242,7 @@ window.styleXpRouteText = function(style){
   if(rows.length === 1) return 'all to ' + nameOf(rows[0].skill);
   var total = rows.reduce(function(t,r){ return t + r.share; }, 0) || 1;
   var even = rows.every(function(r){ return Math.abs(r.share/total - 1/rows.length) < 0.02; });
-  if(even) return rows.map(function(r){ return nameOf(r.skill); }).join(' & ') + ' (even split)';
+  if(even){ var nm = rows.map(function(r){ return nameOf(r.skill); }); return (nm.length > 2 ? nm.slice(0, -1).join(', ') + ' and ' + nm[nm.length - 1] : nm.join(' and ')) + ', split evenly'; }
   return rows.slice().sort(function(a,b){ return b.share - a.share; })
              .map(function(r){ return nameOf(r.skill) + ' ' + Math.round(r.share/total*100) + '%'; }).join(' · ');
 };
@@ -12425,7 +12425,7 @@ function renderStyleSelector(){
         var s = styles[k];
         var act = (k === styleKey) ? ' active' : '';
         var sw = swingOf(s);
-        var tip = 'Trains ' + _xpRoute(s)
+        var tip = 'XP: ' + _xpRoute(s)
                 + (s.desc ? ' · ' + s.desc : '') + (sw ? ' · swing ' + sw : '');
         /* b348 (Xarn: "Combat styles no longer show what XP they give. It used
            to show: Controlled / Def/att/str"). The trains label and the b329
@@ -12619,7 +12619,7 @@ window.showAcquisitionTip = function(itemId){
   if(typeof EQUIP_SHOP !== 'undefined'){
     var eq = EQUIP_SHOP.find(function(x){return x.id===itemId;});
     if(eq){
-      paths.push({g:'shop', t:'Buy from Equipment Shop', s:eq.cost + 'g', a:"showTab('store')"});
+      paths.push({g:'shop', t:'Buy under Equipment at the Local Shop', s:eq.cost + 'g', a:"showTab('store')"});
     }
   }
 
@@ -14584,7 +14584,7 @@ window.startArtisan = function(skillId, recipeId){
      The cooking screen already replaces the tiles with the pause banner; this is
      the guard for any residual onclick / programmatic call. */
   if(skillId==='cooking' && cookingPaused()){
-    if(typeof notify==='function') notify('Cooking is being upgraded — temporarily unavailable. No ingredients will be spent.','info');
+    if(typeof notify==='function') notify('Cooking is closed for an upgrade. No ingredients were used.','info');
     return;
   }
   var recipes = window.ARTISAN_RECIPES[skillId];
@@ -14955,7 +14955,7 @@ function buildActivityCard(){
     var skName = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[G.activeSkill]) ? SKILLS_DEF[G.activeSkill].name : G.activeSkill;
     card.className = 'char-active-card';
     card.innerHTML = '<div class="ca-icon">'+iconHtml+'</div>'+
-      '<div class="ca-info"><b>'+skName+': '+nodeName+'</b><span>Auto-progresses · click stop to switch</span></div>'+
+      '<div class="ca-info"><b>'+skName+': '+nodeName+'</b><span>Runs on its own · press Stop to switch</span></div>'+
       '<button class="ca-stop" onclick="stopSkill()">Stop</button>';
     return card;
   }
@@ -15333,7 +15333,7 @@ function _costPart(itemId, qty){
   var met = _known && have >= qty;
   var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
   var tip = qty.toLocaleString() + ' ' + name + ' — you have '
-    + (_known ? have.toLocaleString() : 'no figure yet (waiting for the server)');
+    + (_known ? have.toLocaleString() : 'no figure yet (still counting)');
   var art = '';
   if(itemId === 'gold'){
     art = (window.HR && window.HR.icon) ? (window.HR.icon('gold', 15, 'currentColor') || '') : '';
@@ -15438,7 +15438,7 @@ window.hrToolLineHtml = function(skillId){
   var spd = Math.round((t.toolSpeed||0)*100);
   var dbl = Math.round((typeof T.bestToolDouble==='function' ? T.bestToolDouble(skillId) : 0)*100);
   if(spd<=0 && dbl<=0) return '';
-  return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% spd</b>'+(dbl>0 ? ' · <b>+'+dbl+'% ×2</b>' : '')+'</div>';
+  return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% speed</b>'+(dbl>0 ? ' · <b>'+dbl+'% double yield</b>' : '')+'</div>';
 };
 
 function tileForGather(action, skillId){
@@ -17481,11 +17481,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     {id:'wk_kills',    glyph:'uiSword', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{hitpoints:1000}},
      desc:'A week of fighting. Leave a target set when you log off and it keeps counting.'},
     {id:'wk_smith',    glyph:'uiAnvil', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}},
-     desc:'Sixty pulls at the Forge. Bars are the bottleneck — smelt ahead of yourself.'},
+     desc:'Sixty jobs at the Forge. Bars run out first, so smelt plenty ahead.'},
     {id:'wk_craft',    glyph:'crafting', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}},
      desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
     {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
-     desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
+     desc:'Crops pulled from your plots. They ripen while you are away, so come back and harvest.'},
     /* ── `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT ────────────────
        This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:
        hr_claim_goal answers `unknown_goal` because `wk_bury` is deliberately
@@ -17518,7 +17518,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     {id:'wk_gather',   glyph:'uiPickaxe', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}},
      desc:'Any seam. A week of steady mining, or one long stretch banked while away.'},
     {id:'wk_logs',     glyph:'uiLog', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}},
-     desc:'Any tree. Set the axe going before you log off and it accrues without you.'},
+     desc:'Any tree. Set the axe going before you log off and it keeps chopping without you.'},
     {id:'wk_cook',     glyph:'uiPot', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}},
      desc:'Fifty finished meals. Burnt dishes do not count toward it.'},
     {id:'wk_levels',   glyph:'uiXp', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5},
@@ -18071,11 +18071,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
              console for us. */
           var _sf = window.HearthriseSettleFirst && window.HearthriseSettleFirst.settleRefusalText(res);
           var msg = _sf ? _sf
-                  : why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
+                  : why === 'incomplete' ? 'The realm hasn’t counted enough progress yet — give it a few seconds and try again'
                   : why === 'unknown_goal' ? 'This quest can’t be claimed yet — it has been reported'
                   : why === 'rpc_missing' ? 'Claiming is being upgraded — try again in a few minutes'
-                  : why === 'reward_unavailable' ? 'This quest’s reward is being re-authored — nothing was spent, and we’ll make it good'
-                  : why === 'network' ? 'Couldn’t reach the server — your progress is safe, try again in a moment'
+                  : why === 'reward_unavailable' ? 'This quest’s reward is being fixed — nothing was spent, and we’ll make it right'
+                  : why === 'network' ? 'Couldn’t reach the realm — your progress is safe, try again in a moment'
                   : 'That claim didn’t go through — your progress is safe, try again in a moment';
           if(why !== 'network'){ try{ console.warn('[Quests] claim refused:', why, goalId); }catch(e){} }
           if(typeof window.notify === 'function') notify(msg, 'kill');

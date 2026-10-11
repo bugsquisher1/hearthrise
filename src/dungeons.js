@@ -266,15 +266,15 @@
   }
   var SPOILS_NAMED_TIERS = { rare: 1, epic: 1, legendary: 1, mythic: 1, unique: 1 };
   function settleRowHtml(v){
-    if(!v) return '<div class="drm-empty">Settling with the server…</div>';
+    if(!v) return '<div class="drm-empty">Counting your rewards…</div>';
     if(v.outcome !== 'settled' && v.outcome !== 'replayed'){
       var DS = window.HearthriseDungeonSettle;
       return '<div class="drm-empty">' + ((DS && typeof DS.dungeonRefusalMessage === 'function')
         ? DS.dungeonRefusalMessage(v.reason, v.body && v.body.detail)
-        : 'The server refused that run.') + '</div>';
+        : 'That run did not go through.') + '</div>';
     }
     var s = (v.body && v.body.settled) || null;
-    if(!s) return '<div class="drm-reward-row">Rewards settled — the server had already credited this run.</div>';
+    if(!s) return '<div class="drm-reward-row">Rewards already paid — the realm had already counted this run.</div>';
     /* Rows are the server's answer; the catalogue only lends each its odds and
        its place. A row the catalogue does not know still renders, last. */
     var d = s.dungeon ? DUNGEONS[s.dungeon] : null;
@@ -418,7 +418,7 @@
        The old order (spend, then add) lost the scrip AND gave nothing when the bag
        was full. addItem returns false on a full bag; bail without charging. */
     var gained = (typeof window.addItem === 'function') ? window.addItem(id, 1) : (function(){ window.G.inventory[id]=(window.G.inventory[id]||0)+1; return true; })();
-    if(gained === false){ if(window.notify) window.notify('Your bag is full — buy bank space first.', 'kill'); return false; }
+    if(gained === false){ if(window.notify) window.notify('Your bag is full — buy more bag space first.', 'kill'); return false; }
     if(typeof window.removeItem === 'function') window.removeItem('dungeon_scrip', entry.scrip);
     else window.G.inventory.dungeon_scrip = scripHeld() - entry.scrip;
     /* ── b372: RECORD THE TRADE AS ONE RECORD, BOTH LEGS ───────────────────
@@ -716,7 +716,7 @@
                 : '');
           var bopTag = item && item.bop ? '<span class="dgn-bop">BoP</span>' : '';
           var odds = _dgnOdds(l.chance);
-          var title = (item ? item.n : l.id) + (odds ? ' — ' + odds : '') + (_dsArmed() ? ', the same by hand or on Auto' : '');
+          var title = (item ? item.n : l.id) + (odds ? ' — ' + odds : '') + (_dsArmed() ? ', by hand or on Auto' : '');
           return '<div class="dgn-loot" title="' + _dgnEsc(title) + '">' + icon + ' ' + (l.qty[0] === l.qty[1] ? l.qty[0] : l.qty[0]+'-'+l.qty[1]) + 'x'
             + (l.chance < 1 && odds ? ' · ' + _dgnEsc(window.HearthriseCore.drops.formatDropOdds(l.chance)) : '') + ' ' + bopTag + '</div>';
         }).join('');

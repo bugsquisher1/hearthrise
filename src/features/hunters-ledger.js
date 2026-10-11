@@ -33,7 +33,7 @@ import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=568';
 const SEEN_KEY = 'hearthrise:charm-seen';
 const MAX_KEYS = 10;
 const SHEET_ID = 'hr-charm-moment';
-const PENDING = '<span class="bal-pending" role="status" title="Waiting for the server">—</span>';
+const PENDING = '<span class="bal-pending" role="status" title="Waiting for the realm">—</span>';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

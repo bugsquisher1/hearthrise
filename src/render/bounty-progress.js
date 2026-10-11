@@ -232,6 +232,13 @@ export function turnIn() {
    behaviour-identical). They pay for the lines this feature added to the
    monolith, in the file the feature was written in. */
 
+/* English plurals via src/render/article.js (window.pluralName); a bare +s is
+   the fallback only if that module has not loaded. */
+function plural(name, n) {
+  const W = w();
+  return typeof W.pluralName === 'function' ? W.pluralName(name, n) : (n === 1 ? name : name + 's');
+}
+
 /** The task line on a notice. */
 export function label(b) {
   const W = w();
@@ -242,12 +249,14 @@ export function label(b) {
      its flyout, where the reverse index names the drop. */
   if (b.type === 'proof') {
     const pn = ((W.ITEMS || {})[b.proofItem] || {}).n || b.proofItem;
-    return `Collect ${b.required} ${typeof W.hrInspectSpan === 'function' ? W.hrInspectSpan(b.proofItem, pn) : pn}`;
+    const pp = plural(pn, b.required);
+    return `Collect ${b.required} ${typeof W.hrInspectSpan === 'function' ? W.hrInspectSpan(b.proofItem, pp) : pp}`;
   }
   // `neutral` is retired (DEC-NEUT-01), so every weapon bounty names a real type.
-  if (b.type === 'weapon') return `Defeat ${b.required} ${m.name}s using ${(W.WEAPON_TYPES || {})[b.requiredWeaponType] || 'any weapon'}`;
-  if (b.type === 'streak') return `Defeat ${b.required} ${m.name}s without dying`;
-  return `Defeat ${b.required} ${m.name}s`;
+  const mn = plural(m.name, b.required);
+  if (b.type === 'weapon') return `Defeat ${b.required} ${mn} using ${(W.WEAPON_TYPES || {})[b.requiredWeaponType] || 'any weapon'}`;
+  if (b.type === 'streak') return `Defeat ${b.required} ${mn} without dying`;
+  return `Defeat ${b.required} ${mn}`;
 }
 
 /** "12 / 20", or "— / 20" while the server has not named this contract. A

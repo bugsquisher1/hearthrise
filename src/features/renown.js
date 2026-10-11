@@ -382,7 +382,7 @@
      tooltip is hung at all: a settle note beside a figure that is openly the
      client's own prediction would describe something that has not happened.
      ══════════════════════════════════════════════════════════════════════════ */
-  var LAG_TIP = 'Updates when your session settles.';
+  var LAG_TIP = 'Updates as the realm counts your progress.';
   function lagTip(st) {
     if (!st || typeof st.counted !== 'boolean') st = getState(null);
     return st.counted ? LAG_TIP : '';

@@ -86,7 +86,7 @@ export const UNKNOWN_TEXT = '—';
 /** The one label. Spelled once so the topbar, a tooltip and a refusal notice
  *  cannot describe the same state three ways. */
 export const UNKNOWN_LABEL = 'Balance not loaded yet';
-export const UNKNOWN_HINT = 'Waiting for the server — your balance will appear in a moment.';
+export const UNKNOWN_HINT = 'Waiting for the realm — your balance will appear in a moment.';
 
 /** The class the pending presentation hangs on. Exported so a test asserts the
  *  contract instead of restating a string literal. */

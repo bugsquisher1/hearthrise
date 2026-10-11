@@ -1735,7 +1735,7 @@ export default [
       assert(PB.atLimit('allXP') === true, 'and the game must be able to SAY it is at the limit');
       // …and it really does say it, on the activity the player is watching.
       window.G.activeSkill = 'woodcutting'; window.G.skillTargetId = 'normal_tree';
-      assert(/at its limit/.test(window.HearthriseBlessingLimitNote()),
+      assert(/at their limit/.test(window.HearthriseBlessingLimitNote()),
         'a clamp the player cannot see reads as a bug — the note must appear');
 
       // Every governed key, under the same conjunction.
@@ -3371,5 +3371,31 @@ export default [
     const gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
     assert(gc && gc.QUEST_REWARDS.farmhand.items.carrot_seed === 5 && !gc.QUEST_REWARDS.farmhand.items.wheat_seed,
       'the server catalogue must credit the carrot seeds the card promises');
+  }),
+
+  /* COPY-1 (Tyler: "craft 60 items in all — what?"). MUTATION: restore
+     'Smith 60 items in all', or the vowel-only withArticle → red. */
+  () => tryRun('b568 COPY-1: quest and daily labels read as plain English, and no article lands on a plural item', () => {
+    const labels = (window.QUEST_DEFS || []).map((q) => q.label)
+      .concat((window.DAILY_TASK_POOL || []).map((f) => { try { return f().label; } catch (e) { return ''; } }));
+    assert(labels.length > 10, 'CONTROL: too few quest/daily labels to judge (' + labels.length + ')');
+    labels.forEach((l) => {
+      assert(!/\bin all\b/i.test(l), 'a label pads its count with "in all": ' + l);
+      assert(!/^Kill\b/.test(l), 'a label says Kill where every other goal says Defeat: ' + l);
+      assert(!/^Cook \d+ items\b/.test(l), 'a cooking goal counts "items", not dishes: ' + l);
+    });
+    const road = (window.QUEST_DEFS || []).filter((q) => q.chain === 'road').map((q) => q.label);
+    assert(road.indexOf('Smith your first 60 items') >= 0 && road.indexOf('Craft your first 60 items') >= 0,
+      'the road\'s smith/craft rows lost their wording: ' + JSON.stringify(road));
+    assert(typeof window.withArticle === 'function', 'withArticle is unpublished');
+    assert(window.withArticle('Apprentice Gloves') === 'Apprentice Gloves', 'a plural item took an article: ' + window.withArticle('Apprentice Gloves'));
+    assert(window.withArticle('Copper Studs') === 'Copper Studs', 'a plural item took an article: ' + window.withArticle('Copper Studs'));
+    assert(window.withArticle('Bone Key') === 'a Bone Key' && window.withArticle('Arcane Tome') === 'an Arcane Tome',
+      'singular items lost their article: ' + window.withArticle('Bone Key') + ' / ' + window.withArticle('Arcane Tome'));
+    const P = window.pluralName;
+    assert(typeof P === 'function', 'pluralName is unpublished');
+    [['Wolf', 3, 'Wolves'], ['Ancient Lich', 2, 'Ancient Liches'], ['Wolf Pelt', 5, 'Wolf Pelts'], ['Bones', 3, 'Bones'],
+      ['Grave Dust', 4, 'Grave Dust'], ['Goblin Ear', 1, 'Goblin Ear']].forEach(([n, k, want]) =>
+      assert(P(n, k) === want, 'pluralName(' + n + ', ' + k + ') = ' + P(n, k) + ', want ' + want));
   }),
 ];

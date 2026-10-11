@@ -439,7 +439,7 @@ function invSellSelected(){
   if(!picks.length){ notify(skipped ? 'Nothing selected can be sold — locked or worthless' : 'Nothing to sell','kill'); return Promise.resolve(null); }
   window._invSelected.clear();
   window._invSelectMode = false;
-  if(skipped) notify(`${skipped} locked or worthless item(s) left in your bag`,'info');
+  if(skipped) notify(`${skipped} locked or worthless ${skipped === 1 ? 'item' : 'items'} left in your bag`,'info');
   return vendorSellMany(picks, 'vendor.sell_selected');
 }
 
@@ -490,7 +490,7 @@ function repurchase(idx){
      armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
      The gate is a no-op today; it becomes the guard the moment gold flips. */
   if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('The realm keeps no buy-back counter yet','kill');
+    if(typeof notify==='function')notify('Buy-back is not open yet','kill');
     return;
   }
   if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
@@ -541,7 +541,7 @@ function _bankRowsHTML(){
       + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
     + '</div>'
     + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat price and a better deal ('+goldPerSlot.toFixed(0)+' gold a slot vs '+gemPerSlot.toFixed(2)+' gems a slot).</span></div>'
       + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
       + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
     + '</div>';

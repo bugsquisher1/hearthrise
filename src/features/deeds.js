@@ -27,7 +27,7 @@ import { DEEDS, DEED_GROUPS } from '../data/deeds.js?v=568';
 const SEEN_KEY = 'hearthrise:deeds-seen';
 const MAX_KEYS = 10;
 const MELEE = ['attack', 'strength', 'defense', 'hitpoints'];
-const PENDING = '<span class="bal-pending" role="status" title="Waiting for the server">—</span>';
+const PENDING = '<span class="bal-pending" role="status" title="Waiting for the realm">—</span>';
 
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 const splitSource = (s) => { const at = s.indexOf(':'); return [s.slice(0, at), s.slice(at + 1)]; };

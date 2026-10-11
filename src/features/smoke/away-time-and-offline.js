@@ -1451,7 +1451,7 @@ export default [
     const cases = [
       ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
       ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
-      ['requires_previous_slot', /Unlock the slot before it/i, {}],
+      ['requires_previous_slot', /Unlock the previous slot first/i, {}],
     ];
     try {
       window.clientMayWriteRecordField = () => false;
@@ -5073,7 +5073,7 @@ export default [
         window.renderCombat();
         const note = document.querySelector('#panel-combat .cbt-food-note');
         if (note) {
-          assert(/falls below 75%/.test(note.textContent),
+          assert(/is below 75%/.test(note.textContent),
             'the combat note must quote the engine threshold (75%), got: ' + note.textContent);
           assert(/one per swing|each swing/i.test(note.textContent),
             'the description must state the one-Provision-per-swing rule Xarn expected to be heal-to-threshold');
@@ -7349,7 +7349,7 @@ export default [
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
     // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
-    assert(/the limit is being confirmed/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
+    assert(/checking how long it can run/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
     const unknownText = unknown.replace(/<[^>]*>/g, ' ');
     assert(!/\b0h\b|12h|null|NaN/.test(unknownText), 'an unknown cap printed a number: ' + unknown);
     assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);

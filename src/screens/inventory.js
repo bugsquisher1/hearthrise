@@ -355,7 +355,7 @@ function renderInvFancy(){
         '</div>'+
         (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
           var _route = (typeof window.styleXpRouteText==='function') ? window.styleXpRouteText(style) : style.trains;
-          return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP <b>'+_route+'</b></div></div></div>'; })()+
+          return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP: <b>'+_route+'</b></div></div></div>'; })()+
       '</div>'+
       '</div>'+
     '</div>';

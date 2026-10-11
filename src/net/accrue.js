@@ -6029,7 +6029,7 @@ export function receiptDeathCause(summary) {
   const said = (key, clause, sentence) => ({ key, clause, sentence });
   if (ae.enabled === false) {
     return said('auto-eat-off', 'auto-eat was off, so nothing healed you',
-      'Auto-eat was off, so nothing healed you.');
+      'Auto-Eat was off, so nothing healed you.');
   }
   const pct = Number(ae.pct);
   if (Number.isFinite(pct) && pct <= 0) {

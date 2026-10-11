@@ -226,7 +226,7 @@ function awayRow(m, f) {
   const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : null;
   if (capH == null) {
     return { name: 'You keep fighting', meta: 'until your away limit, which the realm has not named yet',
-      right: '<span class="bal-pending" role="status" title="Waiting for the server">—</span>' };
+      right: '<span class="bal-pending" role="status" title="Waiting for the realm">—</span>' };
   }
   /* The count is the server's bag or nothing (§6): a pending mark before the first envelope. */
   const AC = window.HearthriseAccrual;
@@ -320,7 +320,7 @@ const HUD = (() => {
     if (hasAuto) {
       html +=
         `<button type="button" class="btn btn-sm arena-autoeat" data-arena-act="autoeat" ` +
-        `title="Choose which food auto-eat uses"><span class="aa-lbl">Auto-eat:</span> <span class="aa-food${autoPend ? ' bal-pending' : ''}"${autoPend ? ' role="status"' : ''}>${esc(autoName)} ▾</span></button>`;
+        `title="Choose which food Auto-Eat uses"><span class="aa-lbl">Auto-Eat:</span> <span class="aa-food${autoPend ? ' bal-pending' : ''}"${autoPend ? ' role="status"' : ''}>${esc(autoName)} ▾</span></button>`;
     }
     mount.innerHTML = html;
   }
@@ -443,7 +443,7 @@ const HUD = (() => {
           { name: 'Damage per second', meta: `averaged over one swing every ${f.swingS}s`, right: amt(f.dps.toFixed(1)) },
         ] },
         { kind: 'rows', title: 'Their swing', rows: [
-          { name: 'Hit chance', meta: 'against your Defence and armour', right: amt(Math.round(f.foe.accuracy * 100) + '%') },
+          { name: 'Hit chance', meta: 'against your Defense and armour', right: amt(Math.round(f.foe.accuracy * 100) + '%') },
           { name: 'Max hit', meta: 'the worst single blow you can take', right: amt(f.foe.maxHit) },
           { name: 'Their health', meta: 'restored in full on respawn', right: amt(m.hp) },
         ] },

@@ -314,7 +314,7 @@
 
     return flushCurrentCharacter(o.timeoutMs || SWITCH_FLUSH_TIMEOUT_MS).then(function(res){
       if(res === 'timeout' || res === 'error'){
-        notifySafe('Couldn’t switch characters — the server isn’t responding. '
+        notifySafe('Couldn’t switch characters — the realm isn’t responding. '
           + 'Nothing was changed. Try again in a moment.', 'kill');
         return { ok:false, reason:'flush-' + res };
       }
@@ -619,7 +619,7 @@
   function unlockSlot(slotId){
     var profile = window.HearthriseProfile.profile;
     var owned = unlockedCount();
-    if(slotId !== owned) return { ok:false, reason:'Must unlock slots in order' };
+    if(slotId !== owned) return { ok:false, reason:'Unlock hero slots in order' };
     if(slotId >= MAX_SLOTS) return { ok:false, reason:'Max slots reached (' + MAX_SLOTS + ')' };
     var G = window.G;
     if(!G) return { ok:false, reason:'The game is still loading — try again in a moment' };
@@ -691,7 +691,7 @@
     if(!p) return Promise.resolve({ ok:false, reason:'No profile loaded' });
     var next = P.canUnlockNext();
     if(!next || next.slotId !== slotId){
-      return Promise.resolve({ ok:false, reason:'Must unlock slots in order' });
+      return Promise.resolve({ ok:false, reason:'Unlock hero slots in order' });
     }
     var n = slotId + 1;
     var opts = next.free
@@ -728,9 +728,9 @@
     unknown_slot:           'That hero slot is not for sale',
     bad_slot:               'That hero slot does not exist',
     already_owned:          'You already own that hero slot',
-    requires_previous_slot: 'Unlock the slot before it first',
+    requires_previous_slot: 'Unlock the previous slot first',
     insufficient_gems:      'Not enough gems',
-    hero_slot_daily_cap:    'That is enough new heroes for today',
+    hero_slot_daily_cap:    'You have unlocked all the hero slots you can for today',
     no_character:           'Your character is still loading — try again in a moment',
     no_account:             'Your account is still loading — try again in a moment',
     intent_mismatch:        'That went out twice — try again in a moment',
@@ -739,7 +739,7 @@
     rpc_missing:            'Hero slots are unavailable right now',
     no_config:              'Hero slots are unavailable right now',
     network:                'No connection — your unlock did not go through',
-    bad_response:           'The server is busy — try that again in a moment'
+    bad_response:           'The realm is busy — try again in a moment'
   };
   function slotBuyToast(res){
     var code = String((res && res.error) || '');
@@ -1288,7 +1288,7 @@
              do not know if this is possible" outranks "you are short". */
           (r.canBuy
             ? (!r.serverKnown
-              ? '<button class="cs-buy" disabled title="Waiting for the server to confirm which '
+              ? '<button class="cs-buy" disabled title="Waiting for the realm to confirm which '
                 + 'heroes this account owns">' + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
               : (r.afford === false
                 ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy) + ' of ' + r.cost + ' gems">'

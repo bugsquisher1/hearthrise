@@ -442,21 +442,21 @@ export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome
    able to quote something in a bug report. */
 export const EQUIP_REFUSALS = Object.freeze({
   bad_equip: 'That gear change could not be read. Nothing was changed.',
-  unknown_equip_slot: 'That equipment slot is not one the server knows.',
+  unknown_equip_slot: 'That is not an equipment slot.',
   wrong_slot: 'That item does not go in that slot.',
-  unknown_item: "The server does not have that item yet — it may be a build newer than the server's.",
+  unknown_item: 'The realm does not know that item yet — try reloading the game.',
   requirement_not_met: 'You do not meet the requirement to wear that yet.',
-  insufficient_item: 'The server says you do not have that item.',
+  insufficient_item: 'You do not have that item.',
   too_many_equip_ops: 'That is too many gear changes at once.',
   rate_limited: 'Slow down a moment — too many gear changes.',
-  no_character: 'The server has no character in this slot yet.',
+  no_character: 'No hero is loaded in this slot yet — try again in a moment.',
   version_conflict: 'Your gear changed somewhere else. Try again.',
-  intent_mismatch: 'That gear change did not match the one the server recorded.',
+  intent_mismatch: 'That gear change did not match your current gear. Try again.',
 });
 export function equipRefusalMessage(code) {
   const k = String(code || '');
   if (Object.prototype.hasOwnProperty.call(EQUIP_REFUSALS, k)) return EQUIP_REFUSALS[k];
-  return k ? `The server refused that gear change (${k}).` : 'The server refused that gear change.';
+  return k ? `That gear change did not go through (${k}).` : 'That gear change did not go through.';
 }
 
 /** Classify an answer. Pure — status and body in, verdict out. */

@@ -209,22 +209,22 @@
      answer, 2 = a retried refusal already spoke. Never a toast before the answer. */
   var _syncAnnounce = 0;
   var REFUSAL_WORDS = {
-    collect_first: 'Auto-eat will change once your fight settles.',
-    settle_first: 'Auto-eat will change once your fight settles.',
-    rate_limited: 'Too many auto-eat changes this hour — the realm will take it shortly.',
-    trait_not_owned: 'Auto-eat is locked — unlock it in the Store.',
+    collect_first: 'Auto-Eat will change once your fight settles.',
+    settle_first: 'Auto-Eat will change once your fight settles.',
+    rate_limited: 'Too many Auto-Eat changes this hour — try again shortly.',
+    trait_not_owned: 'Auto-Eat is locked — unlock it in the Bounty Shop.',
     not_auto_eatable: 'The realm will not auto-eat that — it must be eaten by hand.',
     unknown_item: 'The realm will not auto-eat that — it must be eaten by hand.',
-    not_signed_in: 'Sign in to change auto-eat.'
+    not_signed_in: 'Sign in to change Auto-Eat.'
   };
   function say(t, kind){ try { if(t && typeof window.notify === 'function') window.notify(t, kind || 'info'); } catch(e){} }
   function foodName(id){ var it = id && window.ITEMS && window.ITEMS[id]; return it ? it.n : null; }
   /* The sentence for a config the SERVER stated — its answer, never our request. */
   function sayServerConfig(cfg){
     if(!cfg || typeof cfg !== 'object') return;
-    if(cfg.enabled === false){ say('Auto-eat off.'); return; }
+    if(cfg.enabled === false){ say('Auto-Eat off.'); return; }
     var n = foodName(cfg.food);
-    say(n ? ('Auto-eat set to ' + n + '.') : 'Auto-eat set to the best food in your bag.');
+    say(n ? ('Auto-Eat set to ' + n + '.') : 'Auto-Eat set to the best food in your bag.');
   }
   /* ⚠ PARKED FOR THE SUITE, the same way runSmokeTest parks the 90 s settle loop
      and the autosave. Thirty-odd tests drive setEat() (and applyLoadout, whose
@@ -391,7 +391,7 @@
     if(sending.pct) notePctAnswered();
     if(sending.food) noteFoodAnswered();
     if(sending.enabled) noteEnabledAnswered();
-    if(_syncAnnounce === 1) say(REFUSAL_WORDS[why] || 'The realm did not answer — auto-eat is unchanged.', 'kill');
+    if(_syncAnnounce === 1) say(REFUSAL_WORDS[why] || 'The realm did not answer — Auto-Eat is unchanged.', 'kill');
     _syncAnnounce = 0;
   }
 
@@ -1052,7 +1052,7 @@
     try {
       if (typeof window.notifyAction === 'function') {
         window.notifyAction(
-          'Auto-Eat is on. You already own it — it was never switched on. It now feeds you '
+          'Auto-Eat is on. You already owned it, but it was switched off. It now feeds you '
           + 'below a quarter health, in fights and while you are away.',
           'Keep it off',
           function () { try { setEat({ enabled: false }); } catch (e) {} });
@@ -1060,7 +1060,7 @@
         /* No inline-action host: say it anyway. The switch is reversible in
            Settings and a silent change to how a night is fought is worse than a
            toast without a button. */
-        window.notify('Auto-Eat is on. You already own it — it was never switched on. '
+        window.notify('Auto-Eat is on. You already owned it, but it was switched off. '
           + 'It now feeds you below a quarter health, in fights and while you are away.', 'good');
       }
     } catch (e) {}

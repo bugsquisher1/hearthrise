@@ -3296,6 +3296,30 @@ export default [
     }
   }),
 
+  /* -- regression suite -- W0 HAUL-4: no "an Apprentice Gloves"; one shared verb.
+     Mutation: bare article() or per-item verbs ⇒ red. */
+  () => tryRun('W0 HAUL-4: the unlock line never puts "a/an" before a plural item and says a shared verb once', () => {
+    const HU = window.HearthriseHaulUnlocks;
+    assert(HU && typeof HU.lineFrom === 'function' && typeof HU.isPlural === 'function', 'CONTROL: seams unpublished');
+    const g = (name, skill) => ({ kind: 'gear', name, skill: skill || 'crafting' });
+    const shared = HU.lineFrom([g('Shortbow'), g('Apprentice Gloves'), g('Copper Studs')], null);
+    assert(shared === 'You have enough to craft a Shortbow, Apprentice Gloves and Copper Studs.', 'shared-verb line reads: ' + shared);
+    const mixed = HU.lineFrom([{ kind: 'property', name: 'Hearthside Homestead' }, g('Iron Greaves', 'smithing'), g('Leather Boots')], null);
+    assert(mixed === 'You have enough to build your Hearthside Homestead, forge Iron Greaves and craft Leather Boots.', 'mixed line reads: ' + mixed);
+    assert(!/\b(a|an) [A-Z][\w ]*(Gloves|Studs|Boots|Greaves)\b/.test(shared + mixed), 'an article sits before a plural: ' + shared + ' | ' + mixed);
+    ['Apprentice Gloves', 'Copper Studs', 'Abyssal Greaves', 'Bronze Platelegs', 'Gold Earrings'].forEach((n) =>
+      assert(HU.isPlural(n), n + ' was read as singular'));
+    ['Shortbow', 'Iron Helm', 'Ring of Thorns', 'Cutlass', 'Aegis'].forEach((n) =>
+      assert(!HU.isPlural(n), n + ' was read as plural'));
+    // every authored item that ends in a lone -s reads without an article
+    Object.keys(window.ITEMS || {}).forEach((id) => {
+      const n = window.ITEMS[id] && window.ITEMS[id].n;
+      if (typeof n !== 'string' || !/(Gloves|Studs|Boots|Greaves|Gauntlets|Platelegs|Earrings)$/.test(n)) return;
+      const l = HU.lineFrom([g(n)], null);
+      assert(l === 'You have enough to craft ' + n + '.', 'authored "' + n + '" reads: ' + l);
+    });
+  }),
+
   /* -- regression suite -- W0 HAUL-3: BOTH PATHS. Attended (no receipt) → Home's
      standing row with a Go build door; away → the welcome-back modal carries the
      same sentence the Home card does. Mutation: drop the modal's HaulUnlocks row ⇒ red. */

@@ -592,8 +592,15 @@
       if (ae.enabled === true && ae.hadFood === true) return fillLine('night.morningOutmatched', {});
     }
     var predicted = Math.max(0, Number(r.spanMs) || 0);
+    /* AN ALL-NIGHT FORECAST IS NOT "ABOUT 8h". spanMs is clamped to HORIZON_MS
+       when nothing runs out before it, so the forecast the player read was "runs
+       all night" — and a 12h return graded against the 8h clamp said "You set
+       about 8h … the night ran long", a miss the forecast never made.
+       A night that ran its horizon or past it HELD; only a short one is a miss. */
+    var allNight = r.allNight === true && predicted > 0;
     var verdict;
     if (predicted <= 0) verdict = 'the night paid anyway.';
+    else if (allNight) verdict = (paid / predicted) >= 0.85 ? 'the forecast held.' : 'the night ran short.';
     else {
       var ratio = paid / predicted;
       if (ratio >= 0.85 && ratio <= 1.15) verdict = 'the forecast held.';
@@ -606,7 +613,8 @@
       var o = { itemLabel: itemName, skillLabel: skillName, foeLabel: monsterName, spanLabel: fmtSpan };
       if (AC) clause = AC.receiptStopClause(s, o) || AC.receiptRecoveryClause(s, o) || null;
     } catch (e) {}
-    return 'You set about ' + fmtSpan(predicted) + '; the night paid ' + fmtSpan(paid)
+    return (allNight ? 'You set it to run all night' : 'You set about ' + fmtSpan(predicted))
+      + '; the night paid ' + fmtSpan(paid)
       + ' — ' + verdict + (clause ? (' ' + clause + '.') : '');
   }
 

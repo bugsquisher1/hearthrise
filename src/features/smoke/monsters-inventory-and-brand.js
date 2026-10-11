@@ -8304,8 +8304,7 @@ export default [
   /* TOAST-SHEET-1 (visual passes 5, 9, 10): a toast over an open sheet covered its
      Done, then the Codex title. Toasts are held while a sheet is open, the newest 5
      kept, and replay PACED when it closes: one at a time, oldest first (pass 10: a
-     burst stacked 201px over Home's CTAs). At 922x423 the column rests clear. Only
-     burst toasts count: a live page toast may land while C.open() runs. */
+     burst stacked 201px over Home's CTAs). At 922x423 the column rests clear of them. */
   () => tryRunAsync('TOAST-SHEET-1: held toasts replay one at a time, in order, clear of Home\'s CTAs', async () => {
     const T = window.HearthriseToasts, C = window.HearthriseCodex;
     if (!T || !C) { skip('the toast queue or the Codex is absent'); return; }
@@ -8320,7 +8319,7 @@ export default [
       await C.open();
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
-      const drawn = [...notifs.children].filter((e) => /^burst /.test(e.textContent)).length;
+      const drawn = [...notifs.children].filter((e) => /^burst /.test(e.textContent)).length;   // a live page toast may land during C.open()
       assert(drawn === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawn + ' drawn');
       C.close();
       await frames();

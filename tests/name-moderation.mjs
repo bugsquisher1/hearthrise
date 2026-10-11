@@ -23,7 +23,8 @@
 //   M1  moderator rename: placeholder on the board, ledger row, stamped copies,
 //       envelope must_rename; the held name cannot come back; a new claim clears
 // MUTANTS (--mutate; each must turn a §13 gate or an arm red)
-//   no_fold, no_clans_trigger, mod_granted, no_ledger_row, exact_as_substring
+//   no_fold, no_clans_trigger, mod_granted, no_ledger_row, service_role_kept,
+//   no_clan_charset, no_token_match, exact_as_substring
 // --mutate replays only UP TO this file (tests/schema-replay.mjs replayScopeError).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
@@ -50,13 +51,22 @@ grant execute on function public.hr_mod_force_rename(uuid, text) to authenticate
     pairs: [[`  insert into public.player_ledger (user_id, slot, kind, intent, meta)
   values (p_user, 0, 'moderation_rename', 'moderation_rename',`, `  perform (p_user, 0, 'moderation_rename', 'moderation_rename',`],
       [`  returning id into v_ledger;\n`, `;\n`]] },
+  service_role_kept: { why: 'hr_name_blocked keeps the production default service_role EXECUTE (Security #1)',
+    pairs: [['revoke execute on function public.hr_name_blocked(text) from anon, authenticated, service_role;',
+      'revoke execute on function public.hr_name_blocked(text) from anon, authenticated;']] },
+  no_clan_charset: { why: 'the trigger has no charset rule: script-g / RTL / zero-width clan names land (Security #2)',
+    pairs: [[`     or new.name !~ '^[A-Za-z0-9][A-Za-z0-9 _''’.-]*[A-Za-z0-9]$'\n     or new.name ~ '  ' then`,
+      '     or false then']] },
+  no_token_match: { why: 'slur exact stems are matched on the whole name only: stem+Lover passes (Security #3)',
+    pairs: [["            where w.kind = 'slur' and w.match = 'exact' and v ~", "            where false and v ~"]] },
   exact_as_substring: { why: "'cock' is matched as a substring (Peacock / Cockburn / Hancock refused)",
     pairs: [[`('cock','obscene','exact')`, `('cock','obscene','substring')`]] },
 };
 
 // The fixtures a CLIENT can type into the name field (charset: A-Z a-z 0-9 space _ ' ’ . -).
 const BLOCKED = ['nigger', 'NIGGER', 'n1gg3r', 'n i g g e r', 'n.i.g.g.e.r', 'niiiggggerrr', 'xXniggerXx',
-  'ni99er', 'f a g g o t', 'F4GG0T', 'FuCk Face', 'kike', 'CUNTS', 'Sh1thead', 'Dlck'];
+  'ni99er', 'f a g g o t', 'F4GG0T', 'FuCk Face', 'kike', 'CUNTS', 'Sh1thead', 'Dlck',
+  'KikeLover', 'kike_lord', 'niqqer'];
 const CLEAN = ['Raccoon', 'Dickens', 'Spicer', 'Peacock', 'Scunthorpe', 'Cockburn', 'Essex', 'Shitake',
   'Hancock', 'Finnigan', 'Therapist', 'Analyst', 'Matsushita'];
 

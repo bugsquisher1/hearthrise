@@ -48,6 +48,10 @@
 --       must_rename / name_state. The claim takes the per-player name lock.
 --   §7  BEFORE INSERT/UPDATE triggers on display_names and clans: a blocked
 --       name raises 23514 `name_blocked` whatever path wrote it.
+--   §7b The trigger also enforces the display-name ASCII charset (one space
+--       between words) on clans: outside it the fold cannot see, an RTL
+--       override reverses the rendering and zero-width characters duplicate
+--       names (Security #2). clan_create answers `name_charset` first.
 --   §8  clan_create refuses `name_blocked` (journalled); the `clans creatable`
 --       INSERT policy is DROPPED and INSERT revoked from anon/authenticated —
 --       the client founds a hold only through clan_create (src/features/
@@ -65,6 +69,11 @@
 --       'moderation_rename', meta {old_canon_hash, reason}) and refreshes the
 --       leaderboard. Run by the Coordinator via tools/moderate-name.mjs.
 --   §12 hr_state_of projects `must_rename` (top level, boolean).
+--   §12b service_role EXECUTE revoked from hr_world_finds_prune, hr_beta_gate_reason
+--       and hr_signup_gate (production default-ACL residue the fixed replay surfaced).
+--   SECURITY GO-WITH-CHANGES (2026-10-11) landed: #1 service_role revokes + replay
+--       scaffold models the function default ACL; #2 ASCII charset for clans
+--       (trigger + clan_create); #3 slur stems per word and q read as g.
 --   §13 SELF-CHECK (CLAUDE.md §4), BY EXECUTION.
 --
 -- ── WHY THE READS DO NOT CHANGE ─────────────────────────────────────────────
@@ -88,7 +97,9 @@
 --   `nigger` while a DOUBLE letter in the stem still demands two — which is
 --   exactly what keeps Finnigan (one g) and Niger off the n-word list without
 --   letting the doubled spelling through. `exact` = the whole fold, with an
---   optional plural (`s`, `es`); `substring` = anywhere.
+--   optional plural (`s`, `es`); `substring` = anywhere. Slur stems are also
+--   read with q as g, and slur EXACT stems are matched per WORD too (split at
+--   camelCase, separators and digits): stem+"Lover", stem_lord, stem88.
 -- Every stem with an innocent English superstring is EXACT: cock (Peacock,
 --   Cockburn, Hancock), dick (Dickens), cunt (Scunthorpe), shit (Shitake,
 --   Shiitake), coon (Raccoon, Cocoon), spic (Spicer), sex (Essex, Sussex),
@@ -279,7 +290,7 @@ returns text language sql immutable parallel safe set search_path = pg_catalog a
            '([a-z])\1\1+', '\1\1', 'g')
 $$;
 revoke execute on function public.hr_name_fold(text) from public;
-revoke execute on function public.hr_name_fold(text) from anon, authenticated;
+revoke execute on function public.hr_name_fold(text) from anon, authenticated, service_role;
 comment on function public.hr_name_fold(text) is
   'Content-match key for names: NFKD, homoglyph→Latin, lower, strip marks, leet, a-z only, runs of 3+ '
   'collapse to 2 (2026-10-11-name-moderation.sql). NOT the uniqueness key (hr_canon_display_name).';
@@ -287,21 +298,46 @@ comment on function public.hr_name_fold(text) is
 create or replace function public.hr_name_blocked(p_text text)
 returns boolean language plpgsql stable security definer set search_path = public, pg_catalog as $$
 declare
-  v_a text := public.hr_name_fold(p_text);
-  v_b text := public.hr_name_fold(translate(coalesce(p_text, ''), '1', 'l'));   -- 1 read as l
-  v_c text := translate(v_a, 'l', 'i');                                         -- l read as I
+  v_raw   text := coalesce(p_text, '');
+  v_a     text := public.hr_name_fold(v_raw);
+  v_all   text[];
+  v_slur  text[];
+  v_camel text;
+  v_tok   text[];
 begin
-  if v_a = '' and v_b = '' then return false; end if;
+  -- The whole-name folds: as typed, `1` read as l, and `l` read as I.
+  v_all  := array[v_a, public.hr_name_fold(translate(v_raw, '1', 'l')), translate(v_a, 'l', 'i')];
+  -- Slur stems also read `q` as `g` (Security #3); obscene stems do not, so
+  -- the q-words stay out of the obscene list's reach.
+  v_slur := v_all || array(select translate(x, 'q', 'g') from unnest(v_all) x);
+  -- TOKENS (Security #3): a slur-kind EXACT stem is also matched per word, so
+  -- stem+"Lover" / stem_lord / stem88 are caught while a stem buried INSIDE a
+  -- word (Spicer, Montenegro) is not. Words split at camelCase, at separators,
+  -- and (second pass) at digits; each word gets the same fold variants.
+  v_camel := regexp_replace(v_raw, '([a-z])([A-Z])', '\1 \2', 'g');
+  select coalesce(array_agg(distinct v), '{}') into v_tok
+    from (select regexp_split_to_table(v_camel, '[^A-Za-z0-9@$!|+]+') t
+          union
+          select regexp_split_to_table(v_camel, '[^A-Za-z]+')) w
+    cross join lateral unnest(array[public.hr_name_fold(w.t),
+                                    public.hr_name_fold(translate(w.t, '1', 'l')),
+                                    translate(public.hr_name_fold(w.t), 'l', 'i')]) f0(f)
+    cross join lateral unnest(array[f0.f, translate(f0.f, 'q', 'g')]) v
+   where v <> '';
+  if v_a = '' and v_all[2] = '' then return false; end if;
   return exists (
            select 1 from public.hr_name_blocklist w
-            where (w.match = 'substring' and (v_a ~ w.pattern or v_b ~ w.pattern or v_c ~ w.pattern))
-               or (w.match = 'exact' and (v_a ~ ('^' || w.pattern || '(e?s+)?$')
-                                          or v_b ~ ('^' || w.pattern || '(e?s+)?$')
-                                          or v_c ~ ('^' || w.pattern || '(e?s+)?$'))))
-      or exists (select 1 from public.hr_name_holds h where h.fold in (v_a, v_b, v_c));
+             cross join lateral unnest(case when w.kind = 'slur' then v_slur else v_all end) v
+            where v <> ''
+              and ((w.match = 'substring' and v ~ w.pattern)
+                or (w.match = 'exact' and v ~ ('^' || w.pattern || '(e?s+)?$'))))
+      or exists (
+           select 1 from public.hr_name_blocklist w cross join unnest(v_tok) v
+            where w.kind = 'slur' and w.match = 'exact' and v ~ ('^' || w.pattern || '(e?s+)?$'))
+      or exists (select 1 from public.hr_name_holds h where h.fold = any (v_all));
 end $$;
 revoke execute on function public.hr_name_blocked(text) from public;
-revoke execute on function public.hr_name_blocked(text) from anon, authenticated;
+revoke execute on function public.hr_name_blocked(text) from anon, authenticated, service_role;
 comment on function public.hr_name_blocked(text) is
   'TRUE when a display/clan name hits hr_name_blocklist (exact or substring on hr_name_fold) or a '
   'held name. Never returns or logs which stem (2026-10-11-name-moderation.sql).';
@@ -348,7 +384,7 @@ begin
   return jsonb_build_object('ok', true, 'name', v_name, 'canonical', v_canon);
 end $$;
 revoke execute on function public.hr_validate_display_name(text) from public;
-revoke execute on function public.hr_validate_display_name(text) from anon, authenticated;
+revoke execute on function public.hr_validate_display_name(text) from anon, authenticated, service_role;
 
 -- ── 6. THE CLAIM AND THE AVAILABILITY PROBE ─────────────────────────────────
 -- Restated from 2026-08-08-unique-names.sql. Deltas (marked): the per-player
@@ -448,13 +484,22 @@ create or replace function public.hr_name_guard()
 returns trigger language plpgsql security definer set search_path = public, pg_catalog as $$
 begin
   -- display_names and clans both carry the player-visible text in `name`.
+  -- CHARSET FIRST (Security #2): the display-name ASCII rule, for clans too.
+  -- Outside it the fold cannot see (small caps, script g, Lisu, Armenian, RTL
+  -- overrides that reverse the rendering, zero-width characters that make two
+  -- identical-looking names distinct). One space between words, never two.
+  if new.name is null
+     or new.name !~ '^[A-Za-z0-9][A-Za-z0-9 _''’.-]*[A-Za-z0-9]$'
+     or new.name ~ '  ' then
+    raise exception 'name_charset' using errcode = '23514';
+  end if;
   if public.hr_name_blocked(new.name) then
     raise exception 'name_blocked' using errcode = '23514';   -- never the name
   end if;
   return new;
 end $$;
 revoke execute on function public.hr_name_guard() from public;
-revoke execute on function public.hr_name_guard() from anon, authenticated;
+revoke execute on function public.hr_name_guard() from anon, authenticated, service_role;
 
 drop trigger if exists hr_display_names_name_guard on public.display_names;
 create trigger hr_display_names_name_guard
@@ -471,7 +516,7 @@ create or replace function public.clan_create(p_name text, p_join_policy text de
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   v_uid    uuid := auth.uid();
-  v_name   text := btrim(coalesce(p_name, ''));
+  v_name   text := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
   v_policy text := lower(btrim(coalesce(p_join_policy, 'open')));
   v_mine   uuid;
   v_id     uuid;
@@ -482,6 +527,11 @@ begin
   end if;
   if length(v_name) < 3 or length(v_name) > 24 then
     return jsonb_build_object('ok', false, 'error', 'bad_name');
+  end if;
+  -- (2026-10-11) CHARSET: the display-name ASCII rule (Security #2).
+  if v_name !~ '^[A-Za-z0-9][A-Za-z0-9 _''’.-]*[A-Za-z0-9]$' then
+    return public.hr_note_rejection('clan_create', 0,
+      jsonb_build_object('ok', false, 'error', 'name_charset'));
   end if;
   -- (2026-10-11) CONTENT, journalled under name_blocked; the name is not echoed.
   if public.hr_name_blocked(v_name) then
@@ -599,7 +649,7 @@ begin
   return null;
 end $$;
 revoke execute on function public.hr_name_restamp() from public;
-revoke execute on function public.hr_name_restamp() from anon, authenticated;
+revoke execute on function public.hr_name_restamp() from anon, authenticated, service_role;
 
 drop trigger if exists hr_profiles_name_restamp on public.profiles;
 create trigger hr_profiles_name_restamp
@@ -707,6 +757,27 @@ revoke execute on function public.hr_state_of(uuid, int) from public;
 revoke execute on function public.hr_state_of(uuid, int) from anon, authenticated, service_role;
 grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
+-- ── 12b. THE SERVICE_ROLE RESIDUE THE FIXED REPLAY SURFACED (Security #1) ──
+-- Production's default ACL gives every function `postgres` creates in public
+-- EXECUTE for service_role. The replay scaffold did not model that until this
+-- lane (tests/schema-replay.mjs), so three guards asserted "service_role cannot
+-- execute" against a fiction. Measured on production 2026-10-11 (read-only):
+-- hr_world_finds_prune, hr_beta_gate_reason and hr_signup_gate all carry
+-- service_role=X. None is called through service_role: the prune runs from
+-- pg_cron as the owner, the gate reason is called inside hr_signup_gate
+-- (definer), and the signup hook runs as supabase_auth_admin, which keeps its
+-- grant. Revoked here so production matches the property the guards state.
+do $mig$
+declare f text;
+begin
+  foreach f in array array['public.hr_world_finds_prune(interval,int,int)',
+                           'public.hr_beta_gate_reason(text)', 'public.hr_signup_gate(jsonb)'] loop
+    if to_regprocedure(f) is not null then
+      execute format('revoke execute on function %s from service_role', to_regprocedure(f));
+    end if;
+  end loop;
+end $mig$;
+
 -- ── 13. SELF-VERIFYING COMMIT GATE (CLAUDE.md §4) — EXECUTED ────────────────
 do $$
 declare
@@ -728,14 +799,17 @@ declare
     U&'n\0131gger',                                     -- Latin dotless i
     'faggot', 'F4GG0T', 'f a g g o t', 'fuck', 'FuCk', 'f.u.c.k', 'phuckfuck', 'fuuuuck',
     'MotherFucker', 'kike', 'K1KE', 'cunt', 'CUNTS', 'c u n t', 'Shithead', 'sh1t',
-    'Sh!t', 'Dlck', 'Bltch', 'Cocks', 'Asses', 'wetback', 'raghead', 'Hitler88'];
+    'Sh!t', 'Dlck', 'Bltch', 'Cocks', 'Asses', 'wetback', 'raghead', 'Hitler88',
+    -- Security #3: slur stems per word, and q read as g
+    'KikeLover', 'kike_lord', 'Kike88', 'SpicLord', 'Coon Hunter', 'ChinkLover', 'niqqer', 'NiqqaLord'];
   -- Every one MUST pass (the Scunthorpe line, and the real names it protects).
   c_clean constant text[] := array[
     'Raccoon', 'Dickens', 'Spicer', 'Peacock', 'Scunthorpe', 'Cockburn', 'Essex', 'Shitake',
     'Shiitake', 'Cocoon', 'Assassin', 'Classic', 'Bassist', 'Hancock', 'Pakistan', 'Montenegro',
     'Finnigan', 'Niger', 'Therapist', 'Grape', 'Analyst', 'Swanky', 'Sextant', 'Sussex',
     'Penistone', 'Cumberland', 'Arsenal', 'Titanic', 'Torpedo', 'Ashkenazi', 'Santiago',
-    'Matsushita', 'Dagobert', 'Hitchcock', 'Glasgow', 'Bram Probe', 'Kaya', 'Iron Vale'];
+    'Matsushita', 'Dagobert', 'Hitchcock', 'Glasgow', 'Bram Probe', 'Kaya', 'Iron Vale',
+    'Queen', 'Iraq', 'Quick Fox', 'Coonhound', 'Spicer Lord', 'Raccoon Hunter', 'McCoy'];
 begin
   -- (a) FOLD + MATCH.
   foreach v_s in array c_blocked loop
@@ -770,9 +844,17 @@ begin
   foreach v_role in array array['anon', 'authenticated', 'service_role', 'hr_engine'] loop
     if exists (select 1 from pg_roles where rolname = v_role)
        and (has_function_privilege(v_role, 'public.hr_mod_force_rename(uuid,text)', 'execute')
-         or has_function_privilege(v_role, 'public.hr_name_blocked(text)', 'execute')) then
-      raise exception 'GATE(b): % can execute hr_mod_force_rename / hr_name_blocked', v_role; end if;
+         or has_function_privilege(v_role, 'public.hr_name_blocked(text)', 'execute')
+         or has_function_privilege(v_role, 'public.hr_name_fold(text)', 'execute')
+         or has_function_privilege(v_role, 'public.hr_validate_display_name(text)', 'execute')) then
+      raise exception 'GATE(b): % can execute hr_mod_force_rename / hr_name_blocked / hr_name_fold / '
+        'hr_validate_display_name', v_role; end if;
   end loop;
+  if exists (select 1 from unnest(array['public.hr_world_finds_prune(interval,int,int)',
+                 'public.hr_beta_gate_reason(text)', 'public.hr_signup_gate(jsonb)']) f
+              where to_regprocedure(f) is not null
+                and has_function_privilege('service_role', to_regprocedure(f), 'execute')) then
+    raise exception 'GATE(b): service_role still executes a §12b function'; end if;
   if exists (select 1 from pg_policies where schemaname = 'public'
               and tablename in ('hr_name_blocklist', 'hr_name_holds', 'clans')
               and cmd <> 'SELECT') then
@@ -799,6 +881,17 @@ begin
       raise exception 'GATE(c): a blocked display name was inserted';
     exception when check_violation then null;
     end;
+    -- (c2) THE CHARSET BACKSTOP (Security #2): script g, small caps, Lisu,
+    --      Armenian, Cyrillic, an RTL override, a zero-width space, a double space.
+    foreach v_s in array array[
+        U&'Ni\0261\0261er Hold', U&'\1D0B\026A\1D0B\1D07 Hold', U&'\A4E0\A4F2 Hold', U&'Iron \057D Hold',
+        U&'Iron \0433 Hold', U&'Iron \202Elove Hold', U&'Iron\200BVale', 'Iron  Vale'] loop
+      begin
+        insert into public.clans (name, created_by) values (v_s, v_uid);
+        raise exception 'GATE(c2): an out-of-charset clan name was inserted';
+      exception when check_violation then null;
+      end;
+    end loop;
 
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     -- (d) THE CLAIM REFUSES name_blocked, JOURNALS IT, NEVER ECHOES IT.
@@ -815,6 +908,10 @@ begin
     v := public.clan_create('B1tch Hold', 'open');
     if coalesce(v->>'error', '') <> 'name_blocked' or exists (select 1 from public.clans where created_by = v_uid) then
       raise exception 'GATE(d): clan_create answered % for a blocked name', v; end if;
+    delete from public.hr_rate_counters;
+    v := public.clan_create(U&'Iron\200BVale', 'open');
+    if coalesce(v->>'error', '') <> 'name_charset' or exists (select 1 from public.clans where created_by = v_uid) then
+      raise exception 'GATE(d): clan_create answered % for a zero-width name', v; end if;
 
     -- (e) A LEGAL NAME, A LISTING, AN OFFER, A CHAT LINE.
     delete from public.hr_rate_counters;

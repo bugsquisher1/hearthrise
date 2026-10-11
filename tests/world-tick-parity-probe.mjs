@@ -38,6 +38,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 import { runTick, planSeedLabels, SEED_LABEL_EXPR, CHANNELS }
   from '../supabase/functions/hr-accrue/tick.js';
 import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, PROBE_COMMIT_SQL }
@@ -146,17 +147,17 @@ async function guard(db, opts) {
     }
     if (kind === 'gather') {
       await db.exec(`
-        insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+        insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                          active_kind, active_id, active_since)
-        values ('${u}', 0, 0, 0, 10, 10, 1, '${T0}', 'gather', '${ACT}', '${T0}'::timestamptz - interval '1 hour')
+        values ('${u}', 0, 0, 10, 10, 1, '${T0}', 'gather', '${ACT}', '${T0}'::timestamptz - interval '1 hour')
         on conflict (user_id, slot) do update set version = 1, gold = 0, accrued_to = '${T0}',
           active_kind = 'gather', active_id = '${ACT}', active_since = '${T0}'::timestamptz - interval '1 hour';`);
     } else {
       await db.exec(`
-        insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+        insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
           active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
           consec_falls, tool_carry, recovering_until)
-        values ('${u}', 0, 100, 0, 61, 61, 7, '${T0}', 'combat', 'goblin',
+        values ('${u}', 0, 100, 61, 61, 7, '${T0}', 'combat', 'goblin',
           '${T0}'::timestamptz - interval '1 hour', true, 'cooked_trout', 70, 0, '{}'::jsonb,
           '${T0}'::timestamptz - interval '2 hours')
         on conflict (user_id, slot) do update set version = 7, hp = 61, max_hp = 61, gold = 100,
@@ -499,7 +500,11 @@ const DISARM = [
 ];
 
 async function boot(patches) {
-  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]), upTo: LAST_PATCHED } : {});
+  /* The plain run stops at PRE_WALLET: PP-0 re-applies MIG, whose own §4 fixture
+     inserts player_state.gems, which 2026-10-19-account-wallet.sql (the next
+     file) drops. The wallet touches none of the probe bodies these arms judge. */
+  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]), upTo: LAST_PATCHED }
+                                                    : { upTo: PRE_WALLET });
   if (failures.length) throw Object.assign(new Error(JSON.stringify(failures).slice(0, 400)), { harness: true });
   return db;
 }

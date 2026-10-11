@@ -61,8 +61,8 @@ async function main() {
   await db.exec(`
     insert into auth.users (id) values ('000005ec-0000-0000-0000-0000000005ec')
       on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, version)
-      values ('000005ec-0000-0000-0000-0000000005ec', 0, 0, 0, 0)
+    insert into public.player_state (user_id, slot, gold, version)
+      values ('000005ec-0000-0000-0000-0000000005ec', 0, 0, 0)
       on conflict (user_id, slot) do nothing;
     insert into public.hearthfind_ordinal as o (item_id, found_total, updated_at)
       values ('sec_live_trophy', 1, now())

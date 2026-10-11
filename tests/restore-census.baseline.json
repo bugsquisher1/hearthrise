@@ -483,6 +483,8 @@
   ]
  },
  "player_value_tables": [
+  "account_gem_grants",
+  "account_wallet",
   "active_bounty",
   "clan_ledger",
   "clan_members",
@@ -556,6 +558,16 @@
   "party_hunt_tally": "Display aggregate of player_ledger rows (per-hunt xp/gold/kills per member). It carries a user_id but no value of its own: the ledger, which is restore_only, is the record and every number here is a sum of its rows. Losing every row costs the Hunt card its running totals for in-flight hunts, never a coin, item, XP point or rank; the §2 backfill of 2026-10-15-party-hunt-view.sql regenerates it from a restored ledger."
  },
  "tables": {
+  "account_gem_grants": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (a budget of grants). The once-per-ACCOUNT key of every gem credit (rank:<id>, milestone:<id>, start_kit, raid:<week>, goal:<id>:<period>, apply:<intent>), 2026-10-19-account-wallet.sql. Losing it RE-MINTS: every permanent gem reward the account already took becomes claimable again on another hero. Periodic keys expire and are pruned by the account's next credit; permanent keys are kept for life."
+  },
+  "account_wallet": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE. The account's gems and Hearth Tokens: ONE balance per account since 2026-10-19-account-wallet.sql (they were player_state.gems / hearth_tokens, one per hero). Losing it zeroes every player's premium currency; the kind='wallet' rows of player_ledger re-derive a balance only inside the ledger's retention window, so a backup is the only full answer."
+  },
   "active_bounty": {
    "class": "restore_only",
    "wiped_at_cutover": false,

@@ -88,9 +88,9 @@ async function arms(db, { log = true } = {}) {
   const makeChar = async (u, kind, act, accruedSql, shadowSql = 'null') => {
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u}', 0, 0, 0, 10, 10, 1, ${accruedSql}, '${kind}', '${act}', '2000-01-01 00:00:00+00')
+      values ('${u}', 0, 0, 10, 10, 1, ${accruedSql}, '${kind}', '${act}', '2000-01-01 00:00:00+00')
       on conflict (user_id, slot) do update
         set version = 1, gold = 0, accrued_to = ${accruedSql}, active_kind = '${kind}', active_id = '${act}',
             active_since = '2000-01-01 00:00:00+00';`);

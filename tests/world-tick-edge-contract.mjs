@@ -364,9 +364,9 @@ try {
     const u = U(1);
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u}', 0, 0, 0, 10, 10, 1, now() - interval '10 minutes',
+      values ('${u}', 0, 0, 10, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
       on conflict (user_id, slot) do update set version = 1, gold = 0,
         accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
@@ -404,9 +404,9 @@ try {
       "select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).rows[0].h;
     await db.exec(`insert into auth.users (id) values ('${u2}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u2}', 0, 0, 0, 10, 10, 1, now() - interval '10 minutes',
+      values ('${u2}', 0, 0, 10, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
       on conflict (user_id, slot) do update set version = 1, gold = 0,
         accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
@@ -603,11 +603,11 @@ try {
         await db.exec(`delete from public.${t} where user_id = '${u}';`);
       }
       await db.exec(`
-        insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+        insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
           active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
           consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
           fight, buffs, enchant)
-        values ('${u}', 0, 1234, 0, 99, 99, 7, now() - interval '10 minutes',
+        values ('${u}', 0, 1234, 99, 99, 7, now() - interval '10 minutes',
           'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
           true, 'cooked_trout', 70,
           0, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
@@ -689,9 +689,9 @@ try {
     const ug = U(11);
     await db.exec(`insert into auth.users (id) values ('${ug}') on conflict do nothing;`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${ug}', 0, 0, 0, 10, 10, 1, now() - interval '10 minutes',
+      values ('${ug}', 0, 0, 10, 10, 1, now() - interval '10 minutes',
               'gather', '${ACT}', now() - interval '2 hours')
       on conflict (user_id, slot) do update set version = 1, gold = 0,
         accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);

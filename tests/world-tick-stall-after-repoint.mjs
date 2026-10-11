@@ -139,18 +139,18 @@ const fire = async (u) => (await runTick({
 async function seed(u, kind) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   if (kind === 'gather') {
-    await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
                      accrued_to, active_kind, active_id, active_since)
-                   values ('${u}', 0, 0, 0, 10, 10, 1, now() - interval '95 seconds',
+                   values ('${u}', 0, 0, 10, 10, 1, now() - interval '95 seconds',
                      'gather', 'normal_tree', now() - interval '2 hours')`);
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                    values ('${u}', 0, 'woodcutting', 302288)`);
   } else {
-    await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
                      accrued_to, active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food,
                      auto_eat_pct, consec_falls, combat_style, tool_carry, combat_xp_accrued_to,
                      recovering_until, fight, buffs, enchant)
-                   values ('${u}', 0, 1234, 0, 99, 99, 7, now() - interval '95 seconds',
+                   values ('${u}', 0, 1234, 99, 99, 7, now() - interval '95 seconds',
                      'combat', 'goblin', now() - interval '2 hours', true, 'cooked_trout', 70, 0,
                      '{"sword":"aggressive"}'::jsonb, '{}'::jsonb, now() - interval '3 hours',
                      now() - interval '3 hours', '{"id":"goblin","hp":11}'::jsonb, '[]'::jsonb,

@@ -327,8 +327,8 @@ async function seed(db, uid, name, quiet) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.profiles (id, display_name) values ('${uid}', '${name}')
                  on conflict (id) do update set display_name = excluded.display_name;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, presence_quiet)
-                 values ('${uid}', 0, 0, 0, ${quiet})
+  await db.exec(`insert into public.player_state (user_id, slot, gold, presence_quiet)
+                 values ('${uid}', 0, 0, ${quiet})
                  on conflict (user_id, slot) do update set presence_quiet = ${quiet};`);
 }
 

@@ -1928,7 +1928,7 @@ export default [
       let r = row();
       assert(!r.hasPicker, 'auto-eat picker must not render when the trait is not owned');
       assert(/^Eat /.test(r.btn) && !r.disabled, 'a manual Eat button must be offered, got: ' + r.btn);
-      assert(/Store unlock/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
+      assert(/unlocked in the Bounty Shop/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
 
       // Trait owned → picker appears and the note explains the threshold.
       G.traits = { auto_eat: true, auto_eat_2: true };

@@ -1735,7 +1735,7 @@ export default [
       assert(PB.atLimit('allXP') === true, 'and the game must be able to SAY it is at the limit');
       // …and it really does say it, on the activity the player is watching.
       window.G.activeSkill = 'woodcutting'; window.G.skillTargetId = 'normal_tree';
-      assert(/at its limit/.test(window.HearthriseBlessingLimitNote()),
+      assert(/at their limit/.test(window.HearthriseBlessingLimitNote()),
         'a clamp the player cannot see reads as a bug — the note must appear');
 
       // Every governed key, under the same conjunction.

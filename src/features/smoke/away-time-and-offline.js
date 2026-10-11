@@ -1451,7 +1451,7 @@ export default [
     const cases = [
       ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
       ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
-      ['requires_previous_slot', /Unlock the slot before it/i, {}],
+      ['requires_previous_slot', /Unlock the previous slot first/i, {}],
     ];
     try {
       window.clientMayWriteRecordField = () => false;
@@ -5073,7 +5073,7 @@ export default [
         window.renderCombat();
         const note = document.querySelector('#panel-combat .cbt-food-note');
         if (note) {
-          assert(/falls below 75%/.test(note.textContent),
+          assert(/is below 75%/.test(note.textContent),
             'the combat note must quote the engine threshold (75%), got: ' + note.textContent);
           assert(/one per swing|each swing/i.test(note.textContent),
             'the description must state the one-Provision-per-swing rule Xarn expected to be heal-to-threshold');

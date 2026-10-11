@@ -217,7 +217,10 @@ begin
     end if;
     select coalesce(jsonb_object_agg(item_id, qty), '{}'::jsonb) into v_inv0
       from public.player_inventory where user_id = v_uid and slot = v_slot;
-    if v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8}'::jsonb then
+    -- COMBINED W0 SHAPE (lane w0e): the only other accepted bag adds the three
+    -- free tier-1 ammo stacks (see §0 (i)).
+    if v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8}'::jsonb
+       and v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8, "air_rune": 50, "bronze_arrows": 50, "coarse_whetstone": 10}'::jsonb then
       raise exception 'VERIFY(c): a new character''s bag is %, not the W0 kit', v_inv0;
     end if;
 

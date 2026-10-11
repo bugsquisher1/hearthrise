@@ -4441,7 +4441,7 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b326-6 (perf): the dashboard and the quest strip do no work inside the away-replay latch', () => {
+  () => tryRun('b326-6 (perf): the dashboard and the pointer bar do no work inside the away-replay latch', () => {
     const P = window.HearthrisePresence;
     const prevTab = window.activeTab;
     try {
@@ -4462,20 +4462,16 @@ export default [
           'renderProfile must repaint normally once the latch opens — the skip must be lossless');
         if (sub.textContent !== before) { /* recomputed from live state; fine */ }
       }
-      assert(typeof window.renderQuestStrip === 'function',
-        'the quest strip must be published so processOffline can repaint it exactly once');
-      const strip = document.getElementById('global-quests-strip');
-      if (strip) {
-        const list = strip.querySelector('.gq-list');
-        if (list) {
-          list.innerHTML = '<i id="__strip_probe__"></i>';
-          P._withOfflineReplay(() => { window.renderQuestStrip(); });
-          assert(document.getElementById('__strip_probe__'),
-            'the quest strip must not repaint inside the away-replay latch');
-          window.renderQuestStrip();
-          assert(!document.getElementById('__strip_probe__'),
-            'the quest strip must repaint once the latch opens');
-        }
+      const SP = window.HearthriseSpine;
+      assert(SP && typeof SP.render === 'function', 'the pointer bar must publish its render');
+      window.showTab('skills');
+      const bar = document.getElementById('hr-spine-bar');
+      if (bar) {
+        bar.innerHTML = '<i id="__bar_probe__"></i>';
+        P._withOfflineReplay(() => { SP.__forget(); SP.render(); });
+        assert(document.getElementById('__bar_probe__'), 'the pointer bar must not repaint inside the away-replay latch');
+        SP.render();
+        assert(!document.getElementById('__bar_probe__'), 'the pointer bar must repaint once the latch opens');
       }
     } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
   }),

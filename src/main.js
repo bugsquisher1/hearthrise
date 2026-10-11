@@ -467,9 +467,11 @@ import { setupComeBack } from './features/come-back.js?v=567';
    every move is an intent, and the paint comes from the envelope that follows. */
 import './net/bank-sync.js?v=567';
 import { setupBankPanel } from './render/bank-panel.js?v=567';
-/* THE ONE DAILY LIST (W0): the Quests sheet, strip and badge over the server's
-   tally; Your week below reads the same cache. */
+/* THE ONE DAILY LIST (W0): the Quests sheet, the daily chip and badge over the
+   server's tally; Your week below reads the same cache. */
 import './features/daily-quests.js?v=567';
+// The one pointer: the spine step on every tab and atop Home.
+import './features/spine-pointer.js?v=567';
 import './features/this-week.js?v=567';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the

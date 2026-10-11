@@ -29,6 +29,7 @@ import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=567';
 import marketNightAndPrices from './smoke/market-night-and-prices.js?v=567';
 import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=567';
 import spineReveal from './smoke/spine-reveal.js?v=567';
+import spinePointer from './smoke/spine-pointer.js?v=567';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,
@@ -36,7 +37,7 @@ const TESTS = [].concat(
   farmAndProfile, musterNavAndIdentity, clanSeatAndFrontDoor,
   cookingCoreAndSave, bountyAndArtisan, questsChronicleAndBonus,
   awayTimeAndOffline, recordSeamAndHydration, marketNightAndPrices,
-  monstersInventoryAndBrand, spineReveal,
+  monstersInventoryAndBrand, spineReveal, spinePointer,
 );
 
 

@@ -3355,40 +3355,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 /* Hide redundant placeholder cards on Profile */
 #dash-active, #dash-objectives, #dash-skills, #dash-homestead { display: none !important; }
 
-/* Global Quests strip — slim header, clickable to open modal */
-.global-quests-strip{
-  background:linear-gradient(180deg, rgba(243,209,129,.06), rgba(15,19,32,0));
-  border-bottom:1px solid var(--line);
-  padding:6px 14px;
-  display:flex;align-items:center;gap:14px;font-size:calc(14.5px * var(--ui-scale, 1));
-  cursor:pointer;
-  transition:background .15s;
-}
-.global-quests-strip:hover{background:linear-gradient(180deg, rgba(243,209,129,.14), rgba(15,19,32,0))}
-.global-quests-strip .gq-label{
-  font-family:var(--f-display);font-weight:800;color:var(--gold-2);
-  text-transform:uppercase;letter-spacing:.08em;font-size:calc(14.5px * var(--ui-scale, 1));flex-shrink:0;
-}
-.global-quests-strip .gq-list{display:flex;gap:10px;flex:1;flex-wrap:wrap;align-items:center;min-width:0}
-.global-quests-strip .gq-quest{
-  display:flex;align-items:center;gap:6px;
-  background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:14px;
-  padding:3px 10px 3px 6px;font-size:calc(14.5px * var(--ui-scale, 1));white-space:nowrap;
-}
-.global-quests-strip .gq-quest.done{
-  background:rgba(127,154,79,.10);border-color:rgba(127,154,79,.4);color:#7f9a4f;
-}
-.global-quests-strip .gq-quest .gq-icon{font-size:calc(17px * var(--ui-scale, 1));line-height:1}
-.global-quests-strip .gq-quest .gq-name{color:var(--ink)}
-.global-quests-strip .gq-quest.done .gq-name{color:#7f9a4f;text-decoration:line-through;opacity:.8}
-.global-quests-strip .gq-quest .gq-prog{color:var(--ink-3);font-family:monospace;font-size:calc(14.5px * var(--ui-scale, 1))}
-/* R1 — CONFIRMING: predicted hit the goal, the server hasn't confirmed yet.
-   Calm, not celebratory — a full bar held while it settles, never a decrement. */
-.global-quests-strip .gq-quest.confirming{background:rgba(243,209,129,.06);border-color:rgba(243,209,129,.28)}
-.global-quests-strip .gq-quest.confirming .gq-prog{color:var(--gold-2);font-style:italic}
-.global-quests-strip .gq-meta{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));flex-shrink:0;font-style:italic}
-.global-quests-strip .gq-open-hint{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic;margin-left:auto}
-
 /* ── Quests modal ── */
 .qm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:qm-fade .15s ease-out}
 @keyframes qm-fade{from{opacity:0}to{opacity:1}}
@@ -3486,7 +3452,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .qm-reset{margin-top:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-family:monospace;text-align:center;padding-top:10px;border-top:1px dashed var(--line)}
 
 @media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
-  .global-quests-strip{flex-wrap:wrap;gap:6px}
   .qm-body{grid-template-columns:1fr}
   .qm-aside{border-left:none;border-top:1px solid var(--line)}
 }

@@ -148,20 +148,9 @@
          used to carry it. The `skills` step above is deliberately UNCHANGED —
          "even when you're offline, progress continues" is true for skills, and
          it is the promise the game keeps. */
-      /* b432: the tour used to end by handing the player back a full dashboard
-         with no single next action, which is the exact moment the audit heard
-         "…so what do I do now?". The game already answers it — the "Next up"
-         list on Home routes every goal to the screen it is played on — and the
-         tour was the one surface that never pointed at it.
-
-         2026-09-07: the closing line carried the SAME dead rule as the combat
-         step ("a fight pays, but only until you fall"), and it now points at
-         "Your first day" — the pinned chain card that sits above "Next up" for
-         exactly as long as a first-day quest is open, which is precisely the
-         audience this sentence is written for. It names both, in that order,
-         so a returning player whose chain is finished still reads a true
-         sentence about the surface they DO have. */
-      body: 'Start on the Home screen: "Your first day" lists the steps in front of you, and "Next up" is there when they are done — every row takes you straight to where it is played. Set a skill or a fight running before you close the tab and it banks the whole time you are gone; a fight that falls picks itself back up and carries on. Good luck out there.',
+      /* The tour ends on the ONE next action: the pointer bar (and Home's top
+         card) names the step you are on and its button takes you there. */
+      body: 'Your next step is always in the bar at the top of the screen, and on top of Home. Its button takes you straight to where it is played. Set a skill or a fight running before you close the tab and it banks the whole time you are gone; a fight that falls picks itself back up and carries on. Good luck out there.',
       primary: 'Start playing',
       onPrimary: function(){ endFTUE(true); },
     },

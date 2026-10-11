@@ -33,7 +33,6 @@ export const SIGNPOSTS = Object.freeze({
     'farm.seedsAboveLevel': { text: 'Your seeds need a higher Farming level. Supplies in Shops has seeds for every level.' },
     'war.locked': { text: 'You are combat level {have}; this opens at {need}.', vars: ['have', 'need'] },
     'bounty.notPosted': { text: 'Contract tier follows your combat level. {types} contracts are not on the board.', vars: ['types'] },
-    'home.dailyDone': { text: 'All daily quests done. A new set arrives at midnight UTC.' },
     'chronicle.recentEmpty': { text: 'Nothing yet this session. Your recent toasts are kept here until you reload.' },
     'chronicle.milestonesNone': { text: 'No milestones yet. Rank-ups, first boss kills and new homes are kept here.' },
     'standing.chase': { text: 'You stand {rank} on the {board} board, {gap} behind {rival}.', vars: ['rank', 'board', 'gap', 'rival'] },

@@ -5,7 +5,7 @@
 // from DAILY_TASK_POOL, paid by hr_claim_daily) and an older daily/weekly
 // goals board drawn and counted in the browser. The board is cut
 // (supabase/migrations/2026-10-16-goal-board-retire.sql); this module is the
-// Quests sheet, the quest strip and the topbar badge for the one list left.
+// Quests sheet, the pointer bar's daily chip and the topbar badge for the one list left.
 //
 // EVERY NUMBER IS THE SERVER'S (CLAUDE.md §6). A row's count is today's
 // `ev:<type>` counter from hr_tally_state, the one hr_claim_daily grades; its
@@ -21,7 +21,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 var PEEK_MS = 120000;          // a tally older than this is unknown, not stale-true
-var AMBIENT_MS = 30000;        // the strip's gesture-less refresh, at most this often
+var AMBIENT_MS = 30000;        // the daily chip's gesture-less refresh, at most this often
 
 var _tally = null;
 var _tallyAt = 0;
@@ -214,49 +214,28 @@ function renderModal() {
   if (reset) reset.textContent = h ? 'New quests in ' + h + 'h (UTC midnight)' : '';
 }
 
-function ensureStrip() {
-  var strip = document.getElementById('global-quests-strip');
-  if (strip) return strip;
-  var main = document.querySelector('main.main') || document.querySelector('main');
-  if (!main) return null;
-  strip = document.createElement('div');
-  strip.id = 'global-quests-strip';
-  strip.className = 'global-quests-strip';
-  strip.innerHTML = '<span class="gq-label">' + glyph('uiQuests', 14, '--gold-2') + ' Quests</span>'
-    + '<div class="gq-list"></div><span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span>';
-  strip.addEventListener('click', openQuestsModal);
-  var topbar = main.querySelector('.topbar');
-  if (topbar && topbar.nextSibling) main.insertBefore(strip, topbar.nextSibling);
-  else main.insertBefore(strip, main.firstChild);
-  return strip;
+/* The pointer bar's "Daily 1/3" chip (src/features/spine-pointer.js): how many
+   of today's quests the server has counted or paid, and whether one waits to
+   be claimed. `known` is false until a tally has landed (the chip shows a dash). */
+function summary() {
+  var list = tasks();
+  if (!list.length) return null;
+  return {
+    total: list.length, known: peek() !== null,
+    done: list.filter(function (t) { return isPaid(t) || isComplete(t); }).length,
+    claim: list.some(isClaimable),
+  };
 }
 
+/* The gesture-less tally read the chip rides, at most every AMBIENT_MS. */
 var _ambientParked = false;
-function renderStrip() {
+function ambient(done) {
   var P = window.HearthrisePresence;
-  if (P && P.inOfflineReplay && P.inOfflineReplay()) return;
-  var strip = ensureStrip();
-  if (!strip) return;
-  if (!_ambientParked) refresh(function (fresh) { if (fresh) renderStrip(); }, AMBIENT_MS);
-  var list = strip.querySelector('.gq-list');
-  var rows = tasks();
-  if (list) {
-    list.innerHTML = rows.map(function (task) {
-      var n = serverCount(task);
-      var mark = isPaid(task) ? '✓ ' : (isClaimable(task) ? glyph('uiGift', 13, '--gold') + ' ' : '');
-      return '<span class="gq-quest' + (isPaid(task) || isComplete(task) ? ' done' : '') + '">'
-        + '<span class="gq-icon">' + glyph(glyphFor(task), 15) + '</span>'
-        + '<span class="gq-name">' + mark + esc(task.label) + '</span>'
-        + '<span class="gq-prog">' + (n === null ? pending() : n) + ' / ' + (Number(task.goal) || 0) + '</span></span>';
-    }).join('');
-  }
-  var meta = strip.querySelector('#gq-reset');
-  var h = hoursLeft();
-  if (meta) meta.textContent = h ? 'Resets in ' + h + 'h' : '';
+  if (_ambientParked || (P && P.inOfflineReplay && P.inOfflineReplay())) return;
+  refresh(done, AMBIENT_MS);
 }
 
 function render() {
-  renderStrip();
   renderModal();
 }
 
@@ -311,7 +290,7 @@ window.HearthriseTally = {
   peek: peek,
   refresh: refresh,
   /* Test seams: feed a tally in the server's shape (null forgets it), and park
-     the strip's gesture-less read for the suite's run. */
+     the chip's gesture-less read for the suite's run. */
   __feed: function (res) {
     if (res === null) { _tally = null; _tallyAt = 0; _triedAt = 0; return; }
     _tally = deepFreeze({
@@ -325,11 +304,11 @@ window.HearthriseTally = {
 };
 window.HearthriseDailyQuests = {
   tasks: tasks, serverCount: serverCount, isPaid: isPaid, isClaimable: isClaimable, claim: claim, render: render,
+  summary: summary, ambient: ambient,
 };
 window.openQuestsModal = openQuestsModal;
 window.closeQuestsModal = closeQuestsModal;
 window.questBadgeState = questBadgeState;
-window.renderQuestStrip = renderStrip;
 
 function boot(tries) {
   var E = window.HearthriseEvents;
@@ -338,12 +317,11 @@ function boot(tries) {
     return;
   }
   E.on('*', function () {
-    renderStrip();
     if (document.getElementById('quests-modal-overlay')) renderModal();
   });
 }
 if (typeof document !== 'undefined') {
-  setInterval(function () { renderStrip(); if (document.getElementById('quests-modal-overlay')) renderModal(); }, 2000);
+  setInterval(function () { if (document.getElementById('quests-modal-overlay')) renderModal(); }, 2000);
   boot(50);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeQuestsModal(); });
 }

@@ -4,7 +4,7 @@
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
-      "literals": 315,
+      "literals": 309,
       "important": 53
     },
     "audit-overrides.css": {
@@ -48,7 +48,7 @@
       "important": 0
     },
     "legacy.css": {
-      "literals": 823,
+      "literals": 815,
       "important": 163
     },
     "lucky-finds.css": {
@@ -67,13 +67,17 @@
       "literals": 0,
       "important": 0
     },
+    "spine-pointer.css": {
+      "literals": 0,
+      "important": 0
+    },
     "spoils.css": {
       "literals": 0,
       "important": 0
     },
     "theme-cozy.css": {
-      "literals": 171,
-      "important": 576
+      "literals": 161,
+      "important": 575
     },
     "tokens.css": {
       "literals": 0,
@@ -124,7 +128,7 @@
       "literals": 14
     },
     "src/features/home-dashboard.js": {
-      "literals": 13
+      "literals": 12
     },
     "src/features/homestead.js": {
       "literals": 1

@@ -8,6 +8,79 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=564';
 
+/* regression (b567, quest-xp): hundred_kills paid 1,500 combat XP through
+   window.addXp — client-authored XP into hr_credit_combat_xp. The server now
+   credits it (hr_claim_quest, 2026-10-10-quest-xp-absence-pay.sql); the client
+   fires the claim and never adds XP. ATTENDED: the completion tick. AWAY: a
+   save whose quest completed while away / whose claim dropped, recovered by
+   the sweep. Both must claim exactly once and move no G.skills. */
+const quest100 = (path) => async () => {
+  const G = window.G;
+  const ID = 'hundred_kills';
+  const snap = snapshotG();
+  const knownWas = G._eventCountersKnown;
+  const origClaim = window.HearthriseGoalClaim;
+  const origSettle = window.noteLiveSettleEvent;
+  const calls = []; const settles = [];
+  const receipt = { ok: true, credited: true, quest: ID, gold: 0, slot: 0, items: {}, skipped_items: {},
+    xp: { hitpoints: 1500 }, xp_total: 1500, skipped_xp: {} };
+  window.HearthriseGoalClaim = { isSignedIn: () => true,
+    claimQuest: (id) => { calls.push(id); return Promise.resolve(Object.assign({}, receipt, { quest: id })); } };
+  window.noteLiveSettleEvent = (why) => { settles.push(why); };
+  try {
+    const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
+    assert(def && def.goal === 100 && def.mirror === 'stats.evKillAny',
+      'the hundred-kill milestone must stay a mirrored QUEST_DEFS row at 100: ' + JSON.stringify(def));
+    assert(def.reward && def.reward.xp && def.reward.xp.hitpoints === 1500 && !('combatXp' in def.reward) && !def.reward.gold,
+      'the reward must be the server-catalogued {xp:{hitpoints:1500}}, got ' + JSON.stringify(def.reward));
+    assert(/^Defeat 100 monsters$/.test(def.label), 'the label must plainly describe the achievement: ' + def.label);
+    const gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    assert(gc && gc.questXpIsServerCredited(ID) === true,
+      'CONTROL: goal-catalogue.js must say the server credits hundred_kills XP, or no claim fires');
+
+    const SK = Object.keys(G.skills || {});
+    const skillsNow = () => SK.map((k) => k + ':' + xpOf(k)).join(',');
+    G._eventCountersKnown = true;
+    G.quests = [];
+    G.stats = Object.assign({}, G.stats, { evKillAny: 40 });
+    window.ensureRetentionState();
+    const q = () => G.quests.find((x) => x.id === ID);
+    assert(q() && q().progress === 40 && !q().done, 'the quest must reach the save and mirror 40/100: ' + JSON.stringify(q()));
+    const before = skillsNow();
+
+    if (path === 'ATTENDED') {
+      G.stats.evKillAny = 100;
+      window.updateQuest('kill_any', 1);
+      assert(q().done === true, 'the quest did not complete at the server\'s 100 kills');
+    } else {
+      /* Completed while away: the save already says done, the claim never landed. */
+      Object.assign(q(), { done: true, progress: 100 });
+      delete q().claimed;
+      G.stats.evKillAny = 180;
+      window.hrSweepUnclaimedQuests._at = 0;
+      assert(window.hrSweepUnclaimedQuests() >= 1, 'the recovery sweep did not pick up the unclaimed hundred_kills');
+    }
+    assert(calls.filter((c) => c === ID).length === 1, path + ': expected exactly one hr_claim_quest for ' + ID + ', got ' + JSON.stringify(calls));
+    assert(skillsNow() === before, path + ': the browser moved G.skills at completion — client-authored XP is back');
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    assert(q().claimed === true, path + ': the server\'s ok did not mark the quest claimed');
+    assert(skillsNow() === before, path + ': the receipt was ADDED to G.skills — it must only be named, the envelope carries the XP');
+    assert(settles.includes('quest-xp'), path + ': the receipt did not ask for the envelope that carries the XP: ' + JSON.stringify(settles));
+
+    /* ONCE. More kills fire nothing more. */
+    G.stats.evKillAny += 500;
+    window.updateQuest('kill_any', 1);
+    window.hrSweepUnclaimedQuests._at = 0;
+    window.hrSweepUnclaimedQuests();
+    assert(calls.filter((c) => c === ID).length === 1, path + ': the milestone claimed twice: ' + JSON.stringify(calls));
+  } finally {
+    window.HearthriseGoalClaim = origClaim; window.noteLiveSettleEvent = origSettle;
+    if (knownWas === undefined) delete G._eventCountersKnown; else G._eventCountersKnown = knownWas;
+    restoreG(snap);
+  }
+};
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -2890,78 +2963,8 @@ export default [
     }
   }),
 
-  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, pays authored combat XP once, and never pays twice across the b343 rename', () => {
-    const G = window.G;
-    const ID = 'hundred_kills';
-    const snap = snapshotG();
-    const origClaim = window.HearthriseGoalClaim;
-    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }) };
-    try {
-      const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
-      assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
-      assert(def.goal === 100, 'the goal must be 100 monsters, got ' + def.goal);
-      assert(def.mirror === 'stats.evKillAny',
-        'the quest must MIRROR stats.evKillAny (the projection of ev:kill_any), got ' + def.mirror);
-      assert(def.reward && def.reward.combatXp === 1500,
-        'the reward must be the authored 1,500 combat XP, got ' + JSON.stringify(def.reward));
-      assert(!def.reward.marks && !def.reward.gold, 'it pays XP, not marks and not gold');
-      /* IT IS A GOAL, NOT A PERMIT. Tyler's ruling was about the WORD as much
-         as the rule: 20 beta players meet this label cold at round-two wipe. */
-      assert(/^Defeat 100 monsters$/.test(def.label),
-        'the label must plainly describe the achievement: ' + def.label);
-      assert(!/licen[cs]e|permit/i.test(def.label + ' ' + (def.note || '')),
-        'the retired permit wording is back on the quest: ' + def.label + ' / ' + def.note);
-
-      /* (1) IT REACHES AN EXISTING SAVE. Seeding "only when the array is
-         empty" is why a quest added after launch used to reach nobody. */
-      G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true }];
-      G.stats = Object.assign({}, G.stats, { evKillAny: 40 });
-      window.ensureRetentionState();
-      const q = G.quests.find((x) => x.id === ID);
-      assert(q, 'the quest never reached a save that already had quests');
-      assert(G.quests.find((x) => x.id === 'gatherer').done === true, 'the merge clobbered a completed quest');
-
-      /* (2) IT MIRRORS. A save that already had 40 kills shows 40/100 the
-         moment the quest appears — an event counter would show 0. */
-      assert(q.progress === 40, 'the counter must mirror stats.evKillAny, got ' + q.progress);
-      G.stats.evKillAny = 77;
-      window.updateQuest('kill_any', 1);
-      assert(G.quests.find((x) => x.id === ID).progress === 77,
-        'the counter drifted from stats.evKillAny — it must READ, never count');
-      assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
-
-      /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
-      const origBonus = window.getBonus;
-      window.getBonus = () => 0;
-      try {
-        const style = window.getActiveCombatStyle();
-        const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
-        assert(route.length > 0, 'the style must route the reward somewhere');
-        const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
-        G.stats.evKillAny = 100;
-        window.updateQuest('kill_any', 1);
-        const done = G.quests.find((x) => x.id === ID);
-        assert(done.done === true, 'the quest did not complete at 100 kills');
-        route.forEach((r) => {
-          const gained = xpOf(r.skill) - before[r.skill];
-          /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
-             1,500 x 0.39. pacing-overhaul.md §4.5 lists quest payouts as
-             authored, explicitly not rates. */
-          assert(gained === Math.max(1, Math.floor(r.amount)),
-            'the ' + r.skill + ' share paid ' + gained + ', expected the authored '
-            + Math.max(1, Math.floor(r.amount)) + ' — PACE.xp must not scale a quest payout');
-        });
-        /* ONCE. Another 500 kills pays nothing more. */
-        const after = {}; route.forEach((r) => { after[r.skill] = xpOf(r.skill); });
-        G.stats.evKillAny += 500;
-        window.updateQuest('kill_any', 1);
-        route.forEach((r) => {
-          assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
-        });
-
-      } finally { window.getBonus = origBonus; }
-    } finally { window.HearthriseGoalClaim = origClaim; restoreG(snap); }
-  }),
+  () => tryRunAsync('QUEST-100 ATTENDED: hundred_kills claims the server-credited 1,500 Hitpoints XP at the completion tick and the browser adds none', quest100('ATTENDED')),
+  () => tryRunAsync('QUEST-100 AWAY: a hundred_kills completed while away is claimed by the sweep, once, and the browser adds no XP', quest100('AWAY')),
 
   /* ── AWAY-HONEST-5 — THE TOUR'S AWAY PROMISE, BOUND TO THE AWAY ENGINE ──────────────────────────
      One question since b340 — "does the tour promise what the engine pays?" — re-specified whenever

@@ -38,8 +38,9 @@
 // the id joins `consumedKeysOf` and the envelope's figure for it becomes
 // ABSOLUTE (src/net/accrue.js) — the server says 0 and the whole client-minted
 // stack goes. That is TODAY, pre-arm; the inventory arm generalises it to every
-// id. Combat-XP quest rewards (hundred_kills) are still client-applied — the XP
-// arming slice owns that one, and it is tracked, not forgotten.
+// id. QUEST XP is server-credited too (2026-10-10-quest-xp-absence-pay.sql):
+// a row's `xp` map is seeded into public.hr_quest_rewards.xp and hr_claim_quest
+// credits it into player_skills inside the same claim; the client never adds it.
 //
 // A row's `items` map is the ONLY authoring surface for a quest item reward.
 // tests/quest-reward-parity.mjs binds it to legacy.js QUEST_DEFS and to the SQL
@@ -58,10 +59,11 @@
    `checkKey` is the src/core/goals.js counter the server reads (a lifetime
    `stat` row, period_key=''); completion is `value >= goal`.
 
-   `hundred_kills` is ABSENT: its reward is combatXp only (no gold), so it never
-   defers under the gold arm and needs no server credit — the client pays its XP
-   exactly as before. It mirrors `stats.evKillAny`, the projection of
-   `ev:kill_any` (NOT the client-only `stats.kills`, which runs ahead). */
+   `xp` is the SERVER-CREDITED XP grant ({skill: amount}), bound to
+   hr_quest_rewards.xp and legacy.js QUEST_DEFS reward.xp by
+   tests/quest-reward-parity.mjs. Only `hundred_kills` pays XP: 1,500 HITPOINTS,
+   gold 0 — the house rule for server-granted XP on a span objective names a
+   constant skill (no style exists at claim time; see legacy.js kill_any). */
 export const QUEST_REWARDS = Object.freeze({
   gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150, items: Object.freeze({}) },
   /* ── FIRST-NIGHT IDLE RESCUE, RESTORED ON THE SERVER SIDE ────────────────
@@ -110,6 +112,9 @@ export const QUEST_REWARDS = Object.freeze({
   road_gather:  { checkKey: 'ev:gather',   goal: 500, gold: 1000, items: Object.freeze({}) },
   road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ bone_key: 1 }) },
   road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
+  /* "Defeat 100 monsters" — XP only, credited by hr_claim_quest. */
+  hundred_kills: { checkKey: 'ev:kill_any', goal: 100, gold: 0, items: Object.freeze({}),
+    xp: Object.freeze({ hitpoints: 1500 }) },
 });
 
 /* ── THE ONE NORMALISER FOR A QUEST'S ITEM REWARD ────────────────────────
@@ -148,6 +153,25 @@ export function questRewardItems(reward) {
 export function questItemsAreServerCredited(questId) {
   const row = QUEST_REWARDS[questId];
   return !!(row && row.items && Object.keys(row.items).length > 0);
+}
+
+/* The SERVER-CREDITED XP of a quest ({skill: amount}, positive integers only),
+   or {} — the same normalising rule as questRewardItems. */
+export function questRewardXp(reward) {
+  const out = {};
+  const xp = reward && typeof reward === 'object' ? reward.xp : null;
+  if (!xp || typeof xp !== 'object') return out;
+  for (const [sk, amt] of Object.entries(xp)) {
+    const n = Math.floor(Number(amt) || 0);
+    if (sk && n > 0) out[sk] = n;
+  }
+  return out;
+}
+
+/* True iff the SERVER credits this quest's XP (hr_claim_quest, hr_quest_rewards.xp).
+   The client uses it to fire the claim for an XP-only quest; it never adds the XP. */
+export function questXpIsServerCredited(questId) {
+  return Object.keys(questRewardXp(QUEST_REWARDS[questId])).length > 0;
 }
 
 /* DAILY TASKS — the FIXED-reward rows of legacy.js DAILY_TASK_POOL. `type` is

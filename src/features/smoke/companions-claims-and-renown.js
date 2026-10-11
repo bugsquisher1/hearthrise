@@ -1554,6 +1554,41 @@ export default [
     }
   }),
 
+  () => tryRunAsync('regression (absence pay): rally gold/gems are SERVER-credited on both claims — under the arm payChest writes no G.gold/G.gems and asks for the envelope (attended + absence)', async () => {
+    // The absence claim priced its half-honours gold/gems and credited nothing
+    // (2026-10-10-quest-xp-absence-pay.sql moves the credit into the RPC). Gold
+    // and gems are armed, so payChest's local write no-ops — before this, a
+    // chest with no XP never asked for the envelope that carries the server's
+    // gold, so the payout stayed invisible until some unrelated settle.
+    const M = window.HearthriseMuster;
+    if (!M || typeof M._payChest !== 'function' || typeof M._reduceAbsence !== 'function') {
+      throw new Error('HearthriseMuster test seams missing — the regression cannot run');
+    }
+    const origMay = window.clientMayWriteRecordField, origNote = window.noteLiveSettleEvent, origAdd = window.addItem;
+    const snap = snapshotG();
+    const notes = [];
+    try {
+      window.clientMayWriteRecordField = function () { return false; };   // gold/gems/inventory armed
+      window.noteLiveSettleEvent = function (k) { notes.push(k); };
+      window.addItem = function () {};
+      const g0 = window.G.gold, m0 = window.G.gems;
+      // ATTENDED: a chest that converted nothing to XP.
+      M._payChest({ eventId: 'forge_levy', gold: 1200, gems: 2, items: [], xp: [] });
+      // AWAY: the absence receipt now carries the CREDITED gold (the chest's share removed).
+      const away = M._reduceAbsence(200, { ok: true, band: 'absent', gold: 405, gems: 1, band_gold: 750,
+        credited: true, items: [], xp: [], xp_total: 0 });
+      assert(away.action === 'accept' && away.gold === 405 && away.gems === 1,
+        'the absence reducer must carry the credited gold/gems: ' + JSON.stringify(away));
+      M._payChest({ eventId: 'forge_levy', gold: away.gold, gems: away.gems, items: [], xp: [] });
+      assert(window.G.gold === g0 && window.G.gems === m0,
+        'payChest wrote G.gold/G.gems under the arm — a second, client copy of a server credit');
+      assert(notes.length === 2, 'each server-paid chest must ask for the envelope that carries the gold; got ' + JSON.stringify(notes));
+    } finally {
+      window.clientMayWriteRecordField = origMay; window.noteLiveSettleEvent = origNote; window.addItem = origAdd;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('server-credited (Tier-1 daily/quest): under arm a daily task + a gold quest PROCEED, fire the claim RPC with the id, and do not double-pay locally', () => {
     // b414: updateDaily + completeQuest gold is now server-credited
     // (hr_claim_daily / hr_claim_quest verify the ev:<type> counter and credit

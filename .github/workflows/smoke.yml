@@ -2548,6 +2548,17 @@ jobs:
           node tests/muster-chest-xp-credit.mjs
           node tests/muster-chest-xp-credit.mjs --selftest
 
+      # b567 (P1 class-kill + lost pay): hundred_kills' 1,500 XP was minted by the
+      # browser (hr_claim_quest wrote no XP) and the absence claim never credited
+      # its gold/gems. 2026-10-10-quest-xp-absence-pay.sql credits both inside the
+      # claim. Deltas must EQUAL the receipt; wrong user, double claim and budget
+      # refusals move nothing; every mutation has a gate-blind twin.
+      - name: Quest XP + absence gold/gems — server-credited, every mutation caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/quest-xp-absence-pay.mjs
+          node tests/quest-xp-absence-pay.mjs --selftest
+
       # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
       # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
       # level ONLY. The board's DIFFICULTY ladder is client-only: slot-3 'hard'

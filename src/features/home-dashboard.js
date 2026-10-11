@@ -1174,7 +1174,14 @@
       bits.push(gly('gold', 13, '', 'var(--gold-2)') + '<span>' + num(r.gold) + '</span>');
     }
     if (r.item) bits.push('<span>' + num(r.qty || 1) + '× ' + esc(itemName(r.item)) + '</span>');
-    if ((r.combatXp || 0) > 0) bits.push('<span>' + num(r.combatXp) + ' combat XP</span>');
+    /* XP is server-credited by hr_claim_quest; this only names it. */
+    if (r.xp && typeof r.xp === 'object') {
+      Object.keys(r.xp).forEach(function (sk) {
+        var n = Math.floor(Number(r.xp[sk]) || 0);
+        var def = window.SKILLS_DEF && window.SKILLS_DEF[sk];
+        if (n > 0) bits.push('<span>' + num(n) + ' ' + esc((def && def.name) || sk) + ' XP</span>');
+      });
+    }
     /* A separator, because two rewards on one row read as one number followed
        by a stray quantity ("200 30× Raw Shrimp"). Same middot the rest of Home
        uses between facts. */

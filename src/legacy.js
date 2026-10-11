@@ -4780,7 +4780,8 @@ function renderBountyPanel(){
               is correct on a save that already had the kills before the quest
               existed — which is the whole reason the licence uses one.
      goal     the target
-     reward   { gold?, item?, qty?, combatXp? } — an AUTHORED payout
+     reward   { gold?, item?, qty?, xp? } — an AUTHORED payout; every part is
+              credited by hr_claim_quest (xp = {skill: amount}, server-seeded)
      note     OPTIONAL louder completion line
 
    b217's ordering reasoning still stands and is unchanged: gather → cook (so
@@ -4843,27 +4844,21 @@ const QUEST_DEFS=[
      the client-only `stats.kills`, which ran up to 368 ahead of the server on
      live — a §6 "client shows X, server refuses" bar.
 
-     THE REWARD: 1,500 combat XP, routed through the player's active style
-     exactly the way a kill routes (src/core/styles.js killXpRoute), so a bow
-     user is paid Ranged and nobody needs a second routing table. It is an
-     AUTHORED payout — `pacing-overhaul.md` §4.5 lists "quest, daily, bounty
-     and chest payouts" as authored, explicitly NOT rates — so it is granted
-     with `{authored:true}` and PACE.xp does not scale it.
-
-     THE ARITHMETIC, so the number is derived rather than chosen:
-       • Measured against the real engine (4,000 seeds, fresh save, bronze
-         sword, Slime): 100 kills pay 1,459 style XP + 408 Hitpoints XP.
-       • 1,500 therefore pays the licence journey's own style XP back, once.
-         That is the "worth doing" test met on the axis it was earned on.
-       • It takes a fresh character's Attack from 1,459 XP (level 11) to
-         2,959 (level 17) — six levels, ~+7% accuracy. Loud, and not a power
-         spike: Accurate trains Attack only, so max hit does not move.
-       • Against the 57.2-day first-99 floor (`pacing-overhaul.md` A.2):
-         1,500 / 13,034,431 = 0.0115% of one skill's first 99. It cannot
-         distort the first hour because it is not a rate. */
+     THE REWARD: 1,500 HITPOINTS XP, credited by the SERVER (hr_claim_quest,
+     hr_quest_rewards.xp — 2026-10-10-quest-xp-absence-pay.sql). It used to be
+     1,500 combat XP the BROWSER minted through addXp, routed by the style held
+     at the completion tick: a client value deciding a ranked credit (§1). The
+     server cannot know that style — a hundred kills span any number of style
+     switches — so, by the house rule for server-granted XP on a span objective
+     (the kill_any/wk_kills ruling), it names a constant skill. Hitpoints is the
+     one every style trains, so a bow user is not paid melee XP. 1,500 is the
+     Designer's number, unchanged: once ever, 0.0115% of one skill's first 99
+     (`pacing-overhaul.md` A.2), an AUTHORED payout PACE.xp does not scale.
+     ⚠ SERVER-OWNED: tests/quest-reward-parity.mjs binds this `xp` to
+       goal-catalogue.js QUEST_REWARDS.hundred_kills.xp and the SQL seed. */
   {id:'hundred_kills',type:'kill_any',mirror:'stats.evKillAny',
    label:'Defeat 100 monsters',goal:100,progress:0,
-   reward:{combatXp:1500},
+   reward:{xp:{hitpoints:1500}},
    note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
   /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
@@ -5399,7 +5394,14 @@ function hrQuestServerCount(q){
   return null;
 }
 function questComplete(q){ const n=hrQuestServerCount(q); return n!==null&&q.goal>0&&n>=q.goal; }
-function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id); }
+function hrQuestXpIsServerCredited(id){
+  try{
+    const gc=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
+    if(gc&&typeof gc.questXpIsServerCredited==='function') return !!gc.questXpIsServerCredited(id);
+  }catch(e){}
+  return false;
+}
+function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id)||hrQuestXpIsServerCredited(q&&q.id); }
 function questClaimable(q){ return !!q&&!q.claimed&&questServerPays(q)&&questComplete(q); }
 window.hrQuestServerCount=hrQuestServerCount;
 window.questClaimable=questClaimable;
@@ -5429,12 +5431,33 @@ function hrFireQuestClaim(q){
           notify('Quest reward: '+applied[id]+'x '+((ITEMS[id]&&ITEMS[id].n)||id),'loot');
         });
       }
+      hrNoteQuestXpReceipt(res);
     } else if(res&&res.error==='already_claimed'){
       q.claimed=true;   // the server's once-guard is the memory; stop asking
     }
     return res;
   }).catch(function(){ return null; });
 }
+/* THE XP HALF IS A RECEIPT, NEVER A GRANT. hr_claim_quest already wrote
+   player_skills and bumped the version; the absolute skills arrive on the next
+   envelope, so this names the credit and asks for that envelope — it adds
+   nothing to G.skills (tests/no-client-xp-mint.mjs). */
+function hrNoteQuestXpReceipt(res){
+  if(!res||res.ok!==true||res.credited!==true)return null;
+  const xp=res.xp;
+  if(!xp||typeof xp!=='object'||Array.isArray(xp))return null;
+  const got=Object.keys(xp).filter(function(sk){ return Math.floor(Number(xp[sk])||0)>0; });
+  if(!got.length)return null;
+  if(typeof notify==='function'){
+    got.forEach(function(sk){
+      const name=(typeof SKILLS_DEF!=='undefined'&&SKILLS_DEF[sk]&&SKILLS_DEF[sk].name)||sk;
+      notify('Quest reward: +'+Math.floor(Number(xp[sk])).toLocaleString()+' '+name+' XP','loot');
+    });
+  }
+  if(typeof window.noteLiveSettleEvent==='function'){ try{ window.noteLiveSettleEvent('quest-xp'); }catch(e){} }
+  return got;
+}
+window.hrNoteQuestXpReceipt=hrNoteQuestXpReceipt;
 /* ── THE RECOVERY SWEEP (the reason a dropped claim is no longer a loss) ────
    completeQuest is the ONLY caller of the claim, it is fire-and-forget, and
    `done` is residue — so before this, one lost packet on the completion tick
@@ -5477,9 +5500,8 @@ function completeQuest(q){
      completion defer is LIFTED: the quest completes (done + item + XP) even
      under arm, and the gold arrives from the server. The local G.gold write is a
      GATED PREDICTION — pre-arm it credits locally; under arm it no-ops and the
-     envelope reconciles. Item + combat-XP stay client-applied (later arming
-     slices). hundred_kills carries combatXp only (no gold), so it never fires a
-     claim and is unchanged. Every gold-bearing QUEST_DEFS row is present in the
+     envelope reconciles. Items and XP are server-credited by the same claim
+     (hundred_kills is XP-only and claims like the rest). Every gold-bearing QUEST_DEFS row is present in the
      server catalogue — tests/goal-catalogue-drift.mjs fails the build otherwise,
      so a gold quest can never silently lose its payout under arm. */
   q.done=true;
@@ -5498,17 +5520,9 @@ function completeQuest(q){
   }
   if(goldReward>0 && clientMayWriteRecordField('gold'))G.gold+=goldReward;   // prediction; no-op under arm
   if(r.item && !serverItems)addItem(r.item,r.qty||1,false);
-  /* Combat XP is routed the way a KILL routes it — through the player's
-     active style (src/core/styles.js killXpRoute) — so a bow user is paid
-     Ranged and a Controlled sword user gets the same three-way split their
-     fights pay. One routing table, not a second one that drifts.
-     `authored:true` keeps PACE.xp off it: 1,500 means 1,500. */
-  if(r.combatXp>0){
-    const C=window.HearthriseCore;
-    const style=(typeof getActiveCombatStyle==='function')?getActiveCombatStyle():null;
-    const route=(C&&C.styles)?C.styles.killXpRoute(style,r.combatXp,1):[{skill:'attack',amount:r.combatXp}];
-    route.forEach(function(g){ addXp(g.skill,g.amount,{authored:true}); });
-  }
+  /* XP is the SERVER's (hr_claim_quest credits hr_quest_rewards.xp into
+     player_skills). hrFireQuestClaim above names the receipt; nothing here
+     adds it. */
   notify(q.note||`Quest: ${q.label}`,'loot');
 }
 /* b341: published so the suite can drive the real merge + mirror instead of a
@@ -17027,9 +17041,9 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
        Designer ruling: the XP lands in HITPOINTS, RETUNED rather than
        translated — 50→100, 200→300, wk_kills 1000 held.
        THE GENERAL RULE, so this and the quest path never drift again:
-         · XP the CLIENT pays for something it OBSERVED IN THE MOMENT (see
-           completeQuest's combatXp, which style-routes via killXpRoute) may use
-           the live style route — a style is in hand at the instant of the grant.
+         · The CLIENT pays no reward XP at all (CLAUDE.md §1). The last client
+           route — completeQuest's style-routed hundred_kills XP — moved to
+           hr_claim_quest (2026-10-10-quest-xp-absence-pay.sql) under the rule below.
          · XP the SERVER grants for a PERIOD objective names a CONSTANT skill.
            A daily/weekly goal spans hours of play across any number of style
            switches; there is no style at claim time, and the server must not

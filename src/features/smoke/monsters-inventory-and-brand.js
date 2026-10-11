@@ -8315,8 +8315,8 @@ export default [
     const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const bad = [];
     try {
-      T.clear();
       await C.open();
+      T.clear();   // after the await: a page toast drawn while the Codex opened is not the burst under test
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
       assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');

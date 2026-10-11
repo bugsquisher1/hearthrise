@@ -5817,7 +5817,7 @@ export default [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../../data/shops.js?v=564');
+    const S = await import('../../data/shops.js?v=569');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat_2')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat_2',
       'trait:auto_eat_2 is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

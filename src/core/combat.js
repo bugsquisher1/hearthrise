@@ -17,8 +17,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=565';
-import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=565';
+import { levelOf } from './xp.js?v=569';
+import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=569';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=569';

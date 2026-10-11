@@ -23,30 +23,30 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=564';
-import { MONSTERS } from './data/monsters.js?v=564';
-import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=564';
-import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=564';
-import { MONSTER_NOTES } from './data/monster-notes.js?v=564';
-import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=564';
-import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=564';
-import { roomRungLore, plotTier } from './data/homestead-lore.js?v=564';
+import { SKILLS_DEF } from './data/skills.js?v=569';
+import { MONSTERS } from './data/monsters.js?v=569';
+import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=569';
+import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=569';
+import { MONSTER_NOTES } from './data/monster-notes.js?v=569';
+import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=569';
+import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=569';
+import { roomRungLore, plotTier } from './data/homestead-lore.js?v=569';
 /* W0: the boss trophies the House Trophy Room hangs (a display, no stat). */
-import { BOSS_TROPHIES, bossTrophiesHeld } from './data/boss-forge.js?v=564';
-import * as ItemArt from './data/item-art.js?v=564';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=564';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=564';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=564';
+import { BOSS_TROPHIES, bossTrophiesHeld } from './data/boss-forge.js?v=569';
+import * as ItemArt from './data/item-art.js?v=569';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=569';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=569';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=569';
 // b348 — the generated progression lanes, published so the suite can grade the
 // LIVE recipe table against the ladder the generator actually laid down (a
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
-import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=564';
-import { COMPANIONS } from './data/companions.js?v=564';
-import { RAID_BOSSES } from './data/raid-bosses.js?v=564';
-import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=564';
+import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=569';
+import { COMPANIONS } from './data/companions.js?v=569';
+import { RAID_BOSSES } from './data/raid-bosses.js?v=569';
+import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=569';
 /* W0 — where every item comes from and who uses it (the Collection Log's
    denominator, and the vendor-trash list the drop-sink smoke guard reads). */
-import { obtainableItemIds, VENDOR_TRASH } from './data/catalogue-coherence.js?v=564';
+import { obtainableItemIds, VENDOR_TRASH } from './data/catalogue-coherence.js?v=569';
 import { cheapestShopUnitPrice } from './core/shop-buyback.js?v=569';
 import { SHOP_OFFERS } from './data/shops.js?v=569';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
@@ -59,7 +59,7 @@ import {
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
   priceDailyLogin, deriveLoginStreak, loginBonusDue,
-} from './data/rewards.js?v=567';
+} from './data/rewards.js?v=569';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -464,14 +464,14 @@ import { setupComeBack } from './features/come-back.js?v=569';
    able to call them; net/bank-sync.js is the transport and render/bank-panel.js
    the screen, reached from the Inventory toolbar. Neither authors a quantity:
    every move is an intent, and the paint comes from the envelope that follows. */
-import './net/bank-sync.js?v=567';
-import { setupBankPanel } from './render/bank-panel.js?v=567';
+import './net/bank-sync.js?v=569';
+import { setupBankPanel } from './render/bank-panel.js?v=569';
 /* THE ONE DAILY LIST (W0): the Quests sheet, the daily chip and badge over the
    server's tally; Your week below reads the same cache. */
-import './features/daily-quests.js?v=567';
+import './features/daily-quests.js?v=569';
 // The one pointer: the spine step on every tab and atop Home.
-import './features/spine-pointer.js?v=567';
-import './features/this-week.js?v=567';
+import './features/spine-pointer.js?v=569';
+import './features/this-week.js?v=569';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the

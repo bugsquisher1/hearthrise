@@ -48,6 +48,7 @@ export const REGISTERED = [
   ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
   ['tests/discord-gift.mjs', '--mutate'],
+  ['tests/progress-coalesce.mjs', '--mutate'],
 ];
 
 /* HOW MANY CONTROLS AT ONCE. Each control is a full PGlite chain replay. Four of

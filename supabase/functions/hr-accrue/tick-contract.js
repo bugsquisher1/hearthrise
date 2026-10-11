@@ -148,6 +148,73 @@ export function foldDeltas(deltas) {
   return out;
 }
 
+/* ── RULE 2b: PROGRESS OPS COALESCE, ONE IMPLEMENTATION (2026-10-08) ────────
+   `progress` is APPEND under the fold law, and that is what overflows hr_apply:
+   `c_max_progress_ops constant int := 64` and `c_max_progress_add constant
+   bigint := 1000000` (2026-09-14-hr-apply-restatement.sql :316-317) are per
+   CALL, and ONE 90 s gather window at the 10 s cadence files ~6 ops per poll —
+   46, or 55 with a utility pet (Security, measured on set/b566). One more
+   per-poll op, or a flush past ~110 s, would refuse every window of that
+   character. So EVERY tick settle (single window, S4 fold, combat flush)
+   coalesces through this ONE function before the fence; it used to be two
+   (gather's fold-only `coalesceProgress`, combat's `foldProgressOps`) with
+   different state rules.
+
+   WHY IT IS THE SAME WRITE. hr_apply's progress loop applies each op, in
+   order, against the row keyed (kind, key, period_key):
+       value = value + add
+       state = case when claimed then claimed else coalesce(op.state, state) end
+   and journals progress in the ledger only as the KEY NAME `progress` (meta
+   `k`), never per op. So a run of consecutive ops on one row with the SAME
+   `state` lands exactly what one op carrying their summed `add` lands. The
+   rules that keep it exact, each a mutant in tests/progress-coalesce.mjs:
+     · the merge key is (kind, key, period) — a daily op's period is its UTC
+       day, so two days never merge, and two different keys never do;
+     · an op merges only into the LATEST entry for its row, and only if their
+       `state` is identical: a state change starts a new entry, so the per-row
+       state sequence (and so the final state) is preserved exactly;
+     · an op merges only while the sum stays within c_max_progress_add: past it
+       a new entry starts, so a coalesced op is never refused where the ops it
+       replaced would have been accepted;
+     · every `add` must be a non-negative safe integer and every op key one of
+       kind/key/period/add/state, or it THROWS — hr_apply would refuse either,
+       and a guess here would be a counter silently changed;
+     · first-seen order. Distinct rows are independent; one row's entries keep
+       their relative order.
+   ONE op on its own is returned as a copy, unchanged. */
+export const MAX_PROGRESS_OPS = 64;
+export const MAX_PROGRESS_ADD = 1000000;
+const PROGRESS_OP_KEYS = Object.freeze(['kind', 'key', 'period', 'add', 'state']);
+
+export function coalesceProgress(ops) {
+  const out = [];
+  const latest = new Map();
+  for (const op of ops || []) {
+    if (!op || typeof op !== 'object' || Array.isArray(op)) {
+      throw new Error('coalesceProgress: a progress op is not an object');
+    }
+    for (const k of Object.keys(op)) {
+      if (!PROGRESS_OP_KEYS.includes(k)) {
+        throw new Error(`coalesceProgress: unknown progress-op key "${k}" — classify it before folding`);
+      }
+    }
+    const add = Number(op.add ?? 0);
+    if (!Number.isSafeInteger(add) || add < 0) {
+      throw new Error(`coalesceProgress: progress add ${JSON.stringify(op.add)} is not a non-negative integer`);
+    }
+    const id = `${op.kind}\u0000${op.key}\u0000${op.period ?? ''}`;
+    const prev = latest.get(id);
+    if (prev && (prev.state ?? null) === (op.state ?? null) && prev.add + add <= MAX_PROGRESS_ADD) {
+      prev.add += add;
+      continue;
+    }
+    const copy = Object.assign({}, op, { add });
+    latest.set(id, copy);
+    out.push(copy);
+  }
+  return out;
+}
+
 /* ── RULE 3: WHAT A TICK IS ALLOWED TO BE COMPARED ON ───────────────────────
    The value summary. Deliberately NOT the whole delta: the journal's `meta.ms`
    and `meta.ticks` are per-call aggregates and a 60-window night journals 60

@@ -74,7 +74,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { PAYABLE_KINDS, MAX_DEATH_ROWS } from './accrual.js';
 import { shadowTick, advance, hydrate } from './tick-shadow.js';
-import { foldDeltas } from './tick-contract.js';
+import { foldDeltas, coalesceProgress, MAX_PROGRESS_OPS } from './tick-contract.js';
 /* THE IDEMPOTENCY KEY, IMPORTED AND NOT RE-SPELLED. `tickIntentId` is
    channel-agnostic by construction — `tick:<shard>:<user>:<slot>:<from>:<to>:
    <version>` — and it is the weaker-spelling trap Security's S-3 closed once
@@ -118,8 +118,10 @@ export const DEFAULT_FLUSH_MS = 90000;
    `c_max_progress_ops constant int := 64` and
    `c_max_death_rows constant int := 24` — 2026-09-14-hr-apply-restatement.sql
    :316/:502. `MAX_DEATH_ROWS` comes off accrual.js, which is the engine's own
-   copy of the second one; the guard asserts the two agree. */
-export const MAX_PROGRESS_OPS = 64;
+   copy of the second one; the guard asserts the two agree. The first lives in
+   tick-contract.js beside the one coalescer that keeps under it, re-exported
+   here because the combat guards read it off this module. */
+export { MAX_PROGRESS_OPS };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SESSIONS — where the active set comes from
@@ -539,24 +541,11 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
    flush above, `sum(add)` is preserved exactly (118/133/145/151/130/172/93,
    raw == folded). Folded: 7 / 10 / 14 / 7 / 10 / 10 / 10.
 
-   `state` is part of the fold key, so a `done` is never summed into an
-   `active` — the one value that gates a payout is `claimed` and a delta cannot
-   set it at all, but a completion is still a different fact from a tick up.
-   First-seen order is preserved, because hr_apply applies them in order and a
-   reordered stream is a different (if equivalent) ledger to read. */
-export function foldProgressOps(ops) {
-  const byKey = new Map();
-  const out = [];
-  for (const op of ops || []) {
-    const k = [op.kind, op.key, op.period ?? '', op.state ?? 'active'].join('\u0000');
-    const hit = byKey.get(k);
-    if (hit) { hit.add = Math.floor(Number(hit.add || 0)) + Math.floor(Number(op.add || 0)); continue; }
-    const copy = { ...op, add: Math.floor(Number(op.add || 0)) };
-    byKey.set(k, copy);
-    out.push(copy);
-  }
-  return out;
-}
+   ONE COALESCER (2026-10-08): this used to be `foldProgressOps`, a second
+   copy with its own state rule; it is tick-contract.js RULE 2b
+   `coalesceProgress` now, the function every tick settle uses. A `done` is
+   still never summed into an `active` (a state change starts a new entry), and
+   first-seen order is kept. */
 
 /* ── HEARTHFIND: THE FOLD PRODUCES AN ARRAY AND hr_apply REFUSES IT ─────────
    `foldDeltas` classifies `hearthfind` as APPEND, so two windows that each
@@ -588,7 +577,7 @@ export function collapseHearthfind(v) {
 export function foldCombatDelta(deltas) {
   const folded = foldDeltas(deltas);
   if (folded.progress) {
-    const ops = foldProgressOps(folded.progress);
+    const ops = coalesceProgress(folded.progress);
     /* AFTER the fold, because the fold is what makes the bound reachable at
        all. It is not reachable on measured play — the worst folded flush above
        is 14 against 64 — but "measured on these fixtures" is not a bound, and

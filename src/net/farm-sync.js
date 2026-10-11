@@ -257,8 +257,8 @@ export function farmPlantRefusalText(res, ctx) {
     case 'plot_tier_locked': {
       const need = n(res.need_plot_level);
       const have = n(res.have_plot_level);
-      return crop + ' needs Farm Plot Lv ' + (need === null ? '?' : need)
-        + ' — upgrade in House → Plot' + (have === null ? '' : ' (you have Lv ' + have + ')');
+      return crop + ' needs Soil Lv ' + (need === null ? '?' : need)
+        + ' — improve it in House → Farm' + (have === null ? '' : ' (you have Lv ' + have + ')');
     }
     case 'level_too_low': {
       const req = n(res.req_lv);
@@ -273,7 +273,7 @@ export function farmPlantRefusalText(res, ctx) {
     }
     case 'crop_untiered':
     case 'unknown_crop':
-      return crop + " can't be planted yet — the realm has no plot tier for it. Please report this.";
+      return crop + " can't be planted yet — the realm has no soil level for it. Please report this.";
     case 'insufficient_seed':
       return 'You have no ' + (c.seedName || (crop + ' Seed')) + ' — the Local Shop sells them';
     case 'plot_occupied':

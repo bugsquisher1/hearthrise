@@ -973,9 +973,9 @@
       var need = (typeof F.requiredPlotLevel === 'function') ? F.requiredPlotLevel(fr.cropId) : 0;
       var lv   = (typeof F.getPlotLevel === 'function') ? F.getPlotLevel() : 1;
       say(need
-        ? 'Auto-replant: ' + (crop.name || fr.cropId) + ' needs Farm Plot Lv ' + need
-          + ' — upgrade in House → Plot (you have Lv ' + lv + ')'
-        : 'Auto-replant: ' + (crop.name || fr.cropId) + ' has no plot tier that unlocks it');
+        ? 'Auto-replant: ' + (crop.name || fr.cropId) + ' needs Soil Lv ' + need
+          + ' — improve it in House → Farm (you have Lv ' + lv + ')'
+        : 'Auto-replant: ' + (crop.name || fr.cropId) + ' grows in no soil the realm knows');
       return false;
     }
     if(typeof window.plantCrop !== 'function') return false;

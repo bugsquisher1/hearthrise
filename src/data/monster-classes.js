@@ -279,6 +279,25 @@ export function inBand(tier, stat, n) {
   return Number(n) >= b[stat][0] && Number(n) <= b[stat][1];
 }
 
+/* THE CHAMPION BAND (W0, 2026-10-10; src/data/champions.js). A field champion
+   is a step into the NEXT tier's danger at its own tier's gate, so its band is
+   [its own tier's floor, the next tier's ceiling] — never above what the next
+   tier's ordinary monsters already ask of a player. Tier 6 has no next tier:
+   its ceiling is its own (a tier-6 champion would be a boss, which has its own
+   flag). Returns [lo, hi] or null when the tier or stat has no band. */
+export function championBand(tier, stat) {
+  const own = TIER_BANDS[tier];
+  if (!own || !own[stat]) return null;
+  const next = TIER_BANDS[tier + 1] || own;
+  return [own[stat][0], next[stat][1]];
+}
+
+/** True when `n` is inside the champion band for `stat`. */
+export function inChampionBand(tier, stat, n) {
+  const b = championBand(tier, stat);
+  return !!b && Number(n) >= b[0] && Number(n) <= b[1];
+}
+
 /**
  * Validate a whole roster against the taxonomy. Returns human-readable
  * problems; empty means healthy. Asserted by the smoke suite in the browser
@@ -318,17 +337,27 @@ export function auditRoster(MONSTERS) {
 
     // Tier band — the pacing curve.
     if (!TIER_BANDS[m.tier]) { problems.push(id + ': tier ' + m.tier + ' has no band'); return; }
+    /* A champion is checked against championBand instead, and must not also
+       claim to be a boss (two flags, two sets of rules — pick one). */
+    const champ = m.champion === true;
+    if (champ && m.boss) problems.push(id + ': a champion cannot also be a boss');
+    // …and it must actually be a step up: tougher than any ordinary row of its tier.
+    if (champ && TIER_BANDS[m.tier] && !(Number(m.hp) > TIER_BANDS[m.tier].hp[1])) {
+      problems.push(id + ': champion hp ' + m.hp + ' is not above its tier ceiling ' + TIER_BANDS[m.tier].hp[1]);
+    }
+    const fits = champ ? inChampionBand : inBand;
+    const bandOf = (k) => (champ ? championBand(m.tier, k) : TIER_BANDS[m.tier][k]) || [];
     ['hp', 'atk', 'def', 'xp'].forEach((k) => {
-      if (!inBand(m.tier, k, m[k])) {
-        problems.push(id + ': T' + m.tier + ' ' + k + '=' + m[k] + ' outside band ['
-          + TIER_BANDS[m.tier][k].join(',') + ']');
+      if (!fits(m.tier, k, m[k])) {
+        problems.push(id + ': T' + m.tier + (champ ? ' champion ' : ' ') + k + '=' + m[k] + ' outside band ['
+          + bandOf(k).join(',') + ']');
       }
     });
     if (!Array.isArray(m.gp) || m.gp.length !== 2 || m.gp[0] > m.gp[1]) {
       problems.push(id + ': gp must be [lo,hi] with lo<=hi');
     } else {
-      if (!inBand(m.tier, 'gpLo', m.gp[0])) problems.push(id + ': T' + m.tier + ' gp lo=' + m.gp[0] + ' outside band');
-      if (!inBand(m.tier, 'gpHi', m.gp[1])) problems.push(id + ': T' + m.tier + ' gp hi=' + m.gp[1] + ' outside band');
+      if (!fits(m.tier, 'gpLo', m.gp[0])) problems.push(id + ': T' + m.tier + ' gp lo=' + m.gp[0] + ' outside band');
+      if (!fits(m.tier, 'gpHi', m.gp[1])) problems.push(id + ': T' + m.tier + ' gp hi=' + m.gp[1] + ' outside band');
     }
   });
 

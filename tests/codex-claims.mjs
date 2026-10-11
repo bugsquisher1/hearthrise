@@ -351,6 +351,19 @@ export const BINDS = {
         'hr_vigour_of (' + v.file + ') no longer keys the day on hr_utc_day_key(now())'),
       need(sqlCode(k.text).toLowerCase().includes("at time zone 'utc'"), 'hr_utc_day_key no longer turns at midnight UTC'));
   },
+  /* W0 ruling (game-designer, 2026-10-10): Vigour and the away limit STAY two
+     clocks — the away limit bounds one ABSENCE for every activity, Vigour
+     bounds a DAY of hunting, watched or away (the only bound on attended
+     combat) — and the Codex teaches them as one number because the free grant
+     IS the away limit, floored. This holds the sentence that says so. */
+  vigourMatchesAwayCap: (w) => {
+    const H = w.hunt, base = 12 * 3600000;
+    return all(
+      need(H.vigourGrantMin(base) === base / 60000, 'the free Vigour grant is no longer the base away limit'),
+      need(H.vigourGrantMin(base * 1.5) === (base * 1.5) / 60000, 'a longer away limit no longer lengthens the Vigour grant'),
+      need(H.vigourGrantMin(0) === H.VIGOUR_FLOOR_MIN && H.VIGOUR_FLOOR_MIN === base / 60000,
+        'the Vigour floor is no longer the base away limit'));
+  },
   vigourDryAway: (w) => {
     const H = w.hunt, a = stripJs(w.accrualJs);
     const sp = H.vigourSplit({ spentMin: 60, budgetMin: 60, windowMs: 3600000 });
@@ -636,6 +649,7 @@ async function selftest() {
     ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
     ['M15 the Party screen grows a Rejoin hunt button', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nvar x = '<button data-party-act=\"hunt-rejoin\">Rejoin hunt</button>';"; }, 'partyCampRejoinsOnReturn'],
     ['M16 the Party screen loses the solo stance picker', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] = w.src['src/render/party-panel.js'].split('huntStanceButtonsHtml').join('ownStanceButtons'); }, 'partyHuntLeaderStarts'],
+    ['M17 the Vigour grant drifts from the away limit', 'CODEX-6', (w) => { w.hunt.vigourGrantMin = () => 60; }, 'vigourMatchesAwayCap'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

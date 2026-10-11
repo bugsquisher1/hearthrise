@@ -490,9 +490,15 @@ begin
     raise exception 'GATE(b3): the mining ruling''s 12 named nodes are not all present at '
                     'their req: %', v_bad;
   end if;
+  -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 fun list,
+  -- 2026-10-16-w0f-fun-content.sql): this was a bare `<> 115`, the same
+  -- every-later-pack trap the (b3) note above describes — the regenerated
+  -- catalogue replays first and now carries W0's forge_elderscale_platebody.
+  -- It asserts the floor THIS ruling counted; the chain-end total is
+  -- tests/catalogue-literal-drift.mjs's job.
   select count(*) into v_n from public.hr_activities
    where kind = 'artisan' and req_skill = 'smithing';
-  if v_n <> 115 then
+  if v_n < 115 then
     raise exception 'GATE(b3): the smithing bench holds % rows, the ruling leaves 115 (109 '
                     'shipped + 6 new — counted off the regenerated catalogue, which includes the '
                     'generated gear ladders, not only BASE_RECIPES.smithing)', v_n;

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/monster-notes.js — HUNTER'S FIELD NOTES
 //
-// One line of hunter's lore per MONSTERS id (108/108). Client-only display
+// One line of hunter's lore per MONSTERS id (113/113). Client-only display
 // text: never imported by an edge-reachable module, never a stat. FIELDNOTES-1
 // (src/features/smoke/quests-chronicle-and-bonus.js) requires exactly one
 // entry per MONSTERS key, so a new monster row ships without a note.
@@ -121,4 +121,10 @@ export const MONSTER_NOTES = Object.freeze({
   void_parasite: 'A void parasite burrows into whatever crosses its rift, and wears the shape of what it last fed on',
   the_silence: 'The silence leaves no sound behind it, not even the sound of whatever it just finished with',
   the_unlit: 'The unlit was never given a name by the order that first saw it, only a door that was never meant to open',
+
+  old_tusker: 'Every boar hunter in the valley has a story about the old tusker, and none of them end with the hunter carrying it home',
+  gnoll_packlord: 'The packlord eats first and fights last, and the gnolls around it will die before they let that order change',
+  mire_witch: 'The mire witch taught half the warlocks in the region, and she remembers every one who never paid her back',
+  barrow_king: 'The barrow king still holds court in the dark, and his knights still kneel each time he rises',
+  frost_jarl: 'The frost jarl rules the giants of the high passes, and his breath leaves rime on the stones where he stands',
 });

@@ -792,10 +792,17 @@ begin
     if coalesce(v->>'ok','') <> 'true' then raise exception 'PLANT turnip failed: %', v; end if;
     if (v->>'plant_xp')::int <> 28 then raise exception 'plant XP % <> 28', v->>'plant_xp'; end if;
 
-    -- WATER — grants water XP (turnip xp 112 → ceil(112/4)=28), window opens.
+    -- WATER — grants water XP ceil(turnip xp / 4), window opens.
+    -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 fun list,
+    -- 2026-10-16-w0f-fun-content.sql): this pinned 28 (= ceil(112/4)). The
+    -- regenerated catalogue replays BEFORE this file with the W0 ×3 turnip xp,
+    -- so the derivation is restated against hr_crops, the column hr_farm_water
+    -- reads. The PLANT xp above (28, c_plant_xp) is a constant and is unchanged.
     v := public.hr_farm_water(v_slot, v_plot, gen_random_uuid());
     if coalesce(v->>'ok','') <> 'true' then raise exception 'WATER failed: %', v; end if;
-    if (v->>'water_xp')::int <> 28 then raise exception 'water XP % <> 28', v->>'water_xp'; end if;
+    if (v->>'water_xp')::int <> (select greatest(1, ceil(xp::numeric / 4.0))::int from public.hr_crops where crop_id = 'turnip') then
+      raise exception 'water XP % <> ceil(hr_crops.turnip.xp / 4)', v->>'water_xp';
+    end if;
     -- immediate re-water refused.
     v := public.hr_farm_water(v_slot, v_plot, gen_random_uuid());
     if v->>'ok' <> 'false' or v->>'error' <> 'still_watered' then

@@ -2619,7 +2619,7 @@
     } else {
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b></span></div>' +
-        '<div class="hr-cs-foot">The Fortified Keep is the highest a hold can rise.</div>';
+        '<div class="hr-cs-foot">The Fortified Keep is the highest a hold can stand.</div>';
     }
 
     // ── the "this week" strip ──
@@ -2877,7 +2877,7 @@
         }], note: isLeader() ? '' : 'Only the leader can raise the hold.' });
       } else {
         sections.push({ kind: 'note', html:
-          'The Fortified Keep is the highest a hold can rise.' });
+          'The Fortified Keep is the highest a hold can stand.' });
       }
 
       var orders = openOrders();

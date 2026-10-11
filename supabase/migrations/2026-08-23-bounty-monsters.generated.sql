@@ -5,8 +5,8 @@
 --   Any hand edit is reverted by the next generation and FAILS
 --   `node tools/gen-bounty-monsters.mjs --check` (a preflight in run-smoke).
 --
---   monster digest: 98de10a724fb83672f75c5c6f33963dc4442896fd9f29f949a4f54e735b4becb
---   108 monsters
+--   monster digest: 688747f5191d9d74204b553713f406485071d0ba63e3a85959b7df29ad012998
+--   113 monsters
 --
 -- Read by hr_accept_bounty (2026-08-23-bounty.sql) to derive the bounty's tier
 -- server-side. Ids + tier only — no game number beyond tier. Idempotent: a
@@ -47,6 +47,7 @@ insert into public.hr_bounty_monsters (monster_id, tier, hp) values
   ('ashwing', 6, 472),
   ('astrologer', 5, 196),
   ('bandit_lord', 5, 212),
+  ('barrow_king', 4, 205),
   ('barrow_knight', 4, 148),
   ('bear', 4, 140),
   ('bog_vine', 3, 70),
@@ -75,6 +76,7 @@ insert into public.hr_bounty_monsters (monster_id, tier, hp) values
   ('fire_devil', 3, 56),
   ('fire_elemental', 1, 12),
   ('frost_giant', 5, 248),
+  ('frost_jarl', 5, 360),
   ('fury', 5, 202),
   ('gargoyle', 5, 254),
   ('ghoul', 3, 52),
@@ -82,6 +84,7 @@ insert into public.hr_bounty_monsters (monster_id, tier, hp) values
   ('giant_boar', 5, 252),
   ('giant_spider', 4, 118),
   ('gnoll', 2, 31),
+  ('gnoll_packlord', 2, 62),
   ('goblin', 1, 15),
   ('goblin_brute', 3, 68),
   ('goblin_warlord', 4, 125),
@@ -102,11 +105,13 @@ insert into public.hr_bounty_monsters (monster_id, tier, hp) values
   ('mammoth', 5, 258),
   ('mandrake', 1, 11),
   ('minotaur', 4, 145),
+  ('mire_witch', 3, 115),
   ('mountain_ram', 3, 66),
   ('mountain_troll', 4, 165),
   ('necromancer', 6, 356),
   ('nightmare', 2, 28),
   ('ogre', 4, 160),
+  ('old_tusker', 1, 30),
   ('ooze', 2, 33),
   ('panther', 5, 205),
   ('plague_swarm', 4, 100),
@@ -153,7 +158,7 @@ do $$
 declare v_n int;
 begin
   select count(*) into v_n from public.hr_bounty_monsters;
-  if v_n <> 108 then
-    raise exception 'hr_bounty_monsters has % rows, expected 108', v_n;
+  if v_n <> 113 then
+    raise exception 'hr_bounty_monsters has % rows, expected 113', v_n;
   end if;
 end $$;

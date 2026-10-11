@@ -137,9 +137,9 @@
   function tierHeadHtml(){
     var lv = window.HearthriseFarm.getServerPlotLevel();
     var t = tierOf(lv);
-    if(lv === null) return '<b>Farm Plot · Lv ' + ((window.HearthriseBalance && window.HearthriseBalance.UNKNOWN_TEXT) || '—') + '/' + MAX_LEVEL + '</b>';
-    if(!t) return '<b>Farm Plot · Lv ' + lv + '/' + MAX_LEVEL + '</b>';
-    return '<b>' + esc(t.name) + ' · Plot Lv ' + lv + '/' + MAX_LEVEL + '</b>';
+    if(lv === null) return '<b>Soil · Lv ' + ((window.HearthriseBalance && window.HearthriseBalance.UNKNOWN_TEXT) || '—') + '/' + MAX_LEVEL + '</b>';
+    if(!t) return '<b>Soil · Lv ' + lv + '/' + MAX_LEVEL + '</b>';
+    return '<b>' + esc(t.name) + ' · Soil Lv ' + lv + '/' + MAX_LEVEL + '</b>';
   }
   function tierLoreHtml(){
     var t = tierOf(window.HearthriseFarm.getServerPlotLevel());
@@ -167,11 +167,11 @@
       "you can't do that" is the copy that generates a bug report. */
   function refusalText(v){
     var p = v && v.price;
-    if(!p) return 'Farm Plot already maxed';
+    if(!p) return 'Your soil is already at its richest';
     if(v.error === 'farm_level_too_low'){
-      return 'Farm Plot Lv ' + p.level + ' needs Farming ' + p.farming + ' (you are ' + v.have + ')';
+      return 'Soil Lv ' + p.level + ' needs Farming ' + p.farming + ' (you are ' + v.have + ')';
     }
-    return 'Farm Plot Lv ' + p.level + ' costs ' + fmtN(p.gold) + ' gold or ' + fmtN(p.deeds)
+    return 'Soil Lv ' + p.level + ' costs ' + fmtN(p.gold) + ' gold or ' + fmtN(p.deeds)
       + " Farmer's Deed" + (p.deeds === 1 ? '' : 's') + ' — you have ' + fmtN(v.gold) + ' gold and '
       + fmtN(v.deeds) + ' deed' + (v.deeds === 1 ? '' : 's');
   }
@@ -185,8 +185,8 @@
     var v = getUpgradeCheck();
     if(!v.ok){
       if(typeof window.notify === 'function'){
-        window.notify(v.error === 'max_plot_level' ? 'Farm Plot already maxed'
-          : v.error === 'plot_level_pending' ? 'Your plot tier is still being counted — try again in a moment'
+        window.notify(v.error === 'max_plot_level' ? 'Your soil is already at its richest'
+          : v.error === 'plot_level_pending' ? 'Your soil level is still being counted — try again in a moment'
           : refusalText(v), 'kill');
       }
       return false;
@@ -232,11 +232,11 @@
       if(res && res.error === 'stale_level' && typeof res.plot_level === 'number' && isFinite(res.plot_level) && res.plot_level >= 1){
         if(window.G){ window.G._serverPlotLevel = res.plot_level; }
         getPlotLevel();
-        if(typeof window.notify === 'function') window.notify('Farm Plot is already Lv ' + res.plot_level, 'info');
+        if(typeof window.notify === 'function') window.notify('Your soil is already Lv ' + res.plot_level, 'info');
       } else
       if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
         if(typeof window.notify === 'function'){
-          window.notify('Farm Plot upgraded to Lv ' + res.plot_level
+          window.notify('Soil improved to Lv ' + res.plot_level
             + (res.paid_with === 'deeds'
                 ? ' — paid with ' + fmtN(res.deeds_spent) + " Farmer's Deed" + (res.deeds_spent===1?'':'s')
                 : ' — ' + fmtN(res.gold_spent || 0) + ' gold'), 'levelup');
@@ -244,10 +244,10 @@
       } else if(res && res.error && res.error!=='transport'){
         if(typeof window.notify === 'function'){
           /* The server is the price. Speak ITS refusal, not the client's guess. */
-          var msg = 'Could not upgrade plot — try again';
-          if(res.error === 'farm_level_too_low') msg = 'Farm Plot Lv ' + res.plot_level + ' needs Farming ' + res.need + ' (you are ' + res.have + ')';
-          else if(res.error === 'cannot_afford') msg = 'Farm Plot Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + fmtN(res.need_deeds) + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + fmtN(res.have_deeds);
-          else if(res.error === 'max_plot_level') msg = 'Farm Plot already maxed';
+          var msg = 'Could not improve the soil — try again';
+          if(res.error === 'farm_level_too_low') msg = 'Soil Lv ' + res.plot_level + ' needs Farming ' + res.need + ' (you are ' + res.have + ')';
+          else if(res.error === 'cannot_afford') msg = 'Soil Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + fmtN(res.need_deeds) + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + fmtN(res.have_deeds);
+          else if(res.error === 'max_plot_level') msg = 'Your soil is already at its richest';
           window.notify(msg, 'kill');
         }
       }

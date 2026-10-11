@@ -442,8 +442,14 @@ begin
     if v_qty < 2 or v_qty > 4 then
       raise exception 'GATE(c): yield % outside the turnip band [2,4]', v_qty;
     end if;
-    if v_xp <> 112 * v_qty then
-      raise exception 'GATE(c): xp % <> 112 * qty %', v_xp, v_qty;
+    -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 fun list,
+    -- 2026-10-16-w0f-fun-content.sql): this pinned turnip's xp as the literal
+    -- 112. The regenerated catalogue replays BEFORE this file and now carries
+    -- the W0 ×3 value (336), so the property is restated against the column
+    -- hr_farm_harvest itself reads: xp = hr_crops.xp × qty.
+    if v_xp <> (select xp from public.hr_crops where crop_id = 'turnip') * v_qty then
+      raise exception 'GATE(c): xp % <> hr_crops.turnip.xp % * qty %', v_xp,
+        (select xp from public.hr_crops where crop_id = 'turnip'), v_qty;
     end if;
     select coalesce(qty,0) into v_prod from public.player_inventory
       where user_id = v_uid and slot = v_slot and item_id = 'turnip';

@@ -57,7 +57,7 @@ export function ladderOf(skill) {
   if (skill === 'farming') {
     Object.keys(CROPS).forEach((id) => {
       const tier = requiredPlotLevel(id);
-      add(CROPS[id].req, tier > 1 ? `${CROPS[id].name} (plot tier ${tier})` : CROPS[id].name);
+      add(CROPS[id].req, tier > 1 ? `${CROPS[id].name} (Soil Lv ${tier})` : CROPS[id].name);
     });
   }
   const recipes = ARTISAN_RECIPES[skill];

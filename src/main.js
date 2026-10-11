@@ -23,18 +23,20 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=569';
-import { MONSTERS } from './data/monsters.js?v=569';
-import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=569';
-import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=569';
-import { MONSTER_NOTES } from './data/monster-notes.js?v=569';
-import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=569';
-import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=569';
-import { roomRungLore, plotTier } from './data/homestead-lore.js?v=569';
-import * as ItemArt from './data/item-art.js?v=569';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=569';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=569';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=569';
+import { SKILLS_DEF } from './data/skills.js?v=564';
+import { MONSTERS } from './data/monsters.js?v=564';
+import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=564';
+import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=564';
+import { MONSTER_NOTES } from './data/monster-notes.js?v=564';
+import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=564';
+import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=564';
+import { roomRungLore, plotTier } from './data/homestead-lore.js?v=564';
+/* W0: the boss trophies the House Trophy Room hangs (a display, no stat). */
+import { BOSS_TROPHIES, bossTrophiesHeld } from './data/boss-forge.js?v=564';
+import * as ItemArt from './data/item-art.js?v=564';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=564';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=564';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=564';
 // b348 — the generated progression lanes, published so the suite can grade the
 // LIVE recipe table against the ladder the generator actually laid down (a
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
@@ -109,6 +111,7 @@ window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pending
 window.HearthriseMonsterNotes = MONSTER_NOTES;
 window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore, room: roomRungLore, plot: plotTier });
 window.HearthriseLuckyRumours = LUCKY_RUMOURS;
+window.HearthriseBossTrophies = Object.freeze({ list: BOSS_TROPHIES, held: bossTrophiesHeld });
 /* The shop buy-back cap's input: the cheapest gold price of one unit of
    every item the NPC shop sells, from the generated catalogue through the SAME
    pure derivation the edge's vendorPriceOf imports. shop-counter.js

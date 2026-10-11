@@ -32,7 +32,10 @@
 
 /* The monster catalogue size — the `hunterAll` threshold. Kept in lockstep with
    src/data/monsters.js Object.keys(MONSTERS).length by the drift guard. */
-export const MONSTER_TOTAL = 108;
+/* W0 (2026-10-10): 108 -> 113 — the five field champions are monsters, and
+   "Bestiary Master" means every one. Raised in lockstep with the hunterAll arm
+   restated in supabase/migrations/2026-10-16-w0f-fun-content.sql §3. */
+export const MONSTER_TOTAL = 113;
 
 /* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
    that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0

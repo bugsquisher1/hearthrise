@@ -3,14 +3,18 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=569';
-import { SLOT_DESC } from './slot-ladders.js?v=569';
-import { LIB2_DESC } from './library2-items.js?v=569';
+import { WAVE3_DESC } from './wave3-uniques.js?v=564';
+import { SLOT_DESC } from './slot-ladders.js?v=564';
+import { LIB2_DESC } from './library2-items.js?v=564';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=564';
+import { CHAMPION_DESC } from './champions.js?v=564';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders
   ...LIB2_DESC,  // b356: the approved review-book catalogue (Library 2)
+  ...BOSS_FORGE_DESC, // W0: the three boss-forged body pieces
+  ...CHAMPION_DESC,   // W0: the five field champions' relics
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'adept_belt': 'An adept\'s sash, finer cloth cinched for a caster steadier in their craft',
@@ -178,7 +182,7 @@ export const ITEM_DESC = {
   'emberfruit': 'A hot-hued fruit from volcanic loam that smoulders in the hand, warm and valuable',
   'emberfruit_seed': 'Emberfruit seed whose fiery yield feeds the richer recipes',
   'emberstone_ore': 'Glowing emberstone ore, deep rock that forges into Emberforged bars',
-  'farm_deed': 'A landholder\'s deed spent to expand your farm and unlock crops',
+  'farm_deed': 'A landholder\'s deed spent to enrich your soil so new crops will grow',
   'field_cookbook': 'A hunter\'s cookbook for laying out the Hunter\'s Feast',
   'field_ration': 'A dense travel loaf packed for the march, refined food the castle accepts',
   'forge_blueprint_t2': 'Plans to expand your forge to its second, hotter tier',

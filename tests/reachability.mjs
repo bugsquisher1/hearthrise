@@ -1227,8 +1227,15 @@ const MUTATIONS = [
        scrolling clause is doing real work rather than riding on the
        reachability one. An earlier draft mutated the overflow as well and
        "caught" the defect for the wrong reason. */
-    name: 'M2 — re-inflate the nav rail to its pre-b371 rhythm (Social + Settings below the fold at 768)',
-    css: '.sidebar{gap:4px !important}.nav-btn{min-height:44px !important;padding:8px 10px !important}'
+    /* RE-POINTED b569 (measured with Playwright at 1366x768): the rail now has
+       nine destinations and a `.nav-spacer` holding 220px of slack, so the
+       pre-b371 44px rhythm only shrinks the spacer (to 126px) and Settings stays
+       at y=756 — the mutant ESCAPED on origin/main and nothing ran it. The
+       defect class is unchanged (a rail rhythm that pushes the last destination
+       below the fold); the plant is sized to TODAY's slack: 72px rows put
+       Settings at y=910 on a 768px screen. */
+    name: 'M2 — re-inflate the nav rail past its slack (Settings below the fold at 768)',
+    css: '.sidebar{gap:4px !important}.nav-btn{min-height:72px !important;padding:8px 10px !important}'
        + '.nav-group-label{padding:9px 12px 3px !important;margin-top:3px !important;padding-top:8px !important}'
        + '.brand{padding:8px 10px 10px !important;margin-bottom:6px !important}',
     viewports: [{ w: 1366, h: 768 }],

@@ -78,6 +78,26 @@ export async function guard() {
     problems.push(`SKILL-SQL: the migration chain would not apply — ${e.message}`);
     return problems;
   }
+  /* A LIVE-BODY MUTANT (b569, see MUTANTS): planted into hr_apply as the replayed
+     chain left it, so the defect reaches BEHAVIOUR. An anchor that does not match
+     exactly once is a HARNESS exit (2), never a catch. HR_MUTANT_CONTROL plants
+     nothing (tests/mutant-control.mjs's protocol). */
+  const liveId = process.env.HR_SKILL_ROW_MUTANT;
+  if (liveId && !process.env.HR_MUTANT_CONTROL) {
+    const m = MUTANTS.find((x) => x.id === liveId && x.live);
+    if (!m) { console.log(`MUTANT-HARNESS: no live mutant "${liveId}"`); process.exit(2); }
+    for (const [from, to] of m.edits) {
+      const d = (await db.query("select replace(pg_get_functiondef("
+        + "'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure), chr(13), '') d")).rows[0].d;
+      const hits = d.split(from).length - 1;
+      if (hits !== 1) {
+        console.log(`MUTANT-HARNESS: ${liveId} anchor matched ${hits} times in the live hr_apply (need 1): `
+          + JSON.stringify(from.slice(0, 60)));
+        process.exit(2);
+      }
+      await db.exec(d.replace(from, () => to));
+    }
+  }
 
   await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [UID]);
   await db.query('insert into profiles(id, display_name) values ($1,$2) '
@@ -274,54 +294,29 @@ export async function guard() {
 }
 
 /* ── MUTANTS ─────────────────────────────────────────────────────────────
-   All three edit the GENERATED migration, which is the body that actually
-   runs.
+   RE-POINTED b569. M1-M3 used to edit 2026-08-18-skill-row-upsert.sql, with
+   two extra edits that blinded its §3 so the fault reached behaviour. That
+   file's hr_apply body has since been restated (2026-09-14-hr-apply-
+   restatement.sql) and patched forward by text anchors (2026-10-09-xp-frac-
+   carry.sql, …), so an edit there never survives to the end of the chain: on
+   origin/main M2 and M3 SLIPPED, and M1 read "caught" only because its
+   `v_rows` refusal broke the old file's compile — the chain failed to apply
+   (SKILL-SQL), not a SKILL assertion. The property lives in the FINAL hr_apply,
+   so M1-M3 are `live: true`: guard() plants them into the replayed function
+   (HR_SKILL_ROW_MUTANT), the migration chain is never touched, §3 needs no
+   blinding, and an anchor that does not match the live body exactly once is a
+   HARNESS exit (2), never a catch.
 
-   ⚠ EACH MUTANT CARRIES TWO EXTRA EDITS THAT DISABLE THE MIGRATION'S OWN §3,
-     AND WITHOUT THEM THIS HARNESS WOULD BE A FRAUD. Measured, not assumed: with
-     the plain M3 edit alone, the run went red — with "2026-08-18-skill-row-
-     upsert.sql failed to apply: the XP block does not contain …". That is §3(b)
-     doing its job, which is good news for the migration and NO news about this
-     file: the database never booted, so not one behavioural assertion below
-     ever executed, and all three mutants would have reported CAUGHT even if
-     SKILL-1..7 asserted nothing at all. That is the always-null-probe family
-     wearing a green tick.
+   M4 still edits the FILE, because its subject is the file's own §0 text, read
+   by SKILL-8 — so it alone goes through mutation-safety's snapshot/restore.
 
-     So the static self-check is switched off (§3(a) loses the one term it would
-     miss, and §3(b) is short-circuited with a `return;`) and the fault is left
-     to reach BEHAVIOUR. §3 is graded separately, by the migration replaying at
-     all in every other run of this file.
-
-   tools/derive-skill-row-upsert.mjs --check would also catch these edits — a
-   third, different guard, for a different failure (a hand-edited restatement).
-   Three independent nets over one change is the point, not redundancy.
-
-   ⚠⚠ DO NOT RUN `--mutate` CONCURRENTLY WITH THE SMOKE SUITE, OR WITH ANOTHER
-     MUTATION HARNESS, OR TWICE AT ONCE. It edits a REAL production migration
-     in place and restores it afterwards. A suite running beside it reads the
-     MUTATED bytes — `tests/run-smoke.mjs` replays the whole chain — so it would
-     fail (or, far worse, pass) against a body nobody intended to ship, and the
-     two restores can interleave such that `mutation-safety.mjs`'s hash check
-     verifies a file the OTHER run is still holding open. That hash check is the
-     only thing standing between this harness and the 2026-08-16 incident where
-     a sibling left an item-duplication bug in the deployed engine after a
-     timeout; do not put it in a position where it can be right about the wrong
-     snapshot. Run mutation harnesses one at a time, serially, on an otherwise
-     idle tree. */
+   tools/derive-skill-row-upsert.mjs --check is a separate net over the file
+   (a hand-edited restatement). Run --mutate serially on an otherwise idle
+   tree: M4 still edits a real migration in place. */
 const MIG = 'supabase/migrations/2026-08-18-skill-row-upsert.sql';
-const BLIND = [
-  // §3(a)'s term list: swap this file's own change for a term that is present
-  // either way, so (a) still runs and still means something.
-  ["    'on conflict (user_id, slot, skill_id)']",
-    "    'c_max_xp_delta     constant bigint := 12000000']"],
-  // §3(b)-(g): short-circuit. `return` in a DO block ends it.
-  ['  -- (b) THE XP GRANT IS AN UPSERT AND THE OLD REFUSAL IS GONE',
-    '  return; -- MUTATION HARNESS: §3(b)-(g) disabled so the BEHAVIOUR is what fails\n'
-    + '  -- (b) THE XP GRANT IS AN UPSERT AND THE OLD REFUSAL IS GONE'],
-];
 const MUTANTS = [
   {
-    id: 'M1', file: MIG,
+    id: 'M1', file: MIG, live: true,
     what: 'the XP grant reverts to the bare UPDATE + row-count refusal (the incident itself)',
     edits: [[`        insert into public.player_skills (user_id, slot, skill_id, xp)
           values (v_uid, v_slot, k, v_n)
@@ -332,22 +327,20 @@ const MUTANTS = [
         get diagnostics v_rows = row_count;
         if v_rows <> 1 then
           perform public.hr_reject('unknown_skill', jsonb_build_object('skill_id', k));
-        end if;`], ...BLIND],
+        end if;`]],
   },
   {
-    id: 'M2', file: MIG,
+    id: 'M2', file: MIG, live: true,
     what: 'the true-unknown check is dropped, so a client string mints its own skill row',
     edits: [['        if not exists (select 1 from public.hr_skills where skill_id = k) then\n'
       + "          perform public.hr_reject('unknown_skill', jsonb_build_object('skill_id', k));\n"
       + '        end if;\n'
       + '        insert into public.player_skills (user_id, slot, skill_id, xp)',
-    '        insert into public.player_skills (user_id, slot, skill_id, xp)'], ...BLIND],
+    '        insert into public.player_skills (user_id, slot, skill_id, xp)']],
   },
   {
-    /* ⚠ NO `...BLIND` ON THIS ONE, DELIBERATELY. §3 does not check §0, and
-       SKILL-8 is a source read rather than a database assertion — so blinding
-       §3 here would prove nothing about the mutant and would only make the
-       list look uniform. */
+    /* A FILE mutant: SKILL-8 reads §0's text from disk. §3 does not check §0,
+       so nothing needs blinding. */
     id: 'M4', file: MIG,
     what: "§0's predecessor gate reverts to a term fight-carry also contains, so it would pass "
       + 'against a database that never received equip-release-codes (Security S1)',
@@ -356,9 +349,9 @@ const MUTANTS = [
     "  if position('too_many_equip_ops' in v_src) = 0 then"]],
   },
   {
-    id: 'M3', file: MIG,
+    id: 'M3', file: MIG, live: true,
     what: 'the conflict arm REPLACES the stored xp instead of adding to it (a total XP reset)',
-    edits: [['do update set xp = player_skills.xp + v_n;', 'do update set xp = v_n;'], ...BLIND],
+    edits: [['do update set xp = player_skills.xp + v_n;', 'do update set xp = v_n;']],
   },
 ];
 
@@ -367,40 +360,48 @@ async function mutate() {
   const { spawnSync } = await import('node:child_process');
   const { snapshot, assertNoResidue, noteDirtyTree } = await import('./mutation-safety.mjs');
   let bad = 0;
-  assertNoResidue(MUTANTS.flatMap((m) => m.edits.map(([from, to]) => (
+  const fileMutants = MUTANTS.filter((m) => !m.live);
+  assertNoResidue(fileMutants.flatMap((m) => m.edits.map(([from, to]) => (
     { file: join(ROOT, m.file), from, to }))));
-  noteDirtyTree([...new Set(MUTANTS.map((m) => m.file))], { cwd: ROOT });
+  noteDirtyTree([...new Set(fileMutants.map((m) => m.file))], { cwd: ROOT });
+  const runGuard = (env) => spawnSync(process.execPath, [join(ROOT, 'tests', 'skill-row-upsert.mjs')],
+    { encoding: 'utf8', timeout: 900000, env: { ...process.env, ...env } });
   for (const m of MUTANTS) {
-    const path = join(ROOT, m.file);
-    const original = snapshot(path);
-    /* EVERY anchor must match exactly once, INCLUDING the two that blind §3.
-       A blinding edit that silently no-ops puts the run straight back into the
-       "§3 failed, so nothing was measured" hole this list exists to escape. */
-    let mutated = original;
-    let planted = true;
-    for (const [from, to] of m.edits) {
-      const hits = mutated.split(from).length - 1;
-      if (hits !== 1) {
-        console.log(`  ! ${m.id}: anchor matched ${hits} times, must match 1 — the mutant is not `
-          + `being planted, so its "caught" verdict would be meaningless. Anchor: `
-          + `${JSON.stringify(from.slice(0, 60))}`);
-        planted = false; break;
-      }
-      mutated = mutated.replace(from, to);
-    }
-    if (!planted) { bad++; continue; }
-    await writeFile(path, mutated, 'utf8');
     let out;
-    try {
-      out = spawnSync(process.execPath, [join(ROOT, 'tests', 'skill-row-upsert.mjs')],
-        { encoding: 'utf8', timeout: 900000 });
-    } finally {
-      await writeFile(path, original, 'utf8');
+    if (m.live) {
+      out = runGuard({ HR_SKILL_ROW_MUTANT: m.id });
+    } else {
+      const path = join(ROOT, m.file);
+      const original = snapshot(path);
+      let mutated = original;
+      let planted = true;
+      for (const [from, to] of m.edits) {
+        const hits = mutated.split(from).length - 1;
+        if (hits !== 1) {
+          console.log(`  ! ${m.id}: anchor matched ${hits} times, must match 1 — the mutant is not `
+            + `being planted, so its "caught" verdict would be meaningless. Anchor: `
+            + `${JSON.stringify(from.slice(0, 60))}`);
+          planted = false; break;
+        }
+        mutated = mutated.replace(from, to);
+      }
+      if (!planted) { bad++; continue; }
+      await writeFile(path, mutated, 'utf8');
+      try { out = runGuard({}); } finally { await writeFile(path, original, 'utf8'); }
     }
-    if (out.status !== 0) {
-      const c = (out.stdout || '').split('\n').filter((l) => l.startsWith('  x ')).length;
-      console.log(`  ✓ ${m.id} CAUGHT (${c || '?'}) — ${m.what}`);
-    } else { console.log(`  ✗ ${m.id} SLIPPED — ${m.what}`); bad++; }
+    /* CAUGHT means a SKILL assertion failed (exit 1) — and not because the chain
+       would not apply. A harness exit (2), a timeout or a SKILL-SQL line is not a catch. */
+    const lines = (out.stdout || '').split(/\r?\n/);
+    const xs = lines.filter((l) => l.startsWith('  x '));
+    if (out.status === 1 && xs.length && !xs.every((l) => l.includes('SKILL-SQL'))) {
+      console.log(`  ✓ ${m.id} CAUGHT (${xs.length}) — ${m.what}`);
+    } else {
+      const why = out.status === 1 ? 'only the chain failed to apply' : `exit ${out.status}`;
+      console.log(`  ✗ ${m.id} SLIPPED (${why}) — ${m.what}`);
+      const h = lines.find((l) => l.startsWith('MUTANT-HARNESS'));
+      if (h) console.log('      ' + h);
+      bad++;
+    }
   }
   return bad;
 }

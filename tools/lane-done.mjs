@@ -13,9 +13,20 @@
 // inputs plus its import closure (tools/verdict-cache.mjs) and printed `cached`
 // when nothing it reads has changed. `--no-cache` / HR_VERDICT_CACHE=0 runs all;
 // `-j 1` runs one at a time; `--fail-fast` stops at the first red.
+//
+// SCOPED PROOFS (b569). The list below is fixed, so a lane that edited a line some
+// guard's --selftest/--mutate mutant anchors on went green here and red on GitHub
+// (envelope-frame-gate vs a rewrite of src/net/gold.js). tools/guard-anchors.mjs
+// derives guard -> anchored files from the guards' own source; every proof arm
+// whose anchors (or whose guard file) this lane changed — origin/main...HEAD plus
+// the uncommitted tree — is appended, verdict-cached on its anchors, and a proof
+// that plants into the tree runs solo. A proof guard with no derivable or declared
+// anchor set is itself a RED step. `--scoped-only` runs just those; `--changed
+// <file> …` replaces the diff (the end-to-end arm of guard-anchors --selftest).
 import { spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
 import { verdictKey, lookup, record } from './verdict-cache.mjs';
+import { scopedProofs } from './guard-anchors.mjs';
 
 // What a chain replay reads besides its own import closure.
 const CHAIN = ['supabase', 'tests/sql', 'tests/schema-apply-order.json', 'tests/schema-drift.baseline.json'];
@@ -101,6 +112,9 @@ const STEPS = [
 ];
 const argv = process.argv.slice(2);
 const FAIL_FAST = argv.includes('--fail-fast');
+const SCOPED_ONLY = argv.includes('--scoped-only');
+const chAt = argv.indexOf('--changed');
+const CHANGED = chAt >= 0 ? argv.slice(chAt + 1).filter((a) => !a.startsWith('-')) : null;
 if (argv.includes('--no-cache')) process.env.HR_VERDICT_CACHE = '0';
 const jAt = argv.indexOf('-j');
 const POOL = jAt >= 0 && Number(argv[jAt + 1]) >= 1 ? Number(argv[jAt + 1])
@@ -119,6 +133,20 @@ function run(cmd, args) {
 
 let red = 0;
 let stop = false;
+
+/* The scoped proofs, after the fixed list; a step the list already runs is not run twice. */
+const scoped = scopedProofs(process.cwd(), { changed: CHANGED });
+const fixed = new Set(STEPS.map(([c, a]) => `${c} ${a.join(' ')}`));
+const SCOPED = scoped.steps
+  .map((s) => ['node', [s.guard, ...(s.arm ? [s.arm] : [])], { inputs: [...CHAIN, 'src', ...s.anchors], solo: s.solo }])
+  .filter(([c, a]) => !fixed.has(`${c} ${a.join(' ')}`));
+const PLAN = SCOPED_ONLY ? SCOPED : [...STEPS, ...SCOPED];
+console.log(`scoped proofs: ${SCOPED.length} arm(s) anchored on ${(scoped.changed || []).length} changed file(s)`
+  + (SCOPED.length ? ' — ' + SCOPED.map(([, a]) => a[0].replace(/^(tests|tools)\//, '')).join(', ') : ''));
+for (const p of scoped.error ? [scoped.error] : scoped.errors) {
+  red++;
+  console.log('  RED   guard-anchors  ' + p.slice(0, 200));
+}
 async function step([cmd, args, opt = {}]) {
   if (stop) return;
   const label = `${cmd} ${args.join(' ')}`;
@@ -141,11 +169,11 @@ async function step([cmd, args, opt = {}]) {
 }
 
 const t0 = Date.now();
-const queue = STEPS.filter(([, , o]) => !o?.solo);
+const queue = PLAN.filter(([, , o]) => !o?.solo);
 await Promise.all(Array.from({ length: Math.min(POOL, queue.length) }, async () => {
   while (queue.length && !stop) await step(queue.shift());
 }));
-for (const s of STEPS.filter(([, , o]) => o?.solo)) await step(s);
+for (const s of PLAN.filter(([, , o]) => o?.solo)) await step(s);
 const wall = `${((Date.now() - t0) / 1000).toFixed(0)} s, ${POOL} at a time`;
 console.log(red ? `\n${red} guard(s) red — the lane is not done. (${wall})` : `\nlane-done: all green. (${wall})`);
 process.exitCode = red ? 1 : 0;

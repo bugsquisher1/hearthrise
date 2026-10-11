@@ -41,6 +41,7 @@
 // Usage:  node tests/arm-flag-honesty.mjs [--list] [--selftest]
 // ============================================================================
 
+// mutant-anchors: none — the proof audits synthetic fake/*.js sources held in memory
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';

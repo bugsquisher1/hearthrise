@@ -39,6 +39,7 @@
 //     weight), so its count is a weighted estimate while every other code is
 //     exact.
 // ============================================================================
+// mutant-anchors: none — the proof lifts the STALL RULE block out of this file (a guard is its own anchor)
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';

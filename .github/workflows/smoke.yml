@@ -203,10 +203,11 @@ jobs:
   # The two browser mutation proofs merged in from main on 2026-09-07 —
   # raid-card-copy --selftest (9.0 s) and icon-boot-order --selftest (22.4 s,
   # and it is the one that runs the CPU-load control) — add 31.4 s between them.
-  # Half a minute on a ~15 min family: budget stays 30.
+  # Half a minute on a ~15 min family: budget stays 30. b569 adds
+  # reachability --mutate (~111 s locally): ~16.9 min x2 -> 34.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 34
 
     steps:
       - uses: actions/checkout@v4
@@ -243,6 +244,15 @@ jobs:
       - name: Hunt card states the band rule
         if: ${{ !cancelled() }}
         run: node tests/raid-card-copy.mjs
+
+      # REACHABILITY'S MUTATION PROOF, ADOPTED (b569). The plain guard runs inside
+      # run-smoke; --mutate was registered nowhere and was RED on origin/main: M2
+      # (the rail re-inflated) ESCAPED because the rail had gained 220px of
+      # slack, so the plant never pushed Settings below the fold. Re-sized to
+      # today's slack (measured in Chromium). 12 plants; ~111 s locally.
+      - name: Reachability — mutation proof (12 planted layout defects)
+        if: ${{ !cancelled() }}
+        run: node tests/reachability.mjs --mutate
 
       # The Hunt card copy, mutation-proven in the REAL browser: each defect is
       # planted into the real src/features/raids.js on the way to Chromium.
@@ -2382,6 +2392,42 @@ jobs:
           node tests/world-tick-companion-xp.mjs
           node tests/world-tick-companion-xp.mjs --mutate
 
+      # F5 LOCKDOWN, ADOPTED (b569). Registered nowhere and red since the file
+      # entered the order (42P01: it replayed the WHOLE chain, which already
+      # dropped public.leaderboard, then looked for the hole to reproduce). It
+      # now replays up to its predecessor — the state the migration targets —
+      # reproduces F5, applies, proves the revoke + controls, and requires §5 to
+      # refuse five broken variants by name. Measured 12 s locally.
+      - name: Leaderboard view lockdown — F5 reproduces, closes, and §5 refuses five mutants
+        if: ${{ !cancelled() }}
+        run: node tests/leaderboard-lockdown-guard.mjs
+
+  # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
+  # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
+  # on origin/main (M1 double anchor, S5/S6 anchors removed by b374, M5/M8/M10
+  # unreachable since cooking was armed). It plants into the WORKING TREE
+  # (tests/mutation-safety.mjs restores and hash-verifies), so it shares a job
+  # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
+  # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
+  artisan-selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 56
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
+        run: node tests/artisan-accrual.mjs --selftest
+
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
@@ -2445,10 +2491,12 @@ jobs:
   # (49.2 s; it replays the chain in PGlite, which is exactly this family's one
   # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
   # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
-  # Budget RAISED 30 -> 32, still measured x2.
+  # Budget RAISED 30 -> 32, still measured x2. b569 adds delta-transport
+  # --selftest (34 s) and skill-row-upsert --mutate (~100 s locally): ~18.1 min,
+  # x2 = 36.2 -> 37.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 37
 
     steps:
       - uses: actions/checkout@v4
@@ -3011,6 +3059,23 @@ jobs:
       - name: Hired-crew accrual — base run
         if: ${{ !cancelled() }}
         run: node tests/worker-accrual.mjs
+
+      # TWO MORE PROOFS ADOPTED (b569), both RED on origin/main and registered
+      # nowhere (plain runs are in run-smoke). delta-transport --selftest died as
+      # a HARNESS error: hr_tick_settle grew a 10th argument, so the tick-fence
+      # anchor matched nothing — and T6 only graded the LAST argument, which is
+      # no longer the delta; it now grades every bound jsonb argument.
+      # skill-row-upsert --mutate: M2/M3 SLIPPED (they edited a body later
+      # restated and patched forward) and M1 "caught" only a chain that would
+      # not apply; M1-M3 now plant into the FINAL hr_apply after the replay.
+      # Measured locally: 34 s and ~100 s.
+      - name: Delta transport — mutation proof (every apply site, every jsonb argument)
+        if: ${{ !cancelled() }}
+        run: node tests/delta-transport.mjs --selftest
+
+      - name: Skill-row upsert — mutation proof (live-body mutants)
+        if: ${{ !cancelled() }}
+        run: node tests/skill-row-upsert.mjs --mutate
 
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no
@@ -3715,6 +3780,18 @@ jobs:
         run: |
           node tests/envelope-frame-gate.mjs --selftest
           node tests/envelope-frame-gate.mjs
+
+      # GUARD ANCHORS (b569). tools/lane-done.mjs re-runs the --selftest/--mutate
+      # of every guard whose mutants anchor on a file the lane changed (and the
+      # replay guards a changed migration's DDL targets reach). The plain run
+      # fails when a proof-capable guard has no derivable or declared anchor
+      # set; --selftest plants an anchor-breaking edit in src/net/gold.js and
+      # requires lane-done's scoped step to go RED on envelope-frame-gate, with
+      # the unplanted control green.
+      - name: Guard anchors — every proof guard's anchor set is known, and lane-done re-proves it
+        run: |
+          node tools/guard-anchors.mjs --selftest
+          node tools/guard-anchors.mjs
 
       # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
       # failure directions are not symmetric: a floor that is too LOW heals on

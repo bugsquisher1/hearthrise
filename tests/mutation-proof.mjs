@@ -54,6 +54,7 @@
 // run at all".
 // ════════════════════════════════════════════════════════════════════════
 
+// mutant-anchors: none — the proof drives the shared driver on in-memory scenarios
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 

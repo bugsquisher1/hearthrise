@@ -6,7 +6,6 @@
 // one button that takes them to the first thing missing. This file is the
 // DISPLAY half of the spine. `step`, `id`, `need`, `via` and `whenDone` come
 // from src/data/spine.js, row for row; this file adds, keyed by step id:
-//   chapter                sets the "of N" the bar shows (1: steps 1-10)
 //   title · why            the bar's words and Home's reason line
 //   parts                  what the bar counts, in the order Go walks them.
 //                          The LAST part may be the act that finishes the
@@ -152,7 +151,7 @@ const DISPLAY = {
   road_craft: {
     title: 'Craft 60 items', why: 'The reward is an iron axe that cuts willow.',
     parts: [part(count('ev:crafted', 60), 'craft', 'Items crafted')], quest: 'road_craft',
-    opens: opens('Stonemasonry opens', 'Cut stone into ashlar, the blocks the Manor is built from.'),
+    opens: opens('Stonemason opens', 'Cut stone into ashlar, the blocks the Manor is built from.'),
   },
   cut_ashlar: {
     title: 'Cut 6 blocks of ashlar', why: 'The Manor is built of ashlar, and only a stonemason can cut it.',
@@ -207,9 +206,6 @@ export const POINTER_STEPS = Object.freeze(SPINE_STEPS.map((s) => {
   const d = DISPLAY[s.id];
   if (!d) throw new Error('spine-pointer: no display row for spine step ' + s.id);
   return Object.freeze(Object.assign({ chain: false, quest: null }, s, d, {
-    chapter: s.step <= 10 ? 1 : 2, need: d.need || s.need, parts: Object.freeze(d.parts),
+    need: d.need || s.need, parts: Object.freeze(d.parts),
   }));
 }));
-
-/* The "of N" the bar prints: the last step of the row's chapter. */
-export const CHAPTER_END = Object.freeze(POINTER_STEPS.reduce((m, r) => Object.assign(m, { [r.chapter]: Math.max(m[r.chapter] || 0, r.step) }), {}));

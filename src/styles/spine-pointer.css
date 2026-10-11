@@ -102,6 +102,7 @@
 .hd-spine .sp-why { margin-bottom: 6px; }
 .hd-spine .sp-parts { margin-top: 2px; font-size: var(--t-micro); }
 .hd-spine .sp-reward { margin-top: 6px; font-size: var(--t-micro); }
+.hd-spine .sp-next { margin-top: 4px; font-size: var(--t-micro); color: var(--ink-3); }
 .hd-spine .sp-acts {
   flex: 0 0 auto;
   display: flex;

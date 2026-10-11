@@ -107,17 +107,18 @@ export function partStates(facts, row) {
  * @param facts   the server facts (see header)
  * @param rows    src/data/spine-pointer.js POINTER_STEPS
  * @param quests  src/data/goal-catalogue.js QUEST_REWARDS
- * @param chapterEnd  { chapter: last step }
- * @returns {{ready, finished, row, step, total, parts, go, reward, doneIds}}
+ * @returns {{ready, finished, row, step, next, parts, go, reward, doneIds}}
+ *   `next` is the row after this one (the next rung), or null on the last.
+ *   There is no denominator: the road goes on past any "of N".
  *   go.kind: 'claim' (quest) or 'go' (route of the first part not met).
  */
-export function pointerModel(facts, rows, quests, chapterEnd) {
+export function pointerModel(facts, rows, quests) {
   const list = Array.isArray(rows) ? rows : [];
   const ready = !!facts && facts.countsComplete === true;
   const done = doneSteps(facts, list);
   const doneIds = list.filter((r, i) => done[i]).map((r) => r.id);
   const i = list.findIndex((r, k) => !done[k] || claimable(facts, r, quests));
-  if (i < 0) return { ready, finished: true, row: null, step: null, total: list.length, parts: [], go: null, reward: null, doneIds };
+  if (i < 0) return { ready, finished: true, row: null, step: null, next: null, parts: [], go: null, reward: null, doneIds };
   const row = list[i];
   const parts = partStates(facts, row);
   let go;
@@ -130,8 +131,7 @@ export function pointerModel(facts, rows, quests, chapterEnd) {
   }
   const q = row.quest && quests ? quests[row.quest] : null;
   const reward = q ? { gold: q.gold || 0, items: Object.assign({}, q.items) } : null;
-  const total = (chapterEnd && chapterEnd[row.chapter]) || list.length;
-  return { ready, finished: false, row, step: row.step, total, parts, go, reward, doneIds };
+  return { ready, finished: false, row, step: row.step, next: list[i + 1] || null, parts, go, reward, doneIds };
 }
 
 /**

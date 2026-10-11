@@ -38,7 +38,7 @@ export default [
     assert(SP && typeof SP.model === 'function', 'window.HearthriseSpine is not published');
     await onBar(facts({ claimed: {} }), async (bar) => {
       assert(bar && !bar.hidden, 'the pointer bar is not drawn on Skills');
-      assert(/^Step 1 of 10 Chop 15 logs/.test(text(bar)) && /Logs chopped 0\/15/.test(text(bar)), 'fresh bar: ' + text(bar));
+      assert(/^Step 1 Chop 15 logs/.test(text(bar)) && /Logs chopped 0\/15/.test(text(bar)), 'fresh bar: ' + text(bar));
       const go = bar.querySelector('.sp-go');
       assert(go && go.textContent === 'Go chop', 'the button reads ' + (go && go.textContent));
       window.showTab('combat');
@@ -46,7 +46,7 @@ export default [
       assert(document.getElementById('panel-skills').classList.contains('active'), 'Go chop did not open Skills');
     });
     await onBar(facts({ counts: { chopped: 15 } }), async (bar) => {
-      assert(/^Step 2 of 10 Catch and cook 5 fish/.test(text(bar)), 'chopped 15 did not move the bar to step 2: ' + text(bar));
+      assert(/^Step 2 Catch and cook 5 fish/.test(text(bar)), 'chopped 15 did not move the bar to step 2: ' + text(bar));
       assert(bar.querySelector('.sp-go').textContent === 'Go fish', 'step 2 must send the player fishing first');
     });
   }),
@@ -62,7 +62,7 @@ export default [
         G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
         G.stats = Object.assign({}, G.stats, { chopped: 999, kills: 999, gathered: 999 });
         SP.__forget(); SP.render();
-        assert(SP.model().step === 1 && /^Step 1 of 10/.test(text(bar)), 'client-written quests or stats moved the pointer: ' + text(bar));
+        assert(SP.model().step === 1 && /^Step 1/.test(text(bar)), 'client-written quests or stats moved the pointer: ' + text(bar));
         assert(bar.querySelector('.sp-go').textContent === 'Go chop', 'the bar offered ' + bar.querySelector('.sp-go').textContent);
       } finally { R.__swapView(view); }
     });
@@ -70,7 +70,7 @@ export default [
 
   () => tryRunAsync('SPINE-POINTER-3: an unknown fact shows the pending dash, and an unread record shows no step at all', async () => {
     await onBar(facts({ counts: FIRST4, bag: null, gold: null }), async (bar) => {
-      assert(/^Step 5 of 10 Build the Homestead/.test(text(bar)), 'expected the Homestead step: ' + text(bar));
+      assert(/^Step 5 Build the Homestead/.test(text(bar)), 'expected the Homestead step: ' + text(bar));
       const parts = [...bar.querySelectorAll('.sp-part')];
       assert(parts.length === 3 && parts.every((p) => p.querySelector('.bal-pending') && /\/\d/.test(p.textContent)),
         'every unknown cost must read the dash over its goal: ' + parts.map((p) => p.textContent).join(' | '));
@@ -90,14 +90,14 @@ export default [
       window.notify = () => {};
       window.HearthriseGoalClaim = { isSignedIn: () => true, claimQuest: (id) => { calls.push(id); return Promise.resolve({ ok: true, credited: true, quest: id, gold: 150, items: {} }); } };
       await onBar(facts({ counts: { chopped: 15, 'ev:gather': 15 }, claimed: {} }), async (bar, SP) => {
-        assert(/^Step 1 of 10/.test(text(bar)) && /150 gold/.test(text(bar)), 'the step and its catalogue reward: ' + text(bar));
+        assert(/^Step 1/.test(text(bar)) && /150 gold/.test(text(bar)), 'the step and its catalogue reward: ' + text(bar));
         const btn = bar.querySelector('.sp-go');
         assert(btn && btn.textContent === 'Claim', 'the button reads ' + (btn && btn.textContent));
         btn.click();
         await tick(); await tick();
         assert(calls.length === 1 && calls[0] === 'gatherer', 'Claim must fire hr_claim_quest for gatherer once: ' + JSON.stringify(calls));
         SP.render();
-        assert(/^Step 2 of 10/.test(text(bar)), 'a paid claim left the bar on step 1: ' + text(bar));
+        assert(/^Step 2/.test(text(bar)), 'a paid claim left the bar on step 1: ' + text(bar));
       });
       await onBar(facts({ counts: FIRST4, bag: {}, gold: 0 }), async (bar) => {
         assert(!/gold ·|Claim/.test(text(bar)) && !bar.querySelector('.sp-reward'), 'a step with no server reward showed one: ' + text(bar));
@@ -117,9 +117,11 @@ export default [
       assert(!/Your first day|Journeyman|Next up/.test(words), 'a retired list is still on Home: ' + (words.match(/Your first day|Journeyman[^.]*|Next up/) || [''])[0]);
       const card = root.querySelector('[data-sp-card]');
       assert(card && card === root.querySelector('.hd-col').firstElementChild, 'Home does not lead its first column with the step card');
-      assert(/Step 5 of 10/.test(card.textContent) && /Build the Homestead/.test(card.textContent) && /more farm plots/.test(card.textContent),
+      assert(/Step 5/.test(card.textContent) && /Build the Homestead/.test(card.textContent) && /more farm plots/.test(card.textContent),
         'the card must carry the step and its reason: ' + card.textContent);
       assert(card.querySelector('[data-sp="go"]').textContent === 'Go mine', 'the card button must match the bar');
+      assert(/Next: Hire your first hand/.test(card.textContent) && !/Step \d+ of \d+/.test(card.textContent + bar.textContent),
+        'the card must name the next rung and no step may claim a finish line: ' + card.textContent);
     }, 'profile');
   }),
 
@@ -165,10 +167,10 @@ export default [
   () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the boots on your feet; the unlock moment speaks once per newly finished step', async () => {
     const six = Object.assign({}, FIRST4, { crafted: 1 });
     await onBar(facts({ counts: six, property: 1, workers: 1, bag: { leather_boots: 1 } }), async (bar) => {
-      assert(/^Step 7 of 10/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Wear', 'crafted but not worn: ' + text(bar));
+      assert(/^Step 7/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Wear', 'crafted but not worn: ' + text(bar));
     });
     await onBar(facts({ counts: six, property: 1, workers: 1, equipment: { boots: 'leather_boots' } }), async (bar) => {
-      assert(/^Step 8 of 10/.test(text(bar)), 'boots worn did not finish step 7: ' + text(bar));
+      assert(/^Step 8/.test(text(bar)), 'boots worn did not finish step 7: ' + text(bar));
     });
     const SP = window.HearthriseSpine;
     const was = SP.__park(true);

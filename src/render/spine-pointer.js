@@ -75,7 +75,7 @@ export function barHtml(m, o) {
   }
   const a = action(m, o.routes);
   const reward = a && a.claim ? '<span class="sp-reward">' + esc(rewardText(m.reward, o.itemName)) + '</span>' : '';
-  return '<div class="sp-in"><span class="sp-step">Step ' + m.step + ' of ' + m.total + '</span>'
+  return '<div class="sp-in"><span class="sp-step">Step ' + m.step + '</span>'
     + '<span class="sp-title">' + esc(m.row.title) + '</span>'
     + '<span class="sp-parts">' + partsHtml(m, o) + reward + '</span>'
     + dailyHtml(o.daily)
@@ -95,11 +95,12 @@ export function cardHtml(m, o) {
   const reward = rewardText(m.reward, o.itemName);
   return '<div class="hd-spine" data-sp-card><div class="hd-card hd-mile is-title">'
     + '<div class="hd-mile-badge">' + o.icon(a ? a.glyph : 'uiQuests', 22, 'var(--gold-2)') + '</div>'
-    + '<div class="hd-mile-body"><div class="sp-step">Step ' + m.step + ' of ' + m.total + '</div>'
+    + '<div class="hd-mile-body"><div class="sp-step">Step ' + m.step + '</div>'
     + '<div class="hd-mile-title">' + esc(m.row.title) + '</div>'
     + '<div class="hd-mile-sub sp-why">' + esc(m.row.why) + '</div>'
     + '<div class="sp-parts">' + partsHtml(m, o) + '</div>'
     + (reward ? '<div class="sp-reward">Reward: ' + esc(reward) + '</div>' : '')
+    + (m.next ? '<div class="sp-next">Next: ' + esc(m.next.title) + '</div>' : '')
     + '</div><div class="sp-acts">' + dailyHtml(o.daily)
     + (a ? '<button type="button" class="hd-cta' + (a.claim ? ' is-claim' : '') + '" data-sp="go">' + esc(a.verb) + '</button>' : '')
     + '</div></div></div>';

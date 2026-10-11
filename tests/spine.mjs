@@ -21,6 +21,9 @@
 //        is not followed by a bar that promises nothing
 //   SP5  the predicate: a fresh character is on step 1, a maxed one is done,
 //        and growing a fact never moves the pointer back
+//   SP6  the unlock moment for finishing step N names a door that finishing N
+//        actually opens (src/data/reveals.js on the real predicate), and names
+//        no door that is still shut after it
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -38,6 +41,17 @@ const { MONSTERS } = await imp('src/data/monsters.js');
 const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
 const { SHOP_OFFERS } = await imp('src/data/shops.js');
 const core = await imp('src/core/spine-pointer.js');
+const progress = await imp('src/core/spine-progress.js');
+const { SPINE_STEPS } = await imp('src/data/spine.js');
+const { SKILLS_DEF } = await imp('src/data/skills.js');
+const { START_SKILL_XP } = await imp('src/data/start-kit.js');
+
+/** pane tab → its rail label, from src/nav-consolidation.js HUBS. */
+function paneLabels() {
+  const t = readFileSync(join(ROOT, 'src/nav-consolidation.js'), 'utf8');
+  const a = t.indexOf('var HUBS = [');
+  return Object.fromEntries([...t.slice(a, t.indexOf('];', a)).matchAll(/tab:\s*'([A-Za-z]+)',\s*label:\s*'([^']+)'/g)].map((m) => [m[1], m[2]]));
+}
 
 function hubPanes() {
   const t = readFileSync(join(ROOT, 'src/nav-consolidation.js'), 'utf8');
@@ -74,6 +88,7 @@ export function world() {
     rows: SP.POINTER_STEPS.map((r) => Object.assign({}, r, { parts: r.parts.slice() })),
     routes: Object.assign({}, SP.ROUTES), itemRoute: Object.assign({}, SP.ITEM_ROUTE),
     reveals: REVEALS.slice(), quests: Object.assign({}, QUEST_REWARDS), panes: hubPanes(), producers: producers(), questIds: questDefIds(),
+    paneLabels: paneLabels(), skillNames: Object.fromEntries(Object.entries(SKILLS_DEF).map(([id, d]) => [id, d.name])),
   };
 }
 
@@ -142,8 +157,39 @@ export function check(w) {
     if (!row.opens || !row.opens.title || !row.opens.line) fail('SP4', `step ${row.step} has no unlock line`);
   });
 
+  // SP6 — the unlock moment names what finishing the step opens, and nothing shut
+  const shownAt = (k) => {   // every step before k done, as the server would state it
+    const f = { counts: {}, countsComplete: true, skills: Object.assign({}, START_SKILL_XP), property: 0, workers: 0, companions: 0, bag: {}, products: {} };
+    SPINE_STEPS.filter((r) => r.step < k).forEach((r) => r.need.forEach((n) => {
+      if (n.fact === 'count') f.counts[n.key] = Math.max(f.counts[n.key] || 0, n.min);
+      if (n.fact === 'property') f.property = Math.max(f.property, n.min);
+      if (n.fact === 'workers') f.workers = Math.max(f.workers, n.min);
+      if (n.fact === 'combat') f.skills = Object.assign({}, f.skills, { attack: 2e6, strength: 2e6, defense: 2e6, hitpoints: 2e6 });
+      if (n.fact === 'item') f.bag[n.id] = n.min;
+      if (n.fact === 'cleared') f.counts['dungeon_clear:' + n.dungeon] = n.min;
+    }));
+    return progress.reveal(f, SPINE_STEPS, w.reveals, { startXp: START_SKILL_XP }).shown;
+  };
+  const doorWord = (id) => {
+    const [kind, key] = id.split(':');
+    const label = kind === 'pane' ? w.paneLabels[key] : kind === 'skill' ? w.skillNames[key] : null;
+    return label ? label.split(' ').pop() : null;
+  };
+  const named = (text, word) => new RegExp('\\b' + word + '\\b', 'i').test(text);
+  const doors = w.reveals.map((r) => r.id).filter((id) => doorWord(id));
+  w.rows.forEach((row) => {
+    if (!row.opens) return;
+    const before = shownAt(row.step), after = shownAt(row.step + 1);
+    const text = row.opens.title + ' ' + row.opens.line;
+    const opened = doors.filter((id) => after.has(id) && !before.has(id));
+    if (opened.length && !opened.some((id) => named(text, doorWord(id))))
+      fail('SP6', `finishing step ${row.step} opens ${opened.join(', ')}, and its moment "${row.opens.title}" names none of them`);
+    doors.filter((id) => !after.has(id) && named(text, doorWord(id)))
+      .forEach((id) => fail('SP6', `step ${row.step}'s moment names ${doorWord(id)} (${id}), which is still shut after it`));
+  });
+
   // SP5 — the predicate on the real rows
-  const model = (f) => core.pointerModel(f, w.rows, w.quests, SP.CHAPTER_END);
+  const model = (f) => core.pointerModel(f, w.rows, w.quests);
   const FRESH = { counts: {}, countsComplete: true, skills: {}, property: 0, workers: 0, bag: {}, gold: 0, equipment: {}, claimed: {} };
   const m0 = model(FRESH);
   if (m0.step !== 1) fail('SP5', `a fresh character is on step ${m0.step}, not 1`);
@@ -186,6 +232,8 @@ const MUTANTS = {
   madeLater: ['SP3', (w) => { w.itemRoute.normal_plank = 'craft'; w.rows[4].parts.unshift({ need: { fact: 'item', id: 'normal_plank', min: 1 }, go: 'mine', act: false }); }],
   rungSkipped: ['SP3', (w) => { w.rows[4] = Object.assign({}, w.rows[4], { need: [{ fact: 'property', min: 2 }] }); w.rows[9] = Object.assign({}, w.rows[9], { need: [{ fact: 'property', min: 1 }] }); }],
   noUnlock: ['SP4', (w) => { w.rows[0] = Object.assign({}, w.rows[0], { opens: null }); }],
+  momentEarly: ['SP6', (w) => { const a = w.rows[6].opens; w.rows[6] = Object.assign({}, w.rows[6], { opens: w.rows[7].opens }); w.rows[7] = Object.assign({}, w.rows[7], { opens: a }); }],
+  momentSilent: ['SP6', (w) => { w.rows[2] = Object.assign({}, w.rows[2], { opens: { title: 'Well done', line: 'On to the next thing.' } }); }],
   neverDone: ['SP5', (w) => { w.rows[3] = Object.assign({}, w.rows[3], { need: [] }); }],
 };
 

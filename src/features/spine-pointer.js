@@ -19,7 +19,7 @@
 // its `opens` line once.
 // ════════════════════════════════════════════════════════════════════════
 
-import { POINTER_STEPS, ROUTES, CHAPTER_END } from '../data/spine-pointer.js?v=567';
+import { POINTER_STEPS, ROUTES } from '../data/spine-pointer.js?v=567';
 import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=567';
 import { pointerModel, newlyDone, momentsKnown } from '../core/spine-pointer.js?v=567';
 import { barHtml, cardHtml } from '../render/spine-pointer.js?v=567';
@@ -46,7 +46,7 @@ export function facts() {
 
 export function model() {
   const f = facts();
-  return f ? pointerModel(f, POINTER_STEPS, QUEST_REWARDS, CHAPTER_END) : null;
+  return f ? pointerModel(f, POINTER_STEPS, QUEST_REWARDS) : null;
 }
 
 function pendingRecord() {
@@ -228,7 +228,7 @@ function liveTick() {
   const uid = A && typeof A.currentUserId === 'function' ? A.currentUserId() : null;
   if (!uid) return;
   const key = uid + ':' + (P && typeof P.activeSlot === 'function' ? P.activeSlot() : 0);
-  const fresh = observe(key, pointerModel(f, POINTER_STEPS, QUEST_REWARDS, CHAPTER_END).doneIds);
+  const fresh = observe(key, pointerModel(f, POINTER_STEPS, QUEST_REWARDS).doneIds);
   /* After an absence several steps can land at once: the furthest one speaks. */
   if (fresh.length) showMoment(fresh[fresh.length - 1]);
 }

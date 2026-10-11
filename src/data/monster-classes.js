@@ -53,7 +53,7 @@ export const WEAPON_AXES = Object.freeze(['sword', 'hammer', 'ranged', 'magic'])
 export const MONSTER_CLASSES = Object.freeze({
   mammal: {
     id: 'mammal', name: 'Mammal', order: 1,
-    line: 'Mundane animals, fast and unarmoured. The tutorial class.',
+    line: 'Ordinary animals, fast and unarmoured. The first foes most heroes meet.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
     elementWeak: 'ember', elementResist: [], elementImmune: [],
   },

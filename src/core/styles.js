@@ -53,13 +53,13 @@ export const COMBAT_STYLES = {
   sword: {
     accurate: { name: 'Accurate', trains: 'Attack', desc: '+5% accuracy', accuracyMod: 1.05, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { attack: 1 } },
     aggressive: { name: 'Aggressive', trains: 'Strength', desc: '+5% max hit', accuracyMod: 1.00, damageMod: 1.05, defenseMod: 1.00, speedMod: 1.00, xp: { strength: 1 } },
-    defensive: { name: 'Defensive', trains: 'Defense', desc: 'All XP to Defence', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 1 } },
-    controlled: { name: 'Controlled', trains: 'Atk/Str/Def', desc: '+2% accuracy & max hit · XP split three ways', accuracyMod: 1.02, damageMod: 1.02, defenseMod: 1.02, speedMod: 1.00, xp: { attack: 0.33, strength: 0.33, defense: 0.34 } },
+    defensive: { name: 'Defensive', trains: 'Defence', desc: 'No accuracy or damage bonus', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 1 } },
+    controlled: { name: 'Controlled', trains: 'Atk/Str/Def', desc: '+2% accuracy and max hit', accuracyMod: 1.02, damageMod: 1.02, defenseMod: 1.02, speedMod: 1.00, xp: { attack: 0.33, strength: 0.33, defense: 0.34 } },
   },
   hammer: {
     smash: { name: 'Smash', trains: 'Strength', desc: '+12% max hit', accuracyMod: 1.00, damageMod: 1.12, defenseMod: 1.00, speedMod: 1.00, xp: { strength: 1 } },
     crush: { name: 'Crush', trains: 'Atk/Str', desc: '+3% accuracy · +8% max hit', accuracyMod: 1.03, damageMod: 1.08, defenseMod: 1.00, speedMod: 1.00, xp: { attack: 0.5, strength: 0.5 } },
-    guard: { name: 'Guarded Smash', trains: 'Def/Str', desc: '+4% max hit · XP split Def/Str', accuracyMod: 1.00, damageMod: 1.04, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 0.5, strength: 0.5 } },
+    guard: { name: 'Guarded Smash', trains: 'Def/Str', desc: '+4% max hit', accuracyMod: 1.00, damageMod: 1.04, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 0.5, strength: 0.5 } },
   },
   ranged: {
     /* THE DIFFERENTIAL. On a bare bow (family 0.88 × base 2400ms) these read
@@ -72,9 +72,9 @@ export const COMBAT_STYLES = {
        pre-clamp accuracy, so against a foe you already hit at the 0.95 ceiling
        it pays nothing and the 5% slower swing is pure loss (−4.8%). Choosing by
        the foe in front of you is the decision the triple never had. */
-    rapid: { name: 'Rapid', trains: 'Ranged', desc: 'Fastest swing — baseline speed', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { ranged: 1 } },
+    rapid: { name: 'Rapid', trains: 'Ranged', desc: 'Fastest swing', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { ranged: 1 } },
     precise: { name: 'Precise', trains: 'Ranged', desc: '+8% accuracy · 5% slower swing', accuracyMod: 1.08, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.05, xp: { ranged: 1 } },
-    longrange: { name: 'Longrange', trains: 'Ranged/Def', desc: '+4% accuracy · −2% max hit · 10% slower swing · XP split Ranged/Def', accuracyMod: 1.04, damageMod: 0.98, defenseMod: 1.05, speedMod: 1.10, xp: { ranged: 0.5, defense: 0.5 } },
+    longrange: { name: 'Longrange', trains: 'Ranged/Def', desc: '+4% accuracy · −2% max hit · 10% slower swing', accuracyMod: 1.04, damageMod: 0.98, defenseMod: 1.05, speedMod: 1.10, xp: { ranged: 0.5, defense: 0.5 } },
   },
   /* SCOPE NOTE — magic is deliberately left at 1.00 across the board. `focus`
      strictly dominates `cast` today (+8% accuracy AND +3% max hit for no cost),
@@ -82,9 +82,9 @@ export const COMBAT_STYLES = {
      MAGIC rebalance, not the ranged report, and pricing it needs its own pass.
      Raised as a handoff rather than smuggled in here. */
   magic: {
-    cast: { name: 'Cast', trains: 'Magic', desc: 'Baseline — all XP to Magic', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { magic: 1 } },
+    cast: { name: 'Cast', trains: 'Magic', desc: 'No accuracy or damage bonus', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { magic: 1 } },
     focus: { name: 'Focus', trains: 'Magic', desc: '+8% accuracy · +3% max hit', accuracyMod: 1.08, damageMod: 1.03, defenseMod: 1.00, speedMod: 1.00, xp: { magic: 1 } },
-    warded: { name: 'Warded Cast', trains: 'Magic/Def', desc: '+2% accuracy · −2% max hit · XP split Magic/Def', accuracyMod: 1.02, damageMod: 0.98, defenseMod: 1.05, speedMod: 1.00, xp: { magic: 0.5, defense: 0.5 } },
+    warded: { name: 'Warded Cast', trains: 'Magic/Def', desc: '+2% accuracy · −2% max hit', accuracyMod: 1.02, damageMod: 0.98, defenseMod: 1.05, speedMod: 1.00, xp: { magic: 0.5, defense: 0.5 } },
   },
 };
 

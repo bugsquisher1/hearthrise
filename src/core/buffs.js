@@ -63,7 +63,7 @@ export const BUFFS_DEF = {
   damage: { label: 'Damage', bonusKey: 'damage', isPercent: true, glyph: 'uiSword' },
   /* b238: a FLAT bump to defence (a +4 food buff reads "+4", not "+4%"),
      consumed by monsterCombatRolls. */
-  defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },
+  defense: { label: 'Defence', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },
   combat_xp: { label: 'Combat XP', bonusKey: 'combatXP', isPercent: true, glyph: 'uiTarget' },
   gold_find: { label: 'Gold Find', bonusKey: 'goldFind', isPercent: true, glyph: 'uiCoinStack' },
   /* Pays into the `crit` bonus key, which is ALSO fed by gear (`critB` + the

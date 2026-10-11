@@ -44,8 +44,9 @@
 //
 // HOW IT WORKS. PGlite serves now() from the host JS clock (verified to the
 // millisecond — see tests/_utc-clock-shim.mjs), so each arm spawns a real
-// chain replay with the process clock parked at a chosen offset from a UTC
-// midnight. HR_PGLITE_CACHE=0 on every arm, deliberately: a snapshot restore
+// chain replay with an INJECTED clock: file i of the chain begins its
+// transaction at exactly (arm offset + i ms) past a UTC midnight, whatever the
+// machine is doing. HR_PGLITE_CACHE=0 on every arm, deliberately: a snapshot restore
 // does not replay the chain, and a cached arm would prove nothing about the
 // clock.
 //
@@ -65,7 +66,7 @@
 // must not turn it into something that is green at any magnitude. The file is
 // restored byte-for-byte after each, verified by content.
 //
-// ⚠ THE ARMS ARE TIMED FROM THE FIXTURE, NOT FROM PROCESS START (security
+// ⚠ (HISTORY — superseded 2026-10-11, see LOAD below.) THE ARMS ARE TIMED FROM THE FIXTURE, NOT FROM PROCESS START (security
 // review 2026-09-16 — the first version of this guard got this wrong and said
 // so). The §4 block takes its transaction timestamp ~7–10 s after the process
 // starts, so an arm parked at "-8 s" reached the fixture at 23:59:58 and never
@@ -77,6 +78,22 @@
 // were red in that band on a correct function and are fixed in the same commit
 // as this re-timing: GATE(f5) is day-anchored the way GATE(f6) already was, and
 // GATE(f4) tolerates a 0 cap ONLY on a day younger than one 600 ms kill.
+//
+// ⚠ LOAD (2026-10-11, lane fix-utc-midnight-flake). Two Security reviews on
+// 2026-10-10/11 saw ONE sweep arm red ("the fixture runs at midnight −2 s →",
+// then +0 s / +5 s on another lane) on a heavily loaded machine; alone it was
+// green every time. Root cause: the clock was an OFFSET of the real one,
+// advancing at wall speed from process start, and the probe that converted
+// "fixture seconds" into that offset was measured in ONE replay and spent on
+// the next. Under load the replay before the fixture stretched (12.9 s idle on
+// this box, much longer loaded) and every file after it straddled the boundary
+// at load-dependent instants, so an arm's verdict depended on the machine — and
+// a child that died, or failed with no GATE line, printed a bare "→".
+// Now the clock is injected per file (no wall-clock read anywhere in the time
+// the database is served), the probe is an ASSERTION that the injected instant
+// reached the fixture to the millisecond, every arm proves its clock through
+// the shim's HRCLOCK line (missing or short = HARNESS, never green), and every
+// red names exit code, signal, spawn error, the file that refused and its line.
 //
 // Exit: 0 green · 1 the chain cannot rebuild at some hour of the day ·
 //       2 harness (the control arm failed, or a mutation could not be planted).
@@ -111,7 +128,8 @@ const UNCLAMPED = "now() - interval '5 minutes'";
 const S1_FIX = 'v_consumed   := least(v_settle_delta, v_credit);';
 const S1_DEFECT = 'v_consumed   := v_settle_delta;';
 
-/* WHERE THE FIXTURE ACTUALLY RUNS. The arms are parked relative to a UTC
+/* (HISTORY, superseded 2026-10-11 by the injected clock — kept for the record.)
+   WHERE THE FIXTURE ACTUALLY RUNS. The arms are parked relative to a UTC
    midnight AT PROCESS START, but the §4 block that carries GATE(f5)/GATE(f6)
    executes some seconds later — measured ~6.5 s, and it moves with the machine.
    Timing the arms from process start is how the first version of this guard came
@@ -122,6 +140,10 @@ const S1_DEFECT = 'v_consumed   := v_settle_delta;';
    the database's own transaction timestamp back out of the failure — and the
    sweep below is expressed in seconds OF THE FIXTURE'S OWN CLOCK relative to
    midnight, so k = 0 really is "the block runs as the day turns over". */
+/* 2026-10-11: the probe is no longer a MEASUREMENT spent on a later replay (that
+   was the load dependence); it is an ASSERTION that the injected instant reached
+   the fixture: the GATE(f5) transaction must read back the pin the shim set for
+   this file, to under a millisecond. */
 const F5_MARK = '    -- ── (f5) ⚠ CREDIT';
 const PROBE_SQL = "    raise exception 'HRPROBE now=%', now();\n";
 const PROBE_OFFSET = 3600;
@@ -132,10 +154,12 @@ const SHIM_MIDNIGHT = Date.parse('2026-09-18T00:00:00.000Z');
    boundary artefact: a 15-kill claim needs ≈6.9 s of window at the 600 ms kill
    floor, and a 40-kill one ≈18.5 s, so a fixture that re-acquires a literal
    magnitude goes red for the first several SECONDS of a day, not the first
-   moment of it. ⚠ The label is the INTENDED second: the probe measures one
-   replay and the next replay is not identical (measured 8.65 s and 9.84 s in two
-   runs of the same tree, ~1.2 s of jitter), so read the sweep as covering the
-   band as a SET, not each arm to the second. Ten arms ≈ 2 min. */
+   moment of it. The label is EXACT since 2026-10-11: the arm offset puts the
+   target file's transaction on second k to the millisecond, and file i of the
+   chain on k + (i − target) ms, so every arm also replays EVERY file of the
+   chain within ±0.3 s of that second — on any machine, at any load. (Before,
+   the label was only the intended second: ~1.2 s of jitter idle, tens of
+   seconds loaded.) */
 const SWEEP = [-3, -2, -1, 0, 1, 2, 3, 5, 7, 9];
 
 /* The fixed arms keep the coarse coverage the hand-measured window bought:
@@ -156,21 +180,72 @@ const ok = (label, cond, note = '') => {
   if (!cond) bad++;
 };
 
-function replayAt(offsetSeconds, migDir = MIGDIR) {
+function replayAt(offsetSeconds, migDir = MIGDIR, extraEnv = {}) {
   const r = spawnSync(process.execPath, ['--import', SHIM, REPLAY], {
     cwd: ROOT,
     encoding: 'utf8',
+    // The default 1 MiB would kill a chatty child with ENOBUFS mid-replay and
+    // read as a red arm. No timeout, deliberately: a deadline is a load
+    // dependence; the CI job's own budget bounds a genuine hang.
+    maxBuffer: 256 * 1024 * 1024,
     env: {
       ...process.env,
       HR_MIGRATIONS_DIR: migDir,
       HR_FAKE_UTC_OFFSET_S: String(offsetSeconds),
+      HR_FAKE_UTC_TARGET: MIG_NAME,
       // A restored snapshot never replays the chain, so a cached arm would
       // be green at every hour of the day and this guard would assert nothing.
       HR_PGLITE_CACHE: '0',
+      ...extraEnv,
     },
   });
   const out = `${r.stdout || ''}${r.stderr || ''}`;
-  return { code: r.status, out };
+  const m = out.match(/HRCLOCK pins=(\d+) first=(\S+) last=(\S+) target=([^#\s]*)#(-?\d+)@(\S+)/);
+  const clock = m
+    ? { pins: Number(m[1]), targetIndex: Number(m[5]), targetAt: m[6] === '-' ? null : Date.parse(m[6]) }
+    : null;
+  return { code: r.status, signal: r.signal, error: r.error, out, clock };
+}
+
+/* Why a replay is not green, in words — NEVER an empty string. A red arm used
+   to print `→ ${firstGateLine(out)}`, which is blank when the child died with
+   no output (killed, spawn failure, ENOBUFS): the bare "→" both 2026-10-10/11
+   reports carried. */
+function describe(r) {
+  const why = [];
+  if (r.error) why.push(`spawn error ${r.error.code || ''} ${r.error.message}`.replace(/\s+/g, ' ').trim());
+  if (r.signal) why.push(`killed by ${r.signal}`);
+  if (r.code !== 0 && r.code !== null && r.code !== undefined) why.push(`exit ${r.code}`);
+  if ((r.code === null || r.code === undefined) && !r.signal && !r.error) why.push('no exit status');
+  const refused = r.out.match(/(\S+\.sql) failed to apply: ([^\n]*)/);
+  if (refused) why.push(`${refused[1]} refused: ${refused[2].slice(0, 200)}`);
+  else {
+    const gate = r.out.match(/GATE\([^)]*\)[^\n]*/);
+    const tail = r.out.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('HRCLOCK')).pop();
+    why.push(gate ? gate[0].slice(0, 200) : tail ? `last output: ${tail.slice(0, 200)}` : 'the child printed nothing');
+  }
+  if (!r.clock) why.push('no HRCLOCK line (the clock shim never reported)');
+  else if (!r.clock.pins || r.clock.targetAt === null) {
+    why.push(`the injected clock never reached the chain (HRCLOCK pins=${r.clock.pins}, `
+      + `${MIG_NAME} ${r.clock.targetAt === null ? 'never pinned' : 'pinned'})`);
+  }
+  return why.join(' · ');
+}
+
+let CHAIN_LEN = 0;     // set from the control arm, which must pin every file
+/* Green = exit 0 AND the injected clock demonstrably reached every file. */
+function verdict(r, label, { expectHarness = false } = {}) {
+  if (r.code !== 0) return 'red';
+  const c = r.clock;
+  if (!c || c.pins === 0 || c.targetAt === null || (CHAIN_LEN && c.pins !== CHAIN_LEN)) {
+    if (expectHarness) return 'harness';
+    const seen = c ? `pins=${c.pins} of ${CHAIN_LEN || '?'}, target ${c.targetAt === null ? 'never pinned' : 'pinned'}` : 'no HRCLOCK line';
+    console.error(`  HARNESS: ${label} exited 0 but the injected clock did not reach the chain (${seen}) — `
+      + 'this replay ran on an unknown clock and proves nothing.');
+    harness = 1;
+    return 'harness';
+  }
+  return 'green';
 }
 
 
@@ -253,9 +328,10 @@ function assertChainIntact(where) {
   return false;
 }
 
-/* Plant a probe, replay once, read the fixture's own now() out of the failure,
-   restore byte-for-byte. Returns the seconds between process start and the
-   moment the §4 block's transaction timestamp is taken. */
+/* Plant a probe, replay once, read the fixture's own now() out of the failure.
+   Returns the target file's chain index and how far the fixture's now() sat
+   from the shim's pin for it — which must be under a millisecond (an
+   assertion, not a calibration). */
 function probeFixtureDelay() {
   const shim = readFileSync(join(HERE, '_utc-clock-shim.mjs'), 'utf8');
   if (!shim.includes("'2026-09-18T00:00:00.000Z'")) {
@@ -265,51 +341,55 @@ function probeFixtureDelay() {
   const at = original.indexOf(F5_MARK);
   if (at < 0) return { err: `could not find the GATE(f5) marker to plant the probe in ${MIGRATION}` };
   const planted = original.slice(0, at) + PROBE_SQL + original.slice(at);
-  const out = withPlantedChain(planted, (dir) => replayAt(PROBE_OFFSET, dir).out);
+  const pr = withPlantedChain(planted, (dir) => replayAt(PROBE_OFFSET, dir));
+  const out = pr && pr.out;
   if (out === undefined) return { err: 'the planted chain failed its byte-identity check — see S-UM-2 above' };
   if (!assertChainIntact('after the probe')) return { err: 'the tracked migration was written to' };
   // Postgres renders the timestamp in the SESSION's TimeZone, which on a dev box
   // is the host zone (`… 19:30:06.613-06`), not UTC — so the zone offset is part
   // of what is parsed, never assumed.
   const m = out.match(/HRPROBE now=(\d{4}-\d{2}-\d{2})[ T]([\d:.]+)([+-]\d{2})(?::?(\d{2}))?/);
-  if (!m) return { err: 'the probe did not report a timestamp (is the §4 block still reached?)' };
+  if (!m) return { err: `the probe did not report a timestamp (is the §4 block still reached?) — ${describe(pr)}` };
+  if (!pr.clock || pr.clock.targetAt === null) return { err: `the shim never pinned ${MIG_NAME} — ${describe(pr)}` };
   const seen = Date.parse(`${m[1]}T${m[2]}${m[3]}:${m[4] || '00'}`);
   if (!Number.isFinite(seen)) return { err: `unparseable probe timestamp: ${m[0]}` };
-  return { delay: (seen - (SHIM_MIDNIGHT + PROBE_OFFSET * 1000)) / 1000 };
-}
-
-function firstGateLine(out) {
-  const m = out.match(/GATE\([^)]*\)[^\n]*/);
-  return m ? m[0].slice(0, 160) : (out.trim().split('\n').pop() || '').slice(0, 160);
+  const pin = SHIM_MIDNIGHT + PROBE_OFFSET * 1000 + pr.clock.targetIndex;
+  if (pr.clock.targetAt !== pin) return { err: `the shim pinned ${MIG_NAME} at ${pr.clock.targetAt}, expected ${pin}` };
+  const skew = (seen - pin) / 1000;
+  if (!(skew >= 0 && skew < 0.001)) {
+    return { err: `the fixture read now() ${skew.toFixed(6)} s from its injected pin — the clock is NOT injected `
+      + "(a real-time read, or a pin that does not immediately precede the file's begin)" };
+  }
+  return { index: pr.clock.targetIndex, skew };
 }
 
 async function base() {
   console.log('\nUTC MIDNIGHT REPLAY — the chain must rebuild at every hour of the day\n');
   const control = ARMS.find((a) => !a.window);
   const c = replayAt(control.off);
-  if (c.code !== 0) {
-    console.error(`  HARNESS: the ${control.name} arm is red, so no in-window red means anything.`);
-    console.error(`           ${firstGateLine(c.out)}`);
+  if (c.code !== 0 || !c.clock || !c.clock.pins || c.clock.targetAt === null) {
+    console.error(`  HARNESS: the ${control.name} arm is not green, so no in-window red means anything.`);
+    console.error(`           ${describe(c)}`);
     harness = 1;
     return;
   }
-  ok(control.name, true);
+  CHAIN_LEN = c.clock.pins;
+  ok(control.name, true, `(${CHAIN_LEN} files, each on an injected clock)`);
   const probe = probeFixtureDelay();
   if (probe.err) {
     console.error(`  HARNESS: ${probe.err}`);
     harness = 1;
     return;
   }
-  console.log(`  ..    probed: the §4 block takes its transaction timestamp ${probe.delay.toFixed(2)} s after process start\n`);
-  for (const k of SWEEP) {
-    const r = replayAt(k - probe.delay);
-    ok(`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`,
-      r.code === 0, r.code === 0 ? '' : `→ ${firstGateLine(r.out)}`);
-  }
-  for (const arm of ARMS.filter((a) => a.window)) {
-    const r = replayAt(arm.off);
-    ok(arm.name, r.code === 0, r.code === 0 ? '' : `→ ${firstGateLine(r.out)}`);
-  }
+  console.log(`  ..    probed: the §4 block (file #${probe.index}) reads now() ${Math.round(probe.skew * 1e6)} µs after its injected pin\n`);
+  // The arm offset puts the TARGET file exactly on k; file i sits at k + (i − index) ms.
+  const arm = (label, off) => {
+    const r = replayAt(off);
+    const v = verdict(r, label);
+    if (v !== 'harness') ok(label, v === 'green', v === 'green' ? '' : `→ ${describe(r)}`);
+  };
+  for (const k of SWEEP) arm(`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`, k - probe.index / 1000);
+  for (const a of ARMS.filter((x) => x.window)) arm(a.name, a.off);
 }
 
 /* Plant `find` → `replace`, replay at the given offsets, restore byte-for-byte.
@@ -338,22 +418,45 @@ async function selftest() {
   }
   // A few seconds INTO the day: the stamps are day-clamped and the cap is small,
   // which is exactly where a fixture that had gone soft would stop biting.
-  const boundary = 2 - probe.delay;
+  const boundary = 2 - probe.index / 1000;
 
+  /* A red in a mutation arm must be the FIXTURE's red — a GATE raised by the
+     mutated file — never a crash, which would read as "caught" for any reason. */
+  const caughtBy = (r) => {
+    if (r.code === 0) return false;
+    const m = r.out.match(/(\S+\.sql) failed to apply: ([^\n]*)/);
+    return !!m && m[1] === MIG_NAME && /GATE\(/.test(m[2]);
+  };
   const clamp = mutate(CLAMPED, UNCLAMPED, [boundary, 3600]);
   if (clamp) {
-    ok('un-anchoring every §4 stamp turns the just-after-midnight arm RED',
-      clamp[0].code !== 0, clamp[0].code !== 0 ? `→ ${firstGateLine(clamp[0].out)}` : '(it stayed green)');
+    ok('un-anchoring every §4 stamp turns the just-after-midnight arm RED with a fixture GATE',
+      caughtBy(clamp[0]), `→ ${clamp[0].code !== 0 ? describe(clamp[0]) : '(it stayed green)'}`);
     ok('...and the 01:00 UTC control stays GREEN (a clock guard, not a broken one)',
-      clamp[1].code === 0, clamp[1].code === 0 ? '' : `→ ${firstGateLine(clamp[1].out)}`);
+      clamp[1].code === 0, clamp[1].code === 0 ? '' : `→ ${describe(clamp[1])}`);
   }
 
   const s1 = mutate(S1_FIX, S1_DEFECT, [boundary, 3600]);
   if (s1) {
     ok('the S1 defect (a zero-claim call forgives the settle) is RED just after midnight',
-      s1[0].code !== 0, s1[0].code !== 0 ? `→ ${firstGateLine(s1[0].out)}` : '(it stayed green)');
+      caughtBy(s1[0]), `→ ${s1[0].code !== 0 ? describe(s1[0]) : '(it stayed green)'}`);
     ok('...and RED at 01:00 too — the day-anchored fixtures still assert the economy property',
-      s1[1].code !== 0, s1[1].code !== 0 ? `→ ${firstGateLine(s1[1].out)}` : '(it stayed green)');
+      caughtBy(s1[1]), `→ ${s1[1].code !== 0 ? describe(s1[1]) : '(it stayed green)'}`);
+  }
+
+  /* 2026-10-11: THE CLOCK-INJECTION PROOF. A replay whose pins never land (the
+     seam in schema-replay.mjs removed or bypassed) must be classified HARNESS,
+     not green — otherwise a refactor silently turns every arm back into a
+     load-dependent replay. Run on the real chain with the shim told to drop its
+     pins; `verdict` must refuse it (with the harness flag left alone, because
+     here the refusal IS the expected outcome). */
+  {
+    const r = replayAt(3600, MIGDIR, { HR_FAKE_UTC_DROP_PINS: '1' });
+    const v = verdict(r, 'the pin-dropped replay', { expectHarness: true });
+    ok('a replay whose clock pins never land is a HARNESS failure, never a green arm',
+      v === 'harness', v === 'harness' ? '' : `(verdict: ${v} — ${describe(r)})`);
+    const blank = describe({ code: null, signal: null, error: undefined, out: '', clock: null });
+    ok('a child that dies silently is described in words, never a bare "→"',
+      /no exit status/.test(blank) && /printed nothing/.test(blank), `→ ${blank}`);
   }
 
   // S-UM-2 mutation proof (this fix). Planted with mode='copy' explicitly —

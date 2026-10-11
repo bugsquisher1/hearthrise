@@ -379,9 +379,20 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
   // Closed once the tail is applied — see bootTemplated's timer note.
   let endCapture = () => 0;
 
+  /* THE CLOCK SEAM (tests/_utc-clock-shim.mjs). A no-op unless that preload is
+     loaded: it pins the database clock so file i of the chain begins its
+     transaction at a chosen, load-independent instant. Called AFTER any seed and
+     immediately before the file's own `begin`, on both the prefix and the tail
+     path, so no file is ever applied on the real clock under the shim. */
+  const fileIndex = new Map(files.map(([n], i) => [n, i]));
+  const pinClock = (name) => {
+    if (typeof globalThis.__HR_CLOCK_PIN__ === 'function') globalThis.__HR_CLOCK_PIN__(fileIndex.get(name), name);
+  };
+
   const applyOne = async (d, name) => {
     // Wrapped, because that is how a file is applied on this project: atomically.
     // A self-check `raise` must abort the whole file, not leave half installed.
+    pinClock(name);
     await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
   };
 
@@ -460,6 +471,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     // A self-check `raise` must abort the whole file, not leave half installed.
     try {
       await seed(db, name);
+      pinClock(name);
       await db.exec(`begin;\n${sources.get(name)}\ncommit;`);
       applied.push(name);
     } catch (err) {

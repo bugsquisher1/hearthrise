@@ -2104,7 +2104,7 @@ export default [
       'emberfruit + moonbloom must unlock at plot Lv 5');
   }),
 
-  // The other half of the report: the Home "Next up" ladder and the daily tasks
+  // The other half of the report: the quest ladder and the daily tasks
   // ride the updateDaily chain that b220-b223 wrapped twice. One real gather has
   // to move the ladder AND be seen exactly once by every wrapper, no matter what
   // order the wrappers booted in — a swallowed, re-ordered or double-fired link
@@ -2146,7 +2146,7 @@ export default [
       const gained = (G.stats.gathered || 0) - g0;
       assert(gained > 0, 'the gather never happened');
       assert((quest.progress || 0) === gained,
-        'the Home "Next up" quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
+        'the gather quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
       if (task) assert((task.progress || 0) === gained,
         'the daily task did not follow the gather: 0 → ' + task.progress + ' (gathered ' + gained + ')');
       assert(seen.a.length === 1 && seen.b.length === 1,
@@ -4254,14 +4254,12 @@ export default [
     }
   }),
 
-  () => tryRun('DISCORD-2: the first-day card carries the invite once its first step is done, never under step one or on the Road', () => {
+  () => tryRun('DISCORD-2: the invite row carries Join and Claim gift, and no retired first-day card draws a second one', () => {
+    /* The spine (b569) retired the first-day card that used to carry the
+       invite after step one; the Home rail is now its one place on Home. */
     const H = window.HearthriseHome;
-    const count = (m) => (H.__firstDayHtml(m).match(/data-hr-discord="firstday"/g) || []).length;
-    assert(count({ steps: [], currentIndex: 0, total: 5, chain: null }) === 0, 'the invite sits under the first step');
-    assert(count({ steps: [], currentIndex: 1, total: 5, chain: null }) === 1, 'the first-day card lost the invite after step one');
-    assert(count({ steps: [], currentIndex: 3, total: 5, chain: null }) === 1, 'the invite drew more than once');
-    assert(count({ steps: [], currentIndex: 2, total: 6, chain: 'road' }) === 0, 'the Road card carries the first-day invite');
-    const row = window.HearthriseDiscord.rowHtml('firstday');
+    assert(H && typeof H.__firstDayHtml !== 'function', 'a first-day card is back beside the spine: it would draw a second invite');
+    const row = window.HearthriseDiscord.rowHtml('home');
     assert(/data-hr-discord-gift/.test(row) && row.indexOf(window.HearthriseDiscord.INVITE) !== -1, 'the row lacks Join or Claim gift');
   }),
 
@@ -4277,16 +4275,15 @@ export default [
     }
   }),
 
-  () => tryRun('DISCORD-3: Home shows the invite exactly once — in the first-day card or the rail, never both', () => {
+  () => tryRun('DISCORD-3: Home shows the invite exactly once, on the rail', () => {
     window.showTab('profile'); window.HearthriseHome.render();
     const root = document.getElementById('hd-root');
     assert(root, 'Home did not render');
     if (root.querySelector('.hd-pending')) return skip('Home is waiting for the record');
     const rows = root.querySelectorAll('[data-hr-discord]');
     assert(rows.length === 1, 'Home drew the Discord invite ' + rows.length + ' times');
-    const m = window.HearthriseHome.__firstDayModel();
     const where = rows[0].getAttribute('data-hr-discord');
-    assert(where === ((m && m.currentIndex >= 1) ? 'firstday' : 'home'), 'the invite is in the wrong place: ' + where);
+    assert(where === 'home', 'the invite is in the wrong place: ' + where);
   }),
 
   () => tryRunAsync('DISCORD-4: the gift sheet shows every server answer in words and never pays gems itself', async () => {

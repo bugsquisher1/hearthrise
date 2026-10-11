@@ -339,6 +339,8 @@
     "node tests/css-literal-ratchet.mjs --selftest": "client-guards",
     "node tests/reveal-coverage.mjs": "client-guards",
     "node tests/reveal-coverage.mjs --selftest": "client-guards",
+    "node tests/spine.mjs": "client-guards",
+    "node tests/spine.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tests/breakpoint-guard.mjs --selftest": "client-guards",
     "node tests/copy-lint.mjs --report": "client-guards",

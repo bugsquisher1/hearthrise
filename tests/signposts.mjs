@@ -187,7 +187,7 @@ const MUTATIONS = {
   paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'stable'); }],
   digit: ['SIGN-3', (w) => { w.lines['farm.noSeeds'].text += ' Costs 5 gold.'; }],
   missingBagTools: ['SIGN-4', (w) => { delete w.lines['bag.tools']; }],
-  undeclaredVar: ['SIGN-5', (w) => { w.lines['home.dailyDone'].text += ' {x}'; }],
+  undeclaredVar: ['SIGN-5', (w) => { w.lines['chronicle.recentEmpty'].text += ' {x}'; }],
   coreImport: ['SIGN-7', (w) => { w.sources['src/core/zz-planted.js'] = "import { SIGNPOSTS } from '../data/signposts.js';\n"; }],
   packCarries: ['SIGN-7', (w) => { w.packOrigins.push('src/data/signposts.js'); }],
   retiredCopy: ['SIGN-8', (w) => { w.sources['src/features/zz-planted.js'] = "// the fight ends\nconst t = 'away: until you fall';\n"; }],

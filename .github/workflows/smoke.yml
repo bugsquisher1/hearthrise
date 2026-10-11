@@ -3696,6 +3696,12 @@ jobs:
           node tests/reveal-coverage.mjs
           node tests/reveal-coverage.mjs --selftest
 
+      - name: The pointer bar - every route opens an open door, no step needs what comes later
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/spine.mjs
+          node tests/spine.mjs --selftest
+
       - name: Presentation floor - one set of breakpoints
         if: ${{ !cancelled() }}
         run: |

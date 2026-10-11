@@ -172,6 +172,8 @@ export function check(inp) {
       if (n.fact === 'property') next.property = Math.max(next.property, n.min);
       if (n.fact === 'workers') next.workers = Math.max(next.workers, n.min);
       if (n.fact === 'combat') next.skills = Object.assign({}, next.skills, { attack: 1e6, strength: 1e6, defense: 1e6 });
+      if (n.fact === 'item') next.bag = Object.assign({}, next.bag, { [n.id]: Math.max((next.bag || {})[n.id] || 0, n.min) });
+      if (n.fact === 'cleared') next.counts['dungeon_clear:' + n.dungeon] = n.min;
     });
     ladder.push(next);
   });

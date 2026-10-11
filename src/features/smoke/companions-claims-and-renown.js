@@ -37,8 +37,7 @@ const withQuestServer = async (counts, fn) => {
     const q = window.G.quests.find((r) => r.id === 'first_cook');
     Object.assign(q, { done: false, claimed: false, progress: 0 });
     window.updateQuest('cooked', 5);                         // LOCAL 5/5
-    const step = () => { const m = window.HearthriseHome.__firstDayModel(), i = m.steps.findIndex((x) => x.id === 'first_cook');
-      return { s: m.steps[i], row: new DOMParser().parseFromString(window.HearthriseHome.__firstDayHtml(m), 'text/html').querySelector('.hd-fl-row[data-i="' + i + '"]') }; };
+    const step = () => ({ s: { state: window.questClaimable(q) ? 'claimable' : 'open', count: window.hrQuestServerCount(q) } });
     await fn(q, () => calls.filter((id) => id === 'first_cook').length, step, (c) => { unfeed(); unfeed = feedServerQuests(c); });
   } finally { unfeed(); window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap); }
 };
@@ -2541,7 +2540,8 @@ export default [
       assert(row && !row.classList.contains('claimable'), 'THE BUG: the browser\'s 25/25 made the row claimable against server 7/25');
       assert(!row.querySelector('.qm-q-claim'), 'no Claim on a server-incomplete quest');
       assert(/7 \/ 25/.test(row.querySelector('.qm-q-progtext').textContent), 'the row reads the server 7 / 25, got ' + row.textContent);
-      assert(window.questBadgeState().claimable === 0 && window.questBadgeState().active === 1, 'the badge counts the server\'s picture');
+      const sum = window.HearthriseDailyQuests.summary();
+      assert(sum && !sum.claim && sum.done === 0 && sum.total === 1, 'the daily chip counts the server\'s picture: ' + JSON.stringify(sum));
       window.HearthriseDailyQuests.claim('daily_kill');
       assert(calls.length === 0, 'a claim on a server-incomplete quest must not reach the transport (calls=' + calls.length + ')');
       row = await rig.open({ day: { 'ev:kill_any': 31 } });
@@ -2551,21 +2551,22 @@ export default [
       assert(calls.length === 1 && calls[0] === 'daily_kill', 'Claim fires hr_claim_daily exactly once (calls=' + calls.length + ')');
       row = await rig.open({ day: { 'ev:kill_any': 31 }, paid: ['daily_kill'] });
       assert(row && /Paid/.test(row.textContent) && !row.querySelector('.qm-q-claim'), 'a quest the server paid reads Paid and offers nothing');
-      assert(window.questBadgeState().active === 0, 'a paid quest leaves the badge');
+      assert(window.HearthriseDailyQuests.summary().done === 1 && !window.HearthriseDailyQuests.summary().claim, 'a paid quest counts done and offers no claim');
       assert(!document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]'), 'the weekly goals tab is gone with the board');
     });
   }),
 
-  () => tryRunAsync('DAILY-LIST-2 (W0): no server tally → the pending dash on the sheet and the strip, and nothing claims', async () => {
+  () => tryRunAsync('DAILY-LIST-2 (W0): no server tally → the pending dash on the sheet and the daily chip, and nothing claims', async () => {
     await withDailyList(null, async (calls, rig) => {
       const row = await rig.open();
       const prog = row && row.querySelector('.qm-q-progtext');
       assert(prog && prog.textContent.trim().startsWith('—') && !/25 \/ 25/.test(prog.textContent), 'unknown state shows the dash, got: ' + (prog && prog.textContent));
       assert(!row.querySelector('.qm-q-claim') && !row.classList.contains('claimable'), 'unknown state: no Claim');
-      const chip = (window.renderQuestStrip(), document.querySelector('#global-quests-strip .gq-prog'));
-      assert(!chip || chip.textContent.trim().startsWith('—'), 'the strip chip shows the dash too, got: ' + (chip && chip.textContent));
+      window.showTab('skills'); window.HearthriseSpine.render();
+      const chip = document.querySelector('#hr-spine-bar .sp-daily');
+      assert(chip && /Daily —\/1/.test(chip.textContent), 'the daily chip shows the dash too, got: ' + (chip && chip.textContent));
       window.HearthriseDailyQuests.claim('daily_kill');
-      assert(calls.length === 0 && window.questBadgeState().claimable === 0, 'nothing claims from unknown state');
+      assert(calls.length === 0 && !window.HearthriseDailyQuests.summary().claim, 'nothing claims from unknown state');
     });
   }),
 
@@ -2573,7 +2574,7 @@ export default [
     await withQuestServer({ 'ev:cooked': 3 }, async (q, calls, step, feed) => {
       let st = step();
       assert(!q.done && calls() === 0, 'THE BUG: local 5/5 completed first_cook and fired hr_claim_quest against server 3/5 (calls=' + calls() + ')');
-      assert(st.s.state !== 'claimable' && st.s.count === 3 && /3 \/ 5/.test(st.row.textContent), 'the step reads the server 3/5, got ' + st.row.textContent);
+      assert(st.s.state !== 'claimable' && st.s.count === 3, 'the step reads the server 3/5, got ' + JSON.stringify(st.s));
       q.done = true; window.hrSweepUnclaimedQuests._at = 0; window.hrSweepUnclaimedQuests();
       assert(calls() === 0 && !window.questClaimable(q), 'the sweep must not re-fire a server-incomplete step (calls=' + calls() + ')');
       q.done = false; feed({ 'ev:cooked': 5 }); window.updateQuest('cooked', 0);
@@ -2583,8 +2584,8 @@ export default [
 
   () => tryRunAsync('CLAIM-FROM-SERVER-4: quest projection ABSENT → the step shows the pending dash and nothing claims', async () => {
     await withQuestServer(null, async (q, calls, step) => {
-      const st = step(), p = st.row && st.row.querySelector('.hd-qmeta .p');
-      assert(st.s.count === null && p && p.textContent.trim().startsWith('—') && !/^0\b/.test(p.textContent.trim()), 'unknown state shows the dash, got: ' + (p && p.textContent));
+      const st = step();
+      assert(st.s.count === null, 'unknown state is unknown (the dash), never 0, got: ' + st.s.count);
       assert(!q.done && calls() === 0 && st.s.state !== 'claimable' && !window.questClaimable(q), 'nothing claims from unknown state');
     });
   }),

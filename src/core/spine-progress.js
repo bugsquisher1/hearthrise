@@ -84,6 +84,17 @@ export const FACTS = Object.freeze({
     if (!b || typeof b !== 'object') return null;
     return (n.ids || []).some((id) => fin(b[id]) && b[id] > 0);
   },
+  item: (f, n) => {
+    const b = f && f.bag;
+    if (!b || typeof b !== 'object') return null;
+    return (fin(b[n.id]) ? b[n.id] : 0) >= n.min;
+  },
+  /* No server clear counter exists yet: only a stated `dungeon_clear:<id>`
+     row answers, so this reads unknown until the server keeps one. */
+  cleared: (f, n) => {
+    const c = f && f.counts;
+    return own(c, 'dungeon_clear:' + n.dungeon) && fin(c['dungeon_clear:' + n.dungeon]) ? c['dungeon_clear:' + n.dungeon] >= n.min : null;
+  },
 });
 
 /** One need against the facts: true, false or null (unknown). */

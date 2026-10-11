@@ -31,13 +31,14 @@
 // other states through `__pin(facts | null)`.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS } from '../data/spine.js?v=569';
-import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=569';
-import { SKILLS_DEF } from '../data/skills.js?v=569';
-import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=569';
-import { reveal, warWindow, combatLevelOf } from '../core/spine-progress.js?v=569';
-import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=569';
-import { recordValue } from '../net/record.js?v=569';
+import { SPINE_STEPS } from '../data/spine.js?v=567';
+import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=567';
+import { SKILLS_DEF } from '../data/skills.js?v=567';
+import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=567';
+import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=567';
+import { reveal, warWindow, combatLevelOf } from '../core/spine-progress.js?v=567';
+import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=567';
+import { recordValue } from '../net/record.js?v=567';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const CTX = Object.freeze({ startXp: START_SKILL_XP });
@@ -61,6 +62,7 @@ export function fold(prev, res) {
     workers: base ? base.workers : null,
     companions: base ? base.companions : null,
     bag: base && base.bag ? Object.assign({}, base.bag) : null,
+    claimed: base && base.claimed ? Object.assign({}, base.claimed) : null,
   };
   if (Array.isArray(res.progress)) {
     for (const r of res.progress) {
@@ -69,7 +71,14 @@ export function fold(prev, res) {
       const v = Math.floor(Number(r.value));
       if (!(next.counts[r.key] >= v)) next.counts[r.key] = v;
     }
-    if (isCompleteProgressStatement(res)) next.countsComplete = true;
+    /* Claimed quest rows (hr_claim_quest's once-guard) only grow; a complete
+       statement makes an absent quest a real "not paid yet". */
+    for (const r of res.progress) {
+      if (r && r.kind === 'quest' && r.period === '' && r.state === 'claimed' && typeof r.key === 'string') {
+        next.claimed = Object.assign(next.claimed || {}, { [r.key]: true });
+      }
+    }
+    if (isCompleteProgressStatement(res)) { next.countsComplete = true; next.claimed = next.claimed || {}; }
     const tier = pickPropertyTier(res);
     if (tier !== null && !(next.property >= tier)) next.property = tier;
   }
@@ -107,11 +116,14 @@ export const FULL = Object.freeze({
   property: 6, workers: 6, companions: 6,
   bag: Object.freeze(Object.fromEntries(DUNGEON_KEYS.map((k) => [k, 1]))),
   products: Object.freeze({ clans: true }),
+  gold: 1e9, equipment: Object.freeze({ boots: 'leather_boots' }),
+  claimed: Object.freeze(Object.fromEntries(Object.keys(QUEST_REWARDS).map((q) => [q, true]))),
 });
 export const FRESH = Object.freeze({
   counts: Object.freeze({}), countsComplete: true,
   skills: START_SKILL_XP, property: 0, workers: 0, companions: 0, bag: START_INVENTORY,
   products: Object.freeze({}),
+  gold: 0, equipment: Object.freeze({}), claimed: Object.freeze({}),
 });
 
 let view = null;
@@ -120,11 +132,16 @@ let lastSig = null;
 
 function harness() { return typeof window !== 'undefined' && !!window.__HR_TEST_HARNESS__; }
 
-/** The server's skill XP map, or null while the record cannot vouch for it. */
-function serverSkills() {
+/** A record field (skills, equipment) the server vouches for, or null. */
+function serverRecord(field) {
   const G = typeof window !== 'undefined' ? window.G : null;
-  const rv = recordValue(G, 'skills');
+  const rv = recordValue(G, field);
   return (rv.known && rv.value && typeof rv.value === 'object') ? rv.value : null;
+}
+function serverGold() {
+  const G = typeof window !== 'undefined' ? window.G : null;
+  const rv = recordValue(G, 'gold');
+  return (rv.known && fin(rv.value)) ? Number(rv.value) : null;
 }
 
 /** Which unreleased features are live: shipping switches, not player state. */
@@ -140,9 +157,10 @@ export function facts() {
   const v = view || {};
   return {
     counts: v.counts || {}, countsComplete: !!v.countsComplete,
-    skills: serverSkills(), property: fin(v.property) ? v.property : null,
+    skills: serverRecord('skills'), property: fin(v.property) ? v.property : null,
     workers: fin(v.workers) ? v.workers : null, bag: v.bag || null,
     companions: fin(v.companions) ? v.companions : null, products: liveProducts(),
+    gold: serverGold(), equipment: serverRecord('equipment'), claimed: v.claimed || null,
   };
 }
 

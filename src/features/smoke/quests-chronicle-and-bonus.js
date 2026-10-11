@@ -76,40 +76,23 @@ export default [
     });
   }),
 
-  /* FIRST-30-1 — the first-day card's FIRST button ("Gather 15 resources") names its action.
-     Drives the real card renderer on a fresh chain, reads the button, presses the door.
+  /* FIRST-30-1 — the gather quest names its action and lands on the skills grid.
      Mutation: `gather: GRID` in quest-nav.js TYPE_DEST → red on the first assert. */
-  () => tryRun('b562 FIRST-30-1: "Gather 15 resources" says Go gather and lands on the skills grid; "Gain a level" still says Go train', () => {
-    const QN = window.HearthriseQuestNav, H = window.HearthriseHome, G = window.G;
-    assert(QN && H && typeof H.__firstDayModel === 'function' && typeof H.__firstDayHtml === 'function',
-      'CONTROL: the quest resolver or the first-day seams are unpublished — this would pass vacuously');
-    const snap = snapshotG();
+  () => tryRun('FIRST-30-1: "Gather 15 resources" says Go gather and lands on the skills grid; "Gain a level" still says Go train', () => {
+    const QN = window.HearthriseQuestNav;
+    assert(QN, 'CONTROL: the quest resolver is unpublished — this would pass vacuously');
     const prior = (document.querySelector('.panel.active') || {}).id || 'panel-profile';
     try {
-      G.quests = []; G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
-      window.ensureRetentionState();
-      const m = H.__firstDayModel();
-      assert(m && m.steps.length >= 5, 'CONTROL: a fresh character has no first-day chain: ' + JSON.stringify(m && m.steps.map((s) => s.id)));
-      const i = m.steps.findIndex((s) => s.id === 'gatherer');
-      assert(i >= 0, 'the first-day chain lost its gather step: ' + m.steps.map((s) => s.id).join(','));
-      const doc = new DOMParser().parseFromString(H.__firstDayHtml(m), 'text/html');
-      const cta = doc.querySelector('.hd-fl-row[data-i="' + i + '"] .hd-cta');
-      assert(cta && cta.textContent === 'Go gather',
-        'the gather step\'s button reads "' + (cta && cta.textContent) + '" — a new player is told to TRAIN when the row says GATHER');
-      // No open first-day row may fall back to the generic verb: each names its action.
-      doc.querySelectorAll('.hd-fl-row .hd-cta').forEach((b) => {
-        assert(b.textContent !== 'Go train', 'a first-day row still offers the generic "Go train": ' + b.closest('.hd-fl-row').textContent.trim().slice(0, 60));
-      });
-      // The daily "Gather N resources" tasks share the door and the word.
+      const def = (window.QUEST_DEFS || []).find((d) => d.id === 'gatherer');
+      assert(def, 'the gather quest is gone from QUEST_DEFS');
+      assert(QN.destination(Object.assign({}, def)).verb === 'Go gather', 'the gather quest is told to TRAIN when it says GATHER');
       assert(QN.destination({ type: 'gather', label: 'Gather 120 resources' }).verb === 'Go gather', 'the gather daily task still says Go train');
       const lvl = { id: 'level_up', name: 'Gain a skill level', source: 'stats.levelups' };
-      assert(lvl && QN.destination(lvl).verb === 'Go train', '"Gain a level" is a TRAIN goal and must keep its verb: ' + (lvl && QN.destination(lvl).verb));
-      // Press it: the door is still the skills grid (any gathering skill counts).
-      const d = QN.go(m.steps[i].goalRow);
+      assert(QN.destination(lvl).verb === 'Go train', '"Gain a level" is a TRAIN goal and must keep its verb: ' + QN.destination(lvl).verb);
+      const d = QN.go(Object.assign({}, def));
       assert(d && d.tab === 'skills' && !d.skillId, 'the gather door moved off the skills grid: ' + JSON.stringify(d));
       assert(document.getElementById('panel-skills').classList.contains('active'), 'pressing Go gather did not open the Skills panel');
     } finally {
-      restoreG(snap);
       try { window.showTab(prior.replace(/^panel-/, '')); } catch (e) {}
     }
   }),
@@ -2765,55 +2748,6 @@ export default [
     });
   }),
 
-  () => tryRun('ROAD-4: "Your first day" draws only the rows with no chain; the Road card is hidden while a first-day step is open and shown after', () => {
-    const G = window.G;
-    const H = window.HearthriseHome;
-    const snap = snapshotG();
-    const panel = document.getElementById('panel-profile');
-    const hadActive = !!(panel && panel.classList.contains('active'));
-    try {
-      assert(H && typeof H.__roadModel === 'function' && typeof H.__firstDayModel === 'function', 'the chain-card seams are unpublished');
-      G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
-      G.quests = [];
-      G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
-      window.ensureRetentionState();
-      const dayDefs = window.QUEST_DEFS.filter((d) => !d.chain);
-      const m0 = H.__firstDayModel();
-      assert(m0 && m0.total === dayDefs.length,
-        'the first-day card must draw exactly the ' + dayDefs.length + ' rows with no chain, drew ' + (m0 && m0.total));
-      assert(m0.steps.every((s) => !/^road_/.test(s.id)), 'a road row leaked into "Your first day"');
-      assert(H.__roadModel() === null, 'the Road card must be hidden while a first-day step is open');
-      const lead = window.HearthriseLaunchpad && window.HearthriseLaunchpad.getNextMilestone();
-      assert(!(lead && lead.kind === 'quest' && lead.goal && lead.goal.chain),
-        '"Next up" offered a road row (' + (lead && lead.label) + ') while the first day is still open');
-
-      // The first day, finished and paid.
-      G.quests.forEach((q) => { if (!q.chain) { q.done = true; q.claimed = true; q.progress = q.goal; } });
-      assert(H.__firstDayModel() === null, 'CONTROL: a finished first day yields no model');
-      const road = H.__roadModel();
-      assert(road && road.chain === 'road' && road.total === 6 && road.currentIndex === 0,
-        'the Road card must draw its six rows once the first day is done: ' + JSON.stringify(road && { t: road.total, c: road.currentIndex }));
-      const html = H.__firstDayHtml(road);
-      assert(/Journeyman(&#39;|&#039;|')s Road/.test(html) && !/Your first day/.test(html), 'the Road card is mistitled: ' + html.slice(0, 200));
-      assert(/hd-fl-row/.test(html) && new RegExp('Step 1 of 6').test(html),
-        'the Road card must reuse the First Light rows (hd-fl-row tap targets) and count its own steps');
-      if (panel) {
-        panel.classList.add('active');
-        H.render();
-        const root = document.getElementById('hd-root');
-        assert(root && root.querySelector('.hd-firstlight.hd-chain-road .hd-fl-row'), 'the rendered Home has no Road card');
-        assert(root.querySelectorAll('.hd-firstlight').length === 1, 'two chain cards drew at once');
-      }
-      // The road finished too: nothing left to draw.
-      G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
-      assert(H.__roadModel() === null, 'a finished road must leave the screen');
-    } finally {
-      if (panel && !hadActive) panel.classList.remove('active');
-      restoreG(snap);
-      try { H.render(); } catch (e) {}
-    }
-  }),
-
   () => tryRun('ROAD-5: a complete statement with no ev rows zeroes the ev* road fields and leaves stats.gathered, cooked and kills untouched', () => {
     const A = window.HearthriseAccrual;
     const g = { stats: { evGather: 90, evCooked: 7, evSmithed: 5, evCrafted: 4, evKillAny: 300,
@@ -3010,26 +2944,25 @@ export default [
       assert(TL.peek() === null, 'a reset cache must read unknown');
     } finally { Date.now = now; window.HearthriseGoalClaim = gc; TL.__feed(null); }
   }),
-  /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", until the
-     server's tally has spoken (CLAUDE.md §6); then it draws the server's count,
-     never the browser's. */
-  () => tryRun('QUEST-PENDING: an unmeasured daily quest reads pending on the strip; the server tally turns it into the server\'s number', () => {
-    const TL = window.HearthriseTally;
-    if (!TL || typeof window.renderQuestStrip !== 'function') return skip('no quest strip');
+  /* QUEST-PENDING — the daily chip draws the pending dash, never a count, until
+     the server's tally has spoken (CLAUDE.md §6); then it counts the server's
+     finished quests, never the browser's. */
+  () => tryRun('QUEST-PENDING: the daily chip reads pending until the tally speaks, then counts the server\'s finished quests', () => {
+    const TL = window.HearthriseTally, SP = window.HearthriseSpine;
+    assert(TL && SP, 'CONTROL: the tally cache or the pointer is unpublished');
     const snap = snapshotG();
-    const prog = () => { window.renderQuestStrip(); const el = document.querySelector('#global-quests-strip .gq-quest .gq-prog'); return el || { textContent: '', querySelector: () => null }; };
+    const chip = () => { window.showTab('skills'); SP.render(); return (document.querySelector('#hr-spine-bar .sp-daily') || {}).textContent || ''; };
     try {
       const task = window.DAILY_TASK_POOL.map((fn) => fn()).find((t) => t.id === 'daily_kill');
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: 20 })] };
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: 25 })] };
       TL.__feed(null);
-      let p = prog();
-      assert(p.querySelector('.bal-pending') && !/\b\d+ \/ \d/.test(p.textContent), 'an unmeasured quest rendered ' + p.textContent);
+      assert(chip() === 'Daily —/1', 'an unmeasured daily list rendered ' + chip());
       TL.__feed({ day: { 'ev:kill_any': 3 }, week: {}, paid: [], offered: ['daily_kill'] });
-      p = prog();
-      assert(!p.querySelector('.bal-pending') && /^3 \/ 25$/.test(p.textContent.trim()),
-        'a server-counted quest must read the server 3 / 25, never the browser\'s 20 — got ' + p.textContent);
+      assert(chip() === 'Daily 0/1', 'server 3/25 is not finished, whatever the browser counted — got ' + chip());
+      TL.__feed({ day: { 'ev:kill_any': 25 }, week: {}, paid: [], offered: ['daily_kill'] });
+      assert(chip() === 'Daily 1/1' && document.querySelector('#hr-spine-bar .sp-daily.is-claim'), 'server 25/25 counts and offers its claim — got ' + chip());
     } finally {
-      TL.__feed(null); restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
+      TL.__feed(null); restoreG(snap); try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -3041,9 +2974,9 @@ export default [
   /* -- player actions -- W0 FIRST-HOUR-1, played: fresh character → the Homestead
      step → the return card names the affordable unlock → the server rung finishes it.
      Mutation: delete the `homestead` QUEST_DEFS row ⇒ red on the first assert. */
-  () => tryRun('W0 FIRST-HOUR-1: the first day shows "Upgrade to a Homestead" before the crop wait; the return card names the Homestead the haul affords; the server rung completes it', () => {
+  () => tryRun('W0 FIRST-HOUR-1: "Upgrade to a Homestead" sits before the crop wait; the return card names the Homestead the haul affords; the server rung completes it', () => {
     const H = window.HearthriseHome, P = window.HearthriseProperty, QN = window.HearthriseQuestNav, G = window.G;
-    assert(H && P && QN && typeof H.__firstDayModel === 'function' && typeof H.__awayCardHtml === 'function'
+    assert(H && P && QN && typeof H.__awayCardHtml === 'function'
       && typeof P.__resetPropertyRecord === 'function' && window.HearthriseHaulUnlocks,
       'CONTROL: a seam this test drives is unpublished — it would pass vacuously');
     const snap = snapshotG(), bag = serverBagFixture(), prevProp = P.__resetPropertyRecord();
@@ -3052,17 +2985,15 @@ export default [
       delete G._eventCountersKnown;               // no ev: counter may complete another row mid-test
       G.quests = [];
       window.ensureRetentionState();
-      const m = H.__firstDayModel(), ids = m.steps.map((x) => x.id), hi = ids.indexOf('homestead');
+      const ids = window.QUEST_DEFS.filter((d) => !d.chain).map((d) => d.id), hi = ids.indexOf('homestead');
       assert(hi >= 0, 'the first day has no Homestead step: ' + ids.join(','));
       assert(hi > ids.indexOf('first_blood') && hi < ids.indexOf('farmhand'),
         'the Homestead step must sit BEFORE the crop wait (after first_blood, before farmhand): ' + ids.join(','));
-      const st = m.steps[hi];
-      assert(st.label === 'Upgrade to a Homestead', 'step label: ' + st.label);
-      assert(st.count === null, 'with no server rung stated the count must be PENDING, not ' + st.count);
-      const doc = new DOMParser().parseFromString(H.__firstDayHtml(m), 'text/html');
-      const cta = doc.querySelector('.hd-fl-row[data-i="' + hi + '"] .hd-cta');
-      assert(cta && cta.textContent === 'Go build', 'the Homestead step button reads "' + (cta && cta.textContent) + '"');
-      assert(QN.destination(st.goalRow).tab === 'house', 'the Homestead step must open the House');
+      const row = () => G.quests.find((x) => x.id === 'homestead');
+      assert(row().label === 'Upgrade to a Homestead', 'step label: ' + row().label);
+      assert(window.hrQuestServerCount(row()) === null, 'with no server rung stated the count must be PENDING, not ' + window.hrQuestServerCount(row()));
+      const dest = QN.destination(row());
+      assert(dest.tab === 'house' && dest.verb === 'Go build', 'the Homestead step must open the House: ' + JSON.stringify(dest));
 
       // A forged residue tier cannot tick it; the server's rung 0 reads 0 / 1.
       G.homestead = { tier: 1 };
@@ -3071,7 +3002,7 @@ export default [
       P.__resetPropertyRecord(0);   // exact rung 0: the record conforms the forged residue back down
       window.updateQuest('property');
       assert(!G.quests.find((q) => q.id === 'homestead').done, 'server rung 0 completed the Homestead step');
-      assert(H.__firstDayModel().steps[hi].count === 0, 'server rung 0 must read 0 / 1');
+      assert(window.hrQuestServerCount(row()) === 0, 'server rung 0 must read 0 / 1');
 
       // THE RETURN: the night hauled logs; the SERVER holds the whole Homestead cost.
       G.gold = 500; stampRecordLikeLoad(G);
@@ -3087,7 +3018,6 @@ export default [
       window.updateQuest('property');
       const q = G.quests.find((x) => x.id === 'homestead');
       assert(q.done, 'server rung 1 did not complete the Homestead step');
-      assert(H.__firstDayModel().steps[hi].state === 'done', 'the finished step is not drawn done: ' + H.__firstDayModel().steps[hi].state);
     } finally {
       P.__resetPropertyRecord(prevProp); bag.restore();
       if (known === undefined) delete G._eventCountersKnown; else G._eventCountersKnown = known;

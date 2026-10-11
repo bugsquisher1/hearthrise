@@ -1,0 +1,124 @@
+/* src/styles/spine-pointer.css — the pointer bar in the topbar and Home's
+ * step card (src/render/spine-pointer.js, driven by
+ * src/features/spine-pointer.js). One line on every screen size: the step,
+ * its name, what it still needs, the daily chip and one button. Tokens only. */
+.sp-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  align-self: center;
+  margin: 0 16px;
+  font-family: var(--f-ui);
+  font-size: var(--t-micro);
+  color: var(--ink-2);
+}
+.sp-bar[hidden] { display: none; }
+.sp-in {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+.sp-step {
+  flex: 0 0 auto;
+  font-family: var(--f-label);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sp-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-title.is-pending { font-weight: 600; color: var(--ink-3); }
+.sp-parts {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  overflow: hidden;
+}
+.sp-bar .sp-parts { display: block; flex: 0 1 auto; white-space: nowrap; text-overflow: ellipsis; }
+.sp-bar .sp-part { display: inline; }
+/* The bar names the ONE part to do next; Home's card lists them all. */
+.sp-bar .sp-part:not(.is-next) { display: none; }
+.sp-part {
+  min-width: 0;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+.sp-part b { font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sp-part.is-next b { color: var(--gold-2); }
+.sp-part.is-met { color: var(--ink-3); }
+.sp-part.is-met b { color: var(--green); }
+.sp-reward { color: var(--gold-2); font-weight: 600; white-space: nowrap; }
+.sp-go,
+.sp-daily {
+  flex: 0 0 auto;
+  align-self: center;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sp-go {
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--bg-0);
+}
+.sp-go:hover { filter: brightness(1.08); }
+.sp-daily {
+  border: 1px solid var(--line);
+  background: var(--surf-sunken);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.sp-daily.is-claim { border-color: var(--gold); color: var(--gold-2); }
+
+/* Home's card reuses the dashboard's milestone row; this adds the parts line,
+   the reward line and the button column. */
+.hd-spine { margin-bottom: 14px; }
+.hd-spine .hd-mile { align-items: flex-start; }
+.hd-spine .sp-why { margin-bottom: 6px; }
+.hd-spine .sp-parts { margin-top: 2px; font-size: var(--t-micro); }
+.hd-spine .sp-reward { margin-top: 6px; font-size: var(--t-micro); }
+.hd-spine .sp-next { margin-top: 4px; font-size: var(--t-micro); color: var(--ink-3); }
+.hd-spine .sp-acts {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  align-self: center;
+}
+
+/* A short landscape phone keeps ONE line: the step, its name, the part to do
+   next, the chip and the button. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .sp-bar { margin: 0 8px; }
+  .sp-in { gap: 8px; }
+  .sp-bar .sp-reward,
+  .sp-bar .sp-step { display: none; }
+  .sp-go, .sp-daily { padding: 0 10px; }
+  .hd-spine .sp-acts { flex-direction: row; }
+}

@@ -473,64 +473,6 @@ body[data-theme] .clan-tag {
   letter-spacing: .02em;
 }
 
-/* Quests — the loudest thing in the chrome was a filled oxblood button
- * reading "QUESTS 0". Red is the danger role and the count was zero: maximum
- * visual weight on the least urgent state. It is now a quiet control whose
- * count badge lights gilt only when something is actually waiting. */
-body[data-theme="hearthlight"] #hr-quests-btn,
-body[data-theme] #hr-quests-btn {
-  background: none;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-  color: var(--ink-2);
-  font-family: var(--f-label);
-  font-size:calc(16px * var(--ui-scale, 1));
-  font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: none;
-  padding: 5px 11px;
-  box-shadow: none;
-}
-body[data-theme="hearthlight"] #hr-quests-btn:hover,
-body[data-theme] #hr-quests-btn:hover {
-  color: var(--gold-2);
-  border-color: rgba(201, 162, 74, .4);
-  background: rgba(255, 236, 200, .05);
-  filter: none;
-}
-/* b371 — the badge now counts a REAL number rather than a regex that had
- * stopped matching, which changes what the states mean. It reads "quests in
- * progress" most of the time, so the resting treatment is quiet: gilt is
- * reserved for the one state that asks the player to do something. */
-body[data-theme="hearthlight"] #hr-quests-btn .hr-q-count,
-body[data-theme] #hr-quests-btn .hr-q-count {
-  background: rgba(255, 236, 200, .13);
-  color: var(--ink-2);
-  border-radius: 2px;
-  font-family: var(--f-ui);
-  font-weight: 700;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  padding: 1px 6px;
-  min-width: 17px;
-}
-/* A reward is sitting there. This is the only state worth a colour. */
-body[data-theme="hearthlight"] #hr-quests-btn.has-claim .hr-q-count,
-body[data-theme] #hr-quests-btn.has-claim .hr-q-count {
-  background: var(--gold);
-  color: #1b1305;
-}
-body[data-theme="hearthlight"] #hr-quests-btn.has-claim,
-body[data-theme] #hr-quests-btn.has-claim {
-  color: var(--gold-2);
-  border-color: rgba(201, 162, 74, .40);
-}
-/* Nothing waiting → the badge recedes instead of shouting a zero. */
-body[data-theme="hearthlight"] #hr-quests-btn.no-active .hr-q-count,
-body[data-theme] #hr-quests-btn.no-active .hr-q-count {
-  background: rgba(255, 236, 200, .10);
-  color: var(--ink-3);
-}
-
 /* ── 11. HEADINGS ────────────────────────────────────────────────────────
  * Cinzel is a titling face: it is drawn for caps at large sizes and gets muddy
  * small. Panel headings use it; anything under ~16px uses the small-caps face

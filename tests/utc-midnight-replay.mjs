@@ -233,9 +233,25 @@ function describe(r) {
 }
 
 let CHAIN_LEN = 0;     // set from the control arm, which must pin every file
-/* Green = exit 0 AND the injected clock demonstrably reached every file. */
+/* GREEN = exit 0 AND the injected clock demonstrably reached every file.
+   RED   = the replay itself reported a verdict about the chain: a file refused
+           to apply, or the rebuilt schema drifted from the baseline.
+   HARNESS (exit 2) = anything else — a child killed from outside, a spawn
+           failure, a crash with no verdict in it. MEASURED 2026-10-11 on this
+           lane's own 20× run: arm "+0 s" of run 5 died with exit 143 (SIGTERM,
+           the whole process tree, from outside this guard on a shared box) and
+           printed nothing — the bare "→" of the two Security reports. A killed
+           replay says nothing about the chain, so it must never read as "the
+           chain cannot rebuild at midnight"; it still fails the run, loudly. */
+const CHAIN_VERDICT = /failed to apply: |SCHEMA DRIFT: /;
 function verdict(r, label, { expectHarness = false } = {}) {
-  if (r.code !== 0) return 'red';
+  if (r.code !== 0) {
+    if (CHAIN_VERDICT.test(r.out)) return 'red';
+    if (expectHarness) return 'harness';
+    console.error(`  HARNESS: ${label} — the replay ended without a verdict about the chain: ${describe(r)}`);
+    harness = 1;
+    return 'harness';
+  }
   const c = r.clock;
   if (!c || c.pins === 0 || c.targetAt === null || (CHAIN_LEN && c.pins !== CHAIN_LEN)) {
     if (expectHarness) return 'harness';
@@ -454,9 +470,15 @@ async function selftest() {
     const v = verdict(r, 'the pin-dropped replay', { expectHarness: true });
     ok('a replay whose clock pins never land is a HARNESS failure, never a green arm',
       v === 'harness', v === 'harness' ? '' : `(verdict: ${v} — ${describe(r)})`);
-    const blank = describe({ code: null, signal: null, error: undefined, out: '', clock: null });
+    const killed = { code: 143, signal: null, error: undefined, out: '', clock: null };
+    const blank = describe(killed);
     ok('a child that dies silently is described in words, never a bare "→"',
-      /no exit status/.test(blank) && /printed nothing/.test(blank), `→ ${blank}`);
+      /exit 143/.test(blank) && /printed nothing/.test(blank), `→ ${blank}`);
+    ok('...and is a HARNESS failure, never a red verdict about the chain',
+      verdict(killed, 'the killed replay', { expectHarness: true }) === 'harness');
+    const refused = { code: 1, out: '\n  x.sql failed to apply: GATE(z): boom\n', clock: null };
+    ok('...while a replay that reports a refused file IS red',
+      verdict(refused, 'the refused replay') === 'red');
   }
 
   // S-UM-2 mutation proof (this fix). Planted with mode='copy' explicitly —

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, stubSignedIn, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, stubSignedIn, serverBagFixture } from './_harness.js?v=568';
 
 export default [
 
@@ -3127,5 +3127,107 @@ export default [
       b = chip();
       assert(b && !b.querySelector('.bal-pending') && /^7\/20 · verifying/.test(b.textContent), 'the answered chip read ' + (b && b.textContent));
     } finally { restoreG(snap); delete window.G._bountyServer; try { window.refreshActivityBar(); } catch (e) {} }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     EVEN-CARDS. Tyler, on Skills → Smithing → Smelting: "there's still
+     some unevenness on these squares". Measured on the real grid: open bars
+     194px tall beside locked bars 222.6px (the lock line was an extra line and
+     the grid was `align-items:start`); three-input recipes taller still; the
+     copper sprite's ingot filled ~70% of its canvas while the iron sprite
+     filled all of its own and carried the painter's mark in the corner.
+     This paints a real row through the published tile seam — two open bars,
+     two level-locked bars, one three-input bar, one bar with no sprite at all
+     (glyph fallback), one card with an extra wear line — and MEASURES it: equal width, equal height, one art box,
+     one status line on one baseline, and padded art cropped to fill the box.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('EVEN-CARDS-1: every card in a recipe grid row has one width, one height, one art box and one pinned status line — and padded sprite art fills the box', async () => {
+    const T = window.HearthriseActivitiesGrid;
+    const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing;
+    assert(T && typeof T.__tileForArtisan === 'function' && R, 'the artisan tile seam and the smithing recipes must be published');
+    const pick = (id) => { const r = R.find((x) => x.id === id); assert(r, 'smithing recipe ' + id + ' is gone — re-pick the fixture'); return r; };
+    const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_deathsteel_ingot'].map(pick);
+    assert(Object.keys(row[4].inputs || {}).length >= 3, 'the long-input fixture must have three inputs');
+    /* …and one card that carries an extra line (the wear gate), so the row has
+       a genuinely taller card the grid must stretch the others to. */
+    const worn = R.find((r) => typeof window.hrWearLineHtml === 'function' && window.hrWearLineHtml(r.output));
+    assert(worn, 'no smithing recipe draws a wear line — re-pick the fixture');
+    row.push(worn);
+    const G = window.G; const snap = snapshotG(); const realGate = window.hrGateLevel;
+    const host = document.createElement('div');
+    try {
+      G.inventory = Object.assign({}, G.inventory, { copper_ore: 500, bronze_bar: 12 });
+      window.hrGateLevel = (sk) => (sk === 'smithing' ? 10 : realGate(sk));
+      /* On screen (lazy art only loads in the viewport), invisible, inert. */
+      host.style.cssText = 'position:fixed;left:0;top:0;width:1400px;opacity:0;pointer-events:none;z-index:-1';
+      host.innerHTML = '<div class="act-grid">' + row.map((r) => T.__tileForArtisan(r, 'smithing')).join('') + '</div>';
+      document.body.appendChild(host);
+      const tiles = [...host.querySelectorAll('.act-tile')];
+      assert(tiles.length === 7, 'painted ' + tiles.length + ' tiles for 7 recipes');
+      assert(tiles[6].querySelector('.at-wear'), 'the extra-line fixture card did not draw its wear line');
+      assert(tiles.filter((t) => t.classList.contains('locked')).length >= 3 && tiles.filter((t) => !t.classList.contains('locked')).length >= 2,
+        'the fixture must hold open AND locked cards in one row');
+      const imgs = [...host.querySelectorAll('.at-icon img')];
+      await Promise.all(imgs.map((i) => new Promise((res) => {
+        if (i.complete && i.naturalWidth) { res(); return; }
+        i.addEventListener('load', res, { once: true }); i.addEventListener('error', res, { once: true }); setTimeout(res, 4000);
+      })));
+      await new Promise((r) => setTimeout(r, 60));   // the capture-phase fit runs on the same load event
+      const px = (v) => Math.round(v * 10) / 10;
+      const rect = (el) => el.getBoundingClientRect();
+      const tops = new Set(tiles.map((t) => Math.round(rect(t).top)));
+      assert(tops.size === 1, 'the fixture must lay out as ONE row at 1400px, got ' + tops.size + ' rows');
+      const sizes = tiles.map((t) => px(rect(t).width) + 'x' + px(rect(t).height));
+      assert(new Set(sizes).size === 1, 'cards in one row differ in size: ' + sizes.join(' | '));
+      const boxes = tiles.map((t) => { const b = t.querySelector('.at-icon'); return b ? px(rect(b).width) + 'x' + px(rect(b).height) : 'none'; });
+      assert(new Set(boxes).size === 1 && !boxes.includes('none'), 'art boxes differ: ' + boxes.join(' | '));
+      const status = tiles.map((t) => t.querySelectorAll('.at-status').length);
+      assert(status.every((n) => n === 1), 'every card must end on exactly one status line, got ' + status.join(','));
+      const feet = tiles.map((t) => px(rect(t).bottom - rect(t.querySelector('.at-status')).bottom));
+      assert(new Set(feet).size === 1, 'the status line is not pinned to one foot across the row: ' + feet.join(','));
+      const inputs = tiles.map((t) => px(rect(t.querySelector('.at-inputs')).height));
+      assert(new Set(inputs).size === 1, 'the inputs slot is not one fixed two-line slot: ' + inputs.join(','));
+      assert(tiles[4].getAttribute('title').indexOf((window.ITEMS.dawnstone_ore || {}).n || 'dawnstone_ore') >= 0,
+        'the clamped inputs must be readable in full in the card title: ' + tiles[4].getAttribute('title'));
+      /* The art: a padded sprite is cropped to its paint and sized along its
+         long axis, so it fills the box with no letterbox (a letterboxed view
+         box still paints the cropped-away corner mark). */
+      if (CSS.supports('object-view-box', 'inset(0%)')) {
+        const art = (i) => { const im = tiles[i].querySelector('.at-icon img'); const b = rect(tiles[i].querySelector('.at-icon')); const r = rect(im);
+          return { im, box: b.width, w: r.width, h: r.height, view: im.style.getPropertyValue('object-view-box') }; };
+        const cu = art(0), fe = art(2);
+        assert(cu.view && /inset\(/.test(cu.view), 'the copper sprite (art on ~70% of its canvas) was not cropped to its paint: style="' + cu.im.getAttribute('style') + '"');
+        assert(Math.abs(Math.max(cu.w, cu.h) - cu.box) <= 1 && Math.abs(cu.w - cu.h) > 4,
+          'cropped copper art must fill the box on its long axis without a letterbox: ' + px(cu.w) + 'x' + px(cu.h) + ' in ' + px(cu.box));
+        const fit = window.HearthriseIcons.artFitBox(fe.im);
+        const bottom = fit && parseFloat(fit.box.split(' ')[2]);
+        assert(bottom > 15, 'the iron sprite\'s corner mark must be dropped as debris (bottom inset ' + bottom + '%)');
+        assert(Math.abs(Math.max(fe.w, fe.h) - fe.box) <= 1, 'cropped iron art must fill the box: ' + px(fe.w) + 'x' + px(fe.h) + ' in ' + px(fe.box));
+      }
+    } finally {
+      host.remove();
+      window.hrGateLevel = realGate;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('EVEN-CARDS-2: the lane strip\'s badge means one thing on every chip — the recipe count, never a level', () => {
+    const S = window.HearthriseArtisanCat; const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing;
+    assert(S && typeof S.groups === 'function' && R, 'the artisan category strip must be published');
+    const realLevel = window.getLevel;
+    const host = document.createElement('div');
+    try {
+      window.getLevel = (sk) => (sk === 'smithing' ? 1 : realLevel(sk));   // most lanes shut
+      host.innerHTML = S.strip('smithing');
+      const gs = S.groups('smithing');
+      const chips = [...host.querySelectorAll('.chip')];
+      assert(chips.length === gs.length && chips.length >= 2, 'the strip must draw one chip per lane');
+      chips.forEach((c, i) => {
+        const n = c.querySelector('.act-cat-n');
+        assert(n && n.textContent.trim() === String(gs[i].recipes.length), 'chip "' + c.textContent.trim() + '" badge must be its recipe count ' + gs[i].recipes.length);
+        assert(!/Lv\s*\d/.test(c.textContent), 'chip "' + c.textContent.trim() + '" mixes a level into the count');
+      });
+      assert(chips.some((c) => c.classList.contains('act-cat-shut') && c.querySelector('.act-cat-n svg')), 'a shut lane must carry the padlock');
+    } finally { window.getLevel = realLevel; }
   }),
 ];

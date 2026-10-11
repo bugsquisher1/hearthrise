@@ -15067,8 +15067,7 @@ function tileForGather(action, skillId){
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +'<div class="at-yield">Yields '+prodName+'</div>'
     +(unlocked ? toolLine : '')
-    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
-    +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
+    +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+'Level '+action.req, false, qty, null)
     +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
@@ -15159,7 +15158,8 @@ function tileForArtisan(recipe, skillId){
   /* b225: the open fire can ruin a cook — the tile says so before you press it. */
   var burnLine = (typeof window.burnRiskLine === 'function') ? window.burnRiskLine(recipe, skillId) : '';
   var burnText = (typeof window.burnRiskText === 'function') ? window.burnRiskText(recipe, skillId) : '';
-  var tileTitle = (recipe.name||'') + (burnText ? ' — ' + burnText : '');
+  var inputsFull = Object.entries(inputs).map(function(kv){ return (kv[1]>1?kv[1]+'× ':'')+((ITEMS[kv[0]]||{}).n||kv[0]); }).join(' + ');   /* the card clamps inputs to two lines; the title has them all */
+  var tileTitle = (recipe.name||'') + (inputsFull ? ' — ' + inputsFull : '') + (burnText ? ' — ' + burnText : '');
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
@@ -15175,8 +15175,7 @@ function tileForArtisan(recipe, skillId){
     +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
-    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
-    +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
+    +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+lockLabel, benchLock, qty, HearthriseActivityCard.makeCount(inputs))
     +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
         ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'
         : '<span class="at-stop">Active</span>') : '')
@@ -15264,16 +15263,17 @@ window.HearthriseArtisanCat = (function(){
       var nextReq = g.recipes.reduce(function(a,r){
         var q = r.req||1; return (q>lv && q<a) ? q : a;
       }, 99);
-      var badge = openCount>0 ? String(g.recipes.length) : ('Lv '+nextReq);
+      /* One meaning on every chip: the lane's recipe count. A shut lane adds the padlock; its level is in the title. */
+      var badge = (openCount>0 ? '' : lockGlyph()) + String(g.recipes.length);
       var title = openCount>0
         ? (openCount+' of '+g.recipes.length+' available now')
         : ('Unlocks at '+skillId.charAt(0).toUpperCase()+skillId.slice(1)+' Lv '+nextReq);
-      return '<button class="chip'+(g.key===key?' active':'')+'" role="tab"'
+      return '<button class="chip'+(g.key===key?' active':'')+(openCount>0?'':' act-cat-shut')+'" role="tab"'
         +' aria-selected="'+(g.key===key?'true':'false')+'"'
         +' data-artcat="'+g.key+'" title="'+title+'"'
         +' onclick="window.setArtisanCategory(\''+skillId+'\',\''+g.key+'\')">'
         +g.label
-        +'<span style="margin-left:6px;opacity:.62;font-variant-numeric:tabular-nums">'+badge+'</span>'
+        +'<span class="act-cat-n">'+badge+'</span>'
         +'</button>';
     }).join('')+'</div>';
   }
@@ -15345,6 +15345,7 @@ function lightUpdate(skillId){
     el.textContent = fmtQty(have);
     if(have<need) el.classList.add('low'); else el.classList.remove('low');
   });
+  HearthriseActivityCard.refresh(detail);
 }
 
 function patchSkillDetail(){
@@ -15445,11 +15446,7 @@ function patchSkillDetail(){
       tiles = '<div class="act-tile" style="grid-column:1/-1"><div class="at-name">No activities</div><div class="at-meta">This skill has no available activities.</div></div>';
     }
 
-    /* b215: size by readable minimum width, not a hand-tuned column count.
-       The old table capped at "more than 15 → 6 columns",
-       which squeezed smithing's 81 recipes into 93px tiles with the names
-       clipped to "FORGE". */
-    var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';
+    var grid = '<div class="act-grid">'+tiles+'</div>';   /* tracks live in CSS (auto-fill) */
 
     if(detailEl) detailEl.innerHTML = head + cats + grid;
   };

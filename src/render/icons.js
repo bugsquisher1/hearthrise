@@ -241,6 +241,81 @@ function setActivityIcon(el, glyphKey, color){
   el.innerHTML = g || '';
 }
 
+/* ── ART FIT ───────────────────────────────────────────────────────────────
+   Tyler, on Smelting: the copper and bronze ingots were small and the iron,
+   gold and steel art was large, with a stray "…" in its corner. Every icon box
+   was already the same size; the SPRITES are not. The packs ship their art on
+   canvases with very different empty margins (the copper bar fills ~70% of a
+   256px canvas, the Hearthfire iron bar fills all of its 128px one and carries
+   the painter's mark in the corner). No box size fixes that, and hand-trimming
+   files fixes only the files that exist today.
+
+   So an <img class="hr-fit"> is cropped to its ART: once per asset the alpha is
+   read at <=128px, every row/column run that holds paint is found, runs under
+   4% of the paint are dropped as debris (the corner mark), and the span of the
+   rest becomes `object-view-box: inset(...)`. The view box IS the image's
+   natural size from then on, so the element is sized along its long axis
+   (100% of the box) and `auto` on the other: no letterbox, which matters,
+   because a letterboxed view box still paints the cropped-away pixels (the
+   corner mark) into the bars. Cached per src; a sprite that is already tight
+   (or tainted, or not yet decoded) is left exactly as is. Engines without
+   object-view-box draw the padded sprite as before. */
+var artFitCache = new Map();
+function artRuns(counts, total){
+  var runs = [], cur = null;
+  for(var i = 0; i < counts.length; i++){
+    if(counts[i] > 0){ if(!cur) cur = {a:i, b:i, w:0}; cur.b = i; cur.w += counts[i]; }
+    else if(cur){ runs.push(cur); cur = null; }
+  }
+  if(cur) runs.push(cur);
+  var kept = runs.filter(function(r){ return r.w >= total * 0.04; });
+  return kept.length ? [kept[0].a, kept[kept.length - 1].b] : null;
+}
+function artFitBox(img){
+  var src = img.getAttribute('src');
+  if(artFitCache.has(src)) return artFitCache.get(src);
+  var w = img.naturalWidth, h = img.naturalHeight;
+  if(!w || !h) return '';
+  var k = Math.min(1, 128 / Math.max(w, h)), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+  var px;
+  try {
+    var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    var cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, cw, ch);
+    px = cx.getImageData(0, 0, cw, ch).data;
+  } catch (e) { artFitCache.set(src, ''); return ''; }
+  var rows = new Array(ch).fill(0), total = 0, x, y;
+  for(y = 0; y < ch; y++) for(x = 0; x < cw; x++) if(px[(y * cw + x) * 4 + 3] > 24){ rows[y]++; total++; }
+  var ry = total ? artRuns(rows, total) : null;
+  if(!ry){ artFitCache.set(src, ''); return ''; }
+  var cols = new Array(cw).fill(0), inBand = 0;
+  for(y = ry[0]; y <= ry[1]; y++) for(x = 0; x < cw; x++) if(px[(y * cw + x) * 4 + 3] > 24){ cols[x]++; inBand++; }
+  var rx = artRuns(cols, inBand);
+  if(!rx){ artFitCache.set(src, ''); return ''; }
+  var pad = 1;   /* one sample of air so a drop-shadow edge is never shaved */
+  var t = Math.max(0, ry[0] - pad), b = Math.max(0, ch - 1 - ry[1] - pad);
+  var l = Math.max(0, rx[0] - pad), r = Math.max(0, cw - 1 - rx[1] - pad);
+  /* Already tight (under 4% of margin in total on both axes): leave it. */
+  var fit = ((t + b) / ch < 0.04 && (l + r) / cw < 0.04) ? ''
+    : { box: 'inset(' + [t / ch, r / cw, b / ch, l / cw].map(function(v){ return (v * 100).toFixed(2) + '%'; }).join(' ') + ')',
+        wide: (cw - l - r) >= (ch - t - b) };
+  artFitCache.set(src, fit);
+  return fit;
+}
+function artFitStyle(fit){
+  return 'object-view-box:' + fit.box + ';' + (fit.wide ? 'width:100%;height:auto' : 'height:100%;width:auto');
+}
+function applyArtFit(img){
+  var fit = artFitBox(img);
+  if(fit) img.setAttribute('style', artFitStyle(fit));
+}
+/* `load` does not bubble, but it is dispatched through the capture phase, so one
+   listener on the document sees every hr-fit image any renderer inserts. */
+document.addEventListener('load', function(e){
+  var t = e.target;
+  if(t && t.tagName === 'IMG' && t.classList && t.classList.contains('hr-fit')) applyArtFit(t);
+}, true);
+
 /* `fallbackSkillId` (was `fallbackEmoji`, and the callers really were passing
    `action.icon` — the node's emoji — into it). Nothing here has drawn that
    emoji since b217, but a parameter NAMED fallbackEmoji is an invitation. */
@@ -248,9 +323,13 @@ function actIconHtml(prod, fallbackSkillId){
   var path = prod && window._itemPath && window._itemPath[prod];
   if(path){
     /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
-       still read as distinct materials. */
+       still read as distinct materials. `hr-fit` crops the canvas to the
+       art (artFitBox below); a known box is written inline so a repaint never
+       flashes the padded sprite first. */
     var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
-    return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
+    var fit = artFitCache.get(path);
+    return '<img src="'+path+'" class="hr-fit '+tint+'" alt="" loading="lazy" draggable="false"'
+      +(fit ? ' style="'+artFitStyle(fit)+'"' : '')+' />';
   }
   /* via window: see the note on itemFallbackIcon */
   if(prod) return '<span class="at-emoji">'+window.itemFallbackIcon(prod, 34)+'</span>';
@@ -1071,6 +1150,7 @@ window.HearthriseIcons = {
   itemTintClass: itemTintClass,
   setActivityIcon: setActivityIcon,
   actIconHtml: actIconHtml,
+  artFitBox: artFitBox,
   paintSkillIcons: paintSkillIcons,
   paintMonsterIcons: paintMonsterIcons,
   installIconLayer: installIconLayer,

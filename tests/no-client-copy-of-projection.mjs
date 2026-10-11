@@ -85,6 +85,7 @@ const TOP = {
   now:                 { kind: 'meta', why: 'the server clock; the client clock is never authority' },
   place:               { kind: 'reconciled', client: [], reader: ['src/net/town.js', 'res.place'], why: 'town presence, read straight off the envelope' },
   progress:            { kind: 'reconciled', client: [], reader: ['src/net/accrue.js', 'reconcileEventCounters'], why: 'player_progress rows → the goal/daily counters' },
+  must_rename:         { kind: 'reconciled', client: [], reader: ['src/features/identity.js', 'noteEnvelope'], why: 'the moderator\'s flag (2026-10-11-name-moderation.sql); REPLACED by every envelope that carries it, held only in identity.js\'s closure, never in G or the residue — it opens the non-dismissable rename sheet' },
   progress_truncated:  { kind: 'meta', why: 'the 1000-row cap flag for `progress`' },
   state:               { kind: 'meta', why: 'the nested player_state bag — every key inside it is mapped in STATE below' },
   client_state:        { kind: 'meta', why: 'THE RESIDUE BAG ITSELF — hydrateInto(); not a projected value' },

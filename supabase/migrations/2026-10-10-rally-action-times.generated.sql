@@ -5,8 +5,8 @@
 --   src/data/recipes.js and src/core/pacing.js (PACE.actionMs = 1.6).
 --   Any hand edit FAILS `node tools/gen-rally-action-times.mjs --check` (CI).
 --
---   digest: af803e6b0424de5bb5e78571ad09998671008b697abcb27da27191293a6f3016
---   406 actions
+--   digest: eaddd81688865d81e311448362c602d876677302254a66d58b8ec514674819dc
+--   409 actions
 --
 -- Read by hr_rally_points_of (2026-10-10-rally-points-server.sql): one gather
 -- node / artisan recipe action pays paced_s x the per-second weight in
@@ -27,7 +27,6 @@ revoke all on public.hr_rally_action_s from public, anon, authenticated, service
 truncate table public.hr_rally_action_s;
 insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'banish_demon_shard', 4),
-  ('artisan', 'bind_air_runes', 5),
   ('artisan', 'bind_blood_runes', 7),
   ('artisan', 'bind_chaos_runes', 6),
   ('artisan', 'bind_death_runes', 7),
@@ -144,6 +143,7 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'craft_nightstalker_pelt', 9),
   ('artisan', 'craft_panthers_eye_pendant', 9),
   ('artisan', 'craft_quiet_coat', 8),
+  ('artisan', 'craft_riftmaw_carapace', 10),
   ('artisan', 'craft_rune_needle', 9),
   ('artisan', 'craft_scholar_belt', 5),
   ('artisan', 'craft_scholar_body', 5),
@@ -242,6 +242,7 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'forge_dawn_platebody', 7),
   ('artisan', 'forge_dawn_platelegs', 7),
   ('artisan', 'forge_dragonrend_greatblade', 10),
+  ('artisan', 'forge_elderscale_platebody', 11),
   ('artisan', 'forge_ember_axe', 9),
   ('artisan', 'forge_ember_belt', 7),
   ('artisan', 'forge_ember_boots', 7),
@@ -352,6 +353,7 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'make_willow_staff', 5),
   ('artisan', 'make_yew_bow', 7),
   ('artisan', 'make_yew_staff', 7),
+  ('artisan', 'mine_rune_essence', 5),
   ('artisan', 'offer_ancient_claw', 6),
   ('artisan', 'offer_razor_claw', 4),
   ('artisan', 'purge_void_chitin', 6),
@@ -390,6 +392,7 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'tailor_woolen_cloak', 4),
   ('artisan', 'unbind_wraith_veil', 5),
   ('artisan', 'weave_voidchitin', 7),
+  ('artisan', 'weave_voidheart_robe', 10),
   ('gather', 'ancient_runewood_tree', 20),
   ('gather', 'coal_rock', 9),
   ('gather', 'copper_crab_s', 9),
@@ -437,8 +440,8 @@ do $$
 declare v_n int;
 begin
   select count(*) into v_n from public.hr_rally_action_s;
-  if v_n <> 406 then
-    raise exception 'hr_rally_action_s has % rows, expected 406', v_n;
+  if v_n <> 409 then
+    raise exception 'hr_rally_action_s has % rows, expected 409', v_n;
   end if;
   if has_table_privilege('authenticated', 'public.hr_rally_action_s', 'select')
      or has_table_privilege('anon', 'public.hr_rally_action_s', 'select') then

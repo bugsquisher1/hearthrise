@@ -48,9 +48,6 @@ const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
 export const PENDING_USE = Object.freeze({
-  void_essence:     'w0f — boss materials craft the best gear',
-  riftmaw_husk:     'w0f — boss materials craft the best gear',
-  elderscale_heart: 'w0f — boss materials craft the best gear',
   warboss_standard: 'w0f — boss trophies hang in the trophy room',
   lexarch_seal:     'w0f — boss trophies hang in the trophy room',
   voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
@@ -166,7 +163,7 @@ function mutate() {
     return { restore: () => { Object.assign(ARTISAN_RECIPES, saved); } };
   });
   run('a stale PENDING_USE row', 'C2', () => {
-    const it = ITEMS.void_essence; const was = it.heals;
+    const it = ITEMS.warboss_standard; const was = it.heals;
     it.heals = 1;
     return { restore: () => { if (was === undefined) delete it.heals; else it.heals = was; } };
   });

@@ -144,8 +144,11 @@ const BASELINE = {
      to src/screens/shop-counter.js together with the whole vendor counter. It is
      baselined there, under the same rules; nothing about the mint changed. `id`
      stays here because several other legacy.js sites still use that token. */
+  /* W0 (2026-10-16): `kv[0]` LEFT this lane. It was claimQuestReward's
+     `addItem(kv[0], kv[1])` — the goals board's switch-OFF item payout. The
+     board is cut (2026-10-16-goal-board-retire.sql) and the function with it. */
   'src/legacy.js': [
-    "'hearth_token'", 'cur', 'id', 'kv[0]',
+    "'hearth_token'", 'cur', 'id',
     'r.item', 'res.produced.id',
     'inv:id', 'inv:old',
   ],

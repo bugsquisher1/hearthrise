@@ -97,10 +97,6 @@ export const ALLOWED = [
     + 'HearthriseGoalClaim.claimQuest). Routed through killXpRoute so it splits like a kill; '
     + '{authored:true} keeps PACE.xp off a number the Designer wrote. tests/quest-reward-parity.mjs '
     + 'binds data, client and server catalogue together.'],
-  ['src/legacy.js', 'claimQuestReward', '(b)',
-    'the daily/weekly goal claim. The server verdict (hr_claim_goal) is taken FIRST and this branch '
-    + 'only runs for a reward it accepted; an uncataloguable goal carries `blocked:` and is never '
-    + 'dealt (tests/modal-goal-claim.mjs binds the two).'],
   ['src/features/muster.js', 'payChest', '(b)',
     'the Muster claim response. Items are gated on the inventory record seam; the XP rides the same '
     + 'claim the server answered.'],

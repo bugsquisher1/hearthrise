@@ -2433,9 +2433,14 @@ jobs:
   # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
   # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
   # Budget RAISED 30 -> 32, still measured x2.
+  # + login-reward (2026-10-10, measured locally): 6 s plain + 315 s mutate =
+  # 321 s (5.4 min); budget x2 = +11, so 32 -> 43.
+  # + daily-harvest-eligibility (2026-10-11, estimated from login-reward's
+  # per-replay cost: 1 replay plain + 4 SQL mutants ~ 4 min); budget x2 = +8,
+  # so 43 -> 51.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 51
 
     steps:
       - uses: actions/checkout@v4
@@ -2926,6 +2931,30 @@ jobs:
           node tests/claim-intent.mjs
           node tests/claim-intent.mjs --selftest
 
+      # THE DAILY LOGIN REWARD (2026-10-16-login-reward.sql, W0 #9). The
+      # generated SQL catalogue is rewards.js byte for byte; SQL and JS price
+      # and streak alike over every case; a played claim, a missed day (one step
+      # back, never day 1) and the claim after it pay exactly the catalogue; and
+      # hr_apply refuses any other price. --mutate: five JS defects (reset on a
+      # miss, multiplier overflow, no wrap, unclaimed row counts, supplies
+      # dropped) and three SQL defects the migration's §4 must stop.
+      - name: Daily login reward — one step per missed day, x3 cap, server re-price (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/login-reward.mjs
+          node tests/login-reward.mjs --mutate
+
+      # THE HARVEST DAILY IS DEALT ONLY TO A FARMER (2026-10-16-daily-harvest-
+      # eligibility.sql, game-designer 2026-10-10). No seeds or no plot -> never
+      # offered; plantable seeds + a plot -> offered; SQL and JS rules agree over
+      # every input; the client slate equals the server's on a played character.
+      # --mutate: two JS and four SQL defects.
+      - name: Harvest daily — offered only with plantable seeds and a plot (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/daily-harvest-eligibility.mjs
+          node tests/daily-harvest-eligibility.mjs --mutate
+
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven
       # by calling the real RPCs on an in-process PostgreSQL with the real clan
@@ -3380,10 +3409,14 @@ jobs:
         run: |
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
-          # This Week: Home's weekly card names exactly the server's weekly goal
-          # ids and reads only the goal-state cache (tests/this-week.mjs).
+          # This Week: Home's weekly card names only counters the server stamps
+          # and reads only the tally cache (tests/this-week.mjs).
           node tests/this-week.mjs
           node tests/this-week.mjs --selftest
+          # W0: the old goals board stays cut (client, residue and chain) and
+          # the one daily list counts nothing in the browser.
+          node tests/goal-board-gone.mjs
+          node tests/goal-board-gone.mjs --selftest
 
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;

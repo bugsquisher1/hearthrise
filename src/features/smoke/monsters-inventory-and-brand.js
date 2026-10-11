@@ -6685,8 +6685,8 @@ export default [
     const st = window.questBadgeState();
     assert(st && typeof st.active === 'number' && typeof st.claimable === 'number',
       'questBadgeState returned ' + JSON.stringify(st));
-    const daily = (typeof window.getGoalsForToday === 'function' && window.getGoalsForToday()) || [];
-    assert(st.active <= daily.length + 12, 'the active count (' + st.active + ') exceeds the goal pool');
+    const daily = (window.HearthriseDailyQuests && window.HearthriseDailyQuests.tasks()) || [];
+    assert(st.active <= daily.length, 'the active count (' + st.active + ') exceeds the daily quests on today\'s slate (' + daily.length + ')');
     assert(st.claimable <= st.active, 'more quests are claimable than are active');
     const btn = document.getElementById('hr-quests-btn');
     assert(btn, 'the topbar quest button is missing');
@@ -8193,84 +8193,6 @@ export default [
         + 'skips every consequence hung off it (today: the tool retime; tomorrow: whatever is added next).');
       assert(/removeItem\s*\(/.test(src), name + '() no longer calls removeItem()');
     });
-  }),
-
-  /* #41 follow-up, live: "we also have a problem with claiming the quests
-     reward."
-
-     `wk_bury` ("Bury 150 bones", 1,800g) is authored in WEEKLY_GOAL_POOL and
-     DELIBERATELY absent from the server catalogue — burying is a pure client
-     function with no intent, no RPC and no settle, and the migration's own
-     §GATE(b) RAISES if anyone catalogues it. But the picker went on dealing it
-     in 13 of any 52 weeks, and the modal rendered a Claim button off the LOCAL
-     count (isComplete falls through when the server has no row for a goal), so
-     every press answered `unknown_goal`. A dead button on a 1,800-gold quest.
-
-     The fix marks the row `blocked` and skips it at the DEAL, keeping its pool
-     index so a week that never offered it is byte-identical. This asserts all
-     three halves: not dealt, index-stable, and a mid-week slate that already
-     holds it HEALS without re-baselining the goals the player kept. */
-  () => tryRun('b487 (#41): a quest the server cannot pay is never dealt (wk_bury), and a slate holding one heals', () => {
-    const G = window.G;
-    const POOL = window.WEEKLY_GOAL_POOL;
-    assert(Array.isArray(POOL) && POOL.length === 11,
-      'WEEKLY_GOAL_POOL must still be 11 rows — the weekly picker indexes into it, so a DELETION '
-      + 're-deals every player\'s mid-week slate. Block a row, never remove it. Got ' + (POOL && POOL.length));
-    const bury = POOL.find((g) => g.id === 'wk_bury');
-    assert(bury && bury.blocked,
-      'wk_bury must carry a `blocked` reason — it is uncatalogued server-side, so its Claim button '
-      + 'can only ever answer unknown_goal');
-    assert(POOL.indexOf(bury) === 4, 'wk_bury moved out of pool index 4 — the shuffle is index-keyed');
-    assert(typeof window.__hrPickWeeklyIds === 'function' && typeof window.getWeeklyGoals === 'function',
-      'the weekly picker seams are missing');
-
-    /* 1. NEVER DEALT — over a full year of week keys, not one slate may carry a
-          blocked goal, and every slate must still be a full three. */
-    const dealable = new Set(POOL.filter((g) => !g.blocked).map((g) => g.id));
-    let sawBuryWeek = 0;
-    const base = window.__thisWeekKey ? window.__thisWeekKey() : Math.floor((Date.now() / 86400000 + 3) / 7);
-    for (let w = 0; w < 60; w++) {
-      const ids = window.__hrPickWeeklyIds(base + w);
-      assert(ids.length === 3, 'week ' + (base + w) + ' was dealt ' + ids.length + ' goals, expected 3');
-      assert(new Set(ids).size === 3, 'week ' + (base + w) + ' dealt a duplicate: ' + JSON.stringify(ids));
-      ids.forEach((id) => assert(dealable.has(id),
-        'week ' + (base + w) + ' dealt the un-payable goal "' + id + '"'));
-      /* The CONTROL: the unfiltered algorithm must still want wk_bury on some
-         weeks, or this test is proving nothing. */
-      let seed = base + w; const raw = []; const used = {};
-      for (let i = 0; i < 3; i++) {
-        seed = (seed * 9301 + 49297) % 233280;
-        let idx = Math.floor((seed / 233280) * POOL.length);
-        while (used[idx]) idx = (idx + 1) % POOL.length;
-        used[idx] = true; raw.push(POOL[idx].id);
-      }
-      if (raw.indexOf('wk_bury') >= 0) sawBuryWeek++;
-      else assert(JSON.stringify(raw) === JSON.stringify(ids),
-        'week ' + (base + w) + ' offered NO blocked goal, so the filter must be a no-op: '
-        + JSON.stringify(raw) + ' -> ' + JSON.stringify(ids));
-    }
-    assert(sawBuryWeek > 0,
-      'CONTROL: the unfiltered picker never wanted wk_bury in 60 weeks — this test cannot see the bug');
-
-    /* 2. A MID-WEEK SLATE THAT ALREADY HOLDS IT HEALS, and the goals the player
-          keeps are NOT re-baselined (that would silently reset their progress). */
-    const snap = snapshotG();
-    try {
-      const key = window.__thisWeekKey();
-      G.weeklyGoals = { weekKey: key, picks: ['wk_bury', 'wk_kills', 'wk_smith'],
-        startValues: { wk_bury: 0, wk_kills: 7, wk_smith: 3 }, claimed: { wk_smith: true }, sv: 1 };
-      const dealt = window.getWeeklyGoals();
-      assert(dealt.length === 3, 'the healed slate is ' + dealt.length + ' goals, expected 3');
-      assert(!dealt.some((g) => g.id === 'wk_bury'), 'the healed slate still holds wk_bury');
-      assert(G.weeklyGoals.picks.indexOf('wk_bury') < 0, 'the stored picks still name wk_bury');
-      if (G.weeklyGoals.picks.indexOf('wk_kills') >= 0) {
-        assert(G.weeklyGoals.startValues.wk_kills === 7,
-          'the heal re-baselined a kept goal (wk_kills ' + G.weeklyGoals.startValues.wk_kills
-          + ' != 7) — the player would lose the week\'s progress');
-      }
-      assert(G.weeklyGoals.claimed && G.weeklyGoals.claimed.wk_smith === true,
-        'the heal dropped an already-claimed flag — the reward could be re-offered');
-    } finally { restoreG(snap); }
   }),
 
   /* INV-LABEL-1 (visual passes 5-6): in fallback fonts the equipment doll's slot

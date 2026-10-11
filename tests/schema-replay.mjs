@@ -135,12 +135,21 @@ export async function chainFiles() {
    behind on production — including TRUNCATE, which bypasses row-level security
    entirely, so RLS is not a backstop for it. Measured: with this widening,
    2026-08-16-unlock-buy.sql §3(d) RAISES against a three-verb revoke and passes
-   against `revoke all`. Narrowing this back hides the class again. */
+   against `revoke all`. Narrowing this back hides the class again.
+   FUNCTIONS TOO (2026-10-11, Security #1 on name-moderation): production's
+   default ACL hands every function `postgres` creates in public EXECUTE for
+   service_role ({postgres=X, service_role=X}). Without this line a migration
+   that revoked only public/anon/authenticated passed its own "service_role
+   cannot execute" gate here and FAILED it on production. Proof:
+   tests/name-moderation.mjs --mutate `service_role_kept` is caught only with
+   this line in place. */
 const SCAFFOLD = `
 alter default privileges in schema public
   grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public
   grant usage, select on sequences to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant execute on functions to service_role;
 grant all on all tables in schema public
   to anon, authenticated, service_role;
 

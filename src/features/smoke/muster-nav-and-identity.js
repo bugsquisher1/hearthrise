@@ -1539,8 +1539,9 @@ export default [
       assert(input, 'the name sheet did not open');
       input.value = 'Quiet Probe';
       input.dispatchEvent(new Event('input'));
-      await new Promise((r) => setTimeout(r, 600));
       const note = scrim.querySelector('.hr-id-note');
+      // Polled, not slept: the 350 ms debounce slips under a loaded runner.
+      for (let t = 0; t < 60 && note && note.textContent !== BLOCKED; t++) await new Promise((r) => setTimeout(r, 50));
       assert(note && note.textContent === BLOCKED, 'the sheet showed ' + JSON.stringify(note && note.textContent));
       assert(scrim.querySelector('.btn-primary').disabled, 'the claim button stayed armed on a refused name');
     } finally {
@@ -1581,7 +1582,10 @@ export default [
       input.value = 'Clover Probe';
       input.dispatchEvent(new Event('input'));
       scrim.querySelector('.btn-primary').click();
-      await new Promise((r) => setTimeout(r, 600));   // past the 350 ms availability debounce
+      for (let t = 0; t < 60 && (document.querySelector('.hr-id-scrim') || I.mustRename()); t++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      await new Promise((r) => setTimeout(r, 400));   // and past the 350 ms debounce, so no probe outlives the stub
       assert(!document.querySelector('.hr-id-scrim') && I.mustRename() === false,
         'a confirmed claim did not clear the forced prompt');
       // The server's next envelope is the authority both ways.

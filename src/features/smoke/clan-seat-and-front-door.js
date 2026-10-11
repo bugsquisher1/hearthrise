@@ -4569,6 +4569,7 @@ export default [
         [{ ok: false, error: 'code_expired' }, 'code_expired', /expired/],
         [{ ok: false, error: 'rate_limited' }, 'rate_limited', /wait a minute/i],
         [{ ok: false, error: 'rpc_missing' }, 'rpc_missing', /not open yet/],
+        [{ ok: false, error: 'gift_unavailable' }, 'gift_unavailable', /not open yet/],
         [{ ok: false, error: 'network' }, 'offline', /connection/],
         [{ ok: false, error: 'already_claimed' }, 'already_claimed', /already claimed/],
       ];

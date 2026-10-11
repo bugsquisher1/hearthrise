@@ -1,52 +1,27 @@
 #!/usr/bin/env node
-// tools/discord-gift-code.mjs — rotate the Discord gift code (operator one-liner).
+// tools/discord-gift-code.mjs — print THIS WEEK'S Discord gift code for Tyler to post.
 //
-//   node tools/discord-gift-code.mjs              new random code, retire the old one, print it
-//   node tools/discord-gift-code.mjs --code=XYZ   use this code instead (6-32 letters/digits)
-//   node tools/discord-gift-code.mjs --dry-run    print the SQL it would send; send nothing
+//   node tools/discord-gift-code.mjs
 //
-// The code is what Tyler posts in the Discord welcome channel; players type it
-// into "Claim Discord gift" and hr_claim_discord_gift pays once per account
-// (supabase/migrations/2026-10-18-discord-gift.sql). The server stores only its
-// sha256; the previous code answers code_expired from the moment this runs.
+// READ-ONLY. The code is derived on the server (HMAC of the Vault secret
+// hr_discord_gift_secret over the ISO week — supabase/migrations/
+// 2026-10-18-discord-gift.sql) and rotates by itself every Monday 00:00 UTC; last
+// week's code is honoured for one more week. This tool calls the owner-only
+// hr_discord_code_current() through the management API and writes nothing:
+// nothing about the code is ever committed (the repository is public).
 //
 // The management-API token is read as file bytes from ~/.supabase-token and is
-// never printed, logged or put in argv. The code itself is not a secret (it is
-// posted publicly), so it is printed — that is the point of the tool.
+// never printed, logged or put in argv. The code is printed — that is the point.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { randomInt } from 'node:crypto';
 
 const URL_Q = 'https://api.supabase.com/v1/projects/nezapsylztqbbwuwembx/database/query';
-// No 0/O/1/I/L: a code read off a phone screen must survive being typed.
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-
-const arg = (name) => {
-  const a = process.argv.find((x) => x.startsWith(`--${name}=`));
-  return a ? a.slice(name.length + 3) : null;
-};
-const dryRun = process.argv.includes('--dry-run');
-
-function newCode() {
-  let s = '';
-  for (let i = 0; i < 6; i++) s += ALPHABET[randomInt(ALPHABET.length)];
-  return `HEARTH-${s}`;
-}
-
-const display = arg('code') || newCode();
-const norm = display.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-// Same shape rule as the server; it also makes the SQL literal below injection-free.
-if (!/^[A-Z0-9]{6,32}$/.test(norm)) {
-  console.error('discord-gift-code: a code is 6-32 letters or digits');
+const QUERY = 'select public.hr_discord_code_current() as r';
+// The one query this tool may send is a SELECT of the operator read — checked, not assumed.
+if (!/^select public\.hr_discord_code_current\(\) as r$/.test(QUERY)) {
+  console.error('discord-gift-code: refusing — the query is not the read-only operator read');
   process.exit(2);
-}
-const sql = `select public.hr_discord_code_rotate('${norm}') as r;`;
-
-if (dryRun) {
-  console.log(`dry run — would send: ${sql}`);
-  console.log(`Discord gift code (not installed): ${display}`);
-  process.exit(0);
 }
 
 let token;
@@ -56,19 +31,20 @@ catch { console.error('discord-gift-code: ~/.supabase-token is not readable'); p
 const res = await fetch(URL_Q, {
   method: 'POST',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query: sql }),
+  body: JSON.stringify({ query: QUERY }),
 });
 const body = await res.text();
 if (!res.ok) {
-  // The server's message names the rule that refused (reused code, bad shape); it never carries the token.
   console.error(`discord-gift-code: HTTP ${res.status}: ${body.slice(0, 300)}`);
   process.exit(1);
 }
 let r = null;
 try { r = JSON.parse(body)[0]?.r; } catch { r = null; }
-if (!r || r.ok !== true) {
-  console.error(`discord-gift-code: unexpected answer: ${body.slice(0, 300)}`);
+if (!r || r.ok !== true || !/^HEARTH-[A-Z0-9]{6}$/.test(r.code || '')) {
+  console.error(r && r.error === 'no_secret'
+    ? 'discord-gift-code: the gift is CLOSED — store the Vault secret hr_discord_gift_secret (>= 32 chars) first'
+    : `discord-gift-code: unexpected answer: ${body.slice(0, 300)}`);
   process.exit(1);
 }
-console.log(`Discord gift code: ${display}   (previous codes retired: ${r.retired})`);
-console.log('Post it in the Discord welcome channel. Players enter it under "Claim Discord gift".');
+console.log(`Discord gift code for ${r.week}: ${r.code}`);
+console.log(`Post it in the Discord welcome channel. It works until ${r.valid_until} (UTC); a new one starts each Monday.`);

@@ -2119,11 +2119,11 @@ jobs:
           node tests/party-hunt-select-lockdown.mjs
           node tests/party-hunt-select-lockdown.mjs --mutate
 
-      # Discord gift (2026-10-18-discord-gift.sql): the welcome-channel code pays
-      # a server-constant gem gift ONCE PER ACCOUNT, journalled, rate limited;
-      # a wrong or rotated code is refused; the client sends (slot, code) only.
-      # --mutate: 9 SQL mutants (per-character once-row, no once-row, a
-      # client-sent amount, ...) + 2 client-scan mutants. Template-warm seconds.
+      # Discord gift (2026-10-18-discord-gift.sql): this week's server-derived
+      # code (HMAC of a Vault secret) pays a server-constant gem gift ONCE PER
+      # ACCOUNT, journalled, rate limited; closed with no secret; the oracles are
+      # owner-only by ACL. Both states run (no Vault / Vault + pgcrypto shim).
+      # --mutate: 13 SQL mutants + 4 client/tool-scan mutants. Template-warm seconds.
       - name: Discord gift — one gift per account, server code and amount, journalled
         if: ${{ !cancelled() }}
         run: |

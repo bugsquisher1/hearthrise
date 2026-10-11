@@ -6,12 +6,13 @@
 // Discord gift" sheet.
 //
 // THE GIFT IS THE SERVER'S. The player types the code posted in the Discord
-// welcome channel; hr_claim_discord_gift (supabase/migrations/
-// 2026-10-18-discord-gift.sql) checks it against the server's own code table and
-// pays a fixed gem amount once per ACCOUNT. Nothing here knows the amount: the
-// success line quotes the `gems` the server answered, and the balance arrives
-// through the record reconcile in goal-claim.js (CREDIT_VERBS), never through a
-// client write.
+// welcome channel (a new one each week); hr_claim_discord_gift (supabase/
+// migrations/2026-10-18-discord-gift.sql) derives this week's code on the server
+// and pays a fixed gem amount once per ACCOUNT. GIFT_GEMS below is only the
+// pitch's copy of that amount, bound to the server constant by
+// tests/discord-gift.mjs; the success line quotes the `gems` the server answered,
+// and the balance arrives through the record reconcile in goal-claim.js
+// (CREDIT_VERBS), never through a client write.
 //
 // Clicks are delegated from the document ([data-hr-discord-gift]), because Home
 // repaints its markup every 1.5 s and a handler bound to a node would die with
@@ -22,7 +23,8 @@
 
   var INVITE = 'https://discord.gg/eJrUSUJM3M';
   var LINK_TEXT = 'Join the Hearthrise Discord';
-  var PITCH = 'meet other players, report bugs, get a gift.';
+  var GIFT_GEMS = 25;
+  var PITCH = 'meet other players, report bugs, and get a ' + GIFT_GEMS + '-gem welcome gift.';
   var SHEET_ID = 'hr-dc-sheet';
 
   function esc(s) {
@@ -77,7 +79,8 @@
      table, so the suite can read each state without a network. */
   var COPY = {
     wrong_code: 'That code does not match. Check the welcome channel on Discord and try again.',
-    code_expired: 'That code has expired. The current one is pinned in the Discord welcome channel.',
+    code_expired: 'That code has expired. This week\'s code is pinned in the Discord welcome channel.',
+    gift_unavailable: 'Discord gifts are not open yet. Check back soon.',
     already_claimed: 'Your Discord gift is already claimed on this account. Thanks for joining!',
     rate_limited: 'Too many tries at once. Wait a minute and try again.',
     not_signed_in: 'Sign in first, then claim your gift.',
@@ -126,10 +129,10 @@
       + '<div class="hr-sheet-head"><div class="hr-dc-h">Claim your Discord gift</div></div>'
       + '<div class="hr-sheet-body">'
       +   '<p class="hr-dc-p">' + linkHtml(LINK_TEXT) + ' — ' + esc(PITCH)
-      +   ' The gift code is pinned in the welcome channel.</p>'
+      +   ' This week\'s gift code is pinned in the welcome channel.</p>'
       +   '<label class="hr-dc-label" for="hr-dc-code">Gift code</label>'
       +   '<input id="hr-dc-code" class="hr-dc-input" type="text" maxlength="40" autocomplete="off"'
-      +     ' autocapitalize="characters" spellcheck="false" placeholder="e.g. HEARTH1234" />'
+      +     ' autocapitalize="characters" spellcheck="false" placeholder="e.g. HEARTH-ABC123" />'
       +   '<div class="hr-dc-status" role="status" aria-live="polite" data-state="idle"></div>'
       + '</div>'
       + '<div class="hr-sheet-foot"><button type="submit" class="hr-dc-claim">Claim gift</button></div>'

@@ -3943,6 +3943,13 @@ choosing the right file first would have avoided.
   template exists the guard is ~20 s. Start the first replay early.
 · Handoffs: Security GO on 2026-10-18-discord-gift.sql; Designer confirms 50 gems; Coordinator
   rules on the operator rotation tool (CONFLICTS.md) and re-pins live-hash-drift after apply.
+· REDESIGNED after review (2026-10-11): THE REPO IS PUBLIC, so a committed sha256 of a short code
+  IS the code (29.7 bits cracks offline). A shared secret that must rotate belongs in Vault and is
+  DERIVED per period (HMAC over the ISO week), so rotation needs no write and nothing reaches git.
+  Assert oracle ACLs on aclexplode(proacl), not has_function_privilege (which misses hr_engine).
+  Test both environments: the no-Vault replay proves fail-closed, a Vault + pgcrypto-shim run
+  (tests/world-tick-token-shims.mjs) proves the paying half and pins the derivation against Node.
+  Amount ruled 25 gems.
 
 ## 2026-10-10 — W0a cuts and copy (lane/w0a-cuts-and-copy)
 

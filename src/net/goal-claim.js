@@ -356,7 +356,7 @@
        the ACTIVE character cross; the amount is the server's. Once per ACCOUNT:
        a second character is refused already_claimed. AWAITED by
        src/features/discord-invite.js. Envelope: {ok, gems, balance, slot} or
-       {ok:false, error: wrong_code | code_expired | already_claimed |
+       {ok:false, error: wrong_code | code_expired | gift_unavailable | already_claimed |
        rate_limited | no_character | bad_slot | not_signed_in}. */
     claimDiscordGift: function (code) { return call('hr_claim_discord_gift', { p_slot: activeSlot(), p_code: String(code || '') }); },
     /* Bounty ACCEPT — supabase/migrations/2026-08-23-bounty.sql. The server derives

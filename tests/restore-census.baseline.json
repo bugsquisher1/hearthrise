@@ -757,14 +757,10 @@
    "replay": 9,
    "note": "Generated catalogue — crop growth times and yields, the numbers every harvest is priced by. Content guarded by tools/gen-catalogues.mjs --check. Rebuilt from repo, never restored."
   },
-  "hr_discord_codes": {
-   "class": "operational",
-   "note": "2026-10-18 (discord-gift), ships EMPTY. The sha256 of each Discord welcome-channel gift code, at most one active; written only by hr_discord_code_rotate (operator, management API), read only by hr_claim_discord_gift; RLS forced, no policy, no client or engine privilege. Holds no player value. A rebuild comes back with NO active code, which turns the gift OFF (every claim answers wrong_code) until the operator runs tools/discord-gift-code.mjs and posts the new code; retired hashes are lost, which only matters if an old code were re-posted."
-  },
   "hr_discord_gift_claims": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "2026-10-18 (discord-gift), ships EMPTY. THE ONCE-ROW of the Discord gift: one row per ACCOUNT (PK user_id) that has claimed, with the character paid, the code hash and the gems. Written only by hr_claim_discord_gift in the same transaction as the gem credit and its player_ledger row (kind discord_gift); RLS forced, no policy, no client or engine privilege. On player_value_tables: a rebuild without it lets every account that already claimed claim AGAIN, i.e. a second mint of the gift per account. The ledger rows (kind discord_gift) are the backup of record: re-insert one claim row per distinct user_id in them before re-opening the gift."
+   "note": "2026-10-18 (discord-gift), ships EMPTY. THE ONCE-ROW of the Discord gift: one row per ACCOUNT (PK user_id) that has claimed, with the character paid, the ISO week of the code used and the gems. The weekly code itself is DERIVED from the Vault secret hr_discord_gift_secret and stored nowhere, so a rebuild needs the secret restored (Vault) and nothing else for the code. Written only by hr_claim_discord_gift in the same transaction as the gem credit and its player_ledger row (kind discord_gift); RLS forced, no policy, no client or engine privilege. On player_value_tables: a rebuild without it lets every account that already claimed claim AGAIN, i.e. a second mint of the gift per account. The ledger rows (kind discord_gift) are the backup of record: re-insert one claim row per distinct user_id in them before re-opening the gift."
   },
   "hr_db_samples": {
    "class": "operational",

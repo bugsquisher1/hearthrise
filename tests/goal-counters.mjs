@@ -76,9 +76,15 @@ let computeAccrualFn = computeAccrual;
 /* src/core/goals.js, likewise — M7-M9 plant defects in the contract module
    itself, and the engine mutants must then load THAT copy, so both are
    rebound through one loader. */
-let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, STATE_GOAL_TYPES, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
+let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
   BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
   COLLECTION_KEY_PREFIX, COLLECTION_ID_RE, lootKey, makeCollectionCounter, collectionProgressOps };
+
+/* The STATE goal types G2(b) exempts, read from src/data/goal-catalogue.js on EVERY
+   path (plain, --mutate, HR_MUTANT_CONTROL). Held apart from goalsMod because a
+   goals/accrual mutant rebinds goalsMod to a goals.js copy that never carried them;
+   only the catalogue mutant (M14) swaps this one. */
+let stateGoalTypes = STATE_GOAL_TYPES;
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -295,7 +301,7 @@ async function run(patches) {
       const types = [...body.matchAll(/\btype:\s*'([a-z_]+)'/g)].map((m) => m[1]);
       ok(types.length >= 4,
         `G2 CONTROL: ${name} yielded ${types.length} authored types, expected at least 4`);
-      const stateTypes = (G.STATE_GOAL_TYPES && typeof G.STATE_GOAL_TYPES === 'object') ? G.STATE_GOAL_TYPES : {};
+      const stateTypes = (stateGoalTypes && typeof stateGoalTypes === 'object') ? stateGoalTypes : {};
       for (const t of types) {
         /* A STATE goal (goal-catalogue.js STATE_GOAL_TYPES) reads a server fact instead of an
            `ev:` counter — legal only when legacy.js SERVER_QUEST_COUNTS reads it, so
@@ -1021,6 +1027,10 @@ const MUTATIONS = [
   { name: 'M14 catalogue: the property STATE goal type is undeclared',
     file: 'catalogue', from: "  property: 'the server property rung",
     to: "  propertyX: 'the server property rung" },
+  /* G2(b) still bites for an EVENT goal: drop 'harvest' from GOAL_EVENTS and the
+     authored farmhand step (type 'harvest', not a STATE type) must be caught. */
+  { name: 'M15 goals: an authored event type (harvest) is missing from GOAL_EVENTS',
+    file: 'goals', from: "  'harvest',    // farm\n", to: "" },
   { name: 'M13 combat: the collection ops never reach the delta',
     file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n",
     to: "" },
@@ -1053,7 +1063,7 @@ async function loadMutant(m) {
     await writeFile(f, src, 'utf8');
     try {
       const cm = await import(pathToFileURL(f).href);
-      return { engine: computeAccrualFn, goals: { ...goalsMod, STATE_GOAL_TYPES: cm.STATE_GOAL_TYPES } };
+      return { engine: computeAccrualFn, goals: goalsMod, stateTypes: cm.STATE_GOAL_TYPES };
     } finally { await unlink(f).catch(() => {}); }
   }
   let goalsSrc = await readFile(GOALS_PATH, 'utf8');
@@ -1101,9 +1111,10 @@ async function mutate() {
     const loaded = await loadMutant(m);   // THROWS on a failed plant, deliberately
     computeAccrualFn = loaded.engine;
     goalsMod = loaded.goals;
+    if (loaded.stateTypes) stateGoalTypes = loaded.stateTypes;
     try { await run(null); }
     catch (e) { problems.push(`threw: ${String(e?.message || e).split('\n')[0]}`); }
-    finally { computeAccrualFn = realEngine; goalsMod = realGoals; }
+    finally { computeAccrualFn = realEngine; goalsMod = realGoals; stateGoalTypes = STATE_GOAL_TYPES; }
     const caught = problems.length > 0;
     console.log(`[mutant] ${m.name.split(' ')[0]} ${caught ? 'caught' : 'survived'}`);
     console.log(`  ${caught ? 'RED  ' : 'GREEN'}  ${m.name}${caught ? ` (${problems.length})` : ''}`);

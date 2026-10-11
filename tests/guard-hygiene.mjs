@@ -76,7 +76,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -173,7 +173,7 @@ function plainlyInRunSmoke(runSmokeSrc, f) {
  * So: strip comments and strings-that-are-clearly-prose first, then require the
  * flag to appear inside an argv test.
  */
-function implementsFlag(src, flag) {
+export function implementsFlag(src, flag) {
   // COMMENT STRIPPING, THE CONSERVATIVE WAY.
   // The obvious approach — a lazy regex from block-open to block-close — is
   // wrong here, and produced two false accusations on the first run of this
@@ -472,75 +472,79 @@ const MUTATIONS = [
   },
 ];
 
-if (argv.includes('--list')) {
-  for (const m of MUTATIONS) console.log(m.id + '  —  ' + m.why);
-  process.exit(0);
-}
-
-if (argv.includes('--selftest')) {
-  console.log('guard-hygiene --selftest: each mutation must turn the verdict RED\n');
-  const real = readTree();
-  let bad = 0;
-
-  // CLEAN control: a guard that is red at rest is red for everything.
-  const clean = verdict(real);
-  if (clean.problems.length) {
-    bad++;
-    console.log('  FAIL  CLEAN control is RED against the real tree — the mutations below prove nothing');
-    for (const p of clean.problems) console.log('          ' + p.slice(0, 170));
-  } else {
-    console.log(`  ok    CLEAN control is GREEN (${clean.stats.guards} guards: ${clean.stats.registered} in `
-      + `smoke.yml, ${clean.stats.via_run_smoke} via run-smoke, ${clean.stats.chained} chained, `
-      + `${clean.stats.allowlisted} allowlisted; ${clean.stats.proof_steps} proof steps all non-vacuous)`);
+/* The CLI runs only when this file IS the entry point: tools/guard-anchors.mjs imports
+   implementsFlag so the NON-VACUITY detector and the anchor map agree on what a proof is. */
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  if (argv.includes('--list')) {
+    for (const m of MUTATIONS) console.log(m.id + '  —  ' + m.why);
+    process.exit(0);
   }
-  console.log('        the tree the mutations are planted into must itself be clean');
 
-  for (const m of MUTATIONS) {
-    let out;
-    try { out = verdict(m.mutate(real)); }
-    catch (e) { out = { problems: ['THREW: ' + e.message] }; }
-    if (out.problems.some((p) => m.expect.test(p))) {
-      console.log(`  ok    ${m.id} — caught`);
-    } else {
+  if (argv.includes('--selftest')) {
+    console.log('guard-hygiene --selftest: each mutation must turn the verdict RED\n');
+    const real = readTree();
+    let bad = 0;
+
+    // CLEAN control: a guard that is red at rest is red for everything.
+    const clean = verdict(real);
+    if (clean.problems.length) {
       bad++;
-      console.log(`  FAIL  ${m.id} — NOT CAUGHT (${out.problems.length} problem(s), none matching ${m.expect})`);
-      for (const p of out.problems.slice(0, 3)) console.log('          ' + p.slice(0, 170));
+      console.log('  FAIL  CLEAN control is RED against the real tree — the mutations below prove nothing');
+      for (const p of clean.problems) console.log('          ' + p.slice(0, 170));
+    } else {
+      console.log(`  ok    CLEAN control is GREEN (${clean.stats.guards} guards: ${clean.stats.registered} in `
+        + `smoke.yml, ${clean.stats.via_run_smoke} via run-smoke, ${clean.stats.chained} chained, `
+        + `${clean.stats.allowlisted} allowlisted; ${clean.stats.proof_steps} proof steps all non-vacuous)`);
     }
-    console.log(`        ${m.why}`);
+    console.log('        the tree the mutations are planted into must itself be clean');
+
+    for (const m of MUTATIONS) {
+      let out;
+      try { out = verdict(m.mutate(real)); }
+      catch (e) { out = { problems: ['THREW: ' + e.message] }; }
+      if (out.problems.some((p) => m.expect.test(p))) {
+        console.log(`  ok    ${m.id} — caught`);
+      } else {
+        bad++;
+        console.log(`  FAIL  ${m.id} — NOT CAUGHT (${out.problems.length} problem(s), none matching ${m.expect})`);
+        for (const p of out.problems.slice(0, 3)) console.log('          ' + p.slice(0, 170));
+      }
+      console.log(`        ${m.why}`);
+    }
+
+    console.log('');
+    if (bad) { console.error(`guard-hygiene --selftest FAILED — ${bad} unproven`); process.exit(1); }
+    console.log(`guard-hygiene --selftest PASSED — clean control green, ${MUTATIONS.length}/${MUTATIONS.length} mutations caught.`);
+    process.exit(0);
   }
 
-  console.log('');
-  if (bad) { console.error(`guard-hygiene --selftest FAILED — ${bad} unproven`); process.exit(1); }
-  console.log(`guard-hygiene --selftest PASSED — clean control green, ${MUTATIONS.length}/${MUTATIONS.length} mutations caught.`);
-  process.exit(0);
-}
+  // ── The plain run ────────────────────────────────────────────────────────
+  if (!existsSync(ALLOWLIST)) {
+    console.error('guard-hygiene: tests/guards-unregistered.json is missing. It is not optional — it is where '
+      + 'the "we know, and here is why" half of this rule lives. An empty {"guards":{}} is a valid starting point.');
+    process.exit(1);
+  }
 
-// ── The plain run ────────────────────────────────────────────────────────
-if (!existsSync(ALLOWLIST)) {
-  console.error('guard-hygiene: tests/guards-unregistered.json is missing. It is not optional — it is where '
-    + 'the "we know, and here is why" half of this rule lives. An empty {"guards":{}} is a valid starting point.');
-  process.exit(1);
-}
+  const tree = readTree();
+  const { problems, stats } = verdict(tree);
 
-const tree = readTree();
-const { problems, stats } = verdict(tree);
-
-if (AS_JSON) {
-  console.log(JSON.stringify({ ok: problems.length === 0, stats, problems }, null, 1));
-} else {
-  console.log('guard hygiene — every guard reachable, every claimed proof real\n');
-  console.log(`  ${stats.guards} guard file(s) under tests/`);
-  console.log(`    ${stats.registered} registered in .github/workflows/smoke.yml`);
-  console.log(`    ${stats.via_run_smoke} invoked by tests/run-smoke.mjs`);
-  console.log(`    ${stats.chained} chained from another guard`);
-  console.log(`    ${stats.allowlisted} on tests/guards-unregistered.json, each with a written reason`);
-  console.log(`  ${stats.proof_steps} workflow step(s) claim a mutation proof; each resolves to a file that `
-    + 'branches on the flag\n');
-  if (problems.length) {
-    console.error(`FAILED — ${problems.length} problem(s):\n`);
-    for (const p of problems) console.error('  ✗ ' + p + '\n');
+  if (AS_JSON) {
+    console.log(JSON.stringify({ ok: problems.length === 0, stats, problems }, null, 1));
   } else {
-    console.log('PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs.');
+    console.log('guard hygiene — every guard reachable, every claimed proof real\n');
+    console.log(`  ${stats.guards} guard file(s) under tests/`);
+    console.log(`    ${stats.registered} registered in .github/workflows/smoke.yml`);
+    console.log(`    ${stats.via_run_smoke} invoked by tests/run-smoke.mjs`);
+    console.log(`    ${stats.chained} chained from another guard`);
+    console.log(`    ${stats.allowlisted} on tests/guards-unregistered.json, each with a written reason`);
+    console.log(`  ${stats.proof_steps} workflow step(s) claim a mutation proof; each resolves to a file that `
+      + 'branches on the flag\n');
+    if (problems.length) {
+      console.error(`FAILED — ${problems.length} problem(s):\n`);
+      for (const p of problems) console.error('  ✗ ' + p + '\n');
+    } else {
+      console.log('PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs.');
+    }
   }
+  process.exit(problems.length ? 1 : 0);
 }
-process.exit(problems.length ? 1 : 0);

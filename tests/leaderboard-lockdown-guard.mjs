@@ -30,9 +30,31 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ROOT, bootReplay } from './schema-replay.mjs';
+import { ROOT, bootReplay, chainFiles } from './schema-replay.mjs';
 
-const TARGET = join(ROOT, 'supabase', 'migrations', '2026-08-14-leaderboard-view-lockdown.sql');
+const TARGET_NAME = '2026-08-14-leaderboard-view-lockdown.sql';
+const TARGET = join(ROOT, 'supabase', 'migrations', TARGET_NAME);
+
+/* THE SCOPE (b569). This guard proves a PRE-APPLY property: F5 reproduces on the
+   database the migration was written for, the migration closes it, and its §5
+   refuses five broken variants. It used to replay the WHOLE chain — which already
+   contains this very file, so public.leaderboard was gone before BEFORE looked
+   for it (42P01) and the guard was red from the day the file entered the order,
+   with nothing running it. It now replays UP TO the file's predecessor in the
+   declared order (derived, never typed), which is the state the file targets.
+   That the boards stay closed on TODAY's chain is a different file's claim:
+   2026-08-18-leaderboard-server-source.sql re-establishes the revoke on the
+   rebuilt matview and tests/leaderboard-server-source.mjs grades it. */
+const PREDECESSOR = await (async () => {
+  const names = (await chainFiles()).map(([n]) => n);
+  const at = names.indexOf(TARGET_NAME);
+  if (at < 1) {
+    process.stderr.write(`HARNESS: ${TARGET_NAME} is not in the replay chain (index ${at}) — nothing to scope to
+`);
+    process.exit(2);
+  }
+  return names[at - 1];
+})();
 const LF = (s) => s.replace(/\r\n/g, '\n');
 
 let failures = 0;
@@ -51,7 +73,7 @@ const CLAN  = '00000000-0000-4000-b000-000000000001';
  * Everything here is DATA, not schema — the schema is whatever the repo builds.
  */
 async function build() {
-  const { db } = await bootReplay();
+  const { db } = await bootReplay({ upTo: PREDECESSOR });
   await db.exec(`
     insert into auth.users (id) values ('${UID}'), ('${OTHER}') on conflict do nothing;
     insert into public.profiles (id, display_name) values ('${UID}','Aldric'), ('${OTHER}','Bryn')
@@ -105,7 +127,7 @@ try { db = await build(); }
 catch (e) {
   harness(`could not replay the repo: ${String(e && e.message || e).split('\n').slice(0, 3).join(' | ')}`);
 }
-pass('chain replayed: schema.sql + every migration in the declared apply order, then 2 players + 1 clan seeded');
+pass(`chain replayed up to ${PREDECESSOR} (this file's predecessor), then 2 players + 1 clan seeded`);
 
 // ════════════════════════════════════════════════════════════════════════
 // BEFORE — F5 must REPRODUCE, or nothing below means anything

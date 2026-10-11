@@ -54,6 +54,7 @@ import {
   simulateArtisanSpan, indexArtisanRecipes, duplicateRecipeIds,
   benchPayable, benchBlockedBy, recipePayable,
   SERVER_OWNED_BONUS_KEYS, BENCH_DESTRUCTIVE_KEYS, STOP_REASON as ARTISAN_STOP,
+  __setCookingSettlementArm,
 } from '../src/core/artisan-sim.js';
 import { resolveArtisanAction, burnChance, BURN_BASE, BURNT_ITEM } from '../src/core/artisan.js';
 import { bestTool, toolSpeed, toolXpB, toolDouble } from '../src/core/tools.js';
@@ -778,6 +779,28 @@ function burnGuard() {
       + 'opens it');
   }
 
+  /* ── T6b-2 (b569). THE REFUSAL, DRIVEN WITH THE GATE CLOSED. Since the cooking
+     settlement was armed every bench is payable, so T6b above has nothing to hold
+     and M5 (the engine stops refusing an unpayable bench) SLIPPED on origin/main.
+     The refusal still guards every bench in BENCH_DESTRUCTIVE_KEYS whenever its key
+     is not server-owned, so it is driven through the module's own test seam: the
+     cooking arm DISARMED, one cooking night, which must be deferred by name. The
+     seam is the instance accrual.js imports (same URL), and it is always reset. */
+  __setCookingSettlementArm(false);
+  try {
+    const shut = Object.keys(ARTISAN_RECIPES_ALL).find((id) => !recipePayable(ARTISAN_RECIPES_ALL, id));
+    ok(!!shut, 'T6b-2: with the cooking settlement disarmed NO recipe is unpayable — '
+      + 'BENCH_DESTRUCTIVE_KEYS no longer gates anything, so the refusal below is untestable');
+    if (shut) {
+      const e = ARTISAN_RECIPES_ALL[shut];
+      const r = call({ activeId: shut, inventory: supplyFor(e.recipe, 100000), unlockedRecipes: { [shut]: true } });
+      ok(r.accrued === false && r.reason === SKIP.UNPAYABLE_BENCH && !r.delta,
+        `T6b-2: with its key not server-owned, '${shut}' (${e.skill}) returned `
+        + `${JSON.stringify({ a: r.accrued, r: r.reason, delta: !!r.delta })} — expected a deferred `
+        + 'unpayable_bench refusal and no delta; the engine would cook against a Kitchen it cannot see');
+    }
+  } finally { __setCookingSettlementArm(null); }
+
   /* ── T6c. THE BURN RATE COMES FROM THE PERK STACK, AND THE PERK STACK COMES
      FROM `hr_perks_of`. Asserted on the RATE FUNCTION rather than through a
      span, because the bench that burns is the one currently held back — so a
@@ -1306,10 +1329,19 @@ const CORE = 'src/core/artisan-sim.js';
 const CLIENT = 'src/net/activity.js';
 const SWEEP = 'tests/accrual-engine.mjs';
 const BUDGET = 'supabase/migrations/2026-08-16-day-budget-artisan.sql';
+const LADDER = 'src/data/slot-ladders.js';
+const BRONZE_FLETCH = "    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×50',    icon: '🏹', "
+  + "inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 50,  "
+  + 'xp: 90,  req: 5,  ms: 3200 },';
 
 export const MUTATIONS = [
+  /* M1 RE-ANCHORED (b569): `bag[id] = have - take;` now occurs twice in the engine
+     (the combat sink grew the same removeItem), so the old anchor matched 2 lines
+     and the mutant never planted. The artisan sink's `nat(bag[id], 0)` read is
+     unique; the defect is the same — the delta debits, the bag is never spent. */
   ['M1  the input debit does not spend the bag', [
-    [ENGINE, '      bag[id] = have - take;', '      /* MUTATED */'],
+    [ENGINE, '      const have = Math.floor(nat(bag[id], 0));',
+      '      const have = Math.floor(nat(bag[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [ENGINE, "      kind: 'craft',", "      kind: 'artisan',"],
@@ -1394,17 +1426,36 @@ export const MUTATIONS = [
      violates stays green, so the mutation has to introduce the violation. Both
      are shaped like the real regression — a yield that grew past what Security
      measured, and a recipe that fell off the list. */
+  /* S5/S6 RE-POINTED (b569). b374 cut every fletch batch to 50 and EMPTIED the
+     amnesty table, so both anchors (rows of it) were gone and both mutants were
+     ANCHOR-FAILs on origin/main. The properties did not move — (1) "nothing new
+     over the clamp" and (2) "an amnestied row may not get worse" still run over
+     the same sweep — only their data did. So the violation is now introduced the
+     way it would really return: the YIELD grows back (src/data/slot-ladders.js),
+     with (S5) or without (S6) the amnesty row Security once measured. Each must be
+     caught BY ITS NAMED ASSERTION (the 4th field), not by whatever else a 20x
+     yield happens to trip. */
   ['S5  an amnestied yield grows past what Security measured', [
-    [SWEEP, '  fletch_dawnpoint_arrows: 7670000,   // outputQty 1000',
-      '  fletch_dawnpoint_arrows: 7000000,   // outputQty 1000'],
-  ], 'the ratchet must fire — a worse yield pushes the ladder past MAX_DEGRADE and pays zero'],
+    [SWEEP, 'const AMMO_CLAMP_BASELINE = Object.freeze({});',
+      'const AMMO_CLAMP_BASELINE = Object.freeze({ fletch_bronze_arrows: 5273000 });'],
+    [LADDER, BRONZE_FLETCH, BRONZE_FLETCH.replace('outputQty: 50,  xp', 'outputQty: 1000, xp')],
+  ], 'the ratchet must fire — a worse yield pushes the ladder past MAX_DEGRADE and pays zero',
+  /CLAMP BASELINE RATCHET: 'fletch_bronze_arrows'/],
   ['S6  a recipe crosses the clamp with no amnesty', [
-    [SWEEP, '  fletch_bronze_arrows: 5273000,      // outputQty 500', '  // removed'],
-  ], 'a NEW recipe over the per-call clamp must be a new decision, not an inherited one'],
+    [LADDER, BRONZE_FLETCH, BRONZE_FLETCH.replace('outputQty: 50,  xp', 'outputQty: 1000, xp')],
+  ], 'a NEW recipe over the per-call clamp must be a new decision, not an inherited one',
+  /CLAMP BASELINE: 'fletch_bronze_arrows'/],
 ];
 
 const SEAM_PROBE = "import('./tests/activity-seam.mjs').then(async (m)=>{const p=await m.runAll();"
   + 'if(p.length){console.log(p[0]);process.exit(1)}})';
+const PROBES = [
+  ['artisan-accrual', ['tests/artisan-accrual.mjs']],
+  ['seam', ['-e', SEAM_PROBE]],
+  ['accrual-engine --fuse-only=day', ['tests/accrual-engine.mjs', '--fuse-only=day']],
+  ['accrual-engine --fuse-only=clamp', ['tests/accrual-engine.mjs', '--fuse-only=clamp']],
+  ['accrual-engine', ['tests/accrual-engine.mjs']],
+];
 
 async function selftest() {
   const { readFile, writeFile } = await import('node:fs/promises');
@@ -1428,8 +1479,21 @@ async function selftest() {
     sites.map(([file, find, repl]) => ({ file, from: find, to: repl }))));
   noteDirtyTree([...new Set(MUTATIONS.flatMap(([, sites]) => sites.map(([f]) => f)))]);
 
+  /* THE CLEAN BASELINE FIRST (tests/mutation-proof.mjs's contract): with the probes
+     short-circuiting, a tree that is already red would read every mutation as
+     CAUGHT by the first probe. Every probe must be green unmutated, or exit 2. */
+  for (const [label, args] of PROBES) {
+    try { await run('node', args, { maxBuffer: 1e8 }); }
+    catch (e) {
+      console.log(`HARNESS: the UNMUTATED tree is red on ${label} — no mutation can be scored.\n`
+        + String(e.stdout || e.message).split('\n').slice(0, 4).join('\n'));
+      finish(2);
+    }
+  }
+  console.log('  clean baseline: every probe green unmutated');
+
   let slipped = 0;
-  for (const [name, sites, why] of MUTATIONS) {
+  for (const [name, sites, why, expect] of MUTATIONS) {
     const originals = new Map();
     for (const [file] of sites) {
       if (!originals.has(file)) originals.set(file, snapshot(file));
@@ -1448,22 +1512,23 @@ async function selftest() {
     }
     const red = [];
     if (!bad) {
-      try { await run('node', ['tests/artisan-accrual.mjs'], { maxBuffer: 1e8 }); }
-      catch (e) {
-        const first = String(e.stdout || '').split('\n').filter((l) => l.trim().startsWith('x '))[0];
-        red.push('artisan-accrual: ' + (first || 'RED').trim().slice(0, 150));
-      }
-      try { await run('node', ['-e', SEAM_PROBE], { maxBuffer: 1e8 }); }
-      catch (e) { red.push('seam: ' + String(e.stdout || e.message).trim().slice(0, 150)); }
-      /* THE FUSE-SIZING SWEEP runs here too, because the S-series mutations
-         (the day-budget raise, the chain read, the reachable cap, the amnesty)
-         are only visible to it — and a mutation harness whose probes cannot see
-         the file being mutated reports SLIPPED for the right reason and
-         CAUGHT-by-accident for the wrong one. */
-      try { await run('node', ['tests/accrual-engine.mjs'], { maxBuffer: 1e8 }); }
-      catch (e) {
-        const first = String(e.stdout || '').split('\n').filter((l) => l.trim().startsWith('x '))[0];
-        red.push('accrual-engine: ' + (first || 'RED').trim().slice(0, 150));
+      /* THE PROBES, CHEAPEST FIRST, STOPPING AT THE FIRST THAT CATCHES (b569). A
+         mutation is CAUGHT by one red, so running the 100 s accrual-engine sweep
+         after a 2 s probe already went red bought nothing and made this proof
+         ~90 min — too slow for any gate, which is why nothing ran it. A mutation
+         with an `expect` is caught only by a probe whose failures MATCH it, so the
+         S-series are proven by their named assertion. THE FUSE-SIZING SWEEP
+         (`accrual-engine --fuse-only`: the clamp and day-budget guards, the only
+         ones the S-series can reach) runs before the full engine for the same
+         reason; the full engine is still the last resort for everything else. */
+      for (const [label, args] of PROBES) {
+        let out = null;
+        try { await run('node', args, { maxBuffer: 1e8 }); }
+        catch (e) { out = String(e.stdout || '') + String(e.stderr || e.message || ''); }
+        if (out === null) continue;
+        const lines = out.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('x ') || l.startsWith('ACTIVITY SEAM'));
+        const hit = expect ? lines.find((l) => expect.test(l)) : (lines[0] || out.trim().split('\n')[0] || 'RED');
+        if (hit) { red.push(`${label}: ${hit.slice(0, 150)}`); break; }
       }
     }
     for (const [file, orig] of originals) await writeFile(file, orig, 'utf8');

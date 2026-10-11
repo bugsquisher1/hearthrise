@@ -7,6 +7,7 @@
 //
 //   node tests/_chrome.mjs             # print what a runner would launch
 //   node tests/_chrome.mjs --selftest  # the three arms above, asserted
+// mutant-anchors: none — the proof plants HR_CHROME values into a child process, never a tree file
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

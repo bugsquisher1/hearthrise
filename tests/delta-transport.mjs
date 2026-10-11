@@ -258,8 +258,11 @@ const MUTATIONS = {
     why: 'tick.js binds the pre-stringified fence delta into a bare $9::jsonb — the shipped P0 on '
        + 'the WORLD TICK. hr_tick_settle answers bad_delta on the watermark probe and shadow '
        + 'parity never starts.',
-    find: "$8::uuid, $9::text::jsonb) as res'",
-    repl: "$8::uuid, $9::jsonb) as res'",
+    /* Re-anchored b569: hr_tick_settle grew a tenth argument ($10::text::jsonb), so
+       the old anchor ending `$9::text::jsonb) as res'` matched nothing and the
+       whole --selftest died as a HARNESS error — registered nowhere, so unseen. */
+    find: "$8::uuid, $9::text::jsonb,'",
+    repl: "$8::uuid, $9::jsonb,'",
   },
   gather_interval_halved: {
     stagedFile: 'src/core/skill-sim.js',
@@ -445,6 +448,20 @@ function applyArgLists(text) {
   return out;
 }
 
+/** Every top-level argument of an argument list, trimmed. */
+function topArgs(args) {
+  const out = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < args.length; i++) {
+    const c = args[i];
+    if (c === '(' || c === '{' || c === '[') depth++;
+    else if (c === ')' || c === '}' || c === ']') depth--;
+    else if (c === ',' && depth === 0) { out.push(args.slice(start, i).trim()); start = i + 1; }
+  }
+  out.push(args.slice(start).trim());
+  return out;
+}
+
 /** The last top-level argument of an argument list — the delta. */
 function lastArg(args) {
   let depth = 0, start = 0;
@@ -577,8 +594,13 @@ async function run(mutate) {
           continue;
         }
         seen.push(`${rel}:${fn}`);
-        const delta = lastArg(args);
-        if (!/::text::jsonb$/.test(delta)) {
+        /* EVERY jsonb argument, not just the last (b569). hr_tick_settle grew
+           p_shadow_state AFTER p_delta, so "the delta is last" stopped being
+           true and a bare `$9::jsonb` delta slipped this census. A bound jsonb
+           argument of either function is the same transport hazard. */
+        const bare = topArgs(args).find((a) => /::jsonb$/.test(a) && !/::text::jsonb$/.test(a));
+        const delta = bare || lastArg(args);
+        if (bare || !/::text::jsonb$/.test(delta)) {
           problems.push(`T6: ${rel} binds ${fn}'s delta as \`${delta.replace(/\s+/g, ' ')}\` — `
             + 'it must end `::text::jsonb`. A pre-stringified delta bound into a bare `::jsonb` is '
             + 'described to postgres.js as type 3802, whose serialiser is JSON.stringify, so the '

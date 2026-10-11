@@ -123,7 +123,14 @@ function census() {
   for (const m of blob.matchAll(/['"`]([A-Za-z_][\w -]*)['"`]/g)) literals.add(m[1]);
   for (const m of blob.matchAll(/['"`]([A-Za-z_][\w-]*)(?=\$\{|['"`]\s*\+)/g)) literals.add(m[1]);
 
+  // A class recurs across rules and sheets; its answer is a pure function of the
+  // blob, so each is computed once (guard diet 2026-10-10: 37 s -> 12 s measured).
+  const memo = new Map();
   const reached = (c) => {
+    if (!memo.has(c)) memo.set(c, reachedOnce(c));
+    return memo.get(c);
+  };
+  const reachedOnce = (c) => {
     if (isStructural(c)) return 'structural';
     const tok = new RegExp('\\b' + c.replace(/[-]/g, '\\-') + '\\b');
     if (tok.test(blob)) return 'named';

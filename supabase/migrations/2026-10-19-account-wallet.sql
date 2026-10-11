@@ -115,15 +115,16 @@
 --   anchor (untouched here) and reads gems_in per (user, slot) in
 --   hr_login_bonus_ready: it must read the ACCOUNT (kind='wallet' rows, any
 --   slot). Both branches conflict with origin/main today and were not merged.
---   b570 BUNDLE (set/b570-bundle): this file now follows muster-chest-xp-credit,
+--
+-- RESTATEMENT-DEBT-ACK: hr_apply (173 kB, the money body) takes five anchored gem edits here because restating it whole in the same lane as a currency move is the larger risk; every other gem body is restated whole and pinned, and slice 7 owns the hr_apply restatement.
+--
+-- b570 BUNDLE (set/b570-bundle): this file now follows muster-chest-xp-credit,
 --   rally-points-server and quest-xp-absence-pay; world_event_claim__ungated is
 --   restated from rally-points-server's body (§0). The absence claim's gem moves
 --   to the wallet in 2026-10-19-absence-claim-wallet.sql, applied IMMEDIATELY
 --   after this file (Security F1); discord-gift and the w0c files follow it, and
 --   2026-10-16-w0f-fun-content.sql restates hr_claim_milestone__ungated from
 --   this file's post-image.
---
--- RESTATEMENT-DEBT-ACK: hr_apply (173 kB, the money body) takes five anchored gem edits here because restating it whole in the same lane as a currency move is the larger risk; every other gem body is restated whole and pinned, and slice 7 owns the hr_apply restatement.
 --
 -- ⚠ AFTER APPLYING: live-hash-drift wants hr_apply + the ten restated bodies +
 --   the three helpers; restore-census classifies account_wallet and

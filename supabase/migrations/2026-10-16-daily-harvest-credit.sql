@@ -143,12 +143,21 @@ end $fn$;
 revoke execute on function public.hr_claim_daily__ungated(text, int) from public, anon, authenticated, service_role;
 
 -- ── 2. SELF-CHECK (§4) — BY EXECUTION, NET-ZERO ────────────────────────────
+-- THE OFFER IS FORCED, NOT DRAWN (Security, 2026-10-10): the day's random draw
+-- deals harvest on roughly half of all days, so a pay arm that depends on it
+-- proves nothing on the other half. Inside the rolled-back subtransaction the
+-- two offer sources (hr_daily_task_set, hr_daily_task_set_for) are replaced by
+-- fixtures — first offering nothing, then offering harvest — so every arm runs
+-- on every day. DDL is transactional: the HR950 rollback restores both bodies,
+-- and the check after it proves they are the installed ones again.
 do $$
 declare
   v_uid  constant uuid := '00000000-0000-4000-c000-0000010a1d05';
   v_day  text := public.hr_utc_day_key(now());
   v_def  text := pg_get_functiondef('public.hr_claim_daily__ungated(text,int)'::regprocedure);
-  v_r jsonb; v_g0 bigint; v_g1 bigint; v_offered boolean;
+  v_set0 text := md5(pg_get_functiondef('public.hr_daily_task_set(text)'::regprocedure));
+  v_for0 text := md5(pg_get_functiondef('public.hr_daily_task_set_for(text,uuid,int)'::regprocedure));
+  v_r jsonb; v_g0 bigint; v_g1 bigint;
 begin
   if strpos(v_def, 'not_creditable') > 0
      or strpos(v_def, 'when ''daily_harvest''    then v_type := ''harvest'';  v_goal := 6;   v_gold := 300;') = 0 then
@@ -160,34 +169,53 @@ begin
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     perform public.hr_create_character(0);
-    v_offered := 'daily_harvest' = any (public.hr_daily_task_set(v_day))
-              or 'daily_harvest' = any (public.hr_daily_task_set_for(v_day, v_uid, 0));
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
-      values (v_uid, 0, 'daily', 'ev:harvest', v_day, 5, 'active');
+      values (v_uid, 0, 'daily', 'ev:harvest', v_day, 6, 'active');
+
+    -- (b) NOT OFFERED by either source -> not_offered, and unpaid, even with 6 crops.
+    execute $x$create or replace function public.hr_daily_task_set(p_day_key text)
+      returns text[] language sql immutable as 'select array[''daily_kill'']::text[]'$x$;
+    execute $x$create or replace function public.hr_daily_task_set_for(p_day_key text, p_user uuid, p_slot int)
+      returns text[] language sql stable as 'select array[''daily_kill'']::text[]'$x$;
+    -- A fixture is still a function: no client reaches it even for the instant
+    -- it exists (create-or-replace keeps the ACL; restated anyway).
+    revoke execute on function public.hr_daily_task_set(text) from public, anon, authenticated, service_role;
+    revoke execute on function public.hr_daily_task_set_for(text, uuid, int) from public, anon, authenticated, service_role;
+    select gold into v_g0 from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_claim_daily__ungated('daily_harvest', 0);
-    if v_offered and v_r->>'error' is distinct from 'incomplete' then
-      raise exception 'daily-harvest-credit self-check (b): 5 of 6 crops answered %', v_r; end if;
-    if not v_offered and v_r->>'error' is distinct from 'not_offered' then
-      raise exception 'daily-harvest-credit self-check (b): an undealt harvest quest answered %', v_r; end if;
+    select gold into v_g1 from public.player_state where user_id = v_uid and slot = 0;
+    if v_r->>'error' is distinct from 'not_offered' or v_g1 <> v_g0 then
+      raise exception 'daily-harvest-credit self-check (b): an undealt harvest quest answered % and paid %', v_r, v_g1 - v_g0; end if;
+
+    -- (c) OFFERED (the eligible set only, as a farmer with seeds is dealt it):
+    --     5 of 6 -> incomplete; 6 -> paid 300 once; again -> already_claimed.
+    execute $x$create or replace function public.hr_daily_task_set_for(p_day_key text, p_user uuid, p_slot int)
+      returns text[] language sql stable as 'select array[''daily_harvest'']::text[]'$x$;
+    update public.player_progress set value = 5
+     where user_id = v_uid and kind = 'daily' and key = 'ev:harvest' and period_key = v_day;
+    v_r := public.hr_claim_daily__ungated('daily_harvest', 0);
+    if v_r->>'error' is distinct from 'incomplete' then
+      raise exception 'daily-harvest-credit self-check (c): 5 of 6 crops answered %', v_r; end if;
     update public.player_progress set value = 6
      where user_id = v_uid and kind = 'daily' and key = 'ev:harvest' and period_key = v_day;
     select gold into v_g0 from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_claim_daily__ungated('daily_harvest', 0);
     select gold into v_g1 from public.player_state where user_id = v_uid and slot = 0;
-    if v_offered and (coalesce(v_r->>'ok', 'false') <> 'true' or v_g1 - v_g0 <> 300) then
+    if coalesce(v_r->>'ok', 'false') <> 'true' or v_g1 - v_g0 <> 300 then
       raise exception 'daily-harvest-credit self-check (c): 6 crops on a dealt day returned % and paid %', v_r, v_g1 - v_g0; end if;
-    if v_offered then
-      v_r := public.hr_claim_daily__ungated('daily_harvest', 0);
-      if v_r->>'error' is distinct from 'already_claimed' then
-        raise exception 'daily-harvest-credit self-check (c): a second claim answered %', v_r; end if;
-    elsif v_g1 <> v_g0 then
-      raise exception 'daily-harvest-credit self-check (c): an undealt quest paid % gold', v_g1 - v_g0; end if;
+    v_r := public.hr_claim_daily__ungated('daily_harvest', 0);
+    select gold into v_g0 from public.player_state where user_id = v_uid and slot = 0;
+    if v_r->>'error' is distinct from 'already_claimed' or v_g0 <> v_g1 then
+      raise exception 'daily-harvest-credit self-check (c): a second claim answered % and paid %', v_r, v_g0 - v_g1; end if;
     raise exception using errcode = 'HR950', message = 'daily-harvest-credit §4 complete — rolling back';
   exception when sqlstate 'HR950' then null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
+  if md5(pg_get_functiondef('public.hr_daily_task_set(text)'::regprocedure)) <> v_set0
+     or md5(pg_get_functiondef('public.hr_daily_task_set_for(text,uuid,int)'::regprocedure)) <> v_for0 then
+    raise exception 'daily-harvest-credit self-check: a fixture offer source survived the rollback'; end if;
   if exists (select 1 from public.player_state where user_id = v_uid)
      or exists (select 1 from auth.users where id = v_uid) then
     raise exception 'daily-harvest-credit self-check: §4 LEAKED a probe row'; end if;
-  raise notice 'daily-harvest-credit self-check PASSED: the fixed arm, no client path, incomplete / paid once / already_claimed on a dealt day (not_offered and unpaid otherwise)';
+  raise notice 'daily-harvest-credit self-check PASSED: the fixed arm, no client path; with the offer FORCED (not drawn): undealt -> not_offered and unpaid, dealt -> incomplete / paid 300 once / already_claimed';
 end $$;

@@ -35,21 +35,25 @@
 //   L5  THE DATABASE REFUSES ANY OTHER PRICE. After the miss, the old rule's
 //       reset-to-day-1 price, an uncapped week-15 price and a forged extra item
 //       are each refused login_price_mismatch by hr_apply and move nothing.
-//   L7  THE SKIP PATTERN (Security, 2026-10-10). Keys and gems pay only on a
-//       STRAIGHT arrival (the last claim yesterday): over 28 days, claiming every
-//       other day earns no more keys or gems than claiming daily, in JS (a full
-//       simulation) and in the database (day 7 reached by a step back pays gold
-//       only, through the edge, and a forged key or gems on it is refused).
+//   L7  THE SKIP PATTERNS (Security, 2026-10-10, twice). Keys and gems pay only
+//       when due: a STRAIGHT arrival AND none paid in the six server days
+//       before (the ledger). In JS, over 28 days, every-other-day, skip-two-
+//       then-straight and 4,000 seeded random claim patterns each earn at most
+//       a daily player's 4 keys / 8 gems, never two keys inside 7 days; in the
+//       database, through the edge, a day 7 reached by a step back pays gold
+//       only, and so does a STRAIGHT day 7 four days after the last key.
 //   L6  BOTH W0 FILES RE-APPLY BYTE-IDENTICALLY on the chain end (this file and
 //       2026-10-16-goal-board-retire.sql), their own §4 passing a second time.
 //
 // THE MUTANTS (--mutate)
 //   JS  a missed day resets the streak -> L3 · the multiplier loses its cap
-//       (overflow) -> L2 · keys pay on any arrival -> L7 · the streak never wraps -> L3 · an unclaimed row
-//       counts -> L3 · the edge stops sending the supplies -> L4
+//       (overflow) -> L2 · keys pay on any arrival -> L7 · keys ignore the ledger
+//       week -> L7 · the streak never wraps -> L3 · an unclaimed row counts -> L3
+//       · the edge stops sending the supplies -> L4
 //   SQL a missed day resets the streak · the multiplier loses its cap · the
 //       verify is unwired from hr_apply · the gems check is dropped · keys pay
-//       on any arrival -> the migration's own §4 refuses
+//       on any arrival · the verify ignores the ledger week -> the migration's
+//       own §4 refuses
 //
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // NO ?v= on the imports (tests/**, b332).
@@ -77,7 +81,10 @@ const JS_MUTANTS = [
     edits: [["  if (!last || typeof last !== 'object' || last.state !== 'claimed') return 1;",
       "  if (!last || typeof last !== 'object') return 1;"]] },
   { name: 'keys and gems pay on any arrival (the skip exploit)', arm: 'L7', file: 'src/data/rewards.js',
-    edits: [['  const straight = !!(opts && opts.straight === true);', '  const straight = true;']] },
+    edits: [['  const bonus = !!(opts && opts.bonus === true);', '  const bonus = true;']] },
+  { name: 'keys ignore the ledger week (skip two, then straight)', arm: 'L7', file: 'src/data/rewards.js',
+    edits: [['  return loginClaimIsStraight(lookup) && !!lookup && lookup.bonus_ready === true;',
+      '  return loginClaimIsStraight(lookup);']] },
   { name: 'the edge stops sending the supplies', arm: 'L4', file: 'supabase/functions/hr-accrue/claim-reward.js',
     edits: [['  if (priced.items && Object.keys(priced.items).length) delta.items = { ...priced.items };', '']] },
 ];
@@ -91,8 +98,11 @@ const SQL_MUTANTS = [
   { name: 'the verify stops checking gems', expect: /self-check \(d\)/,
     from: '     or v_gems <> (v_q->>\'gems\')::bigint\n', to: '' },
   { name: 'keys and gems pay on any arrival (hr_login_price)', expect: /self-check \((a|i)\)/,
-    from: "      case when coalesce(p_straight, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop",
+    from: "      case when coalesce(p_bonus, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop",
     to: "      coalesce(v_row->'keys', '{}'::jsonb)) loop" },
+  { name: 'the verify ignores the ledger week (hr_login_claim_verify)', expect: /self-check \(j\)/,
+    from: "    and (v_last->>'gap')::int = 1\n    and public.hr_login_bonus_ready(p_uid, p_slot));",
+    to: "    and (v_last->>'gap')::int = 1);" },
   { name: 'the re-price is unwired from hr_apply', expect: /self-check \((b|d)\)/,
     from: "          perform public.hr_login_claim_verify(v_uid, v_slot, coalesce(v_prog->>'period', ''), p_delta);",
     to: '          null;' },
@@ -163,7 +173,7 @@ async function runArms(db, mods) {
   // L2 — price parity over every streak, and the cap holds.
   for (let i = 0; i < 240; i++) {
     const s = (i % 120) + 1, straight = i >= 120;
-    const js = rw.priceDailyLogin(s, { straight });
+    const js = rw.priceDailyLogin(s, { bonus: straight });
     const sq = (await one('select public.hr_login_price($1::int, $2::boolean) as p', [s, straight])).p;
     if (Number(sq.gold) !== js.gold || Number(sq.gems) !== js.gems || !sameItems(sq.items, js.items)
         || Number(sq.cycle_day) !== js.cycleDay || Number(sq.weeks) !== js.weeksDone || Number(sq.mult) !== js.mult) {
@@ -320,32 +330,81 @@ async function runArms(db, mods) {
   }
   // L7 — the skip pattern pays nothing extra, in JS and in the database.
   {
-    const sim = (every) => {
-      let last = null, keys = 0, gems = 0;
+    /* The server, simulated: the streak from the last claim, and bonus_ready
+       from what was PAID in the six days before (the ledger read). */
+    const sim = (claims) => {
+      let last = null, keys = 0, gems = 0, close = 0;
+      const paidOn = [];
       for (let d = 1; d <= 28; d++) {
-        if ((d - 1) % every) continue;
-        const lookup = { last: last ? { value: last.v, state: 'claimed', gap: d - last.d } : null };
+        if (!claims(d)) continue;
+        const ready = !paidOn.some((p) => d - p >= 1 && d - p <= 6);
+        const lookup = { last: last ? { value: last.v, state: 'claimed', gap: d - last.d } : null, bonus_ready: ready };
         const st = rw.deriveLoginStreak(lookup);
-        const p = rw.priceDailyLogin(st, { straight: rw.loginClaimIsStraight(lookup) });
+        const p = rw.priceDailyLogin(st, { bonus: rw.loginBonusDue(lookup) });
+        if ((p.items.bone_key || 0) > 0 || p.gems > 0) {
+          if (paidOn.length && d - paidOn[paidOn.length - 1] < 7) close++;
+          paidOn.push(d);
+        }
         keys += (p.items.bone_key || 0); gems += p.gems;
         last = { v: st, d };
       }
-      return { keys, gems };
+      return { keys, gems, close };
     };
-    const daily = sim(1), skip = sim(2);
+    const daily = sim(() => true);
     if (daily.keys !== 4 || daily.gems !== 8) fail('L7', `CONTROL: a daily player over 28 days earns ${JSON.stringify(daily)}, expected 4 keys / 8 gems`);
-    if (skip.keys > daily.keys || skip.gems > daily.gems) {
-      fail('L7', `claiming every other day earns ${JSON.stringify(skip)} against a daily player's ${JSON.stringify(daily)} — skipping beats logging in`);
+    const patterns = [
+      ['every other day', (d) => d % 2 === 1],
+      /* Security's pattern: a straight week to the key, then skip two (back
+         to day 6) and claim day 6 and day 7 on consecutive days, forever. */
+      ['skip two, then day 6 and day 7', (d) => d <= 7 || ((d - 8) % 4) >= 2],
+    ];
+    let seed = 0x9e3779b9;
+    const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+    for (let i = 0; i < 4000; i++) {
+      const bits = Array.from({ length: 29 }, () => rnd() < 0.3 + 0.6 * ((i % 10) / 10));
+      patterns.push([`random #${i}`, (d) => bits[d]]);
+    }
+    for (const [name, claims] of patterns) {
+      const r = sim(claims);
+      if (r.keys > daily.keys || r.gems > daily.gems || r.close > 0) {
+        fail('L7', `${name} earns ${JSON.stringify(r)} against a daily player's ${JSON.stringify(daily)} — `
+          + 'keys and gems must pay at most once per 7 server days');
+        break;
+      }
     }
     await clearLogin();
     await putRow(2, 7, 'claimed');                     // day 7 two days ago, yesterday skipped
     const before = await wallet();
     const r = await claim();
     const got = paid(before, await wallet());
-    const want = rw.priceDailyLogin(7, { straight: false });
+    const want = rw.priceDailyLogin(7, { bonus: false });
     if (!(r.body && r.body.ok === true && r.body.granted.streak === 7)) fail('L7', `the step-back day 7 claim was refused: ${JSON.stringify(r.body).slice(0, 200)}`);
     else if (got.gold !== want.gold || got.gems !== 0 || got.items.bone_key) {
       fail('L7', `a day 7 reached by skipping paid ${JSON.stringify(got)} — keys and gems are for a straight arrival only`);
+    }
+    /* SKIP TWO, THEN STRAIGHT, in the database: the key was paid four days ago
+       (journalled as the edge journals it), day 6 claimed yesterday. Today is a
+       straight day 7 and pays gold only. CONTROL: the same with the key seven
+       days ago pays the key and the gems. */
+    const keyPaid = (daysAgo) => db.query(
+      `insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+       values ($1, 0, 'quest', 'claim_reward:daily:login:l7-probe', 270, 270, 0, 1, 2,
+               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - make_interval(days => $2::int))`, [UID, daysAgo]);
+    /* player_ledger is append-only, so the cases run in this order: the seven-
+       days-ago key first, then the four-days-ago one (which then blocks). Every
+       other login row this test journalled is today's, outside the window. */
+    for (const [daysAgo, due] of [[7, true], [4, false]]) {
+      await clearLogin(); await keyPaid(daysAgo);
+      await putRow(1, 6, 'claimed');
+      const b = await wallet();
+      const rr = await claim();
+      const g = paid(b, await wallet());
+      const w = rw.priceDailyLogin(7, { bonus: due });
+      if (!(rr.body && rr.body.ok === true && rr.body.granted.streak === 7)) {
+        fail('L7', `the straight day 7 with a key ${daysAgo} days ago was refused: ${JSON.stringify(rr.body).slice(0, 200)}`);
+      } else if (g.gold !== w.gold || g.gems !== w.gems || (g.items.bone_key || 0) !== (w.items.bone_key || 0)) {
+        fail('L7', `a straight day 7 with a key ${daysAgo} days ago paid ${JSON.stringify(g)}, expected ${JSON.stringify({ gold: w.gold, gems: w.gems, key: w.items.bone_key || 0 })}`);
+      }
     }
   }
 

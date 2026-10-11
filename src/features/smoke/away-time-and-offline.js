@@ -263,7 +263,7 @@ export default [
       G.dailyReward = { lastClaimDay: yLocal };
       D.noteServerStreak({ now: new Date(now).toISOString(), state: {},
         progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 1) * 86400000), value: 6, state: 'claimed' }] });
-      const want = R.priceDailyLogin(7, { straight: true }), rw = D.rewardFor(G);
+      const want = R.priceDailyLogin(7, { bonus: true }), rw = D.rewardFor(G);
       assert(D.cycleDay(G) === 7, 'claimed day 6 yesterday must preview day 7, got ' + D.cycleDay(G));
       assert(JSON.stringify(rw.items || {}) === JSON.stringify(want.items) && want.items.bone_key === 1,
         'day 7 must preview the server\'s supplies ' + JSON.stringify(want.items) + ', got ' + JSON.stringify(rw.items));

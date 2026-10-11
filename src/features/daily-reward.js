@@ -206,12 +206,33 @@
   }
   /* The last claim the server streak was read from (set by serverClaimStreak). */
   var _serverLast = null;
-  /* Keys and gems pay only on a straight arrival; known only from the server's
-     rows, so with none the preview under-promises (false). */
-  function straightNow() {
-    var R = REWARDS(); if (!R || typeof R.loginClaimIsStraight !== 'function') return false;
+  /* Keys and gems pay only when due (rewards.js loginBonusDue): a straight
+     arrival, and no key paid in the six server days before today. The server
+     reads the second half from its ledger; the preview reads it from the same
+     captured claim rows — a claimed day-7 row in that window whose day before
+     was also claimed (a straight day 7, the only claim that pays a key). With
+     no capture the preview under-promises (false). */
+  function bonusNow() {
+    var R = REWARDS(); if (!R || typeof R.loginBonusDue !== 'function') return false;
     var srv = serverClaimStreak();
-    return (typeof srv === 'number') ? R.loginClaimIsStraight({ last: _serverLast }) : false;
+    if (typeof srv !== 'number' || !serverClaim) return false;
+    var B = window.HearthriseCore && window.HearthriseCore.botd;
+    var dayN = B.utcDayNumber(Date.now());
+    var claimedOn = {};
+    Object.keys(serverClaim.rows).forEach(function (period) {
+      var row = serverClaim.rows[period];
+      if (!row || row.state !== 'claimed') return;
+      var p = period.split('-');
+      var n = p.length === 3 ? B.utcDayNumber(Date.UTC(+p[0], +p[1] - 1, +p[2])) : NaN;
+      if (Number.isFinite(n) && B.utcDayKey(n * 86400000) === period) claimedOn[n] = Number(row.value);
+    });
+    var paidRecently = false;
+    for (var d = dayN - 6; d <= dayN - 1; d++) {
+      var v = claimedOn[d];
+      if (v >= 1 && ((v - 1) % R.DAILY_LOGIN_CYCLE_DAYS) + 1 === R.DAILY_LOGIN_CYCLE_DAYS
+          && claimedOn[d - 1] >= 1) paidRecently = true;
+    }
+    return R.loginBonusDue({ last: _serverLast, bonus_ready: !paidRecently });
   }
 
   /**
@@ -265,7 +286,7 @@
      longer disagree about which day it is or what it is worth. */
   function priced(G) {
     var R = REWARDS(); if (!R) return null;
-    return R.priceDailyLogin(streakCount(G), { straight: straightNow() });
+    return R.priceDailyLogin(streakCount(G), { bonus: bonusNow() });
   }
   // 1-based day within the current 7-day cycle.
   function cycleDay(G) { var p = priced(G); return p ? p.cycleDay : 0; }
@@ -476,7 +497,7 @@
       var d = i + 1;
       /* Position d of the CURRENT week: same weeksDone, day d. */
       /* The ladder as a straight run pays it (day 7 shows its gems). */
-      var q = R.priceDailyLogin(wk * R.DAILY_LOGIN_CYCLE_DAYS + d, { straight: true });
+      var q = R.priceDailyLogin(wk * R.DAILY_LOGIN_CYCLE_DAYS + d, { bonus: true });
       var val = q.gems
         ? amountHtml('gems', q.gems, 'gems', 10)
         : (q.gold >= 1000

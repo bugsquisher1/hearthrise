@@ -230,7 +230,7 @@ export const DAILY_TASK_BASE_COUNT = 3;
        the unfiltered shuffle produced. An eligibility filter that changes what
        an established player is offered is a balance change wearing a bug fix's
        clothes; this one cannot be.
-     • ALWAYS A FULL SLATE. Six of the eight pool rows have no requirement at
+     • ALWAYS A FULL SLATE. Five of the eight pool rows have no requirement at
        all, so a base-3 (or King's-4) draw can always be filled from eligible
        rows. The final back-fill loop exists for the day someone authors a
        ninth row with a requirement — it must never be possible to hand a
@@ -277,19 +277,35 @@ export const DAILY_TASK_REQUIREMENTS = Object.freeze({
    • daily_cook — b225 retired the Kitchen as a permission gate (the campfire
      ruling); cooking works from the tier-1 camp, and the Kitchen now sells
      reliability (noBurn), not access.
-   • daily_harvest — the starting Wanderer's Camp has 2 plots and seeds are
-     shop-stocked, so farming is reachable on day one. Its goal SCALES with the
-     plot cap already (legacy.js b220), which is the right lever for that row.
    • daily_kill / daily_gather (+ the _big pair) — no prerequisite exists. */
+
+/* daily_harvest IS gated, by a different kind of rule (game-designer,
+   2026-10-10): "offered only when the character holds plantable seeds AND has
+   a plot — a quest that can't be done is the 2026-08-23 wall again." The
+   server port is public.hr_daily_harvest_ready in
+   supabase/migrations/2026-10-16-daily-harvest-eligibility.sql, read from
+   server rows only. A crop already in the ground, or a plant/harvest counted
+   today, keeps the row dealt: planting the last seed, or harvesting the last
+   crop with the bag empty, must not pull a half-done quest off the sheet.
+   caps.farm = { plots, plantable, growing, today } — every field from the
+   server projection (the client builds it in legacy.js dailyTaskCaps). */
+export const HARVEST_DAILY = 'daily_harvest';
+function harvestReady(caps) {
+  const f = (caps && caps.farm) || {};
+  if (!((Number(f.plots) || 0) > 0)) return false;
+  return f.plantable === true || (Number(f.growing) || 0) > 0 || (Number(f.today) || 0) > 0;
+}
 
 /**
  * @param taskId one of DAILY_TASK_POOL_ORDER
- * @param caps { rooms: {<roomId>: level}, skillXp: {<skillId>: xp} }
+ * @param caps { rooms: {<roomId>: level}, skillXp: {<skillId>: xp},
+ *        farm: {plots, plantable, growing, today} }
  *        A MISSING caps object means "nothing unlocked" — fail closed, because
  *        the failure it guards against is offering a padlock, and the cost of
  *        being wrong in the other direction is a task the player cannot do.
  */
 export function dailyTaskEligible(taskId, caps) {
+  if (taskId === HARVEST_DAILY) return harvestReady(caps);
   const req = DAILY_TASK_REQUIREMENTS[taskId];
   if (!req) return true;
   const c = caps || {};
@@ -339,7 +355,7 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
     if (out.length >= want) break;
     if (dailyTaskEligible(DAILY_TASK_POOL_ORDER[i], caps)) out.push(i);
   }
-  /* THE BACK-FILL. Unreachable today (six pool rows are ungated, so a 3- or
+  /* THE BACK-FILL. Unreachable today (five pool rows are ungated, so a 3- or
      4-slot draw always fills), and deliberately kept: the day someone authors a
      ninth pool row with a requirement, the alternative is a player handed two
      daily tasks and a silent hole where the third should be. Shuffle order is
@@ -347,7 +363,9 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
   if (out.length < want) {
     for (const i of order) {
       if (out.length >= want) break;
-      if (out.indexOf(i) < 0) out.push(i);
+      /* A back-filled wall is still a wall: harvest stays out unless ready. */
+      if (out.indexOf(i) < 0
+          && (DAILY_TASK_POOL_ORDER[i] !== HARVEST_DAILY || harvestReady(caps))) out.push(i);
     }
   }
   return out;

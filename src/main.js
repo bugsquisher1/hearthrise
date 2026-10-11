@@ -59,7 +59,7 @@ import { SHOP_OFFERS } from './data/shops.js?v=564';
 import {
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
-  priceDailyLogin, deriveLoginStreak, loginClaimIsStraight,
+  priceDailyLogin, deriveLoginStreak, loginBonusDue,
 } from './data/rewards.js?v=564';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
@@ -209,7 +209,7 @@ window.__hrIconsReady?.();
 window.HearthriseRewards = Object.freeze({
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES,
-  claimableFor, claimableId, priceDailyLogin, deriveLoginStreak, loginClaimIsStraight,
+  claimableFor, claimableId, priceDailyLogin, deriveLoginStreak, loginBonusDue,
 });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.

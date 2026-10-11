@@ -295,6 +295,32 @@ export async function goalCatalogueDriftGuard(over = {}) {
         `eligibility SQL c_pool [${p.join(',')}] != DAILY_TASK_POOL_ORDER.`);
     }
 
+    // (ii-b) THE INSTALLED SHUFFLE is the 6-arg form (2026-10-16-daily-harvest-
+    //        eligibility.sql): its pool is the same index space, the harvest gate
+    //        stands in BOTH passes, the offered set reads it, and the JS twin
+    //        gates the same row. tests/daily-harvest-eligibility.mjs runs both.
+    {
+      const hv = await readFile(
+        join(ROOT, 'supabase', 'migrations', '2026-10-16-daily-harvest-eligibility.sql'), 'utf8');
+      const p6 = hv.match(/c_pool\s+constant\s+text\[\]\s*:=\s*array\[([^\]]+)\]/);
+      const ids = p6 ? [...p6[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : [];
+      ok(ids.length === DAILY_TASK_POOL_ORDER.length && ids.every((id, i) => id === DAILY_TASK_POOL_ORDER[i]),
+        `harvest-eligibility SQL c_pool [${ids.join(',')}] != DAILY_TASK_POOL_ORDER.`);
+      ok((hv.match(/v_id <> 'daily_harvest' or coalesce\(p_harvest, false\)/g) || []).length === 2,
+        'the 6-arg hr_daily_task_set_caps must skip daily_harvest in pass 1 AND the back-fill.');
+      ok(/public\.hr_daily_harvest_ready\(p_day_key, p_user, p_slot\)\);/.test(hv),
+        'hr_daily_task_set_for must pass hr_daily_harvest_ready — the offer would ignore the gate.');
+      ok(/drop function if exists public\.hr_daily_task_set_caps\(text, bigint, bigint, bigint, bigint\);/.test(hv),
+        'the ungated 5-arg shuffle must be dropped.');
+      ok(!dailyTaskEligible('daily_harvest', { rooms: {}, skillXp: {} })
+         && dailyTaskEligible('daily_harvest', { farm: { plots: 2, plantable: true } }),
+        'goal-catalogue dailyTaskEligible must gate daily_harvest on caps.farm (no seeds -> out, seeds + plot -> in).');
+      const capsAt = legacy.indexOf('function dailyTaskCaps(');
+      const capsSrc = capsAt >= 0 ? legacy.slice(capsAt, legacy.indexOf('\n}', capsAt)) : '';
+      ok(/farm:farm\}/.test(capsSrc) && /pickSeedToPlant/.test(capsSrc) && /heldByServer/.test(capsSrc),
+        'legacy.js dailyTaskCaps must hand the harvest gate its farm caps from the SERVER bag (heldByServer + pickSeedToPlant).');
+    }
+
     // (iii) The CLAIM GATE is the UNION. Narrowing it to the eligible set would
     //       refuse a legitimate claim from a client whose room ownership the
     //       server cannot yet see (rooms record is dormant; production holds ZERO
@@ -350,7 +376,8 @@ export async function goalCatalogueDriftGuard(over = {}) {
   // ── (3d) The eligibility CONTRACT, swept ───────────────────────────────
   {
     const FRESH = { rooms: {}, skillXp: {} };
-    const FULL = { rooms: { workshop: 1, forge: 1 }, skillXp: {} };
+    const FULL = { rooms: { workshop: 1, forge: 1 }, skillXp: {},
+      farm: { plots: 2, plantable: true, growing: 0, today: 0 } };
     let shortSlate = 0; let bench = 0; let notIdentity = 0;
     for (const k of daySweep(730)) {
       const fresh = dailyTaskSet(k, FRESH);

@@ -23,10 +23,14 @@
 -- seeds, one Bone Key a week) plus modest gold: 1,000 gold in week one (the
 -- measured median first week earns ~950 from play and ~450 from the daily
 -- quests). Gold and supplies scale +50% per completed week to a cap of x3
--- (week five); keys and gems never scale and pay ONLY on a straight arrival
--- (the last claim was yesterday), so claiming every other day cannot sit on
--- day 7 and take its key each time (Security, 2026-10-10). A missed day costs
--- one step: a player on day 5 who misses a day claims day 5 again, not day 1.
+-- (week five); keys and gems never scale and pay ONLY when the BONUS IS DUE:
+-- a straight arrival (the last claim was yesterday) AND no login claim in the
+-- six server days before today paid keys or gems (read from player_ledger,
+-- hr_login_bonus_ready). So keys and gems pay at most once per 7 server days
+-- whatever the claim pattern — every other day cannot sit on day 7, and
+-- "skip two, then claim day 6 and day 7" cannot re-take day 7's key every
+-- four days (Security, 2026-10-10, twice). A missed day costs one step: a
+-- player on day 5 who misses a day claims day 5 again, not day 1.
 --
 -- ── WHAT THIS FILE DOES ─────────────────────────────────────────────────────
 --   §1 hr_login_catalogue(): the cycle, the week bonus, the cap and the streak
@@ -34,7 +38,8 @@
 --      BEGIN/END markers. tests/login-reward.mjs regenerates it and fails on any
 --      byte of drift, and runs hr_login_price against priceDailyLogin over every
 --      streak 1..120 (no second copy that can disagree in silence).
---   §2 hr_login_price(streak): the SQL pricer. hr_claim_last(...): the most
+--   §2 hr_login_price(streak, bonus): the SQL pricer. hr_login_bonus_ready:
+--      straight-arrival aside, whether keys/gems may pay today (ledger). hr_claim_last(...): the most
 --      recent CLAIMED row before today and its gap in whole UTC days, measured
 --      on the server clock. hr_login_streak(user, slot): the streak rule
 --      (last + 1 − missed days, floored at 1, wrapped past the ceiling).
@@ -116,7 +121,8 @@ revoke execute on function public.hr_login_catalogue() from public, anon, authen
 -- for these positive amounts is Math.round's half-up; the parity sweep in
 -- tests/login-reward.mjs is what holds that true, not this sentence.
 drop function if exists public.hr_login_price(int);
-create or replace function public.hr_login_price(p_streak int, p_straight boolean)
+drop function if exists public.hr_login_price(int, boolean);
+create or replace function public.hr_login_price(p_streak int, p_bonus boolean)
 returns jsonb language plpgsql immutable set search_path = public, pg_catalog as $fn$
 declare
   c_cat   constant jsonb := public.hr_login_catalogue();
@@ -134,16 +140,17 @@ begin
     if v_n > 0 then
       v_items := v_items || jsonb_build_object(v_id, coalesce((v_items->>v_id)::bigint, 0) + v_n); end if;
   end loop;
-  -- keys (and gems, below) only on a straight arrival: the last claim yesterday
+  -- keys (and gems, below) only when the bonus is due (hr_login_claim_verify:
+  -- a straight arrival and none paid in the six server days before today)
   for v_id, v_q in select key, value::numeric from jsonb_each_text(
-      case when coalesce(p_straight, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop
+      case when coalesce(p_bonus, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop
     if v_q > 0 then
       v_items := v_items || jsonb_build_object(v_id, coalesce((v_items->>v_id)::bigint, 0) + v_q::bigint); end if;
   end loop;
   return jsonb_build_object(
     'streak', v_s, 'cycle_day', v_day, 'weeks', v_weeks, 'mult', v_mult,
     'gold', round(coalesce((v_row->>'gold')::numeric, 0) * v_mult)::bigint,
-    'gems', case when coalesce(p_straight, false) then coalesce((v_row->>'gems')::bigint, 0) else 0 end,
+    'gems', case when coalesce(p_bonus, false) then coalesce((v_row->>'gems')::bigint, 0) else 0 end,
     'items', v_items);
 end $fn$;
 revoke execute on function public.hr_login_price(int, boolean) from public, anon, authenticated, service_role;
@@ -189,6 +196,30 @@ begin
 end $fn$;
 revoke execute on function public.hr_login_streak(uuid, int) from public, anon, authenticated, service_role;
 
+-- KEYS AND GEMS AT MOST ONCE PER 7 SERVER DAYS (Security, 2026-10-10). TRUE
+-- unless a login claim journalled in the six UTC days before today paid gems
+-- or a cycle key. Read from player_ledger — what was PAID, not what a streak
+-- row says — on player_ledger_user_idx (user, slot, at desc), one 8-day range.
+-- Today is excluded: the claim being verified journals itself in the same
+-- apply, and a second claim today is already refused not_claimable. Ledger
+-- retention is 90 days (2026-09-18-ledger-rollup-currencies.sql), far past 7.
+create or replace function public.hr_login_bonus_ready(p_user uuid, p_slot int)
+returns boolean language sql stable set search_path = public, pg_catalog as $fn$
+  select not exists (
+    select 1 from public.player_ledger l
+     where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
+       and l.at >= now() - interval '8 days'
+       and l.kind = 'quest' and l.intent like 'claim_reward:daily:login:%'
+       and (l.at at time zone 'utc')::date
+           between (now() at time zone 'utc')::date - 6 and (now() at time zone 'utc')::date - 1
+       and (coalesce(l.gems_in, 0) > 0
+            or exists (select 1
+                         from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
+                        cross join lateral jsonb_object_keys(coalesce(d.r->'keys', '{}'::jsonb)) k
+                        where coalesce(l.meta->'delta'->'i', '{}'::jsonb) ? k)))
+$fn$;
+revoke execute on function public.hr_login_bonus_ready(uuid, int) from public, anon, authenticated, service_role;
+
 -- ── 3. hr_claim_lookup — `last` joins the answer (additive) ────────────────
 -- The 2026-08-16-claim-reward.sql body verbatim, plus one key. today/prev/rows
 -- are unchanged, so every other claimable reads exactly what it read before.
@@ -221,7 +252,11 @@ begin
          and period_key in ('', v_today, v_prev)), '{}'::jsonb),
     -- 2026-10-16-login-reward.sql: the last CLAIMED day before today and its
     -- gap, so a streak rule needs no key parsing and no clock of its own.
-    'last',  public.hr_claim_last(p_user, p_slot, p_kind, p_key));
+    'last',  public.hr_claim_last(p_user, p_slot, p_kind, p_key),
+    -- …and, for the login claim only, whether keys/gems may pay today (the
+    -- ledger rule above), so the edge prices what the verify will demand.
+    'bonus_ready', case when p_kind = 'daily' and p_key = 'login'
+                        then public.hr_login_bonus_ready(p_user, p_slot) end);
 end $$;
 revoke execute on function public.hr_claim_lookup(uuid, int, text, text) from public, anon, authenticated, service_role;
 grant  execute on function public.hr_claim_lookup(uuid, int, text, text) to hr_engine;
@@ -247,9 +282,12 @@ begin
       jsonb_build_object('why', 'period', 'period', p_period, 'today', v_today)); end if;
   v_streak := public.hr_login_streak(p_uid, p_slot);
   v_last := public.hr_claim_last(p_uid, p_slot, 'daily', 'login');
+  -- The bonus is due on a STRAIGHT arrival (the last claim yesterday) AND only
+  -- if no keys/gems were paid in the six server days before today.
   v_q := public.hr_login_price(v_streak,
     v_last is not null and v_last->>'state' = 'claimed'
-    and (v_last->>'value')::bigint >= 1 and (v_last->>'gap')::int = 1);
+    and (v_last->>'value')::bigint >= 1 and (v_last->>'gap')::int = 1
+    and public.hr_login_bonus_ready(p_uid, p_slot));
   select value into v_val from public.player_progress
    where user_id = p_uid and slot = p_slot and kind = 'daily' and key = 'login'
      and period_key = v_today and state = 'claimed';
@@ -330,6 +368,7 @@ begin
   -- (b) NO CLIENT PATH.
   foreach v_fn in array array['public.hr_login_catalogue()', 'public.hr_login_price(int,boolean)',
       'public.hr_claim_last(uuid,int,text,text)', 'public.hr_login_streak(uuid,int)',
+      'public.hr_login_bonus_ready(uuid,int)',
       'public.hr_login_claim_verify(uuid,int,text,jsonb)', 'public.hr_claim_lookup(uuid,int,text,text)',
       'public.hr_apply(uuid,int,bigint,uuid,jsonb)'] loop
     if has_function_privilege('anon', v_fn, 'execute') or has_function_privilege('authenticated', v_fn, 'execute') then
@@ -486,6 +525,40 @@ begin
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:skip2')));
     if coalesce(v_r->>'ok', 'false') <> 'true' then
       raise exception 'login-reward self-check (i): the gold-only day 7 after a skip was refused (%)', v_r; end if;
+    -- (j) SKIP TWO, THEN STRAIGHT: day 7's key paid, two days skipped (back to
+    --     day 6), then day 6 and day 7 on consecutive days. The second day 7
+    --     is a straight arrival but lands FOUR days after the last key: it pays
+    --     gold only. CONTROL first: a key seven days ago leaves today's due.
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-7', 270, 270, 0, 1, 2,
+              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '7 days');
+    if not public.hr_login_bonus_ready(v_uid, 0) then
+      raise exception 'login-reward self-check (j): a key paid seven days ago blocks today''s'; end if;
+    delete from public.player_progress where user_id = v_uid and key = 'login';
+    insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+      values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed');
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-4', 270, 270, 0, 1, 2,
+              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '4 days');
+    if public.hr_login_bonus_ready(v_uid, 0)
+       or (public.hr_claim_lookup(v_uid, 0, 'daily', 'login')->>'bonus_ready')::boolean is distinct from false then
+      raise exception 'login-reward self-check (j): a key paid four days ago leaves another due'; end if;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270, 'gems', 2, 'items', '{"bone_key":1}'::jsonb,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:j')));
+    if v_r->>'error' is distinct from 'login_price_mismatch' then
+      raise exception 'login-reward self-check (j): skip two then a straight day 7 paid its key again (%)', v_r; end if;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:j2')));
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'login-reward self-check (j): the gold-only straight day 7 inside the week was refused (%)', v_r; end if;
+
     delete from public.player_progress where user_id = v_uid and key = 'login';
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 35, 'claimed');
@@ -511,5 +584,6 @@ begin
                're-prices once; (c) a fresh character is day 1; (d) a forged gold, item, streak or period is refused '
                'and moves nothing; (e) the honest claim pays the price; (f) a missed day costs one step and an '
                'unclaimed row does not count; (g) the old reset-to-day-1 price is refused; (h) day 7 pays the key '
-               'and the ceiling wraps; (i) a day 7 reached by skipping pays no key and no gems';
+               'and the ceiling wraps; (i) a day 7 reached by skipping pays no key and no gems; (j) keys and gems pay '
+               'at most once per 7 server days, a straight day 7 four days after the last key pays gold only';
 end $$;

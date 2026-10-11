@@ -5317,7 +5317,26 @@ function dailyTaskCaps(){
   try{
     if(typeof skillXp==='function'){ sx.crafting=skillXp('crafting')||0; sx.smithing=skillXp('smithing')||0; }
   }catch(e){}
-  return {rooms:rooms, skillXp:sx};
+  /* W0 harvest gate (game-designer 2026-10-10; server twin hr_daily_harvest_ready).
+     Every input is the SERVER's: the seed count a gate may read (heldByServer),
+     the projected plots, the property cap and today's tally. Unknown = not ready. */
+  const farm={plots:0, plantable:false, growing:0, today:0};
+  try{
+    const CF=window.HearthriseCore&&window.HearthriseCore.farm;
+    farm.plots=(typeof window.farmPlotCap==='function')?(Number(window.farmPlotCap())||0):0;
+    if(CF&&typeof CF.pickSeedToPlant==='function'&&typeof window.heldByServer==='function'&&typeof CROPS==='object'&&CROPS){
+      const seeds={};
+      Object.values(CROPS).forEach(c=>{ seeds[c.seed]=Number(window.heldByServer(c.seed))||0; });
+      farm.plantable=!!CF.pickSeedToPlant({crops:CROPS, seeds, farmingLevel:getLevel('farming'),
+        plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1});
+    }
+    farm.growing=(G.farmPlots||[]).filter(Boolean).length;
+    const DQ=window.HearthriseDailyQuests;
+    if(DQ&&typeof DQ.serverCount==='function'){
+      ['harvest','planted'].forEach(t=>{ farm.today+=Number(DQ.serverCount({type:t, goal:1e9}))||0; });
+    }
+  }catch(e){}
+  return {rooms:rooms, skillXp:sx, farm:farm};
 }
 window.dailyTaskCaps=dailyTaskCaps;
 /* ── b497 — THE AUTHORED NUMBERS OF EVERY DAILY, BY ID (all fixed since W0).
@@ -5350,8 +5369,9 @@ function generateDailyTasks(notice=true){
        Craft 8 + Smith 8 the morning after). If any UN-done task in today's
        stored slate is ineligible NOW, rebuild the slate from the filtered
        deterministic set. Safe by construction: eligibility only WIDENS during
-       a day (skills/rooms are never lost), so ineligible-now ⇒ ineligible at
-       roll ⇒ zero progress lost; and every eligible old member is necessarily
+       a day (skills/rooms are never lost; harvest, once a seed is planted or a
+       crop harvested today, stays dealt), so ineligible-now ⇒ no progress on
+       it ⇒ zero progress lost; and every eligible old member is necessarily
        in the new set (same seeded order, bad members only free slots), so
        progress/done on kept tasks is preserved via the id match below. */
     try{

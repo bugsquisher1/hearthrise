@@ -43,11 +43,14 @@
    `items` are SUPPLIES: they scale with the week multiplier like gold does.
    `keys` and `gems` are FIXED: one Bone Key a week, never three, because a key
    is a dungeon run and the multiplier is a loyalty bonus, not a loot table.
-   And they pay only on a STRAIGHT arrival — a claim whose last claim was
-   yesterday (loginClaimIsStraight). Without that, a missed day costing one
-   step would let a player sit on day 7 by claiming every other day and take a
-   key each time (Security, 2026-10-10: 11 keys in 28 days against a daily
-   player's 4). A straight arrival at day 7 needs the six days before it.
+   And they pay only when the BONUS IS DUE (loginBonusDue): a STRAIGHT arrival
+   (the last claim was yesterday) AND no keys or gems paid by a login claim in
+   the six server days before today — the server reads that from player_ledger
+   (hr_login_bonus_ready) and hands it over as lookup.bonus_ready. So keys and
+   gems pay at most once per 7 server days whatever the pattern. Straight alone
+   was not enough (Security, 2026-10-10): every other day sat on day 7 (11 keys
+   in 28 days against a daily player's 4), and "skip two, then day 6 and day 7"
+   re-took day 7's key every four days (90 keys a year against 52).
    Every id is a real ITEMS row; tests/login-reward.mjs asserts it. */
 export const DAILY_LOGIN_CYCLE = Object.freeze([
   Object.freeze({ gold: 60, items: Object.freeze({ cooked_shrimp: 10 }) }),
@@ -87,16 +90,15 @@ export const DAILY_LOGIN_STREAK_CAP = DAILY_LOGIN_CYCLE_DAYS
  *
  * @param streak  the claimer's streak position, 1-based. The server derives it
  *                from its own claim history; the client renders a preview.
- * @param opts.straight  true when the last claim was yesterday. Keys and gems
- *                pay only then; absent means NOT straight (the preview can only
- *                under-promise).
+ * @param opts.bonus  true when keys and gems are due (loginBonusDue). Absent
+ *                means NOT due (the preview can only under-promise).
  * @returns {{gold:number, gems:number, items:Object<string,number>,
  *            cycleDay:number, weeksDone:number, mult:number}}
  *          `items` merges the scaled supplies and the fixed keys; it is `{}` on
  *          a day that pays none. `mult` is post-cap.
  */
 export function priceDailyLogin(streak, opts) {
-  const straight = !!(opts && opts.straight === true);
+  const bonus = !!(opts && opts.bonus === true);
   const s = Number.isFinite(Number(streak)) && Number(streak) > 0 ? Math.floor(Number(streak)) : 1;
   const cycleDay = ((s - 1) % DAILY_LOGIN_CYCLE_DAYS) + 1;
   const weeksDone = Math.floor((s - 1) / DAILY_LOGIN_CYCLE_DAYS);
@@ -107,14 +109,14 @@ export function priceDailyLogin(streak, opts) {
     const n = Math.round(q * mult);
     if (n > 0) items[id] = (items[id] || 0) + n;
   }
-  if (straight) {
+  if (bonus) {
     for (const [id, q] of Object.entries(base.keys || {})) {
       if (q > 0) items[id] = (items[id] || 0) + q;
     }
   }
   return {
     gold: Math.round((base.gold || 0) * mult),
-    gems: straight ? (base.gems || 0) : 0,
+    gems: bonus ? (base.gems || 0) : 0,
     items,
     cycleDay,
     weeksDone,
@@ -155,6 +157,14 @@ export function loginClaimIsStraight(lookup) {
   const last = lookup && lookup.last;
   return !!(last && typeof last === 'object' && last.state === 'claimed'
     && Math.floor(Number(last.value)) >= 1 && Math.floor(Number(last.gap)) === 1);
+}
+
+/* KEYS AND GEMS ARE DUE: a straight arrival AND the server's ledger says none
+   were paid in the six server days before today (hr_claim_lookup.bonus_ready,
+   read from player_ledger by hr_login_bonus_ready). Anything but an explicit
+   true from the server is NOT due — fail closed, the verify demands the same. */
+export function loginBonusDue(lookup) {
+  return loginClaimIsStraight(lookup) && !!lookup && lookup.bonus_ready === true;
 }
 
 export function deriveLoginStreak(lookup) {

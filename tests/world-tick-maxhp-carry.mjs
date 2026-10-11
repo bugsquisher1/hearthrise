@@ -25,6 +25,9 @@
 //       in-memory chain, against the one-span accrual — ticks/kills/xp within
 //       Security's ±10% combat bar, deaths within ±1 a probe on average; and
 //       the chain stops early only where the one span changes activity.
+//       H3p (2026-10-10): the SAME chain on the SAME seeds, shipped vs the ceiling
+//       raised per window by this file — 0.00% by construction, cap ±0.25%;
+//       the no-carry mutant reads -23.2% ticks (the ±10% span bar read -3.1%).
 //
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // ============================================================================
@@ -74,7 +77,7 @@ async function load(base) {
   ]);
   const svc = await import(pathToFileURL(join(ROOT, 'services', 'world-tick', 'combat.js')).href);
   return {
-    ...acc, ...combat, ...contract, advance: shadow.advance, levelFromXp: xp.levelFromXp,
+    ...acc, ...combat, ...contract, advance: shadow.advance, levelFromXp: xp.levelFromXp, xpForLevel: xp.xpForLevel,
     engineStateOf: env.engineStateOf,
     /* The fixture half reads node:fs; the same file for every engine copy. */
     loadSessions: () => svc.loadCombatSessions(),
@@ -312,9 +315,86 @@ const ARMS = {
       out.push(`${label} ticks ${pct(got.ticks, one.ticks).toFixed(2)}% kills ${pct(got.kills, one.kills).toFixed(2)}% `
         + `deaths ${got.deaths}/${one.deaths}`);
     }
+    /* ── H3p THE PAIRED READ (2026-10-10) ──────────────────────────────────
+       The ±10 % bar above compares the chain against ONE SPAN, i.e. two seed
+       families, so its noise is the whole fight's: the "no max_hp carry"
+       mutant reads -3.1 % there since the fractional-XP carry moved where the
+       Hitpoints levels land, and it was only ever caught through a borderline
+       early stop. This read is PAIRED: the same chain, window for window, on
+       the SAME seeds, once as shipped and once with the ceiling raised to the
+       Hitpoints level by THIS FILE between windows (the armed write's own
+       rule, hr_sync_max_hp, derived here, not borrowed from advance()). With
+       the carry the two are the same computation, so the delta is 0 by
+       construction; without it every window after a level-up fights at the
+       old ceiling. Capped absolutely (0.25 %), like PB-2p, so it never rests
+       on a standard error. */
+    const shipped = { ticks: 0, kills: 0, xp: 0, deaths: 0 };
+    const armed = { ticks: 0, kills: 0, xp: 0, deaths: 0 };
+    let pairedLevels = 0;
+    for (const c0 of pairedFixtures(L)) {
+      pairedChain(L, c0, shipped, false);
+      pairedLevels += pairedChain(L, c0, armed, true);
+    }
+    if (pairedLevels === 0) return fail('H3', 'harness: the paired fixtures crossed no Hitpoints level — H3p sees nothing');
+    const pd = {};
+    for (const k of ['ticks', 'kills', 'xp', 'deaths']) {
+      pd[k] = pct(shipped[k], armed[k]);
+      if (!(Math.abs(pd[k]) <= 0.25)) {
+        fail('H3', `H3p paired: shipped chain ${k} ${shipped[k]} vs the same chain with the ceiling raised per window `
+          + `${armed[k]} (${pd[k].toFixed(2)}%, cap ±0.25%) on the same seeds across ${pairedLevels} Hitpoints levels — `
+          + 'the chain fights at a stale ceiling: max_hp is not carried (raiseMaxHpToLevel).');
+      }
+    }
+    out.push(`paired ticks ${pd.ticks.toFixed(2)}% kills ${pd.kills.toFixed(2)}% xp ${pd.xp.toFixed(2)}% `
+      + `deaths ${shipped.deaths}/${armed.deaths} over ${pairedLevels} levels`);
     return `${probes} probes, ${levelUps} Hitpoints levels crossed: ${out.join('; ')}`;
   },
 };
+
+/* H3p's fixtures: a FRESH hero (Hitpoints 10, bronze sword, 60 shrimp) on the
+   goblin and the rat — the food runs out and the hero is knocked out, so the ceiling decides each
+   fight — 8 users x 4 h each. Deterministic: every number is a function of the
+   seeds alone. */
+function pairedFixtures(L) {
+  const out = [];
+  for (const mon of ['goblin', 'rat']) {
+    for (let i = 0; i < 8; i++) {
+      const from = FROM + i * START_STEP_MS;
+      out.push({
+        userId: `00000000-0000-4000-8000-${String(0x3a3000 + i + (mon === 'rat' ? 64 : 0)).padStart(12, '0')}`,
+        slot: 1, shard: 0, version: 1, activeKind: 'combat', activeId: mon,
+        activeSinceMs: from - 3600000, accruedToMs: from, accruedToText: L.pgTimestamptzText(from),
+        capMs: 43200000, hp: 10, maxHp: 10, gold: 0,
+        skills: { attack: 0, defense: 0, strength: 0, hitpoints: L.xpForLevel(10) },
+        inventory: { cooked_shrimp: 60 }, equipment: { weapon: 'bronze_sword' }, fight: {},
+        consecFalls: 0, recoveringUntilMs: 0, ammoCarry: null,
+        autoEatEnabled: true, autoEatFood: 'cooked_shrimp', autoEatPct: 50,
+        deathsTodayBefore: 0, deathsLifetimeBefore: 0, combatXpAccruedToMs: 0, hearthfindReady: false,
+        enchant: null, combatStyle: {}, buffs: [], xpFrac: {}, bestiaryKills: {}, perks: null,
+      });
+    }
+  }
+  return out;
+}
+
+/* One 4 h chain, one flush window at a time. `raise` applies the armed
+   write's ceiling rule between windows; returns the Hitpoints levels crossed. */
+function pairedChain(L, c0, acc, raise) {
+  let s = JSON.parse(JSON.stringify(c0));
+  const from = c0.accruedToMs; const to = from + SPAN_MS;
+  const lv0 = hpLevel(L, s);
+  let m = from;
+  while (m < to) {
+    const run = L.settleCombatSession(s, m, Math.min(to, m + FLUSH_MS), OPTS);
+    addRun(L, acc, run);
+    if (run.settled === 0) break;
+    s = Object.assign({}, run.char, { accruedToMs: run.watermarkMs, accruedToText: run.watermarkText });
+    if (raise) s.maxHp = Math.max(Number(s.maxHp) || 0, hpLevel(L, s));
+    m = run.watermarkMs;
+    if (run.stoppedBy === 'activity') break;
+  }
+  return hpLevel(L, s) - lv0;
+}
 
 async function runArms(L, only) {
   const fails = [];

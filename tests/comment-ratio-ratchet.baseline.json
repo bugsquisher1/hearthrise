@@ -3,14 +3,14 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 4046,
+  "bnumTotal": 4045,
   "files": {
     "src/legacy.js": {
-      "total": 18456,
-      "comment": 7704,
+      "total": 18453,
+      "comment": 7701,
       "code": 9833,
       "ratio": 0.6985252179581195,
-      "bnum": 734
+      "bnum": 733
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
       "total": 9731,
@@ -104,10 +104,10 @@
       "bnum": 42
     },
     "src/features/smoke/bounty-and-artisan.js": {
-      "total": 3153,
-      "comment": 803,
-      "code": 2163,
-      "ratio": 0.37124364308830327,
+      "total": 3255,
+      "comment": 821,
+      "code": 2245,
+      "ratio": 0.36570155902004453,
       "bnum": 52
     },
     "src/features/smoke/recovery-and-auto-eat.js": {

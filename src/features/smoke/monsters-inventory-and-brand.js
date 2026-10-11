@@ -3173,7 +3173,7 @@ export default [
   () => tryRun('INV-STAGE-3: armed + INCOMPLETE — still the server\'s whole bag; NO projection leaves it', () => {
     /* REVERSED. The ~40k-item loss it was written for was PRE-WIPE, when the
        client bag held client-minted items; now every item is a projected
-       player_inventory row and G.inventory is never saved or sent. What stays
+       player_inventory row and G.inventory is never saved. What stays
        fail-closed is an envelope with no projection at all.
        MUTATION: restore the `baselineComplete` gate on the armed branch ⇒ red. */
     const A = window.HearthriseAccrual;
@@ -8262,6 +8262,76 @@ export default [
       A.reconcileInventory(G, { inventory: { copper_ore: 3 }, inventory_complete: true });
       assert(G.inventory.copper_ore === 3 && Object.keys(A.bagPrediction(G)).length === 0,
         'the next envelope did not clear the prediction: bag ' + G.inventory.copper_ore + ', predicted ' + JSON.stringify(A.bagPrediction(G)));
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
+  /* B568-5 (ATTENDED) — a drop predicted mid-fight is wiped by a mid-window
+     envelope and comes back only when the server credits it; at no point in
+     between may a gate or a gesture count it. MUTATION: point gateItemCount (or
+     sellableCount) at G.inventory → the "between" asserts read 1. */
+  () => tryRun('B568-5: attended — a predicted drop is wiped mid-window, restated on credit, and never gates in between', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, said = [];
+    try {
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
+      window.notify = function (t) { said.push(String(t)); };
+      G.inventory = {};
+      A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: true });
+      window.addItem('goblin_seal', 1);                  // the attended kill's client-rolled drop
+      assert(G.inventory.goblin_seal === 1, 'CONTROL: the predicted drop does not display');
+      const noGate = (when) => {
+        assert(A.gateItemCount(G, 'goblin_seal') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_seal'));
+        assert(window.sellableCount('goblin_seal') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_seal'));
+      };
+      noGate('predicted');
+      said.length = 0; window.invSellOne('goblin_seal');
+      assert(said.some((m) => /Nothing to sell/.test(m)) && G.inventory.goblin_seal === 1, 'sell-one sold a predicted drop: ' + JSON.stringify(said));
+      // a mid-window envelope (equip answer, window open) that has not settled the kill
+      A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: false });
+      assert(!('goblin_seal' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
+      noGate('wiped');
+      // the settle credits the server's own roll
+      A.reconcileInventory(G, { inventory: { bones: 3, goblin_seal: 1 }, inventory_complete: true });
+      assert(G.inventory.goblin_seal === 1 && A.gateItemCount(G, 'goblin_seal') === 1, 'the credited drop did not land in both layers');
+    } finally {
+      window.notify = realNotify;
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
+  /* B568-6 (AWAY) — the return envelope carries a signed receipt (gains AND an
+     auto-eat debit). Armed, the bag and the gate are both exactly the
+     projection: no stale food survives, no gain is double-counted. MUTATION:
+     restore the omitted-keep carve-out → cooked_shrimp survives. */
+  () => tryRun('B568-6: away — an armed return envelope with a receipt replaces the bag and the gate together', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
+      G.inventory = { cooked_shrimp: 20, copper_ore: 5, goblin_seal: 2 };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory_complete: true,
+        inventory: { copper_ore: 45, bones: 12 },
+        away: { items: { copper_ore: 40, bones: 12, cooked_shrimp: -20 } } });
+      assert(JSON.stringify(G.inventory) === JSON.stringify({ copper_ore: 45, bones: 12 }),
+        'the away return left the bag at ' + JSON.stringify(G.inventory) + ' — it must be the projection exactly');
+      assert(A.gateItemCount(G, 'copper_ore') === 45 && A.gateItemCount(G, 'cooked_shrimp') === 0 && A.gateItemCount(G, 'goblin_seal') === 0,
+        'the gate disagrees with the replaced bag');
     } finally {
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);

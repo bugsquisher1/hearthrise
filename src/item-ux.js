@@ -22,6 +22,13 @@
 (function(){
   'use strict';
 
+  /* A quantity a gesture may act on is the SERVER's (sellableCount → accrue.js
+     gateItemCount); 0 while the bag is unstated. The grid still shows predictions. */
+  function serverQty(id){
+    var n = (typeof window.sellableCount === 'function') ? window.sellableCount(id) : null;
+    return n || 0;
+  }
+
   /* Every icon slot in this module (tooltip stat rows, the quantity slider's
      action button, the market/vendor lines) used to inline an emoji. One gilt
      glyph helper instead; '' when the atlas has no match, never a character. */
@@ -484,7 +491,7 @@
   function openSlider(itemId){
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return;
-    var qty = (window.G && window.G.inventory && window.G.inventory[itemId]) || 0;
+    var qty = serverQty(itemId);
     if(qty <= 0) return;
     sliderState.id = itemId;
     sliderState.max = qty;
@@ -617,7 +624,7 @@
     if(!tile) return;
     var id = getItemIdFromTile(tile);
     if(!id) return;
-    var qty = (window.G && window.G.inventory && window.G.inventory[id]) || 0;
+    var qty = serverQty(id);
     // Skip equipped/single items — only useful for stacks
     if(qty < 2) return;
     e.preventDefault();
@@ -633,7 +640,7 @@
     lpTile = tile;
     lpTimer = setTimeout(function(){
       var id = getItemIdFromTile(tile);
-      var qty = (window.G && window.G.inventory && window.G.inventory[id]) || 0;
+      var qty = serverQty(id);
       if(id && qty >= 2){ openSlider(id); lpTile = null; }
     }, 500);
   }, {passive: true});

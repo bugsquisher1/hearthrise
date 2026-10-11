@@ -1609,7 +1609,7 @@ export function describeReplacement(G, res) {
        the envelope omits, modeled or not — but this is a drift MEASURE (and the
        consent gate's input), and widening it to the not-owned ids would put
        that modal in front of a player for a display correction, not a loss
-       (G.inventory is never saved or sent; the server's rows are the bag). The
+       (G.inventory is never saved; the server's rows are the bag). The
        soak counter keeps its original meaning so its history stays comparable. */
     if (!serverOwnedItem(k)) continue;
     const have = Number(locInv[k]) || 0;
@@ -5376,7 +5376,8 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
            verb now (flipArmBlockers() is empty), so an id the projection omits
            is an id the server does not think the player holds — and the gates
            already act on that (gateItemCount reads the same projection).
-       Neither can lose an item: G.inventory is never saved or sent, so a
+       Neither can lose an item: G.inventory is never saved, and every intent
+       quantity is re-checked by the server against player_inventory, so a
        replace only ever corrects what is SHOWN, and the next envelope restates
        anything real. Pending client gains (an attended drop, a predicted buy)
        are display-only predictions; they are cleared here and spend nothing.

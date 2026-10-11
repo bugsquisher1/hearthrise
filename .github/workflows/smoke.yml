@@ -780,6 +780,21 @@ jobs:
           node tests/bounty-abandon-fee.mjs
           node tests/bounty-abandon-fee.mjs --mutate
 
+      # 2026-10-17-bestiary-target.sql (Security): a bounty kill must be a kill
+      # of the target. Data half: the board allowlist equals src/data/monsters.js
+      # minus boss/champion and covers 2,000 seeded boards. Away half: the shipped
+      # engine writes ev:kill_monster for the pointer's monster only, and a goblin
+      # settle through hr_apply moves no contract progress. Attended half, on the
+      # WHOLE chain as `authenticated`: a boss contract is refused, an hour on
+      # goblins credits the target zero, a late switch credits zero, an hour on
+      # the target credits, no interval counts twice, earned time survives a
+      # switch. --mutate plants six defects (§5 off), each CAUGHT by its arm.
+      - name: Bestiary target — bounty credit only for the monster being fought
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bestiary-target.mjs
+          node tests/bestiary-target.mjs --mutate
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no

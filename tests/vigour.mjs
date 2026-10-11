@@ -554,7 +554,7 @@ async function run(mutate) {
   const P3 = '00000000-0000-4000-8000-0000b5510b03';
   await db.query('insert into auth.users (id) values ($1)', [P3]);
   const clan = (await q(
-    "insert into public.clans (name, created_by) values ('__vigour_probe__', $1) returning id",
+    "insert into public.clans (name, created_by) values ('Vigour Probe', $1) returning id",
     [P3]))[0].id;
   await db.query('update public.clans set level = 7 where id = $1', [clan]);
   await db.query('insert into public.clan_members (clan_id, user_id) values ($1, $2)', [clan, P3]);

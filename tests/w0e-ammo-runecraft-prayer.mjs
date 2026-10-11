@@ -83,6 +83,13 @@ const MUTATIONS = {
     find: 'Object.freeze({ lv: 10, pct: 3 }),',
     repl: 'Object.freeze({ lv: 10, pct: 2 }),',
   },
+  ward_floored: {
+    file: 'src/core/combat.js',
+    why: 'the ward is re-clamped to the min-accuracy floor, so a hero whose defence already '
+       + 'pins foes at the floor gets nothing from Prayer (Security #4)',
+    find: '  const accuracy = ward > 0 ? landed * (1 - ward / 100) : landed;',
+    repl: '  const accuracy = ward > 0 ? Math.max(b.monsterMinAccuracy, landed * (1 - ward / 100)) : landed;',
+  },
   ward_off: {
     file: 'src/core/combat.js',
     why: 'Prayer does nothing in a fight again — a combat-level padder',
@@ -352,6 +359,24 @@ export async function runAll({ mutate } = {}) {
       const want = lo.accuracy * (1 - C.prayerWardPct({ prayer: MAX_XP }) / 100);
       ok(Math.abs(hi.accuracy - want) < 1e-12 && hi.maxHit === lo.maxHit,
         `P2: Prayer 99 lands ${hi.accuracy} of ${lo.accuracy} (want ${want}) — the ward is not a clean share of blows`);
+
+      /* P2b — THE FLOOR BINDS (Security GO condition #4). With defence 23+ over
+         the foe's attack the landed chance is clamped UP to monsterMinAccuracy;
+         the ward must still cut BELOW that floor, or a well-armoured hero's
+         Prayer pays nothing. Kills `Math.max(min, landed * (1 - w))`. */
+      const B = C.COMBAT_BALANCE;
+      const weak = Object.keys(MONSTERS).map((id) => MONSTERS[id])
+        .sort((a, b) => (a.atk || 1) - (b.atk || 1))[0];
+      const defLv = Math.min(99, (weak.atk || 1) + 30);
+      ok(defLv - (weak.atk || 1) >= 23, `P2b fixture: defence ${defLv} is not 23 over ${weak.atk}`);
+      const fl0 = C.monsterCombatRolls(weak, { eq: {}, skills: { defense: xpAt(defLv), prayer: 0 }, bonus: () => 0 });
+      const fl9 = C.monsterCombatRolls(weak, { eq: {}, skills: { defense: xpAt(defLv), prayer: MAX_XP }, bonus: () => 0 });
+      ok(fl0.accuracy === B.monsterMinAccuracy,
+        `P2b fixture: the floor does not bind (${fl0.accuracy} vs min ${B.monsterMinAccuracy})`);
+      ok(Math.abs(fl9.accuracy - B.monsterMinAccuracy * (1 - C.prayerWardPct({ prayer: MAX_XP }) / 100)) < 1e-12
+        && fl9.accuracy < B.monsterMinAccuracy,
+        `P2b: at the accuracy floor Prayer 99 lands ${fl9.accuracy} — the ward must apply AFTER the clamp `
+        + `(want ${B.monsterMinAccuracy} x ${1 - C.prayerWardPct({ prayer: MAX_XP }) / 100})`);
 
       /* ATTENDED vs AWAY vs TICK. The same character, prayer 1 and prayer 99,
          against a foe that hits. Each path's damage ratio must match the ward. */

@@ -13,6 +13,9 @@
 --         - bind_air_runes      deleted (air runes are now kit + shop only)
 --   §1c THREE `hr_start_inventory` rows: bronze_arrows 50, air_rune 50,
 --       coarse_whetstone 10 — the free tier-1 rung of every ammo ladder.
+--   §1d THREE `hr_items.value` moves to 0 (bronze_arrows 1, air_rune 1,
+--       coarse_whetstone 4): kit + shop stock books at nothing (Security #1:
+--       the 1 g vendor floor made the shop buy-back cap unreachable).
 --
 -- W0 coherence audit (Game Designer, 2026-10-09; Tyler: "do it all"):
 --   Top-10 #7 AMMO: an empty bow/staff slot now counts as "run dry" (x0.25 max
@@ -148,6 +151,12 @@ begin
   get diagnostics v_rows = row_count;
   raise notice 'w0e §1c: % of 3 kit rows moved (0 on a re-apply)', v_rows;
 
+  -- ── 1d. THE FREE RUNGS BOOK AT 0 ─────────────────────────────────────────
+  update public.hr_items set value = 0
+   where item_id in ('bronze_arrows','air_rune','coarse_whetstone') and value is distinct from 0;
+  get diagnostics v_rows = row_count;
+  raise notice 'w0e §1d: % of 3 item values moved to 0 (0 on a re-apply)', v_rows;
+
   -- ── 2. SELF-VERIFYING COMMIT GATE (§4) ───────────────────────────────────
   -- Every claim is proved by EXECUTING it. The row-writing probe runs in a
   -- subtransaction discarded by the HR816 sentinel, so this file is net-zero
@@ -188,6 +197,14 @@ begin
   if v_bad is not null or not exists (select 1 from public.hr_items where item_id = 'rune_essence') then
     raise exception 'GATE(a): rune_essence did not land as ruled (tradeable, no kind, value 15, '
                     'no gate, not food)';
+  end if;
+
+  -- (a2) THE FREE RUNGS BOOK AT 0 (restated).
+  select count(*) into v_n from public.hr_items
+   where item_id in ('bronze_arrows','air_rune','coarse_whetstone') and value = 0;
+  if v_n <> 3 then
+    raise exception 'GATE(a2): % of the 3 free tier-1 ammo items book at 0 — a kit or shop '
+                    'bundle would vendor for gold', v_n;
   end if;
 
   -- (b) THE KIT, restated, with a CONTROL that the table still holds the food

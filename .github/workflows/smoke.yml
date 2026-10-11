@@ -3531,7 +3531,7 @@ jobs:
       # starter kit and the shop; Runecrafting's level-1 loop (mine essence ->
       # cut blanks -> bind Earth -> spend it casting) closes with nothing else
       # trained; the Prayer ward lands identically attended, away and on the
-      # 10 s world tick. 9 mutations, credential-free, seconds.
+      # 10 s world tick. 10 mutations, credential-free, seconds.
       - name: W0 - ammo runs dry, Runecrafting starts alone, Prayer wards every path
         if: ${{ !cancelled() }}
         run: |

@@ -76,7 +76,11 @@ function literalInserts(sql, apply) {
     const cols = m[1].split(',').map((c) => c.trim());
     const iId = cols.indexOf('item_id'), iV = cols.indexOf('value');
     if (iId < 0 || iV < 0) throw new HarnessError('hr_items insert without item_id/value columns');
-    const tuples = m[2].match(/\((?:[^()']|'(?:[^']|'')*')*\)/g) || [];
+    /* `on conflict (item_id) do update ... where (a, b) is distinct from (c, d)`
+       follows the VALUES list in an upsert; its parenthesised lists are not
+       rows. The VALUES body ends where `on conflict` begins. */
+    const body = m[2].split(/\bon\s+conflict\b/i)[0];
+    const tuples = body.match(/\((?:[^()']|'(?:[^']|'')*')*\)/g) || [];
     for (const t of tuples) { const v = sqlTuple(t.slice(1, -1)); apply(v[iId], Number(v[iV])); n++; }
   }
   return n;
@@ -103,14 +107,25 @@ export function sqlItemValues(order = ORDER, read = readMig) {
     const sql = read(f).replace(/--[^\n]*/g, '');
     if (!/public\.hr_items\b/i.test(sql)) continue;
     if (/delete\s+from\s+public\.hr_items\s*;/i.test(sql)) val.clear();
-    for (const u of sql.matchAll(/update\s+public\.hr_items\b[\s\S]*?\bset\b([\s\S]*?)\b(from|where)\b/gi)) {
-      if (/\bvalue\s*=/.test(u[1])) throw new HarnessError(`${f}: unparsed hr_items.value UPDATE — teach this guard its shape`);
-    }
     const apply = (id, v) => {
       if (typeof id !== 'string' || !Number.isFinite(v)) throw new HarnessError(`${f}: bad hr_items row ${id}=${v}`);
       val.set(id, v);
     };
+    /* ONE update shape is understood: a literal value over a literal id list,
+       `update public.hr_items set value = N where item_id in ('a','b') [and ...]`
+       (or `item_id = 'a'`). Applied in file order AFTER this file's inserts. */
+    const updates = [];
+    for (const u of sql.matchAll(/update\s+public\.hr_items\b[\s\S]*?\bset\b([\s\S]*?)\b(from|where)\b([\s\S]*?);/gi)) {
+      if (!/\bvalue\s*=/.test(u[1])) continue;
+      const lit = /^\s*value\s*=\s*(\d+)\s*$/.exec(u[1]);
+      const ids = u[2].toLowerCase() === 'where'
+        ? /^\s*item_id\s+(?:in\s*\(((?:\s*'[a-z0-9_]+'\s*,?)+)\)|=\s*('[a-z0-9_]+'))/i.exec(u[3]) : null;
+      if (!lit || !ids) throw new HarnessError(`${f}: unparsed hr_items.value UPDATE — teach this guard its shape`);
+      const list = (ids[1] || ids[2]).match(/'([a-z0-9_]+)'/gi).map((x) => x.slice(1, -1));
+      updates.push(() => { for (const id of list) apply(id, Number(lit[1])); });
+    }
     if (literalInserts(sql, apply) + jsonbInserts(sql, apply) > 0) files++;
+    for (const u of updates) u();
   }
   if (val.size < 100 || files === 0) throw new HarnessError(`hr_items parse is vacuous (${val.size} rows, ${files} files)`);
   return val;
@@ -200,13 +215,31 @@ async function selftest() {
   const last = ORDER[ORDER.length - 1];
   try {
     sqlItemValues(ORDER, (f) => readMig(f) + (f === last ? `
-update public.hr_items set value = 1 where item_id = '${item}';
+update public.hr_items set value = value * 2 where item_id = '${item}';
 ` : ''));
     fails.push('M4 unparsed hr_items.value UPDATE: accepted silently');
   } catch (e) { if (!(e instanceof HarnessError)) throw e; }
 
+  // M5 — an UPSERT's `on conflict (item_id) ... where (a,b) is distinct from (c,d)`
+  //      must not be read as rows (it was: exit 2), and its VALUES row must land.
+  const v5 = sqlItemValues(ORDER, (f) => readMig(f) + (f === last ? `
+insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable)
+  values ('${item}','X',true,null,99999,null,null,null,false)
+  on conflict (item_id) do update set value = excluded.value
+  where (public.hr_items.value, public.hr_items.name) is distinct from (excluded.value, excluded.name);
+` : ''));
+  /* Asserted on the PARSE, not on findArbitrage: the buy-back cap (sqlBid)
+     bounds any value, so an offer verdict cannot tell a lost row from a read one. */
+  if (v5.get(item) !== 99999) fails.push(`M5 upsert: the VALUES row was not read (got ${v5.get(item)})`);
+
+  // M6 — the understood UPDATE shape raises the value: it must be APPLIED, not skipped.
+  const v6 = sqlItemValues(ORDER, (f) => readMig(f) + (f === last ? `
+update public.hr_items set value = 99999 where item_id in ('${item}') and value is distinct from 99999;
+` : ''));
+  if (v6.get(item) !== 99999) fails.push(`M6 literal value UPDATE: parsed but not applied (got ${v6.get(item)})`);
+
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 4 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 6 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 

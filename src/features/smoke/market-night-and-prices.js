@@ -840,6 +840,30 @@ export default [
     }
   }),
 
+  /* -- regression suite -- NIGHT-11: a 12h return read "You set about
+     8h, the night paid 12h — the night ran long." The 8h was HORIZON_MS, the clamp
+     on an ALL-NIGHT forecast; the player was told "runs all night", so a long night
+     is that forecast holding. Mutation: drop the allNight branch ⇒ red. */
+  () => tryRun('NIGHT-11: an all-night forecast is graded as all night, never as "about 8h … ran long"', () => {
+    const STN = window.HearthriseSetTheNight;
+    const snap = snapshotG(), setAt = Date.now() - 12 * 3600e3, H = STN.HORIZON_MS;
+    try {
+      STN.forget();
+      STN.remember({ at: setAt, kind: 'combat', spanMs: H, allNight: true, banks: true, targetName: 'Goblin' });
+      const long = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
+      assert(long === 'You set it to run all night; the night paid 12h — the forecast held.',
+        'THE BUG: an all-night forecast on a 12h return reads ' + JSON.stringify(long));
+      const short = STN.morningLine({ at: Date.now(), paidMs: 2 * 3600e3 });
+      assert(/^You set it to run all night; the night paid 2h — the night ran short\./.test(short),
+        'an all-night forecast that paid 2h must read short, got ' + JSON.stringify(short));
+      /* CONTROL: a forecast that DID name a span still says "ran long" when the server ran past it. */
+      STN.remember({ at: setAt, kind: 'combat', spanMs: 3 * 3600e3, allNight: false, banks: true, targetName: 'Goblin' });
+      const bounded = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
+      assert(bounded === 'You set about 3h; the night paid 12h — the night ran long.',
+        'CONTROL: a bounded forecast overrun reads ' + JSON.stringify(bounded));
+    } finally { try { STN.forget(); } catch (e) {} restoreG(snap); }
+  }),
+
   () => tryRun('NIGHT-5: the Tonight strip never speaks before the SERVER has stated the bag', () => {
     /* THE LIVE BUG (QA account, 2026-09-09, reproduced twice).
        On a plain reload Home read "Tonight: your 29 Cooked Shrimp carry you

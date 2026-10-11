@@ -23,6 +23,7 @@
 //                 name from src/data/items.js
 //   double-space  two spaces between words         → one
 //   dot-spacing   "·" touching a word on one side  → " · "
+//   spelling      "Defence" — the skill catalogue says "Defense"
 // plus a RUNTIME check on the one article helper (src/render/article.js):
 // withArticle(<every plural item name>) must not answer "a …"/"an …".
 //
@@ -159,7 +160,22 @@ export function lintText(text, pluralRe) {
   if (segs.some((seg) => !/\n/.test(seg) && /[A-Za-z0-9.,!?;:’']  +[A-Za-z0-9(]/.test(seg))) hits.push('double-space');
   if (segs.some((seg) => /[A-Za-z0-9)%]·|·[A-Za-z0-9(]/.test(seg))) hits.push('dot-spacing');
   if (pluralRe && pluralRe.test(t)) hits.push('article');
+  if (/\bDefence\b/.test(t)) hits.push('spelling');
   return hits;
+}
+
+/* A waiver is one known literal the next edge deploy removes (edge-bundled
+   files move only with that deploy). A waiver that no longer matches is stale
+   and fails the gate, so it is deleted the day its fix lands. */
+const WAIVERS = [
+  { file: 'src/core/styles.js', rule: 'spelling', text: 'All XP to Defence' },
+];
+const usedWaivers = new Set();
+function waived(root, f, rule, text) {
+  const rel = relative(root, f).split(sep).join('/');
+  const w = WAIVERS.find((x) => x.file === rel && x.rule === rule && text.includes(x.text));
+  if (w) usedWaivers.add(w);
+  return !!w;
 }
 
 /* opts.files: scan only these files (the selftest's plants); opts.article: the
@@ -177,6 +193,7 @@ export async function scan(root, opts = {}) {
       if (!rules.length) continue;
       const line = src.slice(0, at).split('\n').length;
       for (const rule of rules) {
+        if (waived(root, f, rule, text)) continue;
         findings.push({ file: relative(root, f).split(sep).join('/'), line, rule, text: text.replace(/\s+/g, ' ').slice(0, 110) });
       }
     }
@@ -192,6 +209,8 @@ export async function scan(root, opts = {}) {
   } catch (e) {
     findings.push({ file: 'src/render/article.js', line: 0, rule: 'harness', text: String(e && e.message || e) });
   }
+  if (!opts.files) for (const w of WAIVERS) if (!usedWaivers.has(w)) findings.push({ file: w.file, line: 0, rule: 'stale-waiver', text: w.text });
+  usedWaivers.clear();
   return { files: files.length, plurals: plurals.length, findings };
 }
 
@@ -219,6 +238,7 @@ async function selftest() {
       ['article', "export const a = 'Craft an Apprentice Gloves first';"],
       ['double-space', "export const a = 'Your crops are  ready to pick';"],
       ['dot-spacing', "export const a = 'Lv 3 ·4h grow';"],
+      ['spelling', "export const a = 'Requires Defence 30 to wear';"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');

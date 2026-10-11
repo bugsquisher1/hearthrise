@@ -59,7 +59,7 @@ export const CODEX_ENTRIES = f([
     [[0, 'renownTerms'], [1, 'rankRewards'], [1, 'rankRatchet']]),
 
   entry('combat-level', 'fighting', 'Combat level',
-    'One number for how dangerous you are: your Defence, Hitpoints and half your Prayer, plus your strongest way of fighting, whether blade, bow or spell.',
+    'One number for how dangerous you are: your Defense, Hitpoints and half your Prayer, plus your strongest way of fighting, whether blade, bow or spell.',
     { tab: 'character' },
     [[0, 'prayerHalf'], [0, 'bestStyleOnly']]),
   entry('weakness', 'fighting', 'Weakness',

@@ -443,7 +443,7 @@ const HUD = (() => {
           { name: 'Damage per second', meta: `averaged over one swing every ${f.swingS}s`, right: amt(f.dps.toFixed(1)) },
         ] },
         { kind: 'rows', title: 'Their swing', rows: [
-          { name: 'Hit chance', meta: 'against your Defence and armour', right: amt(Math.round(f.foe.accuracy * 100) + '%') },
+          { name: 'Hit chance', meta: 'against your Defense and armour', right: amt(Math.round(f.foe.accuracy * 100) + '%') },
           { name: 'Max hit', meta: 'the worst single blow you can take', right: amt(f.foe.maxHit) },
           { name: 'Their health', meta: 'restored in full on respawn', right: amt(m.hp) },
         ] },

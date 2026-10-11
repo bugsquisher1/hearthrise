@@ -890,6 +890,40 @@ export async function awaitSettleRaceClear() {
   return true;
 }
 
+/* ── ONE RETRY POLICY FOR EVERY EDGE INTENT (live P1) ──────────────────────
+   A Turnip Seed buy during a fight was refused `version_conflict` (the combat
+   settle bumped player_state.version between the edge's read and its apply),
+   nothing retried it, and the player was handed the race. equip.js and
+   activity.js already retried once; the gold verbs, eat, enchant, trophy_claim,
+   dungeon_settle and quartermaster_buy did not. This is their one copy of the
+   rule equip.js states in full:
+     · only an ANSWERED `version_conflict` whose body carries a finite `version`
+       (the edge's fresh hr_state_of read) — a refusal applied NOTHING, so a
+       second key cannot duplicate anything;
+     · a NEW key — hr_apply may hand a stored decision back to a reused one;
+     · after the settle on the wire clears, so the retry does not re-enter the
+       window it just lost; ONE retry, never a loop. */
+export const CONFLICT_MAX_TRIES = 2;
+export function isRetryableConflict(verdict) {
+  if (!verdict || verdict.outcome !== 'refused') return false;
+  const b = (verdict.body && typeof verdict.body === 'object') ? verdict.body : null;
+  const code = verdict.reason || verdict.error || (b && b.error);
+  return code === 'version_conflict' && !!b && Number.isFinite(Number(b.version));
+}
+/** `send(key)` makes ONE attempt (key undefined ⇒ the sender mints); `mintKey()`
+ *  yields the retry's key; `onRekey(old, next)` moves anything keyed to the old one. */
+export async function retryOnConflict(send, firstKey, mintKey, onRekey) {
+  let verdict = await send(firstKey);
+  for (let attempt = 1; attempt < CONFLICT_MAX_TRIES && isRetryableConflict(verdict); attempt++) {
+    await awaitSettleRaceClear();
+    const next = (typeof mintKey === 'function') ? mintKey() : null;
+    if (!next) break;
+    if (typeof onRekey === 'function') onRekey(verdict.key || firstKey || null, next);
+    verdict = await send(next);
+  }
+  return verdict;
+}
+
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
    The settle-first rule makes the server refuse (`settle_first`) — or makes the
    client skip — a credit whose window the away sim is about to pay. The observed
@@ -1057,6 +1091,29 @@ export function restorePendingCombatXp(snap, g) {
    forced-caller path awaits accrual, so awaiting here would deadlock. */
 let reflushP = null;
 export function combatXpReflushPromise() { return reflushP; }
+
+/* THE TAIL OF THE SETTLE ON THE WIRE — resolved only after its answer has been
+   applied AND any `settle_first` deferral handed back (reflushP set). `inFlight`
+   resolves a step earlier, before resolveCombatXpDeferral runs. */
+let settleTail = null;
+/**
+ * EVERY ATTENDED COMBAT CREDIT IS ON THE SERVER BEFORE A SWITCH LEAVES
+ * COMBAT. Awaits the settle on the wire to its tail, then the re-flush that
+ * settle fired. Bounded (SETTLE_RACE_WAIT_MS, then goal-claim.js's own request
+ * deadline); never throws. activity.js calls it after flushAttendedCredits().
+ */
+export async function awaitAttendedCreditsClear() {
+  const t = settleTail;
+  if (t) {
+    let timer = null;
+    try {
+      await Promise.race([t, new Promise((r) => { timer = setTimeout(r, SETTLE_RACE_WAIT_MS); })]);
+    } catch (e) {} finally { if (timer) clearTimeout(timer); }
+  }
+  const rf = reflushP;
+  if (rf) { try { await rf; } catch (e) {} }
+  return !!(t || rf);
+}
 
 /**
  * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed.
@@ -1332,6 +1389,9 @@ export async function requestAccrual(opts) {
     } finally { e.clearTimer(timer); }
   })();
 
+  let tailDone = null;
+  const tail = new Promise((r) => { tailDone = r; });
+  settleTail = tail;
   try {
     const out = await inFlight;
     /* THE GAP HEAL, AWAY + POLL HALVES. A settle that ended with no envelope
@@ -1356,7 +1416,10 @@ export async function requestAccrual(opts) {
        deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
-  } finally { inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal); }
+  } finally {
+    inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal);
+    tailDone(); if (settleTail === tail) settleTail = null;
+  }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */
@@ -2689,14 +2752,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=567';
+import * as itemLedger from './item-ledger.js?v=568';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=567';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=568';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2705,15 +2768,15 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=567';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=568';
 /* THE START KIT — the fresh-G bag hint the first envelope discards (see the
    START_INVENTORY block in reconcileInventory). The SAME frozen source the
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
-import { START_INVENTORY } from '../data/start-kit.js?v=567';
+import { START_INVENTORY } from '../data/start-kit.js?v=568';
 /* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
    spans a release). A frozen constant leaf — no cycle, no DOM. */
-import { BUILD } from '../build-info.js?v=567';
+import { BUILD } from '../build-info.js?v=568';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2731,25 +2794,25 @@ import { BUILD } from '../build-info.js?v=567';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=567';
+import * as pendingConsume from './pending-consume.js?v=568';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=567';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=568';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=567';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=568';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=567';
-import { capHoursFromVigour } from './offline-cap.js?v=567';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=568';
+import { capHoursFromVigour } from './offline-cap.js?v=568';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -7090,11 +7153,11 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
-    restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
+    restorePendingCombatXp, combatXpReflushPromise, awaitAttendedCreditsClear, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

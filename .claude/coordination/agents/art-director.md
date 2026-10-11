@@ -2792,3 +2792,32 @@ columns (Chronicle beside Deeds, stats in two flowing columns) because a label 1
 number is not a table.
 Lesson: the screens a merge deletes are where old shortcuts hide - the bestiary `×` silently fell back
 to the client's own count, and only rendering it in a new host with the mirror absent showed it.
+
+### 2026-10-11 · lane/b568-even-recipe-cards: one card, one shape
+
+Tyler: "still some unevenness on these squares" (Smelting). Every recipe/node card in every skill is now
+fixed slots with one status line pinned to the foot ("Level N" or "Have N · Can make N"), stretched rows,
+a 64px art box (52 on phones), and art cropped to its paint (`img.hr-fit`, artFitBox). Lane chips show
+the recipe count everywhere, with a padlock on shut lanes (no more "Lv 5" next to "11"). EVEN-CARDS-1/2
+measure a real row; on pre-fix code they fail at 194 vs 222.6px. The Recipe Book got the same art fit and
+pinned lock line. Lesson: "the icons are different sizes" was a sprite-canvas problem wearing a CSS costume;
+measure the painted pixels before touching the box.
+
+### 2026-10-11 · lane/b568-market-revamp: the Player Market, rebuilt as one screen
+
+Tyler: "player market looks like it needs a revamp". The screen was a stack of strips flush to the
+left edge, monospace meta lines ("4g each · seller: test · 48.0h left"), and "Open listings (0) - No
+open listings right now" printed beside the player's own live Copper Ore x910, because the browse list
+was built from OTHER sellers only. Now four named areas on one grid (src/styles/market.css, tokens
+only, zero literals, zero !important): Sell (the one contained surface: Item picker with a chevron,
+You have / Local Shop pays / Suggested, Quantity + Price each, Total, List for sale), Your listings
+(time left in words, quiet Cancel), For sale (a price board: ch-sized Qty/Each columns, your own rows
+in the list at their price with a gilt wash and "Yours" instead of Buy), History (Earned / Spent
+figures, the game's own chips as the filter, "Sold at 21g each · 3 hours ago · 4g tax"). Two columns
+from 720px of screen (landscape 922 included). The Buy sheet moved too: its three readouts stay in a
+row on the phone (they stacked and pushed Quantity off), and a pending purse says "Checking your
+gold…" instead of "Not enough gold". Paydown: every .mk-* override in audit-overrides / art-direction
+/ theme-cozy deleted (-96 literals, -9 !important); #panel-market left the hearthlight blankets and
+.mk-screen joined the carve-out string.
+Lesson: an empty state is a claim about the whole list, so it has to be computed over the same set
+the player thinks of as "the market" - which includes their own listing.

@@ -83,4 +83,41 @@
     }
     return String(id).replace(/_/g, ' ');
   };
+
+  /* THE STATUS SLOT. Tyler, on Smithing → Smelting: "there's still some
+     unevenness on these squares". A locked card carried a "Level N" line an
+     open card did not, so one row held two card heights. Every card in a
+     recipe/node grid now ends on exactly one status line, pinned to its foot by
+     art-direction.css: the lock (level or scroll) when it is shut; what you hold
+     and how many you can make when it is open. The counts read the bag the
+     server projected, and refresh() repaints them from every envelope. */
+  var qty = function (n) { return (typeof window.fmtQty === 'function') ? window.fmtQty(n) : String(n || 0); };
+  function makeCount(inputs) {
+    var ids = Object.keys(inputs || {});
+    if (!ids.length) return null;
+    var bag = (window.G && window.G.inventory) || {};
+    return ids.reduce(function (m, id) { return Math.min(m, Math.floor((bag[id] || 0) / (inputs[id] || 1))); }, Infinity);
+  }
+  function statusHtml(unlocked, lockHtml, benchLock, have, make) {
+    if (!unlocked) return '<div class="at-status"><span class="at-lock' + (benchLock ? ' at-lock-bench' : '') + '">' + lockHtml + '</span></div>';
+    return '<div class="at-status">'
+      + '<span class="at-st">Have <span class="at-qty' + (have > 0 ? '' : ' muted') + '">' + qty(have) + '</span></span>'
+      + (make === null ? '' : '<span class="at-st">Can make <span class="at-make' + (make > 0 ? '' : ' low') + '">' + qty(make) + '</span></span>')
+      + '</div>';
+  }
+  /* "Can make N" re-read through each tile's own input list (the data-have /
+     data-need pairs its inputs line already carries). */
+  function refresh(root) {
+    (root || document).querySelectorAll('.act-tile .at-make').forEach(function (el) {
+      var inputs = {};
+      el.closest('.act-tile').querySelectorAll('.at-inputs .at-have[data-have]').forEach(function (h) {
+        inputs[h.getAttribute('data-have')] = parseInt(h.getAttribute('data-need'), 10) || 1;
+      });
+      var make = makeCount(inputs);
+      if (make === null) return;
+      el.textContent = qty(make);
+      el.classList.toggle('low', make <= 0);
+    });
+  }
+  window.HearthriseActivityCard = { makeCount: makeCount, statusHtml: statusHtml, refresh: refresh };
 })();

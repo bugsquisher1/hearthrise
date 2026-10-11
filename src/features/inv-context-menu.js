@@ -175,7 +175,7 @@
       opts.push({ label: 'Unknown item', disabled: true });
       return opts;
     }
-    var qty = ctx.source === 'equipped' ? 1 : (serverQty(id) || 0);   // the server's bag: a prediction offers no action
+    var qty = ctx.source === 'equipped' ? 1 : ((G.inventory && G.inventory[id]) | 0);
     var isStack = qty >= 2;
     var isEquippable = !!(def.type === 'weapon' || def.type === 'armor' || def.type === 'jewelry' || def.type === 'companion' || def.type === 'ammo' || def.slot);
 
@@ -379,7 +379,7 @@
     if(!window.G || !window.G.inventory || !window.ITEMS) return [];
     var picks = [];
     Object.keys(window.G.inventory).forEach(function(id){
-      var qty = serverQty(id) || 0;
+      var qty = window.G.inventory[id] | 0;
       if(qty <= 0) return;
       var def = window.ITEMS[id];
       if(!def) return;

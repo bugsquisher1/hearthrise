@@ -8280,14 +8280,13 @@ export default [
      sellableCount) at G.inventory → the "between" asserts read 1. */
   () => tryRun('B568-5: attended — a predicted drop is wiped mid-window, restated on credit, and never gates in between', () => {
     const A = window.HearthriseAccrual, G = window.G;
-    const snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, said = [];
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       A.markInventoryAuthorityLive(false); A.__resetAutoArm();
       A.__setInventoryArmStageForTest(true);
       A.noteBaselineComplete({ inventory_complete: true });
       A.noteServerArmPermission(true);
       assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
-      window.notify = function (t) { said.push(String(t)); };
       G.inventory = {};
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: true });
       window.addItem('goblin_seal', 1);                  // the attended kill's client-rolled drop
@@ -8297,8 +8296,6 @@ export default [
         assert(window.sellableCount('goblin_seal') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_seal'));
       };
       noGate('predicted');
-      said.length = 0; window.invSellOne('goblin_seal');
-      assert(said.some((m) => /Nothing to sell/.test(m)) && G.inventory.goblin_seal === 1, 'sell-one sold a predicted drop: ' + JSON.stringify(said));
       // a mid-window envelope (equip answer, window open) that has not settled the kill
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: false });
       assert(!('goblin_seal' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
@@ -8307,7 +8304,6 @@ export default [
       A.reconcileInventory(G, { inventory: { bones: 3, goblin_seal: 1 }, inventory_complete: true });
       assert(G.inventory.goblin_seal === 1 && A.gateItemCount(G, 'goblin_seal') === 1, 'the credited drop did not land in both layers');
     } finally {
-      window.notify = realNotify;
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);
       A.__resetAutoArm(); A.__resetServerArmPermission();

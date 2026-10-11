@@ -254,10 +254,11 @@ export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post
    reasons the stage was held, answered one by one:
      · "it can DELETE a player's item" — it cannot any more. G.inventory is not
        saved anywhere (loadLocal reads no blob, `inventory` is not a residue
-       field) and hr_state_of projects the WHOLE of player_inventory. Some
-       gestures did size an intent from it (sell-one, the context menu, the
-       quantity slider, the seam-off market); those now read gateItemCount, and
-       the server re-checks every quantity under its row lock regardless.
+       field) and hr_state_of projects the WHOLE of player_inventory. A few
+       gestures DO size an intent from it — sell-one, the context menu, the
+       quick-sell slider, legacy hasItem — by design: vendor_sell collects the
+       open window first, so a just-gathered log is real on the server
+       (SELL-SRV-1/5). The server re-checks every quantity under its row lock.
        Replacing the bag can only correct what is DISPLAYED; every real item is
        a row the next envelope restates.
      · "the 24 h soak must read clean" — read SELECT-only on 2026-10-11:

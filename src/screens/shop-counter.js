@@ -276,10 +276,9 @@ function sellReceipt(id, qty, price, sent){
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  /* THE SERVER'S BAG, like Sell All: a predicted drop shows but does not sell. */
-  const have = sellableCount(id);
-  if(have === null){ notify(SELL_PENDING_TITLE,'info'); return; }
-  if(have <= 0){ notify('Nothing to sell','kill'); return; }
+  /* DISPLAY-BOUNDED, the server answers (see sellableCount): a log gathered
+     since the last envelope is real on the server and sells. */
+  if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   const _k = goldIntentKey();
   goldSettle(price, 'vendor.sell_one', _k);

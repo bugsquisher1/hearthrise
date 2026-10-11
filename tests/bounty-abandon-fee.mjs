@@ -8,7 +8,10 @@
 // Ships with supabase/migrations/2026-10-04-bounty-abandon-server-fee.sql. Its
 // §5 block runs ONCE, at apply. This adds what a §4 block structurally cannot:
 //   B1  the file RE-APPLIES byte-identically (full schema inventory + both
-//       bodies' md5 + the baseline row, before and after a second apply);
+//       bodies' md5 + the baseline row, before and after a second apply), on
+//       the chain ENDING AT THIS FILE — 2026-10-17-bestiary-target.sql now
+//       restates hr_accept_bounty__ungated, so a chain-end re-apply of this
+//       file would (correctly) not be identical;
 //   B2  as `authenticated`, through the RATE-GATED wrapper PostgREST calls, the
 //       retired (slot, reason, LEVEL, REWARD, idem) call does not resolve;
 //   B3  an honest abandon is priced from the server's rows (level-15 BH, a
@@ -76,15 +79,29 @@ async function run(mutate) {
   const baseRow = () => q("select identity_args, grantee from public.hr_client_rpc_baseline where proname = 'hr_bounty_spend'");
 
   // ── B1. SECOND APPLY IS BYTE-IDENTICAL ─────────────────────────────────
+  //   On the chain ending at THIS file. Since 2026-10-17-bestiary-target.sql
+  //   restates hr_accept_bounty__ungated, this file is no longer that body's
+  //   last toucher: re-applied at chain end it would put the pre-fence body
+  //   back (B1 measured exactly that, set/b566 4ac76a1a). Idempotence is a
+  //   property of a file over the state it produced, so it is measured there;
+  //   the chain-end behaviour stays graded by B2-B5 below.
   {
+    const own = mutate ? null : (await bootReplay({ upTo: MIG })).db;
+    const dbB1 = own || db;
+    const qB1 = async (sql, p) => (await dbB1.query(sql, p)).rows;
+    const bodies = () => qB1(`select p.proname, md5(p.prosrc) as h, p.proacl::text as acl from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
+     and p.proname in ('hr_bounty_spend','hr_bounty_spend__ungated','hr_accept_bounty','hr_accept_bounty__ungated') order by 1`);
+    const baseRow = () => qB1("select identity_args, grantee from public.hr_client_rpc_baseline where proname = 'hr_bounty_spend'");
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
     if (mutate) for (const [f, r] of MUTATIONS[mutate].pairs) sql = sql.replace(f, () => r);
-    const before = JSON.stringify([await inventory(db), await bodies(), await baseRow()]);
+    const before = JSON.stringify([await inventory(dbB1), await bodies(), await baseRow()]);
     let err = null;
-    try { await db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
+    try { await dbB1.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
     ok('B1', !err, `a second apply raised: ${err}`);
-    const after = JSON.stringify([await inventory(db), await bodies(), await baseRow()]);
+    const after = JSON.stringify([await inventory(dbB1), await bodies(), await baseRow()]);
     ok('B1', before === after, 'a second apply changed the schema inventory, a body or the baseline row');
+    if (own) await own.close().catch(() => {});
   }
 
   // ── fixture: one real player through the real character path ───────────

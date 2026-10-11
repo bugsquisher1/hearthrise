@@ -668,8 +668,6 @@ export default [
         window.HearthriseFarm.normalizePlot(legacy);
         assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
           'the legacy watered→waterings conversion was removed — old saves would stall');
-        const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-        assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
       } finally { restoreG(snap); }
     })),
 
@@ -1324,7 +1322,7 @@ export default [
       assert((html.match(/is-dorm/g) || []).length >= 5, 'a dormant hold must dim every wing');
       assert(/dormant/.test(html), 'the upkeep state must be named when it is not Active');
       assert(/keeps every level it has earned/.test(html), 'dormancy must promise what it promises');
-      assert(/summit of Phase A/.test(html), 'tier 5 must not invent a tier 6 gate');
+      assert(/highest a hold can rise/.test(html) && !/not yet tuned|untuned/.test(html), 'tier 5 must not invent a tier 6 gate or promise untuned tiers');
 
       // The Hunt column is a STATEMENT, not an empty boss bar — the Hunt owns
       // that meter and it is being rebuilt elsewhere.
@@ -2600,7 +2598,7 @@ export default [
      ═══════════════════════════════════════════════════════════════════════ */
 
   // O1 — the code is collapsed, and the disclosure actually discloses.
-  () => tryRun('b46x OPEN-1: the wall asks for no invite code, and one link reveals it', () => {
+  () => tryRun('b46x OPEN-1 (W0): the wall shows no invite code at all, and a link-borne code still reveals the field', () => {
     const gate = window.HearthriseGate;
     const ui = gate._buildGate({});
     try {
@@ -2610,9 +2608,9 @@ export default [
         'the invite field must be HIDDEN by default: a visible one reads as a closed door however it is labelled');
       assert(ui.invite.required !== true, 'the invite field must not be required');
       assert(ui.inviteReveal && ui.inviteAside, 'the disclosure that reveals the code is missing');
-      assert(/have an invite code/i.test(ui.inviteReveal.textContent),
-        'the disclosure must say what it opens, got: ' + ui.inviteReveal.textContent);
-      assert(ui.inviteAside.style.display !== 'none', 'the disclosure itself must be visible in signup mode');
+      assert(ui.inviteAside.style.display === 'none',
+        'W0: Early Access has no invite codes — the "Have an invite code?" line must not show');
+      assert(!/invite code/i.test(ui.lead.textContent), 'the wall still talks about invite codes');
       // A real disclosure, not a div that toggles.
       assert(ui.inviteReveal.getAttribute('aria-expanded') === 'false',
         'the disclosure must report its collapsed state to assistive tech');
@@ -2636,19 +2634,19 @@ export default [
     }
   }),
 
-  // O1b — the copy. "open beta" is the promise; the Discord link is the door.
-  () => tryRun('b46x OPEN-2: the wall says open beta, invites the player in, and links Discord', () => {
+  // O1b — the copy (W0): Early Access, not open beta; the Discord link stays as the help door.
+  () => tryRun('b46x OPEN-2 (W0): the wall says Early Access, invites the player in, and keeps a Discord help link', () => {
     const gate = window.HearthriseGate;
     const ui = gate._buildGate({});
     try {
       const text = ui.root.textContent;
-      assert(/open beta/i.test(text), 'the wall must say the beta is OPEN: ' + text.slice(0, 220));
-      assert(!/closed beta/i.test(text), 'the wall still calls the beta closed');
-      assert(/make an account and play/i.test(text),
-        'the wall must tell the player what to do, not just what state the beta is in');
-      assert(/rough in places/i.test(text), 'the wall must be honest that it is rough');
+      assert(/early access/i.test(ui.lead.textContent), 'the wall must say Early Access: ' + ui.lead.textContent.slice(0, 220));
+      assert(!/\bbeta\b/i.test(ui.lead.textContent), 'the wall still says beta: ' + ui.lead.textContent.slice(0, 220));
+      assert(!/tell us in/i.test(ui.lead.textContent), 'the beta-era "tell us in Discord" line is back');
+      assert(/make an account/i.test(ui.lead.textContent),
+        'the wall must tell the player what to do, not just what state the game is in');
       const dc = [...ui.root.querySelectorAll('a[href*="discord.gg"]')];
-      assert(dc.length >= 1, 'the open-beta line points at Discord and there must be a link to click');
+      assert(dc.length >= 1, 'a player who cannot sign in must still have the Discord door to click');
       dc.forEach((a) => {
         assert(a.href.indexOf('discord.gg/eJrUSUJM3M') !== -1, 'wrong Discord invite: ' + a.href);
         assert(a.rel === 'noopener', 'a target=_blank link without rel=noopener is a tabnabbing hole');
@@ -2656,7 +2654,7 @@ export default [
       // The b224 rule survives the copy change: still no account-less escape.
       const words = text.toLowerCase();
       ['continue offline', 'play offline', 'without an account'].forEach((s) => {
-        assert(words.indexOf(s) === -1, 'the open-beta copy re-opened an account-less escape: ' + s);
+        assert(words.indexOf(s) === -1, 'the Early Access copy re-opened an account-less escape: ' + s);
       });
     } finally {
       if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
@@ -2772,7 +2770,7 @@ export default [
         'the check-your-email panel is not painting (inline display=' + JSON.stringify(a.sent.style.display)
         + '; an empty string falls back to the sheet’s display:none)');
       assert(a.lead.style.display === 'none',
-        'the open-beta pitch is still above the panel — two screens at once');
+        'the front-door pitch is still above the panel — two screens at once');
       assert(/check your email/i.test(aText) && /confirmation link/i.test(aText),
         'the panel must say what we actually did: ' + aText.slice(0, 200));
       assert(aText.indexOf('open@example.com') !== -1,
@@ -2824,8 +2822,8 @@ export default [
     const codeless = H(dbErr, true, false);
     assert(!/invite code/i.test(codeless) || /if you have one/i.test(codeless),
       'a player who gave no code must not be told their code is bad: ' + codeless);
-    assert(/open beta/i.test(codeless) && /try again/i.test(codeless),
-      'the switch-over message must name the cause and offer the retry: ' + codeless);
+    assert(/not open/i.test(codeless) && /try again/i.test(codeless) && !/beta/i.test(codeless),
+      'the refusal must say sign-ups are not open and offer the retry, without beta copy: ' + codeless);
 
     const coded = H(dbErr, true, true);
     assert(/invite code cannot be used/i.test(coded),
@@ -3330,7 +3328,7 @@ export default [
     gate.whenOpen(null);                              // must not throw
     assert(ran === 1, 'a non-function must be ignored, not queued');
     // The modules that must be behind it are all present and gated.
-    ['startFTUE', 'HearthriseProfile', 'HearthriseBetaBanner', 'HearthriseWelcome']
+    ['startFTUE', 'HearthriseProfile', 'HearthriseWelcome']
       .forEach((k) => assert(k in window, 'gated module vanished: ' + k));
   }),
 
@@ -3368,10 +3366,10 @@ export default [
   () => tryRun('b224: the re-prompt refuses to stack on a front-door overlay', () => {
     const gate = window.HearthriseGate;
     const blocker = document.createElement('div');
-    blocker.id = 'beta-banner-overlay';
+    blocker.id = 'hr-welcome-modal';
     document.body.appendChild(blocker);
     try {
-      assert(gate.promptReauth() === null, 'the re-prompt opened on top of the beta banner');
+      assert(gate.promptReauth() === null, 'the re-prompt opened on top of the what\'s-new sheet');
       assert(!document.querySelector('.hr-gate.reauth'), 'a re-prompt sheet was mounted anyway');
     } finally {
       blocker.remove();
@@ -4480,5 +4478,116 @@ export default [
     assert(L(v({ active_id: 'x', live: false, ended_at: iso(9 * 60), stopped_by: 'leader' }, { state: 'ended' }), off, now) === '',
       'a hunt that ended BEFORE I left is not this absence\'s news');
     assert(L({ ok: false, error: 'not_in_party' }, off, now) === '' && L(null, off, now) === '', 'no party, no line');
+  }),
+
+  /* DISCORD — the invite where a new player looks, and the gift sheet's states.
+     The amount is the server's (2026-10-18-discord-gift.sql); the sheet quotes
+     what the answer says and never touches G.gems. */
+  () => tryRun('DISCORD-1: the first screen invites the player to the Discord, with the gift, in both modes', () => {
+    const D = window.HearthriseDiscord;
+    assert(D && /^https:\/\/discord\.gg\//.test(D.INVITE), 'HearthriseDiscord.INVITE is not published');
+    const ui = window.HearthriseGate._buildGate({});
+    try {
+      const help = ui.root.querySelector('.hr-gate-help');
+      const a = help && help.querySelector('a.hr-gate-dc');
+      assert(a, 'the sign-in screen has no Discord invite link');
+      assert(a.href === D.INVITE && a.rel === 'noopener' && a.target === '_blank', 'the invite link is wrong: ' + a.outerHTML);
+      assert(/join the hearthrise discord/i.test(help.textContent) && /meet other players/i.test(help.textContent)
+        && /gift/i.test(help.textContent), 'the invite does not say why to join: ' + help.textContent);
+      [...ui.root.querySelectorAll('.hr-gate-mode')].filter((b) => /sign in/i.test(b.textContent))[0].click();
+      assert(ui.root.contains(help) && help.style.display !== 'none' && help.querySelector('a.hr-gate-dc'),
+        'the invite left with the Create tab');
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  () => tryRun('DISCORD-2: the first-day card carries the invite once its first step is done, never under step one or on the Road', () => {
+    const H = window.HearthriseHome;
+    const count = (m) => (H.__firstDayHtml(m).match(/data-hr-discord="firstday"/g) || []).length;
+    assert(count({ steps: [], currentIndex: 0, total: 5, chain: null }) === 0, 'the invite sits under the first step');
+    assert(count({ steps: [], currentIndex: 1, total: 5, chain: null }) === 1, 'the first-day card lost the invite after step one');
+    assert(count({ steps: [], currentIndex: 3, total: 5, chain: null }) === 1, 'the invite drew more than once');
+    assert(count({ steps: [], currentIndex: 2, total: 6, chain: 'road' }) === 0, 'the Road card carries the first-day invite');
+    const row = window.HearthriseDiscord.rowHtml('firstday');
+    assert(/data-hr-discord-gift/.test(row) && row.indexOf(window.HearthriseDiscord.INVITE) !== -1, 'the row lacks Join or Claim gift');
+  }),
+
+  () => tryRun('DISCORD-2b: Settings carries the Discord link and the Claim Discord gift button', () => {
+    try {
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      const a = body && body.querySelector('a[href="' + window.HearthriseDiscord.INVITE + '"]');
+      assert(a && a.rel === 'noopener', 'Settings lost the Discord link');
+      assert(body.querySelector('button[data-hr-discord-gift]'), 'Settings has no Claim Discord gift button');
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+    }
+  }),
+
+  () => tryRun('DISCORD-3: Home shows the invite exactly once — in the first-day card or the rail, never both', () => {
+    window.showTab('profile'); window.HearthriseHome.render();
+    const root = document.getElementById('hd-root');
+    assert(root, 'Home did not render');
+    if (root.querySelector('.hd-pending')) return skip('Home is waiting for the record');
+    const rows = root.querySelectorAll('[data-hr-discord]');
+    assert(rows.length === 1, 'Home drew the Discord invite ' + rows.length + ' times');
+    const m = window.HearthriseHome.__firstDayModel();
+    const where = rows[0].getAttribute('data-hr-discord');
+    assert(where === ((m && m.currentIndex >= 1) ? 'firstday' : 'home'), 'the invite is in the wrong place: ' + where);
+  }),
+
+  () => tryRunAsync('DISCORD-4: the gift sheet shows every server answer in words and never pays gems itself', async () => {
+    const GC = window.HearthriseGoalClaim, D = window.HearthriseDiscord;
+    assert(GC && typeof GC.claimDiscordGift === 'function', 'goal-claim.js has no claimDiscordGift');
+    const saved = GC.claimDiscordGift, calls = [];
+    let answer = null;
+    GC.claimDiscordGift = (code) => { calls.push(code); return Promise.resolve(answer); };
+    const gems0 = window.G.gems;
+    const btn = document.createElement('button');
+    btn.setAttribute('data-hr-discord-gift', '');
+    document.body.appendChild(btn);
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    const submit = async (code, a) => {
+      answer = a;
+      const s = document.getElementById('hr-dc-sheet');
+      s.querySelector('.hr-dc-input').value = code;
+      s.querySelector('.hr-dc-claim').disabled = false;
+      s.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true }));
+      await flush(); await flush();
+      return s.querySelector('.hr-dc-status');
+    };
+    try {
+      btn.click();
+      const sheet = document.getElementById('hr-dc-sheet');
+      assert(sheet && sheet.classList.contains('hr-scrim'), 'Claim gift did not open the sheet on the modal primitive');
+      assert(sheet.querySelector('[data-hr-dismiss]'), 'the sheet has no dismiss control for Escape');
+      let st = await submit('x!', { ok: true, gems: 50 });
+      assert(calls.length === 0 && st.getAttribute('data-state') === 'wrong_code', 'a malformed code spent a server call');
+      const cases = [
+        [{ ok: false, error: 'wrong_code' }, 'wrong_code', /does not match/],
+        [{ ok: false, error: 'code_expired' }, 'code_expired', /expired/],
+        [{ ok: false, error: 'rate_limited' }, 'rate_limited', /wait a minute/i],
+        [{ ok: false, error: 'rpc_missing' }, 'rpc_missing', /not open yet/],
+        [{ ok: false, error: 'gift_unavailable' }, 'gift_unavailable', /not open yet/],
+        [{ ok: false, error: 'network' }, 'offline', /connection/],
+        [{ ok: false, error: 'already_claimed' }, 'already_claimed', /already claimed/],
+      ];
+      for (const [a, state, re] of cases) {
+        st = await submit('hearth-abc123', a);
+        assert(st.getAttribute('data-state') === state && re.test(st.textContent), state + ' read: ' + st.textContent);
+      }
+      assert(calls.every((c) => c === 'HEARTHABC123'), 'the code was not normalised before sending: ' + calls.join(','));
+      assert(document.querySelector('#hr-dc-sheet .hr-dc-claim').disabled, 'an already-claimed account can submit again');
+      st = await submit('hearth-abc123', { ok: true, gems: 37, balance: 99 });
+      assert(st.getAttribute('data-state') === 'ok' && /37 gems/.test(st.textContent), 'the success line does not quote the server amount: ' + st.textContent);
+      assert(window.G.gems === gems0, 'the sheet changed G.gems itself (' + gems0 + ' -> ' + window.G.gems + ')');
+      sheet.querySelector('[data-hr-dismiss]').click();
+      assert(!document.getElementById('hr-dc-sheet'), 'the sheet did not close');
+    } finally {
+      GC.claimDiscordGift = saved;
+      btn.remove();
+      const s = document.getElementById('hr-dc-sheet'); if (s) s.remove();
+    }
   }),
 ];

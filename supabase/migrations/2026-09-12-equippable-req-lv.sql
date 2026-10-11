@@ -1,4 +1,16 @@
 -- ════════════════════════════════════════════════════════════════════════
+--
+-- ⚠ POST-APPLY AMENDMENT (W0, 2026-10-10 — lane w0a, replay only). Applied
+--   2026-09-12 with 34 ruled rows. The coherence audit then CUT seven of them
+--   (tally_ring, hunters_torc, pathfinder_studs, frost_locket, bone_earrings,
+--   heartwood_cape, unlit_earrings — catalogued, never obtainable) and the two
+--   cosmetics GATE(c) pinned (bestiary_cloak, hearthstone_signet), and the
+--   regenerated catalogue no longer seeds them, so this file could not replay.
+--   The rule is now the 27 surviving rows, GATE(c) is retired with its
+--   subjects, and GATE(d)'s ungated positive control equips traveler_cape
+--   (Defence 1) instead of the cut cloak. Production is unaffected: the live
+--   rows were written at apply time and 2026-10-10-w0a-catalogue-cuts.sql
+--   deletes the cut ones.
 -- 2026-09-12-equippable-req-lv.sql
 --
 -- CLOSE THE WIELD GATE ON THE REALM. 34 rows of public.hr_items carry
@@ -100,7 +112,7 @@ do $$
 declare
   v_missing text;
   v_rows    int;
-  -- id · req_skill · req_lv. Held as jsonb so the 34 rows are written ONCE and
+  -- id · req_skill · req_lv. Held as jsonb so the 27 rows are written ONCE and
   -- read three times below, without creating a database object for a one-off.
   v_rule constant jsonb := '[
     ["bronze_sword","attack",1],          ["shortbow","ranged",1],
@@ -110,21 +122,17 @@ declare
     ["iron_sword","attack",15],           ["iron_warhammer","attack",15],
     ["longbow","ranged",15],              ["oak_staff","magic",15],
     ["iron_helm","defense",15],           ["iron_platebody","defense",15],
-    ["tally_ring","defense",1],           ["steel_sword","attack",30],
-    ["steel_helm","defense",30],          ["steel_platebody","defense",30],
-    ["hunters_torc","defense",30],        ["pathfinder_studs","defense",1],
-    ["frost_locket","defense",45],        ["bone_earrings","prayer",45],
-    ["rune_sword","attack",60],           ["heartwood_cape","defense",75],
-    ["unlit_earrings","defense",75],      ["regent_helm","defense",88],
-    ["slagheart_platebody","defense",88], ["abyssal_greaves","defense",88],
-    ["warden_girdle","defense",88],       ["choirbone_gauntlets","defense",88],
-    ["wyrmgilt_mantle","defense",88],
+    ["steel_sword","attack",30],          ["steel_helm","defense",30],
+    ["steel_platebody","defense",30],     ["rune_sword","attack",60],
+    ["regent_helm","defense",88],         ["slagheart_platebody","defense",88],
+    ["abyssal_greaves","defense",88],     ["warden_girdle","defense",88],
+    ["choirbone_gauntlets","defense",88], ["wyrmgilt_mantle","defense",88],
     ["iron_arrows","ranged",1],           ["chief_blade","attack",15],
     ["captains_ribblade","attack",30]
   ]'::jsonb;
 begin
-  if jsonb_array_length(v_rule) <> 34 then
-    raise exception '§1: the rule holds % rows, the ruling names 34', jsonb_array_length(v_rule);
+  if jsonb_array_length(v_rule) <> 27 then
+    raise exception '§1: the rule holds % rows, the ruling names 27 (34 before W0 cut seven)', jsonb_array_length(v_rule);
   end if;
 
   select string_agg(r.item_id, ', ' order by r.item_id) into v_missing
@@ -154,7 +162,7 @@ begin
    where i.item_id = r.item_id
      and (i.req_skill is distinct from r.req_skill or i.req_lv is distinct from r.req_lv);
   get diagnostics v_rows = row_count;
-  raise notice 'equippable-req-lv §1: % of 34 rows moved (0 on a re-apply — idempotent)', v_rows;
+  raise notice 'equippable-req-lv §1: % of 27 rows moved (0 on a re-apply — idempotent)', v_rows;
 end $$;
 
 -- ── 2. SELF-VERIFYING COMMIT GATE (§4) ─────────────────────────────────────
@@ -171,7 +179,7 @@ declare
   v_uid   constant uuid := '00000000-0000-4000-8000-0000b5420001';
   c_j     constant jsonb := '{"kind":"admin","intent":"b542:reqlv-probe"}'::jsonb;
 begin
-  -- (a) THE 34 ROWS CARRY THE RULED VALUES. Asserted against the same literal
+  -- (a) THE 27 ROWS CARRY THE RULED VALUES. Asserted against the same literal
   --     table §1 wrote from, restated here so a hand-edit to §1 that dropped a
   --     row cannot also silence its own check.
   select string_agg(x.item_id || '=' || coalesce(i.req_skill,'NULL') || '/'
@@ -183,11 +191,9 @@ begin
       ('stone_maul','attack',1),('bronze_belt','defense',1),('leather_boots','defense',1),
       ('leather_gloves','defense',1),('copper_studs','defense',1),('iron_sword','attack',15),
       ('iron_warhammer','attack',15),('longbow','ranged',15),('oak_staff','magic',15),
-      ('iron_helm','defense',15),('iron_platebody','defense',15),('tally_ring','defense',1),
+      ('iron_helm','defense',15),('iron_platebody','defense',15),
       ('steel_sword','attack',30),('steel_helm','defense',30),('steel_platebody','defense',30),
-      ('hunters_torc','defense',30),('pathfinder_studs','defense',1),('frost_locket','defense',45),
-      ('bone_earrings','prayer',45),('rune_sword','attack',60),('heartwood_cape','defense',75),
-      ('unlit_earrings','defense',75),('regent_helm','defense',88),('slagheart_platebody','defense',88),
+      ('rune_sword','attack',60),('regent_helm','defense',88),('slagheart_platebody','defense',88),
       ('abyssal_greaves','defense',88),('warden_girdle','defense',88),('choirbone_gauntlets','defense',88),
       ('wyrmgilt_mantle','defense',88),('iron_arrows','ranged',1),('chief_blade','attack',15),
       ('captains_ribblade','attack',30)
@@ -198,7 +204,7 @@ begin
     raise exception 'GATE(a): the ruled rows did not land: %', v_bad;
   end if;
 
-  -- (b) THE 34 ROWS SIT ON A LADDER RUNG, and NO row in hr_items asks for a
+  -- (b) THE 27 ROWS SIT ON A LADDER RUNG, and NO row in hr_items asks for a
   --     level the XP table cannot reach.
   --
   --     Two different claims, deliberately. The ruling's rungs bind the rows
@@ -223,10 +229,9 @@ begin
     select i.item_id, i.req_lv from public.hr_items i
      where i.item_id in ('bronze_sword','shortbow','apprentice_staff','stone_maul',
        'bronze_belt','leather_boots','leather_gloves','copper_studs','iron_sword',
-       'iron_warhammer','longbow','oak_staff','iron_helm','iron_platebody','tally_ring',
-       'steel_sword','steel_helm','steel_platebody','hunters_torc','pathfinder_studs',
-       'frost_locket','bone_earrings','rune_sword','heartwood_cape','unlit_earrings',
-       'regent_helm','slagheart_platebody','abyssal_greaves','warden_girdle',
+       'iron_warhammer','longbow','oak_staff','iron_helm','iron_platebody','steel_sword',
+       'steel_helm','steel_platebody','rune_sword','regent_helm','slagheart_platebody',
+       'abyssal_greaves','warden_girdle',
        'choirbone_gauntlets','wyrmgilt_mantle','iron_arrows','chief_blade','captains_ribblade')
   )
   select count(*),
@@ -234,8 +239,8 @@ begin
            filter (where req_lv is null or req_lv not in (1,15,30,45,60,75,88))
     into v_n, v_bad
     from ruled;
-  if v_n <> 34 then
-    raise exception 'GATE(b1) CONTROL: hr_items holds % of the 34 ruled ids — gate (a) joins INNER, '
+  if v_n <> 27 then
+    raise exception 'GATE(b1) CONTROL: hr_items holds % of the 27 ruled ids — gate (a) joins INNER, '
                     'so a missing row would have passed it in silence', v_n;
   end if;
   if v_bad is not null then
@@ -253,24 +258,8 @@ begin
                     (select max(level) from public.hr_xp_table), v_bad;
   end if;
 
-  -- (c) THE COSMETICS STAY UNGATED, on the server as on the client. This is the
-  --     assertion that stops a future "fill in the NULL columns" pass from
-  --     quietly gating a reward somebody earned.
-  select string_agg(item_id || '=' || coalesce(req_skill,'') || '/' || coalesce(req_lv::text,''), ', ')
-    into v_bad
-    from public.hr_items
-   where item_id in ('bestiary_cloak','hearthstone_signet')
-     and (req_skill is not null or req_lv is not null);
-  if v_bad is not null then
-    raise exception 'GATE(c): a COSMETIC was gated (%) — a reward you earned must never be '
-                    'out-levelled', v_bad;
-  end if;
-  select count(*) into v_n from public.hr_items
-   where item_id in ('bestiary_cloak','hearthstone_signet');
-  if v_n <> 2 then
-    raise exception 'GATE(c) CONTROL: the two cosmetics are not in hr_items (found %) — the NULL '
-                    'check above was passing on an empty set', v_n;
-  end if;
+  -- (c) RETIRED in the W0 amendment: its two subjects (bestiary_cloak,
+  --     hearthstone_signet) were cut from the catalogue.
 
   -- (d) EXECUTED: hr_apply §EQUIPMENT REFUSES A LEVEL-1 CHARACTER THE TIER-8
   --     PLATEBODY. This is the property the whole file exists for, and it is
@@ -292,7 +281,7 @@ begin
     -- ownership, so this is belt and braces — and it is what makes the positive
     -- control in the second half meaningful.)
     insert into public.player_inventory (user_id, slot, item_id, qty)
-      values (v_uid, 0, 'slagheart_platebody', 1), (v_uid, 0, 'bestiary_cloak', 1)
+      values (v_uid, 0, 'slagheart_platebody', 1), (v_uid, 0, 'traveler_cape', 1)
       on conflict (user_id, slot, item_id) do update set qty = 1;
 
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
@@ -314,21 +303,21 @@ begin
       raise exception 'GATE(d): the refused equip consumed the item from the bank';
     end if;
 
-    -- POSITIVE CONTROL, and the cosmetic promise in one call: the SAME level-1
-    -- character, the SAME verb, an UNGATED item — accepted. Without this, a
+    -- POSITIVE CONTROL: the SAME level-1 character, the SAME verb, a Defence-1
+    -- item (W0: was the cut cosmetic cloak) — accepted. Without this, a
     -- migration that broke equipping outright would "pass" (d) and prove
     -- nothing about the requirement.
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
-             jsonb_build_object('equip', jsonb_build_object('cape', 'bestiary_cloak'),
+             jsonb_build_object('equip', jsonb_build_object('cape', 'traveler_cape'),
                                 'journal', c_j));
     if coalesce(v_r->>'ok','false') <> 'true' then
-      raise exception 'GATE(d) CONTROL: the same character was refused an UNGATED cosmetic (%) — '
+      raise exception 'GATE(d) CONTROL: the same character was refused a Defence-1 cape (%) — '
                       'equipping is broken, so the refusal above measured nothing', v_r;
     end if;
     if not exists (select 1 from public.player_equipment
                     where user_id = v_uid and slot = 0 and equip_slot = 'cape'
-                      and item_id = 'bestiary_cloak') then
+                      and item_id = 'traveler_cape') then
       raise exception 'GATE(d) CONTROL: the accepted equip did not land in player_equipment';
     end if;
 

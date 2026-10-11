@@ -257,7 +257,7 @@ await as(UID);
 }
 
 // O1-c: the catalogue check, fail-closed, both halves + a control.
-for (const [item, why] of [['not_a_real_item_id', 'an unknown item id'], ['muster_seal', 'a bind-on-pickup item']]) {
+for (const [item, why] of [['not_a_real_item_id', 'an unknown item id'], ['bone_key', 'a bind-on-pickup item']]) {
   const r = await attempt(`insert into public.market_buy_offers (buyer_user_id, buyer_slot, buyer_name, item_id, qty, max_each)
                             values ('${UID}', 0, 'x', '${item}', 1, 1)`);
   if (r.ok) fail(`O1 OPEN: ${why} (${item}) was offerable — the catalogue check failed OPEN`);

@@ -176,7 +176,10 @@ begin
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.raid_claim__ungated(text,uuid,text,integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.world_event_claim__ungated(text,integer)'));
-  if v_md5 is null or v_md5 not in ('a9674b401ffd6e4f8953dc76bed45561', 'f923333a95748154435cfa564118612f') then
+  -- POST-w0a ONLY: 2026-10-10-w0a-catalogue-cuts.sql removes the Muster Seal
+  -- lines from this body and applies first; restating over the pre-w0a body
+  -- (a9674b40…, production until w0a applies) would undo that cut.
+  if v_md5 is null or v_md5 not in ('b2a7161463b9dff9e893d1a20221f2a6', 'dba6d5012a9419f88e1683710dbe8e9d') then
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.world_event_claim__ungated(text,integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_create_character(integer)'));
@@ -1507,7 +1510,6 @@ declare
   v_slot     int := coalesce(p_slot, 0);
   v_gold     bigint := 0;
   v_gems     int    := 0;
-  v_seal     int    := 0;
   v_band     text   := 'none';
   v_held     boolean := false;
   -- themed-chest locals
@@ -1558,7 +1560,8 @@ begin
    where event_key = v_join.event_key and points >= 200;
   v_median := coalesce(nullif(v_median, 0), 200);
 
-  -- Ceiling per §5.2: 7,500 gold · 10 gems · 1 Muster Seal. No hearth_token.
+  -- Ceiling per §5.2: 7,500 gold · 10 gems. No hearth_token. (W0: the Rally
+  -- Seal is cut — this body no longer computes, journals or returns one.)
   v_gold := 1500; v_gems := 2; v_band := 'answered';
   if v_join.points >= v_median * 0.60 then
     v_gold := v_gold + 1500; v_gems := v_gems + 2; v_band := 'silver';
@@ -1567,7 +1570,7 @@ begin
     v_gold := v_gold + 2000; v_gems := v_gems + 2; v_band := 'gold';
   end if;
   if v_held then
-    v_gold := (v_gold * 1.5)::bigint; v_gems := v_gems + 2; v_seal := 1;
+    v_gold := (v_gold * 1.5)::bigint; v_gems := v_gems + 2;
   end if;
 
   -- ── THE CONSUME. Conditional flip; row_count = 0 means a replay already took it.
@@ -1583,7 +1586,7 @@ begin
   --    Converts a slice of the band gold into domain materials + XP and returns
   --    the reduced gold (goldOut). No client value crosses in — event_key is the
   --    server's own join row, hr_rally_chest re-derives the theme from it.
-  v_chest    := public.hr_rally_chest(v_join.event_key, v_gold, v_gems, v_seal);
+  v_chest    := public.hr_rally_chest(v_join.event_key, v_gold, v_gems, 0);
   v_gold_out := coalesce((v_chest->>'gold')::bigint, v_gold);
   v_gems_out := coalesce((v_chest->>'gems')::int,    v_gems);
 
@@ -1621,13 +1624,13 @@ begin
     (auth.uid(), v_slot, 'rally', 'world_event_claim:' || p_day_key,
      v_gold_out, 0, 0, 0, 0,
      jsonb_build_object('band', v_band, 'held', v_held, 'gems_paid', v_gems_out,
-                        'seals', v_seal, 'day_key', p_day_key,
+                        'day_key', p_day_key,
                         'event_key', v_join.event_key,
                         'band_gold', v_gold, 'items', v_chest->'items',
                         'item_qty', v_qty_total, 'xp', v_chest->'xp'));
 
   return jsonb_build_object('ok', true, 'band', v_band, 'held', v_held,
-    'gold', v_gold_out, 'band_gold', v_gold, 'gems', v_gems_out, 'seals', v_seal,
+    'gold', v_gold_out, 'band_gold', v_gold, 'gems', v_gems_out,
     'items', v_chest->'items', 'xp', v_chest->'xp',
     'points', v_join.points, 'median', v_median,
     'day_key', p_day_key, 'event_key', v_join.event_key, 'slot', v_slot,

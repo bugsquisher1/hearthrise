@@ -366,6 +366,8 @@
       '.hr-gate-foot b{color:var(--scene-ink-2,#d8cbb1);font-weight:700}',
       '.hr-gate-help{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));text-align:center;color:var(--scene-ink-3,#b0a186)}',
       '.hr-gate-help a{color:var(--scene-gilt,#ecd7a0);text-decoration:underline;text-underline-offset:2px}',
+      '.hr-gate-help{text-wrap:balance}',
+      '.hr-gate-help a.hr-gate-dc{font-weight:700}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
          game rather than a door in front of it */
@@ -581,7 +583,13 @@
       if (!invite) return;
       var creating = mode === 'signup' && stage === 'form';
       invite.__row.style.display = (creating && inviteShown) ? '' : 'none';
-      inviteAside.style.display = (creating && !inviteShown) ? '' : 'none';
+      /* W0 (Early Access copy): the "Have an invite code?" line never shows —
+         there are no invite codes in Early Access, and a visible one reads as
+         a door that might be shut. The field and the server's code path are
+         untouched (auth stays as it is until Steam sign-in): a code that
+         arrives as an ?invite= LINK still reveals the field, through this
+         same disclosure, clicked programmatically by applyLinkInvite. */
+      inviteAside.style.display = 'none';
       inviteReveal.setAttribute('aria-expanded', inviteShown ? 'true' : 'false');
     }
 
@@ -671,15 +679,12 @@
         lead.textContent = 'Your session ended. Sign in again to keep your progress syncing to the realm — ' +
           'nothing you have earned is lost either way.';
       } else if (creating) {
-        /* THE OPEN-BETA LINE. It is built from nodes rather than assigned as a
-           string because the last word is a LINK — "tell us in Discord" that
-           you cannot click is an instruction with no door behind it, and this
-           screen runs before anything else in the game has loaded, so it is
-           the only door there is. */
-        lead.appendChild(document.createTextNode(
-          'Hearthrise is in open beta — make an account and play. It’s rough in places; tell us in '));
-        lead.appendChild(discordLink('Discord'));
-        lead.appendChild(document.createTextNode('.'));
+        /* THE EARLY ACCESS LINE (W0, coherence audit: the open-beta / invite-code
+           / "tell us in Discord" copy retired). What the game is and what to do
+           next, in one sentence. The Discord door stays below, as the sign-in
+           help line, for a player who cannot get in. */
+        lead.textContent = 'Hearthrise is in Early Access — make an account and step into the realm. '
+          + 'Your hero lives on the server and keeps working while you are away.';
       } else {
         lead.textContent = 'Welcome back. Sign in to pick up where the realm left you.';
       }
@@ -695,8 +700,10 @@
       // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
       // so a player who cannot sign in must still have a way to reach us.
       var help = el('div', 'hr-gate-help');
-      help.appendChild(document.createTextNode('Trouble signing in? '));
-      help.appendChild(discordLink('Join the Discord'));
+      // The first screen a new player sees is where they learn the Discord exists.
+      var D = window.HearthriseDiscord;
+      help.appendChild((D && typeof D.inviteNodes === 'function')
+        ? D.inviteNodes('hr-gate-dc') : discordLink('Join the Discord'));
       foot.parentNode.appendChild(help);
     }
 
@@ -748,14 +755,12 @@
     };
   }
 
-  var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
-  /** The one place this URL is written on the front door. */
+  /** The invite URL lives once, in src/features/discord-invite.js (loaded first).
+      Absent that module the words still read, unlinked, rather than throw. */
   function discordLink(text) {
-    var a = el('a', null, text);
-    a.href = DISCORD_INVITE;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    return a;
+    var D = window.HearthriseDiscord;
+    if (D && typeof D.link === 'function') return D.link(text, 'hr-gate-dc');
+    return el('span', null, text || 'the Hearthrise Discord');
   }
 
   // ════════════════════════════════════════════════════════════
@@ -816,7 +821,7 @@
        user". Telling that player "that invite code cannot be used" when they
        never typed one would be the worst kind of wrong: it blames them for the
        thing we are in the middle of removing. */
-    notOpenYet:  'Sign-ups are still switching over to open beta. Try again in a minute — or add an invite code if you have one.'
+    notOpenYet:  'Sign-ups are not open at this moment. Try again in a minute.'
   };
 
   // ════════════════════════════════════════════════════════════
@@ -1308,7 +1313,7 @@
   // queue rather than jumping it, because a lapsed token is never more urgent
   // than the tutorial the player is in the middle of.
   var BLOCKING = '.ftue-root .ftue-card.show, .hr-id-scrim, .hr-dl-scrim, ' +
-                 '#beta-banner-overlay, #hr-welcome-modal, #hr-post-signup-modal';
+                 '#hr-welcome-modal';
 
   var reauthUp = false;
   function promptReauth() {

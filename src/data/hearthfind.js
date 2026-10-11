@@ -20,9 +20,8 @@
 //
 // ── WHY THE ITEMS ARE bop AND v:0 ───────────────────────────────────────────
 // A hearthfind is a MOMENT, not an economy input. bop:true keeps it off the
-// player market (so it can never become a second gold bridge, the muster_seal
-// rule), and v:0 keeps it out of the vendor, so the rarest event in the game
-// mints exactly zero gold. That is also what makes the mint-leak guard
+// player market (so it can never become a second gold bridge), and v:0 keeps
+// it out of the vendor, so the rarest event in the game mints exactly zero gold. That is also what makes the mint-leak guard
 // (tests/hearthfind-mint-guard.mjs) provable rather than aspirational.
 //
 // ════════════════════════════════════════════════════════════════════════

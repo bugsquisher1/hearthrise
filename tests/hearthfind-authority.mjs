@@ -647,7 +647,7 @@ async function runAll(db) {
       `${bad} hearthfind trophies are tradeable or vendorable — a find would reach the market or mint gold`);
     const cur = (await db.query(
       `select count(*)::int c from public.hr_hearthfind_items
-        where item_id in ('hearth_token','muster_seal','dungeon_scrip')`)).rows[0].c;
+        where item_id in ('hearth_token','dungeon_scrip')`)).rows[0].c;
     ok(Number(cur) === 0, 'a priced currency is on the hearthfind allowlist');
     const minted = (await db.query(
       `select coalesce(sum(gold_in),0)::int g, coalesce(sum(xp_in),0)::int x

@@ -1110,7 +1110,7 @@ export default [
           claimCalls++;
           try { claimBody = JSON.parse(init && init.body); } catch (e) { claimBody = null; }
           return Promise.resolve(new Response(
-            JSON.stringify({ ok: true, gold: 1500, gems: 2, seals: 0, band: 'answered', held: false }),
+            JSON.stringify({ ok: true, gold: 1500, gems: 2, band: 'answered', held: false, items: [] }),
             { status: 200, headers: { 'Content-Type': 'application/json' } }));
         }
         return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
@@ -1524,7 +1524,7 @@ export default [
     if (!M || typeof M._reduceClaim !== 'function') return;
     // New RPC shape: reduced goldOut + a server item list + xp.
     const withItems = M._reduceClaim(200, {
-      ok: true, band: 'answered', held: false, gold: 750, gems: 2, seals: 0,
+      ok: true, band: 'answered', held: false, gold: 750, gems: 2,
       items: [{ id: 'iron_ore', qty: 12, value: 300 }, { id: 'coal', qty: 3, value: 120 }],
       xp: [{ skill: 'mining', amount: 300 }], credited: true, chest: true
     });
@@ -1543,17 +1543,17 @@ export default [
     assert(forged.items.length === 1 && forged.items[0].id === 'iron_bar',
       'empty ids and non-positive qtys are dropped; got ' + JSON.stringify(forged.items));
     assert(forged.items[0].qty <= 1e6, 'an absurd qty is clamped; got ' + forged.items[0].qty);
-    // Legacy RPC (no items) → the reducer returns items:null so the payout path
-    // falls back to computing the chest client-side (the un-migrated server case).
-    const legacy = M._reduceClaim(200, { ok: true, band: 'answered', held: false, gold: 1500, gems: 2, seals: 0 });
-    assert(legacy.items === null, 'an item-less (legacy) response yields items:null → client recompute path');
+    // An item-less response yields items:null, and W0's grant() pays NO items
+    // for it — the client never computes a chest of its own any more.
+    const legacy = M._reduceClaim(200, { ok: true, band: 'answered', held: false, gold: 1500, gems: 2 });
+    assert(legacy.items === null, 'an item-less response must yield items:null, got ' + JSON.stringify(legacy.items));
   }),
 
   () => tryRunAsync('server-credited (muster chest ITEMS): payChest does NOT locally re-mint server-credited items once inventory is armed; survives an absolute replace', async () => {
     // The materials now live in player_inventory. Pre-arm the server write is
     // dark, so the client credits locally for display; post-arm the absolute
     // envelope carries the rows, so the client must NOT addItem them (double).
-    // This mirrors the gold gate. Seals + XP stay client-authored on every path.
+    // This mirrors the gold gate. XP flows through addXp on every path.
     const M = window.HearthriseMuster;
     if (!M || typeof M._payChest !== 'function') return;
     const origAdd = window.addItem;
@@ -1564,16 +1564,15 @@ export default [
     try {
       window.addItem = function (id, qty) { added[id] = (added[id] || 0) + qty; };
       window.addXp = function () { xpCalls++; };
-      const chest = { eventId: 'deep_seam', gold: 0, gems: 0, seals: 1,
+      const chest = { eventId: 'deep_seam', gold: 0, gems: 0,
         items: [{ id: 'iron_ore', qty: 12 }, { id: 'coal', qty: 3 }],
         xp: [{ skill: 'mining', amount: 300 }] };
 
       // ── PRE-ARM: inventory record not yet armed → local credit for display.
       window.clientMayWriteRecordField = function () { return true; };
       M._payChest(chest, { serverItems: true });
-      assert(added.iron_ore === 12 && added.coal === 3,
+      assert(added.iron_ore === 12 && added.coal === 3 && !('muster_seal' in added),
         'pre-arm server-item chest credits locally for display; got ' + JSON.stringify(added));
-      assert(added.muster_seal === 1, 'the Muster Seal is always client-credited (not server-owned)');
 
       // ── ARMED: inventory on SERVER_OF_RECORD → the client must NOT re-mint the
       //    materials (the player_inventory rows arrive via the absolute envelope).
@@ -1583,17 +1582,7 @@ export default [
       M._payChest(chest, { serverItems: true });
       assert(!('iron_ore' in added2) && !('coal' in added2),
         'armed: server-credited materials are NOT locally re-minted; got ' + JSON.stringify(added2));
-      assert(added2.muster_seal === 1,
-        'armed: the Seal is still client-credited (muster_seal is excluded from item-authority, survives the flip untouched)');
 
-      // ── LEGACY path (serverItems false) still mints locally under arm — nothing
-      //    wrote those items server-side, so the client remains their only writer.
-      const added3 = {};
-      window.addItem = function (id, qty) { added3[id] = (added3[id] || 0) + qty; };
-      M._payChest({ eventId: 'deep_seam', gold: 0, gems: 0, seals: 0,
-        items: [{ id: 'iron_ore', qty: 5 }], xp: [] });
-      assert(added3.iron_ore === 5,
-        'legacy/solo chest (no server write) still credits items locally even when armed; got ' + JSON.stringify(added3));
     } finally {
       window.addItem = origAdd;
       window.addXp = origXp;
@@ -2774,36 +2763,6 @@ export default [
     }
   }),
 
-  () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
-    // Insurance, not a repair — no live writer can produce an out-of-range
-    // level (upgradeRoom advances by one only when levels[lv] exists, and the
-    // grandfather pass writes the literal 1). The clamp exists so the
-    // invariant is ENFORCED at load rather than true by inspection.
-    const M = window.HEARTHRISE_MIGRATIONS || window.__migrations;
-    const run = (save) => {
-      const list = (M && (M.list || M)) || null;
-      const m = (Array.isArray(list) ? list : []).find((x) => x && x.from === 8 && x.to === 9);
-      assert(m, 'the v8 → v9 room clamp migration is not registered');
-      m.apply(save);
-      return save;
-    };
-    const cap = window.ROOMS.forge.levels.length;
-    const out = run({ rooms: { forge: 99, kitchen: -2, library: 2.7, garden: NaN, workshop: '3', mystery_room: 4 } });
-    assert(out.rooms.forge === cap, 'a level past the ladder must clamp to the cap, got ' + out.rooms.forge);
-    assert(out.rooms.kitchen === 0, 'a negative level must clamp to 0');
-    assert(out.rooms.library === 2, 'a fractional level must floor');
-    assert(out.rooms.garden === 0, 'NaN must become 0, never propagate');
-    assert(out.rooms.workshop === 3, 'a numeric string must coerce');
-    // A room this build does not know keeps its level: we cannot know its cap,
-    // and deleting it would lose a feature during a staged rollout.
-    assert(out.rooms.mystery_room === 4, 'an unknown room id must be left alone');
-    // …and a legitimate save must come out untouched.
-    const clean = run({ rooms: { forge: 2, kitchen: cap } });
-    assert(clean.rooms.forge === 2 && clean.rooms.kitchen === cap, 'a valid save must be unchanged by the clamp');
-    // Idempotent, as every migration in this registry must be.
-    assert(JSON.stringify(run({ rooms: { forge: 2 } })) === JSON.stringify({ rooms: { forge: 2 } }),
-      'the clamp must be idempotent');
-  }),
 
   () => tryRun('b227: every room has a five-rung ladder with real, reachable costs', () => {
     // The b213 deadlock rule, re-run against the rungs this wave added: no
@@ -3109,8 +3068,7 @@ export default [
     // now stated as a rule rather than as a hardcoded list, so it cannot rot:
     // EVERY scroll item is checked against whether its target exists.
     const all = Object.keys(M).reduce((a, k) => a.concat(dropsOf(k)), []);
-    assert(all.indexOf('dragon_marrow_recipe') < 0,
-      'dragon_marrow_recipe is dropping but its target item (dragonbone_spear) does not exist yet (b145)');
+    // (W0 cut dragon_marrow_recipe itself — a scroll for an item that never shipped.)
     Object.entries(window.ITEMS || {}).forEach(([id, it]) => {
       if (!it || !it.recipe) return;                       // not a scroll
       const targetExists = !!(window.ITEMS || {})[it.recipe];

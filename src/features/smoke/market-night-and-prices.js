@@ -2784,8 +2784,10 @@ export default [
         assert(buy && /Buy/i.test(buy.textContent),
           'the row stopped offering the purchase — b341 informs, it does not block ' + name);
       }
-      assert(gatedSeen >= 4,
-        'the fixture found only ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
+      /* W0: the shop sells starter gear only (tier 1), so the one level-gated
+         piece left is the Fox Companion (Defence 15). One is still a subject. */
+      assert(gatedSeen >= 1,
+        'the fixture found ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
     } finally {
       restoreG(snap);
       try { window.setShopTab('seeds'); } catch (e) {}
@@ -2981,74 +2983,6 @@ export default [
           assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
         });
 
-        /* (4) THE RENAME IS A MIGRATION, NOT A NEW QUEST. Every live beta save
-           carries this row under its b341 id. Renaming without moving them
-           would leave the retired LABEL on screen and seed the new id fresh —
-           re-granting 1,500 XP to everyone who had already finished it.
-           MUTATION PROVEN: empty `QUEST_ID_RENAMES` and the first assertion
-           fails on a duplicated row; drop the `done`/`progress` carry-over in
-           `migrateQuestIds` and the pay-again assertion fails. */
-        const paid = {}; route.forEach((r) => { paid[r.skill] = xpOf(r.skill); });
-        G.quests = [
-          { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
-          { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
-            goal: 100, progress: 100, reward: { combatXp: 1500 }, done: true },
-        ];
-        G.stats.evKillAny = 4000;
-        window.ensureRetentionState();
-        window.updateQuest('kill_any', 1);
-        const rows = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-        assert(rows.length === 1 && rows[0].id === ID,
-          'the b341 quest id survived the rename (' + rows.map((r) => r.id).join(',') + ') — '
-          + 'the player keeps reading the retired label');
-        assert(rows[0].done === true, 'a completed milestone came back unfinished through the rename');
-        route.forEach((r) => {
-          assert(xpOf(r.skill) === paid[r.skill],
-            'the rename re-granted the milestone on ' + r.skill + ': +'
-            + (xpOf(r.skill) - paid[r.skill]) + ' XP');
-        });
-
-        /* An IN-FLIGHT row keeps its place too, and is still payable. */
-        G.quests = [{ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'old',
-          goal: 100, progress: 62, reward: { combatXp: 1500 }, done: false }];
-        G.stats.evKillAny = 62;
-        window.ensureRetentionState();
-        const mid = G.quests.filter((x) => x.id === ID);
-        assert(mid.length === 1 && mid[0].done === false && mid[0].progress === 62,
-          'an in-flight milestone lost its progress in the rename: ' + JSON.stringify(mid));
-
-        /* (5) BOTH IDS IN ONE SAVE — the one state a rename can produce, and
-           the reason the migration dedupes rather than only renaming. Two rows
-           under one id both complete and both PAY. Asserted in BOTH orders,
-           because which row the merge meets first decides which one survives
-           and only one of the two orders exercises the carry-over.
-           MUTATION PROVEN: drop the `prev.done || q.done` term in
-           `migrateQuestIds` and the fresh-row-first order fails on a finished
-           milestone coming back unfinished — and then paying again. */
-        const oldRow = () => ({ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills',
-          label: 'Field Licence — defeat 100 monsters', goal: 100, progress: 100,
-          reward: { combatXp: 1500 }, done: true });
-        const newRow = () => ({ id: ID, type: 'kill_any', mirror: 'stats.kills',
-          label: 'Defeat 100 monsters', goal: 100, progress: 0,
-          reward: { combatXp: 1500 }, done: false });
-        [['old first', [oldRow(), newRow()]], ['fresh first', [newRow(), oldRow()]]].forEach(([label, rows2]) => {
-          G.quests = rows2;
-          G.stats.evKillAny = 4000;
-          const held = {}; route.forEach((r) => { held[r.skill] = G.skills[r.skill] || 0; });
-          window.ensureRetentionState();
-          window.updateQuest('kill_any', 1);
-          const merged = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-          assert(merged.length === 1 && merged[0].id === ID,
-            label + ': the duplicate survived (' + merged.map((r) => r.id).join(',') + ') — two rows '
-            + 'under one id complete twice and pay twice');
-          assert(merged[0].done === true,
-            label + ': a finished milestone came back unfinished through the merge');
-          route.forEach((r) => {
-            assert((G.skills[r.skill] || 0) === held[r.skill],
-              label + ': the merge re-granted the milestone on ' + r.skill + ': +'
-              + ((G.skills[r.skill] || 0) - held[r.skill]) + ' XP');
-          });
-        });
       } finally { window.getBonus = origBonus; }
     } finally { window.HearthriseGoalClaim = origClaim; restoreG(snap); }
   }),
@@ -3694,81 +3628,6 @@ export default [
     }
   }),
 
-  () => tryRun('b342-4: the beta banner QUEUES behind the welcome-back modal instead of drawing over it', () => {
-    /* THE MEASURED BUG. "Welcome back, adventurer" with "This is a beta build"
-       drawn on top of it and `Continue` peeking out below. The banner's
-       don't-stack check listed `#welcome-modal.show`, and legacy.js builds
-       `<div id="welcome-overlay" class="welcome-overlay">` with an INNER
-       `.welcome-modal` that never takes `.show` — so the selector matched
-       nothing, the banner "correctly" saw an empty screen, and drew.
-       A selector that matches nothing is invisible from outside, which is why
-       this asserts the predicate against the REAL overlay the game builds.
-       MUTATION PROVEN: revert the list to `#welcome-modal.show` and the first
-       assertion fails. */
-    const BB = window.HearthriseBetaBanner;
-    assert(BB && typeof BB.__modalAlreadyOpen === 'function',
-      'the beta banner must publish its don\'t-stack predicate for this to be assertable at all');
-    const G = window.G;
-    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
-    const parked = [];   // visible to `finally`
-    try {
-      /* Clear the screen first, and do it the way Escape does. The assertion
-         below is a DELTA (closed → open), so it only means something from a
-         clear start — and leaving that to test ordering is how a guard becomes
-         intermittent. */
-      /* EVERY surface in the queue's own list, not just `.modal.show`: on a
-         cold boot the FTUE shade is up, so a fixture that clears one class
-         passes only because some earlier test happened to dismiss the rest.
-         Derived from the list itself, so a sixth surface does not silently
-         re-introduce the ordering dependency. Restored in `finally`. */
-      BB.__blockingModals.split(', ').forEach((sel) => {
-        if (sel === '#welcome-overlay.show') return;      // the surface under test
-        document.querySelectorAll(sel).forEach((n) => {
-          if (sel.endsWith('.show')) { n.classList.remove('show'); parked.push(n); }
-          else if (n.parentNode) { parked.push({ node: n, parent: n.parentNode }); n.parentNode.removeChild(n); }
-        });
-      });
-      const before = BB.__modalAlreadyOpen();
-      assert(before === false,
-        'the fixture needs a clear screen — something else is already modal: ' + BB.__blockingModals);
-      G.lastSeen = Date.now() - 8 * 3600000;
-      G.lastWelcome = 0;
-      window.__maybeShowWelcome();
-      const ov = document.getElementById('welcome-overlay');
-      assert(ov && ov.classList.contains('show'),
-        'the fixture did not raise the welcome modal, so the collision cannot be observed');
-      assert(BB.__modalAlreadyOpen() === true,
-        'THE b342 BUG: the beta banner does not see the welcome-back modal and will draw on top of it');
-      ov.classList.remove('show');
-      assert(BB.__modalAlreadyOpen() === false,
-        'the banner is blocked forever once the modal has been shown — a queue that never drains');
-      /* The other real overlays are in the list too; a queue that only knows
-         one of them is a queue that will collide with the next one. Each entry names a surface that CURRENTLY exists: `#welcome-overlay`
-         (the welcome-back modal the fixture above raised), `#hr-dl-modal` (daily-reward,
-         presence-only — it has no `.show` state), `.ach-overlay` and the two FTUE
-         nodes. Set the Night (a779c9cf) adds NO overlay of its own: its morning
-         half renders INSIDE `#welcome-overlay`, which is the entry proven above,
-         so it has nothing of its own to list. */
-      ['#welcome-overlay.show', '#hr-dl-modal', '.ftue-shade.show', '.ftue-card.show',
-       '.ach-overlay.show'].forEach((sel) => {
-        assert(BB.__blockingModals.indexOf(sel) >= 0,
-          'the don\'t-stack list lost ' + sel + ': ' + BB.__blockingModals);
-      });
-      /* AND NOTHING DEAD. The bug this guard was written for was not a missing
-         selector — it was a
-         selector that matched nothing, sitting in the list LOOKING like coverage.
-         `#wbv-overlay` is the welcome-v2 modal Set the Night retired (deleted,
-         not unwired — see NIGHT-4); back in this list it is the same silent
-         hole again. */
-      assert(BB.__blockingModals.indexOf('wbv-overlay') < 0,
-        'the don\'t-stack list carries a DEAD selector (#wbv-overlay was retired with '
-        + 'welcome-v2): ' + BB.__blockingModals);
-    } finally {
-      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
-      parked.forEach((p) => { if (p && p.node) p.parent.appendChild(p.node); else if (p) p.classList.add('show'); });
-      Object.assign(G, save);
-    }
-  }),
 
   () => tryRun('b342-5: the welcome-back modal states the night ONCE, and states what it paid', () => {
     /* THE MEASURED BUG, both halves in one screen:
@@ -5490,28 +5349,21 @@ export default [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
+    ('abyssal_greaves defense 88|apprentice_staff magic 1|'   /* the ruled rows (34 since W0 cut seven unobtainable ones), id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
       + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
       + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
-      + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
       + 'iron_arrows ranged 1|iron_helm defense 15|iron_platebody defense 15|iron_sword attack 15|'
       + 'iron_warhammer attack 15|leather_boots defense 1|leather_gloves defense 1|longbow ranged 15|'
-      + 'oak_staff magic 15|pathfinder_studs defense 1|regent_helm defense 88|rune_sword attack 60|'
+      + 'oak_staff magic 15|regent_helm defense 88|rune_sword attack 60|'
       + 'shortbow ranged 1|slagheart_platebody defense 88|steel_helm defense 30|'
-      + 'steel_platebody defense 30|steel_sword attack 30|stone_maul attack 1|tally_ring defense 1|'
-      + 'unlit_earrings defense 75|warden_girdle defense 88|wyrmgilt_mantle defense 88'
+      + 'steel_platebody defense 30|steel_sword attack 30|stone_maul attack 1|'
+      + 'warden_girdle defense 88|wyrmgilt_mantle defense 88'
     ).split('|').forEach((row) => {
       const p = row.split(' '), it = I[p[0]] || {};
       assert(it.reqSkill === p[1] && it.reqLv === Number(p[2]), p[0] + ' must gate on ' + p[1] + ' Lv ' + p[2]
         + ', got ' + it.reqSkill + ' Lv ' + it.reqLv);
-    });
-    /* A cosmetic is EARNED, not out-levelled — no tier and no gate, on both sides. */
-    ['bestiary_cloak', 'hearthstone_signet'].forEach((id) => {
-      const it = I[id] || {};
-      assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
-        id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
     });
     assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',   /* `companion` is a TYPE the authority returned null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot */
       'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '

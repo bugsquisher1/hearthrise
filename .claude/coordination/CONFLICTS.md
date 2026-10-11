@@ -1623,3 +1623,25 @@ tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against t
 **RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
 
 **Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.
+
+---
+
+## 2026-10-10 — FLAG: the Discord gift's operator rotation writes production outside apply-migration
+**Lane:** `lane/b567-discord-join` (systems-engineer). Nothing is applied; this is a decision for the Coordinator, not a request to loosen §2.
+
+The brief asks for `tools/discord-gift-code.mjs`, an operator one-liner that rotates the active gift code through the management API. That is a production DATA write (`select public.hr_discord_code_rotate('<code>')`: one row retired, one inserted in `hr_discord_codes`) that does not go through `tools/apply-migration.mjs`, which CLAUDE.md §2 names as the only production write path. It moves no player value (the amount is a server constant; the table is operator config, RLS-forced, no client grant), the token is read as file bytes and never printed, and no agent has run it. **Ruling needed:** bless it as an operator verb (run after the migration applies; until a code exists the gift is OFF), or route each rotation through a one-statement migration file. **For the Game Designer:** the gift is proposed at 50 gems (one bank expansion on day one, a quarter of the first hero slot); a retune is one constant in §5 of `2026-10-18-discord-gift.sql`.
+
+**RESOLVED 2026-10-11 (Coordinator + Security GO-WITH-CHANGES; Game Designer):** no rotation writes at all. The repo is public, so neither a code nor its sha256 may ever be committed (31^6 cracks offline). The code is DERIVED server-side (HMAC of the Vault secret `hr_discord_gift_secret` over the ISO week; last week's honoured as grace); the code table and rotate function are deleted; `hr_discord_code_current()` is owner-only and `tools/discord-gift-code.mjs` only READS it. Amount: **25 gems** (Baron parity).
+
+---
+
+## 2026-10-10 — W0a vs w0e/w0f (Systems Engineer)
+
+**Semantic overlap, not a git conflict.** tests/catalogue-coherence.mjs holds a shrink-only PENDING list: w0f (boss materials void_essence/riftmaw_husk/elderscale_heart; trophies warboss_standard/lexarch_seal/voidwoven_sigil/dragon_relic) and w0e (Prayer has no consumer). When those lanes give each a use, they must delete the row in the same commit, or C2/C4 fails as stale. w0a also cut the six elemental arrows/whetstones and the fletching/mason tool ladders from library2-items.js SUPPLY_CHAINS — w0e (ammo/Runecrafting) should merge on top of that, not re-add them.
+
+---
+
+## 2026-10-11 — SEMANTIC CONFLICT RESOLVED: W0a's seal cut vs the account wallet's restatement of world_event_claim__ungated
+**Lanes:** `lane/w0a-cuts-and-copy` (2026-10-10-w0a-catalogue-cuts.sql §1c) and `lane/c-account-wallet` (2026-10-19-account-wallet.sql §4), met in `lane/b567-discord-join`. No git hunk; the chain stopped replaying.
+
+Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the wallet routes its gems through `hr_wallet_credit` and pinned its pre-image to the chain WITHOUT W0a, so with both present the wallet refused at §0 (md5 b2a71614). Neither order works alone: wallet-then-W0a would put a `player_state.gems` write back after the column is dropped. **Resolution (in the wallet file, flagged for Security re-review):** the wallet's restatement is rebased onto W0a's seal-less body (the seal declare, `v_seal := 1`, `hr_rally_chest(…, v_seal)` → `0`, and the `seals` ledger/answer keys removed — exactly W0a's diff), and its §0 pin is now pre = b2a71614 (W0a's body), post = dba6d501. Apply order: w0a-catalogue-cuts → name-moderation → account-wallet → discord-gift. Verified on the merged chain: tests/account-wallet.mjs + --mutate, tests/discord-gift.mjs + --mutate, schema-drift, catalogue-coherence.

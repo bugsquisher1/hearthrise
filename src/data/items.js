@@ -541,7 +541,6 @@ export const ITEMS={
   captain_recipe:       {n:"Captain's Ribblade Recipe", icon:'📜', v:0, recipe:'captains_ribblade'},
   alpha_pattern:        {n:'Alpha Cloak Pattern',       icon:'📜', v:0, recipe:'alpha_cloak'},
   spellstone_diagram:   {n:'Spellstone Diagram',        icon:'📜', v:0, recipe:'spellstone_ring'},
-  dragon_marrow_recipe: {n:'Dragon Marrow Recipe',      icon:'📜', v:0, recipe:'dragonbone_spear'},
   gemcutter_note:       {n:"Gemcutter's Note",          icon:'📜', v:0, recipe:'dragon_gem_earrings'},
   soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
   marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
@@ -605,25 +604,6 @@ export const ITEMS={
   hearth_token: {
     n:'Hearth Token', icon:'🪙', v:25000, premium:true,
     rarity:'currency', tag:'currency',
-  },
-  /* b220 (#15): the Muster Seal is the world-event currency. It is the
-     DELIBERATE opposite of the Hearth Token — earned only by playing, capped
-     at one per UTC day by the muster's own join rule, and bind-on-pickup so it
-     can never reach the player market and become a second gold bridge. The
-     headline value of a world event lives here rather than in gems, so events
-     stay desirable without inflating the currency that is also sold for money.
-     Its ONLY source is HearthriseMuster's claim path (a guard test asserts no
-     drop table, recipe, shop or chest can mint it). Never a Hearth Token. */
-  muster_seal: {
-    /* `icon` is the LAST-RESORT glyph for the handful of legacy render sites
-       that build HTML from `ITEMS[id].icon` instead of `_itemPath` (the item
-       detail card, the market row). Every other item answers those with an
-       emoji; this one answers with its real art, because nothing in Hearthrise
-       renders emoji as art. Same convention `window._itemSVG` already uses. */
-    n:'Rally Seal',
-    icon:'<img src="assets/icons-bundle/medieval/muster-seal.svg" alt="" draggable="false" style="width:100%;height:100%;max-width:38px;max-height:38px;object-fit:contain;display:inline-block;vertical-align:-.15em" />',
-    v:0, bop:true,
-    rarity:'currency', tag:'currency', musterOnly:true,
   },
 
   /* ══════════════════════════════════════════════════════════════════
@@ -738,7 +718,7 @@ export const ITEMS={
      — it is the prestige reward for clearing the fight yourself, not a market
      flip. Signature COSMETICS / trophies / materials stay TRADEABLE so the boss
      feeds the player economy without letting the best gear be bought. No
-     signature item ever touches hearth_token / muster_seal (mint-leak guards).
+     signature item ever touches hearth_token (mint-leak guard).
 
      Weapon reqLv is set explicitly to the dungeon's combat-level gate (no `tier`,
      so gearWieldReq reads reqLv directly). Stats slot each weapon between the
@@ -765,8 +745,8 @@ export const ITEMS={
      clear (scaled by the dungeon's level), spent at the Quartermaster for keys,
      blueprints and — the point — a DETERMINISTIC path to the signature boss
      weapons, so chasing a 3% drop isn't the only way. Bind-on-pickup (earned, not
-     traded) and never touches hearth_token/muster_seal (mint-leak guards). */
-  dungeon_scrip: {n:'Dungeon Scrip', icon:'🎟️', v:0, bop:true, tag:'currency', rarity:'uncommon', musterOnly:false},
+     traded) and never touches hearth_token (mint-leak guard). */
+  dungeon_scrip: {n:'Dungeon Scrip', icon:'🎟️', v:0, bop:true, tag:'currency', rarity:'uncommon', },
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
   dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, spdB:.03, reqSkill:'attack', reqLv:95, rarity:'legendary'},
@@ -797,11 +777,11 @@ export const ITEMS={
 
      bop:true and v:0, both load-bearing rather than flavour:
        · bop  — never reaches the player market, so the rarest event in the game
-                cannot become a gold bridge (the muster_seal rule).
+                cannot become a gold bridge.
        · v:0  — never reaches the vendor, so a find mints ZERO gold. Together
                 they are what makes tests/hearthfind-mint-guard.mjs a proof:
                 a hearthfind pays one untradeable, unsellable trophy and nothing
-                else — never gold, gems, hearth_token or muster_seal.
+                else — never gold, gems or hearth_token.
      Which sources pay which trophy is src/data/hearthfind.js. */
   emberheart:        {n:'Emberheart',         icon:'❤️‍🔥', v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
   worldroot_seed:    {n:'Worldroot Seed',     icon:'🌰',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},

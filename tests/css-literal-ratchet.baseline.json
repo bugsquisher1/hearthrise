@@ -88,9 +88,6 @@
     "src/admin.js": {
       "literals": 21
     },
-    "src/beta-banner.js": {
-      "literals": 8
-    },
     "src/bug-report.js": {
       "literals": 20
     },
@@ -201,9 +198,6 @@
     },
     "src/network-status.js": {
       "literals": 1
-    },
-    "src/post-signup-welcome.js": {
-      "literals": 12
     },
     "src/render/active-effects.js": {
       "literals": 1

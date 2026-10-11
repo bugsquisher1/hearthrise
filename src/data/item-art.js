@@ -104,7 +104,7 @@ export function fileFor(id) { return String(id) + '.png'; }
  * art exist?" has to be data) but NOT trusted: `tests/run-smoke.mjs` walks
  * `assets/icons-bundle/hearthfire/**` in Node and fails if this list and the
  * filesystem disagree in either direction, and fails again if any id here is
- * not a live `ITEMS` key. 473 entries.
+ * not a live `ITEMS` key. 440 entries.
  */
 export const SHIPPED = Object.freeze({
   armour: Object.freeze([
@@ -114,88 +114,84 @@ export const SHIPPED = Object.freeze({
     'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'boarhide_belt', 'boarhide_body',
     'boarhide_boots', 'boarhide_gloves', 'boarhide_helmet', 'boarhide_pants', 'bronze_belt',
     'bronze_boots', 'bronze_gauntlets', 'bronze_helm', 'bronze_platebody', 'bronze_platelegs',
-    'dawn_belt', 'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody', 'dawn_platelegs',
-    'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves',
-    'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots', 'ember_gauntlets',
-    'ember_helm', 'ember_platebody', 'ember_platelegs', 'iron_belt', 'iron_boots',
-    'iron_gauntlets', 'iron_helm', 'iron_platebody', 'iron_platelegs', 'leather_belt',
-    'leather_body', 'leather_boots', 'leather_gloves', 'leather_helmet', 'leather_pants',
-    'mithril_belt', 'mithril_boots', 'mithril_gauntlets', 'mithril_helm', 'mithril_platebody',
-    'mithril_platelegs', 'rune_belt', 'rune_boots', 'rune_gauntlets', 'rune_helm',
-    'rune_platebody', 'rune_platelegs', 'scholar_belt', 'scholar_body', 'scholar_boots',
-    'scholar_gloves', 'scholar_helmet', 'scholar_pants', 'snakeskin_belt', 'snakeskin_body',
-    'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_helmet', 'snakeskin_pants',
-    'sorcerer_belt', 'sorcerer_body', 'sorcerer_boots', 'sorcerer_gloves', 'sorcerer_helmet',
-    'sorcerer_pants', 'steel_belt', 'steel_boots', 'steel_gauntlets', 'steel_helm',
-    'steel_platebody', 'steel_platelegs', 'studded_belt', 'studded_body', 'studded_boots',
-    'studded_gloves', 'studded_helmet', 'studded_pants', 'voidhide_belt', 'voidhide_body',
-    'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidweave_belt',
-    'voidweave_body', 'voidweave_boots', 'voidweave_gloves', 'voidweave_helmet',
-    'voidweave_pants', 'warlock_belt', 'warlock_body', 'warlock_boots', 'warlock_gloves',
-    'warlock_helmet', 'warlock_pants', 'wyvernhide_belt', 'wyvernhide_body', 'wyvernhide_boots',
-    'wyvernhide_gloves', 'wyvernhide_helmet', 'wyvernhide_pants',
+    'dawn_belt', 'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
+    'dawn_platelegs', 'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots',
+    'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
+    'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs', 'iron_belt',
+    'iron_boots', 'iron_gauntlets', 'iron_helm', 'iron_platebody', 'iron_platelegs',
+    'leather_belt', 'leather_body', 'leather_boots', 'leather_gloves', 'leather_helmet',
+    'leather_pants', 'mithril_belt', 'mithril_boots', 'mithril_gauntlets', 'mithril_helm',
+    'mithril_platebody', 'mithril_platelegs', 'rune_belt', 'rune_boots', 'rune_gauntlets',
+    'rune_helm', 'rune_platebody', 'rune_platelegs', 'scholar_belt', 'scholar_body',
+    'scholar_boots', 'scholar_gloves', 'scholar_helmet', 'scholar_pants', 'snakeskin_belt',
+    'snakeskin_body', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_helmet',
+    'snakeskin_pants', 'sorcerer_belt', 'sorcerer_body', 'sorcerer_boots', 'sorcerer_gloves',
+    'sorcerer_helmet', 'sorcerer_pants', 'steel_belt', 'steel_boots', 'steel_gauntlets',
+    'steel_helm', 'steel_platebody', 'steel_platelegs', 'studded_belt', 'studded_body',
+    'studded_boots', 'studded_gloves', 'studded_helmet', 'studded_pants', 'voidhide_belt',
+    'voidhide_body', 'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants',
+    'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
+    'voidweave_helmet', 'voidweave_pants', 'warlock_belt', 'warlock_body', 'warlock_boots',
+    'warlock_gloves', 'warlock_helmet', 'warlock_pants', 'wyvernhide_belt', 'wyvernhide_body',
+    'wyvernhide_boots', 'wyvernhide_gloves', 'wyvernhide_helmet', 'wyvernhide_pants',
   ]),
   food: Object.freeze([
     'baked_potato', 'bear_claw_pie', 'burnt_food', 'carrot', 'carrot_seed', 'carrot_stew',
-    'cooked_bear_meat', 'cooked_frostfin', 'cooked_herring', 'cooked_lobster', 'cooked_moonfish',
-    'cooked_panther_meat', 'cooked_shark', 'cooked_shrimp', 'cooked_swordfish', 'cooked_trout',
-    'cooked_wolf_meat', 'dragon_stew', 'ember_tart', 'emberfruit', 'emberfruit_seed', 'frostfin',
-    'goldenroot', 'goldenroot_roast', 'goldenroot_seed', 'grave_salt', 'hearthbread', 'herring',
-    'hunters_feast', 'kettle_tea', 'lich_soul_soup', 'lobster', 'moonbloom', 'moonbloom_elixir',
-    'moonbloom_seed', 'moonfish', 'potato', 'potato_seed', 'pumpkin', 'pumpkin_pie',
-    'pumpkin_seed', 'ratters_bait', 'raw_bear_meat', 'raw_panther_meat', 'raw_wolf_meat',
-    'roasted_carrot', 'roasted_pumpkin', 'shark', 'shrimp', 'swordfish', 'tomato', 'tomato_seed',
-    'tomato_soup', 'travellers_stew', 'trout', 'turnip', 'turnip_mash', 'turnip_seed',
-    'vegetable_stew', 'void_banquet', 'wheat', 'wheat_bread', 'wheat_seed', 'winterdraught',
+    'cooked_bear_meat', 'cooked_frostfin', 'cooked_herring', 'cooked_lobster',
+    'cooked_moonfish', 'cooked_panther_meat', 'cooked_shark', 'cooked_shrimp',
+    'cooked_swordfish', 'cooked_trout', 'cooked_wolf_meat', 'dragon_stew', 'ember_tart',
+    'emberfruit', 'emberfruit_seed', 'frostfin', 'goldenroot', 'goldenroot_roast',
+    'goldenroot_seed', 'herring', 'hunters_feast', 'lich_soul_soup', 'lobster', 'moonbloom',
+    'moonbloom_elixir', 'moonbloom_seed', 'moonfish', 'potato', 'potato_seed', 'pumpkin',
+    'pumpkin_pie', 'pumpkin_seed', 'raw_bear_meat', 'raw_panther_meat', 'raw_wolf_meat',
+    'roasted_carrot', 'roasted_pumpkin', 'shark', 'shrimp', 'swordfish', 'tomato',
+    'tomato_seed', 'tomato_soup', 'trout', 'turnip', 'turnip_mash', 'turnip_seed',
+    'vegetable_stew', 'void_banquet', 'wheat', 'wheat_bread', 'wheat_seed',
   ]),
   items: Object.freeze([
-    'abyssal_greaves', 'abyssal_pearl', 'air_rune', 'alpha_cloak', 'alpha_fang', 'alpha_pattern',
-    'ancient_claw', 'ancient_fragment', 'ancient_rune', 'arcane_tome', 'ashcrown_greatsword',
-    'ashlar', 'banded_signet', 'basalt', 'basalt_block', 'bat_wing', 'bear_claw', 'bear_pelt',
-    'bestiary_cloak', 'big_bones', 'blood_rune', 'bone_chips', 'bone_earrings', 'bone_key',
-    'bones', 'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade',
-    'carters_strap', 'chaos_rune', 'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets',
-    'chronicle_ribbon', 'coal', 'coarse_whetstone', 'colossus_plate', 'colossus_seal',
-    'copper_ring', 'copper_studs', 'copper_whetstone',
-    'cracked_spellstone', 'crown_of_the_fallen_king', 'cutpurse_gloves', 'dark_sigil',
-    'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet', 'dawnforged_signet', 'dawnlit_mantle',
-    'dawnstone_ore', 'death_rune', 'death_steel', 'deep_rune_blank', 'demon_shard', 'dire_fang',
-    'draconias_jaw', 'dragon_bones', 'dragon_gem', 'dragon_gem_earrings', 'dragon_marrow_recipe',
-    'dragon_relic', 'dragon_scale', 'dragonfang_pike', 'dragonrend_greatblade',
-    'dragonsbane_key', 'dressed_block', 'dungeon_scrip', 'duskwood_log',
+    'abyssal_greaves', 'abyssal_pearl', 'air_rune', 'alpha_cloak', 'alpha_fang',
+    'alpha_pattern', 'ancient_claw', 'ancient_fragment', 'ancient_rune', 'arcane_tome',
+    'ashcrown_greatsword', 'ashlar', 'banded_signet', 'basalt', 'basalt_block', 'bat_wing',
+    'bear_claw', 'bear_pelt', 'big_bones', 'blood_rune', 'bone_chips', 'bone_key', 'bones',
+    'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade', 'chaos_rune',
+    'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets', 'coal', 'coarse_whetstone',
+    'copper_ring', 'copper_studs', 'copper_whetstone', 'cracked_spellstone',
+    'crown_of_the_fallen_king', 'dark_sigil', 'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet',
+    'dawnforged_signet', 'dawnlit_mantle', 'dawnstone_ore', 'death_rune', 'death_steel',
+    'deep_rune_blank', 'demon_shard', 'dire_fang', 'dragon_bones', 'dragon_gem',
+    'dragon_gem_earrings', 'dragon_relic', 'dragon_scale', 'dragonfang_pike',
+    'dragonrend_greatblade', 'dragonsbane_key', 'dressed_block', 'dungeon_scrip',
     /* b432: `ember_rune` / `frost_rune` are the paintings delivered as
        `rune_of_ember.png` / `rune_of_frost.png`, renamed on disk when the
        duplicate `rune_of_*` items were retired (library2-items.js). Same two
        files, same subjects — a flat rune-stone carved with an ember / frost
        glyph — now wired to the ids a player can actually hold. */
-    'earth_rune', 'elderscale_heart', 'ember_bar', 'ember_rune', 'emberfang_blade', 'emberstone_ore',
-    'fang_studs', 'fangdart_recurve', 'farm_deed', 'field_cookbook', 'field_ledger',
-    'field_ration', 'fine_rune_blank', 'fire_rune', 'forge_blueprint_t2', 'forge_blueprint_t3',
-    'fox_companion', 'frost_locket', 'frost_rune', 'gemcutter_note', 'goblin_ear', 'goblin_seal',
-    'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring', 'granite',
-    'granite_block', 'grave_dust', 'hearth_token', 'hearthstone_signet', 'heartwood_cape',
-    'hell_ember', 'hollow_sigil', 'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace',
-    'hunters_torc', 'iron_bar', 'iron_fitting', 'iron_ore', 'iron_whetstone', 'keystone',
-    'kitchen_blueprint_t2', 'kitchen_blueprint_t3', 'lexarch_seal', 'library_blueprint_t2',
-    'library_blueprint_t3', 'lich_soul', 'magic_essence', 'maple_log', 'maple_plank',
-    'marrow_cookbook', 'mithril_bar', 'mithril_ore', 'mithril_whetstone', 'night_fang',
-    'nightstalker_pelt', 'normal_log', 'normal_plank', 'oak_log', 'obsidian_sigil',
-    'panthers_eye_pendant', 'pathfinder_studs', 'pitlord_irons', 'plague_ichor',
+    'duskwood_log', 'earth_rune', 'elderscale_heart', 'ember_bar', 'ember_rune',
+    'emberfang_blade', 'emberstone_ore', 'fang_studs', 'fangdart_recurve', 'farm_deed',
+    'field_cookbook', 'field_ration', 'fine_rune_blank', 'fire_rune', 'forge_blueprint_t2',
+    'forge_blueprint_t3', 'fox_companion', 'frost_rune', 'gemcutter_note', 'goblin_ear',
+    'goblin_seal', 'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring',
+    'granite', 'granite_block', 'grave_dust', 'hearth_token', 'hell_ember', 'hollow_sigil',
+    'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace', 'iron_bar', 'iron_fitting',
+    'iron_ore', 'iron_whetstone', 'keystone', 'kitchen_blueprint_t2', 'kitchen_blueprint_t3',
+    'lexarch_seal', 'library_blueprint_t2', 'library_blueprint_t3', 'lich_soul',
+    'magic_essence', 'maple_log', 'maple_plank', 'marrow_cookbook', 'mithril_bar',
+    'mithril_ore', 'mithril_whetstone', 'night_fang', 'nightstalker_pelt', 'normal_log',
+    'normal_plank', 'oak_log', 'obsidian_sigil', 'panthers_eye_pendant', 'plague_ichor',
     'plaguewarden_greaves', 'quiet_coat', 'rat_tail', 'razor_claw', 'regent_helm',
     'riftmaw_husk', 'rubble', 'ruby', 'ruby_signet', 'rubyfire_studs', 'rune_bar', 'rune_blank',
-    'rune_frag', 'rune_whetstone', 'runewood_log',
-    'shadow_pelt', 'shadow_thread', 'shadowsilk_cape', 'silk_thread',
-    'slagheart_core', 'slagheart_platebody', 'slime_gel', 'small_fang', 'soul_recipe',
-    'spellstone_diagram', 'spellstone_ring', 'spider_eye', 'spidereye_studs',
-    'spidersilk_choker', 'steel_bar', 'steel_whetstone', 'sticky_core', 'surveyors_chain',
-    'swarm_heart', 'tally_ring', 'timber_beam', 'tithe_box', 'traveler_cape', 'troll_hide',
-    'trollhide_cape', 'trophy_blueprint_t2', 'trophy_blueprint_t3', 'unlit_earrings',
-    'vamp_dust', 'venom_sac', 'void_chitin', 'void_core', 'void_essence', 'void_fragment',
-    'voidmaw_scepter', 'voidwoven_sigil', 'war_crown', 'warband_bulwark', 'warboss_standard',
-    'warden_girdle', 'warden_seal', 'warlord_badge', 'warlords_torc', 'water_rune',
-    'weathervane', 'whispering_codex', 'willow_log', 'willow_plank', 'wolf_pelt',
-    'wolfbone_torc', 'woolen_cloak', 'wraith_veil', 'wraithglass_drops', 'wraithsilk_shroud',
-    'wyrm_gilding', 'wyrmgilt_mantle', 'yew_log', 'yew_plank',
+    'rune_frag', 'rune_whetstone', 'runewood_log', 'shadow_pelt', 'shadow_thread',
+    'shadowsilk_cape', 'silk_thread', 'slagheart_core', 'slagheart_platebody', 'slime_gel',
+    'small_fang', 'soul_recipe', 'spellstone_diagram', 'spellstone_ring', 'spider_eye',
+    'spidereye_studs', 'spidersilk_choker', 'steel_bar', 'steel_whetstone', 'sticky_core',
+    'swarm_heart', 'timber_beam', 'traveler_cape', 'troll_hide', 'trollhide_cape',
+    'trophy_blueprint_t2', 'trophy_blueprint_t3', 'vamp_dust', 'venom_sac', 'void_chitin',
+    'void_core', 'void_essence', 'void_fragment', 'voidmaw_scepter', 'voidwoven_sigil',
+    'war_crown', 'warband_bulwark', 'warboss_standard', 'warden_girdle', 'warden_seal',
+    'warlord_badge', 'warlords_torc', 'water_rune', 'whispering_codex', 'willow_log',
+    'willow_plank', 'wolf_pelt', 'wolfbone_torc', 'woolen_cloak', 'wraith_veil',
+    'wraithglass_drops', 'wraithsilk_shroud', 'wyrm_gilding', 'wyrmgilt_mantle', 'yew_log',
+    'yew_plank',
   ]),
   weapons: Object.freeze([
     'barbed_arrows', 'bone_needle', 'bramble_blade', 'bronze_arrows', 'bronze_axe',
@@ -276,10 +272,10 @@ export const REGENERATE_DESPITE_SHIPPING = Object.freeze(['items/iron_ore']);
  */
 export const REJECTED_WRONG_SUBJECT = Object.freeze([
   'armour/chitinweave_chaps', 'armour/chitinweave_helm', 'armour/watchknight_sabatons',
-  'items/alphaheart_longbow', 'items/blight_arrows', 'items/demoncaller_staff',
-  'items/frost_arrows', 'items/vaultstone', 'items/widows_fang', 'weapons/apprentice_staff',
+  'items/alphaheart_longbow', 'items/demoncaller_staff',
+  'items/widows_fang', 'weapons/apprentice_staff',
   'weapons/deathsteel_ingot', 'weapons/maple_rod', 'weapons/maple_staff',
-  'weapons/masons_rule_t4', 'weapons/masons_rule_t7', 'weapons/oak_staff', 'weapons/rune_needle',
+  'weapons/oak_staff', 'weapons/rune_needle',
   'weapons/void_chitin_weave', 'weapons/willow_rod', 'weapons/yew_rod',
   /* Asset Director, 2026-08-17 — b361 control sweep. See the comment near the
      top of this file for what each file actually depicts. */
@@ -296,27 +292,19 @@ export const REJECTED_WRONG_SUBJECT = Object.freeze([
  * is a tier-order guess, not a fact). Renaming is an Asset Director task.
  */
 /**
- * Delivered, correct, and STILL withheld — because something better already
- * ships for that id. `muster_seal` is a struck vector seal
- * (`icons-bundle/medieval/muster-seal.svg`) referenced directly from
- * `items.js` and from `muster.js`; it is a CURRENCY, it renders inside the
- * `.hr-med` medallion, and the medallion's whole design language is a centred
- * vector glyph that cannot go soft at any size. A raster painting is a
- * downgrade there, so the b220 guard that pins it stays strict rather than
- * being widened to let this batch through.
+ * Delivered, correct, and STILL withheld because something better already
+ * ships for that id. Empty since W0 (2026-10-10): its one entry, the Rally
+ * Seal, was cut with the currency.
  */
-export const WITHHELD_BESPOKE_ART = Object.freeze(['items/muster_seal']);
+export const WITHHELD_BESPOKE_ART = Object.freeze([]);
 
 export const UNRESOLVED_FILES = Object.freeze([
   'armour/chitinweave_belt', 'armour/chitinweave_body', 'armour/chitinweave_boots',
   'armour/chitinweave_chaps', 'armour/chitinweave_helm', 'armour/chitinweave_vambraces',
   'armour/watchknight_cuirass', 'armour/watchknight_gauntlets', 'armour/watchknight_girdle',
   'armour/watchknight_greaves', 'armour/watchknight_helm', 'armour/watchknight_sabatons',
-  'items/blight_arrows', 'items/blight_whetstone', 'items/ember_arrows', 'items/ember_whetstone',
-  'items/frost_arrows', 'items/frost_whetstone', 'items/rune_of_blight',
-  'weapons/deathsteel_ingot', 'weapons/fletchers_knife_t1', 'weapons/fletchers_knife_t4',
-  'weapons/fletchers_knife_t7', 'weapons/masons_rule_t1', 'weapons/masons_rule_t4',
-  'weapons/masons_rule_t7', 'weapons/void_chitin_weave',
+    'items/rune_of_blight',
+  'weapons/deathsteel_ingot',     'weapons/void_chitin_weave',
 ]);
 
 /** The full path for an id, or '' if this id has no hearthfire art. */

@@ -32,8 +32,8 @@
 //              and the freed value is ACCOUNTED, not redistributed — which is
 //              §18.2.6 (P-c) as an inequality with an exact equality underneath
 //   S-JOURNAL  journal.meta.party is EXACTLY seven keys (B-A5, as an equality),
-//              and the top-level meta allowlist with `party` on it is TWELVE,
-//              so a THIRTEENTH is red
+//              and the top-level meta allowlist with `party` on it is THIRTEEN
+//              (twelve engine keys incl. `mon`), so a FOURTEENTH is red
 //   S-DET      same input → byte-identical output, and there is no attended /
 //              away seam to diverge down (§4's both-path rule, and §18.2.3
 //              invariant 9: a party member has no attended bucket at all)
@@ -253,13 +253,13 @@ function corpus() {
 
 const CORPUS = corpus();
 
-/* The eleven top-level journal meta keys the engine writes today
-   (tests/accrual-engine.mjs META_KEYS), plus `party` — TWELVE, which is B-A5's
-   corrected number and the reason the key that must still go red is a
-   THIRTEENTH. This list is a COPY on purpose: accrual-engine.mjs owns the
+/* The twelve top-level journal meta keys the engine writes today
+   (tests/accrual-engine.mjs META_KEYS; `mon` is the twelfth, 2026-10-10), plus
+   `party` — THIRTEEN (B-A5's twelve plus `mon`), and the key that must still go
+   red is a FOURTEENTH. This list is a COPY on purpose: accrual-engine.mjs owns the
    engine's allowlist, and S2 widens it; if the two ever disagree that is a
    finding for S2's guard, not a silent merge here. */
-const META_KEYS_12 = ['ms', 'ticks', 'kills', 'capped', 'ate', 'att', 'spent',
+const META_KEYS_13 = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'att', 'spent',
   'w', 'from', 'to', 'stopped', 'party'];
 
 /* ── the property battery ─────────────────────────────────────────────────── */
@@ -523,15 +523,15 @@ function battery(api) {
     const metaProblems = (m) => {
       const out = [];
       const keys = Object.keys(m);
-      for (const k of keys) if (!META_KEYS_12.includes(k)) out.push(`unknown meta key '${k}'`);
-      if (keys.length > META_KEYS_12.length) out.push(`${keys.length} keys > ${META_KEYS_12.length}`);
+      for (const k of keys) if (!META_KEYS_13.includes(k)) out.push(`unknown meta key '${k}'`);
+      if (keys.length > META_KEYS_13.length) out.push(`${keys.length} keys > ${META_KEYS_13.length}`);
       return out;
     };
     const s = splitParty(CORPUS[0]);
-    const meta = Object.fromEntries(META_KEYS_12.map((k) => [k, 1]));
+    const meta = Object.fromEntries(META_KEYS_13.map((k) => [k, 1]));
     meta.party = partyJournal(s, 0);
-    if (metaProblems(meta).length !== 0) note('S-JOURNAL', `the twelve-key meta with party on it was refused: ${metaProblems(meta).join('; ')}`);
-    if (metaProblems({ ...meta, kill_log: [1, 2, 3] }).length === 0) note('S-JOURNAL', 'a THIRTEENTH top-level meta key was accepted — B-A5');
+    if (metaProblems(meta).length !== 0) note('S-JOURNAL', `the thirteen-key meta with party on it was refused: ${metaProblems(meta).join('; ')}`);
+    if (metaProblems({ ...meta, kill_log: [1, 2, 3] }).length === 0) note('S-JOURNAL', 'a FOURTEENTH top-level meta key was accepted — B-A5');
     if (Object.isFrozen(PARTY_JOURNAL_KEYS) !== true) note('S-JOURNAL', 'PARTY_JOURNAL_KEYS is not frozen — the nested set must be an equality, not a suggestion');
   }
 

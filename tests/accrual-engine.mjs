@@ -3535,7 +3535,21 @@ async function shapeGuard() {
        this is one scalar, and nesting a single value inside an object to keep a
        count down would be the number-raising this note forbids, wearing a hat.
      The next key gets the same treatment. */
-  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
+  /* TWELFTH KEY, 2026-10-10: `mon`. Added WITH the arithmetic, never by
+     raising a number.
+       WHAT IT IS: the monster id of the pointer the window settled (one
+       pointer per window, so one id per row). Rally points weight a kill by
+       its tier (2026-10-10-rally-points-server.sql) and this row is the only
+       server record of which monster a window's kills were.
+       ROWS ADDED: ZERO. A scalar on a row that already exists.
+       BYTES: ids are <= ~24 bytes (sliced to 64). Against the measured ~24
+       accrue rows/user/day, at 100x the live player base (500 active) that is
+       ~12k rows/day x ~30 bytes = ~360 KB/day (~130 MB/year) at the ceiling
+       if every row were combat; the bound that matters — rows — is unchanged.
+       WHY NOT NESTED: one scalar; nesting it to keep a count down would be the
+       number-raising this note forbids, wearing a hat.
+     The next key gets the same treatment. */
+  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
   const metaProblems = (m) => {
     const out = [];
     if (typeof m !== 'object' || m === null || Array.isArray(m)) return ['meta is not an object'];
@@ -3554,6 +3568,8 @@ async function shapeGuard() {
     'SHAPE-selftest: the meta checker accepted a row longer than its own allowlist');
   ok(metaProblems(s.delta.journal?.meta).length === 0,
     `SHAPE: the journal meta must be an aggregate, not a per-kill log (game_events: 1.6M rows from six players): ${metaProblems(s.delta.journal?.meta).join('; ')}`);
+  ok(s.delta.journal?.meta?.mon === MONSTER,
+    `SHAPE: the combat row must name its monster (meta.mon) — rally points weight a kill by its tier; got ${JSON.stringify(s.delta.journal?.meta?.mon)}`);
   ok(typeof s.delta.accrued_to === 'string' && !Number.isNaN(Date.parse(s.delta.accrued_to)),
     'SHAPE: accrued_to must be an ISO timestamp');
 

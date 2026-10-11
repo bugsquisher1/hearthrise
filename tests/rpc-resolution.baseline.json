@@ -84,9 +84,14 @@
   "code": "42501",
   "shape": ""
  },
- "world_event_contribute(p_event_key,p_points)": {
+ "world_event_contribute(p_event_key)": {
   "status": 401,
   "code": "42501",
+  "shape": ""
+ },
+ "world_event_contribute(p_event_key,p_points)": {
+  "status": 404,
+  "code": "PGRST202",
   "shape": ""
  },
  "world_event_join(p_event_key)": {

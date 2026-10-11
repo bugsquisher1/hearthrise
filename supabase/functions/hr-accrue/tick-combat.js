@@ -618,12 +618,12 @@ export function foldCombatDelta(deltas) {
 /* Fold a flush window's per-poll journal metas into ONE combat journal row.
 
    THE SHAPE IS NOT NEGOTIABLE. It is `computeAccrual`'s own combat meta —
-   `ms, ticks, kills, capped, ate, spent?, w?, from, to` — because a player's
+   `ms, ticks, kills, capped, ate, mon, spent?, w?, from, to` — because a player's
    ledger must not be able to tell a tick from an accrue. The ONE addition is
    `src:'tick'`, and it exists so an OPERATOR can, which is the opposite
    requirement and the reason it is a marker rather than a different shape.
 
-   TEN KEYS AT THE WIDEST, which is exactly `tests/accrual-engine.mjs` SHAPE's
+   ELEVEN KEYS AT THE WIDEST, within `tests/accrual-engine.mjs` SHAPE's
    allowlist length — and it fits only because `att` is STRUCTURALLY ABSENT
    from a tick row (the attended refusal above). That is the key budget the
    refusal buys, and C12 asserts it rather than leaving it to luck.
@@ -634,6 +634,12 @@ export function foldCombatMeta(metas, windowFromMs, windowToMs) {
   const out = { ms: 0, ticks: 0, kills: 0, capped: false, ate: 0 };
   const spent = {};
   let waste = [0, 0];
+  /* `mon` (the monster the kills were) is carried when every poll names the
+     SAME one — a flush window is one pointer, so that is every honest fold. A
+     window whose polls disagree journals none rather than a wrong one (rally
+     points then score its kills at the tier-1 floor, never above). */
+  const mons = new Set();
+  for (const m of metas) if (m && typeof m.mon === 'string' && m.mon) mons.add(m.mon);
   for (const m of metas) {
     if (m && Object.prototype.hasOwnProperty.call(m, 'att')) {
       throw new Error('foldCombatMeta: a tick window carried an attended split — '
@@ -657,6 +663,7 @@ export function foldCombatMeta(metas, windowFromMs, windowToMs) {
      from an accrue row by key count, which is the one thing the shape rule
      forbids. `ate` likewise: the engine emits it on every combat row. */
   out.capped = !!out.capped;
+  if (mons.size === 1 && metas.every((m) => m && m.mon)) out.mon = [...mons][0];
   /* `spent` and `w` are omitted entirely when empty, exactly as the engine
      omits them, so a melee night with no death is byte-for-byte the shape it
      already is. A nested value would be refused by artisan-accrual T7; both of

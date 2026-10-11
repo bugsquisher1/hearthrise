@@ -120,6 +120,12 @@
  [
   "world_event_contribute",
   {
+   "p_event_key": "x"
+  }
+ ],
+ [
+  "world_event_contribute",
+  {
    "p_event_key": "x",
    "p_points": 1
   }

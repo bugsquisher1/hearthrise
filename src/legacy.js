@@ -1796,11 +1796,10 @@ function wireServerActivity(){
    Left alone, that is a real exploit and not a display bug: every restored
    receipt that reached here would add its kills to lifetime `stats.kills` and
    the this-fight streak, and would call `updateDaily('kill_any', k)` — the
-   wrapper chain the Muster hangs off (src/features/muster.js:~1878), which
-   turns the count into `world_event_contribute(p_event_key, p_points)` with
-   CLIENT-SUPPLIED points against a SHARED world-event meter. Reload, switch
-   activity, repeat: last night's forty-two kills re-credited into another
-   player's leaderboard every time, bounded only by the 6000/player/event cap.
+   wrapper chain the Muster used to hang off, turning the count into
+   CLIENT-SUPPLIED points on a SHARED world-event meter. (Rally points are
+   server-derived from the journal now, 2026-10-10-rally-points-server.sql;
+   the daily and quest counters still ride this seam.)
 
    TWO INDEPENDENT DEFENCES, because either one alone is a single line away
    from being reopened by a caller that did not know:

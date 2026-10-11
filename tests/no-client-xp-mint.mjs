@@ -515,7 +515,9 @@ async function selftest() {
     const { chainFiles } = await import('./schema-replay.mjs');
     const files = [];
     for (const [name, path] of await chainFiles()) {
-      if (name === '2026-10-10-muster-chest-xp-credit.sql') continue;
+      // ...and every later restatement of the claim body FROM it (b568 restates
+      // world_event_claim__ungated with the credit intact).
+      if (name === '2026-10-10-muster-chest-xp-credit.sql' || name === '2026-10-10-rally-points-server.sql') continue;
       files.push([name, readFileSync(path, 'utf8')]);
     }
     const before = auditClasses([entry('(b)', ['world_event_claim'])], chainBodies(files));

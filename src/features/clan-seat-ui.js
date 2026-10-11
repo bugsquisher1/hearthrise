@@ -458,12 +458,11 @@
   // enable, and a member who grinds all evening for zero credit is precisely
   // the "that reward doesn't matter" bug this spec exists to fix (§6.4).
   //
-  // The wrapper goes through window.wrapUpdateDaily under its OWN name. The
-  // Muster holds 'muster'; this holds 'castleLabour'. The chain owns the
-  // idempotency roster (updateDaily.__wrappedBy), so neither system needs a
-  // private global the other cannot see — CONFLICTS #6, closed by construction.
-  // An action legitimately feeds both meters. That is not double-dipping: they
-  // are different rewards from the same hour of play.
+  // The wrapper goes through window.wrapUpdateDaily under its OWN name,
+  // 'castleLabour'. The chain owns the idempotency roster
+  // (updateDaily.__wrappedBy), so no system needs a private global another
+  // cannot see — CONFLICTS #6, closed by construction. (The Muster left the
+  // chain: its points are derived server-side from the journal.)
   var GATHER_SKILLS = ['woodcutting', 'mining', 'fishing', 'foraging'];
   function skillLevelFor(type) {
     var lv = window.getLevel;

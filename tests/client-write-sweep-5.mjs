@@ -306,51 +306,59 @@ async function run({ patches } = {}) {
   // ── C4 · THE LIVE-POLICY RECONCILIATION (clan_members / clans) ────────
   // Piece 2 removed their dead MAINTAIN; their INSERT/DELETE grants behind the
   // live policies must survive, and the raw client founding path must still work.
+  // C4 judges THIS FILE's claim, so the plain run reads the chain AS OF this
+  // file: 2026-10-11-name-moderation.sql later closes `clans creatable` on
+  // purpose (founding is clan_create only), and its own guard pins that
+  // (tests/name-moderation.mjs P2). A patched run is already bounded by
+  // LAST_PATCHED at or before every file this guard plants into.
+  const c4 = patches ? db : (await bootReplay({ upTo: MIG })).db;
+  if (c4 !== db) await c4.query('begin');
   try {
     for (const t of LIVE_POLICY) {
-      const [{ n }] = (await db.query(
+      const [{ n }] = (await c4.query(
         'select count(*)::int n from pg_policies where schemaname=$1 and tablename=$2 '
         + "and cmd in ('INSERT','UPDATE','DELETE','ALL')", ['public', t])).rows;
       ok(n > 0, `C4 CONTROL: ${t} has no client write policy on this replay — it is no longer the `
         + 'live-policy counter-example this arm rests on.');
-      const [{ m }] = (await db.query(
+      const [{ m }] = (await c4.query(
         "select has_table_privilege('authenticated', $1, 'MAINTAIN') m", [`public.${t}`])).rows;
       ok(m === false, `C4: ${t} still holds MAINTAIN for authenticated — piece 2 did not sweep a `
         + 'live-policy table\'s dead MAINTAIN.');
-      const [{ i }] = (await db.query(
+      const [{ i }] = (await c4.query(
         "select has_table_privilege('authenticated', $1, 'INSERT') i", [`public.${t}`])).rows;
       ok(i === true, `C4: authenticated lost INSERT on ${t}, but ${t} has a live INSERT policy standing `
         + 'on it — piece 2 revoked a (table, verb) pair a live path depends on.');
     }
     // The door still OPENS, driven for real.
-    await db.query('savepoint c4');
-    const uid = (await db.query('select gen_random_uuid() i')).rows[0].i;
-    await db.query('insert into auth.users (id, instance_id, aud, role, email) '
+    await c4.query('savepoint c4');
+    const uid = (await c4.query('select gen_random_uuid() i')).rows[0].i;
+    await c4.query('insert into auth.users (id, instance_id, aud, role, email) '
       + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2)",
     [uid, 'sweep5door@probe.invalid']);
-    await db.query('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
+    await c4.query('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
     let door = 'PERMITTED';
     try {
-      await db.query("select set_config('request.jwt.claim.sub',$1,true)", [uid]);
-      await db.query('set local role authenticated');
-      await db.query("insert into public.clans (name, created_by, join_policy) "
+      await c4.query("select set_config('request.jwt.claim.sub',$1,true)", [uid]);
+      await c4.query('set local role authenticated');
+      await c4.query("insert into public.clans (name, created_by, join_policy) "
         + "values ('hr__door5', $1, 'open')", [uid]);
-      const cid = (await db.query("select id from public.clans where name='hr__door5'")).rows[0].id;
-      await db.query("insert into public.clan_members (clan_id, user_id, role) values ($1,$2,'leader')",
+      const cid = (await c4.query("select id from public.clans where name='hr__door5'")).rows[0].id;
+      await c4.query("insert into public.clan_members (clan_id, user_id, role) values ($1,$2,'leader')",
         [cid, uid]);
     } catch (e) { door = String(e.message || e).split('\n')[0]; }
-    await db.query('reset role').catch(() => {});
-    await db.query('rollback to savepoint c4');
-    await db.query('release savepoint c4').catch(() => {});
+    await c4.query('reset role').catch(() => {});
+    await c4.query('rollback to savepoint c4');
+    await c4.query('release savepoint c4').catch(() => {});
     ok(door === 'PERMITTED', `C4: the live clans/clan_members client founding path is BROKEN after this `
       + `sweep: ${door}. Piece 2 must remove only the dead MAINTAIN, never the grants a live policy uses.`);
     log('  ok   C4  clan_members/clans lost their dead MAINTAIN, kept the live grants+policies, and '
       + 'the raw founding path still works');
   } catch (e) {
-    await db.query('reset role').catch(() => {});
-    await db.query('rollback to savepoint c4').catch(() => {});
+    await c4.query('reset role').catch(() => {});
+    await c4.query('rollback to savepoint c4').catch(() => {});
     if (!(e instanceof Red)) throw e;
   }
+  if (c4 !== db) { await c4.query('rollback').catch(() => {}); await c4.close?.(); }
 
   await db.query('rollback').catch(() => {});
   await db.close?.();

@@ -514,7 +514,12 @@ async function runAll(db) {
       where n.nspname = 'public'
         and p.proname in ('hr_world_finds_of', 'hr_world_finds_of__ungated', 'hr_world_finds_prune')
         and a.privilege_type = 'EXECUTE'
-        and (a.grantee = 0 or r.rolname in ('anon', 'authenticated', 'service_role', 'hr_engine'))`);
+        and (a.grantee = 0 or r.rolname in ('anon', 'authenticated', 'hr_engine'))`);
+  /* service_role is judged where it is TRUE (2026-10-11): this arm reads the
+     chain as of MIG, where production's default ACL left hr_world_finds_prune
+     service_role=X (invisible here until the replay scaffold modelled that
+     default). 2026-10-11-name-moderation.sql §12b revokes it; its §13 GATE(b)
+     asserts it on every replay. */
   ok(acl.g === 'hr_world_finds_of:authenticated',
     `the client-reachable EXECUTE set is "${acl.g}" — expected exactly `
     + '"hr_world_finds_of:authenticated". The inner is the gate and the seam bypassed in one call, '

@@ -597,9 +597,6 @@ export default [
     assert(typeof window.wrapUpdateDaily === 'function', 'wrapUpdateDaily seam missing');
     const chain = window.updateDaily;
     assert(chain.__wrappedBy instanceof Set, 'updateDaily carries no wrapper roster');
-    /* The Muster LEFT this chain (2026-10-10-rally-points-server.sql): rally
-       points are derived by the server from the journal, so a client counter
-       feeding them would be a client-authored number again. */
     assert(!chain.__wrappedBy.has('muster'), 'the Muster wraps updateDaily again — rally points are '
       + 'server-derived; a browser counter must never feed them: ' + window.updateDailyWrappers().join(','));
     assert(chain.__wrappedBy.has('castleLabour'), 'castle Labour is not registered on the chain: '

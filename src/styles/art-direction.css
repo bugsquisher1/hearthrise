@@ -824,21 +824,36 @@ body[data-theme] .act-tile.active {
   background: linear-gradient(180deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .03));
   box-shadow: inset 0 1px 0 rgba(255, 246, 220, .18);
 }
-/* The grid stretched every row to the tallest cell, so a 120px tile rendered
- * 230px tall with the bottom half empty. Rows size to their content. */
-body[data-theme] .act-grid { align-content: start; align-items: start; }
+/* b568 — ONE CARD, ONE SHAPE (Tyler, on Smelting: "there's still some
+ * unevenness on these squares"). b2xx had set `align-items:start` so a 120px
+ * tile would not stretch to 230px; the side effect was that a locked card (one
+ * line longer) stood taller than its open neighbours in the SAME row. The card
+ * is now a fixed set of slots — art box, name, xp · time, inputs (two lines,
+ * reserved), status (always one line, pinned to the foot) — so cards are the
+ * same height by construction, and the row stretches the rare extra line
+ * (wear gate, burn risk, tool) instead of letting it stagger the row. */
+body[data-theme] .act-grid { align-content: start; align-items: stretch; }
+body[data-theme] .act-tile {
+  --at-art: 64px;
+}
 body[data-theme] .act-tile .at-icon {
   flex: 0 0 auto;
-  height: 74px;
-  margin: 0 0 10px;
+  width: var(--at-art);
+  height: var(--at-art);
+  margin: 0 auto 10px;
 }
 body[data-theme] .act-tile .at-icon img {
-  max-width: 100%; max-height: 74px;
+  /* The box is the size; the art fills it (contain) after .hr-fit crops the
+   * sprite's own empty canvas (src/render/icons.js, artFitBox). */
+  width: 100%; height: 100%;
+  max-width: none; max-height: none;
+  object-fit: contain;
   /* These are painted assets, not pixel art — `image-rendering:pixelated`
    * was hard-edging the downscale and making them look like cheap sprites. */
   image-rendering: auto;
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .6));
 }
+body[data-theme] .act-tile .at-icon .at-emoji { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 body[data-theme] .at-name {
   font-family: var(--f-ui);
   font-weight: 600;
@@ -846,6 +861,9 @@ body[data-theme] .at-name {
   letter-spacing: 0;
   color: var(--ink);
   margin-bottom: 3px;
+  /* One line: the full name is the card's title. */
+  max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-theme] .at-meta { font-size: var(--t-micro); color: var(--ink-3); }
 body[data-theme] .at-inputs {
@@ -854,6 +872,49 @@ body[data-theme] .at-inputs {
   opacity: .82;
   margin-top: 4px;
   text-align: center;
+  /* Two lines, always reserved, never more: Dawnsteel's three inputs wrapped
+   * to a third line and made its card the tallest in the grid. The whole list
+   * is in the card's title. */
+  line-height: 1.35;
+  min-height: calc(2 * 1.35em);
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* The status slot: every card ends on exactly one line, pinned to its foot. */
+body[data-theme] .act-tile .at-status {
+  margin-top: auto;
+  padding-top: 8px;
+  min-height: calc(1.35em + 8px);
+  line-height: 1.35;
+  display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 0 4px;
+  max-width: 100%;
+  white-space: nowrap; overflow: hidden;
+  font-size: var(--t-micro); color: var(--ink-3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+body[data-theme] .act-tile .at-status .at-lock { margin-top: 0; }
+body[data-theme] .act-tile .at-status .at-st + .at-st::before { content: "·"; margin: 0 6px 0 2px; }
+body[data-theme] .act-tile .at-status .at-qty,
+body[data-theme] .act-tile .at-status .at-make {
+  position: static; display: inline; min-width: 0; padding: 0;
+  background: none; border: 0; border-radius: 0;
+  color: var(--ink-2); font-size: inherit; font-weight: 700; font-variant-numeric: inherit;
+}
+body[data-theme] .act-tile .at-status .at-qty.muted { color: var(--ink-3); }
+body[data-theme] .act-tile .at-status .at-make.low { color: var(--ink-3); }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  body[data-theme] .act-tile { --at-art: 52px; }
+}
+/* The lane strip's badge is one thing on every chip: the lane's recipe count.
+ * A shut lane adds the padlock (its opening level is the chip's title). */
+body[data-theme] .act-cats .act-cat-n {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 6px; opacity: .62;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 /* b237 (tester): show how many of each input you actually OWN right on the tile
    — so while sawing planks you watch your log count fall, and you know before

@@ -15441,6 +15441,28 @@ window.hrToolLineHtml = function(skillId){
   return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% spd</b>'+(dbl>0 ? ' · <b>+'+dbl+'% ×2</b>' : '')+'</div>';
 };
 
+/* b568 — THE STATUS SLOT. Tyler, on Smelting: "there's still some unevenness on
+   these squares". A locked card carried a "Level N" line an open card did not,
+   so one row held two card heights. Every card now ends on exactly one status
+   line, pinned to the bottom: the lock (level or scroll) when it is shut, what
+   you hold and how many you can make when it is open. The counts are the bag
+   the server projected; lightUpdate() repaints them from every envelope. */
+function makeCount(inputs){
+  var ids = Object.keys(inputs || {});
+  if(!ids.length) return null;
+  return ids.reduce(function(m, id){
+    var need = inputs[id] || 1, have = (G.inventory && G.inventory[id]) || 0;
+    return Math.min(m, Math.floor(have / need));
+  }, Infinity);
+}
+function atStatusHtml(unlocked, lockHtml, benchLock, qty, make){
+  if(!unlocked) return '<div class="at-status"><span class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockHtml+'</span></div>';
+  return '<div class="at-status">'
+    +'<span class="at-st">Have <span class="at-qty'+(qty>0?'':' muted')+'">'+fmtQty(qty)+'</span></span>'
+    +(make===null ? '' : '<span class="at-st">Can make <span class="at-make'+(make>0?'':' low')+'">'+fmtQty(make)+'</span></span>')
+    +'</div>';
+}
+
 function tileForGather(action, skillId){
   var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
@@ -15485,8 +15507,7 @@ function tileForGather(action, skillId){
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +'<div class="at-yield">Yields '+prodName+'</div>'
     +(unlocked ? toolLine : '')
-    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
-    +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
+    +atStatusHtml(unlocked, unlocked ? '' : lockGlyph()+'Level '+action.req, false, qty, null)
     +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
@@ -15577,7 +15598,12 @@ function tileForArtisan(recipe, skillId){
   /* b225: the open fire can ruin a cook — the tile says so before you press it. */
   var burnLine = (typeof window.burnRiskLine === 'function') ? window.burnRiskLine(recipe, skillId) : '';
   var burnText = (typeof window.burnRiskText === 'function') ? window.burnRiskText(recipe, skillId) : '';
-  var tileTitle = (recipe.name||'') + (burnText ? ' — ' + burnText : '');
+  /* b568: the inputs line is clamped to two lines so every card in the grid is
+     the same object; the full list (whole item names) lives in the title. */
+  var inputsFull = Object.entries(inputs).map(function(kv){
+    var d = ITEMS[kv[0]]; return (kv[1]>1?kv[1]+'× ':'')+(d?d.n:kv[0]);
+  }).join(' + ');
+  var tileTitle = (recipe.name||'') + (inputsFull ? ' — ' + inputsFull : '') + (burnText ? ' — ' + burnText : '');
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
@@ -15593,8 +15619,7 @@ function tileForArtisan(recipe, skillId){
     +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
-    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
-    +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
+    +atStatusHtml(unlocked, lockGlyph()+lockLabel, benchLock, qty, makeCount(inputs))
     +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
         ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'
         : '<span class="at-stop">Active</span>') : '')
@@ -15682,16 +15707,20 @@ window.HearthriseArtisanCat = (function(){
       var nextReq = g.recipes.reduce(function(a,r){
         var q = r.req||1; return (q>lv && q<a) ? q : a;
       }, 99);
-      var badge = openCount>0 ? String(g.recipes.length) : ('Lv '+nextReq);
+      /* b568 (Tyler: "Smelting 11" beside "Weapons Lv 5"): the badge means ONE
+         thing on every chip — how many recipes the lane holds. A lane that is
+         still shut says so with the padlock; the level that opens it is in the
+         title, where it was already written. */
+      var badge = (openCount>0 ? '' : lockGlyph()) + String(g.recipes.length);
       var title = openCount>0
         ? (openCount+' of '+g.recipes.length+' available now')
         : ('Unlocks at '+skillId.charAt(0).toUpperCase()+skillId.slice(1)+' Lv '+nextReq);
-      return '<button class="chip'+(g.key===key?' active':'')+'" role="tab"'
+      return '<button class="chip'+(g.key===key?' active':'')+(openCount>0?'':' act-cat-shut')+'" role="tab"'
         +' aria-selected="'+(g.key===key?'true':'false')+'"'
         +' data-artcat="'+g.key+'" title="'+title+'"'
         +' onclick="window.setArtisanCategory(\''+skillId+'\',\''+g.key+'\')">'
         +g.label
-        +'<span style="margin-left:6px;opacity:.62;font-variant-numeric:tabular-nums">'+badge+'</span>'
+        +'<span class="act-cat-n">'+badge+'</span>'
         +'</button>';
     }).join('')+'</div>';
   }
@@ -15762,6 +15791,18 @@ function lightUpdate(skillId){
     var have = (G.inventory && G.inventory[id]) || 0;
     el.textContent = fmtQty(have);
     if(have<need) el.classList.add('low'); else el.classList.remove('low');
+  });
+  /* b568: the status slot's "Can make N" is the same bag, read through the
+     tile's own input list (the data-have/data-need pairs above). */
+  detail.querySelectorAll('.act-tile .at-make').forEach(function(el){
+    var tile = el.closest('.act-tile'); var inputs = {};
+    tile.querySelectorAll('.at-inputs .at-have[data-have]').forEach(function(h){
+      inputs[h.getAttribute('data-have')] = parseInt(h.getAttribute('data-need'),10)||1;
+    });
+    var make = makeCount(inputs);
+    if(make===null) return;
+    el.textContent = fmtQty(make);
+    el.classList.toggle('low', make<=0);
   });
 }
 
@@ -15867,7 +15908,10 @@ function patchSkillDetail(){
        The old table capped at "more than 15 → 6 columns",
        which squeezed smithing's 81 recipes into 93px tiles with the names
        clipped to "FORGE". */
-    var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';
+    /* b568: the tracks live in CSS (.act-grid) as auto-FILL: auto-fit collapsed
+       the empty tracks, so a one-recipe lane (Castle Stores) drew one card the
+       width of the panel while every other lane drew 226px cards. */
+    var grid = '<div class="act-grid">'+tiles+'</div>';
 
     if(detailEl) detailEl.innerHTML = head + cats + grid;
   };

@@ -40,7 +40,7 @@
 // equip tests).
 // ============================================================================
 
-import { fetchWrite } from './accrue.js?v=565';
+import { fetchWrite } from './accrue.js?v=566';
 
 export const ENCHANT_VERB = 'enchant';
 

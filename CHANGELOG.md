@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 566 — 2026-10-11 (Fewer doors, one Journal)
+
+**Fewer doors.** The menu has nine entries instead of fourteen. Bounty Board and Dungeons now live inside Combat; Farm, House and Stable sit together under Homestead; Party moved into Clan.
+
+**One Journal.** Your Collection Log, Bestiary, Deeds and lifetime stats now live in one place with four tabs, replacing eleven separate screens.
+
+**Hunt together.** The Party screen can start a shared hunt: the leader picks the monster and the stance, and everyone sees who is hunting, who has made camp, and what each member earned. Party hunts open when the realm's clock runs combat.
+
+**Small bonuses always count.** Experience now carries its fractions, so a +2% perk pays on every monster, even the smallest. Pets earn experience from the realm's clock too.
+
+**The food forecast tells the truth.** With Auto-Eat switched off, the forecast now says your food stays in the bag, with a one-tap way to switch it on.
+
 ## v0.9.2-beta build 565 — 2026-10-08 (The strongest foes pay best)
 
 **Experience comes from the damage you deal.** A swing that hits harder than the monster has health left no longer pays experience for the overkill. A maxed fighter on a Slime used to earn more per swing than on a Death Knight; now the strongest foes are the best experience again. Known issue: on monsters of 12 health or less, small experience bonuses (an early Trophy rung, for example) can round away to nothing. The fix is built and ships in the next update.

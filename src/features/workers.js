@@ -18,11 +18,12 @@
 //   • Workers produce RESOURCES ONLY, never player XP — your 99s stay
 //     yours; workers feed the castle build costs. That's the loop:
 //     workers gather → you upgrade property → more workers.
-//   • LAZY ACCRUAL: no background sim. Each worker stores lastCollect;
-//     on boot / House render / a 60s tick we bank elapsed×rate. This
-//     makes offline production free and exact. Accrual caps at 24h
-//     ("workers rest without direction") — log in daily to keep them
-//     at it, which is the retention hook.
+//   • SERVER-WORKED (WORKER_PRODUCTION_SERVER_BACKED, the cutover): the
+//     hr-accrue engine settles every assigned worker into player_inventory
+//     on each settle, playing or away; this file renders the crew and sends
+//     the hire/assign intents, and mints nothing. `accrueWorker` keeps the
+//     old client path only behind that flag (one settle span is capped at
+//     WORKER_ACCRUE_CAP_MS, src/core/workers.js).
 // ============================================================
 (function () {
   'use strict';
@@ -568,7 +569,7 @@
         (s > 0 && canHire
           ? '<button class="btn btn-sm" style="margin-top:8px" onclick="window.HearthriseWorkers.hire()">Hire worker — ' + hireCost().toLocaleString() + 'g</button>'
           : '') +
-        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">Workers gather while you\'re away (up to 24h). They only do what you\'ve mastered yourself.</div>' : '') +
+        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">The realm works your crew, not this page: they gather whether you are playing or away, and what they bring in lands straight in your bag. They only work spots you have reached yourself.</div>' : '') +
         ledgerHtml() +
       '</div>';
   }

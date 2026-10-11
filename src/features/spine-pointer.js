@@ -26,6 +26,7 @@ import { barHtml, cardHtml } from '../render/spine-pointer.js?v=567';
 import { isRecordPending } from '../net/record.js?v=567';
 
 const BAR_ID = 'hr-spine-bar';
+const STRIP_IN_TOPBAR = '(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)';
 const answered = Object.create(null);     // quest id → the claim RPC confirmed it is paid
 let seen = null;
 let seenKey = null;
@@ -164,6 +165,11 @@ export function render() {
    gives way (ellipsis) before the button does. */
 function fitRoom(bar) {
   const top = bar.parentElement, strip = bar.ownerDocument.getElementById('hub-tabs');
+  const win = bar.ownerDocument.defaultView;
+  /* Only where menu-journal.css lifts the strip into the topbar; elsewhere no
+     layout is read at all (render runs on every tab change). */
+  const lifted = !!(win && win.matchMedia && win.matchMedia(STRIP_IN_TOPBAR).matches);
+  if (!lifted) { if (bar.style.paddingLeft) bar.style.paddingLeft = ''; return; }
   if (!top || !top.getBoundingClientRect) return;
   const t = top.getBoundingClientRect(), b = bar.getBoundingClientRect();
   let pad = 0;
@@ -235,8 +241,11 @@ if (typeof window !== 'undefined') {
     __forget() { Object.keys(answered).forEach((k) => delete answered[k]); seen = null; seenKey = null; lastBar = null; },
   });
   const S = window.HearthriseShowTab;
-  if (S && typeof S.wrapShowTab === 'function') S.wrapShowTab('spine-pointer', () => render());
-  window.addEventListener('hearthrise:reveal', render);
+  /* One paint per burst of tab changes, not one per call. */
+  let queued = false;
+  const soon = () => { if (queued) return; queued = true; setTimeout(() => { queued = false; try { render(); } catch (e) {} }, 0); };
+  if (S && typeof S.wrapShowTab === 'function') S.wrapShowTab('spine-pointer', soon);
+  window.addEventListener('hearthrise:reveal', soon);
   setInterval(() => { try { render(); } catch (e) {} }, 1500);
   setInterval(() => { try { liveTick(); } catch (e) {} }, 3000);
   if (document.readyState !== 'loading') setTimeout(render, 300);

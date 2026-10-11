@@ -110,7 +110,7 @@ export default [
     assert(H && !H.__firstDayModel && !H.__roadModel && !H.__firstDayHtml, 'a retired Home card still publishes its seam');
     await onBar(facts({ counts: FIRST4, bag: { normal_log: 30, copper_ore: 4 }, gold: 100 }), async (bar) => {
       assert(!document.getElementById('global-quests-strip'), 'the quest strip is still drawn');
-      window.showTab('profile'); H.render();
+      window.showTab('profile'); H.render(); window.HearthriseSpine.render();
       assert(bar.hidden, 'the bar must step aside on Home, where the card carries the step');
       const root = document.getElementById('hd-root');
       const words = root.textContent;

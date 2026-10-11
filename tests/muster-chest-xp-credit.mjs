@@ -35,6 +35,8 @@
 //   MXC-7  over the XP day budget the claim is refused 'daily_budget' BEFORE the
 //          consume: the claim stays claimable, nothing moves.
 //   MXC-8  no client role can execute the inners or hr_rally_xp_credit.
+//   MXC-9  the calculator credits only theme skills that exist, numbers only,
+//          each and the total clamped to 3000; an unknown event key pays none.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · TRUE CONCURRENCY (PGlite is one backend) — the once-guard is exercised as
@@ -236,6 +238,22 @@ export async function run(mutate) {
     ok(claimed === false, 'MXC-7: the budget refusal SPENT the claim');
     ok(JSON.stringify(await skills()) === JSON.stringify(s0), 'MXC-7: the budget refusal moved player_skills');
     ok((await rallyRows()).length === l0, 'MXC-7: the budget refusal journalled');
+  }
+
+  // ── MXC-9 the calculator refuses what is not the theme's ─────────────────
+  //    hr_rally_chest only ever emits theme skills, so the claims cannot show
+  //    this; the calculator is driven directly (as its owner) with the refusals
+  //    FIRST, while the 3000 total still has room.
+  {
+    const r = (await q(`select public.hr_rally_xp_credit($1, $2::jsonb) as r`, [keys.craft, JSON.stringify({ xp: [
+      { skill: 'attack', amount: 500 }, { skill: 'bogus', amount: 5 }, { skill: 'smithing', amount: '700' },
+      { skill: 'smithing', amount: 1e12 }, { skill: 'crafting', amount: 50 }] })]))[0].r;
+    obs.mxc9 = r;
+    ok(N(r?.total) === 3000 && N(r?.by_skill?.smithing) === 3000 && Object.keys(r?.by_skill || {}).length === 1,
+      `MXC-9: the calculator credited ${JSON.stringify(r)} — expected only smithing, clamped to 3000`);
+    const none = (await q(`select public.hr_rally_xp_credit('not-a-key', $1::jsonb) as r`,
+      [JSON.stringify({ xp: [{ skill: 'attack', amount: 10 }] })]))[0].r;
+    ok(N(none?.total) === 0, `MXC-9: an unknown event key credited ${JSON.stringify(none)}`);
   }
 
   // ── MXC-8 the grants ─────────────────────────────────────────────────────

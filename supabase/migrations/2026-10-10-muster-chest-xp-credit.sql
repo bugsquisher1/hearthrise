@@ -552,11 +552,14 @@ begin
   if v_ek_c is null or v_ek_n is null then
     raise exception 'GATE(b) CANNOT RUN: no ashen_horde / forge_levy event key in 400 days (% / %)', v_ek_c, v_ek_n;
   end if;
+  -- the refusals come FIRST, while there is still room under the 3000 total, so
+  -- a calculator that stopped refusing would visibly credit them.
   v_r := public.hr_rally_xp_credit(v_ek_n, jsonb_build_object('xp', jsonb_build_array(
-           jsonb_build_object('skill', 'smithing', 'amount', 999999),     -- clamped to 3000
            jsonb_build_object('skill', 'attack',   'amount', 500),        -- not forge_levy's
-           jsonb_build_object('skill', 'crafting', 'amount', 50),         -- no room left
-           jsonb_build_object('skill', 'bogus',    'amount', 5))));
+           jsonb_build_object('skill', 'bogus',    'amount', 5),          -- not a skill
+           jsonb_build_object('skill', 'smithing', 'amount', '700'),      -- not a number
+           jsonb_build_object('skill', 'smithing', 'amount', 999999),     -- clamped to 3000
+           jsonb_build_object('skill', 'crafting', 'amount', 50))));      -- no room left
   if (v_r->>'total')::bigint <> 3000 or (v_r->'by_skill'->>'smithing')::bigint <> 3000
      or v_r->'by_skill' ? 'attack' or v_r->'by_skill' ? 'bogus' or v_r->'by_skill' ? 'crafting' then
     raise exception 'GATE(b): the calculator did not clamp / refuse foreign skills: %', v_r;

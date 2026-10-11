@@ -42,7 +42,7 @@ function iconHtml(id) {
   const path = window._itemPath && window._itemPath[id];
   if (path) {
     const tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
-    return `<img class="${tint}" src="${path}" alt="" loading="lazy" draggable="false" />`;
+    return `<img class="hr-fit ${tint}" src="${path}" alt="" loading="lazy" draggable="false" />`;
   }
   /* was the data emoji with a '❓' backstop. itemFallbackIcon picks a
      category-correct gilt glyph from the shipped atlas and can never return a
@@ -139,7 +139,7 @@ function ensureStyle() {
     R + '.rb-section-h{font-family:var(--f-label);font-size:calc(15px * var(--ui-scale,1));font-weight:800;color:var(--gold-2);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}',
     R + '.rb-section-h span{color:var(--ink-3);font-weight:600}',
     R + '.rb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}',
-    R + '.rb-card{background:var(--bg-card,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px;padding:11px 12px}',
+    R + '.rb-card{display:flex;flex-direction:column;background:var(--bg-card,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px;padding:11px 12px}',
     R + '.rb-card.locked{opacity:.55;filter:grayscale(.85)}',
     R + '.rb-out{display:flex;align-items:center;gap:10px}',
     R + '.rb-out-ic{width:38px;height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:center}',
@@ -156,7 +156,7 @@ function ensureStyle() {
     R + '.rb-ing b{color:var(--gold-2);font-variant-numeric:tabular-nums}',
     R + '.rb-ing.short b{color:var(--danger,#d9534f)}',
     R + '.rb-plus{color:var(--ink-3);font-weight:700;padding:0 1px}',
-    R + '.rb-lockmsg{margin-top:8px;font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2);font-weight:700;letter-spacing:.02em}',
+    R + '.rb-lockmsg{margin-top:auto;padding-top:8px;font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2);font-weight:700;letter-spacing:.02em}',
     R + '.rb-empty{color:var(--ink-3);text-align:center;padding:40px 0;font-size:calc(15px * var(--ui-scale,1))}',
     '@media (max-width:540px){' + R + '.rb-grid{grid-template-columns:1fr}' + R + '.rb-search{max-width:none}}',
   ].join('\n');

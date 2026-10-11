@@ -8476,12 +8476,45 @@ export default [
       el = line({ status: 'error' }, one);
       assert(el.querySelector('[role="status"]'), 'a failed read rendered ' + el.textContent);
       MP.__setListingsState({ status: 'unknown' }); window.renderMarket();
-      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^Open listings/.test(e.textContent));
-      assert(h && h.querySelector('[role="status"]') && !/No open listings/.test(document.getElementById('market-root').textContent),
+      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^For sale/.test(e.textContent));
+      assert(h && h.querySelector('[role="status"]') && !/Nothing is for sale/.test(document.getElementById('market-root').textContent),
         'an unread market claimed a count or emptiness: ' + (h && h.textContent));
     } finally {
       tile.remove(); MP.__setListingsState(was);
       if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    }
+  }),
+
+  /* MP-R9 (Tyler's screenshot): with the player's own Copper Ore ×910 live, the market
+     read "Open listings (0) — No open listings right now. List something above and be first
+     to market": the browse list was built from OTHER sellers only, so the empty state
+     contradicted what the player had just done. For sale now includes your rows (marked, no Buy).
+     MUTATION: build the browse list from `others` alone in render() → red on the first claim. */
+  () => tryRun('MP-R9: the market never says nothing is for sale while your own listing is live', () => {
+    const M = window.HearthriseMarket, MP = window.HearthriseMarketPrices;
+    const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY), was = MP.getListingsState();
+    try {
+      assert(M && typeof M.currentSellerId === 'function', 'market.js does not publish whose listings are "yours"');
+      const now = Date.now();
+      localStorage.setItem(KEY, JSON.stringify([{ id: '11111111-2222-4333-8444-5555555555a9', sellerId: M.currentSellerId(),
+        sellerName: 'Me', itemId: 'copper_ore', qty: 910, askEach: 4, postedAt: now, expiresAt: now + 47.9 * 3600000 }]));
+      MP.__setListingsState({ status: 'ok', at: now });
+      window.renderMarket();
+      const root = document.getElementById('market-root'), text = root.textContent;
+      assert(!/no open listings|nothing is for sale|no listings/i.test(text),
+        'the market said it was empty while your listing is live: ' + text.slice(0, 300));
+      const browse = root.querySelector('.mk-browse'), mine = root.querySelector('.mk-mine');
+      assert(browse && /Copper Ore/.test(browse.textContent) && /\b1\b/.test(browse.querySelector('h3').textContent),
+        'your live listing is missing from For sale: ' + (browse ? browse.textContent.slice(0, 200) : 'no browse block'));
+      assert(!browse.querySelector('.mk-buy'), 'your own listing offered you a Buy button');
+      assert(mine && /47 hours left/.test(mine.textContent), 'time left is not said in plain words: ' + (mine && mine.textContent));
+      localStorage.setItem(KEY, '[]'); window.renderMarket();   // CONTROL: a truly empty market says so
+      assert(/Nothing is for sale right now/.test(document.getElementById('market-root').textContent),
+        'CONTROL: an empty market did not say so');
+    } finally {
+      MP.__setListingsState(was);
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      window.renderMarket();
     }
   }),
 
@@ -8557,7 +8590,7 @@ export default [
 
   /* MP-R7b (visual gate): the shut List button LOOKED live — gold fill, opacity 1, a pointer —
      and the quantity / asking inputs stayed typeable while the bag was being counted.
-     MUTATION: drop the `#mk-list-btn:disabled` rule in art-direction.css (opacity/cursor), or the
+     MUTATION: drop the `.btn:disabled` / `.mk-list-go:disabled` rules (opacity/cursor), or the
      `bagUnstated ? ' disabled'` on either input in market.js → red. */
   () => tryRun('MP-R7b: while the bag is counted the listing sheet is visibly shut, inputs included', () => {
     const snap = snapshotG(), bag = serverBagFixture();

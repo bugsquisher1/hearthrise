@@ -4,6 +4,7 @@
   "commands": {
     "node tests/run-smoke.mjs": "in-page",
     "node tests/raid-card-copy.mjs": "in-page",
+    "node tests/reachability.mjs --mutate": "in-page",
     "node tests/raid-card-copy.mjs --selftest": "in-page",
     "node tests/icon-boot-order.mjs --selftest": "in-page",
     "node tests/boot-budget.mjs": "in-page",
@@ -252,6 +253,8 @@
     "node tests/goal-counter-kinds.mjs --selftest": "economy-selftests",
     "node tests/worker-accrual.mjs --selftest": "economy-selftests",
     "node tests/worker-accrual.mjs": "economy-selftests",
+    "node tests/delta-transport.mjs --selftest": "economy-selftests",
+    "node tests/skill-row-upsert.mjs --mutate": "economy-selftests",
     "node tests/ci-shape.mjs --selftest": "client-guards",
     "node tests/ci-shape.mjs": "client-guards",
     "node tests/run-ci-local.mjs --selftest": "client-guards",

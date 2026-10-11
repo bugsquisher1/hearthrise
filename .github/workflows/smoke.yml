@@ -244,6 +244,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/raid-card-copy.mjs
 
+      # REACHABILITY'S MUTATION PROOF, ADOPTED (b569). The plain guard runs inside
+      # run-smoke; --mutate was registered nowhere and was RED on origin/main: M2
+      # (the rail re-inflated) ESCAPED because the rail had gained 220px of
+      # slack, so the plant never pushed Settings below the fold. Re-sized to
+      # today's slack (measured in Chromium). 12 plants; ~111 s locally.
+      - name: Reachability — mutation proof (12 planted layout defects)
+        if: ${{ !cancelled() }}
+        run: node tests/reachability.mjs --mutate
+
       # The Hunt card copy, mutation-proven in the REAL browser: each defect is
       # planted into the real src/features/raids.js on the way to Chromium.
       # Includes C6, the value-crossing one — the clan gate ceasing to fire, so
@@ -2468,10 +2477,12 @@ jobs:
   # (49.2 s; it replays the chain in PGlite, which is exactly this family's one
   # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
   # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
-  # Budget RAISED 30 -> 32, still measured x2.
+  # Budget RAISED 30 -> 32, still measured x2. b569 adds delta-transport
+  # --selftest (34 s) and skill-row-upsert --mutate (~100 s locally): ~18.1 min,
+  # x2 = 36.2 -> 37.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 37
 
     steps:
       - uses: actions/checkout@v4
@@ -3034,6 +3045,23 @@ jobs:
       - name: Hired-crew accrual — base run
         if: ${{ !cancelled() }}
         run: node tests/worker-accrual.mjs
+
+      # TWO MORE PROOFS ADOPTED (b569), both RED on origin/main and registered
+      # nowhere (plain runs are in run-smoke). delta-transport --selftest died as
+      # a HARNESS error: hr_tick_settle grew a 10th argument, so the tick-fence
+      # anchor matched nothing — and T6 only graded the LAST argument, which is
+      # no longer the delta; it now grades every bound jsonb argument.
+      # skill-row-upsert --mutate: M2/M3 SLIPPED (they edited a body later
+      # restated and patched forward) and M1 "caught" only a chain that would
+      # not apply; M1-M3 now plant into the FINAL hr_apply after the replay.
+      # Measured locally: 34 s and ~100 s.
+      - name: Delta transport — mutation proof (every apply site, every jsonb argument)
+        if: ${{ !cancelled() }}
+        run: node tests/delta-transport.mjs --selftest
+
+      - name: Skill-row upsert — mutation proof (live-body mutants)
+        if: ${{ !cancelled() }}
+        run: node tests/skill-row-upsert.mjs --mutate
 
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no

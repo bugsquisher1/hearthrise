@@ -203,10 +203,11 @@ jobs:
   # The two browser mutation proofs merged in from main on 2026-09-07 —
   # raid-card-copy --selftest (9.0 s) and icon-boot-order --selftest (22.4 s,
   # and it is the one that runs the CPU-load control) — add 31.4 s between them.
-  # Half a minute on a ~15 min family: budget stays 30.
+  # Half a minute on a ~15 min family: budget stays 30. b569 adds
+  # reachability --mutate (~111 s locally): ~16.9 min x2 -> 34.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 34
 
     steps:
       - uses: actions/checkout@v4

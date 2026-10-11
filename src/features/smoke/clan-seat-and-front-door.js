@@ -2102,7 +2102,7 @@ export default [
       'emberfruit + moonbloom must unlock at plot Lv 5');
   }),
 
-  // The other half of the report: the Home "Next up" ladder and the daily tasks
+  // The other half of the report: the quest ladder and the daily tasks
   // ride the updateDaily chain that b220-b223 wrapped twice. One real gather has
   // to move the ladder AND be seen exactly once by every wrapper, no matter what
   // order the wrappers booted in — a swallowed, re-ordered or double-fired link
@@ -2144,7 +2144,7 @@ export default [
       const gained = (G.stats.gathered || 0) - g0;
       assert(gained > 0, 'the gather never happened');
       assert((quest.progress || 0) === gained,
-        'the Home "Next up" quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
+        'the gather quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
       if (task) assert((task.progress || 0) === gained,
         'the daily task did not follow the gather: 0 → ' + task.progress + ' (gathered ' + gained + ')');
       assert(seen.a.length === 1 && seen.b.length === 1,

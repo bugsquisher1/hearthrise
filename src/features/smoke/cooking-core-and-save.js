@@ -2017,9 +2017,8 @@ export default [
   /* ── regression suite — A STRAY BRACE DELETED A RULE, SILENTLY ──────
      theme-cozy.css carried `}e: 12px;\n}` — the tail of a botched edit. CSS error
      recovery turns an unmatched `}` at top level into the start of a selector,
-     which swallowed the NEXT rule whole: `.global-quests-strip{display:none
-     !important}`. So the 80px legacy quest strip, meant to be replaced by the
-     topbar Quests pill, sat on every screen — a fifth of a 393px phone, and the
+     which swallowed the NEXT rule whole (the old quest strip's phone hide), so
+     an 80px strip sat on every screen — a fifth of a 393px phone, and the
      reason the 44px tap floor first buried the bag. No guard reads a sheet's
      text, so this checks every shipped stylesheet's brace balance (comments and
      quoted strings stripped). */
@@ -2044,27 +2043,24 @@ export default [
     }
   }),
 
-  /* ── regression suite — QUESTS STRIP: DESKTOP KEEPS IT, PHONES HIDE IT ──
-     Fixing the stray brace above re-armed `.global-quests-strip{display:none}`
-     UNSCOPED, which hid the strip on desktop too — a silent removal of a
-     feature players had had since 2026-05-03. Coordinator ruling (2026-09-26):
-     desktop keeps the strip; only the phone media query — where the topbar
-     Quests pill already does the same job — may hide it. Renders the real
-     strip markup against the real shipped stylesheets at a desktop AND a
-     phone size, each in its own iframe so it is graded by ITS viewport. */
-  () => tryRun('quests-strip: shows on desktop, hides only on phones', () => {
-    let css = '', sheetsSeen = 0;
+  /* ── THE POINTER BAR IS ONE LINE ON EVERY SCREEN ──────────────────────
+     The bar replaced the quest strip, which phones hid to save height. The
+     bar is the one next step, so it stays on phones and must stay ONE line:
+     the live bar's markup against the shipped sheets, desktop and phone, each
+     in its own iframe so each is graded by its own viewport. */
+  () => tryRun('SPINE-BAR-FIT: the pointer bar shows on desktop and phone, one line, nothing spilling', () => {
+    window.showTab('skills');
+    window.HearthriseSpine.__forget(); window.HearthriseSpine.render();
+    const live = document.getElementById('hr-spine-bar');
+    assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on Skills');
+    let css = '';
     for (const sheet of document.styleSheets) {
       let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
       const href = sheet.href || '';
-      if (href && !/(tokens|legacy|audit-overrides|theme-cozy|art-direction)\.css/.test(href)) continue;
-      if (href) sheetsSeen++;
+      if (href && !/(tokens|legacy|audit-overrides|theme-cozy|art-direction|spine-pointer)\.css/.test(href)) continue;
       for (const r of rules) css += r.cssText + '\n';
     }
-    assert(sheetsSeen >= 5, 'the probe must find the token sheet and all four theme stylesheets, saw ' + sheetsSeen);
-    const stripMarkup = '<div id="global-quests-strip" class="global-quests-strip"><span class="gq-label">Quests</span>'
-      + '<div class="gq-list"></div><span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span></div>';
-    const displayAt = (w, h) => {
+    const fitAt = (w, h) => {
       const frame = document.createElement('iframe');
       frame.setAttribute('style', `position:fixed;left:-4000px;top:0;width:${w}px;height:${h}px;border:0;visibility:hidden`);
       document.body.appendChild(frame);
@@ -2072,17 +2068,19 @@ export default [
         const doc = frame.contentDocument;
         doc.open();
         doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
-          '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' + stripMarkup + '</main></div></body></html>');
+          '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' + live.outerHTML + '</main></div></body></html>');
         doc.close();
-        return doc.defaultView.getComputedStyle(doc.getElementById('global-quests-strip')).display;
+        const bar = doc.getElementById('hr-spine-bar'), inner = bar.querySelector('.sp-in');
+        return { display: doc.defaultView.getComputedStyle(bar).display, h: bar.getBoundingClientRect().height,
+          spill: inner.scrollWidth - inner.clientWidth };
       } finally { frame.remove(); }
     };
-    const desktop = displayAt(1440, 900);
-    assert(desktop !== 'none', 'THE quests-strip regression: the strip is hidden at a 1440x900 DESKTOP viewport ('
-      + desktop + ') — players have seen it since 2026-05-03; only the phone media query may hide it (theme-cozy.css)');
-    const phone = displayAt(852, 393);
-    assert(phone === 'none', 'THE b554 BUG: the legacy .global-quests-strip is drawn (' + phone + ') at an 852x393 phone '
-      + 'viewport — the topbar Quests pill already covers this job on phones (theme-cozy.css)');
+    for (const [w, h] of [[1440, 900], [922, 423]]) {
+      const f = fitAt(w, h);
+      assert(f.display !== 'none', 'the pointer bar is hidden at ' + w + 'x' + h);
+      assert(f.h <= 48, 'the pointer bar wraps at ' + w + 'x' + h + ' (' + f.h + 'px tall)');
+      assert(f.spill <= 1, 'the pointer bar spills ' + f.spill + 'px sideways at ' + w + 'x' + h);
+    }
   }),
 
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {

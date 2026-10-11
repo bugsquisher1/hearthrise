@@ -7610,7 +7610,7 @@ export default [
        LIST — a blanket `document.body` sweep would also police the dev smoke
        panel and any harness furniture, and would fail for reasons that are not
        about the game. */
-    const SURFACES = ('topbar=.topbar nav=#sidebar quests-strip=#global-quests-strip '
+    const SURFACES = ('topbar=.topbar nav=#sidebar pointer-bar=#hr-spine-bar '
       + 'activity-bar=.activity-bar home=#panel-profile character=#panel-character '
       + 'inventory=#panel-inventory combat=#panel-combat skills=#panel-skills '
       + 'farm=#panel-farming house=#panel-house shop=#panel-shop market=#panel-market '
@@ -8675,125 +8675,6 @@ export default [
      "player actions"; these four are the regressions that hold it honest.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  /* ── FIRST-LIGHT-2 — the card LEAVES ────────────────────────────────────
-     A pinned card that never unpins is a permanent tutorial. The chain is the
-     first day; on day two it must be gone, and "Next up" (which is written for
-     a player with history) is what stands there instead. */
-  () => tryRun('FIRST-LIGHT-2: a completed chain removes the card entirely — it is the first DAY, not a permanent rail', () => {
-    const snap = snapshotG();
-    let unfeed = () => {};
-    try {
-      const H = window.HearthriseHome;
-      assert(H && typeof H.__firstDayModel === 'function', 'the First Light seam is not published');
-
-      // CONTROL: with one row open the card draws. Without this the assertion
-      // below is satisfied by a card that never draws at all.
-      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
-      window.G.quests = [];
-      window.ensureRetentionState();
-      assert(H.__firstDayModel(), 'CONTROL: an open chain must draw, or this test proves nothing');
-
-      // Every step finished and paid — a veteran.
-      window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
-      assert(H.__firstDayModel() === null,
-        'a finished chain must yield no model — the card would be pinned above "Next up" forever');
-      assert(H.__firstDayHtml(H.__firstDayModel()) === '',
-        'a null model must render NOTHING, not an empty shell with a heading');
-
-      /* A last step whose reward is still in flight is still FINISHED. The card
-         goes; the recovery sweep is what pays it, and the sweep needs no card.
-         "Finished" is the SERVER's count at goal (CLAIM-FROM-SERVER). */
-      unfeed = feedServerQuests({ 'ev:gather': 15, 'ev:cooked': 5, 'ev:kill_any': 100, 'ev:harvest': 6 });
-      window.G.quests.forEach((q) => { q.claimed = false; });
-      assert(H.__firstDayModel() === null,
-        'an unclaimed-but-finished chain still has nothing left for the player to DO — the card goes');
-
-      /* A row the player does not hold is never invented. `G.quests` is the
-         projected state; drawing a def with no row would be residue-ahead one
-         surface over (CLAUDE §6). */
-      window.G.quests = [];
-      assert(H.__firstDayModel() === null,
-        'with no quest rows the card must draw nothing rather than invent 0/15 progress');
-    } finally { unfeed(); restoreG(snap); }
-  }),
-
-  /* ── FIRST-LIGHT-2b — the card and "Next up" may not say the same thing ──
-     FOUND BY LOOKING AT THE ASSEMBLED SCREEN, not by reading either change:
-     the launchpad ruling makes an open chain quest the leading milestone, and
-     the card draws that same quest four rows above, so day-one Home printed
-     "Cook 5 dishes · 0/5 · [Go cook]" twice within ten pixels. Each half was
-     individually correct, which is the classic shape and the reason the visual
-     gate exists. This asserts the ASSEMBLED result. */
-  () => tryRun('FIRST-LIGHT-2b: Home draws the leading chain quest ONCE — the card and "Next up" never duplicate', () => {
-    const snap = snapshotG();
-    const panel = document.getElementById('panel-profile');
-    const hadActive = !!(panel && panel.classList.contains('active'));
-    try {
-      assert(panel, 'CONTROL: there is no #panel-profile to render into');
-      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
-      window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
-      window.ensureRetentionState();
-      const lead = window.G.quests.find((q) => !q.done);
-      assert(lead, 'CONTROL: the fixture must leave a chain quest open');
-
-      panel.classList.add('active');
-      window.HearthriseHome.render();
-      const root = document.getElementById('hd-root');
-      assert(root, 'the dashboard did not render at all');
-      assert(root.querySelector('.hd-firstlight'),
-        'CONTROL: the First Light card must be on screen, or a duplicate is impossible and this passes vacuously');
-
-      const titles = Array.from(root.querySelectorAll('.hd-qtitle, .hd-mile-title'))
-        .map((e) => (e.textContent || '').trim());
-      const drawn = titles.filter((t) => t === lead.label).length;
-      assert(drawn === 1,
-        '"' + lead.label + '" is drawn ' + drawn + ' times on Home — the pinned card and "Next up" are '
-        + 'duplicating the same quest. Titles: ' + JSON.stringify(titles));
-
-      /* And with no dailies behind it, the emptied section is REMOVED rather
-         than left as a heading over a line about a different quest system.
-         CONDITIONAL ON ITS OWN PRECONDITION: this only applies when the leading
-         milestone really is a chain quest (i.e. when suppressing it empties the
-         section). Asserting it unconditionally made this test go red for
-         FIRST-LIGHT-3's defect as well, and a test that fails for two different
-         reasons names neither. */
-      const lead2 = window.HearthriseLaunchpad.getNextMilestone();
-      const leadIsChain = !!(lead2 && lead2.kind === 'quest' && lead2.goal
-        && window.G.quests.some((q) => q.id === lead2.goal.id));
-      if (leadIsChain) {
-        assert(!/Next up/.test(root.textContent || ''),
-          'the "Next up" heading survived with nothing left to put under it');
-      }
-
-      /* ── THE SAME CLASS, ONE SYSTEM OVER ────────────────────────────────
-         The milestone picks the closest OPEN GOAL, and daily tasks are in that
-         pool AND rendered underneath it — so with the chain finished, "Next up"
-         restated a daily task it was about to list ("Kill 60 monsters" over
-         "Kill 60 monsters"). Same defect, different source; both are suppressed
-         by the same rule, so this half is asserted here rather than filed. */
-      window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
-      window.generateDailyTasks(false);
-      window.HearthriseHome.render();
-      const root2 = document.getElementById('hd-root');
-      const open = (window.G.daily.tasks || []).filter((t) => !t.done).slice(0, 3);
-      if (open.length) {
-        const t2 = Array.from(root2.querySelectorAll('.hd-qtitle, .hd-mile-title'))
-          .map((e) => (e.textContent || '').trim());
-        open.forEach((t) => {
-          const n = t2.filter((x) => x === t.label).length;
-          assert(n <= 1,
-            'daily task "' + t.label + '" is drawn ' + n + ' times — the milestone hero row is restating '
-            + 'a row directly below it. Titles: ' + JSON.stringify(t2));
-        });
-      }
-    } finally {
-      if (panel && !hadActive) panel.classList.remove('active');
-      restoreG(snap);
-      try { window.HearthriseHome.render(); } catch (e) {}
-    }
-  }),
-
   /* ── FIRST-LIGHT-3 — the 0%-vs-0% tie ───────────────────────────────────
      FEATURE_SLATE fix #1, Designer ruling 2026-09-07. This is the defect that
      made the whole feature invisible: skills were evaluated first with a strict
@@ -8893,10 +8774,10 @@ export default [
       assert(AW.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 0 }) === 0,
         'the tour promises the day\'s first fall costs no time — recoveryFor() disagrees, so the copy is now a lie');
     }
-    // And the tour must point at the surface this build gave it.
+    // And the tour must point at the surface this build gave it: the pointer bar.
     const wrap = steps.find((s) => s.id === 'wrap');
-    assert(wrap && /Your first day/.test(String(wrap.body || '')),
-      'the closing step must point at the pinned chain card it now ships beside');
+    assert(wrap && /next step is always in the bar/.test(String(wrap.body || '')) && !/Your first day|Next up/.test(String(wrap.body || '')),
+      'the closing step must point at the pointer bar, not a retired card');
   }),
 
   /* ── FIRST-LIGHT-5 — the away card and the cooking arm, bound ────────────

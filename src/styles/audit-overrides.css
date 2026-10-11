@@ -855,8 +855,6 @@ body.in-combat #combat-area {
 #combat-area .row.between { margin: 0 14px 14px; padding: 8px 14px; background: rgba(0,0,0,.25); border-radius: 6px; font-size:calc(14.5px * var(--ui-scale, 1)); }
 
 /* ---------- Misc cleanup ---------------------------------------- */
-.global-quests-strip { cursor: pointer; user-select: none; }
-.global-quests-strip:hover .gq-open-hint { color: var(--gold-2); }
 .qm-overlay { z-index: 999999 !important; }
 
 /* Topbar right-side spacing */

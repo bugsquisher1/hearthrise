@@ -5629,7 +5629,7 @@ function questComplete(q){ const n=hrQuestServerCount(q); return n!==null&&q.goa
 function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id); }
 function questClaimable(q){ return !!q&&!q.claimed&&questServerPays(q)&&questComplete(q); }
 window.hrQuestServerCount=hrQuestServerCount;
-window.questClaimable=questClaimable;
+window.questClaimable=questClaimable; window.hrFireQuestClaim=hrFireQuestClaim;   // the pointer's Claim (spine-pointer.js)
 /* FIRE ONE CLAIM AND REMEMBER THE ANSWER.
    `q.claimed` is the memory: G.quests is a RESIDUE field, so the flag survives a
    reload and the sweep below can tell "the server paid this" from "we set

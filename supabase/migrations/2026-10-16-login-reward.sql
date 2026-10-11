@@ -97,6 +97,9 @@ begin
      or to_regprocedure('public.hr_utc_day_key(timestamptz)') is null
      or to_regprocedure('public.hr_reject(text,jsonb)') is null then
     raise exception 'hr_apply / hr_claim_lookup / hr_utc_day_key / hr_reject missing — apply the engine chain first'; end if;
+  -- THE ACCOUNT WALLET FIRST: hr_login_bonus_ready reads its kind='wallet' rows.
+  if to_regprocedure('public.hr_wallet_credit(uuid,integer,bigint,text,timestamptz)') is null then
+    raise exception 'hr_wallet_credit missing — apply 2026-10-19-account-wallet.sql first'; end if;
   v_apply := replace(pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure), chr(13), '');
   if strpos(v_apply, 'hr_login_claim_verify') = 0 then
     v_n := (length(v_apply) - length(replace(v_apply, c_anchor, ''))) / length(c_anchor);
@@ -197,26 +200,42 @@ end $fn$;
 revoke execute on function public.hr_login_streak(uuid, int) from public, anon, authenticated, service_role;
 
 -- KEYS AND GEMS AT MOST ONCE PER 7 SERVER DAYS (Security, 2026-10-10). TRUE
--- unless a login claim journalled in the six UTC days before today paid gems
--- or a cycle key. Read from player_ledger — what was PAID, not what a streak
--- row says — on player_ledger_user_idx (user, slot, at desc), one 8-day range.
+-- unless, in the six UTC days before today, the login bonus was PAID. Read
+-- from player_ledger — what was paid, not what a streak row says — in two arms:
+--   GEMS, PER ACCOUNT (Security C2, 2026-10-19-account-wallet.sql). Gems live
+--     in the account wallet; hr_apply's own row carries gems_in 0 and the
+--     wallet journals the credit as ITS row: kind='wallet', intent
+--     'apply:claim_reward:daily:login:<day>', gems_in > 0, on whichever hero
+--     claimed. NO slot filter: heroes of one account taking turns on day 7
+--     would otherwise each collect the bonus. player_ledger_gems_in_idx
+--     (user_id, at desc) where gems_in > 0 makes it one index range.
+--   KEYS, PER HERO. A cycle key lands in the claiming hero's bag; the claim's
+--     own kind='quest' row names it in meta.delta.i (player_ledger_user_idx).
 -- Today is excluded: the claim being verified journals itself in the same
--- apply, and a second claim today is already refused not_claimable. Ledger
--- retention is 90 days (2026-09-18-ledger-rollup-currencies.sql), far past 7.
+-- apply, and a second claim today is already refused not_claimable (a second
+-- HERO today is answered by the wallet's grant key: 0 gems). Ledger retention
+-- is 90 days (2026-09-18-ledger-rollup-currencies.sql), far past 7.
 create or replace function public.hr_login_bonus_ready(p_user uuid, p_slot int)
 returns boolean language sql stable set search_path = public, pg_catalog as $fn$
   select not exists (
+    select 1 from public.player_ledger l
+     where l.user_id = p_user
+       and l.gems_in > 0
+       and l.at >= now() - interval '8 days'
+       and l.kind = 'wallet' and l.intent like 'apply:claim_reward:daily:login:%'
+       and (l.at at time zone 'utc')::date
+           between (now() at time zone 'utc')::date - 6 and (now() at time zone 'utc')::date - 1)
+  and not exists (
     select 1 from public.player_ledger l
      where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
        and l.at >= now() - interval '8 days'
        and l.kind = 'quest' and l.intent like 'claim_reward:daily:login:%'
        and (l.at at time zone 'utc')::date
            between (now() at time zone 'utc')::date - 6 and (now() at time zone 'utc')::date - 1
-       and (coalesce(l.gems_in, 0) > 0
-            or exists (select 1
-                         from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
-                        cross join lateral jsonb_object_keys(coalesce(d.r->'keys', '{}'::jsonb)) k
-                        where coalesce(l.meta->'delta'->'i', '{}'::jsonb) ? k)))
+       and exists (select 1
+                     from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
+                    cross join lateral jsonb_object_keys(coalesce(d.r->'keys', '{}'::jsonb)) k
+                    where coalesce(l.meta->'delta'->'i', '{}'::jsonb) ? k))
 $fn$;
 revoke execute on function public.hr_login_bonus_ready(uuid, int) from public, anon, authenticated, service_role;
 
@@ -530,8 +549,10 @@ begin
     --     is a straight arrival but lands FOUR days after the last key: it pays
     --     gold only. CONTROL first: a key seven days ago leaves today's due.
     insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
-      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-7', 270, 270, 0, 1, 2,
-              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '7 days');
+      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-7', 270, 270, 0, 1, 0,
+              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '7 days'),
+             (v_uid, 0, 'wallet', 'apply:claim_reward:daily:login:lr-probe-7', 0, 0, 0, 0, 2,
+              '{"gems":2}'::jsonb, now() - interval '7 days');
     if not public.hr_login_bonus_ready(v_uid, 0) then
       raise exception 'login-reward self-check (j): a key paid seven days ago blocks today''s'; end if;
     delete from public.player_progress where user_id = v_uid and key = 'login';
@@ -539,8 +560,10 @@ begin
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed');
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
-      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-4', 270, 270, 0, 1, 2,
-              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '4 days');
+      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-4', 270, 270, 0, 1, 0,
+              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '4 days'),
+             (v_uid, 0, 'wallet', 'apply:claim_reward:daily:login:lr-probe-4', 0, 0, 0, 0, 2,
+              '{"gems":2}'::jsonb, now() - interval '4 days');
     if public.hr_login_bonus_ready(v_uid, 0)
        or (public.hr_claim_lookup(v_uid, 0, 'daily', 'login')->>'bonus_ready')::boolean is distinct from false then
       raise exception 'login-reward self-check (j): a key paid four days ago leaves another due'; end if;
@@ -559,6 +582,46 @@ begin
     if coalesce(v_r->>'ok', 'false') <> 'true' then
       raise exception 'login-reward self-check (j): the gold-only straight day 7 inside the week was refused (%)', v_r; end if;
 
+    -- (k) TWO HEROES, ONE ACCOUNT (Security C2). Hero A (slot 0) took the day-7
+    --     bonus YESTERDAY; hero B (slot 1) claimed day 6 yesterday and arrives
+    --     straight at day 7 today. The gems are the account's, so B's bonus is
+    --     NOT due: a forged key + gems is refused, gold only is paid. Slot 1
+    --     itself has no bonus row at all; only the account does.
+    -- Hero B needs an owned slot: the account buys slot 1 the way a player does
+    -- (gems into the wallet under a probe key, then the hero-slot buy).
+    perform public.hr_wallet_credit(v_uid, 0, 200, 'lr:probe:slot-gems', null);
+    v_r := public.hr_buy_hero_slot__ungated(1, 0, gen_random_uuid());
+    if coalesce(v_r->>'ok', '') <> 'true' then
+      raise exception 'login-reward self-check (k): buying hero slot 1 failed: %', v_r; end if;
+    v_r := public.hr_create_character(1);
+    if coalesce(v_r->>'ok', '') <> 'true' then
+      raise exception 'login-reward self-check (k): creating hero B failed: %', v_r; end if;
+    insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+      values (v_uid, 1, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed');
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_uid, 0, 'quest', 'claim_reward:daily:login:lr-probe-1', 270, 270, 0, 1, 0,
+              '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '1 day'),
+             (v_uid, 0, 'wallet', 'apply:claim_reward:daily:login:lr-probe-1', 0, 0, 0, 0, 2,
+              '{"gems":2}'::jsonb, now() - interval '1 day');
+    if public.hr_login_bonus_ready(v_uid, 1)
+       or (public.hr_claim_lookup(v_uid, 1, 'daily', 'login')->>'bonus_ready')::boolean is distinct from false then
+      raise exception 'login-reward self-check (k): hero A took the day-7 gems yesterday and hero B is due them again today'; end if;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 1;
+    v_r := public.hr_apply(v_uid, 1, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270, 'gems', 2, 'items', '{"bone_key":1}'::jsonb,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:k')));
+    if v_r->>'error' is distinct from 'login_price_mismatch' then
+      raise exception 'login-reward self-check (k): hero B collected the account''s day-7 gems a day after hero A (%)', v_r; end if;
+    v_r := public.hr_apply(v_uid, 1, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:k2')));
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'login-reward self-check (k): hero B''s gold-only day 7 was refused (%)', v_r; end if;
+
     delete from public.player_progress where user_id = v_uid and key = 'login';
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 35, 'claimed');
@@ -576,6 +639,7 @@ begin
      or exists (select 1 from public.player_inventory where user_id = v_uid)
      or exists (select 1 from public.player_intents where user_id = v_uid)
      or exists (select 1 from public.player_ledger where user_id = v_uid)
+     or exists (select 1 from public.account_wallet where user_id = v_uid)
      or exists (select 1 from auth.users where id = v_uid) then
     raise exception 'login-reward self-check: §4 LEAKED a probe row'; end if;
 
@@ -585,5 +649,6 @@ begin
                'and moves nothing; (e) the honest claim pays the price; (f) a missed day costs one step and an '
                'unclaimed row does not count; (g) the old reset-to-day-1 price is refused; (h) day 7 pays the key '
                'and the ceiling wraps; (i) a day 7 reached by skipping pays no key and no gems; (j) keys and gems pay '
-               'at most once per 7 server days, a straight day 7 four days after the last key pays gold only';
+               'at most once per 7 server days, a straight day 7 four days after the last key pays gold only; (k) the gems '
+               'are the account''s: a second hero a day after the first is paid gold only';
 end $$;

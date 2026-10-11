@@ -240,8 +240,8 @@ async function seed(db, uid, o = {}) {
   /* `player_state_activity_chk`: a non-idle pointer must name a target. */
   const aid = kind === 'idle' ? 'null' : "'slime'";
   await db.exec(`insert into public.player_state
-      (user_id, slot, gold, gems, hp, max_hp, version, active_kind, active_id, accrued_to, recovering_until)
-    values ('${uid}', 0, 0, 0, ${hp}, ${maxHp}, 1, '${kind}', ${aid},
+      (user_id, slot, gold, hp, max_hp, version, active_kind, active_id, accrued_to, recovering_until)
+    values ('${uid}', 0, 0, ${hp}, ${maxHp}, 1, '${kind}', ${aid},
             now() - interval '${o.unpaidSecs ?? 0} seconds', ${until})
     on conflict (user_id, slot) do update set
       hp = ${hp}, max_hp = ${maxHp}, version = 1, active_kind = '${kind}', active_id = ${aid},

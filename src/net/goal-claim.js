@@ -484,12 +484,12 @@
          was written to make impossible (tests/hero-slot-buy.mjs bindGuard fails
          the build if one appears).
 
-       ⚠ WHICH WALLET. `p_slot` is the ACTIVE character, deliberately: gems are
-         stored per character (player_state.gems) and the topbar gem chip shows
-         the ACTIVE character's balance, so charging any other row would take
-         gems the player cannot see and quote a shortfall that is not on their
-         screen. The ENTITLEMENT it buys is account-level and the server files it
-         on the account's canonical row — see the migration's header.
+       ⚠ WHICH WALLET. There is ONE: gems are the ACCOUNT's
+         (2026-10-19-account-wallet.sql, public.account_wallet), the same balance
+         every hero's topbar shows. `p_slot` names the ACTIVE character only as
+         the purchase's provenance (its version moves, its ledger row names it).
+         The ENTITLEMENT it buys is account-level and the server files it on the
+         account's canonical row — see the migration's header.
 
        NOT fire-and-forget, and NOT a prediction. The caller AWAITS the verdict
        (multi-character.js buySlot) because a premium spend that silently failed

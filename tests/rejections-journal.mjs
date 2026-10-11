@@ -64,6 +64,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: its fixture drives
    hr_farm_upgrade_plot(int, uuid, int), installed there. (tests/schema-replay.mjs
@@ -607,7 +608,9 @@ const mutationFileMap = (id) => {
 async function run(mutate) {
   const patches = mutate ? mutationFileMap(mutate) : undefined;
   /* NO `upTo` — see the header. The property must hold at the END of the chain. */
-  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
+  // Plain run at PRE_WALLET: P8 re-applies files whose own §4 fixtures insert
+  // player_state.gems, which 2026-10-19-account-wallet.sql drops (tests/wallet-fixture.mjs).
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : { upTo: PRE_WALLET });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   /* SESSION-SCOPED (`is_local = false`): PGlite runs each query in its own

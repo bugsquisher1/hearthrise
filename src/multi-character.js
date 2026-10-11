@@ -705,8 +705,8 @@
     return confirmDialog(opts).then(function(yes){
       if(!yes) return { ok:false, cancelled:true, reason:'cancelled' };
       /* ── THE FORK (2026-09-08-hero-slot-buy.sql) ────────────────────────
-         `mayWrite === false` means the gem balance has MOVED HOME: it is
-         player_state.gems, and a local `G.gems -= cost` would be a
+         `mayWrite === false` means the gem balance has MOVED HOME: it is the
+         account wallet (account_wallet.gems), and a local `G.gems -= cost` would be a
          client-authored debit the next envelope reconciles away while the slot
          stayed granted — which is the b371 dupe, and which is exactly what this
          path has been doing in production since gems were armed. The server verb
@@ -754,7 +754,7 @@
      Sends a SLOT ID and nothing else. No price, no currency, no "free" flag:
      hr_buy_hero_slot reads the gem cost, the ladder order and the Hearth Hall
      waiver from its own catalogue under a per-account advisory lock, debits the
-     ACTIVE character's server-owned gems and writes the ownership row in ONE
+     ACCOUNT's gem wallet (the balance every hero shows) and writes the ownership row in ONE
      transaction. NOTHING LOCAL IS DEBITED HERE, not even optimistically — the
      server owns the balance, and the client renders what comes back.
 

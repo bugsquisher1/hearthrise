@@ -608,9 +608,16 @@
          client and every headline moves the moment a verdict lands. */
       noteServerRenown(res);
       if (res && res.ok) {
-        grantLocally(G, s, rankId, rw);        // AFTER the verdict — nothing to revert
-        say('Claimed ' + rewardText(rw), 'gold');
-        return rw;
+        /* THE RECEIPT IS THE SERVER'S VERDICT, not the catalogue. Gems are ONE
+           account wallet paid once per account (2026-10-19-account-wallet.sql):
+           a second hero claiming the same rank is paid its gold and 0 gems, and
+           a toast reading the catalogue's "+25 gems" there is the browser saying
+           one thing while the server says another. */
+        var paid = { gold: Number(res.gold) || 0, gems: Number(res.gems) || 0,
+                     item: rw.item, itemQty: rw.itemQty };
+        grantLocally(G, s, rankId, paid);      // AFTER the verdict — nothing to revert
+        say('Claimed ' + rewardText(paid), 'gold');
+        return paid;
       }
       if (res && res.error === 'already_claimed') {
         /* The server once-guard already paid this rank. Marking it claimed is

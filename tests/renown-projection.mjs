@@ -444,8 +444,8 @@ async function runAll(db) {
 
   // ── THE FIXTURE. Every number below is read back from the server. ────────
   await db.exec(`insert into auth.users (id) values ('${UID}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version, renown_high, accrued_to)
-                 values ('${UID}', 0, 0, 0, 1, 0, now() - interval '60 minutes')
+  await db.exec(`insert into public.player_state (user_id, slot, gold, version, renown_high, accrued_to)
+                 values ('${UID}', 0, 0, 1, 0, now() - interval '60 minutes')
                  on conflict (user_id, slot) do update
                    set gold = 0, version = 1, renown_high = 0;`);
   await db.exec(`select set_config('request.jwt.claim.sub', '${UID}', false)`);
@@ -676,21 +676,29 @@ async function runAll(db) {
   // A migration the Coordinator can only run once is a migration that cannot be
   // replayed into a restored database. Both splices must detect their own work
   // and return, leaving the two bodies unchanged to the byte.
+  // Judged on the chain AS OF THIS FILE: a later file may remove a column this
+  // file's own §4 fixture names (2026-10-19-account-wallet.sql drops
+  // player_state.gems), and re-applying history on top of the future is not the
+  // property. A plain run on that schema boots its own bounded replay for it.
   {
-    const bodies = async () => (await db.query(
+    const later = (await db.query(
+      "select to_regclass('public.account_wallet') is not null as w")).rows[0].w === true;
+    const rdb = later ? (await bootReplay({ upTo: MIG })).db : db;
+    const bodies = async () => (await rdb.query(
       `select pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure) as s,
               pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) as a`)).rows[0];
     const before = await bodies();
     let reapplied = true;
     try {
       const sql = (await readFile(new URL(`supabase/migrations/${MIG}`, ROOT), 'utf8')).replace(/\r\n/g, '\n');
-      await db.exec(sql);
+      await rdb.exec(sql);
     } catch (e) { reapplied = false; ok(false, `the migration did not re-apply: ${e && e.message}`); }
     if (reapplied) {
       const after = await bodies();
       ok(after.s === before.s, 'a second apply leaves hr_state_of byte-identical');
       ok(after.a === before.a, 'a second apply leaves hr_apply byte-identical');
     }
+    if (rdb !== db) await rdb.close();
   }
 }
 

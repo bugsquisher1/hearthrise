@@ -100,9 +100,9 @@ async function plantProbe(db) {
     "select activity_id from public.hr_activities where kind = 'gather' limit 1")).rows;
   await db.exec(`
     insert into auth.users (id) values (${lit(PROBE)}) on conflict do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+    insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
                                      accrued_to, active_kind, active_id, active_since)
-    values (${lit(PROBE)}, 0, 0, 0, 10, 10, 1, now() - interval '10 minutes', 'gather',
+    values (${lit(PROBE)}, 0, 0, 10, 10, 1, now() - interval '10 minutes', 'gather',
             ${lit(activity_id)}, now() - interval '1 hour')
     on conflict (user_id, slot) do nothing;
     insert into public.hr_tick_ownership (user_id, slot, channel, owned)

@@ -303,8 +303,8 @@ async function seed(db, uid, name, { slot = 0, xp = null } = {}) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.profiles (id, display_name) values ('${uid}', '${name}')
                  on conflict (id) do update set display_name = excluded.display_name;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version)
-                 values ('${uid}', ${slot}, 0, 0, 5)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
+                 values ('${uid}', ${slot}, 0, 5)
                  on conflict (user_id, slot) do update set version = 5, last_seen_at = null,
                      presence_quiet = false;`);
   if (xp !== null) {
@@ -525,8 +525,8 @@ async function runAll(db) {
   await db.exec(`insert into auth.users (id) values ('${N}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.profiles (id, display_name) values ('${N}', null)
                  on conflict (id) do update set display_name = null;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version)
-                 values ('${N}', 0, 0, 0, 5)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
+                 values ('${N}', 0, 0, 5)
                  on conflict (user_id, slot) do update set version = 5, presence_quiet = false;`);
   await heartbeat(db, N);
   await refresh(db);

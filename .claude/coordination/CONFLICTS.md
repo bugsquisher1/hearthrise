@@ -2,6 +2,16 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-11 · BACKEND (lane: `lane/c-account-wallet`) → COORDINATOR + b567 discord-join + w0c login + SECURITY · **INTEGRATION: two staged gem grants write a column the wallet drops**
+
+**The change.** `supabase/migrations/2026-10-19-account-wallet.sql` (staged) moves gems + Hearth Tokens to `public.account_wallet` (one per account; Game Designer ruling 2026-10-11) and DROPS `player_state.gems` / `hearth_tokens`. Every gem credit goes through `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` — once per account per key, account-wide day cap, one `kind='wallet'` ledger row.
+
+**The conflict.** Neither interlock merges cleanly into `origin/main` (git conflicts, not hand-resolved): `lane/b567-discord-join` conflicts in 8 files (incl. `2026-08-11-catalogue.generated.sql`, `schema-apply-order.json`, `restore-census.baseline.json`); `lane/w0c-daily-and-login` in 10 (incl. `schema-drift.baseline.json`, `schema-apply-order.json`, smoke files). Semantically, once the wallet is applied: `2026-10-18-discord-gift.sql` credits `player_state.gems` and its §8 inserts that column → it FAILS TO APPLY; `2026-10-16-login-reward.sql`'s `hr_login_bonus_ready` reads `gems_in` per `(user, slot)` → it must read the account (`kind='wallet'` rows, any slot), and its hr_apply anchor (`progress_claim`) is untouched by the wallet's five edits.
+
+**Order.** Wallet first (it is the last file on main), then each lane merges main into itself and converts: discord → `hr_wallet_credit(v_uid, p_slot, c_gift_gems, 'discord_gift', null)` (the once-row stays; the key makes it structural); login → gems via the engine already pass through the wallet under `apply:<journal.intent>`.
+
+**Also found (not fixed — owners: Game Designer + Systems).** `world_event_absence_claim__ungated` returns `gems: 1` for an absent pledge, but no server body credits that gem (verified by a census of every function naming gems, replay and production); under the armed record the client does not credit it either, so the receipt promises a gem that never lands (§6 class). Its gold (750) is said to be owned by "the gold arm" — not traced here.
+
 ## 2026-09-28 · SYSTEMS (lane: `lane/blessings-promise-honesty`) → GAME DESIGNER + COORDINATOR · **HONESTY: Blessings promised speed, yield, gold find and XP the realm never pays — WITHDRAWN**
 
 **The claim.** Home ("The realm"), the Events blessing card, the login toast and the note beside the running activity printed each day's and week's blessing as a magnitude — "+4% gather speed", "+2 farm yield", "+3% gold find", "+4% all XP", "−25% burn chance" — "while online". `src/features/world-events.js` backed it by wrapping `window.getBonus` with a blessing layer, so the browser predicted rates and yields from it.

@@ -16,7 +16,9 @@
 // This file re-runs both loops against the REAL migration chain on a REAL
 // PostgreSQL (PGlite/WASM, in process — no Docker, no credentials, production
 // untouched) and requires:
-//   · the gem loop to REFUSE at 5,000/character-day, and
+//   · the gem loop to REFUSE at 5,000/ACCOUNT-day (2026-10-19-account-wallet.sql:
+//     gems are one wallet per account, every gem credit has its own account
+//     grant key, and the engine never spends — a spend is an RPC), and
 //   · THE GOLD LOOP TO STILL REFUSE at 25,000,000, as the control that proves
 //     the harness can see a ceiling fire at all.
 // A run in which the gem loop refuses but the gold loop does not is reported as
@@ -121,7 +123,9 @@ async function harness(db) {
   async function loop(id, slot, key, per, cap) {
     let minted = 0, calls = 0, stop = null;
     for (let i = 0; i < cap; i++) {
-      const r = await apply(id, slot, { [key]: per, journal: { kind: 'admin', intent: `b351:${key}` } });
+      // A DISTINCT intent per call: a gem credit is keyed once per account by its
+      // journal intent, so a repeated intent is a replay that pays 0, not a mint.
+      const r = await apply(id, slot, { [key]: per, journal: { kind: 'admin', intent: `b351:${key}:${i}` } });
       calls++;
       if (r.ok !== true) { stop = r; break; }
       minted += per;
@@ -169,14 +173,20 @@ async function acceptance(H, label) {
   // paid; a check that passes over rows nobody stamped is a ceiling that resets
   // on every apply.
   out.stamped = Number((await H.db.query(
-    'select coalesce(sum(gems_in),0) s from player_ledger where user_id=$1 and slot=0', [c2])).rows[0].s);
+    'select coalesce(sum(gems_in),0) s from player_ledger where user_id=$1', [c2])).rows[0].s);
 
   // Leg 5 — dimension independence: gold still pays on the character whose GEM
   // budget is spent.
   out.goldAfterGems = await H.apply(c2, 0, { gold: 1000, journal: { kind: 'admin', intent: 'b351:mix' } });
 
-  // Leg 6 — gross, not net: spend the gems back and try to mint again.
-  out.spend = await H.apply(c2, 0, { gems: -out.fineLoop.minted, journal: { kind: 'admin', intent: 'b351:spend' } });
+  // Leg 6 — gross, not net: spend the gems back and try to mint again. A spend
+  // is an RPC's (hr_buy_hero_slot / hr_buy_gem_unlock debit through
+  // hr_wallet_debit), never the engine's: the engine's own attempt is refused.
+  out.engineSpend = await H.apply(c2, 0, { gems: -1, journal: { kind: 'admin', intent: 'b351:engine-spend' } });
+  out.spend = out.fineLoop.minted > 0
+    ? (await H.db.query("select public.hr_wallet_debit($1, 0, $2, 'b351:spend', '{}'::jsonb) r",
+        [c2, out.fineLoop.minted])).rows[0].r
+    : { ok: false, error: 'nothing_was_minted_to_spend' };
   out.mintAfterSpend = await H.apply(c2, 0, { gems: 1, journal: { kind: 'admin', intent: 'b351:regain' } });
 
   // Leg 7 — the per-call clamp still wins above its own limit, so `gem_clamp`
@@ -207,7 +217,7 @@ function grade(v, { expectGemCeiling = true } = {}) {
     `minted ${v.clampLoop.minted} in ${v.clampLoop.calls} call(s), stop ${JSON.stringify(v.clampLoop.stop)}`);
 
   ok(v.fineLoop.minted === GEM_CEIL,
-    `the gem ceiling is exactly ${GEM_CEIL.toLocaleString()}/character-day`,
+    `the gem ceiling is exactly ${GEM_CEIL.toLocaleString()}/account-day`,
     `minted ${v.fineLoop.minted}`);
   ok(v.fineLoop.stop && v.fineLoop.stop.error === 'daily_budget' && v.fineLoop.stop.dim === 'gems'
      && Number(v.fineLoop.stop.limit) === GEM_CEIL && Number(v.fineLoop.stop.used) === GEM_CEIL,
@@ -222,8 +232,11 @@ function grade(v, { expectGemCeiling = true } = {}) {
     'CONTROL: a gold mint still succeeds on a character whose gem budget is spent (per-dimension, not a lockout)',
     JSON.stringify(v.goldAfterGems));
 
+  ok(v.engineSpend.error === 'bad_delta',
+    'the ENGINE cannot spend gems (a negative gem delta is refused; spends are RPCs)',
+    JSON.stringify(v.engineSpend));
   ok(v.spend.ok === true,
-    'CONTROL: a gem SPEND still succeeds after the ceiling is reached (zero gross inflow short-circuits)',
+    'CONTROL: a gem SPEND (the wallet debit every purchase RPC uses) still succeeds after the ceiling is reached',
     JSON.stringify(v.spend));
   ok(v.mintAfterSpend.error === 'daily_budget',
     'spending does NOT buy back budget — the sum is GROSS inflow, not net',
@@ -304,21 +317,22 @@ begin
   return v_out;
 end $f$;`,
   },
-  apply_stamps_null: {
-    what: 'hr_apply passes the check and then stamps a NULL gems_in, so every apply starts from zero',
-    // The body is the REAL one out of the migration, with one word changed —
-    // retyping 56 KB of hr_apply to plant a one-line defect is how a mutation
-    // stops modelling the thing it is mutating.
-    sql: async () => {
-      const start = migSql.indexOf('create or replace function public.hr_apply(');
-      const end = migSql.indexOf('\nend $$;\n', start);
-      if (start < 0 || end < 0) throw Object.assign(new Error('cannot extract hr_apply from the migration'), { harness: true });
-      const fn = migSql.slice(start, end + '\nend $$;\n'.length);
-      const find = '       v_gold_in, v_xp_in, v_qty_in, v_gems_in,';
+  credit_stamps_null: {
+    what: 'the gem credit passes the check and then stamps a NULL gems_in, so every credit starts from zero',
+    // The body is the REAL one INSTALLED at the chain end, with one word changed
+    // — retyping it to plant a one-line defect is how a mutation stops modelling
+    // the thing it is mutating. Since 2026-10-19-account-wallet.sql the gem
+    // inflow stamp lives on the wallet's journal row (hr_wallet_credit), not on
+    // hr_apply's own row, so that is where the defect is planted.
+    sql: async (db) => {
+      const fn = (await db.query(
+        "select pg_get_functiondef('public.hr_wallet_credit(uuid,integer,bigint,text,timestamp with time zone)'::regprocedure) d"))
+        .rows[0].d.replace(/\r\n/g, '\n');
+      const find = "    (p_uid, p_slot, 'wallet', p_key, 0, 0, 0, 0, p_gems,";
       if (fn.split(find).length - 1 !== 1) {
-        throw Object.assign(new Error('the gems_in ledger anchor did not match exactly once'), { harness: true });
+        throw Object.assign(new Error('the wallet gems_in ledger anchor did not match exactly once'), { harness: true });
       }
-      return fn.replace(find, '       v_gold_in, v_xp_in, v_qty_in, null,');
+      return fn.replace(find, "    (p_uid, p_slot, 'wallet', p_key, 0, 0, 0, 0, null,");
     },
   },
 };
@@ -326,7 +340,7 @@ end $f$;`,
 // ── run ─────────────────────────────────────────────────────────────────
 const t0 = Date.now();
 try {
-  console.log(`gem daily budget — ceiling ${GEM_CEIL.toLocaleString()}/character-day, `
+  console.log(`gem daily budget — ceiling ${GEM_CEIL.toLocaleString()}/account-day, `
     + `per-call clamp ${GEM_CLAMP.toLocaleString()}, gold control ${GOLD_CEIL.toLocaleString()}`);
 
   const { db } = await bootReplay();
@@ -358,7 +372,7 @@ try {
       console.log(`\n── RED ${name}`);
       console.log(`     ${m.what}`);
       const boot = await bootReplay();
-      await boot.db.exec(await m.sql());
+      await boot.db.exec(await m.sql(boot.db));
       const H2 = await harness(boot.db);
       const before = failures;
       const v = await acceptance(H2, `RED ${name} — this run MUST fail`);

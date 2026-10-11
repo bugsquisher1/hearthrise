@@ -418,9 +418,13 @@
     return Promise.resolve().then(function () { return GC.claimMilestone(id); }).then(function (res) {
       delete _msInFlight[id];
       if (res && res.ok) {
-        msGrantLocally(G, s, id, rw);            // AFTER the verdict — nothing to revert
-        msSay('Collection reward: ' + msRewardText(rw), 'gold');
-        return rw;
+        /* THE RECEIPT IS THE SERVER'S VERDICT, not the catalogue: gems are paid
+           once per ACCOUNT (2026-10-19-account-wallet.sql), so a second hero's
+           claim answers gems 0 and must read that way. */
+        var paid = { gold: Number(res.gold) || 0, gems: Number(res.gems) || 0 };
+        msGrantLocally(G, s, id, paid);          // AFTER the verdict — nothing to revert
+        msSay('Collection reward: ' + msRewardText(paid), 'gold');
+        return paid;
       }
       if (res && res.error === 'already_claimed') {
         msMarkClaimed(s, id);

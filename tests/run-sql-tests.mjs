@@ -596,6 +596,11 @@ const ALSO_LINTED = [
   /* restates hr_claim_daily__ungated (daily_harvest pays); revoke restated. */
   '2026-10-16-daily-harvest-credit.sql',
   '2026-10-16-daily-harvest-eligibility.sql',
+  /* THE ACCOUNT WALLET (2026-10-19). Restates hr_state_of WHOLE (gems +
+     hearth_tokens projected from public.account_wallet) — HR_STATE_OF_CHAIN's
+     new last link — and creates the hr_wallet_* choke point. Listed so the
+     derivation walk can extract its body and the grant lints see it. */
+  '2026-10-19-account-wallet.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -695,6 +700,11 @@ const HR_STATE_OF_CHAIN = [
   // the FULL waterings array all survive verbatim, which is the property this
   // chain exists to prove.
   '2026-09-14-hr-state-of-restatement.sql',
+  // THE ACCOUNT WALLET. The restatement's body VERBATIM plus the wallet read:
+  // gems and hearth_tokens are projected from public.account_wallet (one balance
+  // per account, identical on every slot). Its declared replacements below are
+  // the banner line and the two scalar lines that now read the wallet.
+  '2026-10-19-account-wallet.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1506,8 +1516,15 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     const sql = (sources.get(file) || '').replace(/\r\n/g, '\n');
     const i = sql.indexOf(SPEC.open);
     if (i < 0) return null;
-    const j = sql.indexOf('\nend $$;\n', i);
-    if (j < 0) return null;
+    /* The body ends at `\nend $$;\n` OR at its dollar-quote's own close
+       `\n$$;\n`, whichever is FIRST. A `$$`-quoted body cannot contain either
+       inside it, so the first one is this function's end. Before 2026-10-19 only
+       the first form was searched, and a body closed as `end \n$$;` (the 09-14
+       restatement's shape) ran on into its file's revokes and §3 self-check —
+       which then sat in every comparison as lines nobody wrote in the body. */
+    const ends = [sql.indexOf('\nend $$;\n', i), sql.indexOf('\n$$;\n', i)].filter((x) => x >= 0);
+    if (!ends.length) return null;
+    const j = Math.min(...ends);
     const fn = sql.slice(i, j);
     return fn.slice(fn.indexOf('$$') + 2);
   };
@@ -1847,6 +1864,25 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
         "      'streak_day_key', v_st.streak_day_key),",
         "                                          'xp', xp, 'acc_ms', acc_ms)",
         "                                          'planted_at', planted_at, 'watered_at', watered_at)",
+      ],
+      /* THE ACCOUNT WALLET. Its body is the CHAIN-END text (pg_get_functiondef
+         after every file in the apply order — md5 888304fc, measured equal on
+         production 2026-10-11) plus the wallet read, so it carries what the
+         ANCHORED patches after 09-14 changed, which this static chain never saw.
+         Six replaced lines, every one accounted for:
+           · the banner, which gains the second restatement's note;
+           · the gems and hearth_tokens scalars, now read from account_wallet
+             (`coalesce(v_w.gems, 0)` / `coalesce(v_w.hearth_tokens, 0)`);
+           · the companion projection's two terminators, extended by
+             2026-10-12-companion-xp-frac.sql's anchored patch (live since);
+           · `end ` — 09-14 closes as `end \n$$;`, this file as `end $$;`. */
+      '2026-10-19-account-wallet.sql': [
+        '-- hr_state_of restated 2026-09-14 (2026-09-14-hr-state-of-restatement.sql) — chain depth 0.',
+        "      'slot', v_st.slot, 'gold', v_st.gold, 'gems', v_st.gems,",
+        "      'hearth_tokens', v_st.hearth_tokens,",
+        "               'xp', xp, 'level', public.hr_level_from_xp(xp)))",
+        "           and pp.key like 'companion_xp:%'), '{}'::jsonb)),",
+        'end ',
       ],
     },
   };

@@ -42,6 +42,9 @@
 //       a daily player's 4 keys / 8 gems, never two keys inside 7 days; in the
 //       database, through the edge, a day 7 reached by a step back pays gold
 //       only, and so does a STRAIGHT day 7 four days after the last key.
+//   L8  TWO HEROES, ONE ACCOUNT (Security C2): hero A takes the day-7 bonus;
+//       hero B's straight day 7 the next day pays gold only — the gems are the
+//       account wallet's, read across every slot.
 //   L6  BOTH W0 FILES RE-APPLY BYTE-IDENTICALLY on the chain end (this file and
 //       2026-10-16-goal-board-retire.sql), their own §4 passing a second time.
 //
@@ -103,6 +106,9 @@ const SQL_MUTANTS = [
   { name: 'the verify ignores the ledger week (hr_login_claim_verify)', expect: /self-check \(j\)/,
     from: " and (v_last->>'gap')::int = 1\n    and public.hr_login_bonus_ready(p_uid, p_slot));",
     to: " and (v_last->>'gap')::int = 1);" },
+  { name: 'the gem arm reads one hero, not the account (hr_login_bonus_ready)', expect: /self-check \(k\)/,
+    from: "     where l.user_id = p_user\n       and l.gems_in > 0",
+    to: "     where l.user_id = p_user and l.slot = coalesce(p_slot, 0)\n       and l.gems_in > 0" },
   { name: 'the re-price is unwired from hr_apply', expect: /self-check \((b|d)\)/,
     from: "          perform public.hr_login_claim_verify(v_uid, v_slot, coalesce(v_prog->>'period', ''), p_delta);",
     to: '          null;' },
@@ -228,15 +234,18 @@ async function runArms(db, mods) {
 
   // L4 — the played path, through the edge and the real hr_apply.
   const exec = makeExec(db);
-  const claim = async () => {
+  const claim = async (slot = 0) => {
     await db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
-    return cr.runClaimReward({ exec, user: UID, slot: 0, intentId: crypto.randomUUID(), reward: { kind: 'daily', key: 'login' } });
+    return cr.runClaimReward({ exec, user: UID, slot, intentId: crypto.randomUUID(), reward: { kind: 'daily', key: 'login' } });
   };
-  const wallet = async () => {
-    const st = await one('select gold, gems from public.player_state where user_id = $1 and slot = 0', [UID]);
+  /* Gold and the bag are the hero's; gems are the ACCOUNT's (account_wallet,
+     2026-10-19-account-wallet.sql). */
+  const wallet = async (slot = 0) => {
+    const st = await one('select gold from public.player_state where user_id = $1 and slot = $2', [UID, slot]);
+    const w = await one('select coalesce((select gems from public.account_wallet where user_id = $1), 0) as gems', [UID]);
     const inv = {};
-    for (const r of (await db.query('select item_id, qty from public.player_inventory where user_id = $1 and slot = 0', [UID])).rows) inv[r.item_id] = Number(r.qty);
-    return { gold: Number(st.gold), gems: Number(st.gems), inv };
+    for (const r of (await db.query('select item_id, qty from public.player_inventory where user_id = $1 and slot = $2', [UID, slot])).rows) inv[r.item_id] = Number(r.qty);
+    return { gold: Number(st.gold), gems: Number(w.gems), inv };
   };
   const paid = (a, b) => {
     const items = {};
@@ -386,10 +395,15 @@ async function runArms(db, mods) {
        (journalled as the edge journals it), day 6 claimed yesterday. Today is a
        straight day 7 and pays gold only. CONTROL: the same with the key seven
        days ago pays the key and the gems. */
-    const keyPaid = (daysAgo) => db.query(
+    /* A paid day-7 bonus as it is journalled since the account wallet: the
+       claim's kind='quest' row on the hero (the key in meta.delta.i, gems_in 0)
+       and the wallet's kind='wallet' row carrying the gems. */
+    const keyPaid = (daysAgo, slot = 0) => db.query(
       `insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
-       values ($1, 0, 'quest', 'claim_reward:daily:login:l7-probe', 270, 270, 0, 1, 2,
-               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - make_interval(days => $2::int))`, [UID, daysAgo]);
+       values ($1, $3, 'quest', 'claim_reward:daily:login:l7-probe', 270, 270, 0, 1, 0,
+               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - make_interval(days => $2::int)),
+              ($1, $3, 'wallet', 'apply:claim_reward:daily:login:l7-probe', 0, 0, 0, 0, 2,
+               '{"gems":2}'::jsonb, now() - make_interval(days => $2::int))`, [UID, daysAgo, slot]);
     /* player_ledger is append-only, so the cases run in this order: the seven-
        days-ago key first, then the four-days-ago one (which then blocks). Every
        other login row this test journalled is today's, outside the window. */
@@ -405,6 +419,40 @@ async function runArms(db, mods) {
       } else if (g.gold !== w.gold || g.gems !== w.gems || (g.items.bone_key || 0) !== (w.items.bone_key || 0)) {
         fail('L7', `a straight day 7 with a key ${daysAgo} days ago paid ${JSON.stringify(g)}, expected ${JSON.stringify({ gold: w.gold, gems: w.gems, key: w.items.bone_key || 0 })}`);
       }
+    }
+  }
+
+  // L8 — TWO HEROES, ONE ACCOUNT (Security C2). Hero A took the day-7 bonus
+  // yesterday; hero B claimed day 6 yesterday and claims a straight day 7
+  // today through the edge. The gems are the account's: B is paid gold only,
+  // no key and no gems.
+  {
+    await db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [UID]);
+    await db.query("select public.hr_wallet_credit($1, 0, 200, 'l8:probe:slot-gems', null)", [UID]);
+    const bought = (await one('select public.hr_buy_hero_slot__ungated(1, 0, gen_random_uuid()) as r')).r;
+    const made = (await one('select public.hr_create_character(1) as r')).r;
+    if (!(bought && bought.ok === true && made && made.ok === true)) {
+      fail('L8', `could not stand hero B up: buy ${JSON.stringify(bought)}, create ${JSON.stringify(made)}`);
+    }
+    await db.query(`select set_config('request.jwt.claim.sub', '', false)`);
+    /* Hero A's day-7 bonus, yesterday, as it is journalled (see L7). */
+    await db.query(
+      `insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+       values ($1, 0, 'quest', 'claim_reward:daily:login:l8-probe', 270, 270, 0, 1, 0,
+               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '1 day'),
+              ($1, 0, 'wallet', 'apply:claim_reward:daily:login:l8-probe', 0, 0, 0, 0, 2,
+               '{"gems":2}'::jsonb, now() - interval '1 day')`, [UID]);
+    await db.query(
+      `insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+       values ($1, 1, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed')`, [UID]);
+    const b = await wallet(1);
+    const rr = await claim(1);
+    const g = paid(b, await wallet(1));
+    const w = rw.priceDailyLogin(7, { bonus: false });
+    if (!(rr.body && rr.body.ok === true && rr.body.granted.streak === 7)) {
+      fail('L8', `hero B's straight day 7 was refused: ${JSON.stringify(rr.body).slice(0, 200)}`);
+    } else if (g.gold !== w.gold || g.gems !== 0 || (g.items.bone_key || 0) !== 0 || rr.body.granted.gems !== 0) {
+      fail('L8', `hero B, a day after hero A took the account's day-7 bonus, was paid ${JSON.stringify(g)} (receipt ${JSON.stringify(rr.body.granted)}) — gold only expected`);
     }
   }
 

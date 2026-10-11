@@ -46,6 +46,7 @@
 
 import { createHash, createHmac } from 'node:crypto';
 import { bootReplay } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 import {
   SHIM_CRYPTO, SHIM_CRYPTO_NAMED, SHIM_VAULT, SHIM_NET,
   PROBE, K_SECRET, K_BODY, K_BUCKET, K_SHA, K_MAC, lit,
@@ -81,7 +82,10 @@ const ok = (name, cond, detail) => {
 async function boot(crypto = SHIM_CRYPTO) {
   const seed = new Map();
   seed.set(TOKEN_FILE, crypto + SHIM_VAULT + SHIM_NET);
-  return bootReplay({ seedBefore: seed });
+  /* PRE_WALLET: X-7a re-applies 2026-09-21-world-tick-cron.sql, whose own §4
+     fixture inserts player_state.gems, which 2026-10-19-account-wallet.sql (the
+     next file) drops. The wallet touches nothing the tick token path reads. */
+  return bootReplay({ seedBefore: seed, upTo: PRE_WALLET });
 }
 
 /* Plant the probe character the driver needs to roster anything at all. */
@@ -90,9 +94,9 @@ async function plantProbe(db) {
     "select activity_id from public.hr_activities where kind = 'gather' limit 1")).rows;
   await db.exec(`
     insert into auth.users (id) values (${lit(PROBE)}) on conflict do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+    insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
                                      accrued_to, active_kind, active_id, active_since)
-    values (${lit(PROBE)}, 0, 0, 0, 10, 10, 1, now() - interval '10 minutes', 'gather',
+    values (${lit(PROBE)}, 0, 0, 10, 10, 1, now() - interval '10 minutes', 'gather',
             ${lit(activity_id)}, now() - interval '1 hour')
     on conflict (user_id, slot) do nothing;
     insert into public.hr_tick_ownership (user_id, slot, channel, owned)

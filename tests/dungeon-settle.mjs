@@ -162,8 +162,8 @@ async function boot(mutate) {
 /** Create a fresh, well-levelled, two-key character for `uid`. No ledger touch. */
 async function seed(db, uid, { levelled = true, keys = 2 } = {}) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, dungeon_scrip, version)
-                 values ('${uid}', 0, 0, 0, 0, 1)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, dungeon_scrip, version)
+                 values ('${uid}', 0, 0, 0, 1)
                  on conflict (user_id, slot) do update set dungeon_scrip = 0, version = 1;`);
   if (levelled) {
     const xp99 = xpForLevel(99);   // combat level 126 → clears any req_lv

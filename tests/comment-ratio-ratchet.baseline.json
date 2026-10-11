@@ -3,7 +3,7 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 3965,
+  "bnumTotal": 3964,
   "files": {
     "src/legacy.js": {
       "total": 17085,
@@ -27,17 +27,17 @@
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
-      "total": 7485,
+      "total": 7484,
       "comment": 1982,
-      "code": 5030,
+      "code": 5029,
       "ratio": 0.3940357852882704,
       "bnum": 130
     },
     "src/net/accrue.js": {
-      "total": 7101,
-      "comment": 3792,
-      "code": 2797,
-      "ratio": 1.3557382910260993,
+      "total": 7107,
+      "comment": 3794,
+      "code": 2801,
+      "ratio": 1.3545162441985006,
       "bnum": 127
     },
     "src/features/smoke/market-night-and-prices.js": {
@@ -75,19 +75,19 @@
       "ratio": 0.3178396072013093,
       "bnum": 81
     },
+    "src/features/smoke/companions-claims-and-renown.js": {
+      "total": 3654,
+      "comment": 732,
+      "code": 2726,
+      "ratio": 0.26260869565217393,
+      "bnum": 34
+    },
     "src/features/clan-seat-ui.js": {
       "total": 3621,
       "comment": 877,
       "code": 2579,
       "ratio": 0.3400542846064366,
       "bnum": 32
-    },
-    "src/features/smoke/companions-claims-and-renown.js": {
-      "total": 3570,
-      "comment": 721,
-      "code": 2656,
-      "ratio": 0.26260869565217393,
-      "bnum": 34
     },
     "src/features/smoke/farm-and-profile.js": {
       "total": 3443,

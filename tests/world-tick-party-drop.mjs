@@ -85,9 +85,9 @@ async function arms(db, { log = true } = {}) {
       [`party drop guard ${RUN}.${seq}`, users[0]])).id;
     for (let i = 0; i < specs.length; i++) {
       if (specs[i].clan7) await q('insert into public.clan_members (clan_id, user_id) values ($1, $2)', [clan, users[i]]);
-      await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                                 active_kind, active_id, active_since, consec_falls, recovering_until)
-               values ($1, 0, 500, 0, $2, 10, 1, $3, 'combat', $4, '2000-01-01 00:00:00+00', $5, $6)`,
+               values ($1, 0, 500, $2, 10, 1, $3, 'combat', $4, '2000-01-01 00:00:00+00', $5, $6)`,
         [users[i], i === 0 ? 7 : 10, iso(markMs), cact, i === 0 ? 2 : 0, i === 0 ? '2001-01-01 00:00:00+00' : null]);
     }
     const pid = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [users[0]])).id;

@@ -50,6 +50,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { walletFixture } from './wallet-fixture.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: the newest file it names;
    its arms drive bodies that file restated. (tests/schema-replay.mjs
@@ -338,8 +339,8 @@ async function run(mutate) {
      rule — a hard-coded 200 would turn this guard red on a Designer retune with
      a message about the intent cache). P3 needs two characters to prove the SLOT
      half of the (intent, slot) comparison, so this is load-bearing, not scenery. */
-  await q('update public.player_state set gems = '
-    + '(select max(cost_gems) from public.hr_hero_slots) where user_id = $1 and slot = 0', [uid]);
+  await (await walletFixture(db)).setGems(uid, 0,
+    Number((await q('select max(cost_gems)::text as c from public.hr_hero_slots'))[0].c));
   await gate();
   {
     const bs = await asUser(uid, 'select public.hr_buy_hero_slot(1, 0, $1) as r',

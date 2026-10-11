@@ -116,9 +116,9 @@ async function snapshot(db) {
 
 async function r5(db) {
   await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [UID]);
-  await db.query(`insert into player_state (user_id, slot, gold, gems, hp, max_hp, version,
+  await db.query(`insert into player_state (user_id, slot, gold, hp, max_hp, version,
                     accrued_to, active_kind, active_id, active_since)
-                  values ($1, 0, 1000, 0, 10, 10, 1, now() - interval '${STALE}',
+                  values ($1, 0, 1000, 10, 10, 1, now() - interval '${STALE}',
                           'combat', 'r5_probe_target', now() - interval '8 hours')`, [UID]);
   await db.query(`insert into player_progress (user_id, slot, kind, key, value, period_key, updated_at)
                   values ($1, 0, 'stat', 'ev:smithed', 60, '', now())`, [UID]);
@@ -365,7 +365,8 @@ async function run(mutate, { only } = {}) {
     /* The second apply runs on the chain AS OF these two files: a later file
        (2026-10-16-goal-board-retire.sql) drops hr_claim_goal, which the first
        file wires, so re-applying it at the chain end would test that drop, not
-       this file's idempotency. */
+       this file's idempotency. It also precedes 2026-10-19-account-wallet.sql,
+       which drops player_state.gems that both files' own §4 fixtures insert. */
     const { db: db1 } = await bootReplay({ upTo: MIG_FROM });
     await s1(db1);
     await db1.close?.();

@@ -96,8 +96,8 @@ async function boot(mutate) {
 
 async function seed(db, uid) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, dungeon_scrip, version)
-                 values ('${uid}', 0, 0, 0, 0, 1) on conflict (user_id, slot) do update set dungeon_scrip=0, version=1;`);
+  await db.exec(`insert into public.player_state (user_id, slot, gold, dungeon_scrip, version)
+                 values ('${uid}', 0, 0, 0, 1) on conflict (user_id, slot) do update set dungeon_scrip=0, version=1;`);
   const xp99 = xpForLevel(99);
   for (const s of ['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'ranged', 'magic']) {
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp) values ('${uid}',0,'${s}',${xp99})

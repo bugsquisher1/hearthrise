@@ -483,6 +483,8 @@
   ]
  },
  "player_value_tables": [
+  "account_gem_grants",
+  "account_wallet",
   "active_bounty",
   "clan_ledger",
   "clan_members",
@@ -511,7 +513,8 @@
   "party",
   "party_hunt_roster_log",
   "party_member",
-  "hr_return_anchor"
+  "hr_return_anchor",
+  "hr_name_holds"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -556,6 +559,16 @@
   "party_hunt_tally": "Display aggregate of player_ledger rows (per-hunt xp/gold/kills per member). It carries a user_id but no value of its own: the ledger, which is restore_only, is the record and every number here is a sum of its rows. Losing every row costs the Hunt card its running totals for in-flight hunts, never a coin, item, XP point or rank; the §2 backfill of 2026-10-15-party-hunt-view.sql regenerates it from a restored ledger."
  },
  "tables": {
+  "account_gem_grants": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (a budget of grants). The once-per-ACCOUNT key of every gem credit (rank:<id>, milestone:<id>, start_kit, raid:<week>, goal:<id>:<period>, apply:<intent>), 2026-10-19-account-wallet.sql. Losing it RE-MINTS: every permanent gem reward the account already took becomes claimable again on another hero. Periodic keys expire and are pruned by the account's next credit; permanent keys are kept for life."
+  },
+  "account_wallet": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE. The account's gems and Hearth Tokens: ONE balance per account since 2026-10-19-account-wallet.sql (they were player_state.gems / hearth_tokens, one per hero). Losing it zeroes every player's premium currency; the kind='wallet' rows of player_ledger re-derive a balance only inside the ledger's retention window, so a backup is the only full answer."
+  },
   "active_bounty": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1275,6 +1288,16 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE. One row per Hearthfind find a character has ever made (user_id, find id, found_at, nth ever) — the shared world feed and the source of the Emberborn/Rootwarden/Deepdelver/Tidesworn/Wonderkeeper titles. Written only by hr_apply (SECURITY DEFINER, 3/day + 30 s clamps), pruned by hr_world_finds_prune; anon/authenticated SELECT only. Losing it silently un-earns titles and erases the feed. 0 rows at classification (2026-09-08, feature just applied)."
+  },
+  "hr_name_blocklist": {
+   "class": "seeded",
+   "replay": 94,
+   "note": "The display/clan NAME content blocklist (2026-10-11-name-moderation.sql §1b, written in full on every apply). hr_name_blocked reads it on every claim, availability probe and clan found. A rebuild that came back EMPTY would let every slur through (fail OPEN, silent) - which is why the count is pinned here. Server-only reference data, rebuilt from repo, never restored."
+  },
+  "hr_name_holds": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "MODERATION STATE - the fold keys of names a moderator took back (hr_mod_force_rename). One row per moderation. A rebuild returns it EMPTY, after which every moderated name (and its spacing/leet variants) becomes claimable again by anyone. Written only by hr_mod_force_rename; no client grant. Not gold, but a player-scoped row whose loss re-publishes abuse, so it is restored like player value."
   }
  }
 }

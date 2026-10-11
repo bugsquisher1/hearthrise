@@ -799,7 +799,7 @@ async function run(mutate) {
       });
 
       const [before] = (await db.query(
-        'select gold, gems, version from public.player_state where user_id=$1 and slot=0',
+        'select gold, version from public.player_state where user_id=$1 and slot=0',
         [UID])).rows;
 
       const res = await runClaimReward({
@@ -841,7 +841,7 @@ async function run(mutate) {
       }
 
       const [after] = (await db.query(
-        'select gold, gems, version from public.player_state where user_id=$1 and slot=0',
+        'select gold, version from public.player_state where user_id=$1 and slot=0',
         [UID])).rows;
       ok(Number(after.gold) === Number(before.gold) + Number(g.gold),
         `T7: player_state.gold went ${before.gold} → ${after.gold}, but the receipt claims `

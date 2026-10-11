@@ -98,8 +98,8 @@ const sliceNumber  = (src, decl, where)   => sliceNumber_(src, decl, where, die)
 //
 //   kind    the domain the id lives in — and, for a payment, WHICH SERVER
 //           TABLE the spend debits. This is not decoration: `hearth_token` is
-//           BOTH a row in hr_items and a column on player_state
-//           (player_state.hearth_tokens), measured, so a bare
+//           BOTH a row in hr_items and a wallet balance
+//           (account_wallet.hearth_tokens), measured, so a bare
 //           {currency:'hearth_token'} is genuinely ambiguous at the server and
 //           the ambiguity is in the one currency the Final Directive says may
 //           never be minted. `kind` removes it by construction.
@@ -127,8 +127,9 @@ const GRANT_KINDS = new Set([
   'currency', 'item', 'unlock', 'capacity',
 ]);
 // Currencies that exist as a balance the player holds.
-//   gold/gems/hearth_tokens  → player_state columns (verified in
-//                              2026-08-11-player-state.sql)
+//   gold                     → player_state.gold (per hero; 2026-08-11-player-state.sql)
+//   gems/hearth_tokens       → account_wallet (ONE balance per account since
+//                              2026-10-19-account-wallet.sql)
 //   marks                    → Bounty Marks. G.bountyHunter.marks, and it has
 //                              NO server home at all today. Extracted anyway
 //                              and flagged, because a price in a currency the
@@ -136,8 +137,8 @@ const GRANT_KINDS = new Set([
 //                              omission.
 const CURRENCIES = {
   gold: { server: 'player_state.gold' },
-  gems: { server: 'player_state.gems' },
-  hearth_tokens: { server: 'player_state.hearth_tokens' },
+  gems: { server: 'account_wallet.gems' },
+  hearth_tokens: { server: 'account_wallet.hearth_tokens' },
   marks: { server: null },
   usd: { server: null },
 };
@@ -504,8 +505,8 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
 // Only `key` is used by any dungeon today, but the other two are live code
 // paths, so they are mapped rather than assumed absent — and the mapping is
 // read off the spend, not guessed: `hearth_token` is debited from
-// G.inventory, i.e. as an ITEM, not from the player_state.hearth_tokens
-// column. That is the exact ambiguity `kind` exists to remove, appearing in
+// G.inventory, i.e. as an ITEM, not from the account_wallet.hearth_tokens
+// balance. That is the exact ambiguity `kind` exists to remove, appearing in
 // the one currency the Final Directive protects.
 {
   const offers = Object.keys(DUNGEONS).sort().map((id) => {
@@ -724,8 +725,8 @@ ${byTable.join('\n').replace(/^--/gm, '//')}
 //
 // CURRENCIES AND WHERE THEY LIVE SERVER-SIDE
 //   gold           player_state.gold
-//   gems           player_state.gems
-//   hearth_tokens  player_state.hearth_tokens   (IAP-only; never PvE-minted)
+//   gems           account_wallet.gems            (one per ACCOUNT)
+//   hearth_tokens  account_wallet.hearth_tokens   (one per ACCOUNT; IAP-only; never PvE-minted)
 //   marks          NOWHERE — Bounty Marks have no server column today
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════

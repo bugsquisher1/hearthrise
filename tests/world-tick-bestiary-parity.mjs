@@ -104,10 +104,10 @@ async function run(mutant) {
   for (let i = 0; i < CHARS; i++) {
     const u = U(i);
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
-    await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
                      accrued_to, active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food,
                      auto_eat_pct, consec_falls, combat_style, buffs)
-                   values ('${u}', 0, 0, 0, 99, 99, 1, now() - interval '100 seconds',
+                   values ('${u}', 0, 0, 99, 99, 1, now() - interval '100 seconds',
                      'combat', '${MONSTER}', now() - interval '2 hours', true, 'cooked_trout', 70, 0,
                      '{"sword":"aggressive"}'::jsonb, '[]'::jsonb)`);
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp) values

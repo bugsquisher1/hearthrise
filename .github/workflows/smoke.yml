@@ -795,6 +795,19 @@ jobs:
           node tests/bestiary-target.mjs
           node tests/bestiary-target.mjs --mutate
 
+      # 2026-10-11-name-moderation.sql (Security): a name other players see is
+      # the server's to refuse and to take back. On the WHOLE chain, as the
+      # client roles: blocked variants refused name_blocked (never echoed), the
+      # Scunthorpe set passes, no direct clan insert, the moderator RPC and the
+      # blocklist unreachable, a moderator rename reaches the board, the ledger,
+      # the stamped copies and the envelope. --mutate plants five defects, each
+      # CAUGHT by a named §13 gate.
+      - name: Name moderation — server content filter, moderator rename
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/name-moderation.mjs
+          node tests/name-moderation.mjs --mutate
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no
@@ -992,6 +1005,23 @@ jobs:
         run: |
           node tests/gem-unlock-buy.mjs
           node tests/gem-unlock-buy.mjs --selftest
+
+      # ONE GEM WALLET PER ACCOUNT (2026-10-19-account-wallet.sql, Game Designer
+      # ruling 2026-10-11). Gems and Hearth Tokens moved from player_state (one per
+      # hero, so every gem source paid up to 5x per account and a hero-slot buy
+      # charged whichever hero was playing) to public.account_wallet, written only
+      # by an owner-only choke point (hr_wallet_credit / hr_wallet_debit) that keys
+      # every grant ONCE PER ACCOUNT, reads the ACCOUNT's day cap and journals each
+      # movement as one kind='wallet' ledger row. The migration's §8 is the arms;
+      # this guard runs it on the replay, plus the carry (per-hero balances summed
+      # once, journalled), the privilege probe as the real `authenticated` role, a
+      # byte-identical re-apply and the edge receipt (gems_paid, not the price).
+      # --mutate: nine defects, each named by its arm. No credentials.
+      - name: Account wallet — gems are paid once per account and seen by every hero
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/account-wallet.mjs
+          node tests/account-wallet.mjs --mutate
 
       # b564 — THE BULK SALE (`vendor_sell_many`), against the real chain, through
       # the real edge bytes (parseIntent -> runVendorSellMany -> hr_apply as

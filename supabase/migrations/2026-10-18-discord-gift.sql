@@ -45,7 +45,7 @@
 --    amount parameter: the gift is c_gift_gems, a server constant. Order:
 --    signed in → slot shape → own character (row locked) → already claimed? →
 --    gift open (secret present)? → length/shape → this week's or last week's
---    code? (else code_expired for the week before, else wrong_code, journalled
+--    code? (else code_expired for the week before, else wrong_code; both journalled
 --    via hr_record_rejection(…, 'discord_gift', 'wrong_code') with no copy of
 --    the guess) → once-row insert → credit gems + version → ONE ledger row
 --    (kind discord_gift, meta.gems +N, gems_in 0: a fixed once-ever reward,
@@ -365,6 +365,7 @@ begin
       v_used := to_char((v_now - interval '7 days') at time zone 'utc', 'IYYY"W"IW');
     elsif v_norm is not null
           and v_norm = public.hr_discord_code_for(to_char((v_now - interval '14 days') at time zone 'utc', 'IYYY"W"IW')) then
+      perform public.hr_record_rejection(v_uid, p_slot, 'discord_gift', 'code_expired', '{}'::jsonb, 1);
       return jsonb_build_object('ok', false, 'error', 'code_expired');
     else
       -- Journalled, with no copy of the guess.
@@ -574,6 +575,8 @@ begin
       perform set_config('request.jwt.claim.sub', v_two::text, true);
       v := public.hr_claim_discord_gift__ungated(0, v_old);
       if v->>'error' is distinct from 'code_expired' then raise exception 'discord-gift §8 v6 rotated: %', v; end if;
+      if not exists (select 1 from public.hr_rejections where user_id = v_two and code = 'code_expired') then
+        raise exception 'discord-gift §8 v6: an expired code was not journalled'; end if;
       v := public.hr_claim_discord_gift__ungated(0, v_prev);
       if coalesce(v->>'ok', '') <> 'true' then raise exception 'discord-gift §8 v6 grace: %', v; end if;
 

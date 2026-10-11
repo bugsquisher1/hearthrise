@@ -2089,7 +2089,7 @@ jobs:
       # code (HMAC of a Vault secret) pays a server-constant gem gift ONCE PER
       # ACCOUNT, journalled, rate limited; closed with no secret; the oracles are
       # owner-only by ACL. Both states run (no Vault / Vault + pgcrypto shim).
-      # --mutate: 13 SQL mutants + 4 client/tool-scan mutants. Template-warm seconds.
+      # --mutate: 14 SQL mutants + 4 client/tool-scan mutants. Template-warm seconds.
       - name: Discord gift — one gift per account, server code and amount, journalled
         if: ${{ !cancelled() }}
         run: |

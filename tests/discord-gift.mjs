@@ -179,6 +179,8 @@ const MUTANTS = [
              "      v_used := v_week;\n"]] },
   { name: 'wrongNotJournalled', why: 'wrong-code attempts leave no trace', expect: /§8 v2: a wrong code was not journalled/,
     edits: [["      perform public.hr_record_rejection(v_uid, p_slot, 'discord_gift', 'wrong_code', '{}'::jsonb, 1);\n", '']] },
+  { name: 'expiredNotJournalled', why: 'expired-code attempts leave no trace', expect: /§8 v6: an expired code was not journalled/,
+    edits: [["      perform public.hr_record_rejection(v_uid, p_slot, 'discord_gift', 'code_expired', '{}'::jsonb, 1);\n", '']] },
   { name: 'noJournal', why: 'the gift is paid with no ledger row', expect: /§8 v5/,
     edits: [["  values\n    (v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems', c_gift_gems, 'week', v_used));\n",
              "  select\n    v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems', c_gift_gems, 'week', v_used) where false;\n"]] },

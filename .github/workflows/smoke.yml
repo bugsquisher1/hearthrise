@@ -2468,9 +2468,12 @@ jobs:
   # + daily-harvest-eligibility (2026-10-11, estimated from login-reward's
   # per-replay cost: 1 replay plain + 4 SQL mutants ~ 4 min); budget x2 = +8,
   # so 43 -> 51.
+  # + claim-intent moved from the 2026-08 slice to the whole replayed chain
+  # (2026-10-19: login-reward now applies after the account wallet, which the
+  # slice cannot replay). Measured locally: --selftest 251 s; budget +5, 51 -> 56.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 51
+    timeout-minutes: 56
 
     steps:
       - uses: actions/checkout@v4

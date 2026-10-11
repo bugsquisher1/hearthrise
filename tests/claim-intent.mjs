@@ -61,7 +61,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootChain, ROOT } from './pglite-chain.mjs';
+import { ROOT } from './pglite-chain.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -160,7 +160,7 @@ const MUTATIONS = {
   price_from_thin_air: {
     file: FN('claim-reward.js'),
     why: 'INVARIANT 2 — the payout stops coming from the catalogue',
-    find: '  const p = priceDailyLogin(streak);',
+    find: '  const p = priceDailyLogin(streak, { bonus: loginBonusDue(lookup) });',
     repl: '  const p = { gold: 777, gems: 0, cycleDay: 1, weeksDone: 0, mult: 1 };',
   },
   client_names_period: {
@@ -409,6 +409,28 @@ end $$;
 `;
 
 class Red extends Error {}
+
+/* THE WHOLE CHAIN, not the slice (2026-10-19). 2026-10-16-login-reward.sql now
+   applies AFTER 2026-10-19-account-wallet.sql — its login bonus reads the
+   account wallet's rows (Security C2) and its §4 stands up a second hero
+   through the hero-slot buy — and neither the wallet nor the slot ladder can
+   be replayed on the 2026-08 slice. A mutation is keyed by the EXTRA name; it
+   is mapped to its file here, so every catalogue entry still plants its bug in
+   the file it names. */
+async function fullBoot(patchesByName) {
+  const { bootReplay, LAST_PATCHED } = await import('./schema-replay.mjs');
+  const fileOf = new Map(EXTRA.map(([name, path]) => [name, path.split(/[\\/]/).pop()]));
+  const patches = patchesByName
+    ? new Map([...patchesByName].map(([name, list]) => [fileOf.get(name) || name, list]))
+    : undefined;
+  /* A mutant replays up to the file it plants in (replay scope): every arm
+     this guard drives stands on 2026-10-16-login-reward.sql or earlier. */
+  const r = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
+  if (r.failures && r.failures.length) {
+    throw new Error(r.failures.map((x) => `${x.file}: ${String(x.error).split('\n')[0]}`).join('; '));
+  }
+  return r;
+}
 const fails = [];
 function ok(cond, msg) { if (!cond) { fails.push(msg); throw new Red(msg); } }
 
@@ -437,7 +459,7 @@ async function boot(mutate) {
 
   let db;
   try {
-    ({ db } = await bootChain({ extra: EXTRA, patches: sqlPatches }));
+    ({ db } = await fullBoot(sqlPatches));
   } catch (e) {
     if (e.harness) throw e;
     /* A mutation that makes a migration refuse to install IS the guard working —
@@ -523,9 +545,11 @@ const state = async (db, uid, slot = 0) => (await db.query(
 const ledger = async (db, uid, slot = 0) => (await db.query(
   'select kind, intent, gold, gold_in, xp_in, qty_in, meta from public.player_ledger '
   + 'where user_id = $1 and slot = $2 order by at, id', [uid, slot])).rows;
+/* Claim-shaped rows only: on the full chain hr_create_character also writes the
+   hero's settings flags (kind='flag', e.g. trait:auto_eat), which no claim reads. */
 const progress = async (db, uid, slot = 0) => (await db.query(
   'select kind, key, period_key, value, state from public.player_progress '
-  + 'where user_id = $1 and slot = $2 order by kind, key, period_key', [uid, slot])).rows;
+  + "where user_id = $1 and slot = $2 and kind <> 'flag' order by kind, key, period_key", [uid, slot])).rows;
 const dayKeys = async (db) => (await db.query(
   "select public.hr_utc_day_key(now()) as today, "
   + "public.hr_utc_day_key(now() - interval '1 day') as prev, "

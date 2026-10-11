@@ -3624,3 +3624,13 @@ intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need
    when the server count was 0/unknown, and the Collection Log's "% complete" read `G.collection` /
    `G.bestiary`. The Journal prints the server's counts (`HearthriseTrophies`, `serverStats()`) or the
    pending dash; JOURNAL-SERVER-1 pins it.
+
+## 2026-10-11 · art-director · "uneven squares" was three causes, only one of them CSS (lane/b568-even-recipe-cards)
+1. Heights: `.act-grid{align-items:start}` (art-direction.css) plus a lock line only locked cards had.
+   Measured 194 vs 222.6 vs 247px in one Smelting row. Cards are now fixed slots (art box, name, meta,
+   two-line inputs, one pinned status line) and rows stretch.
+2. Icon size: every icon BOX was already equal; the sprite canvases are not (copper ingot fills ~70% of
+   256px, iron fills all of 128px). Fixed by an alpha-bbox crop via `object-view-box`, sized on the long
+   axis. A letterboxed view box still paints the cropped pixels, so `object-fit:contain` alone is wrong.
+3. Widths: grid tracks were equal (226.5px); `auto-fit` made one-card lanes (Castle Stores) full-width.
+   Now `auto-fill`.

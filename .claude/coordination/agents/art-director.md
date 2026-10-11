@@ -2792,3 +2792,13 @@ columns (Chronicle beside Deeds, stats in two flowing columns) because a label 1
 number is not a table.
 Lesson: the screens a merge deletes are where old shortcuts hide - the bestiary `×` silently fell back
 to the client's own count, and only rendering it in a new host with the mirror absent showed it.
+
+### 2026-10-11 · lane/b568-even-recipe-cards: one card, one shape
+
+Tyler: "still some unevenness on these squares" (Smelting). Every recipe/node card in every skill is now
+fixed slots with one status line pinned to the foot ("Level N" or "Have N · Can make N"), stretched rows,
+a 64px art box (52 on phones), and art cropped to its paint (`img.hr-fit`, artFitBox). Lane chips show
+the recipe count everywhere, with a padlock on shut lanes (no more "Lv 5" next to "11"). EVEN-CARDS-1/2
+measure a real row; on pre-fix code they fail at 194 vs 222.6px. The Recipe Book got the same art fit and
+pinned lock line. Lesson: "the icons are different sizes" was a sprite-canvas problem wearing a CSS costume;
+measure the painted pixels before touching the box.

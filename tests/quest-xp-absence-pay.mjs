@@ -333,8 +333,18 @@ export async function run(mutate) {
     if (path === 'attended') {
       await q(`insert into public.world_event_totals (event_key, participants, goal, progress, met_at)
                values ($1, 1, 6000, 6000, now()) on conflict (event_key) do update set met_at = now()`, [ek]);
-      await q(`insert into public.world_event_joins (day_key, user_id, event_key, slot, window_end, points)
-               values ($1, $2, $3, 0, now() - interval '1 minute', 500)`, [today, uid, ek]);
+      /* b570 bundle: 2026-10-10-rally-points-server.sql runs before this file and
+         derives the points from the join character's journal inside the window
+         (a stored `points` is recomputed, never trusted), so the fixture plays
+         the event's own activity instead of typing a score. */
+      await q(`insert into public.world_event_joins (day_key, user_id, event_key, slot, joined_at, window_end, points, char_slot)
+               values ($1, $2, $3, 0, now() - interval '30 minutes', now() - interval '1 minute', 0, 0)`, [today, uid, ek]);
+      // enough to answer the band (600 points): 40 kills x 25, or 200 quarry actions
+      const from = new Date(Date.now() - 29 * 60000).toISOString(), to = new Date(Date.now() - 2 * 60000).toISOString();
+      const meta = ek === keys.combat ? { kills: 40, from, to }
+        : { ticks: 200, burnt: 0, made: 200, skill: 'stonemason', recipe: 'quarry_rubble', from, to };
+      await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+               values ($1, 0, $2, 'accrue', 0, 0, 0, 0, 0, $3::jsonb)`, [uid, ek === keys.combat ? 'combat' : 'craft', JSON.stringify(meta)]);
       call = () => asUser(uid, 'select public.world_event_claim($1, 0) as r', [today]);
     } else {
       await q("select set_config('qxa.shift', '1 day', false)");

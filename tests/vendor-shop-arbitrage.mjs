@@ -179,11 +179,10 @@ export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal, ven
    (Runecrafting from level 1 / ammo rework) with the Game Designer's values.
    A row whose loop GROWS (vendor or cost moves) fails; a row that is no longer
    a loop fails as stale until deleted; anything not listed fails outright. */
-const KNOWN_CRAFT_LOOPS = Object.freeze({
-  bind_air_runes:   { vendor: 42, cost: 42 },
-  bind_earth_runes: { vendor: 45, cost: 42 },
-  deepbind_earth:   { vendor: 58, cost: 49 },
-});
+/* EMPTY since the b570 bundle: w0e moved Runecrafting onto mined rune essence,
+   so no blank-rune offer feeds a bind and all three loops closed (paid down
+   where the rework landed). */
+const KNOWN_CRAFT_LOOPS = Object.freeze({});
 
 /** Cheapest gold price of ONE unit of each item, over single-item gold offers. */
 function unitPrices(offers) {
@@ -303,10 +302,12 @@ update public.hr_items set value = value * 2 where item_id = '${item}';
     'equip.__mut_steel_bar': { id: 'equip.__mut_steel_bar', gold: 200, grant: [{ id: 'steel_bar', amount: 1 }] } });
   const m5 = findCraftArbitrage({ offers: mutOffers, sqlVal });
   if (!judgeCraft(m5).fails.some((f) => / -> steel_platebody:/.test(f))) fails.push('M5 200g Steel Bar offer (platebody loop): not caught');
-  // M6 — a held loop that GROWS (the blank-rune offer halves in price) must go red.
-  const cheapBlanks = Object.assign(Object.create(null), GOLD_OFFERS);
-  cheapBlanks['seed.rune_blank'] = Object.assign({}, GOLD_OFFERS['seed.rune_blank'], { gold: 70 });
-  if (!judgeCraft(findCraftArbitrage({ offers: cheapBlanks, sqlVal })).fails.some((f) => /GREW/.test(f))) fails.push('M6 a held rune loop grew: not caught');
+  // M6 — a held loop that GROWS must go red (and a held one that did not, stays held).
+  //      No real loop is held any more, so the row and the finding are planted.
+  const heldRow = { __mut_loop: { vendor: 40, cost: 40 } };
+  const grew = judgeCraft({ bad: [{ recipe: '__mut_loop', output: 'x', cost: 40, vendor: 60 }] }, heldRow);
+  const same = judgeCraft({ bad: [{ recipe: '__mut_loop', output: 'x', cost: 40, vendor: 40 }] }, heldRow);
+  if (!grew.fails.some((f) => /GREW/.test(f)) || same.fails.length || same.held.length !== 1) fails.push('M6 a held loop grew: not caught');
 
   // M7 — an UPSERT's `on conflict (item_id) ... where (a,b) is distinct from (c,d)`
   //      must not be read as rows (it was: exit 2), and its VALUES row must land.
@@ -327,7 +328,7 @@ update public.hr_items set value = 99999 where item_id in ('${item}') and value 
   if (v6.get(item) !== 99999) fails.push(`M8 literal value UPDATE: parsed but not applied (got ${v6.get(item)})`);
 
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 6 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 8 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 

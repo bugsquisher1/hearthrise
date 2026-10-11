@@ -502,7 +502,8 @@ async function selftest() {
     const { chainFiles } = await import('./schema-replay.mjs');
     // `drop` is the migration that backs the label plus every later restatement
     // of the same body FROM it (b568 restates world_event_claim__ungated with the
-    // credit intact), so the bite measures the chain as it was before the credit.
+    // credit intact, and the b570 wallet restates it from that body), so the bite
+    // measures the chain as it was before the credit.
     const without = async (...drop) => {
       const files = [];
       for (const [name, path] of await chainFiles()) {
@@ -514,7 +515,7 @@ async function selftest() {
     const q = auditClasses([entry('(b)', ['hr_claim_quest'])], await without('2026-10-10-quest-xp-absence-pay.sql'));
     check('bites (real chain minus the quest-xp migration): completeQuest labelled (b) on hr_claim_quest, which then writes no XP',
       q.problems.length === 1, JSON.stringify(q.problems));
-    const before = auditClasses([entry('(b)', ['world_event_claim'])], await without('2026-10-10-muster-chest-xp-credit.sql', '2026-10-10-rally-points-server.sql'));
+    const before = auditClasses([entry('(b)', ['world_event_claim'])], await without('2026-10-10-muster-chest-xp-credit.sql', '2026-10-10-rally-points-server.sql', '2026-10-19-account-wallet.sql'));
     check('bites (real chain minus the b567 migration): payChest\'s old (b) label on world_event_claim',
       before.problems.length === 1, JSON.stringify(before.problems));
   }

@@ -5848,11 +5848,15 @@ export default [
       root = document.getElementById('market-root');
       const html = root.innerHTML;
       assert(html.indexOf('No trades yet') === -1, 'a populated ledger must not render the empty state');
-      assert(html.indexOf('1 sold') >= 0 && html.indexOf('1 bought') >= 0,
-        'the ledger header must total both sides');
+      const text = root.textContent;
+      assert(/Earned\s*\+200g\s*from 1 sale(?!s)/.test(text) && /Spent\s*90g\s*on 1 purchase(?!s)/.test(text),
+        'the ledger header must total both sides in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('+200g') >= 0, 'a sale must show the NET it actually paid');
       assert(html.indexOf('21g each') >= 0, 'a sale must show the per-unit price it traded at');
-      assert(html.indexOf('10g house tax') >= 0, 'a sale must name the house tax it lost');
+      assert(html.indexOf('10g tax') >= 0, 'a sale must name the tax it lost');
+      // Plain words for time ("1 hour ago"), never the log-style "1h ago".
+      assert(/1 hour ago/.test(text) && /2 hours ago/.test(text) && !/\b\d+h ago\b/.test(text),
+        'the ledger must say how long ago in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('mk-ledger-tab') >= 0, 'the All/Sold/Bought filter must render');
       /* NO COUNTERPARTY IDENTITY. market-v2 exposes no name on this table and
          publishing the auth UUID is the exact hole S17 closed — so the render

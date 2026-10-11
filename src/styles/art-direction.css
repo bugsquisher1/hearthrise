@@ -1715,67 +1715,10 @@ body[data-theme] .bounty-shop-row {
 body[data-theme] .bounty-shop-row .si { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink-3); }
 
 /* ── 22. MARKET ──────────────────────────────────────────────────────────
- * The action button was a saturated web-green (#7f9a4f → #2a8a48) with white
- * text — a colour the game reserves for XP and growth, used here as "commit
- * this transaction". Its own section headings were Cinzel uppercase with .12em
- * tracking while every other heading in the game is small caps, so this screen
- * read as belonging to a different product. Inputs were `font-family:monospace`.
+ * Moved to src/styles/market.css, which draws the whole screen from
+ * tokens and needs none of the overrides that used to live here.
  * ---------------------------------------------------------------------- */
-body[data-theme] .mk-form-row button,
-body[data-theme] #mk-list-btn {
-  color: #221803;
-  font-family: var(--f-ui);
-  font-weight: 700;
-  font-size: var(--t-small);
-  letter-spacing: 0;
-  text-transform: none;
-  border-radius: var(--r);
-  padding: 8px 20px;
-  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .55), inset 0 -2px 3px rgba(90, 60, 8, .4), 0 2px 5px -2px rgba(0, 0, 0, .7);
-}
-/* A shut List button (bag still being counted) wore the live gold fill,
- * full opacity and a pointer: it looked pressable. House disabled look, no lift. */
-body[data-theme] .mk-form-row button:disabled,
-body[data-theme] #mk-list-btn:disabled {
-  opacity: .38;
-  filter: grayscale(.6);
-  box-shadow: none;
-  cursor: not-allowed;
-}
-body[data-theme] .mk-form-row input:disabled,
-body[data-theme] .mk-form-row select:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-body[data-theme] .mk-form-row input {
-  font-family: var(--f-ui);
-  font-variant-numeric: tabular-nums;
-  border-radius: var(--r-sm);
-  font-size: var(--t-small);
-}
-body[data-theme] .mk-list-form,
-body[data-theme] .mk-strip {
-  border-radius: var(--r);
-  /* Both boxes were sized by their container, not their content, so the rules
-   * strip ran 150px tall for one line of text and the form left 120px empty
-   * under a single row of inputs. */
-  height: auto;
-  min-height: 0;
-}
-body[data-theme] .mk-list-form h3,
-body[data-theme] .mk-block > h3 {
-  font-family: var(--f-label);
-  font-size: var(--t-h3);
-  font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: none;
-  color: var(--gold-2);
-}
-body[data-theme] .mk-form-hint { font-style: normal; }
-/* Empty states describe the state, not the roadmap, and don't use italics as
- * a stand-in for "this bit isn't real yet". */
-body[data-theme] .mk-empty,
-body[data-theme] .mk-block .muted { font-style: normal; }
+
 
 /* ── 23. PERSISTENT CHROME ───────────────────────────────────────────────
  * Two floating widgets sit over every screen. Both were shaped like the
@@ -2173,12 +2116,6 @@ body[data-theme] #panel-market.active { padding-bottom: 78px; }
 /* The Crops rows end left of the fixed FAB column (visual pass 10: Carrot's lock label). */
 body[data-theme] #panel-farming #crops-guide { padding-right: var(--hr-fab-col); }
 
-/* Market blocks were sized by the panel's grid rows, not by their content: the
- * one-line "Listings rules" strip ran 150px tall and the list form left 130px
- * of empty box under a single row of inputs. */
-body[data-theme] #panel-market.active .mk-strip,
-body[data-theme] #panel-market.active .mk-list-form,
-body[data-theme] #panel-market.active .mk-block { height: auto; min-height: 0; overflow: visible; }
 
 /* Mobile bottom-nav: the selected tab was a filled oxblood slab — the danger
  * colour, on the control the player touches most. Gilt, like every other

@@ -17,12 +17,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=564';
-import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=564';
+import { levelOf } from './xp.js?v=565';
+import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=565';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=564';
-import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=564';
+} from './bane.js?v=565';
+import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=565';
 /* BESTIARY CHARMS, PHASE 2 — the DROP multiplier only. Imported here, and
    nowhere else in the engine, for the reason src/core/charms.js's header states:
    the Edge accrual does not run the client's `getBonus` wrapper chain, so a
@@ -30,7 +30,7 @@ import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?
    `weaknessInfo` it is one expression with two callers, exactly like bane and
    element. `charmDamageMultFor` is deliberately NOT imported — see the note on
    `charmDropMult` in `weaknessInfo`. */
-import { charmDropMultFor, charmRankFor } from './charms.js?v=564';
+import { charmDropMultFor, charmRankFor } from './charms.js?v=565';
 /* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder, the
    same treatment for the same reason. Per-MONSTER where the charm is per-CLASS,
    read inside the one `weaknessInfo` expression and never as a `getBonus` key.
@@ -43,7 +43,7 @@ import { charmDropMultFor, charmRankFor } from './charms.js?v=564';
 import {
   trophyDropMultFor, trophyDamageMultFor, trophyStageFor, memoryDropMult,
   TROPHY_DAMAGE_ARM_ENABLED,
-} from './trophies.js?v=564';
+} from './trophies.js?v=565';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */

@@ -142,6 +142,7 @@
     smithed: function () { return SKILL('smithing'); },
     crafted: function () { return SKILL('crafting'); },
     gold: MARKET, sell: MARKET,
+    property: HOUSE,   // W0 first-day step "Upgrade to a Homestead"
   };
   function fromType(type) {
     if (typeof type !== 'string' || !type) return null;

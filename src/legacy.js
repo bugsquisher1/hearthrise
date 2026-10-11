@@ -4994,28 +4994,14 @@ const QUEST_DEFS=[
        src/data/goal-catalogue.js QUEST_REWARDS.items and to the SQL seed. */
   {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'shrimp',qty:30},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
-  /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
-     harvest DAILY, one system over and still open. This is onboarding step 4:
-     the Wanderer's Camp has TWO plots (features/homestead.js TIERS[0].plots),
-     turnips take 4h and yield 2-4, so one full harvest round is ~6 produce and a
-     goal of 10 was TWO grow cycles — ~8 wall-clock hours — parked in front of
-     the fourth quest a new player ever sees. 6 = one harvest round at the
-     starting property, the identical derivation DAILY_TASK_POOL's floor uses.
-     The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
-     moves in three places at once — see src/data/goal-catalogue.js. */
-  /* ⚠ MIRRORED, not counted — and that is the FIX, not a preference. As a
-     counting row it advanced only on `updateQuest('harvest',qty)`, which is
-     called from exactly ONE place: the client fall-through in harvestPlot,
-     below `if(farmSyncArmed()){ farmSyncHarvest(i); return; }`. Under the b454
-     farm arm that line is unreachable, so this quest had been frozen at 0 for
-     every player since the cutover while the server journalled every crop.
-     Mirroring `stats.harvested` — now projected from the server's own lifetime
-     `ev:harvest` row (src/net/accrue.js reconcileEventCounters) — gives it the
-     same property hundred_kills has: it is re-READ on every quest tick, so it
-     cannot drift from the counter it displays and it is correct on an account
-     that did all its harvesting on another device. The claim is unchanged and
-     still server-verified (hr_claim_quest reads ev:harvest >= 6). */
-  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* W0: the House is the first-hour goal, before the crop wait. Counts the SERVER rung
+     (SERVER_QUEST_COUNTS), never the residue; no reward, so no claim (the house is the reward). */
+  {id:'homestead',type:'property',mirror:'property.tier',label:'Upgrade to a Homestead',goal:1,progress:0,reward:{},note:'Four walls and a hearth. Your Homestead stands, and the Kitchen and Garden are yours to build.',done:false},
+  /* Goal 6 = one harvest round on the camp's two plots (10 was two grow cycles), bound
+     server-side (hr_claim_quest reads ev:harvest >= 6; src/data/goal-catalogue.js).
+     MIRRORED off stats.harvested - the server's lifetime ev:harvest projection
+     (accrue.js reconcileEventCounters) - so it reads on every tick and cannot drift. */
+  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'carrot_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5109,6 +5095,9 @@ const MIRRORED_QUEST_SOURCES={
      so this reads a number hr_claim_quest can and does verify. */
   'stats.harvested':function(g){ var n=Number((g&&g.stats&&g.stats.harvested)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
+/* Counts that are a server STATE, not an ev: counter (src/data/goal-catalogue.js STATE_GOAL_TYPES): the answer or null. */
+const SERVER_QUEST_COUNTS={ property:function(){ var P=window.HearthriseProperty; return (P&&typeof P.serverPropertyTier==='function')?P.serverPropertyTier():null; } };
+MIRRORED_QUEST_SOURCES['property.tier']=function(){ return SERVER_QUEST_COUNTS.property()||0; };
 /* Journeyman's Road: dedicated projections (see EVENT_COUNTER_PROJECTION), same defensive shape. */
 ['evSmithed','evCrafted','evCooked','evGather','evKillAny'].forEach(function(f){ MIRRORED_QUEST_SOURCES['stats.'+f]=function(g){ var n=Number((g&&g.stats&&g.stats[f])||0); return (isFinite(n)&&n>0)?Math.floor(n):0; }; });
 function mirroredQuestValue(key){
@@ -5612,6 +5601,7 @@ window.hrApplyQuestClaimGrant=hrApplyQuestClaimGrant;
    updateQuest (completion), completeQuest (the fire), the recovery sweep and
    the Home chain cards all read these; there is no second grader. */
 function hrQuestServerCount(q){
+  if(q&&q.type&&!q.target&&SERVER_QUEST_COUNTS[q.type])return SERVER_QUEST_COUNTS[q.type]();
   if(!q||!q.type||q.target||!(typeof G==='object'&&G&&G._eventCountersKnown))return null;
   const A=window.HearthriseAccrual, rows=A&&A.EVENT_COUNTER_PROJECTION;
   if(!Array.isArray(rows))return null;
@@ -13068,6 +13058,7 @@ function maybeShowWelcome(opts){
     if(_off.gainedGold > 0)  rows.push({g:'gold',        t:'Gold earned',  v:'+' + Number(_off.gainedGold).toLocaleString()});
     if(_off.gainedKills > 0) rows.push({g:'uiSword',     t:'Kills',        v:'+' + Number(_off.gainedKills).toLocaleString()});
     if(_off.burnt > 0)       rows.push({g:'uiFire',      t:'Burnt on the fire', v:Number(_off.burnt).toLocaleString()});
+    try{ var _hu = window.HearthriseHaulUnlocks.welcomeRow(_off); if(_hu) rows.push(_hu); }catch(e){}   // W0: what the haul unlocks
     /* b345 — THE RUN THAT STOPPED, on the FIRST screen a returning player
        reads. Same field, same sentence, same span as the Home away card, so
        the two surfaces cannot tell different stories about one absence — the

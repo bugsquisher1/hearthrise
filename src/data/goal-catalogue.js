@@ -92,7 +92,10 @@ export const QUEST_REWARDS = Object.freeze({
      QUEST_DEFS at render/grade time, `progress` is the save field, and a save
      already carrying progress ≥ 6 completes on its next harvest tick rather
      than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
-  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ wheat_seed: 5 }) },
+  /* W0 (coherence audit 2026-10-09): wheat_seed -> carrot_seed. Wheat needs
+     Farming 20; carrots (Farming 10) are the next rung after the kit's turnips.
+     Server seed: 2026-10-16-first-day-seeds.sql, which now owns hr_quest_rewards. */
+  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ carrot_seed: 5 }) },
   /* ── JOURNEYMAN'S ROAD (content pack 7; 2026-09-28-journeymans-road.sql) ──
      The day-2 chain, legacy.js QUEST_DEFS `chain:'road'`. Same two tests as
      every row above: a lifetime ev:<type> the server already keeps, and a fixed
@@ -110,6 +113,18 @@ export const QUEST_REWARDS = Object.freeze({
   road_gather:  { checkKey: 'ev:gather',   goal: 500, gold: 1000, items: Object.freeze({}) },
   road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ bone_key: 1 }) },
   road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
+});
+
+/* QUEST TYPES THAT READ A SERVER *STATE*, NOT AN `ev:` COUNTER (W0, 2026-10-10).
+   "Upgrade to a Homestead" is done when the server's property rung >= the goal:
+   hr_unlock_buy writes the rung, hr_state_of projects it, net/property-record.js
+   serverPropertyTier reads it, so it needs no counter and no emit site. Such a row
+   pays nothing (no server claim), so it is absent from QUEST_REWARDS. A type here
+   must have a reader in legacy.js SERVER_QUEST_COUNTS; tests/goal-counters.mjs
+   G2(b) checks both halves. Lives here, not in src/core/goals.js, so the edge
+   payload does not move for a client-only reader. Value = what it reads. */
+export const STATE_GOAL_TYPES = Object.freeze({
+  property: 'the server property rung (net/property-record.js serverPropertyTier)',
 });
 
 /* ── THE ONE NORMALISER FOR A QUEST'S ITEM REWARD ────────────────────────

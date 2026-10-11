@@ -178,6 +178,9 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    Arrows today too): at `ammoPerShot: 0` a single Air Rune is a permanent
    supply, so the batch of 42 is generous rather than necessary. That is fine —
    it is a clean first Runecrafting action and an honest XP rung. */
+/* W0 (Security #1): the free tier-1 rungs also BOOK at v 0 — they are kit and
+   shop stock, so a vendor bid would turn every new kit and every shop bundle
+   into gold (the 1 g floor made the 50% buy-back cap unreachable). */
 const FREE = 0;
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -226,7 +229,7 @@ export const STONECRAFT_ITEMS = {
      The names are picked so PHASE TWO can hang elements on them with no
      renames — an Ice Troll weak to both arrows and fire is the target shape,
      and none of it ships in round 2. */
-  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 1,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE },
+  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE },
   earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1 },
   water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1 },
   fire_rune:  { n: 'Fire Rune',  icon: '🔥', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'magic', reqLv: AMMO_REQ_LV[3], magicStrB: AMMO_STAT[3], ammoPerShot: 1 },
@@ -261,7 +264,7 @@ export const STONECRAFT_ITEMS = {
      is stated in the item copy rather than hidden.
 
      `strB` only — see the stat-curve note above. */
-  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 4,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'attack', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
+  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'attack', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
   copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'attack', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'attack', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
   steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 108, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'attack', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },

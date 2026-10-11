@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=564';
-import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=565';
+import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=565';
 
 export default [
 
@@ -3181,5 +3181,185 @@ export default [
       if (knownWas === undefined) delete window.G._eventCountersKnown; else window.G._eventCountersKnown = knownWas;
       restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
     }
+  }),
+
+  /* ══ W0 — THE FIRST HOUR POINTS AT THE HOUSE (coherence audit 2026-10-09) ═════
+     Top-10 #1: the first day gains "Upgrade to a Homestead" before the crop wait,
+     counted on the SERVER's property rung; the return (and Home) name what the haul
+     affords, from the SERVER's holdings. Top-10 #4: no dead seed in the kit. */
+
+  /* -- player actions -- W0 FIRST-HOUR-1, played: fresh character → the Homestead
+     step → the return card names the affordable unlock → the server rung finishes it.
+     Mutation: delete the `homestead` QUEST_DEFS row ⇒ red on the first assert. */
+  () => tryRun('W0 FIRST-HOUR-1: the first day shows "Upgrade to a Homestead" before the crop wait; the return card names the Homestead the haul affords; the server rung completes it', () => {
+    const H = window.HearthriseHome, P = window.HearthriseProperty, QN = window.HearthriseQuestNav, G = window.G;
+    assert(H && P && QN && typeof H.__firstDayModel === 'function' && typeof H.__awayCardHtml === 'function'
+      && typeof P.__resetPropertyRecord === 'function' && window.HearthriseHaulUnlocks,
+      'CONTROL: a seam this test drives is unpublished — it would pass vacuously');
+    const snap = snapshotG(), bag = serverBagFixture(), prevProp = P.__resetPropertyRecord();
+    const known = G._eventCountersKnown;
+    try {
+      delete G._eventCountersKnown;               // no ev: counter may complete another row mid-test
+      G.quests = [];
+      window.ensureRetentionState();
+      const m = H.__firstDayModel(), ids = m.steps.map((x) => x.id), hi = ids.indexOf('homestead');
+      assert(hi >= 0, 'the first day has no Homestead step: ' + ids.join(','));
+      assert(hi > ids.indexOf('first_blood') && hi < ids.indexOf('farmhand'),
+        'the Homestead step must sit BEFORE the crop wait (after first_blood, before farmhand): ' + ids.join(','));
+      const st = m.steps[hi];
+      assert(st.label === 'Upgrade to a Homestead', 'step label: ' + st.label);
+      assert(st.count === null, 'with no server rung stated the count must be PENDING, not ' + st.count);
+      const doc = new DOMParser().parseFromString(H.__firstDayHtml(m), 'text/html');
+      const cta = doc.querySelector('.hd-fl-row[data-i="' + hi + '"] .hd-cta');
+      assert(cta && cta.textContent === 'Go build', 'the Homestead step button reads "' + (cta && cta.textContent) + '"');
+      assert(QN.destination(st.goalRow).tab === 'house', 'the Homestead step must open the House');
+
+      // A forged residue tier cannot tick it; the server's rung 0 reads 0 / 1.
+      G.homestead = { tier: 1 };
+      window.updateQuest('property');
+      assert(!G.quests.find((q) => q.id === 'homestead').done, 'a residue-only tier completed the Homestead step');
+      P.__resetPropertyRecord(0);   // exact rung 0: the record conforms the forged residue back down
+      window.updateQuest('property');
+      assert(!G.quests.find((q) => q.id === 'homestead').done, 'server rung 0 completed the Homestead step');
+      assert(H.__firstDayModel().steps[hi].count === 0, 'server rung 0 must read 0 / 1');
+
+      // THE RETURN: the night hauled logs; the SERVER holds the whole Homestead cost.
+      G.gold = 500; stampRecordLikeLoad(G);
+      bag.agree({ normal_log: 400, copper_ore: 20 });
+      const off = { serverAuthoritative: true, at: Date.now(), hrs: 8, awayMs: 8 * 3600e3, gainedItems: 400,
+        itemsIn: { normal_log: 400 } };
+      const card = H.__awayCardHtml(off);
+      assert(/With 400 Normal Log home, you have enough to build your Hearthside Homestead/.test(card),
+        'the return card does not name the Homestead the haul affords: ' + card.replace(/<[^>]+>/g, ' ').slice(0, 400));
+
+      // The server builds it: rung 1 completes the step (no claim — the house IS the reward).
+      P.__resetPropertyRecord(1);
+      window.updateQuest('property');
+      const q = G.quests.find((x) => x.id === 'homestead');
+      assert(q.done, 'server rung 1 did not complete the Homestead step');
+      assert(H.__firstDayModel().steps[hi].state === 'done', 'the finished step is not drawn done: ' + H.__firstDayModel().steps[hi].state);
+    } finally {
+      P.__resetPropertyRecord(prevProp); bag.restore();
+      if (known === undefined) delete G._eventCountersKnown; else G._eventCountersKnown = known;
+      restoreGAndRecord(snap);
+    }
+  }),
+
+  /* -- regression suite -- W0 HAUL-2: THE UNLOCK LINE READS THE SERVER, NOT THE PAGE.
+     Mutation proof by mutating the CALLER: the display bag forged up (no line), the
+     server bag up (line), the server's gateItemCount seam swapped for a liar (the line
+     moves — so that seam IS the reader), the rung unknown (no property), a forged
+     residue tier (still the server's next rung), an unknown worn set / level (no
+     gear), and the three-line cap. */
+  () => tryRun('W0 HAUL-2: "what your haul unlocks" is computed from the server bag, gold, rung, level and worn set — never the display bag or residue', () => {
+    const HU = window.HearthriseHaulUnlocks, P = window.HearthriseProperty, A = window.HearthriseAccrual, G = window.G;
+    assert(HU && P && A && typeof A.gateItemCount === 'function', 'CONTROL: seams unpublished');
+    const snap = snapshotG(), bag = serverBagFixture(), prevProp = P.__resetPropertyRecord(0);
+    const realCount = A.gateItemCount;
+    const homesteadLine = () => /build your Hearthside Homestead/.test(HU.line(null));
+    try {
+      G.gold = 500; stampRecordLikeLoad(G);
+      // (1) the PAGE's bag says enough, the SERVER's does not → nothing.
+      G.inventory = Object.assign({}, G.inventory, { normal_log: 400, copper_ore: 20 });
+      bag.agree({ normal_log: 10, copper_ore: 20 });
+      assert(!homesteadLine(), 'the line believed the display bag over the server: ' + HU.line(null));
+      // (2) the SERVER says enough (display bag empty) → the line.
+      G.inventory = Object.assign({}, G.inventory, { normal_log: 0, copper_ore: 0 });
+      bag.agree({ normal_log: 30, copper_ore: 20 });
+      assert(homesteadLine(), 'CONTROL: the server holds the cost and the line is silent: "' + HU.line(null) + '"');
+      // (3) mutate the caller: a lying gateItemCount moves the line, so it is THE reader.
+      bag.agree({});
+      assert(!homesteadLine(), 'an empty server bag still produced the line');
+      A.gateItemCount = () => 9999;
+      assert(homesteadLine(), 'swapping gateItemCount did not move the line — it reads something else');
+      A.gateItemCount = realCount;
+      // (4) rung unknown → no property line (the next tier is unknowable).
+      bag.agree({ normal_log: 30, copper_ore: 20 });
+      P.__resetPropertyRecord();
+      assert(!homesteadLine(), 'an unknown server rung still offered the Homestead');
+      // (5) a forged residue tier does not move the target off the server's next rung.
+      P.__resetPropertyRecord(0); G.homestead = { tier: 2 };
+      assert(homesteadLine(), 'a forged residue tier hid the Homestead the server says is next: "' + HU.line(null) + '"');
+
+      // (6) gear, through the pure picker: level, inputs and worn set are all required.
+      const items = { iron_helm: { n: 'Iron Helm', slot: 'helmet', defB: 5 }, iron_bar: { n: 'Iron Bar' } };
+      const base = { held: (id) => (id === 'iron_bar' ? 2 : 0), gold: 0, next: null, items,
+        recipes: [{ skill: 'smithing', req: 20, inputs: { iron_bar: 2 }, output: 'iron_helm' }], haul: null };
+      const names = (over) => HU.pick(Object.assign({}, base, over)).map((u) => u.name).join(',');
+      assert(names({ level: () => 20, equipped: {} }) === 'Iron Helm', 'CONTROL: level 20 + 2 bars does not offer the Iron Helm');
+      assert(names({ level: () => 19, equipped: {} }) === '', 'level 19 was offered an Iron Helm (req 20)');
+      assert(names({ level: () => null, equipped: {} }) === '', 'an UNKNOWN level was offered gear');
+      assert(names({ level: () => 20, equipped: null }) === '', 'an UNKNOWN worn set was offered gear');
+      assert(names({ level: () => 20, equipped: {}, held: (id) => (id === 'iron_bar' ? null : 0) }) === '', 'an UNSTATED bar count was treated as enough');
+      assert(names({ level: () => 20, equipped: { helmet: 'iron_helm' } }) === '', 'the helm already worn was offered again');
+      assert(names({ level: () => 20, equipped: {}, haul: { oak_log: 50 } }) === '', 'a haul with no bars claimed the Iron Helm');
+      const gearLine = HU.lineFrom(HU.pick(Object.assign({}, base, { level: () => 20, equipped: {}, haul: { iron_bar: 2 } })), { iron_bar: 2 });
+      assert(gearLine === 'With 2 ' + window.ITEMS.iron_bar.n + ' home, you have enough to forge an Iron Helm.',
+        'the gear sentence reads: ' + gearLine);
+      // (7) never a wall: at most MAX, however much is affordable.
+      const many = {}, recipes = [];
+      ['helmet', 'body', 'legs', 'boots', 'gloves'].forEach((sl, i) => {
+        many['g' + i] = { n: 'G' + i, slot: sl, defB: i + 1 };
+        recipes.push({ skill: 'smithing', req: 1, inputs: { iron_bar: 1 }, output: 'g' + i });
+      });
+      const capped = HU.pick({ held: (id) => (id === 'iron_bar' ? 99 : 0), gold: 0, next: null, items: many, recipes, level: () => 99, equipped: {}, haul: null, max: HU.MAX });
+      assert(HU.MAX <= 3 && capped.length === HU.MAX, 'the unlock list is not capped at ' + HU.MAX + ': ' + capped.length);
+    } finally {
+      A.gateItemCount = realCount;
+      P.__resetPropertyRecord(prevProp); bag.restore(); restoreGAndRecord(snap);
+    }
+  }),
+
+  /* -- regression suite -- W0 HAUL-3: BOTH PATHS. Attended (no receipt) → Home's
+     standing row with a Go build door; away → the welcome-back modal carries the
+     same sentence the Home card does. Mutation: drop the modal's HaulUnlocks row ⇒ red. */
+  () => tryRun('W0 HAUL-3: the unlock line on both paths — the attended Home row and the away welcome-back modal', () => {
+    const H = window.HearthriseHome, P = window.HearthriseProperty, G = window.G;
+    assert(typeof H.__haulUnlocksRow === 'function' && typeof window.__maybeShowWelcome === 'function', 'CONTROL: seams unpublished');
+    const snap = snapshotG(), bag = serverBagFixture(), prevProp = P.__resetPropertyRecord(0);
+    const s = { seen: G.lastSeen, wel: G.lastWelcome, off: G.lastOfflineSummary };
+    try {
+      G.gold = 500; stampRecordLikeLoad(G);
+      bag.agree({ normal_log: 400, copper_ore: 20 });
+      // ATTENDED: Home's own row, a door to the House.
+      const row = H.__haulUnlocksRow();
+      assert(/You have enough to build your Hearthside Homestead/.test(row) && /data-hd="house"/.test(row),
+        'the attended Home row is missing or has no House door: ' + row.replace(/<[^>]+>/g, ' ').slice(0, 200));
+      // AWAY: the modal a returning player reads first.
+      G.lastOfflineSummary = { serverAuthoritative: true, at: Date.now(), hrs: 8, awayMs: 8 * 3600e3, gainedItems: 400,
+        gainedXp: 0, gainedGold: 0, gainedKills: 0, burnt: 0, itemsIn: { normal_log: 400 } };
+      G.lastSeen = Date.now() - 8 * 3600e3; G.lastWelcome = 0;
+      assert(window.__maybeShowWelcome() === 'away', 'CONTROL: the away welcome card did not present');
+      const rows = document.getElementById('welcome-rows');
+      assert(rows && /With 400 Normal Log home, you have enough to build your Hearthside Homestead/.test(rows.textContent),
+        'the welcome-back card does not name what the haul unlocks: ' + (rows ? rows.textContent.slice(0, 300) : 'no rows'));
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      Object.assign(G, { lastSeen: s.seen, lastWelcome: s.wel, lastOfflineSummary: s.off });   // put back, not a seed
+      P.__resetPropertyRecord(prevProp); bag.restore(); restoreGAndRecord(snap);
+    }
+  }),
+
+  /* -- regression suite -- W0 KIT-1: NO DEAD SEED ON DAY ONE. The kit carried 3
+     carrot seeds (Farming 10 + a plot upgrade) and farmhand paid wheat (Farming 20).
+     Mutation: put `carrot_seed: 3` back in START_INVENTORY ⇒ red. */
+  () => tryRunAsync('W0 KIT-1: every seed in the starting kit plants at Farming 1, and the first harvest pays carrot seeds', async () => {
+    const KIT = await import('../../data/start-kit.js?v=565');
+    const CROPS = window.CROPS || {};
+    const bySeed = {};
+    Object.keys(CROPS).forEach((k) => { if (CROPS[k] && CROPS[k].seed) bySeed[CROPS[k].seed] = CROPS[k]; });
+    const seeds = Object.keys(KIT.START_INVENTORY).filter((id) => /_seed$/.test(id));
+    assert(seeds.length > 0 && Object.keys(bySeed).length > 0, 'CONTROL: no seed in the kit or no crop table — the check is blind');
+    seeds.forEach((id) => {
+      const c = bySeed[id];
+      assert(c, 'the kit grants "' + id + '", which no crop plants');
+      assert((Number(c.req) || 1) <= 1, 'the kit grants ' + id + ', which needs Farming ' + c.req + ' — a dead item on day one');
+    });
+    assert(KIT.START_INVENTORY.turnip_seed === 8, 'the kit\'s three carrot seeds became turnip seeds (5 → 8): ' + KIT.START_INVENTORY.turnip_seed);
+    const fh = (window.QUEST_DEFS || []).find((q) => q.id === 'farmhand');
+    assert(fh && fh.reward.item === 'carrot_seed' && fh.reward.qty === 5, 'farmhand must pay 5 carrot seeds: ' + JSON.stringify(fh && fh.reward));
+    const gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    assert(gc && gc.QUEST_REWARDS.farmhand.items.carrot_seed === 5 && !gc.QUEST_REWARDS.farmhand.items.wheat_seed,
+      'the server catalogue must credit the carrot seeds the card promises');
   }),
 ];

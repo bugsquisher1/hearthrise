@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b
+--   catalogue digest: 0931d4c29340e1ca2fcbd8e0c521ea3f96c02eb5c9d8490acae1585008bf9e47
 --   rows: 539 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 514 activities ·
@@ -184,7 +184,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('adept_gloves','Adept Gloves',true,'armor',65,'defense',15,null,false),
   ('adept_helmet','Adept Hat',true,'armor',110,'defense',15,null,false),
   ('adept_pants','Adept Robe Bottom',true,'armor',200,'defense',15,null,false),
-  ('air_rune','Air Rune',true,'ammo',1,'magic',1,null,false),
+  ('air_rune','Air Rune',true,'ammo',0,'magic',1,null,false),
   ('alpha_cloak','Alpha Cloak',true,'armor',1500,'defense',30,null,false),
   ('alpha_fang','Alpha Fang',true,null,450,null,null,null,false),
   ('alpha_pattern','Alpha Cloak Pattern',true,null,0,null,null,null,false),
@@ -236,7 +236,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bone_needle','Bone Needle',true,'tool',70,null,null,null,false),
   ('bones','Bones',true,null,1,null,null,null,false),
   ('bramble_blade','Bramble Blade',true,'weapon',130,'attack',15,null,false),
-  ('bronze_arrows','Bronze Arrows',true,'ammo',1,'ranged',1,null,false),
+  ('bronze_arrows','Bronze Arrows',true,'ammo',0,'ranged',1,null,false),
   ('bronze_axe','Bronze Axe',true,'tool',60,null,null,null,false),
   ('bronze_bar','Bronze Bar',true,null,32,null,null,null,false),
   ('bronze_belt','Bronze Belt',true,'armor',110,'defense',1,null,false),
@@ -273,7 +273,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,'defense',88,null,false),
   ('chronicle_ribbon','Chronicle Ribbon',true,'trophy',0,null,null,null,false),
   ('coal','Coal',true,null,40,null,null,null,false),
-  ('coarse_whetstone','Coarse Whetstone',true,'ammo',4,'attack',1,null,false),
+  ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'attack',1,null,false),
   ('colossus_plate','Colossus Plate',true,'armor',39000,'defense',75,null,false),
   ('colossus_seal','Colossus Seal',false,null,0,null,null,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,13,true),
@@ -1579,11 +1579,10 @@ insert into public.hr_start_skill_xp (skill_id, xp) values
 insert into public.hr_start_inventory (item_id, qty) values
   ('air_rune',50),
   ('bronze_arrows',50),
-  ('carrot_seed',3),
   ('coarse_whetstone',10),
   ('cooked_shrimp',20),
   ('shrimp',10),
-  ('turnip_seed',5);
+  ('turnip_seed',8);
 
 insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
@@ -1594,7 +1593,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b', now())
+  values (true, '0931d4c29340e1ca2fcbd8e0c521ea3f96c02eb5c9d8490acae1585008bf9e47', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1759,7 +1758,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 0931d4c29340e1ca2fcbd8e0c521ea3f96c02eb5c9d8490acae1585008bf9e47',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

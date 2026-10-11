@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=565';
 
 export default [
 
@@ -1981,7 +1981,7 @@ export default [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../../data/shops.js?v=564');
+    const S = await import('../../data/shops.js?v=565');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -2898,7 +2898,7 @@ export default [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../../data/dungeons.js?v=564');
+    const mod = await import('../../data/dungeons.js?v=565');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -2929,7 +2929,7 @@ export default [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../../data/dungeons.js?v=564');
+    const mod = await import('../../data/dungeons.js?v=565');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -3678,7 +3678,7 @@ export default [
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
     try {
       /* A BOOT: the factory literal, and the hint has not been discarded yet. */
-      G.inventory = { turnip_seed: 5, carrot_seed: 3, shrimp: 10, cooked_shrimp: 20 };
+      G.inventory = { turnip_seed: 8, shrimp: 10, cooked_shrimp: 20 };   // the W0 kit (src/data/start-kit.js)
       delete G._serverBag; delete G._startKitHintAt;
       /* THE REALM: a veteran slot that spent the kit long ago and holds its own
          goods, on a projection the server certifies COMPLETE. */
@@ -3686,11 +3686,11 @@ export default [
       // (a) the realm's own goods land, and a kit id the realm DOES name keeps its figure.
       assert((G.inventory.maple_log || 0) === 7027 && (G.inventory.cooked_shrimp || 0) === 20,
         'the realm\'s own bag must land untouched: ' + JSON.stringify(G.inventory));
-      // (b) THE BUG: the two seeds the realm has no row for are GONE, not ratcheted.
-      assert(!G.inventory.turnip_seed && !G.inventory.carrot_seed,
+      // (b) THE BUG: the kit seeds the realm has no row for are GONE, not ratcheted.
+      assert(!G.inventory.turnip_seed,
         'THE BUG: the start-kit hint survived the realm\'s own complete statement of the bag, so the grid paints '
         + 'seeds hr_farm_plant refuses: '
-        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed }));
       // (c) ONCE PER LOAD: a LATER envelope leaves the merge rule (never delete) in charge.
       G.inventory.turnip_seed = 5;
       A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 7027 }, inventory_complete: true });
@@ -3714,12 +3714,12 @@ export default [
     if (!A || typeof A.applyEnvelopeState !== 'function') return;
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
     try {
-      G.inventory = { turnip_seed: 7, carrot_seed: 3 };   // 7 != the hint's 5 -- somebody bought seeds
+      G.inventory = { turnip_seed: 7, shrimp: 10 };   // 7 != the hint's 8 -- somebody bought seeds; shrimp is the untouched hint
       delete G._serverBag; delete G._startKitHintAt;
       A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 1 }, inventory_complete: true });
-      assert((G.inventory.turnip_seed || 0) === 7 && !G.inventory.carrot_seed,
-        'a TOUCHED figure must survive (7) while the untouched hint (3 carrot seeds) is discarded: '
-        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+      assert((G.inventory.turnip_seed || 0) === 7 && !G.inventory.shrimp,
+        'a TOUCHED figure must survive (7) while the untouched hint (10 raw shrimp) is discarded: '
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, shrimp: G.inventory.shrimp }));
     } finally {
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       if (hintWas === undefined) delete G._startKitHintAt; else G._startKitHintAt = hintWas;

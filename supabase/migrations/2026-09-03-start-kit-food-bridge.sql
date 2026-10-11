@@ -89,31 +89,28 @@ begin
 end $$;
 
 -- ── 1. ASSERT THE LIVE SHAPE BEFORE WRITING ────────────────────────────────
--- The whole table, as a sorted fingerprint. A kit is a SET, so grading it row
--- by row would accept a production table that had gained a fourth item nobody
--- reviewed and then silently keep it.
+-- POST-APPLY AMENDMENT (precondition/self-check ONLY, no body/data; lane w0b 2026-10-10).
+-- §1 and §3 assert only THIS ruling's own rows (shrimp, cooked_shrimp), never the
+-- whole kit: the kit as a set is owned by the chain-end file
+-- (2026-10-16-first-day-seeds.sql §0/§4b) and tests/catalogue-literal-drift. A
+-- whole-kit fingerprint here broke the rebuild the day another row of the kit moved.
 do $$
 declare
-  v_now text;
-  c_before constant text := 'carrot_seed:3,shrimp:8,turnip_seed:5';
-  c_after  constant text := 'carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5';
-  -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 2026-10-16): the
-  -- regenerated catalogue replays BEFORE this file and now carries the W0 kit
-  -- (this ruled food bridge PLUS the three free tier-1 ammo stacks,
-  -- 2026-10-16-w0e-ammo-runecraft.sql). That exact later shape is accepted as
-  -- "already ruled"; any OTHER shape still refuses. Production passed the
-  -- original gate; nothing to re-apply.
-  c_w0     constant text := 'air_rune:50,bronze_arrows:50,carrot_seed:3,coarse_whetstone:10,cooked_shrimp:20,shrimp:10,turnip_seed:5';
+  v_shrimp bigint;
+  v_cooked bigint;
 begin
-  select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
-    into v_now from public.hr_start_inventory;
-  if v_now = c_after or v_now = c_w0 then
-    raise notice 'hr_start_inventory already carries the ruled kit — the update below is a no-op';
-  elsif v_now <> c_before then
-    raise exception 'hr_start_inventory is "%" — neither the pre-audit kit "%" nor the ruled kit "%". '
-                    'Production has DRIFTED from what this fix was authored against, so writing it '
-                    'would destroy someone else''s change. Re-read the table and re-author this file.',
-      v_now, c_before, c_after;
+  select qty into v_shrimp from public.hr_start_inventory where item_id = 'shrimp';
+  select qty into v_cooked from public.hr_start_inventory where item_id = 'cooked_shrimp';
+  if v_shrimp is null or v_shrimp not in (8, 10) then
+    raise exception 'hr_start_inventory.shrimp is % — neither the pre-audit 8 nor the ruled 10. '
+                    'Production has DRIFTED from what this fix was authored against.', v_shrimp;
+  end if;
+  if v_cooked is not null and v_cooked <> 20 then
+    raise exception 'hr_start_inventory.cooked_shrimp is % — neither absent nor the ruled 20. '
+                    'Production has DRIFTED from what this fix was authored against.', v_cooked;
+  end if;
+  if v_shrimp = 10 and v_cooked = 20 then
+    raise notice 'hr_start_inventory already carries the ruled food bridge — the update below is a no-op';
   end if;
 end $$;
 
@@ -131,13 +128,12 @@ declare
   v_bad  bigint;
   v_heal bigint;
 begin
-  select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
-    into v_now from public.hr_start_inventory;
-  -- POST-APPLY AMENDMENT (W0 2026-10-16): the exact W0 superset (this bridge +
-  -- the three free ammo stacks) is the only other accepted shape; see §1.
-  if v_now <> 'carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5'
-     and v_now <> 'air_rune:50,bronze_arrows:50,carrot_seed:3,coarse_whetstone:10,cooked_shrimp:20,shrimp:10,turnip_seed:5' then
-    raise exception 'VERIFY: the starting kit did not land — %', v_now;
+  -- POST-APPLY AMENDMENT (precondition/self-check ONLY, no body/data; lane w0b 2026-10-10):
+  -- this ruling's own two rows, not the whole kit (see §1).
+  select string_agg(item_id || ':' || qty::text, ',' order by item_id) into v_now
+    from public.hr_start_inventory where item_id in ('shrimp', 'cooked_shrimp');
+  if v_now is distinct from 'cooked_shrimp:20,shrimp:10' then
+    raise exception 'VERIFY: the food bridge did not land — %', v_now;
   end if;
 
   -- The generated catalogue's own invariant, re-run: every kit id is an item.

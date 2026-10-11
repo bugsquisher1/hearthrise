@@ -97,19 +97,28 @@ const REGISTRY = new Set();   // every latch ever made (a handful per session)
  *       names WHAT the gesture buys (an offer id): a retry key is reused only
  *       for the same scope, so a replayed answer is never read as the next rung.
  *   held(key) / reset() — the read and the test teardown.
+ *   useClock(clock|null) — TEST SEAM: {now, setTimer, clearTimer}; null = real.
+ *       A suite drives the hold on a manual clock it advances explicitly, so a
+ *       loaded machine cannot expire a hold between two "simultaneous" taps.
  */
-export function createIntentLatch() {
+const REAL_CLOCK = Object.freeze({
+  now: () => Date.now(),
+  setTimer: (fn, ms) => setTimeout(fn, ms),
+  clearTimer: (t) => clearTimeout(t),
+});
+export function createIntentLatch(opts) {
+  let clock = (opts && opts.clock) || REAL_CLOCK;
   const holds = new Map();   // key → token (one object per hold)
   const retry = new Map();   // key → { idem, at } of an ambiguous answer
   let epoch = 0;             // bumped by reset(): a dropped hold's late settle is inert
   function release(k, token) {
     if (holds.get(k) !== token) return;   // an expired hold's late settle: not ours
     holds.delete(k);
-    if (token.timer) clearTimeout(token.timer);
+    if (token.timer) clock.clearTimer(token.timer);
   }
   function idemFor(k, scope) {
     const r = retry.get(k);
-    if (r && r.scope === scope && Date.now() - r.at < RETRY_KEY_TTL_MS) return r.idem;
+    if (r && r.scope === scope && clock.now() - r.at < RETRY_KEY_TTL_MS) return r.idem;
     retry.delete(k);
     return uuid();
   }
@@ -119,22 +128,22 @@ export function createIntentLatch() {
       if (holds.has(k)) return Promise.resolve({ ok: false, error: IN_FLIGHT, inFlight: true, key: k });
       const o = opts || {};
       const cap = Number(o.holdMs) > 0 ? Number(o.holdMs) : DEFAULT_HOLD_MS;
-      const sentAt = Date.now();
+      const sentAt = clock.now();
       const token = { timer: null };
       holds.set(k, token);
-      token.timer = setTimeout(() => release(k, token), cap);
+      token.timer = clock.setTimer(() => release(k, token), cap);
       const scope = o.scope === undefined ? undefined : String(o.scope);
       const idem = idemFor(k, scope);
       const born = epoch;
       const settle = (ans, rejected) => {
         if (born !== epoch) return;            // reset() dropped this hold: not ours
-        if (rejected || isAmbiguousAnswer(ans)) retry.set(k, { idem, scope, at: Date.now() });
+        if (rejected || isAmbiguousAnswer(ans)) retry.set(k, { idem, scope, at: clock.now() });
         else if (retry.has(k) && retry.get(k).idem === idem) retry.delete(k);
-        const left = sentAt + MIN_HOLD_MS - Date.now();
+        const left = sentAt + MIN_HOLD_MS - clock.now();
         if (left <= 0) { release(k, token); return; }
         if (holds.get(k) !== token) return;
-        clearTimeout(token.timer);
-        token.timer = setTimeout(() => release(k, token), left);
+        clock.clearTimer(token.timer);
+        token.timer = clock.setTimer(() => release(k, token), left);
       };
       let p;
       try { p = Promise.resolve(fire(idem)); }
@@ -148,9 +157,12 @@ export function createIntentLatch() {
     size() { return holds.size; },
     reset() {
       epoch++;
-      for (const t of holds.values()) if (t.timer) clearTimeout(t.timer);
+      for (const t of holds.values()) if (t.timer) clock.clearTimer(t.timer);
       holds.clear(); retry.clear();
     },
+    /* Swap only between gestures (after reset): a live hold's timer belongs to
+       the clock that armed it. */
+    useClock(c) { clock = c || REAL_CLOCK; },
   };
   REGISTRY.add(api);
   return api;

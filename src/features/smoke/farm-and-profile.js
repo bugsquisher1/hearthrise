@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 86 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=564';
-import { fold } from '../lifetime-tally.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=565';
+import { fold } from '../lifetime-tally.js?v=565';
 
 /* THE WIRE HOLDS. Every request whose URL contains `match` is recorded and
    left UNANSWERED until the test calls answer() — or, while `wire.auto` is set,
@@ -3095,7 +3095,16 @@ export default [
   // ════════════════════════════════════════════════════════════════════════
   () => tryRunAsync('INTENT-LATCH-1: a double-click on Plot "Upgrade" sends ONE hr_farm_upgrade_plot even when the answer beats the second press', async () => {
     const F = window.HearthriseFarm, FS = window.HearthriseFarmSync, G = window.G, L = window.HearthriseIntentLatch;
-    assert(F && FS && L && typeof FS.__resetFarmLatch === 'function', 'farm-progression.js / farm-sync.js / intent-latch.js did not load');
+    assert(F && FS && L && typeof FS.__resetFarmLatch === 'function' && typeof FS.__useFarmLatchClock === 'function',
+      'farm-progression.js / farm-sync.js / intent-latch.js did not load (or the latch clock seam is gone)');
+    /* THE HOLD RUNS ON A MANUAL CLOCK, advanced explicitly. On wall time a loaded
+       machine could stretch a 150 ms wait past the 600 ms floor and the "double
+       click" became two deliberate taps (the flake this replaced). */
+    const clock = { t: 1e6, timers: [], now() { return this.t; },
+      setTimer(fn, ms) { const h = { at: this.t + ms, fn }; this.timers.push(h); return h; },
+      clearTimer(h) { this.timers = this.timers.filter((x) => x !== h); },
+      advance(ms) { this.t += ms; const due = this.timers.filter((x) => x.at <= this.t); this.timers = this.timers.filter((x) => x.at > this.t); due.forEach((x) => x.fn()); } };
+    FS.__useFarmLatchClock(clock);
     const snap = snapshotG();
     const hadMirror = Object.prototype.hasOwnProperty.call(G, '_serverPlotLevel'), prevMirror = G._serverPlotLevel;
     const realUp = FS.farmUpgradePlot;
@@ -3107,8 +3116,7 @@ export default [
       G.inventory.farm_deed = 0; G.gold = 1e7; G.skills.farming = 1e9;
       wire.auto = () => ({ ok: true, plot_level: ++level, paid_with: 'gold', gold_spent: 500, gold: 1e7 });
       assert(F.upgradePlot() === true, 'the first tap was refused by the pre-flight: ' + JSON.stringify(F.getUpgradeCheck()));
-      await sleep(150);                                  // answered at 40 ms; the double-click's second press lands now
-      assert(G.plotLevels === 2, "the first press did not render the server's tier 2");
+      await untilTrue(() => G.plotLevels === 2, "the first press's server tier 2 to render");   // the answer beat the second press; the clock has not moved
       const n = toasts.seen.length;
       F.upgradePlot();
       assert(wire.sent.length === 1,
@@ -3116,7 +3124,7 @@ export default [
       await sleep(60);
       assert(toasts.seen.length === n && G.plotLevels === 2,
         'the held second press toasted or moved the plot: [' + toasts.seen.slice(n).join(' | ') + '] Lv ' + G.plotLevels);
-      await sleep(L.MIN_HOLD_MS);
+      clock.advance(L.MIN_HOLD_MS);
       F.upgradePlot();                                   // a deliberate tap after the floor is a new gesture
       assert(wire.sent.length === 2, 'a tap after the hold was swallowed — the latch never let go');
       await untilTrue(() => G.plotLevels === 3, "the server's tier 3 to render");
@@ -3124,15 +3132,16 @@ export default [
       const expects = wire.sent.map((s) => JSON.parse(s.body).p_expect_level);
       assert(expects.join(',') === '2,3', 'each latched upgrade must name the server rung it buys (p_expect_level), got ' + expects.join(','));
       wire.auto = null;                                  // no answer: the client gives up at 300 ms with no verdict
-      await sleep(L.MIN_HOLD_MS);
+      clock.advance(L.MIN_HOLD_MS);
       F.upgradePlot();
-      await sleep(L.MIN_HOLD_MS + 50);
+      await sleep(400);                                  // the REAL 300 ms transport timeout settles (an ambiguous answer)
+      clock.advance(L.MIN_HOLD_MS + 50);
       F.upgradePlot();
       assert(wire.sent.length === 4 && wire.idem(3) === wire.idem(2),
         'a re-tap after a timeout sent a FRESH key — an upgrade the server committed would be bought again');
       await sleep(350);                                  // the last tap times out inside the toast capture
     } finally {
-      wire.restore(); toasts.restore(); FS.farmUpgradePlot = realUp; FS.__resetFarmLatch(); restoreG(snap);
+      wire.restore(); toasts.restore(); FS.farmUpgradePlot = realUp; FS.__useFarmLatchClock(null); restoreG(snap);
       if (hadMirror) G._serverPlotLevel = prevMirror; else delete G._serverPlotLevel;
     }
   }),

@@ -41,9 +41,9 @@
 // window for legacy.js — but the ESM exports exist for the Node guard.
 // ============================================================================
 
-import { isFarmServerArmed } from '../data/item-authority.js?v=564';
-import { withSettleFirstRetry } from './settle-first.js?v=564';
-import { createIntentLatch } from './intent-latch.js?v=564';
+import { isFarmServerArmed } from '../data/item-authority.js?v=565';
+import { withSettleFirstRetry } from './settle-first.js?v=565';
+import { createIntentLatch } from './intent-latch.js?v=565';
 
 export { isFarmServerArmed };
 
@@ -403,5 +403,6 @@ if (typeof window !== 'undefined') {
     /* Test teardown only: drop every hold, so a suite that abandons a fake
        transport mid-flight cannot leave the next test's tap swallowed. */
     __resetFarmLatch() { farmLatch.reset(); },
+    __useFarmLatchClock(c) { farmLatch.reset(); farmLatch.useClock(c); },
   };
 }

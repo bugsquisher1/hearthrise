@@ -1,4 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════════
+-- POST-APPLY AMENDMENT (precondition/self-check ONLY, no body/data; lane w0a 2026-10-10)
+--   e6 was a whole-table hr_unlocks count; it now asserts this file's retired
+--   unlock ids are absent. Nothing this file writes changed.
+-- ════════════════════════════════════════════════════════════════════════
 -- 2026-09-18-retired-iap-catalogue-removal.sql
 -- STAGED, NOT APPLIED — REVIEW ONLY. A REMOVAL, so Security reviews it before
 -- the Coordinator applies. The rows are catalogue rows, not player rows.
@@ -217,12 +221,13 @@ begin
   --     repo rebuild. Asserted here so the apply itself proves the close.
   select count(*) into v_n from public.hr_unlock_offers;
   if v_n <> 139 then raise exception 'e5: hr_unlock_offers = %, expected 139', v_n; end if;
-  select count(*) into v_n from public.hr_unlocks;
-  -- POST-APPLY AMENDMENT (W0, 2026-10-10, replay only): 80 at apply time; the
-  -- coherence audit cut recipe:dragon_marrow_recipe (a scroll for an item that
-  -- never shipped) from the generated unlock catalogue, so a rebuild holds 79
-  -- here and 2026-10-10-w0a-catalogue-cuts.sql brings production to the same 79.
-  if v_n <> 79 then raise exception 'e6: hr_unlocks = %, expected 79', v_n; end if;
+  -- e6 (POST-APPLY AMENDMENT, lane w0a 2026-10-10): was a whole-table count
+  -- (hr_unlocks = 80) that any later catalogue change breaks on replay — W0's
+  -- cut of recipe:dragon_marrow_recipe did. It now asserts what THIS file did:
+  -- its retired unlock ids are absent (the orphan-offer check e7 follows).
+  select count(*) into v_n from public.hr_unlocks
+   where unlock_id in ('entitlement:noAds', 'entitlement:offlinePlus');
+  if v_n <> 0 then raise exception 'e6: % of this file''s retired unlock id(s) are present', v_n; end if;
 
   -- (d) no offer is left pointing at an unlock that no longer exists
   select count(*) into v_n from public.hr_unlock_offers o

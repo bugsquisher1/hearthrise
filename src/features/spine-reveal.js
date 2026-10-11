@@ -31,13 +31,13 @@
 // other states through `__pin(facts | null)`.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS } from '../data/spine.js?v=568';
-import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=568';
-import { SKILLS_DEF } from '../data/skills.js?v=568';
-import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=568';
-import { reveal, warWindow, combatLevelOf } from '../core/spine-progress.js?v=568';
-import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=568';
-import { recordValue } from '../net/record.js?v=568';
+import { SPINE_STEPS } from '../data/spine.js?v=569';
+import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=569';
+import { SKILLS_DEF } from '../data/skills.js?v=569';
+import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=569';
+import { reveal, warWindow, combatLevelOf } from '../core/spine-progress.js?v=569';
+import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=569';
+import { recordValue } from '../net/record.js?v=569';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const CTX = Object.freeze({ startXp: START_SKILL_XP });

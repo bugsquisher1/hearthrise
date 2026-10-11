@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 569 — 2026-10-11 (Plain words, fewer doors)
+
+**Fewer doors on day one.** A new hero starts with only the doors they can use. The Combat door, the Farm, your House, the Market, Workers and the rest open one by one as you reach them, with a short message saying what just opened. A hero who has already reached a door keeps it.
+
+**Plain words everywhere.** About 180 lines across the game were rewritten to read like a person wrote them: "Craft your first 60 items" instead of "Craft 60 items in all", "Wolves" instead of "Wolfs", and "the realm" instead of "the server".
+
+**Your bag always matches the realm.** Your bag now shows exactly what the realm holds after every update, so a count can never get stuck too high.
+
+**Fair names.** Names that contain slurs are now refused, and a player whose name breaks the rules is asked to choose a new one.
+
 ## v0.9.2-beta build 568 — 2026-10-11 (Even cards, honest farm)
 
 **Even skill cards.** Every card in every skill grid is now the same size, with its art centred in the same box. The bottom line always says either the level that unlocks it or how many you have and can make. Tabs show how many recipes each holds.

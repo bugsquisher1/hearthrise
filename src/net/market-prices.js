@@ -12,7 +12,7 @@
 // cache with a TTL and a coalesced refresh, the shape of market-history.js.
 // 7-day statistics need a server projection; this file deliberately has none.
 // ============================================================================
-import { isListingId } from './gold.js?v=568';
+import { isListingId } from './gold.js?v=569';
 
 export const LISTINGS_TTL_MS = 60 * 1000;
 

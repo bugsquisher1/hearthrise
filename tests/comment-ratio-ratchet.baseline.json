@@ -3,7 +3,7 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 4045,
+  "bnumTotal": 4042,
   "files": {
     "src/legacy.js": {
       "total": 18453,
@@ -13,32 +13,32 @@
       "bnum": 733
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 9803,
-      "comment": 2564,
-      "code": 6602,
-      "ratio": 0.38836716146622235,
-      "bnum": 130
+      "total": 9933,
+      "comment": 2578,
+      "code": 6718,
+      "ratio": 0.38374516225066985,
+      "bnum": 129
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 9273,
+      "total": 9277,
       "comment": 2439,
-      "code": 6206,
-      "ratio": 0.39300676764421527,
+      "code": 6210,
+      "ratio": 0.3927536231884058,
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
-      "total": 7479,
+      "total": 7478,
       "comment": 1992,
-      "code": 5012,
+      "code": 5011,
       "ratio": 0.39736684619988033,
       "bnum": 133
     },
     "src/net/accrue.js": {
-      "total": 7169,
-      "comment": 3821,
-      "code": 2834,
-      "ratio": 1.3482709950599858,
-      "bnum": 127
+      "total": 7170,
+      "comment": 3813,
+      "code": 2843,
+      "ratio": 1.3411888849806541,
+      "bnum": 126
     },
     "src/features/smoke/market-night-and-prices.js": {
       "total": 6021,
@@ -48,10 +48,10 @@
       "bnum": 112
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 5785,
+      "total": 5786,
       "comment": 1229,
-      "code": 4321,
-      "ratio": 0.28442490164313816,
+      "code": 4322,
+      "ratio": 0.28435909301249424,
       "bnum": 85
     },
     "src/features/smoke/cooking-core-and-save.js": {
@@ -97,10 +97,10 @@
       "bnum": 134
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
-      "total": 3376,
-      "comment": 633,
-      "code": 2569,
-      "ratio": 0.24639937718956792,
+      "total": 3402,
+      "comment": 635,
+      "code": 2592,
+      "ratio": 0.24498456790123457,
       "bnum": 42
     },
     "src/features/smoke/bounty-and-artisan.js": {

@@ -334,6 +334,16 @@
      visible tab sat un-highlighted at the bottom. Resolve to the first match
      that is genuinely laid out; fall back to the first match so a target that
      is briefly un-rendered still behaves exactly as it used to. */
+  /* A step that introduces a door the progressive reveal has not opened yet
+     says which door it is and when it opens, on a centred card (findTarget
+     finds nothing to spotlight). '' for an open door or a non-door step. */
+  function shutDoorLine(step){
+    var m = /data-tab="([a-z]+)"/.exec((step && step.target) || '');
+    var N = window.HearthriseNav;
+    if(!m || !N || typeof N.doorOpensWhen !== 'function') return '';
+    var t = N.doorOpensWhen(m[1]);
+    return t ? ' ' + t : '';
+  }
   function findTarget(sel){
     if(!sel) return null;
     var all;
@@ -342,7 +352,13 @@
       var r = all[i].getBoundingClientRect();
       if(r.width > 0 && r.height > 0) return all[i];
     }
-    return all[0] || null;
+    /* A door the progressive reveal holds back (inline display:none, see
+       nav-consolidation.js paintDoors) is not "briefly un-rendered": its step
+       becomes a centred card rather than a spotlight on the corner. */
+    for(var j = 0; j < all.length; j++){
+      if(all[j].style.display !== 'none') return all[j];
+    }
+    return null;
   }
 
   // ── Step rendering ──────────────────────────────────────────
@@ -354,7 +370,7 @@
 
     rootEl.querySelector('.ftue-step').textContent = 'Step ' + (stepIndex + 1) + ' of ' + STEPS.length;
     rootEl.querySelector('.ftue-title').textContent = step.title;
-    rootEl.querySelector('.ftue-body').textContent  = step.body;
+    rootEl.querySelector('.ftue-body').textContent  = step.body + shutDoorLine(step);
 
     var primaryBtn   = rootEl.querySelector('[data-action="primary"]');
     var secondaryBtn = rootEl.querySelector('[data-action="secondary"]');
@@ -422,7 +438,10 @@
     var card = rootEl.querySelector('.ftue-card');
     var spot = rootEl.querySelector('.ftue-spot');
 
-    if(step.placement === 'center' || step.target === 'body' || !step.target){
+    /* A centred card: the welcome/wrap-up, and a step whose door is not on
+       screen (a door the progressive reveal holds back). The previous step's
+       inline position is cleared, or the card stays pinned where it was. */
+    if(step.placement === 'center' || step.target === 'body' || !step.target || !findTarget(step.target)){
       spot.style.display = 'none';
       card.classList.add('center');
       card.style.left = ''; card.style.top = ''; card.style.right = '';
@@ -434,12 +453,6 @@
     }
 
     var tgt = findTarget(step.target);
-    if(!tgt){
-      // Target missing — fall back to centered card
-      spot.style.display = 'none';
-      card.classList.add('center');
-      return;
-    }
     card.classList.remove('center');
     var pip = card.querySelector('.ftue-pip');
     if(pip) pip.style.display = '';
@@ -539,7 +552,7 @@
      step used to sell an away-combat night the engine does not deliver. A
      promise nothing reads cannot be tested, so the steps are published and
      AWAY-HONEST-5 asserts the copy against what the engine actually pays. */
-  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); } };
+  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); }, findTarget: findTarget, shutDoorLine: shutDoorLine };
 
   // ── Auto-boot ───────────────────────────────────────────────
   // b224: the tour is the SECOND thing a new player meets, not the first.

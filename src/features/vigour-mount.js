@@ -26,6 +26,20 @@
 
 const G = () => window.G;
 
+/* THE PROGRESSIVE REVEAL: Vigour arrives with the spine's ninth step
+   (src/data/reveals.js `card:vigour`); no reveal module means shown. */
+const revealed = () => !window.HearthriseReveal || window.HearthriseReveal.shows('card:vigour');
+
+/** The chip earns its place on the bar only once half the day's Vigour is
+    spent (or none is left): a full meter is not news. Both numbers are the
+    server's own meter fields; an unreadable meter keeps today's chip. */
+export function vigourWorthSaying(v) {
+  if (!v || typeof v !== 'object') return true;
+  const left = Number(v.remaining_min), budget = Number(v.budget_min);
+  if (!Number.isFinite(left) || !Number.isFinite(budget) || budget <= 0) return true;
+  return left <= budget / 2;
+}
+
 function ensureFightHost() {
   let host = document.getElementById('fs-vigour');
   if (host) return host;
@@ -63,7 +77,7 @@ export function paintVigour() {
   const g = G();
   const block = ensureFightHost();
   if (block && typeof window.renderVigourBlock === 'function') {
-    const on = window.renderVigourBlock(block, () => paintVigour());
+    const on = revealed() && window.renderVigourBlock(block, () => paintVigour());
     const frame = block.parentNode;
     if (frame && frame.hidden === on) frame.hidden = !on;
   }
@@ -71,7 +85,7 @@ export function paintVigour() {
   if (chip && typeof window.vigourChipHtml === 'function') {
     /* Only while FIGHTING: Vigour is the hunting limiter, and a chip on a
        woodcutting bar would be a number about something the player is not doing. */
-    const html = (g && g.activeMonster)
+    const html = (g && g.activeMonster && revealed() && vigourWorthSaying(g._vigour))
       ? window.vigourChipHtml(g._vigour || null, g._vigourRefill || null) : '';
     if (chip.__vigourSig !== html) { chip.__vigourSig = html; chip.innerHTML = html; }
     if (chip.hidden === !!html) chip.hidden = !html;
@@ -79,7 +93,7 @@ export function paintVigour() {
 }
 
 export function setupVigourMount() {
-  window.HearthriseVigourMount = { paint: paintVigour };
+  window.HearthriseVigourMount = { paint: paintVigour, worthSaying: vigourWorthSaying };
   paintVigour();
   setInterval(paintVigour, 500);
 }

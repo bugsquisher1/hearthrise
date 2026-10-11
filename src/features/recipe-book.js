@@ -193,7 +193,19 @@ function close() {
   if (ov) ov.style.display = 'none';
 }
 
+/* The Skills screen's Recipe Book button arrives with the spine's crafting
+   step (src/data/reveals.js `card:recipe-book`); no reveal module means shown. */
+function paintButton() {
+  const btn = document.getElementById('btn-recipe-book');
+  if (!btn) return;
+  const R = window.HearthriseReveal;
+  const want = (!R || R.shows('card:recipe-book')) ? '' : 'none';
+  if (btn.style.display !== want) btn.style.display = want;
+}
+
 export function setupRecipeBook() {
-  window.HearthriseRecipeBook = { open, close, renderBody };
+  window.HearthriseRecipeBook = { open, close, renderBody, paintButton };
+  paintButton();
+  window.addEventListener('hearthrise:reveal', paintButton);
   console.log('[Recipe Book ESM] loaded');
 }

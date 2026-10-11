@@ -104,6 +104,12 @@
     if (countEl) countEl.textContent = String(count);
     btn.classList.toggle('no-active', count === 0);
     btn.classList.toggle('has-claim', claim);
+    /* The progressive reveal holds the chip back until the spine's eighth step
+       (src/data/reveals.js `card:quests-chip`), never while a reward waits. */
+    const R = window.HearthriseReveal;
+    const shown = claim || !R || R.shows('card:quests-chip');
+    const want = shown ? '' : 'none';
+    if (btn.style.display !== want) btn.style.display = want;
     btn.title = claim
       ? (st.claimable === 1 ? '1 quest reward ready to claim' : st.claimable + ' quest rewards ready to claim')
       : (st.active ? (st.active === 1 ? '1 quest in progress' : st.active + ' quests in progress') : 'Quests');
@@ -112,6 +118,7 @@
   // a quest into "claimable" without touching it. A slow poll is enough for a
   // badge and costs nothing next to the per-second dashboard re-render.
   setInterval(sync, 5000);
+  window.addEventListener('hearthrise:reveal', sync);
 
   // Watch the strip for text changes (engine updates it on quest progress)
   function watch() {

@@ -318,6 +318,8 @@
     "node tests/attended-fall.mjs --selftest": "client-guards",
     "node tests/css-literal-ratchet.mjs --report": "client-guards",
     "node tests/css-literal-ratchet.mjs --selftest": "client-guards",
+    "node tests/reveal-coverage.mjs": "client-guards",
+    "node tests/reveal-coverage.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tests/breakpoint-guard.mjs --selftest": "client-guards",
     "node tests/modal-primitive-census.mjs --report": "client-guards",

@@ -3551,6 +3551,16 @@ jobs:
           node tests/css-literal-ratchet.mjs --report
           node tests/css-literal-ratchet.mjs --selftest
 
+      # Progressive reveal: every rail pane, war card, skill and Home card the
+      # one-spine reveal gates has a row in src/data/reveals.js (an unrowed
+      # surface would vanish for every player), and the predicate keeps its
+      # fresh / full / unknown / monotonic contract.
+      - name: Progressive reveal - every surface has a reveal row
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/reveal-coverage.mjs
+          node tests/reveal-coverage.mjs --selftest
+
       - name: Presentation floor - one set of breakpoints
         if: ${{ !cancelled() }}
         run: |

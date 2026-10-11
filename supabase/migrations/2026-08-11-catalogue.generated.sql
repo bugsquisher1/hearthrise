@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2
+--   catalogue digest: 836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548
 --   rows: 506 items (21 untradeable) ·
 --         268 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 522 activities ·
@@ -503,7 +503,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_axe','Rune Axe',true,'tool',9000,null,null,null,false),
   ('rune_bar','Rune Bar',true,null,1200,null,null,null,false),
   ('rune_belt','Rune Belt',true,'armor',3600,'defense',60,null,false),
-  ('rune_blank','Blank Rune',true,null,5,null,null,null,false),
+  ('rune_blank','Blank Rune',true,null,3,null,null,null,false),
   ('rune_boots','Rune Boots',true,'armor',3600,'defense',60,null,false),
   ('rune_essence','Rune Essence',true,null,15,null,null,null,false),
   ('rune_frag','Rune Fragment',true,null,30,null,null,null,false),
@@ -1556,7 +1556,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2', now())
+  values (true, '836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1721,7 +1721,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

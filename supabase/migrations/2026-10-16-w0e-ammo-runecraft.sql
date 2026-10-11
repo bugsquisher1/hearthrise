@@ -124,6 +124,16 @@ begin
   get diagnostics v_rows = row_count;
   raise notice 'w0e §1a: % of 1 item rows moved (0 on a re-apply)', v_rows;
 
+  -- ── 1a'. THE BLANK RUNE'S BOOK VALUE 5 -> 3 (Game Designer ruling, b570) ──
+  -- The seed-shop repricing (18 for 300g) lifted the b565 buy-back cap, so a
+  -- blank vendored at its full book value of 5 and free-mined essence split
+  -- into a ~98k gold/hour faucet. The ruling: the blank vendors at 3g (the b565
+  -- buy-back), and Split Blank Runes yields 6 per 6 essence (src/data/
+  -- stonecraft.js), a 1.00x batch ratio. Idempotent: 0 rows on a re-apply.
+  update public.hr_items set value = 3 where item_id = 'rune_blank' and value is distinct from 3;
+  get diagnostics v_rows = row_count;
+  raise notice 'w0e §1a'': % rune_blank value row moved (0 on a re-apply)', v_rows;
+
   -- ── 1b. THE RUNECRAFTING BENCH ───────────────────────────────────────────
   insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss)
   values ('artisan','mine_rune_essence','runecrafting',1,null,false),

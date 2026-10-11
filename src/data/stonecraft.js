@@ -215,7 +215,7 @@ export const STONECRAFT_ITEMS = {
   /* W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
      v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
   rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
-  rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, rarity: 'common' },
+  rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 3,  tier: 1, rarity: 'common' },
   fine_rune_blank: { n: 'Fine Blank Rune', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
   deep_rune_blank: { n: 'Deep Blank Rune', icon: '🔳', v: 60, tier: 5, rarity: 'rare' },
 
@@ -330,7 +330,7 @@ export const STONECRAFT_RECIPES = {
     { id: 'mine_rune_essence',  name: 'Mine Rune Essence',    icon: '🪨', inputs: {},                             output: 'rune_essence', outputQty: 2, xp: 6, req: 1, ms: 3000, xpSkill: 'mining' },
     { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
     { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
-    { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 20, xp: 40,  req: 12, ms: 3000 },
+    { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },
     { id: 'deepbind_earth',     name: 'Deepbind Earth Runes', icon: '🌍', inputs: { rune_blank: 7 },              output: 'earth_rune', outputQty: 58, xp: 105,  req: 24, ms: 3600 },
     { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },
     { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },

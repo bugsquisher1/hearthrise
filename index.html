@@ -944,6 +944,8 @@
        runs at parse time and asks this file whether the player is arriving from
        a confirmation email before it decides what to paint. -->
   <script src="src/net/signup-door.js?v=565"></script>
+  <!-- The Discord invite URL + gift sheet; account-gate.js reads it. -->
+  <script src="src/features/discord-invite.js?v=565"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because
        its verdict is what decides whether legacy.js boots at all. Client-side

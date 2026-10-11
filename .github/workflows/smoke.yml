@@ -2119,6 +2119,17 @@ jobs:
           node tests/party-hunt-select-lockdown.mjs
           node tests/party-hunt-select-lockdown.mjs --mutate
 
+      # Discord gift (2026-10-18-discord-gift.sql): the welcome-channel code pays
+      # a server-constant gem gift ONCE PER ACCOUNT, journalled, rate limited;
+      # a wrong or rotated code is refused; the client sends (slot, code) only.
+      # --mutate: 9 SQL mutants (per-character once-row, no once-row, a
+      # client-sent amount, ...) + 2 client-scan mutants. Template-warm seconds.
+      - name: Discord gift — one gift per account, server code and amount, journalled
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/discord-gift.mjs
+          node tests/discord-gift.mjs --mutate
+
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's
       # write, a world-tick settle and every client-shaped request still are.

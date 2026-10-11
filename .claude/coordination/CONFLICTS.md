@@ -1611,3 +1611,10 @@ tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against t
 **RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
 
 **Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.
+
+---
+
+## 2026-10-10 — FLAG: the Discord gift's operator rotation writes production outside apply-migration
+**Lane:** `lane/b567-discord-join` (systems-engineer). Nothing is applied; this is a decision for the Coordinator, not a request to loosen §2.
+
+The brief asks for `tools/discord-gift-code.mjs`, an operator one-liner that rotates the active gift code through the management API. That is a production DATA write (`select public.hr_discord_code_rotate('<code>')`: one row retired, one inserted in `hr_discord_codes`) that does not go through `tools/apply-migration.mjs`, which CLAUDE.md §2 names as the only production write path. It moves no player value (the amount is a server constant; the table is operator config, RLS-forced, no client grant), the token is read as file bytes and never printed, and no agent has run it. **Ruling needed:** bless it as an operator verb (run after the migration applies; until a code exists the gift is OFF), or route each rotation through a one-statement migration file. **For the Game Designer:** the gift is proposed at 50 gems (one bank expansion on day one, a quarter of the first hero slot); a retune is one constant in §5 of `2026-10-18-discord-gift.sql`.

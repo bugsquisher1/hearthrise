@@ -3929,3 +3929,17 @@ the same toll as a lazy one and a new top-level function in legacy.js costs thre
 write the code where it belongs FIRST (core / render / the transport), and the ratchets are quiet.
 Four functions went into legacy.js and all four had to come back out — 20 minutes of churn that
 choosing the right file first would have avoided.
+
+## 2026-10-10 — lane/b567-discord-join (Discord invite + once-per-account gem gift, STAGED)
+
+· The invite URL had three copies (account-gate, settings, beta-banner). It now lives once in
+  `src/features/discord-invite.js` (classic script, loaded before account-gate.js); the gift sheet
+  delegates its click from the document because Home repaints its markup every 1.5 s.
+· hr_rpc_gate's splice chain hit PATCH-1 (two deep). Restating from the replay was safe ONLY
+  because live-hash-drift recorded live == replay; the restatement is PINNED to that pre-image md5
+  (and accepts its own post-image for re-apply), so a gate spliced by another lane in between is
+  refused rather than clobbered. §8 pins the post-image too: a dropped bucket is red at apply.
+· A cold PGlite replay in a fresh worktree took ~20 min on a loaded machine; once the prefix
+  template exists the guard is ~20 s. Start the first replay early.
+· Handoffs: Security GO on 2026-10-18-discord-gift.sql; Designer confirms 50 gems; Coordinator
+  rules on the operator rotation tool (CONFLICTS.md) and re-pins live-hash-drift after apply.

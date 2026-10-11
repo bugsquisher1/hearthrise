@@ -2698,3 +2698,105 @@ body[data-hr-desktop-mode] .hr-scrim { top: var(--hr-dm-banner-h, 0px); }
    lives here, not inline, so this can. */
 #hr-net-banner { z-index: 99997; }
 body:has(.modal.show, .hr-scrim) #hr-net-banner { z-index: 1; }
+
+/* ── THE DISCORD INVITE + GIFT SHEET (src/features/discord-invite.js) ──────
+   The invite row is drawn inside Home's hd-card family (first-day card, the
+   Home rail), so it only adds layout. The sheet sits on the primitive above;
+   tokens only. */
+.hr-dc-row { flex-wrap: wrap; row-gap: 8px; }
+.hr-dc-text { flex: 1 1 220px; min-width: 0; line-height: 1.45; }
+.hr-dc-text b { color: var(--gold-2); }
+.hr-dc-actions { display: flex; gap: 8px; flex: 0 0 auto; margin-left: auto; }
+.hr-dc-row a.hd-cta,
+a.hr-dc-btn { text-decoration: none; }
+.hr-dc-scrim {
+  z-index: 99996;
+  background: var(--scene-scrim-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hr-dc-box {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 22px;
+  background: var(--bg-1);
+  color: var(--ink);
+  border: 2px solid var(--gold);
+  border-radius: var(--r);
+  font-family: var(--f-ui);
+}
+.hr-dc-h {
+  font-family: var(--f-display);
+  font-size: calc(23px * var(--ui-scale, 1));
+  font-weight: 800;
+  color: var(--gold);
+  margin: 0 36px 10px 0;
+}
+.hr-dc-p { margin: 0 0 14px; line-height: 1.5; color: var(--ink-2); font-size: calc(15px * var(--ui-scale, 1)); }
+.hr-dc-p a { color: var(--gold-2); font-weight: 700; }
+.hr-dc-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--f-label);
+  font-size: calc(14.5px * var(--ui-scale, 1));
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hr-dc-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-0);
+  color: var(--ink);
+  font-size: calc(17px * var(--ui-scale, 1));
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.hr-dc-input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.hr-dc-status { min-height: 1.5em; margin-top: 10px; font-size: calc(14.5px * var(--ui-scale, 1)); color: var(--ink-2); }
+.hr-dc-status[data-state="ok"] { color: var(--green); font-weight: 700; }
+.hr-dc-status[data-state="wrong_code"],
+.hr-dc-status[data-state="code_expired"],
+.hr-dc-status[data-state="rate_limited"],
+.hr-dc-status[data-state="offline"] { color: var(--red); }
+.hr-dc-claim {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: calc(16px * var(--ui-scale, 1));
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  color: var(--bg-0);
+}
+.hr-dc-claim:disabled { opacity: .6; cursor: default; }
+.hr-dc-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: calc(19px * var(--ui-scale, 1));
+  cursor: pointer;
+}
+.hr-dc-close:hover { color: var(--ink); border-color: var(--gold); }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hr-dc-box { padding: 14px 16px; }
+  .hr-dc-h { font-size: calc(19px * var(--ui-scale, 1)); margin-bottom: 6px; }
+  .hr-dc-p { margin-bottom: 8px; }
+  .hr-dc-claim { margin-top: 8px; }
+  .hr-dc-actions .hd-cta { min-height: 44px; }
+}

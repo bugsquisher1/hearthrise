@@ -118,7 +118,8 @@
      error the player sees. */
   var CREDIT_VERBS = {
     hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1,
-    hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1
+    hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1,
+    hr_claim_discord_gift: 1
   };
 
   /* ONLY WHEN THE SERVER OWNS THE BALANCE. In the dormant position (signed
@@ -351,6 +352,13 @@
        already_claimed | unknown_rank | rate_limited | no_character |
        not_signed_in, renown_high?, min?}. */
     claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); },
+    /* Discord GIFT — supabase/migrations/2026-10-18-discord-gift.sql. The code and
+       the ACTIVE character cross; the amount is the server's. Once per ACCOUNT:
+       a second character is refused already_claimed. AWAITED by
+       src/features/discord-invite.js. Envelope: {ok, gems, balance, slot} or
+       {ok:false, error: wrong_code | code_expired | already_claimed |
+       rate_limited | no_character | bad_slot | not_signed_in}. */
+    claimDiscordGift: function (code) { return call('hr_claim_discord_gift', { p_slot: activeSlot(), p_code: String(code || '') }); },
     /* Bounty ACCEPT — supabase/migrations/2026-08-23-bounty.sql. The server derives
        the tier from hr_bounty_monsters, owns the reward + required-count, and
        SNAPSHOTS the target's current kill count as the baseline into active_bounty so

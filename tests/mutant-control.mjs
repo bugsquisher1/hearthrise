@@ -47,6 +47,7 @@ export const REGISTERED = [
   ['tests/world-tick-arm-combat.mjs', '--mutate'],
   ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
+  ['tests/discord-gift.mjs', '--mutate'],
 ];
 
 /** Parse a guard's control-run output. Returns the list of problems (empty = honest). */

@@ -4481,4 +4481,114 @@ export default [
       'a hunt that ended BEFORE I left is not this absence\'s news');
     assert(L({ ok: false, error: 'not_in_party' }, off, now) === '' && L(null, off, now) === '', 'no party, no line');
   }),
+
+  /* DISCORD — the invite where a new player looks, and the gift sheet's states.
+     The amount is the server's (2026-10-18-discord-gift.sql); the sheet quotes
+     what the answer says and never touches G.gems. */
+  () => tryRun('DISCORD-1: the first screen invites the player to the Discord, with the gift, in both modes', () => {
+    const D = window.HearthriseDiscord;
+    assert(D && /^https:\/\/discord\.gg\//.test(D.INVITE), 'HearthriseDiscord.INVITE is not published');
+    const ui = window.HearthriseGate._buildGate({});
+    try {
+      const help = ui.root.querySelector('.hr-gate-help');
+      const a = help && help.querySelector('a.hr-gate-dc');
+      assert(a, 'the sign-in screen has no Discord invite link');
+      assert(a.href === D.INVITE && a.rel === 'noopener' && a.target === '_blank', 'the invite link is wrong: ' + a.outerHTML);
+      assert(/join the hearthrise discord/i.test(help.textContent) && /meet other players/i.test(help.textContent)
+        && /gift/i.test(help.textContent), 'the invite does not say why to join: ' + help.textContent);
+      [...ui.root.querySelectorAll('.hr-gate-mode')].filter((b) => /sign in/i.test(b.textContent))[0].click();
+      assert(ui.root.contains(help) && help.style.display !== 'none' && help.querySelector('a.hr-gate-dc'),
+        'the invite left with the Create tab');
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  () => tryRun('DISCORD-2: the first-day card carries the invite once its first step is done, never under step one or on the Road', () => {
+    const H = window.HearthriseHome;
+    const count = (m) => (H.__firstDayHtml(m).match(/data-hr-discord="firstday"/g) || []).length;
+    assert(count({ steps: [], currentIndex: 0, total: 5, chain: null }) === 0, 'the invite sits under the first step');
+    assert(count({ steps: [], currentIndex: 1, total: 5, chain: null }) === 1, 'the first-day card lost the invite after step one');
+    assert(count({ steps: [], currentIndex: 3, total: 5, chain: null }) === 1, 'the invite drew more than once');
+    assert(count({ steps: [], currentIndex: 2, total: 6, chain: 'road' }) === 0, 'the Road card carries the first-day invite');
+    const row = window.HearthriseDiscord.rowHtml('firstday');
+    assert(/data-hr-discord-gift/.test(row) && row.indexOf(window.HearthriseDiscord.INVITE) !== -1, 'the row lacks Join or Claim gift');
+  }),
+
+  () => tryRun('DISCORD-2b: Settings carries the Discord link and the Claim Discord gift button', () => {
+    try {
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      const a = body && body.querySelector('a[href="' + window.HearthriseDiscord.INVITE + '"]');
+      assert(a && a.rel === 'noopener', 'Settings lost the Discord link');
+      assert(body.querySelector('button[data-hr-discord-gift]'), 'Settings has no Claim Discord gift button');
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+    }
+  }),
+
+  () => tryRun('DISCORD-3: Home shows the invite exactly once — in the first-day card or the rail, never both', () => {
+    window.showTab('profile'); window.HearthriseHome.render();
+    const root = document.getElementById('hd-root');
+    assert(root, 'Home did not render');
+    if (root.querySelector('.hd-pending')) return skip('Home is waiting for the record');
+    const rows = root.querySelectorAll('[data-hr-discord]');
+    assert(rows.length === 1, 'Home drew the Discord invite ' + rows.length + ' times');
+    const m = window.HearthriseHome.__firstDayModel();
+    const where = rows[0].getAttribute('data-hr-discord');
+    assert(where === ((m && m.currentIndex >= 1) ? 'firstday' : 'home'), 'the invite is in the wrong place: ' + where);
+  }),
+
+  () => tryRunAsync('DISCORD-4: the gift sheet shows every server answer in words and never pays gems itself', async () => {
+    const GC = window.HearthriseGoalClaim, D = window.HearthriseDiscord;
+    assert(GC && typeof GC.claimDiscordGift === 'function', 'goal-claim.js has no claimDiscordGift');
+    const saved = GC.claimDiscordGift, calls = [];
+    let answer = null;
+    GC.claimDiscordGift = (code) => { calls.push(code); return Promise.resolve(answer); };
+    const gems0 = window.G.gems;
+    const btn = document.createElement('button');
+    btn.setAttribute('data-hr-discord-gift', '');
+    document.body.appendChild(btn);
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    const submit = async (code, a) => {
+      answer = a;
+      const s = document.getElementById('hr-dc-sheet');
+      s.querySelector('.hr-dc-input').value = code;
+      s.querySelector('.hr-dc-claim').disabled = false;
+      s.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true }));
+      await flush(); await flush();
+      return s.querySelector('.hr-dc-status');
+    };
+    try {
+      btn.click();
+      const sheet = document.getElementById('hr-dc-sheet');
+      assert(sheet && sheet.classList.contains('hr-scrim'), 'Claim gift did not open the sheet on the modal primitive');
+      assert(sheet.querySelector('[data-hr-dismiss]'), 'the sheet has no dismiss control for Escape');
+      let st = await submit('x!', { ok: true, gems: 50 });
+      assert(calls.length === 0 && st.getAttribute('data-state') === 'wrong_code', 'a malformed code spent a server call');
+      const cases = [
+        [{ ok: false, error: 'wrong_code' }, 'wrong_code', /does not match/],
+        [{ ok: false, error: 'code_expired' }, 'code_expired', /expired/],
+        [{ ok: false, error: 'rate_limited' }, 'rate_limited', /wait a minute/i],
+        [{ ok: false, error: 'rpc_missing' }, 'rpc_missing', /not open yet/],
+        [{ ok: false, error: 'network' }, 'offline', /connection/],
+        [{ ok: false, error: 'already_claimed' }, 'already_claimed', /already claimed/],
+      ];
+      for (const [a, state, re] of cases) {
+        st = await submit('hearth-abc123', a);
+        assert(st.getAttribute('data-state') === state && re.test(st.textContent), state + ' read: ' + st.textContent);
+      }
+      assert(calls.every((c) => c === 'HEARTHABC123'), 'the code was not normalised before sending: ' + calls.join(','));
+      assert(document.querySelector('#hr-dc-sheet .hr-dc-claim').disabled, 'an already-claimed account can submit again');
+      st = await submit('hearth-abc123', { ok: true, gems: 37, balance: 99 });
+      assert(st.getAttribute('data-state') === 'ok' && /37 gems/.test(st.textContent), 'the success line does not quote the server amount: ' + st.textContent);
+      assert(window.G.gems === gems0, 'the sheet changed G.gems itself (' + gems0 + ' -> ' + window.G.gems + ')');
+      sheet.querySelector('[data-hr-dismiss]').click();
+      assert(!document.getElementById('hr-dc-sheet'), 'the sheet did not close');
+    } finally {
+      GC.claimDiscordGift = saved;
+      btn.remove();
+      const s = document.getElementById('hr-dc-sheet'); if (s) s.remove();
+    }
+  }),
 ];

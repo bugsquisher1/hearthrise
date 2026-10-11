@@ -1225,7 +1225,15 @@
           '">' + esc(r.verb) + '</button>') +
         '</div>';
     });
+    if (firstDayInvites(model)) out += window.HearthriseDiscord.rowHtml('firstday');
     return out + '</div></div>';
+  }
+  /* The Discord invite joins the first-day card once the first step is behind
+     the player (never under the tour's opening step); the Home rail carries it
+     whenever the card does not, so Home never shows it twice. */
+  function firstDayInvites(model) {
+    var D = window.HearthriseDiscord;
+    return !!(model && !model.chain && model.currentIndex >= 1 && D && typeof D.rowHtml === 'function');
   }
 
   function playerName() {
@@ -1839,6 +1847,12 @@
       } catch (e) {}
     }
     html += '</div></div>';
+
+    var _DC = window.HearthriseDiscord;
+    if (_DC && typeof _DC.rowHtml === 'function' && !firstDayInvites(chainCard)) {
+      html += '<div><div class="hd-h"><h3>Community</h3></div><div class="hd-rows">' +
+        _DC.rowHtml('home') + '</div></div>';
+    }
 
     html += '</div></div></div>';
 

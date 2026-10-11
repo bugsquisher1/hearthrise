@@ -366,6 +366,8 @@
       '.hr-gate-foot b{color:var(--scene-ink-2,#d8cbb1);font-weight:700}',
       '.hr-gate-help{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));text-align:center;color:var(--scene-ink-3,#b0a186)}',
       '.hr-gate-help a{color:var(--scene-gilt,#ecd7a0);text-decoration:underline;text-underline-offset:2px}',
+      '.hr-gate-help{text-wrap:balance}',
+      '.hr-gate-help a.hr-gate-dc{font-weight:700}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
          game rather than a door in front of it */
@@ -695,8 +697,10 @@
       // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
       // so a player who cannot sign in must still have a way to reach us.
       var help = el('div', 'hr-gate-help');
-      help.appendChild(document.createTextNode('Trouble signing in? '));
-      help.appendChild(discordLink('Join the Discord'));
+      // The first screen a new player sees is where they learn the Discord exists.
+      var D = window.HearthriseDiscord;
+      help.appendChild((D && typeof D.inviteNodes === 'function')
+        ? D.inviteNodes('hr-gate-dc') : discordLink('Join the Discord'));
       foot.parentNode.appendChild(help);
     }
 
@@ -748,14 +752,12 @@
     };
   }
 
-  var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
-  /** The one place this URL is written on the front door. */
+  /** The invite URL lives once, in src/features/discord-invite.js (loaded first).
+      Absent that module the words still read, unlinked, rather than throw. */
   function discordLink(text) {
-    var a = el('a', null, text);
-    a.href = DISCORD_INVITE;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    return a;
+    var D = window.HearthriseDiscord;
+    if (D && typeof D.link === 'function') return D.link(text, 'hr-gate-dc');
+    return el('span', null, text || 'the Hearthrise Discord');
   }
 
   // ════════════════════════════════════════════════════════════

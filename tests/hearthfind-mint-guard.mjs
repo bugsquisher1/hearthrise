@@ -49,7 +49,7 @@
 //   MINT-G2  EVERY hearthfind ITEM IS v:0 AND BIND-ON-PICKUP. `v:0` keeps a
 //            trophy out of the vendor (a find mints ZERO gold); `bop:true`
 //            keeps it off the player market (a find can never become a second
-//            gold bridge — the muster_seal rule). Together they are what make
+//            gold bridge — the bind-on-pickup rule). Together they are what make
 //            "the rarest event in the game moves no value" a fact about the
 //            data rather than a promise in a header. Also asserted: the
 //            hearthfind:true set and src/data/hearthfind.js's HEARTHFIND_ITEMS
@@ -183,10 +183,10 @@ function checkItems(items, allowlist) {
       + 'rarest event in the game moves ZERO gold.');
     ok(it.bop === true,
       `${id} is TRADEABLE (bop is ${JSON.stringify(it.bop)}) — a hearthfind on the player market `
-      + 'is a second gold bridge (the muster_seal rule). Trophies are bind-on-pickup.');
-    ok(it.tag !== 'currency' && !it.premium && !it.musterOnly,
+      + 'is a second gold bridge (the bind-on-pickup rule). Trophies are bind-on-pickup.');
+    ok(it.tag !== 'currency' && !it.premium,
       `${id} is a priced or earned CURRENCY — a find must pay one untradeable trophy and nothing `
-      + 'else: never gold, gems, hearth_token or muster_seal.');
+      + 'else: never gold, gems or hearth_token.');
   }
 
   // The two lists are one list. src/data/hearthfind.js's HEARTHFIND_ITEMS is

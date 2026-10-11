@@ -581,7 +581,13 @@
       if (!invite) return;
       var creating = mode === 'signup' && stage === 'form';
       invite.__row.style.display = (creating && inviteShown) ? '' : 'none';
-      inviteAside.style.display = (creating && !inviteShown) ? '' : 'none';
+      /* W0 (Early Access copy): the "Have an invite code?" line never shows —
+         there are no invite codes in Early Access, and a visible one reads as
+         a door that might be shut. The field and the server's code path are
+         untouched (auth stays as it is until Steam sign-in): a code that
+         arrives as an ?invite= LINK still reveals the field, through this
+         same disclosure, clicked programmatically by applyLinkInvite. */
+      inviteAside.style.display = 'none';
       inviteReveal.setAttribute('aria-expanded', inviteShown ? 'true' : 'false');
     }
 
@@ -671,15 +677,12 @@
         lead.textContent = 'Your session ended. Sign in again to keep your progress syncing to the realm — ' +
           'nothing you have earned is lost either way.';
       } else if (creating) {
-        /* THE OPEN-BETA LINE. It is built from nodes rather than assigned as a
-           string because the last word is a LINK — "tell us in Discord" that
-           you cannot click is an instruction with no door behind it, and this
-           screen runs before anything else in the game has loaded, so it is
-           the only door there is. */
-        lead.appendChild(document.createTextNode(
-          'Hearthrise is in open beta — make an account and play. It’s rough in places; tell us in '));
-        lead.appendChild(discordLink('Discord'));
-        lead.appendChild(document.createTextNode('.'));
+        /* THE EARLY ACCESS LINE (W0, coherence audit: the open-beta / invite-code
+           / "tell us in Discord" copy retired). What the game is and what to do
+           next, in one sentence. The Discord door stays below, as the sign-in
+           help line, for a player who cannot get in. */
+        lead.textContent = 'Hearthrise is in Early Access — make an account and step into the realm. '
+          + 'Your hero lives on the server and keeps working while you are away.';
       } else {
         lead.textContent = 'Welcome back. Sign in to pick up where the realm left you.';
       }
@@ -816,7 +819,7 @@
        user". Telling that player "that invite code cannot be used" when they
        never typed one would be the worst kind of wrong: it blames them for the
        thing we are in the middle of removing. */
-    notOpenYet:  'Sign-ups are still switching over to open beta. Try again in a minute — or add an invite code if you have one.'
+    notOpenYet:  'Sign-ups are not open at this moment. Try again in a minute.'
   };
 
   // ════════════════════════════════════════════════════════════
@@ -1308,7 +1311,7 @@
   // queue rather than jumping it, because a lapsed token is never more urgent
   // than the tutorial the player is in the middle of.
   var BLOCKING = '.ftue-root .ftue-card.show, .hr-id-scrim, .hr-dl-scrim, ' +
-                 '#beta-banner-overlay, #hr-welcome-modal, #hr-post-signup-modal';
+                 '#hr-welcome-modal';
 
   var reauthUp = false;
   function promptReauth() {

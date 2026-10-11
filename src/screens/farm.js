@@ -130,7 +130,7 @@ function farmCheckTick(){
        shipped, and a write-only field that no reader consumes is the exact
        shape of state that drifts and then gets trusted by accident. The one
        surviving reader is the legacy-save migration
-       (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
+       (HearthriseFarm.normalizePlot), which converts
        `watered` INTO `waterings[]` and must stay — old saves still carry it.
        Nothing writes it any more; `waterings[]` is the only source. */
   });

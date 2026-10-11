@@ -87,10 +87,8 @@
 
 /* Ids that legitimately land after first paint, each with an owner. Keep this
    list SHORT and justified — every entry is a surface that can still flicker.
-     • muster_seal — src/features/muster.js writes its own path from its own
-       boot (features/muster.js ~1745). It is one world-event currency icon on
-       one screen, and moving it would mean moving muster's whole boot. */
-const LATE_PATH_ALLOWLIST = new Set(['muster_seal']);
+   EMPTY since W0 (2026-10-10): its one entry, the Rally Seal, was cut. */
+const LATE_PATH_ALLOWLIST = new Set([]);
 
 /* How long the engine gets to paint / complete its icon map. Generous on
    purpose: these are waits on FACTS the engine publishes, not on a sampling

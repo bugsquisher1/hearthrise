@@ -281,7 +281,7 @@ reachability guard — wire it into a drop table, recipe, or shop.
 | Rarity band + frame CSS class | `window.itemRarity(id)` / `RARITY.classFor(id)` (`src/features/rarity.js`) | label items by hand |
 | Bonus fusion / power budget | `getBonus()` + `src/features/power-budget.js` | balance stacked % bonuses |
 | Safe id renames / removals | `window.ITEM_ALIAS` + `remapItemIds` (legacy.js:728) | migrate saves manually |
-| Save schema migrations | `src/save-migrations.js` (`MIGRATIONS` + `CURRENT_SCHEMA_VERSION`) | hand-patch old saves |
+| Where every item comes from / who uses it | `src/data/catalogue-coherence.js` (`itemSources`, `itemUses`, `obtainableItemIds`, `skillConsumers`) | hand-audit the catalogue |
 | Item → source / used-in | `src/features/item-index.js` | write reverse lookups |
 | Player glossary (Hearth Codex) | `src/data/codex.js` rows, each sentence bound to a predicate in `tests/codex-claims.mjs` | write help copy that can drift from the engine |
 
@@ -294,8 +294,11 @@ reachability guard — wire it into a drop table, recipe, or shop.
   has no source or a broken recipe chain.** This is your safety net: add a recipe
   whose input is unobtainable and the suite goes red.
 - **Data identity** — asserts ESM data actually reached the engine (no double-copy).
-- **Currency-leak guards** — assert no drop/recipe/shop mints `hearth_token` or
-  `muster_seal`.
+- **Currency-leak guards** — assert no drop/recipe/shop mints `hearth_token`.
+- **Catalogue coherence** (`tests/catalogue-coherence.mjs`, W0.4) — every item has a
+  source AND a use, every declared effect is live, every skill has a consumer, the
+  Local Shop sells starter gear only, and the Collection Log counts only what can be
+  obtained. Author an item with no faucet, or one nothing spends, and CI goes red.
 - **Screen primers** (`src/data/screen-primers.js`, one `{title, body}` row per
   panel id; client-only, never edge-imported) — `tests/screen-primers.mjs` G1-G8
   (real panel id, lengths, no digits/markup, unique, frozen, flag-tied copy) and

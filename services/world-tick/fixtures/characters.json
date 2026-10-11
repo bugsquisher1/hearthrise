@@ -57,7 +57,7 @@
         "attack": 13034431, "strength": 13034431, "defense": 13034431,
         "hitpoints": 13034431, "ranged": 13034431, "magic": 13034431, "prayer": 13034431
       },
-      "inventory": { "hearthbread": 400 },
+      "inventory": { "cooked_shark": 400 },
       "equipment": {
         "weapon": "dragonfang_pike",
         "helmet": "regent_helm",
@@ -74,7 +74,7 @@
       "bestiaryKills": {},
       "autoEatEnabled": true,
       "autoEatPct": 50,
-      "autoEatFood": "hearthbread"
+      "autoEatFood": "cooked_shark"
     },
     {
       "name": "ranged glass cannon vs rat, bow tick",

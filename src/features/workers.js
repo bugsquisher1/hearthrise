@@ -18,12 +18,12 @@
 //   • Workers produce RESOURCES ONLY, never player XP — your 99s stay
 //     yours; workers feed the castle build costs. That's the loop:
 //     workers gather → you upgrade property → more workers.
-//   • SERVER-WORKED (WORKER_PRODUCTION_SERVER_BACKED, the cutover): the
-//     hr-accrue engine settles every assigned worker into player_inventory
-//     on each settle, playing or away; this file renders the crew and sends
-//     the hire/assign intents, and mints nothing. `accrueWorker` keeps the
-//     old client path only behind that flag (one settle span is capped at
-//     WORKER_ACCRUE_CAP_MS, src/core/workers.js).
+//   • SERVER-SETTLED (since b454): the realm works the crew. hr-accrue
+//     `accrueWorkers` prices each settle window and hr_apply credits the
+//     haul to player_inventory; this file renders what the envelope says
+//     and never banks anything on boot or on a House visit (W0 retired the
+//     old "banked when you open the House" description). One settle is
+//     bounded at 24h ("workers rest without direction").
 // ============================================================
 (function () {
   'use strict';

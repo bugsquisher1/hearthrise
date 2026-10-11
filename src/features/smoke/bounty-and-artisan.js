@@ -2161,33 +2161,12 @@ export default [
     }
     // Exempt: currencies, companions, blueprints/keys (they drop), recipe scrolls,
     // and a few deliberately-spent-elsewhere odds. Everything else MUST be reachable.
-    const EXEMPT = new Set(['muster_seal', 'hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
-    /* b356 — the two SELF-CLOSING hatches (src/data/item-effects.js header).
-       An item is allowed to be unreachable only while it is genuinely not
-       playable yet:
-         • `pendingSkill` — its skill is not in SKILLS_DEF, so nothing could
-           produce it;
-         • a declared `effects` kind that no engine reads, so it would be an
-           object that lies about itself.
-       Both exemptions EXPIRE automatically — the B356-4 guard below fails the
-       build the moment the skill or the engine lands, which is what makes this
-       a hatch rather than a hole. */
-    const KINDS = (window.HearthriseItemEffects || {}).EFFECT_KINDS || {};
-    /* b357 — the THIRD hatch. `pendingSkill` closed correctly when Runecrafting
-       and Stonemason shipped, and ten items fell through it: their blocker was
-       never the skill, it is the SYSTEM their top rungs belong to (elemental
-       enchanting, the castle-tier numbers, the mason tool ladder). An exemption
-       that expires against the wrong event is worse than none, so the blocker
-       is now named. Same contract: flip `live` in PENDING_SYSTEMS and this
-       guard demands a real recipe on the next run. An UNKNOWN system name is
-       deliberately NOT dormant — a typo must fail loudly, not exempt silently. */
-    const SYSTEMS = (window.HearthriseItemEffects || {}).PENDING_SYSTEMS || {};
-    const isDormant = (it) => {
-      if (it.pendingSkill && !(window.SKILLS_DEF || {})[it.pendingSkill]) return true;
-      if (it.pendingSystem && SYSTEMS[it.pendingSystem] && !SYSTEMS[it.pendingSystem].live) return true;
-      return ((it.effects) || []).some((k) => !(KINDS[k] && KINDS[k].live));
-    };
-    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe || isDormant(it); };
+    const EXEMPT = new Set(['hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
+    /* W0 (2026-10-10): the self-closing 'dormant' hatches (pendingSystem, non-live
+       effect kinds) are GONE with the 40 rows they exempted — nothing in the
+       catalogue may be unobtainable any more. tests/catalogue-coherence.mjs is the
+       standing source-and-use guard for the whole catalogue in Node. */
+    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
     const dead = Object.keys(ITEMS).filter((id) => !reach.has(id) && !isExempt(id));
     assert(dead.length === 0, 'UNREACHABLE items (no obtainable source or broken recipe chain): ' + dead.join(', '));
   }),

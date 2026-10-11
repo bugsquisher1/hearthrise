@@ -65,7 +65,7 @@ async function seed(page) {
     const wired = Object.keys((window.HearthriseItemArt && window.HearthriseItemArt.wiredIconMap()) || {});
     const step = Math.max(1, Math.floor(wired.length / 70));
     const sample = wired.filter((_, i) => i % step === 0).slice(0, 70);
-    const legacy = ['slime_gel', 'iron_ore', 'iron_bar', 'steel_bar', 'wolf_pelt', 'muster_seal',
+    const legacy = ['slime_gel', 'iron_ore', 'iron_bar', 'steel_bar', 'wolf_pelt',
       'rune_sword', 'steel_platebody', 'iron_helm', 'leather_gloves', 'oak_staff', 'yew_rod'];
     sample.concat(legacy).forEach((id, i) => { G.inventory[id] = 1 + ((i * 7) % 40); });
     try {

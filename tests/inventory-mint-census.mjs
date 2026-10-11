@@ -163,7 +163,7 @@ const BASELINE = {
      envelope overwrites the bag either way — the same standing as sellReceipt's
      `addItem(id, back)` restore, which `id` already covers. Not a mint lane. */
   'src/screens/shop-counter.js': ['b.id', 'id', 'l.item'],
-  'src/features/muster.js': ["'muster_seal'", 'it.id'],
+  'src/features/muster.js': ['it.id'],
   'src/features/raids.js': ['chest.sig', 'id'],
   'src/features/renown.js': ['rw.item'],
   'src/features/workers.js': ['act.prod'],

@@ -84,7 +84,7 @@ export const GEM_UNLOCK_TOASTS = Object.freeze({
   unknown_unlock:       'That is not something the realm sells',
   not_for_sale:         'That one is free — it does not need buying',
   insufficient_gems:    'Not enough gems',
-  gem_unlock_daily_cap: 'That is enough new finery for today',
+  gem_unlock_daily_cap: 'You have bought all the finery you can for today',
   no_character:         'Your character is still loading — try again in a moment',
   intent_mismatch:      'That went out twice — try again in a moment',
   rate_limited:         'Slow down a moment, then try again',

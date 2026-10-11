@@ -104,14 +104,28 @@ function buyShopItem(id,qty,cost){
      this gesture's prediction and no other. */
   const _k=goldIntentKey();
   goldSettle(-cost,'shop.buy',_k);
-  addItem(id,qty);
+  /* THE GOODS LEG RIDES THE SAME KEY: gold.js takes it back on any
+     answer that is not a receipt, before that answer's envelope merges. */
+  const H=window.HearthriseGold;
+  if(addItem(id,qty)&&_k&&H&&typeof H.noteGoodsPrediction==='function') H.noteGoodsPrediction(_k,{[id]:qty});
   /* FIRE AND RECONCILE — never await-then-render. The offer id and the count
      are DERIVED from the item/qty/cost by src/net/gold.js; a price the shop and
      the catalogue disagree about refuses locally rather than charging a number
      the player never saw. No-op with the switch off. */
-  const _p=(_k&&window.HearthriseGold)?window.HearthriseGold.buyShop(id,qty,cost,_k):null;
-  if(_p&&typeof _p.then==='function') shopBuyLock.hold(_lk,_p);
-  notify(`Bought ${Number(qty).toLocaleString()}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
+  const _p=(_k&&H)?H.buyShop(id,qty,cost,_k):null;
+  const _said=`Bought ${Number(qty).toLocaleString()}× ${ITEMS[id]?.n}`;
+  if(_p&&typeof _p.then==='function'){
+    shopBuyLock.hold(_lk,_p);
+    /* THE TOAST IS THE ANSWER'S: a refused buy never says "Bought". */
+    _p.then((r)=>{
+      const o=r&&r.outcome;
+      if(o==='applied'||o==='replayed') notify(_said,'loot');
+      else if(H&&typeof H.isProvablyUnwritten==='function'&&H.isProvablyUnwritten(o)) notify(window.hrUnlockRefusalMessage?window.hrUnlockRefusalMessage(r,'that purchase'):'The realm couldn’t record that purchase — nothing was spent.','kill');
+      else notify('The realm has not answered yet — your bag will settle','info');
+      try{updateTopbar();renderShop();}catch(e){}
+    },()=>{});
+  } else notify(_said,'loot');
+  updateTopbar();renderShop();
 }
 /* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
    was one line and every part of it was a client-authored premium purchase —
@@ -425,7 +439,7 @@ function invSellSelected(){
   if(!picks.length){ notify(skipped ? 'Nothing selected can be sold — locked or worthless' : 'Nothing to sell','kill'); return Promise.resolve(null); }
   window._invSelected.clear();
   window._invSelectMode = false;
-  if(skipped) notify(`${skipped} locked or worthless item(s) left in your bag`,'info');
+  if(skipped) notify(`${skipped} locked or worthless ${skipped === 1 ? 'item' : 'items'} left in your bag`,'info');
   return vendorSellMany(picks, 'vendor.sell_selected');
 }
 
@@ -476,7 +490,7 @@ function repurchase(idx){
      armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
      The gate is a no-op today; it becomes the guard the moment gold flips. */
   if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('The realm keeps no buy-back counter yet','kill');
+    if(typeof notify==='function')notify('Buy-back is not open yet','kill');
     return;
   }
   if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
@@ -527,7 +541,7 @@ function _bankRowsHTML(){
       + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
     + '</div>'
     + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat price and a better deal ('+goldPerSlot.toFixed(0)+' gold a slot vs '+gemPerSlot.toFixed(2)+' gems a slot).</span></div>'
       + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
       + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
     + '</div>';

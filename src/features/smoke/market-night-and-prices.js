@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=569';
 
 export default [
 
@@ -840,6 +840,30 @@ export default [
     }
   }),
 
+  /* -- regression suite -- NIGHT-11: a 12h return read "You set about
+     8h, the night paid 12h — the night ran long." The 8h was HORIZON_MS, the clamp
+     on an ALL-NIGHT forecast; the player was told "runs all night", so a long night
+     is that forecast holding. Mutation: drop the allNight branch ⇒ red. */
+  () => tryRun('NIGHT-11: an all-night forecast is graded as all night, never as "about 8h … ran long"', () => {
+    const STN = window.HearthriseSetTheNight;
+    const snap = snapshotG(), setAt = Date.now() - 12 * 3600e3, H = STN.HORIZON_MS;
+    try {
+      STN.forget();
+      STN.remember({ at: setAt, kind: 'combat', spanMs: H, allNight: true, banks: true, targetName: 'Goblin' });
+      const long = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
+      assert(long === 'You set it to run all night; the night paid 12h — the forecast held.',
+        'THE BUG: an all-night forecast on a 12h return reads ' + JSON.stringify(long));
+      const short = STN.morningLine({ at: Date.now(), paidMs: 2 * 3600e3 });
+      assert(/^You set it to run all night; the night paid 2h — the night ran short\./.test(short),
+        'an all-night forecast that paid 2h must read short, got ' + JSON.stringify(short));
+      /* CONTROL: a forecast that DID name a span still says "ran long" when the server ran past it. */
+      STN.remember({ at: setAt, kind: 'combat', spanMs: 3 * 3600e3, allNight: false, banks: true, targetName: 'Goblin' });
+      const bounded = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
+      assert(bounded === 'You set about 3h; the night paid 12h — the night ran long.',
+        'CONTROL: a bounded forecast overrun reads ' + JSON.stringify(bounded));
+    } finally { try { STN.forget(); } catch (e) {} restoreG(snap); }
+  }),
+
   () => tryRun('NIGHT-5: the Tonight strip never speaks before the SERVER has stated the bag', () => {
     /* THE LIVE BUG (QA account, 2026-09-09, reproduced twice).
        On a plain reload Home read "Tonight: your 29 Cooked Shrimp carry you
@@ -949,7 +973,7 @@ export default [
       assert(/even with your/.test(outmatched), 'with no provable need the old verdict must stand: ' + outmatched);
 
       const html = NP.fightBlockHtml(f, { owned: true, serverEatOn: true, foodQty: 3, cookable: null });
-      assert(/A fighter earns no food of its own/.test(html) && /Fish for food/.test(html),
+      assert(/Fighting earns no food/.test(html) && /Fish for food/.test(html),
         'no food source is named for a fighter with nothing to cook: ' + html);
       assert(!/Fish for food/.test(NP.fightBlockHtml(f, { owned: true, serverEatOn: true, cookable: { qty: 4, name: 'Raw Shrimp' } })),
         'the fish door showed when the bag already holds something to cook');
@@ -1153,7 +1177,7 @@ export default [
       assert(rows.length === 4, 'The Four Hearthfinds is not four rows: ' + rows.length);
       const locked = rows.filter((r) => r.id === 'worldroot_seed')[0];
       assert(locked && locked.found === false
-        && locked.text === 'Worldroot Seed — not yet found. Somewhere in ordinary trees, yews, duskwood.',
+        && locked.text === 'Worldroot Seed — not yet found. It turns up while chopping ordinary trees, yews or duskwood.',
         'the locked collection row drifted from the ruled sentence — ' + (locked && locked.text));
 
       G.collection.worldroot_seed = 1;
@@ -2876,7 +2900,7 @@ export default [
       assert(live.length === 0,
         'THE b341 BUG: ' + live.length + ' of ' + rows.length + ' rows are still tappable while auto-eat is '
         + 'locked — tapping one closes the overlay as if it took, and nothing is set');
-      assert(/locked/i.test(ov.textContent) && /Store/i.test(ov.textContent),
+      assert(/locked/i.test(ov.textContent) && /Bounty Shop/i.test(ov.textContent),
         'the picker does not say WHY it is refusing, so a disabled row reads as broken: ' + ov.textContent.slice(0, 160));
       assert(!rows.some((r) => r.classList.contains('is-on')),
         'a locked picker still marks a row as the active selection — there is no active selection');
@@ -4247,7 +4271,7 @@ export default [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../../data/shops.js?v=567');
+    const S = await import('../../data/shops.js?v=569');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -5911,7 +5935,7 @@ export default [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../../data/shops.js?v=567');
+    const S = await import('../../data/shops.js?v=569');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

@@ -60,8 +60,11 @@
   function hubOf(tab) { return HUB_OF_PANE[tab] || (HUB_BY_ID[tab] ? tab : null); }
   function resolve(tab) {
     var h = HUB_BY_ID[tab];
-    if (!h || HUB_OF_PANE[tab]) return tab;
-    return tab === 'shops' ? tab : h.panes[0].tab;   // 'shops' keeps the remembered shop pane
+    if (!h || tab === 'shops') return tab;   // 'shops' keeps the remembered shop pane
+    if (HUB_OF_PANE[tab] && paneShown(tab)) return tab;
+    // A door opens on its first OPEN pane (Clan opens on Party while clans are shut).
+    var front = h.panes.filter(function (p) { return paneShown(p.tab); })[0];
+    return front ? front.tab : (HUB_OF_PANE[tab] ? tab : h.panes[0].tab);
   }
 
   // ── Per-pane badges ─────────────────────────────────────────
@@ -69,7 +72,7 @@
   function badges(map) {
     Object.keys(map || {}).forEach(function (t) { paneBadge[t] = !!map[t]; });
     HUBS.forEach(function (h) {
-      var on = h.panes.some(function (p) { return paneBadge[p.tab]; });
+      var on = h.panes.some(function (p) { return paneBadge[p.tab] && paneShown(p.tab); });
       var btn = document.querySelector('.nav-btn[data-tab="' + h.id + '"]');
       if (!btn) return;
       var dot = btn.querySelector('.nav-badge');
@@ -91,23 +94,62 @@
     var g = (window.HR && window.HR.icon) ? window.HR.icon(key, 17, null) : '';
     return g || '';
   }
+  // ── Progressive reveal (src/features/spine-reveal.js) ───────
+  // A pane shows when the server's facts reveal it; the open pane always
+  // shows, so a link into a pane never strands the player on a blank strip.
+  // No reveal module (the boot window before main.js) means show everything:
+  // a menu that fails to load must fail OPEN.
+  function paneShown(tab) {
+    var R = window.HearthriseReveal;
+    return !R || tab === openScreen() || R.shows('pane:' + tab);
+  }
+  function doorShown(h) { return h.panes.some(function (p) { return paneShown(p.tab); }); }
+  /** "The Combat door opens when you win five fights." for a shut door, else null. */
+  function doorOpensWhen(id) {
+    var h = HUB_BY_ID[id], R = window.HearthriseReveal;
+    if (!h || !R || typeof R.opensWhen !== 'function') return null;
+    var btn = document.querySelector('.nav-btn[data-tab="' + id + '"] .lbl');
+    var label = (btn && btn.textContent.trim()) || h.panes[0].label;
+    return R.opensWhen(label, h.panes.map(function (p) { return 'pane:' + p.tab; }));
+  }
+  function paintDoors() {
+    HUBS.forEach(function (h) {
+      var on = doorShown(h);
+      document.querySelectorAll('.nav-btn[data-tab="' + h.id + '"], .bn-btn[data-tab="' + h.id + '"]').forEach(function (btn) {
+        var want = on ? '' : 'none';
+        if (btn.style.display !== want) btn.style.display = want;
+      });
+    });
+    // A group label over doors that are all hidden is a heading over nothing.
+    document.querySelectorAll('.nav-group-label').forEach(function (label) {
+      var any = false;
+      for (var n = label.nextElementSibling; n && !n.classList.contains('nav-group-label'); n = n.nextElementSibling) {
+        if (n.classList.contains('nav-btn') && n.hasAttribute('data-tab') && n.style.display !== 'none') { any = true; break; }
+      }
+      var want = any ? '' : 'none';
+      if (label.style.display !== want) label.style.display = want;
+    });
+  }
+
   function paintStrip() {
+    paintDoors();
     var host = document.getElementById('hub-tabs');
     if (!host) return;
     var tab = openScreen();
     var hub = HUB_BY_ID[hubOf(tab)];
-    if (!hub || hub.panes.length < 2) {
+    var panes = hub ? hub.panes.filter(function (p) { return paneShown(p.tab); }) : [];
+    if (!hub || panes.length < 2) {
       if (!host.hidden) { host.hidden = true; host.innerHTML = ''; host.dataset.sig = ''; }
       return;
     }
     var iconsReady = !!(window.HR && window.HR.icon);
-    var sig = [hub.id, tab, iconsReady].concat(hub.panes.map(function (p) { return paneBadge[p.tab] ? 1 : 0; })).join('|');
+    var sig = [hub.id, tab, iconsReady].concat(panes.map(function (p) { return p.tab + (paneBadge[p.tab] ? 1 : 0); })).join('|');
     host.hidden = false;
     host.setAttribute('data-hub', hub.id);
     if (host.dataset.sig === sig) return;
     host.dataset.sig = sig;
     host.setAttribute('role', 'tablist');
-    host.innerHTML = hub.panes.map(function (p) {
+    host.innerHTML = panes.map(function (p) {
       var on = p.tab === tab;
       return '<button type="button" role="tab" class="hub-tab' + (on ? ' active' : '') + '" aria-selected="' + on + '"' +
         ' data-hub-pane="' + p.tab + '"><span class="ic" aria-hidden="true">' + glyphHtml(p.glyph) + '</span>' +
@@ -154,6 +196,8 @@
 
   window.HearthriseNav = Object.freeze({
     hubs: HUBS, hubOf: hubOf, resolve: resolve, badges: badges, paintStrip: paintStrip,
+    paneShown: paneShown, doorShown: function (id) { return !!HUB_BY_ID[id] && doorShown(HUB_BY_ID[id]); },
+    doorOpensWhen: doorOpensWhen,
     badgeOf: function (tab) { return !!paneBadge[tab]; },
     premiumOpen: PREMIUM_OPEN
   });
@@ -176,6 +220,7 @@
   // The strip follows every showTab, however it was reached, and repaints
   // once the icon atlas lands (the first paint can beat it).
   window.HearthriseShowTab.wrapShowTab('nav-hub-strip', paintStrip);
+  window.addEventListener('hearthrise:reveal', paintStrip);
   var tries = 0;
   var settle = setInterval(function () {
     paintStrip();

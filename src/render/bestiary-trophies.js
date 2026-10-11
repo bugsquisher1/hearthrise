@@ -51,8 +51,8 @@
 
 import {
   TROPHY_STAGES, TROPHY_STAGE_NAMES, MAX_TROPHY_STAGE, trophyStageAt, nextTrophyAt,
-} from '../data/bestiary.js?v=567';
-import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=567';
+} from '../data/bestiary.js?v=569';
+import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=569';
 
 const w = () => (typeof window !== 'undefined' ? window : {});
 const g = () => w().G || {};
@@ -287,7 +287,7 @@ export function badgeHtml(id) {
   const name = stageName(stage) || ('Stage ' + stage);
   const held = isClaimed(id, stage);
   return '<span class="trophy-badge trophy-s' + stage + (held ? ' is-claimed' : '') + '" title="'
-    + esc(name + ' — ' + killsOfMonster(id).toLocaleString() + ' kills, per the server'
+    + esc(name + ' — ' + killsOfMonster(id).toLocaleString() + ' kills, as the realm counts them'
       + (held ? ' · trophy claimed' : ' · trophy not claimed yet')) + '">'
     + gly('uiMedal', 13) + '<b>' + esc(name) + '</b></span>';
 }

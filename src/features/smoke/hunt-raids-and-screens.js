@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=567';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=567';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=567';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=567';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=569';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=569';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=569';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=569';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -1361,7 +1361,7 @@ export default [
     const text = (G) => String(H.__awayBankingRow(G)).replace(/<[^>]+>/g, '');
     for (const G of [{}, { activeMonster: 'slime' }]) {
       const pend = withCap(null, () => text(G));
-      assert(/the limit is being confirmed/i.test(pend), 'pending cap copy must read as pending: ' + pend);
+      assert(/checking how long it can run/i.test(pend), 'pending cap copy must read as pending: ' + pend);
       assert(!/[—–]| - /.test(pend), 'pending cap copy has a dash mid-sentence: ' + pend);
       assert(!/\b\d+h\b/.test(pend), 'pending cap copy printed hours: ' + pend);
     }
@@ -1582,7 +1582,7 @@ export default [
     try {
       window.openBuyback();
       const body = document.getElementById('bb-modal-body');
-      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
+      assert(/Buy-back is not open yet/.test(body.textContent), 'the closed reason is missing');
       const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
       assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
       const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);
@@ -4947,7 +4947,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=567');
+          await import('../../data/codex.js?v=569');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -4962,6 +4962,7 @@ export default [
       // screen and activity bar, not a test host. The meter's price is 6,917, a
       // number no level formula yields, so finding it proves it came off the wire.
       ...(() => {
+        const SPENT = () => Object.assign(METER(), { spent_min: 627, remaining_min: 406 }); // past half: the bar chip shows
         const DRY = () => Object.assign(METER(), { grant_min: 720, refills: 0, refills_left: 5,
           next_refill_gold: 6917, level: 12, bought_min: 0, budget_min: 720, spent_min: 1237, remaining_min: 0 });
         const fight = async (meter, body) => {
@@ -5006,7 +5007,7 @@ export default [
           assert(window.HearthriseBarFit && window.HearthriseBarFit.xpChip === xpChip && typeof window.xpForLevel === 'function', 'the XP chip builder (render/bar-fit.js) is not what legacy.js reaches');
           const xp98 = () => xpChip({ skill: 'strength', name: 'Strength', level: 98, toGo: window.xpForLevel(99) - window.xpForLevel(98), glyph: window.HR.icon('strength', 13, 'currentColor') });
           const bh = G.bountyHunter, hp = G.playerHp, parked = LT.__swapView(null);
-          const kind = { 'stated+bounty': [METER, true], stated: [METER, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
+          const kind = { 'stated+bounty': [SPENT, true], stated: [SPENT, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
           const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           try {
             for (const state of states) {
@@ -5208,7 +5209,7 @@ export default [
             const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
             const bad = [];
             try {
-              for (const [state, meter] of [['stated', METER()], ['dry', DRY()]]) {
+              for (const [state, meter] of [['stated', SPENT()], ['dry', DRY()]]) {
                 await fight(meter, async (m) => {
                   m.paint();
                   window.refreshActivityBar();
@@ -5768,7 +5769,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=567');
+    const mod = await import('../../net/activity.js?v=569');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

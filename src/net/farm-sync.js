@@ -41,9 +41,9 @@
 // window for legacy.js — but the ESM exports exist for the Node guard.
 // ============================================================================
 
-import { isFarmServerArmed } from '../data/item-authority.js?v=567';
-import { withSettleFirstRetry } from './settle-first.js?v=567';
-import { createIntentLatch } from './intent-latch.js?v=567';
+import { isFarmServerArmed } from '../data/item-authority.js?v=569';
+import { withSettleFirstRetry } from './settle-first.js?v=569';
+import { createIntentLatch } from './intent-latch.js?v=569';
 
 export { isFarmServerArmed };
 
@@ -253,7 +253,7 @@ export function farmPlantRefusalText(res, ctx) {
   const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
   switch (code) {
     case 'transport':
-      return "Couldn't reach the server — nothing was planted. Check your connection and try again.";
+      return "Couldn't reach the realm — nothing was planted. Check your connection and try again.";
     case 'plot_tier_locked': {
       const need = n(res.need_plot_level);
       const have = n(res.have_plot_level);

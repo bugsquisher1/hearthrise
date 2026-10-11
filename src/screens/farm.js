@@ -182,15 +182,25 @@ function countWaterablePlots(){
   (G.farmPlots||[]).forEach(p=>{ if(p&&plotIsWaterable(p))n++; });
   return n;
 }
+/* The header and the tiles read ONE predicate per plot (plotIsReady / the
+   server-projected state), so the header cannot say "No crops growing" over
+   four READY tiles. Ready leads — it is the thing to do now — then
+   the growing plots' own state: thirsty, the next watering, or just growing. */
 function farmNextWaterText(){
-  const growing=(G.farmPlots||[]).filter(p=>p&&p.state!=='ready'&&!plotIsReady(p));
-  if(!growing.length)return 'No crops growing';
-  const n=countWaterablePlots();
-  if(n>0)return n+(n===1?' plot is thirsty':' plots are thirsty');
-  let soonest=Infinity;
-  growing.forEach(p=>{ const ms=plotWindowMs(p); if(ms>0&&ms<soonest)soonest=ms; });
-  if(!isFinite(soonest))return 'No crops growing';
-  return 'Next watering in '+fmtClock(soonest);
+  const plots=(G.farmPlots||[]).filter(Boolean);
+  const ready=plots.filter(p=>p.state==='ready'||plotIsReady(p)).length;
+  const growing=plots.filter(p=>p.state!=='ready'&&!plotIsReady(p));
+  const parts=[];
+  if(ready>0)parts.push(ready+' ready to harvest');
+  if(growing.length){
+    const n=countWaterablePlots();
+    let soonest=Infinity;
+    growing.forEach(p=>{ const ms=plotWindowMs(p); if(ms>0&&ms<soonest)soonest=ms; });
+    if(n>0)parts.push(n+(n===1?' plot is thirsty':' plots are thirsty'));
+    else if(isFinite(soonest))parts.push('Next watering in '+fmtClock(soonest));
+    else parts.push(growing.length+' growing');
+  }
+  return parts.length?parts.join(' · '):'No crops growing';
 }
 function farmPlotLabel(p){
   if(!p)return '';
@@ -485,7 +495,7 @@ function renderFarm(){
       </div>
       <div class="row gap-sm">
         ${seedsPending ? `<button class="btn btn-sm bal-pending" disabled data-pending="seeds" role="status" title="Plant all · counting your seeds…" aria-label="Plant all · counting your seeds…">Plant all</button>`
-          : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
+          : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant your chosen seed, or the best one you have, in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>

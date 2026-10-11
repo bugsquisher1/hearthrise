@@ -265,7 +265,7 @@
     </div>
     ${(G.inventory?.hearth_token||0)>0?`
     <div class="activity-card sc-token-card"><div class="ac-icon">${(window.HR&&window.HR.icon)?window.HR.icon('token',22,'--gold-2'):''}</div><div style="flex:1"><b>Hearth Tokens: ${Number(G.inventory.hearth_token).toLocaleString()}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150 gems</button></div>`:''}
-    <div class="muted tiny" style="margin-top:14px">Purchases route to the platform you're running on (Steamworks / App Store / Play Store / Stripe). Receipts are validated server-side before granting items. Detected: <b>${IAP.detectPlatform()}</b>.</div>`;
+    <div class="muted tiny" style="margin-top:14px">Purchases go through your platform's own store (Steam, the App Store, Google Play, or Stripe on the web), and nothing is granted until the receipt is confirmed. Your platform: <b>${IAP.detectPlatform()}</b>.</div>`;
 
     /* in-game shop side */
     const el=document.getElementById('shop-panel');if(!el)return;
@@ -352,7 +352,7 @@
     const _buyback = (Array.isArray(G.buyback) && G.buyback.length)
       ? `<div class="sc-sep">Vendor buy-back</div>`
         + `<div class="shop-row"><div class="info"><b>Buy back sold items</b>`
-        + `<span>The realm keeps no buy-back counter yet</span></div>`
+        + `<span>Buy-back is not open yet</span></div>`
         + `<button class="btn btn-sm" disabled>Buy Back</button></div>`
       : '';
     el.innerHTML=SHOP_SCENE

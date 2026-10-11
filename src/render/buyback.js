@@ -22,7 +22,7 @@
   function renderBuyback(){
     var body = document.getElementById('bb-modal-body');
     if(!body) return;
-    body.innerHTML = '<div class="bb-empty">The realm keeps no buy-back counter yet. Vendor sales are final.</div>';
+    body.innerHTML = '<div class="bb-empty">Buy-back is not open yet. Vendor sales are final.</div>';
   }
 
   function openBuyback(){

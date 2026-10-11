@@ -47,23 +47,23 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=567';
-import { ARTISAN_RECIPES } from './recipes.js?v=567';
-import { MONSTERS } from './monsters.js?v=567';
-import { BOSSES } from './bosses.js?v=567';
-import { ITEMS } from './items.js?v=567';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=569';
+import { ARTISAN_RECIPES } from './recipes.js?v=569';
+import { MONSTERS } from './monsters.js?v=569';
+import { BOSSES } from './bosses.js?v=569';
+import { ITEMS } from './items.js?v=569';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop, the Quartermaster, a
    goal reward or a raid chest is the ONLY source of could sit in limbo — neither
    ownable nor excluded — and nothing failed. Every one of these tables is ESM
    data, so the completeness check can simply read them. */
-import { QM_STOCK } from './dungeons.js?v=567';
-import { SHOP_OFFERS } from './shops.js?v=567';
-import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=567';
-import { RAID_BOSSES } from './raid-bosses.js?v=567';
+import { QM_STOCK } from './dungeons.js?v=569';
+import { SHOP_OFFERS } from './shops.js?v=569';
+import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=569';
+import { RAID_BOSSES } from './raid-bosses.js?v=569';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=567';
+import { BURNT_ITEM } from '../core/artisan.js?v=569';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -245,8 +245,37 @@ export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post
    PER ENVIRONMENT: add a hostname to INVENTORY_ARM_STAGE_HOSTS to arm staging
    (or a local origin) while the default stays 'off' for production. The host is
    matched exactly against `location.hostname`; an unknown or absent host falls
-   back to the default, which is the fail-safe direction. */
-export const INVENTORY_ARM_STAGE = 'off';                    // 'on' | 'off' — THE ONE LINE THAT ARMS IT
+   back to the default, which is the fail-safe direction.
+
+   ── ARMED 'on' (2026-10-11) — CLAUDE.md §6, a P1 class-kill ────────────────
+   The merge this stage kept alive is the "browser says one thing, server says
+   another" class: Tyler's live QA bag showed 33 seeds after a refused +10 buy
+   while player_inventory held 23, and NO later envelope could lower it. The
+   reasons the stage was held, answered one by one:
+     · "it can DELETE a player's item" — it cannot any more. G.inventory is not
+       saved anywhere (loadLocal reads no blob, `inventory` is not a residue
+       field) and hr_state_of projects the WHOLE of player_inventory. A few
+       gestures DO size an intent from it — sell-one, the context menu, the
+       quick-sell slider, legacy hasItem — by design: vendor_sell collects the
+       open window first, so a just-gathered log is real on the server
+       (SELL-SRV-1/5). The server re-checks every quantity under its row lock.
+       Replacing the bag can only correct what is DISPLAYED; every real item is
+       a row the next envelope restates.
+     · "the 24 h soak must read clean" — read SELECT-only on 2026-10-11:
+       `inv_flip_drift` 102 sessions since 10-05, 72 with destructiveOwnedOmissions
+       > 0 (magnitude 4–10). Under a server that owns every mint, a "destructive
+       omission" is the client showing MORE than the server holds — i.e. the
+       phantom itself, counted. The soak measured the bug, not a hazard.
+     · "pending unsettled gains would vanish" — they are predictions, and
+       predictions are display-only: every spend gate reads `G._serverBag` via
+       gateItemCount, never G.inventory, and the next envelope replaces
+       the display. See accrue.js `bagPrediction` / `gateItemCount`.
+     · "a per-session equip acknowledgement decided it" — removed from
+       isInventoryAbsolute: the equip verb is server-side, so
+       the server's bag already excludes the worn copy.
+   Ways back are unchanged: `hr_flags.inventory_absolute = false` (no deploy),
+   `localStorage['hr:envelopeMerge'] = 'on'` (one device), or this line. */
+export const INVENTORY_ARM_STAGE = 'on';                     // 'on' | 'off' — THE ONE LINE THAT ARMS IT
 export const INVENTORY_ARM_STAGE_HOSTS = Object.freeze({});  // { 'localhost': 'on' } — per-environment override
 
 /** Is the absolute-inventory flip STAGED ON for this host? Fail-safe: anything

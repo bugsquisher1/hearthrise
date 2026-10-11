@@ -78,21 +78,21 @@ import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, holdFallAnnounce, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-  isReconcilePending, isAccrualFailure, awaitSettleRaceClear, flushAttendedCredits,
+  isReconcilePending, isAccrualFailure, awaitSettleRaceClear, flushAttendedCredits, awaitAttendedCreditsClear,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
   classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
   /* THE RECEIPT READERS and the once-per-window seam every verb's `collected`
      feeds (2026-09-28) — they live beside the away holder they write. */
   collectedOf, awayFromCollected, applyCollectedReceipt,
-} from './accrue.js?v=567';
+} from './accrue.js?v=569';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=567';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=567';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=569';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=569';
 
 export const ACTIVITY_VERB = 'set_activity';
 
@@ -663,7 +663,12 @@ function notifyPlayer(text) {
   return false;
 }
 
-function notifySwitchRefused() {
+function notifySwitchRefused(kind, id) {
+  /* (live: "Couldn't switch — still fighting Slime" on a tap TO Slime). A
+     refused re-declaration whose target the server is ALREADY doing is not a
+     failed switch: the player has what they asked for, so nothing is said. */
+  const a = lastServerActivity;
+  if (a && kind && a.kind === kind && String(a.id == null ? '' : a.id) === String(id == null ? '' : id)) return false;
   const still = describeActivity(lastServerActivity);
   notifyPlayer(still
     ? 'Couldn’t switch — still ' + still + '. Tap again to retry.'
@@ -1126,14 +1131,14 @@ async function recoverCollectRefusal(kind, id, refusal) {
   if (!priced) {
     /* The window still cannot be priced, so the switch still cannot land.
        Re-declaring would spend a key to earn the same 409. */
-    notifySwitchRefused();
+    notifySwitchRefused(kind, id);
     return { ...refusal, recovery: { accrued: false, retried: false } };
   }
   const verdict = await runDeclaration(kind, id);
   if (verdict && (verdict.outcome === 'switched' || verdict.outcome === 'replayed')) {
     return { ...verdict, recovery: { accrued: true, retried: true } };
   }
-  notifySwitchRefused();
+  notifySwitchRefused(kind, id);
   return { ...verdict, recovery: { accrued: true, retried: true } };
 }
 
@@ -1174,6 +1179,15 @@ export async function declareActivity(rawKind, rawId, opts) {
        runs INSIDE this flush, so pre-flushing there is a cycle. */
     if (!o.force && confirmed && confirmed.kind === 'combat') {
       try { await flushAttendedCredits(); } catch (e) {}
+      /* (live: combat → Bronze Bar, `xp_credit_not_in_combat` 1.5 s AFTER the
+         switch). A flush refused `settle_first` DEFERS its XP and asks for a
+         settle; that settle's answer re-sends it (resolveCombatXpDeferral). The
+         switch used to go out in between, so the re-send reached a server no
+         longer in combat and the XP the player watched land was never paid. Wait
+         out the settle, then the re-send, THEN switch. Both are bounded (15 s
+         settle-race ceiling; goal-claim.js's own request deadline) and neither
+         blocks the UI — the local switch already happened at the tap. */
+      try { await awaitAttendedCreditsClear(); } catch (e) {}
     }
     collectRetryArmed = true;
     deferredReconcile = null;

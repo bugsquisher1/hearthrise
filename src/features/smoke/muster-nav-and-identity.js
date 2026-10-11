@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=569';
 
 /* The server mirrors snapshotG does not carry: put them back exactly, absent stays absent. */
 const keepServerMirrors = () => {
@@ -280,6 +280,33 @@ export default [
         'the "Water all" header action is missing');
       assert(document.getElementById('farm-next-water'), 'the "next watering" retention line is missing');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch {} }
+  }),
+
+  /* -- regression suite -- FARM-HEAD-1: four READY tiles under a header
+     reading "No crops growing". The header reads the same per-plot predicate as the
+     tiles, for every mix. Mutation: restore the growing-only filter ⇒ (a) red. */
+  () => tryRun('FARM-HEAD-1: the farm header agrees with the tiles (ready / thirsty / watered / mixed / empty)', () => {
+    if (!document.getElementById('farm-panel')) return;
+    const snap = snapshotG(), now = Date.now(), hours = window.CROPS.turnip.hours;
+    const ready = () => ({ cropId: 'turnip', plantedAt: now - (hours + 1) * 3600000, waterings: [], state: 'ready' });
+    const dry = () => ({ cropId: 'wheat', plantedAt: now - 3600000, waterings: [], state: 'growing' });
+    const wet = () => ({ cropId: 'wheat', plantedAt: now - 3600000, waterings: [now - 60000], state: 'growing' });
+    const head = (plots) => { window.G.farmPlots = plots; window.renderFarm();
+      const el = document.getElementById('farm-next-water'); return el ? el.textContent : null; };
+    try {
+      window.G.homestead = { tier: 5 };
+      const a = head([ready(), ready(), ready(), ready()]);
+      assert(a === '4 ready to harvest', '(a) THE BUG: four ready plots read "' + a + '"');
+      assert(document.querySelectorAll('#farm-panel .farm-tile.ready').length === 4, 'CONTROL: the four tiles are not ready');
+      const b = head([dry(), dry()]);
+      assert(b === '2 plots are thirsty', '(b) two dry plots read "' + b + '"');
+      const c = head([wet()]);
+      assert(/^Next watering in /.test(c), '(c) a watered plot read "' + c + '"');
+      const d = head([ready(), dry(), null]);
+      assert(d === '1 ready to harvest · 1 plot is thirsty', '(d) mixed plots read "' + d + '"');
+      const e = head([null, null]);
+      assert(e === 'No crops growing', '(e) empty plots read "' + e + '"');
+    } finally { restoreG(snap); try { window.renderFarm(); } catch (e) {} }
   }),
 
   // ── b220 regression suite (backlog #15 the Muster + #14 discoverability) ──
@@ -1446,7 +1473,7 @@ export default [
   // asserted by the migration's own self-check. If these two ever disagree,
   // the server accepts a name the client refused (or worse, the reverse) and
   // a player's name stops meaning what the UI says it means.
-  () => tryRun('b221: display-name rules — length, charset, trimming, reserved, profanity', () => {
+  () => tryRun('b221: display-name rules — length, charset, trimming, reserved; content is the server\'s', () => {
     const I = window.HearthriseIdentity;
     assert(I && typeof I.validateName === 'function', 'HearthriseIdentity.validateName missing');
     const ok = (s) => I.validateName(s).ok;
@@ -1489,10 +1516,115 @@ export default [
     assert(why('Adventurer') === 'reserved',
       'the default name must be reserved — otherwise one player owns everyone else’s fallback');
 
-    // The profanity guard is the one the codebase already has.
-    assert(window.ChatFilter && typeof window.ChatFilter.contains === 'function',
-      'ChatFilter is the profanity guard — it must exist');
-    assert(why('shit lord') === 'profanity', 'the ChatFilter guard must reject profane names');
+    // The moderator's placeholder shape is the server's alone (2026-10-11).
+    assert(why('Adventurer-1234') === 'reserved' && why('adventurer_77') === 'reserved',
+      'Adventurer-NNNN must be reserved — it is what hr_mod_force_rename assigns');
+    assert(ok('Adventurer Bob'), 'only the digits shape is reserved, not every name starting Adventurer');
+
+    // CONTENT IS THE SERVER'S (2026-10-11-name-moderation.sql). The client holds
+    // no word list, so it can never refuse a name the server accepts — the
+    // Scunthorpe set the server's §13 passes must pass here too.
+    for (const n of ['Dickens', 'Scunthorpe', 'Cockburn', 'Peacock', 'Spicer', 'Shitake', 'Essex', 'Raccoon']) {
+      assert(ok(n), n + ' was refused by the client, which the server allows (the browser disagreeing with the server)');
+    }
+  }),
+
+  /* ══ MOD-NAME-1/2 — THE SERVER OWNS NAME CONTENT (2026-10-11, P1) ═══════════
+     A live leaderboard name was a racial slur: the server had no content
+     filter, and the client's slur layer was placeholder hashes. The server now
+     answers `name_blocked` (claim + availability) and can force a rename
+     (`must_rename` on the envelope). These two pin the client's half. */
+  () => tryRunAsync('MOD-NAME-1: a blocked name is refused by the server and the player is told plainly', async () => {
+    const I = window.HearthriseIdentity;
+    const BLOCKED = "That name isn't allowed. Try another.";
+    const A = I._reduceAvailability(200, { ok: false, error: 'name_blocked' });
+    assert(A.action === 'invalid' && A.message === BLOCKED, 'availability did not map name_blocked: ' + JSON.stringify(A));
+    const C = I._reduceClaim(200, { ok: false, error: 'name_blocked' });
+    assert(C.action === 'invalid' && C.reason === 'blocked' && C.message === BLOCKED,
+      'claim did not map name_blocked: ' + JSON.stringify(C));
+    const realFetch = window.fetch, savedName = window.G.playerName;
+    const restore = stubSignedIn(0, 'Harness Knight');
+    const calls = [];
+    window.fetch = (u) => {
+      const url = String((u && u.url) || u);
+      calls.push(url);
+      const body = /rpc\/(claim_display_name|hr_display_name_available)/.test(url) ? { ok: false, error: 'name_blocked' } : [];
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    };
+    try {
+      I._resetProbes();
+      const before = JSON.stringify(I._record());
+      const d = await I.claimName('Quiet Probe');
+      assert(calls.some((c) => /rpc\/claim_display_name/.test(c)), 'the claim never reached the server');
+      assert(d.action === 'invalid' && d.message === BLOCKED, 'the server refusal was not surfaced: ' + JSON.stringify(d));
+      assert(JSON.stringify(I._record()) === before && window.G.playerName === savedName,
+        'a refused name was adopted locally anyway');
+      // ...and the sheet says it live, from the availability answer.
+      I.openNameModal();
+      const scrim = document.querySelector('.hr-id-scrim');
+      const input = scrim && scrim.querySelector('input');
+      assert(input, 'the name sheet did not open');
+      input.value = 'Quiet Probe';
+      input.dispatchEvent(new Event('input'));
+      const note = scrim.querySelector('.hr-id-note');
+      // Polled, not slept: the 350 ms debounce slips under a loaded runner.
+      for (let t = 0; t < 60 && note && note.textContent !== BLOCKED; t++) await new Promise((r) => setTimeout(r, 50));
+      assert(note && note.textContent === BLOCKED, 'the sheet showed ' + JSON.stringify(note && note.textContent));
+      assert(scrim.querySelector('.btn-primary').disabled, 'the claim button stayed armed on a refused name');
+    } finally {
+      document.querySelectorAll('.hr-id-scrim').forEach((n) => n.remove());
+      window.fetch = realFetch; window.G.playerName = savedName; I._resetProbes(); restore();
+    }
+  }),
+
+  () => tryRunAsync('MOD-NAME-2: must_rename opens a prompt that cannot be dismissed, and a new name clears it', async () => {
+    const I = window.HearthriseIdentity;
+    assert(typeof I.noteEnvelope === 'function' && typeof I.mustRename === 'function', 'the must_rename seam is missing');
+    assert(I._readMustRename({ must_rename: true }) === true && I._readMustRename({ must_rename: false }) === false
+      && I._readMustRename({ state: {} }) === null, 'readMustRename is not key-presence based');
+    const realFetch = window.fetch, savedName = window.G.playerName;
+    const restore = stubSignedIn(0, 'Harness Knight');
+    window.fetch = (u) => {
+      const url = String((u && u.url) || u);
+      const body = /rpc\/claim_display_name/.test(url) ? { ok: true, name: 'Clover Probe', canonical: 'clover probe', renamed: true }
+        : (/rpc\/hr_display_name_available/.test(url) ? { ok: true, available: true, name: 'Clover Probe' } : []);
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    };
+    const forced = () => document.querySelector('.hr-id-scrim[data-forced]');
+    try {
+      I._resetProbes();
+      I.noteEnvelope({ state: {} });
+      assert(!forced() && I.mustRename() === false, 'an envelope without the key opened the prompt');
+      I.noteEnvelope({ must_rename: true, state: {} });
+      let scrim = forced();
+      assert(scrim && I.mustRename() === true, 'must_rename did not open the forced prompt');
+      assert(scrim.querySelectorAll('.hr-id-row button').length === 1, 'the forced prompt offers a way out');
+      scrim.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      assert(forced(), 'a scrim click dismissed the forced prompt');
+      I.openNameModal();                       // e.g. the Character screen's "Change name"
+      assert(forced() && forced().querySelectorAll('.hr-id-row button').length === 1,
+        'another way into the name sheet replaced the forced prompt with a cancellable one');
+      scrim = forced();
+      const input = scrim.querySelector('input');
+      input.value = 'Clover Probe';
+      input.dispatchEvent(new Event('input'));
+      scrim.querySelector('.btn-primary').click();
+      for (let t = 0; t < 60 && (document.querySelector('.hr-id-scrim') || I.mustRename()); t++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      await new Promise((r) => setTimeout(r, 400));   // and past the 350 ms debounce, so no probe outlives the stub
+      assert(!document.querySelector('.hr-id-scrim') && I.mustRename() === false,
+        'a confirmed claim did not clear the forced prompt');
+      // The server's next envelope is the authority both ways.
+      I.noteEnvelope({ must_rename: true });
+      assert(forced(), 'a renewed must_rename did not re-open the prompt');
+      I.noteEnvelope({ must_rename: false });
+      assert(!forced() && I.mustRename() === false, 'must_rename:false did not close the prompt');
+    } finally {
+      try { I.noteEnvelope({ must_rename: false }); } catch (e) {}
+      document.querySelectorAll('.hr-id-scrim').forEach((n) => n.remove());
+      window.fetch = realFetch; window.G.playerName = savedName; I._resetProbes(); restore();
+    }
   }),
 
   // #9b: canonicalisation IS the uniqueness key. Every pair below is

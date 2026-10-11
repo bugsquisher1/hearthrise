@@ -3196,3 +3196,13 @@ screen a pane of exactly one door, drawn by the pane strip `#hub-tabs`. Adding a
   raids" -> "prize of the deepest dungeons") so "raid" names nothing but the Clan Hunt. Dungeon `kind`
   ids (`raid`, `worldboss`) are catalogue keys in a generated migration and were left alone; only the
   section labels changed (Dungeons / Epic Dungeons / Legendary Dungeons).
+
+## 2026-10-11 · art-director -> asset-director · smelting sprites (lane/b568-even-recipe-cards)
+
+Recipe/node cards now crop every `img.hr-fit` to its painted pixels at runtime (`artFitBox`,
+src/render/icons.js), so canvas margins no longer change apparent size. What CSS cannot fix is yours:
+- `bronze_bar` draws the copper bar sprite (`Res_02_cooperbar.png`) untinted, and `verdite_bar` draws
+  `steel_bar.png`: two pairs of identical cards side by side in Smelting. Each needs its own art or a tint.
+- `hearthfire/items/iron_bar.png`, `steel_bar.png`, `mithril_bar.png` carry a painter's mark in the bottom
+  rows. The runtime crop drops it as debris on cards and in the Recipe Book, but any surface that draws the
+  raw file (inventory, market) still shows it. Trim the files.

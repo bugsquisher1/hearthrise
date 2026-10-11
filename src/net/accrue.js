@@ -890,6 +890,40 @@ export async function awaitSettleRaceClear() {
   return true;
 }
 
+/* ── ONE RETRY POLICY FOR EVERY EDGE INTENT (live P1) ──────────────────────
+   A Turnip Seed buy during a fight was refused `version_conflict` (the combat
+   settle bumped player_state.version between the edge's read and its apply),
+   nothing retried it, and the player was handed the race. equip.js and
+   activity.js already retried once; the gold verbs, eat, enchant, trophy_claim,
+   dungeon_settle and quartermaster_buy did not. This is their one copy of the
+   rule equip.js states in full:
+     · only an ANSWERED `version_conflict` whose body carries a finite `version`
+       (the edge's fresh hr_state_of read) — a refusal applied NOTHING, so a
+       second key cannot duplicate anything;
+     · a NEW key — hr_apply may hand a stored decision back to a reused one;
+     · after the settle on the wire clears, so the retry does not re-enter the
+       window it just lost; ONE retry, never a loop. */
+export const CONFLICT_MAX_TRIES = 2;
+export function isRetryableConflict(verdict) {
+  if (!verdict || verdict.outcome !== 'refused') return false;
+  const b = (verdict.body && typeof verdict.body === 'object') ? verdict.body : null;
+  const code = verdict.reason || verdict.error || (b && b.error);
+  return code === 'version_conflict' && !!b && Number.isFinite(Number(b.version));
+}
+/** `send(key)` makes ONE attempt (key undefined ⇒ the sender mints); `mintKey()`
+ *  yields the retry's key; `onRekey(old, next)` moves anything keyed to the old one. */
+export async function retryOnConflict(send, firstKey, mintKey, onRekey) {
+  let verdict = await send(firstKey);
+  for (let attempt = 1; attempt < CONFLICT_MAX_TRIES && isRetryableConflict(verdict); attempt++) {
+    await awaitSettleRaceClear();
+    const next = (typeof mintKey === 'function') ? mintKey() : null;
+    if (!next) break;
+    if (typeof onRekey === 'function') onRekey(verdict.key || firstKey || null, next);
+    verdict = await send(next);
+  }
+  return verdict;
+}
+
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
    The settle-first rule makes the server refuse (`settle_first`) — or makes the
    client skip — a credit whose window the away sim is about to pay. The observed
@@ -1057,6 +1091,29 @@ export function restorePendingCombatXp(snap, g) {
    forced-caller path awaits accrual, so awaiting here would deadlock. */
 let reflushP = null;
 export function combatXpReflushPromise() { return reflushP; }
+
+/* THE TAIL OF THE SETTLE ON THE WIRE — resolved only after its answer has been
+   applied AND any `settle_first` deferral handed back (reflushP set). `inFlight`
+   resolves a step earlier, before resolveCombatXpDeferral runs. */
+let settleTail = null;
+/**
+ * EVERY ATTENDED COMBAT CREDIT IS ON THE SERVER BEFORE A SWITCH LEAVES
+ * COMBAT. Awaits the settle on the wire to its tail, then the re-flush that
+ * settle fired. Bounded (SETTLE_RACE_WAIT_MS, then goal-claim.js's own request
+ * deadline); never throws. activity.js calls it after flushAttendedCredits().
+ */
+export async function awaitAttendedCreditsClear() {
+  const t = settleTail;
+  if (t) {
+    let timer = null;
+    try {
+      await Promise.race([t, new Promise((r) => { timer = setTimeout(r, SETTLE_RACE_WAIT_MS); })]);
+    } catch (e) {} finally { if (timer) clearTimeout(timer); }
+  }
+  const rf = reflushP;
+  if (rf) { try { await rf; } catch (e) {} }
+  return !!(t || rf);
+}
 
 /**
  * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed.
@@ -1332,6 +1389,9 @@ export async function requestAccrual(opts) {
     } finally { e.clearTimer(timer); }
   })();
 
+  let tailDone = null;
+  const tail = new Promise((r) => { tailDone = r; });
+  settleTail = tail;
   try {
     const out = await inFlight;
     /* THE GAP HEAL, AWAY + POLL HALVES. A settle that ended with no envelope
@@ -1356,7 +1416,10 @@ export async function requestAccrual(opts) {
        deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
-  } finally { inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal); }
+  } finally {
+    inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal);
+    tailDone(); if (settleTail === tail) settleTail = null;
+  }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */
@@ -1542,12 +1605,12 @@ export function describeReplacement(G, res) {
   const srvInv = (res.inventory && typeof res.inventory === 'object') ? res.inventory : {};
   const locInv = (G.inventory && typeof G.inventory === 'object') ? G.inventory : {};
   for (const k of Object.keys(locInv)) {
-    /* ONLY a SERVER-OWNED id can be LOST to the envelope. An un-modeled id the
-       envelope omits (a cooked food, a crop, a dungeon reward, a companion-proc
-       bonus) is PRESERVED by the absolute carve-out above, so counting it as a
-       loss would make the drift detector fire destructive on every settle for a
-       player who has cooked a meal — a false alarm that would put the b366
-       first-contact consent modal in front of them. See item-authority.js. */
+    /* ONLY a SERVER-OWNED id is COUNTED. The armed bag now drops any id
+       the envelope omits, modeled or not — but this is a drift MEASURE (and the
+       consent gate's input), and widening it to the not-owned ids would put
+       that modal in front of a player for a display correction, not a loss
+       (G.inventory is never saved; the server's rows are the bag). The
+       soak counter keeps its original meaning so its history stays comparable. */
     if (!serverOwnedItem(k)) continue;
     const have = Number(locInv[k]) || 0;
     const get = Number(srvInv[k]) || 0;
@@ -1646,6 +1709,29 @@ export function serverItemCount(G, id) {
    maybeReplant) share it so the surfaces cannot drift apart. */
 export function gateItemCount(G, id) {
   return serverItemCount(G, id);
+}
+
+/* ── THE BAG'S TWO LAYERS, NAMED ───────────────────────────────────────────
+   AUTHORITY: `G._serverBag`, written ONLY by reconcileInventory from an
+   envelope. DISPLAY: `G.inventory` = that same bag at the last envelope, plus
+   whatever the client predicted since (an attended drop, a goods buy awaiting
+   its receipt), minus any eat still in flight. Each envelope REPLACES the
+   display (armed) or assigns every key it names (merge), so a prediction lives
+   at most one envelope.
+   `bagPrediction` is the predicted layer made explicit — read-only, for a
+   renderer that wants to mark "pending". A spend never reads the display: it
+   reads gateItemCount / gateInputs (the server layer). */
+export function bagPrediction(G) {
+  const out = {};
+  if (!G || typeof G !== 'object') return out;
+  const bag = G._serverBag;
+  if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return out;
+  const inv = (G.inventory && typeof G.inventory === 'object') ? G.inventory : {};
+  for (const k of Object.keys(inv)) {
+    const extra = Math.floor(Number(inv[k]) || 0) - (serverItemCount(G, k) || 0);
+    if (extra > 0) out[k] = extra;
+  }
+  return out;
 }
 
 /* THE SAME RULE OVER A RECIPE'S WHOLE INPUT MAP — the bench start gate and its
@@ -2359,13 +2445,29 @@ export function maybeAutoArm() {
  *    1. inventory authority must be live — which in prod means `maybeAutoArm`
  *       threw the switch, which INVENTORY_ARM_STAGE ('off') refuses,
  *    2. and the shared envelope-merge kill switch must not be forcing merge.
- *  Because (1) is false on this build, this is ALWAYS false — the bag is merge.
- *  ⚠ Do NOT re-derive "false in prod" from the equip flip: (2) alone gated this
- *  for three weeks, and it is a PER-SESSION gesture fact. */
+ *  The stage is 'on', so (1) holds from the first complete envelope after
+ *  the server's grant is read — the bag is ABSOLUTE for every player.
+ *  ⚠ Do NOT re-couple this to the equip flip: that gated the bag for weeks on a
+ *  PER-SESSION gesture fact (tests/no-upward-merge.mjs M5 refuses it). */
 export function isInventoryAbsolute() {
   if (!inventoryAuthorityLive) return false;
   if (!isServerArmPermitted()) return false;   // the SERVER's kill switch, thrown (see below)
-  return isEnvelopeAbsolute();
+  /* NOT `isEnvelopeAbsolute()` any more. That coupled the bag to an EQUIP
+     acknowledged in THIS session — per-player, per-reload luck, which is the
+     exact defect item-authority.js's STAGE header names. The equip verb is
+     server-side, so the server's bag already excludes a worn copy whether or not this
+     tab equipped anything. The per-device merge opt-in is the only local lever. */
+  return !bagMergeForced();
+}
+
+/** The per-device incident lever (`localStorage['hr:envelopeMerge'] = 'on'`),
+ *  shared with isEnvelopeAbsolute so the two cannot drift. Storage that cannot
+ *  be read is not a decision to merge. */
+function bagMergeForced() {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(ENVELOPE_MERGE_KEY) === 'on';
+  } catch (e) { return false; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2479,10 +2581,7 @@ export async function fetchServerArmPermission(f) {
  *  that can only ever over-credit, never delete and never duplicate. */
 export function isEnvelopeAbsolute() {
   if (!equipAuthorityLive) return false;
-  try {
-    if (typeof localStorage === 'undefined') return true;
-    return localStorage.getItem(ENVELOPE_MERGE_KEY) !== 'on';
-  } catch (e) { return true; }
+  return !bagMergeForced();
 }
 
 /* ── THE DRIFT COUNTER (§8 — `describeReplacement` REPURPOSED) ──────────────
@@ -2689,14 +2788,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=567';
+import * as itemLedger from './item-ledger.js?v=569';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=567';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=569';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2705,15 +2804,15 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=567';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=569';
 /* THE START KIT — the fresh-G bag hint the first envelope discards (see the
    START_INVENTORY block in reconcileInventory). The SAME frozen source the
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
-import { START_INVENTORY } from '../data/start-kit.js?v=567';
+import { START_INVENTORY } from '../data/start-kit.js?v=569';
 /* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
    spans a release). A frozen constant leaf — no cycle, no DOM. */
-import { BUILD } from '../build-info.js?v=567';
+import { BUILD } from '../build-info.js?v=569';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2731,25 +2830,25 @@ import { BUILD } from '../build-info.js?v=567';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=567';
+import * as pendingConsume from './pending-consume.js?v=569';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=567';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=569';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=567';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=569';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=567';
-import { capHoursFromVigour } from './offline-cap.js?v=567';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=569';
+import { capHoursFromVigour } from './offline-cap.js?v=569';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -4129,6 +4228,12 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   /* The contract's server figure: settle, switch, gold, death; the idle boot is
      record.js hydrationStep('bounty'). Its own try, so a throw above cannot skip it. */
   try { const w = (typeof window !== 'undefined') ? window : null; if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res); } catch (e) {}
+  /* MODERATION (2026-10-11-name-moderation.sql) — hr_state_of's top-level
+     `must_rename` opens the non-dismissable rename prompt. Own try. */
+  try {
+    const w = (typeof window !== 'undefined') ? window : null;
+    if (w && w.HearthriseIdentity && typeof w.HearthriseIdentity.noteEnvelope === 'function') w.HearthriseIdentity.noteEnvelope(res);
+  } catch (e) {}
   written.absolute = absolute;
 
   /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers
@@ -4224,29 +4329,16 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   for (const k of Object.keys(res.skills || {})) {
     const xp = Number(res.skills[k] && res.skills[k].xp);
     if (Number.isFinite(xp)) {
-      const have = Number(skills[k]) || 0;
-      /* ── P0 CARVE-OUT: A CLIENT-ONLY SKILL IS NEVER ASSIGNED DOWNWARD ───────
-         The absolute assign is only safe for a skill the accrual engine actually
-         SETTLES. Farming (no gather node, no declarable activity) and cooking
-         (the un-modeled artisan lane) have NO server accrual path, so the
-         server's xp for them is FROZEN at its last value — and an absolute
-         assign then re-asserts that frozen value DOWNWARD on every 90s settle
-         and every reload (the "Farming stuck at 66" / "cooking XP resets" bugs).
-         `serverAccruedSkill(k)` is derived from the SAME sources the engine reads
-         (combat styles ∪ GATHER_SKILLS ∪ payable artisan lanes), so a future
-         server-accrued skill is not wrongly carved out and a new client-only
-         skill is protected automatically. Fail-closed: an UNKNOWN skill is not
-         server-accrued either, so it too follows Math.max — the never-reduce
-         direction. This generalises the OMITTED-skill protection below to a
-         NAMED-but-not-accrued skill. */
-      const skillAbsolute = absolute && serverAccruedSkill(k);
-      /* PHASE 2: ASSIGNMENT. For a SERVER-ACCRUED skill the server wins every
-         contest, INCLUDING DOWNWARD — that direction IS the anti-forgery
-         property, and the max was the one thing standing between a devtools-
-         edited xp figure and a round trip that laundered it into permanence.
-         PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
-         incident lever — and it is now ALSO the client-only-skill floor. */
-      const next = skillAbsolute ? xp : Math.max(have, xp);
+      /* A NAMED SKILL IS THE SERVER'S NUMBER, IN BOTH DIRECTIONS. The
+         P0 carve-out that lived here (`Math.max(have, xp)` for a skill outside
+         serverAccruedSkill, and for every skill until an equip was acknowledged
+         this session) existed because farming and cooking XP were CLIENT-awarded
+         while the server held a frozen copy. Both are server-written now
+         (hr_farm_harvest, the cooking settle) and no client path mints XP
+         (tests/no-client-xp-mint.mjs), so the max could only ever keep an
+         over-count — CLAUDE.md §6. Attended XP not yet credited is the
+         prediction layer's (predict.js), never this field. */
+      const next = xp;
       /* ── THE PENDING FOLD-BACK USED TO BE HERE, AND IT IS GONE ─────────────
          Folding still-uncredited attended XP into `next` here was the wrong
          LAYER twice over: `G.skills` is a MOVED field, so applyRecord replaces
@@ -4408,6 +4500,7 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      `stats.planted` is inert until hr_farm_plant mints `ev:plant`. */
   written.eventCounters = reconcileEventCounters(G, res);
   try { const LT = (typeof window !== 'undefined') && window.HearthriseLifetime; if (LT && typeof LT.noteEnvelope === 'function') written.lifetime = LT.noteEnvelope(res); } catch (e) {}
+  try { const RV = (typeof window !== 'undefined') && window.HearthriseReveal; if (RV && typeof RV.noteEnvelope === 'function') written.reveal = RV.noteEnvelope(res); } catch (e) {}
 
   /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
      `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here
@@ -4551,14 +4644,10 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      while inventory is not truly server-owned. */
   const invAbsolute = isInventoryAbsolute();
   written.inventoryAuthority = invAbsolute;
-  /* ⚠ THE PER-ENVELOPE COMPLETENESS GATE (Step 3, condition #1). Even an ARMED
-     client enters the absolute branch ONLY for an envelope the server has
-     certified `inventory_complete === true`. Any other envelope — one produced
-     mid-craft-chain, before the settle loop drained the pointer — falls through
-     to the merge below, which can only ever over-credit and NEVER deletes. This
-     is what stops an incomplete, out-of-order baseline from deleting a legit
-     freshly-crafted OWNED stack: absence of the flag routes to the safe branch,
-     armed or not. FAIL-CLOSED — see envelopeBaselineComplete. */
+  /* THE COMPLETENESS SIGNAL. It is no longer a gate on the ARMED bag (see
+     reconcileInventory: an open settle window means more may arrive, never that
+     a held row is missing). It still feeds the arm's own precondition, the
+     merge path's phantom-food and start-kit rules, and the pushed-frame gate. */
   const baselineComplete = envelopeBaselineComplete(res);
   written.baselineComplete = baselineComplete;
   /* THE BANK ITEM STORE (bank-store, b438). Reconciled here — after the two arm
@@ -5230,7 +5319,7 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      must not consume the note. */
   if (invNamedRaw) { for (const id of drainServerBagMoves()) consumedIds.add(id); }
   const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
-    omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
+    omissionIsZero: invAbsolute ? true : consumedIds,
   });
   /* ══════════════════════════════════════════════════════════════════════
      THE PHANTOM FOOD (LIVE P0, b510 QA slot 2, 2026-09-06).
@@ -5275,67 +5364,46 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      Scope is deliberately the CONSUMED class only — this adds no new authority
      over any id the server does not eat. */
   const consumableAbsolute = baselineComplete === true && !!invNamedRaw;
-  if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
+  if (invAbsolute && invNamedRaw && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════
-       THE SERVER-OWNED CARVE-OUT (server-authority inventory-flip, Step 2).
+       THE ARMED BAG IS THE SERVER'S BAG, WHOLE. (CLAUDE.md §6, Tyler
+       2026-09-14: every actionable number is REPLACED by each envelope.)
 
-       The absolute replace may OWN only the ids the accrual engine settles —
-       `serverOwnedItem(id)` (src/data/item-authority.js): combat drops, gather
-       products, payable (non-cooking) artisan outputs. For those, the envelope
-       is the truth: a named key sets the quantity and an OMITTED owned key is a
-       real zero (removed) — which is exactly what closes the forgery the flip
-       exists to close.
-
-       Every OTHER id is one a LIVE, un-modeled path writes with no server
-       counterpart — a cooked food, a crop harvest, a dungeon reward, a
-       companion-proc bonus. The envelope omitting it is NOT a claim that it is
-       zero, so the client's copy is KEPT, and a positively-named figure may only
-        RAISE it, never lower it (the never-delete rule). This mirrors the
-       itemLedger.reconcile carve-out precisely: the server owns its set, the
-       client keeps the rest.
-
-       ⚠ UNARMED IN PROD BY THE STAGE, NOT BY THE SIGNAL. The baseline signal IS
-       live and every other arm guard passes; what keeps this branch dormant is
-       INVENTORY_ARM_STAGE === 'off'. The tests drive it directly. */
+       Live, 2026-10-11: a refused +10 shop buy left the bag at 33 seeds while
+       player_inventory held 23, and the merge's `Math.max(have, q)` meant no
+       envelope could ever bring it down. Two rules used to survive even here
+       and both are retired, because both were "never delete" rules written for
+       a client that still minted items:
+         · the COMPLETENESS gate. `inventory_complete=false` means "the server
+           has a settle window open", i.e. MORE may arrive — never that a row it
+           holds is missing from the projection (hr_state_of aggregates the whole
+           of player_inventory). Routing those envelopes to the max let any
+           over-count survive every mid-window envelope.
+         · the NOT-OWNED carve-out (omitted ⇒ keep). Every mint path is a server
+           verb now (flipArmBlockers() is empty), so an id the projection omits
+           is an id the server does not think the player holds — and the gates
+           already act on that (gateItemCount reads the same projection).
+       Neither can lose an item: G.inventory is never saved, and every intent
+       quantity is re-checked by the server against player_inventory, so a
+       replace only ever corrects what is SHOWN, and the next envelope restates
+       anything real. Pending client gains (an attended drop, a predicted buy)
+       are display-only predictions; they are cleared here and spend nothing.
+       The pending-consume fold above may only LOWER a figure (a local eat in
+       flight), which is the conservative direction. */
     const next = {};
-    const keys = new Set(Object.keys(inv).concat(Object.keys(invNamed)));
-    for (const k of keys) {
+    for (const k of Object.keys(invNamed)) {
       const q = Number(invNamed[k]);
-      const named = Number.isFinite(q) && q > 0;
-      /* OWNED, or SERVER-CONSUMED under a complete baseline (the phantom-food
-         rule above — a provision the server eats must be allowed to reach 0). */
-      if (serverOwnedItem(k) || (consumableAbsolute && serverConsumedItem(k))) {
-        /* OWNED: absolute. A readable positive figure is assigned; an omitted,
-           zero or unreadable figure removes the stack (act only on certainty —
-           save-invariant #2 — and the next settle restates a real one). */
-        if (named) next[k] = Math.floor(q);
-        continue;
-      }
-      /* ── NOT OWNED: THE NAMED-LOWER RULE (security C2) ─────────────────────
-         Never DELETE — an omission is still "unknown" for an id the engine does
-         not settle, which is the blueprint-loss carve-out and it is untouched.
-         But a NAMED figure is a positive statement about that one key, and the
-         server debits excluded ids on its own behalf all the time (hr_farm_plant
-         takes a seed, a vendor sale takes the goods). Taking Math.max there meant
-         the client could only ever ratchet UP: once the two numbers parted, no
-         envelope could ever bring the client back down, and the grid painted
-         goods every gesture was then refused for. So a stated figure is BELIEVED,
-         up or down; silence still keeps the client's copy. */
-      const have = Number(inv[k]) || 0;
-      const best = named ? Math.floor(q) : (have > 0 ? Math.floor(have) : 0);
-      if (best > 0) next[k] = best;
+      if (Number.isFinite(q) && q > 0) next[k] = Math.floor(q);
     }
     G.inventory = next;
     written.inventory = Object.keys(next).length;
     written.inventoryAbsolute = true;
-    /* AFTER the wholesale replace, never before. Under absolute the envelope
-       deletes anything the server has not heard of — which includes a
-       Quartermaster purchase, so these players were LOSING blueprints while
-       merge-mode players were getting them free. Same correction, both
-       branches, one call site each. */
     written.itemLedger = itemLedger.reconcile(G, res);
     return written;
   }
+  /* MERGE — reached only while the bag is NOT armed: before the first armed
+     envelope of a session, or under one of the two incident levers
+     (hr_flags.inventory_absolute=false, localStorage hr:envelopeMerge=on). */
 
   /* The SAME folded figures the absolute branch above reads — computed once, at
      the top, so neither branch can be fixed without the other. `consumed` is the
@@ -5398,7 +5466,6 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
     const figure = Number.isFinite(raw) ? raw : (isDebit ? 0 : NaN);
     if (!Number.isFinite(figure)) continue;
     const q = figure - unaccountedEquipped(G, res, k);
-    const have = Number(inv[k]) || 0;
     if (isDebit) {
       /* ABSOLUTE. The client's convention is that a zero row does not exist
          (legacy.js `removeItem` deletes at <= 0), and it is the server's too. */
@@ -5406,24 +5473,21 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
       if (next > 0) inv[k] = next; else delete inv[k];
       continue;
     }
-    /* MAX for a NAMED key too — and this is the clause that actually saved the
-       reporting player, so do not weaken it to a plain assignment. `dragon_scale`
-       WAS named (the server held 2 from away accrual); only taking the max keeps
-       the 14 he earned at the keyboard.
-       THE COST, STATED: an item the server legitimately CONSUMED while he was
-       away (a crafting input) will not be deducted from the client copy until a
-       live-write verb exists, so a determined player could double-spend that
-       input. That is a bounded duplication risk in a closed beta that already
-       carries forgery amnesty; it was traded knowingly against certain,
-       ongoing, irreversible loss of real progress. It retires with the same
-       commit that gives live play an intent verb. */
-    if (Number.isFinite(q) && q > 0) inv[k] = Math.max(have, q);
+    /* A NAMED KEY IS ASSIGNED, IN BOTH DIRECTIONS, EVEN ON MERGE. The
+       max that used to sit here (`inv[k] = Math.max(have, q)`) protected
+       drops the CLIENT minted while the server did not know about them. No
+       client mint survives the cutover, so all it still did was keep any
+       over-count forever: the 33-vs-23 seeds of 2026-10-11. A named figure is
+       the server's statement about that key; MERGE now means only "an OMITTED
+       key is unknown" — the incident lever never deletes, and never ratchets.
+       tests/no-upward-merge.mjs refuses the max coming back. */
+    if (q > 0) inv[k] = Math.floor(q); else delete inv[k];
   }
   G.inventory = inv;
   written.inventory = Object.keys(inv).length;
 
-  /* THE HALF-REVERTED TRADE (2026-08-18). The `Math.max` directly above is a
-     one-way ratchet, and a client-authored trade moves the bag in BOTH
+  /* THE HALF-REVERTED TRADE (2026-08-18). The `Math.max` that used to sit above
+     (now gone) was a one-way ratchet, and a client-authored trade moves the bag in BOTH
      directions: the scrip the player spent is a key the envelope NAMES (so the
      max hands it straight back) while the blueprint they bought is a key the
      envelope OMITS (so "absent means unknown" keeps it). Item kept, currency
@@ -5965,7 +6029,7 @@ export function receiptDeathCause(summary) {
   const said = (key, clause, sentence) => ({ key, clause, sentence });
   if (ae.enabled === false) {
     return said('auto-eat-off', 'auto-eat was off, so nothing healed you',
-      'Auto-eat was off, so nothing healed you.');
+      'Auto-Eat was off, so nothing healed you.');
   }
   const pct = Number(ae.pct);
   if (Number.isFinite(pct) && pct <= 0) {
@@ -7040,7 +7104,7 @@ if (typeof window !== 'undefined') {
     /* "How many does the SERVER say I hold?" — null while unstated. Read by any
        surface that gates a server-owned spend (dungeon entry keys today); never
        use `G.inventory` for that, it is a display bag with a ratchet. */
-    serverItemCount, gateItemCount, gateInputs,
+    serverItemCount, gateItemCount, gateInputs, bagPrediction,
     /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
        Re-published here as well as on window.HearthrisePendingConsume so a
        caller that already holds the accrual module does not need a second
@@ -7084,11 +7148,11 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
-    restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
+    restorePendingCombatXp, combatXpReflushPromise, awaitAttendedCreditsClear, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

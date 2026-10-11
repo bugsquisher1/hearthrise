@@ -86,13 +86,13 @@
      item icons are the Art Director's and are budget-frozen (Tyler's call). */
   var CATALOGUE = [
     { id: 'emberheart',        alias: 'emberheart_core', name: 'Emberheart',
-      glyph: 'uiFlame', sources: ['the Elk King', 'the Grim Reaper', 'the Dragon'] },
+      glyph: 'uiFlame', hint: 'It drops from the Elk King, the Grim Reaper or the Dragon.' },
     { id: 'worldroot_seed',    alias: null,              name: 'Worldroot Seed',
-      glyph: 'uiLeaf',  sources: ['ordinary trees', 'yews', 'duskwood'] },
+      glyph: 'uiLeaf',  hint: 'It turns up while chopping ordinary trees, yews or duskwood.' },
     { id: 'deepvein_lodestar', alias: 'deepvein_geode',  name: 'Deepvein Lodestar',
-      glyph: 'uiPick',  sources: ['copper', 'mithril', 'dawnstone'] },
+      glyph: 'uiPick',  hint: 'It turns up while mining copper, mithril or dawnstone.' },
     { id: 'tidecallers_pearl', alias: null,              name: "Tidecaller's Pearl",
-      glyph: 'uiFish',  sources: ['shrimp waters', 'shark waters', 'moonfish waters'] }
+      glyph: 'uiFish',  hint: 'It turns up while fishing for shrimp, shark or moonfish.' }
   ];
 
   function entryFor(id) {
@@ -284,7 +284,7 @@
 
   /** Collection log, locked state. */
   function lockedLine(entry) {
-    return entry.name + ' — not yet found. Somewhere in ' + entry.sources.join(', ') + '.';
+    return entry.name + ' — not yet found. ' + entry.hint;
   }
 
   // ── THE ATTENDED REVEAL ─────────────────────────────────────────────────

@@ -150,9 +150,9 @@ const MUTATIONS = {
     why: "gold.js grows its own floor back — a SECOND authority for the same "
        + 'question, which is what M5 deleted',
     file: 'src/net/gold.js',
-    from: 'export function resetGold() { pending = []; last = null; resetFrameGate(); }',
+    from: 'export function resetGold() { pending = []; goods = new Map(); last = null; resetFrameGate(); }',
     to:   'let lastVersion = -1;\n'
-        + 'export function resetGold() { pending = []; last = null; lastVersion = -1; resetFrameGate(); }',
+        + 'export function resetGold() { pending = []; goods = new Map(); last = null; lastVersion = -1; resetFrameGate(); }',
     kills: ['S1'],
   },
   activity_does_not_commit: {

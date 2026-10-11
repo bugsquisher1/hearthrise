@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=567';
-import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=569';
+import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=569';
 
 export default [
 
@@ -1735,7 +1735,7 @@ export default [
       assert(PB.atLimit('allXP') === true, 'and the game must be able to SAY it is at the limit');
       // …and it really does say it, on the activity the player is watching.
       window.G.activeSkill = 'woodcutting'; window.G.skillTargetId = 'normal_tree';
-      assert(/at its limit/.test(window.HearthriseBlessingLimitNote()),
+      assert(/at their limit/.test(window.HearthriseBlessingLimitNote()),
         'a clamp the player cannot see reads as a bug — the note must appear');
 
       // Every governed key, under the same conjunction.
@@ -3296,6 +3296,30 @@ export default [
     }
   }),
 
+  /* -- regression suite -- W0 HAUL-4: no "an Apprentice Gloves"; one shared verb.
+     Mutation: bare article() or per-item verbs ⇒ red. */
+  () => tryRun('W0 HAUL-4: the unlock line never puts "a/an" before a plural item and says a shared verb once', () => {
+    const HU = window.HearthriseHaulUnlocks;
+    assert(HU && typeof HU.lineFrom === 'function' && typeof HU.isPlural === 'function', 'CONTROL: seams unpublished');
+    const g = (name, skill) => ({ kind: 'gear', name, skill: skill || 'crafting' });
+    const shared = HU.lineFrom([g('Shortbow'), g('Apprentice Gloves'), g('Copper Studs')], null);
+    assert(shared === 'You have enough to craft a Shortbow, Apprentice Gloves and Copper Studs.', 'shared-verb line reads: ' + shared);
+    const mixed = HU.lineFrom([{ kind: 'property', name: 'Hearthside Homestead' }, g('Iron Greaves', 'smithing'), g('Leather Boots')], null);
+    assert(mixed === 'You have enough to build your Hearthside Homestead, forge Iron Greaves and craft Leather Boots.', 'mixed line reads: ' + mixed);
+    assert(!/\b(a|an) [A-Z][\w ]*(Gloves|Studs|Boots|Greaves)\b/.test(shared + mixed), 'an article sits before a plural: ' + shared + ' | ' + mixed);
+    ['Apprentice Gloves', 'Copper Studs', 'Abyssal Greaves', 'Bronze Platelegs', 'Gold Earrings'].forEach((n) =>
+      assert(HU.isPlural(n), n + ' was read as singular'));
+    ['Shortbow', 'Iron Helm', 'Ring of Thorns', 'Cutlass', 'Aegis'].forEach((n) =>
+      assert(!HU.isPlural(n), n + ' was read as plural'));
+    // every authored item that ends in a lone -s reads without an article
+    Object.keys(window.ITEMS || {}).forEach((id) => {
+      const n = window.ITEMS[id] && window.ITEMS[id].n;
+      if (typeof n !== 'string' || !/(Gloves|Studs|Boots|Greaves|Gauntlets|Platelegs|Earrings)$/.test(n)) return;
+      const l = HU.lineFrom([g(n)], null);
+      assert(l === 'You have enough to craft ' + n + '.', 'authored "' + n + '" reads: ' + l);
+    });
+  }),
+
   /* -- regression suite -- W0 HAUL-3: BOTH PATHS. Attended (no receipt) → Home's
      standing row with a Go build door; away → the welcome-back modal carries the
      same sentence the Home card does. Mutation: drop the modal's HaulUnlocks row ⇒ red. */
@@ -3330,7 +3354,7 @@ export default [
      carrot seeds (Farming 10 + a plot upgrade) and farmhand paid wheat (Farming 20).
      Mutation: put `carrot_seed: 3` back in START_INVENTORY ⇒ red. */
   () => tryRunAsync('W0 KIT-1: every seed in the starting kit plants at Farming 1, and the first harvest pays carrot seeds', async () => {
-    const KIT = await import('../../data/start-kit.js?v=567');
+    const KIT = await import('../../data/start-kit.js?v=569');
     const CROPS = window.CROPS || {};
     const bySeed = {};
     Object.keys(CROPS).forEach((k) => { if (CROPS[k] && CROPS[k].seed) bySeed[CROPS[k].seed] = CROPS[k]; });
@@ -3347,5 +3371,31 @@ export default [
     const gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
     assert(gc && gc.QUEST_REWARDS.farmhand.items.carrot_seed === 5 && !gc.QUEST_REWARDS.farmhand.items.wheat_seed,
       'the server catalogue must credit the carrot seeds the card promises');
+  }),
+
+  /* COPY-1 (Tyler: "craft 60 items in all — what?"). MUTATION: restore
+     'Smith 60 items in all', or the vowel-only withArticle → red. */
+  () => tryRun('b568 COPY-1: quest and daily labels read as plain English, and no article lands on a plural item', () => {
+    const labels = (window.QUEST_DEFS || []).map((q) => q.label)
+      .concat((window.DAILY_TASK_POOL || []).map((f) => { try { return f().label; } catch (e) { return ''; } }));
+    assert(labels.length > 10, 'CONTROL: too few quest/daily labels to judge (' + labels.length + ')');
+    labels.forEach((l) => {
+      assert(!/\bin all\b/i.test(l), 'a label pads its count with "in all": ' + l);
+      assert(!/^Kill\b/.test(l), 'a label says Kill where every other goal says Defeat: ' + l);
+      assert(!/^Cook \d+ items\b/.test(l), 'a cooking goal counts "items", not dishes: ' + l);
+    });
+    const road = (window.QUEST_DEFS || []).filter((q) => q.chain === 'road').map((q) => q.label);
+    assert(road.indexOf('Smith your first 60 items') >= 0 && road.indexOf('Craft your first 60 items') >= 0,
+      'the road\'s smith/craft rows lost their wording: ' + JSON.stringify(road));
+    assert(typeof window.withArticle === 'function', 'withArticle is unpublished');
+    assert(window.withArticle('Apprentice Gloves') === 'Apprentice Gloves', 'a plural item took an article: ' + window.withArticle('Apprentice Gloves'));
+    assert(window.withArticle('Copper Studs') === 'Copper Studs', 'a plural item took an article: ' + window.withArticle('Copper Studs'));
+    assert(window.withArticle('Bone Key') === 'a Bone Key' && window.withArticle('Arcane Tome') === 'an Arcane Tome',
+      'singular items lost their article: ' + window.withArticle('Bone Key') + ' / ' + window.withArticle('Arcane Tome'));
+    const P = window.pluralName;
+    assert(typeof P === 'function', 'pluralName is unpublished');
+    [['Wolf', 3, 'Wolves'], ['Ancient Lich', 2, 'Ancient Liches'], ['Wolf Pelt', 5, 'Wolf Pelts'], ['Bones', 3, 'Bones'],
+      ['Grave Dust', 4, 'Grave Dust'], ['Goblin Ear', 1, 'Goblin Ear']].forEach(([n, k, want]) =>
+      assert(P(n, k) === want, 'pluralName(' + n + ', ' + k + ') = ' + P(n, k) + ', want ' + want));
   }),
 ];

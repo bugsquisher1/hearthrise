@@ -41,14 +41,14 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=567';
-import { ITEMS } from '../data/items.js?v=567';
-import * as ST from './session-tally.js?v=567';
-import { fill } from './signposts.js?v=567';
-import { foeFamily } from '../render/foe-family.js?v=567';
-import { weaknessWords } from '../render/foe-weakness.js?v=567';
-import { SIGNPOSTS } from '../data/signposts.js?v=567';
-import { compactNumber } from '../net/balance.js?v=567';
+import { MONSTERS } from '../data/monsters.js?v=569';
+import { ITEMS } from '../data/items.js?v=569';
+import * as ST from './session-tally.js?v=569';
+import { fill } from './signposts.js?v=569';
+import { foeFamily } from '../render/foe-family.js?v=569';
+import { weaknessWords } from '../render/foe-weakness.js?v=569';
+import { SIGNPOSTS } from '../data/signposts.js?v=569';
+import { compactNumber } from '../net/balance.js?v=569';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -816,14 +816,14 @@ function destinations() {
     const v = window.hrBountyView ? window.hrBountyView(active) : null;
     const mk = v ? v.mark : '—';
     out.push({
-      kick: 'Bounty', art: active.target, name: m.name,
+      rid: 'war:bounty', kick: 'Bounty', art: active.target, name: m.name,
       meta: `${mk} / ${num(active.required || 0)} slain`,
       verb: 'Jump ▸', go: 'monster', monster: active.target,
       counter: `${mk}/${num(active.required || 0)}`,
     });
   } else {
     out.push({
-      kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
+      rid: 'war:bounty', kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
       meta: 'Take one at the Bounty Board', verb: 'Browse ▸', go: 'tab', tab: 'bounty',
     });
   }
@@ -836,7 +836,7 @@ function destinations() {
     const dm = did && MONSTERS[did];
     if (dm) {
       out.push({
-        kick: 'Boss of the Day', art: did, name: dm.name,
+        rid: 'war:botd', req: reqLevelFor(dm), kick: 'Boss of the Day', art: did, name: dm.name,
         meta: combatLevel() < reqLevelFor(dm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(dm) }) : kb(did),
         timer: 'new in ' + fmtCountdown(B.msUntilRotate ? B.msUntilRotate() : 0),
         verb: 'Fight ▸', go: 'botd',
@@ -847,7 +847,7 @@ function destinations() {
     const wm = wid && MONSTERS[wid];
     if (wm) {
       out.push({
-        kick: 'Weekly Boss', art: wid, name: wm.name,
+        rid: 'war:weekly', req: reqLevelFor(wm), kick: 'Weekly Boss', art: wid, name: wm.name,
         meta: combatLevel() < reqLevelFor(wm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(wm) }) : kb(wid),
         timer: 'resets in ' + fmtCountdown(B.msUntilWeeklyRotate ? B.msUntilWeeklyRotate() : 0),
         verb: 'Fight ▸', go: 'weekly',
@@ -865,6 +865,7 @@ function destinations() {
       && (() => { try { return window.canRunDungeon(id).ok; } catch (e) { return false; } })());
     const next = ids.filter((id) => D[id].reqLv > lv).sort((a, b) => D[a].reqLv - D[b].reqLv)[0];
     out.push({
+      rid: 'war:dungeon', req: open.length ? 0 : (next ? D[next].reqLv : 0), key: dungeonKeyHeld(),
       kick: 'Dungeon', glyph: 'uiCastle',
       name: open.length ? D[open[0]].name : (next ? D[next].name : 'Dungeons'),
       meta: open.length ? `${open.length} ready to run` : (next ? fill('war.locked', { have: lv, need: D[next].reqLv }) : 'keys and cooldowns'),
@@ -900,7 +901,7 @@ function destinations() {
       return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
     }());
     out.push({
-      kick: 'Clan Hunt', glyph: 'uiShield',
+      rid: 'war:clanhunt', kick: 'Clan Hunt', glyph: 'uiShield',
       name: (boss && (boss.name || boss.n)) || 'Clan Hunt',
       meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
       verb: 'Join ▸', go: 'tab', tab: 'events',
@@ -914,13 +915,42 @@ function destinations() {
     let day = null;
     try { day = W.daily && W.daily(); } catch (e) { day = null; }
     out.push({
-      kick: 'World Event', glyph: 'uiStar',
+      rid: 'war:worldevent', kick: 'World Event', glyph: 'uiStar',
       name: (day && day.name) || 'Today\'s blessing',
       meta: (day && day.desc) || 'a new blessing every day',
       verb: 'Events ▸', go: 'tab', tab: 'events',
     });
   }
-  return out;
+  return revealedCards(out);
+}
+
+/* THE PROGRESSIVE REVEAL (src/features/spine-reveal.js). A card shows once its
+   spine step arrives or the server says the player uses it, and a card with a
+   level requirement shows only within ten combat levels, or with its key in the
+   bag. No reveal module means every card, exactly as before. */
+function revealedCards(list) {
+  const R = window.HearthriseReveal;
+  if (!R) return list;
+  const on = list.filter((d) => R.shows(d.rid));
+  const inWindow = R.warCards(on.map((d) => ({ req: typeof d.req === 'number' ? d.req : 0, pinned: !!d.key })));
+  return on.filter((d, i) => inWindow[i]);
+}
+
+/** Does the server's bag hold any dungeon's entry key? */
+function dungeonKeyHeld() {
+  const R = window.HearthriseReveal;
+  const bag = R && R.facts().bag;
+  return !!bag && Object.values(window.DUNGEONS || {}).some((d) => d && d.cost && bag[d.cost.key] > 0);
+}
+
+/** The tier chips a player is shown: T1–T2 once Combat opens, then every tier
+    within the ten-level window, and always the tier being browsed. */
+function shownTiers(current) {
+  const all = [1, 2, 3, 4, 5, 6];
+  const R = window.HearthriseReveal;
+  if (!R) return all;
+  const inWindow = R.warCards(all.map((n) => ({ req: reqLevelFor({ tier: n }), pinned: n <= 2 || n === current })));
+  return all.filter((n, i) => inWindow[i]);
 }
 
 function renderDestinations() {
@@ -987,7 +1017,7 @@ function renderFilters() {
   const classes = document.getElementById('wt-classes');
   if (!tiers || !classes) return;
   const t = tierOf();
-  tiers.innerHTML = [1, 2, 3, 4, 5, 6].map((n) =>
+  tiers.innerHTML = shownTiers(t).map((n) =>
     `<button type="button" class="chip${n === t ? ' active' : ''}" data-cs-act="tier" data-tier="${n}">T${n}</button>`).join('');
   /* COMBAT-UI-06 — the 11-class taxonomy becomes navigable. Built from the
      TIER's own roster, so a class with nothing in this tier is not offered. */
@@ -1430,7 +1460,7 @@ function renderSession() {
   if (!s.ready) {
     /* No settled span yet — a 90s live-settle cadence means the first credit
        is seconds away; we will not fabricate a rate before it lands. */
-    clauses.push('<span class="fs-sess-idle">settles as the server credits your hunt</span>');
+    clauses.push('<span class="fs-sess-idle">fills in as the realm counts your hunt</span>');
   } else {
     ST.tallyRows(s).forEach((r) => {
       clauses.push(`<span class="fs-sess-stat"><b>${esc(r.value)}</b> ${esc(r.label)}</span>`);
@@ -1752,6 +1782,7 @@ export function setupCombatScreens() {
 
   setInterval(tick, 200);
   setInterval(slowTick, 1000);
+  addEventListener('hearthrise:reveal', () => { const p = panel(); if (p && p.classList.contains('active')) render(); });
   openFromNav();
   console.log('[Combat Screens] War Table + The Fight loaded');
 }

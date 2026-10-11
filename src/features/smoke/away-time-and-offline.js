@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=569';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -1451,7 +1451,7 @@ export default [
     const cases = [
       ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
       ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
-      ['requires_previous_slot', /Unlock the slot before it/i, {}],
+      ['requires_previous_slot', /Unlock the previous slot first/i, {}],
     ];
     try {
       window.clientMayWriteRecordField = () => false;
@@ -5073,7 +5073,7 @@ export default [
         window.renderCombat();
         const note = document.querySelector('#panel-combat .cbt-food-note');
         if (note) {
-          assert(/falls below 75%/.test(note.textContent),
+          assert(/is below 75%/.test(note.textContent),
             'the combat note must quote the engine threshold (75%), got: ' + note.textContent);
           assert(/one per swing|each swing/i.test(note.textContent),
             'the description must state the one-Provision-per-swing rule Xarn expected to be heal-to-threshold');
@@ -6216,9 +6216,8 @@ export default [
       ['world-events._hash', window.HearthriseWorldEvents && window.HearthriseWorldEvents._hash],
       ['core/botd.fnv1a', window.HearthriseCore && window.HearthriseCore.botd && window.HearthriseCore.botd.fnv1a],
       ['core/rng.hashSeed', window.HearthriseCore && window.HearthriseCore.rngMod && window.HearthriseCore.rngMod.hashSeed],
-      ['chat-filter._hash', window.ChatFilter && window.ChatFilter._hash],
     ].filter((c) => typeof c[1] === 'function');
-    assert(copies.length >= 4, 'an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
+    assert(copies.length >= 3, '(chat-filter._hash retired with the slur placeholders, 2026-10-11) an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
     for (const [name, fn] of copies) {
       for (const k of keys) {
         assert((fn(k) >>> 0) === reference(k),
@@ -7350,7 +7349,7 @@ export default [
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
     // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
-    assert(/the limit is being confirmed/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
+    assert(/checking how long it can run/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
     const unknownText = unknown.replace(/<[^>]*>/g, ' ');
     assert(!/\b0h\b|12h|null|NaN/.test(unknownText), 'an unknown cap printed a number: ' + unknown);
     assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);

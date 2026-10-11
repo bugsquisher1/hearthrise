@@ -140,8 +140,17 @@
     long:      'At most ' + MAX_LEN + ' characters',
     charset:   'Letters, numbers, spaces and _ ’ . - only, starting and ending with a letter or number',
     reserved:  'That name is reserved',
-    profanity: 'Choose a different name'
+    // 2026-10-11: the SERVER's content answer (claim_display_name /
+    // hr_display_name_available → error 'name_blocked'). The client holds no
+    // word list: a client list either refuses names the server allows
+    // ("Dickens") or misses names it refuses, and both are the browser
+    // disagreeing with the server (CLAUDE.md §6).
+    blocked:   "That name isn't allowed. Try another."
   };
+  // The moderator's placeholder shape (hr_mod_force_rename assigns
+  // Adventurer-NNNN; hr_validate_display_name reserves it). Mirrored so the
+  // field says "reserved" before the round trip, never instead of it.
+  var PLACEHOLDER_TIGHT_RE = /^adventurer[0-9]+$/;
 
   /**
    * The whole rule set, pure and DOM-free.
@@ -162,18 +171,13 @@
     // stricter fold applies ONLY to the reserved list: the uniqueness key
     // itself keeps spaces, because "Iron Vale" and "Ironvale" are two players'
     // names, not one impersonation attempt.
-    if (RESERVED_TIGHT.indexOf(c.replace(/\s+/g, '')) !== -1) {
+    if (RESERVED_TIGHT.indexOf(c.replace(/\s+/g, '')) !== -1 ||
+        PLACEHOLDER_TIGHT_RE.test(c.replace(/\s+/g, ''))) {
       return { ok: false, reason: 'reserved', message: REASONS.reserved };
     }
-    // The profanity guard the codebase already has. Deliberately NOT
-    // duplicated in SQL — two curated word lists always drift apart, and
-    // the one that ships with the client is the one that gets tuned.
-    try {
-      if (window.ChatFilter && typeof window.ChatFilter.contains === 'function' &&
-          window.ChatFilter.contains(name)) {
-        return { ok: false, reason: 'profanity', message: REASONS.profanity };
-      }
-    } catch (e) { /* a filter failure must never block a legal name */ }
+    // CONTENT is the server's (2026-10-11-name-moderation.sql): the live
+    // availability check and the claim both answer 'name_blocked', and the
+    // field shows REASONS.blocked from that answer. No client word list.
     return { ok: true, name: name, canonical: c };
   }
 
@@ -188,7 +192,7 @@
   var CLAIM_ERRORS = {
     taken:         'That name is already taken',
     not_signed_in: 'Sign in to claim a unique name',
-    network:       'Could not reach the server — try again in a moment'
+    network:       'Could not reach the realm — try again in a moment'
   };
 
   /**
@@ -210,6 +214,7 @@
     if (out.ok === false) {
       var err = out.error || '';
       if (err === 'taken') return { action: 'taken', message: CLAIM_ERRORS.taken };
+      if (err === 'name_blocked') return { action: 'invalid', reason: 'blocked', message: REASONS.blocked };
       if (err === 'invalid') {
         var r = out.reason || 'charset';
         return { action: 'invalid', reason: r, message: REASONS[r] || REASONS.charset };
@@ -237,6 +242,7 @@
       return { action: 'unknown' };
     }
     if (out.ok === false) {
+      if (out.error === 'name_blocked') return { action: 'invalid', reason: 'blocked', message: REASONS.blocked };
       var r = out.reason || 'charset';
       return { action: 'invalid', reason: r, message: REASONS[r] || REASONS.charset };
     }
@@ -700,6 +706,55 @@
   }
 
   // ════════════════════════════════════════════════════════════
+  // 5c · THE MODERATOR'S RENAME (2026-10-11-name-moderation.sql)
+  // ════════════════════════════════════════════════════════════
+  // hr_mod_force_rename replaces a name that broke the rules with
+  // Adventurer-NNNN and sets profiles.must_rename; hr_state_of projects it as
+  // the envelope's top-level `must_rename`. The flag is the SERVER's and is
+  // REPLACED by every envelope that carries the key (absent = no claim either
+  // way, the applyEnvelopeState rule). While it is true the name prompt is
+  // NON-DISMISSABLE: no "Not now", no Cancel, no scrim click. A successful
+  // claim clears it server-side; the next envelope confirms.
+  var forcedRename = false;
+
+  /** PURE. The envelope's verdict: true / false when the key is present, null when absent. */
+  function readMustRename(res) {
+    if (!res || typeof res !== 'object') return null;
+    if (Object.prototype.hasOwnProperty.call(res, 'must_rename')) return res.must_rename === true;
+    var st = res.state;
+    if (st && typeof st === 'object' && Object.prototype.hasOwnProperty.call(st, 'must_rename')) {
+      return st.must_rename === true;
+    }
+    return null;
+  }
+
+  function forcedOpen() { return !!document.querySelector('.hr-id-scrim[data-forced]'); }
+
+  function maybeForceRename() {
+    if (!forcedRename || !isSignedIn() || forcedOpen()) return;
+    // Queue behind the FTUE card / downloads sheet only; replace any ordinary
+    // name sheet (openNameModal closes it), since that one could be cancelled.
+    if (document.querySelector('.ftue-root, .hr-dl-scrim')) return;
+    openNameModal({ forced: true });
+  }
+
+  /** Every envelope (boot hr_load and each settle/switch) passes through here. */
+  function noteEnvelope(res) {
+    var v = readMustRename(res);
+    if (v === null) return;
+    var was = forcedRename;
+    forcedRename = v;
+    if (v && !was) {
+      // The server renamed this account: re-read the name it now holds so
+      // every surface shows the placeholder, not the name it took back.
+      _resetServerName();
+      resolveServerName().catch(function () {});
+    }
+    if (!v && forcedOpen()) closeModal();
+    try { maybeForceRename(); } catch (e) {}
+  }
+
+  // ════════════════════════════════════════════════════════════
   // 6 · AVATAR: the pipeline
   // ════════════════════════════════════════════════════════════
   // Pure-ish and directly unit-tested: hand it anything drawable (Image,
@@ -813,7 +868,7 @@
                         { method: 'POST', headers: h, body: blob });
       try { json = await res.json(); } catch (e) { json = null; }
     } catch (e) {
-      return { action: 'fail', message: 'Could not reach the server — your portrait is saved on this device' };
+      return { action: 'fail', message: 'Could not reach the realm — your portrait is saved on this device' };
     }
     var d = reduceUpload(res.status, json);
     noteRpc('storage:avatars', d.action !== 'unsupported');
@@ -1128,19 +1183,25 @@
    */
   function openNameModal(opts) {
     opts = opts || {};
+    // While the server says must_rename, EVERY way into this sheet is the
+    // forced one — the Character screen's "Change name" must not become the
+    // Cancel button that escapes it.
+    if (forcedRename) opts = { forced: true };
+    var forced = !!opts.forced;
     ensureStyle();
     closeModal();
     load();
 
-    var renaming = !!rec.name && !opts.taken;
+    var renaming = !forced && !!rec.name && !opts.taken;
     var scrim = document.createElement('div');
     scrim.className = 'hr-id-scrim hr-scrim';
+    if (forced) scrim.setAttribute('data-forced', '');
     var wrap = document.createElement('div');
     wrap.className = 'hr-id-wrap hr-sheet';
 
     var h = document.createElement('h3');
     h.className = 'hr-sheet-head';
-    h.textContent = renaming ? 'Change your name' : 'Choose your name';
+    h.textContent = forced ? 'Choose a new name' : (renaming ? 'Change your name' : 'Choose your name');
     wrap.appendChild(h);
     var mid = document.createElement('div');
     mid.className = 'hr-sheet-body';
@@ -1148,7 +1209,10 @@
 
     var lead = document.createElement('p');
     lead.className = 'hr-id-lead';
-    if (opts.taken) {
+    if (forced) {
+      lead.textContent = 'A moderator changed your name because it broke the realm’s naming rules. ' +
+        'Choose a new name to keep playing.';
+    } else if (opts.taken) {
       lead.textContent = 'Someone claimed ' + opts.taken + ' first. Pick another name — ' +
         'this one will be yours alone.';
     } else if (!isSignedIn()) {
@@ -1167,7 +1231,7 @@
     input.autocomplete = 'off';
     input.spellcheck = false;
     input.placeholder = 'Your name';
-    input.value = opts.taken ? '' : (rec.name || (window.G && window.G.playerName) || '');
+    input.value = (opts.taken || forced) ? '' : (rec.name || (window.G && window.G.playerName) || '');
     if (input.value === 'Adventurer') input.value = '';
     field.appendChild(input);
     mid.appendChild(field);
@@ -1197,7 +1261,7 @@
     later.className = 'btn btn-sm';
     later.type = 'button';
     later.textContent = renaming ? 'Cancel' : 'Not now';
-    row.appendChild(later);
+    if (!forced) row.appendChild(later);
     wrap.appendChild(row);
 
     scrim.appendChild(wrap);
@@ -1223,6 +1287,7 @@
       say('Checking…', 'muted');
       var mine = ++seq;
       timer = setTimeout(function () {
+        if (!scrim.isConnected) return;                   // the sheet closed: nobody to tell
         checkAvailability(raw).then(function (d) {
           if (mine !== seq) return;                       // a newer keystroke won
           if (d.action === 'available') say(d.mine ? 'This is already your name' : v.name + ' is available', 'ok');
@@ -1244,6 +1309,7 @@
       say('Claiming…', 'muted');
       claimName(input.value).then(function (d) {
         if (d.action === 'confirmed') {
+          forcedRename = false;          // the server cleared it; the next envelope confirms
           closeModal();
           toast('You are known as ' + d.name + ' throughout the realm.', 'levelup');
           return;
@@ -1274,7 +1340,7 @@
     });
     // No scrim-to-close and no Escape on the first-run prompt: the player is
     // being DIRECTED here, and a stray click should not skip it silently.
-    if (renaming) {
+    if (renaming && !forced) {
       scrim.addEventListener('click', function (e) { if (e.target === scrim) closeModal(); });
     }
     return scrim;
@@ -1615,6 +1681,7 @@
       }
       applyAvatar();
     }
+    if (uid && forcedRename) { maybeForceRename(); return; }
     if (!uid || promptedThisSession) return;
     if (!mustPrompt()) return;
     // Queue behind the FTUE tutorial only. NOTE the selector: FTUE renders
@@ -1698,6 +1765,9 @@
     mustPromptForName: owedPrompt, claimName: claimName,
     checkAvailability: checkAvailability, reconcile: reconcile,
     openNameModal: openNameModal,
+    // 2026-10-11 — the server's must_rename, fed from every envelope
+    noteEnvelope: noteEnvelope, mustRename: function () { return forcedRename; },
+    _readMustRename: readMustRename,
     // avatar
     avatarUrl: avatarUrl, avatarPublicUrl: avatarPublicUrl,
     processImage: processImage, setAvatarFromFile: setAvatarFromFile,

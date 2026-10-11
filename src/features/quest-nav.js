@@ -251,7 +251,16 @@
       var lane = laneFor(d.skillId, text);
       if (lane) d.detail = lane;
     }
-    return d;
+    return Object.assign({}, d, { open: isOpen(d) });
+  }
+
+  /* A route is offered only through an OPEN door (the progressive reveal,
+     src/features/spine-reveal.js): every Go button reads `open`, and `go`
+     itself will not walk a player through a door the rail does not show.
+     No reveal module means open, so a load-order race never kills a route. */
+  function isOpen(d) {
+    var R = window.HearthriseReveal;
+    return !R || typeof R.routeOpen !== 'function' || R.routeOpen(d);
   }
 
   // ── arrival ────────────────────────────────────────────────────────────
@@ -262,6 +271,7 @@
   // flash the default lane in between.
   function goToQuest(goal) {
     var d = questDestination(goal);
+    if (!d.open) return null;
     try {
       if (d.detail && d.skillId && window._artisanCat) window._artisanCat[d.skillId] = d.detail;
       if (typeof window.showTab === 'function') window.showTab(d.tab);
@@ -300,6 +310,7 @@
   window.HearthriseQuestNav = {
     destination: questDestination,
     go: goToQuest,
+    isOpen: isOpen,
     unmapped: unmapped,
     livePools: livePools,
   };

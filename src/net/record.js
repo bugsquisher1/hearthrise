@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=567';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=569';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=567';
+import { applyClientState } from './client-state.js?v=569';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=567';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=569';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=567';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=569';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1735,6 +1735,12 @@ function settle(verdict) {
     hydrationStep('client-state', () => applyClientState(verdict.body, G));
     // The contract's server figure (top-level `bounty`, hr_state_of) on an idle boot too.
     hydrationStep('bounty', () => { if (typeof window !== 'undefined' && typeof window.hrNoteServerBounty === 'function') window.hrNoteServerBounty(verdict.body); });
+    /* The boot envelope's `must_rename` (2026-10-11-name-moderation.sql): an idle
+       reload never reaches applyEnvelopeState, so the prompt is fed here too. */
+    hydrationStep('identity', () => {
+      const I = typeof window !== 'undefined' ? window.HearthriseIdentity : null;
+      if (I && typeof I.noteEnvelope === 'function') I.noteEnvelope(verdict.body);
+    });
     /* ── ADOPT THE SERVER'S HP AT BOOT (b511) ───────────────────────────────────
        FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
        crew, SA-016 hero slots, now hp). hp lived ONLY in accrue.js's
@@ -1807,7 +1813,7 @@ function settle(verdict) {
          of the ladder this session will see. Fail-closed on a missing `progress`
          array (leaves G.bank alone) and idempotent on a non-idle boot. */
       reconcileBankRungs(G, verdict.body);
-      reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
+      reconcileInventory(G, verdict.body);  // assigns every key the server names (never a max)
       /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
          via applyEnvelopeState (accrue.js), which runs ONLY on accrued:true. On an
          IDLE boot hr-accrue answers {accrued:false}, so a player with a producing
@@ -1920,6 +1926,7 @@ function settle(verdict) {
        `progress_truncated === false` — see reconcileEventCounters' header. */
     hydrationStep('event-counters', () => reconcileEventCounters(G, verdict.body));
     hydrationStep('lifetime', () => { if (typeof window !== 'undefined' && window.HearthriseLifetime) window.HearthriseLifetime.noteEnvelope(verdict.body); });
+    hydrationStep('reveal', () => { if (typeof window !== 'undefined' && window.HearthriseReveal) window.HearthriseReveal.noteEnvelope(verdict.body); });
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

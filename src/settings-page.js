@@ -535,7 +535,7 @@
     'You will not heal while away. A fight that outlasts your health ends the night early.';
   function autoEatHint(on, threshold, upsell){
     if(!on){
-      return 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above. '
+      return 'Auto-Eat is switched off, so this threshold does nothing until you turn it on above. '
         + AUTO_EAT_AWAY_WARNING;
     }
     if(!(Number(threshold) > 0)){
@@ -583,7 +583,7 @@
   function autoEatHtml(){
     var d = window.G.settings;
     if(!ownsAutoEat()){
-      return '<div class="ss-row is-locked"><div class="ss-label">Auto-eat HP threshold</div>'
+      return '<div class="ss-row is-locked"><div class="ss-label">Auto-Eat health threshold</div>'
         +      '<span class="ss-locked-tag">Locked</span></div>'
         +    '<div class="ss-hint">Auto-Eat is a Store unlock (' + esc(autoEatPrice())
         +      ' — Store → Bounty Shop). Until you own it, healing in combat is manual: '
@@ -616,12 +616,12 @@
       : '';
     var val = Math.max(0, Math.min(1, Number(d.autoEatPct) || 0));
     if(val > maxT) maxT = val;
-    return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
+    return '<div class="ss-row"><div class="ss-label">Auto-Eat</div>'
       +      '<label class="ss-toggle"><input type="checkbox" data-hr-settle-latch data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'
       +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
       +    '</div>'
-      + sliderRow('Auto-eat HP threshold', 'autoEatPct', val,
+      + sliderRow('Auto-Eat health threshold', 'autoEatPct', val,
           0, maxT, 0.05, pct(val), autoEatHint(on, val, upsell),
           'data-upsell="' + esc(upsell) + '"');
   }
@@ -652,7 +652,7 @@
     ];
     return ''
       + row('Profanity filter', chatToggle('profanityFilter', c.profanityFilter !== false))
-      + '<div class="ss-hint">Masks common curse words. Targeted slurs are always filtered regardless of this setting.</div>'
+      + '<div class="ss-hint">Masks common curse words in chat.</div>'
       + row('Show timestamps', chatToggle('showTimestamps', c.showTimestamps !== false))
       + row('Sound on @mention', chatToggle('soundOnMention', c.soundOnMention !== false))
       + selectRow('Allow whispers from', 'whisperPermission', c.whisperPermission || 'all', whisperOpts, 'chat')

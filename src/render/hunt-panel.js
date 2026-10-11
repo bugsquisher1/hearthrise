@@ -216,7 +216,7 @@
       + (!dry && clock && !clock.stale && clock.local ? clockSpan(clock, ' · renews ' + clock.local) : '') + '</span>'
       + '</div>';
     var dryClock = !clock ? ''
-      : clock.stale ? clockSpan(clock, ' — the day has turned; fresh Vigour arrives with the next settle')
+      : clock.stale ? clockSpan(clock, ' — the day has turned; fresh Vigour arrives in a moment')
       : clock.local ? clockSpan(clock, ' — ' + clock.local + ' your time') : '';
     var dryLine = dry
       ? '<div class="hunt-vigour-dry">'
@@ -395,7 +395,7 @@
     var clock = vigourClock(v);
     if (v.remaining_min === 0) {
       var rate = fin(v.dry_mult) ? '×' + v.dry_mult : 'reduced rates';
-      var when = !clock ? '' : clock.stale ? ' (the day has turned; fresh Vigour arrives with the next settle)'
+      var when = !clock ? '' : clock.stale ? ' (the day has turned; fresh Vigour arrives in a moment)'
         : clock.local ? ' (' + clock.local + ' your time, ' + clock.left + ' from now)' : '';
       return '<span class="ab-vigour is-dry" title="' + esc('Out of Vigour — hunts pay ' + rate + ' until midnight UTC' + when
         + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">' + chipGlyph()

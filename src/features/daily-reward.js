@@ -485,7 +485,7 @@
         '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div></div>' +
         '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div></div>' +
         '<div class="hr-sheet-foot">' + (pending
-          ? '<button class="hr-dl-claim" disabled aria-disabled="true" title="Waiting for the server">Checking your reward…</button>'
+          ? '<button class="hr-dl-claim" disabled aria-disabled="true" title="Waiting for the realm">Checking your reward…</button>'
           : claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +

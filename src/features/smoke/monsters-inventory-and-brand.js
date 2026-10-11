@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=567';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=567';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=569';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=569';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -1996,51 +1996,24 @@ export default [
       'a skill the envelope omits must survive — got ' + G.skills.stonemason);
     assert(G.inventory.ember_bar === 3,
       'an item the envelope omits must survive — got ' + G.inventory.ember_bar);
-    /* NAMED BUT LOWER -> the client keeps its own. This is the clause that
-       actually saved the reporting player: dragon_scale WAS named, the server
-       held 2 from away accrual, and he had farmed 14 live. A "named wins"
-       rule would still have taken 12 of them. */
-    assert(G.inventory.dragon_scale === 14,
-      'a named item must NOT pull a live-earned stack down — got ' + G.inventory.dragon_scale);
+    /* NAMED BUT LOWER -> the SERVER's figure (CLAUDE.md §6). The max that kept
+       14 here protected drops minted at the keyboard; every drop is server-paid
+       now, so the max only ever kept over-counts no envelope could lower. */
+    assert(G.inventory.dragon_scale === 2,
+      'a named item must take the server figure, downward too — got ' + G.inventory.dragon_scale);
     // Named and higher -> the server's number wins, so away accrual still pays.
     assert(G.skills.attack === 1500, 'a named skill that is HIGHER must take the server value');
     assert(G.inventory.rune_bar === 9, 'a named item that is HIGHER must take the server value');
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
   }),
 
-  /* B385-CLIENTSKILL — A CLIENT-ONLY SKILL IS NEVER DRAGGED DOWN BY THE ABSOLUTE
-     RECONCILE. Two player reports, ONE bug: "Farming stuck at level 66" and
-     "cooking XP resets on reload".
-
-     ROOT CAUSE. With equip authority armed (the prod state), the skills reconcile
-     is ABSOLUTE: `skills[k] = absolute ? xp : Math.max(have, xp)` — the server's
-     xp is ASSIGNED, including DOWNWARD, which is the anti-forgery property. But
-     FARMING (no gather node, not a declarable activity — XP granted client-side
-     in harvestPlot) and COOKING (the un-modeled artisan lane, downgraded to idle)
-     have NO server accrual path, so the server's xp for them is FROZEN at its
-     last value and every 90s settle + every reload re-asserts it downward.
-
-     THE FIX. `serverAccruedSkill(k)` (src/data/skill-authority.js), derived from
-     the SAME sources the engine reads (combat styles ∪ GATHER_SKILLS ∪ payable
-     artisan lanes), gates the downward assign: a client-only skill follows
-     Math.max and can only rise. A future server-accrued skill is not carved out;
-     a new client-only skill is protected automatically; an unknown skill is
-     protected fail-closed.
-
-     This test asserts BOTH halves in ONE armed run: client-only skills survive a
-     lower server value (assertions 1-2), the CONTROL server-accrued skill (attack)
-     still reconciles absolutely DOWNWARD so anti-forgery is intact (assertion 3),
-     and an OMITTED skill is still preserved (assertion 4).
-
-     MUTATION: delete `&& serverAccruedSkill(k)` in applyEnvelopeState → farming
-     and cooking get assigned downward and assertions 1-2 go RED. */
-  /* COOKING REAL-FIX — cooking crossed BACK to the SERVER-ACCRUED side: the
-     settlement arm is on (both twins), so the accrual engine legitimately settles
-     cooking and the absolute envelope reducing it is the anti-forgery property
-     working, not the resets bug. Cooking joins attack/stonemason on the CONTROL
-     side; FARMING stays the sole client-only probe (its XP is granted in
-     harvestPlot, not accrual-settled). */
-  () => tryRun('B385-CLIENTSKILL: client-only skills (farming) are not reduced by the absolute envelope; server-accrued skills (cooking/attack) still are', () => {
+  /* B385-CLIENTSKILL — once the carve-out that kept a "client-only" skill from
+     being lowered ("Farming stuck at 66": a frozen server copy). */
+  /* RETIRED CARVE-OUT: farming XP is server-written (hr_farm_harvest) and no
+     client path mints XP (tests/no-client-xp-mint.mjs), so a named farming
+     figure is the server's number too. MUTATION: restore the
+     `Math.max(have, xp)` branch → assertion 1 reads 900000. */
+  () => tryRun('B385-CLIENTSKILL: every NAMED skill takes the server figure, farming included; an omitted one survives', () => {
     const A = window.HearthriseAccrual;
     const SA = window.HearthriseSkillAuthority;
     assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
@@ -2072,7 +2045,7 @@ export default [
       A.applyEnvelopeState(G, {
         state: {},
         skills: {
-          farming: { xp: 500000 },   // lower — must NOT reduce (client-only)
+          farming: { xp: 500000 },   // lower — the server's figure wins
           cooking: { xp: 3000 },     // lower — MUST reduce (server-accrued now)
           attack:  { xp: 3000 },     // lower — MUST reduce (server-accrued, anti-forgery)
           // stonemason omitted
@@ -2080,9 +2053,9 @@ export default [
         inventory: {},
       });
 
-      // 1 — the client-only skill is NOT pulled down.
-      assert(G.skills.farming === 900000,
-        'FARMING STUCK-AT-66 BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.farming);
+      // 1 — farming is the server's number, downward too (no client XP writer exists).
+      assert(G.skills.farming === 500000,
+        'a NAMED farming figure must be assigned — an upward merge kept ' + G.skills.farming);
       // 2 — cooking (server-accrued) reconciles absolutely, including downward.
       assert(G.skills.cooking === 3000,
         'cooking must reconcile absolutely now that both settlement twins are armed — got ' + G.skills.cooking);
@@ -2093,10 +2066,8 @@ export default [
       assert(G.skills.stonemason === 4321,
         'a skill the envelope omits must still survive even under absolute — got ' + G.skills.stonemason);
 
-      /* And a client-only skill still goes UP when the server is higher — the
-         carve-out is a FLOOR, not a freeze. */
       A.applyEnvelopeState(G, { state: {}, skills: { farming: { xp: 950000 } }, inventory: {} });
-      assert(G.skills.farming === 950000, 'a client-only skill must still RISE to a higher server value — got ' + G.skills.farming);
+      assert(G.skills.farming === 950000, 'a named skill must RISE to a higher server value — got ' + G.skills.farming);
     } finally {
       A.markEquipAuthorityLive(wasAbsolute ? true : false);
     }
@@ -2571,10 +2542,10 @@ export default [
     assert(G3.inventory.gold_ring === 1,
       'two worn rings must both be discounted from the server figure — got ' + G3.inventory.gold_ring);
 
-    /* 4. B359 IS NOT WEAKENED. Nothing equipped -> the max is untouched. */
+    /* 4. Nothing equipped -> a named LOWER key is simply the server's figure. */
     const G4 = { gold: 0, skills: {}, inventory: { dragon_scale: 14 }, equipment: {} };
     A.applyEnvelopeState(G4, { state: {}, skills: {}, inventory: { dragon_scale: 2 } });
-    assert(G4.inventory.dragon_scale === 14, 'b359: a named LOWER key must not pull a live stack down');
+    assert(G4.inventory.dragon_scale === 2, 'a named LOWER key must take the server figure — got ' + G4.inventory.dragon_scale);
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -2827,9 +2798,11 @@ export default [
          reproduce from being DELETED. */
       assert(G.inventory.ember_bar === 3,
         'an omitted item must SURVIVE under merge (P1 mitigation) — got ' + G.inventory.ember_bar);
-      /* A named LOWER stack does NOT pull a live stack down — the max ratchet. */
-      assert(G.inventory.dragon_scale === 14,
-        'a named LOWER stack must not pull a live stack down under merge — got ' + G.inventory.dragon_scale);
+      /* A named LOWER stack IS believed (CLAUDE.md §6). The max ratchet
+         that kept 14 here protected client-minted drops; none survive the
+         cutover, so all it kept was over-counts no envelope could lower. */
+      assert(G.inventory.dragon_scale === 2,
+        'a named LOWER stack must take the server figure even under merge — got ' + G.inventory.dragon_scale);
       /* A named HIGHER stack is credited (max). rune_bar is not worn, so the
          b363 discount does not touch it. */
       assert(G.inventory.rune_bar === 9,
@@ -2966,7 +2939,7 @@ export default [
      client's copy of everything else — so a cooked food, a crop, a dungeon reward
      or a companion-proc bonus is never DELETED, while a forged copy of a
      server-owned item IS scrubbed. */
-  () => tryRunAsync('SERVER-OWNED-1: an armed absolute envelope PRESERVES every un-modeled id it omits', async () => {
+  () => tryRunAsync('SERVER-OWNED-1: an armed envelope is the whole bag — an id it omits is gone, modeled or not', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     assert(A && typeof A.markInventoryAuthorityLive === 'function', 'markInventoryAuthorityLive must be published');
@@ -3034,9 +3007,14 @@ export default [
       assert(!G.inventory.cooked_shrimp,
         'a provision the server has eaten to zero must not survive a COMPLETE envelope — got '
         + G.inventory.cooked_shrimp + ' (the phantom-food P0)');
-      assert(G.inventory.potato === 40, 'a crop the envelope omits must SURVIVE — got ' + G.inventory.potato);
-      assert(G.inventory.warboss_standard === 1, 'a dungeon reward the envelope omits must SURVIVE — got ' + G.inventory.warboss_standard);
-      assert(G.inventory.carrot === 12, 'a companion-proc crop the envelope omits must SURVIVE — got ' + G.inventory.carrot);
+      /* THE CARVE-OUT IS RETIRED. Every one of these is server-minted now
+         (hr_farm_harvest, hr_dungeon_settle) and hr_state_of projects the whole of
+         player_inventory, so an id the ARMED envelope omits is one the server does
+         not think the player holds. Keeping it was the browser saying one thing
+         while the server said another (CLAUDE.md §6). */
+      assert(!('potato' in G.inventory), 'an armed envelope omits potato and the bag still shows ' + G.inventory.potato);
+      assert(!('warboss_standard' in G.inventory), 'an armed envelope omits warboss_standard and the bag still shows ' + G.inventory.warboss_standard);
+      assert(!('carrot' in G.inventory), 'an armed envelope omits carrot and the bag still shows ' + G.inventory.carrot);
       /* And the modeled bar IS owned absolutely — the server RAISED it. */
       assert(G.inventory.ember_bar === 5, 'a named server-owned stack is absolute — got ' + G.inventory.ember_bar);
     } finally {
@@ -3192,24 +3170,24 @@ export default [
     assert(G.inventory.copper_ore === 4, 'a named owned figure must be assigned — got ' + JSON.stringify(G.inventory));
   }),
 
-  () => tryRun('INV-STAGE-3: armed + INCOMPLETE — the merge ratchet is kept (fail-SAFE)', () => {
-    /* `inventory_complete` is a PER-ENVELOPE server assertion. An armed client
-       meeting an uncertified envelope must fall back to the ratchet, or a
-       mid-fight / mid-cook baseline deletes a legit stack — the pre-wipe incident
-       that cost a live character ~40k items. MUTATION: drop `baselineComplete`
-       from the absolute branch, or make the flag read truthy-tolerant ⇒ red. */
+  () => tryRun('INV-STAGE-3: armed + INCOMPLETE — still the server\'s whole bag; NO projection leaves it', () => {
+    /* REVERSED. The ~40k-item loss it was written for was PRE-WIPE, when the
+       client bag held client-minted items; now every item is a projected
+       player_inventory row and G.inventory is never saved. What stays
+       fail-closed is an envelope with no projection at all.
+       MUTATION: restore the `baselineComplete` gate on the armed branch ⇒ red. */
     const A = window.HearthriseAccrual;
     const G = { inventory: { shrimp: 10, copper_ore: 4 } };
     A.reconcileInventory(G, { inventory: { copper_ore: 4 } }, true, false);
-    assert(G.inventory.shrimp === 10,
-      'an ARMED client deleted an owned stack on an UNCERTIFIED envelope — got ' + JSON.stringify(G.inventory));
-    const G2 = { inventory: { shrimp: 10 } };   // and an ABSENT flag is not a false one
-    A.reconcileInventory(G2, { inventory: {} }, true, undefined);
+    assert(JSON.stringify(G.inventory) === JSON.stringify({ copper_ore: 4 }),
+      'an ARMED client kept a stack an incomplete envelope omits — got ' + JSON.stringify(G.inventory));
+    const G2 = { inventory: { shrimp: 10 } };
+    A.reconcileInventory(G2, { state: {} }, true, undefined);   // no projection: not a statement
     assert(G2.inventory.shrimp === 10,
-      'an envelope with NO inventory_complete key was treated as complete — the rule must be fail-closed');
+      'an envelope with NO inventory projection changed the bag — absence is not a claim: ' + JSON.stringify(G2.inventory));
   }),
 
-  () => tryRun('INV-STAGE-4: the measured carve-out ids survive an armed, complete envelope', () => {
+  () => tryRun('INV-STAGE-4: the seeds are owned; a carve-out id no longer survives an armed envelope that omits it', () => {
     /* THE LIVE CENSUS BEHIND THIS LIST (read-only, 2026-09-13):
          select item_id, count(*), sum(qty) from public.player_inventory group by 1
        returned 101 distinct ids — 80 OWNABLE, 16 EXCLUDED, and FIVE that are
@@ -3238,20 +3216,25 @@ export default [
         id + ' fell back out of the ownable set — an unclassified seed can never be lowered or removed, '
         + 'which is the phantom-seed bug this classification closed');
     }
+    /* The classification still scopes the DRIFT measure (describeReplacement)
+       but no longer the armed bag — burnt_food is a row the cooking settle writes,
+       so an armed envelope that omits it means the server holds none. */
     const G = { inventory: Object.fromEntries(CARVE_OUT.map((id) => [id, 7])) };
     A.reconcileInventory(G, { inventory: { copper_ore: 1 }, inventory_complete: true }, true, true);
     for (const id of CARVE_OUT) {
-      assert(G.inventory[id] === 7,
-        'an armed, COMPLETE envelope deleted the carve-out id ' + id + ' — got ' + JSON.stringify(G.inventory));
+      assert(!(id in G.inventory),
+        'an armed envelope omits ' + id + ' and the bag still shows it — the omitted-keep carve-out is back: ' + JSON.stringify(G.inventory));
     }
   }),
 
-  () => tryRun('INV-STAGE-5: an id the PROJECTION omits is not deleted (the blueprint-loss shape)', () => {
-    /* THE INCIDENT, BY SHAPE: flipping the bag absolute deleted Quartermaster
-       blueprints, because the projection cannot produce an id no server path has
-       written. It generalises to dungeon loot and crops.
-       MUTATION: remove the `serverOwnedItem` test from the absolute branch (own
-       everything) ⇒ every id below goes red. */
+  () => tryRun('INV-STAGE-5: armed, an id the PROJECTION omits is not held — blueprint, dungeon loot, crop alike', () => {
+    /* THE OLD INCIDENT, AND WHY IT NO LONGER APPLIES: flipping the bag absolute
+       once deleted Quartermaster blueprints because NO server path wrote them.
+       Every one now has a writer into player_inventory — hr_quartermaster_buy
+       (2026-09-11), hr_dungeon_settle, hr_farm_harvest — and the projection is
+       the whole table, so an omitted id is one the server does not hold, and a
+       purchase still in flight is covered by item-ledger.js. The client copy is
+       display only. MUTATION: restore the not-owned omitted-keep carve-out ⇒ red. */
     const A = window.HearthriseAccrual;
     const OMITTED = {
       kitchen_blueprint_t2: 'a Quartermaster blueprint (the original loss)',
@@ -3265,23 +3248,19 @@ export default [
       Object.fromEntries(Object.keys(OMITTED).map((id) => [id, 3]))) };
     A.reconcileInventory(G, { inventory: { copper_ore: 9 }, inventory_complete: true }, true, true);
     for (const id of Object.keys(OMITTED)) {
-      assert(G.inventory[id] === 3, 'the flip deleted ' + id + ' (' + OMITTED[id] + ') — the blueprint loss, reopened');
+      assert(!(id in G.inventory), 'an armed envelope omits ' + id + ' (' + OMITTED[id] + ') and the bag still shows ' + G.inventory[id]);
     }
     assert(G.inventory.copper_ore === 9, 'the owned id must still take the server figure');
 
-    /* THE ONE DELIBERATE HOLE, stated so it is not mistaken for that bug: a dish
-       is EXCLUDED from ownership and STILL removed on a complete envelope that
-       omits it, because the SERVER eats it (auto-eat / hr_rest). The marker is
-       `heals > 0`, with CROPS carved back out — which is why `turnip` survives
-       above and `turnip_mash` does not. MUTATION: drop that crop subtraction ⇒
-       turnip is deleted and the shape half goes red. */
+    /* The server-CONSUMED classification still drives the MERGE path's
+       phantom-food rule (an unarmed or kill-switched session). */
     const IA = window.HearthriseItemAuthority;
     assert(IA.serverConsumedItem('turnip_mash') === true, 'turnip_mash heals, so it must read as server-CONSUMED');
     assert(IA.serverConsumedItem('turnip') === false, 'a CROP must not read as server-consumed — the engine does not eat the farm');
-    const GF = { inventory: { turnip_mash: 4 } };
-    A.reconcileInventory(GF, { inventory: {}, inventory_complete: true }, true, true);
-    assert(GF.inventory.turnip_mash === undefined,
-      'a provision the server has eaten to zero must leave the bag on a COMPLETE envelope');
+    const GF = { inventory: { turnip_mash: 4, turnip: 6 } };
+    A.reconcileInventory(GF, { inventory: {}, inventory_complete: true }, false, true);
+    assert(GF.inventory.turnip_mash === undefined && GF.inventory.turnip === 6,
+      'MERGE + complete: an eaten provision must leave and an omitted crop stay unknown — got ' + JSON.stringify(GF.inventory));
   }),
 
   /* ── THE SECURITY GO-WITH-CHANGES CONDITIONS (C1-C4) — four properties the
@@ -3340,7 +3319,7 @@ export default [
     }
   }),
 
-  () => tryRun('INV-STAGE-7: a NAMED LOWER figure is believed for a non-owned id; silence still is not (C2)', () => {
+  () => tryRun('INV-STAGE-7: a NAMED LOWER figure is believed for a non-owned id; silence is unknown on merge, zero when armed (C2)', () => {
     /* THE PHANTOM CLASS THE CARVE-OUT RE-OPENED. The server DEBITS excluded ids
        on its own behalf (a plant takes a seed, a sale takes the goods) and the old
        branch took Math.max, so once the two numbers parted nothing could bring the
@@ -3354,11 +3333,13 @@ export default [
     A.reconcileInventory(G, { inventory: { kitchen_blueprint_t2: 2, turnip: 11 }, inventory_complete: true }, true, true);
     assert(G.inventory.kitchen_blueprint_t2 === 2 && G.inventory.turnip === 11,
       'a NAMED lower figure must be believed for a non-owned id — got ' + JSON.stringify(G.inventory));
-    // (b) OMISSION → still kept.
-    A.reconcileInventory(G, { inventory: {}, inventory_complete: true }, true, true);
+    // (b) OMISSION on MERGE → still "unknown" (the incident lever never deletes)…
+    A.reconcileInventory(G, { inventory: {}, inventory_complete: true }, false, true);
     assert(G.inventory.kitchen_blueprint_t2 === 2 && G.inventory.turnip === 11,
-      'an OMISSION must stay "unknown" for a non-owned id — this is the blueprint loss: '
-      + JSON.stringify(G.inventory));
+      'an OMISSION on the merge branch must stay "unknown" for a non-owned id: ' + JSON.stringify(G.inventory));
+    // …and on the ARMED bag it is the server saying "none".
+    A.reconcileInventory(G, { inventory: {}, inventory_complete: true }, true, true);
+    assert(Object.keys(G.inventory).length === 0, 'an armed {} projection left ' + JSON.stringify(G.inventory));
   }),
 
   () => tryRunAsync('INV-STAGE-8: the bag write-gate can say NO, and every grant source is ruled (C3)', async () => {
@@ -3733,7 +3714,7 @@ export default [
      === true). An incomplete/uncertified envelope is detectable and routes to the
      safe merge branch — armed or not — so a freshly-crafted owned item the
      server's out-of-order baseline cannot yet reproduce is never dropped. */
-  () => tryRunAsync('INVENTORY-BASELINE-1: an incomplete (uncertified) envelope NEVER deletes a just-crafted owned item, even armed', async () => {
+  () => tryRunAsync('INVENTORY-BASELINE-1: armed, an incomplete envelope is still the server\'s whole bag — an owned id it omits is gone', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     assert(A && typeof A.envelopeBaselineComplete === 'function', 'envelopeBaselineComplete must be published');
@@ -3754,18 +3735,16 @@ export default [
       A.markInventoryAuthorityLive(true);
       assert(A.isInventoryAbsolute() === true, 'the bag must be armed for this test to mean anything');
 
-      /* `ember_bar` is a SERVER-OWNED (payable smithing) id. The player just
-         crafted 5 at the keyboard; the server settled a DIFFERENT chain first, so
-         its baseline cannot yet produce them and it does NOT certify the envelope
-         complete (no inventory_complete flag). Under the completeness gate this
-         routes to MERGE, so the crafted stack SURVIVES rather than being deleted. */
+      /* The completeness gate no longer guards the ARMED bag — the reasoning
+         is in accrue.js reconcileInventory (an open window means more may
+         arrive, never that a held row is missing). */
       assert(A.serverOwnedItem('ember_bar') === true, 'ember_bar must be a server-owned id for this test');
       const incomplete = { state: {}, skills: {}, equipment: {}, inventory: { bones: 2 } };
       assert(A.envelopeBaselineComplete(incomplete) === false, 'an envelope with no inventory_complete flag must read INCOMPLETE');
       const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 5 } };
-      A.applyEnvelopeState(G, incomplete);   // ember_bar OMITTED, but baseline uncertified
-      assert(G.inventory.ember_bar === 5,
-        'a just-crafted OWNED item must SURVIVE an uncertified/incomplete envelope that omits it — got ' + G.inventory.ember_bar);
+      A.applyEnvelopeState(G, incomplete);   // ember_bar OMITTED, baseline uncertified
+      assert(!('ember_bar' in G.inventory) && G.inventory.bones === 2,
+        'armed, an incomplete envelope must still BE the bag — got ' + JSON.stringify(G.inventory));
     } finally {
       A.markInventoryAuthorityLive(false);
       E.resetEquip();
@@ -3813,7 +3792,7 @@ export default [
     }
   }),
 
-  () => tryRunAsync('INVENTORY-BASELINE-3: an empty-{} envelope while armed but UNCERTIFIED cannot wipe the bag', async () => {
+  () => tryRunAsync('INVENTORY-BASELINE-3: armed, an empty-{} projection is an empty bag; an envelope with NO projection leaves it', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     const IA = window.HearthriseItemAuthority;
@@ -3836,13 +3815,16 @@ export default [
       A.noteBaselineComplete({ inventory_complete: true });
       A.markInventoryAuthorityLive(true);
 
-      /* The most expensive mistake: an empty inventory object read as "you own
-         nothing". Without the server's completeness certification it must route
-         to merge and leave the bag intact. */
+      /* hr_state_of COALESCES the projection to {} only for a bag with no rows,
+         and every envelope is hr_state_of verbatim — so {} IS a statement. What
+         is NOT a statement is an envelope with no inventory object at all (a
+         state-only push, a recovery clear): that one must leave the bag alone. */
       const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 5, cooked_shrimp: 3 } };
-      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: {} });  // empty, uncertified
-      assert(G.inventory.ember_bar === 5, 'an empty UNCERTIFIED envelope must not delete an owned stack — got ' + G.inventory.ember_bar);
-      assert(G.inventory.cooked_shrimp === 3, 'an empty UNCERTIFIED envelope must not delete an un-modeled stack either — got ' + G.inventory.cooked_shrimp);
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {} });   // no projection
+      assert(G.inventory.ember_bar === 5 && G.inventory.cooked_shrimp === 3,
+        'an envelope with NO inventory projection changed the bag: ' + JSON.stringify(G.inventory));
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: {} });   // the server: no rows
+      assert(Object.keys(G.inventory).length === 0, 'an armed {} projection left ' + JSON.stringify(G.inventory));
     } finally {
       A.markInventoryAuthorityLive(false);
       E.resetEquip();
@@ -4586,15 +4568,15 @@ export default [
      the whole world as an argument is so the §3.1 table is assertable without
      a document, a timer or a server. */
 
-  () => tryRun('SETTLE-2: a settle that DEBITS an item reduces the client copy; a credit still merges', () => {
+  () => tryRun('SETTLE-2: a settle that DEBITS an item reduces the client copy, omitted or named', () => {
     /* §5.2 — the consumption hole in the b359 max, and the reason Phase 1 has
        to close it now rather than at Phase 2. The max is a one-way ratchet: it
        can only raise the client's number. Away, "the server ate three shrimp
        and the client kept them" fired on the rare night that auto-ate. At a
        90 s cadence it fires ~320 times a day, which is a faucet.
 
-       MUTATION PROOF: revert the debit branch to the plain `Math.max` and
-       blocks 1, 2 and 3 all go red. Block 4 is the other direction — a fix that
+       MUTATION PROOF: drop the debit branch and blocks 2 and 3 go red (an
+       OMITTED debited key is zero only because the receipt says so). Block 4 is the other direction — a fix that
        simply started trusting the envelope absolutely would take the reporting
        player's 14 dragon scales back, so B359-1's protection is re-asserted
        here against a change made in THIS block. */
@@ -4651,7 +4633,7 @@ export default [
       state: {}, skills: {}, inventory: { dragon_scale: 2, shrimp: 3, rune_bar: 9 }, equipment: {},
       away: { items: { shrimp: -1, rune_bar: 9 } },
     });
-    assert(G4.inventory.dragon_scale === 14, 'a CREDITED/untouched key must keep b359\'s max');
+    assert(G4.inventory.dragon_scale === 2, 'a NAMED key takes the server figure, downward too (no upward merge)');
     assert(G4.inventory.shrimp === 3, 'the debited key must take the server figure');
     assert(G4.inventory.rune_bar === 9, 'a positive receipt entry is a CREDIT and must arrive');
 
@@ -4660,8 +4642,8 @@ export default [
        call it was not written for. */
     const G5 = { gold: 0, skills: {}, inventory: { shrimp: 10 }, equipment: {} };
     A.applyEnvelopeState(G5, { state: {}, skills: {}, inventory: { shrimp: 7 } });
-    assert(G5.inventory.shrimp === 10,
-      'with no away receipt there is no debit statement, so the max must stand — got ' + G5.inventory.shrimp);
+    assert(G5.inventory.shrimp === 7,
+      'with no away receipt a NAMED figure is still the server\'s — got ' + G5.inventory.shrimp);
     assert(A.consumedKeysOf({}).size === 0 && A.consumedKeysOf(null).size === 0,
       'consumedKeysOf must fail closed to an EMPTY set, never null');
   }),
@@ -4893,16 +4875,15 @@ export default [
       assert(A.pendingConsumeFor(G, 'shrimp') === 0,
         'the server figure moved past the hold, so the hold is settled');
 
-      /* SETTLE-2's properties are untouched by the fold: a credited/omitted key
-         still keeps b359's max, and a debited key still takes the server's
-         figure, with no hold in play at all. */
+      /* SETTLE-2's properties are untouched by the fold: a named key takes the
+         server's figure (never a max), with no hold in play at all. */
       const G2 = { gold: 0, skills: {}, equipment: {}, inventory: { dragon_scale: 14, shrimp: 4 } };
       A.applyEnvelopeState(G2, {
         state: {}, skills: {}, equipment: {},
         inventory: { dragon_scale: 2, shrimp: 3, rune_bar: 9 },
         away: { items: { shrimp: -1, rune_bar: 9 } },
       });
-      assert(G2.inventory.dragon_scale === 14, 'b359\'s max must survive the fold');
+      assert(G2.inventory.dragon_scale === 2, 'a named key must take the server figure through the fold — got ' + G2.inventory.dragon_scale);
       assert(G2.inventory.shrimp === 3, 'a debited key still takes the server figure');
       assert(G2.inventory.rune_bar === 9, 'a credit still arrives');
     } finally {
@@ -5163,7 +5144,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=567')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=569')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -5848,11 +5829,15 @@ export default [
       root = document.getElementById('market-root');
       const html = root.innerHTML;
       assert(html.indexOf('No trades yet') === -1, 'a populated ledger must not render the empty state');
-      assert(html.indexOf('1 sold') >= 0 && html.indexOf('1 bought') >= 0,
-        'the ledger header must total both sides');
+      const text = root.textContent;
+      assert(/Earned\s*\+200g\s*from 1 sale(?!s)/.test(text) && /Spent\s*90g\s*on 1 purchase(?!s)/.test(text),
+        'the ledger header must total both sides in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('+200g') >= 0, 'a sale must show the NET it actually paid');
       assert(html.indexOf('21g each') >= 0, 'a sale must show the per-unit price it traded at');
-      assert(html.indexOf('10g house tax') >= 0, 'a sale must name the house tax it lost');
+      assert(html.indexOf('10g tax') >= 0, 'a sale must name the tax it lost');
+      // Plain words for time ("1 hour ago"), never the log-style "1h ago".
+      assert(/1 hour ago/.test(text) && /2 hours ago/.test(text) && !/\b\d+h ago\b/.test(text),
+        'the ledger must say how long ago in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('mk-ledger-tab') >= 0, 'the All/Sold/Bought filter must render');
       /* NO COUNTERPARTY IDENTITY. market-v2 exposes no name on this table and
          publishing the auth UUID is the exact hole S17 closed — so the render
@@ -7202,7 +7187,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=569');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7227,7 +7212,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=569');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7254,7 +7239,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=569');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7447,7 +7432,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=567')).text();
+      const raw = await (await fetch(f + '?v=569')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7497,7 +7482,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=567')).text();
+    const raw = await (await fetch('src/observability.js?v=569')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7601,7 +7586,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=567');
+    const _art = await import('../../data/monster-art.js?v=569');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -8139,6 +8124,222 @@ export default [
     } finally { restoreGAndRecord(snap); window.__shopBuyLock.reset(); try { window.renderShop(); } catch (e) {} }
   }),
 
+  /* B568-1 — LIVE P1 (QA slot 0, 2026-10-11): Turnip Seed ×10 bought mid-fight;
+     the edge answered `version_conflict` (the combat settle bumped the version),
+     nobody retried, and the row read "Have: 33" against the server's 23 until a
+     reload. TWO halves, both driven: (a) the conflict is the CLIENT's retry, on a
+     new key, and the buy lands; (b) a second conflict leaves the bag at the
+     SERVER's count — the goods leg comes off before the refusal's envelope merges.
+     MUTATION: drop retryOnConflict in sendGoldIntent → (a) red; drop the goods
+     reversal in settleVerdict → (b) red ("Have: 33"). */
+  () => tryRunAsync('B568-1: a shop buy refused version_conflict is retried once, and a second refusal leaves the bag at the server\'s count', async () => {
+    const A = window.HearthriseAccrual, Gd = window.HearthriseGold, G = window.G;
+    const row = (window.SEED_SHOP || []).find((r) => r.id === 'turnip_seed') || (window.SEED_SHOP || [])[0];
+    assert(row && Gd && typeof Gd.noteGoodsPrediction === 'function', 'CONTROL: no seed row or the goods-leg seam is unpublished');
+    const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
+    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    let ver = 5000, plan = [], sent = []; const said = [];
+    const env = (gold, have, ok, extra) => {
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      const inventory = Object.assign({}, G.inventory); if (have > 0) inventory[row.id] = have; else delete inventory[row.id];
+      return Object.assign({ ok, verb: 'shop_buy', version: ++ver, now: Date.now(),
+        state: { gold, active_kind: 'combat', active_id: 'slime', accrued_to: null }, skills, inventory }, extra || {});
+    };
+    const conflict = () => ({ status: 409, body: env(19117, 23, false, { error: 'version_conflict', stage: 'apply' }) });
+    const drainLong = async () => { for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 0)); };
+    const buy = async () => { sent = []; said.length = 0; window.buyShopItem(row.id, row.qty, row.cost); await drainLong(); };
+    try {
+      A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+      Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      window.notify = function (t) { said.push(String(t)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init.body); } catch (e) {}
+        if (!b || b.verb !== 'shop_buy' || !plan.length) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        sent.push(b); const step = plan.shift();
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+      const fresh = () => { G.gold = 19117; G.inventory = Object.assign({}, G.inventory, { [row.id]: 23 }); bag.agree(); stampBalanceLikeLoad(G); window.__shopBuyLock.reset(); };
+
+      // (a) ONE conflict, then the server buys: one tap, two sends, the server's 33.
+      fresh(); plan = [conflict(), { status: 200, body: Object.assign(env(19117 - row.cost, 23 + row.qty, true), { receipt: { item: row.id, qty: row.qty } }) }];
+      await buy();
+      assert(sent.length === 2, 'ONE tap sent ' + sent.length + ' shop_buy — a version_conflict is the client\'s retry (once), not the player\'s');
+      assert(sent[0].intentId !== sent[1].intentId, 'the retry reused the refused key — hr_apply can hand a stored decision back to it');
+      assert((G.inventory[row.id] || 0) === 23 + row.qty && G.gold === 19117 - row.cost, 'after the retry landed the bag reads ' + G.inventory[row.id] + ' / gold ' + G.gold + ' — the server said ' + (23 + row.qty) + ' / ' + (19117 - row.cost));
+      assert(said.some((m) => /^Bought/.test(m)) && !said.some((m) => /nothing was spent/i.test(m)), 'the player was told ' + JSON.stringify(said) + ' for a buy that landed');
+
+      // (b) TWO conflicts: bounded at one retry, and the bag shows the SERVER's count — never the phantom +qty.
+      fresh(); plan = [conflict(), conflict()];
+      await buy();
+      assert(sent.length === 2, 'two conflicts sent ' + sent.length + ' shop_buy — the retry is ONE, never a loop');
+      assert((G.inventory[row.id] || 0) === 23, 'after the server refused twice the bag reads ' + G.inventory[row.id] + ' ' + row.id + ' — the server holds 23 ("Have: 33" on live)');
+      assert(G.gold === 19117, 'a refused buy left gold at ' + G.gold + ', not the server\'s 19117');
+      assert(Object.keys(Gd.goodsPredictions()).length === 0, 'a goods leg outlived its answer: ' + JSON.stringify(Gd.goodsPredictions()));
+      assert(!said.some((m) => /^Bought/.test(m)) && said.some((m) => /nothing was spent/i.test(m)), 'a refused buy told the player ' + JSON.stringify(said));
+
+      // CONTROL: a refusal about the DELTA is the realm's answer — not retried, and the bag still settles to the server.
+      fresh(); plan = [{ status: 409, body: env(19117, 23, false, { error: 'insufficient_gold', stage: 'apply' }) }];
+      await buy();
+      assert(sent.length === 1 && (G.inventory[row.id] || 0) === 23, 'an insufficient_gold refusal sent ' + sent.length + ' and left ' + G.inventory[row.id]);
+    } finally {
+      window.fetch = realFetch; window.notify = realNotify;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+      restoreGAndRecord(snap); bag.restore(); window.__shopBuyLock.reset();
+      try { window.renderShop(); } catch (e) {}
+    }
+  }),
+
+  /* B568-3 — THE BAG IS REPLACED, NEVER MERGED UPWARD (CLAUDE.md §6 class-kill).
+     Live 2026-10-11: the bag held 33 seeds, player_inventory 23, and no envelope
+     could lower it because the prod reconcile was `Math.max(have, q)` behind an
+     unarmed stage. Driven on BOTH branches through the real reconcileInventory:
+     the suite's own (unarmed, merge) position and the ARMED position reached
+     through the production auto-arm (stage + observed grant + complete
+     baseline — no equip acknowledgement). Attended (a plain settle) and AWAY (an
+     envelope carrying a signed away receipt) both. MUTATION: restore the merge
+     max → the first assert reads 33; restore the completeness gate or the
+     not-owned carve-out → the armed omission assert keeps burnt_food. */
+  () => tryRun('B568-3: client bag 33, envelope says 23 — the bag reads 23 on merge and armed, attended and away', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    assert(A && typeof A.reconcileInventory === 'function' && typeof A.maybeAutoArm === 'function', 'CONTROL: the reconcile/arm seams are unpublished');
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      // (1) THE SUITE'S POSITION (unarmed ⇒ merge): a named figure is still believed downward.
+      assert(A.isInventoryAbsolute() === false, 'CONTROL: the bag is already armed, so this half would not measure the merge branch');
+      G.inventory = { turnip_seed: 33 };
+      A.reconcileInventory(G, { inventory: { turnip_seed: 23 }, inventory_complete: false });
+      assert(G.inventory.turnip_seed === 23, 'MERGE: client 33, envelope 23, bag reads ' + G.inventory.turnip_seed + ' — the upward merge is back (the phantom seeds)');
+      // (2) ARMED through the production auto-arm, with NO equip acknowledged this session.
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true && A.isInventoryAbsolute() === true,
+        'the production auto-arm did not make the bag absolute (equip-ack still coupled, or an unnamed guard)');
+      // attended: an incomplete settle (window open) still replaces the bag.
+      G.inventory = { turnip_seed: 33, burnt_food: 7 };
+      A.reconcileInventory(G, { inventory: { turnip_seed: 23 }, inventory_complete: false });
+      assert(G.inventory.turnip_seed === 23, 'ARMED (attended, incomplete): bag reads ' + G.inventory.turnip_seed + ', the server said 23');
+      assert(!('burnt_food' in G.inventory), 'ARMED: the envelope omits burnt_food and the bag still shows ' + G.inventory.burnt_food + ' — the omitted-keep carve-out survived the arm');
+      // away: the return envelope carries a signed receipt; the bag is still exactly the projection.
+      G.inventory = { turnip_seed: 33, cooked_shrimp: 20 };
+      A.reconcileInventory(G, { inventory: { turnip_seed: 23, copper_ore: 40 }, inventory_complete: true,
+        away: { items: { copper_ore: 40, cooked_shrimp: -20 } } });
+      assert(JSON.stringify(G.inventory) === JSON.stringify({ turnip_seed: 23, copper_ore: 40 }),
+        'ARMED (away): the bag is ' + JSON.stringify(G.inventory) + ' — it must be the server projection exactly');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
+  /* B568-4 — A PENDING LOCAL GAIN IS A DISPLAY-ONLY PREDICTION. Under the armed
+     bag an attended gain (here: a gather tick's addItem) still shows in the grid
+     until the next envelope, but the spend gates read the server layer
+     (gateItemCount / gateInputs — the artisan bench, dungeon door, seed picker),
+     so it cannot start a craft the server would refuse; `bagPrediction` names
+     it, and the next envelope clears it. MUTATION: point gateItemCount at
+     G.inventory → the gate assert passes the 7-ore recipe; skip the armed
+     replace → the prediction outlives the envelope. */
+  () => tryRun('B568-4: a pending local gather displays but cannot gate a spend, and the next envelope clears it', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    assert(A && typeof A.bagPrediction === 'function' && typeof A.gateInputs === 'function', 'CONTROL: bagPrediction / gateInputs unpublished');
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
+      G.inventory = {};
+      A.reconcileInventory(G, { inventory: { copper_ore: 2 }, inventory_complete: true });
+      window.addItem('copper_ore', 5);   // the attended prediction
+      assert(G.inventory.copper_ore === 7, 'the predicted ore does not display: bag ' + G.inventory.copper_ore);
+      assert(A.bagPrediction(G).copper_ore === 5, 'bagPrediction does not name the pending 5: ' + JSON.stringify(A.bagPrediction(G)));
+      assert(A.gateItemCount(G, 'copper_ore') === 2, 'the spend gate counted ' + A.gateItemCount(G, 'copper_ore') + ' — a prediction reached a gate');
+      const g = A.gateInputs(G, { copper_ore: 7 });
+      assert(g.ok === false && g.short.indexOf('copper_ore') !== -1, 'a 7-ore spend passed the gate on 2 settled + 5 predicted: ' + JSON.stringify(g));
+      A.reconcileInventory(G, { inventory: { copper_ore: 3 }, inventory_complete: true });
+      assert(G.inventory.copper_ore === 3 && Object.keys(A.bagPrediction(G)).length === 0,
+        'the next envelope did not clear the prediction: bag ' + G.inventory.copper_ore + ', predicted ' + JSON.stringify(A.bagPrediction(G)));
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
+  /* B568-5 (ATTENDED) — a drop predicted mid-fight is wiped by a mid-window
+     envelope and comes back only when the server credits it; at no point in
+     between may a gate or a gesture count it. MUTATION: point gateItemCount (or
+     sellableCount) at G.inventory → the "between" asserts read 1. */
+  () => tryRun('B568-5: attended — a predicted drop is wiped mid-window, restated on credit, and never gates in between', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
+      G.inventory = {};
+      A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: true });
+      window.addItem('goblin_seal', 1);                  // the attended kill's client-rolled drop
+      assert(G.inventory.goblin_seal === 1, 'CONTROL: the predicted drop does not display');
+      const noGate = (when) => {
+        assert(A.gateItemCount(G, 'goblin_seal') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_seal'));
+        assert(window.sellableCount('goblin_seal') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_seal'));
+      };
+      noGate('predicted');
+      // a mid-window envelope (equip answer, window open) that has not settled the kill
+      A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: false });
+      assert(!('goblin_seal' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
+      noGate('wiped');
+      // the settle credits the server's own roll
+      A.reconcileInventory(G, { inventory: { bones: 3, goblin_seal: 1 }, inventory_complete: true });
+      assert(G.inventory.goblin_seal === 1 && A.gateItemCount(G, 'goblin_seal') === 1, 'the credited drop did not land in both layers');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
+  /* B568-6 (AWAY) — the return envelope carries a signed receipt (gains AND an
+     auto-eat debit). Armed, the bag and the gate are both exactly the
+     projection: no stale food survives, no gain is double-counted. MUTATION:
+     restore the omitted-keep carve-out → cooked_shrimp survives. */
+  () => tryRun('B568-6: away — an armed return envelope with a receipt replaces the bag and the gate together', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      A.markInventoryAuthorityLive(false); A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.noteServerArmPermission(true);
+      assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
+      G.inventory = { cooked_shrimp: 20, copper_ore: 5, goblin_seal: 2 };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory_complete: true,
+        inventory: { copper_ore: 45, bones: 12 },
+        away: { items: { copper_ore: 40, bones: 12, cooked_shrimp: -20 } } });
+      assert(JSON.stringify(G.inventory) === JSON.stringify({ copper_ore: 45, bones: 12 }),
+        'the away return left the bag at ' + JSON.stringify(G.inventory) + ' — it must be the projection exactly');
+      assert(A.gateItemCount(G, 'copper_ore') === 45 && A.gateItemCount(G, 'cooked_shrimp') === 0 && A.gateItemCount(G, 'goblin_seal') === 0,
+        'the gate disagrees with the replaced bag');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm(); A.__resetServerArmPermission();
+      restoreG(snap); bag.restore();
+    }
+  }),
+
   /* GOLD-DEADLINE-1 — the deadline spans the BODY read: headers came back, the
      body never did. The call must end as a timeout (prediction stands, the lock
      waiting on it releases), not hang until reload. MUTATION: clear the deadline
@@ -8315,11 +8516,12 @@ export default [
     const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const bad = [];
     try {
-      T.clear();
       await C.open();
+      T.clear();   // after the await: a page toast drawn while the Codex opened is not the burst under test
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
-      assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');
+      const drawnBurst = [...notifs.children].filter((e) => /burst \d/.test(e.textContent)).length;
+      assert(drawnBurst === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawnBurst + ' burst toast(s) drawn');
       C.close();
       await frames();
       const seen = [];

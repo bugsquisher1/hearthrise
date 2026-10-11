@@ -20,14 +20,14 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=567';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=567';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=567';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=567';
+import { SKILLS_DEF } from '../data/skills.js?v=569';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=569';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=569';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=569';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=567';
-import { heroClass } from '../render/skill-guide.js?v=567';
+import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=569';
+import { heroClass } from '../render/skill-guide.js?v=569';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */
@@ -390,8 +390,15 @@ function skillTile(id) {
   </button>`;
 }
 
+/* A skill shows once its spine step arrives or the server says it has XP
+   (src/data/reveals.js `skill:<id>`); no reveal module means every skill. */
+function skillShown(id) {
+  const R = window.HearthriseReveal;
+  return !R || R.shows('skill:' + id);
+}
+
 function buildSkillGrid() {
-  const tiles = orderedSkillIds().map(skillTile).join('');
+  const tiles = orderedSkillIds().filter(skillShown).map(skillTile).join('');
   return `<div class="csk-grid">${tiles}</div>`;
 }
 
@@ -560,6 +567,9 @@ export function setupCharacterPage() {
       window._charPane = paneOf(window._charPane);
       setTimeout(renderCharacter, 30);
     }
+  });
+  window.addEventListener('hearthrise:reveal', () => {
+    if (document.querySelector('#panel-character.active') && paneOf(window._charPane) === 'skills') refreshSkillsPane();
   });
   console.log('[Character Page ESM] overview screen loaded');
 }

@@ -3,55 +3,55 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 4046,
+  "bnumTotal": 4042,
   "files": {
     "src/legacy.js": {
-      "total": 18456,
-      "comment": 7704,
+      "total": 18453,
+      "comment": 7701,
       "code": 9833,
       "ratio": 0.6985252179581195,
-      "bnum": 734
+      "bnum": 733
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 9731,
-      "comment": 2552,
-      "code": 6546,
-      "ratio": 0.389618320610687,
-      "bnum": 130
+      "total": 9933,
+      "comment": 2578,
+      "code": 6718,
+      "ratio": 0.38374516225066985,
+      "bnum": 129
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 9240,
-      "comment": 2434,
-      "code": 6179,
-      "ratio": 0.3939148729567891,
+      "total": 9277,
+      "comment": 2439,
+      "code": 6210,
+      "ratio": 0.3927536231884058,
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
-      "total": 7479,
+      "total": 7478,
       "comment": 1992,
-      "code": 5012,
+      "code": 5011,
       "ratio": 0.39736684619988033,
       "bnum": 133
     },
     "src/net/accrue.js": {
-      "total": 7106,
-      "comment": 3797,
-      "code": 2797,
-      "ratio": 1.3575259206292456,
-      "bnum": 127
+      "total": 7170,
+      "comment": 3813,
+      "code": 2843,
+      "ratio": 1.3411888849806541,
+      "bnum": 126
     },
     "src/features/smoke/market-night-and-prices.js": {
-      "total": 5997,
-      "comment": 1826,
-      "code": 3814,
-      "ratio": 0.4787624541164132,
+      "total": 6021,
+      "comment": 1831,
+      "code": 3832,
+      "ratio": 0.47781837160751567,
       "bnum": 112
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 5785,
+      "total": 5786,
       "comment": 1229,
-      "code": 4321,
-      "ratio": 0.28442490164313816,
+      "code": 4322,
+      "ratio": 0.28435909301249424,
       "bnum": 85
     },
     "src/features/smoke/cooking-core-and-save.js": {
@@ -76,10 +76,10 @@
       "bnum": 81
     },
     "src/features/smoke/companions-claims-and-renown.js": {
-      "total": 3832,
-      "comment": 755,
-      "code": 2874,
-      "ratio": 0.26260869565217393,
+      "total": 3891,
+      "comment": 762,
+      "code": 2925,
+      "ratio": 0.2605128205128205,
       "bnum": 36
     },
     "src/features/clan-seat-ui.js": {
@@ -97,17 +97,17 @@
       "bnum": 134
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
-      "total": 3352,
-      "comment": 630,
-      "code": 2549,
-      "ratio": 0.2471557473519027,
+      "total": 3402,
+      "comment": 635,
+      "code": 2592,
+      "ratio": 0.24498456790123457,
       "bnum": 42
     },
     "src/features/smoke/bounty-and-artisan.js": {
-      "total": 3153,
-      "comment": 803,
-      "code": 2163,
-      "ratio": 0.37124364308830327,
+      "total": 3255,
+      "comment": 821,
+      "code": 2245,
+      "ratio": 0.36570155902004453,
       "bnum": 52
     },
     "src/features/smoke/recovery-and-auto-eat.js": {

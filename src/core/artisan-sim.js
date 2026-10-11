@@ -49,13 +49,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=567';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=567';
-import { actionIntervalMs } from './pacing.js?v=567';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=567';
-import { sliceSpan } from './skill-sim.js?v=567';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=567';
-import { levelOf } from './xp.js?v=567';
+import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=569';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=569';
+import { actionIntervalMs } from './pacing.js?v=569';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=569';
+import { sliceSpan } from './skill-sim.js?v=569';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=569';
+import { levelOf } from './xp.js?v=569';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {

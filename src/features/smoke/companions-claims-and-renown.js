@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests, serverBagFixture } from './_harness.js?v=569';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -2067,6 +2067,65 @@ export default [
       window.HearthriseGoalClaim = origClaim;
       A.__resetAwaySettleLatch(origLatch);
       A.__resetCombatXpDeferral();
+      restoreG(snap);
+    }
+  }),
+
+  /* B568-2 — LIVE (Tyler, 2026-10-11 14:10, combat → Bronze Bar): the ledger read
+     settle 46.584 → set_activity 46.983 → combat XP credit 48.450 answered
+     `not_in_combat`. The pre-switch flush was refused `settle_first`, deferred, and
+     its re-send (fired by the settle's answer) went out AFTER the switch — so XP the
+     player watched land was never paid. A switch out of combat must have every
+     attended credit on the server first. MUTATION: drop awaitAttendedCreditsClear
+     from activity.js's declareActivity → the credit lands after set_activity → red. */
+  () => tryRunAsync('B568-2: leaving combat sends the deferred combat-XP re-flush BEFORE the switch, never after it', async () => {
+    const A = window.HearthriseAccrual, M = window.HearthriseActivity, G = window.G;
+    assert(typeof A.awaitAttendedCreditsClear === 'function', 'CONTROL: accrue.js does not publish awaitAttendedCreditsClear');
+    const snap = snapshotG(), realFetch = window.fetch;
+    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origLatch = !!A.awaySettleDone();
+    const wasOn = A.isServerAccrualEnabled();
+    const order = [];
+    let refuse = true;
+    try {
+      A.__resetCombatXpDeferral();
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          const r = refuse;   // refused settle_first until the settle has answered (the watermark is stale until then)
+          order.push(r ? 'credit:settle_first' : 'credit:ok');
+          return Promise.resolve(r ? { ok: false, error: 'settle_first' } : { ok: true, credited: m });
+        },
+      };
+      A.__resetAwaySettleLatch(true);
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init && init.body); } catch (e) {}
+        const verb = (b && b.verb) || 'accrue';
+        order.push(verb);
+        if (verb === 'accrue') {   // the settle takes a real round trip
+          return new Promise((r) => setTimeout(() => { refuse = false; r(new Response(JSON.stringify({ ok: true, accrued: false, reason: 'idle', version: 1, now: new Date().toISOString() }), { status: 200 })); }, 40));
+        }
+        return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+      };
+      A.setServerAccrualEnabled(true); A.resetAccrualGate();
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      M.setConfirmedActivity({ kind: 'combat', id: 'slime' });
+      G._combatXpPending = { attack: 500 };
+      await M.declareActivity('idle', null);
+      for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 10));
+      const sw = order.indexOf('set_activity'), ok = order.indexOf('credit:ok');
+      assert(order[0] === 'credit:settle_first' && order.indexOf('accrue') > 0 && order.indexOf('accrue') < ok, 'CONTROL: the fixture did not reproduce the refused flush + settle: ' + JSON.stringify(order));
+      assert(sw > 0 && ok > 0, 'CONTROL: the switch or the re-flush never went out: ' + JSON.stringify(order));
+      assert(ok < sw, 'the deferred combat XP re-flush went out AFTER the switch (' + JSON.stringify(order) + ') — the server is no longer in combat and answers not_in_combat, so the XP the player saw is never paid');
+    } finally {
+      window.fetch = realFetch;
+      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim;
+      A.__resetAwaySettleLatch(origLatch); A.__resetCombatXpDeferral();
+      M.resetActivity(); M.configureActivity(null);
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);
       restoreG(snap);
     }
   }),

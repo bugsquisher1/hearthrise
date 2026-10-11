@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=569';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -637,7 +637,7 @@ export default [
   () => tryRun('BAL-PENDING-SAME: the balance dash is unchanged and a count dash never names the balance', () => {
     const B = window.HearthriseBalance;
     assert(B && typeof B.balanceMarkup === 'function', 'balance.js did not load');
-    assert(B.balanceMarkup({}, 'gold') === '<span class="bal-pending" role="status" aria-label="Balance not loaded yet" title="Waiting for the server — your balance will appear in a moment.">—</span>',
+    assert(B.balanceMarkup({}, 'gold') === '<span class="bal-pending" role="status" aria-label="Balance not loaded yet" title="Waiting for the realm — your balance will appear in a moment.">—</span>',
       'the unknown-balance markup moved: ' + B.balanceMarkup({}, 'gold'));
     assert(typeof B.countMarkup === 'function' && /Not counted yet/.test(B.countMarkup(null)) && !/Balance not loaded yet|role=/.test(B.countMarkup(null)),
       'countMarkup(null) must say "Not counted yet" with no live region: ' + (B.countMarkup && B.countMarkup(null)));
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=567');
+    const KIT = await import('../../data/start-kit.js?v=569');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=567');
+    const KIT = await import('../../data/start-kit.js?v=569');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=567');
+    const KIT = await import('../../data/start-kit.js?v=569');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -3743,8 +3743,8 @@ export default [
       const written = A.applyEnvelope(G2, envelope);
       assert(written && G2.gold === 500,
         'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
-      assert(G2.skills.woodcutting === 5000000 && G2.inventory.normal_log === 400,
-        'live-earned XP/items the envelope omits must SURVIVE it — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
+      assert(G2.skills.woodcutting === 0 && G2.inventory.normal_log === 400,
+        'a NAMED skill must take the server figure and an OMITTED stack survive merge — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
 
       /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
          that fires on every player is a gate nobody reads. */
@@ -5175,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=567')).text();
+    const src = await (await fetch('src/legacy.js?v=569')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -7978,12 +7978,15 @@ export default [
     const said = [], seen = [];
 
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
+    const cadences = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive, window.HearthriseMuster, window.HearthriseHearthfind]
+      .filter((m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function');
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
       assert(window.clientMayWriteRecordField('gold') === false,
         'CONTROL: gold is not armed in this fixture, so claimQuestReward takes its DORMANT branch and '
         + 'the server path under test never runs');
+      cadences.forEach((m) => m.__pauseForTest());   // the stub-origin class (STUB-ORIGIN-1): no 25 s heartbeat into the probe
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'qa' }, access_token: 'jwt' }) };
       R.configureRecord({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
@@ -8083,6 +8086,7 @@ export default [
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
       bagHeld.restore();
+      cadences.forEach((m) => m.__resumeForTest());
     }
   }),
 
@@ -8476,12 +8480,45 @@ export default [
       el = line({ status: 'error' }, one);
       assert(el.querySelector('[role="status"]'), 'a failed read rendered ' + el.textContent);
       MP.__setListingsState({ status: 'unknown' }); window.renderMarket();
-      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^Open listings/.test(e.textContent));
-      assert(h && h.querySelector('[role="status"]') && !/No open listings/.test(document.getElementById('market-root').textContent),
+      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^For sale/.test(e.textContent));
+      assert(h && h.querySelector('[role="status"]') && !/Nothing is for sale/.test(document.getElementById('market-root').textContent),
         'an unread market claimed a count or emptiness: ' + (h && h.textContent));
     } finally {
       tile.remove(); MP.__setListingsState(was);
       if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    }
+  }),
+
+  /* MP-R9 (Tyler's screenshot): with the player's own Copper Ore ×910 live, the market
+     read "Open listings (0) — No open listings right now. List something above and be first
+     to market": the browse list was built from OTHER sellers only, so the empty state
+     contradicted what the player had just done. For sale now includes your rows (marked, no Buy).
+     MUTATION: build the browse list from `others` alone in render() → red on the first claim. */
+  () => tryRun('MP-R9: the market never says nothing is for sale while your own listing is live', () => {
+    const M = window.HearthriseMarket, MP = window.HearthriseMarketPrices;
+    const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY), was = MP.getListingsState();
+    try {
+      assert(M && typeof M.currentSellerId === 'function', 'market.js does not publish whose listings are "yours"');
+      const now = Date.now();
+      localStorage.setItem(KEY, JSON.stringify([{ id: '11111111-2222-4333-8444-5555555555a9', sellerId: M.currentSellerId(),
+        sellerName: 'Me', itemId: 'copper_ore', qty: 910, askEach: 4, postedAt: now, expiresAt: now + 47.9 * 3600000 }]));
+      MP.__setListingsState({ status: 'ok', at: now });
+      window.renderMarket();
+      const root = document.getElementById('market-root'), text = root.textContent;
+      assert(!/no open listings|nothing is for sale|no listings/i.test(text),
+        'the market said it was empty while your listing is live: ' + text.slice(0, 300));
+      const browse = root.querySelector('.mk-browse'), mine = root.querySelector('.mk-mine');
+      assert(browse && /Copper Ore/.test(browse.textContent) && /\b1\b/.test(browse.querySelector('h3').textContent),
+        'your live listing is missing from For sale: ' + (browse ? browse.textContent.slice(0, 200) : 'no browse block'));
+      assert(!browse.querySelector('.mk-buy'), 'your own listing offered you a Buy button');
+      assert(mine && /47 hours left/.test(mine.textContent), 'time left is not said in plain words: ' + (mine && mine.textContent));
+      localStorage.setItem(KEY, '[]'); window.renderMarket();   // CONTROL: a truly empty market says so
+      assert(/Nothing is for sale right now/.test(document.getElementById('market-root').textContent),
+        'CONTROL: an empty market did not say so');
+    } finally {
+      MP.__setListingsState(was);
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      window.renderMarket();
     }
   }),
 
@@ -8557,7 +8594,7 @@ export default [
 
   /* MP-R7b (visual gate): the shut List button LOOKED live — gold fill, opacity 1, a pointer —
      and the quantity / asking inputs stayed typeable while the bag was being counted.
-     MUTATION: drop the `#mk-list-btn:disabled` rule in art-direction.css (opacity/cursor), or the
+     MUTATION: drop the `.btn:disabled` / `.mk-list-go:disabled` rules (opacity/cursor), or the
      `bagUnstated ? ' disabled'` on either input in market.js → red. */
   () => tryRun('MP-R7b: while the bag is counted the listing sheet is visibly shut, inputs included', () => {
     const snap = snapshotG(), bag = serverBagFixture();

@@ -59,7 +59,7 @@ export const CODEX_ENTRIES = f([
     [[0, 'renownTerms'], [1, 'rankRewards'], [1, 'rankRatchet']]),
 
   entry('combat-level', 'fighting', 'Combat level',
-    'One number for how dangerous you are: your Defence, Hitpoints and half your Prayer, plus your strongest way of fighting, whether blade, bow or spell.',
+    'One number for how dangerous you are: your Defense, Hitpoints and half your Prayer, plus your strongest way of fighting, whether blade, bow or spell.',
     { tab: 'character' },
     [[0, 'prayerHalf'], [0, 'bestStyleOnly']]),
   entry('weakness', 'fighting', 'Weakness',
@@ -71,7 +71,7 @@ export const CODEX_ENTRIES = f([
     { tab: 'combat' },
     [[0, 'falls'], [1, 'falls'], [2, 'falls']]),
   entry('auto-eat', 'fighting', 'Auto-Eat',
-    'Every hero starts owning Auto-Eat. When your health runs low it eats from your bag, in a fight you are watching or on a night away. Auto-Eat II, bought with Bounty Marks, lets you choose how low is low.',
+    'Every hero starts with Auto-Eat. When your health runs low it eats from your bag, in a fight you are watching or on a night away. Auto-Eat II, bought with Bounty Marks, lets you choose how low is low.',
     { tab: 'bounty' },
     [[0, 'autoEat'], [1, 'autoEat'], [2, 'autoEat']]),
   entry('bounty-marks', 'fighting', 'Bounty Marks',

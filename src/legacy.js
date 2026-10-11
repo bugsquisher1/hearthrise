@@ -5040,7 +5040,7 @@ const QUEST_DEFS=[
    note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
   /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
-     "your first" (ruling B2, reworded b568) keeps the labels apart from weeklies wk_smith/wk_craft. */
+     "your first" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
   {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
   {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
   {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'oak_rod',qty:1},note:'Sixty meals cooked. A better rod means more fish for the pan.',done:false},

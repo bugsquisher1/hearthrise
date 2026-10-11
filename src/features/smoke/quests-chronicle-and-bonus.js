@@ -3349,11 +3349,8 @@ export default [
       'the server catalogue must credit the carrot seeds the card promises');
   }),
 
-  /* b568 COPY-1 (Tyler, 2026-10-11: "craft 60 items in all — what? sounds like
-     broken english"). Every quest and daily label a player reads is plain
-     English: no "in all" padding, no "Kill"/"Defeat" split for the same goal,
-     dishes are dishes, and "a"/"an" never lands on a plural item. MUTATION:
-     restore 'Smith 60 items in all', or the vowel-only withArticle → red. */
+  /* COPY-1 (Tyler: "craft 60 items in all — what?"). MUTATION: restore
+     'Smith 60 items in all', or the vowel-only withArticle → red. */
   () => tryRun('b568 COPY-1: quest and daily labels read as plain English, and no article lands on a plural item', () => {
     const labels = (window.QUEST_DEFS || []).map((q) => q.label)
       .concat((window.DAILY_TASK_POOL || []).map((f) => { try { return f().label; } catch (e) { return ''; } }));

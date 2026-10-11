@@ -81,6 +81,7 @@
     wrong_code: 'That code does not match. Check the welcome channel on Discord and try again.',
     code_expired: 'That code has expired. This week\'s code is pinned in the Discord welcome channel.',
     gift_unavailable: 'Discord gifts are not open yet. Check back soon.',
+    daily_budget: 'Your account has earned all the gems it can today. Claim the gift tomorrow.',
     already_claimed: 'Your Discord gift is already claimed on this account. Thanks for joining!',
     rate_limited: 'Too many tries at once. Wait a minute and try again.',
     not_signed_in: 'Sign in first, then claim your gift.',

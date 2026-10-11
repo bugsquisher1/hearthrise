@@ -152,9 +152,9 @@ async function seed(u, o) {
   const opt = o || {};
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${u}', 0, 0, 0, 40, 40, 1, now() - interval '95 seconds',
+    values ('${u}', 0, 0, 40, 40, 1, now() - interval '95 seconds',
             'gather', '${NODE}', now() - interval '2 hours')
     on conflict (user_id, slot) do update set version = 1, gold = 0,
       accrued_to = now() - interval '95 seconds',
@@ -200,11 +200,11 @@ async function seedFighter(u) {
   await db.exec(`delete from public.player_equipment where user_id = '${u}';`);
   await db.exec(`delete from public.player_progress  where user_id = '${u}';`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
       active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
       consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
       fight, buffs, enchant, hunt_stance, hunt_stop)
-    values ('${u}', 0, 1234, 0, 40, 99, 7, now() - interval '95 seconds',
+    values ('${u}', 0, 1234, 40, 99, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
       true, 'cooked_trout', 70,
       2, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,

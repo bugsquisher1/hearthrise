@@ -67,6 +67,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 import { STAMPING_DELTA_KEYS } from '../supabase/functions/hr-accrue/intents.js';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
@@ -300,9 +301,9 @@ async function dbArms(db, { log = () => {} } = {}) {
     const to2 = new Date(nowMs - 120000).toISOString();
     for (const u of [A, B, SA, SB]) {
       await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-      await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                  active_kind, active_id, active_since, consec_falls, companion_equipped)
-               values ($1, 0, 500, 0, 10, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 0, 'fox')`, [u, mark, cact]);
+               values ($1, 0, 500, 10, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 0, 'fox')`, [u, mark, cact]);
       await q(`insert into public.player_skills (user_id, slot, skill_id, xp, xp_frac) values ($1, 0, 'attack', 40, 0.9)`, [u]);
     }
     const pid = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [A])).id;
@@ -469,6 +470,12 @@ async function main() {
   if (!MUTATE) {
     console.log('\ndelta-key-allowlists: every allowlist covers every key the engine can propose');
     const red = await everything(db, src, fracSql, { log: (s) => console.log(s) });
+    await db.close();
+    // P0 + PI RE-INSTALL THIS FILE, so they run where its own §4 fixture can:
+    // PRE_WALLET, the last chain position with player_state.gems (the column that
+    // fixture inserts; 2026-10-19-account-wallet.sql drops it). Every API the
+    // arms drive (the m4 combat cohort included) is already there.
+    try { db = (await bootReplay({ upTo: PRE_WALLET })).db; } catch (e) { console.error(`harness: ${e.message}`); process.exit(2); }
     // P0 CONTROL: the pre-fix body.
     await db.exec(preSettle);
     const pre = await dbArms(db);

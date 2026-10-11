@@ -45,7 +45,7 @@ import { SHIM_CRYPTO, lit } from './world-tick-token-shims.mjs';
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const MIG = '2026-10-18-discord-gift.sql';
-const PREV = '2026-10-10-w0a-catalogue-cuts.sql';
+const PREV = '2026-10-19-account-wallet.sql';
 const SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
 const SELF = '-- ── §8 SELF-CHECK';
 if (SQL.indexOf(SELF) < 0) { console.error('harness: the migration has no §8 marker'); process.exit(2); }
@@ -156,14 +156,14 @@ const MUTANTS = [
        '  if exists (select 1 from public.hr_discord_gift_claims where user_id = v_uid and slot = p_slot) then\n'],
       ['  on conflict (user_id) do nothing;\n', '  on conflict (user_id, slot) do nothing;\n'],
     ] },
-  { name: 'noOnceRow', why: 'no once-row: the same code pays every time it is typed', expect: /§8 v4/,
+  { name: 'noOnceRow', why: 'no once-row: the claim leaves no per-account record of its own', expect: /§8 (v3: no once-row|v4)/,
     edits: [
       ['  if exists (select 1 from public.hr_discord_gift_claims where user_id = v_uid) then\n',
        '  if false and exists (select 1 from public.hr_discord_gift_claims where user_id = v_uid) then\n'],
-      ['  insert into public.hr_discord_gift_claims (user_id, slot, week, gems)\n  values (v_uid, p_slot, v_used, c_gift_gems)\n  on conflict (user_id) do nothing;\n  get diagnostics v_rows = row_count;\n',
-       '  v_rows := 1;\n'],
+      ['    insert into public.hr_discord_gift_claims (user_id, slot, week, gems_paid)\n    values (v_uid, p_slot, v_used, c_gift_gems)\n    on conflict (user_id) do nothing;\n    get diagnostics v_rows = row_count;\n',
+       '    v_rows := 1;\n'],
     ] },
-  { name: 'clientAmount', why: 'a client-sent amount: an overload takes p_gems from the caller and pays it', expect: /§8 (k5|k6)/,
+  { name: 'clientAmount', why: 'a client-sent amount: an overload takes p_gems from the caller and pays it', expect: /§8 (k5|k6|k7)/,
     edits: [[GRANT, GRANT
       + 'create or replace function public.hr_claim_discord_gift(p_slot integer, p_code text, p_gems integer)\n'
       + ' returns jsonb language plpgsql volatile security definer set search_path to \'public\', \'pg_catalog\' as $m$\n'
@@ -182,8 +182,13 @@ const MUTANTS = [
   { name: 'expiredNotJournalled', why: 'expired-code attempts leave no trace', expect: /§8 v6: an expired code was not journalled/,
     edits: [["      perform public.hr_record_rejection(v_uid, p_slot, 'discord_gift', 'code_expired', '{}'::jsonb, 1);\n", '']] },
   { name: 'noJournal', why: 'the gift is paid with no ledger row', expect: /§8 v5/,
-    edits: [["  values\n    (v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems', c_gift_gems, 'week', v_used));\n",
-             "  select\n    v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems', c_gift_gems, 'week', v_used) where false;\n"]] },
+    edits: [["  values\n    (v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems_paid', c_gift_gems, 'week', v_used));\n",
+             "  select\n    v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,\n     jsonb_build_object('gems_paid', c_gift_gems, 'week', v_used) where false;\n"]] },
+  { name: 'claimRowDoubleCounts', why: 'the claim row carries meta.gems, so the account gems sum twice (wallet §8 v5)', expect: /§8 v5/,
+    edits: [["     jsonb_build_object('gems_paid', c_gift_gems, 'week', v_used));\n", "     jsonb_build_object('gems', c_gift_gems, 'week', v_used));\n"]] },
+  { name: 'creditBypassesWallet', why: 'the gift writes account_wallet itself instead of the choke point', expect: /§8 (k7|v5|v3)/,
+    edits: [["    v_w := public.hr_wallet_credit(v_uid, p_slot, c_gift_gems, 'discord_gift', null);\n",
+             "    update public.account_wallet set gems = gems + c_gift_gems where user_id = v_uid;\n    v_w := jsonb_build_object('paid', c_gift_gems, 'balance', 0, 'version', 0);\n"]] },
   { name: 'failOpen', why: 'with no secret the claim falls back to a fixed code instead of closing', closed: true, expect: /§8 v0/,
     edits: [["    return jsonb_build_object('ok', false, 'error', 'gift_unavailable');   -- no secret: closed\n",
              "    v_cur := 'HEARTHAAAAAA';\n"]] },

@@ -2,6 +2,16 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-11 · BACKEND (lane: `lane/c-account-wallet`) → COORDINATOR + b567 discord-join + w0c login + SECURITY · **INTEGRATION: two staged gem grants write a column the wallet drops**
+
+**The change.** `supabase/migrations/2026-10-19-account-wallet.sql` (staged) moves gems + Hearth Tokens to `public.account_wallet` (one per account; Game Designer ruling 2026-10-11) and DROPS `player_state.gems` / `hearth_tokens`. Every gem credit goes through `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` — once per account per key, account-wide day cap, one `kind='wallet'` ledger row.
+
+**The conflict.** Neither interlock merges cleanly into `origin/main` (git conflicts, not hand-resolved): `lane/b567-discord-join` conflicts in 8 files (incl. `2026-08-11-catalogue.generated.sql`, `schema-apply-order.json`, `restore-census.baseline.json`); `lane/w0c-daily-and-login` in 10 (incl. `schema-drift.baseline.json`, `schema-apply-order.json`, smoke files). Semantically, once the wallet is applied: `2026-10-18-discord-gift.sql` credits `player_state.gems` and its §8 inserts that column → it FAILS TO APPLY; `2026-10-16-login-reward.sql`'s `hr_login_bonus_ready` reads `gems_in` per `(user, slot)` → it must read the account (`kind='wallet'` rows, any slot), and its hr_apply anchor (`progress_claim`) is untouched by the wallet's five edits.
+
+**Order.** Wallet first (it is the last file on main), then each lane merges main into itself and converts: discord → `hr_wallet_credit(v_uid, p_slot, c_gift_gems, 'discord_gift', null)` (the once-row stays; the key makes it structural); login → gems via the engine already pass through the wallet under `apply:<journal.intent>`.
+
+**Also found (not fixed — owners: Game Designer + Systems).** `world_event_absence_claim__ungated` returns `gems: 1` for an absent pledge, but no server body credits that gem (verified by a census of every function naming gems, replay and production); under the armed record the client does not credit it either, so the receipt promises a gem that never lands (§6 class). Its gold (750) is said to be owned by "the gold arm" — not traced here.
+
 ## 2026-09-28 · SYSTEMS (lane: `lane/blessings-promise-honesty`) → GAME DESIGNER + COORDINATOR · **HONESTY: Blessings promised speed, yield, gold find and XP the realm never pays — WITHDRAWN**
 
 **The claim.** Home ("The realm"), the Events blessing card, the login toast and the note beside the running activity printed each day's and week's blessing as a magnitude — "+4% gather speed", "+2 farm yield", "+3% gold find", "+4% all XP", "−25% burn chance" — "while online". `src/features/world-events.js` backed it by wrapping `window.getBonus` with a blessing layer, so the browser predicted rates and yields from it.
@@ -1626,3 +1636,10 @@ The brief asks for `tools/discord-gift-code.mjs`, an operator one-liner that rot
 ## 2026-10-10 — W0a vs w0e/w0f (Systems Engineer)
 
 **Semantic overlap, not a git conflict.** tests/catalogue-coherence.mjs holds a shrink-only PENDING list: w0f (boss materials void_essence/riftmaw_husk/elderscale_heart; trophies warboss_standard/lexarch_seal/voidwoven_sigil/dragon_relic) and w0e (Prayer has no consumer). When those lanes give each a use, they must delete the row in the same commit, or C2/C4 fails as stale. w0a also cut the six elemental arrows/whetstones and the fletching/mason tool ladders from library2-items.js SUPPLY_CHAINS — w0e (ammo/Runecrafting) should merge on top of that, not re-add them.
+
+---
+
+## 2026-10-11 — SEMANTIC CONFLICT RESOLVED: W0a's seal cut vs the account wallet's restatement of world_event_claim__ungated
+**Lanes:** `lane/w0a-cuts-and-copy` (2026-10-10-w0a-catalogue-cuts.sql §1c) and `lane/c-account-wallet` (2026-10-19-account-wallet.sql §4), met in `lane/b567-discord-join`. No git hunk; the chain stopped replaying.
+
+Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the wallet routes its gems through `hr_wallet_credit` and pinned its pre-image to the chain WITHOUT W0a, so with both present the wallet refused at §0 (md5 b2a71614). Neither order works alone: wallet-then-W0a would put a `player_state.gems` write back after the column is dropped. **Resolution (in the wallet file, flagged for Security re-review):** the wallet's restatement is rebased onto W0a's seal-less body (the seal declare, `v_seal := 1`, `hr_rally_chest(…, v_seal)` → `0`, and the `seals` ledger/answer keys removed — exactly W0a's diff), and its §0 pin is now pre = b2a71614 (W0a's body), post = dba6d501. Apply order: w0a-catalogue-cuts → name-moderation → account-wallet → discord-gift. Verified on the merged chain: tests/account-wallet.mjs + --mutate, tests/discord-gift.mjs + --mutate, schema-drift, catalogue-coherence.

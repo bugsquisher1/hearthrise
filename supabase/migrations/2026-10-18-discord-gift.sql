@@ -8,7 +8,8 @@
 -- 00:00–00:10 UTC). No edge half. The client half (src/features/
 -- discord-invite.js + goal-claim.js claimDiscordGift) reads rpc_missing and
 -- gift_unavailable as "gifts are not open yet", so either order is safe.
--- CHAIN POSITION: last, after 2026-10-10-w0a-catalogue-cuts.sql. Restates one
+-- CHAIN POSITION: last, AFTER 2026-10-19-account-wallet.sql (gems are one account
+-- wallet; §0 refuses without it — Security C3 on the wallet review). Restates one
 -- body (hr_rpc_gate, +1 bucket, pinned) and widens one CHECK.
 --
 -- ── WHY THE CODE IS DERIVED AND NOTHING IS WRITTEN (Security, 2026-10-11) ───
@@ -47,13 +48,16 @@
 --    gift open (secret present)? → length/shape → this week's or last week's
 --    code? (else code_expired for the week before, else wrong_code; both journalled
 --    via hr_record_rejection(…, 'discord_gift', 'wrong_code') with no copy of
---    the guess) → once-row insert → credit gems + version → ONE ledger row
---    (kind discord_gift, meta.gems +N, gems_in 0: a fixed once-ever reward,
---    outside the accrual inflow budget, the renown/goal-claim precedent).
---      {ok:true, gems, balance, version, slot}
+--    the guess) → once-row insert + hr_wallet_credit(uid, slot, 25,
+--    'discord_gift', null) in ONE subtransaction (the wallet's own grant key is a
+--    second once-per-account fence; its account day cap answers daily_budget and
+--    rolls the once-row back) → ONE claim ledger row (kind discord_gift) that
+--    ECHOES meta.gems_paid and never meta.gems: the signed movement is the
+--    wallet's kind='wallet' row alone (wallet §8 v5).
+--      {ok:true, gems, balance (the account wallet), version, slot}
 --      {ok:false, error: not_signed_in | bad_slot | no_character |
 --                        already_claimed | gift_unavailable | wrong_code |
---                        code_expired | rate_limited}
+--                        code_expired | daily_budget | rate_limited}
 -- §6 hr_discord_code_current() -> jsonb — OPERATOR ONLY, owner-executable only
 --    (no client role, not hr_engine). {ok, code:'HEARTH-XXXXXX', week,
 --    valid_until} or {ok:false, error:'no_secret'}. Read by
@@ -113,6 +117,11 @@ begin
      or to_regprocedure('public.hr_record_rejection(uuid,integer,text,text,jsonb,bigint)') is null then
     raise exception 'PRECONDITION: hr_rpc_gate / hr_assert_grant_hygiene / hr_tick_crypto_schema / hr_record_rejection absent';
   end if;
+  -- Gems are ONE account wallet; the gift credits it through its choke point.
+  if to_regclass('public.account_wallet') is null
+     or to_regprocedure('public.hr_wallet_credit(uuid,integer,bigint,text,timestamp with time zone)') is null then
+    raise exception 'PRECONDITION: apply 2026-10-19-account-wallet.sql before this file (account_wallet / hr_wallet_credit absent)';
+  end if;
   if not exists (select 1 from pg_constraint
                   where conrelid = 'public.player_ledger'::regclass
                     and conname = 'player_ledger_kind_check') then
@@ -131,7 +140,7 @@ create table if not exists public.hr_discord_gift_claims (
   user_id    uuid        primary key references auth.users (id) on delete cascade,
   slot       integer     not null check (slot between 0 and 5),
   week       text        not null check (week ~ '^[0-9]{4}W[0-9]{2}$'),
-  gems       integer     not null check (gems > 0),
+  gems_paid  integer     not null check (gems_paid > 0),
   claimed_at timestamptz not null default now()
 );
 alter table public.hr_discord_gift_claims enable row level security;
@@ -330,8 +339,7 @@ declare
   v_norm   text;
   v_used   text;
   v_rows   integer;
-  v_gems   bigint;
-  v_ver    bigint;
+  v_w      jsonb;
 begin
   if v_uid is null then
     return jsonb_build_object('ok', false, 'error', 'not_signed_in');
@@ -339,7 +347,8 @@ begin
   if p_slot is null or p_slot < 0 or p_slot > 5 then
     return jsonb_build_object('ok', false, 'error', 'bad_slot');
   end if;
-  -- The paid wallet: the caller's OWN character, locked before any decision.
+  -- The acting hero (provenance on the journal): the caller's OWN character, locked
+  -- before any decision. The gems themselves land in the account wallet.
   perform 1 from public.player_state where user_id = v_uid and slot = p_slot for update;
   if not found then
     return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', p_slot);
@@ -373,26 +382,41 @@ begin
       return jsonb_build_object('ok', false, 'error', 'wrong_code');
     end if;
   end if;
-  -- CONSUME. The PK is the account; a racing second claim inserts nothing.
-  insert into public.hr_discord_gift_claims (user_id, slot, week, gems)
-  values (v_uid, p_slot, v_used, c_gift_gems)
-  on conflict (user_id) do nothing;
-  get diagnostics v_rows = row_count;
-  if v_rows = 0 then
+  -- CONSUME + CREDIT, one subtransaction: the once-row (PK = the account; a racing
+  -- second claim inserts nothing) and the account-wallet credit through the ONE
+  -- choke point (2026-10-19-account-wallet.sql §3, grant key 'discord_gift',
+  -- itself once per account). The wallet's account day cap raises HR000
+  -- 'daily_budget'; that refusal rolls the once-row back with it and is answered
+  -- by name, never as an outage.
+  begin
+    insert into public.hr_discord_gift_claims (user_id, slot, week, gems_paid)
+    values (v_uid, p_slot, v_used, c_gift_gems)
+    on conflict (user_id) do nothing;
+    get diagnostics v_rows = row_count;
+    if v_rows = 0 then
+      return jsonb_build_object('ok', false, 'error', 'already_claimed');
+    end if;
+    v_w := public.hr_wallet_credit(v_uid, p_slot, c_gift_gems, 'discord_gift', null);
+  exception when sqlstate 'HR000' then
+    if sqlerrm = 'daily_budget' then
+      return jsonb_build_object('ok', false, 'error', 'daily_budget');
+    end if;
+    raise;
+  end;
+  -- The wallet's own key already held: the account was paid before (a once-row
+  -- lost to a restore). Nothing is credited twice and nothing more is journalled.
+  if coalesce((v_w->>'paid')::bigint, 0) <> c_gift_gems then
     return jsonb_build_object('ok', false, 'error', 'already_claimed');
   end if;
-  -- CREDIT, after the once-row, in the same transaction.
-  update public.player_state
-     set gems = coalesce(gems, 0) + c_gift_gems, version = version + 1, updated_at = now()
-   where user_id = v_uid and slot = p_slot
-   returning gems, version into v_gems, v_ver;
+  -- The claim's own journal row ECHOES the payout (gems_paid); the signed movement
+  -- is the wallet's kind='wallet' row alone (wallet §8 v5: one source to sum).
   insert into public.player_ledger
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
     (v_uid, p_slot, 'discord_gift', 'discord_gift', 0, 0, 0, 0, 0,
-     jsonb_build_object('gems', c_gift_gems, 'week', v_used));
-  return jsonb_build_object('ok', true, 'gems', c_gift_gems, 'balance', v_gems,
-                            'version', v_ver, 'slot', p_slot);
+     jsonb_build_object('gems_paid', c_gift_gems, 'week', v_used));
+  return jsonb_build_object('ok', true, 'gems', c_gift_gems, 'balance', (v_w->>'balance')::bigint,
+                            'version', (v_w->>'version')::bigint, 'slot', p_slot);
 end $fn$;
 
 create or replace function public.hr_claim_discord_gift(p_slot integer, p_code text)
@@ -458,6 +482,13 @@ declare
   v_two   constant uuid := '000000dc-0000-0000-0000-0000000000dd';
   v_g0    bigint; v_g1 bigint; v_n int; v_def text;
   v_cur   text; v_prev text; v_old text;
+  v_census text[];
+  -- The account wallet's gem-identifier census (2026-10-19-account-wallet.sql §8
+  -- k5), repeated here: this file must add NO body naming a gems identifier.
+  c_gem_identifier_ok constant text[] := array[
+    'hr_claim_goal__ungated', 'hr_create_character', 'hr_goal_state__ungated', 'hr_state_of',
+    'hr_wallet_credit', 'hr_wallet_debit',
+    'world_event_absence_claim__ungated', 'world_event_pledge_settle__ungated'];
 begin
   -- k1 THE ACL ITSELF: the oracles and the inner have NO grantee but their owner;
   --    the wrapper has exactly the owner and authenticated.
@@ -499,14 +530,38 @@ begin
   if exists (select 1 from pg_proc where proname = 'hr_claim_discord_gift'
               and pg_get_function_identity_arguments(oid) <> 'p_slot integer, p_code text') then
     raise exception 'discord-gift §8 k5: hr_claim_discord_gift grew an argument'; end if;
+  -- k7 THE WALLET'S CENSUS, re-run after this file: (a) only the wallet helpers
+  --    write the wallet tables; (b) the bodies naming a bare gems identifier are
+  --    exactly the wallet's classified list (the gift credits through
+  --    hr_wallet_credit and its once-row column is gems_paid).
+  select array_agg(p.proname::text order by p.proname) into v_census
+    from pg_proc p
+   where p.pronamespace = 'public'::regnamespace
+     and regexp_replace(regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'),
+           '/\*.*?\*/', '', 'g'), '''([^'']|'''')*''', '''''', 'g')
+         ~* '(update|insert\s+into)\s+(public\.)?(account_wallet|account_gem_grants)\M'
+     and p.proname not in ('hr_wallet_ensure', 'hr_wallet_credit', 'hr_wallet_debit');
+  if v_census is not null then
+    raise exception 'discord-gift §8 k7(a): % write the wallet tables outside the choke point', v_census; end if;
+  select array_agg(distinct p.proname::text order by p.proname::text) into v_census
+    from pg_proc p
+   where p.pronamespace = 'public'::regnamespace
+     and regexp_replace(regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'),
+           '/\*.*?\*/', '', 'g'), '''([^'']|'''')*''', '''''', 'g')
+         ~* '(^|[^a-z0-9_$])gems([^a-z0-9_]|$)';
+  if v_census is distinct from c_gem_identifier_ok then
+    raise exception 'discord-gift §8 k7(b): the bodies naming a gems identifier are %, expected %', v_census, c_gem_identifier_ok; end if;
 
-  v_cur := public.hr_discord_code_for(to_char(now() at time zone 'utc', 'IYYY"W"IW'));
+  v_cur :=public.hr_discord_code_for(to_char(now() at time zone 'utc', 'IYYY"W"IW'));
 
   begin
     insert into auth.users (id) values (v_uid), (v_two) on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, version) values
-      (v_uid, 0, 0, 3, 1), (v_uid, 1, 0, 0, 1), (v_two, 0, 0, 0, 1)
+    insert into public.player_state (user_id, slot, gold, version) values
+      (v_uid, 0, 0, 1), (v_uid, 1, 0, 1), (v_two, 0, 0, 1)
       on conflict (user_id, slot) do nothing;
+    -- The fixture's gems live where every account's do: the account wallet.
+    insert into public.account_wallet (user_id, gems) values (v_uid, 3), (v_two, 0)
+      on conflict (user_id) do update set gems = excluded.gems;
 
     -- v1 not signed in.
     perform set_config('request.jwt.claim.sub', '', true);
@@ -525,7 +580,7 @@ begin
       if v->>'error' is distinct from 'gift_unavailable' then raise exception 'discord-gift §8 v0 closed: %', v; end if;
       if coalesce(public.hr_discord_code_current()->>'error', '') <> 'no_secret' then
         raise exception 'discord-gift §8 v0: the operator read answered without a secret'; end if;
-      if (select gems from public.player_state where user_id = v_uid and slot = 0) <> 3 then
+      if (select gems from public.account_wallet where user_id = v_uid) <> 3 then
         raise exception 'discord-gift §8 v0: a closed gift moved gems'; end if;
       raise notice 'discord-gift §8: no Vault secret — fail-closed arms ran; the paying arms run once hr_discord_gift_secret exists';
     else
@@ -544,15 +599,19 @@ begin
       v := public.hr_claim_discord_gift__ungated(0, repeat('-', 60) || v_cur);
       if v->>'error' is distinct from 'wrong_code' then raise exception 'discord-gift §8 v2 length: %', v; end if;
 
-      -- v3 this week's code (typed loosely) pays the server constant once, into the named character.
-      select gems into v_g0 from public.player_state where user_id = v_uid and slot = 1;
+      -- v3 this week's code (typed loosely) pays the server constant once, into the ACCOUNT wallet.
+      select gems into v_g0 from public.account_wallet where user_id = v_uid;
       v := public.hr_claim_discord_gift__ungated(1, ' ' || lower(left(v_cur, 6)) || '-' || substr(v_cur, 7) || ' ');
       if coalesce(v->>'ok', '') <> 'true' then raise exception 'discord-gift §8 v3: this week''s code did not pay: %', v; end if;
-      select gems into v_g1 from public.player_state where user_id = v_uid and slot = 1;
+      select gems into v_g1 from public.account_wallet where user_id = v_uid;
       if v_g1 - v_g0 <> 25 or (v->>'gems')::int <> 25 or (v->>'balance')::bigint <> v_g1 then
         raise exception 'discord-gift §8 v3: paid % (answered %), expected 25', v_g1 - v_g0, v; end if;
-      if (select gems from public.player_state where user_id = v_uid and slot = 0) <> 3 then
-        raise exception 'discord-gift §8 v3: a character that did not claim was paid'; end if;
+      if not exists (select 1 from public.account_gem_grants
+                      where user_id = v_uid and grant_key = 'discord_gift' and slot = 1 and gems = 25) then
+        raise exception 'discord-gift §8 v3: the wallet holds no discord_gift grant key for the account'; end if;
+      if not exists (select 1 from public.hr_discord_gift_claims
+                      where user_id = v_uid and slot = 1 and gems_paid = 25 and week ~ '^[0-9]{4}W[0-9]{2}$') then
+        raise exception 'discord-gift §8 v3: no once-row was written for the account'; end if;
 
       -- v4 ONCE PER ACCOUNT: the same character, then ANOTHER character of the same account.
       v := public.hr_claim_discord_gift__ungated(1, v_cur);
@@ -560,16 +619,23 @@ begin
       v := public.hr_claim_discord_gift__ungated(0, v_cur);
       if v->>'error' is distinct from 'already_claimed' then
         raise exception 'discord-gift §8 v4: a second character of the same account was not refused: %', v; end if;
-      if (select gems from public.player_state where user_id = v_uid and slot = 0) <> 3
-         or (select gems from public.player_state where user_id = v_uid and slot = 1) <> v_g1 then
+      if (select gems from public.account_wallet where user_id = v_uid) <> v_g1 then
         raise exception 'discord-gift §8 v4: a refused claim moved gems'; end if;
 
-      -- v5 journalled: exactly one ledger row, signed +25 in meta.gems, no inflow claimed.
+      -- v5 journalled, the wallet's way: ONE wallet row carries the signed +25
+      --    (meta.gems, gems_in); the claim's own row only ECHOES gems_paid, so the
+      --    account's gems sum from one source (wallet §8 v5).
       select count(*) into v_n from public.player_ledger
        where user_id = v_uid and kind = 'discord_gift' and slot = 1
-         and (meta->>'gems')::int = 25 and gold = 0 and gems_in = 0;
+         and (meta->>'gems_paid')::int = 25 and not (meta ? 'gems') and gold = 0 and gems_in = 0;
       if v_n <> 1 or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'discord_gift') <> 1 then
-        raise exception 'discord-gift §8 v5: expected one discord_gift ledger row, found %', v_n; end if;
+        raise exception 'discord-gift §8 v5: expected one discord_gift row echoing gems_paid, found %', v_n; end if;
+      if (select count(*) from public.player_ledger
+           where user_id = v_uid and kind = 'wallet' and intent = 'discord_gift'
+             and (meta->>'gems')::int = 25 and gems_in = 25) <> 1 then
+        raise exception 'discord-gift §8 v5: expected one wallet row of +25 for the gift'; end if;
+      if exists (select 1 from public.player_ledger where user_id = v_uid and kind <> 'wallet' and meta ? 'gems') then
+        raise exception 'discord-gift §8 v5: a non-wallet ledger row carries meta.gems (double count)'; end if;
 
       -- v6 rotation: two weeks old is expired; last week's code is honoured (grace).
       perform set_config('request.jwt.claim.sub', v_two::text, true);
@@ -595,6 +661,8 @@ begin
   if exists (select 1 from public.player_state where user_id in (v_uid, v_two))
      or exists (select 1 from public.player_ledger where user_id in (v_uid, v_two))
      or exists (select 1 from public.hr_discord_gift_claims where user_id in (v_uid, v_two))
+     or exists (select 1 from public.account_wallet where user_id in (v_uid, v_two))
+     or exists (select 1 from public.account_gem_grants where user_id in (v_uid, v_two))
      or exists (select 1 from public.hr_rejections where user_id in (v_uid, v_two))
      or exists (select 1 from auth.users where id in (v_uid, v_two)) then
     raise exception 'discord-gift §8: a probe row leaked';

@@ -53,6 +53,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, chainFiles, inventory, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const MIG = '2026-10-06-world-tick-channel-arm.sql';
@@ -87,9 +88,9 @@ async function arms(db, { log = true } = {}) {
   const makeChar = async (u, kind, act, accruedSql) => {
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
     await db.exec(`
-      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                        active_kind, active_id, active_since)
-      values ('${u}', 0, 0, 0, 10, 10, 1, ${accruedSql}, '${kind}', '${act}', now() - interval '30 days')
+      values ('${u}', 0, 0, 10, 10, 1, ${accruedSql}, '${kind}', '${act}', now() - interval '30 days')
       on conflict (user_id, slot) do update
         set version = 1, gold = 0, accrued_to = ${accruedSql}, active_kind = '${kind}', active_id = '${act}';`);
     await db.exec(`
@@ -382,7 +383,12 @@ async function laterPatchers() {
    the arms (CI db-replay-5, set/b564: 2026-10-09-party-hunt-start-gate.sql).
    That state is append-only, so it never moves under the mutants. */
 async function boot(patches, file = MIG) {
-  const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true, upTo: GUARDS } : {});
+  /* The plain run stops at PRE_WALLET: P-IDEM re-applies these files, whose own
+     §4 fixtures insert player_state.gems, and 2026-10-19-account-wallet.sql (the
+     next file) drops that column. The wallet touches none of FNS, so every arm
+     judges the same bodies it would at the chain end. */
+  const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true, upTo: GUARDS }
+                                     : { upTo: PRE_WALLET });
   return r;
 }
 

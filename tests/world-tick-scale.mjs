@@ -182,9 +182,9 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
   /** A character `ageS` seconds behind; owned on its channel; optional shadow chain age. */
   const char = async (u, { ageS = 600, kind = 'gather', chainS = null, sinceS = 10800 } = {}) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 0, 10, 10, 1, date_trunc('milliseconds', now()) - make_interval(secs => $2), $3, $4,
+             values ($1, 0, 0, 10, 10, 1, date_trunc('milliseconds', now()) - make_interval(secs => $2), $3, $4,
                      now() - make_interval(secs => $5))
              on conflict (user_id, slot) do update set version = 1, gold = 0,
                accrued_to = excluded.accrued_to, active_kind = excluded.active_kind,

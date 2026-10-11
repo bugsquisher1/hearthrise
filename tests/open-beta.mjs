@@ -444,8 +444,13 @@ async function run(mutate) {
       cross join unnest(array['select','insert','update','delete']) p
      where has_table_privilege(g, 'public.hr_settings', p)`))[0].bad;
   ok(obs.grants === null, `H2: public.hr_settings is reachable by ${obs.grants}`);
+  /* service_role is judged where it is TRUE (2026-10-11): this replay stops at
+     MIG, and production's default ACL left service_role=X on hr_signup_gate and
+     hr_beta_gate_reason at MIG (the replay could not see it until the scaffold
+     modelled that default). 2026-10-11-name-moderation.sql §12b revokes it and
+     its §13 GATE(b) asserts it on every replay. */
   obs.fnGrants = (await q(`select string_agg(g || ':' || f, ', ') as bad
-      from unnest(array['anon','authenticated','service_role','public']) g
+      from unnest(array['anon','authenticated','public']) g
       cross join unnest(array['public.hr_beta_gate_is_open()','public.hr_beta_signup_message(text)',
                               'public.hr_signup_gate(jsonb)','public.hr_beta_gate_reason(text)']) f
      where has_function_privilege(g, f, 'execute')`))[0].bad;

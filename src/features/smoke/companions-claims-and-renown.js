@@ -919,6 +919,90 @@ export default [
     }
   }),
 
+  /* ── WALLET-RECEIPT-1 — A CLAIM'S TOAST SAYS WHAT THE SERVER PAID ──────────
+     2026-10-19-account-wallet.sql: gems are ONE wallet per account and every gem
+     grant pays ONCE PER ACCOUNT. The account's second hero claiming Baron (or
+     Bestiary Master) is paid the gold and 0 gems, and the verdict says gems: 0.
+     The toast was built from the CATALOGUE reward (`rw`), so hero B read
+     "+25 gems" while the wallet did not move — the browser saying one thing and
+     the server another (CLAUDE.md §6). The receipt must be the verdict's. */
+  () => tryRunAsync('WALLET-RECEIPT-1: a rank / milestone the server pays with 0 gems (another hero took them) toasts no gems', async () => {
+    const R = window.HearthriseRenown, C = window.HearthriseCollection;
+    if (!R || typeof R.claimRank !== 'function' || typeof R.getClaimable !== 'function') return;
+    if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS || !window.HR) return;
+    const snap = snapshotG();
+    const mirrors = saveMirrors();
+    const origMay = window.clientMayWriteRecordField;
+    const origFetch = window.fetch;
+    const origRec = window.HearthriseRecord;
+    const origNotify = window.notify;
+    const origIcon = window.HR.icon;
+    let unstub = () => {};
+    const said = [];
+    const reply = (body) => Promise.resolve(new Response(JSON.stringify(body),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    try {
+      unstub = stubSignedIn(1);
+      window.HearthriseRecord = { requestRecord: () => Promise.resolve(null) };
+      window.notify = (m) => { said.push(String(m || '')); };
+      window.HR.icon = (key) => '[' + key + ']';           // a readable glyph, so the toast can be graded
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };  // ARMED
+
+      // A RANK WITH A GEM REWARD, claimed on the account's second hero. The
+      // high-water is what every rank gate reads (effectiveRenown), so it is
+      // the one seed that makes Baron claimable regardless of the kill formula.
+      window.G.renownHigh = 200000;
+      window.G.renown = { claimed: [], seenRank: 0 };
+      predZero(); window.G.gold = 0; window.G.gems = 0;
+      const rank = R.getClaimable(window.G).find((r) => r.reward && r.reward.gems > 0);
+      assert(rank, 'a claimable rank with a gem reward must exist at a 200,000 renown high-water');
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_claim_rank') !== -1) {
+          return reply({ ok: true, rank: rank.id, gold: rank.reward.gold || 0, gems: 0, renown_high: 99999, slot: 1, credited: true });
+        }
+        return reply([]);
+      };
+      const out = await R.claimRank(rank.id, window.G);
+      assert(out && out.gems === 0 && out.gold === (rank.reward.gold || 0),
+        'the claim must resolve to what the SERVER paid (gold, 0 gems); got ' + JSON.stringify(out));
+      const rmsg = said.join(' | ');
+      assert(rmsg.indexOf('[gold]') >= 0, 'the rank toast must still name the gold paid: ' + rmsg);
+      assert(rmsg.indexOf('[gems]') < 0,
+        'THE BUG: the rank toast promised the catalogue\'s ' + rank.reward.gems + ' gems the wallet did not pay: ' + rmsg);
+
+      // THE SAME FOR A MILESTONE WITH A GEM REWARD (Bestiary Master).
+      said.length = 0;
+      const all = Object.keys(window.MONSTERS);
+      seedServerMonsters(all);
+      window.G.collectionLog = { claimed: [] };
+      const ms = C.claimable(window.G).find((m) => m.reward && m.reward.gems > 0);
+      assert(ms, 'with every monster server-counted, a milestone with a gem reward (Bestiary Master) must be claimable');
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_claim_milestone') !== -1) {
+          return reply({ ok: true, milestone: ms.id, gold: ms.reward.gold || 0, gems: 0, slot: 1, credited: true });
+        }
+        return reply([]);
+      };
+      const out2 = await C.claimMilestone(ms.id, window.G);
+      assert(out2 && out2.gems === 0, 'the milestone must resolve to what the server paid; got ' + JSON.stringify(out2));
+      const mmsg = said.join(' | ');
+      assert(mmsg.indexOf('[gold]') >= 0, 'the milestone toast must still name the gold paid: ' + mmsg);
+      assert(mmsg.indexOf('[gems]') < 0,
+        'THE BUG: the milestone toast promised the catalogue\'s ' + ms.reward.gems + ' gems the wallet did not pay: ' + mmsg);
+    } finally {
+      window.HR.icon = origIcon;
+      window.clientMayWriteRecordField = origMay;
+      window.fetch = origFetch;
+      unstub();
+      window.HearthriseRecord = origRec;
+      window.notify = origNotify;
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (C && C.__resetClaimState) C.__resetClaimState();
+      restoreMirrors(mirrors);
+      restoreG(snap);
+    }
+  }),
+
   /* ── RANK-CLAIM-2 — ok:true PAYS ONCE; already_claimed IS THE SERVER'S MEMORY;
      AN UNREACHABLE SERVER NEVER CONSUMES THE RANK. Three outcomes that must not
      collapse into each other: the claimed mark follows the server, and only the

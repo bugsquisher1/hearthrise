@@ -677,7 +677,14 @@ export async function runClaimReward(o) {
         key: v.key,
         period: v.spec.periodic ? (gate.period ?? null) : null,
         gold: priced.gold,
-        gems: priced.gems || 0,
+        /* WHAT THE ACCOUNT WALLET PAID (2026-10-19-account-wallet.sql). Gems
+           are once per ACCOUNT: the account's second hero claiming the same day
+           is paid its gold and 0 gems, and hr_apply says so in `gems_paid`,
+           which it returns whenever the delta asked for gems. Absent means
+           either no gems were asked for (the price is 0) or an hr_apply that
+           predates the wallet (which paid the price per hero) — the price is
+           the truth in both, so it is the fallback and never the override. */
+        gems: ('gems_paid' in res) ? Number(res.gems_paid) || 0 : (priced.gems || 0),
         ...(priced.meta || {}),
       },
       /* The settle's receipt: the window paid BEFORE the grant, by this call. */

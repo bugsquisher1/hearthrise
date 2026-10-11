@@ -42,6 +42,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+import { walletFixture } from './wallet-fixture.mjs';
 /* THE FINAL-BODY RULE. hr_state_of is RESTATED WHOLE by a later migration, so an
    arm that plants into this file's own splice is mutating a draft the restatement
    overwrites — and the restatement's §0 pin refuses a body it cannot name, so
@@ -381,8 +382,9 @@ async function runAll(db) {
         [id, idem])).r;
     } catch (e) { return { ok: false, error: 'RAISED', raised: String(e && e.message).split(String.fromCharCode(10))[0] }; }
   };
-  const gems = async () => Number((await q(
-    'select gems from public.player_state where user_id=$1 and slot=0', [UID])).gems);
+  // The balance on whichever schema this replay stopped at (tests/wallet-fixture.mjs).
+  const wf = await walletFixture(db);
+  const gems = () => wf.gemsOf(UID, 0);
   const owned = async () => {
     const e = (await q('select public.hr_state_of($1::uuid, 0) as e', [UID])).e || {};
     return Array.isArray(e.gem_unlocks) ? e.gem_unlocks : [];
@@ -475,8 +477,7 @@ async function runAll(db) {
 
   // ── R3. THE HAPPY PATH — the debit is EXACTLY the catalogue price ───────
   const IDEM = '000000e1-0000-0000-0000-0000000000a1';
-  await db.exec(`update public.player_state set gems = ${Number(target.cost_gems) + 7}
-                  where user_id = '${UID}' and slot = 0;`);
+  await wf.setGems(UID, 0, Number(target.cost_gems) + 7);
   {
     const r = await buy(target.unlock_id, IDEM);
     ok(r && r.ok === true, `a funded purchase of ${target.unlock_id} was refused: ${JSON.stringify(r)}`);
@@ -499,8 +500,18 @@ async function runAll(db) {
     const l = await ledger();
     ok(l.length === 1, `${l.length} ledger rows for one purchase (need exactly 1 — a row per render `
        + 'is the game_events mistake at ledger scale)');
-    ok(l[0] && Number(l[0].meta.gems) === -Number(target.cost_gems),
-       `the journal records the signed movement (${l[0] && l[0].meta.gems} vs ${-target.cost_gems})`);
+    // On the account-wallet schema (2026-10-19) the SIGNED movement is the one
+    // kind='wallet' row hr_wallet_debit wrote under the purchase's intent; the
+    // gem_unlock row is the PURCHASE and carries no meta.gems (so the account's
+    // gem history is summed from one kind and never twice).
+    const signed = wf.wallet
+      ? (await db.query("select meta from public.player_ledger where user_id=$1 and kind='wallet' and intent=$2",
+          [UID, 'gem_unlock_buy:' + target.unlock_id])).rows
+      : l;
+    ok(signed.length === 1 && Number(signed[0].meta.gems) === -Number(target.cost_gems),
+       `the journal records the signed movement once (${signed.length} row(s), `
+       + `${signed[0] && signed[0].meta.gems} vs ${-target.cost_gems})`);
+    if (wf.wallet) ok(!(l[0] && 'gems' in l[0].meta), 'the purchase row repeats the signed movement (double count)');
     ok(l[0] && l[0].meta.offer_id === target.offer_id,
        'the journal names the OFFER, so a ledger row traces back to the card the player tapped');
   }
@@ -552,16 +563,14 @@ async function runAll(db) {
 
     // Funded deliberately far above the price: a refusal that is really
     // `insufficient_gems` wearing another name would prove nothing.
-    await db.exec(`update public.player_state set gems = 999999
-                    where user_id = '${UID}' and slot = 1;`);
+    await wf.setGems(UID, 1, 999999);
     const r2 = (await q(
       'select public.hr_buy_gem_unlock__ungated($1::text, 1, $2::uuid) as r',
       [target.unlock_id, null])).r;
     ok(r2 && r2.error === 'already_owned',
        `hero 2 buying the account's own ${target.unlock_id} answered ${JSON.stringify(r2)} — it must `
        + 'be already_owned, or the premium price is charged once per character');
-    const gems1 = Number((await q(
-      'select gems from public.player_state where user_id=$1 and slot=1', [UID])).gems);
+    const gems1 = await wf.gemsOf(UID, 1);
     ok(gems1 === 999999, `hero 2 WAS CHARGED for an unlock the account already owns (${gems1})`);
 
     // AND THE WRITE STAYED WHERE THE MONEY CAME FROM. The ruling is a read/write
@@ -580,21 +589,27 @@ async function runAll(db) {
   // ── R9. THE FILE RE-APPLIES BYTE-IDENTICALLY ────────────────────────────
   // A migration the Coordinator can only run once cannot be replayed into a
   // restored database. Both splices must detect their own work and return.
+  // Judged on the chain AS OF THIS FILE: a later file may legitimately remove
+  // a precondition (2026-10-19-account-wallet.sql drops player_state.gems, which
+  // this file's §0 requires), and re-applying history on top of the future is
+  // not the property. A wallet-era plain run boots its own bounded replay for it.
   {
-    const bodies = async () => (await db.query(
+    const rdb = wf.wallet ? (await bootReplay({ upTo: MIG })).db : db;
+    const bodies = async () => (await rdb.query(
       `select pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure) as s,
               pg_get_functiondef('public.hr_rpc_gate(text)'::regprocedure) as g`)).rows[0];
     const before = await bodies();
     let reapplied = true;
     try {
       const sql = (await readFile(new URL(`supabase/migrations/${MIG}`, ROOT), 'utf8')).replace(/\r\n/g, '\n');
-      await db.exec(sql);
+      await rdb.exec(sql);
     } catch (e) { reapplied = false; ok(false, `the migration did not re-apply: ${e && e.message}`); }
     if (reapplied) {
       const after = await bodies();
       ok(after.s === before.s, 'a second apply leaves hr_state_of byte-identical');
       ok(after.g === before.g, 'a second apply leaves hr_rpc_gate byte-identical');
     }
+    if (rdb !== db) await rdb.close();
   }
 }
 

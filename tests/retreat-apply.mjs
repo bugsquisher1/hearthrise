@@ -187,9 +187,9 @@ async function run(mutate) {
 
   // ── the character ────────────────────────────────────────────────────────
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+  await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
       active_kind, active_id, accrued_to)
-    values ('${U}', 0, 0, 0, 4, 10, 1, 'combat', 'slime', now() - interval '600 seconds')
+    values ('${U}', 0, 0, 4, 10, 1, 'combat', 'slime', now() - interval '600 seconds')
     on conflict (user_id, slot) do update set version = 1;`);
 
   const readRow = async () => (await db.query(

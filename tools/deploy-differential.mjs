@@ -203,11 +203,17 @@ try { ({ db } = await bootReplay({})); } catch (e) { await cleanup(); harness(`t
 const q = async (sql, p) => (await db.query(sql, p)).rows;
 const uOld = '00000000-0000-4000-8000-0000000dd001';
 const uNew = '00000000-0000-4000-8000-0000000dd002';
+/* Wallet-aware: since 2026-10-19-account-wallet.sql gems live in
+   account_wallet (player_state.gems is dropped). The replayed chain is the
+   checkout's, so the column is read, not assumed; gems start at 0 either way. */
+const HAS_GEMS_COL = (await q(`select 1 from information_schema.columns
+  where table_schema = 'public' and table_name = 'player_state' and column_name = 'gems'`)).length > 0;
+const HAS_WALLET = (await q(`select to_regclass('public.account_wallet') as t`))[0].t !== null;
 const seed = async (u) => {
   await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-  await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+  await q(`insert into public.player_state (user_id, slot, gold, ${HAS_GEMS_COL ? 'gems, ' : ''}hp, max_hp, version, accrued_to,
              active_kind, active_id, active_since, companion_equipped)
-           values ($1, 0, $2, 0, $3, $4, 1, to_timestamp($5::double precision / 1000), $6, $7,
+           values ($1, 0, $2, ${HAS_GEMS_COL ? '0, ' : ''}$3, $4, 1, to_timestamp($5::double precision / 1000), $6, $7,
                    to_timestamp($8::double precision / 1000), $9)`,
   [u, Math.max(0, Math.floor(probe.gold || 0)), probe.hp, probe.maxHp, probe.accruedToMs, probe.activeKind,
     probe.activeId, probe.activeSinceMs ?? probe.accruedToMs, probe.perks?.companion?.id ?? null]);
@@ -237,7 +243,8 @@ const STRIP = new Set(['user_id', 'id', 'ts', 'at', 'created_at', 'updated_at'])
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !STRIP.has(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
 const stateOf = async (u) => {
   const out = {};
-  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', 'player_bank']) {
+  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', 'player_bank',
+    ...(HAS_WALLET ? ['account_wallet'] : [])]) {
     out[t] = (await q(`select to_jsonb(t) as j from public.${t} t where user_id = $1`, [u])).map((r) => JSON.stringify(clean(r.j))).sort();
   }
   return out;

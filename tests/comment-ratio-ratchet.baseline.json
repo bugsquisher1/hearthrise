@@ -20,10 +20,10 @@
       "bnum": 129
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 9267,
-      "comment": 2438,
-      "code": 6202,
-      "ratio": 0.3927536231884058,
+      "total": 9302,
+      "comment": 2440,
+      "code": 6234,
+      "ratio": 0.3914019890920757,
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
@@ -48,10 +48,10 @@
       "bnum": 111
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 5668,
+      "total": 5671,
       "comment": 1197,
-      "code": 4250,
-      "ratio": 0.2816470588235294,
+      "code": 4253,
+      "ratio": 0.28144838937220784,
       "bnum": 81
     },
     "src/features/smoke/cooking-core-and-save.js": {

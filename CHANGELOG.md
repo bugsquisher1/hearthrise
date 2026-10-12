@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 572 — 2026-10-12 (Nothing hidden without a reason)
+
+**Nothing hidden without a reason.** Doors, tabs and skills you have not reached yet now show with a padlock and say exactly what opens them, for example "Opens when you catch and cook five fish (Step 2)", with a Show me button that takes you to your current goal. Bosses far above your level fold into one line that says when the next one opens.
+
+**Join the Discord from anywhere.** A Discord button now sits in the top bar, with a "!" until you have looked at it.
+
+**Browse the Player Market by type.** Pick a category (Weapons, Armour, Food, Materials, Seeds and more) to see just those listings, with a count on each. Market search now filters as you type.
+
 ## v0.9.2-beta build 571 — 2026-10-12 (Your heroes, always)
 
 **Your heroes are always one tap away.** If you own more than one hero, the hero switcher on Home now shows from the start, so you can always play any of them.

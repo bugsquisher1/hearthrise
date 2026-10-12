@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 86 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=571';
-import { fold } from '../lifetime-tally.js?v=571';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=572';
+import { fold } from '../lifetime-tally.js?v=572';
 
 /* THE WIRE HOLDS. Every request whose URL contains `match` is recorded and
    left UNANSWERED until the test calls answer() — or, while `wire.auto` is set,

@@ -157,7 +157,7 @@ export default [
             { kind: 'unlock', period: '', key: 'property:homestead', value: 1 }] });
         assert(R.shows('skill:fishing') && R.shows('pane:house') && R.shows('card:workers'),
           'a server envelope did not reveal what it confirms: ' + [...R.state().shown].join(','));
-        assert(!R.shows('pane:market'), 'an envelope revealed a step it did not reach');
+        assert(!R.shows('pane:bounty'), 'an envelope revealed a step it did not reach');
       } finally { R.__swapView(view); }
     });
   }),
@@ -236,7 +236,8 @@ export default [
     skip2.counts['ev:cooked'] = 0;
     await withPin(skip2, async () => {
       assert(R.state().progress.current === 2, 'step 2 is not current with only it open');
-      assert(!R.shows('pane:market') && !R.shows('card:vigour'), 'a later step opened its doors out of order');
+      assert(!R.shows('pane:bounty') && !R.shows('card:vigour'), 'a later step opened its doors out of order');
+      assert(R.shows('pane:market'), 'the Player Market is hidden at step 2 — it is open from minute 0 for every hero');
     });
     for (let k = 1; k <= R.steps.length; k++) {
       await withPin(atStep(R, k), async () => {

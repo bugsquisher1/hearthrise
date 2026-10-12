@@ -126,7 +126,7 @@ const DISPLAY = {
     need: [count('crafted', 1), wears('boots')], chain: true,
     parts: [part(level('crafting', 8), 'craft'), part(item('wolf_pelt', 2), 'fight'),
       part(item('leather_boots', 1), 'craft'), part(wears('boots'), 'wear')],
-    opens: opens('The Market opens', 'Sell your surplus to other players.'),
+    opens: opens('Sell your surplus on the Player Market', 'Other players buy what you do not need.'),
   },
   first_harvest: {
     title: 'Harvest 6 crops', why: 'A full harvest feeds you and sells well.',

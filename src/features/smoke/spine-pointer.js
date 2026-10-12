@@ -181,7 +181,7 @@ export default [
       assert(SP.observe('t:1', ['chop_logs', 'fish_and_cook']).length === 0, 'a step must speak only once');
       assert(SP.observe('t:2', ['chop_logs', 'fish_and_cook']).length === 0, 'another slot starts a fresh baseline');
       const el = SP.showMoment('first_craft');
-      assert(el && /The Market opens/.test(el.textContent) && /Sell your surplus/.test(el.textContent), 'the moment reads ' + (el && el.textContent));
+      assert(el && /Sell your surplus on the Player Market/.test(el.textContent) && !/Market opens/.test(el.textContent), 'the moment reads ' + (el && el.textContent));
       el.remove();
     } finally { SP.__park(was); SP.__forget(); }
   }),

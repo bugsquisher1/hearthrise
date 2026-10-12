@@ -74,7 +74,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=570) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=571) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -1328,9 +1328,15 @@
     // two can never drift. Account gate: HearthriseProfile.profile is null until
     // the account wall opens, so signed-out we render nothing at all.
     var HP = window.HearthriseProfile;
-    if (HP && HP.profile && typeof HP.slotRows === 'function' && shown('card:heroes')) {
+    if (HP && HP.profile && typeof HP.slotRows === 'function') {
       try {
+        /* Heroes the account OWNS are never hidden (the switcher is the only
+           way to reach them); only the empty slots for sale wait for step 10. */
         var heroRows = HP.slotRows();
+        if (!shown('card:heroes')) {
+          var owned = heroRows.filter(function (r) { return r.kind === 'char'; });
+          heroRows = owned.length > 1 ? owned : [];
+        }
         if (heroRows.length) {
           var heroesHtml = heroRows.map(function (r) {
             if (r.kind === 'char') {

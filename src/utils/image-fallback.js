@@ -23,7 +23,7 @@
 //     subtly instead of jarringly.
 //
 // Imported for side effects:
-//   import './utils/image-fallback.js?v=570';
+//   import './utils/image-fallback.js?v=571';
 // ============================================================
 
 const FALLBACK_CLASS = 'icon-fallback';

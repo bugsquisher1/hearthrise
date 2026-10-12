@@ -5,7 +5,7 @@
 // of the suite renders a seasoned account. These tests pin the other states
 // through HearthriseReveal.__pin and read what a player would see.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=570';
+import { tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=571';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -307,5 +307,29 @@ export default [
     await withPin(R.FULL, async () => {
       assert(F.shutDoorLine(combat) === '' && F.findTarget(combat.target), 'an open door still gets the shut-door line');
     });
+  }),
+
+  () => tryRunAsync('SPINE-REVEAL-12: an account that owns two heroes sees the switcher at step 2', async () => {
+    const R = window.HearthriseReveal, HP = window.HearthriseProfile;
+    assert(HP, 'HearthriseProfile is not published');
+    const had = { profile: HP.profile, rows: HP.slotRows };
+    const rows = [{ kind: 'char', id: 0, name: 'Ash', active: true, combatLv: 3, totalLv: 20 },
+      { kind: 'char', id: 1, name: 'Bryn', active: false, combatLv: 2, totalLv: 9 },
+      { kind: 'locked', id: 2, slotId: 2, cost: 100 }];
+    try {
+      HP.profile = HP.profile || { id: 'qa' };
+      HP.slotRows = () => rows;
+      await withPin(atStep(R, 2), async () => {
+        window.showTab('profile'); window.HearthriseHome.render(); await tick();
+        assert([...document.querySelectorAll('#hd-root [data-hero]')].length === 1, 'a second owned hero has no Play button at step 2');
+        assert(!document.querySelector('#hd-root [data-herobuy]'), 'an empty slot for sale shows before step 10');
+      });
+      rows.splice(1, 1);
+      await withPin(atStep(R, 2), async () => {
+        window.HearthriseHome.render(); await tick();
+        const h3 = [...document.querySelectorAll('#hd-root .hd-h h3')].map((e) => e.textContent);
+        assert(h3.indexOf('Your heroes') < 0, 'a one-hero account shows the switcher before step 10');
+      });
+    } finally { HP.profile = had.profile; HP.slotRows = had.rows; }
   }),
 ];

@@ -14637,10 +14637,10 @@ function patchSkillsList(){
   window.renderSkillsList = function(){
     var el = document.getElementById('skills-list');
     if(!el) return;
-    var cats = {gather:'Gathering', artisan:'Artisan'}, R = window.HearthriseReveal; /* a skill shows once its spine step arrives or it has XP (src/data/reveals.js) */
+    var cats = {gather:'Gathering', artisan:'Artisan'}, R = window.HearthriseReveal, L = window.HearthriseLocks; /* a skill not reached yet is drawn LOCKED with its reason (src/features/reveal-locks.js) */
     var html = Object.entries(cats).map(function(pair){
       var cat = pair[0], label = pair[1];
-      var skills = Object.entries(SKILLS_DEF).filter(function(kv){return kv[1].cat===cat && (!R || R.shows('skill:'+kv[0]));});
+      var skills = Object.entries(SKILLS_DEF).filter(function(kv){return kv[1].cat===cat;});
       var rows = skills.map(function(kv){
         var id = kv[0], s = kv[1];
         var xp = skillXp(id), lv = getLevel(id), pct = Math.floor(xpPct(xp)*100);
@@ -14651,7 +14651,7 @@ function patchSkillsList(){
         var iconHtml = (window._skillIcon && window._skillIcon[id])
           ? '<img src="'+window._skillIcon[id]+'" alt="" loading="lazy" />'
           : '<span class="sicon">'+((window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(id, 30)) || '')+'</span>';
-        return '<button class="skill-tile '+active+'" onclick="openSkillDetail(\''+id+'\')">'
+        var why = (R && L) ? R.lockReason('skill:'+id) : null; return '<button class="skill-tile '+active+'" onclick="openSkillDetail(\''+id+'\')"'+(why ? L.attr(why) : '')+'>'
           /* b217: was icon / "Lv 1" / bar / name stacked in a 185px square —
              the level set at 14px bold above the skill's own name at 10px
              grey, so the stat outweighed the subject across sixteen tiles,
@@ -14662,7 +14662,7 @@ function patchSkillsList(){
             +'<span class="snm">'+s.name+'</span>'
             +'<span class="bar xp"><i style="width:'+pct+'%"></i></span>'
           +'</span>'
-          +'<span class="slv">'+lv+'</span>'
+          +(why ? L.pad() : '<span class="slv">'+lv+'</span>')
           +'</button>';
       }).join('');
       return rows && ('<div class="skill-cat">'+label+'</div>'

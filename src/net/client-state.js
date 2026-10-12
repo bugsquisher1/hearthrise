@@ -131,6 +131,7 @@ export const RESIDUE_FIELDS = Object.freeze([
      gesture; every reader goes through HearthriseAuto.autoEatFoodId(), which
      prefers the server's nomination and resolves a NULL one the way the engine
      does — the best provision in the bag. Declared in NO_SYNC. */
+  'discordSeen',    // client-only display state: the Discord button's "!" was opened or dismissed; gates nothing
   'settings',       // client-only preference: sfx / reduceFx / leftHand / uiScale — the device's
                     // own display and audio choices; the server computes nothing from them
   /* ⚠ `ownedThemes` and `ownedCosmetics` WERE HERE and are DELETED, not re-homed

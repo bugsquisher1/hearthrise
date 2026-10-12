@@ -122,6 +122,14 @@
   }
 
   let stripObserver = null;
+  /* A skill the reveal has not opened is drawn LOCKED with its reason
+     (src/features/reveal-locks.js stops the tap and explains). */
+  function paintLocks() {
+    const R = window.HearthriseReveal, L = window.HearthriseLocks;
+    if (!R || !L) return;
+    document.querySelectorAll('#act-mob-strip .ams-btn').forEach(b => L.mark(b, R.lockReason('skill:' + b.dataset.skill)));
+  }
+
   function install() {
     const panel = document.getElementById('panel-skills');
     if (!panel) return false;
@@ -134,6 +142,7 @@
       openFromStrip(panel, btn.dataset.skill);
     });
     setStripActive(panel, getActiveSkill());
+    paintLocks();
     wrapOpenDoor();
     publishHeight(panel, strip);
     if (stripObserver) stripObserver.disconnect();
@@ -146,6 +155,7 @@
 
   function watch() {
     if (!install()) return;
+    window.addEventListener('hearthrise:reveal', paintLocks);
     window.addEventListener('resize', () => {
       const panel = document.getElementById('panel-skills');
       const strip = panel && panel.querySelector('#act-mob-strip');

@@ -11,18 +11,23 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 /** Everything the reveal can gate, as ids, read off the live DOM. */
 async function surfaces() {
-  const shown = (el) => !!el && el.style.display !== 'none';
+  const shown = (el) => !!el && el.style.display !== 'none' && !el.hasAttribute('data-reveal-locked');
   const out = {};
   out.doors = [...document.querySelectorAll('.nav-btn[data-tab]')].filter(shown).map((b) => b.dataset.tab);
+  out.lockedDoors = Object.fromEntries([...document.querySelectorAll('.nav-btn[data-tab][data-reveal-locked]')]
+    .map((b) => [b.dataset.tab, b.getAttribute('data-reveal-locked')]));
   const N = window.HearthriseNav;
   out.panes = N.hubs.flatMap((h) => h.panes.map((p) => p.tab)).filter((t) => N.paneShown(t));
   window.showTab('skills'); await tick();
-  out.skills = [...document.querySelectorAll('#skills-list .skill-tile .snm')].map((e) => e.textContent);
+  out.skills = [...document.querySelectorAll('#skills-list .skill-tile:not([data-reveal-locked]) .snm')].map((e) => e.textContent);
+  out.lockedSkills = [...document.querySelectorAll('#skills-list .skill-tile[data-reveal-locked]')].map((e) => e.querySelector('.snm').textContent + ': ' + e.getAttribute('data-reveal-locked'));
+  out.lockedStrip = [...document.querySelectorAll('#act-mob-strip .ams-btn[data-reveal-locked]')].map((b) => b.dataset.skill);
   out.recipeBook = shown(document.getElementById('btn-recipe-book'));
   window._charPane = 'skills';
   window.showTab('character'); await new Promise((r) => setTimeout(r, 60));
   if (typeof window.renderCharacter === 'function') window.renderCharacter();
-  out.charSkills = [...document.querySelectorAll('#csk-grid-host .csk-nm')].map((e) => e.textContent);
+  out.charSkills = [...document.querySelectorAll('#csk-grid-host .csk-tile:not([data-reveal-locked]) .csk-nm')].map((e) => e.textContent);
+  out.lockedChar = document.querySelectorAll('#csk-grid-host .csk-tile[data-reveal-locked]').length;
   window.showTab('combat'); await tick();
   const CS = window.HearthriseCombatScreens;
   CS.render();
@@ -100,7 +105,7 @@ async function withPin(pin, body) {
 
 export default [
 
-  () => tryRunAsync('SPINE-REVEAL-1: a fresh character sees four doors and one skill', async () => {
+  () => tryRunAsync('SPINE-REVEAL-1: a fresh character has four open doors and one open skill; everything else is shown LOCKED with the step that opens it', async () => {
     const R = window.HearthriseReveal;
     assert(R && typeof R.shows === 'function', 'window.HearthriseReveal is not published');
     await withPin(R.FRESH, async () => {
@@ -111,11 +116,23 @@ export default [
       assert(!s.recipeBook, 'the Recipe Book button shows before the crafting step');
       assert(s.home.indexOf('Your heroes') < 0 && s.home.indexOf('The realm') < 0, 'fresh Home shows step-10 cards: ' + s.home.join(','));
       assert(R.state().progress.current === 1, 'a fresh character is not on step 1');
-      /* The tour must not spotlight a door the reveal holds back (it would point at 0,0). */
-      const F = window.HearthriseFTUE;
-      assert(F && typeof F.findTarget === 'function', 'HearthriseFTUE.findTarget is not published');
-      assert(F.findTarget('button[data-tab="combat"]') === null, 'the tour still targets the hidden Combat door');
-      assert(F.findTarget('button[data-tab="skills"]'), 'the tour lost the visible Skills door');
+      /* Locked, never hidden: every other door is on the rail and says which step opens it. */
+      assert(s.lockedDoors.combat === 'Opens when you catch and cook five fish (Step 2).', 'Combat door reason: ' + s.lockedDoors.combat);
+      assert(s.lockedDoors.homestead === 'Opens when you win five fights (Step 3).', 'Homestead door reason: ' + s.lockedDoors.homestead);
+      assert(s.lockedDoors.clan && s.lockedDoors.events && s.lockedDoors.social, 'a door is hidden instead of locked: ' + JSON.stringify(s.lockedDoors));
+      assert(s.lockedSkills.indexOf('Fishing: Opens when you chop fifteen logs (Step 1).') >= 0 && s.lockedSkills.length >= 8,
+        'locked skills are missing or unexplained: ' + s.lockedSkills.join(' | '));
+      assert(s.lockedStrip.indexOf('mining') >= 0 && s.lockedStrip.indexOf('woodcutting') < 0, 'the phone activity strip does not lock unreached skills: ' + s.lockedStrip);
+      assert(s.lockedChar >= 15, 'the Character grid hides skills instead of locking them: ' + s.lockedChar);
+      /* A locked door does not open: the click is the reason card, with a way to the current step. */
+      const before = document.querySelector('main .panel.active').id;
+      document.querySelector('.nav-btn[data-tab="combat"]').click();
+      const pop = document.getElementById('hr-lock-pop');
+      try {
+        assert(document.querySelector('main .panel.active').id === before, 'a click walked through a locked door');
+        assert(pop && /catch and cook five fish \(Step 2\)/.test(pop.textContent), 'the locked door gave no reason card');
+        assert(pop.querySelector('[data-lock-act="go"]'), 'the reason card has no Show me');
+      } finally { if (window.HearthriseLocks) window.HearthriseLocks.close(); }
     });
   }),
 
@@ -271,15 +288,16 @@ export default [
     assert(walked > 0, 'the walk clicked no route at all, so it proved nothing');
   }),
 
-  () => tryRunAsync('SPINE-REVEAL-11: the tour names a shut door and when it opens, and spotlights only open doors', async () => {
+  () => tryRunAsync('SPINE-REVEAL-11: the tour names a locked door and when it opens', async () => {
     const R = window.HearthriseReveal, F = window.HearthriseFTUE;
     const combat = F.steps().find((s) => s.id === 'combat');
     assert(combat, 'the tour has no Combat step');
     await withPin(R.FRESH, async () => {
       assert(/^ The Combat door opens when you catch and cook five fish\.$/.test(F.shutDoorLine(combat)),
         'the tour does not say when Combat opens: ' + JSON.stringify(F.shutDoorLine(combat)));
-      assert(F.findTarget(combat.target) === null, 'the tour spotlights a shut door');
-      /* Drive the real tour to its Combat step: the card is centred, not left where Skills put it. */
+      const door = F.findTarget(combat.target);
+      assert(door && door.hasAttribute('data-reveal-locked'), 'the tour lost the locked Combat door');
+      /* Drive the real tour to its Combat step: it points at the locked door and says when it opens. */
       if (typeof window.startFTUE === 'function') {
         const KEY = 'hearthrise:ftue:completed', had = localStorage.getItem(KEY);
         window.startFTUE();
@@ -293,10 +311,12 @@ export default [
         const card = document.querySelector('.ftue-root .ftue-card');
         try {
           assert(card && document.querySelector('.ftue-root .ftue-title').textContent === combat.title, 'could not reach the tour\'s Combat step');
-          const r = card.getBoundingClientRect();
-          assert(card.classList.contains('center') && card.style.left === '' && r.left >= 0 && r.right <= innerWidth,
-            'the shut-door card is not centred on screen: ' + Math.round(r.left) + '..' + Math.round(r.right));
-          assert(document.querySelector('.ftue-root .ftue-spot').style.display === 'none', 'a spotlight is drawn on empty space');
+          const r = card.getBoundingClientRect(), d = door.getBoundingClientRect();
+          assert(r.left >= 0 && r.right <= innerWidth, 'the tour card is off screen: ' + Math.round(r.left) + '..' + Math.round(r.right));
+          assert(/The Combat door opens when you catch and cook five fish/.test(card.textContent), 'the tour card does not say when Combat opens');
+          const spot = document.querySelector('.ftue-root .ftue-spot');
+          assert(!d.width || spot.style.display === 'none' || Math.abs(parseFloat(spot.style.left) - (d.left - 6)) < 2,
+            'the spotlight is not on the Combat door');
         } finally {
           const skip = document.querySelector('.ftue-root [data-action="skip"]');
           if (skip) skip.click();
@@ -331,5 +351,33 @@ export default [
         assert(h3.indexOf('Your heroes') < 0, 'a one-hero account shows the switcher before step 10');
       });
     } finally { HP.profile = had.profile; HP.slotRows = had.rows; }
+  }),
+
+  () => tryRunAsync('SPINE-REVEAL-13: the Discord button is on screen at every step, with a "!" until it is opened or dismissed', async () => {
+    const R = window.HearthriseReveal, D = window.HearthriseDiscord, G = window.G;
+    assert(D && typeof D.paintButtons === 'function', 'HearthriseDiscord.paintButtons is not published');
+    const had = Object.prototype.hasOwnProperty.call(G, 'discordSeen'), was = G.discordSeen;
+    const noNav = (e) => { if (e.target.closest && e.target.closest('[data-hr-discord-btn]')) e.preventDefault(); };
+    window.addEventListener('click', noNav, true);
+    try {
+      for (let k = 1; k <= R.steps.length + 1; k++) {
+        await withPin(atStep(R, k), async () => {
+          D.paintButtons();
+          assert(document.querySelector('.hr-dc-wrap [data-hr-discord-btn]'), 'no Discord button at step ' + k);
+        });
+      }
+      delete G.discordSeen; D.paintButtons();
+      assert(document.querySelector('.hr-dc-wrap.is-top .hr-dc-bang'), 'a fresh account has no "!" on the Discord button');
+      assert(/meet players, report bugs, get 25 gems/.test(document.querySelector('[data-hr-discord-btn]').title), 'the tooltip is wrong');
+      document.querySelector('.hr-dc-wrap.is-top [data-hr-discord-gotit]').click();
+      assert(G.discordSeen === true && !document.querySelector('.hr-dc-bang'), '"Got it" did not clear the "!"');
+      delete G.discordSeen; D.paintButtons();
+      document.querySelector('.hr-dc-wrap.is-top [data-hr-discord-btn]').click();
+      assert(G.discordSeen === true && !document.querySelector('.hr-dc-bang'), 'opening the Discord did not clear the "!"');
+    } finally {
+      window.removeEventListener('click', noNav, true);
+      if (had) G.discordSeen = was; else delete G.discordSeen;
+      D.paintButtons();
+    }
   }),
 ];

@@ -126,4 +126,6 @@
   .sp-bar .sp-step { display: none; }
   .sp-go, .sp-daily { padding: 0 10px; }
   .hd-spine .sp-acts { flex-direction: row; }
+  /* Home's card has the room: its buttons keep the 44px touch floor. */
+  .hd-spine .sp-go, .hd-spine .sp-daily { height: var(--tap, 44px); min-height: var(--tap, 44px); }
 }

@@ -4,6 +4,24 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 570 — 2026-10-12 (One step at a time)
+
+**One step at a time.** A single bar at the top always names your next goal, why it matters, and a Go button that takes you there. Home leads with the same step. The old first-day list, Journeyman's Road card and Next up list are folded into it, and your daily quests live in a small chip on the bar.
+
+**One gem wallet per account.** Gems now belong to your account, not each hero, so every hero sees the same balance and hero slots cost the same from anyone. Gems you already had were added together.
+
+**A daily login reward.** Log in each day for a growing reward, with a bigger one on day 7.
+
+**Rally points from the realm.** Your rally points now come from the time you actually spend gathering, crafting, fighting and farming, with clear Silver and Gold bands.
+
+**Join our Discord for 25 gems.** Enter the week's code from the Discord welcome channel once per account.
+
+**Rune essence is mined.** Rune Essence now comes from a level-1 Essence Rock under Mining, and splitting it makes blank runes one for one.
+
+**World event chests pay what they promise.** Claiming an event chest after being away now pays its gold and gem.
+
+**The Player Market is open from the start,** right beside the Local Shop.
+
 ## v0.9.2-beta build 569 — 2026-10-11 (Plain words, fewer doors)
 
 **Fewer doors on day one.** A new hero starts with only the doors they can use. The Combat door, the Farm, your House, the Market, Workers and the rest open one by one as you reach them, with a short message saying what just opened. A hero who has already reached a door keeps it.

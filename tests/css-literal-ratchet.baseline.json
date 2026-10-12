@@ -1,10 +1,10 @@
 {
   "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
-  "measured": "2026-10-11",
+  "measured": "2026-10-12",
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
-      "literals": 311,
+      "literals": 305,
       "important": 53
     },
     "audit-overrides.css": {
@@ -48,8 +48,8 @@
       "important": 0
     },
     "legacy.css": {
-      "literals": 825,
-      "important": 161
+      "literals": 815,
+      "important": 160
     },
     "lucky-finds.css": {
       "literals": 0,
@@ -71,13 +71,17 @@
       "literals": 0,
       "important": 0
     },
+    "spine-pointer.css": {
+      "literals": 0,
+      "important": 0
+    },
     "spoils.css": {
       "literals": 0,
       "important": 0
     },
     "theme-cozy.css": {
-      "literals": 162,
-      "important": 567
+      "literals": 152,
+      "important": 566
     },
     "tokens.css": {
       "literals": 0,
@@ -87,9 +91,6 @@
   "js": {
     "src/admin.js": {
       "literals": 21
-    },
-    "src/beta-banner.js": {
-      "literals": 8
     },
     "src/bug-report.js": {
       "literals": 20
@@ -128,7 +129,7 @@
       "literals": 14
     },
     "src/features/home-dashboard.js": {
-      "literals": 13
+      "literals": 12
     },
     "src/features/homestead.js": {
       "literals": 1
@@ -201,9 +202,6 @@
     },
     "src/network-status.js": {
       "literals": 1
-    },
-    "src/post-signup-welcome.js": {
-      "literals": 12
     },
     "src/render/active-effects.js": {
       "literals": 1

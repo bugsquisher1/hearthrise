@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 571 — 2026-10-12 (Your heroes, always)
+
+**Your heroes are always one tap away.** If you own more than one hero, the hero switcher on Home now shows from the start, so you can always play any of them.
+
 ## v0.9.2-beta build 570 — 2026-10-12 (One step at a time)
 
 **One step at a time.** A single bar at the top always names your next goal, why it matters, and a Go button that takes you there. Home leads with the same step. The old first-day list, Journeyman's Road card and Next up list are folded into it, and your daily quests live in a small chip on the bar.

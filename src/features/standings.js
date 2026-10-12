@@ -21,9 +21,9 @@
 // setupStandings() publishes window.HearthriseStandings; no top-level window or
 // DOM access, so tests/standings.mjs can import the module in Node.
 
-import { STANDING_CROWNS } from '../data/standings.js?v=570';
-import { SIGNPOSTS } from '../data/signposts.js?v=570';
-import { fill } from './signposts.js?v=570';
+import { STANDING_CROWNS } from '../data/standings.js?v=571';
+import { SIGNPOSTS } from '../data/signposts.js?v=571';
+import { fill } from './signposts.js?v=571';
 
 export const TTL_MS = 300000;
 

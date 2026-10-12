@@ -493,6 +493,23 @@ export async function run(mutate) {
       `RPS-11: ${c?.points} points banded ${c?.band}; the fixed ladder says silver whoever else turned up: ${JSON.stringify(c)}`);
   }
 
+  // ── RPS-13 MICROSECOND BOUNDS (the 2026-10-12 production apply): a window
+  //    bound with microseconds against a millisecond engine span. A span that
+  //    straddles the bound by exactly half must score exactly half, never
+  //    floor to one action less. PGlite's own now() can be ms-aligned, so the
+  //    drift is planted explicitly (437 us past a whole millisecond).
+  {
+    const P = await mkPlayer();
+    const base = (await q(`select date_trunc('milliseconds', now()) - interval '20 minutes' as b`))[0].b;
+    const b = new Date(base).getTime();
+    const iso = (ms) => new Date(ms).toISOString();
+    await led(P, 0, 'gather', 'accrue', { ticks: 40, qty: 40, node: 'oak_tree', from: iso(b - 600000), to: iso(b + 600000) });
+    const r = (await q(`select public.hr_rally_points_of($1, 0, $2, $3::timestamptz + interval '437 microseconds',
+                          $3::timestamptz + interval '15 minutes') as r`, [P, EK.seam, iso(b)]))[0].r;
+    ok(N(r?.units?.gather) === 20 * PS_OAK,
+      `RPS-13: a ms span straddling a us window bound scored ${r?.units?.gather} gather units, exactly ${20 * PS_OAK} expected (float drift)`);
+  }
+
   // ── RPS-7 grants and surface ─────────────────────────────────────────────
   for (const sig of ['public.hr_rally_point_rules(text)',
     'public.hr_rally_points_of(uuid,integer,text,timestamp with time zone,timestamp with time zone)',

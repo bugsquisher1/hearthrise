@@ -246,6 +246,16 @@ begin
   if p_user is null or p_slot is null or p_from is null or p_to is null or p_to <= p_from then
     return jsonb_build_object('points', 0, 'units', '{}'::jsonb, 'by', '{}'::jsonb);
   end if;
+  -- THE WINDOW AT THE ENGINE'S PRECISION. Engine spans are ISO strings to the
+  -- MILLISECOND; a join/window bound carries MICROSECONDS. Unaligned, a span
+  -- that starts on the bound overlaps it by 600 s minus a few us, and the floor
+  -- below turns 20 actions into 19 (production apply 2026-10-12: 419.99997).
+  -- Both bounds are truncated to the millisecond, so a ms span is cut exactly.
+  p_from := date_trunc('milliseconds', p_from);
+  p_to   := date_trunc('milliseconds', p_to);
+  if p_to <= p_from then
+    return jsonb_build_object('points', 0, 'units', '{}'::jsonb, 'by', '{}'::jsonb);
+  end if;
   v_rules := public.hr_rally_point_rules(public.hr_rally_event_for_key(p_event_key));
   v_w     := v_rules->'weights';
 

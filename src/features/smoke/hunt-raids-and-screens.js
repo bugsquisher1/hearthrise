@@ -2132,7 +2132,6 @@ export default [
         search.value = 'log';
         search.dispatchEvent(new Event('input', { bubbles: true }));
       });
-      // The query now survives re-renders: clear it so later market tests see every row.
       const s2 = document.querySelector('#mk-search');
       if (s2) { s2.value = ''; s2.dispatchEvent(new Event('input', { bubbles: true })); }
       window._mkRefocusSearch = null;

@@ -1513,7 +1513,7 @@ export default [
       const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
       assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
       assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder (W0: air is kit + shop only), got ' + laneOf('staff').length);
-      assert(laneOf('essence').length === 3, 'Essence & Blanks must hold mine + two cuts, got ' + laneOf('essence').length);
+      assert(laneOf('essence').length === 2, 'Essence & Blanks must hold the two cuts (essence is mined at the Essence Rock), got ' + laneOf('essence').length);
       /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
          groups is the proof that the strip is a real choice and not a label. */
       assert(rc.groups.length === 3,

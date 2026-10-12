@@ -2940,6 +2940,8 @@ export default [
     [['TREES', window.TREES], ['ROCKS', window.ROCKS], ['FISH_SPOTS', window.FISH_SPOTS]].forEach(([name, table]) => {
       let prev = null;
       table.forEach((rung) => {
+        // The Essence Rock is a side node beside copper (Game Designer b570), not a ladder rung.
+        if (rung.id === 'essence_rock') return;
         const rate = Math.max(1, Math.floor(rung.xp * window.PACE.xp)) / (window.pacedActionMs(rung.ms) / 1000);
         if (prev) {
           assert(rate > prev.rate,

@@ -36,7 +36,7 @@ import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=571';
 import { SKILLS_DEF } from '../data/skills.js?v=571';
 import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=571';
 import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=571';
-import { reveal, warWindow, combatLevelOf } from '../core/spine-progress.js?v=571';
+import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=571';
 import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=571';
 import { recordValue } from '../net/record.js?v=571';
 
@@ -202,6 +202,29 @@ export function opensWhen(label, ids) {
   return before ? 'The ' + label + ' door opens when you ' + before.whenDone + '.' : null;
 }
 
+/**
+ * WHY A ROW IS STILL LOCKED, in one plain line, or null when it is open.
+ * "Opens when you catch and cook five fish (Step 2)": the step whose goal opens
+ * it. A row with no step to wait for (an unreleased product) is "Coming in a
+ * later update." Every row has one (tests/reveal-coverage.mjs R7).
+ */
+export function reasonFor(row) { return lockReasonOf(row, SPINE_STEPS); }
+
+/** The lock line for one reveal id right now: null when it is open. */
+export function lockReason(id) {
+  if (state().shows(id)) return null;
+  return reasonFor(REVEALS.find((r) => r.id === id)) || 'Opens as you play.';
+}
+
+/** The lock line for a door made of several ids: its EARLIEST opening, null when any is open. */
+export function lockReasonAny(ids) {
+  const st = state();
+  if (ids.some((id) => st.shows(id))) return null;
+  const rows = REVEALS.filter((r) => ids.indexOf(r.id) >= 0);
+  const stepped = rows.filter((r) => !r.product).sort((a, b) => a.step - b.step);
+  return reasonFor(stepped[0] || rows[0]) || 'Opens as you play.';
+}
+
 function signature() { return [...state().shown].sort().join(','); }
 
 /** Fire `hearthrise:reveal` when the shown set changed. Returns whether it did. */
@@ -234,7 +257,7 @@ export function __swapView(v) { const was = view; view = v || null; check(); ret
 
 if (typeof window !== 'undefined') {
   window.HearthriseReveal = Object.freeze({
-    shows, state, facts, combatLevel, warCards, noteEnvelope, check, fold, routeOpen, opensWhen,
+    shows, state, facts, combatLevel, warCards, noteEnvelope, check, fold, routeOpen, opensWhen, lockReason, lockReasonAny, reasonFor,
     steps: SPINE_STEPS, rows: REVEALS, FULL, FRESH, __pin, __swapView,
   });
   /* Skill XP reaches G through the record, not through noteEnvelope, and a

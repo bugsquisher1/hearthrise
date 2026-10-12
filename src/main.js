@@ -262,6 +262,7 @@ import './net/balance.js?v=571';
 import './features/lifetime-tally.js?v=571';
 // The progressive reveal: which doors, cards and skills a character has reached.
 import './features/spine-reveal.js?v=571';
+import './features/reveal-locks.js?v=571';
 // b429 — the READ side of server-owned SKILL XP, the analogue of balance.js for
 // the `skills` record entry (shipped DORMANT in record.js behind
 // SKILLS_RECORD_ARM_ENABLED). A no-op today: `skills` is not on the active

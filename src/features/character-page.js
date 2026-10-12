@@ -380,6 +380,14 @@ function skillTile(id) {
   const guide = SKILL_GUIDE[id] ? ' · ' + SKILL_GUIDE[id].line : '';
   const SG = window.HearthriseSkillGuide;
   const next = SG ? SG.nextLine(id, lv) : '';
+  const R = window.HearthriseReveal, L = window.HearthriseLocks;
+  const why = (R && L && !skillShown(id)) ? R.lockReason('skill:' + id) : null;
+  if (why) {
+    return `<button type="button" class="csk-tile is-locked"${L.attr(why)}>
+    <span class="csk-ic">${iconHtml}</span>
+    <span class="csk-tile-body"><span class="csk-nm">${esc(s.name)}</span></span>${L.pad()}
+  </button>`;
+  }
   return `<button type="button" class="csk-tile${active}" onclick="window.hrOpenActivity&&window.hrOpenActivity('${id}')" title="${esc(s.name)} — Level ${lv}${maxed ? ' (max)' : ', ' + Math.round(pct) + '% to next'}${esc(guide)}${next ? '. ' + esc(next) : ''}">
     <span class="csk-ic">${iconHtml}</span>
     <span class="csk-tile-body">
@@ -398,7 +406,7 @@ function skillShown(id) {
 }
 
 function buildSkillGrid() {
-  const tiles = orderedSkillIds().filter(skillShown).map(skillTile).join('');
+  const tiles = orderedSkillIds().map(skillTile).join('');
   return `<div class="csk-grid">${tiles}</div>`;
 }
 

@@ -933,7 +933,15 @@ function revealedCards(list) {
   if (!R) return list;
   const on = list.filter((d) => R.shows(d.rid));
   const inWindow = R.warCards(on.map((d) => ({ req: typeof d.req === 'number' ? d.req : 0, pinned: !!d.key })));
-  return on.filter((d, i) => inWindow[i]);
+  const out = on.filter((d, i) => inWindow[i]);
+  /* Cards beyond the window are not hidden: they fold into ONE line naming the next. */
+  const later = on.filter((d, i) => !inWindow[i] && typeof d.req === 'number').map((d) => d.req);
+  if (later.length) {
+    const next = Math.min(...later);
+    out.push({ rid: 'war:more', kick: 'Coming up', glyph: 'uiLock', name: 'More bosses open as you level',
+      meta: 'Next at Combat ' + next, locked: 'Combat Lv ' + next });
+  }
+  return out;
 }
 
 /** Does the server's bag hold any dungeon's entry key? */

@@ -176,3 +176,16 @@ export function warWindow(level, cards, span, next) {
   }
   return out;
 }
+
+/**
+ * WHY A ROW IS LOCKED, in one plain line: "Opens when you catch and cook five
+ * fish (Step 2)." names the step whose goal opens it (`whenDone`). A product
+ * row waits for an update, not a step. null for a row with nothing to wait for
+ * (step 0 or 1, open from the start).
+ */
+export function lockReasonOf(row, steps) {
+  if (!row) return null;
+  if (row.product) return 'Coming in a later update.';
+  const before = (Array.isArray(steps) ? steps : []).find((s) => s.step === row.step - 1);
+  return before ? 'Opens when you ' + before.whenDone + ' (Step ' + before.step + ').' : null;
+}

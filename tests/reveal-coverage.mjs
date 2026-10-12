@@ -15,6 +15,7 @@
 //   R3  every src/data/skills.js skill has a `skill:` row
 //   R4  every `card:` id named under src/ has a row, and every card row is named
 //   R5  every row and step uses a known step number and fact kind
+//   R7  every row that can be locked has a reason a player can read
 //   R6  no deadlock: every reveal id a step is played through (its `via`)
 //       opens no later than that step becomes current, and is not held
 //       behind an unreleased product
@@ -134,6 +135,12 @@ export function check(inp) {
     if (!Number.isInteger(r.step) || r.step < 0 || r.step > nSteps) problems.push(`R5 row '${r.id}' step ${r.step} is not 0..${nSteps}`);
     r.uses.forEach((n) => { if (!kinds.has(n.fact)) problems.push(`R5 row '${r.id}' uses unknown fact '${n.fact}'`); });
   });
+  inp.rows.forEach((r) => {
+    const why = r.step > 1 || r.product ? inp.core.lockReasonOf(r, inp.steps) : 'open';
+    if (typeof why !== 'string' || !/^(Opens when you .+ \(Step \d+\)\.|Coming in a later update\.|open)$/.test(why)) {
+      problems.push(`R7 row '${r.id}' has no locked reason a player can read (got ${JSON.stringify(why)})`);
+    }
+  });
   inp.steps.forEach((s, i) => {
     if (s.step !== i + 1) problems.push(`R5 spine step #${i + 1} is numbered ${s.step}`);
     if (!s.need.length) problems.push(`R5 spine step ${s.step} has no need`);
@@ -226,6 +233,8 @@ function mutants(base) {
       });
       return { progress: Object.assign({}, p, { reachedThrough: reach }), shown, shows: (id) => shown.has(id) };
     } }) })],
+    ['a locked row loses its reason', () => Object.assign(clone(), { core: coreWith({ lockReasonOf: () => null }) })],
+    ['the reason names no step', () => Object.assign(clone(), { steps: base.steps.map((x) => Object.assign({}, x, { whenDone: '' })) })],
     ['the reveal ignores the product gate', () => Object.assign(clone(), { core: coreWith({ reveal: (f, s, rows, ctx) =>
       base.core.reveal(Object.assign({}, f, { products: new Proxy({}, { get: () => true }) }), s, rows, ctx) }) })],
   ];

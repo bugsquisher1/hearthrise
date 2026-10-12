@@ -163,6 +163,69 @@
     return scrim;
   }
 
+  /* ── THE ALWAYS-VISIBLE DISCORD BUTTON ─────────────────────────────────
+     In the top bar, on a desktop and (icon only) on a landscape phone, open
+     from the first minute: a step-0 reveal row
+     (`card:discord`), so the reveal never hides it. A "!" stays on it until the
+     player opens it or presses "Got it": `G.discordSeen`, a display-only
+     residue field (src/net/client-state.js) that gates nothing. */
+  var TIP = 'Join our Discord: meet players, report bugs, get 25 gems';
+  var BTN_CSS = 'hr-dc-btn-css';
+  function seen() { return !!(window.G && window.G.discordSeen); }
+  function markSeen() {
+    if (window.G) window.G.discordSeen = true;
+    paintButtons();
+  }
+  function ensureButtonCss() {
+    if (document.getElementById(BTN_CSS)) return;
+    var s = document.createElement('style');
+    s.id = BTN_CSS;
+    s.textContent = [
+      '.hr-dc-btn{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:44px;min-width:44px;padding:0 10px;',
+      'border-radius:var(--r);color:var(--ink-2);font-family:var(--f-label);font-weight:700;text-decoration:none;box-sizing:border-box}',
+      '.hr-dc-btn:hover{color:var(--ink)}',
+      '.hr-dc-btn .hr-dc-lbl{margin-right:8px}.hr-dc-bang{position:absolute;top:4px;right:0;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center;font-weight:800;',
+      'background:var(--gold);color:var(--bg-0);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1}',
+      '.hr-dc-gotit{min-height:44px;padding:0 8px;background:none;border:0;color:var(--ink-3);font-family:var(--f-ui);cursor:pointer}',
+      '.hr-dc-wrap{display:inline-flex;align-items:center}',
+      /* A landscape phone keeps the top-bar copy, icon only: the rail scrolls, so its foot is off screen. */
+      '@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){.hr-dc-wrap .hr-dc-lbl,.hr-dc-gotit{display:none}}',
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+  function buttonHtml() {
+    var gly = (window.HR && typeof window.HR.icon === 'function') ? (window.HR.icon('uiPeople', 18, 'currentColor') || '') : '';
+    return '<a class="hr-dc-btn" data-hr-discord-btn href="' + esc(INVITE) + '" target="_blank" rel="noopener noreferrer" title="' + esc(TIP) + '" aria-label="' + esc(TIP) + '">'
+      + gly + '<span class="hr-dc-lbl">Discord</span>' + (seen() ? '' : '<span class="hr-dc-bang" aria-hidden="true">!</span>') + '</a>'
+      + (seen() ? '' : '<button type="button" class="hr-dc-gotit" data-hr-discord-gotit>Got it</button>');
+  }
+  function paintButtons() {
+    var R = window.HearthriseReveal;
+    if (R && !R.shows('card:discord')) return;
+    ensureButtonCss();
+    var hosts = [['is-top', document.querySelector('.topbar .top-stats'), 'afterbegin']];
+    var html = buttonHtml();
+    hosts.forEach(function (h) {
+      if (!h[1]) return;
+      var w = document.querySelector('.hr-dc-wrap.' + h[0]);
+      if (!w) {
+        w = document.createElement('div');
+        w.className = 'hr-dc-wrap ' + h[0];
+        h[1].insertAdjacentElement(h[2], w);
+      }
+      if (w.__sig !== html) { w.__sig = html; w.innerHTML = html; }
+    });
+  }
+  setInterval(paintButtons, 1500);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paintButtons); else paintButtons();
+
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-hr-discord-btn], [data-hr-discord-gotit]');
+    if (!b) return;
+    if (b.hasAttribute('data-hr-discord-gotit')) e.preventDefault();
+    markSeen();
+  });
+
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest && e.target.closest('[data-hr-discord-gift]');
     if (!t) return;
@@ -177,6 +240,7 @@
     linkHtml: linkHtml,
     rowHtml: rowHtml,
     openGift: openGift,
+    paintButtons: paintButtons,
     claim: claim,
     classify: classify,
     normalise: normalise

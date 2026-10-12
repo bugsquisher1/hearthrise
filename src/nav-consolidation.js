@@ -112,22 +112,20 @@
     var label = (btn && btn.textContent.trim()) || h.panes[0].label;
     return R.opensWhen(label, h.panes.map(function (p) { return 'pane:' + p.tab; }));
   }
+  /* A door the reveal has not opened is DRAWN LOCKED, with its reason
+     (src/features/reveal-locks.js stops the click and explains). */
+  function lockOf(ids) {
+    var R = window.HearthriseReveal;
+    return (R && typeof R.lockReasonAny === 'function') ? R.lockReasonAny(ids) : null;
+  }
   function paintDoors() {
+    var L = window.HearthriseLocks;
     HUBS.forEach(function (h) {
-      var on = doorShown(h);
+      var why = doorShown(h) ? null : lockOf(h.panes.map(function (p) { return 'pane:' + p.tab; }));
       document.querySelectorAll('.nav-btn[data-tab="' + h.id + '"], .bn-btn[data-tab="' + h.id + '"]').forEach(function (btn) {
-        var want = on ? '' : 'none';
-        if (btn.style.display !== want) btn.style.display = want;
+        if (btn.style.display === 'none') btn.style.display = '';
+        if (L) L.mark(btn, why);
       });
-    });
-    // A group label over doors that are all hidden is a heading over nothing.
-    document.querySelectorAll('.nav-group-label').forEach(function (label) {
-      var any = false;
-      for (var n = label.nextElementSibling; n && !n.classList.contains('nav-group-label'); n = n.nextElementSibling) {
-        if (n.classList.contains('nav-btn') && n.hasAttribute('data-tab') && n.style.display !== 'none') { any = true; break; }
-      }
-      var want = any ? '' : 'none';
-      if (label.style.display !== want) label.style.display = want;
     });
   }
 
@@ -137,13 +135,15 @@
     if (!host) return;
     var tab = openScreen();
     var hub = HUB_BY_ID[hubOf(tab)];
-    var panes = hub ? hub.panes.filter(function (p) { return paneShown(p.tab); }) : [];
+    var panes = hub ? hub.panes : [];
+    var L = window.HearthriseLocks;
+    var lockedWhy = function (p) { return paneShown(p.tab) ? null : lockOf(['pane:' + p.tab]); };
     if (!hub || panes.length < 2) {
       if (!host.hidden) { host.hidden = true; host.innerHTML = ''; host.dataset.sig = ''; }
       return;
     }
     var iconsReady = !!(window.HR && window.HR.icon);
-    var sig = [hub.id, tab, iconsReady].concat(panes.map(function (p) { return p.tab + (paneBadge[p.tab] ? 1 : 0); })).join('|');
+    var sig = [hub.id, tab, iconsReady].concat(panes.map(function (p) { return p.tab + (paneBadge[p.tab] ? 1 : 0) + (lockedWhy(p) || ''); })).join('|');
     host.hidden = false;
     host.setAttribute('data-hub', hub.id);
     if (host.dataset.sig === sig) return;
@@ -151,9 +151,10 @@
     host.setAttribute('role', 'tablist');
     host.innerHTML = panes.map(function (p) {
       var on = p.tab === tab;
+      var why = lockedWhy(p);
       return '<button type="button" role="tab" class="hub-tab' + (on ? ' active' : '') + '" aria-selected="' + on + '"' +
-        ' data-hub-pane="' + p.tab + '"><span class="ic" aria-hidden="true">' + glyphHtml(p.glyph) + '</span>' +
-        '<span class="lbl">' + p.label + '</span>' +
+        ' data-hub-pane="' + p.tab + '"' + (why && L ? L.attr(why) : '') + '><span class="ic" aria-hidden="true">' + glyphHtml(p.glyph) + '</span>' +
+        '<span class="lbl">' + p.label + '</span>' + (why && L ? L.pad() : '') +
         (paneBadge[p.tab] ? '<span class="hub-dot" role="img" aria-label="needs you"></span>' : '') + '</button>';
     }).join('');
   }

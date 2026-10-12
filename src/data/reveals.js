@@ -48,6 +48,7 @@ export const REVEALS = Object.freeze([
   row('pane:inventory', 1),
   row('pane:skills', 1),
   row('pane:shop', 0),
+  row('card:discord', 0),
   // Tyler: the Player Market is there from minute 0 for every hero, like the Local Shop.
   row('pane:market', 0),
   row('pane:journal', 3, [count('ev:kill_any', 1), count('rare_drops', 1)]),

@@ -908,6 +908,11 @@
 
   // Persisted UI state for search/sort. Survives reload.
   var UI_STATE_KEY = 'hearthrise:market:ui';
+  /* The last For-sale category, per viewer. */
+  var CAT_KEY = 'hearthrise:market:cat';
+  function loadCat(){ try { return localStorage.getItem(CAT_KEY) || 'all'; } catch(e){ return 'all'; } }
+  function saveCat(id){ try { localStorage.setItem(CAT_KEY, id); } catch(e){} }
+  var _mkQuery = '';   // search text: kept across re-renders, dropped on reload
   function loadUiState(){
     try { return Object.assign({ q:'', sort:'price-asc', ledger:'all' }, JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}')); }
     catch(e){ return { q:'', sort:'price-asc', ledger:'all' }; }
@@ -1216,7 +1221,7 @@
     var mineOnMarket = mine.filter(function(l){ return !seam || isServerListingId(l.id); });
     var forSale = others.concat(mineOnMarket);
 
-    var ui = loadUiState();
+    var ui = loadUiState(); ui.q = _mkQuery;   // the query lives for the session, never in storage
     // ── Search + sort ──
     var qLower = (ui.q || '').toLowerCase().trim();
     if(qLower){
@@ -1229,6 +1234,15 @@
       };
       forSale = forSale.filter(matches);
     }
+    /* BROWSE BY TYPE: the Bag's own category table (window.CATEGORIES), so
+       the market has no second taxonomy. Counts are over the searched set. */
+    var CATS = window.CATEGORIES || [];
+    var cat = CATS.find(function(c){ return c.id === loadCat(); }) || CATS[0];
+    var catCounts = CATS.map(function(c){
+      return forSale.filter(function(l){ return c.test(window.ITEMS && window.ITEMS[l.itemId]); }).length;
+    });
+    var allCount = forSale.length;
+    if(cat) forSale = forSale.filter(function(l){ return cat.test(window.ITEMS && window.ITEMS[l.itemId]); });
     var sorters = {
       'price-asc':  function(a,b){ return a.askEach - b.askEach; },
       'price-desc': function(a,b){ return b.askEach - a.askEach; },
@@ -1329,6 +1343,13 @@
           ? '<div class="mk-rows">' + mine.map(mineRow).join('') + '</div>'
           : '<div class="mk-empty">Nothing listed yet. Choose an item under Sell and it will show up here.</div>')
       + '</section>';
+    var catStrip = '<div class="mk-cats" role="tablist" aria-label="Item type">' + CATS.map(function(c, i){
+        var g = (window.HR && window.HR.icon) ? (window.HR.icon(c.glyph, 16, 'currentColor') || '') : '';
+        var on = cat && cat.id === c.id;
+        return '<button class="mk-cat' + (on ? ' active' : '') + (catCounts[i] ? '' : ' is-zero') + '" role="tab" aria-selected="' + on
+          + '" data-cat="' + c.id + '">' + g + '<span>' + (c.id === 'all' ? 'Everything' : c.name) + '</span>'
+          + '<span class="mk-cat-n">' + catCounts[i] + '</span></button>';
+      }).join('') + '</div>';
     var saleCount = known
       ? '<span class="mk-count">' + forSale.length.toLocaleString() + (ui.q ? ' matching' : '') + '</span>'
       : pendingMark();
@@ -1343,6 +1364,9 @@
         + (onlyMine && known && !ui.q ? '<div class="mk-note">No one else has anything for sale right now.</div>' : '');
     } else if(!known){
       browseBody = '<div class="mk-empty">Loading what is for sale… ' + pendingMark() + '</div>';
+    } else if(cat && cat.id !== 'all' && allCount){
+      browseBody = '<div class="mk-empty">No ' + cat.name.toLowerCase() + ' for sale'
+        + (ui.q ? ' match “' + escapeAttr(ui.q) + '”' : ' right now') + '. Pick another type, or Everything.</div>';
     } else if(ui.q){
       browseBody = '<div class="mk-empty">Nothing for sale matches “' + escapeAttr(ui.q) + '”. Try another name.</div>';
     } else {
@@ -1351,7 +1375,7 @@
     var browseBlock = '<section class="mk-sec mk-block mk-browse"><div class="mk-head"><h3 class="mk-h">For sale ' + saleCount + '</h3></div>'
       /* Searching an empty market is a dead end: the toolbar shows once there
          is something to search, or while a search is being typed. */
-      + (known && !forSale.length && !ui.q ? '' : toolbar) + browseBody + '</section>';
+      + (known && !allCount && !ui.q ? '' : toolbar + catStrip) + browseBody + '</section>';
     // Build a dropdown of every listable bag item — not BoP, has qty > 0,
     // and known to ITEMS so we can show its name. Sorted by name for the
     // player's convenience (typing the partial name still works as a search).
@@ -1420,6 +1444,9 @@
       });
     });
 
+    panel.querySelectorAll('button.mk-cat[data-cat]').forEach(function(b){
+      b.addEventListener('click', function(){ saveCat(b.getAttribute('data-cat')); render(); });
+    });
     // ── Wire search + sort ──
     var searchEl = panel.querySelector('#mk-search');
     var sortEl   = panel.querySelector('#mk-sort');
@@ -1429,7 +1456,7 @@
       // need to restore focus + caret position because innerHTML
       // destroyed the previous input element.
       searchEl.addEventListener('input', function(){
-        ui.q = searchEl.value;
+        ui.q = _mkQuery = searchEl.value;
         saveUiState(ui);
         // Mark that we want to refocus search after the next render.
         window._mkRefocusSearch = { value: searchEl.value, caret: searchEl.selectionStart };
@@ -1452,7 +1479,7 @@
     }
     if(clearEl){
       clearEl.addEventListener('click', function(){
-        ui.q = '';
+        ui.q = _mkQuery = '';
         saveUiState(ui);
         render();
       });

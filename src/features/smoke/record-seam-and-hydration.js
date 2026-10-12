@@ -8512,6 +8512,41 @@ export default [
     }
   }),
 
+  /* MP-R10: For sale browses by the Bag's own categories; chip counts match, and a chip
+     combines with search. MUTATION: drop the `cat.test` filter in render() → red. */
+  () => tryRun('MP-R10: a category chip filters For sale to exactly that type, with honest counts', () => {
+    const MP = window.HearthriseMarketPrices, I = window.ITEMS, CATS = window.CATEGORIES;
+    const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY), was = MP.getListingsState();
+    const savedCat = localStorage.getItem('hearthrise:market:cat'), search = () => document.getElementById('mk-search');
+    const weapons = CATS.find((c) => c.id === 'weapons'), wid = Object.keys(I).filter((k) => weapons.test(I[k]) && !I[k].bop).slice(0, 2);
+    const row = (n, itemId) => ({ id: '11111111-2222-4333-8444-' + String(555555555100 + n), sellerId: 'other-' + n,
+      sellerName: 'S' + n, itemId, qty: 1, askEach: 5 + n, postedAt: Date.now(), expiresAt: Date.now() + 3600000 });
+    try {
+      assert(wid.length === 2, 'fixture: two tradeable weapons');
+      localStorage.setItem(KEY, JSON.stringify([row(1, wid[0]), row(2, wid[1]), row(3, 'copper_ore'), row(4, 'normal_log')]));
+      MP.__setListingsState({ status: 'ok', at: Date.now() });
+      localStorage.setItem('hearthrise:market:cat', 'all'); window.renderMarket();
+      const chip = () => document.querySelector('#market-root .mk-cat[data-cat="weapons"]');
+      assert(chip() && chip().querySelector('.mk-cat-n').textContent === '2', 'the Weapons chip does not count 2: ' + (chip() && chip().textContent));
+      chip().click();
+      const names = () => [...document.querySelectorAll('#market-root .mk-browse .mk-lot .mk-name')].map((e) => e.textContent);
+      assert(JSON.stringify(names().sort()) === JSON.stringify([I[wid[0]].n, I[wid[1]].n].sort()), 'Weapons showed ' + JSON.stringify(names()));
+      assert(localStorage.getItem('hearthrise:market:cat') === 'weapons', 'the chip was not remembered');
+      search().value = I[wid[0]].n; search().dispatchEvent(new Event('input'));
+      assert(JSON.stringify(names()) === JSON.stringify([I[wid[0]].n]) && chip().querySelector('.mk-cat-n').textContent === '1',
+        'search + chip did not combine: ' + JSON.stringify(names()));
+      search().value = 'copper'; search().dispatchEvent(new Event('input'));
+      assert(names().length === 0 && /No weapons for sale match/.test(document.querySelector('#market-root .mk-browse').textContent),
+        'an empty category was not said in words');
+    } finally {
+      const s = search(); if (s) { s.value = ''; s.dispatchEvent(new Event('input')); }
+      MP.__setListingsState(was);
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      if (savedCat === null) localStorage.removeItem('hearthrise:market:cat'); else localStorage.setItem('hearthrise:market:cat', savedCat);
+      window._mkRefocusSearch = null; window.renderMarket();
+    }
+  }),
+
   () => tryRunAsync('MP-R3a: a refused market_list leaves no ghost and returns the escrow', async () => {
     const o = await marketListArc(() => Promise.resolve(new Response(JSON.stringify(
       { ok: false, verb: 'market_list', error: 'too_many_listings' }), { status: 409 })));

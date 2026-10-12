@@ -346,6 +346,27 @@ body[data-theme] .mk-browse { container: mkboard / inline-size; }
   body[data-theme] .mk-grid { gap: 16px 18px; }
 }
 
+/* ── Browse by type: the Bag's categories as a quiet scrolling strip ── */
+body[data-theme] .mk-cats {
+  display: flex; gap: 4px; margin: 0 0 8px;
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--line-soft);
+}
+body[data-theme] .mk-cat {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 32px; padding: 4px 9px; margin-bottom: -1px;
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--ink-3); font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+body[data-theme] .mk-cat:hover { color: var(--ink-2); }
+body[data-theme] .mk-cat.active { color: var(--gold-2); border-bottom-color: var(--gold-2); }
+body[data-theme] .mk-cat.is-zero:not(.active) { opacity: .55; }
+body[data-theme] .mk-cat-n { color: var(--ink-3); font-variant-numeric: tabular-nums; font-weight: 500; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  body[data-theme] .mk-cat { min-height: var(--tap); }
+}
+
 /* ── The Buy sheet (#buy-modal, mounted on <body>) ─────────────────────────
    The modal surface itself is the house dark sheet (.modal-card); this only
    lays out what is inside it. Three readouts in a row at every width — on a

@@ -2053,9 +2053,7 @@ export default [
     const was = R.__pin({ counts: { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 }, countsComplete: true, skills: {},
       property: 0, workers: 0, bag: { normal_log: 30, copper_ore: 4 }, gold: 100, equipment: {}, claimed: { gatherer: true, first_cook: true, first_blood: true } });
     try {
-      /* Farm and Combat: hubs with a pane strip, which shares the topbar on a
-         phone. Combat's four-tab strip squeezed the bar's line to 26px at
-         852x393 (b570 visual gate) until fitRoom kept the bar a floor. */
+      // Farm and Combat: hubs whose pane strip shares the topbar on a phone.
       for (const tab of ['farming', 'combat']) {
       window.showTab(tab);
       await new Promise((r) => setTimeout(r, 60));   // the hub strip fills after the tab change
@@ -2069,12 +2067,8 @@ export default [
           const R2 = (e) => e.getBoundingClientRect();
           const bar = doc.getElementById('hr-spine-bar'), top = doc.querySelector('.topbar'), stats = doc.querySelector('.top-stats'), go = bar && bar.querySelector('.sp-go');
           assert(bar && top && top.contains(bar), w + 'x' + h + ': the bar is not inside the topbar');
-          /* The frame runs no scripts: publish the stats width the way
-             nav-consolidation.js does live (the strip's max-width reads it),
-             then fit the bar the way the live render does. */
-          /* Combat's four panes (Field, Bounty Board, Dungeons, Events) are what
-             squeezed the bar; the pinned early-step facts hide three of them, so
-             the frame draws the full strip the way nav-consolidation does. */
+          // no scripts run in the frame: publish the stats width as nav-consolidation does
+          // the pinned facts hide three Combat panes; draw the full four-pane strip
           const hs = doc.getElementById('hub-tabs');
           if (tab === 'combat' && hs) {
             hs.hidden = false;

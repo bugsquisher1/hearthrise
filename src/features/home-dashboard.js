@@ -1328,9 +1328,15 @@
     // two can never drift. Account gate: HearthriseProfile.profile is null until
     // the account wall opens, so signed-out we render nothing at all.
     var HP = window.HearthriseProfile;
-    if (HP && HP.profile && typeof HP.slotRows === 'function' && shown('card:heroes')) {
+    if (HP && HP.profile && typeof HP.slotRows === 'function') {
       try {
+        /* Heroes the account OWNS are never hidden (the switcher is the only
+           way to reach them); only the empty slots for sale wait for step 10. */
         var heroRows = HP.slotRows();
+        if (!shown('card:heroes')) {
+          var owned = heroRows.filter(function (r) { return r.kind === 'char'; });
+          heroRows = owned.length > 1 ? owned : [];
+        }
         if (heroRows.length) {
           var heroesHtml = heroRows.map(function (r) {
             if (r.kind === 'char') {

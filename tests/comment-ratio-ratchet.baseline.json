@@ -97,10 +97,10 @@
       "bnum": 128
     },
     "src/features/smoke/bounty-and-artisan.js": {
-      "total": 3264,
-      "comment": 816,
-      "code": 2258,
-      "ratio": 0.36138175376439324,
+      "total": 3267,
+      "comment": 815,
+      "code": 2262,
+      "ratio": 0.3603006189213086,
       "bnum": 50
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {

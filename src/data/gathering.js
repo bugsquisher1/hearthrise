@@ -55,7 +55,7 @@ export const TREES=[
 
 export const ROCKS=[
   {id:'copper_rock',name:'Copper Rock',icon:'🟤',req:1,xp:21,ms:3000,prod:'copper_ore',qty:[1,1]},
-  /* W0 (Game Designer, b570): Runecrafting's essence is MINED like copper, not
+  /* Game Designer ruling: Runecrafting's essence is MINED like copper, not
      conjured on the Runecrafting bench, so hired hands and the world tick work
      it like any ore and it vendors at the raw 20% bid (3 g). */
   {id:'essence_rock',name:'Rune Essence',icon:'🪨',req:1,xp:21,ms:3000,prod:'rune_essence',qty:[1,1]},

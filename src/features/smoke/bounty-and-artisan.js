@@ -972,8 +972,7 @@ export default [
     tiered.forEach(([id, it]) => {
       assert(typeof it.ammoPerShot === 'number' && it.ammoPerShot >= 0 && isFinite(it.ammoPerShot),
         'ammo "' + id + '" must declare a numeric ammoPerShot (the per-swing burn)');
-      /* Game Designer (b570): tier 1 is never spent, so it books at 0 — a price
-         would be a faucet; every rung above it is spent and must be priced. */
+      // Designer ruling: tier 1 is never spent, books at 0; every higher rung is priced.
       if (it.tier === 1) {
         assert(it.v === 0 && it.ammoPerShot === 0, 'tier-1 ammo "' + id + '" must book at 0 and never burn (v ' + it.v + ', perShot ' + it.ammoPerShot + ')');
       } else {
@@ -1255,10 +1254,7 @@ export default [
       assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
       assert(xpOfSkill('stonemason') > 0, 'dressing (refining) must pay Stonemason XP (b374)');
 
-      /* ── 3. W0 RUNECRAFTING RULING: the skill supplies ITSELF. Rune Essence
-         is a MINING node at level 1 (Game Designer, b570: gathered like copper,
-         never conjured on a bench), then cut to blanks — no Stonemason block in
-         the chain. The node is gathering data; the bag gets its 120 here. */
+      // ── 3. Runecrafting supplies itself: essence is MINED at a level-1 rock, then cut to blanks.
       const node = (window.ROCKS || []).find((n) => n.prod === 'rune_essence');
       assert(node && node.req === 1, 'Rune Essence is not a level-1 mining node: ' + JSON.stringify(node));
       assert(!(window.ARTISAN_RECIPES.runecrafting || []).some((x) => x.output === 'rune_essence' && !Object.keys(x.inputs || {}).length),
@@ -2940,7 +2936,7 @@ export default [
     [['TREES', window.TREES], ['ROCKS', window.ROCKS], ['FISH_SPOTS', window.FISH_SPOTS]].forEach(([name, table]) => {
       let prev = null;
       table.forEach((rung) => {
-        // The Essence Rock is a side node beside copper (Game Designer b570), not a ladder rung.
+        // The Essence Rock is a side node beside copper (Designer ruling), not a ladder rung.
         if (rung.id === 'essence_rock') return;
         const rate = Math.max(1, Math.floor(rung.xp * window.PACE.xp)) / (window.pacedActionMs(rung.ms) / 1000);
         if (prev) {

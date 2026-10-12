@@ -2132,6 +2132,10 @@ export default [
         search.value = 'log';
         search.dispatchEvent(new Event('input', { bubbles: true }));
       });
+      // The query now survives re-renders: clear it so later market tests see every row.
+      const s2 = document.querySelector('#mk-search');
+      if (s2) { s2.value = ''; s2.dispatchEvent(new Event('input', { bubbles: true })); }
+      window._mkRefocusSearch = null;
     }
     const sortBtns = document.querySelectorAll('#panel-market [data-sort], #panel-market .sort-btn');
     for (const b of Array.from(sortBtns).slice(0, 3)) clickOk(b, 'market sort'); // SA-013: counted per sort

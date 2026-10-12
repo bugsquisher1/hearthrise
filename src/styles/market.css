@@ -348,8 +348,7 @@ body[data-theme] .mk-browse { container: mkboard / inline-size; }
 
 /* ── Browse by type: the Bag's categories as a quiet scrolling strip ── */
 body[data-theme] .mk-cats {
-  display: flex; gap: 4px; margin: 0 0 8px;
-  overflow-x: auto; scrollbar-width: none;
+  display: flex; flex-wrap: wrap; gap: 0 2px; margin: 0 0 8px;
   border-bottom: 1px solid var(--line-soft);
 }
 body[data-theme] .mk-cat {

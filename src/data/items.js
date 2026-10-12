@@ -922,9 +922,7 @@ const RAW_DROPS = [
    smoke guard: every input-free artisan recipe's output must be `raw`, so a
    future quarry rung that forgets this list fails the build rather than
    quietly vendoring at full book value. */
-const RAW_QUARRIED = ['rubble', 'granite', 'basalt',
-  /* W0: Runecrafting's input-free `mine_rune_essence` rung (stonecraft.js). */
-  'rune_essence'];
+const RAW_QUARRIED = ['rubble', 'granite', 'basalt'];
 
 export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...RAW_QUARRIED])];
 for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }

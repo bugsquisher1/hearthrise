@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548
+--   catalogue digest: 5c9a4b8924ae35188b553fb81a74439fd0480554d9b994861cebf12e1cf8457e
 --   rows: 506 items (21 untradeable) ·
 --         268 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 522 activities ·
@@ -1328,7 +1328,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','make_willow_staff','crafting',36,null,false),
   ('artisan','make_yew_bow','crafting',65,null,false),
   ('artisan','make_yew_staff','crafting',66,null,false),
-  ('artisan','mine_rune_essence','runecrafting',1,null,false),
   ('artisan','offer_ancient_claw','prayer',92,null,false),
   ('artisan','offer_razor_claw','prayer',52,null,false),
   ('artisan','purge_void_chitin','prayer',99,null,false),
@@ -1492,6 +1491,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','duskwood_tree','woodcutting',90,null,false),
   ('gather','elder_yew_tree','woodcutting',68,null,false),
   ('gather','emberstone_rock','mining',75,null,false),
+  ('gather','essence_rock','mining',1,null,false),
   ('gather','fluxsalt_pocket','mining',40,null,false),
   ('gather','frostfin_reach_s','fishing',71,null,false),
   ('gather','frostfin_s','fishing',66,null,false),
@@ -1556,7 +1556,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548', now())
+  values (true, '5c9a4b8924ae35188b553fb81a74439fd0480554d9b994861cebf12e1cf8457e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1721,7 +1721,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 836d85379dcb1e16a4fbc70d66f25d567fb37594faa393041c267c4583838548',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5c9a4b8924ae35188b553fb81a74439fd0480554d9b994861cebf12e1cf8457e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

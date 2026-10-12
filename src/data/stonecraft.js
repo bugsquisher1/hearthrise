@@ -327,7 +327,6 @@ export const STONECRAFT_RECIPES = {
        essence (a bench row paid to Mining, the quarry pattern: a level-1 ROCKS
        node would break the one-node-per-level bench gate) and cuts its own
        blanks. Elements stay at 25; fine/deep blanks stay with Stonemason. */
-    { id: 'mine_rune_essence',  name: 'Mine Rune Essence',    icon: '🪨', inputs: {},                             output: 'rune_essence', outputQty: 2, xp: 6, req: 1, ms: 3000, xpSkill: 'mining' },
     { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
     { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
     { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },

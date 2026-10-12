@@ -972,7 +972,13 @@ export default [
     tiered.forEach(([id, it]) => {
       assert(typeof it.ammoPerShot === 'number' && it.ammoPerShot >= 0 && isFinite(it.ammoPerShot),
         'ammo "' + id + '" must declare a numeric ammoPerShot (the per-swing burn)');
-      assert(it.v > 0, 'ammo "' + id + '" needs a gold value — the server is about to own prices');
+      /* Game Designer (b570): tier 1 is never spent, so it books at 0 — a price
+         would be a faucet; every rung above it is spent and must be priced. */
+      if (it.tier === 1) {
+        assert(it.v === 0 && it.ammoPerShot === 0, 'tier-1 ammo "' + id + '" must book at 0 and never burn (v ' + it.v + ', perShot ' + it.ammoPerShot + ')');
+      } else {
+        assert(it.v > 0, 'ammo "' + id + '" needs a gold value — the server owns prices');
+      }
     });
 
     // THE FTUE RULING, pinned: the first rung does not burn. At tier 1 a ranged
@@ -1249,16 +1255,15 @@ export default [
       assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
       assert(xpOfSkill('stonemason') > 0, 'dressing (refining) must pay Stonemason XP (b374)');
 
-      /* ── 3. W0 RUNECRAFTING RULING (2026-10-09): the skill supplies ITSELF.
-         Mine Rune Essence on the Runecrafting bench (input-free, pays MINING
-         like the quarry), then cut it to blanks — no Stonemason block in the
-         chain any more. */
-      const mineBefore = xpOfSkill('mining');
-      const e = work('mine_rune_essence', 60);
-      assert(e.skill === 'runecrafting', 'essence is mined on the Runecrafting bench, got ' + e.skill);
-      assert(e.ticks === 60 && e.stoppedBy === null, 'essence mining stopped early: ' + e.stoppedBy);
-      assert(have('rune_essence') === 120, 'expected 120 rune essence, got ' + have('rune_essence'));
-      assert(xpOfSkill('mining') > mineBefore, 'mining essence must pay MINING XP (the quarry pattern)');
+      /* ── 3. W0 RUNECRAFTING RULING: the skill supplies ITSELF. Rune Essence
+         is a MINING node at level 1 (Game Designer, b570: gathered like copper,
+         never conjured on a bench), then cut to blanks — no Stonemason block in
+         the chain. The node is gathering data; the bag gets its 120 here. */
+      const node = (window.ROCKS || []).find((n) => n.prod === 'rune_essence');
+      assert(node && node.req === 1, 'Rune Essence is not a level-1 mining node: ' + JSON.stringify(node));
+      assert(!(window.ARTISAN_RECIPES.runecrafting || []).some((x) => x.output === 'rune_essence' && !Object.keys(x.inputs || {}).length),
+        'an input-free essence rung is back on the Runecrafting bench (b357: Stonemason only)');
+      window.G.inventory.rune_essence = 120;
       const blocksBefore = have('dressed_block');
       const b = work('cut_rune_blanks', 30);
       assert(b.skill === 'runecrafting', 'blanks are cut on the Runecrafting bench now, got ' + b.skill);
@@ -1394,9 +1399,9 @@ export default [
       assert(openers.length > 0,
         'Runecrafting has no rung at level 1 — a skill whose first action is gated is a skill '
         + 'a new player cannot start');
-      /* W0: the bench now opens with `mine_rune_essence` (input-free, pays
-         Mining). This test is the GOLD on-ramp — the player who buys blanks
-         instead of mining — so it takes the level-1 rung that eats them. */
+      /* W0: the bench also opens with cutting mined essence. This test is the
+         GOLD on-ramp — the player who buys blanks instead of mining — so it
+         takes the level-1 rung that eats them. */
       const rung = openers.find((x) => (x.inputs || {}).rune_blank > 0);
       assert(rung, 'no level-1 Runecrafting rung eats Blank Runes — the shop counter is not an on-ramp');
       const inputs = rung.inputs || (rung.input ? { [rung.input]: 1 } : {});

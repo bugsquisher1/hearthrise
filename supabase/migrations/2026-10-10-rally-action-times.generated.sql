@@ -5,7 +5,7 @@
 --   src/data/recipes.js and src/core/pacing.js (PACE.actionMs = 1.6).
 --   Any hand edit FAILS `node tools/gen-rally-action-times.mjs --check` (CI).
 --
---   digest: eaddd81688865d81e311448362c602d876677302254a66d58b8ec514674819dc
+--   digest: cc35a0ee99512a7df5bdb1a5529bca14ac940763b459bdb5385039aacc61d7c1
 --   409 actions
 --
 -- Read by hr_rally_points_of (2026-10-10-rally-points-server.sql): one gather
@@ -353,7 +353,6 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('artisan', 'make_willow_staff', 5),
   ('artisan', 'make_yew_bow', 7),
   ('artisan', 'make_yew_staff', 7),
-  ('artisan', 'mine_rune_essence', 5),
   ('artisan', 'offer_ancient_claw', 6),
   ('artisan', 'offer_razor_claw', 4),
   ('artisan', 'purge_void_chitin', 6),
@@ -404,6 +403,7 @@ insert into public.hr_rally_action_s (kind, activity_id, paced_s) values
   ('gather', 'duskwood_tree', 21),
   ('gather', 'elder_yew_tree', 17),
   ('gather', 'emberstone_rock', 17),
+  ('gather', 'essence_rock', 5),
   ('gather', 'fluxsalt_pocket', 11),
   ('gather', 'frostfin_reach_s', 20),
   ('gather', 'frostfin_s', 18),

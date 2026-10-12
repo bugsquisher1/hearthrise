@@ -256,9 +256,13 @@ begin
     raise exception 'GATE(b): a fishing/mining node has a NULL req_lv (%) — hr_apply '
                     'short-circuits its gate on NULL, so that node is ungated', v_bad;
   end if;
+  -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 b570): the Essence
+  -- Rock is a second level-1 mining node by Game Designer ruling
+  -- (2026-10-16-w0e-ammo-runecraft.sql); the named row is excluded, any other
+  -- shared level still fails.
   select string_agg(req_skill || ' ' || req_lv, ', ' order by req_skill, req_lv) into v_bad
     from (select req_skill, req_lv from public.hr_activities
-           where kind = 'gather' and req_skill in ('fishing','mining')
+           where kind = 'gather' and req_skill in ('fishing','mining') and activity_id <> 'essence_rock'
            group by req_skill, req_lv having count(*) > 1) d;
   if v_bad is not null then
     raise exception 'GATE(b): more than one node on % — the ladder is no longer one rung per '

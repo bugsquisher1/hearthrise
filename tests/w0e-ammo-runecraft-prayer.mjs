@@ -299,9 +299,13 @@ export async function runAll({ mutate } = {}) {
         + 'first hour makes a rune nothing burns');
       ok(!rc.some((r) => ITEMS[r.output] && ITEMS[r.output].slot === 'ammo' && !(ITEMS[r.output].ammoPerShot > 0)),
         'R1: Runecrafting still makes a FREE rung (air) — that rune comes from the kit and the shop now');
-      /* Self-supply at level 1 with NO other skill: every input of a level-1
-         rung is the output of a level-1 Runecrafting rung (or there is none). */
-      const madeAt1 = new Set(lv1.map((r) => r.output));
+      /* Self-supply at level 1: every input of a level-1 rung is made by a
+         level-1 Runecrafting rung or MINED at a level-1 rock (the Essence Rock,
+         Game Designer b570: essence is gathered like copper, never conjured). */
+      const madeAt1 = new Set([...lv1.map((r) => r.output), ...ROCKS.filter((n) => (n.req || 1) <= 1).map((n) => n.prod)]);
+      ok(ROCKS.some((n) => n.id === 'essence_rock' && n.req === 1 && n.prod === 'rune_essence'),
+        'R1: the Essence Rock is not a level-1 mining node yielding rune_essence');
+      ok(!rc.some((r) => r.output === 'rune_essence'), 'R1: a Runecrafting rung makes essence — it is MINED (b570)');
       for (const r of lv1) {
         for (const inId of Object.keys(r.inputs || {})) {
           ok(madeAt1.has(inId), `R1: level-1 rung ${r.id} eats ${inId}, which no level-1 Runecrafting rung makes`);
@@ -312,11 +316,11 @@ export async function runAll({ mutate } = {}) {
          Magic 15 so the Earth rune is wearable. */
       const skills = { runecrafting: 0, mining: 0, stonemason: 0, hitpoints: xpAt(30), defense: xpAt(30), magic: xpAt(15), prayer: 0 };
       const step = (id, inventory) => away({ kind: 'artisan', id, skills: { ...skills }, inventory, hp: 300 });
-      const mine = step('mine_rune_essence', {});
+      const mine = away({ kind: 'gather', id: 'essence_rock', skills: { ...skills }, inventory: {}, hp: 300 });
       const ess = (mine.accrued && mine.delta.items && mine.delta.items.rune_essence) || 0;
-      ok(ess > 0, `R2: Runecrafting 1 mined no Rune Essence (${mine.reason || JSON.stringify(mine.delta && mine.delta.items)})`);
+      ok(ess > 0, `R2: Mining 1 mined no Rune Essence at the Essence Rock (${mine.reason || JSON.stringify(mine.delta && mine.delta.items)})`);
       ok(mine.accrued && mine.delta.xp && mine.delta.xp.mining > 0 && !(mine.delta.xp.runecrafting > 0),
-        'R2: mining essence must pay MINING (the quarry pattern), not Runecrafting');
+        'R2: mining essence must pay MINING, not Runecrafting');
       const cut = step('cut_rune_blanks', { rune_essence: ess });
       const blanks = (cut.accrued && cut.delta.items && cut.delta.items.rune_blank) || 0;
       ok(blanks > 0, `R2: ${ess} essence cut no blanks at Runecrafting 1 (${cut.reason})`);

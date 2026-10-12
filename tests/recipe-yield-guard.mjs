@@ -152,7 +152,6 @@ export const RATIO_ALLOW = Object.freeze({
   dress_rubble:   'REVIEW (game-designer): 11.0x, ~60k g/hr — stonemason dressing margin',
   dress_granite:  'REVIEW (game-designer): 10.6x, ~163k g/hr — as above',
   dress_basalt:   'REVIEW (game-designer): 9.6x, ~322k g/hr — as above',
-  mine_rune_essence: 'gathering step (W0 Runecrafting ruling): no inputs, the quarry pattern on the Runecrafting bench',
 });
 
 /* ── THE GEAR-LADDER RUNG CAP (CHECK 4) ───────────────────────────────────

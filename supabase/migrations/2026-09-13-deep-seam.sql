@@ -450,9 +450,14 @@ begin
     raise exception 'GATE(b2): a mining node has a NULL req_lv (%) — hr_apply short-circuits '
                     'its gate on NULL, so that node is ungated', v_bad;
   end if;
+  -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 b570): the Essence
+  -- Rock is a SECOND level-1 node by Game Designer ruling (Runecrafting's
+  -- essence, mined like copper; 2026-10-16-w0e-ammo-runecraft.sql). Two level-1
+  -- tiles cannot render a locked tile above an unlocked one, so the named row is
+  -- excluded; any other shared level still fails.
   select count(*) into v_n from (
     select req_lv from public.hr_activities
-     where kind = 'gather' and req_skill = 'mining'
+     where kind = 'gather' and req_skill = 'mining' and activity_id <> 'essence_rock'
      group by req_lv having count(*) > 1) d;
   if v_n > 0 then
     raise exception 'GATE(b2): % mining level(s) carry more than one node — the bench ladder is '

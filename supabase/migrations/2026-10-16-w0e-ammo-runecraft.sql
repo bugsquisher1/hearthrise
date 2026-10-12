@@ -5,8 +5,9 @@
 --
 --   §1a ONE new `hr_items` row: rune_essence (Rune Essence, value 15, tradeable,
 --       not equippable, not food).
---   §1b FIVE `hr_activities` moves (all kind 'artisan'):
---         + mine_rune_essence   runecrafting 1   (new, input-free, pays MINING)
+--   §1b FIVE `hr_activities` moves:
+--         + essence_rock        gather / mining 1 (new ore node, mined like copper —
+--                               Game Designer b570; NOT a Runecrafting bench rung)
 --         ~ cut_rune_blanks     stonemason 1  -> runecrafting 1
 --         ~ split_rune_blanks   stonemason 22 -> runecrafting 12
 --         ~ bind_earth_runes    runecrafting 15 -> runecrafting 1
@@ -24,8 +25,9 @@
 --     of each ladder is in the starter kit (§1c) and on the Local Shop counter
 --     (edge catalogue, src/data/shops.js — not in this database).
 --   RUNECRAFTING RULING: the skill starts on EARTH runes (spent 1/cast) at 1,
---     and cuts its own blanks from Rune Essence it mines on its own bench at 1,
---     so it no longer needs Stonemason to start. Air runes leave the bench.
+--     and cuts its own blanks from Rune Essence MINED at the level-1 Essence
+--     Rock (a Mining node, b570 ruling: input-free lanes stay Stonemason's), so
+--     it no longer needs Stonemason to start. Air runes leave the bench.
 --   Top-10 #8 PRAYER (ward by tier) is entirely EDGE-PAYLOAD (src/core/combat.js
 --     monsterCombatRolls + src/data/skills.js PRAYER_WARDS); nothing here.
 --
@@ -44,12 +46,12 @@
 --   hand-copy them into SQL: an XP copy here is a FAUCET.
 --
 -- ── THE ECONOMY HALF ───────────────────────────────────────────────────────
---   mine_rune_essence mints from nothing (the quarry pattern): 2 essence per
---   3.0 s book action, paced 1,500/h. Vendored at the RAW 20% bid (items.js
---   RAW_QUARRIED) = 3 g each, 4,500 g/h — level with the shipped level-1 Rubble
---   quarry (4,327 g/h at its floored 1 g bid x 5), so mining essence is not a
---   better level-1 gold faucet than one Security already accepted; its real
---   sink is Runecrafting. Per-call clamps unchanged (15 h x 1,500 = 22,500
+--   essence_rock is an ore node exactly like copper_rock (req 1, 21 xp, 3.0 s,
+--   1 per action): raw (items.js RAW_GATHERED from ROCKS), vendored at the 20%
+--   bid = 3 g, i.e. the copper line, so it is no better a level-1 gold faucet
+--   than copper. Hired hands and the world tick work it like any ore (the edge
+--   catalogue is built from ROCKS). Its real sink is Runecrafting; the split
+--   rung is 6 essence -> 6 blanks at 3 g each (1.00x, b570 ruling). Per-call clamps unchanged (15 h x 1,500 = 22,500
 --   units, far under c_max_item_delta 1,000,000). The blank cuts are 1.0x /
 --   1.11x input BOOK value and 3.0x / 3.3x at the vendor (recipe-yield-guard
 --   RATIO_CAP 5x), so the blank lane mints no gold. The three kit
@@ -68,7 +70,7 @@
 --   update public.hr_activities set req_skill='stonemason', req_lv=1  where kind='artisan' and activity_id='cut_rune_blanks';
 --   update public.hr_activities set req_skill='stonemason', req_lv=22 where kind='artisan' and activity_id='split_rune_blanks';
 --   update public.hr_activities set req_lv=15 where kind='artisan' and activity_id='bind_earth_runes';
---   delete from public.hr_activities where kind='artisan' and activity_id='mine_rune_essence';
+--   delete from public.hr_activities where kind='gather' and activity_id='essence_rock';
 --   delete from public.hr_start_inventory where item_id in ('bronze_arrows','air_rune','coarse_whetstone');
 --   (hr_items rune_essence is only honest to delete BEFORE anyone holds one.)
 --   Pair with an edge + client redeploy from the reverted src/data.
@@ -136,7 +138,7 @@ begin
 
   -- ── 1b. THE RUNECRAFTING BENCH ───────────────────────────────────────────
   insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss)
-  values ('artisan','mine_rune_essence','runecrafting',1,null,false),
+  values ('gather','essence_rock','mining',1,null,false),
          ('artisan','cut_rune_blanks','runecrafting',1,null,false),
          ('artisan','split_rune_blanks','runecrafting',12,null,false),
          ('artisan','bind_earth_runes','runecrafting',1,null,false)
@@ -152,6 +154,9 @@ begin
   delete from public.hr_activities where kind = 'artisan' and activity_id = 'bind_air_runes';
   get diagnostics v_rows = row_count;
   raise notice 'w0e §1b: % bind_air_runes row(s) retired (0 on a re-apply)', v_rows;
+  -- The essence is a MINING node, never a bench rung (b570): no artisan
+  -- mine_rune_essence may exist, whatever an earlier draft of this file wrote.
+  delete from public.hr_activities where kind = 'artisan' and activity_id = 'mine_rune_essence';
 
   -- ── 1c. THE STARTER KIT CARRIES EVERY FREE TIER-1 AMMO RUNG ──────────────
   insert into public.hr_start_inventory (item_id, qty)
@@ -184,17 +189,20 @@ begin
                       or a.max_hp is not null or a.is_boss)
     into v_n, v_bad
     from (values
-      ('mine_rune_essence','runecrafting',1),
-      ('cut_rune_blanks','runecrafting',1),
-      ('split_rune_blanks','runecrafting',12),
-      ('bind_earth_runes','runecrafting',1)
-    ) as x(activity_id, req_skill, req_lv)
-    join public.hr_activities a on a.kind = 'artisan' and a.activity_id = x.activity_id;
+      ('gather','essence_rock','mining',1),
+      ('artisan','cut_rune_blanks','runecrafting',1),
+      ('artisan','split_rune_blanks','runecrafting',12),
+      ('artisan','bind_earth_runes','runecrafting',1)
+    ) as x(kind, activity_id, req_skill, req_lv)
+    join public.hr_activities a on a.kind = x.kind and a.activity_id = x.activity_id;
   if v_n <> 4 then
     raise exception 'GATE(a) CONTROL: hr_activities holds % of the 4 ruled rungs', v_n;
   end if;
   if v_bad is not null then
     raise exception 'GATE(a): a W0 Runecrafting rung did not land as ruled: %', v_bad;
+  end if;
+  if exists (select 1 from public.hr_activities where activity_id = 'mine_rune_essence') then
+    raise exception 'GATE(a): mine_rune_essence is a server activity — essence is mined at essence_rock (b570)';
   end if;
   if exists (select 1 from public.hr_activities where activity_id = 'bind_air_runes') then
     raise exception 'GATE(a): bind_air_runes is still a server activity — the bench would '
@@ -267,16 +275,26 @@ begin
       raise exception 'GATE(c): declaring bind_air_runes answered % — it must be unknown_activity', v_r;
     end if;
 
-    -- A Runecrafting-1 character may mine essence and bind earth (the whole
-    -- point: the skill starts with nothing else trained). POSITIVE CONTROL for
-    -- the refusal above.
+    -- The old bench rung is refused as unknown too: essence is MINED (b570).
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
              jsonb_build_object('activity',
                jsonb_build_object('kind','artisan','id','mine_rune_essence','restart',true),
                'journal', c_j));
+    if v_r->>'error' is distinct from 'unknown_activity' then
+      raise exception 'GATE(c): declaring artisan mine_rune_essence answered % — it must be unknown_activity', v_r;
+    end if;
+
+    -- A level-1 character may mine essence at the rock and bind earth (the
+    -- whole point: the skill starts with nothing else trained). POSITIVE
+    -- CONTROL for the refusals above.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('activity',
+               jsonb_build_object('kind','gather','id','essence_rock','restart',true),
+               'journal', c_j));
     if coalesce(v_r->>'ok','false') <> 'true' then
-      raise exception 'GATE(c) CONTROL: a level-1 character was refused mine_rune_essence (%)', v_r;
+      raise exception 'GATE(c) CONTROL: a Mining-1 character was refused the essence_rock (%)', v_r;
     end if;
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),

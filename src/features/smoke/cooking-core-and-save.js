@@ -2048,30 +2048,51 @@ export default [
      rides the topbar row instead, so it costs no height anywhere: the live app
      at desktop and phone, each in its own iframe so it is graded by its own
      viewport, with a step and its button drawn. */
-  () => tryRun('SPINE-BAR-FIT: the pointer bar sits inside the topbar on desktop and phone, between the player and the stats, its button on screen', () => {
+  () => tryRunAsync('SPINE-BAR-FIT: the pointer bar sits inside the topbar on desktop and phone, between the player and the stats, its button on screen', async () => {
     const R = window.HearthriseReveal, SP = window.HearthriseSpine;
     const was = R.__pin({ counts: { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 }, countsComplete: true, skills: {},
       property: 0, workers: 0, bag: { normal_log: 30, copper_ore: 4 }, gold: 100, equipment: {}, claimed: { gatherer: true, first_cook: true, first_blood: true } });
     try {
-      window.showTab('farming');   // a hub with a pane strip, which shares the topbar on a phone
+      /* Farm and Combat: hubs with a pane strip, which shares the topbar on a
+         phone. Combat's four-tab strip squeezed the bar's line to 26px at
+         852x393 (b570 visual gate) until fitRoom kept the bar a floor. */
+      for (const tab of ['farming', 'combat']) {
+      window.showTab(tab);
+      await new Promise((r) => setTimeout(r, 60));   // the hub strip fills after the tab change
       SP.__forget(); SP.render();
       const live = document.getElementById('hr-spine-bar');
-      assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on the Farm');
+      assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on ' + tab);
       const app = document.getElementById('app'), cls = document.body.className;
-      for (const [w, h] of [[1440, 900], [922, 423]]) {
+      for (const [w, h] of [[1440, 900], [922, 423], [852, 393]]) {
         phoneFrame(w, h, app.outerHTML, (doc) => {
           doc.body.className = cls;
           const R2 = (e) => e.getBoundingClientRect();
           const bar = doc.getElementById('hr-spine-bar'), top = doc.querySelector('.topbar'), stats = doc.querySelector('.top-stats'), go = bar && bar.querySelector('.sp-go');
           assert(bar && top && top.contains(bar), w + 'x' + h + ': the bar is not inside the topbar');
-          SP.__fit(bar);   // the frame runs no scripts; the live render does this
+          /* The frame runs no scripts: publish the stats width the way
+             nav-consolidation.js does live (the strip's max-width reads it),
+             then fit the bar the way the live render does. */
+          /* Combat's four panes (Field, Bounty Board, Dungeons, Events) are what
+             squeezed the bar; the pinned early-step facts hide three of them, so
+             the frame draws the full strip the way nav-consolidation does. */
+          const hs = doc.getElementById('hub-tabs');
+          if (tab === 'combat' && hs) {
+            hs.hidden = false;
+            hs.innerHTML = ['Field', 'Bounty Board', 'Dungeons', 'Events'].map((l) =>
+              '<button type="button" class="hub-tab"><span class="ic"></span><span class="lbl">' + l + '</span></button>').join('');
+          }
+          const mainEl = doc.querySelector('.main');
+          if (mainEl && stats) mainEl.style.setProperty('--hr-top-stats-w', Math.ceil(R2(stats).width) + 'px');
+          SP.__fit(bar);
           const b = R2(bar), t = R2(top), g = R2(go);
           assert(b.width > 40 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5, w + 'x' + h + ': the bar leaves the topbar row (' + Math.round(b.top) + '..' + Math.round(b.bottom) + ' vs ' + Math.round(t.top) + '..' + Math.round(t.bottom) + ')');
           assert(g.width > 0 && g.right <= w && (!stats || g.right <= R2(stats).left + 0.5), w + 'x' + h + ': Go is off screen or under the stats');
           const strip = doc.getElementById('hub-tabs'), s = strip && !strip.hidden && R2(strip);
           const inner = R2(bar.querySelector('.sp-in'));
           if (s && s.width > 0 && s.top < t.bottom && s.bottom > t.top) assert(inner.left >= s.right - 0.5, w + 'x' + h + ': the bar runs under the pane strip (' + Math.round(inner.left) + ' < ' + Math.round(s.right) + ')');
+          assert(b.right - inner.left >= 170, tab + ' ' + w + 'x' + h + ': the pane strip left the bar ' + Math.round(b.right - inner.left) + 'px for its line (floor 180)');
         });
+      }
       }
     } finally { R.__pin(was); SP.__forget(); window.showTab('profile'); }
   }),

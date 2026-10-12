@@ -71,7 +71,11 @@ export function barHtml(m, o) {
       + dailyHtml(o.daily) + '</div>';
   }
   if (m.finished) {
-    return '<div class="sp-in"><span class="sp-title">Every step is done. The realm is yours.</span>' + dailyHtml(o.daily) + '</div>';
+    /* Two lengths of the same line: a landscape phone shares the topbar with the
+       pane strip and has room for the short one only (CSS picks). */
+    return '<div class="sp-in"><span class="sp-title" title="Every step is done. The realm is yours.">'
+      + '<span class="sp-long">Every step is done. The realm is yours.</span><span class="sp-short">Every step done</span></span>'
+      + dailyHtml(o.daily) + '</div>';
   }
   const a = action(m, o.routes);
   const reward = a && a.claim ? '<span class="sp-reward">' + esc(rewardText(m.reward, o.itemName)) + '</span>' : '';

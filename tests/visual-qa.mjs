@@ -70,11 +70,17 @@ function serve() {
   });
 }
 
-const VIEWPORTS = [
-  { key: 'desktop', width: 1440, height: 900 },
-  { key: 'landscape', width: 852, height: 393 },
-];
-const SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'bounty', 'dungeons', 'farming', 'house', 'stable', 'clan', 'party', 'events', 'shops', 'market', 'social'];
+/* `--viewport WxH` replaces the two default sizes with one explicit size (the
+   gate's 922x423 landscape phone), and `--screens a,b` walks only those panes. */
+const VP_ARG = /^(\d+)x(\d+)$/.exec(argOf('--viewport') || '');
+const VIEWPORTS = VP_ARG
+  ? [{ key: `vp${VP_ARG[1]}x${VP_ARG[2]}`, width: Number(VP_ARG[1]), height: Number(VP_ARG[2]) }]
+  : [
+    { key: 'desktop', width: 1440, height: 900 },
+    { key: 'landscape', width: 852, height: 393 },
+  ];
+const ALL_SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'bounty', 'dungeons', 'farming', 'house', 'stable', 'clan', 'party', 'events', 'shops', 'market', 'social'];
+const SCREENS = argOf('--screens') ? ALL_SCREENS.filter((s) => argOf('--screens').split(',').includes(s)) : ALL_SCREENS;
 
 /* Injected into the page — runs against a REAL rendered layout.
    ARG is an object, not a bare label: the text-metric detectors are only honest

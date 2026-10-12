@@ -41,6 +41,7 @@
   text-overflow: ellipsis;
 }
 .sp-title.is-pending { font-weight: 600; color: var(--ink-3); }
+.sp-title .sp-short { display: none; }
 .sp-parts {
   flex: 1 1 auto;
   min-width: 0;
@@ -115,7 +116,11 @@
 /* A short landscape phone keeps ONE line: the step, its name, the part to do
    next, the chip and the button. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* The pane strip shares this topbar; src/features/spine-pointer.js fitRoom
+     keeps the bar a floor for this short line. */
   .sp-bar { margin: 0 8px; }
+  .sp-title .sp-long { display: none; }
+  .sp-title .sp-short { display: inline; }
   .sp-in { gap: 8px; }
   .sp-bar .sp-reward,
   .sp-bar .sp-step { display: none; }

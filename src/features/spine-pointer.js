@@ -27,6 +27,9 @@ import { isRecordPending } from '../net/record.js?v=569';
 
 const BAR_ID = 'hr-spine-bar';
 const STRIP_IN_TOPBAR = '(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)';
+/* The room the bar keeps for its own line when the pane strip shares the topbar:
+   the short title, the daily chip and the gap between them. */
+const BAR_FLOOR = 180;
 const answered = Object.create(null);     // quest id → the claim RPC confirmed it is paid
 let seen = null;
 let seenKey = null;
@@ -169,13 +172,25 @@ function fitRoom(bar) {
   /* Only where menu-journal.css lifts the strip into the topbar; elsewhere no
      layout is read at all (render runs on every tab change). */
   const lifted = !!(win && win.matchMedia && win.matchMedia(STRIP_IN_TOPBAR).matches);
-  if (!lifted) { if (bar.style.paddingLeft) bar.style.paddingLeft = ''; return; }
+  if (!lifted) {
+    if (bar.style.paddingLeft) bar.style.paddingLeft = '';
+    if (strip && strip.style.maxWidth) strip.style.maxWidth = '';
+    return;
+  }
   if (!top || !top.getBoundingClientRect) return;
   const t = top.getBoundingClientRect(), b = bar.getBoundingClientRect();
   let pad = 0;
   if (strip && !strip.hidden) {
-    const r = strip.getBoundingClientRect();
-    if (r.width > 0 && r.top < t.bottom && r.bottom > t.top) pad = Math.max(0, Math.ceil(r.right - b.left + 8));
+    if (strip.style.maxWidth) strip.style.maxWidth = '';   // measure the strip's own width first
+    let r = strip.getBoundingClientRect();
+    if (r.width > 0 && r.top < t.bottom && r.bottom > t.top) {
+      /* The bar keeps BAR_FLOOR px for its line: past that the strip (which
+         scrolls sideways) gives way, never the title. 852x393 Combat squeezed
+         the title to 26px before this. */
+      const limit = b.right - BAR_FLOOR - 8;
+      if (r.right > limit) { strip.style.maxWidth = Math.max(0, Math.floor(limit - r.left)) + 'px'; r = strip.getBoundingClientRect(); }
+      pad = Math.max(0, Math.ceil(r.right - b.left + 8));
+    }
   }
   const want = pad + 'px';
   if (bar.style.paddingLeft !== want) bar.style.paddingLeft = want;

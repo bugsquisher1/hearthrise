@@ -49,6 +49,8 @@ async function withCoach(f, body) {
 const title = () => ((document.querySelector('.hr-coach-card .hr-coach-title') || {}).textContent || '');
 /** Tick, then follow the ring through the doors (click, as a player) until the target is ringed. */
 async function toTarget(C, row) {
+  await until(C, () => title() === row.title, 5000);
+  assert(title() === row.title, row.id + ': its card never came up (showing "' + title() + '")');
   for (let k = 0; k < 6; k++) {
     C.tick(); await sleep(350);
     const hit = C.resolve(row, C.lootId(C.facts().bag));
@@ -61,6 +63,12 @@ async function toTarget(C, row) {
 }
 /** Wait out the done-tick and the next card's slide-in. */
 async function settle(C) { C.tick(); await sleep(1100); C.tick(); await sleep(150); }
+/** Tick until `pred` holds or the deadline passes: the outcome, never a guessed duration. */
+async function until(C, pred, ms) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) { if (pred()) return true; C.tick(); await sleep(100); }
+  return !!pred();
+}
 
 export default [
 
@@ -73,7 +81,7 @@ export default [
       assert(C.tick() === 0 && /Welcome to the Hearth/.test(title()), 'a fresh hero did not open on the welcome card: ' + title());
       assert(laid(C.__draw.currentAnchor()) && C.__draw.currentAnchor().matches('.player-avatar'), 'the welcome card is not ringed on the hero portrait');
       document.querySelector('.hr-coach-card [data-coach-btn]').click();
-      await settle(C);
+      await until(C, () => /Chop your first logs/.test(title()), 5000);
       assert(/Chop your first logs/.test(title()), 'Let’s go did not move to the chop step: ' + title());
 
       /* The gate: a press on an unringed rail door is swallowed. */
@@ -93,7 +101,7 @@ export default [
         target.click(); await sleep(300); C.tick(); await sleep(200);
         assert(now.test(title()), id + ': the click alone moved the guide on; only a server fact may (' + title() + ')');
         serverSays(); pinBoth(f);
-        await settle(C);
+        await until(C, () => next.test(title()), 5000);
         assert(next.test(title()), id + ': the server fact did not move the guide on: ' + title());
       }
     });
@@ -142,6 +150,18 @@ export default [
       const a = C.__draw.currentAnchor();
       assert(!a || !(a.closest('.locked, .is-locked, [disabled], [data-reveal-locked]')), 'the ring sits on a locked control: ' + (a && a.outerHTML.slice(0, 120)));
       assert(!a || !/'fishing'|shrimp_s/.test(a.getAttribute('onclick') || ''), 'the ring went through the shut Fishing door');
+      /* Each layer on its own: an OPEN element behind a door the reveal holds shut,
+         and a laid-out control the DOM marks locked, are both refused. */
+      const open = '.nav-btn[data-tab="skills"], .bn-btn[data-tab="skills"]';
+      assert([...document.querySelectorAll(open)].some(laid), 'CONTROL: no laid-out Skills door to test against');
+      assert(C.hopElement({ sel: open }) !== null, 'CONTROL: an open door with no reveal row must resolve');
+      assert(C.hopElement({ sel: open, reveal: 'pane:combat' }) === null, 'a hop behind the shut Combat door resolved');
+      const probe = document.createElement('button');
+      probe.className = 'locked hr-coach-probe'; probe.textContent = 'x';
+      probe.style.cssText = 'position:fixed;left:40px;top:40px;width:60px;height:30px';
+      document.body.appendChild(probe);
+      try { assert(C.hopElement({ sel: '.hr-coach-probe' }) === null, 'a control the DOM marks locked resolved'); }
+      finally { probe.remove(); }
       const row = C.steps.find((r) => r.id === 'fish');
       assert(C.resolve(row, 'rat_tail') === null || !/fishing|shrimp/.test(C.resolve(row, 'rat_tail').el.getAttribute('onclick') || ''), 'resolve() offered a hop behind a shut door');
     });
@@ -182,7 +202,17 @@ export default [
         if (row.id === 'handoff') { window.showTab('skills'); await sleep(150); }
         const el = await toTarget(C, row);
         assert(laid(el), row.id + ': its target is not laid out');
-        const a = el.getBoundingClientRect(), c = document.querySelector('.hr-coach-card').getBoundingClientRect();
+        /* The card glides into place: measure where it SETTLES, never mid-slide
+           (a loaded machine stretches the .28 s transition). */
+        const cardEl = document.querySelector('.hr-coach-card');
+        let c = cardEl.getBoundingClientRect();
+        for (let i = 0; i < 40; i++) {
+          await sleep(60);
+          const n = cardEl.getBoundingClientRect();
+          if (Math.abs(n.left - c.left) < 0.5 && Math.abs(n.top - c.top) < 0.5) break;
+          c = n;
+        }
+        const a = el.getBoundingClientRect();
         assert(c.left >= a.right || c.right <= a.left || c.top >= a.bottom || c.bottom <= a.top,
           row.id + ': the card covers its anchor (' + [a.left, a.top, a.right, a.bottom].map(Math.round) + ' vs ' + [c.left, c.top, c.right, c.bottom].map(Math.round) + ')');
         assert(c.left >= 0 && c.right <= innerWidth && c.top >= 0 && c.bottom <= innerHeight, row.id + ': the card is off screen');

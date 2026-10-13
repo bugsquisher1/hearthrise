@@ -3605,7 +3605,7 @@ export default [
       assert(CS, 'HearthriseCombatScreens is not published — the two screens did not boot');
       window.showTab('combat');
       G.activeMonster = null;
-      CS.setView('table');
+      CS.setView('table'); CS.setTab('training');
       CS.render();
       const btn = document.querySelector('#panel-combat .wt-grid .wt-card:not([disabled])');
       assert(btn, 'the War Table rendered no reachable monster card — nothing to grade');
@@ -3632,6 +3632,7 @@ export default [
       assert(/last/i.test(document.getElementById('fs-metrics').textContent),
         'the preview it routes to carries no survival line, which is the reason for routing here');
     } finally {
+      CS.setTab('hunts');
       try { if (typeof window.closeMobPreview === 'function') window.closeMobPreview(); } catch (e) {}
       const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');
       try { window.stopCombat(); } catch (e) {}

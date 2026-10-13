@@ -2611,8 +2611,11 @@ export const combatScreen = () => {
   assert(CS, 'the two screens did not boot');
   const snap = snapshotG();
   const prevTab = window.activeTab;
+  /* The monster grid is the Adventures window's Training tab. */
+  if (typeof CS.setTab === 'function') CS.setTab('training');
   const restore = () => {
     try { window.stopCombat(); } catch (e) {}
+    if (typeof CS.setTab === 'function') CS.setTab('hunts');
     restoreG(snap);
     try { window.showTab(prevTab || 'profile'); } catch (e) {}
   };

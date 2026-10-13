@@ -9,6 +9,8 @@
 // sale whose answer is the harness's (unconfigured) transport.
 // ══════════════════════════════════════════════════════════════════════
 import { tryRunAsync, tryRun, assert, snapshotG, restoreG } from './_harness.js?v=573';
+import { buildResiduePatch } from '../../net/capstone.js?v=573';
+import { hydrateInto } from '../../net/client-state.js?v=573';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const START = () => ({ counts: {}, skills: { hitpoints: 1154 }, bag: { turnip_seed: 8, shrimp: 10, cooked_shrimp: 20 }, kills: {}, sold: false, activity: false });
@@ -103,8 +105,8 @@ export default [
       const plays = [
         ['chop', /Chop your first logs/, () => { f.counts.chopped = 15; f.skills.woodcutting = 300; }, /Catch some shrimp/],
         ['fish', /Catch some shrimp/, () => { f.counts.fished = 5; f.skills.fishing = 60; }, /Cook your catch/],
-        ['cook', /Cook your catch/, () => { f.counts['ev:cooked'] = 5; f.skills.cooking = 150; }, /Your first fight/],
-        ['fight', /Your first fight/, () => { f.kills.rat = 1; f.counts['ev:kill_any'] = 5; }, /Turn loot into gold/],
+        ['cook', /Cook your catch/, () => { f.counts['ev:cooked'] = 5; f.skills.cooking = 150; }, /Hunt in the Mill Cellar/],
+        ['fight', /Hunt in the Mill Cellar/, () => { f.kills.rat = 1; f.counts['ev:kill_any'] = 5; }, /Turn loot into gold/],
       ];
       for (const [id, now, serverSays, next] of plays) {
         const row = C.steps.find((r) => r.id === id);
@@ -239,5 +241,88 @@ export default [
         try { if (typeof window.closeInvDetail === 'function') window.closeInvDetail(); } catch (e) {}
       }
     });
+  }),
+
+  /* -- interactive coverage -- THE ADVENTURES WINDOW. Tabs, a lock that
+     says why, a star that survives the residue round trip, and the Hunt button's
+     intent: start-hunt when the server takes it, the first spawn until then. */
+  () => tryRunAsync('ADV-1: the Adventures window renders its four tabs and each pane', async () => {
+    const CS = window.HearthriseCombatScreens, snap = snapshotG();
+    try {
+      try { window.stopCombat(); } catch (e) {}
+      window.G.activeMonster = null;
+      window.showTab('combat'); CS.setView('table');
+      const tabs = [...document.querySelectorAll('#wt-tabs .wt-tab')].map((b) => b.textContent);
+      assert(tabs.join() === 'Hunts,Bosses,Dungeons,Training', 'the tabs read ' + tabs.join());
+      const want = { hunts: '#wt-hunts .wt-hunt', bosses: '#wt-bosses .wt-row', dungeons: '#wt-dungeons .wt-row', training: '#wt-grid .wt-card' };
+      for (const k of Object.keys(want)) {
+        document.querySelector('#wt-tabs [data-wtab="' + k + '"]').click();
+        await sleep(30);
+        const pane = document.querySelector('#panel-combat .wt-pane[data-wpane="' + k + '"]');
+        assert(pane && !pane.hidden && pane.getBoundingClientRect().height > 0, k + ': its pane is not shown');
+        assert(document.querySelector(want[k]), k + ': its pane drew nothing');
+        assert(document.querySelector('#wt-tabs [data-wtab="' + k + '"]').getAttribute('aria-selected') === 'true', k + ': its tab is not selected');
+      }
+      assert(document.querySelector('#wt-hunts .wt-hunt[data-hunt="mill_cellar"] .wth-mon[data-monster="rat"]'), 'the Mill Cellar card lists no Giant Rat chip');
+    } finally { CS.setTab('hunts'); restoreG(snap); window.showTab('profile'); }
+  }),
+
+  () => tryRunAsync('ADV-2: a hunt above the hero is locked and says the level it opens at', async () => {
+    const CS = window.HearthriseCombatScreens, snap = snapshotG(), lv = window.getCombatLevel;
+    try {
+      window.getCombatLevel = () => 1;
+      window.G.huntFavs = ['ridge_camp'];      // a star pins it inside the reveal window
+      window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
+      const card = document.querySelector('#wt-hunts .wt-hunt[data-hunt="ridge_camp"]');
+      assert(card && card.classList.contains('is-locked'), 'Ridge Camp at Combat 1 is not locked');
+      assert(/Opens at Combat 15/.test(card.textContent), 'the lock does not say why: ' + card.textContent.replace(/\s+/g, ' '));
+      assert(!card.querySelector('[data-cs-act="hunt"]'), 'a locked hunt still offers a Hunt button');
+      assert(document.querySelector('#wt-hunts .wt-hunt[data-hunt="mill_cellar"] [data-cs-act="hunt"]:not([disabled])'), 'the Mill Cellar is not open at Combat 1');
+    } finally { window.getCombatLevel = lv; restoreG(snap); CS.render(); window.showTab('profile'); }
+  }),
+
+  () => tryRunAsync('ADV-3: a starred hunt survives the reload (residue round trip) and sorts first', async () => {
+    const CS = window.HearthriseCombatScreens, snap = snapshotG();
+    try {
+      window.G.huntFavs = [];
+      window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
+      document.querySelector('#wt-hunts .wt-hunt[data-hunt="goblin_warren"] [data-cs-act="fav"]').click();
+      assert(JSON.stringify(window.G.huntFavs) === '["goblin_warren"]', 'the star did not land in G.huntFavs: ' + JSON.stringify(window.G.huntFavs));
+      const patch = buildResiduePatch(window.G);
+      assert(JSON.stringify(patch.huntFavs) === '["goblin_warren"]', 'huntFavs does not ride the residue put');
+      const reloaded = {};
+      hydrateInto(reloaded, JSON.parse(JSON.stringify(patch)));
+      assert(JSON.stringify(reloaded.huntFavs) === '["goblin_warren"]', 'huntFavs is not restored by the reload hydrate');
+      window.G.huntFavs = reloaded.huntFavs; CS.render();
+      const first = document.querySelector('#wt-hunts .wt-hunt');
+      assert(first && first.dataset.hunt === 'goblin_warren' && first.querySelector('[aria-pressed="true"]'), 'the starred hunt is not first and lit');
+      const forged = {};
+      hydrateInto(forged, { huntFavs: ['ok_id', 'BAD ID', 5, 'ok_id'] });
+      assert(JSON.stringify(forged.huntFavs) === '["ok_id"]', 'a forged huntFavs bag is not sanitised: ' + JSON.stringify(forged.huntFavs));
+    } finally { restoreG(snap); CS.render(); window.showTab('profile'); }
+  }),
+
+  () => tryRunAsync('ADV-4: Hunt sends start-hunt when the server takes it, else fights the first spawn', async () => {
+    const CS = window.HearthriseCombatScreens, snap = snapshotG(), A = window.HearthriseActivity, lv = window.getCombatLevel;
+    try {
+      window.getCombatLevel = () => 1;
+      const kinds = A.ACTIVITY_KINDS;
+      if (kinds.indexOf('hunt') === -1) {
+        const fb = CS.huntIntent('mill_cellar');
+        assert(fb && fb.kind === 'combat' && fb.id === 'rat', 'before the server lane, Hunt must fight the first spawn: ' + JSON.stringify(fb));
+      }
+      const sent = [];
+      window.HearthriseActivity = Object.assign({}, A, { ACTIVITY_KINDS: kinds.concat(kinds.indexOf('hunt') === -1 ? ['hunt'] : []), declare: (k, id) => { sent.push([k, id]); return null; } });
+      try { window.stopCombat(); } catch (e) {}
+      window.G.activeMonster = null;
+      window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
+      document.querySelector('#wt-hunts .wt-hunt[data-hunt="mill_cellar"] [data-cs-act="hunt"]').click();
+      assert(JSON.stringify(sent) === '[["hunt","mill_cellar"]]', 'the Hunt button sent ' + JSON.stringify(sent));
+      assert(!window.G.activeMonster, 'a start-hunt invented a foe on the client; the server picks it');
+    } finally {
+      window.HearthriseActivity = A; window.getCombatLevel = lv;
+      try { window.stopCombat(); } catch (e) {}
+      CS.setView('table'); restoreG(snap); window.showTab('profile');
+    }
   }),
 ];

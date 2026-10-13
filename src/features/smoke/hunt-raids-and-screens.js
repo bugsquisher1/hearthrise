@@ -2037,6 +2037,7 @@ export default [
     const savedTier = g.currentCombatTier;
     g.currentCombatTier = m.tier || 1;
     window.showTab('combat');
+    CS.setTab('training');
     try {
       CS.render();
       // Defensively clear any class filter left by an earlier test.
@@ -2053,6 +2054,7 @@ export default [
       assert(shown.size >= 3, 'expected the full table (>2 rows), got ' + shown.size);
     } finally {
       g.currentCombatTier = savedTier;
+      CS.setTab('hunts');
     }
   }),
 
@@ -2425,7 +2427,7 @@ export default [
     const snap = snapshotG(); const prevTab = window.activeTab; const bad = [];
     const txt = (el) => (el ? el.textContent.replace(/\s+/g, ' ') : '');
     try {
-      window.showTab('combat');
+      window.showTab('combat'); window.HearthriseCombatScreens.setTab('training');
       for (const id of ids) {
         const m = MON[id]; const w = weaknessOf(m);
         for (const t of Object.keys(WEAPON_TYPES)) {
@@ -2453,6 +2455,7 @@ export default [
       assert(!bad.length, bad.length + ' disagreements: ' + bad.slice(0, 6).join(' | '));
     } finally {
       try { HUD.close(); } catch (e) {}
+      window.HearthriseCombatScreens.setTab('hunts');
       restoreG(snap);
       try { window.showTab(prevTab || 'combat'); } catch (e) {}
     }

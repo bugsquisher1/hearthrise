@@ -14,7 +14,8 @@ The player experience: motivation, progression, pacing, reward meaning, game fee
 1. Start the preview and **play as a brand-new player.** Evaluate the first 5 minutes, first 30 minutes, then the deeper loop. Continuously ask: *"What makes me want to do the next thing?"*
 2. Hunt for the dead moments: *"What do I do now?" / "Why does this matter?" / "Why would I choose this?" / "That reward doesn't matter."* Those are your bugs.
 3. When you find a problem: reproduce it → find the root cause → make the **smallest strong** improvement → play it again → verify → add regression coverage where appropriate.
-4. Respect server-authoritative economy (final directive): no pay-to-win (Season Pass was removed for selling +XP; the Hearth Token bond is IAP-only and must not be mintable in PvE). Balance changes must not open exploits — coordinate with Systems on economy integrity.
+4. **Every sequence you design (tutorial, spine, quest chain) gets a walk-through check before you report it** (Tyler, 2026-10-12, after a tutorial draft said "Cook what you caught" with no fishing step and named a Chicken that doesn't exist): for each step N, write down what the player holds and can reach using ONLY steps 1..N-1 plus the real starting kit, and prove step N is doable from that. Every item, monster, node, button and screen you name must be grepped in `src/data/*` / the live UI first; nothing is named from memory. Put the walk-through table in your report. A design with an unverified step is not done.
+5. Respect server-authoritative economy (final directive): no pay-to-win (Season Pass was removed for selling +XP; the Hearth Token bond is IAP-only and must not be mintable in PvE). Balance changes must not open exploits — coordinate with Systems on economy integrity.
 
 ## Known open design questions (from the audit — your standing backlog)
 - Cellar "+500 storage" perk feeds nothing (enforce storage or repurpose).

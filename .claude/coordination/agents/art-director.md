@@ -2821,3 +2821,13 @@ gold…" instead of "Not enough gold". Paydown: every .mk-* override in audit-ov
 .mk-screen joined the carve-out string.
 Lesson: an empty state is a claim about the whole list, so it has to be computed over the same set
 the player thinks of as "the market" - which includes their own listing.
+
+### 2026-10-13 · b574 Recraft wave 1 (lane/b574-art-wave1)
+130 PNGs reviewed; 12 wired (raw pikeperch/silverfin/goldgill, raw shrimp, cooked trout, turnip seed packet,
+bronze + verdite ingots, oak planks, ooze + air elemental portraits, hero in placeholder-portrait.webp).
+Everything else held back: the wave is cleaner/glossier than the shipped hearthfire set, so it only replaces art
+that was WRONG (trout drumstick, bronze = copper dupe, verdite = steel dupe) or MISSING (emoji/glyph). Separate
+droppable commit lifts the Hearthlight surface ladder one step (tokens.css; ink-3 re-tuned to 4.69:1 on bg-3).
+Lesson: a style-trained generator still drifts glossy; screen against the shelf it lands on, not against the
+prompt. Cut-out = edge flood-fill of near-white + whiteness-ramp alpha + un-premultiply; enclosed white pockets
+(bow strings, padlock shackles) need a second pass.

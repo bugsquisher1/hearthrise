@@ -730,7 +730,10 @@ function selftest() {
       `  → monolith ${m.codeLines} → 3 modules ${sum(three, 'codeLines')} → 12 modules ${sum(twelve, 'codeLines')}`);
   }
   {
-    const N = 20;
+    /* N is DERIVED so the move always changes the corpus shape: a fixed 20 went
+       blind the day the real corpus itself reached 1 + 20 files (b573), because
+       the shape note compares file COUNTS and a 21-file move equals a 21-file baseline. */
+    const N = Math.max(20, (Number.isFinite(base.files) ? base.files : 0) + 1);
     const per = {
       lines: Math.floor((real.lines - 1) / N), codeLines: Math.floor(real.codeLines / N),
       tests: Math.floor(real.tests / N),

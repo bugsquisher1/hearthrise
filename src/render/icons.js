@@ -723,6 +723,9 @@ window._monsterIcon = window._monsterIcon || {};
     dawnstone_ore: 'assets/icons-bundle/resources/Res_17_stone.png',   // violet
     coal:          'assets/icons-bundle/resources/Res_14_stone.png',
     copper_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
+    /* bronze_bar, verdite_bar and oak_plank have their own paintings in
+       hearthfire/items (item-art.js SHIPPED), so they no longer borrow
+       copper's ingot, steel's ingot or the generic plank here. */
     iron_bar:    'assets/icons-bundle/resources/Res_07_ironbar.png',
     steel_bar:   'assets/icons-bundle/resources/Res_01_silverbar.png',
     silver_bar:  'assets/icons-bundle/resources/Res_01_silverbar.png',
@@ -745,7 +748,7 @@ window._monsterIcon = window._monsterIcon || {};
        ⚠ OWED TO THE ART DIRECTOR (filed in HANDOFFS): verdite is described as a
        GREEN-BLACK metal and there is no green stone or green ingot in the
        pack, so `basalt` stands in for the ore. The bar got its own green ingot
-       in b574 (hearthfire/items/verdite_bar.png). Plates, blade, maul, ore and garnet
+       in Recraft wave 1 (hearthfire/items/verdite_bar.png). Plates, blade, maul, ore and garnet
        are still the re-shoot list if this band is ever painted. *
     /* W0: Rune Essence borrows the pale granite chunk until it is painted
        (owed to the Art Director with the rest of the W0 ammo lane). */

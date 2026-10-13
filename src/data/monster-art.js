@@ -137,7 +137,7 @@ export const SHIPPED = Object.freeze([
   'stonejaw', 'stone_golem', 'storm_elemental', 'the_silence', 'the_unlit',
   'treant', 'vampire_bride', 'vharek', 'watchknight', 'water_elemental',
   'wight', 'wild_boar', 'witchs_apprentice', 'wyvern',
-  /* RECRAFT WAVE 1 (b574) — the two T1-T2 gaps that rendered a glyph. `ooze`
+  /* RECRAFT WAVE 1 — the two T1-T2 gaps that rendered a glyph. `ooze`
      was a wave-1 reject (a diseased man); this one is the floating mouth. */
   'air_elemental', 'ooze',
 ]);

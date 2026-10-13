@@ -57,7 +57,7 @@
 // way in the Recipe Book AND the inventory.
 //
 // ── ASSET DIRECTOR PASS (2026-08-17) — UNWIRED, NOT RE-SHOT YET ───────────
-// (b574: bronze_bar and oak_plank are re-shot and back in SHIPPED.)
+// (Recraft wave 1 re-shot bronze_bar and oak_plank; both are back in SHIPPED.)
 // All six ids above are now REMOVED from SHIPPED (see REJECTED_WRONG_SUBJECT
 // below). Unwiring them was NOT a downgrade to a bare emoji: `legacy.js`'s
 // `LOCAL_ITEM_ICON` literal (the pre-Hearthfire b217 map) already carried
@@ -280,7 +280,7 @@ export const REJECTED_WRONG_SUBJECT = Object.freeze([
   'weapons/void_chitin_weave', 'weapons/willow_rod', 'weapons/yew_rod',
   /* Asset Director, 2026-08-17 — b361 control sweep. See the comment near the
      top of this file for what each file actually depicts. */
-  /* b574: `bronze_bar` and `oak_plank` left this list — Recraft wave 1 painted
+  /* `bronze_bar` and `oak_plank` left this list — Recraft wave 1 painted
      the right objects at the same derived paths (a bronze ingot, a plank stack). */
   'items/copper_ore', 'items/copper_bar',
   'items/duskwood_plank', 'items/runewood_plank',

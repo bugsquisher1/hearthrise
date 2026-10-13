@@ -902,8 +902,16 @@ export async function awaitSettleRaceClear() {
        second key cannot duplicate anything;
      · a NEW key — hr_apply may hand a stored decision back to a reused one;
      · after the settle on the wire clears, so the retry does not re-enter the
-       window it just lost; ONE retry, never a loop. */
-export const CONFLICT_MAX_TRIES = 2;
+       window it just lost.
+   B573 (live 2026-10-12, Cooked Shrimp mid-fight): ONE retry was not enough —
+   combat settles/credits every few seconds, so the single retry lost the same
+   race again and the buy never landed. The retry is now BOUNDED BY COUNT AND
+   TIME (CONFLICT_MAX_TRIES attempts, CONFLICT_DEADLINE_MS total) with a growing
+   backoff after each settle clears, so it lands in a gap between credits. Each
+   attempt is still a fresh key on a refusal that applied nothing: no double-spend. */
+export const CONFLICT_MAX_TRIES = 5;
+export const CONFLICT_DEADLINE_MS = 5000;
+const CONFLICT_BACKOFF_MS = [60, 180, 400, 800];
 export function isRetryableConflict(verdict) {
   if (!verdict || verdict.outcome !== 'refused') return false;
   const b = (verdict.body && typeof verdict.body === 'object') ? verdict.body : null;
@@ -913,9 +921,13 @@ export function isRetryableConflict(verdict) {
 /** `send(key)` makes ONE attempt (key undefined ⇒ the sender mints); `mintKey()`
  *  yields the retry's key; `onRekey(old, next)` moves anything keyed to the old one. */
 export async function retryOnConflict(send, firstKey, mintKey, onRekey) {
+  const t0 = Date.now();
   let verdict = await send(firstKey);
   for (let attempt = 1; attempt < CONFLICT_MAX_TRIES && isRetryableConflict(verdict); attempt++) {
     await awaitSettleRaceClear();
+    const wait = CONFLICT_BACKOFF_MS[Math.min(attempt - 1, CONFLICT_BACKOFF_MS.length - 1)];
+    if (Date.now() - t0 + wait > CONFLICT_DEADLINE_MS) break;
+    await new Promise((r) => setTimeout(r, wait));
     const next = (typeof mintKey === 'function') ? mintKey() : null;
     if (!next) break;
     if (typeof onRekey === 'function') onRekey(verdict.key || firstKey || null, next);
@@ -7147,7 +7159,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, CONFLICT_DEADLINE_MS, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

@@ -429,8 +429,8 @@ export default [
     const A = window.HearthriseItemArt;
     assert(A && Array.isArray(A.REJECTED_WRONG_SUBJECT), 'HearthriseItemArt.REJECTED_WRONG_SUBJECT not published');
     const rejected = A.REJECTED_WRONG_SUBJECT.map((k) => k.split('/')[1]);
-    assert(rejected.indexOf('copper_ore') >= 0 && rejected.indexOf('bronze_bar') >= 0
-      && rejected.indexOf('oak_plank') >= 0, 'the flagged wrong-art ids are missing from the reject list');
+    assert(rejected.indexOf('copper_ore') >= 0 && rejected.indexOf('copper_bar') >= 0
+      && rejected.indexOf('duskwood_plank') >= 0, 'the flagged wrong-art ids are missing from the reject list');
 
     const ip = window._itemPath || {};
     const live = rejected.filter((id) => /icons-bundle\/hearthfire\//.test(ip[id] || ''));

@@ -30,6 +30,16 @@ async function withCoach(f, body) {
   G.coachDismissed = false;
   C.__reset();
   try {
+    /* A fresh hero: nothing running, the war table on Tier 1 with every family shown
+       (earlier tests leave fights, filters and tiers behind; restoreG puts them back). */
+    try { if (typeof window.stopCombat === 'function') window.stopCombat(); } catch (e) {}
+    try { if (typeof window.stopSkill === 'function') window.stopSkill(); } catch (e) {}
+    G.activeMonster = null; G.currentCombatTier = 1;
+    window.showTab('combat');
+    const back = document.querySelector('#panel-combat [data-cs-act="back"]');
+    if (back && laid(back)) back.click();
+    const all = document.querySelector('#panel-combat [data-cs-act="class"][data-cls="all"]');
+    if (all && laid(all)) all.click();
     pinBoth(f);
     window.showTab('profile');
     return await body(C, f);
@@ -59,7 +69,9 @@ async function toTarget(C, row) {
     if (hit.last) return hit.el;
     hit.el.click(); await sleep(400);
   }
-  throw new Error(row.id + ': never reached its target in six hops');
+  const a = C.__draw.currentAnchor(), G = window.G || {};
+  throw new Error(row.id + ': never reached its target in six hops (ringed: ' + (a ? a.className + ' ' + (a.getAttribute('data-monster') || a.getAttribute('data-tab') || '') : 'nothing')
+    + ', fighting: ' + G.activeMonster + ', tier: ' + G.currentCombatTier + ', foe shown: ' + ((document.getElementById('arena-foe-name') || {}).textContent || '-') + ')');
 }
 /** Wait out the done-tick and the next card's slide-in. */
 async function settle(C) { C.tick(); await sleep(1100); C.tick(); await sleep(150); }

@@ -8087,7 +8087,7 @@ export default [
      SERVER's count — the goods leg comes off before the refusal's envelope merges.
      MUTATION: drop retryOnConflict in sendGoldIntent → (a) red; drop the goods
      reversal in settleVerdict → (b) red ("Have: 33"). */
-  () => tryRunAsync('B568-1: a shop buy refused version_conflict is retried once, and a second refusal leaves the bag at the server\'s count', async () => {
+  () => tryRunAsync('B568-1/B573: a shop buy refused version_conflict is retried until it lands (bounded), and endless refusal leaves the bag at the server\'s count', async () => {
     const A = window.HearthriseAccrual, Gd = window.HearthriseGold, G = window.G;
     const row = (window.SEED_SHOP || []).find((r) => r.id === 'turnip_seed') || (window.SEED_SHOP || [])[0];
     assert(row && Gd && typeof Gd.noteGoodsPrediction === 'function', 'CONTROL: no seed row or the goods-leg seam is unpublished');
@@ -8124,11 +8124,21 @@ export default [
       assert((G.inventory[row.id] || 0) === 23 + row.qty && G.gold === 19117 - row.cost, 'after the retry landed the bag reads ' + G.inventory[row.id] + ' / gold ' + G.gold + ' — the server said ' + (23 + row.qty) + ' / ' + (19117 - row.cost));
       assert(said.some((m) => /^Bought/.test(m)) && !said.some((m) => /nothing was spent/i.test(m)), 'the player was told ' + JSON.stringify(said) + ' for a buy that landed');
 
-      // (b) TWO conflicts: bounded at one retry, and the bag shows the SERVER's count — never the phantom +qty.
-      fresh(); plan = [conflict(), conflict()];
-      await buy();
-      assert(sent.length === 2, 'two conflicts sent ' + sent.length + ' shop_buy — the retry is ONE, never a loop');
-      assert((G.inventory[row.id] || 0) === 23, 'after the server refused twice the bag reads ' + G.inventory[row.id] + ' ' + row.id + ' — the server holds 23 ("Have: 33" on live)');
+      // (b) B573 — combat credits keep bumping the version: TWO conflicts, then the buy lands EXACTLY once.
+      const waitSent = async (n) => { for (let i = 0; i < 300 && (sent.length < n || window.shopBuyPending(row.id, row.qty, row.cost)); i++) await new Promise((r) => setTimeout(r, 20)); };
+      fresh(); plan = [conflict(), conflict(), { status: 200, body: Object.assign(env(19117 - row.cost, 23 + row.qty, true), { receipt: { item: row.id, qty: row.qty } }) }];
+      sent = []; said.length = 0; window.buyShopItem(row.id, row.qty, row.cost); await waitSent(3); await drainLong();
+      assert(sent.length === 3, 'two conflicts then a buy sent ' + sent.length + ' shop_buy — a mid-fight buy must outlast the credit cadence (b572 gave up after one retry)');
+      assert(new Set(sent.map((x) => x.intentId)).size === 3, 'a retry reused a refused key');
+      assert((G.inventory[row.id] || 0) === 23 + row.qty && G.gold === 19117 - row.cost, 'after two conflicts the bag reads ' + G.inventory[row.id] + ' / gold ' + G.gold + ' — the buy must land exactly once');
+      assert(said.filter((m) => /^Bought/.test(m)).length === 1, 'the player was told ' + JSON.stringify(said));
+
+      // (c) conflicts forever: BOUNDED, and the bag shows the SERVER's count — never the phantom +qty.
+      const N = A.CONFLICT_MAX_TRIES;
+      fresh(); plan = Array.from({ length: N + 2 }, conflict);
+      sent = []; said.length = 0; window.buyShopItem(row.id, row.qty, row.cost); await waitSent(N); await drainLong();
+      assert(sent.length === N, 'endless conflicts sent ' + sent.length + ' shop_buy — the retry is bounded at ' + N);
+      assert((G.inventory[row.id] || 0) === 23, 'after the server refused every try the bag reads ' + G.inventory[row.id] + ' ' + row.id + ' — the server holds 23 ("Have: 33" on live)');
       assert(G.gold === 19117, 'a refused buy left gold at ' + G.gold + ', not the server\'s 19117');
       assert(Object.keys(Gd.goodsPredictions()).length === 0, 'a goods leg outlived its answer: ' + JSON.stringify(Gd.goodsPredictions()));
       assert(!said.some((m) => /^Bought/.test(m)) && said.some((m) => /nothing was spent/i.test(m)), 'a refused buy told the player ' + JSON.stringify(said));

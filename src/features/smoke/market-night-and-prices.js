@@ -3024,9 +3024,6 @@ export default [
        engine away.js `recoveryFor` charges the day's first fall                          → clause 4
        engine combat-sim doubles the clock when `ctx.away` (the away-only rule forbidden) → clause 6
        engine skill-sim caps a gather span at one hour                                    → clause 1 */
-  /* b573: the six-step tour is retired; First Steps (src/data/coach.js) makes
-     two of these promises in its own words, and those two are bound here. The
-     other clauses still bind the ENGINE (the copy that stated them is gone). */
   () => tryRun('AWAY-HONEST-5: First Steps promises exactly what the engine pays — time away is paid, and a fight that falls picks itself back up', () => {
     const F = window.HearthriseCoach;
     const C = window.HearthriseCore;

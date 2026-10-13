@@ -360,6 +360,8 @@
     "node tests/token-single-source.mjs --selftest": "client-guards",
     "node tests/screen-primers.mjs": "client-guards",
     "node tests/screen-primers.mjs --selftest": "client-guards",
+    "node tests/coach-rows.mjs": "client-guards",
+    "node tests/coach-rows.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs": "client-guards",
     "node tests/no-new-prediction.mjs": "client-guards",

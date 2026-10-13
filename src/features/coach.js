@@ -268,7 +268,14 @@ export function tick() {
   const hero = heroKey();
   if (hero !== lastHero) { if (lastHero !== null) reset(); lastHero = hero; }
   if (!running) {
+    /* The harness has no record: the guide starts there only when a test pins its facts. */
+    if (window.__HR_TEST_HARNESS__ && !pin) return -1;
     if (!f || !eligibleNow(f)) { if (Draw.isUp()) Draw.hide(); return -1; }
+    /* The front door goes first: a name prompt, the downloads sheet or any other
+       sheet already up finishes before the guide mounts (once mounted, they all
+       queue behind its `.ftue-root`). */
+    const S = window.HearthriseSheet;
+    if (document.querySelector('.hr-id-scrim, .hr-dl-scrim') || (S && typeof S.anyOpen === 'function' && S.anyOpen())) return -1;
     running = true;
   }
   const G = window.G || {};

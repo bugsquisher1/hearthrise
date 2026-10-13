@@ -179,11 +179,7 @@ export default [
       window.G._serverBag = { turnip_seed: 8, shrimp: 10, cooked_shrimp: 20 };
       for (const row of C.steps) {
         pinBoth(f);
-        if (row.kind === 'info') {
-          window.showTab(row.id === 'handoff' ? 'skills' : 'profile'); await sleep(150);
-          C.__reset(); pinBoth(f);
-          for (const r of C.steps) { if (r === row) break; if (r.kind === 'info') { C.tick(); const b = document.querySelector('.hr-coach-card [data-coach-btn]'); if (b) { b.click(); await sleep(700); } } }
-        }
+        if (row.id === 'handoff') { window.showTab('skills'); await sleep(150); }
         const el = await toTarget(C, row);
         assert(laid(el), row.id + ': its target is not laid out');
         const a = el.getBoundingClientRect(), c = document.querySelector('.hr-coach-card').getBoundingClientRect();
@@ -191,6 +187,12 @@ export default [
           row.id + ': the card covers its anchor (' + [a.left, a.top, a.right, a.bottom].map(Math.round) + ' vs ' + [c.left, c.top, c.right, c.bottom].map(Math.round) + ')');
         assert(c.left >= 0 && c.right <= innerWidth && c.top >= 0 && c.bottom <= innerHeight, row.id + ': the card is off screen');
         if (done[row.id]) { done[row.id](); pinBoth(f); await settle(C); }
+        if (row.kind === 'info' && row !== C.steps[C.steps.length - 1]) {
+          /* Read and closed; "Later", never "Open Discord", so the suite opens no window. */
+          const bs = [...document.querySelectorAll('.hr-coach-card [data-coach-btn]')];
+          (bs.find((b) => /Later/.test(b.textContent)) || bs[bs.length - 1]).click();
+          await sleep(800);
+        }
         document.querySelectorAll('#settings-modal.show').forEach((m) => m.classList.remove('show'));
         try { if (typeof window.closeInvDetail === 'function') window.closeInvDetail(); } catch (e) {}
       }

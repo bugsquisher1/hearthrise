@@ -80,7 +80,12 @@ function lookups() {
 }
 
 /** Home's top card (empty while the record is pending). */
-export function homeCard() { return cardHtml(model(), lookups()); }
+export function homeCard() {
+  /* While First Steps is speaking, Home does not offer a second "next step". */
+  const C = typeof window !== 'undefined' ? window.HearthriseCoach : null;
+  if (C && typeof C.hidesSpine === 'function' && C.hidesSpine()) return '';
+  return cardHtml(model(), lookups());
+}
 
 /* ── ACTIONS ─────────────────────────────────────────────────────────── */
 

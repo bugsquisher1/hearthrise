@@ -3024,17 +3024,16 @@ export default [
        engine away.js `recoveryFor` charges the day's first fall                          → clause 4
        engine combat-sim doubles the clock when `ctx.away` (the away-only rule forbidden) → clause 6
        engine skill-sim caps a gather span at one hour                                    → clause 1 */
-  () => tryRun('AWAY-HONEST-5: the FTUE promises exactly what the engine pays — a skill banks the whole night, and a fight that falls picks itself back up', () => {
-    const F = window.HearthriseFTUE;
+  () => tryRun('AWAY-HONEST-5: First Steps promises exactly what the engine pays — time away is paid, and a fight that falls picks itself back up', () => {
+    const F = window.HearthriseCoach;
     const C = window.HearthriseCore;
-    assert(F && typeof F.steps === 'function', 'the FTUE must publish its steps for this assertion');
+    assert(F && Array.isArray(F.steps), 'First Steps must publish its rows for this assertion');
     assert(C && C.combatSim && C.skillSim && C.away,
       'CONTROL: the away engine must be published or every binding below is vacuous');
-    const steps = F.steps();
-    const byId = {}; steps.forEach((s) => { byId[s.id] = s; });
-    assert(byId.combat && byId.wrap && byId.skills, 'the FTUE lost a step: ' + Object.keys(byId).join(','));
-    const combatBody = String(byId.combat.body || '');
-    const wrapBody = String(byId.wrap.body || '');
+    const byId = {}; F.steps.forEach((s) => { byId[s.id] = s; });
+    assert(byId.fight && byId.running, 'First Steps lost a step: ' + Object.keys(byId).join(','));
+    const combatBody = String(byId.fight.body || '');
+    const wrapBody = String(byId.running.body || '');
 
     /* The b340 sentence: away rewards for "any skill" and "anything that moves", in one breath. */
     assert(!/check back tomorrow for offline rewards/i.test(wrapBody),
@@ -3044,8 +3043,8 @@ export default [
 
     /* CLAUSE 1 · "even when you're offline, progress continues" — over a whole NIGHT, not
        AWAY-HONEST-4's hour, and "continues" is `paidMs === awayMs`, never merely "> 0". */
-    assert(/offline, progress continues/i.test(String(byId.skills.body || '')),
-      'the skills step must promise offline progress — it is true, and it is the promise the game keeps');
+    assert(/paid for the time you’re away|paid for the time you're away/i.test(wrapBody),
+      'the running step must promise paid time away; it is true, and it is the promise the game keeps');
     const gather = awayGatherSpan({ spanMs: NIGHT_MS });
     assert(gather.out.paidMs === NIGHT_MS && gather.out.stopped === false,
       'the tour promises a skill keeps running while you are offline; an 8h gather span paid '
@@ -3072,8 +3071,6 @@ export default [
 
     /* CLAUSE 2 · "it banks the whole time you are gone" — THE ACCOUNTING IDENTITY: every ms either
        EARNED (`survivedMs`) or was a recovery clock (`recoverMs`). "The run ended" is a remainder. */
-    assert(/banks the whole time you are gone/i.test(wrapBody),
-      'the wrap step no longer states the deal it is being held to here: ' + wrapBody);
     assert(night.out.survivedMs + night.out.recoverMs === NIGHT_MS,
       'the tour says the night banks whole; the engine accounted for only '
       + (night.out.survivedMs + night.out.recoverMs) + 'ms of ' + NIGHT_MS
@@ -3083,8 +3080,8 @@ export default [
     /* CLAUSE 3 · "a fight that falls picks itself back up and carries on" — a DELTA against the
        identical span truncated at the first fall, because "kills > 0" passes on a run that STOPPED
        there. The difference IS what resuming is worth. */
-    assert(/picks itself back up/i.test(wrapBody),
-      'the wrap step dropped the resume promise this test binds: ' + wrapBody);
+    assert(/get back up and keep going/i.test(combatBody),
+      'the fight step dropped the resume promise this test binds: ' + combatBody);
     const firstFall = night.out.deathLog[0];
     assert(firstFall, 'CONTROL: the night recorded no fall, so the resume below is unmeasured');
     const upToTheFall = awaySpan({ ...fixture, spanMs: firstFall.atMs - FROM });
@@ -3104,16 +3101,12 @@ export default [
 
     /* CLAUSE 4 · "the first fall of each day costs you no time at all" — as a span CHARGED it, not
        as the pure function (FIRST-LIGHT-4's): a span is where a caller can add its own clock. */
-    assert(/first fall of each day costs you no time at all/i.test(combatBody),
-      'the combat step dropped the free-first-fall promise: ' + combatBody);
     assert(night.out.recoverLadder[0] === 0,
       'the tour promises the day\'s first fall is free; the span charged '
       + night.out.recoverLadder[0] + 'ms for it. Ladder: ' + night.out.recoverLadder.join(','));
 
     /* CLAUSE 5 · "stand back up on part of your health" — PART, not all (the full heal this replaced
        made dying the cheapest top-up), and agreeing with `resumeHpFor`, the one definition. */
-    assert(/part of your health/i.test(combatBody),
-      'the combat step no longer says a fall returns PART of your health: ' + combatBody);
     assert(firstFall.resumeHp > 0 && firstFall.resumeHp < 120,
       'the character stood up on ' + firstFall.resumeHp + ' of 120 max HP — "part of your health" is '
       + 'false at both ends: 0 is a corpse and a full bar is the free heal the ladder exists to remove');
@@ -3123,9 +3116,6 @@ export default [
 
     /* CLAUSE 6 · "while you are away … under exactly the same rule" — the SAME span at `away:false`
        must be byte-identical: AWAY-1 parity as a copy binding, so an away-only table fails here. */
-    assert(/while you're away|while you are away/i.test(combatBody)
-      && /the same rule/i.test(combatBody),
-      'the combat step must state the away deal AND that it is the same rule: ' + combatBody);
     const attended = awaySpan({ ...fixture, spanMs: NIGHT_MS, away: false });
     const fingerprint = (r) => JSON.stringify({
       kills: r.out.kills, deaths: r.out.deaths, survivedMs: r.out.survivedMs,
@@ -4324,9 +4314,9 @@ export default [
       // ── A. AUTHORED COPY TABLES ───────────────────────────────────────────
       (window.QUEST_DEFS || []).forEach((q) => scan('QUEST_DEFS[' + q.id + ']', q.label + ' ' + (q.note || '')));
       assert((window.QUEST_DEFS || []).length > 0, 'no quest rows were scanned — pass A would be vacuous');
-      const steps = (window.HearthriseFTUE && window.HearthriseFTUE.steps()) || [];
-      assert(steps.length > 0, 'no FTUE steps were scanned — pass A would be vacuous');
-      steps.forEach((s) => scan('FTUE[' + s.id + ']', (s.title || '') + ' ' + (s.body || '') + ' ' + (s.primary || '')));
+      const steps = (window.HearthriseCoach && window.HearthriseCoach.steps) || [];
+      assert(steps.length > 0, 'no First Steps rows were scanned — pass A would be vacuous');
+      steps.forEach((s) => scan('COACH[' + s.id + ']', (s.title || '') + ' ' + (s.body || '') + ' ' + (s.primary || '')));
       Object.keys(window.TRAITS || {}).forEach((k) => {
         const t = window.TRAITS[k];
         scan('TRAITS[' + k + ']', (t.name || '') + ' ' + (t.desc || ''));

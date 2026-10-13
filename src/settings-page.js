@@ -632,7 +632,7 @@
     return ''
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
       + autoEatHtml()
-      + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
+      + '<div class="ss-row"><div class="ss-label">Replay guide</div>'
       +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>'
       + '<div class="ss-row"><div class="ss-label">Show screen tips again</div>'
       +   '<button class="btn btn-sm" id="set-replay-primers">Show again</button></div>'
@@ -1100,39 +1100,18 @@
       });
     });
 
-    /* Tutorial replay.
-       b371 (F23) — the live audit filed this as "does nothing". I could not
-       reproduce it: driven in a real browser at HEAD the row resets the flag,
-       builds `.ftue-root`, shows `.ftue-card.show` at z-index 99999 and is the
-       topmost element at screen centre ("Step 1 of 6 · Welcome to Hearthrise").
-       Reported as NOT REPRODUCED rather than "fixed".
-       What IS true is that the row was SILENT: it closed Settings and left the
-       player looking at the game, so any failure of the tour to appear — a
-       module that did not load, an exception inside startFTUE — was
-       indistinguishable from the button being dead, which is exactly the
-       report. It now says so when the tour does not mount. A control with no
-       failure state cannot be told apart from a control with no handler. */
+    /* Replay guide: First Steps (src/features/coach.js) starts again on this
+       hero from the first step the server has not seen done. A row with no
+       failure state cannot be told apart from a dead one (b371 F23), so a
+       guide that did not mount says so. */
     var tut = root.querySelector('#set-replay-tutorial');
     if(tut) tut.addEventListener('click', function(){
-      if(typeof window.startFTUE !== 'function'){
-        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
-        return;
-      }
-      if(typeof window.resetFTUE === 'function') window.resetFTUE();
-      try { window.startFTUE(); }
-      catch(e){
-        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
-        return;
-      }
+      var C = window.HearthriseCoach;
       var m = document.getElementById('settings-modal');
       if(m) m.classList.remove('show');
-      /* startFTUE renders its first step on a 50ms timer, so the check has to
-         outlive it. If nothing mounted, say so instead of leaving the player on
-         a closed dialog wondering whether they missed something. */
-      setTimeout(function(){
-        if(document.querySelector('.ftue-root .ftue-card')) return;
-        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
-      }, 600);
+      var shown = -1;
+      try { shown = (C && typeof C.replay === 'function') ? C.replay() : -1; } catch(e){ shown = -1; }
+      if(shown < 0 && typeof window.notify === 'function') window.notify('The guide could not start yet. Try again once your hero has loaded.', 'kill');
     });
     // Screen tips (src/features/screen-primers.js): a missing seam says so.
     var tips = root.querySelector('#set-replay-primers');

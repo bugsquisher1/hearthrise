@@ -472,6 +472,7 @@ import { setupBankPanel } from './render/bank-panel.js?v=572';
 import './features/daily-quests.js?v=572';
 // The one pointer: the spine step on every tab and atop Home.
 import './features/spine-pointer.js?v=572';
+import './features/coach.js?v=572';
 import './features/this-week.js?v=572';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the

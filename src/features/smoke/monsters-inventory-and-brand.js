@@ -6641,23 +6641,23 @@ export default [
      tour mounts and is topmost). What was true is that the row had no failure
      state, so a dead handler and a working one looked identical. Guard the
      wiring itself, which is the thing the report was really about. */
-  () => tryRun('b371 (F23): the Replay tutorial row is wired to the FTUE tour', () => {
-    assert(typeof window.startFTUE === 'function', 'window.startFTUE is missing — the row cannot work');
-    assert(typeof window.resetFTUE === 'function', 'window.resetFTUE is missing');
+  () => tryRun('b371 (F23): the Replay guide row starts First Steps', () => {
+    const C = window.HearthriseCoach;
+    assert(C && typeof C.replay === 'function', 'window.HearthriseCoach.replay is missing; the row cannot work');
     assert(typeof window.openSettings === 'function', 'openSettings is missing');
+    const G = window.G, had = Object.prototype.hasOwnProperty.call(G, 'coachDismissed'), was = G.coachDismissed;
     window.openSettings();
     try {
       const btn = document.getElementById('set-replay-tutorial');
-      assert(btn, 'the Replay tutorial button is not in the Settings page');
-      let started = 0;
-      const real = window.startFTUE;
-      window.startFTUE = function () { started++; };
-      try { btn.click(); } finally { window.startFTUE = real; }
-      assert(started === 1, 'clicking Replay tutorial called startFTUE ' + started + ' times');
+      assert(btn, 'the Replay guide button is not in the Settings page');
+      btn.click();
+      assert(document.querySelector('.hr-coach-root .hr-coach-card'), 'clicking Replay guide mounted no coach card');
+      assert(G.coachDismissed === false, 'Replay guide must clear the dismissal on this hero');
     } finally {
       const m = document.getElementById('settings-modal');
       if (m) m.classList.remove('show');
-      document.querySelectorAll('.ftue-root').forEach((el) => el.remove());
+      C.__reset(); C.__draw.hide();
+      if (had) G.coachDismissed = was; else delete G.coachDismissed;
     }
   }),
 
@@ -8900,41 +8900,33 @@ export default [
      the tour is the FIRST place a player hears either rule. This guard pins the
      retired sentences out and binds the replacement to the constants it quotes,
      so the copy cannot drift away from the engine again in silence. */
-  () => tryRun('FIRST-LIGHT-4: the FTUE teaches the LIVE death and auto-eat rules', () => {
-    const F = window.HearthriseFTUE;
-    assert(F && typeof F.steps === 'function', 'the FTUE step table is not published — this would pass vacuously');
-    const steps = F.steps();
-    assert(steps.length > 0, 'CONTROL: no tour steps were read');
-    const all = steps.map((s) => String(s.body || '')).join(' • ');
+  () => tryRun('FIRST-LIGHT-4: First Steps teaches the LIVE death rule and hands off to the pointer bar', () => {
+    const F = window.HearthriseCoach;
+    assert(F && Array.isArray(F.steps), 'the First Steps rows are not published; this would pass vacuously');
+    const steps = F.steps;
+    assert(steps.length > 0, 'CONTROL: no guide steps were read');
+    const all = steps.map((s) => String(s.body || '')).join(' | ');
 
-    // THE TWO DEAD RULES.
+    // THE DEAD RULES stay out.
     assert(!/nobody does it for you/i.test(all),
-      'the tour still says nobody feeds you: Auto-Eat exists (src/core/auto-eat.js AUTO_EAT_TIERS) and is buyable today');
+      'the guide says nobody feeds you: Auto-Eat exists (src/core/auto-eat.js AUTO_EAT_TIERS)');
     assert(!/fight ends when you fall/i.test(all),
-      'the tour still says a fall ENDS the fight — Recovery Rule rev.2 knocks you out and RESUMES the same run');
+      'the guide says a fall ENDS the fight; Recovery Rule rev.2 knocks you out and RESUMES the same run');
     assert(!/only until you fall/i.test(all),
-      'the tour still gates away combat on the first fall — src/core/away.js resumes it after recoveryFor()');
+      'the guide gates away combat on the first fall; src/core/away.js resumes it after recoveryFor()');
 
-    // WHAT MUST BE THERE INSTEAD, each clause bound to the constant behind it.
-    const combat = steps.find((s) => s.id === 'combat');
-    assert(combat, 'CONTROL: the tour has no combat step to check');
-    const body = String(combat.body || '');
-    // Every hero is created owning Auto-Eat, switched on (2026-09-04-auto-eat-at-creation.sql):
-    // a price is a purchase nobody makes, and "yours is on" is one player's state, not the rule.
-    assert(!/\bMarks\b/.test(body), 'the combat step quotes an Auto-Eat price; every hero is created owning it: ' + body);
-    assert(/new heroes start with Auto-Eat switched on/.test(body),
-      'the combat step must state the creation rule for Auto-Eat, not a price or one player\'s switch: ' + body);
-    assert(/knocked out/i.test(body) && /carry on with the same fight/i.test(body),
-      'the combat step must state the LIVE rule: knocked out, then the same run resumes: ' + body);
+    // THE LIVE RULE, in the fight step, bound to the engine behind it.
+    const fight = steps.find((s) => s.id === 'fight');
+    assert(fight && /get back up and keep going/i.test(String(fight.body || '')),
+      'the fight step must state the LIVE rule: you get back up and the same run goes on');
     const AW = window.HearthriseCore && window.HearthriseCore.away;
-    if (AW && typeof AW.recoveryFor === 'function') {
-      assert(AW.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 0 }) === 0,
-        'the tour promises the day\'s first fall costs no time — recoveryFor() disagrees, so the copy is now a lie');
-    }
-    // And the tour must point at the surface this build gave it: the pointer bar.
-    const wrap = steps.find((s) => s.id === 'wrap');
-    assert(wrap && /next step is always in the bar/.test(String(wrap.body || '')) && !/Your first day|Next up/.test(String(wrap.body || '')),
-      'the closing step must point at the pointer bar, not a retired card');
+    assert(AW && typeof AW.recoveryFor === 'function' && AW.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 0 }) === 0,
+      'the first fall of the day must cost no time, or "keep going" oversells it');
+    // And the guide ends on the surface this build gave it: the pointer bar.
+    const last = steps[steps.length - 1];
+    assert(last.kind === 'info' && /This bar always shows your next goal/.test(String(last.body || ''))
+      && /#hr-spine-bar/.test(last.path[0].sel),
+      'the closing step must point at the pointer bar: ' + JSON.stringify(last));
   }),
 
   /* ── FIRST-LIGHT-5 — the away card and the cooking arm, bound ────────────

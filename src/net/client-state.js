@@ -132,6 +132,8 @@ export const RESIDUE_FIELDS = Object.freeze([
      prefers the server's nomination and resolves a NULL one the way the engine
      does — the best provision in the bag. Declared in NO_SYNC. */
   'discordSeen',    // client-only display state: the Discord button's "!" was opened or dismissed; gates nothing
+  'coachDismissed', // client-only display state: First Steps finished or skipped on this hero (src/features/coach.js);
+                    // gates nothing, the guide's step is always re-derived from server facts
   'settings',       // client-only preference: sfx / reduceFx / leftHand / uiScale — the device's
                     // own display and audio choices; the server computes nothing from them
   /* ⚠ `ownedThemes` and `ownedCosmetics` WERE HERE and are DELETED, not re-homed

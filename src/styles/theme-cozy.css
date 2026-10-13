@@ -1683,16 +1683,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 }
 
 /* ============================================================
- * FTUE (first-time user tutorial) — parchment + cocoa
- * ============================================================ */
-
-
-.ftue-card .ftue-btn:not(.primary):not(.skip):hover,
-.ftue-actions .ftue-btn:not(.primary):not(.skip):hover {
-  background: #f7e4bb !important;
-}
-
-/* ============================================================
  * UNTOUCHED TABS — Bounty Board, Stable, Skills detail, Market,
  * Dungeons, Shop. Apply same readability rules to ALL panels
  * (not just :active). Catches dynamically-loaded panel content.
@@ -1758,15 +1748,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 /* Loadout / inventory paper-doll slot labels (those gray pills
    under each slot showing slot type abbreviations). Currently
    showing as empty/illegible. Force dark text + visible bg. */
-
-
-/* FTUE Step 1 has a Skip button that's dark-on-dark. Force it
-   to a readable parchment+cocoa style. The hr-ftue module
-   uses inline styles so we need !important. */
-
-
-/* Make sure FTUE primary button (Take the tour / Got it / Next)
-   stays in the wax-stamp red style */
 
 
 /* Skill detail panel skill icons in Activities — same broken-img
@@ -3109,55 +3090,6 @@ body[data-theme="hearthlight"] .td-tab span { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   body[data-theme="hearthlight"] .td-tab span { display: inline; }
 }
-
-/* b217: FTUE surface + buttons.
-   b216 gave the tour a cold navy card (#262019) and a filled red primary,
-   described in its own comment as "the game's primary action". Both were
-   wrong, and this is the first screen a new player ever sees:
-     • Navy belongs to no theme in this game. Everything else is warm stone.
-     • Red is the danger role. Using it for "Take the tour" spends the one
-       colour reserved for irreversible actions on a welcome prompt, and
-       trains the player to ignore it everywhere else.
-   Now: warm stone card with a gilt hairline, gilt primary, quiet secondary.
-   The button hierarchy comes from art-direction.css; these only supply the
-   FTUE-specific class names. */
-body[data-theme="hearthlight"] .ftue-btn,
-body[data-theme="hearthlight"] .hr-ftue button {
-  background: linear-gradient(180deg, rgba(255,236,200,.075), rgba(255,236,200,.018) 55%, rgba(0,0,0,.10)) !important;
-  color: var(--ink-2) !important;
-  border: 1px solid var(--line) !important;
-  border-radius: var(--r);
-  box-shadow: inset 0 1px 0 rgba(255,240,210,.09), 0 1px 0 rgba(0,0,0,.45);
-}
-body[data-theme="hearthlight"] .ftue-btn:hover,
-body[data-theme="hearthlight"] .hr-ftue button:hover {
-  color: var(--ink) !important;
-  border-color: rgba(201,162,74,.4) !important;
-}
-body[data-theme="hearthlight"] .ftue-btn.primary {
-  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%) !important;
-  color: #221803 !important;
-  border-color: #e6cd93 !important;
-  font-weight: 700;
-  box-shadow: inset 0 1px 0 rgba(255,246,220,.55), inset 0 -2px 3px rgba(90,60,8,.4), 0 2px 5px -2px rgba(0,0,0,.7);
-}
-body[data-theme="hearthlight"] .ftue-btn.skip {
-  background: none !important;
-  border-color: transparent !important;
-  box-shadow: none;
-  color: var(--ink-3) !important;
-}
-body[data-theme="hearthlight"] .ftue-card {
-  background:
-    radial-gradient(120% 80% at 50% -10%, rgba(201,162,74,.10), transparent 62%),
-    linear-gradient(180deg, #262019, #16120d) !important;
-  border: 1px solid rgba(201,162,74,.55) !important;
-  border-radius: var(--r-lg) !important;
-  color: var(--ink) !important;
-  box-shadow: inset 0 1px 0 rgba(255,240,205,.13), 0 24px 60px -20px rgba(0,0,0,.85) !important;
-}
-body[data-theme="hearthlight"] .ftue-card * { color: var(--ink) !important; }
-body[data-theme="hearthlight"] .ftue-card .ftue-title { color: var(--gold-2) !important; }
 
 /* THE BOOT-SETTLE LATCH (src/net/settle-first.js). A claim/shop control the
    server would refuse until its first settle answers renders pending, not live. */

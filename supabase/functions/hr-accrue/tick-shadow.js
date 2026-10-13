@@ -148,8 +148,13 @@ export function advance(char, res) {
      production (`hr_bestiary_of`); here, the kills the window just proposed. */
   if (res.summary && res.summary.kills > 0 && char.activeKind === 'combat' && char.activeId) {
     char.bestiaryKills = char.bestiaryKills || {};
-    char.bestiaryKills[char.activeId] = (char.bestiaryKills[char.activeId] || 0) + res.summary.kills;
-    ch.bestiaryKills[char.activeId] = (ch.bestiaryKills[char.activeId] || 0) + res.summary.kills;
+    /* A NAMED HUNT kills several monsters; its pointer is an area, not a
+       bestiary row. `huntKills` is the engine's own per-monster count. */
+    const by = res.huntKills || { [char.activeId]: res.summary.kills };
+    for (const id of Object.keys(by)) {
+      char.bestiaryKills[id] = (char.bestiaryKills[id] || 0) + by[id];
+      ch.bestiaryKills[id] = (ch.bestiaryKills[id] || 0) + by[id];
+    }
   }
   /* ── THE THREE COUNTERS hr_apply WOULD HAVE WRITTEN (2026-09-23) ─────────
      NOT an arithmetic of our own and NOT a rule: `countersFromProgress` sums

@@ -288,46 +288,8 @@ export default [
     assert(walked > 0, 'the walk clicked no route at all, so it proved nothing');
   }),
 
-  () => tryRunAsync('SPINE-REVEAL-11: the tour names a locked door and when it opens', async () => {
-    const R = window.HearthriseReveal, F = window.HearthriseFTUE;
-    const combat = F.steps().find((s) => s.id === 'combat');
-    assert(combat, 'the tour has no Combat step');
-    await withPin(R.FRESH, async () => {
-      assert(/^ The Combat door opens when you catch and cook five fish\.$/.test(F.shutDoorLine(combat)),
-        'the tour does not say when Combat opens: ' + JSON.stringify(F.shutDoorLine(combat)));
-      const door = F.findTarget(combat.target);
-      assert(door && door.hasAttribute('data-reveal-locked'), 'the tour lost the locked Combat door');
-      /* Drive the real tour to its Combat step: it points at the locked door and says when it opens. */
-      if (typeof window.startFTUE === 'function') {
-        const KEY = 'hearthrise:ftue:completed', had = localStorage.getItem(KEY);
-        window.startFTUE();
-        for (let i = 0; i < 8; i++) {
-          await new Promise((r) => setTimeout(r, 250));
-          const t = document.querySelector('.ftue-root .ftue-title');
-          if (t && t.textContent === combat.title) break;
-          const nx = document.querySelector('.ftue-root [data-action="primary"]');
-          if (nx) nx.click();
-        }
-        const card = document.querySelector('.ftue-root .ftue-card');
-        try {
-          assert(card && document.querySelector('.ftue-root .ftue-title').textContent === combat.title, 'could not reach the tour\'s Combat step');
-          const r = card.getBoundingClientRect(), d = door.getBoundingClientRect();
-          assert(r.left >= 0 && r.right <= innerWidth, 'the tour card is off screen: ' + Math.round(r.left) + '..' + Math.round(r.right));
-          assert(/The Combat door opens when you catch and cook five fish/.test(card.textContent), 'the tour card does not say when Combat opens');
-          const spot = document.querySelector('.ftue-root .ftue-spot');
-          assert(!d.width || spot.style.display === 'none' || Math.abs(parseFloat(spot.style.left) - (d.left - 6)) < 2,
-            'the spotlight is not on the Combat door');
-        } finally {
-          const skip = document.querySelector('.ftue-root [data-action="skip"]');
-          if (skip) skip.click();
-          try { if (had === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, had); } catch (e) {}
-        }
-      }
-    });
-    await withPin(R.FULL, async () => {
-      assert(F.shutDoorLine(combat) === '' && F.findTarget(combat.target), 'an open door still gets the shut-door line');
-    });
-  }),
+  /* SPINE-REVEAL-11 retired with the six-step tour (b573): First Steps never
+     points at a shut door at all (COACH-4 in src/features/smoke/coach.js). */
 
   () => tryRunAsync('SPINE-REVEAL-12: an account that owns two heroes sees the switcher at step 2', async () => {
     const R = window.HearthriseReveal, HP = window.HearthriseProfile;

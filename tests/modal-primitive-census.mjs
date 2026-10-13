@@ -50,7 +50,7 @@ export const ALLOWLIST = [
   { file: 'src/net/account-gate.js', needle: '.hr-gate::before', why: 'a paint layer of the sign-up gate' },
   { file: 'src/net/account-gate.js', needle: '.hr-gate::after', why: 'a paint layer of the sign-up gate' },
   { file: 'src/features/recipe-book.js', needle: "R + '{position:fixed", why: 'a full-screen page with its own column layout, not a card' },
-  { file: 'src/ftue.js', needle: '.ftue-root', why: 'the tour root: pointer-events:none, it only positions the tour card' },
+  { file: 'src/styles/coach.css', needle: '.hr-coach-root', why: 'the First Steps root: pointer-events:none, it only positions the ring and the card' },
   { file: 'src/features/boot-hydration.js', needle: "'position:fixed'", why: 'the boot veil: a status screen shown before the game exists' },
 ];
 

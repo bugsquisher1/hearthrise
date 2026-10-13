@@ -1089,8 +1089,14 @@ function settleVerdict(verdict, verb, key) {
   /* THE GOODS LEG FIRST, so a refusal's envelope merges onto the bag WITHOUT
      the phantom (max(33, 23) was the live bug). A receipt keeps it: the
      answer's own bag names the goods. */
-  if (verdict.outcome === 'applied' || verdict.outcome === 'replayed') goods.delete(key);
-  else { applied.goodsReversed = fire('onGoodsReverse', key) || 0; goods.delete(key); }
+  if (verdict.outcome === 'applied' || verdict.outcome === 'replayed') {
+    goods.delete(key);
+    /* The edge ACCEPTED a sale: the one server fact First Steps' sell step
+       waits for (src/features/coach.js). Display only, never a value. */
+    if ((verb === VENDOR_SELL_VERB || verb === VENDOR_SELL_MANY_VERB) && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try { window.dispatchEvent(new CustomEvent('hearthrise:server-sold', { detail: { verb } })); } catch (e) {}
+    }
+  } else { applied.goodsReversed = fire('onGoodsReverse', key) || 0; goods.delete(key); }
 
   if (env) {
     const wrote = fire('onEnvelope', body, { ...verdict, verb, key });

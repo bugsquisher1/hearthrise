@@ -3080,7 +3080,7 @@ export default [
     gate.whenOpen(null);                              // must not throw
     assert(ran === 1, 'a non-function must be ignored, not queued');
     // The modules that must be behind it are all present and gated.
-    ['startFTUE', 'HearthriseProfile', 'HearthriseWelcome']
+    ['HearthriseCoach', 'HearthriseProfile', 'HearthriseWelcome']
       .forEach((k) => assert(k in window, 'gated module vanished: ' + k));
   }),
 

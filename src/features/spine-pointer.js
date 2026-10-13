@@ -107,7 +107,21 @@ export function go() {
   if (!r) return null;
   if (typeof window.showTab === 'function') window.showTab(r.tab);
   if (r.skill && typeof window.openSkillDetail === 'function') window.openSkillDetail(r.skill);
+  showMe(r);
   return r;
+}
+
+/* "Show me": the coach's gold ring lands for a moment on where Go sent the
+   player (the skill's tile, else the pane's rail door), once the pane paints. */
+function showMe(r) {
+  const C = window.HearthriseCoach;
+  if (!C || typeof C.flash !== 'function') return;
+  setTimeout(() => {
+    const seen = (sel) => [...document.querySelectorAll(sel)].find((e) => e.getBoundingClientRect().width > 1);
+    const el = (r.skill && seen('#panel-skills .skill-tile[onclick*="\'' + r.skill + '\'"]'))
+      || seen('.nav-btn[data-tab="' + r.tab + '"], .bn-btn[data-tab="' + r.tab + '"]');
+    if (el) C.flash(el, 2200);
+  }, 120);
 }
 
 /** A pointer button by kind: 'go' (Go, Build, Claim…) or 'daily' (the chip). */
@@ -155,9 +169,12 @@ export function render() {
   if (!bar) return;
   const DQ = window.HearthriseDailyQuests;
   if (DQ && typeof DQ.ambient === 'function') DQ.ambient((fresh) => { if (fresh) render(); });
-  const home = onHome();
-  if (bar.hidden !== home) bar.hidden = home;
-  if (home) return;
+  /* First Steps (src/features/coach.js) owns the next-step voice until its
+     hand-off card, which points at this bar. */
+  const C = window.HearthriseCoach;
+  const hide = onHome() || !!(C && typeof C.hidesSpine === 'function' && C.hidesSpine());
+  if (bar.hidden !== hide) bar.hidden = hide;
+  if (hide) return;
   const html = barHtml(model(), lookups());
   if (html !== lastBar) { bar.innerHTML = html; lastBar = html; }
   fitRoom(bar);

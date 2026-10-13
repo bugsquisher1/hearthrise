@@ -3823,6 +3823,15 @@ jobs:
           node tests/screen-primers.mjs
           node tests/screen-primers.mjs --selftest
 
+      # b573 First Steps (src/data/coach.js): every step finishes on a server
+      # fact, names only real ids, has no Next button unless it is an info card,
+      # and the walk-through from the real start kit never points at a shut door.
+      - name: Copy truth - First Steps is doable and server-judged
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/coach-rows.mjs
+          node tests/coach-rows.mjs --selftest
+
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
       # Appended at the END of the file on purpose: slice 2 is appending its own
       # steps here too, and two blocks under distinct comments merge cleanly.

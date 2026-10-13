@@ -2128,7 +2128,6 @@ body.in-combat #combat-area {
   body[data-theme] .bn-btn,
   body[data-theme] .dgn-run,
   body[data-theme] .dgn-qm-btn,
-  body[data-theme] .ftue-btn,
   body[data-theme] .mp-fight,
   body[data-theme] .scv-finish {
     min-height: var(--tap);
@@ -2223,9 +2222,6 @@ body.in-combat #combat-area {
 
   /* Modals — ensure all close buttons are tappable */
   .modal .btn-sm { min-width: 44px; min-height: 36px; padding: 8px 14px; }
-
-  /* FTUE card narrower on phone */
-  .ftue-card { max-width: calc(100vw - 24px) !important; }
 
   /* Welcome-back overlay — fit phone width */
   .welcome-modal { max-width: calc(100vw - 24px); padding: 18px; }

@@ -1,0 +1,176 @@
+/* src/styles/coach.css — First Steps: the gold ring, its light scrim and the
+ * coach card (src/render/coach.js, run by src/features/coach.js). Tokens only.
+ * The ring's outer shadow is the scrim, so the ringed control is the one
+ * bright hole on the page; every animation stops under prefers-reduced-motion. */
+.hr-coach-root {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  pointer-events: none;
+}
+.hr-coach-root.is-bare {
+  background: color-mix(in srgb, var(--bg-0) 45%, transparent);
+  transition: background .25s ease;
+}
+.hr-coach-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-radius: var(--r);
+  border: 2px solid var(--gold);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent),
+    0 0 18px 2px color-mix(in srgb, var(--gold) 45%, transparent),
+    0 0 0 200vmax color-mix(in srgb, var(--bg-0) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1),
+    height .28s cubic-bezier(.2, .8, .2, 1), opacity .2s ease;
+  z-index: 99991;
+}
+.hr-coach-ring.is-on { opacity: 1; animation: hr-coach-pulse 1.8s ease-in-out infinite; }
+.hr-coach-ring.is-waiting { animation: none; border-style: dashed; }
+.hr-coach-ring.is-nudge { animation: hr-coach-nudge .42s ease-in-out 1, hr-coach-pulse 1.8s ease-in-out .42s infinite; }
+.hr-coach-ring.is-done { border-color: var(--green); }
+.hr-coach-ring.is-flash {
+  z-index: 99980;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent), 0 0 18px 2px color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.hr-coach-ring.is-flash.is-leaving { opacity: 0; transition: opacity .4s ease; }
+@keyframes hr-coach-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent), 0 0 14px 1px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 0 200vmax color-mix(in srgb, var(--bg-0) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 18%, transparent), 0 0 26px 4px color-mix(in srgb, var(--gold) 55%, transparent), 0 0 0 200vmax color-mix(in srgb, var(--bg-0) 45%, transparent); }
+}
+.hr-coach-ring.is-flash.is-on { animation: none; }
+@keyframes hr-coach-nudge {
+  0%, 100% { margin-left: 0; }
+  25% { margin-left: -5px; }
+  75% { margin-left: 5px; }
+}
+
+.hr-coach-card {
+  position: fixed;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 16px));
+  padding: 14px 16px 10px;
+  border-radius: var(--r-lg);
+  background: var(--surf-raised), var(--bg-2);
+  border: 1px solid var(--gold-3);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--bg-0) 70%, transparent);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  pointer-events: auto;
+  z-index: 99992;
+  opacity: 0;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1);
+}
+.hr-coach-card.is-in { animation: hr-coach-in .32s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes hr-coach-in {
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.hr-coach-root.is-up .hr-coach-card { opacity: 1; }
+.hr-coach-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--gold-3);
+  rotate: 45deg;
+}
+.hr-coach-card[data-side="below"] .hr-coach-arrow { top: -8px; left: calc(var(--at, 50%) - 7px); border-right: 0; border-bottom: 0; }
+.hr-coach-card[data-side="above"] .hr-coach-arrow { bottom: -8px; left: calc(var(--at, 50%) - 7px); border-left: 0; border-top: 0; }
+.hr-coach-card[data-side="right"] .hr-coach-arrow { left: -8px; top: calc(var(--at, 50%) - 7px); border-right: 0; border-top: 0; }
+.hr-coach-card[data-side="left"] .hr-coach-arrow { right: -8px; top: calc(var(--at, 50%) - 7px); border-left: 0; border-bottom: 0; }
+.hr-coach-card[data-side="center"] .hr-coach-arrow { display: none; }
+.hr-coach-head { display: flex; align-items: center; justify-content: space-between; min-height: 18px; }
+.hr-coach-step {
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.hr-coach-tick {
+  width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--green);
+  opacity: 0;
+  scale: .4;
+  transition: opacity .2s ease, scale .3s cubic-bezier(.3, 1.6, .5, 1);
+  position: relative;
+}
+.hr-coach-tick::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 3px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--bg-0);
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+}
+.hr-coach-card.is-done .hr-coach-tick { opacity: 1; scale: 1; }
+.hr-coach-card.is-done { border-color: var(--green-line); }
+.hr-coach-title {
+  margin-top: 4px;
+  font-family: var(--f-display);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.hr-coach-lead { margin-top: 6px; font-weight: 700; color: var(--gold-2); font-size: var(--t-small); }
+.hr-coach-body { margin-top: 4px; color: var(--ink-2); font-size: var(--t-small); line-height: 1.45; }
+.hr-coach-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.hr-coach-prog b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hr-coach-bar { flex: 1 1 auto; height: 6px; border-radius: 99px; background: var(--surf-sunken); overflow: hidden; }
+.hr-coach-bar i { display: block; height: 100%; background: var(--gold); border-radius: 99px; transition: width .4s ease; }
+.hr-coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.hr-coach-btns { display: inline-flex; gap: 8px; }
+body[data-theme] .hr-coach-btns .btn, .hr-coach-btns .btn { min-height: 44px; min-width: 44px; }
+.hr-coach-skip {
+  min-height: 44px;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-size: var(--t-micro);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.hr-coach-skip:hover { color: var(--ink); }
+
+/* A landscape phone: the card docks to the half opposite its anchor, no taller
+   than 40% of the screen, and every target stays 44px. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hr-coach-card {
+    width: min(440px, calc(52vw - 16px));
+    max-height: 40vh;
+    overflow: auto;
+    padding: 6px 12px 0;
+  }
+  .hr-coach-title { font-size: var(--t-body); margin-top: 0; }
+  .hr-coach-body { line-height: 1.3; }
+  .hr-coach-foot, .hr-coach-prog { margin-top: 2px; }
+  .hr-coach-lead { margin-top: 2px; }
+  .hr-coach-head { min-height: 0; }
+  /* The lead ("Open Skills first.") is the move right now; the count waits for the target. */
+  .hr-coach-card.has-lead .hr-coach-prog { display: none; }
+  .hr-coach-card.is-docked .hr-coach-arrow { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hr-coach-ring, .hr-coach-ring.is-on, .hr-coach-ring.is-nudge { animation: none; transition: opacity .01s; }
+  .hr-coach-card, .hr-coach-card.is-in { animation: none; transition: none; }
+  .hr-coach-tick, .hr-coach-bar i { transition: none; }
+}

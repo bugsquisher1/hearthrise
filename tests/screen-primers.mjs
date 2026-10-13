@@ -20,7 +20,7 @@
 //   G7  the Shop row promises no real-money buy and names no Premium Shop while
 //       its door is shut (nav-consolidation.js PREMIUM_OPEN = false, W0); the Events row names no muster/rally/clan boss while
 //       CLAN_LAUNCHED = false
-//   G8  src/ftue.js carries none of the retired sentences, and the combat step
+//   G8  src/data/coach.js (First Steps) carries none of the retired sentences, and the fight step
 //       keeps the live Recovery Rule clauses
 //
 // Pairs with FIRST-LIGHT-4 (src/features/smoke/monsters-inventory-and-brand.js),
@@ -34,7 +34,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = 'src/data/screen-primers.js';
 const RETIRED = /15 Marks|until you own Auto-Eat|stops you dying|no save button/;
-const LIVE_RULE = ['knocked out', 'carry on with the same fight', 'first fall of each day costs you no time at all'];
+/* b573: the six-step tour (src/ftue.js) is retired; First Steps (src/data/coach.js) is the guide
+   copy now, and its fight step carries the live rule in its own words. */
+const GUIDE = join('src', 'data', 'coach.js');
+const LIVE_RULE = ['get back up and keep going'];
 const posix = (p) => p.split(sep).join('/');
 
 function jsFiles(dir, out = []) {
@@ -57,7 +60,7 @@ function panelIds(root) {
 
 /** The combat step's body, read from source (the step table is not importable in node). */
 function combatBody(ftue) {
-  const at = ftue.indexOf("id: 'combat'");
+  const at = ftue.indexOf("id: 'fight'");
   if (at < 0) return null;
   const m = /\bbody:\s*'((?:[^'\\]|\\.)*)'/.exec(ftue.slice(at));
   return m ? m[1].replace(/\\'/g, "'") : null;
@@ -104,12 +107,12 @@ async function check(root, origins) {
     fail('G7', 'CLAN_LAUNCHED is false and the Events primer names a clan feature');
   }
 
-  const ftue = readFileSync(join(root, 'src', 'ftue.js'), 'utf8');
+  const ftue = readFileSync(join(root, GUIDE), 'utf8');
   const hit = RETIRED.exec(ftue);
-  if (hit) fail('G8', `src/ftue.js still carries a retired sentence: "${hit[0]}"`);
+  if (hit) fail('G8', `${GUIDE} still carries a retired sentence: "${hit[0]}"`);
   const combat = combatBody(ftue);
-  if (combat == null) fail('G8', 'no combat step body found in src/ftue.js');
-  else for (const c of LIVE_RULE) if (!combat.includes(c)) fail('G8', `the combat step dropped "${c}"`);
+  if (combat == null) fail('G8', `no fight step body found in ${GUIDE}`);
+  else for (const c of LIVE_RULE) if (!combat.includes(c)) fail('G8', `the fight step dropped "${c}"`);
   return fails;
 }
 
@@ -148,8 +151,8 @@ async function selftest() {
       ['G6', 'a screen-primers origin in the edge bundle', () => () => {}, [...origins, DATA]],
       ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('The realm\\\'s calendar lives here', 'The muster lives here')), null],
       ['G7', 'a Shop row promising real-money buys', () => edit(DATA, (s) => s.replace('priced in gems.', 'priced in gems you can buy for real money.')), null],
-      ['G8', 'the retired Auto-Eat price', () => edit('src/ftue.js', (s) => s + '\n// 15 Marks\n'), null],
-      ['G8', 'the combat step dropping the live rule', () => edit('src/ftue.js', (s) => s.replace('carry on with the same fight', 'start over')), null],
+      ['G8', 'the retired Auto-Eat price', () => edit(GUIDE, (s) => s + '\n// 15 Marks\n'), null],
+      ['G8', 'the fight step dropping the live rule', () => edit(GUIDE, (s) => s.replace('get back up and keep going', 'start over')), null],
     ];
     for (const [g, label, plant, o] of cases) {
       const undo = plant();

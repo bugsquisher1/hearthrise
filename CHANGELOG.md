@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 573 — 2026-10-13 (First Steps)
+
+**First Steps.** New heroes get a short guide through their first few minutes. One glowing button and one short card at a time walk you through chopping logs, catching and cooking shrimp, your first fights against the Giant Rat, selling loot, planting a seed and leaving something running. It moves on only when you actually do each thing, picks up where you left off after a reload, and hands over to the goal bar when it is done. Skip it from any card, or replay it from Settings.
+
+**Buying during a fight works.** A shop or market purchase made while you are fighting now waits for the fight to save and then goes through, instead of being turned away.
+
 ## v0.9.2-beta build 572 — 2026-10-12 (Nothing hidden without a reason)
 
 **Nothing hidden without a reason.** Doors, tabs and skills you have not reached yet now show with a padlock and say exactly what opens them, for example "Opens when you catch and cook five fish (Step 2)", with a Show me button that takes you to your current goal. Bosses far above your level fold into one line that says when the next one opens.

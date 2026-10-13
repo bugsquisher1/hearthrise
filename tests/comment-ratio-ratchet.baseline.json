@@ -13,10 +13,10 @@
       "bnum": 669
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 9683,
-      "comment": 2514,
-      "code": 6548,
-      "ratio": 0.38374516225066985,
+      "total": 9693,
+      "comment": 2515,
+      "code": 6556,
+      "ratio": 0.3836180597925564,
       "bnum": 129
     },
     "src/features/smoke/record-seam-and-hydration.js": {
@@ -34,10 +34,10 @@
       "bnum": 130
     },
     "src/net/accrue.js": {
-      "total": 7165,
-      "comment": 3808,
-      "code": 2843,
-      "ratio": 1.3394301793879704,
+      "total": 7177,
+      "comment": 3814,
+      "code": 2849,
+      "ratio": 1.3387153387153388,
       "bnum": 126
     },
     "src/features/smoke/market-night-and-prices.js": {

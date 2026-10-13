@@ -749,7 +749,7 @@ window._monsterIcon = window._monsterIcon || {};
        GREEN-BLACK metal and there is no green stone or green ingot in the
        pack, so `basalt` stands in for the ore. The bar got its own green ingot
        in Recraft wave 1 (hearthfire/items/verdite_bar.png). Plates, blade, maul, ore and garnet
-       are still the re-shoot list if this band is ever painted. *
+       are still the re-shoot list if this band is ever painted. */
     /* W0: Rune Essence borrows the pale granite chunk until it is painted
        (owed to the Art Director with the rest of the W0 ammo lane). */
     rune_essence: 'assets/icons-bundle/hearthfire/items/granite.png',

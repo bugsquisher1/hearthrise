@@ -13,7 +13,7 @@
 // Home strip ("Coming in a later update"); the in-page suite opens it through
 // the harness, which reveals every product.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=583';
+import { BUILD } from '../build-info.js?v=584';
 
 const WORLD_LAUNCHED = true;
 /* Town and Home (lane W4) are not open yet: their buttons read "Coming soon" and a
@@ -56,7 +56,7 @@ function ensureStyles() {
 function loadWorld() {
   if (!pending) {
     ensureStyles();
-    pending = import('../world/world-boot.js?v=583')
+    pending = import('../world/world-boot.js?v=584')
       .then((m) => m.bootWorld(panel(), { scenesReady }))
       .then((rt) => { runtime = rt; runtime.sync(); return runtime; })
       .catch((e) => {

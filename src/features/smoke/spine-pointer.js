@@ -6,7 +6,7 @@
 // and read off the real DOM. Every claim is stubbed: the suite runs on a live
 // signed-in account during the play gate and must never pay a real quest.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRun, tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=583';
+import { tryRun, tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=584';
 
 const BASE = { counts: {}, countsComplete: true, skills: {}, property: 0, workers: 0, bag: {}, gold: 0, equipment: {}, claimed: {} };
 const FIRST4 = { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 };

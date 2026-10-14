@@ -8,9 +8,9 @@
 // changes. The spawn weights the bystanders are drawn from come from the same
 // hunt row.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../data/hunts.js?v=583';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=583';
-import { huntMapIndex } from './core/scene-route.js?v=583';
+import { HUNT_INDEX } from '../data/hunts.js?v=584';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=584';
+import { huntMapIndex } from './core/scene-route.js?v=584';
 
 export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);
 

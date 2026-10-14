@@ -10,12 +10,26 @@
 --   node tools/apply-migration.mjs 2026-10-14-world-tick-arm-combat.sql
 -- Never 00:00–00:10 UTC. Never in the same sitting as an edge deploy.
 --
--- ★ THE PIN IS FILLED AT THE SECURITY GO, AND NOWHERE ELSE. `c_pin` below is
---   the full 64-hex payload_sha256 the combat bar PASSed on
---   (tools/world-tick-parity.mjs). It is committed as a placeholder because
---   the payload the bar will be read on does not exist yet (two edge deploys
---   restart the count). P0 refuses until it is a real hash, so this file can
---   never arm on a guess. Filling it is the GO commit's only edit.
+-- ★ THE PIN AND THE REPLAYED SET ARE FILLED AT THE SECURITY GO, AND NOWHERE
+--   ELSE. `c_pin` is the full 64-hex payload_sha256 of the LIVE engine (the
+--   GET of hr-accrue; a993f7c0… on 2026-10-14). `c_replayed` is the list of
+--   `<probe id>:<digest>` pairs tests/world-tick-combat-replay.mjs --live
+--   --attest printed after R1 + R2 read GREEN on that pin (the guard prints
+--   both lines). Both are committed as placeholders; P0 refuses until both are
+--   real, so this file can never arm on a guess. Filling them is the GO
+--   commit's only edit.
+--
+-- ★ THE BAR (Security GO-WITH-CHANGES 2026-10-14, replacing the >= 12 probes x
+--   48 h live bar). R1: every closed combat probe on the last 3 engine payloads
+--   replays EXACTLY on its own payload's code (14 keys) and through the
+--   replayed hr_apply (state + ledger = the result), with coverage >= 2 ate,
+--   >= 2 deaths with a knock-out timer, >= 1 named hunt, >= 1 UTC-midnight
+--   crossing. R2: on the pin, >= 40 seeds per input, the 10 s / 90 s chain vs
+--   one span within +-6 % with |z| <= 3.29 for gold, XP and kills, and no input
+--   over-paying by > 10 %. Both are tests/world-tick-combat-replay.mjs; P2
+--   below counts ONLY the probes it attested, bound by REPLAY_DIGEST_SQL (the
+--   guard checks this file carries that expression verbatim). The live
+--   tick-vs-span read (tools/world-tick-parity.mjs) is an ALARM, not the bar.
 --
 -- ONE CONFIG WRITE: armed_channels {gather} -> {gather,combat}. Every
 -- precondition below is EXECUTED against the live rows and RAISES, so the
@@ -42,16 +56,24 @@
 do $arm$
 declare
   c_pin   constant text := 'SET-AT-SECURITY-GO';
+  c_replayed constant text[] := array['SET-AT-SECURITY-GO']::text[];
   v_cfg   public.hr_tick_config%rowtype;
   v_n     int;
-  v_ms    numeric;
+  v_ate   int;
+  v_dead  int;
+  v_hunt  int;
   v_first timestamptz;
   v_stall jsonb;
   v_ent   jsonb;
 begin
-  -- (P0) THE PIN IS A REAL PAYLOAD HASH (filled at the Security GO).
+  -- (P0) THE PIN IS A REAL PAYLOAD HASH AND THE REPLAYED SET IS REAL (both
+  --      filled at the Security GO from tests/world-tick-combat-replay.mjs --live --attest).
   if c_pin !~ '^[0-9a-f]{64}$' then
-    raise exception 'ARM-P0: c_pin is not a 64-hex payload_sha256 — the Security GO commit fills it with the payload the combat bar PASSed on';
+    raise exception 'ARM-P0: c_pin is not a 64-hex payload_sha256 — the Security GO commit fills it with the live payload R1 + R2 read GREEN on';
+  end if;
+  if cardinality(c_replayed) < 4
+     or exists (select 1 from unnest(c_replayed) e where e !~ '^[0-9]+:[0-9a-f]{64}$') then
+    raise exception 'ARM-P0: c_replayed is not >= 4 <probe id>:<64-hex digest> pairs — the Security GO commit pastes what tests/world-tick-combat-replay.mjs --live --attest printed';
   end if;
 
   select * into v_cfg from public.hr_tick_config where id;
@@ -78,23 +100,47 @@ begin
     raise exception 'ARM-P1: the presence horizon is not installed (apply 2026-10-10-world-tick-presence-horizon.sql first)';
   end if;
 
-  -- (P2) THE EVIDENCE FLOOR ON THE PIN. The evaluator (tools/world-tick-parity.mjs)
-  --      is the BAR (>= 12 eligible probes / >= 48 h, replay +-10 %, |z| <= 3.29,
-  --      per-probe |z| > 4.3 FAILS, >= 2 ate and >= 2 death probes); this is
-  --      only the floor it must have read: 12 closed combat probes, 48 h, on
-  --      the pin at both ends, input RETAINED (the replay needs it), and the
-  --      pin continuously live from the first counted probe until now (no
-  --      probe of ANY channel opened on another payload since; the newest
-  --      combat probe is on the pin).
-  select count(*), coalesce(sum(extract(epoch from (span_to - span_from)) * 1000), 0), min(opened_at)
-    into v_n, v_ms, v_first
-    from public.hr_tick_probe
-   where channel = 'combat' and status = 'closed'
-     and payload_open = c_pin and payload_close = c_pin
-     and input is not null;
-  if v_n < 12 or v_ms < 48 * 3600 * 1000 then
-    raise exception 'ARM-P2: % closed combat probes with retained input / % h on the pin (need >= 12 / >= 48 h)',
-      v_n, round(v_ms / 3600000.0, 2);
+  -- (P2) THE REPLAYED EVIDENCE ON THE PIN (Security R4, 2026-10-14). The bar is
+  --      tests/world-tick-combat-replay.mjs (R1 exact replay + hr_apply state and
+  --      ledger, R2 chain vs one span); this counts only what it ATTESTED:
+  --   P2a every c_replayed pair names a probe row whose digest is unchanged
+  --       since the replay (REPLAY_DIGEST_SQL, verbatim in the guard): a row
+  --       edited, pruned (input NULLed past 4 days) or mistyped refuses here;
+  --   P2b of the attested probes, those closed on the pin at both ends with
+  --       stored input and seed: >= 4, of them >= 2 with result.ate > 0,
+  --       >= 2 with result.deaths > 0, >= 1 on a named-hunt pointer
+  --       (input.activeId in hr_hunts). No span or probe-count floor beyond
+  --       that (the 12 x 48 h floor is retired; the live tick-vs-span read is
+  --       an alarm only);
+  --   P2c the pin continuously live from the first counted probe until now (no
+  --       probe of ANY channel opened on another payload since); the newest
+  --       combat probe is on the pin.
+  if to_regclass('public.hr_hunts') is null then
+    raise exception 'ARM-P2: no hunt catalogue (public.hr_hunts) — a named-hunt probe cannot exist (apply 2026-10-20-hunts-catalogue.generated.sql first)';
+  end if;
+  select count(*) into v_n
+    from public.hr_tick_probe p
+   where p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, '')), 'UTF8')), 'hex')
+         = any (c_replayed);
+  if v_n <> cardinality(c_replayed) then
+    raise exception 'ARM-P2: % of % replayed probes are present and unchanged — a probe moved after tests/world-tick-combat-replay.mjs replayed it; re-run --live --attest',
+      v_n, cardinality(c_replayed);
+  end if;
+  select count(*),
+         count(*) filter (where coalesce((p.result->>'ate')::numeric, 0) > 0),
+         count(*) filter (where coalesce((p.result->>'deaths')::numeric, 0) > 0),
+         count(*) filter (where exists (select 1 from public.hr_hunts h where h.hunt_id = p.input->>'activeId')),
+         min(p.opened_at)
+    into v_n, v_ate, v_dead, v_hunt, v_first
+    from public.hr_tick_probe p
+   where p.channel = 'combat' and p.status = 'closed'
+     and p.payload_open = c_pin and p.payload_close = c_pin
+     and p.input is not null and p.seed is not null
+     and p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, '')), 'UTF8')), 'hex')
+         = any (c_replayed);
+  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then
+    raise exception 'ARM-P2: % replayed closed combat probes with stored input on the pin (% ate, % with a death, % on a named hunt) — need >= 4 / >= 2 / >= 2 / >= 1',
+      v_n, v_ate, v_dead, v_hunt;
   end if;
   if exists (select 1 from public.hr_tick_probe
               where opened_at >= v_first

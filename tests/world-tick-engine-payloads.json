@@ -1,0 +1,9 @@
+{
+  "_why": "hr-accrue payload_sha256 -> the commit it was packed from. A CLAIM, recorded by the Coordinator at each hr-accrue deploy (the deploy already checks the live GET against `node tools/pack-edge.mjs hr-accrue --hash` at that commit). tools/lib/engine-pack.mjs re-packs the commit with ITS OWN packer and refuses the engine unless the hash matches, so a wrong entry stops tests/world-tick-combat-replay.mjs --live (exit 2); it can never replay a probe on the wrong code. Append one line per deploy; never edit an old line.",
+  "payloads": {
+    "c5eef77a6a0748246758468cfa7a52e0793a6a686eb9e75b9664cc4512c7fe27": "8fbc22e15ea3225a0bfd1cedf855d1f0256f4759",
+    "bb1c64e20affd490711a9f78b82391d214f8ed4cb48a62af9cafb588915120ed": "4ef8c80114080bd952c39f443a5337fbe34efa33",
+    "30e2de70e8a4f679e4d3f1c19197ae72cfbab73e1b2f31eeada5da70d25328f0": "de2ee08f4041aac508011461f9fa04e7270cf3be",
+    "a993f7c0acbaf6d978e6c27ea8abf3b0eb736c9f0c0835c5b67a75f9c0d6fbda": "b0a42efc33f83f627250882bc95a7fecf5dfb182"
+  }
+}

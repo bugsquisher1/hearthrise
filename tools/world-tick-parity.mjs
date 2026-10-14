@@ -357,30 +357,41 @@ async function selftest() {
    −3.6 % at 2.5 se, so the zero-centred se test was reading noise. */
 export const SELFTEST_REPLICAS = 120;
 const SPAN_PAD_MS = 74400;   // probes 8/10: 4 h 01 m 14 s, like production's close
-export function selftestProbes() {
+/* The synthetic probe shapes, each { input, fromMs, toMs } for `userId`: a QA
+   slot 1 Slime span off the vigour-line fixture ('p8' crosses the line, 'p10'
+   is wholly past it), and any combat-sessions.json session placed at `fromMs`
+   (sessionProbe, also tests/world-tick-combat-replay.mjs's fixture). */
+function qa1Probe(which, userId) {
   const qa1 = JSON.parse(readFileSync(new URL('../services/world-tick/fixtures/vigour-line-qa1.json', import.meta.url), 'utf8'));
+  const p = qa1.probes[which];
+  const s = JSON.parse(JSON.stringify(qa1.env));
+  s.userId = userId;
+  s.accruedToMs = Date.parse(p.fromText); s.accruedToText = p.fromText;
+  return { input: applyShadowState(s, JSON.parse(JSON.stringify(p.carrier))),
+    fromMs: Date.parse(p.fromText), toMs: Date.parse(p.to) };
+}
+/* `activeId` re-points the session (a named hunt). */
+export function sessionProbe(nameRe, fromMs, userId, activeId) {
+  const found = loadCombatSessions().find((x) => nameRe.test(x.name));
+  if (!found) throw new Error(`no combat fixture session matches ${nameRe}`);
+  const s = atSpan(found, fromMs);
+  const lvl = Math.max(10, levelFromXp(Number((s.skills || {}).hitpoints) || 0));
+  s.hp = Math.max(1, Math.round((Number(s.hp) || 0) / (Number(s.maxHp) || lvl) * lvl));
+  s.maxHp = lvl;
+  s.userId = userId;
+  if (activeId) s.activeId = activeId;
+  return { input: s, fromMs, toMs: fromMs + 4 * 3600e3 + SPAN_PAD_MS };
+}
+const foodExhaustedProbe = (fromMs, userId) => sessionProbe(/bag empties/, fromMs, userId);
+/* Stored the way the probe stores it, then read back. */
+export const asStored = (p) => Object.assign(p, { input: decodeProbeInput(encodeProbeInput(p.input)) });
+
+export function selftestProbes() {
   const out = [];
   const userOf = (i) => `00000000-0000-4000-8000-${String(0x5e1f00 + i).padStart(12, '0')}`;
-  for (let i = 0; i < 10; i++) {
-    const p = qa1.probes[i % 2 ? 'p10' : 'p8'];
-    const s = JSON.parse(JSON.stringify(qa1.env));
-    s.userId = userOf(i);
-    s.accruedToMs = Date.parse(p.fromText); s.accruedToText = p.fromText;
-    out.push({ input: applyShadowState(s, JSON.parse(JSON.stringify(p.carrier))),
-      fromMs: Date.parse(p.fromText), toMs: Date.parse(p.to) });
-  }
-  const food = loadCombatSessions().find((x) => /bag empties/.test(x.name));
-  for (let i = 0; i < 2; i++) {
-    const from = Date.UTC(2026, 9, 2, 3 + 7 * i, 0, 0);
-    const s = atSpan(food, from);
-    const lvl = Math.max(10, levelFromXp(Number((s.skills || {}).hitpoints) || 0));
-    s.hp = Math.max(1, Math.round((Number(s.hp) || 0) / (Number(s.maxHp) || lvl) * lvl));
-    s.maxHp = lvl;
-    s.userId = userOf(10 + i);
-    out.push({ input: s, fromMs: from, toMs: from + 4 * 3600e3 + SPAN_PAD_MS });
-  }
-  /* Stored the way the probe stores it, then read back. */
-  return out.map((p) => Object.assign(p, { input: decodeProbeInput(encodeProbeInput(p.input)) }));
+  for (let i = 0; i < 10; i++) out.push(qa1Probe(i % 2 ? 'p10' : 'p8', userOf(i)));
+  for (let i = 0; i < 2; i++) out.push(foodExhaustedProbe(Date.UTC(2026, 9, 2, 3 + 7 * i, 0, 0), userOf(10 + i)));
+  return out.map(asStored);
 }
 
 async function engineReplaySelftest(H) {
@@ -499,6 +510,12 @@ if (!selectOnly(sql)) { console.error('world-tick-parity: refusing — query is 
 async function liveHash() {
   const pinned = arg('--hash', null);
   if (pinned) return pinned;
+  return fetchLivePayloadHash();
+}
+
+/* The deployed hr-accrue's payload_sha256, from its public GET (anon key only).
+   Also read by tests/world-tick-combat-replay.mjs --live, whose R2 runs on it. */
+export async function fetchLivePayloadHash() {
   const boot = readFileSync(join(process.cwd(), 'src', 'net', 'supabase-bootstrap.js'), 'utf8');
   const key = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
   const res = await fetch(EDGE, { headers: key ? { Authorization: `Bearer ${key}`, apikey: key } : {} });

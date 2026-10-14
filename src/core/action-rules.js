@@ -18,7 +18,7 @@
 
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=578';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=578';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=578';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS } from '../data/hunt-sessions.js?v=578';
 import { applyBuffSegment } from './buffs.js?v=578';
 import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=578';
 
@@ -251,6 +251,7 @@ const END_CHECKS = Object.freeze({
   falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
+  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   left: (hs, t) => at(hs.leaveAtMs, t),
   changed: (hs, t) => at(hs.changeAtMs, t),
@@ -258,6 +259,21 @@ const END_CHECKS = Object.freeze({
 });
 for (const k of END_ORDER) {
   if (typeof END_CHECKS[k] !== 'function') throw new Error('action-rules: END_ORDER names "' + k + '" and no check implements it');
+}
+
+/* ── STAMINA (Tyler 2026-10-14; data row STAMINA_MAX_MS) ──────────────────────
+   One swing interval of the pool: a HUNTING interval drains it 1:1 (floored at
+   0 — the swing that empties it still lands, and the next boundary ends the
+   hunt `stamina`); any other interval rests it back 1:1, never past the cap
+   and never DOWN to it (a refill may hold it above the cap; resting does not
+   take that away). PURE and draw-free, so a seeded swing replays identically,
+   and per interval, so N windows walk exactly what one span does (TICK-1).
+   The database re-bounds the window's result (hr_hunt_apply §5a). */
+export function staminaStep(ms, intervalMs, hunting, maxMs = STAMINA_MAX_MS) {
+  const v = Math.max(0, Math.floor(Number(ms) || 0));
+  const d = Math.max(0, Math.floor(Number(intervalMs) || 0));
+  if (hunting) return Math.max(0, v - d);
+  return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));
 }
 
 /* ── THE PRICE OF A FALL (Tyler 2026-10-14; data row DEATH_XP_LOSS) ─────────
@@ -327,6 +343,10 @@ export function newHuntSession(o) {
     falls: Math.max(0, int(s.falls, 0)),
     fallsLimit: Math.min(lim.max, Math.max(lim.min, int(s.fallsLimit, lim.default))),
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
+    /* The stamina pool at `nextSwingAtMs`, from the server's read (null = no
+       read: the session then never ends on stamina and proposes none, and the
+       database refuses the settle — fail closed). */
+    staminaMs: s.staminaMs === null || s.staminaMs === undefined ? null : Math.max(0, int(s.staminaMs, 0)),
     leaveAtMs: s.leaveAtMs ?? null,
     changeAtMs: s.changeAtMs ?? null,
     stopAtMs: s.stopAtMs ?? null,

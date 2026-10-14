@@ -136,13 +136,11 @@ const ENGINE_PATCHES = {
      remainder is COMPUTED but proposed as a floor of itself in whole minutes,
      so it is always 0 and the row is never written. A reader of the diff would
      see two counters and believe the law held. */
-  /* Re-anchored lane C2: a hunt session charges its swing clock, so the
-     absence charge is the ternary's else-arm; the call spans two lines. */
+  /* Re-anchored lane C2: a hunt session charges NO Vigour (its meter is
+     stamina, 2026-10-14), so the charge is the plain absence call again. */
   remainder_refloored: [[
-    '    const { addMin, remMs } = vigourCharge(hs0 ? Math.max(0, hs0.nextSwingAtMs - huntClockFrom)\n'
-      + '                                               : grantMs - deferredMs);',
-    '    const { addMin } = vigourCharge(hs0 ? Math.max(0, hs0.nextSwingAtMs - huntClockFrom)\n'
-      + '                                               : grantMs - deferredMs);\n'
+    '    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);',
+    '    const { addMin } = vigourCharge(grantMs - deferredMs);\n'
       + '    const remMs = Math.floor((grantMs - deferredMs) % 60000 / 60000) * 60000;',
   ]],
   /* THE TAIL CHARGED TWICE (SEC_WORLD_TICK_VIGOUR_2026-10-05 (a), the shape
@@ -151,8 +149,8 @@ const ENGINE_PATCHES = {
      so charging `grantMs` bills that tail here AND again next window: +10% at
      the 10 s tick. C1, C3 and C5 must go RED. */
   tail_charged_twice: [[
-    '                                               : grantMs - deferredMs);',
-    '                                               : grantMs);',
+    '    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);',
+    '    const { addMin, remMs } = vigourCharge(grantMs);',
   ]],
 };
 

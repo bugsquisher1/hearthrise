@@ -6,9 +6,9 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: c45a0707b87cc55c3bb06ac4f8dd57dfa199ea3a2a65085df24ca3db6a4a4d50
+--   digest: b9a23b196a5dcc7ca8058239c029e36837783d6e2dc639c49556b112a7fc194f
 --   52 supplies, 98 hunts (named + training), 5 rule subjects,
---   7 combat buff types, 14 limits, 7 end reasons, 484 vendor values
+--   7 combat buff types, 15 limits, 8 end reasons, 484 vendor values
 --
 -- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale.
@@ -259,23 +259,25 @@ insert into public.hr_hunt_limits (key, value) values
   ('presets', 5),
   ('sessions_kept', 20),
   ('slots', 10),
+  ('stamina_max_min', 720),
   ('vigour_low_min', 144);
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord) values
   ('falls', 1),
   ('heals_out', 2),
   ('ammo_out', 3),
-  ('hours', 4),
-  ('left', 5),
-  ('changed', 6),
-  ('server', 7);
+  ('stamina', 4),
+  ('hours', 5),
+  ('left', 6),
+  ('changed', 7),
+  ('server', 8);
 -- hunt_sessions.end_reason's CHECK is END_ORDER too. C1 typed it inline in
 -- 2026-10-21-hunt-sessions.sql; from this file on the generator owns it, so the
 -- wall and the catalogue cannot name different reasons (2026-10-14: 'vigour'
 -- left both). Applies after that file (the table must exist).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'stamina', 'hours', 'left', 'changed', 'server'));
 delete from public.hr_hunt_default_preset;
 insert into public.hr_hunt_default_preset (id, name, slots) values
   (true, 'Eat when hurt', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]}]'::jsonb);
@@ -773,8 +775,8 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 98
      or (select count(*) from public.hr_hunt_rule_subjects) <> 5
      or (select count(*) from public.hr_hunt_buff_types) <> 7
-     or (select count(*) from public.hr_hunt_limits) <> 14
-     or (select count(*) from public.hr_hunt_end_reasons) <> 7
+     or (select count(*) from public.hr_hunt_limits) <> 15
+     or (select count(*) from public.hr_hunt_end_reasons) <> 8
      or (select count(*) from public.hr_hunt_default_preset) <> 1
      or (select count(*) from public.hr_hunt_vendor_value) <> 484 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;

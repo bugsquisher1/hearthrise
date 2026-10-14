@@ -35,6 +35,17 @@
 //              "no cap on combat"): a hunt with the day's meter spent — or far
 //              past it — settles byte-identically to one with a full meter (no
 //              end, no 0.25x tail); 'vigour' is in no end order.
+//   STAMINA-RULE  the pool (Tyler 2026-10-14, "1:1 like Huntera", 12 h): a
+//              hunting interval drains 1:1 to 0, a resting one rests 1:1 to the
+//              cap (never down to it); a pool of five swings ends the hunt
+//              `stamina` after five; the client reader takes the server's value.
+//   STAMINA    through the database: a stamina-bound hunt settled on the tick
+//              cadence and at a client's odd instants writes the same rows and
+//              ends `stamina` at 0; knocked-out time rests the pool (end = start
+//              − paid + down); an undrained pool, unbacked knocked-out time, a
+//              missing pool and an unproven `stamina` end are refused; the
+//              envelope projects the row; an empty pool cannot enter a hunt and
+//              a rested one can; the cap row equals the data file.
 //   DEATHXP-RULE  the price of a fall (Tyler 2026-10-14): DEATH_XP_LOSS of the
 //              level's gap, from in-level progress only, never a de-level.
 //   DEATHXP    end to end: fall events state their price, one death_xp row per
@@ -86,6 +97,9 @@ async function loadEdge(root) {
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
+    /* The client reader is read from the REAL tree (the mutant copies hold only
+       the edge, src/core and src/data). */
+    NET: await import(pathToFileURL(join(ROOT, 'src', 'net', 'accrue.js')).href),
     HUNTS: await import(u('src/data/hunts.js')),
     AR: await import(u('src/core/action-rules.js')),
     XP: await import(u('src/core/xp.js')),
@@ -294,6 +308,44 @@ const ENGINE_ARMS = {
     return problems;
   },
 
+  /* STAMINA (engine half) — the pool, swing by swing. */
+  'STAMINA-RULE': async (M) => {
+    const problems = [];
+    const st = M.AR.staminaStep; const cap = M.HSD.STAMINA_MAX_MS;
+    if (cap !== 12 * 3600000) problems.push(`STAMINA_MAX_MS is ${cap}, not Huntera's 12 h`);
+    if (st(5000, 2400, true) !== 2600 || st(1000, 2400, true) !== 0) problems.push('a hunting interval does not drain 1:1 to a floor of 0');
+    if (st(5000, 2400, false) !== 7400 || st(cap - 1000, 2400, false) !== cap || st(cap + 500, 2400, false) !== cap + 500) {
+      problems.push('a resting interval does not rest 1:1 up to the cap, or rests a refilled pool DOWN to it');
+    }
+    const order = M.HSD.END_ORDER;
+    if (order.indexOf('stamina') !== order.indexOf('ammo_out') + 1 || order.includes('vigour')) {
+      problems.push(`END_ORDER ${order.join(',')} does not put stamina where vigour stood`);
+    }
+    const strong = { hp: 99, maxHp: 99, skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 } };
+    const ref = M.AC.computeAccrual(huntInput(M, strong));
+    if (!ref.hunt) { problems.push(`the reference window did not settle (${ref.reason})`); return problems; }
+    if (ref.hunt.stamina !== null) problems.push('a session read with no pool proposed one (the database must see the gap)');
+    const n = ref.hunt.swing_to - ref.hunt.swing_from;
+    const tick = (ref.hunt.paid_ms + ref.hunt.down_ms) / n;
+    const inp = huntInput(M, strong);
+    inp.huntSession.staminaMs = 5 * tick;
+    const out = M.AC.computeAccrual(inp);
+    const h = out.hunt || {};
+    if (!h.ended || h.ended.reason !== 'stamina') problems.push(`a pool of five swings ended '${h.ended && h.ended.reason}', not stamina`);
+    if (h.stamina !== 0) problems.push(`the emptied pool reads ${h.stamina}, not 0`);
+    if (h.down_ms === 0 && h.paid_ms !== 5 * tick) problems.push(`a pool of five swings hunted ${h.paid_ms / tick} swings`);
+    if (h.down_ms !== 0) problems.push('CONTROL: the strong probe was knocked out');
+    /* The client reader: the server's value, replaced; garbage is "unknown". */
+    const G = { _stamina: { ms: 1 } };
+    M.NET.reconcileStamina(G, { stamina: { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap, hunting: true } });
+    if (!G._stamina || G._stamina.ms !== 1234 || G._stamina.atMs !== T0 || G._stamina.maxMs !== cap || G._stamina.hunting !== true) {
+      problems.push(`reconcileStamina did not take the server's pool: ${JSON.stringify(G._stamina)}`);
+    }
+    M.NET.reconcileStamina(G, { stamina: { ms: 'x' } });
+    if (G._stamina !== null) problems.push('reconcileStamina kept a value the envelope replaced with garbage');
+    return problems;
+  },
+
   /* DEATHXP (engine half) — the price of a fall, as a rule. */
   'DEATHXP-RULE': async (M) => {
     const problems = [];
@@ -383,6 +435,13 @@ async function hunter(db, M, o) {
                     settled_to = date_trunc('second', now() - make_interval(mins => $2)),
                     next_swing_at = date_trunc('second', now() - make_interval(mins => $2)) where id = $1`, [sid, o.minutesAgo]);
   await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+  /* A pool of `o.stamina` ms AT the hunt's start (a fixture on a rolled-back
+     probe, like PRESS's max HP): the window walks it from there. */
+  if (o.stamina != null) {
+    await db.query(`update public.player_state set stamina_ms = $2,
+                      stamina_at = (select hunt_from from public.hunt_sessions where id = $3)
+                     where user_id = $1 and slot = 0`, [UID, o.stamina, sid]);
+  }
   const from = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_sessions where id = $1`, [sid]));
   return { sid, from };
 }
@@ -417,6 +476,7 @@ async function snapshot(db, sid) {
     select jsonb_build_object(
       'gold', ps.gold, 'hp', ps.hp, 'max_hp', ps.max_hp, 'buffs', ps.buffs, 'fight', ps.fight,
       'recovering_until', ps.recovering_until, 'active', ps.active_kind || ':' || coalesce(ps.active_id, ''),
+      'stamina', ps.stamina_ms, 'stamina_at', ps.stamina_at,
       'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
       'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
       'stats', (select jsonb_object_agg(kind || ':' || key || ':' || period_key, value) from public.player_progress
@@ -514,6 +574,73 @@ const DB_ARMS = {
       problems.push('CONTROL: the weak fixture\'s falls cost no XP — the death-XP half of the arm proves nothing');
     }
     if (!r.a.session || r.a.session.end_reason !== 'falls') problems.push(`CONTROL: the weak hunt ended '${r.a.session && r.a.session.end_reason}', not on its fall`);
+    return problems;
+  },
+  STAMINA: async (db, M) => {
+    const problems = [];
+    const cap = Number(await one(db, `select public.hr_hunt_limit('stamina_max_min')::bigint * 60000`));
+    if (cap !== M.HSD.STAMINA_MAX_MS) problems.push(`the database's cap ${cap} is not STAMINA_MAX_MS ${M.HSD.STAMINA_MAX_MS}`);
+    /* (1) BOTH PATHS on a hunt the pool ends: the tick cadence and a client's odd instants. */
+    const odd = (from) => [37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
+      .map((d) => from + d);
+    const r = await compareRuns(db, M, { ...STRONG, stamina: 10 * 60000 }, ticksOf(90000, SPAN_MS), odd);
+    const a = canon(r.a); const b = canon(r.b);
+    if (a !== b) problems.push(`a stamina-bound hunt settled at a client's instants wrote different rows than on the tick ${firstDiff(a, b)}`);
+    if (!r.a.session || r.a.session.end_reason !== 'stamina') problems.push(`CONTROL: the 10-minute pool ended the hunt '${r.a.session && r.a.session.end_reason}'`);
+    if (Number(r.a.stamina) !== 0) problems.push(`the emptied pool's row reads ${r.a.stamina}, not 0`);
+    const t = r.a.tally || {};
+    if (!(Number(t.paid_ms) - Number(t.down_ms) >= 600000 && Number(t.paid_ms) - Number(t.down_ms) < 600000 + 10000)) {
+      problems.push(`a 10-minute pool hunted ${t.paid_ms} ms with ${t.down_ms} ms knocked out`);
+    }
+    /* (2) KNOCKED-OUT TIME RESTS THE POOL: end = start − paid + down. */
+    await inTx(db, async () => {
+      const { sid, from } = await hunter(db, M, { ...WEAK, falls: 3, stamina: 20 * 60000 });
+      await settleTo(db, M, from + SPAN_MS);
+      const s = await snapshot(db, sid);
+      const tt = s.tally || {};
+      if (!(Number(tt.down_ms) > 0)) problems.push(`CONTROL: the weak hunter was never knocked out (${JSON.stringify(tt)})`);
+      const want = Math.max(0, 20 * 60000 - Number(tt.paid_ms) + Number(tt.down_ms));
+      if (Number(s.stamina) !== want) problems.push(`after ${tt.paid_ms} ms paid and ${tt.down_ms} ms down a 20-minute pool reads ${s.stamina}, want ${want}`);
+      /* The hunt is over, so the envelope shows the pool RESTED to now from the row. */
+      const env = await one(db, 'select public.hr_state_of($1, 0)', [UID]);
+      const rested = Number(await one(db, 'select public.hr_stamina_of($1, 0, now())', [UID]));
+      if (!env || !env.stamina || Number(env.stamina.ms) !== rested || Number(env.stamina.max_ms) !== cap
+          || env.stamina.hunting !== false || !(rested >= Number(s.stamina))) {
+        problems.push(`the envelope projected ${JSON.stringify(env && env.stamina)} against a row of ${s.stamina} rested to ${rested}`);
+      }
+    });
+    /* (3) FORGERIES are refused and move nothing. */
+    await inTx(db, async () => {
+      const { from } = await hunter(db, M, STRONG);
+      const before = await one(db, 'select jsonb_build_object($2::text, gold, $3::text, stamina_at) from public.player_state where user_id = $1 and slot = 0',
+        [UID, 'gold', 'at']);
+      const cases = [
+        ['an undrained pool', (o) => { o.hunt.stamina += 60000; }, 'bad_stamina'],
+        ['knocked-out time no recovery backs', (o) => { o.hunt.paid_ms -= 12000; o.hunt.down_ms += 12000; o.hunt.stamina += 24000; }, 'bad_stamina'],
+        ['a missing pool', (o) => { delete o.hunt.stamina; }, 'bad_stamina'],
+        ['a stamina end on a full pool', (o) => { o.hunt.ended = { reason: 'stamina', at: o.hunt.to }; }, 'end_not_proven'],
+      ];
+      for (const [label, tamper, want] of cases) {
+        const x = await settleTo(db, M, from + 120000, { tamper });
+        if (!x.res || x.res.error !== want) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${want}`);
+        const now = await one(db, 'select jsonb_build_object($2::text, gold, $3::text, stamina_at) from public.player_state where user_id = $1 and slot = 0',
+          [UID, 'gold', 'at']);
+        if (canon(now) !== canon(before)) problems.push(`${label} moved the character: ${JSON.stringify(now)}`);
+      }
+    });
+    /* (4) AN EMPTY POOL CANNOT ENTER A HUNT; a rested one can. */
+    await inTx(db, async () => {
+      await db.query('insert into auth.users (id) values ($1)', [UID]);
+      await asUser(db, UID);
+      await one(db, 'select public.hr_create_character(0)');
+      await db.query(`update public.hr_hunt_config set enabled = true where id`);
+      await db.query(`update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = $1 and slot = 0`, [UID]);
+      const e0 = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, null, $1::uuid)`, [idem()]);
+      if (!e0 || e0.error !== 'no_stamina') problems.push(`an empty pool entered a hunt: ${JSON.stringify(e0)}`);
+      await db.query(`update public.player_state set stamina_at = now() - interval '1 hour' where user_id = $1 and slot = 0`, [UID]);
+      const e1 = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, null, $1::uuid)`, [idem()]);
+      if (!e1 || e1.ok !== true) problems.push(`an hour's rest did not reopen the hunt: ${JSON.stringify(e1)}`);
+    });
     return problems;
   },
   TALLY: async (db, M) => inTx(db, async () => {
@@ -806,6 +933,14 @@ const MUTANTS = [
     to: "import { computeAccrual } from './accrual.js';\nimport { withAwayReceipt } from './away-receipt.js';" },
   { arm: 'VIGOUR', name: 'a hunt pays the 0.25x tired tail again', file: join(FN, 'accrual.js'),
     from: '  const vigSplit = (hs0 || vigBudgetMin === null) ? null', to: '  const vigSplit = (vigBudgetMin === null) ? null' },
+  { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/combat-sim.js',
+    from: '    if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, true);\n', to: '' },
+  { arm: 'STAMINA-RULE', name: 'an empty pool ends nothing', file: 'src/core/action-rules.js',
+    from: "  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),", to: '  stamina: () => false,' },
+  { arm: 'STAMINA', name: 'a knockout does not rest the pool', file: 'src/core/combat-sim.js',
+    from: '      if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, false);\n', to: '' },
+  { arm: 'STAMINA', name: 'the settle reads no pool', file: join(FN, 'hunt-settle.js'),
+    from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
   { arm: 'DEATHXP-RULE', name: 'a fall takes the whole gap, de-levelling', file: 'src/core/action-rules.js',
     from: '  return Math.max(0, Math.min(Math.floor(gap * f), x - floor));', to: '  return Math.max(0, Math.floor(gap * f));' },
   { arm: 'BOTH-PATH', name: 'a fall costs nothing', file: 'src/core/combat-sim.js',
@@ -830,6 +965,15 @@ const DB_MUTANTS = [
     replace: "                    > 1000000000) then" },
   { arm: 'DEATHXP', name: 'the applier lets a fall take a skill below its starting level', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
     find: "        if v_cur - v_n < public.hr_xp_for_level(v_lv0) then", replace: "        if false then" },
+  { arm: 'STAMINA', name: 'the applier stops bounding the pool from above', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "    if v_e < greatest(0, v_s0 - v_paid) or v_e > greatest(0, v_s0 - v_paid + v_down) or v_e > greatest(v_s0, v_cap) then",
+    replace: "    if v_e < 0 then" },
+  { arm: 'STAMINA', name: 'the applier takes knocked-out time on the engine\'s word', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "    if v_down > v_dmax then", replace: "    if false then" },
+  { arm: 'STAMINA', name: 'a stamina end is proven on any pool', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+    find: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0", replace: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) >= 0" },
+  { arm: 'STAMINA', name: 'an empty pool enters a hunt', fn: 'public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)',
+    find: "  if coalesce(public.hr_stamina_of(v_uid, p_slot, now()), 0) <= 0 then", replace: "  if false then" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];

@@ -3648,6 +3648,29 @@ export function reconcileToolCarry(G, res) {
    button live, the player clicks, and the SERVER refuses with the honest reason;
    evicting on an unparseable stamp would lock a dungeon out of an account with no
    way back, which is the uncertainty rule (§6). Pure — G + res in, a receipt out. */
+/* ── THE HUNT STAMINA POOL (Tyler 2026-10-14; 2026-10-22-hunt-sessions-settle.sql
+   §4c) ─────────────────────────────────────────────────────────────────────────
+   The server's `stamina` projection — {ms, at, max_ms, hunting} — lands in the
+   `_stamina` scratch as {ms, atMs, maxMs, hunting}, REPLACED by every envelope
+   that carries it and never merged, predicted or persisted (CLAUDE.md §6). A
+   renderer may count from `atMs` (down while `hunting`, up to `maxMs` while not)
+   for display between envelopes; nothing gates on it — hr_hunt_enter refuses
+   `no_stamina` itself. Absent or garbage → null ("unknown"), never a guess.
+   Pure — G + res in, a receipt out. */
+export function reconcileStamina(G, res) {
+  if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
+  const s = res.stamina;
+  const n = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+  const at = s && typeof s === 'object' ? Date.parse(s.at) : NaN;
+  if (!s || typeof s !== 'object' || !Number.isFinite(n(s.ms)) || !Number.isFinite(n(s.max_ms)) || !Number.isFinite(at)) {
+    if ('stamina' in res) G._stamina = null;
+    return { mode: 'absent' };
+  }
+  G._stamina = { ms: Math.max(0, Math.floor(n(s.ms))), atMs: at, maxMs: Math.max(0, Math.floor(n(s.max_ms))),
+    hunting: s.hunting === true };
+  return { mode: 'server', ms: G._stamina.ms };
+}
+
 export function reconcileDungeonCooldowns(G, res) {
   if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
   const iso = (v) => { const t = Date.parse(v); return Number.isFinite(t) ? new Date(t).toISOString() : null; };
@@ -4487,6 +4510,10 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      countdown must be right on the envelope the player's own action produced, not
      one poll later. Same absolute/merge split, same fail-open — see the header. */
   written.dungeonCooldowns = reconcileDungeonCooldowns(G, res);
+
+  /* AND THE HUNT STAMINA POOL, same breath: the settle that drained it is the
+     envelope the hunt screen is about to render. See reconcileStamina. */
+  written.stamina = reconcileStamina(G, res);
 
   /* AND THE BUFF QUEUE, for the same reason and in the same breath: the eat
      intent's OWN envelope comes back through here, so the pill the player sees a
@@ -7155,7 +7182,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, CONFLICT_DEADLINE_MS, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, CONFLICT_DEADLINE_MS, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileStamina, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

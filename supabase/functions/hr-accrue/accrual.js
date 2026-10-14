@@ -1475,7 +1475,6 @@ function accrueCombat(inp, span, hunt) {
      one, so the settle refuses rather than rolling on anything else. */
   const huntSeeder = hs0 ? swingSeederFor(String(inp.huntSecret ?? ''), hs0.id) : null;
   const huntSwingFrom = hs0 ? hs0.swingIndex : 0;
-  const huntClockFrom = hs0 ? hs0.nextSwingAtMs : 0;
 
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
@@ -1882,10 +1881,10 @@ function accrueCombat(inp, span, hunt) {
         : vigourBudgetMin({ offlineCapMs: vigIn.offline_cap_ms, refills: vigIn.refills }))
     : null;
   const vigSpentMin = vigIn ? nat(vigIn.spent_min, 0) : 0;
-  /* A HUNT IS NOT BOUNDED BY VIGOUR (designer ruling, 2026-10-14 loop check:
-     "no cap on combat"). The session neither ends at Vigour 0 nor pays the
-     0.25x tail (`vigSplit` below is null for a session); it only CHARGES the
-     swing clock it walked to the meter (see the progress rows further down). */
+  /* A HUNT HAS NOTHING TO DO WITH VIGOUR (designer ruling + Tyler, 2026-10-14:
+     stamina is the hunt's meter). The session neither ends at Vigour 0, nor
+     pays the 0.25x tail (`vigSplit` below is null for a session), nor charges
+     the meter (the progress rows further down skip a session). */
 
   /* ── THE RECOVERY CLOCK, SEEDED FROM THE ROW (First-Night Idle Rescue) ────
      `player_state.recovering_until` is an ABSOLUTE server timestamp and the
@@ -2607,7 +2606,12 @@ function accrueCombat(inp, span, hunt) {
      out time equals its length exactly, and no interval is ever split between
      two windows. It may stand up to one swing past the server's now; hr_apply
      clamps accrued_to to now() regardless. */
-  const settledTo = hs0 ? Math.max(hs0.nextSwingAtMs, credit.fromMs + 1)
+  /* AN ENDED SESSION settles to ONE MILLISECOND PAST its end boundary, however
+     the windows were cut: a hunt whose end falls on a window's FIRST boundary
+     cannot settle to that boundary (hr_hunt_settle_session needs the window to
+     advance), so `end + 1` is the one instant every cut agrees on — the
+     session row and the stamina pool's stamina_at land identically (STAMINA). */
+  const settledTo = hs0 ? (hs0.endedReason ? hs0.endedAtMs + 1 : Math.max(hs0.nextSwingAtMs, credit.fromMs + 1))
     : settledWatermarkMs(span, summary, tickMs, {
       caller: accrualCaller(inp),
     });
@@ -2851,13 +2855,11 @@ function accrueCombat(inp, span, hunt) {
        charge is the span the watermark actually advanced over, so the windows of
        any chain tile the timeline exactly once. A capped window defers nothing
        (deferredMs 0) and charges the `grantMs` it paid. */
-  if (vigIn && vigIn.day_key) {
+  /* A SESSION CHARGES NO VIGOUR: its meter is stamina (Tyler 2026-10-14),
+     walked inside the span and re-bounded by hr_hunt_apply. */
+  if (vigIn && vigIn.day_key && !hs0) {
     const period = String(vigIn.day_key);
-    /* A SESSION charges the swing clock it WALKED (one interval per boundary,
-       knock-outs included — the span's own Vigour clock), so N windows charge
-       exactly what one span does. */
-    const { addMin, remMs } = vigourCharge(hs0 ? Math.max(0, hs0.nextSwingAtMs - huntClockFrom)
-                                               : grantMs - deferredMs);
+    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);
     if (addMin > 0) {
       progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
         period, add: addMin, state: 'active' });
@@ -3177,6 +3179,12 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     raw_xp: rawXp,
     hints,
     ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs) } : null,
+    /* THE STAMINA POOL AT `to` (Tyler 2026-10-14), walked swing by swing from
+       the database's own start value. hr_hunt_apply takes it off the proposal,
+       re-bounds it against this window's paid / knocked-out time and the death
+       rows' recovery, and writes it at `to` (§5a). Null only when the read had
+       none, which the database refuses. */
+    stamina: hs.staminaMs === null || hs.staminaMs === undefined ? null : Math.max(0, Math.floor(Number(hs.staminaMs))),
     /* THE PRICE OF EACH FALL (Tyler 2026-10-14), one `{skill: xp}` per death
        row this window proposes, in the same order and the same slice as
        `delta.deaths` — hr_hunt_apply takes it off the proposal before

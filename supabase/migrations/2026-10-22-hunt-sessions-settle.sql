@@ -27,6 +27,10 @@
 --       (3) hr_apply(delta)  with hr.hunt_session set, so every ledger row it
 --           writes (the accrue row, the death rows) is stamped with the session
 --       (4) the press lands; the action bar's buff queue is validated + written
+--      (5a) THE STAMINA POOL (Tyler 2026-10-14, "1:1 like Huntera"): the
+--           window's end value, re-bounded against the pool at the window
+--           start (hr_stamina_of), its paid / knocked-out time and the death
+--           rows' recovery, written at `to`
 --       (5) hr_hunt_settle_session(hunt): swing CAS, window, bag, use caps,
 --           presses-only-shrink, falls = the death rows (3) just wrote, every
 --           end re-proved, tally folded from the stamped rows, events derived
@@ -43,6 +47,27 @@
 --     session clock move together or not at all.
 --
 --   Edge decides WHAT should happen; Postgres decides WHETHER IT MAY.
+--
+-- ── STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
+--    keep it simple"; Huntera's bar is 12 h) ────────────────────────────────
+--   player_state.stamina_ms / stamina_at: the pool's value AT an instant (both
+--   null = full). It DRAINS 1:1 over every swing interval a session spends
+--   hunting and RESTS 1:1 over every other instant (the walk out, a knockout,
+--   town, no hunt at all), capped at hr_hunt_limit('stamina_max_min') (from
+--   src/data/hunt-sessions.js STAMINA_MAX_MS) and never lowered by resting.
+--   The engine walks it swing by swing (src/core/action-rules.js staminaStep);
+--   the settle writes the window's end value at `to` (§5 (5a)); hr_stamina_of
+--   projects the rest-only stretch from the row to any later instant. At 0 the
+--   hunt ends `stamina` (END_ORDER, where Vigour stood), re-proved from the row
+--   by hr_hunt_settle_session; hr_hunt_enter refuses `no_stamina` at 0. The
+--   envelope projects it (`stamina`: ms / at / max_ms / hunting, §4c).
+--   THE REFILL HOOK (a separate reviewed lane, never Crowns): a refill adds to
+--   the value at `at := coalesce(open session's settled_to, now())` — i.e.
+--   `stamina_ms = hr_stamina_of(user, slot, at) + add, stamina_at = at` under
+--   hr_hunt_lock — and never moves stamina_at past an open session's
+--   settled_to (hr_hunt_apply refuses that row `stamina_ahead`).
+--   VIGOUR PLAYS NO PART IN A HUNT any more: no end, no tail, no charge, no
+--   entry gate (the engine skips the session's charge; §4c swaps the gate).
 --
 -- ── THE OLD COMBAT PATH CANNOT PAY A HUNTER (C1 note 2) ─────────────────────
 --   hr_hunt_accrue_fence: a BEFORE INSERT trigger on player_ledger that refuses
@@ -86,9 +111,13 @@
 --   Re-apply the hr_tick_cron_run statement of 2026-10-11-world-tick-catchup.sql
 --   §2; drop trigger hr_hunt_accrue_fence; drop functions hr_hunt_roster,
 --   hr_hunt_apply, hr_hunt_buffs_put, hr_hunt_engine_read, hr_hunt_open_of,
---   hr_hunt_accrue_fence; drop table hunt_tick_lease; re-apply the
---   hr_assert_grant_hygiene block of 2026-10-10-world-tick-presence-horizon.sql.
---   No value is held by anything this file creates.
+--   hr_hunt_accrue_fence, hr_stamina_view, hr_stamina_of; drop table
+--   hunt_tick_lease; re-apply the hr_assert_grant_hygiene block of
+--   2026-10-10-world-tick-presence-horizon.sql; re-apply hr_hunt_enter and
+--   hr_hunt_settle_session from 2026-10-21-hunt-sessions.sql and hr_state_of from
+--   2026-10-19-account-wallet.sql (§4c's anchored edits). The two stamina
+--   columns may stay (inert without a reader). No gold, item or XP is held by
+--   anything this file creates; the stamina pool is a clock, not a balance.
 -- No begin/commit (CLAUDE.md §2 — tools/apply-migration.mjs sends one batch).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -110,11 +139,17 @@ begin
                     'hr_state_of, hr_seed, hr_item_buffs, hr_hunt_supplies or hr_tick_config is absent';
   end if;
   -- The C2 catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql) carries
-  -- the price of a fall and drops 'vigour' from the end order; it applies first.
+  -- the price of a fall and the stamina cap, and puts 'stamina' where 'vigour'
+  -- stood in the end order; it applies first.
   if not exists (select 1 from public.hr_hunt_limits where key = 'death_xp_permille' and value > 0)
+     or not exists (select 1 from public.hr_hunt_limits where key = 'stamina_max_min' and value > 0)
+     or not exists (select 1 from public.hr_hunt_end_reasons where reason = 'stamina')
      or exists (select 1 from public.hr_hunt_end_reasons where reason = 'vigour') then
     raise exception 'PRECONDITION: 2026-10-22-hunt-sessions-catalogue.generated.sql is not applied '
-                    '(no death_xp_permille limit, or vigour still ends a hunt)';
+                    '(no death_xp_permille / stamina_max_min limit, no stamina end, or vigour still ends a hunt)';
+  end if;
+  if to_regprocedure('public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)') is null then
+    raise exception 'PRECONDITION: hr_hunt_enter (2026-10-21-hunt-sessions.sql) is absent';
   end if;
   select md5(replace(p.prosrc, chr(13), '')) into v_cron from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_cron_run()');
@@ -141,6 +176,70 @@ comment on table public.hunt_tick_lease is
   '2026-10-22 (hunt sessions C2). Which world-tick driver is settling which open session, until when. '
   'OPERATIONAL: holds no value; written only by hr_hunt_roster; deleted with its session. The lease spares '
   'duplicate engine work only — the character lock + swing CAS in hr_hunt_apply are the correctness.';
+
+-- ── §1b THE STAMINA POOL (Tyler 2026-10-14) ───────────────────────────────
+-- The value AT an instant; both null = full (a new character, or one that has
+-- never hunted). Written only by hr_hunt_apply (§5 (5a)); no client role holds
+-- UPDATE on player_state (its RLS has no client write policy). Upper bound a
+-- week of ms: room for a refill above the cap, nowhere near an overflow.
+alter table public.player_state add column if not exists stamina_ms bigint;
+alter table public.player_state add column if not exists stamina_at timestamptz;
+do $mig$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'player_state_stamina_ck'
+                   and conrelid = 'public.player_state'::regclass) then
+    alter table public.player_state add constraint player_state_stamina_ck
+      check ((stamina_ms is null) = (stamina_at is null)
+             and (stamina_ms is null or stamina_ms between 0 and 604800000));
+  end if;
+end $mig$;
+comment on column public.player_state.stamina_ms is
+  '2026-10-22 (hunt sessions C2, Tyler 2026-10-14). The stamina pool in ms AT stamina_at; null = full. '
+  'Drains 1:1 while a session hunts, rests 1:1 otherwise up to hr_hunt_limit(''stamina_max_min''). '
+  'Written only by hr_hunt_apply; read through hr_stamina_of.';
+comment on column public.player_state.stamina_at is
+  '2026-10-22 (hunt sessions C2). The instant stamina_ms holds at (a settle''s window end). Never past an open '
+  'session''s settled_to.';
+
+-- The pool at `p_at`, given that nothing HUNTED between stamina_at and p_at
+-- (true by construction: while a session is open stamina_at = its settled_to,
+-- and every earlier instant was rest). Rest never LOWERS a value (a refill may
+-- hold it above the cap). Null when the cap row is missing — callers refuse.
+create or replace function public.hr_stamina_of(p_user uuid, p_slot int, p_at timestamptz)
+returns bigint language sql stable set search_path = public, pg_catalog as $$
+  select case
+           when m.cap is null then null
+           when ps.stamina_at is null then m.cap
+           when p_at is null or p_at <= ps.stamina_at then ps.stamina_ms
+           else greatest(ps.stamina_ms, least(m.cap, ps.stamina_ms
+                  + floor(extract(epoch from (p_at - ps.stamina_at)) * 1000)::bigint))
+         end
+    from public.player_state ps
+   cross join (select public.hr_hunt_limit('stamina_max_min')::bigint * 60000 as cap) m
+   where ps.user_id = p_user and ps.slot = p_slot
+$$;
+
+-- What the envelope shows (display = the server's value, CLAUDE.md §6). While
+-- a session is HUNTING the value is the one its last settle wrote, at its
+-- settled_to; otherwise it is the pool now. `hunting` tells the renderer which
+-- way to count between envelopes — display only, replaced by the next one.
+create or replace function public.hr_stamina_view(p_user uuid, p_slot int)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
+declare
+  v_s   public.hunt_sessions%rowtype;
+  v_hunting boolean;
+  v_at  timestamptz;
+begin
+  select * into v_s from public.hunt_sessions h
+   where h.user_id = p_user and h.slot = p_slot and h.ended_at is null;
+  v_hunting := found and now() >= v_s.hunt_from;
+  v_at := case when v_hunting then v_s.settled_to else now() end;
+  return jsonb_build_object(
+    'ms', public.hr_stamina_of(p_user, p_slot, v_at),
+    'at', v_at,
+    'max_ms', public.hr_hunt_limit('stamina_max_min')::bigint * 60000,
+    'hunting', v_hunting);
+end $$;
 
 -- ── §2 hr_hunt_open_of — the engine's cheap "is a hunt open?" ──────────────
 -- The accrue and collect paths ask it so the old combat pricing never runs for
@@ -192,6 +291,9 @@ begin
     'slots', coalesce(public.hr_hunt_preset_slots(p_user, p_slot, v_s.preset), '[]'::jsonb),
     'secret', public.hr_seed(p_user, p_slot, 'hunt:' || v_s.id::text)::text,
     'enabled', coalesce((select c.enabled from public.hr_hunt_config c where c.id), false),
+    -- THE STAMINA POOL AT THE WINDOW START (settled_to), by the same function
+    -- hr_hunt_apply re-derives it with under the lock.
+    'stamina_ms', public.hr_stamina_of(p_user, p_slot, v_s.settled_to),
     'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
 end $$;
 
@@ -293,6 +395,82 @@ end $$;
 -- by the GENERATED catalogue 2026-10-22-hunt-sessions-catalogue.generated.sql
 -- from src/data/hunt-sessions.js DEATH_XP_LOSS — data, never a literal here.)
 
+-- ── §4c STAMINA REPLACES VIGOUR IN THREE INSTALLED BODIES ──────────────────
+-- ANCHORED EDITS: each anchor must match EXACTLY ONCE, a body already edited is
+-- left alone, and nothing else in any body moves.
+--   hr_hunt_enter (C1, applied)           the entry gate: `no_vigour` -> `no_stamina`
+--   hr_hunt_settle_session (C1, applied)  the end proof: the dead `vigour` arm ->
+--                                         `stamina`, proved from the row (5a) wrote
+--   hr_state_of (2026-10-19 restatement)  the envelope gains `stamina`
+-- WHY ANCHORED, NOT RESTATED: three one-line swaps in bodies that are at most one
+--   anchored patch from their last whole statement (C1's two are at zero;
+--   hr_state_of takes this and the away-readers deletion, two in all), each
+--   exactly-once and proven executed by §10 and tests/hunt-sessions-settle.mjs
+--   STAMINA. Restating C1's 1,900-line verbs to change one line each is the
+--   riskier change.
+do $mig$
+declare
+  v_def text; v_n int;
+  c_old constant text := $a$  v_vig := public.hr_vigour_of(v_uid, p_slot);
+  if coalesce((v_vig->>'remaining_min')::int, 0) <= 0 then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_vigour')); end if;
+$a$;
+  c_new constant text := $a$  -- STAMINA (2026-10-22-hunt-sessions-settle.sql §4c): an empty pool cannot start a hunt.
+  if coalesce(public.hr_stamina_of(v_uid, p_slot, now()), 0) <= 0 then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_stamina')); end if;
+$a$;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)'::regprocedure), chr(13), '');
+  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_enter already gates on stamina — edit skipped'; return; end if;
+  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
+  if v_n <> 1 then raise exception 'hr_hunt_enter: the Vigour gate matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(v_def, c_old, c_new);
+end $mig$;
+do $mig$
+declare
+  v_def text; v_n int;
+  c_old constant text := $a$      -- Vigour is charged by hr_apply in this transaction; the engine counts
+      -- milliseconds and hr_vigour_of whole minutes, so one minute of slack.
+      when 'vigour' then coalesce((public.hr_vigour_of(p_user, p_slot)->>'remaining_min')::int, 0) <= 1
+$a$;
+  c_new constant text := $a$      -- STAMINA (2026-10-22-hunt-sessions-settle.sql §4c): hr_hunt_apply (5a)
+      -- wrote this window's end value at `to` before this call.
+      when 'stamina' then coalesce((select ps.stamina_ms from public.player_state ps
+                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0
+$a$;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
+  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_settle_session already proves stamina — edit skipped'; return; end if;
+  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
+  if v_n <> 1 then raise exception 'hr_hunt_settle_session: the Vigour end arm matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(v_def, c_old, c_new);
+end $mig$;
+do $mig$
+declare
+  v_def text; v_n int;
+  c_old constant text := $a$    'dungeon_cooldowns', public.hr_dungeon_cooldowns(p_user, v_st.slot),
+$a$;
+  c_new constant text := $a$    -- ── stamina — THE HUNT POOL (ms / at / max_ms / hunting) ──
+    --    introduced by 2026-10-22-hunt-sessions-settle.sql §4c
+    'stamina', public.hr_stamina_view(p_user, v_st.slot),
+    'dungeon_cooldowns', public.hr_dungeon_cooldowns(p_user, v_st.slot),
+$a$;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_state_of(uuid,integer)'::regprocedure), chr(13), '');
+  if strpos(v_def, c_new) > 0 then raise notice 'hr_state_of already projects stamina — edit skipped'; return; end if;
+  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
+  if v_n <> 1 then raise exception 'hr_state_of: the dungeon_cooldowns anchor matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(v_def, c_old, c_new);
+end $mig$;
+revoke execute on function public.hr_hunt_enter(int, text, jsonb, int, int, int, uuid) from public;
+revoke execute on function public.hr_hunt_enter(int, text, jsonb, int, int, int, uuid) from anon, service_role;
+grant  execute on function public.hr_hunt_enter(int, text, jsonb, int, int, int, uuid) to authenticated;
+revoke execute on function public.hr_hunt_settle_session(uuid, int, uuid, jsonb) from public;
+revoke execute on function public.hr_hunt_settle_session(uuid, int, uuid, jsonb) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_state_of(uuid, int) from public;
+revoke execute on function public.hr_state_of(uuid, int) from anon, authenticated, service_role;
+grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
+
 -- ── §5 hr_hunt_apply — ONE SETTLE, ONE STATEMENT, ONE SUBTRANSACTION ───────
 create or replace function public.hr_hunt_apply(p_user uuid, p_slot int, p_session uuid, p_version bigint,
   p_intent uuid, p_delta jsonb, p_hunt jsonb, p_buffs jsonb default null, p_press jsonb default null,
@@ -331,6 +509,19 @@ declare
   v_fin       int;
   v_fi        int;
   v_r         record;
+  -- THE STAMINA POOL (Tyler 2026-10-14)
+  v_stam      jsonb;
+  v_cap       bigint;
+  v_sat       timestamptz;
+  v_rec0      timestamptz;
+  v_s0        bigint;
+  v_e         bigint;
+  v_win       bigint;
+  v_paid      bigint;
+  v_down      bigint;
+  v_nsw       bigint;
+  v_tick      bigint;
+  v_dmax      bigint;
 begin
   -- (0) IDENTITY: the engine, never a request role (the primary control is the
   --     GRANT in §9; this is the hr_apply-style secondary seam).
@@ -407,6 +598,26 @@ begin
     v_rate := public.hr_hunt_limit('death_xp_permille');
     if v_rate is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
   end if;
+  -- (2c) THE STAMINA POOL, shape only (no writes). `stamina` is the pool at
+  --      `to` as the engine walked it; it is taken off the proposal here
+  --      (hr_hunt_settle_session refuses keys it does not know) and re-bounded
+  --      in (5a). The start value is the DATABASE's: the row, rested up to the
+  --      window start. A row already written past the window start is refused:
+  --      nothing in this lane writes one, and a refill that did would let a
+  --      window be priced against a pool it never had.
+  v_stam := v_hunt->'stamina';
+  v_hunt := v_hunt - 'stamina';
+  if v_stam is null or jsonb_typeof(v_stam) <> 'number' or (v_stam #>> '{}') !~ '^[0-9]{1,12}$' then
+    return jsonb_build_object('ok', false, 'error', 'bad_stamina');
+  end if;
+  v_cap := public.hr_hunt_limit('stamina_max_min')::bigint * 60000;
+  if v_cap is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
+  select stamina_at, recovering_until into v_sat, v_rec0
+    from public.player_state where user_id = p_user and slot = p_slot;
+  if v_sat is not null and v_sat > v_s.settled_to then
+    return jsonb_build_object('ok', false, 'error', 'stamina_ahead');
+  end if;
+  v_s0 := public.hr_stamina_of(p_user, p_slot, v_s.settled_to);
   -- The skills as this window found them (the level a fall may never go below),
   -- and the newest event, so this settle's own fall / level_up rows are known.
   select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_xp0
@@ -437,6 +648,56 @@ begin
       exception when others then perform public.hr_reject('bad_window'); end;
       perform public.hr_hunt_buffs_put(p_user, p_slot, v_s.settled_to, v_to, p_hunt->'uses', p_buffs);
     end if;
+    -- (5a) THE STAMINA POOL, RE-BOUNDED AND WRITTEN (before the session half,
+    --      whose `stamina` end proof reads this row). Every swing interval of
+    --      the window is either PAID (hunting: drains 1:1) or KNOCKED OUT
+    --      (rest: 1:1 up to the cap), so with W the window, P paid, D down:
+    --        P + D = W (the 1 ms an empty window stands on aside);
+    --        D ≤ the recovery the database knows: the stored line past the
+    --            window start + each death row's recovery_ms, each rounded up
+    --            to a whole interval (hr_apply validated those rows above);
+    --        max(0, S0 − P) ≤ E ≤ max(0, S0 − P + D), and E ≤ max(S0, cap) —
+    --            the floor at 0 only bites on the swing that empties the pool,
+    --            after which the next boundary ends the hunt;
+    --        an empty pool at the window start may walk no swing (the engine
+    --            owed the `stamina` end at its first boundary).
+    begin v_to := (p_hunt->>'to')::timestamptz;
+    exception when others then perform public.hr_reject('bad_window'); end;
+    if jsonb_typeof(p_hunt->'paid_ms') is distinct from 'number' or jsonb_typeof(p_hunt->'down_ms') is distinct from 'number'
+       or jsonb_typeof(p_hunt->'swing_to') is distinct from 'number'
+       or (p_hunt->>'paid_ms')::numeric not between 0 and 1e12 or (p_hunt->>'down_ms')::numeric not between 0 and 1e12
+       or (p_hunt->>'swing_to')::numeric not between 0 and 1e15 then
+      perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'shape'));
+    end if;
+    v_e    := (v_stam #>> '{}')::bigint;
+    v_paid := (p_hunt->>'paid_ms')::numeric::bigint;
+    v_down := (p_hunt->>'down_ms')::numeric::bigint;
+    v_nsw  := (p_hunt->>'swing_to')::numeric::bigint - v_s.swing_index;
+    v_win  := floor(extract(epoch from (v_to - v_s.settled_to)) * 1000)::bigint;
+    if v_win < 0 or v_nsw < 0 or v_paid + v_down > v_win or v_paid + v_down < v_win - 1 then
+      perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'window', 'window_ms', v_win,
+        'paid_ms', v_paid, 'down_ms', v_down));
+    end if;
+    v_tick := case when v_nsw > 0 then ceil(v_win::numeric / v_nsw)::bigint else 0 end;
+    v_dmax := case when v_rec0 is not null and v_rec0 > v_s.settled_to
+                   then floor(extract(epoch from (v_rec0 - v_s.settled_to)) * 1000)::bigint + v_tick else 0 end
+            + coalesce((select sum(greatest(0, coalesce((d.value->>'recovery_ms')::bigint, 0)) + v_tick)
+                          from jsonb_array_elements(case when jsonb_typeof(p_delta->'deaths') = 'array'
+                                                         then p_delta->'deaths' else '[]'::jsonb end) d
+                         where coalesce((d.value->>'recovery_ms')::bigint, 0) > 0), 0);
+    if v_down > v_dmax then
+      perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'down_unbacked', 'down_ms', v_down, 'max_ms', v_dmax));
+    end if;
+    if v_e < greatest(0, v_s0 - v_paid) or v_e > greatest(0, v_s0 - v_paid + v_down) or v_e > greatest(v_s0, v_cap) then
+      perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'bound', 'from_ms', v_s0, 'ms', v_e,
+        'paid_ms', v_paid, 'down_ms', v_down));
+    end if;
+    if v_s0 <= 0 and v_nsw > 0 then
+      perform public.hr_reject('end_missing', jsonb_build_object('reason', 'stamina'));
+    end if;
+    update public.player_state set stamina_ms = v_e, stamina_at = v_to
+     where user_id = p_user and slot = p_slot;
+
     v_h := public.hr_hunt_settle_session(p_user, p_slot, p_session, v_hunt);
     -- C1 rev. 1 answered refusals as {ok:false}; the contract is a rollback.
     if coalesce(v_h->>'ok', 'true') = 'false' then
@@ -1038,6 +1299,10 @@ revoke execute on function public.hr_hunt_roster(text, int, int) from public;
 revoke execute on function public.hr_hunt_roster(text, int, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_tick_cron_run() from public;
 revoke execute on function public.hr_tick_cron_run() from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_stamina_of(uuid, int, timestamptz) from public;
+revoke execute on function public.hr_stamina_of(uuid, int, timestamptz) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_stamina_view(uuid, int) from public;
+revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
@@ -1820,6 +2085,7 @@ declare
   v_role text;
   v_hunt jsonb;
   v_delta jsonb;
+  v_cap  bigint := public.hr_hunt_limit('stamina_max_min')::bigint * 60000;
 begin
   -- (a) PRIVILEGES. Engine functions: hr_engine only. The roster: hr_tick only.
   --     The buff writer and the fence: nobody. The lease table: no grant.
@@ -1837,9 +2103,18 @@ begin
        or has_function_privilege(v_role, 'public.hr_hunt_buffs_put(uuid,integer,timestamp with time zone,timestamp with time zone,jsonb,jsonb)', 'execute')
        or has_function_privilege(v_role, 'public.hr_hunt_accrue_fence()', 'execute')
        or has_function_privilege(v_role, 'public.hr_tick_cron_run()', 'execute')
-       or has_table_privilege(v_role, 'public.hunt_tick_lease', 'select,insert,update,delete') then
+       or has_table_privilege(v_role, 'public.hunt_tick_lease', 'select,insert,update,delete')
+       or has_function_privilege(v_role, 'public.hr_stamina_of(uuid,integer,timestamp with time zone)', 'execute')
+       or has_function_privilege(v_role, 'public.hr_stamina_view(uuid,integer)', 'execute') then
       raise exception 'GATE(a): % reaches an internal of this file', v_role; end if;
   end loop;
+  -- (a2) NO CLIENT ROLE CAN WRITE THE POOL.
+  foreach v_role in array array['anon', 'authenticated'] loop
+    if has_column_privilege(v_role, 'public.player_state', 'stamina_ms', 'update')
+       or has_column_privilege(v_role, 'public.player_state', 'stamina_at', 'update') then
+      raise exception 'GATE(a2): % can write the stamina pool', v_role; end if;
+  end loop;
+  if v_cap is null or v_cap <= 0 then raise exception 'GATE(a2): no stamina_max_min limit row'; end if;
   if position('''hunts''' in (select p.prosrc from pg_proc p where p.oid = 'public.hr_tick_cron_run()'::regprocedure)) = 0
      or position('hr_hunt_roster(' in (select p.prosrc from pg_proc p where p.oid = 'public.hr_tick_cron_run()'::regprocedure)) = 0 then
     raise exception 'GATE(a): the installed driver does not post hunts';
@@ -1878,7 +2153,15 @@ begin
       'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
         'meta', jsonb_build_object('ms', 24000, 'ticks', 10, 'kills', 2, 'mon', 'mill_cellar')));
     v_hunt := jsonb_build_object('swing_from', 0, 'swing_to', 10, 'to', to_jsonb(v_to), 'next_swing_at', to_jsonb(v_to),
-      'uses', jsonb_build_object('cooked_shrimp', 2), 'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 24000);
+      'uses', jsonb_build_object('cooked_shrimp', 2), 'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 24000,
+      'stamina', v_cap - 24000);
+
+    -- (s0) THE ENVELOPE PROJECTS THE POOL: a character that never hunted is
+    --      full, and a hunting session reads it at its settled_to.
+    v_r := public.hr_state_of(v_uid, 0);
+    if (v_r->'stamina'->>'ms')::bigint is distinct from v_cap or (v_r->'stamina'->>'max_ms')::bigint is distinct from v_cap
+       or (v_r->'stamina'->>'hunting')::boolean is distinct from true then
+      raise exception 'GATE(s0): the envelope projected stamina %', v_r->'stamina'; end if;
 
     -- (c) THE FENCE: the OLD combat path cannot pay a hunter.
     set local role hr_engine;
@@ -1897,8 +2180,36 @@ begin
     if v_r->>'error' is distinct from 'session_moved'
        or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold
        or (select count(*) from public.player_ledger where user_id = v_uid) <> v_n
-       or (select swing_index from public.hunt_sessions where id = v_sid) <> 0 then
+       or (select swing_index from public.hunt_sessions where id = v_sid) <> 0
+       or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) is not null then
       raise exception 'GATE(d): a refused settle answered % or left a write behind', v_r; end if;
+
+    -- (s1) A POOL THAT DID NOT DRAIN FOR THE TIME IT HUNTED is refused, and
+    --      moves nothing (24 s paid, 0 knocked out: the end value is fixed).
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
+             v_hunt || jsonb_build_object('stamina', v_cap));
+    reset role;
+    if v_r->>'error' is distinct from 'bad_stamina'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold
+       or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) is not null then
+      raise exception 'GATE(s1): an undrained pool answered % or moved value', v_r; end if;
+    -- (s1b) KNOCKED-OUT TIME NO RECOVERY BACKS (no fall, no stored line) is refused.
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
+             v_hunt || jsonb_build_object('paid_ms', 0, 'down_ms', 24000, 'stamina', v_cap));
+    reset role;
+    if v_r->>'error' is distinct from 'bad_stamina'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(s1b): unbacked knocked-out time answered %', v_r; end if;
+    -- (s2) A `stamina` END ON A POOL THAT IS NOT EMPTY is not proven.
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
+             v_hunt || jsonb_build_object('ended', jsonb_build_object('reason', 'stamina', 'at', to_jsonb(v_to))));
+    reset role;
+    if v_r->>'error' is distinct from 'end_not_proven'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(s2): a stamina end on a full pool answered %', v_r; end if;
 
     -- (e) AN UNPAID BUFF refuses the whole settle.
     select jsonb_build_array(jsonb_build_object('type', b.type, 'magnitude', b.magnitude,
@@ -1925,8 +2236,10 @@ begin
        or (select kills from public.hunt_session_tally where session_id = v_sid) <> 2
        or jsonb_array_length((select presses from public.hunt_sessions where id = v_sid)) <> 1
        or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'combat' and intent = 'accrue'
-                                                     and session_id = v_sid) <> 1 then
-      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp together'; end if;
+                                                     and session_id = v_sid) <> 1
+       or (select stamina_ms from public.player_state where user_id = v_uid and slot = 0) <> v_cap - 24000
+       or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) <> v_to then
+      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina together'; end if;
     -- (f2) IDEMPOTENT: the same key replays and moves nothing more.
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, '00000000-0000-4000-8000-0000000c2bf1', v_delta, v_hunt);
@@ -1959,6 +2272,25 @@ begin
        or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 10 then
       raise exception 'GATE(f3): a fall with no stated price answered %', v_r; end if;
 
+    -- (s3) THE POOL RESTS 1:1 FROM ITS ROW, never past the cap, never DOWN to it.
+    update public.player_state set stamina_ms = 0, stamina_at = v_to where user_id = v_uid and slot = 0;
+    if public.hr_stamina_of(v_uid, 0, v_to + interval '1 hour') <> 3600000
+       or public.hr_stamina_of(v_uid, 0, v_to + interval '13 hours') <> v_cap
+       or public.hr_stamina_of(v_uid, 0, v_to - interval '1 hour') <> 0 then
+      raise exception 'GATE(s3): the pool does not rest 1:1 up to the cap'; end if;
+    update public.player_state set stamina_ms = v_cap + 1000 where user_id = v_uid and slot = 0;
+    if public.hr_stamina_of(v_uid, 0, v_to + interval '1 hour') <> v_cap + 1000 then
+      raise exception 'GATE(s3): resting took a pool above the cap DOWN to it'; end if;
+    -- (s3b) A ROW WRITTEN PAST THE WINDOW START (the refill hook's rule) refuses the settle.
+    update public.player_state set stamina_ms = 5000, stamina_at = v_to + interval '1 second' where user_id = v_uid and slot = 0;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta, v_hunt || jsonb_build_object('swing_from', 10));
+    reset role;
+    if v_r->>'error' is distinct from 'stamina_ahead' then
+      raise exception 'GATE(s3b): a pool written past the window start answered %', v_r; end if;
+    update public.player_state set stamina_ms = v_cap - 24000, stamina_at = v_to where user_id = v_uid and slot = 0;
+
     -- (g) THE ROSTER offers a due session once, leased; a second driver skips it.
     update public.hunt_sessions set entered_at = now() - interval '30 minutes', hunt_from = now() - interval '25 minutes',
                                     settled_to = now() - interval '20 minutes', next_swing_at = now() - interval '20 minutes'
@@ -1980,6 +2312,13 @@ begin
       if v_r->>'error' is distinct from 'hunt_open' and v_r->>'error' is distinct from 'settle_first' then
         raise exception 'GATE(h): a hunter''s client kill credit answered %', v_r; end if;
     end if;
+    -- (s4) AN EMPTY POOL CANNOT START A HUNT (§4c's gate on hr_hunt_enter).
+    update public.hunt_sessions set ended_at = settled_to, end_reason = 'left' where id = v_sid;
+    update public.player_state set active_kind = 'idle', active_id = null, stamina_ms = 0, stamina_at = now()
+     where user_id = v_uid and slot = 0;
+    v_r := public.hr_hunt_enter(0, 'mill_cellar', '[{"item":"cooked_shrimp","qty":2}]', 0, null, null, gen_random_uuid());
+    if v_r->>'error' is distinct from 'no_stamina' then
+      raise exception 'GATE(s4): an empty pool entered a hunt: %', v_r; end if;
     perform set_config('request.jwt.claim.sub', '', true);
 
     raise exception using errcode = 'HRC2B', message = 'hunt-sessions-settle §10 complete — rolling back';

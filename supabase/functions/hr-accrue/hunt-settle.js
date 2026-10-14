@@ -132,6 +132,9 @@ export function huntSessionFromRead(h) {
        last), which hr_hunt_settle_session re-proves from hr_hunt_config. */
     stopAtMs: h.enabled === false ? num(h.settled_to_ms) : null,
     down: h.down === true,
+    /* THE STAMINA POOL AT THE WINDOW START: the database's own
+       hr_stamina_of(settled_to), never a client value. */
+    staminaMs: num(h.stamina_ms),
   });
 }
 

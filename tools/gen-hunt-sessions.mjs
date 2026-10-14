@@ -14,6 +14,7 @@
 //   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + COOLDOWN_GROUPS,
 //                          hunt-sessions.js SESSION_LIMITS + VIGOUR_LOW_MIN + SESSIONS_KEPT
 //                          + DEATH_XP_LOSS (as `death_xp_permille`, lane C2)
+//                          + STAMINA_MAX_MS (as `stamina_max_min`, lane C2)
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) — and,
 //                          from the C2 file on, hunt_sessions.end_reason's CHECK
 //   hr_hunt_default_preset rule-subjects.js DEFAULT_PRESET
@@ -26,6 +27,8 @@
 // never regenerated in place. 2026-10-21-hunt-sessions-catalogue.generated.sql
 // (C1) was APPLIED 2026-10-14 13:39 UTC with 'vigour' in the end order and no
 // death-XP row; lane C2's data moved (Vigour ends no hunt; a fall costs XP), so
+// and the hunt's meter became stamina (Tyler, same day: 'stamina' takes
+// Vigour's place in the end order; the pool's cap is a limits row), so
 // the generator now writes 2026-10-22-hunt-sessions-catalogue.generated.sql,
 // which the replay applies after C1's and which rewrites every table wholesale.
 // The next data move after C2 applies starts a new dated file the same way.
@@ -49,7 +52,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS } from '../src/data/hunt-sessions.js';
+import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -65,7 +68,7 @@ export function catalogueRows(src = {}) {
     hunts: HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_GROUPS, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
-    vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, ...src,
+    vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS, ...src,
   };
   const supplies = Object.keys(S.supplies).sort().map((id) => {
     const s = S.supplies[id];
@@ -117,7 +120,13 @@ export function catalogueRows(src = {}) {
        fraction is a whole permille in (0, 1000], so the engine's fraction and the
        database's row are the same number exactly — not two roundings of it. */
     death_xp_permille: Math.round(Number(S.deathXpLoss) * 1000),
+    /* The stamina pool's cap in WHOLE MINUTES (the limits column is an int up
+       to 100000); refused unless STAMINA_MAX_MS is a whole minute > 0. */
+    stamina_max_min: Number(S.staminaMaxMs) / 60000,
   };
+  if (!(Number.isInteger(lim.stamina_max_min) && lim.stamina_max_min > 0)) {
+    throw new Error(`STAMINA_MAX_MS ${S.staminaMaxMs} is not a whole number of minutes > 0`);
+  }
   if (!(lim.death_xp_permille > 0 && lim.death_xp_permille <= 1000 && lim.death_xp_permille / 1000 === Number(S.deathXpLoss))) {
     throw new Error(`DEATH_XP_LOSS ${S.deathXpLoss} is not a whole permille in (0, 1]`);
   }
@@ -328,6 +337,8 @@ function selftest() {
     'vigour back in the end order': () => ({ endOrder: [...END_ORDER, 'vigour'] }),
     'a death XP loss that is not a whole permille': () => ({ deathXpLoss: 0.0205 }),
     'a death XP loss of nothing': () => ({ deathXpLoss: 0 }),
+    'a stamina cap that is not a whole minute': () => ({ staminaMaxMs: 12 * 3600000 + 1 }),
+    'no stamina cap': () => ({ staminaMaxMs: 0 }),
   };
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {

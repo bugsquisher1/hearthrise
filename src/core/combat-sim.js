@@ -74,7 +74,7 @@ import { recoveryFor, resumeHpFor } from './recovery.js?v=578';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, deathXpLoss } from './action-rules.js?v=578';
+import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=578';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -618,10 +618,10 @@ function tallyFx(fx, hs, events, clock) {
  * same order (TICK-1). No rate multiplier, no away scope: a hunt is a hunt.
  *
  * Each boundary, in order: the end checks (action-rules.js END_ORDER, and
- * `endedAtMs` is that boundary) → a knocked-out boundary drains buffs and
- * earns nothing → otherwise one swing, the action bar inside it → the buff
- * queue drains one interval. Vigour ends nothing here (2026-10-14 ruling); the
- * settle charges the swing clock walked to the meter (accrual.js).
+ * `endedAtMs` is that boundary) → a knocked-out boundary drains buffs, earns
+ * nothing and RESTS stamina one interval → otherwise one swing (stamina DRAINS
+ * one interval), the action bar inside it → the buff queue drains one
+ * interval. Vigour plays no part in a hunt (2026-10-14 rulings).
  */
 function simulateHuntSpan(state, ctx) {
   const hs = state.huntSession;
@@ -672,8 +672,10 @@ function simulateHuntSpan(state, ctx) {
       drain();
       recoverMs += tickMs;
       hs.tally.downMs += tickMs;
+      if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, false);
       continue;
     }
+    if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, true);
     if (downed) { downed = false; recoverUntilMs = 0; standUp(state, ctx); }
     if (typeof fx.mark === 'function') fx.mark(atMs);
     const facing = state.activeMonster;

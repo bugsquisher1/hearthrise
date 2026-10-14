@@ -43,13 +43,22 @@ export const DEATH_XP_LOSS = 0.02;
    starts. Its ledger rows are never touched: player_ledger is append-only. */
 export const SESSIONS_KEPT = 20;
 
+/* STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
+   keep it simple"; Huntera's bar is 12 hours). One pool per character, in ms:
+   it DRAINS 1:1 on every swing interval a hunt session spends hunting, and
+   RESTS BACK 1:1 at every other instant — walking out, knocked out, in town,
+   not in a hunt at all — never past this cap. At 0 the hunt ends `stamina`
+   at its next swing boundary. So 12 h hunting + 12 h resting a day costs
+   nothing. Server-owned (player_state.stamina_ms / stamina_at, the generated
+   limits row `stamina_max_min`); the client renders hr_state_of's `stamina`.
+   A gold refill (+4 h, a separate reviewed lane) is the only other writer. */
+export const STAMINA_MAX_MS = 12 * 3600000;
+
 /* Checked in this order on every swing; the first that holds ends the hunt.
-   VIGOUR ENDS NOTHING (designer ruling, 2026-10-14 loop check, to fit Tyler's
-   "no cap on combat"): a hunt ends on its bag, its falls, the optional hours,
-   a leave, a change, or the server — never on the Vigour meter. The server
-   reads this list as hr_hunt_end_reasons (tools/gen-hunt-sessions.mjs), so a
-   'vigour' end is refused there as an unknown reason. */
-export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'hours', 'left', 'changed', 'server']);
+   Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,
+   2026-10-14 loop check). The server reads this list as hr_hunt_end_reasons
+   and as hunt_sessions.end_reason's CHECK (tools/gen-hunt-sessions.mjs). */
+export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'stamina', 'hours', 'left', 'changed', 'server']);
 
 /* The end card: a title, then the reason in one plain sentence. */
 export const END_CARD_COPY = Object.freeze({
@@ -66,6 +75,7 @@ export const END_REASON_COPY = Object.freeze({
   falls: Object.freeze({ one: 'You were knocked out, so you walked home to recover.', other: 'You were knocked out {n} times, so you walked home to recover.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
+  stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),
   changed: Object.freeze({ one: 'You moved on to {hunt}.' }),

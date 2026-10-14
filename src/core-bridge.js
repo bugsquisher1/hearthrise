@@ -37,6 +37,7 @@ import * as elements from './core/elements.js?v=584';
 import * as drops from './core/drops.js?v=584';
 import * as pacing from './core/pacing.js?v=584';
 import * as rested from './core/rested.js?v=584';
+import * as tools from './core/tools.js?v=584';
 
 import * as farm from './core/farm.js?v=584';
 import * as progression from './core/progression.js?v=584';
@@ -299,6 +300,16 @@ function monsterId(row) {
 }
 
 
+/* Tool speed routes through window.HearthriseTools rather than straight to
+   core, because that object is a documented public API other feature modules
+   call — and it delegates to core itself. */
+function toolSpeed(skill) {
+  try {
+    return (window.HearthriseTools && window.HearthriseTools.bestToolSpeed)
+      ? (window.HearthriseTools.bestToolSpeed(skill) || 0) : 0;
+  } catch (e) { return 0; }
+}
+
 /* ── Context builders ──────────────────────────────────────────────────
    Each one turns the engine's ambient globals into the explicit argument
    object a core function wants. The server builds the same shapes from
@@ -348,6 +359,7 @@ function combatCtx(eq, setBonus) {
 function rateCtx() {
   return {
     bonus,
+    toolSpeed,
     xpB: (typeof window.getEquipmentStats === 'function') ? (window.getEquipmentStats().xpB || 0) : 0,
   };
 }
@@ -405,7 +417,7 @@ function xpGrantCtx(opts) {
 window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
-  rngMod, xp, combat, bane, elements, drops, pacing, rested, farm, progression,
+  rngMod, xp, combat, bane, elements, drops, pacing, rested, tools, farm, progression,
   styles, artisan, away, botd, buffs, combatSim, skillSim, artisanSim,
   autoEat, perks, ammo, goalCatalogue, workers, hearthfind, huntSpawn,
 
@@ -426,7 +438,7 @@ window.HearthriseCore = {
   },
 
   /* The adapters legacy.js calls. */
-  bonus, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  bonus, toolSpeed, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
   /* …and the artisan index, on the same contract, plus its reverse (item →

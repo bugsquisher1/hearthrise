@@ -24,7 +24,8 @@
 //   hearthrise:char:1 = full G snapshot for slot 1
 //   ...
 //
-// HARD CAP: 5 slots. Pricing: slot 1 free, slots 2-5 escalating gems.
+// HARD CAP: 5 slots. Pricing: slot 1 free, slots 2-5 escalating GOLD (designer
+// ruling 2026-10-14 §4: gems leave the game until monetization is decided).
 // Hearth Hall Premium unlocks 3 of the 4 paid slots automatically.
 //
 // Migrating an existing single-save player: on first run with this
@@ -36,7 +37,7 @@
   'use strict';
 
   const MAX_SLOTS = 5;
-  const SLOT_COSTS_GEMS = [0, 200, 500, 900, 1500];   // index = slotIndex (0..4)
+  const SLOT_COSTS_GOLD = [0, 15000, 75000, 250000, 750000];   // index = slotIndex (0..4)
   const PROFILE_KEY = 'hearthrise:profile';
   const SAVE_KEY = 'hearthbound-save-v2';
   const store = window.HearthriseStorage;
@@ -532,7 +533,7 @@
   function clientOwnsSlotStore(){
     try {
       return typeof window.clientMayWriteRecordField === 'function'
-        && window.clientMayWriteRecordField('gems') === true;
+        && window.clientMayWriteRecordField('gold') === true;
     } catch(e){ return false; }
   }
 
@@ -623,17 +624,17 @@
     if(slotId >= MAX_SLOTS) return { ok:false, reason:'Max slots reached (' + MAX_SLOTS + ')' };
     var G = window.G;
     if(!G) return { ok:false, reason:'The game is still loading — try again in a moment' };
-    var cost = SLOT_COSTS_GEMS[slotId] || 0;
+    var cost = SLOT_COSTS_GOLD[slotId] || 0;
     // Hearth Hall Premium grants 3 of the 4 paid slots free (slots 1, 2, 3).
     var hasPremium = profile.entitlements && profile.entitlements.hearthHall;
     var freeFromPremium = hasPremium && slotId >= 1 && slotId <= 3;
-    if(!freeFromPremium && !window.balCanAfford(cost, 'gems')){
-      return { ok:false, reason: window.balKnown('gems') ? ('Need ' + cost + ' gems')
-        : window.balShortfall(cost, 'gems') };
+    if(!freeFromPremium && !window.balCanAfford(cost, 'gold')){
+      return { ok:false, reason: window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold')
+        : window.balShortfall(cost, 'gold') };
     }
 
-    // ── 1. debit + entitlement, TOGETHER, in the one store that restores ──
-    if(!freeFromPremium) G.gems -= cost;
+    // ── 1. NO LOCAL DEBIT. The price is gold, a server-of-record balance; the
+    //      server verb (hr_buy_hero_slot) debits it and the envelope reconciles.
     /* NOT INTO G. The entitlement is the server's (`hero_slots`); this pre-arm
        path records only the device's own metadata below. */
     var nowUnlocked = slotId + 1;
@@ -673,7 +674,7 @@
        because nothing told the topbar its balance had changed. Same two-line
        pairing every other gem sink already does — see buyCosmetic in legacy.js. */
     try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
-    if(typeof window.notify === 'function') window.notify('Unlocked slot ' + (slotId+1) + (freeFromPremium ? ' (Premium)' : ' for ' + cost + ' gems'), 'levelup');
+    if(typeof window.notify === 'function') window.notify('Unlocked slot ' + (slotId+1) + (freeFromPremium ? ' (Premium)' : ' for ' + cost.toLocaleString() + ' gold'), 'levelup');
     return { ok: true };
   }
 
@@ -698,8 +699,8 @@
       ? { title:'Unlock hero slot ' + n + '?',
           body:'Hero slot ' + n + ' is included with Hearth Hall Premium — unlocking it costs you nothing.',
           confirmLabel:'Unlock', cancelLabel:'Not now' }
-      : { title:'Spend ' + next.cost + ' gems?',
-          body:'Unlock hero slot ' + n + ' for ' + next.cost + ' gems. Gems are premium currency and this '
+      : { title:'Spend ' + next.cost.toLocaleString() + ' gold?',
+          body:'Unlock hero slot ' + n + ' for ' + next.cost.toLocaleString() + ' gold. This '
              + 'purchase cannot be undone.',
           confirmLabel:'Buy slot ' + n, cancelLabel:'Not now' };
     return confirmDialog(opts).then(function(yes){
@@ -713,7 +714,7 @@
          is hr_buy_hero_slot; the confirm above still runs first, because a
          premium spend is never one click. */
       var mayWrite = (typeof window.clientMayWriteRecordField !== 'function')
-        || window.clientMayWriteRecordField('gems');
+        || window.clientMayWriteRecordField('gold');
       if(!mayWrite) return serverBuySlot(slotId);
       return unlockSlot(slotId);
     });
@@ -729,7 +730,8 @@
     bad_slot:               'That hero slot does not exist',
     already_owned:          'You already own that hero slot',
     requires_previous_slot: 'Unlock the previous slot first',
-    insufficient_gems:      'Not enough gems',
+    insufficient_gems:      'Not enough gold',
+    insufficient_gold:      'Not enough gold',
     hero_slot_daily_cap:    'You have unlocked all the hero slots you can for today',
     no_character:           'Your character is still loading — try again in a moment',
     no_account:             'Your account is still loading — try again in a moment',
@@ -743,8 +745,8 @@
   };
   function slotBuyToast(res){
     var code = String((res && res.error) || '');
-    if(code === 'insufficient_gems' && res && typeof res.short_by === 'number'){
-      return 'Not enough gems — you need ' + res.short_by + ' more';
+    if((code === 'insufficient_gold' || code === 'insufficient_gems') && res && typeof res.short_by === 'number'){
+      return 'Not enough gold — you need ' + Number(res.short_by).toLocaleString() + ' more';
     }
     if(SLOT_BUY_TOASTS[code]) return SLOT_BUY_TOASTS[code];
     return 'Hero slots are unavailable right now';
@@ -812,7 +814,7 @@
         } catch(e){}
         try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
         notifySafe('Unlocked Hero ' + (slotId + 1) + ' for '
-          + (Number(res.cost) || SLOT_COSTS_GEMS[slotId] || 0) + ' gems', 'levelup');
+          + (Number(res.cost) || SLOT_COSTS_GOLD[slotId] || 0).toLocaleString() + ' gold', 'levelup');
         return { ok:true, server:true, heroSlots: res.hero_slots || null };
       }
 
@@ -954,7 +956,7 @@
   window.HearthriseProfile = {
     profile: null,
     MAX_SLOTS: MAX_SLOTS,
-    SLOT_COSTS_GEMS: SLOT_COSTS_GEMS,
+    SLOT_COSTS_GOLD: SLOT_COSTS_GOLD,
     init: function(){
       var p = loadProfile();
       if(!p) p = migrateLegacySave();
@@ -1056,7 +1058,7 @@
       var free = hasPremium && nextId >= 1 && nextId <= 3;
       return {
         slotId: nextId,
-        cost: free ? 0 : SLOT_COSTS_GEMS[nextId],
+        cost: free ? 0 : SLOT_COSTS_GOLD[nextId],
         free: !!free,
         serverKnown: serverKnown(),
       };
@@ -1134,13 +1136,13 @@
            balance is UNKNOWN (server not yet heard from): unknown is not a
            shortfall, and a renderer must not paint it as one — the same
            distinction balShortfall() draws for gold. */
-        var _cost = free ? 0 : SLOT_COSTS_GEMS[i];
+        var _cost = free ? 0 : SLOT_COSTS_GOLD[i];
         var _have = null;
         try {
           var _B = window.HearthriseBalance;
           _have = (_B && typeof _B.balanceNum === 'function')
-            ? _B.balanceNum(window.G, 'gems')                       // null when UNKNOWN
-            : ((window.G && typeof window.G.gems === 'number') ? window.G.gems : null);
+            ? _B.balanceNum(window.G, 'gold')                       // null when UNKNOWN
+            : ((window.G && typeof window.G.gold === 'number') ? window.G.gold : null);
           if (typeof _have !== 'number' || !isFinite(_have)) _have = null;
         } catch (e) { _have = null; }
         rows.push({
@@ -1275,7 +1277,7 @@
           '<div class="cs-slot-meta">' +
             '<div class="cs-slot-name">Hero ' + (r.slotId+1) + (r.free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
             /* b373 — "900 gems", not "900 💎". The last emoji on this modal. */
-            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div>' +
+            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (Number(r.cost).toLocaleString() + ' gold')) + '</div>' +
           '</div>' +
           /* b465 — a Buy you cannot pay for is disabled, and says why. Unknown
              (afford === null) still offers the button: we do not know that they

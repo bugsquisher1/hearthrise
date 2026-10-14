@@ -47,16 +47,14 @@ import * as ST from './session-tally.js?v=584';
 import { fill } from './signposts.js?v=584';
 import { foeFamily } from '../render/foe-family.js?v=584';
 import { weaknessWords } from '../render/foe-weakness.js?v=584';
-import { SIGNPOSTS } from '../data/signposts.js?v=584';
 import { compactNumber } from '../net/balance.js?v=584';
 import { HUNTS } from '../data/hunts.js?v=584';
-import { BOSSES } from '../data/bosses.js?v=584';
 import { nextCharmAt } from '../core/charms.js?v=584';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
     with most foes moved into hunts, that is the word they look for. */
-const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Monsters']];
+const WT_TABS = [['hunts', 'Hunts'], ['training', 'Monsters']];
 
 /* THE ONE NOTICE AT THE TOP OF THE WINDOW. Dismissal is a display preference
    (`G.noticesSeen[id]`, residue), so a NEW id shows again and an old one stays
@@ -80,15 +78,6 @@ function fmtRun(s) {
   if (s < 3600) return Math.round(s / 60) + 'm';
   const h = Math.floor(s / 3600); const mm = Math.round((s % 3600) / 60);
   return h + 'h' + (mm ? ' ' + mm + 'm' : '');
-}
-function fmtCountdown(ms) {
-  if (!isFinite(ms) || ms <= 0) return 'soon';
-  const s = Math.floor(ms / 1000);
-  const d = Math.floor(s / 86400);
-  if (d >= 1) return d + 'd ' + Math.floor((s % 86400) / 3600) + 'h';
-  const h = Math.floor(s / 3600);
-  if (h >= 1) return h + 'h ' + Math.floor((s % 3600) / 60) + 'm';
-  return Math.floor(s / 60) + 'm';
 }
 function weaponLabel(t) { return (window.WEAPON_TYPES && window.WEAPON_TYPES[t]) || t || '—'; }
 function combatLevel() { return typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : 1; }
@@ -557,8 +546,6 @@ function ensureStructure() {
       <div class="wt-tabs" id="wt-tabs" role="tablist" aria-label="Adventures">${WT_TABS.map(([k, label]) =>
         `<button type="button" class="wt-tab" role="tab" data-cs-act="wtab" data-wtab="${k}">${label}</button>`).join('')}</div>
       <div class="wt-pane" data-wpane="hunts" role="tabpanel"><div class="wt-hunts" id="wt-hunts"></div></div>
-      <div class="wt-pane" data-wpane="bosses" role="tabpanel" hidden><div class="wt-rows" id="wt-bosses"></div></div>
-      <div class="wt-pane" data-wpane="dungeons" role="tabpanel" hidden><div class="wt-rows" id="wt-dungeons"></div></div>
       <div class="wt-pane" data-wpane="training" role="tabpanel" hidden>
         <div class="wt-bar">
           <div class="wt-chips" id="wt-tiers"></div>
@@ -839,124 +826,10 @@ function renderRibbon() {
    nothing live shows its timer instead of disappearing: an empty slot in a menu
    is what teaches the rotation. */
 function destinations() {
-  const g = G();
-  const out = [];
-
-  // ── Bounty ─────────────────────────────────────────────────────────────
-  const bh = g && g.bountyHunter;
-  const active = bh && bh.active;
-  if (active && MONSTERS[active.target]) {
-    const m = MONSTERS[active.target];
-    // The server's figure or '—' (src/render/bounty-progress.js view), never the attended count.
-    const v = window.hrBountyView ? window.hrBountyView(active) : null;
-    const mk = v ? v.mark : '—';
-    out.push({
-      rid: 'war:bounty', kick: 'Bounty', art: active.target, name: m.name,
-      meta: `${mk} / ${num(active.required || 0)} slain`,
-      verb: 'Jump ▸', go: 'monster', monster: active.target,
-      counter: `${mk}/${num(active.required || 0)}`,
-    });
-  } else {
-    out.push({
-      rid: 'war:bounty', kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
-      meta: 'Take one at the Bounty Board', verb: 'Browse ▸', go: 'tab', tab: 'bounty',
-    });
-  }
-
-  // ── Boss of the Day / Weekly Boss ──────────────────────────────────────
-  const B = window.HearthriseBossOfDay;
-  if (B) {
-    const kb = (id) => { const b = B.killBonuses(id); return `drop odds ×${b.dropMult} · kill XP ×${b.xpMult} · away too`; };
-    const did = B.featuredId && B.featuredId();
-    const dm = did && MONSTERS[did];
-    if (dm) {
-      out.push({
-        rid: 'war:botd', req: reqLevelFor(dm), kick: 'Boss of the Day', art: did, name: dm.name,
-        meta: combatLevel() < reqLevelFor(dm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(dm) }) : kb(did),
-        timer: 'new in ' + fmtCountdown(B.msUntilRotate ? B.msUntilRotate() : 0),
-        verb: 'Fight ▸', go: 'botd',
-        locked: combatLevel() < reqLevelFor(dm) ? `Combat Lv ${reqLevelFor(dm)}` : null,
-      });
-    }
-    const wid = B.weeklyId && B.weeklyId();
-    const wm = wid && MONSTERS[wid];
-    if (wm) {
-      out.push({
-        rid: 'war:weekly', req: reqLevelFor(wm), kick: 'Weekly Boss', art: wid, name: wm.name,
-        meta: combatLevel() < reqLevelFor(wm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(wm) }) : kb(wid),
-        timer: 'resets in ' + fmtCountdown(B.msUntilWeeklyRotate ? B.msUntilWeeklyRotate() : 0),
-        verb: 'Fight ▸', go: 'weekly',
-        locked: combatLevel() < reqLevelFor(wm) ? `Combat Lv ${reqLevelFor(wm)}` : null,
-      });
-    }
-  }
-
-  // ── Dungeons ───────────────────────────────────────────────────────────
-  const D = window.DUNGEONS;
-  if (D) {
-    const lv = combatLevel();
-    const ids = Object.keys(D);
-    const open = ids.filter((id) => typeof window.canRunDungeon === 'function'
-      && (() => { try { return window.canRunDungeon(id).ok; } catch (e) { return false; } })());
-    const next = ids.filter((id) => D[id].reqLv > lv).sort((a, b) => D[a].reqLv - D[b].reqLv)[0];
-    out.push({
-      rid: 'war:dungeon', req: open.length ? 0 : (next ? D[next].reqLv : 0), key: dungeonKeyHeld(),
-      kick: 'Dungeon', glyph: 'uiCastle',
-      name: open.length ? D[open[0]].name : (next ? D[next].name : 'Dungeons'),
-      meta: open.length ? `${open.length} ready to run` : (next ? fill('war.locked', { have: lv, need: D[next].reqLv }) : 'keys and cooldowns'),
-      verb: 'Enter ▸', go: 'tab', tab: 'dungeons',
-      counter: open.length ? String(open.length) : null,
-      /* b371 (F25) — THE CARD ALREADY SAID "unlocks at Combat Lv 25" AND OFFERED
-         A LIT "Enter ▸" BUTTON UNDER IT. The two boss cards above use the
-         `locked` field for exactly this and render a disabled chip naming the
-         requirement; the dungeon card was the one destination that stated its
-         gate in prose and then contradicted it with an affordance. A player at
-         CL8 clicked through to a list where every row said no. */
-      locked: (!open.length && next) ? `Combat Lv ${D[next].reqLv}` : null,
-    });
-  }
-
-  // ── The Clan Hunt ──────────────────────────────────────────────────────
-  const R = window.HearthriseRaids;
-  if (R) {
-    let boss = null;
-    try { boss = R.bossOfWeek && R.bossOfWeek(); } catch (e) { boss = null; }
-    /* b465 — DO NOT INVITE A PLAYER THROUGH A DOOR THAT IS SHUT.
-       "strike with your clan · Join ▸" sat lit on the combat rail for everyone,
-       including a level-1 account with no clan and no way to make one: clans,
-       the weekly Hunt and the muster are all behind CLAN_LAUNCHED, so Join
-       landed on the "coming in Open Beta 1" card. That is the same defect b371
-       fixed one card up on the dungeon row — state a gate in prose, then
-       contradict it with a lit affordance — so it gets the same remedy, the
-       `locked` field, which renders a disabled chip naming the requirement.
-       The card stays visible on purpose: knowing a weekly clan boss is coming is
-       part of the pitch. Promising you can join it today is not. */
-    const clanShut = (function () {
-      const CL = window.HearthriseClans;
-      return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
-    }());
-    out.push({
-      rid: 'war:clanhunt', kick: 'Clan Hunt', glyph: 'uiShield',
-      name: (boss && (boss.name || boss.n)) || 'Clan Hunt',
-      meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
-      verb: 'Join ▸', go: 'tab', tab: 'events',
-      locked: clanShut ? SIGNPOSTS.labels['war.clanClosed'] : null,
-    });
-  }
-
-  // ── World event ────────────────────────────────────────────────────────
-  const W = window.HearthriseWorldEvents;
-  if (W) {
-    let day = null;
-    try { day = W.daily && W.daily(); } catch (e) { day = null; }
-    out.push({
-      rid: 'war:worldevent', kick: 'World Event', glyph: 'uiStar',
-      name: (day && day.name) || 'Today\'s blessing',
-      meta: (day && day.desc) || 'a new blessing every day',
-      verb: 'Events ▸', go: 'tab', tab: 'events',
-    });
-  }
-  return revealedCards(out);
+  /* The bounty, Boss of the Day, dungeon, clan hunt and world event cards left
+     with their systems (2026-10-14 demolition); the rail is rebuilt by the hunt
+     screen lane. */
+  return revealedCards([]);
 }
 
 /* THE PROGRESSIVE REVEAL (src/features/spine-reveal.js). A card shows once its
@@ -977,13 +850,6 @@ function revealedCards(list) {
       meta: 'Next at Combat ' + next, locked: 'Combat Lv ' + next });
   }
   return out;
-}
-
-/** Does the server's bag hold any dungeon's entry key? */
-function dungeonKeyHeld() {
-  const R = window.HearthriseReveal;
-  const bag = R && R.facts().bag;
-  return !!bag && Object.values(window.DUNGEONS || {}).some((d) => d && d.cost && bag[d.cost.key] > 0);
 }
 
 /** The tier chips a player is shown: T1–T2 once Combat opens, then every tier
@@ -1312,46 +1178,6 @@ function renderHunts() {
   host.innerHTML = html;
 }
 
-function rowHtml(o) {
-  return `<article class="wt-row${o.locked ? ' is-locked' : ''}" data-row="${esc(o.id)}">
-    <span class="wtr-glyph">${uiGlyph(o.glyph, 22)}</span>
-    <div class="wtr-main"><b>${esc(o.name)}</b><span>${esc(o.meta)}</span></div>
-    ${o.locked ? lockLine(o.locked)
-      : `<button type="button" class="btn btn-sm btn-primary" data-cs-act="dest" data-go="tab" data-tab="${esc(o.tab)}">${esc(o.verb)}</button>`}
-  </article>`;
-}
-
-function renderBosses() {
-  const host = document.getElementById('wt-bosses');
-  if (!host) return;
-  const lv = combatLevel();
-  const D = window.DUNGEONS || {};
-  const rows = Object.values(BOSSES).slice().sort((a, b) => a.reqLv - b.reqLv).map((b) => rowHtml({
-    id: b.id, glyph: 'uiSkull', name: b.name,
-    meta: `${b.title} · waits in ${(D[b.dungeon] && D[b.dungeon].name) || 'a dungeon'}`,
-    locked: lv < b.reqLv ? b.reqLv : 0, verb: 'Find ▸', tab: 'dungeons',
-  }));
-  const html = rows.join('');
-  if (host.dataset.sig === html) return;
-  host.dataset.sig = html;
-  host.innerHTML = html;
-}
-
-function renderDungeonRows() {
-  const host = document.getElementById('wt-dungeons');
-  if (!host) return;
-  const lv = combatLevel();
-  const D = window.DUNGEONS || {};
-  const html = Object.keys(D).sort((a, b) => D[a].reqLv - D[b].reqLv).map((id) => rowHtml({
-    id, glyph: D[id].glyph || 'uiCastle', name: D[id].name,
-    meta: D[id].boss ? `Boss: ${D[id].boss.name}` : 'a dungeon run',
-    locked: lv < D[id].reqLv ? D[id].reqLv : 0, verb: 'Enter ▸', tab: 'dungeons',
-  })).join('') || '<div class="empty">No dungeons yet.</div>';
-  if (host.dataset.sig === html) return;
-  host.dataset.sig = html;
-  host.innerHTML = html;
-}
-
 function noticeSeen(id) {
   const g = G(); const s = g && g.noticesSeen;
   return !!(s && typeof s === 'object' && s[id] === true);
@@ -1387,8 +1213,6 @@ function render() {
   renderDestinations();
   syncTabs();
   if (wtTab === 'hunts') renderHunts();
-  else if (wtTab === 'bosses') renderBosses();
-  else if (wtTab === 'dungeons') renderDungeonRows();
   renderFilters();
   renderGrid();
 }

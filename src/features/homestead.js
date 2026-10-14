@@ -41,37 +41,21 @@
       desc: 'Barns and fences. Unlocks the Workshop, Cellar and Forge, and a second worker.',
       cost: { gold: 2500, oak_log: 40, copper_ore: 25, wolf_pelt: 4, cooked_shrimp: 10 },
       rooms: ['workshop', 'cellar', 'forge'] },
-    /* ── b357: ASHLAR ENTERS THE TOP THREE TIERS (consumable-economy.md §8) ──
-       Tier 4 has been called "STONECROSS Manor" since launch and cost logs and
-       ore; the room rungs are named Stone Forge, Stone Cellar and Stone Altar
-       and cost logs and ore. There was no stone in the game at all. Ashlar is
-       Stonemason's personal capstone good and it sits beside `timber_beam`
-       (Crafting) and `iron_fitting` (Smithing), so the three artisan pillars
-       each contribute exactly one material to the property ladder.
-
-       ⚠ THIS IS SAFE FROM THE b213/b227 DEADLOCK CLASS BY CONSTRUCTION, not by
-         inspection. Both of those bugs were a tier demanding a material whose
-         BENCH that tier unlocked (the Workshop cost 15 planks; planks need the
-         Workshop). Stonemason requires NO workbench (R8) and its stone comes
-         from an input-free Quarry lane, so ashlar is producible at property
-         tier 0 with an empty bag. The executable §7 proof in the smoke suite
-         ("no room rung can require a good the player cannot yet make")
-         confirms it rather than being asked to trust it.
-
-       Quantities are deliberately modest — 25 ashlar at the castle is 100
-       granite blocks, i.e. a real Stonemason commitment but not a second
-       property grind bolted onto the first. */
+    /* Designer ruling 2026-10-14 §1: Stonemason is cut and ashlar is deleted. The
+       top three tiers are built from the two artisan pillars that remain:
+       iron fittings (Smithing) and timber beams (Crafting), and the castle from
+       keystones (Crafting). Every one has a recipe with no workbench deadlock. */
     { id: 'manor',     name: 'Stonecross Manor',     glyph: 'navHouse', plots: 8,  workers: 3,
       desc: 'Cut stone and iron gates. Unlocks the Library and a third worker.',
-      cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8, ashlar: 6 },
+      cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8, iron_fitting: 6, timber_beam: 6 },
       rooms: ['library'] },
     { id: 'keep',      name: 'Ironvale Keep',        glyph: 'uiCastle', plots: 10, workers: 4,
       desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, and a fourth worker.',
-      cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5, ashlar: 12 },
+      cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5, iron_fitting: 12, timber_beam: 12 },
       rooms: ['shrine', 'trophy'] },
     { id: 'castle',    name: 'Hearthrise Castle',    glyph: 'uiCrown', plots: 12, workers: 6,
       desc: 'The banner over the valley. Six workers, and the pride of the realm: +2% all XP.',
-      cost: { gold: 150000, yew_plank: 70, mithril_bar: 40, rune_bar: 8, dragon_scale: 4, ashlar: 25 },
+      cost: { gold: 150000, yew_plank: 70, mithril_bar: 40, rune_bar: 8, dragon_scale: 4, keystone: 6 },
       rooms: [] }
   ];
 

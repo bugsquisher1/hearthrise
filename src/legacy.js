@@ -3221,10 +3221,27 @@ function addItem(id,qty=1,track=true){
   }
   G.inventory[id]=(G.inventory[id]||0)+qty;
   if(track)trackCollection(id,qty);
+  _retimeIfTool(id);
   return true;
 }
-function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];}
+function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];_retimeIfTool(id);}
 function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
+/* ── b487 (#33, live: "sold the pickaxe, the boost still applied") ──────────
+   THE TOOL BONUS IS DERIVED, NOT CACHED — `HearthriseTools.bestTool()` scans
+   G.inventory on every call, so the moment a pickaxe leaves the bag the bonus
+   is 0 and `activityIntervalMs()` re-derives the slower interval; G.skillMs, the
+   interval the RUNNING setInterval is armed at, is re-derived here. addItem /
+   removeItem are the ONE place the bag changes, and the guard is a single
+   property read on the item row (`type==='tool'`), so the hot gather path pays
+   nothing. `retimeActivity()` is a no-op when the number has not moved and is
+   fenced out of the offline replay, so this cannot thrash a timer. */
+function _retimeIfTool(id){
+  try{
+    var it = (typeof ITEMS!=='undefined') && ITEMS[id];
+    if(!it || it.type!=='tool') return;
+    if(typeof retimeActivity==='function') retimeActivity();
+  }catch(e){}
+}
 
 /* ── ATTENDED COMBAT-XP CREDIT (bug #5 root pt2) ────────────────────────────
    The combat skills the server's hr_credit_combat_xp will accept (its allowlist). */
@@ -4634,6 +4651,11 @@ function activityIntervalMs(){
   const d=currentActionDef();
   if(!d) return null;
   let speed=(typeof getBonus==='function')?(getBonus(d.key)||0):0;
+  /* Wave 3: tool speed applies to ARTISAN skills too, not just gathering — a
+     Forge Hammer speeds smithing exactly as a Rune Axe speeds woodcutting. */
+  if(window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
+    try{ speed += (window.HearthriseTools.bestToolSpeed(G.activeSkill)||0); }catch(e){}
+  }
   /* b228 merge: the bonus-census fuse applies at THE consumption point — this
      single formula — rather than at ten call sites. */
   return Math.max(500, Math.floor(pacedActionMs(d.act.ms||3000)*speedClamp(speed)));
@@ -4721,12 +4743,14 @@ function startSkill(type,targetId,ms){
      pricing a span of milliseconds and classifying `below_min_span`. */
   activityQuietly(stopSkill);
   G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
-  /* b227: through activityIntervalMs(), the single formula the live loop, the
+  /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze.
+     b227: through activityIntervalMs(), the single formula the live loop, the
      retimer and the offline replay all read — a second copy of this arithmetic
      is exactly how the b226 offline dampener happened. */
   let actualMs=activityIntervalMs();
   if(actualMs==null){
-    actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-getBonus('gatherSpeed'))));
+    const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
+    actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-(getBonus('gatherSpeed')+toolSpeed))));
   }
   /* b226 (spec §1.6) — G.skillMs stores the ACTUAL interval, not the raw `ms`.
      It used to store the raw duration while the live interval used the
@@ -4843,9 +4867,15 @@ function doSkillAction(silent){
      and so the server has a column to own when accrual moves off the client.
      Mutated in place by the resolver, exactly as before. */
   G.toolCarry=G.toolCarry||{};
+  const T=window.HearthriseTools;
   const r=C.skillSim.resolveGatherTick(G, entry.node, {
     skillId:type,
     rng:C.rng,
+    /* Through window.HearthriseTools, not straight to core: that object is a
+       published API other feature modules wrap, and resolving the tool here
+       would silently escape whoever replaced it. */
+    toolDouble:(T&&T.bestToolDouble)?T.bestToolDouble(type):0,
+    toolXpB:(T&&T.bestToolXpB)?T.bestToolXpB(type):0,
     fx:{
       addItem:function(id,q){ addItem(id,q); },
       addXp:function(sk,amt){ addXp(sk,amt); },
@@ -7353,6 +7383,10 @@ function openInvDetail(id){
   if(_food && _food.heals) stats.push(`<div><b>+${_food.heals} HP</b><span>${_food.kind==='provision'?'heals when eaten':'also heals'}</span></div>`);
   else if(it.heals) stats.push(`<div><b>+${it.heals}</b><span>heals</span></div>`);
   if(_food && _food.buffText) stats.push(`<div><b>${_food.buffText.split(' for ')[0]}</b><span>${_food.buffText.includes(' for ')?'for '+_food.buffText.split(' for ')[1]:'timed buff'}</span></div>` + (typeof window.buffGestureNoteHTML==='function' ? window.buffGestureNoteHTML() : ''));
+  if(it.speed != null) stats.push(`<div><b>+${Math.round((it.speed||0)*100)}%</b><span>tool speed</span></div>`);
+  if(it.smithSpeed != null) stats.push(`<div><b>+${Math.round((it.smithSpeed||0)*100)}%</b><span>smith speed</span></div>`);
+  if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
+  if(it.noBurn != null) stats.push(`<div><b>+${Math.round((it.noBurn||0)*100)}%</b><span>no-burn</span></div>`);
   if(it.weaponType) stats.push(`<div><b>${it.weaponType}</b><span>weapon type</span></div>`);
   /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
      hand-authored plate pieces (iron/steel helm + platebody, bronze belt) and
@@ -10787,6 +10821,11 @@ window.doArtisanAction = function(skillId, recipeId, opts){
     noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
     bonus: function(k){ return (typeof getBonus==='function') ? (getBonus(k)||0) : 0; },
     toolCarry: G.toolCarry,
+    /* Through window.HearthriseTools, not straight to core: that object is a
+       published API other feature modules wrap, and resolving the tool here
+       would silently escape whoever replaced it. */
+    toolDouble: (window.HearthriseTools && window.HearthriseTools.bestToolDouble) ? window.HearthriseTools.bestToolDouble(skillId) : 0,
+    toolXpB: (window.HearthriseTools && window.HearthriseTools.bestToolXpB) ? window.HearthriseTools.bestToolXpB(skillId) : 0,
     rng: CK.rng,
   });
 
@@ -11690,6 +11729,16 @@ function patchSkillsList(){
 }
 
 /* ── Build a gather tile ── */
+/* Wave 3: one tool-line renderer for gather AND artisan tiles — names the best
+   owned tool and its full effect (speed + double-yield chance). */
+window.hrToolLineHtml = function(skillId){
+  var T = window.HearthriseTools; if(!T || typeof T.bestTool!=='function') return '';
+  var t = T.bestTool(skillId); if(!t) return '';
+  var spd = Math.round((t.toolSpeed||0)*100);
+  var dbl = Math.round((typeof T.bestToolDouble==='function' ? T.bestToolDouble(skillId) : 0)*100);
+  if(spd<=0 && dbl<=0) return '';
+  return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% speed</b>'+(dbl>0 ? ' · <b>'+dbl+'% double yield</b>' : '')+'</div>';
+};
 
 function tileForGather(action, skillId){
   var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
@@ -11713,7 +11762,10 @@ function tileForGather(action, skillId){
   var ms = rate ? rate.ms
     : Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp((typeof getBonus==='function')?getBonus('gatherSpeed'):0)));
   var xpPer = rate ? rate.xpPerAction : Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)));
-
+  /* Wave 1/3 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
+     tool DID apply, but nothing on screen said so. Name the active tool and ALL its
+     bonuses (speed + double-yield) so the effect is legible. Shared with artisan tiles. */
+  var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
@@ -11731,7 +11783,7 @@ function tileForGather(action, skillId){
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +'<div class="at-yield">Yields '+prodName+'</div>'
-
+    +(unlocked ? toolLine : '')
     +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+'Level '+action.req, false, qty, null)
     +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
@@ -11839,7 +11891,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
-
+    +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+lockLabel, benchLock, qty, HearthriseActivityCard.makeCount(inputs))
     +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
         ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'

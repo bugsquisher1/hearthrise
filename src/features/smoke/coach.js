@@ -331,7 +331,7 @@ export default [
   }),
 
   /* -- regression suite -- THE HUNT GRID THAT FLIPPED BETWEEN FOUR HUNTS AND
-     THREE (live b574, 2026-10-14, Tyler on the QA account at Combat 56).
+     THREE (live, 2026-10-14, Tyler on the QA account at Combat 56).
      The hunt grid, the Boss of the Day card and the Coming-up line read the
      level from the reveal, which read the fail-closed AUTHORITY accessor. Any
      answer that does not restate the skills map, or any write between two

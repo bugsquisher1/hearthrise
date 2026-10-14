@@ -10,9 +10,9 @@
 // allowlist) and never sent; a reload forgets it, which is correct for a view.
 // tests/world-no-authority.mjs fails the build on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=577';
-import { sceneFor } from './core/scene-route.js?v=577';
-import { HUNT_MAP_INDEX } from './hunt-maps.js?v=577';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=578';
+import { sceneFor } from './core/scene-route.js?v=578';
+import { HUNT_MAP_INDEX } from './hunt-maps.js?v=578';
 
 /** The display scratch, created on first use. The world's only write to G. */
 export function worldOf(G) {

@@ -19,19 +19,19 @@
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=577';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=577';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=577';
-import { compileMap } from './core/map-compile.js?v=577';
-import { STUB_SPRITE } from './core/book.js?v=577';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=577';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=577';
-import { readScene, setChoice, activityOf } from './store.js?v=577';
-import { loadAtlases } from './atlas.js?v=577';
-import { createCanvasBackend } from './render/canvas-backend.js?v=577';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=577';
-import { createHuntScene } from './hunt-scene.js?v=577';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=577';
+import { BUILD } from '../build-info.js?v=578';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=578';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=578';
+import { compileMap } from './core/map-compile.js?v=578';
+import { STUB_SPRITE } from './core/book.js?v=578';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=578';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=578';
+import { readScene, setChoice, activityOf } from './store.js?v=578';
+import { loadAtlases } from './atlas.js?v=578';
+import { createCanvasBackend } from './render/canvas-backend.js?v=578';
+import { huntOfMap, mapForActivity } from './hunt-maps.js?v=578';
+import { createHuntScene } from './hunt-scene.js?v=578';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=578';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;

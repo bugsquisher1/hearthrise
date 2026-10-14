@@ -38,7 +38,7 @@
 // a feature that has not shipped stays shut for everyone.
 // ════════════════════════════════════════════════════════════════════════
 
-import { combatLevel } from './xp.js?v=577';
+import { combatLevel } from './xp.js?v=578';
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);

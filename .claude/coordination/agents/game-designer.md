@@ -778,3 +778,21 @@ Full ruling and build split: `docs/planning/PRIORITY_BOARD.md`, section "2026-10
 **Handoffs raised (in the board's build split):** Security and Systems own lanes 1 and 4 (lane C).
 The Art Director owns lane 2 (banner art and the Trophy Room render). Lane 3 is data cuts. Tyler
 owns two finance items: the gem price of Premium, and dropping the Hearth Token SKU.
+
+---
+
+# 2026-10-14 — LOOP CHECK after b574–b581 (design/loop-check-1014)
+
+Full result: `docs/planning/PRIORITY_BOARD.md`, section "2026-10-14 — LOOP CHECK".
+
+**Learnings.**
+- The harness can walk First Steps honestly. Pin the SAME facts on `HearthriseReveal.__pin` and
+  `HearthriseCoach.__pin` and mirror the bag into `G.inventory`. Then click the resolved hop, and
+  only after that state the step's facts.
+  A screenshot taken before the ring re-places itself (every 160 ms) looks like "the card covers
+  the button". Measure the settled rects before calling it a bug.
+- Check a delete list against what is still on the OLD path. The hunt-sessions plan deleted the
+  away receipt that gathering still needs until lane G. A swap-then-delete order has to name the
+  channel, not just the file.
+- A pointer step that names a level ("Crafting 8") needs the XP worked out with `PACE.xp`, floored
+  per action. Ten book XP pays 3, which turned an 8-level ask into about 267 actions.

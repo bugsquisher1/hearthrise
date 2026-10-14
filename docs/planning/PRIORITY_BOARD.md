@@ -22,6 +22,125 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | 067e29aa Merge remote-tracking branch 'origin/main' into set/b570-bundle<br>64e66f26 merge: lane/b569-guard-selftest-scope (diff-scoped selftests + replay guards in lane-done; 4 stale proof arms fixed and registered)<br>77957232 Merge remote-tracking branch 'origin/lane/b569-spine-pointer' into set/b570-bundle<br>eb79f8bf Merge remote-tracking branch 'origin/lane/b569-copy-edge' into set/b570-bundle<br>1e39493c Merge remote-tracking branch 'origin/lane/b568-progress-coalesce' into set/b570-bundle |
 <!-- END GENERATED -->
 
+## 2026-10-14 — LOOP CHECK: does the game still play as a loop after b574–b581? (Game Designer, final design authority)
+
+Tyler, 2026-10-14: "we need to make sure the game still PLAYS as we are expecting, there's still a loop". **How I checked:**
+- **First Steps.** I booted origin/main `cb394e46` (b580) headless in the test harness and walked First Steps the way a player does: I clicked each gold ring until it sat on the real control and pressed it. Then I stated that step's server facts as an envelope would; they are pinned, because the harness has no server. I did this at 1440×900 and at 922×423.
+- **Spine steps 5–10.** I walked them the same way and pressed Go at each one.
+- **A Combat-74 hero.** I looked at the Adventures window (all four tabs), Ridge Camp, the Mill Cellar World scene, Skills, House, Farm, Bounty, Dungeons, Bag and Shop.
+- **b581.** I booted `next` `9da91a61` for the town and the cottage.
+
+Every item, recipe, node and price named below was grepped in `src/data`.
+
+**What I could not do.** Nothing settles locally, so no number below was earned by playing. The "hour at level 60" is a walk through the screens plus the data rows, not an hour of accrual. The play gate on live stays the Coordinator's.
+
+**The short answer: yes, the loop still closes.** Gather → cook → hunt → sell → build works end to end. First Steps takes about 6–8 minutes at paced timings. The hunts and World changes broke none of its steps: every ring resolves at both sizes, including the Mill Cellar's Hunt button. No coach, spine or pointer line names a renamed surface, and "Training" appears in none of them. The problems are:
+- one wall in the first hour (Leather Boots);
+- one mid-game hole (no hunts above Combat 15);
+- two ordering faults in the plan for the next changes (Vigour, and the gatherer's return receipt).
+
+### Findings
+
+| # | P | What the player meets | Evidence | Fix | Owner |
+|---|---|---|---|---|---|
+| 1 | **P1** | **The hunt-sessions plan deletes the gatherer's "while you were away" before anything replaces it.** Gathering stays on the old tick path until lane G (ruling §3 "Keep"). But C2 deletes `away-receipt.js`, its drop file drops `player_state.last_away_receipt`, and R1 deletes the welcome pop-up, Home's away card and the away ledger. Someone who leaves a tree running overnight comes back to a summary that one reload erases. That is the 2026-09-07 bug, back. | `lane/c2-hunt-sessions-edge` `0327432c`: `away-receipt.js` −211 lines; `2026-10-22-hunt-sessions-drop-away.sql:186`; the ruling's R1 delete list | Keep the receipt column, its edge builder for non-combat channels, and the welcome pop-up and away card for gathering until G ships. Or have B1's "since you last looked" timeline read one per-character event stream that gather settles also write. Either way, it must exist before the drop file applies. | Backend (C2), Systems (R1) |
+| 2 | **P1** | **Vigour caps the wrong thing.** Tyler, 18:00: no cap on combat; caps go on gathering and crafting. Today Vigour caps only combat (codex: "Gathering and crafting never spend it"). My ruling HR-2026-10-14, lane D's `END_ORDER` and the applied C1 all make Vigour a reason a hunt ends. | `src/core/hunt.js:261-293`; `src/data/codex.js:82`; lane D `src/data/hunt-sessions.js` `END_ORDER`; C1 `hr_hunt_enter` (`v_vig`) | **Ruled below:** Vigour is no longer a reason a hunt ends. This must land before B1 draws a Vigour end card or timeline line. | Designer (here), then the caps workflow, then Backend + Security |
+| 3 | **P1** | **A first-hour wall at step 7, "Craft and wear Leather Boots" (Crafting 8).** Below level 8, every Crafting recipe needs Silk Thread except two: the Normal Plank (3 XP: 10 × 0.39, floored) and Bronze Arrows at 5 (6 bronze bars a batch). Either way, the 801 XP to level 8 is about 35–40 minutes of chopping and sawing, starting about 12 minutes in. Meanwhile the Local Shop sells the same boots for 250 gold, and one plank plus bought boots passes the step. The pointer never mentions this. | `recipes.js` `saw_normal`, `tailor_leather_boots`; the in-game recipe list (Crafting req ≤ 10); `shops.js` `equip.leather_boots`; `spine-pointer.js` step 7 | Move Leather Boots to Crafting 3 (about 58 planks, about 8 minutes) and change the pointer part to match. Take Leather Boots off the Local Shop: they are the one piece the spine asks you to make. The server catalogue reads the recipe level, so this needs the generator and a lane-C apply. | Designer data, then Backend |
+| 4 | P2 | **"Big changes are underway…" greets a brand-new hero** on their first Combat visit (coach step 5). It announces a change to a system they have never seen. | `combat-screens.js` `WT_NOTICE` and `renderNotice` (shown to everyone until dismissed) | Show it only to heroes who had already fought (`ev:kill_any` ≥ 1), and never while First Steps is running. | Systems (S) |
+| 5 | P2 (P1 at the swap) | **The Hunts tab, Combat's default view, has nothing above Combat 15.** Its four hunts are all Tier 1–2, and hunts below the hero never fold away, so a Combat-74 hero sees the Mill Cellar first. Today the Monsters tab carries the whole mid-game. | `hunts.js` (4 rows); `combat-screens.js:1144` (`wtTab='hunts'`); `:1299` (the window only hides hunts above reach) | Add one hunt per tier band (T3–T6) before the Monsters tab is cut or demoted. Fold hunts more than about 15 levels below the hero into one line. | Designer (data rows) + Systems |
+| 6 | P2 | **"Go fight" for a drop lands on the wrong hunt.** Step 7 needs 2 Wolf Pelts and step 10 needs 4. Go lands on the Hunts list with the Mill Cellar first, and hunt cards list monsters, not drops. Pelts come from Bramble Edge (Wolf Cub 32%, Wild Boar 30%). | `spine-pointer.js` `ITEM_ROUTE.wolf_pelt = 'fight'`; `huntCard()` | The route names the hunt that drops the item, worked out from hunts × drops. Hunt cards show 2–3 signature drops. | Systems + Designer |
+| 7 | P2 | **First Steps hides its own rewards.** Steps 1–3 earn 500 gold, 30 raw shrimp and 5 turnip seeds (`gatherer`, `first_cook`, `first_blood`). The bar and the Home card hide while the guide speaks, so the hand-off card points at "Step 1 … Claim", the first of three back-claims before Step 5. | `features/coach.js` `hidesSpine`; `core/spine-pointer.js:120` (the bar holds the first done-but-unclaimed step) | The coach's done-tick shows the step's reward with a Claim button. | Systems; copy by Designer |
+| 8 | P2 | **One place, four names, and Dungeons twice.** The rail says Combat, the hub tab says Field, the back button says War Table, and the window is Adventures. The hub's Dungeons tab and the window's Dungeons tab sit on the same screen. The spine says "The Field opens"; the coach says "Open Combat". | `nav-consolidation.js` HUBS; `combat-screens.js` `WT_TABS` and `.fs-back` | Pick one name. Drop the hub's Dungeons pane, since the window's tab shows the same list. | Art Director |
+| 9 | P2 | **The step-5 card hides the fight on a phone.** At 922×423 the waiting card covers the hero's portrait, HP and stance buttons for the whole fight. | Phone walk screenshot | Dock the waiting card to an edge. | Art Director |
+| 10 | P2 | **The World home is the wrong home.** In b581 a hero on the Wanderer's Camp ("a bedroll, a fire, and two rows of dirt") sees "Your Cottage" with a bed, chest and table, plus three unlabelled signposts. The camp-to-castle pillar's visible home should match the rung the hero owns. | b581 walk; `shops.js` property rows | Draw the home scene from the property rung. | W4 / Art Director |
+| 11 | P3 | **Hunt bands read "Combat 0–10".** No hero has Combat 0. | `hunts.js` `band[0] = 0` | "Up to Combat 10". | Systems |
+| 12 | P3 | **The only "Coming up" card a brand-new hero sees** says "Next at Combat 60" (today's Boss of the Day). | `combat-screens.js` `war:more` | Name the nearest of the next hunt or the Crypt at 25. | Systems |
+| 13 | P3 | **The World suggests rats to a Combat-74 hero.** Its unmapped-fight card offers "Hunt in the Mill Cellar" (the button only navigates). | `world-boot.js:72` | Offer a hunt in the hero's band, or nothing. | World lane |
+| 14 | P3 | **Two leftover labels.** The fight header names the monster ("Hobgoblin · Tier 2"), never the hunt ("Ridge Camp"). The sign-in screen still says "open beta… invite code" (10-09 audit). | Screenshots | — | Systems / Art Director |
+
+### The loop map
+
+Seven steps. Step 7 feeds step 1 at the next tier. Each row gives what serves the step today, the upcoming change that replaces it, and what must exist **before** the old piece is deleted.
+
+| Step | Today | Upcoming change | Must exist before the old piece goes |
+|---|---|---|---|
+| **1. Gather** | Woodcutting, Mining and Fishing nodes (`gathering.js`); `set_activity` on the world tick (armed 10-07) plus away accrual; Farming on server time; hired hands | **Capped gathering** (Tyler, 18:00); lane G gather sessions | The gather budget shows on the node and in the return summary. Hired hands spend the same budget, or they become the way around it. The gather receipt stays until G (finding 1). |
+| **2. Turn it into supplies** | Cooking (food), Crafting (planks, arrows), Runecrafting (runes), Stonemason (whetstones); artisan settle plus the artisan day budget | **Hybrid supplies**: an NPC basic tier sold for gold, crafted rows better; Runecrafting makes a better rune than the NPC one | Every NPC basic has a crafted row of the same kind and tier in `supplies.js` (lane D gains a `basic`/`crafted` column), and the crafted row beats it by a margin the bag screen shows. NPC prices are set from Balance measured per hunt (step 5), never before. For scale: lane D measured a brand-new hero eating 46.5 heals an hour at the Mill Cellar. At today's 30-gold shop shrimp that is about 1,400 gold an hour. |
+| **3. Make or upgrade gear** | Smithing and Crafting gear tiers (`gear-tiers.js`, `recipes.js`); drops; Local Shop starter gear; Enchant (an element rune on a weapon, `hr-accrue/enchant.js`) | **Gear enhancement**: drops upgraded with gathered and crafted materials; town stations for everyone; home workbench upgrades for better outcomes | An upgrade ladder covers every slot and tier, so Smithing and Crafting keep a buyer. The Tier 3–6 drops that only vendor today get a station use. The Analyzer's "loot at vendor value" counts upgrade materials, or Balance misleads. Enchant becomes either one kind of enhancement or a separate axis with its own name. Workbench upgrades reuse the existing Forge and Workshop room rungs rather than adding a second ladder. The b581 town smith at his anvil is the natural station. |
+| **4. Pack and set up** | Equip; a food slot plus Auto-Eat (`hr_set_auto_eat`); stance; ammo. A fight starts with `set_activity` combat on a hunt id or a monster id (training rows already exist in `hr_hunt_travel`). | **Hunt sessions**: pack a bag (`hr_hunt_enter`), set an action bar (`fireRules`), a falls limit | B1's bag screen is live. The coach's step-5 path goes through it (a "Pack your bag" hop, then Enter) with COACH-6 green. Its line "you get back up and keep going" names the falls limit. The default preset equals today's Auto-Eat. The World HUD's Eat and Leave Hunt call `hr_hunt_use` and `hr_hunt_leave`. The C2 deploy rides with B1 (CONFLICTS 10-14). |
+| **5. Hunt** | The Adventures window (4 hunts plus Monsters); the Mill Cellar World scene; the client `combatTick`; accrue settles plus away accrual; Vigour minutes; Recovery Rule rev.2 | World-tick sessions (C0/C2); **uncapped combat**; **Tyler's economy rule** (commons + gold ≈ supply cost, profit from rares) | **(a)** The C2 settle writes the same progress rows the coach, spine and quests read: `ev:kill_any`, and the per-monster bestiary block behind the coach's `kills` fact. A test proves a tick-settled kill reaches First Steps with no client accrue; today that fact only arrives on the accrue answer (`index.ts:841`). **(b)** Vigour is out of the end order (finding 2). **(c)** The Analyzer measures Balance per hour at each tier with NPC basics, and only then are the `gp` and drop rows tuned. **(d)** Hunts cover T3–T6 (finding 5). |
+| **6. Come back** | The welcome pop-up (after 30 or more minutes away), Home's away card, the away ledger, come-back timers, the combat recap, the Tonight forecast, What's new | The hunt end card, the "since you last looked" timeline, the Analyzer | The timeline covers gathering and crafting, or their receipt stays (finding 1). "Hunt again" repacks the same bag. There is **one** return queue: today three pop-ups stack (knocked out, then welcome plus What's new, then charm earned; Coordinator, 10-14). |
+| **7. Turn loot into progress** | Vendor sales; the Player Market; quest and spine claims; the Homestead (property 1–6, rooms, hands, plots); renown; the collection; bestiary charms | Enhancement turns drops into materials; rares become the profit | Commons still sell at a fixed vendor price, which is the number the economy rule balances against. Property costs paid in drops (4 Wolf Pelts for the Farmstead) are re-checked once pelts gain an upgrade use. |
+
+### Swap-then-delete order (binding on C2, B1, R1, G and the content lanes)
+
+1. **Vigour leaves the hunt** (ruled below). Lane D drops `vigour` from `END_ORDER`, `END_REASON_COPY` and `EVENT_COPY`. C1 gets a forward migration and C2 the matching engine change, before B1 draws anything.
+2. **C2 keeps the gatherer's receipt**: `last_away_receipt`, and `away-receipt.js` for non-combat channels. The drop file does not apply while gathering runs on the old path.
+3. **B1 ships the hunt screen**: bag, action bar, end card, timeline and the rewired World HUD. The same commit carries the coach's step-5 rows and copy and a rewritten codex Vigour entry. The C2 deploy and arm ride with it.
+4. **R1 deletes the combat away pieces only.** Those are:
+   - the Auto-Eat UI and `maybeAutoEat`;
+   - the combat recap;
+   - the Tonight forecast: the `night.*` signposts, `set-the-night.js` and `night-plan.js`;
+   - the client `combatTick` simulation.
+   The welcome pop-up, Home's away card and the away ledger stay for gathering.
+5. **Hybrid supplies add rows and delete nothing.** Crafted rows come first. The NPC basics follow, priced from the Balance that B1's Analyzer measures.
+6. **Lane G** (gather sessions plus the gather budget) ships its own return. Only then do the receipt, the welcome pop-up, the away ledger and the offline cap go.
+7. **Enhancement adds stations and ladders.** The Local Shop stops selling gear above starter only once every slot and tier has an upgrade path.
+8. **Hunts per tier** (T3–T6) ship before the Monsters tab is demoted.
+
+### Walk-through: First Steps and spine steps 1–10 against the real data
+
+**The start kit** (`start-kit.js`):
+- 500 gold and a Bronze Sword
+- 8 turnip seeds, 10 raw shrimp and 20 cooked shrimp
+- 50 Bronze Arrows, 50 Air Runes and 10 Coarse Whetstones
+- Hitpoints 10
+
+Only the Woodcutting door is open (`reveals.js`). Times are paced: action time × 1.6 and XP × 0.39, floored (`core/pacing.js`).
+
+| Step | What the player holds or can reach (the kit plus earlier steps) | What it asks | Doable? | Grepped |
+|---|---|---|---|---|
+| Coach 1 | The kit | Read the welcome | ✓ | `data/coach.js` |
+| Coach 2 / Spine 1 | Normal Tree, Woodcutting 1, 4.8 s a log | 15 logs, about 72 s | ✓ Fishing and Cooking open | `gathering.js normal_tree`; `reveals.js` step 2 |
+| Coach 3 | Shrimp Spot, Fishing 1 | 5 shrimp, about 28 s | ✓ | `gathering.js shrimp_s` |
+| Coach 4 / Spine 2 | 15 raw shrimp; Cook Shrimp, Cooking 1, 25% burn | 5 cooked, about 7 tries | ✓ Combat opens | `recipes.js cook_shrimp` |
+| Coach 5 / Spine 3 | 25 cooked shrimp (about 30 minutes of food at the 46.5 an hour lane D measured); Bronze Sword | 5 wins in the Mill Cellar, at least one of them a Giant Rat | ✓ The Mill Cellar's band is 0–10; its spawns are rat 5, slime 3, wasp 2. There is a 3% chance that five wins hold no rat; the step then just keeps going. | `hunts.js mill_cellar`; `monsters.js rat/slime/hive_wasp` |
+| Coach 6 | The rat's drops: Rat Tail 70% (6 gold), Small Fang 12%, Wheat 30%, Bones 35% | Sell one | ✓ | `monsters.js rat`; `items.js` |
+| Coach 7 / Spine 4 | 8 turnip seeds; empty camp plots | Plant one (turnips take 4 h) | ✓ Mining and the House open | `start-kit.js`; `reveals.js` step 5 |
+| Coach 8 | The Normal Tree | Leave something running | ✓ | `data/coach.js running` |
+| Coach 9–10 | — | Discord ("Later"), then the hand-off to the bar | ✓ The bar reads "Step 1 … Claim" (finding 7) | — |
+| Spine claims 1–3 | — | 150 gold; 200 gold + 30 shrimp; 150 gold + 5 turnip seeds | ✓ About 1,000 gold in hand | `goal-catalogue.js QUEST_REWARDS` |
+| Spine 5: Homestead | About 1,000 gold and 15 logs; Copper Rock (Mining 1) | 400 gold, 20 copper ore and 30 normal logs: about 4 minutes | ✓ | `shops.js property.homestead`; `gathering.js copper_rock` |
+| Spine 6: Hire | About 600 gold | 500 gold | ✓ | `shops.js worker.1` |
+| Spine 7: Boots | Crafting 1 (opens at step 7); Bramble Edge (band 0–15) | Crafting 8 and 2 Wolf Pelts make Leather Boots, which must be worn | **✗ about 35–40 minutes of planks** (finding 3). The pelts are ✓, about 10 Bramble Edge kills. | `recipes.js tailor_leather_boots/saw_normal`; `monsters.js small_wolf/wild_boar`; `hunts.js bramble_edge` |
+| Spine 8: Harvest | The turnips planted at coach step 7 | 6 crops | ✓ after 2–4 h, which is the first come-back hook | `goal-catalogue.js farmhand` |
+| Spine 9 | The hunts above | 100 wins and Combat 10 | ✓ | `spine.js` |
+| Spine 10: Farmstead | — | 2,500 gold, 10 cooked shrimp, 25 copper ore, 40 oak logs and 4 Wolf Pelts | ✓ Oak needs Woodcutting 15 (2,411 XP at 5 XP a normal log); step 7's chopping covers most of it. | `shops.js property.farmstead`; `gathering.js oak_tree` |
+
+**A Combat-74 hero, screen by screen:**
+- **Hunts tab:** shows the four low hunts (finding 5).
+- **Monsters tab:** opens on the T1 chip.
+- **Boss of the Day (Drake):** can be fought.
+- **Weekly boss Draconia:** opens at 75.
+- **Dungeon card:** says the Voidbringer opens at 80, while four dungeons within reach sit unused for want of keys. The Dungeons list itself is right.
+- **World:** shows only the Mill Cellar.
+
+This hero's hour is the Monsters tab at Tier 4–5 (lane D: 19–29 swordfish an hour, cooked by the hero). The drops go to the vendor, the gold goes to the Keep and the rooms, Smithing climbs toward rune gear, and keyed dungeons fill the rest. The loop holds, but none of that hour is spent in a named hunt.
+
+### Rulings recorded here (final design authority)
+
+- **HR-2026-10-14 amended: Vigour is no longer a reason a hunt ends.** Tyler's 10-14 rule is no cap on combat. A hunt is bounded by its bag, its falls (default 3) and an optional hour limit. Vigour refills on the Fight screen go with it. Whether a daily budget moves to gathering and crafting, and how big it is, is the caps workflow's call; whatever it rules, the budget must include hired hands.
+- **The swap-then-delete order above binds C2, B1, R1 and G.** The receipt and the welcome pop-up stay for gathering until G.
+- **Step 7 retune (staged, not built):** Leather Boots move to Crafting 3, the pointer part changes to match, and the Local Shop stops selling Leather Boots. This is a data lane plus a catalogue regeneration and a lane-C apply.
+
+**Handoffs:**
+- **Backend + Security:** findings 1 and 2, and the step-7 catalogue.
+- **Systems:** findings 4, 6, 7, 11 and 12, plus the coach-kills test in loop step 5(a).
+- **Art Director:** findings 8, 9 and 10.
+- **Designer (me):** the hunt rows for finding 5 and the step-7 data, once dispatched.
+
+Nothing here needs Tyler.
+
 ## 2026-10-14 — GEM CONVERSION: gems are bought, never earned (Game Designer ruling, final design authority)
 
 Tyler, 2026-10-13: gems enter the game ONLY through a real-money purchase and move between players for gold (Tibia-coin style); the Discord join gift becomes a cosmetic; full wipe at Early Access, so no balance is carried. **How I found the sources:** a grep census of `src/data`, `src/core`, `supabase/functions` and every `hr_wallet_credit` caller in `supabase/migrations`, read against the apply order (`tests/schema-apply-order.json`: every wallet-era file APPLIED 2026-10-12) and cross-checked with the client census `src/net/gem-sites.js` and the wallet migration's own list. Nothing was played: this is a ruling over data, and no player-visible surface changed. **The rule behind every row:** no replacement is priced at a gold-per-gem rate. A server-set rate would publish a gem price the player market then has to fight; each replacement is chosen for the moment it rewards, not for gem-equivalence. Before this ruling an account could earn about 990 gems once (ranks 925, collection 40, Discord 25) plus up to ~500 a month (muster up to 8 a day, clan hunt 12–60 a week, login 2 a week). Every free account, alts included, got that drip.

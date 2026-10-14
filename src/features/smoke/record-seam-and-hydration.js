@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=580';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=582';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=580');
+    const KIT = await import('../../data/start-kit.js?v=582');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=580');
+    const KIT = await import('../../data/start-kit.js?v=582');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=580');
+    const KIT = await import('../../data/start-kit.js?v=582');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -5175,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=580')).text();
+    const src = await (await fetch('src/legacy.js?v=582')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -8797,6 +8797,16 @@ export default [
      Driven through the shipped router with a fake Realtime client; the node
      guard tests/live-frame-subscribe.mjs carries a mutant per rule. */
   ...m5LiveSubscribeTests(),
+  /* -- regression suite -- A CLAIM THE ANSWER DID NOT RESTATE IS STILL THE
+     SERVER'S (lane a-record-claims-hold, CLAUDE.md §6). applyRecord rebuilt
+     `known`/`stamp` from each fresh answer alone, so every answer that did not
+     mention a field un-vouched it: the pushed frame ({state,skills,buffs,place})
+     dropped `equipment` and `rooms` every tick (the live tick fought naked, every
+     room read rung 0), and every intent answer (activity.js's constructed
+     envelope has no `progress`) dropped `rooms`. One test per omitted cell of the
+     answer x field matrix, each through the REAL applier, plus the forged-value
+     case and the rule's edges. */
+  ...recordClaimsHoldTests(),
 ];
 
 /* The shared fixture. A COMPLETE envelope, so every refusal in the four tests
@@ -9297,5 +9307,227 @@ function m5LiveSubscribeTests() { return [
       assert(r.hellos <= cap, '30 one-second flaps sent ' + r.hellos + ' hellos (cap ' + cap + ')');
       assert(lastDelay >= L.LIVE_BACKOFF_MAX_MS * 0.8, 'after 30 flaps the retry delay is ' + lastDelay + ' ms — no backoff');
     });
+  }),
+]; }
+
+/* ── RECORD-HOLD · fixtures ──────────────────────────────────────────────────
+   A pushed frame as the world tick sends it (hr_tick_config.frame_keys today:
+   state, skills, buffs, place), restated from the live G so nothing it names
+   moves. What it never carries is the subject: no `equipment`, no `progress`.
+   (buffs/place are not record fields and are left out so the frame cannot clear
+   a buff another test is holding.) */
+const holdSkills = (G) => Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: Math.floor(Number(G.skills[k]) || 0) }; return o; }, {});
+/* The slot the record already holds, so the answer is about the SAME hero. */
+const holdSlot = (G) => (G._record && Number.isInteger(G._record.slot)) ? G._record.slot : 0;
+const holdFrame = (G, version) => ({ t: 'delta', frame: version,
+  patch: { state: { slot: holdSlot(G), gold: G.gold, gems: G.gems }, skills: holdSkills(G) } });
+/* Push ONE frame through the shipped router: live.js onFrame → accrue.js
+   applyFrame → repaintAfterFrame → record.js applyRecord(window.G, envelope). */
+const holdPushFrame = (G, version) => m5Acked(() => m5WithLive({}, (r, L) => {
+  L.ensureLive(); r.c.status('SUBSCRIBED');
+  r.c.emit(holdFrame(G, version));
+  return L.getLiveState();
+}));
+/* A set_activity answer AS THE SERVER SENDS IT: hr_state_of spreads `progress`
+   (the room rows) onto every answer. activity.js's envelopeOf constructs the
+   envelope field by field and does not carry it, and that constructed envelope
+   is what applyServerEnvelope hands applyRecord. */
+const holdIntentBody = (G, version) => {
+  const rooms = (G.rooms && typeof G.rooms === 'object') ? G.rooms : {};
+  const eq = {};
+  for (const k of Object.keys(G.equipment || {})) { if (G.equipment[k]) eq[k] = G.equipment[k]; }
+  return { ok: true, verb: 'set_activity', version, now: new Date().toISOString(),
+    state: { slot: holdSlot(G), gold: G.gold, gems: G.gems }, skills: holdSkills(G),
+    inventory: Object.assign({}, G.inventory || {}), equipment: eq,
+    progress: Object.keys(rooms).map((k) => ({ kind: 'unlock', key: 'room:' + k, value: rooms[k], period: '' })) };
+};
+/* The House card for one room, rendered from the shipped grid. */
+const holdRoomCard = (id) => {
+  const H = window.HearthriseHomestead, host = document.createElement('div');
+  H.renderRoomGrid(host);
+  const card = host.querySelector('.hh-room[data-room="' + id + '"]');
+  const badge = card && card.querySelector('.hh-room-badge');
+  return { rung: window.roomRungG(id), owned: !!(card && card.classList.contains('is-owned')),
+    badge: badge ? badge.textContent : '' };
+};
+
+function recordClaimsHoldTests() { return [
+  /* MUTATION: record.js fresh path back to `known`/`stamp` built from `written`
+     alone (drop the carry loop) → RED here (recordValue says `unknown`, the
+     worn set reads the frozen empty map: hammer → sword family, 3175 → 2400 ms). */
+  () => tryRun('RECORD-HOLD-1 regression: a pushed frame that does not restate `equipment` leaves the worn set, the swing and the stats unchanged', () => {
+    const G = window.G, R = window.HearthriseRecord;
+    assert(R && typeof window.getEquipmentStats === 'function' && typeof window.combatTickMs === 'function'
+      && window.ITEMS && window.ITEMS.iron_warhammer && window.ITEMS.leather_boots,
+      'CONTROL: the record, the stat rollup or the hammer fixture is unpublished');
+    const snap = snapshotG(), acc = G._serverAccrual;
+    try {
+      G.equipment = { weapon: 'iron_warhammer', boots: 'leather_boots' };
+      stampRecordLikeLoad(G);
+      assert(R.recordValue(G, 'equipment').known === true, 'CONTROL: the worn set did not arrive on the record');
+      const read = () => {
+        const eq = window.getEquipmentStats();
+        return { weapon: window.equippedItemG('weapon'), type: eq.weaponType, strB: eq.strB, defB: eq.defB,
+          spdB: eq.spdB, tickMs: window.combatTickMs() };
+      };
+      const before = read();
+      assert(before.weapon === 'iron_warhammer' && before.type === 'hammer',
+        'CONTROL: the fixture is not swinging the hammer: ' + JSON.stringify(before));
+      const v = Number(G._record.version) + 1;
+      holdPushFrame(G, v);
+      assert(Number(G._record.version) === v,
+        'CONTROL: the frame never reached applyRecord (record version ' + G._record.version + ', want ' + v + ')');
+      const rv = R.recordValue(G, 'equipment');
+      assert(rv.known === true && rv.source === 'server',
+        'a frame that never mentioned `equipment` un-vouched the worn set (recordValue: ' + rv.source + '). '
+        + 'An answer that says nothing about a field has not said it changed.');
+      const after = read();
+      assert(JSON.stringify(after) === JSON.stringify(before),
+        'the worn set moved on a frame that did not mention it: ' + JSON.stringify(before) + ' → ' + JSON.stringify(after)
+        + ' — the live tick fights naked until the next full read');
+    } finally { restoreGAndRecord(snap); G._serverAccrual = acc; }
+  }),
+
+  /* MUTATION: as RECORD-HOLD-1 → RED here (roomRung 1 → 0, the House card
+     reads "Not built" with the Build price on it: the double-build report). */
+  () => tryRun('RECORD-HOLD-2 regression: a pushed frame that does not restate `rooms` leaves every room rung and the House card unchanged', () => {
+    const G = window.G, R = window.HearthriseRecord, H = window.HearthriseHomestead;
+    assert(R && H && typeof H.renderRoomGrid === 'function' && typeof window.roomRungG === 'function',
+      'CONTROL: the record or the House grid is unpublished');
+    const snap = snapshotG(), acc = G._serverAccrual;
+    try {
+      G.homestead = { tier: 3 }; G.rooms = { kitchen: 1 };
+      stampRecordLikeLoad(G);
+      assert(R.recordValue(G, 'rooms').known === true, 'CONTROL: the room map did not arrive on the record');
+      const before = holdRoomCard('kitchen');
+      assert(before.rung === 1 && before.owned && /Lv 1/.test(before.badge),
+        'CONTROL: the Kitchen does not read as owned at rung 1: ' + JSON.stringify(before));
+      const v = Number(G._record.version) + 1;
+      holdPushFrame(G, v);
+      assert(Number(G._record.version) === v, 'CONTROL: the frame never reached applyRecord');
+      const rv = R.recordValue(G, 'rooms');
+      assert(rv.known === true && rv.source === 'server',
+        'a frame that never mentioned `progress` un-vouched the room map (recordValue: ' + rv.source + ')');
+      const after = holdRoomCard('kitchen');
+      assert(JSON.stringify(after) === JSON.stringify(before),
+        'the House moved on a frame that did not mention rooms: ' + JSON.stringify(before) + ' → ' + JSON.stringify(after));
+    } finally { restoreGAndRecord(snap); G._serverAccrual = acc; }
+  }),
+
+  /* MUTATION: as RECORD-HOLD-1 → RED here (every set_activity / equip / eat /
+     enchant answer drops the room map, because the constructed envelope that
+     reaches applyRecord carries no `progress`). */
+  () => tryRun('RECORD-HOLD-3 regression: a set_activity answer (its envelope carries no `progress`) leaves every room rung and the House card unchanged', () => {
+    const G = window.G, R = window.HearthriseRecord, H = window.HearthriseHomestead, A = window.HearthriseAccrual;
+    assert(R && H && typeof window.applyServerEnvelope === 'function' && A,
+      'CONTROL: the record, the House grid or the intent applier is unpublished');
+    const snap = snapshotG(), acc = G._serverAccrual, bagWas = G._serverBag;
+    try {
+      G.homestead = { tier: 3 }; G.rooms = { kitchen: 1 };
+      stampRecordLikeLoad(G);
+      const before = holdRoomCard('kitchen');
+      assert(R.recordValue(G, 'rooms').known === true && before.rung === 1 && before.owned,
+        'CONTROL: the Kitchen does not read as owned at rung 1: ' + JSON.stringify(before));
+      const v = Number(G._record.version) + 1;
+      const body = holdIntentBody(G, v);
+      assert(body.progress.length === 1, 'CONTROL: the answer does not carry the room row the server sends');
+      freshFrameGate();
+      const written = m5Acked(() => window.applyServerEnvelope(body, { intent: true }));
+      assert(written && written.envelope && !('progress' in written.envelope),
+        'CONTROL: the intent applier did not hand back its constructed envelope (or it now carries `progress`, '
+        + 'and this cell of the matrix is no longer omitted): ' + JSON.stringify(written && written.envelope && Object.keys(written.envelope)));
+      assert(Number(G._record.version) === v, 'CONTROL: the answer never reached applyRecord');
+      const rv = R.recordValue(G, 'rooms');
+      assert(rv.known === true && rv.source === 'server',
+        'a set_activity answer un-vouched the room map (recordValue: ' + rv.source + ') — every intent answer '
+        + 'would leave the House reading "Not built" until the next full read');
+      const after = holdRoomCard('kitchen');
+      assert(JSON.stringify(after) === JSON.stringify(before),
+        'the House moved on an intent answer: ' + JSON.stringify(before) + ' → ' + JSON.stringify(after));
+    } finally {
+      restoreGAndRecord(snap); G._serverAccrual = acc;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+    }
+  }),
+
+  /* THE FORGED VALUE. It guards the FIX: a carry that re-stamps from G would
+     launder the client's write into a server claim. The held claim must name the
+     fault (`client-overwrote`), and no gate may read the forged weapon.
+     MUTATION: in the carry loop write `stamp[f] = fingerprint(G[f])` instead of
+     the carried stamp → RED (known:true, dragon_sword under the server's name). */
+  () => tryRun('RECORD-HOLD-4: a client write to G never becomes a claim — not by a frame that omits the field, not on a field never stated', () => {
+    const G = window.G, R = window.HearthriseRecord;
+    const snap = snapshotG(), acc = G._serverAccrual;
+    try {
+      /* (a) A STATED claim, then a client write, then answers that omit the field. */
+      G.equipment = { weapon: 'iron_warhammer' };
+      stampRecordLikeLoad(G);
+      assert(R.recordValue(G, 'equipment').known === true, 'CONTROL: the worn set did not arrive on the record');
+      G.equipment.weapon = 'dragon_sword';
+      for (let i = 1; i <= 2; i++) {
+        const v = Number(G._record.version) + 1;
+        holdPushFrame(G, v);
+        assert(Number(G._record.version) === v, 'CONTROL: frame ' + i + ' never reached applyRecord');
+        const rv = R.recordValue(G, 'equipment');
+        assert(rv.known === false && rv.source === 'client-overwrote',
+          'after frame ' + i + ' the forged weapon reads as the server\'s: ' + JSON.stringify(rv));
+        assert(window.equippedItemG('weapon') === null && Object.values(window.equipmentMapG()).indexOf('dragon_sword') === -1,
+          'after frame ' + i + ' a gate reads the forged weapon: ' + window.equippedItemG('weapon'));
+      }
+      /* (b) A field the server NEVER stated, on a private character. */
+      const g = {}, base = { ok: true, now: new Date().toISOString(), state: { gold: 5, gems: 0 }, skills: { mining: { xp: 1 } } };
+      R.applyRecord(g, Object.assign({ version: 1 }, base));
+      g.rooms = { kitchen: 9 }; g.equipment = { weapon: 'dragon_sword' };
+      R.applyRecord(g, Object.assign({ version: 2 }, base));
+      for (const f of ['rooms', 'equipment']) {
+        const rv = R.recordValue(g, f);
+        assert(rv.known === false && rv.source === 'unknown', 'a never-stated `' + f + '` became a claim: ' + JSON.stringify(rv));
+      }
+      assert(R.recordValue(g, 'gold').known === true, 'CONTROL: the private character\'s restated gold is not known');
+    } finally { restoreGAndRecord(snap); G._serverAccrual = acc; }
+  }),
+
+  /* THE RULE'S EDGES, on a private character (pure record semantics).
+     MUTATIONS: drop `statedBefore` from the stale filter → RED (c); drop the
+     "restated unreadably" skip → RED (b); drop the slot check → RED (d). */
+  () => tryRun('RECORD-HOLD-5: only a restatement replaces a claim — an unreadable one drops it, an older-but-newer-than-the-claim one fills it, a slot change carries nothing', () => {
+    const R = window.HearthriseRecord;
+    const env = (version, extra) => Object.assign({ ok: true, version, now: new Date().toISOString(),
+      state: { slot: 0, gold: 100 + version, gems: 0 }, skills: { mining: { xp: version } } }, extra || {});
+    const room = (n) => ({ progress: [{ kind: 'unlock', key: 'room:kitchen', value: n, period: '' }] });
+    const g = {};
+    /* (a) A full answer, then a lean one: the lean one HOLDS what it did not restate. */
+    R.applyRecord(g, env(10, Object.assign({ equipment: { weapon: 'iron_warhammer' } }, room(1))));
+    const lean = R.applyRecord(g, env(12));
+    assert(R.recordValue(g, 'rooms').known && g.rooms.kitchen === 1 && R.recordValue(g, 'equipment').known,
+      '(a) a lean answer un-vouched what it did not restate: rooms ' + R.recordValue(g, 'rooms').source
+      + ', equipment ' + R.recordValue(g, 'equipment').source);
+    assert(Array.isArray(lean.held) && lean.held.indexOf('rooms') !== -1 && lean.held.indexOf('equipment') !== -1,
+      '(a) applyRecord did not report the held claims: ' + JSON.stringify(lean.held));
+    /* (c) An OLDER answer (11 < 12) that is still newer than the room claim (10)
+       replaces it; the gold it carries (stated at 12) is not rewound. */
+    R.applyRecord(g, env(11, room(2)));
+    assert(g.rooms.kitchen === 2 && R.recordValue(g, 'rooms').known,
+      '(c) a stale answer newer than the held room claim did not fill it: kitchen ' + g.rooms.kitchen);
+    assert(g.gold === 112 && Number(g._record.version) === 12,
+      '(c) the stale answer rewound a field the newer answer stated: gold ' + g.gold + ', version ' + g._record.version);
+    /* (b) A restatement this client cannot read DROPS the claim (fail-closed). */
+    R.applyRecord(g, env(13, { equipment: { 'Bad Slot': 'iron_warhammer' } }));
+    assert(R.recordValue(g, 'equipment').known === false,
+      '(b) an unreadable restatement left the old claim standing: ' + R.recordValue(g, 'equipment').source);
+    assert(R.recordValue(g, 'rooms').known === true, '(b) CONTROL: the unmentioned rooms claim did not hold');
+    /* (d) An answer for ANOTHER slot carries nothing over. */
+    const other = env(14); other.state = Object.assign({}, other.state, { slot: 1 });
+    R.applyRecord(g, other);
+    assert(R.recordValue(g, 'rooms').known === false && R.recordLastKnown(g, 'rooms') === undefined,
+      '(d) another hero inherited this one\'s room claim: ' + R.recordValue(g, 'rooms').source);
+    assert(R.recordValue(g, 'gold').known === true && g.gold === 114, '(d) CONTROL: the other slot\'s own gold is not known');
+    /* (e) forget clears every claim: a reload / sign-out starts from nothing,
+       even when G is handed back the very value the old claim fingerprinted. */
+    R.applyRecord(g, env(15, room(3)));
+    R.forgetServerOfRecord(g);
+    g.rooms = { kitchen: 3 };
+    R.applyRecord(g, env(16));
+    assert(R.recordValue(g, 'rooms').known === false, '(e) a claim survived forgetServerOfRecord: ' + R.recordValue(g, 'rooms').source);
   }),
 ]; }

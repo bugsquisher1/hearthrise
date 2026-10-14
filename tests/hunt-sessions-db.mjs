@@ -238,6 +238,35 @@ const ARMS = {
   },
 };
 
+/* D1 — the staged drop-away file REFUSES while anything still reads the away
+   objects (today: hr_apply, hr_state_of, the tick settle ...), and drops
+   nothing; its hr_vigour_of restatement grants a clanless character 720, the
+   number the cap-derived grant gives today. Run on the live db in a rolled-back
+   transaction. */
+const DROP = '2026-10-22-hunt-sessions-drop-away.sql';
+const DROP_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', DROP), 'utf8').replace(/\r\n/g, '\n');
+async function d1(db, text = DROP_TEXT) {
+  const red = [];
+  const before = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
+  await db.query('begin');
+  try {
+    let refused = null;
+    try { await db.exec(text); } catch (e) { refused = String(e.message); }
+    if (!refused || !/still read by/.test(refused)) red.push(`D1: the drop file did not refuse on a chain whose readers remain (${refused ? refused.slice(0, 120) : 'it applied'})`);
+  } finally { await db.query('rollback'); }
+  const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
+      and table_name = 'player_state' and column_name in ('last_away_receipt', 'auto_eat_enabled')`);
+  if (cols !== 2) red.push('D1: the refused drop file removed a column');
+  const vig = DROP_TEXT.slice(DROP_TEXT.indexOf('-- ── §2 hr_vigour_of'), DROP_TEXT.indexOf('-- ── §3 THE DROPS'));
+  await db.query('begin');
+  try {
+    await db.exec(vig);
+    const after = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
+    if (after !== before || after !== 720) red.push(`D1: the restated grant is ${after}, today's is ${before}`);
+  } finally { await db.query('rollback'); }
+  return red;
+}
+
 async function runArms(db, only) {
   const red = [];
   for (const [name, arm] of Object.entries(ARMS)) {
@@ -339,10 +368,10 @@ const TEXT_MUTANTS = [
 const { bootReplay } = await import('./schema-replay.mjs');
 const { db } = await bootReplay({});
 if (!MUTATE) {
-  const red = [...g1(), ...(await runArms(db)), ...(await c1(db))];
+  const red = [...g1(), ...(await runArms(db)), ...(await d1(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-sessions-db: G1 B1 S1 F1 P1 T1 C1 green');
+  console.log('hunt-sessions-db: G1 B1 S1 F1 P1 T1 D1 C1 green');
 } else {
   let escaped = 0;
   const control = await runArms(db);
@@ -358,6 +387,15 @@ if (!MUTATE) {
     const mine = red.filter((r) => r.startsWith(m.arm));
     console.log(`  ${mine.length ? 'caught ' : 'ESCAPED'} ${m.name}${mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!mine.length) escaped++;
+  }
+  /* D1 bites: the drop file with its reader scan blinded applies (and drops). */
+  {
+    const anchor = "  if v_readers is not null then\n";
+    if (DROP_TEXT.split(anchor).length !== 2) throw new Error('D1 mutant anchor moved');
+    const red = await d1(db, DROP_TEXT.replace(anchor, '  if false then\n'));
+    const caught = red.some((r) => r.startsWith('D1'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} D1: the drop file's reader scan blinded${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    if (!caught) escaped++;
   }
   await db.close?.();
   for (const m of TEXT_MUTANTS) {

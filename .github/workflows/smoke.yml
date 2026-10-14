@@ -819,6 +819,21 @@ jobs:
           node tests/hunts-c1.mjs
           node tests/hunts-c1.mjs --mutate
 
+      # Lane C1 hunt sessions (2026-10-21-hunt-sessions*.sql, ruling HR-2026-10-14):
+      # the catalogue is GENERATED from src/data (supplies, rule subjects, limits,
+      # travel, vendor value); on the real chain the bag conserves across pack /
+      # settle / restock / change / leave, one session is open, forged qty / time /
+      # windows are refused, a press only re-orders, tally = Σ ledger, and a second
+      # apply is byte-identical. --mutate plants eleven body defects (each red on
+      # its arm) and two text defects the file's own §8 must refuse.
+      - name: Hunt sessions DB — bag, one open session, settle applier, tally = ledger
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-hunt-sessions.mjs --check
+          node tools/gen-hunt-sessions.mjs --selftest
+          node tests/hunt-sessions-db.mjs
+          node tests/hunt-sessions-db.mjs --mutate
+
       # 2026-10-11-name-moderation.sql (Security): a name other players see is
       # the server's to refuse and to take back. On the WHOLE chain, as the
       # client roles: blocked variants refused name_blocked (never echoed), the

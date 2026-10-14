@@ -438,4 +438,69 @@ export default [
       CS.setTab('hunts'); restoreG(snap); CS.render(); window.showTab('profile');
     }
   }),
+
+  /* -- regression suite -- THE NOTICE IS FOR HEROES WHO FOUGHT BEFORE HUNTS
+     (Game Designer loop check 2026-10-14, #4). A brand-new hero met "Big changes
+     are underway" on their first Combat visit, which is First Steps' fight step,
+     announcing a change to a screen they had never seen. */
+  () => tryRunAsync('ADV-7: the "big changes" notice never greets a hero who has not fought, a post-change account, or the guide', async () => {
+    const CS = window.HearthriseCombatScreens, R = window.HearthriseReveal, G = window.G, snap = snapshotG();
+    const had = Object.prototype.hasOwnProperty.call(G, 'noticesSeen'), was = G.noticesSeen;
+    const pin0 = R.__pin(Object.assign({}, R.FRESH));
+    try {
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      delete G.noticesSeen;
+      window.showTab('combat'); CS.setView('table'); CS.setTab('hunts'); CS.render();
+      const note = document.getElementById('wt-notice');
+      assert(note && note.hidden, 'a hero the server says has won no fight sees the "big changes" notice');
+      R.__pin(Object.assign({}, R.FRESH, { counts: { 'ev:kill_any': 40 } })); CS.render();
+      assert(!note.hidden, 'CONTROL: a hero who has fought (and has not dismissed it) does not see the notice');
+      const W = CS.noticeWanted, at = Date.parse('2026-10-14T06:30:00Z');
+      assert(typeof W === 'function', 'noticeWanted is not exposed');
+      assert(W({ kills: 40, accountAt: at - 1, guide: false }) === true, 'CONTROL: a pre-hunts account with fights is not shown the notice');
+      assert(W({ kills: 40, accountAt: at, guide: false }) === false, 'an account made after hunts arrived is shown the notice');
+      assert(W({ kills: 40, accountAt: null, guide: true }) === false, 'the notice shows while First Steps is speaking');
+      assert(W({ kills: null, accountAt: null, guide: false }) === false, 'unknown kills read as "has fought"');
+      assert(W({ kills: 0, accountAt: at - 1, guide: false }) === false, 'a hero with no fights sees the notice');
+    } finally {
+      R.__pin(pin0);
+      if (had) G.noticesSeen = was; else delete G.noticesSeen;
+      CS.setTab('hunts'); restoreG(snap); CS.render(); window.showTab('profile');
+    }
+  }),
+
+  /* -- regression suite -- FIRST STEPS SHOWS THE REWARD IT EARNED (loop check
+     2026-10-14, #7). The bar and Home's step card carry the Claim and both hide
+     while the guide speaks, so steps 1-3 (500 gold, 30 raw shrimp, 5 turnip
+     seeds) waited unseen until the hand-off. The card shows the waiting reward
+     with one Claim that sends the pointer's own server claim, for that quest only. */
+  () => tryRunAsync('COACH-REWARD-1: a step reward waiting shows on the guide card, and Claim sends that one quest once', async () => {
+    const S = window.HearthriseSpine;
+    const f = START();
+    f.counts.chopped = 15; f.counts['ev:gather'] = 15; f.skills.woodcutting = 300;
+    const fire0 = window.hrFireQuestClaim, sent = [];
+    let release = null;
+    window.hrFireQuestClaim = (q) => { sent.push(q && q.id); return new Promise((r) => { release = () => r({ ok: true }); }); };
+    try {
+      await withCoach(f, async (C) => {
+        S.__forget();
+        await until(C, () => title() === 'Catch some shrimp', 5000);
+        C.tick(); await sleep(80);
+        const btn = document.querySelector('.hr-coach-card [data-coach-claim]');
+        assert(btn, 'the guide card shows no Claim for the 150 gold that chopping fifteen logs earned');
+        const line = ((document.querySelector('.hr-coach-card .hr-coach-reward') || {}).textContent || '').replace(/\s+/g, ' ');
+        assert(/Reward ready: 150 gold/.test(line), 'the reward line does not name the reward: ' + line);
+        assert(btn.getBoundingClientRect().height >= 44, 'the Claim is under the 44px tap floor');
+        btn.click(); btn.click();
+        await sleep(40);
+        assert(sent.length === 1 && sent[0] === 'gatherer', 'Claim sent ' + JSON.stringify(sent) + ', not one gatherer claim');
+        const busy = document.querySelector('.hr-coach-card [data-coach-claim]');
+        assert(busy && busy.disabled, 'the Claim stays pressable while its claim is in flight');
+        release(); await sleep(80); C.tick(); await sleep(80);
+        assert(!document.querySelector('.hr-coach-card [data-coach-claim]'), 'the Claim is still offered after the server paid it');
+        assert(title() === 'Catch some shrimp', 'claiming moved the guide off its step: ' + title());
+      });
+    } finally { window.hrFireQuestClaim = fire0; S.__forget(); }
+  }),
 ];

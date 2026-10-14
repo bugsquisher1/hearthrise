@@ -365,8 +365,12 @@ const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:
 /* W0 (coherence audit, top-10 #2): the Local Shop sells STARTER gear only — no
    tier-2+ piece. Iron/Steel armour and weapons, the Longbow and the Oak Staff
    undercut Smithing and Crafting 15-35, so the first upgrade a player wears is
-   one they made. Guarded by SHOP-STARTER-1 (every equip offer is tier <= 1). */
-const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
+   one they made. Guarded by SHOP-STARTER-1 (every equip offer is tier <= 1).
+   Leather Boots are not sold either (loop check 2026-10-14): they are spine
+   step 7, the one piece the first hour asks a hero to make, and a 250-gold
+   counter copy turned "craft and wear" into "buy and wear". Guarded by
+   SPINE-BOOTS-1 in tests/spine.mjs. */
+const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL
    scope, not on `window` — so `window.SEED_SHOP` / `window.EQUIP_SHOP` were

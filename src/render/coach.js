@@ -176,6 +176,11 @@ function cardHtml(s) {
   const prog = s.progress ? '<div class="hr-coach-prog"><span class="hr-coach-bar"><i style="width:'
     + Math.round(100 * Math.min(1, s.progress.have / Math.max(1, s.progress.need))) + '%"></i></span><b>'
     + esc(s.progress.label) + ' ' + esc(s.progress.text) + '</b></div>' : '';
+  /* A step reward waiting (src/features/coach.js rewardFor): its words and one
+     Claim, disabled while the claim is in flight. */
+  const reward = s.reward ? '<div class="hr-coach-reward"><span class="hr-coach-reward-text">' + esc(s.reward.text) + '</span>'
+    + '<button type="button" class="btn btn-sm btn-primary" data-coach-claim' + (s.reward.busy ? ' disabled aria-busy="true"' : '') + '>'
+    + esc(s.reward.label) + '</button></div>' : '';
   return '<span class="hr-coach-arrow" aria-hidden="true"></span>'
     + '<div class="hr-coach-head"><span class="hr-coach-step">' + esc(s.kicker || '') + '</span>'
     + '<span class="hr-coach-tick" aria-hidden="true"></span></div>'
@@ -183,13 +188,15 @@ function cardHtml(s) {
     + (s.lead ? '<div class="hr-coach-lead">' + esc(s.lead) + '</div>' : '')
     + '<div class="hr-coach-body">' + esc(s.body) + '</div>'
     + prog
+    + reward
     + '<div class="hr-coach-foot">' + (s.skip ? '<button type="button" class="hr-coach-skip" data-coach-skip>' + esc(s.skip) + '</button>' : '<span></span>')
     + '<span class="hr-coach-btns">' + btns + '</span></div>';
 }
 
 /**
- * SHOW ONE CARD. `s` = { key, kicker, title, lead, body, progress, buttons:
- * [{label, primary, on}], skip, onSkip, anchor, follow }. Re-showing the same
+ * SHOW ONE CARD. `s` = { key, kicker, title, lead, body, progress, reward:
+ * {text, label, busy, on} | null, buttons: [{label, primary, on}], skip, onSkip,
+ * anchor, follow }. Re-showing the same
  * `key` updates in place (no re-entry animation); a new key slides in.
  */
 export function show(s) {
@@ -209,6 +216,10 @@ export function show(s) {
     });
     const sk = card.querySelector('[data-coach-skip]');
     if (sk) sk.addEventListener('click', (e) => { e.preventDefault(); if (s.onSkip) s.onSkip(); });
+    /* Reads the LIVE state's reward: the html can stay byte-identical across
+       paints while the closure from the first one would be stale. */
+    const cl = card.querySelector('[data-coach-claim]');
+    if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); const r = state && state.reward; if (r && !r.busy && r.on) r.on(); });
   }
   card.setAttribute('aria-label', s.title);
   card.classList.toggle('has-lead', !!s.lead);

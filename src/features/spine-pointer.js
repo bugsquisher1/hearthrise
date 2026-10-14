@@ -22,7 +22,7 @@
 import { POINTER_STEPS, ROUTES } from '../data/spine-pointer.js?v=580';
 import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=580';
 import { pointerModel, newlyDone, momentsKnown } from '../core/spine-pointer.js?v=580';
-import { barHtml, cardHtml } from '../render/spine-pointer.js?v=580';
+import { barHtml, cardHtml, rewardText } from '../render/spine-pointer.js?v=580';
 import { isRecordPending } from '../net/record.js?v=580';
 
 const BAR_ID = 'hr-spine-bar';
@@ -127,6 +127,25 @@ function showMe(r) {
       || seen('.nav-btn[data-tab="' + r.tab + '"], .bn-btn[data-tab="' + r.tab + '"]');
     if (el) C.flash(el, 2200);
   }, 120);
+}
+
+/** The step reward waiting for a Claim, in words, or null. First Steps shows it
+    on its own card (src/features/coach.js): the bar hides while the guide
+    speaks, and a reward earned in minute two must not wait until minute ten. */
+export function pendingClaim() {
+  const m = model();
+  if (!m || !m.ready || m.finished || !m.go || m.go.kind !== 'claim' || pendingRecord()) return null;
+  const itemName = (id) => (window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || String(id).replace(/_/g, ' ');
+  return { quest: m.go.quest, step: m.step, text: rewardText(m.reward, itemName) };
+}
+
+/** Claim exactly `quest`, and only while it is still the one waiting: a press
+    on a card painted a moment ago never claims (or routes to) anything else.
+    Resolves to the server's answer, or null when nothing was sent. */
+export function claimPending(quest) {
+  const p = pendingClaim();
+  if (!p || p.quest !== quest) return Promise.resolve(null);
+  return claim(quest) || Promise.resolve(null);
 }
 
 /** A pointer button by kind: 'go' (Go, Build, Claim…) or 'daily' (the chip). */
@@ -272,7 +291,7 @@ function liveTick() {
 
 if (typeof window !== 'undefined') {
   window.HearthriseSpine = Object.freeze({
-    model, facts, go, act, render, homeCard, showMoment, observe, steps: POINTER_STEPS,
+    model, facts, go, act, render, homeCard, showMoment, observe, pendingClaim, claimPending, steps: POINTER_STEPS,
     __fit: fitRoom,
     __park(on) { const was = parked; parked = !!on; return was; },
     __forget() { Object.keys(answered).forEach((k) => delete answered[k]); seen = null; seenKey = null; lastBar = null; },

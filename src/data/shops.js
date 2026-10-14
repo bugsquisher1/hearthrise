@@ -16,15 +16,15 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6
-//   124 offers · 220 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: d49e80ea4be1d7269476f4d46760ed30d399618ba9c4ed38bbf2502d3275ac26
+//   123 offers · 219 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
 //   seed              16  src/legacy.js
-//   equip             11  src/legacy.js
+//   equip             10  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6";
+export const SHOPS_DIGEST = "d49e80ea4be1d7269476f4d46760ed30d399618ba9c4ed38bbf2502d3275ac26";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -269,13 +269,6 @@ export const SHOP_OFFERS = [
     name: "Hunter Necklace",
     cost: [{ kind: "currency", id: "gold", amount: 500 }],
     grant: [{ kind: "item", id: "hunter_necklace", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.leather_boots", table: "equip",
-    name: "Leather Boots",
-    cost: [{ kind: "currency", id: "gold", amount: 250 }],
-    grant: [{ kind: "item", id: "leather_boots", amount: 1 }],
     repeatable: true,
   },
   {
@@ -930,7 +923,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 11
+    "count": 10
   },
   {
     "table": "bounty",

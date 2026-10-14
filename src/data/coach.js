@@ -143,6 +143,20 @@ export const COACH_STEPS = Object.freeze([
   },
 ]);
 
+/* A STEP REWARD, ON THE CARD (loop check 2026-10-14). The spine bar and Home's
+   step card carry the Claim, and both stay hidden while the guide speaks, so
+   steps 1-3 (500 gold, 30 raw shrimp, 5 turnip seeds) used to wait unseen until
+   the hand-off. Any card but the hand-off (which rings the bar and its own
+   Claim) shows the waiting reward with a Claim button. The reward and its
+   words are the pointer's (src/features/spine-pointer.js pendingClaim); the
+   server pays it (hr_claim_quest). `{reward}` is "150 gold · 30× Raw Shrimp". */
+export const COACH_REWARD = Object.freeze({
+  line: 'Reward ready: {reward}',
+  claim: 'Claim',
+  claiming: 'Claiming…',
+  skipRows: Object.freeze(['handoff']),
+});
+
 /** The fact kinds a row may name, each with the server surface that states it. */
 export const COACH_FACT_SOURCES = Object.freeze({
   count: 'hr_state_of progress (kind stat, period \'\') via HearthriseReveal.facts().counts',

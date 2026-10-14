@@ -64,7 +64,41 @@ const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeon
 const WT_NOTICE = Object.freeze({
   id: 'hunts-arrive',
   text: 'Big changes are underway: fighting now happens in hunting grounds, and more hunts are coming. Every monster is still in the Monsters tab.',
+  /* WHO IT IS FOR (Game Designer loop check 2026-10-14): a hero who fought
+     before hunting grounds arrived (b574 went live 2026-10-14 06:30 UTC). A
+     brand-new hero met it on their very first Combat visit, which is First
+     Steps' fight step, announcing a change to a screen they had never seen. */
+  foughtBefore: Date.parse('2026-10-14T06:30:00Z'),
 });
+
+/**
+ * IS THE NOTICE FOR THIS HERO? Pure. `kills` is the server's lifetime count of
+ * fights won (null while unknown), `accountAt` when the account was made (ms;
+ * null when unknown), `guide` whether First Steps is speaking. Unknown kills
+ * read as "not yet": the notice never shows on a guess.
+ */
+function noticeWanted(o) {
+  if (!o || o.guide) return false;
+  if (o.kills === null || o.kills === undefined || !(Number(o.kills) >= 1)) return false;
+  if (Number.isFinite(o.accountAt) && o.accountAt >= WT_NOTICE.foughtBefore) return false;
+  return true;
+}
+
+/** noticeWanted's inputs, read from the server's facts and the session. */
+function noticeFacts() {
+  const R = window.HearthriseReveal;
+  const f = R && typeof R.facts === 'function' ? R.facts() : null;
+  const k = f && f.countsComplete && f.counts ? Number(f.counts['ev:kill_any']) : NaN;
+  const A = window.HearthriseAuth;
+  let at = NaN;
+  try { const s = A && typeof A.getSession === 'function' ? A.getSession() : null; at = s && s.user ? Date.parse(s.user.created_at) : NaN; } catch (e) { at = NaN; }
+  const C = window.HearthriseCoach;
+  return {
+    kills: Number.isFinite(k) ? k : null,
+    accountAt: Number.isFinite(at) ? at : null,
+    guide: !!(C && typeof C.isUp === 'function' && C.isUp()),
+  };
+}
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -1356,7 +1390,7 @@ function noticeSeen(id) {
 function renderNotice() {
   const host = document.getElementById('wt-notice');
   if (!host) return;
-  const off = noticeSeen(WT_NOTICE.id);
+  const off = noticeSeen(WT_NOTICE.id) || !noticeWanted(noticeFacts());
   if (host.hidden !== off) host.hidden = off;
   if (off || host.dataset.sig === WT_NOTICE.id) return;
   host.dataset.sig = WT_NOTICE.id;
@@ -2091,7 +2125,7 @@ export function setupCombatScreens() {
        a gated dungeon" defect lived, so the guard reads it directly rather
        than trying to find a disabled button in a strip the tick repaints. */
     _destinations: destinations,
-    setTab, huntIntent, startHunt, toggleFav, showHunt,
+    setTab, huntIntent, startHunt, toggleFav, showHunt, noticeWanted,
     get tab() { return wtTab; },
     get previewId() { return previewId; },
   };

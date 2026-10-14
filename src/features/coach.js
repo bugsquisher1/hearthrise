@@ -26,7 +26,7 @@
 // fact is "not yet", and an unknown character is not a new one.
 // ════════════════════════════════════════════════════════════════════════
 
-import { COACH_STEPS, COACH_LOOT, COACH_FOE, COACH_ADVANCED_LEVELS, COACH_RETURNING_MS } from '../data/coach.js?v=580';
+import { COACH_STEPS, COACH_LOOT, COACH_FOE, COACH_ADVANCED_LEVELS, COACH_RETURNING_MS, COACH_REWARD } from '../data/coach.js?v=580';
 import { START_SKILL_XP } from '../data/start-kit.js?v=580';
 import { SKILLS_DEF } from '../data/skills.js?v=580';
 import * as Draw from '../render/coach.js?v=580';
@@ -42,6 +42,7 @@ let sold = false;                    // the edge accepted a sale this session
 let running = false, parked = false, lastKey = null, celebrating = false, lastIdx = -1;
 let lastHero = null;
 let pin = null;                      // test seam: pinned facts
+let claiming = null;                 // the quest id whose Claim is in flight
 
 /* ── FACTS ────────────────────────────────────────────────────────────── */
 
@@ -210,6 +211,33 @@ function progressOf(row, f) {
 
 function ack(id) { (acked[heroKey()] = acked[heroKey()] || {})[id] = true; }
 
+/* ── A STEP REWARD WAITING ────────────────────────────────────────────── */
+
+/** The spine reward waiting for a Claim, for this card, or null. */
+function rewardFor(row) {
+  if (COACH_REWARD.skipRows.indexOf(row.id) >= 0) return null;
+  const S = window.HearthriseSpine;
+  const p = S && typeof S.pendingClaim === 'function' ? S.pendingClaim() : null;
+  if (!p || !p.text) return null;
+  const busy = claiming === p.quest;
+  return {
+    quest: p.quest, busy,
+    text: COACH_REWARD.line.replace('{reward}', p.text),
+    label: busy ? COACH_REWARD.claiming : COACH_REWARD.claim,
+    on: () => claimReward(p.quest),
+  };
+}
+
+/** The press: the pointer's own claim (server-paid), once, then a fresh reading. */
+function claimReward(quest) {
+  const S = window.HearthriseSpine;
+  if (claiming || !S || typeof S.claimPending !== 'function') return null;
+  claiming = quest;
+  try { tick(); } catch (e) { /* the label simply stays */ }
+  const done = () => { claiming = null; try { tick(); } catch (e) {} };
+  return Promise.resolve(S.claimPending(quest)).then((r) => { done(); return r; }, () => { done(); return null; });
+}
+
 /** Finish or skip: written down for this hero, and the coach leaves. */
 export function dismiss() {
   if (window.G) window.G.coachDismissed = true;
@@ -240,6 +268,7 @@ function paint(row, idx, f) {
   Draw.show({
     key: row.id, kicker: 'First steps · ' + (idx + 1) + ' of ' + COACH_STEPS.length,
     title: row.title, lead, body: fill(row.body, loot), progress: progressOf(row, f),
+    reward: rewardFor(row),
     buttons, skip: idx === COACH_STEPS.length - 1 ? '' : 'Skip guide', onSkip: dismiss,
     anchor: target, waiting: !!watching,
     follow: (t) => !!(t.closest && t.closest(FOLLOW)),
@@ -315,7 +344,7 @@ export function replay() {
 
 /** A new hero (slot switch): forget the session's reads. */
 function reset() {
-  running = false; lastIdx = -1; celebrating = false; sold = false;
+  running = false; lastIdx = -1; celebrating = false; sold = false; claiming = null;
   Draw.hide();
 }
 

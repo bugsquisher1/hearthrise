@@ -332,7 +332,12 @@ const BASE_RECIPES = {
        candidate. Deliberately NOT done here: that is a content decision. */
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     // Tailoring
-    {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},
+    /* Leather Boots are spine step 7, the first gear a new hero MAKES (loop check
+       2026-10-14). At Crafting 8 the only silk-free way up was ~267 Normal Planks
+       (3 paced XP each), about 35-40 minutes of chop-and-saw in the first hour.
+       At 3 it is ~58 planks, about 8 minutes. src/data/spine-pointer.js reads this
+       row's `req`, so the pointer cannot quote a different level. */
+    {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:3,  ms:2400},
     {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:120, req:12, ms:2800},
     {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},           output:'traveler_cape',  xp:140, req:15, ms:3000},
     /* ── ELEMENTS v1 — RUNE BINDING: MOVED TO RUNECRAFTING (b432) ─────────

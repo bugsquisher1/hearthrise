@@ -24,6 +24,11 @@
 //   SP6  the unlock moment for finishing step N names a door that finishing N
 //        actually opens (src/data/reveals.js on the real predicate), and names
 //        no door that is still shut after it
+//   SP7  a craft step asks the level the bench asks (src/data/recipes.js), a
+//        first-hour craft step asks at most FIRST_HOUR_CRAFT_LEVEL, and the
+//        Local Shop does not sell what a step tells the player to make
+//        (loop check 2026-10-14: Leather Boots at Crafting 8 were ~267 planks,
+//        35-40 minutes, while the shop sold the same boots for 250 gold)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -83,8 +88,26 @@ function producers() {
   return out;
 }
 
+/* The first hour's spine steps (1-10 reach the Farmstead), and the highest
+   level a craft step among them may ask. Crafting 3 is 174 XP: ~58 Normal
+   Planks at 3 paced XP each, about 8 minutes of chop-and-saw. */
+const FIRST_HOUR_STEPS = 10;
+const FIRST_HOUR_CRAFT_LEVEL = 3;
+
+/** item id → the lowest bench that makes it: { skill, req }. */
+function benches() {
+  const out = {};
+  Object.entries(ARTISAN_RECIPES).forEach(([skill, list]) => (list || []).forEach((r) => {
+    if (!r.output) return;
+    const req = r.req || 1;
+    if (!out[r.output] || req < out[r.output].req) out[r.output] = { skill, req };
+  }));
+  return out;
+}
+
 export function world() {
   return {
+    recipes: benches(),
     rows: SP.POINTER_STEPS.map((r) => Object.assign({}, r, { parts: r.parts.slice() })),
     routes: Object.assign({}, SP.ROUTES), itemRoute: Object.assign({}, SP.ITEM_ROUTE),
     reveals: REVEALS.slice(), quests: Object.assign({}, QUEST_REWARDS), panes: hubPanes(), producers: producers(), questIds: questDefIds(),
@@ -188,6 +211,22 @@ export function check(w) {
       .forEach((id) => fail('SP6', `step ${row.step}'s moment names ${doorWord(id)} (${id}), which is still shut after it`));
   });
 
+  // SP7 — a craft step asks what the bench asks, stays short in the first hour,
+  //       and is not undercut by the shop shelf
+  w.rows.forEach((row) => {
+    const lv = row.parts.find((p) => p.need.fact === 'level');
+    const made = row.parts.filter((p) => p.need.fact === 'item' && p.go === 'craft').map((p) => p.need.id);
+    made.forEach((id) => {
+      const b = w.recipes[id];
+      if (lv && b && b.skill === lv.need.skill && b.req !== lv.need.min)
+        fail('SP7', `step ${row.step} asks ${lv.need.skill} ${lv.need.min} for ${id}, and the bench asks ${b.req}`);
+      if ((w.producers[id] || []).some((p) => p.door === 'pane:shop'))
+        fail('SP7', `step ${row.step} asks the player to make ${id}, and the Local Shop sells it`);
+    });
+    if (lv && made.length && row.step <= FIRST_HOUR_STEPS && lv.need.min > FIRST_HOUR_CRAFT_LEVEL)
+      fail('SP7', `step ${row.step} asks ${lv.need.skill} ${lv.need.min} in the first hour (the cap is ${FIRST_HOUR_CRAFT_LEVEL})`);
+  });
+
   // SP5 — the predicate on the real rows
   const model = (f) => core.pointerModel(f, w.rows, w.quests);
   const FRESH = { counts: {}, countsComplete: true, skills: {}, property: 0, workers: 0, bag: {}, gold: 0, equipment: {}, claimed: {} };
@@ -235,6 +274,14 @@ const MUTANTS = {
   momentEarly: ['SP6', (w) => { const a = w.rows[6].opens; w.rows[6] = Object.assign({}, w.rows[6], { opens: w.rows[7].opens }); w.rows[7] = Object.assign({}, w.rows[7], { opens: a }); }],
   momentSilent: ['SP6', (w) => { w.rows[2] = Object.assign({}, w.rows[2], { opens: { title: 'Well done', line: 'On to the next thing.' } }); }],
   neverDone: ['SP5', (w) => { w.rows[3] = Object.assign({}, w.rows[3], { need: [] }); }],
+  shopSellsCraft: ['SP7', (w) => { w.producers.leather_boots = (w.producers.leather_boots || []).concat([{ door: 'pane:shop', inputs: {} }]); }],
+  benchDrift: ['SP7', (w) => { w.recipes = Object.assign({}, w.recipes, { leather_boots: { skill: 'crafting', req: 5 } }); }],
+  longCraft: ['SP7', (w) => {
+    const i = w.rows.findIndex((r) => r.parts.some((p) => p.need.fact === 'level'));
+    w.rows[i] = Object.assign({}, w.rows[i], { parts: w.rows[i].parts.map((p) => (p.need.fact === 'level'
+      ? Object.assign({}, p, { need: Object.assign({}, p.need, { min: 8 }) }) : p)) });
+    w.recipes = Object.assign({}, w.recipes, { leather_boots: { skill: 'crafting', req: 8 } });
+  }],
 };
 
 const argv = process.argv.slice(2);

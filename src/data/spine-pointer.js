@@ -27,6 +27,7 @@
 
 import { SPINE_STEPS, count, combat, property, workers, item, cleared } from './spine.js?v=580';
 import { SHOP_OFFERS } from './shops.js?v=580';
+import { ARTISAN_RECIPES } from './recipes.js?v=580';
 
 export const level = (skill, min) => Object.freeze({ fact: 'level', skill, min });
 export const gold = (min) => Object.freeze({ fact: 'gold', min });
@@ -79,6 +80,19 @@ function buildParts(offerId, rung) {
   return items.concat(coins, [part(property(rung), 'build')]);
 }
 
+/* A craft step's parts, read from the recipe the server checks (src/data/
+   recipes.js, generated into hr_activities), so the bar can never quote a
+   level or an input count the bench does not ask for. Inputs first (each
+   from where it is made), then the item, then the act that finishes the
+   step. */
+function craftParts(skill, recipeId, finish) {
+  const r = (ARTISAN_RECIPES[skill] || []).find((x) => x.id === recipeId);
+  if (!r || !r.output) throw new Error('spine-pointer: no recipe ' + recipeId);
+  const inputs = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}))
+    .map(([id, n]) => part(item(id, n), ITEM_ROUTE[id] || null));
+  return [part(level(skill, r.req || 1), 'craft')].concat(inputs, [part(item(r.output, 1), 'craft'), finish]);
+}
+
 function hireParts(offerId) {
   const offer = SHOP_OFFERS.find((o) => o.id === offerId);
   const coin = offer && offer.cost.find((c) => c.id === 'gold');
@@ -124,8 +138,7 @@ const DISPLAY = {
   first_craft: {
     title: 'Craft and wear Leather Boots', why: 'Gear you make yourself is the surest way to hit harder.',
     need: [count('crafted', 1), wears('boots')], chain: true,
-    parts: [part(level('crafting', 8), 'craft'), part(item('wolf_pelt', 2), 'fight'),
-      part(item('leather_boots', 1), 'craft'), part(wears('boots'), 'wear')],
+    parts: craftParts('crafting', 'tailor_leather_boots', part(wears('boots'), 'wear')),
     opens: opens('Sell your surplus on the Player Market', 'Other players buy what you do not need.'),
   },
   first_harvest: {

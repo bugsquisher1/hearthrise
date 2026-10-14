@@ -30,8 +30,10 @@ function partFigure(s, dash) {
   return have + '/' + num(s.min);
 }
 
-/** The server catalogue's reward, in words: "150 gold · 5× Turnip Seed". */
-function rewardText(reward, itemName) {
+/** The server catalogue's reward, in words: "150 gold · 5× Turnip Seed".
+    First Steps prints the same words on its card (src/features/spine-pointer.js
+    pendingClaim), so a reward is never phrased two ways. */
+export function rewardText(reward, itemName) {
   if (!reward) return '';
   const bits = [];
   if (reward.gold > 0) bits.push(num(reward.gold) + ' gold');

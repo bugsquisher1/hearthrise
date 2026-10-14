@@ -191,8 +191,8 @@
       var d = daily(), w = weekly();
       var seenKey = 'hr-event-seen';
       var today = utcDayKey();
-      if (localStorage.getItem(seenKey) !== today) {
-        localStorage.setItem(seenKey, today);
+      if (window.HearthriseStorage.get(seenKey) !== today) {
+        window.HearthriseStorage.set(seenKey, today);
         // Toasts render with textContent, so a glyph here can only ever be a
         // raw emoji character. Say it in words instead.
         if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc, 'info');

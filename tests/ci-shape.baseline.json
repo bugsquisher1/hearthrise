@@ -374,6 +374,8 @@
     "node tests/market-price-source.mjs": "client-guards",
     "node tests/market-prices.mjs --mutate": "client-guards",
     "node tests/market-prices.mjs": "client-guards",
+    "node tests/platform-seam.mjs --selftest": "client-guards",
+    "node tests/platform-seam.mjs": "client-guards",
     "node tests/vendor-shop-arbitrage.mjs --selftest": "client-guards",
     "node tests/vendor-shop-arbitrage.mjs": "client-guards",
     "node tests/catalogue-coherence.mjs --mutate": "client-guards",

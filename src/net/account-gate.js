@@ -152,12 +152,8 @@
   // ════════════════════════════════════════════════════════════
   // 2 · STATE
   // ════════════════════════════════════════════════════════════
-  function storage() { return window.HearthriseStorage || null; }
   function readRaw(key) {
-    try {
-      var s = storage();
-      return s ? s.get(key) : localStorage.getItem(key);
-    } catch (e) { return null; }
+    try { return window.HearthriseStorage.get(key); } catch (e) { return null; }
   }
   function readCachedSession() {
     var raw = readRaw(SESSION_KEY);

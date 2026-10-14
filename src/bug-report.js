@@ -527,15 +527,15 @@ async function sendSupabase(payload) {
 
 function enqueue(payload) {
   try {
-    const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+    const q = window.HearthriseStorage.getJSON(QUEUE_KEY, []);
     q.push(payload);
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-25))); // cap
+    window.HearthriseStorage.setJSON(QUEUE_KEY, q.slice(-25)); // cap
   } catch {}
 }
 
 async function flushQueue() {
   let q;
-  try { q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return; }
+  try { q = window.HearthriseStorage.getJSON(QUEUE_KEY, []); } catch { return; }
   if (!q.length) return;
   const remaining = [];
   for (const p of q) {
@@ -552,7 +552,7 @@ async function flushQueue() {
     // exists to prevent. The queue is capped at 25, so keeping is safe.
     if (!direct.ok) remaining.push(p);
   }
-  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining)); } catch {}
+  window.HearthriseStorage.setJSON(QUEUE_KEY, remaining);
 }
 
 async function submit({ summary, description }) {

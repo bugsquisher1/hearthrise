@@ -21,8 +21,7 @@
   //   localStorage.setItem('hearthrise:home-v2','0')   → old Home back
   //   localStorage.removeItem('hearthrise:home-v2')    → new Home again
   function enabled() {
-    try { return localStorage.getItem('hearthrise:home-v2') !== '0'; }
-    catch (e) { return true; }
+    return window.HearthriseStorage.get('hearthrise:home-v2') !== '0';
   }
 
   function css() {

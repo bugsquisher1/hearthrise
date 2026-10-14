@@ -151,48 +151,9 @@ export function wrapRender(name, fn, opts = {}) {
   };
 }
 
-/**
- * Safely parse JSON from localStorage with a fallback.
- * Tolerates: missing key, malformed JSON, localStorage access denied.
- *
- * @template T
- * @param {string} key
- * @param {T} fallback
- * @returns {T}
- */
-export function safeLoadJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw == null) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed == null ? fallback : parsed;
-  } catch (err) {
-    console.warn('[safe] safeLoadJson("' + key + '") failed:', err.message);
-    return fallback;
-  }
-}
-
-/**
- * Safely write JSON to localStorage. Returns true on success.
- * Tolerates: quota exceeded, storage disabled, etc.
- *
- * @param {string} key
- * @param {*} value
- * @returns {boolean}
- */
-export function safeSaveJson(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch (err) {
-    console.warn('[safe] safeSaveJson("' + key + '") failed:', err.message);
-    return false;
-  }
-}
-
 // ── Classic-script bridge ────────────────────────────────────
 if (typeof window !== 'undefined') {
   window.HearthriseSafe = {
-    safeCall, wrapShowTab, wrapRender, safeLoadJson, safeSaveJson,
+    safeCall, wrapShowTab, wrapRender,
   };
 }

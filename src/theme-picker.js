@@ -10,7 +10,7 @@
 //   cozy-light / cozy-dark / classic are retired; readSaved() maps any stale
 //   stored id back to hearthlight (see the migration note there).
 //
-// Persists to localStorage('hearthrise:theme').
+// Persists to 'hearthrise:theme' through the storage seam (src/platform/storage.js).
 //
 // Public API:
 //   window.HearthriseTheme.setTheme('cozy-light' | 'cozy-dark' | 'classic')
@@ -58,7 +58,7 @@
 
   function setTheme(id) {
     if (!THEMES.find(t => t.id === id)) return;
-    try { localStorage.setItem(KEY, id); } catch {}
+    window.HearthriseStorage.set(KEY, id);
     applyTheme(id);
     // Analytics breadcrumb so we can measure beta tester preference
     try {

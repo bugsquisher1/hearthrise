@@ -292,25 +292,16 @@
       avatar: { data: null, remote: null, status: null, at: 0 }
     };
   }
-  function store() { return window.HearthriseStorage || null; }
+  function store() { return window.HearthriseStorage; }
   function load() {
     if (rec) return rec;
-    var s = store();
-    var raw = null;
-    try {
-      raw = s ? s.getJSON(STORE_KEY, null)
-              : JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-    } catch (e) { raw = null; }
+    var raw = store().getJSON(STORE_KEY, null);
     rec = (raw && typeof raw === 'object') ? raw : blank();
     if (!rec.avatar || typeof rec.avatar !== 'object') rec.avatar = blank().avatar;
     return rec;
   }
   function persist() {
-    var s = store();
-    try {
-      if (s) s.setJSON(STORE_KEY, rec);
-      else localStorage.setItem(STORE_KEY, JSON.stringify(rec));
-    } catch (e) { /* private mode: the session still works, it just won't persist */ }
+    store().setJSON(STORE_KEY, rec);   // private mode: the session still works, it just won't persist
   }
   function _reset() { rec = blank(); }
 

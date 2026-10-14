@@ -22,6 +22,50 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | 067e29aa Merge remote-tracking branch 'origin/main' into set/b570-bundle<br>64e66f26 merge: lane/b569-guard-selftest-scope (diff-scoped selftests + replay guards in lane-done; 4 stale proof arms fixed and registered)<br>77957232 Merge remote-tracking branch 'origin/lane/b569-spine-pointer' into set/b570-bundle<br>eb79f8bf Merge remote-tracking branch 'origin/lane/b569-copy-edge' into set/b570-bundle<br>1e39493c Merge remote-tracking branch 'origin/lane/b568-progress-coalesce' into set/b570-bundle |
 <!-- END GENERATED -->
 
+## 2026-10-14 — SIMPLIFICATION RULING S, AMENDED: one loop first (Game Designer, final design authority)
+
+Tyler, 2026-10-14: "lets simplify all of the systems for now and we can make them more in depth when we have a good core game". Ruling HR-2026-10-14-S answered that, and Tyler approved its wave 1. The master build plan of the same day (base b582 `7f7c790a`) then resolved its contradictions with the decision log. This section is the ruling as it now stands. Where it differs from the first draft, this section wins.
+
+**The loop.** Pick a hunt → pack food and ammo → the server hunts whether you watch or not → bring the loot home → sell it or turn it into better supplies and gear → pick a harder hunt. Hiding a surface is one data row and can be undone. A surface stays visible for as long as anything behind it still pays. Real deletions wait for their replacement or for the Early Access wipe.
+
+**The spine: 8 steps, using only facts that exist today.**
+1. Win 5 fights in the Mill Cellar. Combat opens from the first minute.
+2. Catch and cook 5 fish. Fishing, Cooking and Woodcutting open.
+3. Chop 15 logs and make a first supply, a plank or arrows. Crafting, Smithing, Mining, Runecrafting and Prayer open.
+4. Build the Homestead and hire a hand. The House and the Farm open.
+5. Win 100 fights and reach Combat 10. The Bounty Board and the war table's next card open.
+6. Harvest 6 crops.
+7. Reach Combat 15. Ridge Camp, the Monsters and Bosses tabs, Stonemason and the Dungeons open.
+8. Build the next house rung (the Farmstead today; the Manor after the house renumber).
+
+Quest rewards stay where QUEST_REWARDS already pays them: gatherer, first_cook, first_blood, farmhand and hundred_kills. No row without a product sits above the finished spine (`tests/reveal-coverage.mjs` R8).
+
+**First Steps: 5 cards.** Welcome → Hunt in the Mill Cellar → Win five fights (the same fact as spine step 1) → Sell the rat's loot → hand-off to the bar. A waiting step reward shows on the card with its own Claim. A "pack your bag" card arrives with B1.
+
+**Amendments to the first draft**
+
+| # | The first draft said | Now | Source |
+|---|---|---|---|
+| 1 | A Vigour meter from step 1; an action bar of at most 4 slots | **The 12 h stamina bar**: it drains 1:1 while hunting and refills 1:1 otherwise, and a hunt ends at 0. **The full 2×10 action bar** plus 2 quick slots. | Master plan row 22 |
+| 2 | Prayer hidden | **Prayer stays visible.** Capped at 99, HP regen now, mana regen with U2, at most ~20% of damage at 99 (the cap waits on Tyler's yes). | Tyler override; row 10 |
+| 3 | Discord gift cut; the Hearthkin Banner withdrawn | **Joining Discord grants the Hearthkin Banner** once per account, and no gems. | Tyler override; row 14 (W1-C(b)) |
+| 4 | The Bestiary becomes a plain monster book in wave 2b | **The bestiary is kept.** Stages at 500 / 1.5k / 4k / 10k kills boost the relic by 5/10/15/25% and the rare by 1/3/5/7%. Wave 2b neutralises only Boss of the Day, charm damage, the renown perk and bane/element lines. | Rows 7, 11 |
+| 5 | "No combat cap" | No **level** cap on combat. Stamina is the only time bound on a hunt. | Row 4 |
+| 6 | W1-A and W1-B ship together in wave 1 | W1-A ships once W1-C has applied, and hides only surfaces that pay nothing. **W1-B ships with B1**, because a hunt-first spine needs the hunt screen. W1-B's data rows are on `lane/b-w1b-hunt-first`; its UI integration happens on B1's set. | Row 22 |
+| 7 | 2 hunts per band | **3 hunts per tier** for T1–T6 (one weak to each style): 18 rows, 14 of them new | Row 23 |
+| 8 | (today's spine) step 7 "Craft and wear Leather Boots" | **"Make your first supply."** The Leather Boots retune and `2026-10-23-first-hour-boots.sql` are withdrawn, because the gear ruling deletes that recipe. | Row 13 |
+| 9 | A flat knockout of about 60 s | A flat 60 s knockout, resuming at 40% HP; 3 falls end the hunt. Each fall costs 2% XP and never a level (C2 owns it). | Rows 16, 21 |
+
+**Wave 1, as amended.**
+- W1-C applies first.
+- W1-A and the boots trim ship in M2.
+- W1-B (spine, coach, REVEALS remap, Home cut, no auto-popups, Shop split, name-only first sheet) ships with B1 in M3.
+
+**Handoffs.**
+- **Systems / W1-A:** W1-B owns every reveal row's `step` and `uses`; W1-A owns `product`.
+- **B1:** renames `card:vigour` to the stamina bar's row and gives the coach its pack-your-bag hop.
+- **Coordinator:** the boots trim is on `lane/c-first-hour-boots`.
+
 ## 2026-10-14 — LOOP CHECK: does the game still play as a loop after b574–b581? (Game Designer, final design authority)
 
 Tyler, 2026-10-14: "we need to make sure the game still PLAYS as we are expecting, there's still a loop". **How I checked:**
@@ -131,7 +175,7 @@ This hero's hour is the Monsters tab at Tier 4–5 (lane D: 19–29 swordfish an
 
 - **HR-2026-10-14 amended: Vigour is no longer a reason a hunt ends.** Tyler's 10-14 rule is no cap on combat. A hunt is bounded by its bag, its falls (default 3) and an optional hour limit. Vigour refills on the Fight screen go with it. Whether a daily budget moves to gathering and crafting, and how big it is, is the caps workflow's call; whatever it rules, the budget must include hired hands.
 - **The swap-then-delete order above binds C2, B1, R1 and G.** The receipt and the welcome pop-up stay for gathering until G.
-- **Step 7 retune (staged, not built):** Leather Boots move to Crafting 3, the pointer part changes to match, and the Local Shop stops selling Leather Boots. This is a data lane plus a catalogue regeneration and a lane-C apply.
+- **Step 7 retune (staged, not built; WITHDRAWN the same day by master plan row 13: step 7 is now "Make your first supply", see the ruling S section above):** Leather Boots move to Crafting 3, the pointer part changes to match, and the Local Shop stops selling Leather Boots. This is a data lane plus a catalogue regeneration and a lane-C apply.
 
 **Handoffs:**
 - **Backend + Security:** findings 1 and 2, and the step-7 catalogue.

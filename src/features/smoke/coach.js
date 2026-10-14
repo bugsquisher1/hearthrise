@@ -302,23 +302,27 @@ export default [
     } finally { restoreG(snap); CS.render(); window.showTab('profile'); }
   }),
 
-  () => tryRunAsync('ADV-4: Hunt sends start-hunt when the server takes it, else fights the first spawn', async () => {
+  () => tryRunAsync('ADV-4: Hunt declares combat:<hunt id>, the attended kill rolls its spawns, and a locked start is worded', async () => {
     const CS = window.HearthriseCombatScreens, snap = snapshotG(), A = window.HearthriseActivity, lv = window.getCombatLevel;
     try {
       window.getCombatLevel = () => 1;
-      const kinds = A.ACTIVITY_KINDS;
-      if (kinds.indexOf('hunt') === -1) {
-        const fb = CS.huntIntent('mill_cellar');
-        assert(fb && fb.kind === 'combat' && fb.id === 'rat', 'before the server lane, Hunt must fight the first spawn: ' + JSON.stringify(fb));
-      }
+      const fb = CS.huntIntent('mill_cellar');
+      assert(fb && fb.kind === 'combat' && fb.id === 'mill_cellar', 'the hunt intent is not combat:<hunt id>: ' + JSON.stringify(fb));
       try { window.stopCombat(); } catch (e) {}
       window.G.activeMonster = null;
       const sent = [];
-      window.HearthriseActivity = Object.assign({}, A, { ACTIVITY_KINDS: kinds.concat(kinds.indexOf('hunt') === -1 ? ['hunt'] : []), declare: (k, id) => { sent.push([k, id]); return null; } });
+      window.HearthriseActivity = Object.assign({}, A, { declare: (k, id) => { sent.push([k, id]); return null; } });
       window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
       document.querySelector('#wt-hunts .wt-hunt[data-hunt="mill_cellar"] [data-cs-act="hunt"]').click();
-      assert(JSON.stringify(sent) === '[["hunt","mill_cellar"]]', 'the Hunt button sent ' + JSON.stringify(sent));
-      assert(!window.G.activeMonster, 'a start-hunt invented a foe on the client; the server picks it');
+      assert(JSON.stringify(sent[sent.length - 1]) === '["combat","mill_cellar"]', 'the Hunt button sent ' + JSON.stringify(sent));
+      assert(['rat', 'slime', 'hive_wasp'].includes(window.G.activeMonster), 'the hunt did not open on one of its spawns: ' + window.G.activeMonster);
+      assert(window.localActivityPointer().id === 'mill_cellar', 'the local pointer names the foe, not the hunt: ' + JSON.stringify(window.localActivityPointer()));
+      const ctx = window.HearthriseCombatSim.ctx();
+      assert(ctx.hunt && ctx.hunt.id === 'mill_cellar' && ctx.hunt.spawns.length === 3, 'resolveKill gets no ctx.hunt on the attended path');
+      window.stopCombat();
+      assert(!window.HearthriseCombatSim.ctx().hunt, 'a stopped hunt still hands resolveKill its spawns');
+      const msg = A.activityRefusalMessage('activity_locked', { ok: false, error: 'activity_locked', detail: { id: 'ridge_camp', combat_level: 6, band_min: 15 } });
+      assert(/opens at Combat 15/.test(msg) && /Combat 6/.test(msg) && !/activity_locked/.test(msg), 'the locked refusal is not plain words: ' + msg);
     } finally {
       window.HearthriseActivity = A; window.getCombatLevel = lv;
       try { window.stopCombat(); } catch (e) {}

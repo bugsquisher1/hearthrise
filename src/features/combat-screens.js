@@ -1157,33 +1157,23 @@ function toggleFav(id) {
   render();
 }
 
-/** Does the server take the start-hunt intent yet? (lane c-hunts-c1). Until it
-    does, a hunt falls back to fighting its first spawn — the existing fight. */
-function huntIntentLive() {
-  const A = window.HearthriseActivity;
-  return !!(A && Array.isArray(A.ACTIVITY_KINDS) && A.ACTIVITY_KINDS.indexOf('hunt') !== -1);
-}
-
-/** What the Hunt button asks the server for. Pure; the suite reads it. */
+/** What the Hunt button asks the server for: the existing `set_activity`
+    with the hunt id as a combat pointer (HUNTS_AND_ANALYZER.md §2.1a). Pure. */
 function huntIntent(id) {
   const h = HUNTS.find((x) => x.id === id);
-  if (!h) return null;
-  return huntIntentLive() ? { kind: 'hunt', id: h.id } : { kind: 'combat', id: h.spawns[0].monster };
+  return h ? { kind: 'combat', id: h.id } : null;
 }
 
+/* The fight opens on the first spawn for instant feedback; the server's
+   envelope reconciles it and rolls every foe after. A below-band start is the
+   server's `activity_locked`, worded by activityRefusalMessage. */
 function startHunt(id) {
   const h = HUNTS.find((x) => x.id === id);
-  if (!h || combatLevel() < h.band[0]) return;
-  const want = huntIntent(id);
-  if (want.kind === 'hunt') {
-    window.HearthriseActivity.declare('hunt', h.id);
-    previewId = null;
-    setView('fight');
-  } else if (typeof window.startCombat === 'function') {
-    previewId = null;
-    window.startCombat(want.id);
-    setView('fight');
-  }
+  const g = G();
+  if (!h || !g || typeof window.startCombat !== 'function') return;
+  previewId = null;
+  if (!(g._huntId === h.id && g.activeMonster)) window.startCombat(h.spawns[0].monster, { hunt: h.id });
+  setView('fight');
 }
 
 /** The server's kill count per class, or null while the counters are unknown. */
@@ -1228,7 +1218,7 @@ function huntCard(h, lv, kills, starred) {
   const btn = locked ? lockLine(h.band[0])
     : `<button type="button" class="btn btn-sm btn-primary wth-go" data-cs-act="hunt" data-hunt="${esc(h.id)}">Hunt</button>`;
   return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}" data-hunt="${esc(h.id)}">
-    <div class="wth-art" data-art="${esc(h.art)}">
+    <div class="wth-art" data-art="${esc((MONSTERS[h.art] || MONSTERS[h.spawns[0].monster] || {}).cls || '')}">
       <button type="button" class="wth-fav" data-cs-act="fav" data-hunt="${esc(h.id)}" aria-pressed="${starred ? 'true' : 'false'}"` +
       ` aria-label="${starred ? 'Unstar' : 'Star'} ${esc(h.name)}" title="${starred ? 'Starred' : 'Star this hunt'}">${uiGlyph('uiStar', 14)}</button>
       <span class="wth-band">${esc(band)}</span>

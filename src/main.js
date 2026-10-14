@@ -502,6 +502,8 @@ import { setupKnowYourFoe } from './features/know-your-foe.js?v=575';
 import { setupNightPlan } from './features/night-plan.js?v=575';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=575';
+// The World pane (Home's second pane). A shell only: the renderer loads on first open.
+import { setupWorldPanel } from './features/world-panel.js?v=575';
 
 // Boot diagnostics
 const counts = {
@@ -569,6 +571,7 @@ function tryBootFeatures() {
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);
   boot('spoils', setupSpoils);
+  boot('world-panel', setupWorldPanel);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
      any boot path installs. Hand the per-key power budget back the outermost
      position immediately rather than waiting for its 1s watchdog — otherwise

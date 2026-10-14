@@ -1,0 +1,41 @@
+{
+  "id": "bed",
+  "class": "bed",
+  "material": "wood",
+  "source": "bed.png",
+  "frame": [
+    30,
+    54
+  ],
+  "anchor_px": [
+    15,
+    52
+  ],
+  "footprint": [
+    1,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "a049363d-60eb-4ed5-8f92-36e88d481df6",
+    "request": {
+      "description": "simple medieval wooden single bed seen from above in a top-down RPG, headboard at the top, straw mattress with a rough grey wool blanket and a pillow, footboard at the bottom, muted colours, dark outline, no shadow, no floor",
+      "width": 36,
+      "height": 56,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

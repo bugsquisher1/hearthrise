@@ -3978,3 +3978,19 @@ guard `tests/spine.mjs` (+`--selftest`).
 
 Server gap (lane C): nothing projects a dungeon clear (`hr_dungeon_settle` journals the ledger only).
 Step 17 reads `dungeon_clear:<id>` progress rows, shows the pending dash, and is forgiven once the Keep stands.
+
+## 2026-10-14 — lane W1, the world runtime (`lane/w1-world-runtime`)
+
+Canvas 2D World pane (Home's second pane) behind `{mount,setMap,sync,snapshot,destroy}`; pure core in
+`src/world/core/*`; maps as rows in `src/data/world/maps/*`; shipped OFF behind the `world` product.
+
+1. *Make the node test read the same list the canvas paints.* Both backends draw `composeFrame()`'s output,
+   so y-sort, roof and shadow rules are asserted on real maps without a browser; the canvas only executes.
+2. *A vacuous `every()` hid a dead check.* R3 passed over an empty slice list because the inn was culled out
+   of the default view; the selftest caught it. Pin the population (`length === 6`) next to every `every`.
+3. *Deep writes slip a first-segment regex.* `G.stats.kills++` passed the first W-G pattern; the guard now
+   allows a member chain after the captured first segment. Plant nested writes in any write guard.
+4. *A filtered `run-smoke --only` still runs the whole node gate list first.* For one in-page slice on a
+   busy box, drive `__smokeTest({only})` from a scratch harness boot instead.
+5. *Headless rAF is not the game's frame rate.* Idle rAF was 17-32/s on the loaded box; measure loop
+   frames against raw rAF before blaming a throttle.

@@ -62,6 +62,8 @@ export const REVEALS = Object.freeze([
   row('pane:party', 10),
   row('pane:events', 10),
   row('pane:social', 10),
+  // The World pane ships behind its own switch (src/features/world-panel.js WORLD_LAUNCHED).
+  row('pane:world', 1, [], 'world'),
 
   // ── Combat war table ───────────────────────────────────────────────────
   row('war:botd', 3, fought),

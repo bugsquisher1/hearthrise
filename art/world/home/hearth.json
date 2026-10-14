@@ -1,0 +1,42 @@
+{
+  "id": "hearth",
+  "class": "fixture",
+  "material": "stone",
+  "source": "hearth.png",
+  "frame": [
+    60,
+    64
+  ],
+  "anchor_px": [
+    29,
+    62
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "shadow": null,
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "db702bc0-edcf-4326-ad45-bfb203977f1b",
+    "request": {
+      "description": "stone fireplace hearth built against a wall, seen from the front in a top-down RPG, arched opening with a crackling fire and a hanging iron pot, stone chimney breast rising above, muted colours, dark outline, no floor",
+      "width": 64,
+      "height": 72,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

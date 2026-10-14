@@ -26,10 +26,10 @@ import { compileMap } from './core/map-compile.js?v=576';
 import { STUB_SPRITE } from './core/book.js?v=576';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=576';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=576';
-import { readScene, setChoice } from './store.js?v=576';
+import { readScene, setChoice, activityOf } from './store.js?v=576';
 import { loadAtlases } from './atlas.js?v=576';
 import { createCanvasBackend } from './render/canvas-backend.js?v=576';
-import { huntOfMap } from './hunt-maps.js?v=576';
+import { huntOfMap, mapForActivity } from './hunt-maps.js?v=576';
 import { createHuntScene } from './hunt-scene.js?v=576';
 import { createHuntChrome, hudModel } from './hunt-chrome.js?v=576';
 
@@ -151,7 +151,7 @@ export async function bootWorld(panel, opts = {}) {
       hud.paint(null);
       cast = { hero: { x: map.start[0], y: map.start[1] } };
       const showIdle = !scenesReady();
-      if (showIdle && idle.hidden) { idle.innerHTML = idleCardHtml(!!G.activeMonster); idle.hidden = false; }
+      if (showIdle && idle.hidden) { idle.innerHTML = idleCardHtml(!!G.activeMonster && !mapForActivity(activityOf(G))); idle.hidden = false; }
       if (!showIdle) idle.hidden = true;
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));

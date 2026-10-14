@@ -198,7 +198,7 @@ export function composeFrame(map, book, state, view, tables, T) {
  * The frame of a clip `age` ms in: looping clips cycle at their fps; a one-shot
  * (attack, hit, death, down) plays once and HOLDS its last frame.
  */
-export function clipFrame(book, id, anim, dir, age) {
+function clipFrame(book, id, anim, dir, age) {
   const s = book.sprite(id);
   const clip = s.anims && (s.anims[anim] || s.anims.idle);
   if (!clip || !clip.fps) return 0;

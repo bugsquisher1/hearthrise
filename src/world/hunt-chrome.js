@@ -22,7 +22,7 @@ const num = (v) => (v != null && Number.isFinite(Number(v)) ? Math.round(Number(
 const signed = (v) => (v != null && Number.isFinite(Number(v)) ? (Number(v) > 0 ? '+' : '') + num(v) : '—');
 
 /** "12 s ago", "4 min ago", "2 h ago" — the age of a server timestamp at `now`. */
-export function settledAgo(iso, now) {
+function settledAgo(iso, now) {
   const at = Date.parse(String(iso || ''));
   if (!Number.isFinite(at)) return null;
   const s = Math.max(0, Math.round((now - at) / 1000));

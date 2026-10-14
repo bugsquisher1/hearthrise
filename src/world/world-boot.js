@@ -12,15 +12,15 @@
 // server-held state (store.js), steps the roof fades, and hands the backend
 // one state object.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=573';
-import { TERRAIN, PROPS } from '../data/world/terrain.js?v=573';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=573';
-import { compileMap } from './core/map-compile.js?v=573';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=573';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=573';
-import { readScene, setChoice } from './store.js?v=573';
-import { createAtlasBook } from './atlas.js?v=573';
-import { createCanvasBackend } from './render/canvas-backend.js?v=573';
+import { BUILD } from '../build-info.js?v=574';
+import { TERRAIN, PROPS } from '../data/world/terrain.js?v=574';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=574';
+import { compileMap } from './core/map-compile.js?v=574';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=574';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=574';
+import { readScene, setChoice } from './store.js?v=574';
+import { createAtlasBook } from './atlas.js?v=574';
+import { createCanvasBackend } from './render/canvas-backend.js?v=574';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 

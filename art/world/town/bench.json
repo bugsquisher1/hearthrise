@@ -1,0 +1,42 @@
+{
+  "id": "bench",
+  "class": "bench",
+  "material": "wood",
+  "source": "bench.png",
+  "frame": [
+    50,
+    16
+  ],
+  "anchor_px": [
+    25,
+    14
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "2acdbc69-0102-46aa-8c28-6922656142b9",
+    "request": {
+      "description": "simple long wooden bench with four legs, straight front view, top-down RPG, muted brown wood, dark outline, no shadow, no ground",
+      "width": 56,
+      "height": 32,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "Where away and idle players sit."
+}

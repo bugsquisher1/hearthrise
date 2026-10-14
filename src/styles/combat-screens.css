@@ -1764,11 +1764,14 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   font-size: var(--t-micro, 11px); font-weight: 700; font-variant-numeric: tabular-nums;
 }
 #panel-combat .wth-fav {
-  position: absolute; top: 6px; right: 6px; width: 28px; height: 28px;
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card); color: var(--ink-3);
   border: 1px solid var(--line-soft); border-radius: 50%; cursor: pointer;
 }
+/* The painted star stays small; the thumb gets the 44px tap floor (the visual
+   gate's small-target rule measures this ::after box, not the paint). */
+#panel-combat .wth-fav::after { content: ''; position: absolute; inset: calc((100% - var(--tap, 44px)) / 2); }
 #panel-combat .wth-fav:hover { color: var(--ink); }
 #panel-combat .wth-fav[aria-pressed="true"] { color: var(--gold-2); border-color: var(--gold-2); }
 #panel-combat .wth-body { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 4px; flex: 1 1 auto; min-width: 0; }
@@ -1810,13 +1813,14 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 #panel-combat .wt-row.is-locked .wtr-main b { color: var(--ink-2); }
 
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  #panel-combat .wt-tab { padding: 3px 10px 4px; font-size: var(--t-micro, 11px); }
+  #panel-combat .wt-tab { min-height: var(--tap); padding: 0 10px; font-size: var(--t-micro, 11px); }
   #panel-combat .wt-hunts { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
   #panel-combat .wth-art { height: 46px; }
   #panel-combat .wth-theme { display: none; }
   #panel-combat .wth-body { gap: 4px; padding: 5px 8px 2px; }
   #panel-combat .wth-name { font-size: var(--t-small, 13px); }
-  #panel-combat .wth-fav { width: 24px; height: 24px; top: 4px; right: 4px; }
+  /* 10px in from the card edge so the 44px hit box is not clipped by the card's overflow. */
+  #panel-combat .wth-fav { width: 24px; height: 24px; top: 10px; right: 10px; }
   #panel-combat .wt-hunt footer { padding: 4px 8px 6px; }
   #panel-combat .wt-hunt footer .btn { min-height: 22px; line-height: 22px; }
   #panel-combat .wt-row { padding: 4px; }

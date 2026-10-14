@@ -1,0 +1,136 @@
+{
+  "id": "rat",
+  "class": "critter",
+  "material": "fur",
+  "source": "rat.png",
+  "anchor_px": [
+    24,
+    40
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    6,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 12,
+      "loop": false,
+      "hit": 2,
+      "dirs": {
+        "s": 7,
+        "e": 7,
+        "n": 7,
+        "w": 7
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 7,
+        "e": 7,
+        "n": 7,
+        "w": 7
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "character": {
+      "tool": "create_character",
+      "id": "bc3281c4-300d-458f-b3f5-1ecfac9fdd92",
+      "request": {
+        "description": "giant cellar rat, coarse grey-brown fur, long thin tail, small black eyes, hunched back, muted earthy colours, gritty medieval dungeon vermin, seen from above",
+        "body_type": "quadruped",
+        "template": "cat",
+        "mode": "standard",
+        "n_directions": 4,
+        "size": 19,
+        "view": "high top-down",
+        "outline": "single color black outline",
+        "shading": "detailed shading",
+        "detail": "high detail"
+      }
+    },
+    "animations": {
+      "walk": {
+        "tool": "animate_character",
+        "template_animation_id": "walk-6-frames",
+        "group": "620ca288-445b-44c1-bd13-cfdb2a6213af"
+      },
+      "attack": {
+        "tool": "animate_character",
+        "mode": "v3",
+        "action_description": "lunging forward and biting, then recoiling back to stance",
+        "frame_count": 6,
+        "group": "26e1c09b-6119-4139-a310-e68435723bf2"
+      },
+      "hit": {
+        "tool": "animate_character",
+        "mode": "v3",
+        "action_description": "flinching backwards from a hard hit, then steadying",
+        "frame_count": 4,
+        "group": "411b632d-89d8-4468-aa2e-61bd6ff60054"
+      },
+      "death": {
+        "tool": "animate_character",
+        "mode": "v3",
+        "action_description": "collapsing and rolling onto its side, lying dead and still on the floor",
+        "frame_count": 6,
+        "group": "05cda938-0c52-45c6-890c-aca366f95d48"
+      }
+    }
+  },
+  "notes": "Size 19 (the first, size-24 rat measured 27 px long: over budget). PixelLab drew south and north as the same overhead view (head up), so south is the north view turned 180 degrees. Top views stand on the body (mass) bottom; the tail lies on the floor behind and is declared as 6 px overhang. Death and corpse use the east clip for every direction, mirrored for n/w; corpse = the last death frame."
+}

@@ -23,8 +23,8 @@
 //
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=573';
-import { BIAS } from './zsort.js?v=573';
+import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=574';
+import { BIAS } from './zsort.js?v=574';
 
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);

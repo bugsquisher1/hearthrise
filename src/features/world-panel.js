@@ -13,7 +13,7 @@
 // Home strip ("Coming in a later update"); the in-page suite opens it through
 // the harness, which reveals every product.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=573';
+import { BUILD } from '../build-info.js?v=574';
 
 const WORLD_LAUNCHED = false;
 let pending = null;
@@ -51,7 +51,7 @@ function ensureStyles() {
 function loadWorld() {
   if (!pending) {
     ensureStyles();
-    pending = import('../world/world-boot.js?v=573')
+    pending = import('../world/world-boot.js?v=574')
       .then((m) => { runtime = m.bootWorld(panel()); runtime.sync(); return runtime; })
       .catch((e) => {
         pending = null;

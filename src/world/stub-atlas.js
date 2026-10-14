@@ -13,7 +13,7 @@
 // names tones, never colours. stubGeometry() is pure; paintStub() needs a 2D
 // context.
 // ════════════════════════════════════════════════════════════════════════
-import { PROPS, TERRAIN } from '../data/world/terrain.js?v=573';
+import { PROPS, TERRAIN } from '../data/world/terrain.js?v=574';
 
 const box = (w, h, ax, ay, bx, by, bw, bh, tone) => Object.freeze({ w, h, ax, ay, box: Object.freeze([bx, by, bw, bh]), tone });
 

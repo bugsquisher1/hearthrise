@@ -16,11 +16,11 @@
 //   3. draw the nameplates at SCREEN resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=573';
-import { zoomFor, frameView } from '../core/camera.js?v=573';
-import { composeFrame } from '../core/compose.js?v=573';
-import { wangLayers } from '../core/wang.js?v=573';
-import { TERRAIN } from '../../data/world/terrain.js?v=573';
+import { T } from '../core/grid.js?v=574';
+import { zoomFor, frameView } from '../core/camera.js?v=574';
+import { composeFrame } from '../core/compose.js?v=574';
+import { wangLayers } from '../core/wang.js?v=574';
+import { TERRAIN } from '../../data/world/terrain.js?v=574';
 
 const CHUNK = 16 * T;
 

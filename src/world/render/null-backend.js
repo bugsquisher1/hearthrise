@@ -1,10 +1,10 @@
 // src/world/render/null-backend.js — the backend with no screen.
 // Same interface as canvas-backend.js ({ mount, setMap, sync, snapshot, destroy }) and the
 // same compose step, so a node test reads exactly the draw list the canvas would paint.
-import { T } from '../core/grid.js?v=573';
-import { frameView } from '../core/camera.js?v=573';
-import { composeFrame } from '../core/compose.js?v=573';
-import { stubGeometry } from '../stub-atlas.js?v=573';
+import { T } from '../core/grid.js?v=574';
+import { frameView } from '../core/camera.js?v=574';
+import { composeFrame } from '../core/compose.js?v=574';
+import { stubGeometry } from '../stub-atlas.js?v=574';
 
 /** @param {{view?: {w:number,h:number}, geometry?: Function}} [o] view in art px */
 export function createNullBackend(o = {}) {

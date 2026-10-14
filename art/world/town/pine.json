@@ -1,0 +1,42 @@
+{
+  "id": "pine",
+  "class": "tree",
+  "material": "foliage",
+  "source": "pine.png",
+  "frame": [
+    74,
+    114
+  ],
+  "anchor_px": [
+    37,
+    112
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "shadow": "cast",
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "73c5a2ba-4d06-4037-9cae-e2bd1ec3413f",
+    "request": {
+      "description": "tall dark fir tree with dense layered drooping branches reaching low and wide, short brown trunk visible only at the base, top-down RPG tree seen from the front and above, muted deep greens, dark outline, no shadow, no ground, no grass",
+      "width": 84,
+      "height": 124,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

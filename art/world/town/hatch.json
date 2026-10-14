@@ -1,0 +1,42 @@
+{
+  "id": "hatch",
+  "class": "decal",
+  "material": "wood",
+  "source": "hatch.png",
+  "frame": [
+    24,
+    28
+  ],
+  "anchor_px": [
+    12,
+    26
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "c4645c68-527b-4446-aef1-ea1684266bca",
+    "request": {
+      "description": "closed wooden cellar trapdoor with iron bands and a ring handle set flat into the ground, seen from directly above, top-down RPG, muted brown wood, dark outline, no shadow",
+      "width": 32,
+      "height": 32,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "The mill cellar hatch, flat in the ground: the combat station."
+}

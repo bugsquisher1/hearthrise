@@ -8,8 +8,8 @@
 // A sprite no loaded atlas carries gets its stub (stub-atlas.js), so the
 // world draws completely before, during and after the real art arrives.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=573';
-import { stubGeometry, paintStub } from './stub-atlas.js?v=573';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=574';
+import { stubGeometry, paintStub } from './stub-atlas.js?v=574';
 
 /**
  * @param {{doc: Document, colour: (name: string) => string, version: number|string,

@@ -18,9 +18,9 @@
 // tall (a WALL_FACE_PX face that a door fits under, plus its cap).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { BIAS, ySort } from './zsort.js?v=573';
-import { heroBuilding, wallHeight } from './roofs.js?v=573';
-import { ellipseShadow, castShadow } from './shadows.js?v=573';
+import { BIAS, ySort } from './zsort.js?v=574';
+import { heroBuilding, wallHeight } from './roofs.js?v=574';
+import { ellipseShadow, castShadow } from './shadows.js?v=574';
 
 export const WALL_FACE_PX = 48;
 export const WALL_PX = 58;

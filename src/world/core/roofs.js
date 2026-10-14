@@ -9,7 +9,7 @@
 // ROOF_FADE_MS rather than popping.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { inRect } from './grid.js?v=573';
+import { inRect } from './grid.js?v=574';
 
 export const ROOF_FADE_MS = 150;
 export const SOUTH_STUB_PX = 12;

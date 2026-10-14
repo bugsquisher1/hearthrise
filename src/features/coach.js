@@ -26,10 +26,10 @@
 // fact is "not yet", and an unknown character is not a new one.
 // ════════════════════════════════════════════════════════════════════════
 
-import { COACH_STEPS, COACH_LOOT, COACH_FOE, COACH_ADVANCED_LEVELS, COACH_RETURNING_MS } from '../data/coach.js?v=575';
-import { START_SKILL_XP } from '../data/start-kit.js?v=575';
-import { SKILLS_DEF } from '../data/skills.js?v=575';
-import * as Draw from '../render/coach.js?v=575';
+import { COACH_STEPS, COACH_LOOT, COACH_FOE, COACH_ADVANCED_LEVELS, COACH_RETURNING_MS } from '../data/coach.js?v=576';
+import { START_SKILL_XP } from '../data/start-kit.js?v=576';
+import { SKILLS_DEF } from '../data/skills.js?v=576';
+import * as Draw from '../render/coach.js?v=576';
 
 const PERSISTENT = new Set(['count', 'xp', 'kills']);
 const LOCKED = '.locked, .is-locked, [disabled], [aria-disabled="true"]';

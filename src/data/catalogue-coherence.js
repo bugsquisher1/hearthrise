@@ -30,7 +30,6 @@ import { ITEMS } from './items.js?v=584';
 import { ARTISAN_RECIPES } from './recipes.js?v=584';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=584';
 import { SKILLS_DEF } from './skills.js?v=584';
-import { DUNGEONS, QM_STOCK } from './dungeons.js?v=584';
 import { SHOP_OFFERS } from './shops.js?v=584';
 import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=584';
 import { HEARTHFIND_ITEMS } from './hearthfind.js?v=584';
@@ -38,7 +37,7 @@ import { EFFECT_KINDS } from './item-effects.js?v=584';
 import { MONSTERS } from './monsters.js?v=584';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-  qmStockIds, shopGrantIds, goalRewardIds, raidRewardIds, dungeonRewardIds,
+  shopGrantIds, goalRewardIds,
 } from './item-authority.js?v=584';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
@@ -51,7 +50,6 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
-  dungeon_scrip: Object.freeze({ label: 'dungeon clears (hr_dungeon_settle)', file: 'supabase/functions/hr-accrue/dungeon-settle.js', needle: 'scrip' }),
   hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/legacy.js', needle: "addItem('hearth_token'" }),
 });
 
@@ -96,11 +94,8 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  addSet(m, qmStockIds(), 'Quartermaster');
   addSet(m, shopGrantIds(), 'shop');
-  addSet(m, goalRewardIds(), 'quest or daily reward');
-  addSet(m, raidRewardIds(), 'clan hunt chest');
-  addSet(m, dungeonRewardIds(DUNGEONS), 'dungeon');
+  addSet(m, goalRewardIds(), 'quest reward');
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');
@@ -120,20 +115,13 @@ export function itemUses() {
   for (const o of SHOP_OFFERS) {
     for (const c of (o && o.cost) || []) if (c && c.kind === 'item') push(m, c.id, 'pays for ' + o.id);
   }
-  if (QM_STOCK.length) push(m, 'dungeon_scrip', 'spent at the Quartermaster');
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
-  const roomOffer = new Set(SHOP_OFFERS.map((o) => o && o.id).filter(Boolean));
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');
   for (const id of Object.keys(ITEMS)) {
     const it = ITEMS[id] || {};
     if (EQUIP_TYPES[it.type] || it.slot) push(m, id, 'worn');
-    if (it.type === 'tool' && it.toolSkill && SKILLS_DEF[it.toolSkill]) push(m, id, it.toolSkill + ' tool');
     if (Number(it.heals) > 0 || it.buff) push(m, id, 'eaten');
-    if (it.unlocks && DUNGEONS[it.unlocks]) push(m, id, 'opens ' + it.unlocks);
-    if (it.unlocks && roomOffer.has('room.' + it.unlocks)) push(m, id, 'opens room rung ' + it.unlocks);
-    if (it.tag === 'rune' && it.element) push(m, id, 'enchants a weapon (' + it.element + ')');
-    if (it.tag === 'castle') push(m, id, 'clan castle stores');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
   return m;
@@ -155,7 +143,6 @@ export const ENGINE_SKILL_CONSUMERS = Object.freeze({
   hitpoints:    Object.freeze({ label: 'max HP (accrual engine)', file: 'supabase/functions/hr-accrue/accrual.js', needle: "ev.skill === 'hitpoints'" }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
-  bountyHunter: Object.freeze({ label: 'contract boards (bounty engine)', file: 'src/core/bounty.js', needle: 'bountyHunter' }),
 });
 
 /** skill -> [consumer labels]: who uses what the skill makes. */

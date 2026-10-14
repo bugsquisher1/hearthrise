@@ -30,8 +30,8 @@ export const ITEMS={
      override one. See src/data/library2-items.js for the derivation, the three
      landing states, and the power-budget accounting. */
   ...LIB2_ITEMS,
-  /* Runecrafting + Stonemason: quarried stone, dressed blocks, blank runes,
-     the 7-tier rune ladder, the 7-tier whetstone ladder and `ashlar`.
+  /* Runecrafting: rune essence, blank runes, the 7-tier rune ladder and the
+     7-tier whetstone ladder (smithed since Stonemason was cut, 2026-10-14).
      New ids only. See src/data/stonecraft.js for every ruling behind them. */
   ...STONECRAFT_ITEMS,
   /* W0 (2026-10-10): the three boss-forged body pieces (src/data/boss-forge.js)
@@ -39,6 +39,15 @@ export const ITEMS={
   ...BOSS_FORGE_ITEMS,
   ...CHAMPION_ITEMS,
 
+  /* HELD (demolition 2026-10-14): tools, dungeon keys and their engines are
+     deleted, but the Journeyman's Road still pays these four ids. They leave
+     together with the re-reward (designer ruling §6), which is a three-way
+     change — goal-catalogue QUEST_REWARDS, legacy.js QUEST_DEFS and the
+     hr_quest_rewards seed (Security GO) — bound by tests/quest-reward-parity.mjs. */
+  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
+  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
+  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
+  bone_key:{n:'Bone Key',icon:'🦴',v:0,bop:true,rarity:'uncommon',tag:'key',unlocks:'crypt_of_bones'},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},

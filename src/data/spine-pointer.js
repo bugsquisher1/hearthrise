@@ -25,7 +25,7 @@
 // deadlocks. PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS, count, combat, property, workers, item, cleared } from './spine.js?v=584';
+import { SPINE_STEPS, count, combat, property, workers, item } from './spine.js?v=584';
 import { SHOP_OFFERS } from './shops.js?v=584';
 
 export const level = (skill, min) => Object.freeze({ fact: 'level', skill, min });
@@ -42,10 +42,8 @@ export const ROUTES = Object.freeze({
   mine: route('skills', 'Go mine', 'mining', 'mining'),
   craft: route('skills', 'Go craft', 'crafting', 'crafting'),
   smith: route('skills', 'Go smith', 'smithing', 'smithing'),
-  stone: route('skills', 'Go cut stone', 'stonemason', 'stonemason'),
   gather: route('skills', 'Go gather', 'totalLvl'),
   fight: route('combat', 'Go fight', 'navCombat'),
-  crypt: route('dungeons', 'Go to the Crypt', 'navDungeons'),
   plant: route('farming', 'Go plant', 'farming'),
   farm: route('farming', 'Go farm', 'farming'),
   sell: route('shop', 'Go sell', 'gold'),
@@ -62,8 +60,9 @@ export const ACTS = new Set(['build', 'hire', 'wear']);
 export const ITEM_ROUTE = Object.freeze({
   normal_log: 'chop', oak_log: 'chop', copper_ore: 'mine', iron_ore: 'mine',
   wolf_pelt: 'fight', silk_thread: 'fight', big_bones: 'fight', bear_pelt: 'fight', dragon_scale: 'fight',
-  cooked_shrimp: 'cook', leather_boots: 'craft', willow_plank: 'craft', maple_plank: 'craft', yew_plank: 'craft',
-  steel_bar: 'smith', mithril_bar: 'smith', rune_bar: 'smith', ashlar: 'stone',
+  cooked_shrimp: 'cook', willow_plank: 'craft', maple_plank: 'craft', yew_plank: 'craft',
+  steel_bar: 'smith', mithril_bar: 'smith', rune_bar: 'smith',
+  iron_fitting: 'smith', timber_beam: 'craft', keystone: 'craft',
 });
 
 const part = (need, go, label) => Object.freeze({ need, go, label: label || null, act: ACTS.has(go) });
@@ -117,26 +116,22 @@ const DISPLAY = {
   first_hand: {
     title: 'Hire your first hand', why: 'Your hand keeps gathering while you are offline.',
     parts: hireParts('worker.1'),
-    opens: opens('Crafting and Smithing open', 'Turn hides and ore into gear you can wear.'),
+    opens: opens('Crafting and Smithing open', 'Saw planks and smelt bars for everything you build.'),
   },
-  /* The reveal counts the first craft; the pointer asks for the boots on the
-     player's feet (the server's worn set), because gear worn is the payoff. */
   first_craft: {
-    title: 'Craft and wear Leather Boots', why: 'Gear you make yourself is the surest way to hit harder.',
-    need: [count('crafted', 1), wears('boots')], chain: true,
-    parts: [part(level('crafting', 8), 'craft'), part(item('wolf_pelt', 2), 'fight'),
-      part(item('leather_boots', 1), 'craft'), part(wears('boots'), 'wear')],
+    title: 'Craft your first item', why: 'Planks and arrows start at the crafting bench, and so does every building stock.',
+    parts: [part(count('crafted', 1), 'craft', 'Items crafted')],
     opens: opens('Sell your surplus on the Player Market', 'Other players buy what you do not need.'),
   },
   first_harvest: {
     title: 'Harvest 6 crops', why: 'A full harvest feeds you and sells well.',
     parts: [part(count('ev:harvest', 6), 'farm', 'Crops harvested')], quest: 'farmhand',
-    opens: opens('The Bounty Board opens', 'Take paid hunting contracts from the board.'),
+    opens: opens('Time to toughen up', 'A hundred fights and Combat 10 make you a seasoned fighter.'),
   },
   seasoned: {
     title: 'Become a seasoned fighter', why: 'A seasoned fighter can take on the wider realm.',
     parts: [part(count('ev:kill_any', 100), 'fight', 'Monsters defeated'), part(combat(10), 'fight', 'Combat level')], quest: 'hundred_kills',
-    opens: opens('The wider realm opens', 'Join parties and realm events with other players.'),
+    opens: opens('Ready for the Farmstead', 'A bigger home with more plots and a second hand.'),
   },
   farmstead: {
     title: 'Build the Fieldworth Farmstead', why: 'The Farmstead adds plots, a second hand and the Workshop, Cellar and Forge.',
@@ -151,12 +146,13 @@ const DISPLAY = {
   road_craft: {
     title: 'Craft 60 items', why: 'The reward is an iron axe that cuts willow.',
     parts: [part(count('ev:crafted', 60), 'craft', 'Items crafted')], quest: 'road_craft',
-    opens: opens('Stonemason opens', 'Cut stone into ashlar, the blocks the Manor is built from.'),
+    opens: opens('An iron axe', 'Your new axe cuts willow.'),
   },
-  cut_ashlar: {
-    title: 'Cut 6 blocks of ashlar', why: 'The Manor is built of ashlar, and only a stonemason can cut it.',
-    parts: [part(level('stonemason', 45), 'stone'), part(item('ashlar', 6), 'stone')], chain: true,
-    opens: opens('Ashlar in hand', 'You have the stone for Stonecross Manor.'),
+  building_stock: {
+    title: 'Make 6 iron fittings and 6 timber beams', why: 'Stonecross Manor is framed in timber and bound in iron.',
+    parts: [part(level('smithing', 25), 'smith'), part(level('crafting', 25), 'craft'),
+      part(item('iron_fitting', 6), 'smith'), part(item('timber_beam', 6), 'craft')], chain: true,
+    opens: opens('Building stock in hand', 'You have the iron and timber for Stonecross Manor.'),
   },
   road_gather: {
     title: 'Gather 500 resources', why: 'Every building from here on needs loads of wood and ore.',
@@ -173,12 +169,10 @@ const DISPLAY = {
     parts: [part(count('ev:kill_any', 500), 'fight', 'Monsters defeated')], quest: 'road_hunt',
     opens: opens('A key to the Crypt', 'The Crypt of Bones opens at combat level 25.'),
   },
-  /* No server fact counts a dungeon clear yet, so the clear part reads the
-     pending dash and the step is forgiven once the Keep is built. */
-  crypt: {
-    title: 'Clear the Crypt of Bones', why: 'The Marrow King waits at its heart with a deed for the taking.',
-    parts: [part(combat(25), 'fight', 'Combat level'), part(cleared('crypt_of_bones'), 'crypt', 'Crypt cleared')],
-    opens: opens('The Crypt is cleared', 'One more home to build before the Castle.'),
+  bear_hunt: {
+    title: 'Bring home 5 bear pelts', why: 'Ironvale Keep needs bear pelts, and bears only face fighters of Combat 45.',
+    parts: [part(combat(45), 'fight', 'Combat level'), part(item('bear_pelt', 5), 'fight')],
+    opens: opens('Pelts in hand', 'One more home to build before the Castle.'),
   },
   keep: {
     title: 'Build Ironvale Keep', why: 'The Keep is the last stop before the Castle.',

@@ -216,7 +216,8 @@ export function createCanvasBackend(o) {
       ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
       const [ax, y0] = at(p.x, p.y - 3);
       const half = ctx.measureText(p.text).width / 2 + px / 3;
-      const x = Math.max(half, Math.min(W - half, ax));   // a name at the stage edge slides in, never cut
+      /* a name whose owner is (even half) on the canvas slides in from the edge rather than being cut */
+      const x = ax >= -16 * z && ax <= W + 16 * z ? Math.max(half, Math.min(W - half, ax)) : ax;
       let y = y0;
       for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
       placed.push({ l: x - half, r: x + half, t: y - px, b: y });

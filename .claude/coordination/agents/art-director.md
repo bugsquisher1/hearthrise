@@ -2821,3 +2821,25 @@ gold…" instead of "Not enough gold". Paydown: every .mk-* override in audit-ov
 .mk-screen joined the carve-out string.
 Lesson: an empty state is a claim about the whole list, so it has to be computed over the same set
 the player thinks of as "the market" - which includes their own listing.
+
+### 2026-10-14 · lane/w2-world-art: the pixel world gets one scale, one palette and a floor
+
+Tyler and a friend picked the v3 mockups apart: floating chest and NPC, three shadow styles, roofs
+see-through from outside, wall clipping, characters huge beside the furniture, trees small. All six
+are properties of pixels and placement, so the fix is a pipeline that measures them, not a better
+prompt. `tools/world-art/{png,lock,measure,validate,pack,build}.mjs` (node, zero deps) turns curated
+sources in `art/world/<set>/` into `assets/world/atlas-<set>.{png,json}`; `src/data/world/art-budget.js`
+is the class table (body ±10%, frame, contact rule, shadow, layer) and the manifest contract;
+`tests/world-assets.mjs` measures the SHIPPED atlases and plants the five named defects into real
+sprites (floated chest, 50 px hero, off-palette pixel, baked shadow, iso-corner chest) plus a
+hand-edited atlas pixel; every one is caught by its named rule.
+Run against the v3 raws the validator names the old defects outright (DISCOVERIES 2026-10-14). New
+art: v3 hero at size 40 (36 px body) with v3-custom idle/walk/attack/down in four facings; rat, slime,
+hive wasp with walk/attack/hit/death/corpse; cellar Wang floor; fieldstone walls, rims, arch; 40-odd
+props; a `proof` set (timber/plank walls, roofs with a ridge, plank floor, furniture, trees, three peer
+looks) for the three stills in `docs/art-experiments/world/`.
+Lessons: (1) template animations redraw the character: the shield came and went between frames, so
+every clip is a v3 custom clip from the rotation frame; (2) a unit stands on its feet and a chest on
+its base: one "contact row" rule cannot serve both; (3) iso is a shape (a centre corner climbing in
+straight stairs), not a size; (4) the hardcoded-colour ratchet was right to stop a 40-hex palette in
+`src/`: the palette is an art asset (`art/world/palette.json`), the grading rules are data.

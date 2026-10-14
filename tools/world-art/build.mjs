@@ -33,7 +33,7 @@ import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } from './validate.mjs';
 import { pack } from './pack.mjs';
 import { CLASSES, DIRS, T, SHADOW, MANIFEST_VERSION, atlasPaths } from '../../src/data/world/art-budget.js';
-import { PALETTE_ID } from '../../src/data/world/palette.js';
+import { PALETTE_ID } from './palette.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const ART_DIR = 'art/world';

@@ -3218,3 +3218,46 @@ src/render/icons.js), so canvas margins no longer change apparent size. What CSS
 - `hearthfire/items/iron_bar.png`, `steel_bar.png`, `mithril_bar.png` carry a painter's mark in the bottom
   rows. The runtime crop drops it as debris on cards and in the Recipe Book, but any surface that draws the
   raw file (inventory, market) still shows it. Trim the files.
+
+## 2026-10-14 · art-director -> W1 world-runtime · the atlas manifest is real now (lane/w2-world-art)
+
+No `lane/w1-world-runtime` existed on origin, so the contract is defined in
+`src/data/world/art-budget.js` (MANIFEST block) and three real atlases ship: `assets/world/atlas-hero`,
+`atlas-cellar`, `atlas-proof` (.png + .json). Build against them, not stubs. Rules the renderer owns:
+- **Placement:** whole tiles. Draw a frame at `(tx*T + T*fw/2 - anchor.x, ty*T + T*fh - 1 - anchor.y)`;
+  sort by that contact row. Never offset a sprite by hand: a float is a data bug the guard catches.
+- **Units** share one frame per class (character 64x64 anchor 32,58; critter/flier 48x48). Fliers carry
+  their hover inside the frame: the anchor is the GROUND point, so the ellipse shadow goes at the anchor.
+- **`hanging`** sprites (torches, trophies, nests, webs) are mounted `hover` px above their tile's floor
+  line on a wall face: draw at y - hover. **`wallcap`** strips are raised 48 px (the wall height);
+  `stone_cap` rims a rock mass with the room to its east, `stone_cap_w` to its west, `stone_cap_h` along
+  its north edge. Out-of-map rock is flat void, raised 48 px, sorted by its row.
+- **Wall slices** (`wall`, `stub`) are a horizontal CYCLE: column x uses frame `x mod frames` (4), so a
+  128 px pattern never seams. `_door`/`_window`/`_arch` variants share the cycle. Inside a building the
+  south row uses `*_stub`; `*_end` stands at the south end of each side wall.
+- **Roofs** (`roof_wood`, `roof_slate`): 12 frames = rows north/ridge/south/eave x cols w/c/e. A roof of
+  n rows = north, ridge, south x (n-3), eave (2 rows = ridge + eave). It covers the building rect from
+  12 px below the north wall's top, so the eave overhangs the south wall's cap; `chimney` sits on it.
+- **Terrain:** `kind:'wang16'` by corners NW NE SW SE (pick a variant by a hash), `kind:'fill'` by
+  `cycle` (`plank_floor` is 4x2).
+- **Shadows:** `{kind:'ellipse',w,h,dx,dy}` or `{kind:'cast',height,base}`, ONE mask at one alpha. The
+  stills used a silhouette laid down-right (x += 0.5h, y += 0.22h per row of height) for `cast`; any
+  equivalent is fine as long as there is one rule.
+The stills' compositor (scratchpad `w2/wlib.py`, `s_*.py`) is a working reference for every rule above.
+
+## 2026-10-14 · art-director -> asset-director · world art: what is final, what is a proof (lane/w2-world-art)
+
+`art/world/<set>/<id>.{png,json}` is the source of truth; atlases are built by
+`node tools/world-art/build.mjs` and guarded by `tests/world-assets.mjs` (budget, palette, contact, no
+baked shadow, no iso corner, drift). Sidecars record the PixelLab request/ids. Open items:
+- **`proof` set is a sign-off proof, not the town/house sets.** Walls, roofs, floor, rug, door-stretch
+  and chimney are hand-authored with a seeded scratch brush; furniture/trees/peers are PixelLab. The
+  real `town` and `home` sets wait for Tyler's sign-off on the stills.
+- **Re-roll candidates:** the rat (standard-mode quadruped, low detail; its grey-pink fur needed the
+  `fur` grade); barrels measure 30 px against a 24-28 nominal (inside the tolerance, still tall); the
+  hive wasp's four facings are rotations of one overhead view; the cellar flagstones read a little
+  raised at their edges (a flush re-roll looked no better).
+- **Method that works:** `create_character` v3 at size 40 (36 px body); animations as v3 custom clips
+  from the rotation frame. Template clips (walk/idle/death) redraw the character and drop or add the
+  shield between frames: rejected. `create_1_direction_object` batches (64 candidates, 10 gens) are the
+  cheapest consistent props, but draw boxes corner-on; the validator rejects those.

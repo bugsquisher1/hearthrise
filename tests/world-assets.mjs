@@ -45,7 +45,7 @@ import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bo
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, DIRS, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
-import { PALETTE_ID } from '../src/data/world/palette.js';
+import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 
 const REQUIRED = {
   hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'] },

@@ -1,12 +1,13 @@
 // tools/world-art/lock.mjs — grade a sprite by its material class, then snap every
-// pixel to the locked world palette (src/data/world/palette.js).
+// pixel to the locked world palette (art/world/palette.json).
 //
 // Grade = saturation multiplier then value multiplier (GRADE[material]); snap =
 // nearest palette colour in CIE Lab with lightness weighted 1.3 (value reads before
 // hue at a ×3 zoom). Alpha is cut at ALPHA_CUT: the world's art has no partial alpha.
 // Pure and deterministic: the same pixels and palette give the same output, which is
 // what lets build.mjs --check compare a rebuild against the committed atlas.
-import { PALETTE, GRADE, ALPHA_CUT } from '../../src/data/world/palette.js';
+import { GRADE, ALPHA_CUT } from '../../src/data/world/palette.js';
+import { PALETTE } from './palette.mjs';
 import { createImage } from './png.mjs';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

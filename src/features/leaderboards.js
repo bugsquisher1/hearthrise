@@ -1,7 +1,7 @@
 // ============================================================
 // src/features/leaderboards.js  (b222, backlog #11 — leaderboards.md)
 //
-// TWENTY-ONE BOARDS, AND YOU ARE ON EVERY ONE OF THEM.
+// EVERY BOARD, AND YOU ARE ON EVERY ONE OF THEM.
 //
 // The old leaderboard had three boards, showed the top fifteen, and stopped.
 // A player ranked #412 opened the Social tab, read fifteen names that were not
@@ -12,10 +12,6 @@
 //     and directly below you, always, at any rank. "I can catch #411 tonight"
 //     is the entire retention mechanism of a leaderboard; without it a board is
 //     a spectator sport.
-//   • THE THRONE BOARD. Renown is the game's meta-spine ("Rise to the Throne")
-//     and it was absent from the one screen built to show off rank. It is now
-//     the flagship board, and its third column is your RANK TITLE, so the board
-//     reads as a social hierarchy rather than a number.
 //   • FIFTEEN SKILL BOARDS. "All skills to 99" is the game's stated fantasy and
 //     it had no board at all.
 //
@@ -39,7 +35,7 @@
 // the pre-existing `public.leaderboard` view can answer honestly — Total Level,
 // Combat Level, Wealth — and STILL shows the self block, deriving your rank
 // from a PostgREST exact-count query. The boards that need data the old view
-// does not carry (Throne, the fifteen skills, Bosses, Clan Power) are not
+// does not carry (the skill boards) are not
 // offered until the server can serve them. They are not shown greyed out with
 // a "coming soon" note: a roadmap is not a player-facing feature.
 //
@@ -54,8 +50,9 @@
   'use strict';
 
   // ── The board namespace ─────────────────────────────────────
-  // MUST match public.hr_lb_boards() in the migration, including the camelCase
-  // `bountyHunter`. The migration's self-check asserts the count from its side.
+  // MUST be a subset of public.hr_lb_boards() (the renown, bosses and clan_power
+  // boards left with their systems, 2026-10-14). The skill list moves in
+  // lockstep with SKILLS_DEF and STANDING_CROWNS (tests/standings.mjs STAND-1).
   var SKILL_ORDER = [
     'attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged',
     'woodcutting', 'mining', 'fishing', 'farming',
@@ -78,23 +75,18 @@
   // `legacy` marks the boards the pre-migration `public.leaderboard` view can
   // answer, and names the column to sort and count on.
   var BOARDS = {
-    renown:       { cat: 'throne',  label: 'Renown',       glyph: 'uiCrown',  crown: 'the Throne' },
     total_level:  { cat: 'overall', label: 'Total Level',  glyph: 'totalLvl', legacy: 'total_level',  crown: 'the Peerless' },
     wealth:       { cat: 'overall', label: 'Wealth',       glyph: 'gold',     legacy: 'gold',         crown: 'the Magnate' },
-    combat_level: { cat: 'combat',  label: 'Combat Level', glyph: 'combatLvl', legacy: 'combat_level', crown: 'the Champion' },
-    bosses:       { cat: 'combat',  label: 'Bosses',       glyph: 'uiSkull',  crown: 'the Bane' },
-    clan_power:   { cat: 'clans',   label: 'Clan Power',   glyph: 'uiCastle', subject: 'clan', crown: 'the High Seat' }
+    combat_level: { cat: 'combat',  label: 'Combat Level', glyph: 'combatLvl', legacy: 'combat_level', crown: 'the Champion' }
   };
   SKILL_ORDER.forEach(function (s) {
     BOARDS['skill:' + s] = { cat: 'skills', label: skillName(s), glyph: s, skill: s, crown: 'Grandmaster' };
   });
 
   var CATEGORIES = [
-    { id: 'throne',  label: 'Throne' },
     { id: 'overall', label: 'Overall' },
     { id: 'skills',  label: 'Skills' },
-    { id: 'combat',  label: 'Combat' },
-    { id: 'clans',   label: 'Clans' }
+    { id: 'combat',  label: 'Combat' }
   ];
 
   function skillName(id) {
@@ -197,7 +189,6 @@
       rank: Math.max(0, +r.rank || 0),
       id: r.id || null,
       name: typeof r.name === 'string' && r.name ? r.name : 'Adventurer',
-      clan: r.clan || null,
       score: +r.score || 0,
       savedAt: r.saved_at || null
     };
@@ -266,14 +257,13 @@
   // Reads the pre-existing `public.leaderboard` view. Everything it returns is
   // real; it simply cannot answer the boards whose data that view never carried.
   function lbUrl(q) { return cfg().url + '/rest/v1/leaderboard?' + q; }
-  var LEGACY_SELECT = 'select=user_id,name,total_level,combat_level,gold,clan_name,saved_at';
+  var LEGACY_SELECT = 'select=user_id,name,total_level,combat_level,gold,saved_at';
 
   function legacyRow(r, key, rank) {
     return {
       rank: rank,
       id: r.user_id || null,
       name: r.name || 'Adventurer',
-      clan: r.clan_name || null,
       score: Math.max(0, +r[key] || 0),
       savedAt: r.saved_at || null
     };
@@ -366,13 +356,6 @@
     for (var i = T.length - 1; i >= 0; i--) if (xp >= T[i]) return Math.min(i + 1, 99);
     return 1;
   }
-  /** The renown ladder's title for a score — the Throne board's third column. */
-  function renownTitle(score) {
-    var R = window.HearthriseRenown;
-    if (!R || !R.RANKS || typeof R.rankIndexFor !== 'function') return '';
-    var r = R.RANKS[R.rankIndexFor(score)];
-    return (r && r.title) || '';
-  }
   /** The score column. */
   function scoreText(boardId, score) {
     var b = BOARDS[boardId];
@@ -380,17 +363,13 @@
     if (boardId === 'total_level') return 'Lv ' + fmt(score);
     if (boardId === 'combat_level') return 'CL ' + fmt(score);
     if (boardId === 'wealth') return fmt(score) + 'g';
-    if (boardId === 'clan_power') return 'Castle ' + Math.floor(score / 1000000000);
-    if (boardId === 'bosses') return fmt(score) + ' felled';
     return fmt(score);
   }
   /** The context column — what the score MEANS on this board. */
   function contextText(boardId, row) {
     var b = BOARDS[boardId];
-    if (boardId === 'renown') return renownTitle(row.score);
     if (b.skill) return fmt(row.score) + ' xp';
-    if (boardId === 'clan_power') return fmt(row.score % 1000000000) + 'g';
-    return row.clan ? row.clan : '';
+    return '';
   }
   /** The cosmetic title held by rank 1 — prestige, never currency. */
   function crownFor(boardId) {
@@ -462,8 +441,8 @@
   var wantCat = null, wantBoard = null;
   var curCat = null, curBoard = null;
 
-  function intentCat() { return wantCat || readPref(CAT_KEY) || 'throne'; }
-  function intentBoard() { return wantBoard || readPref(BOARD_KEY) || 'renown'; }
+  function intentCat() { return wantCat || readPref(CAT_KEY) || 'overall'; }
+  function intentBoard() { return wantBoard || readPref(BOARD_KEY) || 'total_level'; }
   function capsForPicker() { var c = capability(); return c === 'full' ? 'full' : 'legacy'; }
 
   /**
@@ -724,7 +703,6 @@
     _crownFor: crownFor,
     _rowHtml: rowHtml,
     _boardHtml: boardHtml,
-    _renownTitle: renownTitle,
     _agoText: agoText,
     _noteRpc: noteRpc,
     _resetProbe: _resetProbe,

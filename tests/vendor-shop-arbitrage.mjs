@@ -30,7 +30,8 @@
 // ALL be bought for gold is a second buy -> craft -> sell loop: its output's
 // vendor bid (x outputQty) must not exceed MARGIN x the gold cost of buying its
 // inputs at the cheapest shop unit price. Security's mutant — a 200g Steel Bar
-// offer, a +100 loop through the platebody — stayed green before this arm.
+// offer, a +100 loop through the platebody — stayed green before this arm (the
+// mutant now plants cheap copper into the whetstone grind; platebodies are gone).
 //
 // Only vendor > SHOP_BUYBACK_RATE × shop is red; exactly half is the ruling.
 // Exit 0 clean, 1 on any violation (each named with both prices), 2 harness.
@@ -294,14 +295,18 @@ update public.hr_items set value = value * 2 where item_id = '${item}';
     fails.push('M4 unparsed hr_items.value UPDATE: accepted silently');
   } catch (e) { if (!(e instanceof HarnessError)) throw e; }
 
-  // M5 — Security's mutant: a 200g Steel Bar gold offer opens buy-bars -> forge
-  //      platebody -> vendor. The craft arm must name the recipe.
+  // M5 — Security's mutant, re-planted on a recipe that still exists: the
+  //      original (a 200g Steel Bar offer opening buy-bars -> forge platebody ->
+  //      vendor) left with crafted gear in the 2026-10-14 demolition. Cheap
+  //      copper bar + copper ore offers open buy -> grind copper whetstones ->
+  //      vendor. The craft arm must name the recipe.
   const cleanCraft = findCraftArbitrage({ sqlVal });
   if (judgeCraft(cleanCraft).fails.length) fails.push(`craft control: tree is not clean (${judgeCraft(cleanCraft).fails.join('; ')})`);
   const mutOffers = Object.assign(Object.create(null), GOLD_OFFERS, {
-    'equip.__mut_steel_bar': { id: 'equip.__mut_steel_bar', gold: 200, grant: [{ id: 'steel_bar', amount: 1 }] } });
+    'equip.__mut_copper_bar': { id: 'equip.__mut_copper_bar', gold: 10, grant: [{ id: 'copper_bar', amount: 1 }] },
+    'equip.__mut_copper_ore': { id: 'equip.__mut_copper_ore', gold: 5, grant: [{ id: 'copper_ore', amount: 1 }] } });
   const m5 = findCraftArbitrage({ offers: mutOffers, sqlVal });
-  if (!judgeCraft(m5).fails.some((f) => / -> steel_platebody:/.test(f))) fails.push('M5 200g Steel Bar offer (platebody loop): not caught');
+  if (!judgeCraft(m5).fails.some((f) => / -> copper_whetstone:/.test(f))) fails.push('M5 cheap copper offers (whetstone loop): not caught');
   // M6 — a held loop that GROWS must go red (and a held one that did not, stays held).
   //      No real loop is held any more, so the row and the finding are planted.
   const heldRow = { __mut_loop: { vendor: 40, cost: 40 } };

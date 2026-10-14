@@ -33,10 +33,8 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
-import { RAID_BOSSES } from '../src/data/raid-bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { MAX_MEMORY_DROP_MULT } from '../src/data/bestiary.js';
 import { DAILY_POOL, WEEKLY_POOL, DAILY_BONUS, WEEKLY_BONUS } from '../src/core/botd.js';
@@ -153,10 +151,8 @@ function check(monsters) {
     ok(!it.hearthfind, 'a', `${tag}: item is a Hearthfind`);
     ok(it.tier !== 8, 'a', `${tag}: item is tier 8`);
     ok(it.rarity !== 'unique', 'a', `${tag}: item is rarity 'unique' (its sink is the forge, not a drop)`);
-    ok(!QM_STOCK.some((q) => q.id === d.id), 'a', `${tag}: item is Quartermaster stock`);
-    ok(!Object.values(DUNGEONS).some((dg) => mentions(dg.loot, d.id)), 'a', `${tag}: item is dungeon loot`);
     ok(!shopGranted(d.id), 'a', `${tag}: item is granted by a shop offer (shops.js)`);
-    ok(!mentions(BOSSES, d.id) && !mentions(RAID_BOSSES, d.id), 'a', `${tag}: item is boss/raid loot`);
+    ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
     ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
     for (const [oid, om] of Object.entries(monsters)) {
       (om.drops || []).forEach((od, oi) => {

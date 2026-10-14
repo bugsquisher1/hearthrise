@@ -51,7 +51,6 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { START_INVENTORY } from '../src/data/start-kit.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
@@ -343,10 +342,6 @@ async function runAll(mut) {
       for (const r of list) if (V.ids.includes(r.out || r.id)) faucets.push(`recipe ${r.id}`);
     }
     for (const id of Object.keys(START_INVENTORY)) if (V.ids.includes(id)) faucets.push(`start kit ${id}`);
-    for (const [did, d] of Object.entries(DUNGEONS)) {
-      for (const l of (d.loot || [])) if (V.ids.includes(l.id)) faucets.push(`dungeon loot ${did}`);
-    }
-    for (const o of QM_STOCK) if (V.ids.includes(o.id)) faucets.push(`quartermaster ${o.id}`);
     ok(faucets.length === 0,
       `a hearthfind trophy is reachable from ${faucets.length} other faucet(s): ${faucets.join(', ')}. `
       + 'The hearthfind arm of hr_apply must be the ONLY door, or an item can exist with no ledger '

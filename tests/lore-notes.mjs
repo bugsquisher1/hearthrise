@@ -20,8 +20,9 @@
 // one tier builder, reading the SERVER plot tier (CLAUDE.md §6).
 // src/data/charm-lore.js joins too: LORE-8 keys the class lines by the bane
 // taxonomy (extra_dimensional), LORE-9 the rank lines by CHARM_RANKS ids.
-// src/data/dungeon-lore.js: LORE-16 keys the Spoils sheet's clear line by
-// DUNGEONS id (src/render/spoils-sheet.js is its only importer).
+// LORE-2 (renown rank lines) and LORE-16 (dungeon clear lines) were retired
+// with renown and the dungeons in the 2026-10-14 demolition; their keys had
+// nothing left to be checked against.
 // src/data/mark-lore.js: LORE-17 keys the mark lines by CLIMB_MARKS (ascending,
 // ending at 99, one 3-32 letter name each), LORE-18 the Mastery lines by
 // SKILLS_DEF id (src/features/climb-marks.js is its only importer).
@@ -68,7 +69,6 @@ const SYN = {
 export function buildSets(m) {
   return [
     { id: 'LORE-1', name: 'COMPANION_NOTES', tag: 'companion', map: m.companionNotes, wantKeys: m.companionIds, band: BAND },
-    { id: 'LORE-2', name: 'RANK_LORE', tag: 'rank', map: m.rankLore, wantKeys: m.rankIds, band: BAND },
     { id: 'LORE-3', name: 'TROPHY_LORE', tag: 'trophy', map: m.trophyLore, wantKeys: m.stageIds, band: BAND },
     { id: 'LORE-10', name: 'LUCKY_RUMOURS', tag: 'rumour', map: m.luckyRumours, wantKeys: m.luckyDrops.map((r) => r.id), band: BAND },
     { id: 'LORE-11', name: 'ROOM_RUNG_LORE', tag: 'room', map: m.roomRungLore, wantKeys: m.roomRungKeys, band: BAND },
@@ -76,7 +76,6 @@ export function buildSets(m) {
       wantKeys: Array.from({ length: m.maxPlot }, (_, i) => String(i + 1)), band: BAND },
     { id: 'LORE-8', name: 'CHARM_CLASS_LORE', tag: 'charm class', map: m.charmClassLore, wantKeys: m.charmClassKeys, band: BAND },
     { id: 'LORE-9', name: 'CHARM_RANK_LORE', tag: 'charm rank', map: m.charmRankLore, wantKeys: m.charmRankIds, band: BAND },
-    { id: 'LORE-16', name: 'DUNGEON_CLEAR_LORE', tag: 'dungeon', map: m.dungeonLore, wantKeys: m.dungeonIds, band: BAND },
     { id: 'LORE-17', name: 'MARK_LORE', tag: 'mark', map: m.markLore, wantKeys: m.climbMarks.map(String), band: BAND },
     { id: 'LORE-18', name: 'MASTERY_LORE', tag: 'mastery', map: m.masteryLore, wantKeys: m.skillIds, band: BAND },
   ];
@@ -196,14 +195,10 @@ async function loadReal() {
   let charm;
   try { charm = await import('../src/data/charm-lore.js'); }
   catch (e) { charm = { CHARM_CLASS_LORE: {}, CHARM_RANK_LORE: {} }; }
-  let dungeon;
-  try { dungeon = await import('../src/data/dungeon-lore.js'); }
-  catch (e) { dungeon = { DUNGEON_CLEAR_LORE: {} }; }
   let mark;
   try { mark = await import('../src/data/mark-lore.js'); }
   catch (e) { mark = { CLIMB_MARKS: [], MARK_NAMES: {}, MARK_LORE: {}, MASTERY_LORE: {} }; }
   const { SKILLS_DEF } = await import('../src/data/skills.js');
-  const { DUNGEONS } = await import('../src/data/dungeons.js');
   const { LUCKY_RUMOURS } = await import('../src/data/lucky-rumours.js');
   const { MONSTERS } = await import('../src/data/monsters.js');
   const luckyDrops = Object.entries(MONSTERS).flatMap(([mid, m]) => (m.drops || [])
@@ -214,7 +209,6 @@ async function loadReal() {
   const { PLOT_TIERS, MAX_PLOT_LEVEL } = await import('../src/core/farm.js');
   const { CROPS } = await import('../src/data/gathering.js');
   const { COMPANIONS } = await import('../src/data/companions.js');
-  const { RENOWN_RANK_REWARDS } = await import('../src/data/renown-ranks.js');
   const { TROPHY_STAGES } = await import('../src/data/bestiary.js');
   const { MONSTER_NOTES } = await import('../src/data/monster-notes.js');
   const { ITEM_DESC } = await import('../src/data/item-descriptions.js');
@@ -240,7 +234,6 @@ async function loadReal() {
   return {
     sets: buildSets({
       companionNotes: lore.COMPANION_NOTES, companionIds: Object.keys(COMPANIONS),
-      rankLore: lore.RANK_LORE, rankIds: ['peasant', ...Object.keys(RENOWN_RANK_REWARDS)],
       trophyLore: lore.TROPHY_LORE, stageIds: TROPHY_STAGES.map((r) => r.id),
       luckyRumours: LUCKY_RUMOURS, luckyDrops,
       roomRungLore: home.ROOM_RUNG_LORE,
@@ -249,7 +242,6 @@ async function loadReal() {
       /* The bane taxonomy is an ARRAY; the counters key on it, not on monster-classes.js. */
       charmClassLore: charm.CHARM_CLASS_LORE, charmClassKeys: [...MONSTER_CLASSES],
       charmRankLore: charm.CHARM_RANK_LORE, charmRankIds: CHARM_RANKS.map((r) => r.id),
-      dungeonLore: dungeon.DUNGEON_CLEAR_LORE, dungeonIds: Object.keys(DUNGEONS),
       markLore: mark.MARK_LORE, climbMarks: [...mark.CLIMB_MARKS],
       masteryLore: mark.MASTERY_LORE, skillIds: Object.keys(SKILLS_DEF),
     }),
@@ -283,15 +275,14 @@ async function run() {
   return 0;
 }
 
-/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twenty-four plants, each of
+/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twenty-one plants, each of
    which must be caught by its OWN LORE id. */
 function fixture() {
   const L = (s) => s.padEnd(110, ' and the valley remembers it well');
   const m = {
     companionNotes: { fox: L('A fox keeps the camp'), owl: L('An owl keeps the late watch') },
-    rankLore: { peasant: L('You own a bedroll'), serf: L('The steward knows your name') },
     trophyLore: { quarry: L('The first trophy goes up'), stalker: L('It knows you now') },
-    companionIds: ['fox', 'owl'], rankIds: ['peasant', 'serf'], stageIds: ['quarry', 'stalker'],
+    companionIds: ['fox', 'owl'], stageIds: ['quarry', 'stalker'],
     luckyRumours: { yew_bow: L('Drakes nest in the old groves'), fang_studs: L('Bats roost where trackers camped') },
     luckyDrops: [{ id: 'yew_bow', mid: 'drake', elementWeak: 'poison', hiddenElement: false },
       { id: 'fang_studs', mid: 'giant_bat', elementWeak: 'frost', hiddenElement: false }],
@@ -302,8 +293,6 @@ function fixture() {
     charmClassKeys: ['undead', 'extra_dimensional'],
     charmRankLore: { studied: L('Your notes fill a page'), marked: L('They know your scent') },
     charmRankIds: ['studied', 'marked'],
-    dungeonLore: { crypt_of_bones: L('The crypt is quiet now'), goblin_warcamp: L('The warcamp scatters into the hills') },
-    dungeonIds: ['crypt_of_bones', 'goblin_warcamp'],
     markLore: { 10: L('The tools start to feel like yours'), 99: L('Nothing is left to learn but teaching') },
     climbMarks: [10, 99],
     masteryLore: { fishing: L('The fish know your shadow'), mining: L('The hill opens for your pick') },
@@ -337,10 +326,9 @@ function selftest() {
   say(clean.length === 0, `clean arm: 0 problems${clean.length ? ' → ' + clean.map((p) => p.msg).join('; ') : ''}`);
   const arms = [
     ['drop a companion key', 'LORE-1', (f) => { delete f.set('LORE-1').owl; }],
-    ['add an orphan rank', 'LORE-2', (f) => { const r = f.set('LORE-2'); r.emperor = r.serf.replace('steward', 'emperor'); }],
     ['drop a trophy stage', 'LORE-3', (f) => { delete f.set('LORE-3').stalker; }],
     ['add a digit', 'LORE-4', (f) => { const c = f.set('LORE-1'); c.fox = c.fox.replace('A fox', 'A fox 2'); }],
-    ['duplicate a line', 'LORE-5', (f) => { const r = f.set('LORE-2'); r.serf = r.peasant; }],
+    ['duplicate a line', 'LORE-5', (f) => { const r = f.set('LORE-1'); r.owl = r.fox; }],
     ['add a speed line', 'LORE-6', (f) => { const t = f.set('LORE-3'); t.quarry = t.quarry.replace('goes up', 'adds speed'); }],
     ['pack src/data/lore-notes.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/lore-notes.js', origin: 'src/data/lore-notes.js', content: '' });
@@ -369,10 +357,6 @@ function selftest() {
     }],
     ['pack src/data/charm-lore.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/charm-lore.js', origin: 'src/data/charm-lore.js', content: '' });
-    }],
-    ['drop a dungeon line', 'LORE-16', (f) => { delete f.set('LORE-16').goblin_warcamp; }],
-    ['pack src/data/dungeon-lore.js', 'LORE-7', (f) => {
-      f.packedFiles.push({ name: '_shared/dungeon-lore.js', origin: 'src/data/dungeon-lore.js', content: '' });
     }],
     ['drop the fishing Mastery line', 'LORE-18', (f) => { delete f.set('LORE-18').fishing; }],
     ['add an orphan mark 11', 'LORE-17', (f) => { const k = f.set('LORE-17'); k[11] = k[10].replace('tools', 'blades'); }],

@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 584 — 2026-10-14 (Steadier screens)
+
+**Smoother screens everywhere.** The shop no longer flickers, and the Home, Combat, Bag, Skills, Farm and Character screens only redraw what actually changed, so the whole game feels steadier.
+
+## v0.9.2-beta build 583 — 2026-10-14 (Charcoal and Gold)
+
+**A new look: Charcoal and Gold.** The brown menus are gone. The game now uses a dark slate look with gold accents, so your pixel world stands out and the text is easier to read.
+
 ## v0.9.2-beta build 582 — 2026-10-14 (Gear and rooms hold)
 
 **Your gear and house stay put on screen.** The game no longer briefly forgets your equipment or rooms between server updates, so fights and the House always show your real gear and rooms.

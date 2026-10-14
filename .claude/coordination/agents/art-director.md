@@ -2869,3 +2869,22 @@ floor in art-direction.css and the sidebar/topbar glass in backdrop.js. Measure 
 a few screen points BEFORE choosing which token to move.
 Lesson 3: "clashes with the current shelf" is my call, not Tyler's; when holding art back, show him the
 held-back picks beside the current art (docs/art-experiments/review/) instead of deciding silently.
+
+### 2026-10-14 · lane/b-palette-trial: three cool palettes under the gold (comparison only)
+Tyler likes the gold, not the brown. `body[data-theme-palette="charcoal|midnight|iron"]` in tokens.css §6
+(no attribute = today, identical). Before choosing values I measured what paints the screen
+(tools/_palette-shots.mjs --probe): the visible browns were literals in CSS AND in JS-injected style
+strings, so ten were tokenised first. Sheets + a contrast table measured on the rendered pixels are in
+docs/art-experiments/palette/. Every text role clears AA on every chrome surface in all three palettes;
+today's --red as text sits at 2.8.
+Lessons: (1) a gold wash over navy is grey; the one lit object needs its own wash per palette; (2) a UI at
+the same VALUE as the art blurs into it whatever the hue: iron vs the town's cobbles is today's brown vs
+the cellar's dirt; (3) run-to-run screenshot noise is thousands of pixels, so "default unchanged" is proven
+with computed styles and the one-load A/B tool, never by diffing two runs.
+SHIPPED (same day, Tyler + Coordinator): Charcoal & Gold is the default ladder; Midnight and Iron stay staged
+behind the attribute with no picker (one palette to check per UI change for now). ~80 warm-white tints are
+now one light, --hl, at their own strengths (color-mix), hairline borders read --line-soft; --aqua-2 (links,
+focus ring) lost its khaki; the PWA splash/status colour follows. Left warm on purpose: the gold button's own
+highlight, the bounty board and shopfront (wooden objects), farm soil, painted scene art. PALETTE-1 guards
+the ladder AND the painted chrome (a brown panel-floor literal fails it). Lesson: a sweep that recolours
+"the light" must stop at the gold — a highlight ON gold metal is the metal's, not the UI's.

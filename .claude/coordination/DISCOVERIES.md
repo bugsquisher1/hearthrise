@@ -3690,3 +3690,21 @@ PixelLab: standard quadrupeds draw south == north (one overhead view, head up); 
 muddy 2-tile walls in its own projection (unused); map objects bake a grass patch under trees; a Pro Flash
 door asked for at 28x52 came back 32 px tall. Compressed PNG bytes differ by zlib build, so the drift
 guard compares decoded pixels (sha256 of RGBA), never file bytes.
+
+### 2026-10-14 · lane/b-palette-trial (Art Director): where the brown actually lives
+A palette is not the --bg-* ladder. Measured on rendered 1440x900 shots, the brown a player sees is the
+panel floor (art-direction.css), the sidebar/topbar glass and the veil over the global backdrop (all
+JS-injected strings in backdrop.js), the medallion disc (home-dashboard.js + icon-set.js), the toast
+and chat-pill plate, the bag tile lift and five modal plates (audit-overrides.css). All are tokens now
+(--panel-floor-*, --sidebar-glass, --topbar-glass, --backdrop-veil, --medallion-bg, --toast-bg,
+--tile-raised, --modal-bg, --avatar-bg, --lit-wash), default values identical (computed-style check +
+tools/css-ab-pixel-diff.mjs). What stays warm under a cool palette is ~30 hairline/inset highlights at
+<=16% alpha (rgba(255,236,200,...) / rgba(236,225,204,...)), not visible as hue; sweep them into
+--line-soft when the pick becomes the default. Gold washes over navy cancel to GREY (complementary
+mix): the Home reward card needed its own --lit-wash per palette. A mid-grey UI blends with the
+town's grey cobbles exactly as a brown UI blends with the cellar's dirt; separation from the pixel
+world comes from VALUE (darker than the art), not only from hue. Today's --red as text is 2.8:1.
+SHIPPED the same day: Charcoal & Gold is the default; the warm-white tints are one token (--hl) mixed at
+their own strengths, so a future palette moves every highlight by changing one value. Not swept, on
+purpose: src/bug-report.js inline styles (own literal ink) and src/net/account-gate.js (keeps literal
+fallbacks so the front door paints before anything else loads).

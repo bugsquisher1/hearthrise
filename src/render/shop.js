@@ -22,9 +22,10 @@
 // --scene-* var, so there was nothing to convert). None of the three is
 // referenced anywhere else in the tree.
 //
-// PURE REFACTOR. Byte-for-byte the same DOM and behaviour that used to live at
-// legacy.js (window.renderShop + neighbours) — moved out, not redesigned. NO
-// hardcoded theme colours in this JS.
+// Moved out of legacy.js, not redesigned. Since 2026-10-14 it writes through
+// HearthrisePaint (render/paint.js): the scene once, the counter as keyed rows,
+// so a live frame over an unchanged shop writes nothing. NO hardcoded theme
+// colours in this JS.
 //
 // COUPLING RESOLVED: the shop's active-tab state was a legacy-local `let
 // shopTab` mutated by setShopTab() (which stays global in legacy.js). It is now
@@ -248,8 +249,9 @@
     var canWield = window.canWield;
     var hasTrait = window.hasTrait;
     var _gp = window._gp, _gem = window._gem;
+    var paint = window.HearthrisePaint;
     /* IAP side (always visible) */
-    document.getElementById('iap-panel').innerHTML=`
+    paint.html(document.getElementById('iap-panel'), `
     <div class="iap-grid">
       ${IAP_CATALOG.map(p=>`
         <div class="iap-card ${p.style||''}">
@@ -265,16 +267,18 @@
     </div>
     ${(G.inventory?.hearth_token||0)>0?`
     <div class="activity-card sc-token-card"><div class="ac-icon">${(window.HR&&window.HR.icon)?window.HR.icon('token',22,'--gold-2'):''}</div><div style="flex:1"><b>Hearth Tokens: ${Number(G.inventory.hearth_token).toLocaleString()}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150 gems</button></div>`:''}
-    <div class="muted tiny" style="margin-top:14px">Purchases go through your platform's own store (Steam, the App Store, Google Play, or Stripe on the web), and nothing is granted until the receipt is confirmed. Your platform: <b>${IAP.detectPlatform()}</b>.</div>`;
+    <div class="muted tiny" style="margin-top:14px">Purchases go through your platform's own store (Steam, the App Store, Google Play, or Stripe on the web), and nothing is granted until the receipt is confirmed. Your platform: <b>${IAP.detectPlatform()}</b>.</div>`);
 
     /* in-game shop side */
     const el=document.getElementById('shop-panel');if(!el)return;
-    let offers='';
+    /* Every row is keyed, so a frame that changes nothing writes nothing and a
+       gold change swaps only the buttons it flips (render/paint.js). */
+    let offers=[];
     /* The pressed row waits on ITS answer (shop-counter.js shopBuyPending). */
     const buyBtn=(id,qty,cost,can)=>{const busy=typeof window.shopBuyPending==='function'&&window.shopBuyPending(id,qty,cost);
       return `<button class="btn btn-sm ${can&&!busy?'btn-primary':''}" ${can&&!busy?'':'disabled'} onclick="buyShopItem('${id}',${qty},${cost})">${busy?'Buying…':'Buy'}</button>`;};
     if(shopTab==='seeds'){
-      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${Number(s.qty).toLocaleString()}</b><span>Have: ${(G.inventory[s.id]||0).toLocaleString()}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,s.qty,s.cost,can)}</div>`;}).join('');
+      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return ['seed:'+s.id+':'+s.qty+':'+s.cost, `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${Number(s.qty).toLocaleString()}</b><span>Have: ${(G.inventory[s.id]||0).toLocaleString()}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,s.qty,s.cost,can)}</div>`];});
     } else if(shopTab==='equip'){
       /* b341 — THE SHOP SAYS WHAT YOU CAN WEAR.
          An Iron Sword rendered as "Iron Sword · +7 ATK · +6 STR · 500 · Buy" and
@@ -306,8 +310,8 @@
         const lockGly=(window.HR&&window.HR.icon)?(window.HR.icon('uiLock',11,'currentColor')||''):'';
         const reqChip=req?`<span class="mr-lock" style="margin-left:8px">${lockGly}${reqText}</span>`:'';
         const label=`${d.n}${reqText?' — '+reqText+(wieldable?' (met)':''):''}`;
-        return `<div class="shop-row"${req?` data-req-skill="${req.skill}" data-req-lv="${req.lv}"`:''} title="${label.replace(/"/g,'&quot;')}" aria-label="${label.replace(/"/g,'&quot;')}"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}${wieldable?'':reqChip}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,1,s.cost,can)}</div>`;
-      }).join('');
+        return ['equip:'+s.id+':'+s.cost, `<div class="shop-row"${req?` data-req-skill="${req.skill}" data-req-lv="${req.lv}"`:''} title="${label.replace(/"/g,'&quot;')}" aria-label="${label.replace(/"/g,'&quot;')}"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}${wieldable?'':reqChip}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,1,s.cost,can)}</div>`];
+      }).concat(_companionRows(G));
     } else {
       /* cosmetics — gem-priced.
          b221: these four shipped `icon:'✨' / '🐲' / '🦅' / '😎'` and rendered them
@@ -330,7 +334,7 @@
          realm holds a row for, and an unheard-from projection renders a live Buy
          offer — which the server heals in one round trip by refusing
          `already_owned` and handing back the whole owned set. */
-      offers=cosmetics.map(c=>{const owned=(typeof window.ownsGemUnlock==='function')&&window.ownsGemUnlock('cosmetic',c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
+      offers=cosmetics.map(c=>{const owned=(typeof window.ownsGemUnlock==='function')&&window.ownsGemUnlock('cosmetic',c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return ['cosmetic:'+c.id, `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`];}).concat([['note:gems', `<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`]]);
     }
     /* b217: gold-purchased trait upgrades — appended below the tab list so
        they're reachable from the in-game shop. Reuses the existing shop-row
@@ -338,11 +342,8 @@
     const _traitRows=Object.entries(TRAITS).map(([id,t])=>{
       const owned=hasTrait(id);const can=t.currency==='marks'?(window.HearthriseMarks?window.HearthriseMarks.canAffordMarks(G,t.cost):((G.marks||0)>=t.cost)):balCanAfford(t.cost,'gold');
       const art=(window.HR&&window.HR.icon)?window.HR.icon(t.glyph,30,'currentColor'):'';
-      return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} data-hr-settle-latch onclick="buyTrait('${id}')">Buy</button>`}</div>`;
-    }).join('');
-    /* b221: the scene and the offers are ONE object — the counter's top surface
-       runs out of the picture and under the wares. Assign once; the old code
-       wrote innerHTML twice, which re-parsed and re-laid-out the whole list. */
+      return ['trait:'+id, `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} data-hr-settle-latch onclick="buyTrait('${id}')">Buy</button>`}</div>`];
+    });
     /* b311 (Tyler): vendor Buy-Back lives HERE, in the Local Shop where you sold
        to the vendor — NOT as a button on every inventory item's detail (which is
        where it used to appear the moment you sold anything). Shown after a sale.
@@ -350,16 +351,56 @@
        BUYBACK_LEDGER), so the door is disabled with its reason and the local
        sale list (client residue) is not counted as a record. */
     const _buyback = (Array.isArray(G.buyback) && G.buyback.length)
-      ? `<div class="sc-sep">Vendor buy-back</div>`
-        + `<div class="shop-row"><div class="info"><b>Buy back sold items</b>`
-        + `<span>Buy-back is not open yet</span></div>`
-        + `<button class="btn btn-sm" disabled>Buy Back</button></div>`
-      : '';
-    el.innerHTML=SHOP_SCENE
-      +`<div class="sc-counter">${offers}`
-      +`<div class="sc-sep">Under the counter</div>`+_traitRows
-      + _buyback
-      +`</div>`;
+      ? [['sep:buyback', `<div class="sc-sep">Vendor buy-back</div>`],
+         ['buyback', `<div class="shop-row"><div class="info"><b>Buy back sold items</b>`
+          + `<span>Buy-back is not open yet</span></div>`
+          + `<button class="btn btn-sm" disabled>Buy Back</button></div>`]]
+      : [];
+    /* The scene and the offers are ONE object: the counter's top surface runs
+       out of the picture and under the wares. The scene is static, so it is
+       written once; the rows patch inside the counter. */
+    paint.html(el, SHOP_SCENE + '<div class="sc-counter"></div>');
+    paint.rows(el.querySelector(':scope > .sc-counter'), offers
+      .concat([['sep:counter', `<div class="sc-sep">Under the counter</div>`]], _traitRows, _buyback));
+  }
+
+  /* The four shop companions are Equipment wares. They used to be appended
+     by a 1.5 s poller in legacy.js that every repaint wiped, so on a live
+     frame they vanished from under "Under the counter" and came back a
+     moment later. Price and requirement come off `source`
+     ('shop:<gold>[:<skill><lv>]', tools/gen-shops.mjs), never a literal. */
+  function parseSource(src){
+    if(!src) return null;
+    var parts = String(src).split(':');
+    return {kind: parts[0], arg1: parts[1], arg2: parts[2]};
+  }
+  function _companionRows(G){
+    var defs = window.COMPANIONS || {};
+    var owned = (G.companions && G.companions.ownedIds) || [];
+    return Object.keys(defs).map(function(id){
+      var def = defs[id], s = parseSource(def.source);
+      if(!s || s.kind !== 'shop') return null;
+      var price = parseInt(s.arg1, 10);
+      var meetsReq = true, reqText = '';
+      var m = s.arg2 ? s.arg2.match(/^(\w+?)(\d+)$/) : null;
+      if(m){
+        var lv = parseInt(m[2], 10);
+        meetsReq = ((typeof window.getLevel === 'function') ? window.getLevel(m[1]) : 1) >= lv;
+        var sd = window.SKILLS_DEF && window.SKILLS_DEF[m[1]];
+        reqText = 'Needs ' + ((sd && sd.name) || m[1].replace(/^./, function(c){ return c.toUpperCase(); })) + ' Lv ' + lv;
+      }
+      var roleWord = String(def.role||'').replace(/^./, function(c){ return c.toUpperCase(); });
+      var subLine = (roleWord ? roleWord+' companion' : 'Companion') + (reqText ? ' · '+reqText : '');
+      var canPay = (typeof window.balCanAfford === 'function') ? window.balCanAfford(price, 'gold') : true;
+      var art = (typeof window.companionIconHtml === 'function') ? window.companionIconHtml(id, 28) : '';
+      var btn = owned.indexOf(id) >= 0 ? '<button class="btn btn-sm" disabled>Owned</button>'
+        : !meetsReq ? '<button class="btn btn-sm" disabled>'+reqText+'</button>'
+        : '<button class="btn btn-sm '+(canPay?'btn-primary':'')+'"'+(canPay?'':' disabled')
+          +' onclick="window._buyCompanion(\''+id+'\','+price+')">Buy</button>';
+      return ['companion:'+id, '<div class="shop-row" data-companion="'+id+'"><span class="si">'+art+'</span>'
+        + '<div class="info"><b>'+def.n+'</b><span>'+subLine+'</span></div>'
+        + '<span class="price">'+price.toLocaleString()+' gold</span>'+btn+'</div>'];
+    }).filter(Boolean);
   }
   window.renderShop = renderShop;
 })();

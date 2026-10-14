@@ -68,8 +68,8 @@
 // cannot). Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=582';
-import { predictedBalance } from './predict.js?v=582';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=584';
+import { predictedBalance } from './predict.js?v=584';
 
 /** The fields this module knows are balances. Not a gate — every accessor
  *  works on any field name — but the set the guards sweep and the set a caller
@@ -345,7 +345,8 @@ export function countMarkup(n, o) {
 export function paintBalance(el, G, field, opts) {
   if (!el || typeof el !== 'object') return el;
   const b = balanceForDisplay(G, field);   // b455 — display read (see fmtBalance)
-  el.textContent = fmtBalance(G, field, opts);
+  const text = fmtBalance(G, field, opts);
+  if (el.textContent !== text) el.textContent = text;   // a frame repaints this; same text writes nothing
   if (el.classList && typeof el.classList.toggle === 'function') {
     el.classList.toggle(PENDING_CLASS, !b.known);
   }

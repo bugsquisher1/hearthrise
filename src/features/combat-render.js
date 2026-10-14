@@ -14,12 +14,12 @@
 // Imports: MONSTERS, ITEMS
 // Exports: setupCombatRender()
 
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { ITEMS } from '../data/items.js?v=582';
-import { formatDropOdds } from '../core/drops.js?v=582';
-import { SIGNPOSTS } from '../data/signposts.js?v=582';
-import { foeFamily } from '../render/foe-family.js?v=582';
-import { weaknessWords, weaknessSentence } from '../render/foe-weakness.js?v=582';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { ITEMS } from '../data/items.js?v=584';
+import { formatDropOdds } from '../core/drops.js?v=584';
+import { SIGNPOSTS } from '../data/signposts.js?v=584';
+import { foeFamily } from '../render/foe-family.js?v=584';
+import { weaknessWords, weaknessSentence } from '../render/foe-weakness.js?v=584';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -86,7 +86,7 @@ function renderMonsterList() {
         ${right}
       </button>`;
     }).join('');
-  el.innerHTML = list || '<div class="empty">No monsters in this tier.</div>';
+  window.HearthrisePaint.html(el, list || '<div class="empty">No monsters in this tier.</div>');
 }
 
 /* b213 (phase 2): the tier is saved on G, but the chips' active state was
@@ -98,8 +98,7 @@ function syncTierChips() {
   document.querySelectorAll('#tier-chips .chip').forEach((c) => {
     c.classList.toggle('active', parseInt(c.dataset.tier || '1', 10) === tier);
   });
-  const sub = document.getElementById('combat-picker-sub');
-  if (sub) sub.textContent = `Tier ${tier}`;
+  window.HearthrisePaint.text(document.getElementById('combat-picker-sub'), `Tier ${tier}`);
 }
 
 function setupTierChips() {

@@ -60,41 +60,41 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=582';
-import { rollDropTable } from './drops.js?v=582';
-import { resolveHearthfind } from './hearthfind.js?v=582';
-import { hitXpRoute, killXpRoute } from './styles.js?v=582';
-import { applyGoldFind } from './pacing.js?v=582';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=584';
+import { rollDropTable } from './drops.js?v=584';
+import { resolveHearthfind } from './hearthfind.js?v=584';
+import { hitXpRoute, killXpRoute } from './styles.js?v=584';
+import { applyGoldFind } from './pacing.js?v=584';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
    ladder, where the design tables live. This file asks the table; it does not
    restate it, so a designer moving a rung moves it in exactly one place. */
 import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments,
-         retreatAtFall, DAY_MS } from './away.js?v=582';
-import { recoveryFor, resumeHpFor } from './recovery.js?v=582';
+         retreatAtFall, DAY_MS } from './away.js?v=584';
+import { recoveryFor, resumeHpFor } from './recovery.js?v=584';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
 import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop,
-  floorOf, coverValue } from './action-rules.js?v=582';
-import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=582';
+  floorOf, coverValue } from './action-rules.js?v=584';
+import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=584';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
    the trigger and the sentence explaining it cannot disagree. It draws no
    random numbers and mutates nothing, so it is safe to call inside a seeded
    fight (§2.1's contract on `spendForSwings` applies for the same reason). */
-import { chooseFood, resolveAutoEat } from './auto-eat.js?v=582';
+import { chooseFood, resolveAutoEat } from './auto-eat.js?v=584';
 /* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
    see `forecastFight` at the foot of this file. */
-import { createRng } from './rng.js?v=582';
-import { pickSpawn } from './hunt-spawn.js?v=582';
-import { NO_BONUS } from './botd.js?v=582';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=582';
+import { createRng } from './rng.js?v=584';
+import { pickSpawn } from './hunt-spawn.js?v=584';
+import { NO_BONUS } from './botd.js?v=584';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=584';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=582';
+import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=584';
 
 export { AWAY_RATE_MULT };
 

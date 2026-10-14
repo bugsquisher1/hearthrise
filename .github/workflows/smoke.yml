@@ -2104,7 +2104,8 @@ jobs:
       # re-measured so the behaviour arms are reached. Then the combat ARM file
       # (excluded from the chain, like the gather one) on a live-shaped fixture,
       # rolled back: arms only 2-4 h after a real return, only with a filled
-      # pin, 12 probes with retained input, one owned sentinel; --mutate 19.
+      # pin AND replayed set, >= 4 attested probes on the pin (2 ate, 2 died,
+      # 1 named hunt; Security R4 2026-10-14), one owned sentinel; --mutate 27.
       # Measured locally 2026-10-08: 3 s + 4 s + 3 s + 24 s.
       - name: World tick — M4 party horizon + cohort, and the combat arm file arms only on its evidence
         if: ${{ !cancelled() }}
@@ -2113,6 +2114,23 @@ jobs:
           node tests/world-tick-m4-party-horizon.mjs --mutate
           node tests/world-tick-arm-combat.mjs
           node tests/world-tick-arm-combat.mjs --mutate
+
+      # THE COMBAT ARM BAR (Security GO-WITH-CHANGES 2026-10-14, R1 + R2). On five
+      # synthetic probes (named hunts, food, deaths with a knock-out timer, a
+      # UTC-midnight span, the bow path): R1 each replays exactly (14 keys) and its
+      # delta through the replayed hr_apply leaves exactly the result in state and
+      # ledger; R2 the 10 s / 90 s chain vs one span, 40 seeds per input, +-6 %
+      # with |z| <= 3.29, no input over +10 %; FX-3 the payload resolver refuses a
+      # commit that packs to another hash. The PRODUCTION read (--live) never runs
+      # here (world-tick-seed-no-leak SL-4). --mutate: 12 (stored result/seed,
+      # one-span stream, server under-pay, journal miscount, chain +15 % / +5 % /
+      # one input +25 %, each coverage class). Measured locally 2026-10-14 on 2
+      # replay threads: 37 s plain; --mutate ~2 min on 20.
+      - name: World tick — combat arm bar, recorded probes replay exactly and the chain pays what one span pays
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-combat-replay.mjs
+          node tests/world-tick-combat-replay.mjs --mutate
 
       # Party hunt view (2026-10-15-party-hunt-view.sql, Game Designer A1-A3):
       # the member-only read of the party hunt, keyed on (JWT uid, own slot),

@@ -31,6 +31,14 @@
 //         (verbose). No seed, in decimal, hex or signed form, appears in the
 //         captured output or in the serialised verdict.
 //
+// THE SECOND READER (2026-10-14): tests/world-tick-combat-replay.mjs --live, the
+// combat ARM bar (Security R1), replays every retained probe from input + seed.
+// SL-1 scans its print calls and holds it to no file write / no whole-row
+// serialisation; SL-3 admits it as a reader; SL-4 holds every workflow call of
+// it off --live and spawns it with CI=true --live (it must refuse); SL-5 runs
+// its five fixture records (three reproduce, two do not) through its R1 line
+// and its ARM attestation. --mutate adds SL-M8..SL-M11 for it.
+//
 // No network, no database, no credential. Exit: 0 green (or, under --mutate,
 // every mutant red) · 1 red · 2 harness.
 // ============================================================================
@@ -44,7 +52,13 @@ import { spawnSync } from 'node:child_process';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const EVALUATOR = 'tools/world-tick-parity.mjs';
-const PRINT_SCOPE = [EVALUATOR, 'services/world-tick/parity-replay.js', 'services/world-tick/parity-bar.js'];
+/* The second reader (2026-10-14, Security R1): the combat ARM bar replays every
+   retained probe on its own payload's code, so it holds stored seeds too. Every
+   rule below that names the evaluator applies to it as well. */
+const REPLAY_GUARD = 'tests/world-tick-combat-replay.mjs';
+const READERS = [EVALUATOR, REPLAY_GUARD];
+const PRINT_SCOPE = [EVALUATOR, REPLAY_GUARD, 'services/world-tick/parity-replay.js', 'services/world-tick/parity-bar.js',
+  'tools/lib/engine-pack.mjs'];
 
 /* The six synthetic fixture seeds that predate hr_tick_probe.seed (shadow
    fixtures, c1a72a5b 2026-09-16 / eeb331aa 2026-09-18). Pinned: a new one is red. */
@@ -127,11 +141,13 @@ function sl1(files) {
     if (src === undefined) { bad.push(`${f} is missing`); continue; }
     for (const l of printLeaks(src)) bad.push(`${f} ${l}`);
   }
-  const ev = files.get(EVALUATOR) || '';
-  const w = ev.match(/\b(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|writeSync)\b/);
-  if (w) bad.push(`${EVALUATOR} uses ${w[1]} — the evaluator writes no file`);
-  const s = ev.match(/JSON\.stringify\(\s*(rows?|body)\b/);
-  if (s) bad.push(`${EVALUATOR} serialises a whole ${s[1]} (JSON.stringify(${s[1]}…)) — a row carries its seed`);
+  for (const reader of READERS) {
+    const ev = files.get(reader) || '';
+    const w = ev.match(/\b(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|writeSync)\b/);
+    if (w) bad.push(`${reader} uses ${w[1]} — a probe reader writes no file`);
+    const s = ev.match(/JSON\.stringify\(\s*(rows?|body)\b/);
+    if (s) bad.push(`${reader} serialises a whole ${s[1]} (JSON.stringify(${s[1]}…)) — a row carries its seed`);
+  }
   return bad;
 }
 
@@ -169,10 +185,10 @@ function sl2(files) {
 function sl3(files) {
   const bad = [];
   for (const [f, text] of files) {
-    if (f === EVALUATOR || f === 'tests/world-tick-seed-no-leak.mjs' || f.endsWith('.json')) continue;
+    if (READERS.includes(f) || f === 'tests/world-tick-seed-no-leak.mjs' || f.endsWith('.json')) continue;
     const prod = /supabase-token|api\.supabase\.com/.test(text);
     if (prod && /\bhr_tick_probe\b/.test(text)) {
-      bad.push(`${f} can reach production AND names hr_tick_probe — ${EVALUATOR} is the only reader of the probe's seed`);
+      bad.push(`${f} can reach production AND names hr_tick_probe — ${READERS.join(' and ')} are the only readers of the probe's seed`);
     }
   }
   return bad;
@@ -187,12 +203,22 @@ function sl4(files, opts) {
     if (/tests\/world-tick-parity\.mjs/.test(line)) return;          // the fixture guard, a different file
     if (!/--selftest\b/.test(line)) bad.push(`smoke.yml:${i + 1} runs the evaluator's PRODUCTION read in CI: ${line.trim()}`);
   });
+  yml.split('\n').forEach((line, i) => {
+    if (/^\s*#/.test(line) || !/world-tick-combat-replay\.mjs/.test(line) || !/\bnode\b/.test(line)) return;
+    if (/--live\b/.test(line)) bad.push(`smoke.yml:${i + 1} runs the replay guard's PRODUCTION read in CI: ${line.trim()}`);
+  });
   if (opts && opts.spawn) {
     const r = spawnSync(process.execPath, [join(ROOT, EVALUATOR), '--days', '1'], {
       cwd: ROOT, encoding: 'utf8', timeout: 60000, env: Object.assign({}, process.env, { CI: 'true' }),
     });
     if (r.status !== 2 || !/never runs in CI/.test(r.stderr || '')) {
       bad.push(`${EVALUATOR} under CI=true did not refuse its production read (exit ${r.status})`);
+    }
+    const g = spawnSync(process.execPath, [join(ROOT, REPLAY_GUARD), '--live'], {
+      cwd: ROOT, encoding: 'utf8', timeout: 60000, env: Object.assign({}, process.env, { CI: 'true' }),
+    });
+    if (g.status !== 2 || !/never runs in CI/.test(g.stderr || '')) {
+      bad.push(`${REPLAY_GUARD} --live under CI=true did not refuse its production read (exit ${g.status})`);
     }
   }
   return bad;
@@ -273,8 +299,57 @@ async function sl5(evUrl) {
   return bad;
 }
 
+/* SL-5 for the replay guard: its five fixture records (stored input + seed;
+   three reproduce, two carry a flipped seed so the "differs on" detail prints)
+   through its own R1 engine half and the two functions that turn a record into
+   output — the R1 line and the ARM attestation. No seed form may appear in
+   either, or in the replay records. */
+async function sl5b(guardUrl) {
+  const bad = [];
+  const g = await import(guardUrl);
+  const { engineAt } = await import(pathToFileURL(join(ROOT, 'tools', 'lib', 'engine-pack.mjs')).href);
+  const eng = await engineAt(ROOT);
+  const recs = g.fixtureRecords(eng, H);
+  const seeds = [];
+  recs.forEach((r, i) => {
+    if (i % 2) r.seed = (r.seed ^ 0x5a5a5a5a) >>> 0;
+    seeds.push(r.seed);
+    r.digest = 'd'.repeat(64);
+  });
+  const lines = [];
+  const reps = [];
+  for (const r of recs) {
+    const rep = g.replayOne(eng, r);
+    reps.push(rep);
+    lines.push(g.r1Line(r, rep, { ok: true, detail: 'seed-no-leak' }).line);
+  }
+  lines.push(...g.attestLines(H, recs));
+  const printed = lines.join('\n');
+  const exported = JSON.stringify(reps);
+  const nTrue = reps.filter((x) => x.reproduced === true).length;
+  const nFalse = reps.filter((x) => x.reproduced === false).length;
+  if (nTrue !== Math.ceil(recs.length / 2) || nFalse !== Math.floor(recs.length / 2)) {
+    bad.push(`harness: replay guard expected ${Math.ceil(recs.length / 2)} reproduced / ${Math.floor(recs.length / 2)} not, got ${nTrue} / ${nFalse}`);
+  }
+  if (!/differs on/.test(printed)) bad.push('harness: the replay guard printed no non-reproducing detail — its FAIL path was not exercised');
+  for (const s of seeds) {
+    if (forms(s).some((f) => f.length >= 6 && printed.includes(f))) bad.push(`${REPLAY_GUARD}: a stored seed is in its R1 line or attestation`);
+    if (forms(s).some((f) => f.length >= 6 && exported.includes(f))) bad.push(`${REPLAY_GUARD}: a stored seed is in its replay records`);
+  }
+  return bad;
+}
+
 // ── mutants ─────────────────────────────────────────────────────────────────
 const EV_SRC = () => readFileSync(join(ROOT, EVALUATOR), 'utf8');
+const GUARD_SRC = () => readFileSync(join(ROOT, REPLAY_GUARD), 'utf8');
+function editGuard(edits) {
+  let s = GUARD_SRC();
+  for (const [a, b] of edits) {
+    if (s.split(a).length !== 2) { console.error(`--mutate: marker not exactly once in ${REPLAY_GUARD} — "${a.trim()}"`); process.exit(2); }
+    s = s.split(a).join(b);
+  }
+  return s;
+}
 const MARK_DECODE = '    const input = decodeProbeInput(row.input);';
 const MARK_RETURN = '    return Object.assign(r.stats, { reproduceDetail: r.reproduceDetail });';
 function editEv(edits) {
@@ -285,12 +360,14 @@ function editEv(edits) {
   }
   return s;
 }
-/* A mutated evaluator, importable from the OS temp dir (relative imports made absolute). */
-function evModule(src, tag) {
+/* A mutated evaluator (or replay guard), importable from the OS temp dir
+   (relative imports made absolute). */
+function evModule(src, tag, home = 'tools') {
   const base = pathToFileURL(ROOT).href.replace(/\/$/, '');
   /* Every relative import made absolute: '../x' from the repo root, './x'
-     (pack-edge.mjs, world-tick-replay-pool.mjs) from tools/. */
-  const abs = src.split("'../").join(`'${base}/`).split("'./").join(`'${base}/tools/`);
+     (pack-edge.mjs, world-tick-replay-pool.mjs; schema-replay.mjs) from the
+     file's own directory. */
+  const abs = src.split("'../").join(`'${base}/`).split("'./").join(`'${base}/${home}/`);
   const p = join(tmpdir(), `hr-seed-leak-${process.pid}-${tag}.mjs`);
   writeFileSync(p, abs, 'utf8');
   return { url: pathToFileURL(p).href, done: () => { try { unlinkSync(p); } catch { /* gone */ } } };
@@ -314,16 +391,29 @@ const MUTANTS = [
   { name: 'SL-M7 a second tool reads the probe table from production', want: ['SL-3'],
     files: (m) => m.set('tools/probe-peek.mjs',
       "const t = readFileSync(join(homedir(), '.supabase-token'));\nconst q = 'select seed from public.hr_tick_probe';\n") },
+  { name: 'SL-M8 the replay guard\'s R1 line carries the seed', want: ['SL-5'],
+    guard: [['      + `${rep.keysOk ? \'14 keys\' : rep.keysDetail}; ${rep.detail}; ${app.detail}` };',
+      '      + `${rep.keysOk ? \'14 keys\' : rep.keysDetail}; ${rep.detail}; ${app.detail} s${rec.seed}` };']] },
+  { name: 'SL-M9 the replay guard dumps its rows to a file', want: ['SL-1'],
+    guard: [['  const rows = JSON.parse(text);\n',
+      "  const rows = JSON.parse(text);\n  if (process.env.HR_DUMP) writeFileSync('probe-rows.json', JSON.stringify(rows));\n"]] },
+  { name: 'SL-M10 CI runs the replay guard\'s production read', want: ['SL-4'],
+    files: (m) => m.set('.github/workflows/smoke.yml',
+      `${m.get('.github/workflows/smoke.yml')}\n          node tests/world-tick-combat-replay.mjs --live\n`) },
+  { name: 'SL-M11 the ARM attestation carries the seed', want: ['SL-5'],
+    guard: [["recs.map((r) => `'${r.id}:${r.digest}'`)", "recs.map((r) => `'${r.id}:${r.digest}:${r.seed}'`)"]] },
 ];
 
-async function runAll(files, evUrl, opts) {
+async function runAll(files, evUrl, opts, guardUrl) {
   const red = {};
   const add = (id, list) => { if (list.length) red[id] = list; };
   add('SL-1', sl1(files));
   add('SL-2', sl2(files));
   add('SL-3', sl3(files));
   add('SL-4', sl4(files, opts));
-  if (!opts || opts.runtime !== false) add('SL-5', await sl5(evUrl));
+  if (!opts || opts.runtime !== false) {
+    add('SL-5', [...await sl5(evUrl), ...await sl5b(guardUrl || pathToFileURL(join(ROOT, REPLAY_GUARD)).href)]);
+  }
   return red;
 }
 
@@ -347,16 +437,22 @@ async function main() {
   for (const m of MUTANTS) {
     const fm = new Map(files);
     let mod = null;
+    let gmod = null;
     if (m.ev) {
       const src = editEv(m.ev);
       fm.set(EVALUATOR, src);
       mod = evModule(src, i++);
     }
+    if (m.guard) {
+      const src = editGuard(m.guard);
+      fm.set(REPLAY_GUARD, src);
+      gmod = evModule(src, i++, 'tests');
+    }
     if (m.files) m.files(fm);
     let red;
     try {
-      red = await runAll(fm, mod ? mod.url : evUrl, { runtime: m.want.includes('SL-5') });
-    } finally { if (mod) mod.done(); }
+      red = await runAll(fm, mod ? mod.url : evUrl, { runtime: m.want.includes('SL-5') }, gmod ? gmod.url : null);
+    } finally { if (mod) mod.done(); if (gmod) gmod.done(); }
     const missed = m.want.filter((id) => !red[id]);
     const ok = missed.length === 0;
     console.log(`  ${ok ? 'caught ' : 'ESCAPED'}  ${m.name} -> ${m.want.join(' + ')}${ok ? '' : ` (${missed.join(', ')} stayed green)`}`);

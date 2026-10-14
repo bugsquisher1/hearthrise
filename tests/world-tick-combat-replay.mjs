@@ -255,6 +255,21 @@ function armDigestParity() {
   return { ok: n === 2, line: `FX-2 ${ARM_FILE} carries REPLAY_DIGEST_SQL verbatim in its P2 (${n}x, want 2: the integrity check and the count)` };
 }
 
+// ── the only places a probe record reaches the output ───────────────────────
+/* tests/world-tick-seed-no-leak.mjs SL-5 runs both on records carrying seeds
+   (reproducing and not) and holds that no seed form appears. */
+export function r1Line(rec, rep, app) {
+  return { ok: rep.keysOk && rep.reproduced && app.ok,
+    line: `R1 probe ${rec.id} (${String(rec.payloadClose).slice(0, 8)}): `
+      + `${rep.keysOk ? '14 keys' : rep.keysDetail}; ${rep.detail}; ${app.detail}` };
+}
+export function attestLines(pin, recs) {
+  return [
+    `  c_pin      constant text   := '${pin}';`,
+    `  c_replayed constant text[] := array[${recs.map((r) => `'${r.id}:${r.digest}'`).join(', ')}]::text[];`,
+  ];
+}
+
 // ── one read: R1 + R2 + coverage ────────────────────────────────────────────
 /**
  * @param ctx { recs, engineOf(rec) -> engine, pinDir, db, caps, replicas, dbPlant, skipR2 }
@@ -273,10 +288,9 @@ async function judge(ctx) {
     const app = rep.reproduced ? await applyOne(ctx.db, ctx.caps, eng, rec, rep, i, ctx.dbPlant)
       : { ok: false, detail: 'not run (R1b red)' };
     if (rep.reproduced && !app.ok) red.R1c.push(`probe ${rec.id}: ${app.detail}`);
-    const ok = rep.keysOk && rep.reproduced && app.ok;
-    r1.push({ id: rec.id, payload: rec.payloadClose, ok });
-    lines.push({ ok, line: `R1 probe ${rec.id} (${String(rec.payloadClose).slice(0, 8)}): `
-      + `${rep.keysOk ? '14 keys' : rep.keysDetail}; ${rep.detail}; ${app.detail}` });
+    const l = r1Line(rec, rep, app);
+    r1.push({ id: rec.id, payload: rec.payloadClose, ok: l.ok });
+    lines.push(l);
   }
   const cov = coverageOf(ctx.recs, (rec) => ctx.huntIndexOf(rec));
   lines.push({ ok: !cov.missing.length, line: `coverage ${JSON.stringify(cov.counts)} (need ${JSON.stringify(COVERAGE)})`
@@ -432,8 +446,7 @@ async function runLive() {
   if (ATTEST) {
     const onPin = recs.filter((r) => r.payloadOpen === pin && r.payloadClose === pin && out.r1.find((x) => x.id === r.id).ok);
     console.log(`\n-- ${onPin.length} replayed probes on the pin (the ARM file's P2 needs >= 4, >= 2 ate, >= 2 deaths, >= 1 named hunt):`);
-    console.log(`  c_pin      constant text   := '${pin}';`);
-    console.log(`  c_replayed constant text[] := array[${onPin.map((r) => `'${r.id}:${r.digest}'`).join(', ')}]::text[];`);
+    for (const l of attestLines(pin, onPin)) console.log(l);
   }
   return 0;
 }

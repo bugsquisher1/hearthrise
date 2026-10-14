@@ -155,6 +155,8 @@
     "node tests/world-tick-m4-party-horizon.mjs --mutate": "db-replay-6",
     "node tests/world-tick-arm-combat.mjs": "db-replay-6",
     "node tests/world-tick-arm-combat.mjs --mutate": "db-replay-6",
+    "node tests/world-tick-combat-replay.mjs": "db-replay-6",
+    "node tests/world-tick-combat-replay.mjs --mutate": "db-replay-6",
     "node tests/party-hunt-view.mjs": "db-replay-6",
     "node tests/party-hunt-view.mjs --mutate": "db-replay-6",
     "node tests/party-hunt-select-lockdown.mjs": "db-replay-6",

@@ -28,6 +28,9 @@
 //      a phone (922x423 @3) follows the hero instead of shrinking the room
 //   H7 ONE ENGINE (AWAY-12, extended): the observer and the hunt modules name
 //      no engine entry point; the observer only diffs the tick it wraps
+//   H8 FACING: every monster (bystander, foe, leaving, fallen; standing or
+//      walking) faces east or west, never the camera (a rat's head-on frame
+//      reads as a spider at 48 px)
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
@@ -216,6 +219,29 @@ function check(M) {
     }
     ok('H7', /orig\.apply\(this, arguments\)/.test(M.sources.observer), 'the observer must wrap the tick it observes, not replace it');
   }
+
+  // H8 — monsters face a side, never the camera: a rat's head-on frame reads as a spider at 48 px.
+  //      Over a real hunt fight (bystanders wandering, the foe engaging, the fallen and the leaving).
+  {
+    const f = fight(M, { foe: 'rat', tickMs: 1200, seed: 'h8', hunt: { spawns: huntRow.spawns } });
+    const sc = newScene();
+    let units = 0, facing = 0, moving = 0;
+    const sides = new Set();
+    for (let i = 0, t = 1000; i < 120; i++, t += 1200) {
+      for (const dt of [0, 300, 600, 900]) {
+        for (const u of sc.state(snapOf(M, f.G, 1200), t + dt, 'Tyler').units) {
+          if (u.id === 'loot_bag') continue;
+          units++; sides.add(u.dir);
+          if (u.anim === 'walk') moving++;
+          if (u.dir !== 'e' && u.dir !== 'w') facing++;
+        }
+      }
+      const b = f.tick();
+      if (b) { b.at = t; sc.beat(b); }
+    }
+    ok('H8', units > 500 && moving > 20 && facing === 0, facing + ' of ' + units + ' monster frames (' + moving + ' walking) face the camera or away');
+    ok('H8', sides.has('e') && sides.has('w'), 'the monsters all face one way: ' + [...sides].join(','));
+  }
   return fails;
 }
 
@@ -228,6 +254,8 @@ const MUTANTS = [
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
   ['H5', 'nothing settled reads as zero', 'src/world/hunt-chrome.js', [['const num = (v) => (v != null && Number.isFinite(Number(v))', 'const num = (v) => (Number.isFinite(Number(v))']]],
   ['H6', 'a phone shrinks the room to fit', 'src/world/core/camera.js', [['return z / (dpr || 1) >= FIT_MIN_CSS ? z : 0;', 'return z;']]],
+  ['H8', 'a standing bystander faces the camera', 'src/world/choreo.js', [["const rest = (a) => (hash32('f' + a.slot) & 1 ? 'e' : 'w');", "const rest = () => 's';"]]],
+  ['H8', 'a monster turns to the camera on a vertical step', 'src/world/choreo.js', [["const sideOf = (dx, keep) => (dx > 0 ? 'e' : dx < 0 ? 'w' : keep);", "const sideOf = (dx, keep) => (dx > 0 ? 'e' : dx < 0 ? 'w' : 's');"]]],
   ['H7', 'the scene rolls its own swing', 'src/world/hunt-scene.js', [['    beat(b) { ch.beat(b, b.at); },', '    beat(b) { ch.beat(b, b.at); },\n    roll(r) { return rollAttack(r, 1, 2); },']]],
 ];
 
@@ -279,5 +307,5 @@ else {
   const fails = check(await load(ROOT));
   for (const f of fails) console.log('  ✗ ' + f.id + '  ' + f.msg);
   if (fails.length) { console.log('world-hunt: ' + fails.length + ' failure(s)'); process.exit(1); }
-  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine');
+  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine, side-on monsters');
 }

@@ -22,7 +22,8 @@
 //   L  map lint over every shipped map, and over planted bad rows (whole
 //      tiles, doors, roofs, reachability of walked maps, the wall kit)
 //   P  8-way A* never cuts a corner
-//   W  the Wang vertex grid melts lone tiles and keeps plains whole
+//   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
+//      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
 //      draws the layers in the plan's order
 //
@@ -221,6 +222,16 @@ function check(M) {
       const open = m.ground.filter((mat) => !tables.materials[mat].solid).length;
       ok('W2', g.tiles.filter((t) => t.set).length >= open && g.voids.length === m.ground.length - open, id + ': the ground must cover every open tile with art and every rock tile with void');
     }
+    /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams. */
+    for (const id of Object.keys(rows)) {
+      const m = compiled(id), terr = book.terrains[m.groundTerrain];
+      if (!terr || terr.kind !== 'fill') continue;
+      const [cols, rws] = terr.cycle || [1, 1];
+      const want = (x, y) => book.tile(m.groundTerrain, '1111', (y % rws) * cols + (x % cols));
+      const bad = M.compose.groundTiles(m, book, tables, T).tiles.filter((t) => { const w = want(t.x / T, t.y / T); return !w || w.sx !== t.sx || w.sy !== t.sy; });
+      ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle');
+    }
+    ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be the flat cellar_earth fill (the flagstone Wang patch reads as a raised slab)');
   });
 
   fam('G', () => {
@@ -288,6 +299,7 @@ const MUTANTS = [
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###....................#',\n", "    '###.......#............#',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
+  ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;', 'const n = x * 7 + y * 13;']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [

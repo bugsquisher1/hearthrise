@@ -3888,6 +3888,17 @@ jobs:
           node tests/market-prices.mjs --mutate
           node tests/market-prices.mjs
 
+      # PLATFORM SEAM (W4.1, Steam/mobile shells): shipped src reaches web storage
+      # only through src/platform/storage.js, which loads first; the tab id stays in
+      # the tab store; the seam's never-throw / refused-write contract is executed
+      # in a vm. --selftest plants a direct localStorage use, a late seam, a shared
+      # tab id and five broken seams, plus two negative controls.
+      - name: Platform seam - web storage only through src/platform/storage.js
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/platform-seam.mjs --selftest
+          node tests/platform-seam.mjs
+
       # VENDOR/SHOP ARBITRAGE (b564): no shop_buy offer may cost less gold than
       # vendor_sell pays for what it grants (buy -> sell -> repeat is a faucet).
       # Reads the edge GOLD_OFFERS + vendorPriceOf and hr_items.value at the end
@@ -4238,6 +4249,19 @@ jobs:
       - name: World art - base run
         if: ${{ !cancelled() }}
         run: node tests/world-assets.mjs
+
+      # Pixel item icons (2026-10-14): one 32x32, palette-locked, binary-alpha PNG per
+      # ITEMS key under assets/icons-bundle/pixel/items/, none orphaned, and the one
+      # ITEM_ART_SET switch still wired. --selftest plants a missing icon, an orphan,
+      # a 16x16, an off-palette pixel, a partial-alpha pixel, an empty icon and a
+      # lost switch.
+      - name: Pixel item icons - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/pixel-icons.mjs --selftest
+
+      - name: Pixel item icons - base run
+        if: ${{ !cancelled() }}
+        run: node tests/pixel-icons.mjs
 
       # Settle-before-mutate, client half (SEC_SETTLE_BEFORE_MUTATE_F2F3 row 1b):
       # every client-direct sender of the twelve settle-gated RPCs goes through

@@ -68,6 +68,7 @@
   var MSG_KEY_PREFIX = 'hearthrise:chat:msgs:';
   var SETTINGS_KEY   = 'hearthrise:chat:settings';
   var BLOCK_KEY      = 'hearthrise:chat:blocked';
+  var store          = window.HearthriseStorage;   // src/platform/storage.js
   var MAX_MSG_LEN    = 240;
   var MSG_CAP        = 200;          // per channel, FIFO
   var SEND_THROTTLE  = 800;          // ms between sends from same player
@@ -89,11 +90,10 @@
     minimized:         true,           // start collapsed so we don't take over the screen
   };
   function loadSettings(){
-    try { return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); }
-    catch(e){ return Object.assign({}, defaultSettings); }
+    return Object.assign({}, defaultSettings, store.getJSON(SETTINGS_KEY, {}));
   }
   function saveSettings(){
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e){}
+    store.setJSON(SETTINGS_KEY, settings);
   }
   var settings = loadSettings();
   // b106: on mobile widths, force the dock to start minimized regardless
@@ -101,24 +101,24 @@
   // so an expanded default would cover the entire game on first load —
   // which is what mobile testers reported as "the game is broken."
   // Users can still expand by tapping the Chat pill; their preference
-  // resaves to localStorage normally after that.
+  // resaves normally after that.
   if (typeof window !== 'undefined' && window.innerWidth <= 540) {
     settings.minimized = true;
   }
 
   // ── Block list ──────────────────────────────────────────────
   function loadBlocked(){
-    try { return JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]'); } catch(e){ return []; }
+    return store.getJSON(BLOCK_KEY, []);
   }
   function saveBlocked(){
-    try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch(e){}
+    store.setJSON(BLOCK_KEY, blocked);
   }
   var blocked = loadBlocked();
 
   // ── State ───────────────────────────────────────────────────
   function loadState(){
     try {
-      var raw = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+      var raw = store.getJSON(STATE_KEY, {});
       return {
         active: raw.active || 'global',
         whispers: raw.whispers || {},      // { otherId: { name, lastSeen } }
@@ -129,13 +129,11 @@
     }
   }
   function saveState(){
-    try {
-      localStorage.setItem(STATE_KEY, JSON.stringify({
-        active: state.active,
-        whispers: state.whispers,
-        unread: state.unread,
-      }));
-    } catch(e){}
+    store.setJSON(STATE_KEY, {
+      active: state.active,
+      whispers: state.whispers,
+      unread: state.unread,
+    });
   }
   var state = loadState();
 
@@ -218,24 +216,12 @@
     this._listeners = {};   // channel → [callback]
   }
   LocalBackend.prototype._key = function(channel){ return MSG_KEY_PREFIX + channel; };
-  // Use the shared safeLoadJson / safeSaveJson helpers when available
-  // (see src/utils/safe.js). Fall back to inline try/catch when not —
-  // keeps chat.js loadable even if the utility module is missing.
   LocalBackend.prototype._read = function(channel){
-    if(window.HearthriseSafe && typeof window.HearthriseSafe.safeLoadJson === 'function'){
-      return window.HearthriseSafe.safeLoadJson(this._key(channel), []);
-    }
-    try { return JSON.parse(localStorage.getItem(this._key(channel)) || '[]'); }
-    catch(e){ return []; }
+    return store.getJSON(this._key(channel), null) || [];
   };
   LocalBackend.prototype._write = function(channel, msgs){
     var capped = msgs.slice(-MSG_CAP);
-    if(window.HearthriseSafe && typeof window.HearthriseSafe.safeSaveJson === 'function'){
-      window.HearthriseSafe.safeSaveJson(this._key(channel), capped);
-      return;
-    }
-    try { localStorage.setItem(this._key(channel), JSON.stringify(capped)); }
-    catch(e){}
+    store.setJSON(this._key(channel), capped);
   };
   LocalBackend.prototype.send = function(channel, msg){
     var msgs = this._read(channel);
@@ -354,10 +340,7 @@
   // put it off-screen. Applying always re-clamps, so a shrunken viewport
   // can never strand it.
   //
-  // Persistence goes through the platform storage seam
-  // (window.HearthriseStorage) — the seam Steam/Capacitor swap out — not
-  // straight to localStorage. The four pre-existing chat keys still bypass
-  // it; migrating those is a separate, deliberate change.
+  // Persistence goes through the platform storage seam, like every chat key.
   var POS_KEY      = 'hearthrise:chat:dockpos';
   var EDGE         = 12;   // minimum gap from any viewport edge
   var SNAP         = 26;   // drop within this of an edge and it snaps flush
@@ -370,8 +353,7 @@
 
   function loadDockPos(){
     try {
-      var s = window.HearthriseStorage;
-      var raw = s ? s.get(POS_KEY) : localStorage.getItem(POS_KEY);
+      var raw = store.get(POS_KEY);
       if(!raw) return null;
       var p = JSON.parse(raw);
       if(!p || typeof p.fx !== 'number' || typeof p.fy !== 'number') return null;
@@ -380,18 +362,10 @@
     } catch(e){ return null; }
   }
   function saveDockPos(p){
-    try {
-      var s = window.HearthriseStorage;
-      if(s) s.setJSON(POS_KEY, p);
-      else localStorage.setItem(POS_KEY, JSON.stringify(p));
-    } catch(e){}
+    store.setJSON(POS_KEY, p);
   }
   function clearDockPos(){
-    try {
-      var s = window.HearthriseStorage;
-      if(s) s.remove(POS_KEY);
-      else localStorage.removeItem(POS_KEY);
-    } catch(e){}
+    store.remove(POS_KEY);
   }
 
   // Free positioning is desktop-only. On phones the expanded dock is a

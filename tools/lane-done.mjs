@@ -41,6 +41,8 @@ const STEPS = [
   ['node', ['tests/dead-exports.mjs']],
   ['node', ['tests/dead-css.mjs']],
   ['node', ['tests/market-price-source.mjs']],
+  // Web storage only through src/platform/storage.js (W4.1). Milliseconds.
+  ['node', ['tests/platform-seam.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],
   ['node', ['tests/no-duplicate-toplevel-fns.mjs']],
   ['node', ['tests/token-single-source.mjs']],

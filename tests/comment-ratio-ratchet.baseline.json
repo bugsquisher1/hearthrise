@@ -3,12 +3,12 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-14",
   "pinnedCount": 16,
-  "bnumTotal": 3866,
+  "bnumTotal": 3865,
   "files": {
     "src/legacy.js": {
-      "total": 16489,
+      "total": 16480,
       "comment": 7057,
-      "code": 8567,
+      "code": 8558,
       "ratio": 0.6985252179581195,
       "bnum": 661
     },
@@ -34,9 +34,9 @@
       "bnum": 130
     },
     "src/net/accrue.js": {
-      "total": 7177,
+      "total": 7173,
       "comment": 3814,
-      "code": 2849,
+      "code": 2845,
       "ratio": 1.3387153387153388,
       "bnum": 126
     },

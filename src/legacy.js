@@ -664,15 +664,9 @@ function saveLocal(){
      whole of saveLocal now, and the name is kept because ~90 call sites say it. */
   try{ if(!document.hidden) G.lastSeen=Date.now(); }catch(e){}
 }
-// One accessor for reading a raw save string, via the seam when present.
-function _readSave(key){
-  try{ return window.HearthriseStorage ? window.HearthriseStorage.get(key) : localStorage.getItem(key); }
-  catch(e){ try{ return localStorage.getItem(key); }catch(_){ return null; } }
-}
-function _removeSave(key){
-  try{ if(window.HearthriseStorage){window.HearthriseStorage.remove(key);} else {localStorage.removeItem(key);} }
-  catch(e){ try{ localStorage.removeItem(key); }catch(_){ } }
-}
+// One accessor for reading a raw save string, through the storage seam.
+function _readSave(key){ return window.HearthriseStorage.get(key); }
+function _removeSave(key){ window.HearthriseStorage.remove(key); }
 /* ══════════════════════════════════════════════════════════════════════
    b318 — SAVE OWNERSHIP (V2: cross-account clobber + account-data bleed).
 
@@ -697,7 +691,7 @@ function currentSaveOwnerId(){
      session blob is the same source auth.js reads, so this is not a second
      source of truth — just an order-independent reader of the first. */
   try{
-    const s=JSON.parse(localStorage.getItem('hearthrise:supabaseSession')||'null');
+    const s=window.HearthriseStorage.getJSON('hearthrise:supabaseSession',null);
     const id=s&&s.user&&s.user.id;
     return (typeof id==='string'&&id)?id:null;
   }catch(_){ return null; }
@@ -720,7 +714,7 @@ function parkLocalSave(tag){
     if(!owner){ const uid=currentSaveOwnerId(); if(uid){ owner=uid; blob._saveOwner=uid; raw=JSON.stringify(blob); } }
   }catch(_){ }
   const key=_parkKey(tag,owner);
-  try{ localStorage.setItem(key,raw); }catch(_){ return null; }   /* never remove what we failed to copy */
+  if(!window.HearthriseStorage.set(key,raw,{durable:true})) return null;   /* never remove what we failed to copy */
   _removeSave(SAVE_KEY);
   return key;
 }
@@ -743,7 +737,7 @@ function unparkOwnSave(){
   if(!owner) return null;
   const cands=['signout','foreign','parked'].map(function(t){
     const k=_parkKey(t,owner);
-    let raw=null; try{ raw=localStorage.getItem(k); }catch(_){ }
+    const raw=_readSave(k);
     return raw?{key:k,raw:raw}:null;
   }).filter(Boolean);
   const best=chooseParkedSave(cands);
@@ -751,10 +745,7 @@ function unparkOwnSave(){
   /* Verify the stamp inside the blob too — the key is a convenience, the stamp
      is the truth. */
   try{ if(JSON.parse(best.raw)._saveOwner!==owner) return null; }catch(_){ return null; }
-  try{
-    if(window.HearthriseStorage&&typeof window.HearthriseStorage.set==='function') window.HearthriseStorage.set(SAVE_KEY,best.raw);
-    else localStorage.setItem(SAVE_KEY,best.raw);
-  }catch(_){ try{ localStorage.setItem(SAVE_KEY,best.raw); }catch(__){ return null; } }
+  window.HearthriseStorage.set(SAVE_KEY,best.raw);
   window.__saveParked=false;
   return best.key;
 }
@@ -1007,7 +998,7 @@ function loadLocal(){
      UNKNOWN means unknown, the display ladder cannot resurrect a default, and
      src/features/boot-hydration.js holds the veil until a verdict lands. */
   try{ _removeSave(SAVE_KEY); }catch(e){}
-  try{ const RETIRED_PREFIXES=['hearthrise:save-backup:','hearthrise:char:']; for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&RETIRED_PREFIXES.some(p=>k.indexOf(p)===0)) localStorage.removeItem(k); } }catch(e){}
+  try{ const S=window.HearthriseStorage, RETIRED_PREFIXES=['hearthrise:save-backup:','hearthrise:char:']; S.keys().forEach(k=>{ if(RETIRED_PREFIXES.some(p=>k.indexOf(p)===0)) S.remove(k); }); }catch(e){}
   try{ if(window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
 }
 /* ════════════════════════════════════════════════════════════════
@@ -9259,8 +9250,8 @@ function installPwa(){
   let deferredPrompt=null;
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;
     /* only nudge once per session */
-    if(!sessionStorage.getItem('install-prompted')){
-      sessionStorage.setItem('install-prompted','1');
+    if(!window.HearthriseStorage.session.get('install-prompted')){
+      window.HearthriseStorage.session.set('install-prompted','1');
       setTimeout(()=>{
         /* b373: our own nudge is an in-game modal. `deferredPrompt.prompt()`
            below is the browser's BeforeInstallPromptEvent — a different API
@@ -12119,7 +12110,7 @@ setTimeout(function(){
       if(btn) btn.textContent = '☾ Night';
     }
   }
-  function setTheme(name){ try{ localStorage.setItem(KEY, name); }catch(_){} applyTheme(name); }
+  function setTheme(name){ window.HearthriseStorage.set(KEY, name); applyTheme(name); }
   function init(){
     // b174: RETIRED. Theming is owned entirely by theme-picker.js v2, which now
     // pins the single Hearthlight theme (data-theme="hearthlight"). This legacy
@@ -12136,7 +12127,7 @@ setTimeout(function(){
     setTimeout(init, 0);
   }
   /* Helper: window.resetTheme() clears storage */
-  window.resetTheme = function(){ try{ localStorage.removeItem('hb_theme'); }catch(_){} location.reload(); };
+  window.resetTheme = function(){ window.HearthriseStorage.remove('hb_theme'); location.reload(); };
 })();
 
 // ===== block 12: script-12 — Poneti v1 icon paths (DELETED b126) =====

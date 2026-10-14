@@ -64,6 +64,7 @@
  */
 function itemTintClass(id) {
   if (!id) return '';
+  if (window.__hrPixelItemArt) return '';   /* the pixel set draws every wood tier itself: no filter over it */
   if (/^oak_(log|plank)$/.test(id)) return 'tint-oak';
   if (/^duskwood_(log|plank)$/.test(id)) return 'tint-dusk';
   if (/^willow_(log|plank)$/.test(id)) return 'tint-willow';

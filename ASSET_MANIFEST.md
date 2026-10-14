@@ -55,10 +55,28 @@ assets/
     ├── resources/    21 material icons (bars, logs, stones, mushroom, egg,
     │                 + timber_beam/field_ration plates added b224 below)
     ├── buildings/    10 homestead/room/plot structures (forge, farm, tower…)
+    ├── pixel/items/  one 32x32 pixel-world icon per ITEMS key (<id>.png), the ACTIVE
+    │                 item set since 2026-10-14; see "Pixel item icons" below
     ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
     │                 added b224)
     └── backgrounds/  dungeon.jpg (combat/dungeon backdrop)
 ```
+
+### Pixel item icons (2026-10-14) — the active item set
+
+Every key of `src/data/items.js` has `assets/icons-bundle/pixel/items/<id>.png`: 32x32 native,
+RGBA with binary alpha, every opaque pixel on the locked `hr-world-56-v2` palette
+(`art/world/palette.json`), dark 1 px outline, light from the top-left, centred. Shown at x2 with
+`image-rendering: pixelated` (`art-direction.css`). Made with PixelLab `create_image_pixen`, one fixed
+seed and one shared prompt per family so tiers read as one set (ore, bar, plate; every tier of a weapon or
+armour line), then snapped in Lab to the palette (metal tiers to their own ramp). Never from third-party game art.
+
+- ONE SWITCH: `ITEM_ART_SET` in `src/data/item-art.js` (`'pixel'` | `'painted'`). `'painted'` restores
+  the Hearthfire painted set and the wood tints in one line; the painted files stay on disk untouched.
+- The filename is derived from the id, so `tests/pixel-icons.mjs` (+ `--selftest`) is the whole manifest:
+  one icon per ITEMS key, no orphans, 32x32, on-palette, no partial alpha.
+- Contact sheets (60 per sheet, read at x3): `docs/art-experiments/pixel-icons/`.
+- Out of scope: monster portraits, skill medallions, building art (unchanged).
 
 ### b224 — Asset Director promotion pass
 

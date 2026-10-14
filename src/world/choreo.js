@@ -23,7 +23,7 @@
 //   · knocked out, the hero lies down and no floats are drawn.
 // PURE: no DOM, no window, no G, no randomness but its own seeded draw.
 // ════════════════════════════════════════════════════════════════════════
-import { walkable } from './core/path.js?v=577';
+import { walkable } from './core/path.js?v=578';
 
 export const WINDUP_MS = 400;
 export const FAST_TICK_MS = 1200;
@@ -55,6 +55,13 @@ function pickWeighted(spawns, r) {
   for (const s of spawns) { k -= s.w || 0; if (k < 0) return s.monster; }
   return spawns.length ? spawns[spawns.length - 1].monster : null;
 }
+
+/**
+ * A monster's facing: east or west only. The hero's art reads from all four sides, but a low
+ * critter's head-on frame (the rat's 's') reads as a black spider at 48 px, so a monster keeps
+ * the side it had (`keep`) on a vertical step, the way side-view monsters do.
+ */
+const sideOf = (dx, keep) => (dx > 0 ? 'e' : dx < 0 ? 'w' : keep);
 
 /** Facing for a step (dx, dy). */
 export function dirOf(dx, dy) {
@@ -95,17 +102,18 @@ export function createChoreo(map, o) {
     return { slot, id, home: home.slice(), near, off: Math.floor(rnd() * WANDER_MS), back: 0, engaged: false };
   }).filter((a) => a.id);
 
+  const rest = (a) => (hash32('f' + a.slot) & 1 ? 'e' : 'w');
   /** A bystander's spot at t: home, or a short wander out to a neighbour and back. */
   function ambientAt(a, t) {
     const p = Math.floor((t + a.off) / WANDER_MS), k = (t + a.off) - p * WANDER_MS;
     const n = a.near.length ? a.near[hash32(a.slot + ':' + p) % a.near.length] : null;
     const heroAt = hero.mv.to;
-    if (!n || hash32('w' + a.slot + ':' + p) % 3 || cheb(heroAt, a.home) <= 2) return { at: a.home.slice(), moving: false, dir: 's' };
+    if (!n || hash32('w' + a.slot + ':' + p) % 3 || cheb(heroAt, a.home) <= 2) return { at: a.home.slice(), moving: false, dir: rest(a) };
     const out = { from: a.home, to: n, t0: 0, t1: 600 }, back = { from: n, to: a.home, t0: 2000, t1: 2600 };
-    if (k < 600) return { at: posAt(out, k), moving: true, dir: dirOf(n[0] - a.home[0], n[1] - a.home[1]) };
-    if (k < 2000) return { at: n.slice(), moving: false, dir: dirOf(n[0] - a.home[0], n[1] - a.home[1]) };
-    if (k < 2600) return { at: posAt(back, k), moving: true, dir: dirOf(a.home[0] - n[0], a.home[1] - n[1]) };
-    return { at: a.home.slice(), moving: false, dir: 's' };
+    if (k < 600) return { at: posAt(out, k), moving: true, dir: sideOf(n[0] - a.home[0], rest(a)) };
+    if (k < 2000) return { at: n.slice(), moving: false, dir: sideOf(n[0] - a.home[0], rest(a)) };
+    if (k < 2600) return { at: posAt(back, k), moving: true, dir: sideOf(a.home[0] - n[0], rest(a)) };
+    return { at: a.home.slice(), moving: false, dir: rest(a) };
   }
   const visible = (a, t) => !a.engaged && t >= a.back;
 
@@ -147,14 +155,14 @@ export function createChoreo(map, o) {
     const d = [Math.sign(Math.round(at[0]) - H[0]), Math.sign(Math.round(at[1]) - H[1])];
     let to = at;
     for (let k = 2; k >= 1; k--) { const c = [Math.round(at[0]) + d[0] * k, Math.round(at[1]) + d[1] * k]; if (open(c)) { to = c; break; } }
-    leaving.push({ id: foe.id, mv: { from: at, to, t0: t, t1: t + LEAVE_MS }, dir: dirOf(d[0], d[1]) });
+    leaving.push({ id: foe.id, mv: { from: at, to, t0: t, t1: t + LEAVE_MS }, dir: sideOf(d[0], 'e') });
     release(foe.slot, t);
     foe = null;
   }
 
   function kill(b, t) {
     const at = posAt(foe.mv, t);
-    corpses.push({ id: foe.id, at, t0: t, dir: dirOf(hero.mv.to[0] - at[0], hero.mv.to[1] - at[1]) });
+    corpses.push({ id: foe.id, at, t0: t, dir: sideOf(hero.mv.to[0] - at[0], 'w') });
     bags.push({ at, t0: t });
     while (bags.length > BAGS_MAX) bags.shift();
     release(foe.slot, t);
@@ -208,7 +216,7 @@ export function createChoreo(map, o) {
       return {
         down,
         hero: heroOut,
-        foe: foe && Object.assign({ id: foe.id, x: fAt[0], y: fAt[1], dir: dirOf(hAt[0] - fAt[0], hAt[1] - fAt[1]) }, pose(foe, t < foe.mv.t1)),
+        foe: foe && Object.assign({ id: foe.id, x: fAt[0], y: fAt[1], dir: sideOf(hAt[0] - fAt[0], 'w') }, pose(foe, t < foe.mv.t1)),
         ambient: ambient.filter((a) => visible(a, t)).map((a) => {
           const w = ambientAt(a, t);
           return { id: a.id, x: w.at[0], y: w.at[1], dir: w.dir, anim: w.moving ? 'walk' : 'idle', age: t };

@@ -152,12 +152,8 @@
   // ════════════════════════════════════════════════════════════
   // 2 · STATE
   // ════════════════════════════════════════════════════════════
-  function storage() { return window.HearthriseStorage || null; }
   function readRaw(key) {
-    try {
-      var s = storage();
-      return s ? s.get(key) : localStorage.getItem(key);
-    } catch (e) { return null; }
+    try { return window.HearthriseStorage.get(key); } catch (e) { return null; }
   }
   function readCachedSession() {
     var raw = readRaw(SESSION_KEY);
@@ -239,7 +235,7 @@
          which is also the behaviour you want: the scene stays still and the
          panel travels over it. Seen at 922x423; invisible at 1440x900. */
       '.hr-gate::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
-      '  background:url(assets/brand/hearthrise-splash.jpg?v=577) 50% 42%/cover no-repeat}',
+      '  background:url(assets/brand/hearthrise-splash.jpg?v=578) 50% 42%/cover no-repeat}',
       /* The scrim. --scene-scrim-* exist precisely for "keep UI legible on top
          of the picture" and are dark in BOTH themes, so this one rule holds on
          parchment too. Vignetted rather than flat: the lightest point sits
@@ -399,8 +395,8 @@
   // audit, and the wordmark carries the alt text (it IS the word "Hearthrise";
   // an empty alt there would leave a screen reader with only the dialog label).
   var BRAND = {
-    crest: 'assets/brand/hearthrise-crest.png?v=577',
-    word:  'assets/brand/hearthrise-wordmark.svg?v=577'
+    crest: 'assets/brand/hearthrise-crest.png?v=578',
+    word:  'assets/brand/hearthrise-wordmark.svg?v=578'
   };
   function brandImg(cls, src, alt, w, h) {
     var i = document.createElement('img');

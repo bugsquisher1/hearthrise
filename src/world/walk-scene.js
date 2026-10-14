@@ -13,10 +13,10 @@
 // A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=577';
-import { createSteer, tapAction } from './steer-local.js?v=577';
-import { townState, stationOf } from './town-scene.js?v=577';
-import { furnish, maskWith } from './home-scene.js?v=577';
+import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=578';
+import { createSteer, tapAction } from './steer-local.js?v=578';
+import { townState, stationOf } from './town-scene.js?v=578';
+import { furnish, maskWith } from './home-scene.js?v=578';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza

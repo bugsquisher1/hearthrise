@@ -859,12 +859,10 @@
   // ════════════════════════════════════════════════════════════
   var CONFIRM_KEY = 'hr-muster-confirmed';
   function readFlag(k) {
-    try { return window.HearthriseStorage ? window.HearthriseStorage.get(k) : localStorage.getItem(k); }
-    catch (e) { return null; }
+    try { return window.HearthriseStorage.get(k); } catch (e) { return null; }
   }
   function writeFlag(k, v) {
-    try { if (window.HearthriseStorage) window.HearthriseStorage.set(k, v); else localStorage.setItem(k, v); }
-    catch (e) {}
+    try { window.HearthriseStorage.set(k, v); } catch (e) {}
   }
 
   async function join(confirmed) {

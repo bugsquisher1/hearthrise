@@ -5455,19 +5455,33 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated+bounty') return;
               const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+              /* THE 100 MS REPAINT IS HELD while a case is measured, as a clock is pinned.
+                 legacy.js rewrites the meta from G every 100 ms, which puts back the real
+                 XP and away chips over the crowded ones this fixture injects; the fit then
+                 follows a frame later, and a measurement landing in that frame saw the
+                 sparse meta under the crowded fit — "took compact while the bar had room"
+                 (b581, once in three full runs). Each case paints itself, once, for real. */
+              const realRefresh = window.refreshActivityBar;
+              let held = true;
+              window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };
+              const paint = (fn) => { held = false; try { return fn(); } finally { held = true; } };
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 window.G.bountyHunter = Object.assign({}, bh, { active: null }); window.G.combatKillsThisFoe = 5;
-                window.refreshActivityBar();
+                paint(() => window.refreshActivityBar());
                 await tick(); await tick();
                 earned(bar, meta, 'live sparse full width: ');
                 for (const px of [760, 680, 620, 560]) {
-                  bar.style.maxWidth = px + 'px'; crowd();
+                  bar.style.maxWidth = px + 'px'; paint(crowd);
                   await tick(); await tick(); // the observers' frame runs the fit
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
-              } finally { bar.style.maxWidth = ''; }
+                // The hold is real: three repaint periods later the bar measured is still the crowded one.
+                const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();
+                await new Promise((r) => setTimeout(r, 350));
+                if (meta.textContent.indexOf(toGo) < 0) bad.push('the 100 ms repaint was not held: the crowded XP chip (' + toGo + ' to go) is gone, so a case could be measured on the sparse meta');
+              } finally { window.refreshActivityBar = realRefresh; bar.style.maxWidth = ''; }
             });
             // Not vacuous: some case keeps every word, and the reserve steps were reached.
             if (!seen.some((x) => /: none$/.test(x)) || !seen.some((x) => / streak$/.test(x))) bad.push('the cases do not span "room" to "streak": ' + seen.join('; '));

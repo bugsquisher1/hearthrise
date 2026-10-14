@@ -24,7 +24,7 @@ When two rules conflict, the earlier section wins: **§1 Mission → §2 Safety 
 
 - **Secrets:** anon key only in the repo; the service-role key is never pasted anywhere. The Supabase token is at `~/.supabase-token` (read as file bytes; never printed, never in argv). The Discord webhook is at `~/.hearthrise/changelog-webhook`, never in the repo. The smoke suite's secret guard is the contract.
 - **Player state is never fabricated.** No admin SQL that seeds, heals, grants or resets a real character. Test accounts become real by being played.
-- **Money and ranked surfaces move only on a Security GO.** Any migration or RPC touching gold, gems, inventory, XP/level credit, leaderboards, clan/raid contributions, drop tables, prices or purchases gets an adversarial security-engineer review BEFORE apply. GO-WITH-CHANGES means the changes land first. Security holds veto.
+- **Money and ranked surfaces move only on a Security GO.** Any migration or RPC touching gold, gems, inventory, XP/level credit, leaderboards, clan/raid contributions, drop tables, prices or purchases gets an adversarial security-engineer review BEFORE apply. GO-WITH-CHANGES means the changes land first; the Coordinator verifies each listed change against the diff and the lane's guard exit codes — no second Security round unless the fix changed the design (Tyler, 2026-10-14). Until the EA wipe, briefs are lighter: one review per bundle, no protections for data the wipe deletes (grandfathered rows, claw-backs, forensic windows), no review of test-only files. Security holds veto.
 - **No purchases or paid API spend** without Tyler's fresh approval per spend.
 - **Production DB writes only via `node tools/apply-migration.mjs <file>`** — one file per call, never inside `begin/commit`, never 00:00–00:10 UTC, never by an agent. The Coordinator applies; agents stage and self-check.
 - **Guards are never loosened, skipped or deleted to get green.** Read a red guard first. If the guard is wrong, fix it with a mutation proof that it still bites.
@@ -39,7 +39,7 @@ When two rules conflict, the earlier section wins: **§1 Mission → §2 Safety 
 ### 3.1 Roles
 This session is the **Coordinator**: the only writer on `main`; owns integration, gates, releases, DB applies, edge deploys, Discord notes and reports. Substantive work goes to the agents in `.claude/agents/` — game-designer (final design authority; don't queue design decisions on Tyler), systems-engineer, backend-architect, security-engineer (veto), reliability-engineer, qa-engineer, art-director, asset-director. Agents work only in worktrees (`isolation:"worktree"`, or `"remote"` while Tyler is streaming — see 3.3), commit on their branch, never touch `main`, never write to production. Trivial turns don't need a fan-out. Read `.claude/coordination/PROFESSIONAL_STANDARD.md` once per session.
 
-**Briefs are scoped by lane.** A bug brief = root cause + fix + ONE regression test that fails without it, target ≤30 min. Hardening (standing guards, mutation proofs, census re-pins) is a separate parallel branch that never blocks the fix.
+**Briefs are scoped by lane.** A bug brief = root cause + fix + ONE regression test that fails without it, target ≤30 min. Hardening (standing guards, mutation proofs) is a separate parallel branch that never blocks the fix, and only for money, authority and browser-vs-server bugs, judged by cause. Every lane branches from current `main` or `next`, never a stale worktree.
 
 **Token budget (Tyler, 2026-10-11):** at most 3–4 lanes at once; batch related fixes into one lane; resume an agent (SendMessage) rather than spawn a new one; give exact paths so it doesn't re-read the repo.
 
@@ -50,25 +50,25 @@ Player-visible bugs first, in the order a player meets them. No new feature trac
 
 | Lane | What | Gates, in order |
 |---|---|---|
-| **A. Bug** | player-visible fix, client and/or edge, no DB body change | merge alone → in-page suite once (`node tests/run-smoke.mjs`) → visual pass on touched screens only if a rendered surface changed (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push → GitHub run → play gate → report. Target ≤60 min from branch landing. |
-| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → ONE suite → full visual gate on the ASSEMBLED branch (every touched screen + combat + inventory, desktop AND 922×423, screenshots READ) → bump → push `release/<build>` → GitHub green → push `main` → play gate → report |
-| **C. DB / economy** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (one file) → read-only post-apply verification → `live-hash-drift --live --write` + whys + apply-order note flipped to APPLIED + `restore-census` → edge deploy if the engine moved → THEN the client half ships via A or B. The apply always precedes the client push that needs it. |
+| **A. Bug** | player-visible fix, client and/or edge, no DB body change | merge alone → visual pass on touched screens only if a rendered surface changed (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push `release/<build>` and `main` → GitHub run (the in-page suite runs there) → report. A red is fixed forward within the hour. Target ≤60 min from branch landing. |
+| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → visual gate on the ASSEMBLED branch, touched screens only (922×423, screenshots READ; +combat & inventory if CSS moved; buttons stay off until the server confirms) → bump → push `release/<build>` → GitHub green (the in-page suite runs there) → push `main` → report |
+| **C. DB / economy** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (one file; landed body md5s match the review) → `live-hash-drift --live --write` + apply-order note flipped to APPLIED, in ONE Coordinator commit (the authoring lane re-pins `restore-census` in its own commit when it adds a table or changes seeded rows) → edge deploy if the engine moved → THEN the client half ships via A or B. The apply always precedes the client push that needs it. No separate post-apply verification agent: the migration's §4 self-check runs inside the apply and rolls it back on failure. |
 
 Every lane:
-- **The record gate is the GitHub five-job matrix on `release/<build>` (and `next` for staging), not Tyler's PC.** `run-ci-local` and the full in-page suite are local conveniences when the machine is free. Before pushing, run locally the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
+- **The record gate is the GitHub matrix (14 jobs) on `release/<build>` (and `next` for staging), not Tyler's PC (2026-10-14: `run-ci-local` is not a gate, only a way to reproduce a GitHub red; no local in-page suite unless `supabase/functions/**` changed, in which case ONE local run precedes the edge deploy, because GitHub's payload guard can only pass after it).** Before pushing, run locally only the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
 - **Stream mode:** while OBS is live (`node ~/Huntera-Stream/obs-status.mjs` → `"streaming":true`), no heavy local work (no run-ci-local, full suites or multi-lane browser fan-outs). Dispatch `isolation:"remote"` lanes and rely on GitHub. Applies, edge deploys, Discord posts, the play gate and pushes stay local.
 - **The Coordinator never resolves a conflict by hand.** Integration is `git merge` with zero conflict hunks or nothing; a conflicting branch goes back to its lane, which merges main into itself, re-tests and reports.
-- **One suite at a time.** Merge the ready set, run ONE suite, bisect only if red.
+- **One run at a time.** Merge the ready set, push it, let ONE GitHub run judge it, bisect only if red.
 - **Never bundle a lane-A fix behind B/C work.**
-- **Green means:** the suite and the GitHub run on the release SHA are green AND it has been played. A red CI half is fixed forward within the hour, never called "flaky" until read.
-- **Play gate:** on live, as the signed-in QA account in the connected Chrome, the way a player plays (reload → claim → fight → gather → buy → hire → water → reload). If it could only run after the push, report **"pushed, unplayed"**, never "shipped".
+- **Green means:** the GitHub run on the release SHA is green. A red is fixed forward within the hour, never called "flaky" until read.
+- **Play gate (2026-10-14, while nobody plays):** per release, a short loop on what changed (reload → act → reload, plus the original bug's repro), read as page text rather than screenshots. Once a day, the full loop on live as the signed-in QA account in the connected Chrome (reload → claim → fight → gather → buy → hire → water → reload) plus a fresh account's first minutes, logged as played or unplayed.
 - **Visual gate** exists because two individually-verified branches broke combat together (b361); the authoring agent's own look never counts. Headless: `node tests/visual-qa.mjs` (`window.__HR_TEST_HARNESS__=true` bypasses the invite gate); the art-director reads screenshots if the Coordinator cannot.
 - **Edge deploy before push** when `supabase/functions/**` changed: `node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue` + copy `supabase/config.toml`, then `npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> --project-ref nezapsylztqbbwuwembx`, then verify the live `payload_sha256` equals `pack-edge --hash`.
-- **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`: play gate, then the Discord note via `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
+- **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. Once Pages serves the new `BUILD.cache`, the day's ONE Discord note goes out via `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
 ### 3.3a Release mechanics
 - Ready branches assemble on `set/b<NNN>` (never local `main`), pushed to `next` as it grows. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout.
-- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/b<NNN>` → GitHub green → push `main` → play gate → Discord note.
+- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/b<NNN>` → GitHub green → push `main`. The play gate and the Discord note happen once a day, not per release.
 - Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day.
 
 ### 3.3b Cadence: ship continuously while nobody plays (Tyler, 2026-10-10)
@@ -81,13 +81,16 @@ Every lane:
 Start each session by PLAYING: the QA account on live through the real loop, and a fresh account through its first thirty minutes — every real bug has come from playing, none from an audit. Then run `node tools/vitals.mjs` (read-only; `--refusals` breaks down refused intents by verb). **A feature at zero for two days is a P1** (farming sat at zero for ten days unnoticed). Then new lanes.
 
 ### 3.5 The game must make sense and be fun (Tyler, 2026-10-10)
-- **The game designer re-reads the whole game weekly and after every content/systems batch:** walk the new-player path from the first screen, check every skill (purpose, path, consumer, fun to level), the hour/day/week chase and the away-and-return moment; rule keep / fix / merge / cut per system; rank top changes by first-hour value. Result is a dated section on the priority board; Tyler approves cuts.
+- **The game designer re-reads the game after every content/systems batch (changed systems + the new-player path; a full re-read once the pixel world lands):** walk the new-player path from the first screen, check every skill (purpose, path, consumer, fun to level), the hour/day/week chase and the away-and-return moment; rule keep / fix / merge / cut per system; rank top changes by first-hour value. Result is a dated section on the priority board; Tyler approves cuts.
 - **Every designed sequence (tutorial, spine, quest chain) gets a walk-through vs real data** before it is reported (see `game-designer.md`).
 - **Content ships only if it fits the loop:** every item has a source and a use, every skill has a consumer (the catalogue-coherence guard enforces the data half). Half-built features stay hidden.
 
 ### 3.6 Keep the machinery lean (Tyler, 2026-10-10)
-- **Guards earn their runtime.** A guard whose every mutant is caught by another is merged or retired, with that proof in the commit; slow guards are pooled or cached. A unique catch is never removed (§2). Targets: lane-done < 10 min; run-ci-local well under 3 h.
+- **Guards earn their runtime.** A guard whose every mutant is caught by another is merged or retired, with that proof in the commit; slow guards are pooled or cached. A unique catch is never removed (§2). Targets: lane-done < 10 min. A release runs only the mutation proofs for guards its diff touches; the full sweep runs nightly, and a nightly red blocks the next release until fixed.
 - **Memory stays pruned:** dated logs retire once their lessons are folded into durable notes or this file; stale facts are deleted when found.
+
+### 3.7 Re-tighten before the Early Access wipe (Tyler, 2026-10-14)
+The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutation sweep is green on the launch build with no waivers; Security briefs protect existing player data again and census re-pins follow every apply; the play gate moves before `main` (a staging origin with the QA account signed in); desktop comes back into the visual gate; any combat-engine deploy passes the combat replay; the designer does a full re-read.
 
 ---
 

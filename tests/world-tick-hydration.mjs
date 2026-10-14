@@ -682,7 +682,7 @@ try {
       if (d.from in there) ambiguous.push(`${key} (${d.from})`);
     }
     judge('H5a', stillThere.length === 0,
-      'and the retired Auto-Eat trio is on neither the projection's contract nor a real envelope',
+      'and the retired Auto-Eat trio is on neither the projection contract nor a real envelope',
       `a retired input is still projected: ${stillThere.join(', ')} — the away-readers file did not land`);
     judge('H5a', wrongLevel.length === 0,
       `and every one of them sits where hr_state_of's own c_top / c_state lists put it`,

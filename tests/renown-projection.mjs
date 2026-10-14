@@ -588,7 +588,7 @@ async function runAll(db) {
                         ('${UID}', 0, 'stat', 'ev:kill_any', ${cred.credited}, '', 'active'),
                         ('${UID}', 0, 'stat', 'ev:kill_credited:${quarry}', ${cred.credited}, '', 'active'),
                         ('${UID}', 0, 'stat', 'ev:kill_credited_any', ${cred.credited}, '', 'active'),
-                        ('${UID}', 0, 'daily', 'ev:kill_any', public.hr_utc_day_key(now()), ${cred.credited}, 'active')
+                        ('${UID}', 0, 'daily', 'ev:kill_any', ${cred.credited}, public.hr_utc_day_key(now()), 'active')
                  on conflict (user_id, slot, kind, key, period_key)
                    do update set value = public.player_progress.value + excluded.value;`);
   ok((await projected()) === proj1,

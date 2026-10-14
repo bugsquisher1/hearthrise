@@ -49,12 +49,6 @@ import { engineInputsFromEnvelope } from './envelope.js';
    collect must price companion XP identically to an accrue over the same
    window. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
-/* THE RECOVERY REFUSAL'S ONE DEFINITION (rev. 3, Designer ruling 2026-09-08).
-   Imported from the dual-runtime core rather than restated here, because the
-   BROWSER mirror of this same gate reads the same frozen array through
-   `HearthriseCore.away` — which is what makes the two sides the same answer
-   instead of two agreeing opinions (b519 was the day they disagreed). */
-import { recoveryRefuses, RECOVERY_REFUSED_KINDS } from '../../../src/core/away.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
@@ -87,20 +81,6 @@ import { STANCES, validateStop } from '../../../src/core/hunt.js';
    it, in one edit, with no second list to remember. */
 export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 
-/* ── §4 SELF-CHECK: THE RECOVERY REFUSAL IS A SUBSET OF WHAT IS PAYABLE ───
-   Asserted by EXECUTION at module load, in the same style the migrations use:
-   a property proven, not a marker claimed. §1b refuses a declared kind while
-   `recovering_until` is ahead; refusing a kind this intent cannot even SET
-   would be a gate on a door that does not exist, and a typo in
-   `RECOVERY_REFUSED_KINDS` (`'Combat'`, `'combat '`) would silently open the
-   fight door to a knocked-out character with nothing anywhere going red.
-   THROWS rather than warns: the Edge Function failing to boot is a visible,
-   revertible outage; a fight gate that quietly stopped gating is not. */
-for (const k of RECOVERY_REFUSED_KINDS) {
-  if (!SETTABLE_KINDS.includes(k)) {
-    throw new Error(`set-activity §1b: RECOVERY_REFUSED_KINDS names '${k}', which is not settable`);
-  }
-}
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
@@ -492,76 +472,14 @@ export async function runSetActivity(o) {
     };
   }
 
-  /* ── (1b) KNOCKED OUT? (First-Night Idle Rescue) ─────────────────────────
-     A character inside their recovery window may not START A FIGHT. The rule is
-     identical live and away because it is one fact about the CHARACTER, read
-     from the same absolute column `simulateSpan` reads — there is no second
-     code path to drift, which is what preserves AWAY-1 by construction.
-
-     ⚠ REFUSED HERE, BEFORE THE COLLECT, AND THAT PLACEMENT IS THE POINT. The
-       collect stamps `accrued_to`; refusing after it would close a window the
-       player was mid-way through for a switch that never happened. Nothing has
-       been written at this line, the watermark is intact, the idempotency key
-       is unspent, and the elapsed window is still there to be paid by the
-       `accrue` verb. This refusal costs a tap, never a night.
-
-     ⚠ COMBAT ONLY (rev. 3, 2026-09-08) — AND THE REASONING IS IN ONE PLACE.
-       Rev. 1 refused only a fight. Rev. 2 widened that to every payable kind on
-       the argument that a knockout is a property of the CHARACTER. Rev. 3
-       narrows it back to `combat`, because measured on live b524 rev. 2 left a
-       solvent, skilled, food-less character with NO LEGAL MOVE for 45 minutes:
-       it refused the very gathering that is the CURE the knockout exists to
-       teach. `RECOVERY_REFUSED_KINDS` in src/core/away.js carries the whole
-       ruling and is the ONLY definition — asked here through
-       `recoveryRefuses()`, and by the browser mirror through
-       `HearthriseCore.away`, so the two cannot drift.
-
-       ⚠ THE SUBSET RELATION IS ASSERTED, NOT ASSUMED. A refused kind that is
-         not payable would be a gate on something this intent never priced, and
-         a typo in the array would silently open the fight door. Checked once at
-         module load rather than per call: it is a property of two frozen
-         constants, so a request is the wrong place to discover it.
-
-       Everything else stays exactly as rev. 2 left it. `idle` is ALWAYS
-       allowed; gathering and the benches now pay at their normal rate while the
-       line runs; nothing non-payable was ever touched (building, shopping,
-       travelling, the market, the clan and the whole UI stay open).
-       `st.recovering_until` absent (the column does not exist) is
-       `Date.parse(undefined) = NaN`, and `NaN > nowMs` is false — the check
-       self-configures off exactly like every other reader of that column.
-
-     THE SERVER CLOCK, NEVER THE CLIENT'S. `read.now` is Postgres's `now()` from
-     the transaction that produced this envelope. */
-  if (recoveryRefuses(decl.kind)) {
-    const untilMs = Date.parse(st.recovering_until);
-    const nowMs_ = new Date(read.now).getTime();
-    if (untilMs > nowMs_) {
-      /* IT CARRIES STATE, because it is a REFUSAL AFTER A READ and the
-         published taxonomy (intents.js `refusalCarriesState`) says so: the
-         caller has already paid for an envelope, and one it cannot reconcile
-         from leaves the client guessing. `until` rides alongside so the
-         countdown does not have to be dug out of the state object. */
-      return {
-        status: 409,
-        body: await refusalBody({
-          exec, verb: VERB, user, slot, decorate: decorateActivity,
-          refusal: {
-            error: INTENT_ERRORS.RECOVERING,
-            kind: decl.kind,
-            id: decl.id,
-            /* THE ABSOLUTE INSTANT, so the client counts DOWN instead of
-               polling. Echoed from the row, the only place it can come from. */
-            until: st.recovering_until,
-            /* And the same fact as a duration, computed against the SERVER's
-               `now` in the same breath, so a client with a skewed clock renders
-               the right number rather than a negative one. */
-            remaining_ms: Math.max(0, untilMs - nowMs_),
-          },
-          fallback: env,
-        }),
-      };
-    }
-  }
+  /* ── (1b) KNOCKED OUT? — RETIRED WITH THE COMBAT POINTER (lane C2) ───────
+     Rev. 3 (2026-09-08) refused exactly one declared kind while
+     `recovering_until` was ahead: `combat`. A fight is a HUNT now and a
+     `combat` declaration is answered `hunt_required` on shape, above, so the
+     branch could no longer be reached; it is deleted rather than left as a
+     gate on a door that does not exist. Gathering and the benches stay open
+     and paid through a knockout (tests/recovery-rest.mjs §10 (c)/(f)/(g)).
+     The knockout rule for a FIGHT now belongs to the hunt's own door. */
 
   /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. Whether it
          applies is the registry's `collectsFirst`, read here and nowhere else;

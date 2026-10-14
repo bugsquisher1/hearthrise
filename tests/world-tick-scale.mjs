@@ -567,11 +567,18 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     const f2c = await fireEdge(body1(inside, { catchup_windows: K, }));
     const inRows = await tickRows(inside);
     const earliest = Math.min(...inRows.map((r) => Date.parse(r.meta.from)));
-    const shadowC = await char(U(605), { ageS: 1800, kind: 'combat', chainS: 1200 });
+    /* The SHADOW character is a GATHERER on a shadow gather channel (F6's
+       pattern). Until lane C2 it was a combat character on the shadow combat
+       channel; the solo combat channel is retired (a solo fight is a hunt
+       session) and its rows are skipped `channel_not_driven`, so the only
+       driven channel that can be shadow is gather with the arm set emptied. */
+    await cfg("armed_channels = '{}'");
+    const shadowC = await char(U(605), { ageS: 1800, chainS: 1200 });
     await leaseTo(shadowC);
     const sh0 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
     const f2d = await fireEdge(body1(shadowC, { catchup_windows: K }));
     const sh1 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
+    await cfg("armed_channels = array['gather']");
     const lag5 = Number((await one('select extract(epoch from (now() - accrued_to)) as s from public.player_state where user_id = $1', [five])).s);
     ok('C2a', (await tickRows(five)).length >= 2 && lag5 < 90 && f2a.catchup && f2a.catchup.stops.below_flush === 1,
       `a character 5 min behind catches up ${(await tickRows(five)).length} full windows and stops at the flush line (lag now ${Math.round(lag5)} s)`,

@@ -363,8 +363,14 @@ async function laterPatchers() {
   const names = files.map(([name]) => name);
   const at = names.indexOf(GUARDS);
   if (at < 0) throw Object.assign(new Error(`${GUARDS} is not in the chain`), { harness: true });
+  /* BOUNDED BY THE BOOTED END (PRE_WALLET). A file after it was never applied
+     to this database, so re-running it is not a SECOND apply — it is a first
+     apply onto a schema that predates it (lane C2's settle file restates
+     hr_tick_cron_run and its §0 refuses a chain without the hunt tables). */
+  const end = names.indexOf(PRE_WALLET);
+  if (end < at) throw Object.assign(new Error(`${PRE_WALLET} is not after ${GUARDS} in the chain`), { harness: true });
   const out = [];
-  for (const [, path] of files.slice(at + 1)) {
+  for (const [, path] of files.slice(at + 1, end + 1)) {
     const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
     // …and every later file that RESTATES one of them whole (`create or
     // replace`): since 2026-10-07-world-tick-armed-cap.sql the chain-end

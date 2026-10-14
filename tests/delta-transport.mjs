@@ -773,7 +773,10 @@ async function run(mutate) {
       const res = await runSetActivity({
         exec, user: UID, slot: 0,
         intentId: crypto.randomUUID(),
-        activity: { kind: 'combat', id: 'goblin' },
+        /* A GATHER declaration since lane C2: `combat` is answered
+           hunt_required on shape (a fight is a hunt session now) and would
+           never reach the wire this arm exists for. */
+        activity: { kind: 'gather', id: 'normal_tree' },
       });
 
       /* The refusal envelope carries a whole hr_state_of, so a raw dump buries
@@ -792,7 +795,7 @@ async function run(mutate) {
       const [st] = (await db.query(
         'select active_kind, active_id, version from public.player_state where user_id=$1 and slot=0',
         [UID])).rows;
-      ok(st && st.active_kind === 'combat' && st.active_id === 'goblin',
+      ok(st && st.active_kind === 'gather' && st.active_id === 'normal_tree',
         `T3: hr_apply reported success but the pointer is ${st && st.active_kind}/${st && st.active_id} `
         + '— the write did not land, so the 200 above is not evidence of anything');
       ok(Number(st.version) === 1,

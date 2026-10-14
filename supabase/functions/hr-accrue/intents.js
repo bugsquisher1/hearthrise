@@ -758,7 +758,10 @@ export const INTENT_ERRORS = Object.freeze({
      `idle` is always allowed and NOTHING NON-PAYABLE IS GATED — building,
      shopping, travelling, the market and the clan all stay open. A knockout
      stops the character EARNING; it does not lock the player out. That is why
-     this is a per-KIND check against PAYABLE_KINDS and not a lock. */
+     this is a per-KIND check against PAYABLE_KINDS and not a lock.
+     ⚠ NOT EMITTED BY set_activity SINCE LANE C2: rev. 3 refused `combat` alone,
+     and a `combat` declaration is now `hunt_required` on shape. The code stays
+     in the published taxonomy because the client still renders it. */
   RECOVERING: 'recovering',
   /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ───────────────────────
        hunt_required  409 — a `combat` declaration. A fight is a HUNT now:

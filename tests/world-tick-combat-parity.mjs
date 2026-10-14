@@ -176,9 +176,9 @@ const MUTATIONS = {
   /* The Rested bank settled by advancing `rested_at` to `now()` instead of by
      the charges actually granted — the b214 offline double-pay shape. */
   restedNow: { kills: 'C11', restedNow: true },
-  /* Letting an attended claim through to the tick instead of refusing it. The
-     top-up is priced against the SPAN, so sixty windows pay it sixty times. */
-  attendedThrough: { kills: 'C10', attendedThrough: true },
+  /* (attendedThrough retired in lane C2: the attended top-up is gone from the
+     engine, so there is no price to let through. C10 now proves the claim is
+     inert on the accrue path and still refused by the tick.) */
   /* THE FAILURE C6 EXISTS TO CATCH, AND HAD NO MUTANT FOR. Seed every window
      of the span from ONE constant instant instead of from its own watermark —
      the §11 `fixedSeed` shape, measured at +48% gold with three rare rows at
@@ -433,7 +433,9 @@ function accrueInput(c, fromMs, toMs, o) {
        reference agree with the 2026-10-08 companion-XP underpay
        (tests/world-tick-companion-xp.mjs). */
     companionXpBacked: COMPANION_XP_SERVER_BACKED,
-    attended: opt.attended ?? null,
+    /* index.ts's `huntOpen` (hr_hunt_open_of): a combat window priced here is
+       never a hunter's, exactly as tick-shadow.js states it. */
+    huntOpen: false,
     caller: opt.caller || 'accrue',
     callerAuthority: CALLER_AUTHORITY,
   };
@@ -634,26 +636,7 @@ for (const raw of SESSIONS) {
       from: new Date(FROM_MS).toISOString(),
       to: new Date(TO_MS).toISOString(),
     };
-    if (M.attendedThrough) {
-      /* THE MUTANT: price it anyway, once per window. The top-up is priced
-         against the SPAN, so this is the sixty-fold pay the refusal prevents. */
-      let paid = 0;
-      const char = hydrate(c);
-      let wm = FROM_MS; let clock = FROM_MS;
-      while (clock < TO_MS) {
-        clock = Math.min(clock + CADENCE_MS, TO_MS);
-        const res = computeAccrual(accrueInput(char, wm, clock,
-          { caller: 'tick', attended, labelText: pgTimestamptzText(wm) }));
-        if (res.accrued) { paid += Number(res.attendedTopUp || 0); advance(char, res); wm = Date.parse(res.delta.accrued_to); }
-      }
-      const once = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
-        { caller: 'accrue', attended, labelText: pgTimestamptzText(FROM_MS) }));
-      const onceTop = Number(once.attendedTopUp || 0);
-      ok('C10', paid <= onceTop,
-        `the attended top-up let through a decomposed chain paid ${paid} where ONE `
-        + `window prices ${onceTop} — every term of it is priced against the span`);
-      say(`   C10 MUTANT decomposed top-up ${paid} vs one-call ${onceTop}`);
-    } else {
+    {
       let threw = null;
       try {
         settleCombatSession({ ...c, attended }, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS });
@@ -666,14 +649,17 @@ for (const raw of SESSIONS) {
         settleCombatSession(c, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS, attended });
       } catch (e) { threw2 = e; }
       ok('C10', threw2 !== null, 'an attended claim passed through opts was not refused');
-      /* And the other half of the both-path rule: the accrue path DOES price
-         it, so the refusal is a fence and not a missing feature. */
-      const once = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
-        { caller: 'accrue', attended, labelText: pgTimestamptzText(FROM_MS) }));
-      ok('C10', once.accrued && Number(once.attendedTopUp || 0) >= 0,
-        'the accrue path did not price the attended claim at all — the fixture is inert');
-      say(`   C10 refused by the tick; the accrue path prices topUp=${once.attendedTopUp} `
-        + `cap=${once.attendedCap} claimed=${once.attendedClaimed}`);
+      /* And the other half, after lane C2: the accrue path no longer prices an
+         attended claim at all (hunt sessions price every fight through one
+         settle), so a claim handed to it is INERT — the delta is byte-
+         identical with and without it. */
+      const withClaim = computeAccrual({ ...accrueInput(hydrate(c), FROM_MS, TO_MS,
+        { caller: 'accrue', labelText: pgTimestamptzText(FROM_MS) }), attended });
+      const without = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
+        { caller: 'accrue', labelText: pgTimestamptzText(FROM_MS) }));
+      ok('C10', withClaim.accrued && JSON.stringify(withClaim.delta) === JSON.stringify(without.delta),
+        'an attended claim moved the accrue path\'s delta — the attended top-up is back');
+      say('   C10 refused by the tick; inert on the accrue path');
     }
     continue;
   }

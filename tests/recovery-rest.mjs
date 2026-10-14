@@ -134,18 +134,20 @@ const MUTATIONS = {
   },
   recovery_refuses_gathering: {
     js: 'supabase/functions/hr-accrue/set-activity.js',
-    why: 'the recovery refusal widens back to every payable kind (rev. 2) — a knocked-out player is '
+    why: 'a knockout refusal comes back for every payable kind (rev. 2) — a knocked-out player is '
        + 'refused the fishing that is the CURE the knockout exists to teach, which is the 45-minute '
        + 'dead sit measured on live b524',
-    find: '  if (recoveryRefuses(decl.kind)) {',
-    repl: '  if (PAYABLE_KINDS.includes(decl.kind)) {',
+    find: '  /* (2) \u26a0 COLLECT BEFORE SWITCH.',
+    repl: "  if (Date.parse(st.recovering_until) > new Date(read.now).getTime()) {\n"
+        + "    return { status: 409, body: { ok: false, error: 'recovering', kind: decl.kind, id: decl.id } };\n"
+        + '  }\n  /* (2) \u26a0 COLLECT BEFORE SWITCH.',
   },
-  recovery_refuses_nothing: {
+  combat_pointer_returns: {
     js: 'supabase/functions/hr-accrue/set-activity.js',
-    why: 'the recovery refusal is disarmed entirely — a knocked-out character starts a FIGHT, which '
-       + 'is exploit R1: earning combat output while down, and the whole ladder deleted',
-    find: '  if (recoveryRefuses(decl.kind)) {',
-    repl: '  if (false) {',
+    why: 'a `combat` declaration reaches the database again — a fight outside a hunt session, and '
+       + 'with section 1b gone, a knocked-out character starts one: exploit R1',
+    find: "  if (decl.kind === 'combat') {\n    return {\n      status: 409,\n      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED,",
+    repl: "  if (false) {\n    return {\n      status: 409,\n      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED,",
   },
   counters_not_projected: {
     file: FILE,
@@ -544,16 +546,17 @@ async function runAll(db, mutate) {
       ok(away.RECOVERY_REFUSED_KINDS.every((k) => sa.SETTABLE_KINDS.includes(k)),
         'a refused kind is not even SETTABLE — §1b is gating a door that does not exist');
 
-      // (b) KNOCKED OUT: the fight is refused, with the countdown on the refusal.
+      /* (b) KNOCKED OUT: no fight can be declared. Since lane C2 a `combat`
+         declaration is `hunt_required` for EVERY character (a fight is a hunt
+         session, entered through hr_hunt_enter), so exploit R1 — earning
+         combat output while down — has no set_activity door at all; the
+         refusal is pinned, and so is the pointer. */
       await knock(900);
       const fight = await call('combat', COMBAT.id);
-      ok(fight.status === 409 && fight.body && fight.body.error === 'recovering',
+      ok(fight.status === 409 && fight.body && fight.body.error === 'hunt_required',
         `a knocked-out character was allowed to declare COMBAT: ${fight.status} `
         + `${JSON.stringify(fight.body).slice(0, 200)}. That is exploit R1 — earning combat output `
         + 'while down — and it deletes the ladder the whole Recovery Rule is made of');
-      ok(Number(fight.body.remaining_ms) > 0 && !!fight.body.until,
-        `the refusal carried no countdown (${JSON.stringify(fight.body).slice(0, 160)}): a client `
-        + 'that cannot render the wait polls instead');
       const afterFight = (await db.query(
         'select active_kind, active_id from public.player_state where user_id=$1 and slot=0', [K])).rows[0];
       ok(afterFight.active_kind === 'idle' && afterFight.active_id === null,
@@ -697,12 +700,14 @@ async function runAll(db, mutate) {
         + 'ratios of a foodless fighter to a fed one, both fighting — letting a downed character fish '
         + 'changes no number in that table, so any change here is an unasked-for repricing');
 
-      // (e) THE CONTROL. Stand them up and the fight goes through, or (b) proves nothing.
+      /* (e) THE CONTROL, after lane C2: a character who is UP is refused the
+         same way — the refusal in (b) is the hunt door, not a knockout rule
+         set_activity still carries (its §1b branch is deleted). */
       await knock(null);
       const up = await call('combat', COMBAT.id);
-      ok(up.status === 200 && up.body && up.body.ok === true,
-        `CONTROL: a character who is UP could not declare combat: ${up.status} `
-        + `${JSON.stringify(up.body).slice(0, 200)} — §1b is refusing more than the window`);
+      ok(up.status === 409 && up.body && up.body.error === 'hunt_required',
+        `CONTROL: a character who is UP declared combat as ${up.status} `
+        + `${JSON.stringify(up.body).slice(0, 200)} — a combat pointer outside a hunt session is back`);
     }
   }
 }
@@ -737,7 +742,7 @@ if (argv.includes('--selftest')) {
     + 'replay-safe, not_hurt + not_recovering + collect_first fuses; hr_apply admits the 64-minute '
     + 'ladder cap, refuses a forgery, is not voided by an activity switch; the death ledger is one '
     + 'value-free row per death and bounded; the ladder counters survive a truncated progress array; and '
-    + 'set_activity §1b refuses COMBAT alone inside the window while gathering runs at full rate, '
+    + 'set_activity refuses COMBAT (hunt_required) down or up while gathering runs at full rate, '
     + 'without clearing the line or moving the ladder — and the ENGINE pays that window through the '
     + 'real collect, so the xp and items land, accrued_to advances, and hr_rest is not jammed behind '
     + 'collect_first).');

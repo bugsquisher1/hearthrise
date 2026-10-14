@@ -206,7 +206,7 @@
       /* THE one lit object on the screen. A claimable reward is the only thing
          that is genuinely urgent, so it is the only thing that glows. */
       R + '.hd-daily{cursor:pointer;padding:15px 16px;border-radius:var(--r) !important;',
-      'background:linear-gradient(115deg,rgba(201,162,74,.20),rgba(201,162,74,.07) 58%,rgba(201,162,74,.02)) !important;',
+      'background:var(--lit-wash) !important;',
       'border:1px solid rgba(201,162,74,.55) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,240,205,.16),0 0 22px -12px rgba(201,162,74,.8);transition:box-shadow .18s}',
       R + '.hd-daily:hover{box-shadow:inset 0 1px 0 rgba(255,240,205,.22),0 0 26px -8px rgba(201,162,74,.9)}',

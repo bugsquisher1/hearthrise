@@ -577,6 +577,7 @@ body[data-theme="hearthlight"] {
   --backdrop-veil: radial-gradient(120% 90% at 50% 26%, transparent 38%, rgba(8, 6, 5, .6)), linear-gradient(180deg, rgba(8, 6, 5, .28), rgba(8, 6, 5, .55));
   --modal-bg: linear-gradient(180deg, #201b15, #110e0a);   /* audit-overrides.css modals */
   --avatar-bg: #201b15;   /* the topbar portrait well */
+  --lit-wash: linear-gradient(115deg, rgba(201, 162, 74, .20), rgba(201, 162, 74, .07) 58%, rgba(201, 162, 74, .02));   /* Home's one lit object (.hd-daily) */
   --sidebar-glass: linear-gradient(180deg, rgba(26, 19, 12, .82), rgba(18, 13, 8, .86));   /* backdrop.js */
   --topbar-glass: rgba(28, 22, 16, .62);
   --toast-bg: linear-gradient(180deg, #2a231a, #191410);   /* .notif, #chat-dock-min */
@@ -752,38 +753,40 @@ body[data-theme="hearthlight"] {
    DOES NOT: the gold family (Tyler's keeper), the --world-* canvas ladder (the
    pixel art keeps its own palette), the scene art, premium sapphire, the
    bounty board and shopfront (they are wooden OBJECTS in the world, not UI).
-   Contrast is measured in docs/art-experiments/palette/contrast.md.
+   Contrast, measured on the rendered shots: docs/art-experiments/palette/
+   contrast.png (tools/_palette-shots.mjs regenerates it and the sheets).
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── 6a · CHARCOAL & GOLD — near-black slate, a breath of blue-grey ── */
 body[data-theme-palette="charcoal"] {
-  --bg-0: #0b0c0e;
-  --bg-1: #121418;
-  --bg-2: #1c1f24;
-  --bg-3: #272b31;
-  --bg-card: linear-gradient(180deg, #22252b, #16181c);
-  --panel-floor-0: #1c1f24;
-  --panel-floor-1: #181a1f;
+  --bg-0: #0a0b0e;
+  --bg-1: #101217;
+  --bg-2: #1a1d23;
+  --bg-3: #252931;
+  --bg-card: linear-gradient(180deg, #20242b, #14161b);
+  --panel-floor-0: #1a1d23;
+  --panel-floor-1: #16191e;
   --panel-floor-glow: rgba(201, 162, 74, .06);
   --panel-floor-rim: rgba(222, 230, 244, .09);
-  --backdrop-veil: linear-gradient(180deg, rgba(11, 12, 14, .90), rgba(11, 12, 14, .96));
-  --modal-bg: linear-gradient(180deg, #1f2227, #0f1113);
-  --avatar-bg: #1c1f24;
-  --sidebar-bg: linear-gradient(180deg, #121418, #0b0c0e);
-  --topbar-bg: linear-gradient(90deg, #191c21, #121418);
-  --sidebar-glass: linear-gradient(180deg, rgba(18, 20, 24, .92), rgba(12, 13, 16, .94));
-  --topbar-glass: rgba(21, 23, 28, .80);
+  --backdrop-veil: linear-gradient(180deg, rgba(10, 11, 14, .90), rgba(10, 11, 14, .96));
+  --modal-bg: linear-gradient(180deg, #1e2127, #0e1013);
+  --avatar-bg: #1a1d23;
+  --sidebar-bg: linear-gradient(180deg, #101217, #0a0b0e);
+  --topbar-bg: linear-gradient(90deg, #181b21, #101217);
+  --sidebar-glass: linear-gradient(180deg, rgba(16, 18, 23, .93), rgba(11, 12, 15, .95));
+  --topbar-glass: rgba(19, 21, 27, .82);
   --app-bg:
     radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .07) 0%, rgba(201, 162, 74, 0) 62%),
-    linear-gradient(180deg, #131519 0%, #0b0c0e 46%, #070809 100%);
-  --toast-bg: linear-gradient(180deg, #24272d, #15171b);
-  --medallion-bg: radial-gradient(circle at 38% 28%, #30343b, #111316 78%);
+    linear-gradient(180deg, #121419 0%, #0a0b0e 46%, #060709 100%);
+  --toast-bg: linear-gradient(180deg, #22262d, #14161a);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #2e333b, #101215 78%);
+  --lit-wash: linear-gradient(115deg, rgba(214, 178, 92, .22), rgba(201, 162, 74, .08) 58%, rgba(201, 162, 74, .02));
   --tile-raised: linear-gradient(180deg, rgba(214, 224, 240, .10), rgba(214, 224, 240, .02) 60%, rgba(0, 0, 0, .16));
   --tile-raised-line: rgba(214, 224, 240, .12);
 
   --ink:   #e9e7e2;
   --ink-2: #b8bcc4;
-  --ink-3: #8e949e;
+  --ink-3: #979da7;
   --steel: #808b98;
 
   --line-soft: rgba(214, 224, 240, .075);
@@ -792,8 +795,10 @@ body[data-theme-palette="charcoal"] {
   --surf-panel: rgba(214, 224, 240, .035);
   --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(214, 224, 240, .045);
 
-  --red: #c4483a;
-  --red-line: #dc5f4c;
+  /* --red is read as TEXT in 19 places (a short cost, a burn line), so on a
+     cool base it is lifted to AA as text; today's oxblood sits at 2.8:1 */
+  --red: #dc5f4c;
+  --red-line: #e8735e;
   --world-hud-bg: rgba(11, 12, 15, .88);
 }
 
@@ -820,12 +825,13 @@ body[data-theme-palette="midnight"] {
     linear-gradient(180deg, #0d1426 0%, #070b16 46%, #04060c 100%);
   --toast-bg: linear-gradient(180deg, #1a2440, #0e1426);
   --medallion-bg: radial-gradient(circle at 38% 28%, #26314f, #0a0f1d 78%);
+  --lit-wash: linear-gradient(115deg, rgba(227, 190, 100, .24), rgba(201, 162, 74, .09) 50%, rgba(201, 162, 74, .02));
   --tile-raised: linear-gradient(180deg, rgba(176, 198, 255, .10), rgba(176, 198, 255, .02) 60%, rgba(0, 0, 0, .18));
   --tile-raised-line: rgba(176, 198, 255, .13);
 
   --ink:   #ece7da;
   --ink-2: #b6bccc;
-  --ink-3: #8a93ab;
+  --ink-3: #949db4;
   --steel: #7e8ba6;
 
   --line-soft: rgba(176, 198, 255, .08);
@@ -834,42 +840,43 @@ body[data-theme-palette="midnight"] {
   --surf-panel: rgba(176, 198, 255, .035);
   --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(176, 198, 255, .05);
 
-  --red: #d04e3e;
-  --red-line: #e2654f;
+  --red: #dc5f4c;
+  --red-line: #e8735e;
   --green: #8aa75a;
   --world-hud-bg: rgba(7, 10, 21, .88);
 }
 
 /* ── 6c · IRON & GOLD — dark steel grey, the stone of a keep ── */
 body[data-theme-palette="iron"] {
-  --bg-0: #121314;
-  --bg-1: #1a1b1d;
-  --bg-2: #27292c;
-  --bg-3: #34373a;
-  --bg-card: linear-gradient(180deg, #2f3235, #212326);
-  --panel-floor-0: #282a2d;
-  --panel-floor-1: #232528;
+  --bg-0: #16181a;
+  --bg-1: #1f2124;
+  --bg-2: #2d3034;
+  --bg-3: #3a3e42;
+  --bg-card: linear-gradient(180deg, #35393d, #26292c);
+  --panel-floor-0: #2e3135;
+  --panel-floor-1: #282b2f;
   --panel-floor-glow: rgba(201, 162, 74, .06);
-  --panel-floor-rim: rgba(236, 238, 242, .10);
-  --backdrop-veil: linear-gradient(180deg, rgba(20, 21, 23, .90), rgba(17, 18, 19, .96));
-  --modal-bg: linear-gradient(180deg, #2d3033, #18191b);
-  --avatar-bg: #27292c;
-  --sidebar-bg: linear-gradient(180deg, #1c1d1f, #141516);
-  --topbar-bg: linear-gradient(90deg, #2a2c2f, #1f2023);
-  --sidebar-glass: linear-gradient(180deg, rgba(29, 31, 33, .93), rgba(21, 22, 24, .95));
-  --topbar-glass: rgba(33, 35, 38, .84);
+  --panel-floor-rim: rgba(236, 238, 242, .11);
+  --backdrop-veil: linear-gradient(180deg, rgba(24, 26, 28, .90), rgba(20, 22, 24, .96));
+  --modal-bg: linear-gradient(180deg, #33363a, #1d1f22);
+  --avatar-bg: #2d3034;
+  --sidebar-bg: linear-gradient(180deg, #222427, #1a1c1e);
+  --topbar-bg: linear-gradient(90deg, #303337, #25282b);
+  --sidebar-glass: linear-gradient(180deg, rgba(35, 37, 40, .95), rgba(27, 29, 31, .96));
+  --topbar-glass: rgba(42, 45, 48, .88);
   --app-bg:
     radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .06) 0%, rgba(201, 162, 74, 0) 62%),
-    linear-gradient(180deg, #1d1f21 0%, #151617 46%, #0f1011 100%);
-  --toast-bg: linear-gradient(180deg, #313437, #1f2124);
-  --medallion-bg: radial-gradient(circle at 38% 28%, #42464b, #18191b 78%);
+    linear-gradient(180deg, #24272a 0%, #1b1d1f 46%, #141617 100%);
+  --toast-bg: linear-gradient(180deg, #383c40, #25282b);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #4a4f55, #1c1e20 78%);
+  --lit-wash: linear-gradient(115deg, rgba(214, 178, 92, .18), rgba(201, 162, 74, .08) 58%, rgba(201, 162, 74, .02));
   --tile-raised: linear-gradient(180deg, rgba(232, 234, 238, .10), rgba(232, 234, 238, .02) 60%, rgba(0, 0, 0, .16));
   --tile-raised-line: rgba(232, 234, 238, .12);
 
   --ink:   #ecebe7;
-  --ink-2: #c2c3c5;
-  --ink-3: #9da0a4;
-  --steel: #8b959e;
+  --ink-2: #c8c9cb;
+  --ink-3: #a6a9ad;
+  --steel: #959fa8;
 
   --line-soft: rgba(232, 234, 238, .08);
   --surf-raised: linear-gradient(180deg, rgba(232, 234, 238, .09), rgba(232, 234, 238, .03) 55%, rgba(0, 0, 0, .14));
@@ -877,8 +884,8 @@ body[data-theme-palette="iron"] {
   --surf-panel: rgba(232, 234, 238, .035);
   --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(232, 234, 238, .05);
 
-  --red: #cc4a3b;
-  --red-line: #e0604c;
+  --red: #ee7b63;
+  --red-line: #f48d75;
   --green: #8ca85a;
   --world-hud-bg: rgba(18, 19, 21, .88);
 }

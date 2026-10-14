@@ -3912,6 +3912,15 @@ jobs:
           node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
 
+      # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
+      # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
+      # has a walk and a sensible bag, and every end reason has plain copy.
+      - name: Supplies catalogue - hunt bag, action bar and end card data
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/supplies-catalogue.mjs --selftest
+          node tests/supplies-catalogue.mjs
+
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
       # client-authored twins — the yield roll, the perennial ladder, the seed

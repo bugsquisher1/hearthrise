@@ -16,6 +16,9 @@
 //             src/data/monsters.js (the generator refuses unknown ids)
 //     family  the dominant monster family, for the picker's grouping
 //     art     the monster id whose art represents the area
+//     travelS seconds of walking from town (Hunt Sessions, HR-2026-10-14): the
+//             session earns and spends nothing while walking. A multiple of
+//             the 10 s world tick, 10..300 (tests/supplies-catalogue.mjs).
 //
 // TRAINING: a single-monster fight is the one-spawn hunt `trainingHunt(id)`
 // below — same shape, generated, never stored. Its pointer is the monster id
@@ -28,25 +31,25 @@ export const HUNTS = Object.freeze([
     id: 'mill_cellar', name: 'Mill Cellar', theme: 'Damp sacks, gnawed grain and things that buzz in the dark.',
     band: [0, 10],
     spawns: [{ monster: 'rat', w: 5 }, { monster: 'slime', w: 3 }, { monster: 'hive_wasp', w: 2 }],
-    family: 'Vermin', art: 'rat',
+    family: 'Vermin', art: 'rat', travelS: 20,
   },
   {
     id: 'bramble_edge', name: 'Bramble Edge', theme: 'Where the farm fields give way to thorn and wild things.',
     band: [0, 15],
     spawns: [{ monster: 'small_wolf', w: 4 }, { monster: 'wild_boar', w: 3 }, { monster: 'mandrake', w: 3 }],
-    family: 'Mammal', art: 'small_wolf',
+    family: 'Mammal', art: 'small_wolf', travelS: 30,
   },
   {
     id: 'goblin_warren', name: 'Goblin Warren', theme: 'Tunnels full of stolen pots and sharp little knives.',
     band: [0, 15],
     spawns: [{ monster: 'goblin', w: 6 }, { monster: 'kobold', w: 4 }],
-    family: 'Humanoid', art: 'goblin',
+    family: 'Humanoid', art: 'goblin', travelS: 30,
   },
   {
     id: 'ridge_camp', name: 'Ridge Camp', theme: 'A raiders’ camp on the high ridge, and the stags that graze past it.',
     band: [15, 99],
     spawns: [{ monster: 'hobgoblin', w: 4 }, { monster: 'gnoll', w: 4 }, { monster: 'stag', w: 2 }],
-    family: 'Humanoid', art: 'hobgoblin',
+    family: 'Humanoid', art: 'hobgoblin', travelS: 60,
   },
 ]);
 
@@ -54,11 +57,16 @@ export const HUNTS = Object.freeze([
 export const HUNT_INDEX = Object.freeze(HUNTS.reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
+/* A single-monster fight walks further the stronger the foe: 20 s for a
+   tier-1 monster and 20 s more a tier. */
+export const TRAINING_TRAVEL_S = Object.freeze({ 1: 20, 2: 40, 3: 60, 4: 80, 5: 100, 6: 120 });
+
 /** The one-spawn hunt a single-monster fight is. Same shape as a HUNTS row. */
 export function trainingHunt(monsterId, monster) {
   const m = monster || {};
   return {
     id: monsterId, name: m.name || monsterId, theme: 'Training',
     band: [0, 99], spawns: [{ monster: monsterId, w: 1 }], family: m.family || null, art: monsterId,
+    travelS: TRAINING_TRAVEL_S[m.tier] || TRAINING_TRAVEL_S[1],
   };
 }

@@ -1417,9 +1417,7 @@ window.activityQuietly=activityQuietly;
    answers "what is the player doing", and the honest answer is "cooking". */
 function localActivityPointer(){
   if(typeof G==='undefined'||!G) return {kind:'idle',id:null};
-  /* A named hunt is the pointer `combat:<hunt id>` (docs/design/HUNTS_AND_ANALYZER.md §2.1a);
-     the foe on screen is whichever spawn the engine rolled. */
-  if(G.activeMonster) return {kind:'combat',id:G._huntId||G.activeMonster};
+  if(G.activeMonster) return {kind:'combat',id:G._huntId||G.activeMonster};   // a named hunt is combat:<hunt id> (HUNTS_AND_ANALYZER.md §2.1a)
   if(G.activeSkill&&G.skillTargetId){
     const artisan=!!(window.ARTISAN_RECIPES&&window.ARTISAN_RECIPES[G.activeSkill]);
     return {kind:artisan?'artisan':'gather',id:G.skillTargetId};
@@ -1631,23 +1629,7 @@ function reconcileActivityPointer(a,fight,verdict){
      refused tap and a dead button looked identical. The stop branch has owed
      that sentence since b519; a SWITCH is the same debt on the same screen. */
   const _before=localActivityPointer();
-  const applied=activityQuietly(function(){
-    /* A NAMED HUNT. Already on it: the local fight is live, leave it. Otherwise
-       open it on the carried foe when that foe is one of its spawns, else on
-       its first spawn — the server rolls every foe after that. */
-    const C=window.HearthriseCore, hunt=(kind==='combat'&&id&&C&&C.huntSpawn)?C.huntSpawn.huntFor(id):null;
-    if(hunt){
-      if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
-      if(!(G._huntId===id&&G.activeMonster)&&typeof startCombat==='function'){
-        const fm=fight&&fight.monster;
-        const first=(fm&&C.huntSpawn.huntSpawns(hunt,fm))?fm:hunt.spawns[0].monster;
-        if(MONSTERS[first]){
-          startCombat(first,{confirmed:true,hunt:id});
-          if(applyCarriedFight(first,fight)&&typeof renderCombat==='function')renderCombat();
-        }
-      }
-      return {kind:'combat',id:id};
-    }
+  const applied=activityQuietly(function(){ const _h=window.hrResumeHunt&&window.hrResumeHunt(kind,id,fight); if(_h)return _h;   // a named hunt: combat-screens.js
     if(kind==='combat'&&id&&MONSTERS[id]){
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
       if(G.activeMonster!==id&&typeof startCombat==='function'){
@@ -5602,8 +5584,7 @@ function retimeCombat(){
 }
 window.retimeCombat=retimeCombat;
 window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test seam (COMBAT-RETIME-1)
-function startCombat(mId,opts){   // warning: src/render/fight-warning.js
-  const huntId=(opts&&opts.hunt)||null;   // a named hunt opens on its first spawn; the server owns every roll after
+function startCombat(mId,opts){const huntId=(opts&&opts.hunt)||null;   // warning: src/render/fight-warning.js; opts.hunt: a named hunt opening on this spawn
   if(G.activeMonster===mId&&(G._huntId||null)===huntId){stopCombat();return;}
   if(!(opts&&opts.confirmed)){   // THE ADVISORY GATE never refuses; every exit re-enters {confirmed:true}
     const _FW=window.HearthriseFightWarning;
@@ -5652,8 +5633,7 @@ function startCombat(mId,opts){   // warning: src/render/fight-warning.js
     }
   }catch(e){}
   const m=MONSTERS[mId];
-  G._huntId=huntId;   /* scratch: the server's pointer re-states it after a reload (reconcileActivityPointer) */
-  G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
+  G._huntId=huntId;G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`You attack the ${m.name}!`];
   _combatIntervalMs=combatTickMs();
   combatInterval=setInterval(combatTick,_combatIntervalMs);
@@ -5673,8 +5653,7 @@ function stopCombat(){
      client writes hp on its own authority. startCombat's server-hp seed reads
      it to decide whether the server's last statement is NEWER than the client's
      own — see the seed block above. Scratch (`_`), so it never syncs. */
-  try{ if(G.activeMonster) G._hpLocalAt = Date.now(); }catch(e){}
-  G._huntId=null;
+  try{ if(G.activeMonster) G._hpLocalAt = Date.now(); }catch(e){} G._huntId=null;
   // b138: launchpad Resume hook — see stopSkill() above.
   if(G.activeMonster && window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.recordStop === 'function'){
     window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);
@@ -6130,10 +6109,7 @@ function combatSimCtx(){
     weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
     /* Resolved for THIS instant, which during a replay is the segment's start
        and not "now". */
-    botd:{ killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } },
-    /* The named hunt the pointer names, so the attended kill rolls the next
-       spawn exactly as the away span does (AWAY-1). Null on a training fight. */
-    hunt:(G._huntId&&C.huntSpawn)?C.huntSpawn.huntFor(G._huntId):null,
+    botd:{ killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } }, hunt:(G._huntId&&C.huntSpawn)?C.huntSpawn.huntFor(G._huntId):null,   // AWAY-1: the attended kill rolls the hunt's spawns
     fx:COMBAT_FX,
   };
 }

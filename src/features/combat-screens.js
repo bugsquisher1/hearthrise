@@ -1167,6 +1167,28 @@ function huntIntent(id) {
 /* The fight opens on the first spawn for instant feedback; the server's
    envelope reconciles it and rolls every foe after. A below-band start is the
    server's `activity_locked`, worded by activityRefusalMessage. */
+/* THE SERVER NAMES A HUNT (reconcileActivityPointer in legacy.js asks here
+   first). Already on it: the local fight is live, leave it. Otherwise open it on
+   the carried foe when that foe is one of its spawns, else its first spawn.
+   Returns the applied pointer, or null when `combat:<id>` is not a named hunt. */
+function resumeHunt(kind, id, fight) {
+  const C = window.HearthriseCore;
+  const hunt = (kind === 'combat' && id && C && C.huntSpawn) ? C.huntSpawn.huntFor(id) : null;
+  const g = G();
+  if (!hunt || !g) return null;
+  if (g.activeSkill && typeof window.stopSkill === 'function') window.stopSkill();
+  if (!(g._huntId === id && g.activeMonster) && typeof window.startCombat === 'function') {
+    const fm = fight && fight.monster;
+    const first = (fm && C.huntSpawn.huntSpawns(hunt, fm)) ? fm : hunt.spawns[0].monster;
+    if (MONSTERS[first]) {
+      window.startCombat(first, { confirmed: true, hunt: id });
+      if (typeof window.applyCarriedFight === 'function' && window.applyCarriedFight(first, fight)
+        && typeof window.renderCombat === 'function') window.renderCombat();
+    }
+  }
+  return { kind: 'combat', id };
+}
+
 function startHunt(id) {
   const h = HUNTS.find((x) => x.id === id);
   const g = G();
@@ -1995,6 +2017,7 @@ export function setupCombatScreens() {
     window.renderCombat = w;
   }
 
+  window.hrResumeHunt = resumeHunt;
   window.HearthriseCombatScreens = {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     repaintGear,

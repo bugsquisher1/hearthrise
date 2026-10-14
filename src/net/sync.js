@@ -37,6 +37,10 @@ import { buildLoadRequest, classifyLoadResponse } from './record.js?v=584';
    sync.js. */
 import { buildResiduePatch } from './capstone.js?v=584';
 import { putClientState, isClientStateFromServer } from './client-state.js?v=584';
+/* Side-effect import: publishes window.HearthriseClock, the neutral server clock
+   that replaced HearthriseMuster.now() (2026-10-14). Loaded here because sync.js
+   is on every boot path; it reads only G._serverAccrual. */
+import './hr-clock.js?v=584';
 
 /** The platform storage seam (src/platform/storage.js); absent under Node = no storage. */
 const store = () => globalThis.HearthriseStorage || null;

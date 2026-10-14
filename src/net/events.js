@@ -178,15 +178,8 @@ export function snapshotLegacyFields(G) {
     // neither; they are one piece of state.
     restedXp: G.restedXp,
     restedAt: G.restedAt,
-    // b228 (the Chronicle) — added to this allowlist DELIBERATELY. This is the
-    // player's permanent record of what they have done: rank-ups, 99s, first
-    // boss kills, the name they claimed. Leaving it out would mean a cloud
-    // restore — a new device, a reinstall, a recovered account — silently
-    // returns them a character with no history, which is the one thing this
-    // feature exists to prevent. It is capped at 500 entries by
-    // chronicle.js compaction (~52KB worst case, ~15KB realistic), so it
-    // cannot grow the snapshot without bound.
-    chronicle: G.chronicle,
+    // `chronicle` left this allowlist on 2026-10-14: the permanent Milestones
+    // log was cut (designer ruling §5) and G.chronicle is no longer written.
   };
 }
 

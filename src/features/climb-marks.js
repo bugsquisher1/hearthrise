@@ -13,14 +13,11 @@
 // A rise gets one plain banner (window.hrLevelUpNotice, which this wraps once to
 // learn what the client path already announced) and at most one ceremony: the
 // Mastery sheet when 99 is newly crossed, else the Mark banner for the highest
-// new mark. Marks go to the Chronicle under the ids chronicle.js derives, so
-// the record is idempotent. The only G write is HearthriseChronicle.record.
-// Companion banners come from the server's companionLevelUp only. The suite
+// new mark. Nothing here writes G. The suite
 // parks the watcher (src/features/smoke-test.js).
 // ════════════════════════════════════════════════════════════════════════
 
 import { CLIMB_MARKS, MARK_NAMES, MARK_LORE, MASTERY_LORE } from '../data/mark-lore.js?v=584';
-import { COMPANION_MAX_LEVEL } from './companions.js?v=584';
 
 /* An away receipt older than this is history, not a moment (accrue.js's rule). */
 const RECEIPT_FRESH_MS = 30 * 60 * 1000;
@@ -32,7 +29,6 @@ let shown = new Set();
 let receiptAt = null;
 let masteryQueue = [];
 let parked = false;
-let petListening = false;
 
 const isLevel = (v) => Number.isInteger(v) && v >= 1;
 
@@ -89,11 +85,6 @@ function markFor(level) {
 
 const masteryLore = (sk) => MASTERY_LORE[sk] || null;
 
-const skillName = (sk) => {
-  const D = window.SKILLS_DEF || {};
-  return (D[sk] && D[sk].name) || sk;
-};
-
 /* The client path's own banner counts as the rise's banner: noted, not repeated. */
 function wrapNotice() {
   const orig = window.hrLevelUpNotice;
@@ -120,39 +111,16 @@ function celebrate(rise) {
     window.hrLevelUpNotice(skill, to);
   }
   const fresh = marks.filter((m) => !shown.has(skill + ':' + m));
-  const C = window.HearthriseChronicle;
-  for (const m of fresh) {
-    shown.add(skill + ':' + m);
-    const text = m >= 99 ? 'Mastered ' + skillName(skill) + ' — level 99' : 'Reached ' + skillName(skill) + ' ' + m;
-    if (C && typeof C.record === 'function') C.record('skill', text, { id: 'skill:' + skill + ':' + m, level: m });
-  }
+  for (const m of fresh) shown.add(skill + ':' + m);
   if (fresh.includes(99)) masteryQueue.push(skill);
   else if (fresh.length && typeof window.showLevelupCelebration === 'function') {
     window.showLevelupCelebration(skill, fresh[fresh.length - 1]);
   }
 }
 
-function onPetLevel(p) {
-  if (parked || !p || p.source !== 'server') return;
-  const def = window.COMPANIONS && window.COMPANIONS[p.id];
-  if (!def || typeof window.hrPetLevelNotice !== 'function') return;
-  const level = Number(p.level);
-  window.hrPetLevelNotice(level >= COMPANION_MAX_LEVEL
-    ? 'Your ' + def.n + ' has grown as far as a companion can'
-    : 'Your ' + def.n + ' reached level ' + level);
-}
-
-function listenPets() {
-  const E = window.HearthriseEvents;
-  if (petListening || !E || typeof E.on !== 'function') return;
-  E.on('companionLevelUp', onPetLevel);
-  petListening = true;
-}
-
 function liveTick() {
   if (parked) return;
   wrapNotice();
-  listenPets();
   const A = window.HearthriseAuth, P = window.HearthriseProfile, SR = window.HearthriseSkillRecord;
   const uid = A && typeof A.currentUserId === 'function' ? A.currentUserId() : null;
   if (!uid || !SR || typeof SR.skillLevelOf !== 'function') return;
@@ -171,6 +139,5 @@ export function setupClimbMarks() {
     __setPollEnabled(on) { const was = !parked; parked = !on; return was; },
   };
   wrapNotice();
-  listenPets();
   setInterval(() => { try { liveTick(); } catch (e) {} }, 3000);
 }

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-14",
- "replay_ms": 27473,
+ "replay_ms": 4844,
  "counts": {
   "tracked_names": 99,
   "entries": 94
@@ -1645,17 +1645,18 @@
     "2026-09-23-m8-parties-s1-1-tables.sql",
     "2026-10-15-party-hunt-view.sql",
     "2026-10-16-goal-board-retire.sql",
-    "2026-10-18-discord-gift.sql"
+    "2026-10-18-discord-gift.sql",
+    "2026-10-21-hunt-sessions.sql"
    ],
    "live": {
-    "md5": "1cbd9d4042f2941db250d408157c10e2",
-    "norm_len": 3088,
+    "md5": "f0663a5cd6c37d160f4739c1a2e52be4",
+    "norm_len": 3440,
     "measured": "2026-10-14",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1cbd9d4042f2941db250d408157c10e2",
-    "norm_len": 3088,
+    "md5": "f0663a5cd6c37d160f4739c1a2e52be4",
+    "norm_len": 3440,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2217,11 +2218,13 @@
    "sig": "hr_vigour_of(p_user uuid, p_slot integer)",
    "name": "hr_vigour_of",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-09-22-vigour-daily.sql",
-    "2026-09-25-vigour-price-by-level.sql"
+    "2026-09-25-vigour-price-by-level.sql",
+    "2026-10-22-hunt-sessions-drop-away.sql"
    ],
    "live": {
     "md5": "6bc6811e38172d1376e1bec901e7b2d4",

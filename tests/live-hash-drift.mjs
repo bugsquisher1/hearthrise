@@ -1377,16 +1377,17 @@ const MUTATIONS = {
     repl: '      -- totalLevel x 2 (sum of every skill level owned) [edited after apply]',
   },
   gate_bucket_added: {
-    // FINAL BODY: hr_rpc_gate's last author is 2026-10-16-goal-board-retire.sql
-    // (it splices onto 2026-10-18-discord-gift.sql's pinned restatement, which
-    // refuses any earlier plant at its §0). The plant rides that last splice: one
+    // FINAL BODY: hr_rpc_gate's last author is 2026-10-21-hunt-sessions.sql §6
+    // (a whole restatement pinned to the 2026-10-16-goal-board-retire.sql splice,
+    // so a plant in any EARLIER file now trips that pin and the chain stops
+    // replaying — measured 2026-10-14). The plant rides the restatement: one
     // extra bucket line. The next author of hr_rpc_gate must move this plant again.
-    file: '2026-10-16-goal-board-retire.sql',
+    file: '2026-10-21-hunt-sessions.sql',
     what: 'a rate bucket is edited into hr_rpc_gate in the repo — the b487 root-cause class, and '
         + 'a body EVERY client-callable RPC passes through',
     expect: 'replay hr_rpc_gate(p_bucket text)',
-    find: "    'when ''hr_tally_state'' then v_limit := 120;' || chr(10) ||",
-    repl: "    'when ''hr_tally_state'' then v_limit := 120;' || chr(10) || '    when ''hr_mut_bucket'' then v_limit := 9999;' || chr(10) ||",
+    find: "    when 'hunt_read' then v_limit := 60;\n",
+    repl: "    when 'hunt_read' then v_limit := 60;\n    when 'hr_mut_bucket' then v_limit := 9999;\n",
   },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',

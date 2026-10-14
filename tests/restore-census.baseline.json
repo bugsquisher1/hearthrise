@@ -880,12 +880,12 @@
     "value": [
      {
       "id": true,
-      "enabled": true
+      "enabled": false
      }
     ],
-    "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED and not yet on production. Re-measure with --live-sql after the Coordinator applies 2026-10-21-hunt-sessions.sql."
+    "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED and not yet on production. It ships OFF (Security GO-WITH-CHANGES on e482cc54, item 1) and lane C2 flips it at deploy. Re-measure with --live-sql after C2."
    },
-   "note": "THE HUNT-SESSION KILL SWITCH (2026-10-21-hunt-sessions.sql), a singleton seeded `on conflict do nothing` with enabled = true. When an operator sets it false, hr_hunt_enter / hr_hunt_change refuse hunts_paused and the settle applier may end open hunts with reason server. A rebuild restores the AUTHORED DEFAULT (enabled), silently re-opening hunts an operator paused. No player value, no secret; RLS on, no policy, no grant."
+   "note": "THE HUNT-SESSION KILL SWITCH (2026-10-21-hunt-sessions.sql), a singleton seeded `on conflict do nothing` with enabled = FALSE, so no hunt opens between the C1 apply and the C2 deploy (the old accrue/tick path would otherwise pay the combat:<hunt> pointer and C2's first settle pay it again). While false, hr_hunt_enter / hr_hunt_change refuse hunts_paused and the settle applier may end open hunts with reason server. A rebuild restores the AUTHORED DEFAULT (off), silently pausing every hunt until an operator re-opens it: the safe direction. No player value, no secret; RLS on, no policy, no grant."
   },
   "hr_hunt_default_preset": {
    "class": "seeded",

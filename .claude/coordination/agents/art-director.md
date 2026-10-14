@@ -2822,12 +2822,28 @@ gold…" instead of "Not enough gold". Paydown: every .mk-* override in audit-ov
 Lesson: an empty state is a claim about the whole list, so it has to be computed over the same set
 the player thinks of as "the market" - which includes their own listing.
 
+## 2026-10-13 — Adventures window (lane/b575-adventures-ui)
+Combat's war table is now four tabs: Hunts / Bosses / Dungeons / Training. Hunt cards (src/data/hunts.js)
+wear the per-class combat backdrops undimmed, list spawns as portrait chips, show server charm progress
+and "last XP/h" only when the server states one; a locked hunt says "Opens at Combat N". The star is the
+`huntFavs` residue preference (sanitised both ways). Bosses/Dungeons are plain rows, not cards. The old
+grid + tier chips live on under Training. Hunt sends `hunt` when the server lists that kind, else fights
+the first spawn. Coach step 5 rings the Mill Cellar's Hunt button.
+Lesson: a hidden tab is still in the DOM, so layout tests that measured the grid open Training through
+the shared combatScreen() fixture rather than per test.
+
 ### 2026-10-13 · b574 Recraft wave 1 (lane/b574-art-wave1)
 130 PNGs reviewed; 12 wired (raw pikeperch/silverfin/goldgill, raw shrimp, cooked trout, turnip seed packet,
 bronze + verdite ingots, oak planks, ooze + air elemental portraits, hero in placeholder-portrait.webp).
 Everything else held back: the wave is cleaner/glossier than the shipped hearthfire set, so it only replaces art
 that was WRONG (trout drumstick, bronze = copper dupe, verdite = steel dupe) or MISSING (emoji/glyph). Separate
-droppable commit lifts the Hearthlight surface ladder one step (tokens.css; ink-3 re-tuned to 4.69:1 on bg-3).
+theme-lift commits (7472d3d9 + its visible redo 5cfeed99) were REVERTED on this branch at the Coordinator's call;
+both stay in history for a theme lane to cherry-pick.
 Lesson: a style-trained generator still drifts glossy; screen against the shelf it lands on, not against the
 prompt. Cut-out = edge flood-fill of near-white + whiteness-ramp alpha + un-premultiply; enclosed white pockets
 (bow strings, padlock shackles) need a second pass.
+Lesson 2: lifting --bg-* changed nothing a player could see. The visible surfaces were literals: the panel
+floor in art-direction.css and the sidebar/topbar glass in backdrop.js. Measure the computed background at
+a few screen points BEFORE choosing which token to move.
+Lesson 3: "clashes with the current shelf" is my call, not Tyler's; when holding art back, show him the
+held-back picks beside the current art (docs/art-experiments/review/) instead of deciding silently.

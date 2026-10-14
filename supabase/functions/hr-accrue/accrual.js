@@ -129,6 +129,9 @@ import { killBonusesFor } from '../../../src/core/botd.js';
    line of arithmetic each side gets to write for itself. */
 import { creditWindow, utcDaySegments, recoveryRefuses } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
+/* NAMED HUNTS (lane C1). A combat pointer may name a hunt (src/data/hunts.js);
+   the spawn roll itself lives in combat-sim.js `resolveKill`, the one engine. */
+import { huntFor, huntSpawns, pickSpawn } from '../../../src/core/hunt-spawn.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
@@ -427,6 +430,13 @@ export const ATTENDED_RNG_SALT = 0x100d;
    move a span roll, and the same seed keeps a dispute replayable. Distinct from
    ATTENDED_RNG_SALT so the two post-span consumers cannot share draws. */
 export const VIGOUR_RNG_SALT = 0x7160;
+
+/* THE HUNT'S OPENING-SPAWN STREAM (lane C1). A window that opens a named hunt
+   with no carried fight rolls its FIRST foe once, before the span, from this
+   salted stream — so the span's own `ctx.rng` sequence is untouched and a
+   training fight (no hunt) never draws it at all. Same seed, so a dispute
+   replays. Distinct from the two salts above. */
+export const HUNT_RNG_SALT = 0x4e7a;
 
 /**
  * The attended input, NORMALISED. One reader, so nothing downstream re-decides.
@@ -1374,6 +1384,13 @@ export function computeAccrual(input) {
     return { accrued: false, reason: isIdle ? SKIP.NO_ACTIVITY : SKIP.UNSUPPORTED };
   }
   const monsters = inp.monsters || {};
+  /* A NAMED HUNT (lane C1): `activeId` names an area, not a monster. Every spawn
+     must be a catalogued monster (the generator asserts it; this re-checks so a
+     drifted pack fails closed to NO_TARGET instead of fighting `undefined`). */
+  const hunt = inp.activeKind === 'combat' ? huntFor(inp.activeId) : null;
+  if (hunt && !hunt.spawns.every((sp) => catalogueHas(monsters, sp.monster))) {
+    return { accrued: false, reason: SKIP.NO_TARGET };
+  }
   /* OWN-PROPERTY, never truthiness. `activeId` is bounded by
      /^[a-z0-9_]{1,64}$/ at the request layer — which matches `constructor` and
      `__proto__`, both of which are truthy on any plain object. See catalogueHas
@@ -1382,7 +1399,7 @@ export function computeAccrual(input) {
      (The gather index is null-prototype, so its own lookup needs no such
      guard — see `indexGatherNodes`. It is checked through the same helper
      anyway, because one reader is one rule.) */
-  if (inp.activeKind === 'combat' && !catalogueHas(monsters, inp.activeId)) {
+  if (inp.activeKind === 'combat' && !hunt && !catalogueHas(monsters, inp.activeId)) {
     return { accrued: false, reason: SKIP.NO_TARGET };
   }
   if (inp.activeKind === 'gather' && !catalogueHas(inp.nodes || {}, inp.activeId)) {
@@ -1661,15 +1678,23 @@ export function computeAccrual(input) {
        counter survives the cutover to server-of-record, not because a number
        changes. */
   const fight0 = normaliseFight(inp.fight);
-  const resumed = (fight0 && fight0.monster === inp.activeId
-                   && monsters[inp.activeId] && fight0.hp > 0)
-    ? { hp: Math.min(fight0.hp, Math.max(1, nat(monsters[inp.activeId].hp, 1))),
-        maxHp: Math.max(1, nat(monsters[inp.activeId].hp, 1)),
+  /* THE FOE THIS WINDOW OPENS ON. A training fight: the pointer itself. A named
+     hunt: the carried fight's monster when it is one of THIS hunt's spawns (the
+     same fail-closed agreement, widened to the spawn set — hr_apply's void
+     re-checks it against hr_hunt_spawns), else one roll from the salted
+     opening stream. */
+  const openId = !hunt ? inp.activeId
+    : (fight0 && huntSpawns(hunt, fight0.monster)) ? fight0.monster
+      : pickSpawn(hunt.spawns, createRng((nat(inp.seed, 0) ^ HUNT_RNG_SALT) >>> 0));
+  const resumed = (fight0 && fight0.monster === openId
+                   && monsters[openId] && fight0.hp > 0)
+    ? { hp: Math.min(fight0.hp, Math.max(1, nat(monsters[openId].hp, 1))),
+        maxHp: Math.max(1, nat(monsters[openId].hp, 1)),
         kills: fight0.kills }
     : null;
 
   const state = {
-    activeMonster: inp.activeId,
+    activeMonster: openId,
     /* 0/0 when there is nothing to resume — repaired to a FULL monster by
        simulateSpan, which is byte-for-byte the pre-Phase-0 behaviour and the
        reason the AWAY-1 parity fixtures still cover the bytes they were
@@ -2341,6 +2366,9 @@ export function computeAccrual(input) {
     capped,
     rng: createRng(nat(inp.seed, 0)),
     monsters,
+    /* THE NAMED HUNT (lane C1): resolveKill rolls the next foe from its spawns.
+       Absent for a training fight, which therefore prices byte-identically. */
+    ...(hunt ? { hunt } : {}),
     items,
     bonus,
     style,
@@ -2467,6 +2495,9 @@ export function computeAccrual(input) {
      the guard and for dispute replay; NEVER journalled — see the block. */
   const attSegments = [];
   if (attended) {
+    /* A NAMED HUNT HAS NO SINGLE MONSTER, so `m` is undefined and the top-up is
+       skipped — the UNDER-pay direction (C1 known limitation: the attended
+       shortfall of a mixed hunt is not topped up; the span still pays it). */
     const m = monsters[inp.activeId];
     attClaimed = Math.floor(nat(attended.kills[inp.activeId], 0));
     if (m && attClaimed > 0) {
@@ -3039,6 +3070,13 @@ export function computeAccrual(input) {
          that already exists: no rows added. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
               ate: foodEaten, mon: String(inp.activeId).slice(0, 64),
+              /* `km` — A NAMED HUNT's kills BY MONSTER (Security C3, lane C1).
+                 `mon` is the area id there, so rally points
+                 (2026-10-20-hunts-rally-kills.sql) price each monster at its
+                 server tier from this map; it sums to `kills` exactly (the
+                 top-up never pays a hunt). At most one entry per spawn; absent
+                 on every training row, which is therefore byte-identical. */
+              ...(hunt && summary.kills > 0 ? { km: bestiary.counts() } : {}),
               ...(stoppedBy ? { stopped: stoppedBy } : {}),
               ...(attended ? { att: { claimed: attClaimed, cap: attCap,
                                       sim: Math.floor(nat(summary.kills, 0)),
@@ -3318,6 +3356,10 @@ export function computeAccrual(input) {
     /* §5a-BOTD. `[]` when there was no top-up. NOT a delta key and NOT journal
        meta — index.ts does not forward it and hr_apply never sees it. */
     attendedSegments: attSegments,
+    /* Per-monster kills of a NAMED HUNT, for the shadow carrier's bestiary
+       (tick-shadow.js). Present only for a hunt, so a training window's result
+       is byte-identical to the pre-C1 engine (the deploy differential). */
+    ...(hunt ? { huntKills: bestiary.counts() } : {}),
     watermark: delta.accrued_to,
     /* THE SUB-TICK TAIL THIS WINDOW LEFT OPEN, in ms. A RETURN field, never a
        delta key and never journal meta — index.ts does not forward it, hr_apply

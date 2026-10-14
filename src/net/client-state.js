@@ -56,11 +56,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=573';
+import { resolveActiveSlot } from './accrue.js?v=574';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=573';
+import { notePropertyUnlocks } from './property-record.js?v=574';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -375,6 +375,8 @@ export const RESIDUE_FIELDS = Object.freeze([
      (A stale key may still sit in an old client_state bag; hydrateInto writes
      only THIS allowlist, so it is inert — dead bytes, not state.) */
   'currentCombatTier', // client-only preference: which monster tier the combat picker is showing
+  'huntFavs',          // client-only display preference: the hunt ids starred on the Adventures window
+                       // (an ordering hint, nothing reads it to gate or pay; bounded by sanitizeResidueField)
   /* ⚠ `toolCarry` WAS HERE and is DELETED (2026-09-14). `player_state.tool_carry`
      is a real server column (2026-08-15-tool-carry.sql), hr_apply accepts the
      engine's `tool_carry` delta key, and hr_state_of projects it at
@@ -578,7 +580,18 @@ function handleForbiddenField(body) {
    Fields with a fixed shape (`homestead`, `streak`, …) need nothing; the table is
    data, so bounding the next one is a row, not a new mechanism. */
 const LOOT_FILTER_MAX = 32;   // the bag has 10 filterable classes; the cap is headroom, not a design limit
+const HUNT_FAVS_MAX = 16;     // a star per hunt; the cap is headroom over the hunt table
 export function sanitizeResidueField(field, v) {
+  if (field === 'huntFavs') {
+    if (!Array.isArray(v)) return [];
+    const favs = [];
+    for (const id of v) {
+      if (typeof id !== 'string' || !/^[a-z0-9_]{1,40}$/.test(id) || favs.indexOf(id) !== -1) continue;
+      favs.push(id);
+      if (favs.length >= HUNT_FAVS_MAX) break;
+    }
+    return favs;
+  }
   if (field !== 'lootFilter') return v;
   /* Coerce hard: anything that is not an array of short strings is "keep all"
      ([]), which is the FAIL-SAFE direction — a garbage filter must never hide a

@@ -113,7 +113,13 @@ import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
    the real migration chain into PGlite and drive real RPCs, because both are
    client/server CONTRACTS: the board DRAWS a kill count the accept CLAMPS, and
    the entry trait is granted by the same RPC that mints the starting kit. */
-import { autoEatAtCreationGuard } from './auto-eat-at-creation.mjs';
+/* tests/auto-eat-at-creation.mjs was RETIRED 2026-10-14 by lane C2 (hunt sessions,
+   ruling HR-2026-10-14 §3): Auto-Eat is the hunt's action-bar heal slot now, and
+   2026-10-22-hunt-sessions-away-readers.sql takes the switch out of
+   hr_create_character before the drop file removes the columns. What replaces
+   it: tests/hunt-sessions-db.mjs D1 (the objects are gone, a planted reader
+   refuses the drop) and the away-readers file's own §5 self-check. Deliberately
+   unregistered, not forgotten. */
 import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
@@ -3549,35 +3555,7 @@ const run = async () => {
         + 'the free-character mint closed.');
     }
 
-    /* ── b497 · AUTO-EAT I IS FREE AT CREATION (designer ruling) ───────────
-       The last new-player death loop: a 10-max-HP character takes 4.94 damage
-       per goblin kill, the death sheet teaches "unlock Auto-Eat", Auto-Eat is
-       priced in Marks, and the cheapest Mark is an 80-120 kill contract away.
-       The AWAY half was the P0 — simulateSpan BREAKS on the first death, so a
-       new player who left a fight running overnight was credited ~30 seconds of
-       a twelve-hour night. hr_create_character now writes the same
-       player_progress flag row hr_trait_buy writes and sets the switch with the
-       SAME clamp expression hr_set_auto_eat evaluates — but NOT through
-       hr_set_auto_eat, which bumps `version` and writes a ledger row that
-       2026-08-17-cutover-import.sql reads as "this character has already
-       played". The guard replays the chain into PGlite and drives a real
-       create: the trait lands in the shape hr_auto_eat_tier reads, the switch is
-       on at a DERIVED tier-I clamp, version stays 0 and the journal stays one
-       row so a cutover dry-run still imports, the shop refuses to re-sell it,
-       the PAID upgrade is unchanged, creation is still an ensure,
-       §grant-existing is gated + idempotent, and no ACL or policy moved.
-       `--selftest` plants seven real defects — five of which also blind the
-       migration's own self-check, so the guard alone must see them. */
-    const autoEatCreationProblems = await autoEatAtCreationGuard();
-    if (autoEatCreationProblems.length) {
-      console.log('\nAuto-Eat at creation — FAILED:');
-      for (const p of autoEatCreationProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nAuto-Eat at creation — the entry trait is granted in the shape the tier reader '
-        + 'expects, switched on at a DERIVED tier-I clamp, leaves version 0 + one ledger row so the '
-        + 'cutover still imports, unsellable twice, and the 100-Mark upgrade is untouched.');
-    }
+    /* (b497 Auto-Eat-at-creation guard retired by lane C2 — see the import note.) */
 
     /* ── THE COMBAT STYLE IS SERVER STATE (P0, live — Paione) ────────────
        "Strength/Defense/HP exp is not saving — only Attack saves." The accrual

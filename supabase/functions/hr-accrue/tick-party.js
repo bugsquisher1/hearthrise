@@ -296,7 +296,7 @@ export async function settleParty(exec, holder, unit, body, deps) {
     }
     /* THE TWO INPUTS THE ENVELOPE CANNOT CARRY (Security N4b, 2026-09-28).
        `hr_perks_of` and `hr_bestiary_of`, through the SAME ./tick-reads.js
-       functions tick.js (1b)/(4b) calls, with THIS member's (user, slot) — so
+       functions hunt-settle.js calls, with THIS member's (user, slot) — so
        a partied member is priced with the perk stack and the charm/trophy
        counters a solo window over the same state would be. Until today neither
        was made here and every member priced at zero perks and no charm. Both

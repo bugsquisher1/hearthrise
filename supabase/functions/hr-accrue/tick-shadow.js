@@ -241,8 +241,9 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        presence-of-key switches, so an offline fixture that never had the column
        must keep reading as "no column". */
     ...engineStateOf(char),
-    /* NOT from the envelope: `hr_bestiary_of`, read by tick.js (4b) and
-       carried on the session (2026-09-28); a fixture's pinned value offline.
+    /* NOT from the envelope: `hr_bestiary_of`, read by the party unit per
+       member (tick-party.js) and carried on the session; a fixture's pinned
+       value offline. (tick.js (4b) read it for the solo channel until lane C2.)
        Absent ⇒ no charm, no trophy — the under-paying direction. SHADOW still
        pays nothing: this only prices the proposal the fence journals. */
     bestiaryKills: char.bestiaryKills,

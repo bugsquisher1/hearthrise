@@ -293,9 +293,9 @@ export function sessionFromRoster(row, envelope) {
 
     /* ── THE TWO INPUTS THE ENVELOPE CANNOT CARRY ───────────────────────────
        `perks` is `hr_perks_of` and `bestiaryKills` is `hr_bestiary_of`, two
-       SEPARATE reads `index.ts` makes (:637). tick.js makes both since
-       2026-09-28: perks in its step (1b), the bestiary in (4b) with
-       set-activity.js's BESTIARY_SQL.
+       SEPARATE reads `index.ts` makes (:637). The party unit makes both per
+       member through ./tick-reads.js (the solo channel that made them in
+       tick.js (1b)/(4b) is retired, lane C2).
        They used to be read off the envelope as `st.perks` / `st.bestiary_kills`
        — names that have never existed on either level, so both were `undefined`
        while LOOKING sourced. Named here, from the caller. Absent (a 42883

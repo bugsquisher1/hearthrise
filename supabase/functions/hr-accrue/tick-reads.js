@@ -6,8 +6,8 @@
 // property tier, renown, unlockedRecipes) and `hr_bestiary_of` (the per-monster
 // kill counters the charm and trophy indexes fold) are not `hr_state_of`
 // fields, so every caller that prices a window makes them as their own
-// statements. tick.js (the solo tick, steps (1b)/(4b)) and tick-party.js (the
-// party unit, once per member) both call THESE two functions — one code path,
+// statements. tick.js (perks, step (1b)), tick-party.js (the party unit, once
+// per member) and hunt-settle.js (a hunt session's settle) call THESE functions — one code path,
 // never a second copy (AWAY-12), so a partied member's session is fed exactly
 // what a solo character's is (Security N4b, 2026-09-28).
 //

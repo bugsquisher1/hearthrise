@@ -43,6 +43,12 @@
 //              never before; with nothing in the bag it is refused bag_empty.
 //   END        a bag that runs dry ends the hunt heals_out at its boundary, the
 //              pointer goes idle and the `ended` event is journalled.
+//   TICK-0     the shipped runTick settles its `hunts` cohort over the real
+//              driver: one stamped accrue row, the clock advanced, a selector
+//              naming another session skipped by name.
+//   BESTIARY   the hunt settle prices hr_bestiary_of: 20,000 counted kills of
+//              every spawn pay differently from none (the read is not dropped
+//              or mis-folded).
 // ════════════════════════════════════════════════════════════════════════
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -62,6 +68,8 @@ async function loadEdge(root) {
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
     TR: await import(u(join(FN, 'tick-reads.js'))),
     IN: await import(u(join(FN, 'intents.js'))),
+    TK: await import(u(join(FN, 'tick.js'))),
+    HUNTS: await import(u('src/data/hunts.js')),
     AR: await import(u('src/core/action-rules.js')),
     XP: await import(u('src/core/xp.js')),
     RS: await import(u('src/data/rule-subjects.js')),
@@ -467,6 +475,74 @@ const DB_ARMS = {
     if (!(endedMs > from && endedMs < from + 5 * 60000)) problems.push('ended_at is not inside the settled window');
     return problems;
   }),
+  /* TICK-0 — THE SHIPPED ENTRY. `runTick` (the function index.ts's op:'tick'
+     calls) over the real driver, with a `hunts` cohort and an empty roster:
+     the open session is settled once through settleHunt, the window lands as
+     ONE accrue row stamped with the session, the clock advances, and a
+     selector naming another session settles nothing. */
+  'TICK-0': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { sid, from } = await hunter(db, M, STRONG);
+    /* The world tick's own kill switch gates its hunt cohort too (the replay
+       ships it off); production runs it on. */
+    await db.query('update public.hr_tick_config set enabled = true where id');
+    const exec = makeExec(db);
+    const fire = async (hunts) => (await M.TK.runTick({ exec,
+      body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: 90000, hunts } })).body;
+    const stamped = async () => one(db, `select count(*)::int from public.player_ledger
+                                          where session_id = $1 and kind = 'combat' and intent = 'accrue'`, [sid]);
+    const other = await fire([{ user_id: UID, slot: 0, session_id: '00000000-0000-4000-8000-0000000c2eff' }]);
+    if (!other.hunts || other.hunts.settled !== 0 || (other.hunts.reasons || {}).session_changed !== 1 || await stamped() !== 0) {
+      problems.push(`a selector naming another session was not skipped by name: ${JSON.stringify(other.hunts)}`);
+    }
+    const f = await fire([{ user_id: UID, slot: 0, session_id: sid }, { user_id: 'not-a-uuid', slot: 0, session_id: sid }]);
+    const rows = await stamped();
+    const to = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_sessions where id = $1`, [sid]));
+    if (!f.hunts || f.hunts.settled !== 1) problems.push(`runTick did not settle the hunt cohort: ${JSON.stringify(f)}`);
+    if (rows !== 1) problems.push(`one tick settle wrote ${rows} accrue row(s) stamped with the session, not 1`);
+    if (!(to > from + 40 * 60000)) problems.push(`the session clock did not advance to the fire's now (settled_to ${to - from} ms past the start)`);
+    if (f.processed !== 0 || f.shadowed !== 0) problems.push(`an empty roster processed rows: ${JSON.stringify(f)}`);
+    return problems;
+  }),
+  /* BESTIARY — THE HUNT SETTLE PRICES THE CHARM AND THE TROPHY. hr_bestiary_of
+     is not an envelope field; settleHunt reads it (./tick-reads.js) and hands
+     it to the engine. The same session, the same instant (one transaction),
+     settled once with no counters and once with 20,000 server-counted kills of
+     every monster the hunt spawns: the value it pays must differ. A dropped or
+     mis-folded read prices both alike. (Until lane C2 this was
+     tests/world-tick-bestiary-parity.mjs, on the retired solo combat tick.) */
+  BESTIARY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { sid } = await hunter(db, M, STRONG);
+    const exec = makeExec(db);
+    const spawns = (M.HUNTS.HUNT_INDEX.mill_cellar || {}).spawns || [];
+    if (spawns.length < 2) problems.push('CONTROL: mill_cellar spawns fewer than two monsters');
+    const value = async () => canon(await one(db, `select jsonb_build_object(
+        'gold', ps.gold, 'hp', ps.hp,
+        'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
+        'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
+        'tally', (select jsonb_build_object('coins', t.coins, 'kills', t.kills, 'xp', t.xp, 'loot', t.loot)
+                    from public.hunt_session_tally t where t.session_id = $2))
+      from public.player_state ps where ps.user_id = $1 and ps.slot = 0`, [UID, sid]));
+    await db.query('savepoint bestiary');
+    const bare = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid });
+    const vBare = await value();
+    await db.query('rollback to savepoint bestiary');
+    for (const s of spawns) {
+      await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
+                      values ($1, 0, 'stat', 'ev:kill_monster:' || $2, '', 20000)`, [UID, s.monster]);
+    }
+    const reported = await one(db, `select count(*)::int from public.hr_bestiary_of($1::uuid, 0) where kills = 20000`, [UID]);
+    if (reported !== spawns.length) problems.push(`CONTROL: hr_bestiary_of reports ${reported} of ${spawns.length} planted counters`);
+    const charmed = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid });
+    const vCharmed = await value();
+    if (bare.outcome !== 'paid' || charmed.outcome !== 'paid') {
+      problems.push(`CONTROL: a settle did not pay (${bare.outcome}/${bare.reason}, ${charmed.outcome}/${charmed.reason})`);
+    } else if (vBare === vCharmed) {
+      problems.push('20,000 kills of every spawn priced the hunt exactly as none — the settle dropped or mis-folded the bestiary read');
+    }
+    return problems;
+  }),
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -509,6 +585,12 @@ const MUTANTS = [
     from: "            ? Math.floor(state.monsterHp) : Math.max(1, Math.floor(nat(m.hp, 1))),", to: "            ? Math.floor(state.monsterHp) : 0," },
   { arm: 'END', name: 'a dry heal line does not end the hunt', file: 'src/core/action-rules.js',
     from: '  heals_out: (hs) => essentialOut(hs, \'heal\'),', to: '  heals_out: () => false,' },
+  { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
+    from: '  if (body.hunts.length) {', to: '  if (false) {' },
+  { arm: 'BESTIARY', name: 'the hunt settle drops the bestiary read', file: join(FN, 'hunt-settle.js'),
+    from: '  const bestiaryKills = await readTickBestiary(exec, user, slot);', to: '  const bestiaryKills = null;' },
+  { arm: 'BESTIARY', name: 'the bestiary read counts rows instead of summing kills', file: join(FN, 'set-activity.js'),
+    from: 'jsonb_object_agg(monster_id, kills)', to: 'jsonb_object_agg(monster_id, 1)' },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain (create or

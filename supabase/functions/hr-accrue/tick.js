@@ -100,11 +100,10 @@ import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from
    call for the window. `AWAY-12` forbids a second combat path and there is not
    one — see supabase/functions/hr-accrue/tick-party.js. */
 import { parseParties, settleParty } from './tick-party.js';
-/* THE PERK AND BESTIARY READS, ONE DEFINITION (steps (1b)/(4b)). The same two
-   functions tick-party.js calls once per member, so a partied character is
-   priced from exactly the inputs a solo one is (Security N4b). The bestiary
-   statement inside is set-activity.js's BESTIARY_SQL, the collect path's bytes. */
-import { readTickPerks, readTickBestiary } from './tick-reads.js';
+/* THE PERK READ, ONE DEFINITION (step (1b)) — the same function tick-party.js
+   and hunt-settle.js call (Security N4b). The bestiary read left this file with
+   the solo combat channel (lane C2; see (4b)). */
+import { readTickPerks } from './tick-reads.js';
 /* THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). One function, called
    after a shadow settle has returned; its only writer is hr_tick_probe_commit. */
 import { probeStep, MAX_PROBES_PER_FIRE } from './tick-probe.js';
@@ -922,16 +921,11 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
     return { outcome: 'skipped', reason: 'below_flush' };
   }
 
-  /* (4b) THE BESTIARY COUNTERS — `hr_bestiary_of`, the read index.ts's accrue
-         path makes in its state transaction and set-activity.js's collect makes
-         as BESTIARY_SQL (imported, not retyped). Not an envelope field, so
-         until 2026-09-28 the tick priced every combat window with NO charm and
-         NO trophy: drops and damage under-paid against accrue (Security N4).
-         Made HERE, after the flush line, so only a window that will be priced
-         costs the statement — the collect path's rule. Same degrade rule as
-         (1b): ONLY 42883 reads as "no counters"; anything else propagates.
-         tests/world-tick-bestiary-parity.mjs. The read is ./tick-reads.js's. */
-  const bestiaryKills = await readTickBestiary(exec, sel.userId, sel.slot);
+  /* (4b) THE BESTIARY READ LEFT WITH THE SOLO COMBAT CHANNEL (lane C2). Only
+         combat prices charms and trophies, and a solo fight is a hunt session
+         now: ./hunt-settle.js makes the read (tests/hunt-sessions-settle.mjs
+         BESTIARY) and the party unit makes it per member (./tick-party.js).
+         Gather never read it, so a channel window no longer pays the statement. */
 
   /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
@@ -973,9 +967,6 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
     version: env.version,
     /* (1b)'s read. Both channels' `sessionFromRoster` take it off the row. */
     perks,
-    /* (4b)'s read. Combat's `sessionFromRoster` takes it; gather never reads
-       the bestiary. */
-    bestiary_kills: bestiaryKills,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
        engine answers `no_cap` and settles nothing, which is the safe direction

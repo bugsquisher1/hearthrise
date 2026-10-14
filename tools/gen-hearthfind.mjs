@@ -46,7 +46,9 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-09-08-hearthfind-catalogue.generated.sql');
+/* DEMOLITION REGEN (2026-10-14): a new superseding file (the re-pinned boss rates);
+   2026-09-08-hearthfind-catalogue.generated.sql stays in the chain. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-hearthfind.generated.sql');
 const ID_RE = /^[a-z0-9_]+$/;
 
 const die = (msg) => { throw new Error(`gen-hearthfind: ${msg}`); };

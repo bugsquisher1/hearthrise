@@ -81,7 +81,8 @@ import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-16-unlocks.generated.sql');
+/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlocks.generated.sql stays in the chain. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlocks.generated.sql');
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');

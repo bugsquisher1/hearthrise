@@ -32,7 +32,11 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-11-catalogue.generated.sql');
+/* DEMOLITION REGEN (2026-10-14): the catalogue is emitted into a NEW, LAST-registered
+   file. 2026-08-11-catalogue.generated.sql stays as the replay chain's root, frozen at
+   what production first applied; this file is a full delete+insert replace of the
+   same tables, so applying it supersedes it. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

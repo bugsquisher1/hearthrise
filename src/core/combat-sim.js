@@ -80,6 +80,7 @@ import { chooseFood, resolveAutoEat } from './auto-eat.js?v=573';
 /* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
    see `forecastFight` at the foot of this file. */
 import { createRng } from './rng.js?v=573';
+import { pickSpawn } from './hunt-spawn.js?v=573';
 import { NO_BONUS } from './botd.js?v=573';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=573';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
@@ -214,9 +215,20 @@ export function resolveKill(state, m, ctx) {
   if (found) info.hearthfind = found;
   call(fx, 'onKill', info, ctx);
 
-  /* Respawn the same foe and keep fighting — the behaviour both loops had. */
-  state.monsterHp = m.hp;
-  state.monsterMaxHp = m.hp;
+  /* RESPAWN. A training fight respawns the same foe (the behaviour both loops
+     had). A HUNT (lane C1, src/data/hunts.js) rolls the next foe from its
+     weighted spawns on THIS engine's seeded rng, after every other draw this
+     kill made — one function, not branched on `ctx.away`, so the attended tick
+     and the away span roll the same sequence (AWAY-1). A one-spawn hunt draws
+     nothing. An id the roster does not know keeps the current foe. */
+  const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;
+  const next = (nextId !== id && ctx.monsters && ctx.monsters[nextId]) || null;
+  if (next) {
+    state.activeMonster = nextId;
+    state.combatKillsThisFoe = 0;
+  }
+  state.monsterHp = (next || m).hp;
+  state.monsterMaxHp = (next || m).hp;
   return info;
 }
 

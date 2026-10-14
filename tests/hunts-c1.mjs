@@ -1,0 +1,248 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/hunts-c1.mjs — HUNTS AS NAMED AREAS (lane C1).
+//
+//   node tests/hunts-c1.mjs            the guard
+//   node tests/hunts-c1.mjs --mutate   every planted defect must be CAUGHT
+//
+// ARMS
+//   G1  the generated catalogue matches src/data/hunts.js (gen-hunts --check)
+//   G2  the generator REFUSES an unknown monster id (and the other shapes)
+//   W1  weighted pick over N=120,000 lands within 1 percentage point of w/Σw
+//   W2  a one-spawn hunt draws NOTHING from the rng (training stays byte-identical)
+//   P1  AWAY-1 PARITY, mixed hunt: the ATTENDED loop (simulateTick, the live
+//       tick) and the AWAY span (simulateSpan), same seed, same state, produce
+//       identical per-monster kills, gold, xp and loot — and more than one
+//       monster was actually fought
+//   S1  SERVER, AWAY: computeAccrual on a hunt pointer accrues, files a bestiary
+//       op per monster it fought (only spawns), carries the fight on a spawn,
+//       and is deterministic per seed
+//   S2  SERVER, ATTENDED: the attended top-up does not pay a hunt (no single
+//       monster to price; the under-pay direction) and the span still pays
+//   R1  REGRESSION: a training fight (monster pointer) prices byte-identically
+//       with and without the hunt seam (no `hunt` in ctx, no extra draw)
+//   C1  the chain replays with both files and a SECOND apply is byte-identical
+//   B1  the band floor is SQL's: the start-gate migration refuses below band
+//       (executed by its own §4 in the chain replay — asserted present here)
+// ════════════════════════════════════════════════════════════════════════
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { HUNTS, HUNT_INDEX } from '../src/data/hunts.js';
+import { MONSTERS } from '../src/data/monsters.js';
+import { ITEMS } from '../src/data/items.js';
+import { pickSpawn } from '../src/core/hunt-spawn.js';
+import { simulateTick, simulateSpan } from '../src/core/combat-sim.js';
+import { createRng } from '../src/core/rng.js';
+import { huntRows } from '../tools/gen-hunts.mjs';
+import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const MUTATE = process.argv.includes('--mutate');
+
+/* ── THE SUBJECTS, injectable so --mutate can plant a defect in each ─────── */
+const REAL = { pickSpawn, huntRows };
+
+function run(S) {
+  const red = [];
+  const ok = (id, cond, msg) => { if (!cond) red.push(`${id}: ${msg}`); };
+
+  // G1
+  const chk = spawnSync(process.execPath, [join(ROOT, 'tools', 'gen-hunts.mjs'), '--check'], { encoding: 'utf8' });
+  ok('G1', chk.status === 0, `gen-hunts --check exited ${chk.status}: ${chk.stderr}`);
+
+  // G2
+  const bad = HUNTS.map((h) => ({ ...h, spawns: h.spawns.map((s) => ({ ...s })) }));
+  bad[0].spawns[0].monster = 'definitely_not_a_monster';
+  let refused = false;
+  try { S.huntRows(bad, MONSTERS); } catch { refused = true; }
+  ok('G2', refused, 'the generator accepted an unknown monster id');
+  let shipped = true;
+  try { S.huntRows(HUNTS, MONSTERS); } catch (e) { shipped = false; ok('G2', false, `shipped data refused: ${e.message}`); }
+  ok('G2', shipped, 'CONTROL');
+
+  // W1
+  const N = 120000;
+  for (const h of HUNTS) {
+    const rng = createRng(1234);
+    const got = Object.create(null);
+    for (let i = 0; i < N; i++) { const m = S.pickSpawn(h.spawns, rng); got[m] = (got[m] || 0) + 1; }
+    const tot = h.spawns.reduce((a, s) => a + s.w, 0);
+    for (const s of h.spawns) {
+      const p = (got[s.monster] || 0) / N;
+      ok('W1', Math.abs(p - s.w / tot) < 0.01, `${h.id}/${s.monster}: ${p.toFixed(4)} vs ${(s.w / tot).toFixed(4)}`);
+    }
+    ok('W1', Object.keys(got).every((m) => h.spawns.some((s) => s.monster === m)), `${h.id} picked a non-spawn`);
+  }
+
+  // W2
+  let draws = 0;
+  const counting = { int() { draws++; return 1; }, next() { draws++; return 0; }, chance() { draws++; return false; } };
+  ok('W2', S.pickSpawn([{ monster: 'rat', w: 7 }], counting) === 'rat' && draws === 0,
+    `a one-spawn pick drew ${draws} time(s)`);
+
+  // P1 — the engine, both paths, one seed.
+  const hunt = HUNT_INDEX.mill_cellar;
+  const TICK = 2400; const TICKS = 3000;
+  const fresh = () => ({ activeMonster: hunt.spawns[0].monster, monsterHp: 0, monsterMaxHp: 0,
+    playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} });
+  const ctxFor = (seed, away, tally) => ({
+    away, fromMs: Date.UTC(2026, 9, 20, 1, 0, 0), toMs: Date.UTC(2026, 9, 20, 1, 0, 0) + TICKS * TICK,
+    tickMs: TICK, rng: createRng(seed), monsters: MONSTERS, items: ITEMS, hunt,
+    bonus: () => 0, style: null,
+    playerRolls: () => ({ accuracy: 0.9, maxHit: 6, critChance: 0.05 }),
+    monsterRolls: () => ({ accuracy: 0, maxHit: 0 }),   // no deaths: the recovery clock is the span's, not this loop's
+    weakness: () => ({ dropMult: 1 }),
+    fx: {
+      addItem(id, q) { tally.items[id] = (tally.items[id] || 0) + q; },
+      addXp(sk, a) { tally.xp[sk] = (tally.xp[sk] || 0) + a; },
+      recordKill(id) { tally.kills[id] = (tally.kills[id] || 0) + 1; },
+    },
+  });
+  const tA = { items: {}, xp: {}, kills: {} }; const sA = fresh();
+  const cA = ctxFor(77, false, tA);
+  for (let i = 0; i < TICKS; i++) {
+    if (sA.monsterHp <= 0) { sA.monsterMaxHp = MONSTERS[sA.activeMonster].hp; sA.monsterHp = sA.monsterMaxHp; }
+    simulateTick(sA, cA);
+  }
+  const tB = { items: {}, xp: {}, kills: {} }; const sB = fresh();
+  const sum = simulateSpan(sB, ctxFor(77, true, tB));
+  const norm = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+  ok('P1', norm(tA.kills) === norm(tB.kills), `kills attended ${norm(tA.kills)} vs away ${norm(tB.kills)}`);
+  ok('P1', sA.gold === sB.gold, `gold attended ${sA.gold} vs away ${sB.gold}`);
+  ok('P1', norm(tA.xp) === norm(tB.xp), `xp attended ${norm(tA.xp)} vs away ${norm(tB.xp)}`);
+  ok('P1', norm(tA.items) === norm(tB.items), `loot attended ${norm(tA.items)} vs away ${norm(tB.items)}`);
+  ok('P1', Object.keys(tB.kills).length >= 2 && sum.kills > 50,
+    `the mixed hunt fought ${JSON.stringify(tB.kills)} (${sum.kills} kills) — not a mix`);
+  ok('P1', Object.keys(tB.kills).every((m) => hunt.spawns.some((s) => s.monster === m)), 'a non-spawn was fought');
+
+  // S1 — the server engine, AWAY.
+  const NOW = Date.UTC(2026, 9, 20, 9, 0, 0); const FROM = NOW - 4 * 3600000;
+  const skills = { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 };
+  const srv = (over) => computeAccrual({
+    userId: '00000000-0000-4000-8000-0000000c1a01', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
+    activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 4242,
+    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {}, ...over,
+  });
+  const a1 = srv({}); const a2 = srv({});
+  ok('S1', a1.accrued === true, `a hunt pointer did not accrue: ${a1.reason}`);
+  if (a1.accrued) {
+    const bops = (a1.delta.progress || []).filter((p) => String(p.key).startsWith('ev:kill_monster:'));
+    const ids = bops.map((p) => p.key.slice('ev:kill_monster:'.length));
+    ok('S1', ids.length >= 2 && ids.every((m) => hunt.spawns.some((s) => s.monster === m)),
+      `bestiary ops ${JSON.stringify(ids)} (want >= 2, spawns only)`);
+    ok('S1', !ids.includes('mill_cellar'), 'the area id was filed as a bestiary row');
+    ok('S1', !a1.delta.fight || !a1.delta.fight.monster || hunt.spawns.some((s) => s.monster === a1.delta.fight.monster),
+      `fight carried on a non-spawn ${JSON.stringify(a1.delta.fight)}`);
+    ok('S1', JSON.stringify(a1.delta) === JSON.stringify(a2.delta), 'the same seed did not replay the same delta');
+    ok('S1', a1.huntKills && Object.keys(a1.huntKills).length >= 2, `huntKills ${JSON.stringify(a1.huntKills)}`);
+  }
+  const unk = srv({ activeId: 'not_a_hunt' });
+  ok('S1', unk.accrued === false, 'an unknown combat pointer accrued');
+
+  // S2 — ATTENDED: claimed attended kills on a hunt buy no top-up.
+  const att = srv({ attended: { kills: { rat: 500, slime: 500 }, fromMs: FROM, toMs: NOW } });
+  ok('S2', att.accrued === true && (att.attendedTopUp || 0) === 0,
+    `attended top-up on a hunt paid ${att.attendedTopUp} (accrued ${att.accrued})`);
+
+  // R1 — training is unchanged by the seam.
+  const t1 = srv({ activeId: 'rat' });
+  ok('R1', t1.accrued === true && t1.huntKills === undefined, 'a training window grew a huntKills key');
+  {
+    const tally = { items: {}, xp: {}, kills: {} }; const s = fresh(); s.activeMonster = 'rat';
+    const c = ctxFor(5, true, tally); delete c.hunt;
+    simulateSpan(s, c);
+    const tally2 = { items: {}, xp: {}, kills: {} }; const s2 = fresh(); s2.activeMonster = 'rat';
+    const c2 = ctxFor(5, true, tally2); c2.hunt = { spawns: [{ monster: 'rat', w: 1 }] };
+    simulateSpan(s2, c2);
+    ok('R1', JSON.stringify([s.gold, tally]) === JSON.stringify([s2.gold, tally2]) && Object.keys(tally.kills).join() === 'rat',
+      'a one-spawn hunt priced differently from the plain training fight');
+  }
+
+  // B1
+  const gate = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-start-gate.sql'), 'utf8');
+  ok('B1', /'activity_locked'/.test(gate) && /hr_bounty_combat_level\(p_user, p_slot\)/.test(gate)
+    && /GATE\(b\)/.test(gate) && /ridge_camp/.test(gate), 'the start gate lost its band refusal or its executed §4 arm');
+  return red;
+}
+
+/* C1 — THE CHAIN: both files replay, and a SECOND apply of each is
+   byte-identical (schema inventory, hr_apply / hr_hunt_gate bodies + ACLs,
+   catalogue rows). The §4 block of the gate (band refusal, unknown area,
+   spawn-aware void, training unchanged, floor opens at 15) EXECUTES in it. */
+async function chainArm() {
+  const red = [];
+  const { bootReplay, inventory } = await import('./schema-replay.mjs');
+  const { db } = await bootReplay({});
+  const q = async (sql) => (await db.query(sql)).rows;
+  const snap = async () => JSON.stringify([await inventory(db),
+    await q(`select p.proname, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_hunt_gate') order by 1`),
+    await q('select * from public.hr_hunts order by 1'), await q('select * from public.hr_hunt_spawns order by 1, 2')]);
+  const before = await snap();
+  for (const f of ['2026-10-20-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql']) {
+    try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
+      red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
+    }
+  }
+  const after = await snap();
+  if (before !== after) {
+    const B = JSON.parse(before); const A = JSON.parse(after);
+    const which = ['inventory', 'bodies', 'hr_hunts', 'hr_hunt_spawns'].filter((_, i) => JSON.stringify(B[i]) !== JSON.stringify(A[i]));
+    let detail = '';
+    if (which[0] === 'inventory') {
+      for (const k of Object.keys(B[0])) if (JSON.stringify(B[0][k]) !== JSON.stringify(A[0][k])) detail += ` ${k}`;
+    }
+    if (which.includes('bodies')) detail += ` ${JSON.stringify(B[1])} -> ${JSON.stringify(A[1])}`;
+    red.push(`C1: a second apply changed ${which.join(', ')}${detail}`);
+  }
+  await db.close?.();
+  return red;
+}
+
+if (!MUTATE) {
+  const red = [...run(REAL), ...(await chainArm())];
+  if (red.length) { console.error('hunts-c1 RED\n  ' + red.join('\n  ')); process.exit(1); }
+  console.log('hunts-c1: G1 G2 W1 W2 P1 S1 S2 R1 B1 C1 green');
+} else {
+  const MUTANTS = {
+    'uniform pick (ignores weights)': { ...REAL, pickSpawn: (sp, rng) => (sp.length === 1 ? sp[0].monster : sp[rng.int(0, sp.length - 1)].monster) },
+    'one-spawn draws': { ...REAL, pickSpawn: (sp, rng) => { rng.int(1, 2); return REAL.pickSpawn(sp, rng); } },
+    'generator admits unknown ids': { ...REAL, huntRows: () => [] },
+  };
+  let escaped = 0;
+  /* THE ENGINE PLANT: a copy of src/ in the OS temp dir whose resolveKill
+     ignores ctx.hunt. P1's "a mix was fought" must go red on it. Never the tree. */
+  {
+    const { mkdtempSync, cpSync, rmSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { pathToFileURL } = await import('node:url');
+    const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));
+    try {
+      cpSync(join(ROOT, 'src'), join(dir, 'src'), { recursive: true });
+      const f = join(dir, 'src', 'core', 'combat-sim.js');
+      const src = readFileSync(f, 'utf8');
+      const anchor = 'const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;';
+      if (src.split(anchor).length !== 2) throw new Error('engine plant anchor moved');
+      writeFileSync(f, src.replace(anchor, 'const nextId = id;'));
+      const E = await import(pathToFileURL(f).href);
+      const t = { items: {}, xp: {}, kills: {} };
+      const st = { activeMonster: 'rat', monsterHp: 0, monsterMaxHp: 0, playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} };
+      E.simulateSpan(st, { away: true, fromMs: 0, toMs: 2400 * 500, tickMs: 2400, rng: createRng(77), monsters: MONSTERS,
+        hunt: HUNT_INDEX.mill_cellar, bonus: () => 0, playerRolls: () => ({ accuracy: 0.9, maxHit: 6, critChance: 0 }),
+        monsterRolls: () => ({ accuracy: 0, maxHit: 0 }), weakness: () => ({ dropMult: 1 }),
+        fx: { recordKill(id) { t.kills[id] = (t.kills[id] || 0) + 1; } } });
+      const caught = Object.keys(t.kills).length < 2;
+      console.log(`  ${caught ? 'caught ' : 'ESCAPED'} engine ignores ctx.hunt (P1 mix)`);
+      if (!caught) escaped++;
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+  for (const [name, S] of Object.entries(MUTANTS)) {
+    const red = run(S);
+    console.log(`  ${red.length ? 'caught ' : 'ESCAPED'} ${name}${red.length ? ` (${red[0].split(':')[0]})` : ''}`);
+    if (!red.length) escaped++;
+  }
+  if (escaped) { console.error(`hunts-c1 --mutate: ${escaped} mutant(s) escaped`); process.exit(1); }
+  console.log('hunts-c1 --mutate: every mutant caught');
+}

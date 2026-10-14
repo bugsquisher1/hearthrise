@@ -81,6 +81,15 @@ Analyzer has produced a week of real XP/h numbers to balance a mix against.
 Designing the mix first would be balancing a spawn table with no measurements,
 which is how the raid pool got its one-tap weekly chest.
 
+### 2.1a Named hunts — shipped as lane C1 (contract, 2026-10-13)
+
+- **Pointer:** `active_kind='combat'`, `active_id=<hunt id>`. Not a new kind: every combat-keyed server rule (recovery floor, combat-XP window, world-tick roster, settle-before-mutate, party guards) reads `'combat'`. Hunt ids are disjoint from monster ids (generator + catalogue self-check); a monster id is the one-spawn training hunt and prices byte-identically.
+- **Data:** `src/data/hunts.js` `{id, name, theme, band:[min,max], spawns:[{monster,w}], family, art}` -> `tools/gen-hunts.mjs` -> `hr_hunts(hunt_id, band_min, band_max)`, `hr_hunt_spawns(hunt_id, monster_id, w)`; server-only (RLS, no policy, no grant).
+- **Engine:** `resolveKill` rolls the next foe via `pickSpawn(ctx.hunt.spawns, ctx.rng)` after the kill's other draws; one-spawn draws nothing. A window that opens with no carried fight on a spawn rolls its first foe from `seed ^ HUNT_RNG_SALT`.
+- **Intent:** the existing `set_activity {kind:'combat', id:<hunt id>}`. `hr_apply` refuses `activity_locked {id, combat_level, band_min}` when `hr_bounty_combat_level < band_min`; an unknown id is `unknown_activity`. Leaving is the existing stop/switch.
+- **Fight carry:** `hr_apply`'s void keeps a checkpoint whose monster is in the pointer's `hr_hunt_spawns`.
+- **Known limits (C1):** the attended loot top-up does not pay a hunt (under-pay; the span pays); a bounty on a spawn is `off_target` while on a hunt pointer; the span summary's charm readout names the opening foe's class only; `hr_activity_label` has no hunt label (town roster).
+
 ### 2.2 Stance — a policy over knobs that already exist, never a multiplier
 
 **The rule, and it is the important one: a stance may never introduce a

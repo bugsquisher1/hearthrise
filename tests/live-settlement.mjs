@@ -653,7 +653,7 @@ const MUTANTS = [
     id: 'trusting-foe',
     what: 'the read guard drops the monster-id agreement',
     file: 'supabase/functions/hr-accrue/accrual.js',
-    from: "  const resumed = (fight0 && fight0.monster === inp.activeId",
+    from: "  const resumed = (fight0 && fight0.monster === openId",
     to: '  const resumed = (fight0 && fight0.monster',
   },
   {

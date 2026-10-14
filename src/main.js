@@ -129,7 +129,8 @@ window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
    painting. It must therefore stay ABOVE that edge (b371 moved the re-run off
    a 1500 ms timer; this ordering is what the b358 smoke guard asserts). */
 window.HearthriseItemArt = ItemArt;
-window.__hearthfireItemsWired = (window.__applyHearthfireItemIcons || (() => 0))(ItemArt.wiredIconMap());
+window.__hrPixelItemArt = ItemArt.ITEM_ART_SET === 'pixel';   /* itemTintClass() reads it: pixel icons are per-id, never tinted */
+window.__hearthfireItemsWired = (window.__applyHearthfireItemIcons || (() => 0))(ItemArt.activeIconMap(Object.keys(ITEMS)));
 
 Object.assign(window, {
   SKILLS_DEF:      unifyObject('SKILLS_DEF', SKILLS_DEF),

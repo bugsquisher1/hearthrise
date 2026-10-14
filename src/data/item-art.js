@@ -328,3 +328,28 @@ export function wiredIconMap() {
   });
   return out;
 }
+
+// ── THE PIXEL ITEM SET (Tyler, 2026-10-14) ────────────────────────────────
+// Every item in ITEMS has a 32x32 pixel-world icon, locked to the world palette
+// (art/world/palette.json), under assets/icons-bundle/pixel/items/<id>.png. The
+// filename is DERIVED from the id, so there is no list to drift: tests/pixel-icons.mjs
+// requires one file per ITEMS key, no orphan files, 32x32, on-palette, binary alpha.
+//
+// ONE SWITCH. `ITEM_ART_SET = 'painted'` restores the Hearthfire painted set
+// exactly as it was (activeIconMap() then returns wiredIconMap() untouched, and
+// itemTintClass() resumes tinting the shared wood sprite). Nothing else changes.
+export const ITEM_ART_SET = 'pixel';
+export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
+
+/** `<PIXEL_DIR><id>.png` for every id given. */
+export function pixelIconMap(ids) {
+  const out = {};
+  (ids || []).forEach((id) => { out[id] = PIXEL_DIR + fileFor(id); });
+  return out;
+}
+
+/** The map main.js wires: the painted set, with the pixel set over it when it is the active one. */
+export function activeIconMap(ids) {
+  const painted = wiredIconMap();
+  return ITEM_ART_SET === 'pixel' ? Object.assign(painted, pixelIconMap(ids)) : painted;
+}

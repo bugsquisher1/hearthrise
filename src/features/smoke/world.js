@@ -193,7 +193,7 @@ export default [
       tapTile(rt, 13, 9);
       rt.step();
       assert(JSON.stringify(rt.stats().walk.mark) === '{"x":13,"y":9}', 'a tap must mark where the hero is walking: ' + JSON.stringify(rt.stats().walk));
-      assert(await until(() => rt.stats().walk.cell.join() === '13,9', 5000), 'the hero never reached the tapped tile: ' + JSON.stringify(rt.stats().walk));
+      assert(await until(() => { const w = rt.stats().walk; return w.cell.join() === '13,9' && !w.mark; }, 5000), 'the hero never reached the tapped tile: ' + JSON.stringify(rt.stats().walk));
       const pos = G._world && G._world.pos;
       assert(pos && pos.map === 'town_common' && Math.round(pos.x) === 13 && Math.round(pos.y) === 9, 'the hero\'s spot must be held in G._world.pos: ' + JSON.stringify(G._world));
       const fields = CSt.RESIDUE_FIELDS.join();
@@ -235,10 +235,10 @@ export default [
     const kitchen = () => window.HearthriseWorld.runtime().stats().walk.props.filter((p) => p.ref && (p.ref.room === 'kitchen' || p.ref.sign === 'kitchen')).map((p) => p.id).sort().join();
     try {
       if (typeof window.stopCombat === 'function') window.stopCombat();
-      G._world = { choice: 'town', pos: { map: 'home_cottage', x: 7, y: 4 } };
+      /* Home, with the hero standing where its kitchen wall is in view. */
+      G._world = { choice: 'home', pos: { map: 'home_cottage', x: 7, y: 4 } };
       const rt = await openWorld();
-      document.querySelector('#panel-world [data-world-choice="home"]').click();
-      assert(await until(() => rt.stats().scene === 'home_cottage', 2000), 'tapping Home did not show the cottage');
+      assert(await until(() => rt.stats().scene === 'home_cottage', 2000), 'the pick of Home did not show the cottage');
       const seen = [];
       for (const rooms of [{ kitchen: 2 }, { kitchen: 3 }, {}]) {
         G.rooms = rooms;

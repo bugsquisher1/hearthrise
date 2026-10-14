@@ -557,7 +557,7 @@
               '<div class="hh-reqs">' + fmtCostRow(nxt.cost) + '</div>' +
               '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.upgradeProperty()">Upgrade Property</button>' +
             '</div>'
-          : '<div class="tiny" style="color:var(--gold-2)">The realm is yours. (Clan castles come next.)</div>') +
+          : '<div class="tiny" style="color:var(--gold-2)">The realm is yours.</div>') +
         '<div id="hh-workers-host"></div>' +
       '</div>';
     host.innerHTML = body;
@@ -648,17 +648,6 @@
     return canBuildRoom(id);
   }
 
-  /* b355 — the ITEM gate (housing blueprints), asked of the same authority
-     upgradeRoom enforces with. An ARRAY, not a single object: a rung needing
-     two keys is a data change, not a rendering change. Empty when the rung has
-     no item gate at all, which is most of them. */
-  function rungItemGates(id, want) {
-    if (typeof window.roomRungItemGate !== 'function') return [];
-    var g = null;
-    try { g = window.roomRungItemGate(id, want); } catch (e) { g = null; }
-    return g ? [g] : [];
-  }
-
   // 'locked' | 'unbuilt' | 'built' | 'max' — the four states §5 names.
   function roomState(id) {
     var lv = roomLevel(id);
@@ -709,14 +698,6 @@
     var nextRung = lv < cap ? r.levels[lv] : null;
     var gate = nextRung ? rungGate(id, lv + 1) : { ok: true };
     var missing = nextRung ? costAffordable(nextRung.cost) : [];
-    /* b355 — the blueprint requirement was invisible until you CLICKED, and
-       worse, `affordable` said yes while upgradeRoom said no: gold and planks
-       met with no blueprint lit the pinned Build button primary and then
-       refused with a toast. A view that disagrees with the authority about
-       whether an action is possible is a bug before it is a copy problem. */
-    var nextGates = nextRung ? rungItemGates(id, lv + 1) : [];
-    var gatesMet = nextGates.every(function (g) { return g.ok; });
-
     // what it does RIGHT NOW — never a promise
     var now = rungEffects(cur).map(function (e) {
       return { label: KEY_LABEL[e.key] || e.key, value: fmtKey(e.key, e.value) };
@@ -740,11 +721,6 @@
         // Stated on the rung rather than silently omitted OR falsely promised.
         reserved: rung.resv || null,
         cost: costTriples(rung.cost),
-        /* The item gate rides on EVERY rung, owned ones included — an owned
-           rung reads "Kitchen Blueprint II ✓ spent" rather than dropping the
-           requirement, so a player scanning the ladder learns that rungs 2 and
-           3 want blueprints BEFORE they arrive at one they cannot pay. */
-        gates: rungItemGates(id, level),
         owned: level <= lv,
         next: level === lv + 1,
         locked: level > lv && !g.ok,
@@ -771,8 +747,7 @@
       next: nextRung
         ? { level: lv + 1, name: nextRung.nm || ('Level ' + (lv + 1)), bonus: nextRung.bonus,
             gated: !gate.ok, gateReason: gate.ok ? null : gate.reason,
-            gates: nextGates, gatesMet: gatesMet,
-            affordable: gate.ok && gatesMet && !missing.length,
+            affordable: gate.ok && !missing.length,
             missing: missing }
         : null,
       go: meta.go || null
@@ -1009,26 +984,6 @@
     }
   };
 
-  /* W0 — THE BOSS TROPHY LAMPS. One lamp per boss trophy held, at a fixed
-     place on the Trophy Room wall (order = BOSS_TROPHIES order). A display
-     only: theme classes, no colour literal, no stat. */
-  var TROPHY_LAMPS = [[109, 96, 20], [511, 96, 20], [160, 46, 16], [460, 46, 16]];
-  function heldBossTrophies() {
-    var BT = window.HearthriseBossTrophies;
-    if (!BT || typeof BT.held !== 'function') return [];
-    var G = window.G || {};
-    return BT.held(G.inventory || {}, (G.bank && typeof G.bank === 'object') ? G.bank : {});
-  }
-  function trophyLampArt(lit) {
-    var BT = window.HearthriseBossTrophies;
-    if (!lit || !BT) return '';
-    var held = heldBossTrophies();
-    return (BT.list || []).map(function (t, i) {
-      var p = TROPHY_LAMPS[i];
-      return (p && held.indexOf(t.item) >= 0) ? glow(p[0], p[1], p[2], 1) : '';
-    }).join('');
-  }
-
   function roomScene(id, lit) {
     var s = SCENES[id] || SCENES.kitchen;
     var art = s.art;
@@ -1036,7 +991,6 @@
       art = art.replace('{L' + i + '}', lit ? glow(L[0], L[1], L[2], L[3]) : '');
     });
     art = art.replace(/\{L\d\}/g, '');
-    if (id === 'trophy') art += trophyLampArt(lit);
     var wall = s.wall === 'none' ? ''
       : '<rect class="hrcs-wall-2" x="0" y="0" width="' + RW + '" height="' + RF + '"/>' +
         (s.wall === 'timber' ? planks(7) : courses(5));
@@ -1078,33 +1032,6 @@
     return out;
   }
 
-  /* W0 — THE BOSS TROPHIES (src/data/boss-forge.js BOSS_TROPHIES). Each one a
-     player holds — bag or depot, both server-projected — HANGS: the room names
-     it with its line and lights a lamp in the scene. Each one still missing
-     says where it comes from, so the wall is a chase list, not a museum. */
-  function bossTrophySections() {
-    var BT = window.HearthriseBossTrophies;
-    if (!BT || !Array.isArray(BT.list) || !BT.list.length) return [];
-    var held = heldBossTrophies();
-    var D = window.DUNGEONS || {};
-    var rows = BT.list.map(function (t) {
-      var it = (window.ITEMS || {})[t.item] || {};
-      var name = it.n || t.item;
-      if (held.indexOf(t.item) >= 0) {
-        return { name: '<b>' + esc(name) + '</b> <span class="hh-rung-lore">' + esc(t.line) + '</span>',
-                 right: '<span class="hr-cs-val"><b>Hung</b></span>' };
-      }
-      var dn = (D[t.dungeon] && D[t.dungeon].name) || t.dungeon;
-      return { name: esc(name), right: '<span class="hr-cs-val">' + esc(t.boss) + ' &middot; ' + esc(dn) + '</span>' };
-    });
-    return [{
-      kind: 'rows',
-      title: 'Boss trophies &mdash; ' + held.length + ' of ' + BT.list.length + ' hung',
-      rows: rows,
-      empty: ''
-    }];
-  }
-
   /* Descriptor → the seam's section list. This is the ONLY place that knows
      the RoomModal's vocabulary, and it never asks the renderer for anything
      pillar-specific — `theme` is a class suffix and the rest is the published
@@ -1131,7 +1058,7 @@
         empty: 'This rung grants no passive bonus.'
       });
       if (d.currentLine) sections.push({ kind: 'note', html: '<span class="hh-rung-lore">' + esc(d.currentLine) + '</span>' });
-      if (id === 'trophy') sections = sections.concat(trophyWallSections(), bossTrophySections());
+      if (id === 'trophy') sections = sections.concat(trophyWallSections());
     }
 
     /* The FULL ladder, owned rungs included (spec §5 rule 3). A ladder that
@@ -1151,21 +1078,10 @@
             (row.reserved ? '<span class="hh-rung-resv">' + esc(row.reserved) + '</span>' : '') +
             (row.line ? '<span class="hh-rung-lore">' + esc(row.line) + '</span>' : ''),
           // An owned rung shows no price — you already paid it.
-          /* b372: `id` rides across the seam. The gate line below has always
-             carried one; the COST lines dropped it here, which would have left
-             the modal's blueprint inspectable and its planks not — the exact
-             requirement KD420 asked about. */
+          /* b372: `id` rides across the seam so every cost line is inspectable
+             — the exact requirement KD420 asked about. */
           costs: row.owned ? null : row.cost.map(function (c) {
             return { id: c.id, have: c.have, known: c.known, need: c.need, label: c.label };
-          }),
-          /* The third requirement class, handed to the seam as data. Costs are
-             a number you grind toward; an item gate is a THING you either hold
-             or must go somewhere specific to get, so it gets its own line with
-             its own source rather than being mixed into the price chips where
-             "0/1 Kitchen Blueprint II" reads like 1 more plank. */
-          gates: (row.gates || []).map(function (g) {
-            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false,
-                     source: g.source || '', spent: !!row.owned };
           }),
           why: row.gateReason || null,
           locked: row.locked,
@@ -1189,7 +1105,7 @@
 
          The costs are the ladder's own next-rung triples — the same objects,
          not a second derivation, so the bar and the ladder can never disagree
-         about what a rung costs. A gated or unaffordable rung is pinned TOO:
+         about what a rung costs. An unaffordable rung is pinned TOO:
          "you cannot do this yet, and here is what is short" is the answer the
          player came for, and hiding it below three sections is what made the
          screen feel like it had nothing to offer. */
@@ -1198,27 +1114,15 @@
       var costs = nextRow ? nextRow.cost.map(function (c) {
         return { id: c.id, have: c.have, known: c.known, need: c.need, label: c.label };
       }) : null;
-      /* The pinned bar carries the gate too, so the answer to "why can't I
-         press this" is ON the bar (item, held/not, and where it comes from)
-         instead of arriving in a toast after the click. */
-      var pinGates = (d.next.gates || []).map(function (g) {
-        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false, source: g.source || '' };
-      });
-      var unmet = pinGates.filter(function (g) { return !g.ok; });
-      /* An UNSTATED server bag is not "you need one" (roomRungItemGate known:false):
-         the bar says the bag is still being counted, the same words as the toast. */
-      var counting = unmet.filter(function (g) { return !g.known; }), short = unmet.filter(function (g) { return g.known; });
       /* ONE reason string, built from every blocker rather than the first one.
          The branch chain this replaces returned only the highest-priority
-         reason, so a rung short of BOTH a blueprint and 40 planks named one of
-         them and the player fixed it to find the button still dead. b213's rule
-         — name what is short, never "not enough" — applied to all three classes. */
-      var reasons = [], shown = [];
-      var say = function (r, gateLineSaysIt) { reasons.push(r); if (!gateLineSaysIt) shown.push(r); };
+         reason, so a rung short of two things named one of them and the player
+         fixed it to find the button still dead. b213's rule — name what is
+         short, never "not enough". */
+      var reasons = [];
+      var say = function (r) { reasons.push(r); };
       var costName = function (m) { return (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id; };
-      if (d.next.gated) say(d.next.gateReason, false);
-      if (short.length) say('Needs ' + short.map(function (g) { return g.name; }).join(' and '), true);
-      if (counting.length) say(counting.map(function (g) { return g.name; }).join(' and ') + ' still being counted', true);
+      if (d.next.gated) say(d.next.gateReason);
       if (!d.next.gated && d.next.missing.length) {
         /* A known shortfall is "Missing"; an unstated count is not missing, it is pending —
            same words as upgradeProperty's toast: a currency balance is "not loaded", an item
@@ -1227,7 +1131,7 @@
         var pend = d.next.missing.filter(function (m) { return m.known === false; });
         if (miss.length) say('Missing ' + miss.map(function (m) {
           return m.id === 'gold' ? ((m.need - m.have).toLocaleString() + ' gold') : (costName(m) + ' ×' + (m.need - m.have).toLocaleString());
-        }).join(', '), false);
+        }).join(', '));
         /* ONE house wording for every pending cost, currency or item, as a
            sentence ("Gold and Normal Log still being counted"), not two phrasings
            in one line ("gold balance not loaded yet, Normal Log still being counted"). */
@@ -1236,27 +1140,15 @@
             return m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : costName(m);
           });
           var ps = pn.length > 1 ? pn.slice(0, -1).join(', ') + ' and ' + pn[pn.length - 1] : pn[0];
-          say(ps.charAt(0).toUpperCase() + ps.slice(1) + ' still being counted', false);
+          say(ps.charAt(0).toUpperCase() + ps.slice(1) + ' still being counted');
         }
       }
       if (reasons.length) {
-        /* `why` stays COMPLETE — it is the button's hover title and the text an
-           unpinned, gate-line-less actions row appends. But when the gate is the
-           only blocker, a bar that prints "Needs Kitchen Blueprint II" directly
-           above a block that says "Kitchen Blueprint II — you have none" is the
-           same sentence twice, which this codebase already treats as a rendering
-           fault rather than as emphasis. `whyCovered` tells the renderer the
-           detail lines say everything the verdict does — a boolean, so nobody
-           has to parse prose to find out. `whyShown` is the same verdict minus the
-           item-gate reasons the gate lines restate (a pending bag named the
-           blueprint in the verdict AND in its gate line directly below). */
         buttons.push({ label: label, action: 'noop', disabled: true, why: reasons.join(' · '),
-                       whyShown: shown.join(' · '),
-                       whyCovered: reasons.length === 1 && unmet.length > 0,
-                       pin: true, costs: costs, gates: pinGates, level: d.next.level });
+                       pin: true, costs: costs, level: d.next.level });
       } else {
         buttons.push({ label: label, action: 'build', data: { room: id }, primary: true,
-                       pin: true, costs: costs, gates: pinGates, level: d.next.level });
+                       pin: true, costs: costs, level: d.next.level });
       }
     }
     if (d.go) buttons.push({ label: d.go.label, action: 'go', data: { room: id } });
@@ -1358,18 +1250,6 @@
               + (c.known === false ? 'no figure yet (still counting)' : c.have.toLocaleString())) + '">' +
             '<b>' + esc(c.need.toLocaleString()) + '</b> ' + esc(c.label) + '</span>';
         });
-        /* b355 — the card is a decision point too. A blueprint requirement that
-           only exists inside the modal still makes the House screen lie: the
-           card would print a price the player can fully afford next to a room
-           they cannot build. The gate gets a chip in the SAME cost strip, met /
-           short exactly like the others, with its source in the hover. */
-        (d.next.gates || []).forEach(function (g) {
-          /* An unstated bag is neither met nor short: `is-pending`, never the red of "you have none". */
-          chips.push('<span class="hh-cost hh-cost-gate ' + (g.ok ? 'is-met' : g.known === false ? 'is-pending' : 'is-short') + '" title="' +
-            esc(g.name + ' — ' + (g.ok ? 'in your bags' : g.known === false ? 'still being counted' : 'you have none') +
-                (g.source ? '. ' + g.source : '')) + '">' +
-            '<b>' + esc(g.need.toLocaleString()) + '</b> ' + esc(g.name) + '</span>');
-        });
         costLine = '<span class="hh-room-cost">' +
           chips.join('<i aria-hidden="true">&middot;</i>') + '</span>';
       }
@@ -1383,16 +1263,7 @@
       else if (d.next.gated) foot = 'Next: ' + esc(d.next.name) + ' &mdash; needs ' +
         esc(String(d.next.gateReason || '').replace(/^Requires /, ''));
       else {
-        /* An unmet item gate is named in the footer for the same reason a tier
-           gate is: "needs a bigger property" and "needs a blueprint" are both
-           answers to "why is this not ready", and only one of the two was ever
-           given. Short costs deliberately stay unnamed here — the chips below
-           already colour them, and the modal carries the full ledger. */
-        var ug = (d.next.gates || []).filter(function (g) { return !g.ok && g.known !== false; });
-        var uc = (d.next.gates || []).filter(function (g) { return !g.ok && g.known === false; });
-        foot = 'Next: ' + esc(d.next.name) + (ug.length
-          ? ' &mdash; needs ' + esc(ug.map(function (g) { return g.name; }).join(' and '))
-          : uc.length ? ' &mdash; counting your bag' : (d.next.affordable ? ' &mdash; ready' : ''));
+        foot = 'Next: ' + esc(d.next.name) + (d.next.affordable ? ' &mdash; ready' : '');
       }
       return '<button type="button" class="hh-room ' + cls + '" data-room="' + esc(id) + '" ' +
         'aria-label="' + esc(d.title + ' — ' + (owned ? 'level ' + d.level : d.state === 'locked' ? 'locked' : 'not built')) + '">' +

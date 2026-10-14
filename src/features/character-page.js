@@ -28,6 +28,10 @@ import { SKILL_GUIDE } from '../data/skill-guide.js?v=584';
    the surfaces that must render a pending balance rather than a number. */
 import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=584';
 import { heroClass } from '../render/skill-guide.js?v=584';
+/* Side-effect import: publishes window.HearthriseRoomModal, the house/room modal
+   that lived inside the deleted clan seat (2026-10-14). The Character door is on
+   every boot path; every consumer reads the modal at call time. */
+import '../render/room-modal.js?v=584';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */

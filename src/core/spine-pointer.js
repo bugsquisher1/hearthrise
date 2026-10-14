@@ -19,8 +19,8 @@
 // off never sends a veteran back to step 7.
 // ════════════════════════════════════════════════════════════════════════
 
-import { combatLevelOf } from './spine-progress.js?v=579';
-import { levelFromXp } from './xp.js?v=579';
+import { combatLevelOf } from './spine-progress.js?v=580';
+import { levelFromXp } from './xp.js?v=580';
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);

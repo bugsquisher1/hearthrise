@@ -2105,7 +2105,7 @@ jobs:
       # (excluded from the chain, like the gather one) on a live-shaped fixture,
       # rolled back: arms only 2-4 h after a real return, only with a filled
       # pin AND replayed set, >= 4 attested probes on the pin (2 ate, 2 died,
-      # 1 named hunt; Security R4 2026-10-14), one owned sentinel; --mutate 27.
+      # 1 named hunt; Security R4 2026-10-14), one owned sentinel; --mutate 28 (C27: a seed edited after the attest refuses).
       # Measured locally 2026-10-08: 3 s + 4 s + 3 s + 24 s.
       - name: World tick — M4 party horizon + cohort, and the combat arm file arms only on its evidence
         if: ${{ !cancelled() }}
@@ -2122,9 +2122,9 @@ jobs:
       # ledger; R2 the 10 s / 90 s chain vs one span, 40 seeds per input, +-6 %
       # with |z| <= 3.29, no input over +10 %; FX-3 the payload resolver refuses a
       # commit that packs to another hash. The PRODUCTION read (--live) never runs
-      # here (world-tick-seed-no-leak SL-4). --mutate: 12 (stored result/seed,
+      # here (world-tick-seed-no-leak SL-4). FX-4 the death-heavy "bag empties" span stays under +8 % (Security C2). --mutate: 13 (stored result/seed,
       # one-span stream, server under-pay, journal miscount, chain +15 % / +5 % /
-      # one input +25 %, each coverage class). Measured locally 2026-10-14 on 2
+      # one input +25 %, death-heavy +6 %, each coverage class). Measured locally 2026-10-14 on 2
       # replay threads: 37 s plain; --mutate ~2 min on 20.
       - name: World tick — combat arm bar, recorded probes replay exactly and the chain pays what one span pays
         if: ${{ !cancelled() }}

@@ -7,7 +7,14 @@
 --   player_state.auto_eat_enabled / _food / _pct / _set_at  (Auto-Eat -> the action bar)
 --   hr_set_auto_eat(...)                                 (its client RPC + baseline row)
 --   hr_credit_kills(...) / hr_credit_kills__ungated(...)  (attended kill credit + baseline row)
---   hr_offline_cap_ms(uuid, int)                         (the offline cap as a gameplay rule)
+--   hr_attended_kills(uuid, int, timestamptz)            (the attended kill ledger read; lane C2
+--                                                         removed its only reader, the edge)
+-- KEPT, deliberately (lane C2, 2026-10-14): hr_offline_cap_ms. The ruling lists
+-- it, but the same ruling keeps GATHER and ARTISAN "on their current tick path,
+-- horizon included, until the follow-up lane" (§3 Keep), and that path reads it
+-- (hr_accrue_cap_ms, hr_tick_settle's horizon, the return anchor) — as does the
+-- dormant party path. Lane G drops it with the gather horizon. Logged in
+-- .claude/coordination/CONFLICTS.md.
 -- and restates hr_vigour_of so the daily grant no longer reads the offline cap:
 -- a flat 720 min plus the clan perk (+60 at clan level 4, +120 more at 7),
 -- which is the SAME number today's cap-derived grant produces for every
@@ -49,9 +56,9 @@ begin
     into v_readers
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
          unnest(array['last_away_receipt', 'auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at',
-                      'hr_credit_kills', 'hr_set_auto_eat', 'hr_offline_cap_ms']) o(obj)
+                      'hr_credit_kills', 'hr_set_auto_eat', 'hr_attended_kills']) o(obj)
    where n.nspname = 'public'
-     and p.proname not in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated', 'hr_offline_cap_ms',
+     and p.proname not in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated', 'hr_attended_kills',
                            'hr_rpc_gate', 'hr_assert_grant_hygiene', 'hr_vigour_of')
      and regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') ~ ('\m' || o.obj || '\M');
   if v_readers is not null then
@@ -170,7 +177,7 @@ end $function$;
 drop function if exists public.hr_set_auto_eat(integer, boolean, text, integer, boolean);
 drop function if exists public.hr_credit_kills(integer, text, bigint, text);
 drop function if exists public.hr_credit_kills__ungated(integer, text, bigint, text);
-drop function if exists public.hr_offline_cap_ms(uuid, integer);
+drop function if exists public.hr_attended_kills(uuid, integer, timestamp with time zone);
 alter table public.player_state drop column if exists last_away_receipt;
 alter table public.player_state drop column if exists auto_eat_enabled;
 alter table public.player_state drop column if exists auto_eat_food;
@@ -185,7 +192,7 @@ declare v_h jsonb;
 begin
   if to_regprocedure('public.hr_set_auto_eat(integer,boolean,text,integer,boolean)') is not null
      or to_regprocedure('public.hr_credit_kills(integer,text,bigint,text)') is not null
-     or to_regprocedure('public.hr_offline_cap_ms(uuid,integer)') is not null
+     or to_regprocedure('public.hr_attended_kills(uuid,integer,timestamp with time zone)') is not null
      or exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state'
                   and column_name in ('last_away_receipt', 'auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at')) then
     raise exception 'GATE(a): an away object survived the drop'; end if;

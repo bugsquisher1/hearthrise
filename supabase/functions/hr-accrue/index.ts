@@ -1242,15 +1242,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          the shipped client's `settle_first` recovery — "run accrue, retry" —
          working for a hunter, and why a hunter's crew never stops banking. */
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
-      const respond = async (body: Record<string, any>): Promise<Response> => {
-        if (!huntOpenHere) return json(body);
+      const respond = async (auxOut: Record<string, any>): Promise<Response> => {
+        if (!huntOpenHere) return json(auxOut);
         const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true });
         if (hv.status !== 200) {
-          return json({ ...body, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
+          return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }
-        return json({ ...body, ...hv.body, ok: true,
-          accrued: hv.outcome === 'paid' || body.accrued === true,
-          reason: hv.outcome === 'paid' ? null : (hv.reason ?? body.reason ?? null) });
+        return json({ ...auxOut, ...hv.body, ok: true,
+          accrued: hv.outcome === 'paid' || auxOut.accrued === true,
+          reason: hv.outcome === 'paid' ? null : (hv.reason ?? auxOut.reason ?? null) });
       };
       // The pointer owes nothing. If the CREW and/or the RESTED bank owe
       // something, settle whichever do in ONE hr_apply call — the watermarks that

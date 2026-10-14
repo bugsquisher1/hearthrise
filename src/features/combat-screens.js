@@ -1142,6 +1142,21 @@ function renderGrid() {
    hidden, and the Hunt button sends an intent.
    ══════════════════════════════════════════════════════════════════════ */
 let wtTab = 'hunts';
+/* The hunt another screen sent the player to look at (the World pane's "Hunt in
+   the Mill Cellar"), ringed on its card until a hunt is started. Display only. */
+let pickedHunt = null;
+
+/** NAVIGATION ONLY: the War Table's Hunts tab with hunt `id` picked. No intent. */
+function showHunt(id) {
+  if (!HUNTS.some((x) => x.id === id)) return false;
+  pickedHunt = id;
+  previewId = null;
+  wtTab = 'hunts';
+  setView('table');
+  const card = document.querySelector('#panel-combat .wt-hunt.is-picked');
+  if (card && typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
+  return true;
+}
 
 function setTab(k) {
   if (!WT_TABS.some(([id]) => id === k)) return;
@@ -1209,6 +1224,7 @@ function startHunt(id) {
   const g = G();
   if (!h || !g || typeof window.startCombat !== 'function') return;
   previewId = null;
+  pickedHunt = null;
   if (!(g._huntId === h.id && g.activeMonster)) window.startCombat(h.spawns[0].monster, { hunt: h.id });
   setView('fight');
 }
@@ -1254,7 +1270,7 @@ function huntCard(h, lv, kills, starred) {
   const band = h.band[1] ? `Combat ${h.band[0]}–${h.band[1]}` : `Combat ${h.band[0]}+`;
   const btn = locked ? lockLine(h.band[0])
     : `<button type="button" class="btn btn-sm btn-primary wth-go" data-cs-act="hunt" data-hunt="${esc(h.id)}">Hunt</button>`;
-  return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}" data-hunt="${esc(h.id)}">
+  return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}${h.id === pickedHunt ? ' is-picked' : ''}" data-hunt="${esc(h.id)}">
     <div class="wth-art" data-art="${esc((MONSTERS[h.art] || MONSTERS[h.spawns[0].monster] || {}).cls || '')}">
       <button type="button" class="wth-fav" data-cs-act="fav" data-hunt="${esc(h.id)}" aria-pressed="${starred ? 'true' : 'false'}"` +
       ` aria-label="${starred ? 'Unstar' : 'Star'} ${esc(h.name)}" title="${starred ? 'Starred' : 'Star this hunt'}">${uiGlyph('uiStar', 14)}</button>
@@ -2075,7 +2091,7 @@ export function setupCombatScreens() {
        a gated dungeon" defect lived, so the guard reads it directly rather
        than trying to find a disabled button in a strip the tick repaints. */
     _destinations: destinations,
-    setTab, huntIntent, startHunt, toggleFav,
+    setTab, huntIntent, startHunt, toggleFav, showHunt,
     get tab() { return wtTab; },
     get previewId() { return previewId; },
   };

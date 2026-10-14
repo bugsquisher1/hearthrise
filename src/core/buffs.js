@@ -378,3 +378,52 @@ export function pruneBuffs(buffs) {
   if (!Array.isArray(buffs)) return [];
   return buffs.filter((b) => b && b.remainingMs > 0);
 }
+
+/* ── THE SEGMENT RULE, FOR A BUFF THE ENGINE FIRES (Hunt Sessions) ──────────
+   hr_apply's buff_apply (2026-09-13-buff-segments.sql steps 1-6, the cellar
+   scale, the 10% minimum-gain fuse) restated over the engine's RELATIVE queue,
+   because a hunt's action bar fires a Feast inside a settle and cannot round
+   trip to SQL per swing. Same steps, same order, same refusals:
+     2. start = the latest end among live segments of this type at least as strong
+     3. end   = min(start + D x scale, BUFF_MAX_UNTIL_MS)
+     4. weaker segments of this type that end inside the new one are dropped
+     5. weaker segments that outlive it survive untouched
+     6. a same-magnitude segment ending exactly at `start` is EXTENDED, not doubled
+   A refusal spends nothing: 'segment_budget' (8 live segments of the type) or
+   'buff_at_max' (the gain is under 10% of the scaled duration).
+   @param queue  the live queue (`state.buffs`), MUTATED in place
+   @param buff   { type, magnitude, durationMs } from the item row
+   @param o      { atMs, scale } — `atMs` stamps the absolute `from`/`until`
+   @returns { ok, why?, startMs, endMs } in ms from `atMs` */
+export const BUFF_MAX_SEGMENTS = 8;
+export const BUFF_MIN_GAIN_FRAC = 0.10;
+export function applyBuffSegment(queue, buff, o) {
+  const b = buff || {};
+  const mag = Number(b.magnitude);
+  const dur = Number(b.durationMs);
+  if (!Array.isArray(queue) || !isKnownBuff(b.type) || !(mag > 0) || !(dur > 0)) return { ok: false, why: 'bad_buff' };
+  const scale = Math.max(1, Number((o || {}).scale) || 1);
+  const atMs = Number((o || {}).atMs) || 0;
+  const live = queue.filter((s) => s && s.type === b.type && s.remainingMs > 0);
+  if (live.length >= BUFF_MAX_SEGMENTS) return { ok: false, why: 'segment_budget' };
+  let start = 0;
+  for (const s of live) if (Number(s.magnitude) >= mag && s.remainingMs > start) start = s.remainingMs;
+  const scaled = dur * scale;
+  if (BUFF_MAX_UNTIL_MS - start < Math.ceil(scaled * BUFF_MIN_GAIN_FRAC)) return { ok: false, why: 'buff_at_max' };
+  const end = Math.min(start + scaled, BUFF_MAX_UNTIL_MS);
+  const twin = live.find((s) => Number(s.magnitude) === mag && s.remainingMs === start) || null;
+  for (let i = queue.length - 1; i >= 0; i--) {
+    const s = queue[i];
+    if (!s || s.type !== b.type || s === twin) continue;
+    if (!(s.remainingMs > 0) || (Number(s.magnitude) < mag && s.remainingMs <= end)) queue.splice(i, 1);
+  }
+  if (twin) {
+    twin.remainingMs = end;
+    twin.until = atMs + end;
+  } else {
+    const seg = { type: b.type, magnitude: mag, remainingMs: end, until: atMs + end, from: atMs + start };
+    if (start > 0) seg.delayMs = start;
+    queue.push(seg);
+  }
+  return { ok: true, startMs: start, endMs: end };
+}

@@ -1,0 +1,321 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/hunt-session-engine.mjs — THE HUNT SESSION ENGINE'S PARITY GUARDS
+// (ruling HR-2026-10-14 §4; lane E).
+//
+//   node tests/hunt-session-engine.mjs           run every arm
+//   node tests/hunt-session-engine.mjs --mutate  plant each defect in a temp
+//                                                copy of src/core + src/data and
+//                                                prove its arm goes red
+//
+// Arms:
+//   TICK-1       N ten-second windows == one N x 10 s span, byte for byte, on
+//                the session (bag, tally, cooldowns, clock), the state, the
+//                events and the ledger-shaped fx stream. Two fixtures: a fed
+//                melee hunt with falls and knock-outs, and a ranged hunt that
+//                spends arrows and fires a Feast.
+//   BOTH-PATH    the ATTENDED shape (settles at irregular instants, as
+//                hr_hunt_use presses cut them) and the AWAY shape (only the
+//                10 s world tick) write identical rows through a fall and a
+//                knock-out (§4 "a death with a client connected…", CLAUDE.md §4).
+//   TICK-MANUAL  a manual press equals the matching rule, including a press
+//                that lands inside a running cooldown.
+//   BAG          loaded = used + left on every line, `used` counted from the
+//                swings' own outcomes, not from the tally that is being checked.
+//   HEAL         "*heal" is the cheapest heal that covers the missing HP, else
+//                the largest (Cooked Panther Meat vs Swordfish Steak).
+//   END          the end checks run in END_ORDER and `endedAtMs` is the boundary.
+//   BUFF         the engine's buff segment rule reproduces the SQL's worked
+//                examples (2026-09-13-buff-segments.sql).
+// ════════════════════════════════════════════════════════════════════════
+
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+async function load(root) {
+  const u = (p) => pathToFileURL(join(root, p)).href;
+  return {
+    cs: await import(u('src/core/combat-sim.js')),
+    AR: await import(u('src/core/action-rules.js')),
+    BF: await import(u('src/core/buffs.js')),
+    MONSTERS: (await import(u('src/data/monsters.js'))).MONSTERS,
+    ITEMS: (await import(u('src/data/items.js'))).ITEMS,
+    HUNTS: (await import(u('src/data/hunts.js'))).HUNT_INDEX,
+    RS: await import(u('src/data/rule-subjects.js')),
+    HSD: await import(u('src/data/hunt-sessions.js')),
+    SUPPLIES: (await import(u('src/data/supplies.js'))).SUPPLIES,
+  };
+}
+
+const T0 = Date.UTC(2026, 9, 14, 23, 50, 0);   // crosses UTC midnight inside the span
+const WIN = 10000;
+
+/* A ledger-shaped fx sink: every value movement, in order. */
+function sink() {
+  const rows = [];
+  return {
+    rows,
+    fx: {
+      addXp: (skill, n) => rows.push(['xp', skill, n]),
+      addItem: (id, n) => rows.push(['item', id, n]),
+      onLoot: (gp) => rows.push(['gold', gp]),
+    },
+  };
+}
+
+function melee(M, seed) {
+  const hs = M.AR.newHuntSession({
+    id: 'sess-melee', huntFromMs: T0 + 20000,
+    bag: { cooked_shrimp: { loaded: 40 }, cooked_trout: { loaded: 6 } },
+    slots: M.RS.DEFAULT_PRESET.slots, fallsLimit: 6, vigourLeftMs: 3 * 3600000,
+  });
+  const state = { activeMonster: 'rat', playerHp: 12, playerMaxHp: 12, huntSession: hs, stats: {},
+    deathsTodayBefore: 1, deathsLifetimeBefore: 9, inventory: {} };
+  const ctx = { tickMs: 2400, sessionSeed: seed, monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+    bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+    playerRolls: () => ({ accuracy: 0.55, maxHit: 3, critChance: 0.05 }),
+    monsterRolls: () => ({ accuracy: 0.7, maxHit: 7 }) };
+  return { state, ctx, spanMs: 2 * 3600000 };
+}
+
+function ranged(M, seed) {
+  const hs = M.AR.newHuntSession({
+    id: 'sess-ranged', huntFromMs: T0,
+    bag: { iron_arrows: { loaded: 400 }, cooked_trout: { loaded: 30 }, hunters_feast: { loaded: 3 } },
+    slots: [
+      M.RS.DEFAULT_PRESET.slots[0],
+      { item: 'hunters_feast', on: true, conditions: [{ subject: 'buff_missing:drop_rate', op: '<=', value: 0 }] },
+    ],
+  });
+  const state = { activeMonster: 'rat', playerHp: 30, playerMaxHp: 30, huntSession: hs, stats: {}, inventory: {},
+    equipment: { weapon: 'shortbow', ammo: 'iron_arrows' }, buffs: [] };
+  const ctx = { tickMs: 2200, sessionSeed: seed, monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+    weaponType: 'ranged', bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+    playerRolls: () => ({ accuracy: 0.7, maxHit: 4, critChance: 0.05 }),
+    monsterRolls: () => ({ accuracy: 0.5, maxHit: 3 }) };
+  return { state, ctx, spanMs: 3600000 };
+}
+
+/* Run a fixture over [T0, T0 + spanMs) cut at the given instants. */
+function run(M, fixture, cuts) {
+  const { state, ctx, spanMs } = fixture;
+  const s = sink();
+  const events = [];
+  const sums = { kills: 0, foodEaten: 0, deaths: 0, consumed: {} };
+  const edges = [T0, ...cuts.filter((c) => c > T0 && c < T0 + spanMs), T0 + spanMs];
+  for (let i = 1; i < edges.length; i++) {
+    const r = M.cs.simulateSpan(state, Object.assign({}, ctx, { fromMs: edges[i - 1], toMs: edges[i], fx: s.fx }));
+    events.push(...r.huntEvents);
+    sums.kills += r.kills; sums.foodEaten += r.foodEaten; sums.deaths += r.deaths;
+    for (const [k, v] of Object.entries(r.consumed)) sums.consumed[k] = (sums.consumed[k] || 0) + v;
+  }
+  return { out: canon({ state, events, ledger: s.rows }), state, events, sums, ledger: s.rows };
+}
+
+const ticks = (spanMs) => Array.from({ length: Math.ceil(spanMs / WIN) }, (_, i) => T0 + i * WIN);
+
+/* Key order is not a property of the rows the tick writes (they are columns),
+   so the comparison is over a canonical form: sorted keys, same values. */
+function canon(v) {
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+
+function firstDiff(a, b) {
+  let i = 0; while (i < a.length && a[i] === b[i]) i++;
+  return `at char ${i}: …${a.slice(Math.max(0, i - 60), i + 60)}… vs …${b.slice(Math.max(0, i - 60), i + 60)}…`;
+}
+
+const ARMS = {
+  'TICK-1': (M) => {
+    for (const make of [melee, ranged]) {
+      const one = run(M, make(M, '0x5eed'), []);
+      const many = run(M, make(M, '0x5eed'), ticks(make(M, '0x5eed').spanMs));
+      if (one.out !== many.out) return `${make.name}: 10 s ticks differ from one span ${firstDiff(one.out, many.out)}`;
+      if (make === melee && !(one.sums.deaths > 0)) return 'melee fixture never fell — it cannot prove the knock-out splits';
+      if (make === ranged && !(one.sums.consumed.iron_arrows > 0 && one.state.huntSession.tally.supplies.hunters_feast > 0)) {
+        return 'ranged fixture spent no arrows or no Feast — it cannot prove the quiver or the buff splits';
+      }
+    }
+    return null;
+  },
+  'BOTH-PATH': (M) => {
+    const span = melee(M, '0x5eed').spanMs;
+    let x = 0x2545f491;
+    const irregular = [];
+    for (let t = T0; t < T0 + span;) {
+      x = (Math.imul(x ^ (x >>> 13), 0x5bd1e995) >>> 0);
+      t += 300 + (x % 47000);
+      irregular.push(t);
+    }
+    const attended = run(M, melee(M, '0x5eed'), irregular);
+    const away = run(M, melee(M, '0x5eed'), ticks(span));
+    if (!(away.sums.deaths > 0 && away.state.huntSession.tally.downMs > 0)) return `no fall with a knock-out in the fixture (falls ${away.sums.deaths}, down ${away.state.huntSession.tally.downMs} ms)`;
+    if (attended.out !== away.out) return `attended settles wrote different rows ${firstDiff(attended.out, away.out)}`;
+    return null;
+  },
+  'TICK-MANUAL': (M) => {
+    /* A Feast fires by rule at the first boundary past minute 1 and starts the
+       1 s buff cooldown. Path A then PRESSES a Moonbloom Elixir at the very next
+       boundary — inside that cooldown. Path B has a rule that fires the elixir
+       once, from that same boundary. The press must wait the cooldown exactly
+       as the rule does. */
+    const feast = { item: 'hunters_feast', on: true, conditions: [
+      { subject: 'session_minutes', op: '>=', value: 1 }, { subject: 'bag_left:hunters_feast', op: '>=', value: 2 }] };
+    const mk = (slots) => {
+      const f = ranged(M, '0x9e55');
+      f.ctx.tickMs = 600;
+      f.state.huntSession = M.AR.newHuntSession({ id: 'sess-press', huntFromMs: T0,
+        bag: { cooked_trout: { loaded: 20 }, hunters_feast: { loaded: 2 }, moonbloom_elixir: { loaded: 1 } }, slots });
+      return f;
+    };
+    const A = mk([feast, { item: 'moonbloom_elixir', on: false, conditions: [] }]);
+    const B = mk([feast, { item: 'moonbloom_elixir', on: true, conditions: [
+      { subject: 'bag_left:hunters_feast', op: '<=', value: 1 }, { subject: 'bag_left:moonbloom_elixir', op: '>=', value: 1 }] }]);
+    const sA = sink(); const sB = sink();
+    let at = T0;
+    const step = (f, s, to) => M.cs.simulateSpan(f.state, Object.assign({}, f.ctx, { fromMs: at, toMs: to, fx: s.fx }));
+    while (at < T0 + 5 * 60000) {
+      const to = at + 600;
+      if (A.state.huntSession.tally.supplies.hunters_feast === 1 && !A._pressed) {
+        A.state.huntSession.presses.push(1);
+        A._pressed = true;
+      }
+      step(A, sA, to); step(B, sB, to);
+      at = to;
+    }
+    const strip = (f) => Object.assign({}, f.state, { huntSession: Object.assign({}, f.state.huntSession, { slots: null }) });
+    const ja = canon([strip(A), sA.rows]); const jb = canon([strip(B), sB.rows]);
+    if (!A._pressed || A.state.huntSession.tally.supplies.moonbloom_elixir !== 1) return 'the press never fired';
+    if (ja !== jb) return `a press differs from its matching rule ${firstDiff(ja, jb)}`;
+    return null;
+  },
+  BAG: (M) => {
+    for (const make of [melee, ranged]) {
+      const r = run(M, make(M, '0xba9'), ticks(make(M, '0xba9').spanMs));
+      const hs = r.state.huntSession;
+      const heals = Object.keys(hs.bag).filter((id) => M.SUPPLIES[id].kind === 'heal');
+      const usedHeals = heals.reduce((a, id) => a + (hs.bag[id].loaded - hs.bag[id].left), 0);
+      if (usedHeals !== r.sums.foodEaten) return `${make.name}: ${r.sums.foodEaten} heals eaten, ${usedHeals} left the bag`;
+      for (const [id, line] of Object.entries(hs.bag)) {
+        const used = hs.tally.supplies[id] || 0;
+        if (line.loaded !== used + line.left || line.left < 0) return `${make.name}: ${id} loaded ${line.loaded} != used ${used} + left ${line.left}`;
+      }
+      const arrows = (hs.bag.iron_arrows ? hs.bag.iron_arrows.loaded - hs.bag.iron_arrows.left : 0);
+      if (arrows !== (r.sums.consumed.iron_arrows || 0)) return `${make.name}: ${r.sums.consumed.iron_arrows} arrows loosed, ${arrows} left the bag`;
+    }
+    return null;
+  },
+  HEAL: (M) => {
+    const hs = { bag: { cooked_panther_meat: { left: 5 }, cooked_swordfish: { left: 5 } } };
+    const got = [M.AR.pickHeal(hs, 5), M.AR.pickHeal(hs, 30), M.AR.pickHeal(hs, 60), M.AR.pickHeal(hs, 0)];
+    const want = ['cooked_panther_meat', 'cooked_swordfish', 'cooked_swordfish', null];
+    return JSON.stringify(got) === JSON.stringify(want) ? null : `pickHeal gave ${JSON.stringify(got)}, want ${JSON.stringify(want)}`;
+  },
+  END: (M) => {
+    const order = M.HSD.END_ORDER;
+    const base = () => M.AR.newHuntSession({ id: 'e', huntFromMs: 0,
+      bag: { cooked_shrimp: { loaded: 1 }, iron_arrows: { loaded: 1 } }, hoursLimit: 1, vigourLeftMs: 1 });
+    const make = {
+      falls: (h) => { h.falls = h.fallsLimit; }, heals_out: (h) => { h.bag.cooked_shrimp.left = 0; },
+      ammo_out: (h) => { h.bag.iron_arrows.left = 0; }, vigour: (h) => { h.vigourLeftMs = 0; },
+      hours: () => {}, left: (h) => { h.leaveAtMs = 0; }, changed: (h) => { h.changeAtMs = 0; },
+      server: (h) => { h.stopAtMs = 0; },
+    };
+    for (let i = 0; i < order.length; i++) {
+      const h = base();
+      for (let j = i; j < order.length; j++) make[order[j]](h);
+      const atMs = i <= order.indexOf('hours') ? 3600000 : 0;
+      const got = M.AR.endReasonAt(h, atMs);
+      if (got !== order[i]) return `with ${order.slice(i).join('+')} true the hunt ended on ${got}, want ${order[i]}`;
+    }
+    const f = melee(M, '0xe0d');
+    f.state.huntSession.leaveAtMs = T0 + 600000;
+    const r = M.cs.simulateSpan(f.state, Object.assign({}, f.ctx, { fromMs: T0, toMs: T0 + 3600000 }));
+    const hs = f.state.huntSession;
+    if (!r.huntEnded || r.huntEnded.reason !== 'left') return 'leaving did not end the hunt';
+    if (hs.endedAtMs < T0 + 600000 || hs.endedAtMs >= T0 + 600000 + f.ctx.tickMs) return `ended_at ${hs.endedAtMs - T0} is not the first boundary at/after the leave`;
+    if (hs.nextSwingAtMs !== hs.endedAtMs) return 'a swing ran after the hunt ended';
+    return null;
+  },
+  BUFF: (M) => {
+    const q = [];
+    const ap = (type, magnitude, mins, atMs = 0) => M.BF.applyBuffSegment(q, { type, magnitude, durationMs: mins * 60000 }, { atMs });
+    ap('drop_rate', 5, 8); ap('drop_rate', 2, 3);
+    const a = q.map((b) => [b.magnitude, b.remainingMs, b.delayMs || 0]);
+    if (JSON.stringify(a) !== JSON.stringify([[5, 480000, 0], [2, 660000, 480000]])) return `elixir then trout: ${JSON.stringify(a)}`;
+    q.length = 0; ap('drop_rate', 2, 3); ap('drop_rate', 5, 8);
+    if (q.length !== 1 || q[0].magnitude !== 5) return `trout then elixir should leave only the elixir: ${JSON.stringify(q)}`;
+    q.length = 0; ap('drop_rate', 5, 8); ap('drop_rate', 5, 8);
+    if (q.length !== 1 || q[0].remainingMs !== 960000) return `a same-magnitude re-eat must extend one segment: ${JSON.stringify(q)}`;
+    q.length = 0; for (let i = 0; i < 4; i++) ap('drop_rate', 5, 15);
+    const last = ap('drop_rate', 5, 15);
+    if (last.ok || last.why !== 'buff_at_max' || q[0].remainingMs !== 3600000) return `the hour ceiling: ${JSON.stringify(last)} ${JSON.stringify(q)}`;
+    return null;
+  },
+};
+
+async function runArms(root) {
+  const M = await load(root);
+  const out = {};
+  for (const [name, arm] of Object.entries(ARMS)) {
+    try { out[name] = arm(M); } catch (e) { out[name] = 'threw: ' + (e && e.stack || e); }
+  }
+  return out;
+}
+
+/* Each mutant names the arm that must go red. */
+const MUTANTS = [
+  { arm: 'TICK-1', name: 'the swing seed is indexed per window', file: 'src/core/combat-sim.js',
+    from: 'huntSwingSeed(ctx.sessionSeed, hs.id, swing)', to: 'huntSwingSeed(ctx.sessionSeed, hs.id, ticks)' },
+  { arm: 'TICK-1', name: 'the cooldown is stamped from the window start', file: 'src/core/action-rules.js',
+    from: 'hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS', to: 'hs.cooldowns[u.group] = (Number(ctx.fromMs) || 0) + COOLDOWN_GROUPS' },
+  { arm: 'BOTH-PATH', name: 'the knock-out clock is not carried across a settle', file: 'src/core/combat-sim.js',
+    from: 'state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;', to: 'state.recoveringUntilMs = 0;' },
+  { arm: 'TICK-MANUAL', name: 'a press skips the cooldown', file: 'src/core/action-rules.js',
+    from: 'if (!ready(r.group)) { out.keep.push(idx); continue; }', to: 'if (used.has(r.group)) { out.keep.push(idx); continue; }' },
+  { arm: 'BAG', name: 'a heal is eaten without leaving the bag', file: 'src/core/action-rules.js',
+    from: '    spendFromBag(hs, u.id, 1, atMs);', to: '    if (u.group !== \'heal\') spendFromBag(hs, u.id, 1, atMs);' },
+  { arm: 'HEAL', name: '*heal is plain cheapest-first', file: 'src/core/action-rules.js',
+    from: 'if (heals >= need && rank < coverRank)', to: 'if (rank < coverRank)' },
+  { arm: 'END', name: 'the end checks run in reverse', file: 'src/core/action-rules.js',
+    from: 'for (const k of END_ORDER) if (END_CHECKS[k](hs, atMs)) return k;', to: 'for (const k of END_ORDER.slice().reverse()) if (END_CHECKS[k](hs, atMs)) return k;' },
+  { arm: 'BUFF', name: 'a weaker buff is never dropped', file: 'src/core/buffs.js',
+    from: '(Number(s.magnitude) < mag && s.remainingMs <= end)', to: 'false' },
+];
+
+async function main() {
+  if (process.argv.includes('--mutate')) {
+    let bad = 0;
+    for (const m of MUTANTS) {
+      const dir = mkdtempSync(join(tmpdir(), 'hr-hse-'));
+      try {
+        cpSync(join(ROOT, 'src', 'core'), join(dir, 'src', 'core'), { recursive: true });
+        cpSync(join(ROOT, 'src', 'data'), join(dir, 'src', 'data'), { recursive: true });
+        const p = join(dir, m.file);
+        const src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+        if (src.split(m.from).length !== 2) { console.error(`✗ mutant "${m.name}": marker not found exactly once in ${m.file}`); bad++; continue; }
+        writeFileSync(p, src.replace(m.from, m.to));
+        const res = await runArms(dir);
+        if (res[m.arm]) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
+        else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+    console.log(bad ? `hunt-session-engine --mutate: ${bad} mutant(s) survived` : `hunt-session-engine --mutate: all ${MUTANTS.length} mutants killed`);
+    process.exit(bad ? 1 : 0);
+  }
+  const res = await runArms(ROOT);
+  let bad = 0;
+  for (const [name, err] of Object.entries(res)) {
+    if (err) { console.error(`✗ ${name}: ${err}`); bad++; } else console.log(`✓ ${name}`);
+  }
+  console.log(bad ? `hunt-session-engine: ${bad} arm(s) red` : `hunt-session-engine: all ${Object.keys(res).length} arms green`);
+  process.exit(bad ? 1 : 0);
+}
+
+main();

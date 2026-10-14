@@ -23,7 +23,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=574';
+import { ITEMS, foodClassOf } from './items.js?v=575';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'buff', 'ammo']);
 

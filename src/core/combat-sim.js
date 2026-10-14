@@ -68,8 +68,13 @@ import { applyGoldFind } from './pacing.js?v=575';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
    ladder, where the design tables live. This file asks the table; it does not
    restate it, so a designer moving a rung moves it in exactly one place. */
-import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments,
-         retreatAtFall } from './away.js?v=575';
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments,
+         retreatAtFall, DAY_MS } from './away.js?v=575';
+import { recoveryFor, resumeHpFor } from './recovery.js?v=575';
+/* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
+   `state.huntSession` is present, and `simulateSpan` then walks the session's
+   absolute swing clock (`simulateHuntSpan` below). */
+import { runActionBar, spendFromBag, endReasonAt, huntSwingSeed } from './action-rules.js?v=575';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -321,7 +326,9 @@ export function resolveDeath(state, ctx) {
        a behaviour change nobody applied. Every other self-configuring input in
        this system (tool_carry, fight, ammo_carry, recovering_until) has the same
        property and it is the reason the two halves are safe in either order. */
-  const hasCounter = state.consecFalls !== null && typeof state.consecFalls !== 'undefined';
+  /* A hunt session ends on its own `falls` limit (action-rules.js END_ORDER),
+     never on the Retreat. */
+  const hasCounter = !state.huntSession && state.consecFalls !== null && typeof state.consecFalls !== 'undefined';
   const consecFalls = hasCounter ? base(state.consecFalls) + 1 : 0;
   if (hasCounter) state.consecFalls = consecFalls;
   const retreat = hasCounter && retreatAtFall({ consecFalls, foodless });
@@ -388,6 +395,20 @@ export function resolveDeath(state, ctx) {
  *   test would be comparing two different fights — which is also why a
  *   "20% chance to consume" model was rejected in favour of `ammoPerShot: 0.2`.
  */
+/* A HUNT'S QUIVER IS ITS BAG. `spendForSwings` runs unchanged over a view
+   whose inventory is the bag line of the equipped ammo, and its one
+   `removeItem` lands in the bag (spendFromBag) instead of the inventory. The
+   carry object is the state's own, so the fractional carry survives swings. */
+function spendFromQuiver(state, hunt, ctx) {
+  const ammoId = (state.equipment && state.equipment.ammo) || null;
+  const line = ammoId && hunt.bag ? hunt.bag[ammoId] : null;
+  if (!state.ammoCarry || typeof state.ammoCarry !== 'object') state.ammoCarry = {};
+  const view = { equipment: state.equipment, ammoCarry: state.ammoCarry,
+    inventory: ammoId ? { [ammoId]: line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0 } : {} };
+  return spendForSwings(view, 1, { items: ctx.items, weaponType: ctx.weaponType,
+    fx: { removeItem: (id, n) => spendFromBag(hunt, id, n, Number(ctx.atMs) || 0) } });
+}
+
 export function simulateTick(state, ctx) {
   const fx = fxOf(ctx);
   const monsters = ctx.monsters || {};
@@ -412,7 +433,8 @@ export function simulateTick(state, ctx) {
      No-ammo loadouts are byte-identical to the pre-E1 engine — `applyAmmoMult`
      returns its input unchanged at a multiplier of 1, and `spendForSwings`
      returns without touching `state` when the slot is empty or the rung free. */
-  const supply = spendForSwings(state, 1, ctx);
+  const hunt = state.huntSession || null;
+  const supply = hunt ? spendFromQuiver(state, hunt, ctx) : spendForSwings(state, 1, ctx);
 
   const roll = ctx.playerRolls(m);
   let pDmg = rollAttack(ctx.rng, roll.accuracy, applyAmmoMult(roll.maxHit, supply.startMult));
@@ -462,7 +484,7 @@ export function simulateTick(state, ctx) {
   /* Healing auto-eat STAYS away and keeps consuming food. It is survival,
      not a bonus — the ruling is explicit. It is also heal-only: it never
      applies a food's timed buff (b163). */
-  const ate = !!call(fx, 'autoEat', ctx);
+  const ate = hunt ? runActionBar(state, ctx) : !!call(fx, 'autoEat', ctx);
 
   if (state.playerHp <= 0) {
     /* `recoverMs` rides the outcome for the same reason `supply` does: the span
@@ -526,6 +548,176 @@ export function resolveTickMs(ctx) {
   return Math.max(floor, asked);
 }
 
+/* Repair the in-flight fight before simulating it. `monsterHp` and
+   `playerHp` are NO_SYNC (they belong to the device you are fighting on),
+   so a save restored FROM THE CLOUD arrives with an activeMonster and no
+   hit points. `Math.max(0, undefined - dmg)` is NaN, `NaN <= 0` is false,
+   and the replay would then run every tick of a twelve-hour absence
+   without ever landing a kill. */
+function repairFight(state, ctx) {
+  if (!state.activeMonster) return;
+  const m0 = (ctx.monsters || {})[state.activeMonster];
+  if (m0) {
+    if (!(state.monsterMaxHp > 0)) state.monsterMaxHp = m0.hp;
+    if (!(state.monsterHp > 0)) state.monsterHp = state.monsterMaxHp;
+  }
+  if (!(state.playerMaxHp > 0)) state.playerMaxHp = 10;
+  if (!(state.playerHp > 0)) state.playerHp = state.playerMaxHp;
+}
+
+/* UP AGAIN, SAME FOE AT FULL HP, the character at 40% (recovery.js
+   `resumeHpFor`). Stated here rather than left to `resolveDeath` because a
+   window can OPEN mid-recovery, in which case no death happened inside it and
+   nobody stood the character up. */
+function standUp(state, ctx) {
+  const mr0 = (ctx.monsters || {})[state.activeMonster];
+  if (mr0) { state.monsterMaxHp = mr0.hp; state.monsterHp = mr0.hp; }
+  state.playerHp = resumeHpFor(state.playerMaxHp);
+}
+
+/* The tally a hunt session keeps, fed through the same fx doors the caller's
+   own sinks use: every value the swing moves passes here once, then on. */
+function tallyFx(fx, hs, events, clock) {
+  const t = hs.tally;
+  const add = (o, k, n) => { o[k] = (o[k] || 0) + n; };
+  return Object.assign({}, fx, {
+    addXp(skill, amount, ...rest) { add(t.xp, skill, Number(amount) || 0); return call(fx, 'addXp', skill, amount, ...rest); },
+    addItem(id, n, ...rest) { add(t.loot, id, Number(n) || 0); return call(fx, 'addItem', id, n, ...rest); },
+    onLoot(gp, ...rest) { t.coins += Number(gp) || 0; return call(fx, 'onLoot', gp, ...rest); },
+    onDrop(ev, ...rest) {
+      if (ev && ev.rare) events.push({ type: 'rare_drop', atMs: clock.atMs, item: ev.id });
+      return call(fx, 'onDrop', ev, ...rest);
+    },
+  });
+}
+
+/**
+ * A HUNT SESSION'S SPAN (ruling HR-2026-10-14 §2/§4). The same simulateTick,
+ * driven by the session's ABSOLUTE swing clock instead of a per-window tick
+ * budget: a swing happens at `hs.nextSwingAtMs` if that instant is inside
+ * [.., toMs), and the clock then advances by one swing interval. Every swing
+ * draws from its own seed (`hunt:<session>:<swing_index>`), so N ten-second
+ * windows and one N x 10 s span run the same swings with the same dice in the
+ * same order (TICK-1). No rate multiplier, no away scope: a hunt is a hunt.
+ *
+ * Each boundary, in order: the end checks (action-rules.js END_ORDER, and
+ * `endedAtMs` is that boundary) → Vigour is charged one interval → a knocked-
+ * out boundary drains buffs and earns nothing → otherwise one swing, the
+ * action bar inside it → the buff queue drains one interval.
+ */
+function simulateHuntSpan(state, ctx) {
+  const hs = state.huntSession;
+  const tickMs = resolveTickMs(ctx);
+  const toMs = Number(ctx.toMs) || 0;
+  let recoverUntilMs = Number(state.recoveringUntilMs);
+  if (!isFinite(recoverUntilMs) || recoverUntilMs <= 0) recoverUntilMs = 0;
+  let downed = recoverUntilMs > 0 || hs.down === true;
+  /* Only a standing fight is repaired: a downed one is stood up at its next
+     boundary, and an ended one is never touched again — repairing either here
+     would make the state depend on how many windows the span was cut into. */
+  if (!downed && !hs.endedReason) repairFight(state, ctx);
+  const events = [];
+  hs._events = events;
+  const clock = { atMs: hs.nextSwingAtMs };
+  const fx = tallyFx(fxOf(ctx), hs, events, clock);
+  let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0; let deaths = 0;
+  let recoverMs = 0; let buffPaidMs = 0; let featuredMs = 0; let featuredDropMult = 1;
+  const deathLog = []; const buffsExpired = []; const consumed = Object.create(null);
+  const days = new Map();
+  const dayCtx = (atMs) => {
+    const day = atMs - (((atMs % DAY_MS) + DAY_MS) % DAY_MS);
+    if (!days.has(day)) {
+      days.set(day, (typeof ctx.botdFor === 'function') ? ctx.botdFor(day) : ctx.botd);
+    }
+    return days.get(day);
+  };
+  const drain = () => {
+    const q = Array.isArray(state.buffs) && state.buffs.length ? state.buffs : null;
+    if (q) for (const t of tickBuffs(q, tickMs, { away: false, active: true }).expired) buffsExpired.push(t);
+  };
+
+  while (!hs.endedReason && state.activeMonster && hs.nextSwingAtMs < toMs) {
+    const atMs = hs.nextSwingAtMs;
+    clock.atMs = atMs;
+    const why = endReasonAt(hs, atMs);
+    if (why) {
+      hs.endedReason = why;
+      hs.endedAtMs = atMs;
+      events.push({ type: 'ended', atMs, reason: why });
+      break;
+    }
+    if (hs.vigourLeftMs !== null && hs.vigourLeftMs !== undefined) hs.vigourLeftMs = Number(hs.vigourLeftMs) - tickMs;
+    const swing = hs.swingIndex;
+    hs.swingIndex = swing + 1;
+    hs.nextSwingAtMs = atMs + tickMs;
+    if (recoverUntilMs > atMs) {
+      drain();
+      recoverMs += tickMs;
+      hs.tally.downMs += tickMs;
+      continue;
+    }
+    if (downed) { downed = false; recoverUntilMs = 0; standUp(state, ctx); }
+    if (typeof fx.mark === 'function') fx.mark(atMs);
+    const facing = state.activeMonster;
+    const botd = dayCtx(atMs);
+    const swingCtx = Object.assign({}, ctx, { atMs, botd, fx,
+      rng: createRng(huntSwingSeed(ctx.sessionSeed, hs.id, swing)) });
+    const buffLive = hasActiveBuff(state.buffs);
+    const r = (typeof fx.segment === 'function')
+      ? (() => { let out; fx.segment(atMs, () => { out = simulateTick(state, swingCtx); }); return out; })()
+      : simulateTick(state, swingCtx);
+    const sup = r.supply;
+    if (sup && sup.spent > 0) consumed[sup.id] = (consumed[sup.id] || 0) + sup.spent;
+    ticks++;
+    hs.tally.swings++;
+    hs.tally.paidMs += tickMs;
+    if (buffLive) buffPaidMs += tickMs;
+    drain();
+    const feat = (botd && typeof botd.killBonuses === 'function') ? botd.killBonuses(facing) : NO_BONUS;
+    if (feat.dropMult > 1 || feat.xpMult > 1) {
+      featuredMs += tickMs;
+      featuredDropMult = Math.max(featuredDropMult, feat.dropMult || 1);
+    }
+    if (r.crit) crits++;
+    if (r.ate) foodEaten++;
+    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; }
+    if (r.outcome === OUTCOME.DEATH) {
+      deaths++;
+      hs.falls = (Math.floor(Number(hs.falls)) || 0) + 1;
+      hs.tally.deaths++;
+      state.activeMonster = facing;
+      downed = true;
+      const rec = Number(r.recoverMs) || 0;
+      if (rec > 0) recoverUntilMs = atMs + tickMs + rec;
+      deathLog.push({ atMs: atMs + tickMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp });
+      events.push({ type: 'fall', atMs: atMs + tickMs, monster: facing });
+      continue;
+    }
+    if (r.outcome === OUTCOME.STOP) break;
+  }
+
+  if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
+  state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;
+  hs.down = downed;
+  delete hs._events;
+  return {
+    kills, foodEaten, crits, ticks, deaths, recoverMs,
+    died: deaths > 0,
+    survivedMs: ticks * tickMs,
+    recoverRemainingMs: Math.max(0, recoverUntilMs - toMs),
+    deathLog,
+    recoverLadder: deathLog.map((d) => d.recoverMs),
+    stoppedBy: null,
+    buffPaidMs,
+    buffsExpired,
+    consumed: Object.assign({}, consumed),
+    featuredMs,
+    featuredDropMult,
+    huntEnded: hs.endedReason ? { reason: hs.endedReason, atMs: hs.endedAtMs } : null,
+    huntEvents: events,
+  };
+}
+
 export function simulateSpan(state, ctx) {
   /* SAFE BY CONSTRUCTION, not by caller discipline. `tickMs` divides elapsed
      time, so it is the accrual path's single largest exploit surface: at a
@@ -538,26 +730,11 @@ export function simulateSpan(state, ctx) {
      THE SERVER RULE (docs/design/server-authority.md §3): the accrual engine
      DERIVES tickMs from server-owned equipment and never reads it from the
      client. This clamp is the second line of defence, not the first. */
+  if (state && state.huntSession) return simulateHuntSpan(state, ctx);
   const tickMs = resolveTickMs(ctx);
   const segments = utcDaySegments(ctx.fromMs, ctx.toMs);
   const rate = rateMult(ctx);
-
-  /* Repair the in-flight fight before simulating it. `monsterHp` and
-     `playerHp` are NO_SYNC (they belong to the device you are fighting on),
-     so a save restored FROM THE CLOUD arrives with an activeMonster and no
-     hit points. `Math.max(0, undefined - dmg)` is NaN, `NaN <= 0` is false,
-     and the replay would then run every tick of a twelve-hour absence
-     without ever landing a kill. Silent, total, and only on the cross-device
-     path — the one nobody replays locally. */
-  if (state.activeMonster) {
-    const m0 = (ctx.monsters || {})[state.activeMonster];
-    if (m0) {
-      if (!(state.monsterMaxHp > 0)) state.monsterMaxHp = m0.hp;
-      if (!(state.monsterHp > 0)) state.monsterHp = state.monsterMaxHp;
-    }
-    if (!(state.playerMaxHp > 0)) state.playerMaxHp = 10;
-    if (!(state.playerHp > 0)) state.playerHp = state.playerMaxHp;
-  }
+  repairFight(state, ctx);
 
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0;
   let died = false; let featuredMs = 0; let featuredDropMult = 1;
@@ -751,13 +928,7 @@ export function simulateSpan(state, ctx) {
         if (downed) {
           downed = false;
           recoverUntilMs = 0;
-          const mr0 = (ctx.monsters || {})[state.activeMonster];
-          if (mr0) { state.monsterMaxHp = mr0.hp; state.monsterHp = mr0.hp; }
-          /* 40%, NOT full (away.js `resumeHpFor`). Restated here rather than
-             left to `resolveDeath` because a window can OPEN mid-recovery, in
-             which case no death happened inside it and nobody stood the
-             character up. Same function, so the two cannot disagree. */
-          state.playerHp = resumeHpFor(state.playerMaxHp);
+          standUp(state, ctx);
         }
         /* THE TICK CLOCK, for a caller that needs to attribute this tick's XP to
            an instant (the away combat-XP settle clamps its credited window to

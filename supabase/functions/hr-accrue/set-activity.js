@@ -63,6 +63,7 @@ import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
+import { huntFor } from '../../../src/core/hunt-spawn.js';
 /* THE HUNT'S TWO STANDING ORDERS (docs/design/HUNTS_AND_ANALYZER.md §6). The
    stance catalogue and the stop bounds are src/core/hunt.js's and ONLY its:
    this file asks, hr_apply re-asks against hr_hunt_stances / hr_hunt_stop_valid,
@@ -425,7 +426,10 @@ export async function runSetActivity(o) {
      ⚠ `catalogueHas`, NOT `!MONSTERS[id]`. The id shape is /^[a-z0-9_]{1,64}$/,
        which matches `constructor` and `__proto__`; both are truthy on MONSTERS
        and both walked straight past the truthiness form of this check. */
-  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {
+  /* A NAMED HUNT (lane C1, src/data/hunts.js) is a combat target too. Its
+     combat-level floor (band[0]) is NOT judged here: hr_apply refuses
+     `hunt_locked` against the SERVER combat level under the character lock. */
+  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id) && !huntFor(decl.id)) {
     return {
       status: 409,
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },

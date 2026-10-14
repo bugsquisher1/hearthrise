@@ -47,6 +47,16 @@
         "duplicates": "src/features/smoke-test.js DOOR-1..7, OPEN-3"
       }
     },
+    "core-loop.mjs": {
+      "reason": "A GATE THAT RUNS ONCE A DAY, NOT PER RELEASE, by Tyler's ruling (2026-10-14: \"lets not test the game on every release; lets do it like once a day\"). It plays the core loop end to end against the real edge verbs and the replayed chain, and it is registered in .github/workflows/nightly-loop.yml (06:00 UTC on main, plain run + --selftest), which guard-hygiene's REACHABILITY rule does not read because only smoke.yml gates a release. Putting it in smoke.yml would put it on the release path, the one thing the ruling forbids. Run by hand: node tests/core-loop.mjs.",
+      "owner": "qa-engineer",
+      "disposition": "nightly",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": ".github/workflows/nightly-loop.yml"
+      }
+    },
     "character-bootstrap-guard.mjs": {
       "reason": "family pglite-chain-replay: hr_create_character is an ENSURE and grants exactly src/data/start-kit.js. NOTE: measured as asserts:false — it reports rather than exits non-zero, so registering it as-is would gate nothing. Needs a verdict before adoption.",
       "family": "pglite-chain-replay",

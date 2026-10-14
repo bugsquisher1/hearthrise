@@ -39,7 +39,8 @@
 //       3ea45544) — the carry consumes no draw.
 //   X7  THE NO-RESCALE RULING (c), 2026-10-08: constants 4 / 1.33 / 0.39 pinned;
 //       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
-//       (floor: 1000); 1 x N == N x 1; maxed goblin night 422,802 (old 361,187);
+//       (floor: 1000); 1 x N == N x 1; maxed goblin night 421,990 (old 361,187; re-pinned 2026-10-14 from 422,802 when
+//       the demolition removed the goblin seal drop row and moved the seeded RNG stream);
 //       L1 Controlled slime 8 x 1 h 1,024 (old 1,362, ratio 0.75, accepted).
 //   X8  a window the live credit already paid proposes no xp / xp_frac (Security #2).
 //   X9  the world-tick S4 fold: xp_frac is a FOLD_CHAIN_KEY, folds per skill (last
@@ -490,8 +491,8 @@ async function runArms(L) {
       hp: 990, maxHp: 990, gold: 0, skills: { attack: x99, strength: x99, defense: x99, hitpoints: x99 },
       equipment: {}, inventory: {}, items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, xpFrac: {}, perks: null }));
     const r6 = night / OLD_GOBLIN_NIGHT;
-    ok('X7', night === 422802 && r6 >= 1.15 && r6 <= 1.19,
-      `(6) the maxed goblin night paid ${night} XP (want 422,802), new/old ${r6.toFixed(4)} (want [1.15, 1.19])`);
+    ok('X7', night === 421990 && r6 >= 1.15 && r6 <= 1.19,
+      `(6) the maxed goblin night paid ${night} XP (want 421,990), new/old ${r6.toFixed(4)} (want [1.15, 1.19])`);
     // (7) a level-1 Controlled hero (bare hands -> sword default) vs the slime,
     //     8 seeded 1 h spans: the carry pays LESS than max(1, ...) did, accepted.
     let l1 = 0;

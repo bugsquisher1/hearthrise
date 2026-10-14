@@ -170,10 +170,10 @@ export const SLOT_ITEMS = {
        at 1.2-1.9x, against a house median of 2.14x. For contrast, the existing
        `craft_iron_arrows` sits at **16.7x** — see the handoff.
 
-   Everything else in this table is ordinary crafting and is not Fletching's.
+   The jewellery and cape recipes that used to follow were deleted with
+   crafted gear (demolition, 2026-10-14); their items stay until the roster.
    ══════════════════════════════════════════════════════════════════════════ */
 export const SLOT_RECIPES = {
-  smithing: [],
   crafting: [
     /* ── fletching interface (see the block above) ── */
     /* b374 — BATCH CUT 500→50 (Tyler, said twice: "500 bronze arrows seems like
@@ -198,60 +198,6 @@ export const SLOT_RECIPES = {
     { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×50',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 50,  xp: 450, req: 63, ms: 4000 },
     { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×50', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 50,  xp: 600, req: 78, ms: 4200 },
     { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },
-
-    /* ── earrings ── */
-    { id: 'jewel_copper_studs',        name: 'Set Copper Studs',        icon: '💎', inputs: { copper_bar: 2 },                                            output: 'copper_studs',        xp: 60,   req: 10, ms: 2600 },
-    { id: 'jewel_fang_studs',          name: 'Set Fang Studs',          icon: '💎', inputs: { small_fang: 4, bronze_bar: 1 },                             output: 'fang_studs',          xp: 130,  req: 22, ms: 3000 },
-    { id: 'jewel_spidereye_studs',     name: 'Set Spider-Eye Studs',    icon: '💎', inputs: { spider_eye: 1, steel_bar: 1 },                              output: 'spidereye_studs',     xp: 340,  req: 38, ms: 3600 },
-    { id: 'jewel_wraithglass_drops',   name: 'Set Wraithglass Drops',   icon: '💎', inputs: { wraith_veil: 1, mithril_bar: 1 },                           output: 'wraithglass_drops',   xp: 760,  req: 54, ms: 4200 },
-    { id: 'jewel_rubyfire_studs',      name: 'Set Rubyfire Studs',      icon: '💎', inputs: { ruby: 2, rune_bar: 1, shadow_thread: 2 },                   output: 'rubyfire_studs',      xp: 1560, req: 70, ms: 5000 },
-    { id: 'jewel_dragon_gem_earrings', name: 'Cut Dragon Gem Earrings', icon: '💎', inputs: { dragon_gem: 1, gold_bar: 3, dawn_bar: 1 },                  output: 'dragon_gem_earrings', xp: 3400, req: 88, ms: 6200, gated: 'gemcutter_note' },
-
-    /* ── capes ── */
-    { id: 'tailor_woolen_cloak',    name: 'Tailor Woollen Cloak',   icon: '🦸', inputs: { wolf_pelt: 3, bone_chips: 2 },                                 output: 'woolen_cloak',    xp: 110,  req: 12, ms: 2800 },
-    { id: 'tailor_houndskin_cloak', name: 'Tailor Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 5, bat_wing: 4 },                                   output: 'houndskin_cloak', xp: 260,  req: 28, ms: 3400 },
-    { id: 'tailor_trollhide_cape',  name: 'Tailor Trollhide Cape',  icon: '🦸', inputs: { troll_hide: 4, bear_pelt: 4, silk_thread: 4 },                 output: 'trollhide_cape',  xp: 940,  req: 50, ms: 4400 },
-    { id: 'tailor_shadowsilk_cape', name: 'Tailor Shadowsilk Cape', icon: '🦸', inputs: { shadow_pelt: 4, shadow_thread: 6, silk_thread: 8 },            output: 'shadowsilk_cape', xp: 1900, req: 63, ms: 5000 },
-    { id: 'tailor_dawnlit_mantle',  name: 'Tailor Dawnlit Mantle',  icon: '🦸', inputs: { duskwood_plank: 4, dawn_bar: 8, silk_thread: 12 },             output: 'dawnlit_mantle',  xp: 4600, req: 91, ms: 6600 },
-
-    /* ── necklaces ── */
-    { id: 'jewel_wolfbone_torc',     name: 'String Wolfbone Torc',     icon: '📿', inputs: { big_bones: 3, wolf_pelt: 2, bronze_bar: 1 },                 output: 'wolfbone_torc',     xp: 150,  req: 20, ms: 3000 },
-    { id: 'jewel_spidersilk_choker', name: 'String Spidersilk Choker', icon: '📿', inputs: { silk_thread: 6, spider_eye: 1, gold_bar: 1 },                output: 'spidersilk_choker', xp: 400,  req: 38, ms: 3600 },
-    { id: 'jewel_warlords_torc',     name: "Forge Warlord's Torc",     icon: '📿', inputs: { warlord_badge: 2, mithril_bar: 2, gold_bar: 1 },             output: 'warlords_torc',     xp: 900,  req: 56, ms: 4400 },
-    /* req 88, not 89: the b343 ladder guard measures AVAILABILITY (the higher of
-       the wield gate and the craft gate), and 89 opened a 21-level hole above
-       the Panther's Eye Pendant at 68. 88 leaves exactly 20 — the widest hole
-       the guard allows — and it is the SELF-SUPPLY RULING's floor for anything
-       that eats a Dawnsteel Bar (2026-09-13: the bar is made at Smithing 88, so
-       86 was a rung asking for a metal nobody could pour yet). The two levels
-       are the smallest move that closes it; 89 would reopen that hole. */
-    { id: 'jewel_dawnbound_amulet',  name: 'Cast Dawnbound Amulet',    icon: '📿', inputs: { dawn_bar: 4, gold_bar: 6, dragon_gem: 1, ancient_claw: 2 },  output: 'dawnbound_amulet',  xp: 4200, req: 88, ms: 6400 },
-
-    /* ── rings ── */
-    { id: 'jewel_banded_signet',     name: 'Set Banded Signet',     icon: '💍', inputs: { bronze_bar: 2, copper_bar: 2, magic_essence: 1 },                          output: 'banded_signet',     xp: 160,  req: 22, ms: 3000 },
-    /* SELF-SUPPLY RULING (2026-09-13), AND ITS TIE-BREAK, MEASURED HERE.
-       The Dawnforged Signet's craft gate moves 87 → 88, the level at which a
-       Dawnsteel Bar can first be poured. The Ruby Signet asked for a RUNE bar
-       (Smithing 60) at Crafting 52, and the first draft of this ruling moved the
-       LEVEL, 52 → 60 — which the b343 ladder guard caught immediately: it opened a
-       25-LEVEL HOLE in ring availability (35 → 60) in the one slot a player wears
-       two of. So the tie-break is now explicit and it is the right way round:
-         **the player's ladder outranks the material's flavour.** When raising a
-         rung to meet its material would open an availability hole or take away a rung the
-         player already has, the MATERIAL moves down instead.
-       The band is therefore MITHRIL (Smithing 45) at the unchanged Crafting 52 —
-       the ruby is what the ring is for; three of them plus six gold bars are still
-       the cost that matters — and the description says mithril. Wield gates are
-       untouched everywhere (defence 52 / 84).
-       Below, the ORIGINAL note on why this lane's numbers were chosen:
-       The ring lane's craft gates track their wield gates exactly (52 / 70 / 87).
-       By AVAILABILITY — the higher of the wield gate and the craft gate, which
-       is what the b343 ladder guard measures — ring was the worst ladder in the
-       game: Hollow Sigil at 35, then nothing until 58. A 23-level dead zone in
-       a slot the player wears two of. */
-    { id: 'jewel_ruby_signet',       name: 'Set Ruby Signet',       icon: '💍', inputs: { ruby: 3, gold_bar: 6, mithril_bar: 1 },                                   output: 'ruby_signet',       xp: 1200, req: 52, ms: 4600 },
-    { id: 'jewel_spellstone_ring',   name: 'Bind Spellstone Ring',  icon: '💍', inputs: { cracked_spellstone: 3, ancient_rune: 6, rune_bar: 4, gold_bar: 4 },       output: 'spellstone_ring',   xp: 2400, req: 70, ms: 5400, gated: 'spellstone_diagram' },
-    { id: 'jewel_dawnforged_signet', name: 'Forge Dawnforged Signet', icon: '💍', inputs: { dawn_bar: 6, gold_bar: 8, death_steel: 4 },                             output: 'dawnforged_signet', xp: 4000, req: 88, ms: 6300 },
   ],
 };
 

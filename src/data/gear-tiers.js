@@ -3,9 +3,9 @@
 //
 // One table drives every piece of tiered gear in Hearthrise. Hand-authoring
 // ~70 armour/weapon entries guarantees drift (a missing tier, a stat that
-// doesn't follow the curve, a recipe pointing at the wrong bar). Instead the
-// material ladder, the per-slot stat curves, and the recipe shapes live here
-// as data, and the items + recipes are GENERATED from them.
+// doesn't follow the curve). Instead the material ladder and the per-slot stat
+// curves live here as data, and the items are GENERATED from them. (The recipe
+// half was deleted with crafted gear in the 2026-10-14 demolition.)
 //
 // Design rules this encodes:
 //   • Seven material tiers spanning levels 1 → 88, so a player is never more
@@ -16,7 +16,7 @@
 //   • The top two tiers are original to Hearthrise: EMBERFORGED and DAWNSTEEL
 //     — the game's own name read as a promise (hearth → ember, rise → dawn).
 //
-// Hand-authored entries in items.js/recipes.js intentionally WIN over anything
+// Hand-authored entries in items.js intentionally WIN over anything
 // generated here (they're spread first), so historical ids keep their exact
 // stats and values and old saves stay valid.
 // ============================================================
@@ -214,170 +214,8 @@ export const GEAR_ITEMS = (() => {
   return out;
 })();
 
-/* ── THE LADDERS, AS DATA (b348) ───────────────────────────────────────────
-   `GEAR_LADDERS` names every ordered rung the generator lays down: one entry
-   per (archetype × slot) and per weapon family, its rungs in material-tier
-   order, each rung carrying the item id and the generated recipe id.
-
-   WHY IT IS EXPORTED RATHER THAN RECONSTRUCTED. Xarn reported that a Steel
-   Platebody (22 DEF) asked for MORE Smithing than a Mithril one (34 DEF). The
-   cause was two authorities: this generator lays a curve, and a hand-authored
-   row in recipes.js is spread first and WINS (see the header note). Nothing
-   compared the two, so a hand-authored gate could sit anywhere and no test
-   could see it — the drift shape this repo has been bitten by repeatedly.
-
-   A guard that rebuilt the lanes by pattern-matching item ids would be a
-   SECOND copy of the id scheme (plate is `mat.id + '_' + slot.key`, leather and
-   cloth are `tierId + '_' + slot.slot`), i.e. the same failure one layer up.
-   So the generator publishes the lanes it actually built, and the guard reads
-   the live ARTISAN_RECIPES gate for each rung. One authority for what a lane
-   IS; the merged recipe table for what each rung COSTS.                      */
-const LADDERS = [];
-
-// ── Generate the recipes that produce them ───────────────────────────
-// Returns { smithing:[...], crafting:[...] } in the engine's recipe shape.
-export const GEAR_RECIPES = (() => {
-  const smithing = [];
-  const crafting = [];
-
-  // Armour recipes for all three archetypes (b278): plate is forged (smithing,
-  // bars); leather and cloth are crafted (crafting) from planks/thread/essence, so
-  // the ranged- and mage-armour lines are a real reason to level Crafting.
-  ARMOUR_LINES.forEach((line) => {
-    ARMOUR_SLOTS.forEach((slotDef) => {
-      const lane = {
-        key: line.key + '/' + slotDef.key,
-        label: line.key + ' ' + slotDef.label,
-        kind: 'armour',
-        skill: line.key === 'plate' ? 'smithing' : 'crafting',
-        rungs: [],
-      };
-      LADDERS.push(lane);
-      MATERIAL_TIERS.forEach((mat, i) => {
-        const output = line.id(mat, slotDef, line, i);
-        /* The curve, computed ONCE and shared by the recipe and the lane. A
-           rung that quoted the gate separately from the recipe that carries it
-           would be the very drift this table exists to detect. */
-        const curveReq = line.key === 'plate'
-          ? Math.min(99, mat.smith + slotDef.lvOff)
-          // Cap below 95 so the Hunt-forged Wyrmgilt Mantle stays the pinnacle crafting rung.
-          : Math.min(94, mat.craft + slotDef.lvOff);
-        lane.rungs.push({
-          tier: mat.tier,
-          material: mat.name,
-          itemId: output,
-          recipeId: (line.key === 'plate' ? 'forge_' : 'craft_') + output,
-          curveReq,
-        });
-        if (line.key === 'plate') {
-          const inputs = {}; inputs[mat.bar] = slotDef.bars;
-          smithing.push({
-            id: 'forge_' + output, name: 'Forge ' + line.name(mat, slotDef, line, i), icon: line.icon,
-            inputs, output,
-            xp: Math.round(20 * slotDef.bars * (1 + mat.tier * 0.85)),
-            req: curveReq,
-            ms: 2400 + mat.tier * 320,
-          });
-        } else {
-          /* ── THE ARMOUR COST SHAPE, AND WHY CLOTH DID NOT HAVE IT (b497) ──
-             Plate and leather both cost [a TIER-INDEXED material] x [the slot's
-             own weight] (+ leather, an untiered reagent rising with the tier).
-             The tiered material is what makes the cost climb: bronze_bar 32 g ->
-             dawn_bar 4,200 g is 131x, normal_plank 18 -> duskwood_plank 2,600 is
-             144x. CLOTH HAD NEITHER TERM. Its inputs were `silk_thread 2+i` and
-             `magic_essence 1..2` — both UNTIERED and both blind to the slot — so
-             a whole line's cost ran 160 g -> 540 g (3.4x) while its output ran
-             50 g -> 75,600 g. Measured against the real ITEMS table:
-
-                            T1    T2    T3    T4    T5    T6     T7   (out/in)
-               plate body  1.1   0.9   2.0   1.4   2.3   4.9    5.1
-               leather     0.9   0.7   1.4   2.2   3.3   4.5    5.6
-               cloth       0.8   1.3   3.9   8.4  22.0  56.3  140.0   <-- faucet
-
-             craft_voidweave_body turned 540 g of thread into a 75,600 g robe,
-             and a Voidweave SASH cost exactly what the robe did, because nothing
-             in the old expression mentioned the slot at all.
-
-             THE FIX MIRRORS THE OTHER TWO LINES RATHER THAN INVENTING A NUMBER:
-             the tier's plank at HALF the slot's weight (rounded up), keeping the
-             identity reagents on top. Half, not full: at full weight cloth would
-             cost MORE than leather for an item of identical book value while
-             carrying 45% less defence, which would kill the line. At half it
-             stays the cheapest of the three archetypes to make — its design
-             identity — and lands at 5.6x-9.7x at tier 7 against leather's
-             3.6x-6.8x, instead of 140x. Tier 1 moves 160 g -> 178-214 g, so the
-             opening rungs are where they were.
-
-             NO NEW ITEM IDS, deliberately. A bespoke seven-rung "bolt" ladder is
-             the textbook answer and it is a content program (seven items, seven
-             sources, art, drop tables) that would also strand every player who
-             can craft cloth today. The tier plank is already the crafting
-             skill's universal tiered stock — leather armour, every bow and every
-             staff draw on it — and the magic staves draw on these EXACT planks
-             (yew / runewood / duskwood are the magic woods), so an arcane robe
-             framed with the same enchanted timber is the fiction the game
-             already ships.
-             ⚠ RECIPES ARE VENDORED INTO THE EDGE (supabase/functions/hr-accrue/
-             catalogue.js imports src/data/recipes.js). Changing this line needs
-             an EDGE REDEPLOY or the server keeps charging the old inputs. */
-          const inputs = {};
-          if (line.key === 'leather') { inputs[mat.plank] = slotDef.bars; inputs.silk_thread = 1 + i; }
-          else {                                                          // cloth
-            inputs[mat.plank] = Math.max(1, Math.ceil(slotDef.bars / 2));
-            inputs.silk_thread = 2 + i;
-            inputs.magic_essence = 1 + (i >= 3 ? 1 : 0);
-          }
-          crafting.push({
-            id: 'craft_' + output, name: (line.key === 'cloth' ? 'Weave ' : 'Stitch ') + line.name(mat, slotDef, line, i), icon: line.icon,
-            inputs, output,
-            xp: Math.round(18 * slotDef.bars * (1 + mat.tier * 0.85)),
-            req: curveReq,
-            ms: 2400 + mat.tier * 320,
-          });
-        }
-      });
-    });
-  });
-
-  WEAPON_FAMILIES.forEach((fam) => {
-    const lane = {
-      key: 'weapon/' + fam.key,
-      label: fam.label,
-      kind: 'weapon',
-      skill: fam.mat === 'bar' ? 'smithing' : 'crafting',
-      rungs: MATERIAL_TIERS.map((mat, i) => ({
-        tier: mat.tier, material: mat.name, itemId: fam.ids[i], recipeId: 'make_' + fam.ids[i],
-        curveReq: Math.min(99, (fam.mat === 'bar' ? mat.smith : mat.craft) + fam.lvOff),
-      })),
-    };
-    LADDERS.push(lane);
-    MATERIAL_TIERS.forEach((mat, i) => {
-      const inputs = {};
-      if (fam.mat === 'bar') {
-        inputs[mat.bar] = fam.bars;
-        if (fam.planks) inputs[mat.plank] = fam.planks;
-      } else {
-        inputs[mat.plank] = fam.planks;
-        if (fam.thread) inputs.silk_thread = fam.thread;
-        if (fam.essence) inputs.magic_essence = fam.essence;
-      }
-      const recipe = {
-        id: 'make_' + fam.ids[i],
-        name: (fam.mat === 'bar' ? 'Forge ' : 'Carve ') + fam.names[i],
-        icon: fam.weaponType === 'ranged' ? '🏹' : fam.weaponType === 'magic' ? '🪄' : fam.weaponType === 'hammer' ? '🔨' : '⚔️',
-        inputs,
-        output: fam.ids[i],
-        xp: Math.round(45 * (1 + mat.tier * 0.95)),
-        req: lane.rungs[i].curveReq,
-        ms: 2400 + mat.tier * 340,
-      };
-      (fam.mat === 'bar' ? smithing : crafting).push(recipe);
-    });
-  });
-
-  return { smithing, crafting };
-})();
-
-/* Frozen after GEAR_RECIPES has run — the lanes are a description of what was
-   generated, never a place to author. */
-export const GEAR_LADDERS = LADDERS;
+/* Demolition D2 (2026-10-14): the gear RECIPES and their ladders were deleted
+   with crafted gear. GEAR_ITEMS above stays until the new roster replaces the
+   catalogue. GEAR_LADDERS is empty only because src/main.js still publishes it;
+   lane D1 removes that import, and this export goes with it. */
+export const GEAR_LADDERS = Object.freeze([]);

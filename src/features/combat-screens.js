@@ -812,7 +812,11 @@ function renderRibbon() {
   const g = G();
   const id = g && g.activeMonster;
   const m = id && MONSTERS[id];
-  if (!m) { host.hidden = true; host.innerHTML = ''; return; }
+  if (!m) {
+    if (!host.hidden) host.hidden = true;
+    if (host.firstChild) { host.innerHTML = ''; delete host.dataset.sig; }   // the next fight paints, even at an equal sig
+    return;
+  }
   host.hidden = false;
   const fp = g.monsterMaxHp ? clamp01(g.monsterHp / g.monsterMaxHp) : 0;
   const pp = g.playerMaxHp ? clamp01(g.playerHp / g.playerMaxHp) : 0;

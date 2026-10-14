@@ -384,12 +384,12 @@
     var n = 0;
     try { n = unseen(); } catch (e) { n = 0; }
     if (n > 0) {
-      dot.textContent = n > 99 ? '99+' : String(n);
+      window.HearthrisePaint.text(dot, n > 99 ? '99+' : String(n));
       dot.classList.remove('hide');
       var bell = document.getElementById('btn-notif');
       if (bell) bell.setAttribute('title', 'Chronicle — ' + n + ' new milestone' + (n === 1 ? '' : 's'));
     } else {
-      dot.textContent = '0';
+      window.HearthrisePaint.text(dot, '0');
       dot.classList.add('hide');
       var b2 = document.getElementById('btn-notif');
       if (b2) b2.setAttribute('title', 'Chronicle');

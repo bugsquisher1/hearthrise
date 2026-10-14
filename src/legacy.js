@@ -6800,15 +6800,15 @@ function updateTopbar(){
   balPaint(document.getElementById('top-gems'), 'gems');
   /* CL/TL before the record hydrates are the fresh seed's 1s: the pending dash, like gold. */
   const _pend=window.hrRecordPending?window.hrRecordPending():true;
-  [['top-total',getTotalLevel],['top-combat',getCombatLevel]].forEach(([id,fn])=>{ const el=document.getElementById(id); el.textContent=_pend?'—':fn(); el.classList.toggle('bal-pending',_pend); });
+  [['top-total',getTotalLevel],['top-combat',getCombatLevel]].forEach(([id,fn])=>{ const el=document.getElementById(id); HearthrisePaint.text(el,_pend?'—':fn()); el.classList.toggle('bal-pending',_pend); });
   /* b466: route the topbar name through the server-authoritative identity seam
      (HearthriseIdentity.getDisplayName) instead of the raw G.playerName default,
      which stayed "Adventurer" because it was never reconciled to the claimed
      server name. getDisplayName resolves the confirmed unique name, then
      G.playerName, then 'Adventurer' — never an email local-part. */
-  document.getElementById('player-name').textContent=_hrDisplayName();
+  HearthrisePaint.text(document.getElementById('player-name'),_hrDisplayName());
   const ct=document.getElementById('clan-tag');
-  if(G.clanName){ct.classList.remove('hide');ct.textContent='['+G.clanName+']';}else ct.classList.add('hide');
+  if(G.clanName){ct.classList.remove('hide');HearthrisePaint.text(ct,'['+G.clanName+']');}else ct.classList.add('hide');
 }
 
 /* ────────────────────────────────────────────────
@@ -6835,8 +6835,8 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`;
-  bodyEl.innerHTML=`
+  HearthrisePaint.text(subEl, (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`);
+  HearthrisePaint.html(bodyEl,`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
       // 1) live Supabase session takes precedence (the actual cloud login)
@@ -6889,11 +6889,11 @@ function renderProfile(){
       <div class="kpi"><b>${tl}</b><span>Total Level</span></div>
       <div class="kpi"><b>${balMarkup('gold')}</b><span>Gold</span></div>
       <div class="kpi"><b>${G.stats.kills||0}</b><span>Kills</span></div>
-    </div>`;
+    </div>`);
 
   /* current activity */
   const activeName=G.activeMonster?MONSTERS[G.activeMonster]?.name:G.activeSkill?SKILLS_DEF[G.activeSkill]?.name:'Idle';
-  document.getElementById('dash-active-sub').textContent=activeName;
+  HearthrisePaint.text(document.getElementById('dash-active-sub'),activeName);
   let activityHtml='';
   if(G.activeMonster){
     const m=MONSTERS[G.activeMonster];
@@ -6944,7 +6944,7 @@ function renderProfile(){
      invisible. Kept correct rather than silently divergent; the visible surface
      is the toast in processOffline(). */
   if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
-  document.getElementById('dash-active-body').innerHTML=activityHtml;
+  HearthrisePaint.html(document.getElementById('dash-active-body'),activityHtml);
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
      Layout note: the default `.kpi-row` is `repeat(2, 1fr)` which with
@@ -6965,13 +6965,13 @@ function renderProfile(){
         {b: d.harvested.toLocaleString(),       s:'Harvested'},
       ];
       if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'Deeds'});
-      todayBody.innerHTML = `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
+      HearthrisePaint.html(todayBody, `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`);
       if(todaySub){
         const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
-        todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
+        HearthrisePaint.text(todaySub, total > 0 ? 'Live' : 'Quiet day so far');
       }
     } else {
-      todayBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiTrend',16)+'</span>Stats start tomorrow</div>';
+      HearthrisePaint.html(todayBody, '<div class="empty"><span class="em-icon">'+_hrGly('uiTrend',16)+'</span>Stats start tomorrow</div>');
     }
   }
 
@@ -6985,7 +6985,7 @@ function renderProfile(){
     if(m2){
       const pct = Math.floor((m2.pct||0) * 100);
       const togo = Math.max(0, (m2.target|0) - (m2.current|0));
-      milestoneBody.innerHTML = `
+      HearthrisePaint.html(milestoneBody, `
         <div class="activity-card" style="cursor:pointer" onclick="(${(m2.deepLink||function(){}).toString()})()">
           <div class="ac-icon">${m2.icon}</div>
           <div style="flex:1;min-width:0">
@@ -6993,11 +6993,11 @@ function renderProfile(){
             <span>${togo.toLocaleString()} ${m2.kind==='skill'?'XP':''} to go · ${pct}%</span>
             <div class="bar xp" style="margin-top:4px"><i style="width:${pct}%"></i></div>
           </div>
-        </div>`;
-      if(milestoneSub) milestoneSub.textContent = m2.kind === 'skill' ? 'Skill' : 'Quest';
+        </div>`);
+      HearthrisePaint.text(milestoneSub, m2.kind === 'skill' ? 'Skill' : 'Quest');
     } else {
-      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiCheck',16)+'</span>All milestones cleared</div>';
-      if(milestoneSub) milestoneSub.textContent = '—';
+      HearthrisePaint.html(milestoneBody, '<div class="empty"><span class="em-icon">'+_hrGly('uiCheck',16)+'</span>All milestones cleared</div>');
+      HearthrisePaint.text(milestoneSub, '—');
     }
   }
 
@@ -7011,23 +7011,23 @@ function renderProfile(){
     const n=hrQuestServerCount(q);
     return n===null?(window.HearthriseBalance?.countMarkup?.(null,{label:'Not counted yet'})??'—'):Math.min(n,q.goal);
   };
-  document.getElementById('dash-obj-sub').textContent=`${done.length}/${all.length} done`;
+  HearthrisePaint.text(document.getElementById('dash-obj-sub'),`${done.length}/${all.length} done`);
   /* b215: Season Pass card removed along with the pass itself. */
-  document.getElementById('dash-objectives-body').innerHTML=`
+  HearthrisePaint.html(document.getElementById('dash-objectives-body'),`
     <div class="objective-list">
       ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${objCount(q)}/${q.goal}</b></div>`).join('')}
       ${done.slice(0,3).map(q=>`<div class="obj done"><span>${_hrGly('uiCheck',13)} ${q.label}</span><b>Done</b></div>`).join('')}
-    </div>`;
+    </div>`);
 
   /* skills board */
-  document.getElementById('dash-skills-sub').textContent=`Total: ${tl}`;
-  document.getElementById('dash-skills-body').innerHTML=`
+  HearthrisePaint.text(document.getElementById('dash-skills-sub'),`Total: ${tl}`);
+  HearthrisePaint.html(document.getElementById('dash-skills-body'),`
     <div class="skill-board">
       ${Object.entries(SKILLS_DEF).map(([id,s])=>{
         const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
         return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${skillIconHTML(id,34)}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
       }).join('')}
-    </div>`;
+    </div>`);
 
   /* homestead */
   const plots=Array.from({length:8}).map((_,i)=>{
@@ -7045,7 +7045,7 @@ function renderProfile(){
     return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${itemArt(crop.prod,26)}</span><small>${lab}</small></div>`;
   }).join('');
   const roomLevels=Object.values(roomsMapG()).reduce((a,b)=>a+(b||0),0);
-  document.getElementById('dash-homestead-body').innerHTML=`
+  HearthrisePaint.html(document.getElementById('dash-homestead-body'),`
     <div class="hmstead-grid">
       <div class="hmstead-col">
         <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navFarm',14)} Plots</b><button class="btn btn-sm" onclick="showTab('farming')">Open</button></div>
@@ -7055,7 +7055,7 @@ function renderProfile(){
         <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
         <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
       </div>
-    </div>`;
+    </div>`);
 }
 
 /* ────────────────────────────────────────────────
@@ -7107,7 +7107,7 @@ function renderCombat(){
   if(_ae && _ae.tagName==='SELECT' && el.contains(_ae)) return;
   const stop=document.getElementById('combat-stop');
   if(!G.activeMonster){
-    el.innerHTML=`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">${_hrGly('navCombat',18)}</div><div class="fighter enemy"><div class="portrait">${_hrGly('uiTarget',30)}</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Pick a monster from the list to begin.</div>`;
+    HearthrisePaint.html(el,`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">${_hrGly('navCombat',18)}</div><div class="fighter enemy"><div class="portrait">${_hrGly('uiTarget',30)}</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Pick a monster from the list to begin.</div>`);
     stop.style.display='none';return;
   }
   const m=MONSTERS[G.activeMonster];
@@ -7171,7 +7171,7 @@ function renderCombat(){
     : _hasAutoEat
       ? `Auto-Eat eats one Provision on each swing while your health is below ${_threshPct}%, so a big heal takes a few swings. Feasts &amp; Draughts are never auto-eaten.`
       : `Auto-Eat is unlocked in the Bounty Shop. Until then, heal by hand: press Eat beside your champion.`;
-  el.innerHTML=`
+  HearthrisePaint.html(el,`
     ${renderBountyPanel()}
     <div class="arena">
       <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
@@ -7188,7 +7188,7 @@ function renderCombat(){
           </select>
         </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
-    </div>`;
+    </div>`);
   stop.style.display='inline-flex';
   /* Repaint the stage-side controls in the same turn, so a caller that renders
      and immediately reads (the smoke suite does exactly this) never sees a
@@ -7199,7 +7199,7 @@ function renderLoadout(){
   const el=document.getElementById('loadout-panel');if(!el)return;
   migrateEquipmentSlots();
   const s=getEquipmentStats();
-  el.innerHTML=`
+  HearthrisePaint.html(el,`
     <div class="loadout-grid">
       ${EQUIP_SLOTS.slice(0,12).map(slot=>{
         const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];
@@ -7220,7 +7220,7 @@ function renderLoadout(){
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
     </div>
     ${enchantAffordanceHtml()}
-    <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
+    <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`);
 }
 /* ══════════════════════════════════════════════════════════════════════════
    THE EQUIP GESTURE, ROUTED TO THE SERVER (b366 — live-settlement.md §10 PHASE 2)
@@ -10946,13 +10946,13 @@ function refreshActivityBar(){
     bar.classList.toggle('combat', !!G.activeMonster);
     bar.classList.add('knocked-out');
     HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
-    if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
+    HearthrisePaint.text(nameEl, `Knocked out — back on your feet in ${_koMin}m`);
     /* NAMES THE ONE THING THAT IS REFUSED (rev. 3). "Nothing earns while you
        recover" was true under rev. 2; §1b now refuses `combat` alone, so it
        talked a knocked-out player out of the one move they had left. */
-    if(metaEl) metaEl.textContent = _koResumes
+    HearthrisePaint.text(metaEl, _koResumes
       ? `${_koResumes} resumes automatically · fights wait, gathering and cooking still earn`
-      : 'Fights wait while you recover — gathering and cooking still earn';
+      : 'Fights wait while you recover — gathering and cooking still earn');
     if(stopBtn) stopBtn.style.display = _koResumes ? '' : 'none';
     refreshPanelProgress();
     return;
@@ -11007,12 +11007,12 @@ function refreshActivityBar(){
       const _ltc = window.HearthriseLifetime?.count('kills'), licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!window.HearthriseLifetime ? '—' : '<span class="ab-n-full">'+window.HearthriseLifetime.markup('kills')+'</span><span class="ab-n-short">'+window.HearthriseLifetime.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
-      metaEl.innerHTML = ''
+      HearthrisePaint.html(metaEl, ''
         + '<span class="ab-kills" title="Kills this fight: '+kills.toLocaleString()+'">'+_hrGly('uiSword',13)+' <b>'+(_BF ? _BF.figure(kills) : kills.toLocaleString())+'</b><span class="ab-chip-word"> this fight</span></span>'
         + xpChip
         + bountyChip
         + licChip
-        + awayChip;
+        + awayChip);
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -11024,15 +11024,15 @@ function refreshActivityBar(){
     bar.classList.remove('idle','combat');
     HearthriseIcons.setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
     let actName = hrActivityTargetName(G.skillTargetId);
-    if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
+    HearthrisePaint.text(nameEl, `${s?.name||G.activeSkill}${actName?' — '+actName:''}`);
     const xph = _activityXpHr();
     if(metaEl){
       const lv = (typeof getLevel==='function') ? getLevel(G.activeSkill) : 0;
       /* b326: when a buff is lifting this activity, state the rate
          an ABSENCE would pay right beside it. Same calculator, `away:true`. */
       const awayXph = _activityAwayXpHr(xph);
-      metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`
-        + (awayXph?`<span class="ab-xph ab-away" title="Food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
+      HearthrisePaint.html(metaEl, `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`
+        + (awayXph?`<span class="ab-xph ab-away" title="Food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:''));
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -11044,8 +11044,8 @@ function refreshActivityBar(){
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
-  if(nameEl) nameEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Connecting your character…' : 'Idle — pick an activity';
-  if(metaEl) metaEl.innerHTML = '';
+  HearthrisePaint.text(nameEl, (window.hrRecordPending?window.hrRecordPending():true) ? 'Connecting your character…' : 'Idle — pick an activity');
+  HearthrisePaint.text(metaEl, '');
   if(stopBtn) stopBtn.style.display = 'none';
 
   // Drive the per-tab progress bar (only visible when the active tab
@@ -14471,12 +14471,12 @@ function patchSkillsList(){
       return rows && ('<div class="skill-cat">'+label+'</div>'
         +'<div class="skill-board">'+rows+'</div>');
     }).join('');
-    el.innerHTML = html;
+    HearthrisePaint.html(el, html);
 
     var card = el.closest('.card');
     if(card){
       var title = card.querySelector('.card-title');
-      if(title) title.textContent = 'Activities';
+      if(title && title.textContent !== 'Activities') title.textContent = 'Activities';
     }
   };
 }
@@ -15767,95 +15767,12 @@ console.log('[Character Rebuild v1] loaded');
                     the Bunny quest ("harvest 100") completed at 50 and the
                     weekly wk_harvest ("Harvest 120 crops") at 60.
 
-   The shop injection below has NO ESM equivalent and stays — it, parseSource
-   and _buyCompanion are the only things this block still owns. */
-
-function parseSource(src){
-  if(!src) return null;
-  var parts = src.split(':');
-  return {kind: parts[0], arg1: parts[1], arg2: parts[2]};
-}
-/* Try to add companion entries to the in-game shop's Equipment tab */
-(function injectShopCompanions(){
-  function tryInject(){
-    var shopPanel = document.querySelector('#panel-shop, #shop-panel');
-    if(!shopPanel) return;
-    /* Find the Equipment tab/section. The renderShop builds tabs (Seeds/Equipment/Cosmetics). */
-    /* Detect if we're on Equipment tab */
-    var activeTab = shopPanel.querySelector('button.active, .chip.active');
-    if(!activeTab || !/equipment/i.test(activeTab.textContent)) return;
-    /* Find where to append */
-    var listContainer = shopPanel.querySelector('#shop-list, .shop-list, [id$="-list"]') || shopPanel.querySelector('.shop-row')?.parentElement;
-    if(!listContainer) return;
-    /* Already injected? */
-    if(listContainer.querySelector('.shop-row[data-companion]')) return;
-    /* Build companion shop rows */
-    var companions = Object.entries(window.COMPANIONS||{}).filter(function(kv){
-      var s = parseSource(kv[1].source);
-      return s && s.kind === 'shop';
-    });
-    companions.forEach(function(kv){
-      var id = kv[0], def = kv[1];
-      var s = parseSource(def.source);
-      var price = parseInt(s.arg1, 10);
-      var skillReq = s.arg2; // e.g., "cooking25" or "prayer50"
-      var owned = G.companions && G.companions.ownedIds && G.companions.ownedIds.indexOf(id) >= 0;
-      /* ── b465 — THIS ROW SPOKE IN FIELD NAMES. ────────────────────────────
-         It printed `def.role + ' companion' + ' · req Lv 50 prayer'` — a raw
-         role key, and a requirement in a word order no human uses, on the row
-         that is supposed to sell the thing. The lock state was worse: a bare
-         "🔒  · req Lv 50 prayer" with no subject at all. Every other gated
-         surface in the game already says "Needs <Skill> Lv <n>" / "Unlocks at
-         … Lv <n>"; this one now says it too, through skillName() so a renamed
-         skill follows for free.
-         AND THE BUY BUTTON WAS ALWAYS LIT. The seed, equipment, cosmetic, trait
-         and bounty rows all disable an unaffordable Buy (render/shop.js) — the
-         four companion rows were the only shop rows in the game that did not,
-         so a player with 12 gold was invited to buy a 25,000-gold Raccoon and
-         got a refusal toast for it. Same treatment, same tokens, and the price
-         still comes off `source:` — never a literal. */
-      var meetsReq = true, reqText = '';
-      if(skillReq){
-        var m = skillReq.match(/^(\w+?)(\d+)$/);
-        if(m){
-          var skill = m[1], lv = parseInt(m[2], 10);
-          var have = (typeof getLevel === 'function') ? getLevel(skill) : 1;
-          meetsReq = have >= lv;
-          /* SKILLS_DEF off window, not the block-scoped skillName() helper —
-             this IIFE cannot see that declaration, and a silent fallthrough to
-             the raw key is exactly the defect being fixed. */
-          var _sd = window.SKILLS_DEF && window.SKILLS_DEF[skill];
-          var _sn = (_sd && _sd.name) || skill.replace(/^./, function(c){ return c.toUpperCase(); });
-          reqText = 'Needs '+_sn+' Lv '+lv;
-        }
-      }
-      var roleWord = String(def.role||'').replace(/^./, function(c){ return c.toUpperCase(); });
-      var subLine = (roleWord ? roleWord+' companion' : 'Companion') + (reqText ? ' · '+reqText : '');
-      var canPay = (typeof balCanAfford === 'function') ? balCanAfford(price, 'gold') : true;
-      var row = document.createElement('div');
-      row.className = 'shop-row';
-      row.setAttribute('data-companion', id);
-      row.innerHTML = '<span class="si">'+window.companionIconHtml(id, 28)+'</span>'
-        + '<div class="info"><b>'+def.n+'</b><span>'+subLine+'</span></div>'
-        + '<span class="price">'+price.toLocaleString()+' gold</span>'
-        + (owned
-            ? '<button class="btn btn-sm" disabled>Owned</button>'
-            : (!meetsReq
-                ? '<button class="btn btn-sm" disabled>'+reqText+'</button>'
-                : '<button class="btn btn-sm '+(canPay?'btn-primary':'')+'"'+(canPay?'':' disabled')+
-                  ' onclick="window._buyCompanion(\''+id+'\','+price+')">Buy</button>'
-              )
-          );
-      listContainer.appendChild(row);
-    });
-  }
-  /* Inject on shop tab click + after each renderShop */
-  setInterval(tryInject, 1500);
-})();
+   The four shop companion rows now render inside the shop itself (render/shop.js);
+   _buyCompanion is the only thing this block still owns. */
 
 window._buyCompanion = function(id, price){
   /* ── b4xx — SHOP COMPANIONS ARE SERVER-OWNED unlocks NOW (unlock_buy, slice 4). ──
-     _buyCompanion is the SHOP path ONLY — injectShopCompanions wires this button
+     _buyCompanion is the SHOP path ONLY — render/shop.js wires this button
      for the four `shop:` companions (sparrow/honeybee/raccoon/owl); drop/quest/
      skill/boss/starter/hatch companions reach unlockCompanion by other paths and
      never touch this function. The offer id is `companion.<id>`; hr_unlock_buy
@@ -16301,7 +16218,7 @@ window.__renderBuffsSection = function(){
      builder: no paused state, and the magnitude shown is the SEGMENT RUNNING NOW
      with a countdown to its boundary. */
   const R = window.buffRowsHTML;
-  host.innerHTML = (typeof R === 'function') ? R(window.effectiveBuffRows(), G.buffs) : '';
+  HearthrisePaint.html(host, (typeof R === 'function') ? R(window.effectiveBuffRows(), G.buffs) : '');
 };
 
 /* THE 0-EMOJI RULE. `BUFFS_DEF[].icon` used to be a literal emoji (🌿⭐🍀…)

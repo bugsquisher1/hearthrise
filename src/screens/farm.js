@@ -167,12 +167,12 @@ function startFarmTicker(){
       if(!p||p.state==='ready')return;
       const lab=el.querySelector('.ft-lab'), sub=el.querySelector('.ft-sub'), bar=el.querySelector('.ft-bar i');
       if(bar)bar.style.width=plotPct(p)+'%';
-      if(lab)lab.textContent=farmPlotLabel(p);
-      if(sub)sub.textContent=farmPlotSub(p);
+      HearthrisePaint.text(lab,farmPlotLabel(p));
+      HearthrisePaint.text(sub,farmPlotSub(p));
       el.classList.toggle('watered',plotWindowMs(p)>0);
     });
     const nx=panel.querySelector('#farm-next-water');
-    if(nx)nx.textContent=farmNextWaterText();
+    HearthrisePaint.text(nx,farmNextWaterText());
   },1000);
 }
 /* b220: "Water all (4)" needs a count, and the farm header needs a
@@ -501,7 +501,7 @@ function renderFarm(){
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Richer soil grows new crops — pay gold or a Farmer's Deed in House → Farm">Improve Soil</button>
       </div>
     </div>`;
-  el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
+  HearthrisePaint.html(el, header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
     ${Array.from({length:plotCount}).map((_,i)=>{
       /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
          so the farm panel renders empty plots instead of throwing. */
@@ -527,10 +527,9 @@ function renderFarm(){
       const title=ready?'Harvest':(wet?'Watered — growing at double speed':'Water this plot: double growth for 2 hours');
       return `<div class="farm-tile ${ready?'ready':''} ${wet?'watered':''}" data-plot="${i}"${ready?' data-hr-settle-latch':''} onclick="${action}" title="${title}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small class="ft-lab">${farmPlotLabel(p)}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span><small class="ft-sub">${farmPlotSub(p)}</small>`}</div>`;
     }).join('')}
-  </div>`;
+  </div>`);
 
-  const cg=document.getElementById('crops-guide');
-  cg.innerHTML=Object.keys(CROPS).map(cropGuideRowHtml).join('');
+  HearthrisePaint.html(document.getElementById('crops-guide'), Object.keys(CROPS).map(cropGuideRowHtml).join(''));
 }
 
 // b136: crops guide now shows BOTH skill-level and plot-level gates.

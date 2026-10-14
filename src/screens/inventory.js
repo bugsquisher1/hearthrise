@@ -150,8 +150,9 @@ function renderInvFancy(){
     var _prc = panel.querySelector('.invc-right');   if(_prc) _prevRightScroll = _prc.scrollTop;
   } catch(e){}
 
-  /* Build the panel */
-  panel.innerHTML =
+  /* Build the panel. Written only when it changed (render/paint.js): an
+     unchanged bag keeps its nodes, its scroll and the search box's focus. */
+  var _wrote = HearthrisePaint.html(panel,
     /* b217: the screen opened with THREE stacked chrome bars before a single
        item — a "Bag total value" strip, this gold + item-count strip, and the
        search row: roughly 200px of header on a 1250px screen. The gold figure
@@ -358,10 +359,10 @@ function renderInvFancy(){
           return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP: <b>'+_route+'</b></div></div></div>'; })()+
       '</div>'+
       '</div>'+
-    '</div>';
+    '</div>');
 
   /* Restore the scroll positions captured before the rebuild (paione fix). */
-  try {
+  if(_wrote) try {
     var _nbc = panel.querySelector('.invc-bag-col'); if(_nbc) _nbc.scrollTop = _prevBagScroll;
     var _nrc = panel.querySelector('.invc-right');   if(_nrc) _nrc.scrollTop = _prevRightScroll;
   } catch(e){}
@@ -369,8 +370,7 @@ function renderInvFancy(){
   /* Inject Tibia doll into the host */
   var host = document.getElementById('invc-doll-host');
   if(host && typeof window.buildTibiaDoll === 'function'){
-    var doll = window.buildTibiaDoll();
-    if(doll){ host.innerHTML = ''; host.appendChild(doll); }
+    var doll = window.buildTibiaDoll(), _ench = null;
     /* b392: the enchant entry point, mounted on the Inventory gear surface.
        Before this, the Inventory tab — the very surface the Combat loadout note
        tells players to use to "manage gear" — had NO way to enchant a weapon, so
@@ -378,12 +378,12 @@ function renderInvFancy(){
        under the paper doll, beside the weapon a player is looking at. Rebuilt on
        every renderInvFancy, so it tracks the equipped weapon + bound element. */
     if(typeof enchantAffordanceHtml === 'function'){
-      var _ench = document.createElement('div');
+      _ench = document.createElement('div');
       _ench.className = 'invc-enchant-mount';
       _ench.style.cssText = 'width:100%;max-width:100%;box-sizing:border-box';
       _ench.innerHTML = enchantAffordanceHtml();
-      host.appendChild(_ench);
     }
+    HearthrisePaint.mount(host, [doll, _ench]);
   }
 }
 

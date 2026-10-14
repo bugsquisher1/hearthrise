@@ -273,7 +273,7 @@
       }
     }
 
-    el.innerHTML = out.join('');
+    window.HearthrisePaint.html(el, out.join(''));
   }
   window.renderActiveEffects = renderActiveEffects;
 

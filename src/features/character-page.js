@@ -436,11 +436,11 @@ function paneOf(p) { return (p === 'equip' || p === 'hero') ? p : 'skills'; }
    The activities themselves live under Adventure, not on this screen. */
 function refreshSkillsPane() {
   const header = document.getElementById('csk-header');
-  if (header) header.innerHTML = buildSkillsHeader();
+  window.HearthrisePaint.html(header, buildSkillsHeader());
   const gridHost = document.getElementById('csk-grid-host');
-  if (gridHost) gridHost.innerHTML = buildSkillGrid();
+  window.HearthrisePaint.html(gridHost, buildSkillGrid());
   const acct = document.getElementById('csk-account');
-  if (acct) acct.innerHTML = buildAccountStatGrid();
+  window.HearthrisePaint.html(acct, buildAccountStatGrid());
   // The account panel's "click to reveal" cells (Total XP / Time played).
   if (acct) acct.querySelectorAll('[data-reveal]').forEach((el) => {
     el.onclick = function () {
@@ -470,27 +470,23 @@ function refreshEquipPane() {
   const host = document.getElementById('char-equip');
   if (!host) return;
   // Reuse the b218 paper-doll WHOLESALE — its Equipment / Stats / Companion
-  // internal panes and _tdPane persistence come free. Rebuilt each time this
-  // pane is shown so it reflects the current loadout, the same way the
-  // Inventory copy rebuilds; _tdPane keeps the chosen internal pane.
-  host.innerHTML = '';
-  if (typeof window.buildTibiaDoll === 'function') {
-    const doll = window.buildTibiaDoll();
-    if (doll) host.appendChild(doll);
-  }
+  // internal panes and _tdPane persistence come free. Built on every refresh
+  // and mounted only when it differs from the one on screen (render/paint.js);
+  // _tdPane keeps the chosen internal pane.
+  const doll = (typeof window.buildTibiaDoll === 'function') ? window.buildTibiaDoll() : null;
   const link = document.createElement('div');
   link.className = 'cr-equip-link';
   link.innerHTML = `<button type="button" onclick="showTab('inventory')">Full inventory →</button>`;
-  host.appendChild(link);
+  window.HearthrisePaint.mount(host, [doll, link]);
 }
 
 function refreshHeroPane() {
   const host = document.getElementById('char-hero');
   if (!host) return;
-  host.innerHTML = buildHeroCard()
+  window.HearthrisePaint.html(host, buildHeroCard()
     + buildAccountStatGrid()
     + buildCombatCard()
-    + `<div class="cr-rates">${buildRatesCard()}</div>`;
+    + `<div class="cr-rates">${buildRatesCard()}</div>`);
   host.querySelectorAll('[data-reveal]').forEach((el) => {
     el.onclick = function () {
       const k = el.getAttribute('data-reveal');

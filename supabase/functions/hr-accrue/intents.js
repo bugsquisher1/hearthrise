@@ -618,6 +618,20 @@ export const INTENT_REGISTRY = Object.freeze({
      The delta carries `gold` and `items` only; guardStampKeys re-checks that on
      the delta actually built. */
   vendor_sell_many: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ─────────────────────────
+     `hunt_settle` — "bring my hunt up to date". The `accrue` bucket, because it
+     IS the accrue verb's job for a hunter (the accrue verb answers `hunt_open`
+     for one), and the same floor: a settle asked for inside ACCRUE_MIN_MS of
+     the last one writes nothing unless a leave/change is pending. No key: the
+     settle derives its own (session, swing, version, secret), so two racing
+     settles of one window land once.
+     `hunt_use` — a manual action-bar press, settled AT ONCE through the first
+     swing boundary at or after it. The `activity` bucket (the character's own
+     state is one surface — eat, equip, enchant); the player's key, because a
+     retried press must not fire twice.
+     `collectsFirst: false` for both: they ARE the settle. */
+  hunt_settle: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
+  hunt_use: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -746,6 +760,23 @@ export const INTENT_ERRORS = Object.freeze({
      stops the character EARNING; it does not lock the player out. That is why
      this is a per-KIND check against PAYABLE_KINDS and not a lock. */
   RECOVERING: 'recovering',
+  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ───────────────────────
+       hunt_required  409 — a `combat` declaration. A fight is a HUNT now:
+                      hr_hunt_enter opens one (with its bag and its action
+                      bar) and only the hunt settle prices it. Answered on
+                      SHAPE, before the rate gate and any database work.
+       hunt_open      409 — the character is on a hunt: its pointer belongs to
+                      the session (hr_hunt_leave / hr_hunt_change move it).
+       no_hunt        409 — a hunt verb for a character with no open session.
+       bad_bar_slot   400 — `hunt_use` without a readable action-bar index.
+       hunt_leaving   409 — a press while a leave/change is pending.
+       hunt_walking   409 — a press before the walk to the hunt is over. */
+  HUNT_REQUIRED: 'hunt_required',
+  HUNT_OPEN: 'hunt_open',
+  NO_HUNT: 'no_hunt',
+  BAD_BAR_SLOT: 'bad_bar_slot',
+  HUNT_LEAVING: 'hunt_leaving',
+  HUNT_WALKING: 'hunt_walking',
 
   /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
      Read the pairs. Each one exists because collapsing it into its neighbour
@@ -977,6 +1008,10 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.BAD_STANCE,
   INTENT_ERRORS.UNKNOWN_STANCE,
   INTENT_ERRORS.BAD_STOP,
+  /* hunt_required is answered on SHAPE (a `combat` declaration), and
+     bad_bar_slot from the parsed request — both before any database work. */
+  INTENT_ERRORS.HUNT_REQUIRED,
+  INTENT_ERRORS.BAD_BAR_SLOT,
   INTENT_ERRORS.RATE_LIMITED,
   INTENT_ERRORS.NO_CHARACTER,
   /* The gold verbs' shape refusals, and they are on this list for exactly the
@@ -1173,6 +1208,11 @@ export const SAFE_SKIP_REASONS = Object.freeze([
   'idle',            // SKIP.NO_ACTIVITY
   'below_min_span',  // SKIP.TOO_SOON      — see the fraction note above
   'nothing_accrued', // SKIP.NOTHING
+  /* SKIP.HUNT_OPEN (lane C2): the character is on a hunt and the session owns
+     the window — the hunt settle prices it, so there is nothing owed HERE and
+     nothing for a switch to confiscate. A switch is refused anyway (the
+     pointer guard / set-activity's hunt_open), so SAFE is the honest class. */
+  'hunt_open',        // SKIP.HUNT_OPEN
 ]);
 
 /** The other half of the partition. Exported so the coverage guard can assert

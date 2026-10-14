@@ -81,10 +81,13 @@ import {
 } from './tick-gather.js';
 /* The level curve, for the fold's level-up stop (settleFolded). */
 import { levelFromXp } from '../../../src/core/xp.js';
-import {
-  CHANNEL as COMBAT_CHANNEL,
-  sessionFromRoster as combatSessionFromRoster, settleCombatSession,
-} from './tick-combat.js';
+/* THE PARTY UNIT's combat settler (tick-party.js runs it once per member). The
+   SOLO combat channel is no longer driven here: a solo fight is a HUNT SESSION
+   (ruling HR-2026-10-14), settled by ./hunt-settle.js from the `hunts` cohort
+   below — see UNDRIVEN_CHANNELS. */
+import { CHANNEL as COMBAT_CHANNEL, settleCombatSession } from './tick-combat.js';
+/* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
+import { settleHunt, parseHunts } from './hunt-settle.js';
 /* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
    (services/world-tick/contract.js re-exports the same module — AWAY-12).
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
@@ -135,11 +138,6 @@ export const CHANNELS = Object.freeze({
     sessionFromRoster: gatherSessionFromRoster,
     settle: settleGatherSession,
   }),
-  [COMBAT_CHANNEL]: Object.freeze({
-    channel: COMBAT_CHANNEL,
-    sessionFromRoster: combatSessionFromRoster,
-    settle: settleCombatSession,
-  }),
 });
 
 /* ── CHANNELS THE DATABASE ADMITS AND THIS FILE CANNOT SETTLE ────────────────
@@ -162,6 +160,16 @@ export const CHANNELS = Object.freeze({
 export const UNDRIVEN_CHANNELS = Object.freeze({
   artisan: 'no artisan settler exists; the channel is admitted by '
     + 'hr_tick_config_channels_ck but must never be armed until one ships',
+  /* THE SOLO COMBAT CHANNEL IS RETIRED (ruling HR-2026-10-14, lane C2). A solo
+     fight exists only inside a hunt session, and a session is settled by the
+     `hunts` cohort (hr_hunt_roster -> ./hunt-settle.js), never by the channel
+     roster: settling it here too would price one window twice (the database
+     refuses it anyway — hr_hunt_accrue_fence — but a skipped-by-name row is
+     the honest answer). A combat character the channel roster still hands out
+     is skipped `channel_not_driven`, pays nothing and journals nothing. The
+     PARTY unit still runs settleCombatSession (tick-party.js). */
+  [COMBAT_CHANNEL]: 'solo combat is a hunt session, settled from the hunts cohort '
+    + '(hr_hunt_roster, ./hunt-settle.js); the party unit settles partied combat',
 });
 
 /* The header the tick bearer rides on. Lower-case because `Headers.get` is
@@ -571,6 +579,12 @@ export function parseTickBody(raw) {
        no live `party_hunt` for `hr_party_roster` to return. The key and the
        unit shape are frozen HERE so that wiring is additive when it comes. */
   out.parties = parseParties(b.parties);
+  /* THE HUNT COHORT (lane C2). Same rule as `roster` and `parties`: SELECTORS,
+     never authority — (user, slot, session) and nothing else. hr_hunt_roster
+     leased them to this driver; ./hunt-settle.js re-reads every session and
+     character in this request and hr_hunt_apply decides whether anything
+     lands. */
+  out.hunts = parseHunts(b.hunts);
   return out;
 }
 
@@ -1365,9 +1379,33 @@ export async function runTick(opts) {
     }
   }
 
+  /* ── THE HUNTS (lane C2). Each one is ONE settle of one open session through
+     the one hunt settle, from its settled_to to the server's now; a session
+     further behind than HUNT_MAX_WINDOW_MS is caught up over successive fires.
+     NO SESSION'S FAILURE COSTS ANOTHER ONE ITS SETTLE. Reported under its own
+     key, present only on a fire that carried hunts, so every other fire's
+     summary is byte-identical. */
+  let hunts = null;
+  if (body.hunts.length) {
+    hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
+    for (const sel of body.hunts) {
+      let v;
+      try {
+        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session });
+      } catch (e) {
+        v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
+      }
+      const k = v.outcome === 'paid' ? 'settled' : (v.outcome in hunts ? v.outcome : 'refused');
+      hunts[k] += 1;
+      if (v.ended) hunts.ended += 1;
+      if (v.reason) hunts.reasons[v.reason] = (hunts.reasons[v.reason] || 0) + 1;
+    }
+  }
+
   /* `probes` is present only on a fire that met a probe boundary, so every
      other fire's summary is byte-identical to before this step existed. */
   const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
   if (catchup) extra.catchup = catchup;
+  if (hunts) extra.hunts = hunts;
   return { status: 200, body: summary(Object.assign({}, counts, extra)) };
 }

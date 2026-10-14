@@ -3021,7 +3021,7 @@ function accrueCombat(inp, span, hunt) {
     grantMs,
     capped,
     tickMs,
-    foodEaten,
+    foodEaten: hs0 ? Math.floor(Number(summary.foodEaten) || 0) : foodEaten,
     /* THE SESSION'S HALF (lane C2): what hr_hunt_settle_session is asked to
        apply in the same transaction — the clock, the bag uses, the cooldowns,
        the presses left, the falls, the end. Absent outside a session. */

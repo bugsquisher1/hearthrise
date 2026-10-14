@@ -70,11 +70,15 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY } from './accrual.js';
+import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
 import { engineInputsFromEnvelope } from './envelope.js';
-import { withAwayReceipt, receiptRescue } from './away-receipt.js';
+/* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). The two hunt verbs, and the
+   cheap "is a hunt open?" read the accrue path makes so the old combat pricing
+   never runs for a hunter. The stored away receipt (away-receipt.js,
+   `last_away_receipt`) is GONE with the away model it described (ruling §3). */
+import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
 /* THE COMPANION-XP ARM SWITCH — ARMED (b550). Threaded into computeAccrual's
    input as `companionXpBacked` (A14-mirrored in set-activity.js). TRUE → the
    engine emits the companion_xp op and IS the only writer: the client half
@@ -684,6 +688,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return json(out.body, out.status);
     }
 
+    /* ── THE HUNT VERBS (lane C2) ───────────────────────────────────────────
+       `hunt_settle` ("bring my hunt up to date") and `hunt_use` (press an
+       action-bar slot). The request carries the slot and, for a press, a
+       BAR-SLOT INDEX — nothing else: no time, no HP, no count, no item. Both
+       run the ONE hunt settle (./hunt-settle.js) the world tick runs, through
+       hr_hunt_apply. */
+    if (intent.verb === 'hunt_settle' || intent.verb === 'hunt_use') {
+      const out = await runHuntVerb({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        verb: intent.verb,
+        bucket: rateBucketFor(intent.verb),
+        intentId: intent.intentId,
+        barSlot: intent.barSlot,
+      });
+      return json(out.body, out.status);
+    }
+
     // ── READ. One transaction, engine role, rate gate FIRST. ───────────────
     // `set local role hr_engine` must be inside the transaction: transaction
     // mode does not keep a backend between transactions, so a session-scoped
@@ -798,8 +821,21 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         collectionFound = null;
       }
+      /* IS A HUNT OPEN? (lane C2). Its own savepoint, the trophy read's rule:
+         a database without 2026-10-22-hunt-sessions-settle.sql answers 42883
+         and that reads as "no hunt", never as a failed accrual. The engine is
+         then told `huntOpen` and answers `hunt_open` — the session owns its
+         window and only the hunt settle prices it. */
+      let huntOpen = false;
+      try {
+        const h = await tx.savepoint((sp: typeof tx) => sp.unsafe(HUNT_OPEN_SQL, [user, slot])) as unknown as Row[];
+        huntOpen = typeof h?.[0]?.session === 'string';
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        huntOpen = false;
+      }
       return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows,
-        collection_found: collectionFound } as Row;
+        collection_found: collectionFound, hunt_open: huntOpen } as Row;
     });
 
     if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -947,77 +983,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     //   restores the "safe in either order" property the tool-carry column has
     //   by construction. Any other error still propagates: a swallowed error
     //   is how a guard reports SKIPPED and gets read as a pass.
-    /* ⚠ `hr_attended_kills` RIDES THIS TRANSACTION, NOT A THIRD ONE, and that is
-       the §2a-ii connection rule rather than a micro-optimisation: `max_connections`
-       is 60, an accrual already costs two pooled transactions, and a third would be
-       a 50% increase in the resource that fails TOTALLY (nobody connects, dashboard
-       included). It is also why it is here and not in the READ transaction above:
-       a missing FUNCTION is a hard 42883 that aborts its whole transaction, and
-       aborting the read would 500 every accrual on a database that has not applied
-       the migration. This transaction already owns that degrade.
-       THE LADDER IS THREE RUNGS, not two, because the two absences are
-       INDEPENDENT — a database can have `hr_perks_of` and not `hr_attended_kills`
-       (the ordinary case the day this ships), and collapsing them into one
-       fallback would silently drop the perk channel on every such database and
-       under-pay every bonus in the game. Each rung drops exactly one capability
-       and the previous rung's absence is remembered. */
-    /* ⚠ THE THREE QUERIES ARE WRITTEN OUT, NOT COMPOSED FROM A SHARED FRAGMENT.
-       `postgres`'s nested-fragment support would let the two seed columns be
-       factored out, but a fragment built by calling the tagged template eagerly
-       is a pending query object, and getting that subtlety wrong here does not
-       fail loudly — it fails as "every accrual 500s". Three literals cost eight
-       duplicated lines and cannot be wrong. */
-    /* SECURITY CONDITION C6 — THE UPPER EDGE OF THE ATTENDED WINDOW, AND IT IS
-       THE WATERMARK, TO THE MILLISECOND.
-       `hr_attended_kills` runs in the SEED transaction, which starts strictly
-       AFTER the state transaction whose `now()` this settle will advance
-       `accrued_to` to. A window bounded only below by `accrued_to` therefore
-       projects any credit row committed in that gap — the settle pays it, and
-       the next settle projects it AGAIN, because it is still newer than the
-       watermark. `(accrued_to, now]` is the ONLY double-pay guard this design
-       has, so the two ends must name the same instant.
-       ⚠ IT IS `new Date(nowMs).toISOString()`, NOT `read.now`, DELIBERATELY.
-         `read.now` carries Postgres's MICROSECONDS, so passing the raw value
-         would leave a sub-millisecond band above this bound that no window
-         covers. Deriving the bound from `nowMs` — the same integer the delta's
-         watermark is derived from — makes the two commensurable by construction
-         rather than by rounding luck.
-       ⚠ AND THE WATERMARK IS NO LONGER ALWAYS THIS INSTANT (2026-09-16). An
-         uncapped window now stamps `accrued_to` at `nowMs` MINUS the sub-tick
-         remainder the simulation did not spend, so the half-wound swing is
-         deferred instead of destroyed (accrual.js `settledWatermarkMs`). That
-         would re-open the band `(accrued_to, nowMs]` to a SECOND projection of
-         a row this settle already ate — so the same function FLOORS the
-         watermark at `attended.to`, the newest row it actually consumed. C6's
-         property is unchanged and is now stated where it can be executed: a
-         credit row is inside exactly one window. Rows stamped after this read
-         carry `created_at > nowMs` and are picked up by the next settle, which
-         is what they were always for.
-       ⚠ AND IT IS A SERVER VALUE. `nowMs` is `new Date(read.now).getTime()` —
-         Postgres's own clock, read in this call. Nothing in the request body
-         reaches it. The function clamps it with `least(p_upto, now())` anyway,
-         so the worst a wrong value could ever do is pay LESS. */
-    const attendedUpto = new Date(nowMs).toISOString();
-    const seedSql = (withPerks: boolean, withAttended: boolean) => sql.begin(async (tx) => {
+    /* THE TWO-RUNG LADDER: with the perk channel, then without it (a database
+       that predates hr_perks_of). The attended-kill rung is gone with the
+       attended top-up (lane C2). Only 42883 degrades; anything else propagates.
+       The two queries are written out, not composed from a shared fragment —
+       a fragment built by calling the tagged template eagerly is a pending
+       query object, and getting that wrong fails as "every accrual 500s". */
+    const seedSql = (withPerks: boolean) => sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
       await markSelf(tx);
-      const [r] = (withPerks && withAttended)
+      const [r] = withPerks
         ? await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
                               ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
-               public.hr_perks_of(${user}::uuid, ${slot}::int) as perks,
-               public.hr_attended_kills(${user}::uuid, ${slot}::int,
-                                        ${attendedUpto}::timestamptz) as attended`
-        : withPerks
-          ? await tx`
-        select (public.hr_seed(${user}::uuid, ${slot}::int,
-                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
-               public.hr_seed(${user}::uuid, ${slot}::int,
-                              ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
                public.hr_perks_of(${user}::uuid, ${slot}::int) as perks`
-          : await tx`
+        : await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
@@ -1026,39 +1008,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     });
     let seedRow: Row;
     let perkChannel = 'live';
-    let attendedChannel = 'live';
     try {
-      seedRow = await seedSql(true, true) as Row;
+      seedRow = await seedSql(true) as Row;
     } catch (e) {
       if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
-      /* One of the two is absent. Try WITHOUT the newer one first, so the common
-         case — a database that has perks and not yet the attended read — keeps
-         its perk channel. Only if that ALSO 42883s is the perk channel absent. */
-      attendedChannel = 'absent';
-      try {
-        seedRow = await seedSql(true, false) as Row;
-      } catch (e2) {
-        if (String((e2 as { code?: string } | null)?.code ?? '') !== '42883') throw e2;
-        // This database predates the perk channel. Pay what yesterday paid.
-        perkChannel = 'absent';
-        seedRow = await seedSql(false, false) as Row;
-      }
+      // This database predates the perk channel. Pay what yesterday paid.
+      perkChannel = 'absent';
+      seedRow = await seedSql(false) as Row;
     }
     const salt = String(seedRow?.salt ?? '');
     /* `ok !== true` covers both "no character" and a future refusing shape.
        null → EMPTY_PERKS in the engine → 0 for every key → today's behaviour. */
     const perkEnv = seedRow?.perks as Record<string, unknown> | null;
     const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
-    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). Every value
-       in it was written by hr_credit_kills into hr_kill_credit_log — a table no
-       client role may write, holding counts that verb already clamped to a
-       physical maximum against the SERVER clock. `null` on `ok !== true` and on
-       an absent function, which the engine reads as "propose nothing new".
-       ⚠ NOTHING HERE COMES FROM THE REQUEST BODY. The request carries no kill
-         count, no monster and no window; `slot` is the only client-chosen value
-         in the whole call and it selects a row the caller already owns. */
-    const attendedEnv = seedRow?.attended as Record<string, unknown> | null;
-    const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     /* ⚠ THE ENVELOPE'S OWN FIELDS ARE NOT LISTED HERE ANY MORE (2026-09-22).
@@ -1082,7 +1044,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        "a smaller proposal" means is a game rule and this file holds none (see
        the header). */
     const runAccrual = (step: {
-      capMs: number; actionBudget: number | null; attended: Record<string, unknown> | null;
+      capMs: number; actionBudget: number | null;
     }) => computeAccrual({
       userId: user,
       slot,
@@ -1129,15 +1091,10 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          the two literals to carry the same field set, and a field present on
          only one side is exactly the drift A14 exists to catch. */
       callerAuthority: CALLER_AUTHORITY,
-      /* THE ATTENDED TOP-UP'S INPUT, AND IT COMES OFF `step`, NOT OFF THE CLOSURE.
-         `degradeStep` returns `attended: null` on every rung, so a degraded
-         attempt proposes strictly less. Reading `attendedIn` directly here would
-         INVERT the ladder: halving the span cuts `summary.kills`, which GROWS
-         `min(attended, cap) - summary.kills`, so the "smaller" proposal would be
-         bigger, earn the same rejection three times and forfeit the night. The
-         value flows through the same knob object every other ladder-varied input
-         does, for exactly that reason. */
-      attended: step.attended,
+      /* A HUNT IS OPEN (lane C2): the engine answers `hunt_open` and prices
+         nothing — the session owns this window. Read in the state transaction
+         above. Mirrors set-activity.js field for field (A14). */
+      huntOpen: (read as Record<string, unknown>)?.hunt_open === true,
       seed: Number(seedRow?.seed) || 0,
       /* THE BESTIARY COUNTERS (charms phase 2). `hr_bestiary_of`'s rows, read in
          the state transaction above behind its own savepoint, folded to a charm
@@ -1169,7 +1126,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       recipes: ARTISAN_RECIPES_ALL,
     });
 
-    let out = runAccrual({ capMs, actionBudget: null, attended: attendedIn });
+    let out = runAccrual({ capMs, actionBudget: null });
 
     /* ── THE PARALLEL WORKER SETTLE (worker-settlement slice) ───────────────
        Hired-crew production is a CONTINUOUS activity that runs ALONGSIDE the
@@ -1276,6 +1233,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       mergeRested(mergeWorkers(delta));
 
     if (!out.accrued) {
+      /* ── A HUNTER'S ACCRUE (lane C2) ───────────────────────────────────────
+         The engine answered SKIP.HUNT_OPEN: the session owns the pointer's
+         window. The crew and rested settle below run EXACTLY as for any idle
+         pointer (their own watermarks, their own apply), and THEN the hunt is
+         settled through the one hunt settle (./hunt-settle.js, a fresh read,
+         so the version the aux apply moved is not stale). That is what keeps
+         the shipped client's `settle_first` recovery — "run accrue, retry" —
+         working for a hunter, and why a hunter's crew never stops banking. */
+      const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
+      const respond = async (body: Record<string, any>): Promise<Response> => {
+        if (!huntOpenHere) return json(body);
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true });
+        if (hv.status !== 200) {
+          return json({ ...body, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
+        }
+        return json({ ...body, ...hv.body, ok: true,
+          accrued: hv.outcome === 'paid' || body.accrued === true,
+          reason: hv.outcome === 'paid' ? null : (hv.reason ?? body.reason ?? null) });
+      };
       // The pointer owes nothing. If the CREW and/or the RESTED bank owe
       // something, settle whichever do in ONE hr_apply call — the watermarks that
       // advance are workers_accrued_to and/or rested_at, NEVER accrued_to (so the
@@ -1378,7 +1354,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
              (QA 0a47ba77, live). The crew haul is already surfaced on
              `away.items`; the summary is telemetry only, so it moves to a
              non-colliding key and the roster survives. */
-          return json({ ok: true, accrued: true, ...wr, away,
+          return await respond({ ok: true, accrued: true, ...wr, away,
             ...(bestiary ? { bestiary } : {}),
             ...(collection ? { collection } : {}),
             ...(wout.accrued ? { workerSummary: wout.summary } : {}),
@@ -1405,7 +1381,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          (applyEnvelopeState) never runs on it, so anything carried only by the
          accrued path would be invisible to exactly the player who opens the
          Bestiary after a reload. Nothing is minted here; it is a read. */
-      return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
+      return await respond({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
         ...(bestiary ? { bestiary } : {}),
         ...(collection ? { collection } : {}),
         ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
@@ -1452,61 +1428,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    /* ── THE CARD IS NEVER WORTH THE NIGHT (F2, security 2026-09-07) ─────────
-       `bad_receipt` is deliberately NOT in DEGRADABLE and that is right —
-       shortening a span cannot repair a malformed object. But it left the whole
-       absence hostage to the card: hr_apply refuses the DELTA, not the key, and
-       `bad_receipt` is not a clamp, so the degrade ladder is never entered. One
-       receipt the database disagrees with — a builder field `c_receipt_keys` has
-       not learnt yet, a bound the two sides read differently, an `at` outside the
-       clock slack — would 409 EVERY away settle for EVERY player until a
-       redeploy, watermark frozen and night unpaid, over a Home card.
-
-       So a refusal of the receipt now costs the RECEIPT and nothing else: the
-       single writer retries the SAME delta once with the key DELETED. Placed
-       here rather than at the two call sites because this is the one function
-       that talks to hr_apply — a future apply site inherits the rescue instead
-       of re-learning this lesson.
-
-       ⚠ The retry carries its own `attempt` number, so `intentIdFor` derives a
-         DIFFERENT key: this is a fresh apply, never a replay of the rejected
-         one. `RECEIPT_RETRY_BASE` is past both the degrade rungs (1..MAX_DEGRADE)
-         and the forfeit (MAX_DEGRADE + 1), so no two paths can collide on a key.
-       ⚠ Retried ONCE, and only when the delta ACTUALLY CARRIED a receipt. A
-         `bad_receipt` on a delta with no receipt in it is a different defect and
-         must not be masked by a retry that changes nothing.
-       ⚠ hr_apply has already journalled the refusal (hr_record_rejection) and
-         `receiptRejected` puts it on the response, so "the card is missing" and
-         "the engine and the database disagree about the receipt shape" are never
-         the same observation from outside. Pay the player, then tell them. */
-    const RECEIPT_RETRY_BASE = MAX_DEGRADE + 2;
-    let receiptRejected: string | null = null;
-    const apply = async (delta: unknown, attempt: number) => {
-      const r = await applyOnce(delta, attempt);
-      const rescued = receiptRescue(r, delta);
-      if (!rescued) return r;
-      receiptRejected = String((r as Row).why ?? 'refused');
-      console.warn('[hr-accrue] hr_apply refused the away receipt (' + receiptRejected
-        + ') — retrying the same delta WITHOUT it so the night is still paid');
-      return await applyOnce(rescued, RECEIPT_RETRY_BASE + attempt);
-    };
-
-    /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ──────────────
-       A receipt the server PAID is progression, not preference. Built by
-       ./away-receipt.js — plain ESM so tests/away-receipt-journal.mjs grades THE
-       SHIPPED FUNCTION rather than a transcription of it, which is the only way
-       a guard on a Deno TypeScript shell can bite.
-
-       ⚠ RECOMPUTED ON EVERY DEGRADE ATTEMPT, never computed once. The clamp
-         ladder HALVES the span, and a halved span can fall under SYNC_MAX_MS —
-         at which point hr_apply would answer `bad_receipt` and 409 the WHOLE
-         absence over a card. Recomputed, the receipt is simply the first thing
-         dropped: pay the player, then tell them, in that order.
-
-       ⚠ Composed OUTSIDE mergeAux deliberately. mergeAux is the crew + rested
-         bank and also rides the POINTER-IDLE settle above, which has no span and
-         must never carry a receipt. */
-    let res = await apply(withAwayReceipt(mergeAux(out.delta), out), 0);
+    /* The stored away receipt (`last_away_receipt`, its F2 rescue retry) is
+       gone with the away model (ruling HR-2026-10-14 §3), so the single writer
+       is the statement itself. */
+    const apply = applyOnce;
+    let res = await apply(mergeAux(out.delta), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1527,11 +1453,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       degraded = { from: String(res.error), ...step.report };
       const next = runAccrual(step);
       if (!next.accrued) break;
-      /* `degradeStep` drops the attended top-up on every rung (accrual.js states
-         why: keeping it would make each "smaller" proposal BIGGER). Say so on
-         the receipt, or "the loot did not top up" and "the migration is not
-         applied" become the same observation from outside. */
-      attendedChannel = 'degraded';
       /* THE RUNG MUST ACTUALLY BE SMALLER. A step that proposes the same work
          as the attempt that was just rejected would earn the same rejection and
          burn a rung for nothing — three of those and the night is forfeited.
@@ -1540,7 +1461,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(withAwayReceipt(mergeAux(out.delta), out), attempt);
+      res = await apply(mergeAux(out.delta), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {
@@ -1635,43 +1556,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            nothing because nothing is unlocked" from "deployed against a
            database with no perk channel" from the outside. */
         perkChannel,
-        /* The same question for the attended kill ledger, reported for the same
-           reason: 'live' when hr_attended_kills answered, 'absent' when this
-           database has not applied 2026-09-10-attended-loot-credit.sql,
-           'degraded' when the clamp ladder ran (which drops the top-up by
-           design — see degradeStep). Without it, "the
-           loot is still snapping down" and "the migration is not applied yet"
-           are indistinguishable from outside, which is exactly how the bounty
-           hang survived a verification pass. */
-        attendedChannel,
-        /* ⚠ `attendedKills` / `attendedTopUp` / `attendedCap` ARE DELIBERATELY
-           NOT HERE (Security condition C2 on the F1 sign-off, 2026-09-04). All
-           four numbers ARE journalled — `meta.att = {claimed, cap, sim, top}` —
-           and that is where the watches read them, on a table no client can
-           select. Putting them on the RECEIPT hands the forger the detector's
-           own calibration: `cap` is the exact threshold Watch B's
-           `rows_at_the_cap` keys on, `claimed`/`sim` is the ratio its
-           `median_claim_over_sim` line keys on, and a forger who can read its
-           own `cap` each settle can sit one unit under every per-settle line
-           forever. Nothing in src/ ever read them (grepped: zero consumers), so
-           this costs the client nothing.
-           `attendedChannel` STAYS: it is a deployment fact, not a calibration —
-           'live' / 'absent' / 'degraded' says whether the ledger answered, which
-           is the only way to tell "the loot is still snapping down" from "the
-           migration is not applied yet" from outside. It names no number.
-           DO NOT re-add the three "for the welcome-back card": the card states
-           what was PAID (gold, items, kills), and the top-up is already inside
-           those totals — that is the entire point of §3.5. */
-        /* ── DID THE STORED RECEIPT LAND? (F2) ───────────────────────────────
-           OMITTED ENTIRELY on the ordinary path, present with hr_apply's own
-           `why` when the receipt was REFUSED and the delta was re-applied
-           without it. It is a deployment fact of the same family as
-           `perkChannel` / `attendedChannel` and it names no number: without it,
-           "this night was paid but the Home card is empty after a reload" and
-           "the engine and the database disagree about the receipt shape" are
-           the same observation from outside, which is exactly how a
-           disagreement about a jsonb key would survive a verification pass. */
-        ...(receiptRejected ? { receiptRefused: receiptRejected } : {}),
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

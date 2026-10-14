@@ -290,7 +290,14 @@ function clientAwaySpan(opts) {
   const fx = {
     addXp(sk, amt) {
       const r = grantXp(G, sk, amt, { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
-      for (const ev of r.events) if (ev.type === 'levelup' && ev.skill === 'hitpoints') G.playerMaxHp = ev.to;
+      /* RAISE-ONLY, as the client is (src/legacy.js:3349 "RAISE-ONLY, like
+         hrSyncMaxHp") and as the server now is (lane C2, the FX-4 root cause).
+         This mirror used to read `= ev.to` — the server's bug, restated — so
+         the two "independent" constructions agreed on a max HP the real client
+         never shows. */
+      for (const ev of r.events) {
+        if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > G.playerMaxHp) G.playerMaxHp = ev.to;
+      }
     },
     addItem(id, qty) {
       bag[id] = (bag[id] || 0) + qty;
@@ -1466,7 +1473,12 @@ function attendedSettleAutoEatGuard() {
 // parity is preserved without anyone having to remember to preserve it.
 function recoveryGuard() {
   const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
-  const FED_FOE = MONSTERS.goblin ? 'goblin' : SLIME;   // b563: see RECOVER-1's fed control
+  /* RE-PICKED AGAIN (lane C2): the goblin fixture only fell because the engine
+     LOWERED a fresh hero's max HP to the hitpoints level (10 -> 2 on the first
+     level-up — the FX-4 root cause, now raise-only). At max HP 10 a fed hero
+     out-lasts a goblin (0 falls); a Small Wolf (atk 5, hp 16) still drops them
+     11 times in 12 h with ~2,000 kills and no retreat (measured on SEED). */
+  const FED_FOE = MONSTERS.small_wolf ? 'small_wolf' : SLIME;
   /* THE LADDER, RE-DERIVED FROM THE TABLE ITSELF so this file never restates a
      rung. `sumLadder(n, L)` is what n falls in a day cost a character whose
      lifetime count started at L — the same arithmetic simulateSpan performs one
@@ -1586,9 +1598,12 @@ function recoveryGuard() {
   ok(twelve.delta.deaths.length <= 24,
     `RECOVER-1 (N3): ${twelve.delta.deaths.length} death rows in one settle. hr_apply refuses over `
     + '24, so this delta would cost the player the whole night. The ladder is supposed to bound it.');
+  /* `auto_eat_enabled` left the death row with Auto-Eat (lane C2, ruling
+     HR-2026-10-14 §3: the action bar replaced it); a row carrying it now would
+     be the engine journalling a setting that no longer exists. */
   ok(twelve.delta.deaths.every((d) => d.monster === (MONSTERS.slime ? 'slime' : MONSTER)
         && typeof d.recovery_ms === 'number' && typeof d.deaths_today === 'number'
-        && d.auto_eat_enabled === false && d.food_in_bag === false),
+        && !('auto_eat_enabled' in d) && d.food_in_bag === false),
     'RECOVER-1 (N3): a death row is missing a server-derived field, or carries the wrong one');
   ok(twelve.delta.deaths[0].deaths_today === 1
      && twelve.delta.deaths[1].deaths_today === 2,
@@ -2124,7 +2139,12 @@ function recoveryGuard() {
 // ════════════════════════════════════════════════════════════════════════════
 function retreatGuard() {
   const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
-  const FED_FOE = MONSTERS.goblin ? 'goblin' : SLIME;   // b563: see RECOVER-1's fed control
+  /* RE-PICKED AGAIN (lane C2): the goblin fixture only fell because the engine
+     LOWERED a fresh hero's max HP to the hitpoints level (10 -> 2 on the first
+     level-up — the FX-4 root cause, now raise-only). At max HP 10 a fed hero
+     out-lasts a goblin (0 falls); a Small Wolf (atk 5, hp 16) still drops them
+     11 times in 12 h with ~2,000 kills and no retreat (measured on SEED). */
+  const FED_FOE = MONSTERS.small_wolf ? 'small_wolf' : SLIME;
   /* THE QA ACCOUNT'S ACTUAL TARGET where the catalogue still has it. Falling
      back keeps the guard runnable if the row is ever renamed, and the fixture
      states which one it used in every failure message. */
@@ -2545,10 +2565,13 @@ function retreatGuard() {
        can be audited after the fact. */
     ok(cleanS.att === undefined,
       'RETREAT-W8: a night with no attended ledger journalled an att block anyway');
-    ok(forgedS.att && forgedS.att.claimed === forgeKills && forgedS.att.sim === 0
-       && forgedS.att.top === 0,
-      `RETREAT-W8: the forged claim journalled ${JSON.stringify(forgedS.att)}. It must be recorded `
-      + `as claimed=${forgeKills}, sim=0, top=0 — the claim is auditable and it paid nothing.`);
+    /* LANE C2: THE ENGINE HAS NO ATTENDED INPUT ANY MORE (the top-up and
+       hr_credit_kills are deleted, ruling HR-2026-10-14 §3). A forged ledger is
+       therefore not "journalled and paid nothing" — it is not READ: the whole
+       delta, `meta.att` included, is the clean night's. */
+    ok(forgedS.att === undefined,
+      `RETREAT-W8: the forged claim journalled ${JSON.stringify(forgedS.att)} — the engine reads no `
+      + 'attended ledger, so a claim must leave no trace in the delta at all.');
     /* THE OTHER HALF, STATED SO THE RULING'S ACCEPTANCE IS PINNED RATHER THAN
        ASSUMED: a kill the server DID accept clears the counter, because the
        top-up runs `resolveKill`. That is the under-charge the designer accepted
@@ -3623,32 +3646,16 @@ async function shapeGuard() {
       `SOURCE: index.ts appears to write ${table} directly — Edge Functions never write tables`);
   }
   ok(/hr_apply\(/.test(shellCode), 'SOURCE: index.ts must go through hr_apply');
-  /* ── RETREAT-W8's PROVENANCE HALF (Designer ruling 4, 2026-09-07) ─────────
-     The attended kill ledger is the ONE input that can make `resolveKill` run
-     outside the simulation, and `resolveKill` clears the Retreat counter. So
-     where the shell got that value from is a security property, and it is not
-     visible to any runtime test of the engine: `runAccrual` cannot tell a
-     projection from a request body.
-     TWO SHAPES ARE LEGAL — `attendedIn` (the value read out of the seed
-     transaction) and `step.attended` (the degrade ladder's copy of it, which
-     is `null` on every rung). Anything else assigned to `attended:` is a new
-     door, and this goes red until somebody names it here. */
-  /* THE TERMINATOR IS LOAD-BEARING. `attended: Record<string, unknown> | null`
-     is a TYPE annotation, not a value, and it is the shape the degrade ladder's
-     own interface is declared with — so the scan requires the identifier to be
-     followed by an object/statement terminator, which a generic never is. */
-  const attendedArgs = [...shellCode.matchAll(/\battended\s*:\s*([A-Za-z_$][\w$.]*)\s*[,;}]/g)]
-    .map((mm) => mm[1]);
-  ok(attendedArgs.length > 0, 'SOURCE: index.ts no longer passes an attended ledger at all');
-  for (const a of attendedArgs) {
-    ok(a === 'attendedIn' || a === 'step.attended',
-      `SOURCE: index.ts passes attended: ${a}. The attended kill ledger may only come from the `
-      + 'hr_attended_kills projection read inside the seed transaction — it pays kills through '
-      + 'resolveKill, which clears the Retreat counter, so a body-sourced value would let a client '
-      + 'disarm a server-owned rule by claiming kills.');
-  }
-  ok(/const\s+attendedEnv\s*=\s*seedRow\s*\??\.\s*attended\b/.test(shellCode),
-    'SOURCE: attendedEnv is no longer read off the seed row — the projection IS the provenance');
+  /* ── RETREAT-W8's PROVENANCE HALF, INVERTED (lane C2) ─────────────────────
+     The attended kill ledger was the ONE input that could make `resolveKill`
+     run outside the simulation. It is GONE (ruling HR-2026-10-14 §3: the
+     attended top-up and hr_credit_kills are deleted), so the shell may not pass
+     an `attended` value at all, and may not read hr_attended_kills: a revived
+     door is a client-claimed kill count reaching the engine again. */
+  ok(!/attended\s*:\s*[A-Za-z_$]/.test(shellCode),
+    'SOURCE: index.ts passes an `attended` value to the engine again — the attended top-up is deleted');
+  ok(!/hr_attended_kills/.test(shellCode),
+    'SOURCE: index.ts reads hr_attended_kills again — the attended kill ledger is deleted');
   /* AND THE COUNTER ITSELF IS NEVER CLIENT-SOURCED. `consecFalls` is seeded
      from hr_state_of's projection and proposed back; an assignment reading the
      parsed intent would be the same defect one field over. */
@@ -3910,7 +3917,6 @@ async function shellGuard() {
     'seed',             // hr_seed over the window label, the seed transaction
     'perks',            // hr_perks_of, the seed transaction
     'unlockedRecipes',  // hr_perks_of's own field
-    'attended',         // hr_attended_kills, the seed transaction
     'bestiaryKills',    // hr_bestiary_of, behind its own savepoint
     'crew',             // env.workers, but consumed by accrueWorkers, not computeAccrual
     'workersAccruedToMs', // ditto — the crew's own watermark
@@ -3919,6 +3925,11 @@ async function shellGuard() {
     'callerAuthority',  // an imported object identity
     'items', 'monsters', 'nodes', 'recipes',  // the generated catalogues
     'companionXpBacked',                      // a deploy-time constant
+    /* HUNT SESSIONS (lane C2). The session, its window and its seed key come
+       from hr_hunt_engine_read (hunt_sessions / hunt_bag / player_action_sets
+       + hr_seed) in the settle's own read, never from hr_state_of; `huntOpen`
+       is hr_hunt_open_of on the accrue/collect paths. */
+    'huntSession', 'huntWindow', 'huntSecret', 'huntOpen',
   ]);
   /* Declared by the map and NOT read by the engine. One entry, and it is
      honest: both call sites have always passed `gold` and accrual.js has never

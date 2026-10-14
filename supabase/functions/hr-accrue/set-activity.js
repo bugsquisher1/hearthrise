@@ -59,6 +59,10 @@ import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
 } from './intents.js';
+/* HUNT SESSIONS (lane C2): the one hunt settle, and the cheap "is a hunt
+   open?" read. A hunter's window is the SESSION's — a collect for a hunter is a
+   hunt settle, and a hunter may not switch (hr_hunt_leave moves the pointer). */
+import { settleHunt, huntOpenOf, HUNT_SETTLE_MIN_MS } from './hunt-settle.js';
 import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -289,45 +293,12 @@ export const READ_SQL = `
    forgetting does not fail, it just leaves one client path guessing, which is
    the one thing a client is never allowed to do. */
 
-/* ⚠ THE ATTENDED KILL LEDGER IS READ HERE TOO, AND THAT IS NOT OPTIONAL.
-   The MEASURED production window (docs/design/attended-loot-credit.md §0) was
-   settled by THIS verb, not by the accrue verb: `player_ledger` #13175 (the
-   accrue row) is timestamped 16:10:02.395 and the `set_activity:idle` that
-   produced it 16:10:02.789. A player who taps STOP is the ordinary end of an
-   attended fight, and a collect that skipped the top-up would advance
-   `accrued_to` past the credit rows and confiscate exactly the loot this change
-   exists to pay. Two callers of one engine is a drift generator (see the A14
-   note below); this is the field where drift would be silent AND total. */
-/* ⚠ $5 IS THE UPPER EDGE OF THE ATTENDED WINDOW (Security condition C6) and it
-   is the instant `accrued_to` will advance to — `new Date(nowMs).toISOString()`,
-   the same string the engine writes as the watermark, derived from THIS call's
-   READ_SQL `now()`. This statement runs after that read, so a window bounded
-   only below by `accrued_to` would project credit rows committed in the gap: paid
-   here, and projected again on the next settle. hr_attended_kills clamps it with
-   `least(p_upto, now())`, so a wrong value can only ever pay LESS.
-   ⚠ THIS CALLER IS `caller: 'collect'` (below), and that is what keeps the
-     sentence "it is the instant `accrued_to` will advance to" literally true
-     here after 2026-09-16. The accrue verb now defers an uncapped window's
-     sub-tick remainder (accrual.js `settledWatermarkMs`); a COLLECT has no next
-     call to defer into, so the engine refuses to move it and this collect still
-     settles to `nowMs` exactly. */
+/* THE SEED + PERK READ, and its one fallback for a database that predates
+   hr_perks_of (a missing FUNCTION is a hard 42883 that aborts the statement,
+   so the "safe in either order" property is restored by catching 42883 AND
+   ONLY 42883 and retrying without it). Mirrors index.ts. The attended-kill rung
+   is gone with the attended top-up (lane C2). */
 const SEED_SQL = `
-  select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
-         public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
-         public.hr_perks_of($1::uuid, $2::int)                              as perks,
-         public.hr_attended_kills($1::uuid, $2::int, $5::timestamptz)       as attended`;
-
-/* The same read WITHOUT the attended ledger, for a database that has not applied
-   2026-09-10-attended-loot-credit.sql, and then WITHOUT the perk channel too for
-   one that predates that. A missing COLUMN reads as null; a missing FUNCTION is
-   a hard 42883 that aborts the statement, so the "safe in either order" property
-   the tool_carry column has by construction has to be restored by hand here — by
-   catching 42883 AND ONLY 42883 and retrying. Mirrors index.ts.
-   THREE RUNGS, NOT TWO, because the two absences are INDEPENDENT: the ordinary
-   database on the day this ships HAS hr_perks_of and has NOT got the attended
-   read, and one combined fallback would silently drop the perk channel on every
-   one of them — under-paying every bonus in the game to fix an unrelated gap. */
-const SEED_SQL_NO_ATTENDED = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
          public.hr_perks_of($1::uuid, $2::int)                              as perks`;
@@ -337,12 +308,10 @@ const SEED_SQL_NO_PERKS = `
 
 /* ⚠ THE BESTIARY COUNTERS ARE READ IN THEIR OWN STATEMENT, NOT FOLDED INTO
    SEED_SQL, AND THAT IS THE WHOLE POINT (charms phase 2).
-   The ladder above has THREE rungs for TWO independent absences already, and its
-   own comment says why a fourth capability there would need eight: a database
-   that has hr_perks_of and hr_attended_kills but not hr_bestiary_of would 42883
-   on the full rung and fall through to SEED_SQL_NO_ATTENDED — silently dropping
-   the attended loot top-up to price a 3% drop bonus. Under-paying a real feature
-   to arm a smaller one is never the trade. `exec` runs one statement in its own
+   Folded into the ladder above, a database that has hr_perks_of but not
+   hr_bestiary_of would 42883 on the full rung and fall through to the no-perks
+   rung — silently dropping every perk to price a 3% drop bonus. Under-paying a
+   real feature to arm a smaller one is never the trade. `exec` runs one statement in its own
    transaction (index.ts), so a 42883 here aborts nothing else and costs one
    pooled transaction on a verb that already takes three — and only on the path
    that actually has a window to pay.
@@ -435,6 +404,17 @@ export async function runSetActivity(o) {
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
     };
   }
+  /* ── A FIGHT IS A HUNT (ruling HR-2026-10-14, lane C2) ───────────────────
+     There is no combat pointer outside a hunt session any more: hr_hunt_enter
+     opens one (bag, action bar, limits) and only the hunt settle prices it. A
+     `combat` declaration is therefore refused on SHAPE — before the rate gate,
+     before any database work, nothing written, nothing spent. */
+  if (decl.kind === 'combat') {
+    return {
+      status: 409,
+      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED, kind: decl.kind, id: decl.id },
+    };
+  }
   /* The same early answer for the other payable kind. Both catalogues, one
      rule — a kind that can be SET but whose id is never checked here would
      reach hr_apply, which refuses it correctly but one round trip later and
@@ -495,6 +475,22 @@ export async function runSetActivity(o) {
     return { status: 409, body: { ok: false, error: (env && env.error) || INTENT_ERRORS.NO_CHARACTER } };
   }
   const st = env.state;
+
+  /* ── (1a) ON A HUNT? (lane C2) ───────────────────────────────────────────
+     The pointer belongs to the session (C1's guard refuses any other writer
+     with `hunt_open`); leaving is hr_hunt_leave, changing hunt hr_hunt_change.
+     Answered here, after the read and BEFORE the collect, so nothing is
+     settled for a switch that cannot happen. */
+  if (st.active_kind === 'combat' && await huntOpenOf(exec, user, slot)) {
+    return {
+      status: 409,
+      body: await refusalBody({
+        exec, verb: VERB, user, slot, decorate: decorateActivity,
+        refusal: { error: INTENT_ERRORS.HUNT_OPEN },
+        fallback: env,
+      }),
+    };
+  }
 
   /* ── (1b) KNOCKED OUT? (First-Night Idle Rescue) ─────────────────────────
      A character inside their recovery window may not START A FIGHT. The rule is
@@ -823,6 +819,31 @@ export async function collectCurrentWindow(o) {
   const { exec, user, slot, env, st, nowMs, capMs } = o;
   const pointerSurvives = o.pointerSurvives === true;
 
+  /* ── A HUNTER'S WINDOW IS THE SESSION'S (lane C2) ────────────────────────
+     Every settle-before-mutate verb and every switch's collect arrives here,
+     so this is the ONE place a hunter is routed: the open session is settled
+     through the ONE hunt settle (./hunt-settle.js, hr_hunt_apply) up to now, at
+     the state BEFORE the verb mutates anything — Security F1's rule, kept. A
+     purchase (the pointer survives) keeps the ACCRUE_MIN_MS floor; a switch
+     (equip / enchant) settles whatever is open. */
+  const huntSid = st.active_kind === 'combat' ? await huntOpenOf(exec, user, slot) : null;
+  if (huntSid) {
+    const v = await settleHunt({
+      exec, user, slot, mode: 'settle', bucket: null, session: huntSid,
+      minWindowMs: pointerSurvives ? HUNT_SETTLE_MIN_MS : 0, project: true,
+    });
+    if (v.outcome === 'paid') {
+      const b = v.body || {};
+      return { outcome: 'paid', version: b.version ?? env.version,
+        env: (b.state ? b : null), receipt: null };
+    }
+    if (v.outcome === 'nothing' || v.outcome === 'none') {
+      return { outcome: 'nothing', version: env.version, reason: v.reason || 'nothing_accrued' };
+    }
+    return { outcome: 'refused', version: null, error: v.reason || 'hunt_settle_refused',
+      detail: (v.body && v.body.detail) || null };
+  }
+
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
   /* ⚠ THE CHEAP EXIT IS GONE (b531), AND ITS REMOVAL IS THE FIX.
@@ -867,35 +888,21 @@ export async function collectCurrentWindow(o) {
   const seedArgs = [
     user, slot, `accrue:${String(st.accrued_to)}`, `intent:accrue:${String(st.accrued_to)}`,
   ];
-  /* $5 for SEED_SQL only — the two fallbacks below take four. See SEED_SQL. */
-  const seedArgsUpto = [...seedArgs, new Date(nowMs).toISOString()];
   let seedRow;
   try {
-    [seedRow] = await exec(SEED_SQL, seedArgsUpto);
+    [seedRow] = await exec(SEED_SQL, seedArgs);
   } catch (e) {
     /* ONLY 42883 (undefined_function) degrades. Anything else propagates —
        a swallowed error is how a guard reports SKIPPED and gets read as a
-       pass. See SEED_SQL_NO_PERKS above. */
+       pass. */
     if (String((e && e.code) ?? '') !== '42883') throw e;
-    /* Drop the NEWER capability first, so the common case — perks present,
-       attended read not yet applied — keeps its perk channel. */
-    try {
-      [seedRow] = await exec(SEED_SQL_NO_ATTENDED, seedArgs);
-    } catch (e2) {
-      if (String((e2 && e2.code) ?? '') !== '42883') throw e2;
-      [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
-    }
+    [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
   }
   const salt = String((seedRow && seedRow.salt) ?? '');
   /* `ok !== true` covers "no character" and any future refusing shape. null →
      EMPTY_PERKS in the engine → 0 for every key → pre-b349 behaviour. */
   const perkEnv = seedRow && seedRow.perks;
   const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
-  /* THE ATTENDED KILL LEDGER. Same shape, same `ok !== true` rule, same null →
-     "propose nothing new". Every count in it was written by hr_credit_kills into
-     a table no client role may write. Nothing here is request-derived. */
-  const attendedEnv = seedRow && seedRow.attended;
-  const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
   /* THE BESTIARY COUNTERS (charms phase 2). Same rule as every other optional
      server read on this path: ONLY 42883 degrades, to null, which the engine
@@ -957,14 +964,10 @@ export async function collectCurrentWindow(o) {
          expand the spread and still compare the two call sites field by field
          — do not "fix" a red one by relaxing it. */
     ...engineInputsFromEnvelope(env, nowMs),
-    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). A collect
-       run by a STOP gesture is the single most common end of an attended fight —
-       the measured production window was settled by this very call — so a
-       collect without it would advance `accrued_to` past the credit rows and
-       confiscate the loot the top-up exists to pay. There is no degrade ladder
-       on this verb, so no `attended: null` rung: a switch either tops up or the
-       function is absent. */
-    attended: attendedIn,
+    /* A HUNT IS OPEN — never true here (a hunter was routed to the hunt settle
+       above), and passed anyway so the engine itself refuses `hunt_open` if
+       that routing is ever bypassed. Mirrors index.ts field for field (A14). */
+    huntOpen: huntSid !== null,
     capMs,
     seed: Number(seedRow && seedRow.seed) || 0,
     /* THE BESTIARY COUNTERS (charms phase 2). Read above in its own statement;

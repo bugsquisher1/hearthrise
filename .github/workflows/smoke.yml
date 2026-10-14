@@ -4292,7 +4292,7 @@ jobs:
       # field; peers stand at their activity's station by sorted name, an empty
       # plaza prints no count; furniture is REPLACED per envelope (kitchen
       # 2 -> 3 -> {}); the mill hatch only navigates; steering + the 3 s walk
-      # home to the station. --selftest plants 13 defects.
+      # home to the station. --selftest plants 14 defects.
       - name: World town and home - mutation proof
         if: ${{ !cancelled() }}
         run: node tests/world-town-home.mjs --selftest

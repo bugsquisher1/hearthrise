@@ -47,7 +47,9 @@ export function createSteer(map, at) {
   const { w, h } = map;
   let mask = map.mask;
   let x = at[0], y = at[1], dir = 's';
-  let legs = [], leg = null, restSince = 0, goal = null, tapped = false;
+  /* restSince starts at the first moment anyone asks: a hero that has just
+     arrived on the map has been standing for no time at all. */
+  let legs = [], leg = null, restSince = null, goal = null, tapped = false;
 
   /** Plan on a mask where the hero's own tile is open (furniture may appear under it). */
   function plan(from, to) {
@@ -99,7 +101,10 @@ export function createSteer(map, at) {
       return { x, y, dir, moving: !!leg };
     },
     /** How long the hero has stood still (0 while walking). */
-    restMs(now) { return leg ? 0 : Math.max(0, now - restSince); },
+    restMs(now) {
+      if (restSince === null) restSince = now;
+      return leg ? 0 : Math.max(0, now - restSince);
+    },
     /** The tile the hero is walking to, and whether a tap sent it there; null when standing. */
     goal() { return goal ? { x: goal[0], y: goal[1], byTap: tapped } : null; },
     /** The tile the hero stands on (or is stepping onto). */

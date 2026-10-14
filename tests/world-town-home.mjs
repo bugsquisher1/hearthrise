@@ -249,6 +249,10 @@ function check(M) {
     ok('S', ws.cell().join() === station.join() && f.mark === null, 'a hero left alone must walk to its gather station ' + station.join() + ', is at ' + ws.cell().join());
     for (let t = 15000; t <= 30000; t += 250) f = ws.frame(ENV({ kind: 'gather' }), t);
     ok('S', ws.cell().join() === station.join() && f.hero.anim === 'idle', 'at its station the hero stays and idles');
+    const t0 = 1.7e12;   // a wall clock, as the pane passes Date.now()
+    const fresh = M.walk.createWalkScene(town, { at: null, sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    for (let t = t0; t < t0 + 2900; t += 100) fresh.frame(ENV({ kind: 'gather' }), t);
+    ok('S', fresh.cell().join() === town.start.join(), 'a hero who has just arrived must stand IDLE_TO_STATION_MS before heading off, moved to ' + fresh.cell().join());
     const lean = f.camera;
     ok('S', lean && town.focus && Math.abs(lean.x - (station[0] + town.focus[0]) / 2) < 1e-9, 'the camera leans halfway to the town\'s focus');
   });
@@ -291,6 +295,7 @@ const MUTANTS = [
   ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["      win.showTab('combat');\n", "      win.showTab('combat');\n      if (win.HearthriseCombatScreens) win.HearthriseCombatScreens.startHunt(id);\n"]]],
   ['S', 'a corner-cutting walk', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['S', 'the hero never goes back to its station', 'src/world/walk-scene.js', [['if (sentTo !== key) { sentTo = key; steer.walkTo(station, now, false); }', 'void key;']]],
+  ['S', 'a hero just arrived counts as long idle', 'src/world/steer-local.js', [['let legs = [], leg = null, restSince = null,', 'let legs = [], leg = null, restSince = 0,']]],
 ];
 
 async function selftest() {

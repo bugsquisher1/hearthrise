@@ -166,9 +166,16 @@ export async function bootWorld(panel) {
     }
     const f = walk.frame(readEnv(G, map.kind), now);
     notePos(G, map.id, f.hero.x, f.hero.y);
-    lastWalk = { hero: f.hero, cell: walk.cell(), units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
-      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })), bubbles: f.bubbles.map((b) => b.text), mark: f.mark };
+    lastWalk = f;
     return f;
+  }
+
+  /** The last walk frame, as a test reads it. */
+  function walkStats() {
+    const f = lastWalk;
+    return f && { hero: f.hero, cell: walk.cell(), mark: f.mark, bubbles: f.bubbles.map((b) => b.text),
+      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
+      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
   }
 
   function step(dt) {
@@ -283,7 +290,7 @@ export async function bootWorld(panel) {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: lastWalk, hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);

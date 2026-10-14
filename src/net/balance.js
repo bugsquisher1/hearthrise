@@ -345,7 +345,8 @@ export function countMarkup(n, o) {
 export function paintBalance(el, G, field, opts) {
   if (!el || typeof el !== 'object') return el;
   const b = balanceForDisplay(G, field);   // b455 — display read (see fmtBalance)
-  el.textContent = fmtBalance(G, field, opts);
+  const text = fmtBalance(G, field, opts);
+  if (el.textContent !== text) el.textContent = text;   // a frame repaints this; same text writes nothing
   if (el.classList && typeof el.classList.toggle === 'function') {
     el.classList.toggle(PENDING_CLASS, !b.known);
   }

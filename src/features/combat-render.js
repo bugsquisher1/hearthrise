@@ -86,7 +86,7 @@ function renderMonsterList() {
         ${right}
       </button>`;
     }).join('');
-  el.innerHTML = list || '<div class="empty">No monsters in this tier.</div>';
+  window.HearthrisePaint.html(el, list || '<div class="empty">No monsters in this tier.</div>');
 }
 
 /* b213 (phase 2): the tier is saved on G, but the chips' active state was
@@ -98,8 +98,7 @@ function syncTierChips() {
   document.querySelectorAll('#tier-chips .chip').forEach((c) => {
     c.classList.toggle('active', parseInt(c.dataset.tier || '1', 10) === tier);
   });
-  const sub = document.getElementById('combat-picker-sub');
-  if (sub) sub.textContent = `Tier ${tier}`;
+  window.HearthrisePaint.text(document.getElementById('combat-picker-sub'), `Tier ${tier}`);
 }
 
 function setupTierChips() {

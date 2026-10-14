@@ -991,6 +991,9 @@
        calling HearthriseIcons.installIconLayer() at the exact point block 38
        used to run; tests/icon-boot-order.mjs guards that ordering. -->
   <script src="src/render/icons.js?v=582"></script>
+  <!-- The repaint seam (HearthrisePaint): before legacy.js, whose renderers
+       call it from their first paint. -->
+  <script src="src/render/paint.js?v=582"></script>
   <script src="src/render/fight-warning.js?v=582"></script>
   <script src="src/render/retreat.js?v=582"></script>
   <!-- The activity tile's click router. Classic and BEFORE legacy.js for the

@@ -1532,7 +1532,7 @@
       });
       portrait.appendChild(btn);
     }
-    btn.textContent = uploading ? 'Working…' : (avatarIsCustom() ? 'Change portrait' : 'Upload portrait');
+    window.HearthrisePaint.text(btn, uploading ? 'Working…' : (avatarIsCustom() ? 'Change portrait' : 'Upload portrait'));
     btn.disabled = uploading;
     btn.title = 'PNG, JPG or WEBP. Cropped square to ' + AVATAR_PX + '×' + AVATAR_PX + '.';
 

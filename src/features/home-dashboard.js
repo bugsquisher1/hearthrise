@@ -1537,8 +1537,8 @@
 
     html += '</div></div></div>';
 
-    root.innerHTML = html;
-    wire(root, resume);
+    window.HearthrisePaint.html(root, html);
+    wire(root, resume);   // onclick assignments: safe to re-run over kept nodes
   }
 
   function wire(root, resume) {

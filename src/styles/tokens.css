@@ -703,6 +703,15 @@ body[data-theme="hearthlight"] {
   --world-float-kill:    #ffb347;
   --world-float-miss:    #a9a39a;
   --world-float-hurt:    #ff6a55;
+  /* the town and the home (src/world/{town,home}-scene.js): other players
+     (dimmer when away), room signposts, the crier's bubble, the walk mark */
+  --world-plate-peer:    #a6e39a;
+  --world-plate-away:    #8fa489;
+  --world-plate-sign:    #e8d6a8;
+  --world-bubble-bg:     #f3ead6;
+  --world-bubble-line:   #2a2018;
+  --world-bubble-ink:    #1c1712;
+  --world-walk-mark:     rgba(242, 234, 216, .7);
   --world-hud-bg:        rgba(14, 11, 10, .86);
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;

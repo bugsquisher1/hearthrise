@@ -14,12 +14,6 @@ import { huntMapIndex } from './core/scene-route.js?v=580';
 
 export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);
 
-/** The map id for what the server says the hero is doing ({kind:'combat', id}), or null. */
-export function mapForActivity(activity) {
-  const id = activity && activity.kind === 'combat' ? activity.id : null;
-  return (id && HUNT_MAP_INDEX[id]) || null;
-}
-
 /** The hunt a map renders first: { id, name, spawns } or null. */
 export function huntOfMap(map) {
   const id = map && map.hunts && map.hunts[0];

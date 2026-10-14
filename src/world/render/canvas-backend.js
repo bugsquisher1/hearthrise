@@ -3,7 +3,8 @@
 //
 // Interface { mount, setMap, sync, snapshot, destroy } — the same as
 // null-backend.js, and both draw composeFrame()'s list over the same manifest
-// book, so what the node tests assert is what this paints.
+// book, so what the node tests assert is what this paints. The screen adds
+// pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
 //
 // One frame:
 //   1. compose at ART resolution (T = 32) on an offscreen canvas: ground
@@ -15,7 +16,8 @@
 //      vignette outdoors;
 //   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z,
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
-//   3. draw the nameplates at SCREEN resolution so text stays crisp.
+//   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
+//      resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
 import { T } from '../core/grid.js?v=580';
@@ -39,7 +41,7 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true;
-  let frames = 0, msAvg = 0, msLast = 0, last = null;
+  let frames = 0, msAvg = 0, msLast = 0, last = null, lastView = null;
 
   const sizeTo = (c, w, h) => { if (c.width !== w) c.width = w; if (c.height !== h) c.height = h; };
 
@@ -196,28 +198,74 @@ export function createCanvasBackend(o) {
       ctx.fillText(f.text, x, y);
     }
     ctx.globalAlpha = 1;
-    for (const p of list.plates) {
+    if (list.mark) {
+      const [x, y] = at(list.mark.x, list.mark.y);
+      ctx.strokeStyle = tone('walk-mark');
+      ctx.lineWidth = Math.max(2, unitPx);
+      ctx.beginPath();
+      ctx.ellipse(x, y, 9 * z, 4 * z, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    /* Names never print over each other: yours first, then each plate that would
+       touch one already placed steps up a line until it is clear. */
+    const placed = [];
+    for (const p of list.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'))) {
       const px = font(p.kind === 'self' ? 5 : 4.5);
       ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       ctx.lineWidth = Math.max(2, Math.round(px / 6));
       ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
-      const [x, y] = at(p.x, p.y - 3);
+      const [ax, y0] = at(p.x, p.y - 3);
+      const half = ctx.measureText(p.text).width / 2 + px / 3;
+      /* a name whose owner is (even half) on the canvas slides in from the edge rather than being cut */
+      const x = ax >= -16 * z && ax <= W + 16 * z ? Math.max(half, Math.min(W - half, ax)) : ax;
+      let y = y0;
+      for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
+      placed.push({ l: x - half, r: x + half, t: y - px, b: y });
       ctx.strokeStyle = tone('plate-line');
       ctx.strokeText(p.text, x, y);
       ctx.fillStyle = tone('plate-' + (p.kind || 'self'));
       ctx.fillText(p.text, x, y);
     }
     ctx.globalAlpha = 1;
+    for (const b of list.bubbles || []) bubble(b, at, font(4.2));
+  }
+
+  /* A speech bubble: a boxed line with a tail, its foot on (b.x, b.y). */
+  function bubble(b, at, px) {
+    ctx.font = '600 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+    const padX = Math.round(px * 0.6), padY = Math.round(px * 0.45), tail = Math.round(px * 0.5);
+    const w = Math.ceil(ctx.measureText(b.text).width) + 2 * padX, h = px + 2 * padY;
+    const [x, y] = at(b.x, b.y);
+    /* Kept on the canvas: slid in from the sides, and dropped below the top edge (the tail is then left off). */
+    const left = Math.max(4, Math.min(W - w - 4, Math.round(x - w / 2))), top = Math.max(4, y - h - tail);
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(left, top, w, h, Math.round(px / 3));
+    else ctx.rect(left, top, w, h);
+    if (top === y - h - tail) {
+      ctx.moveTo(x - tail, top + h);
+      ctx.lineTo(x, top + h + tail);
+      ctx.lineTo(x + tail, top + h);
+    }
+    ctx.fillStyle = tone('bubble-bg');
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, Math.round(dpr));
+    ctx.strokeStyle = tone('bubble-line');
+    ctx.stroke();
+    ctx.fillStyle = tone('bubble-ink');
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.text, left + w / 2, top + h / 2);
+    ctx.textBaseline = 'bottom';
   }
 
   function draw(state) {
     const t0 = win.performance.now();
     if (dirty) measure();
     /* A map with a `frame` (a hunt room) is shown whole at the largest whole zoom
-       that fits; otherwise, and on a phone, the camera follows the hero. */
+       that fits; otherwise, and on a phone, the camera follows the hero (or the
+       point a walk scene leans it toward, `state.camera`). */
     const fit = fitZoom(map.frame, W, H, dpr, T);
     z = fit || zoomFor(win.innerHeight, dpr);
-    const fv = frameView(fit ? frameCentre(map.frame) : state.hero, W / z, H / z, map, z, T);
+    const fv = frameView(fit ? frameCentre(map.frame) : state.camera || state.hero, W / z, H / z, map, z, T);
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
     const list = composeFrame(map, book, state, view, tables, T);
@@ -249,6 +297,15 @@ export function createCanvasBackend(o) {
     msAvg = frames ? msAvg * 0.9 + msLast * 0.1 : msLast;
     frames++;
     last = list;
+    lastView = fv;
+  }
+
+  /** Device px on the canvas for a client point, and back: the last frame's camera. */
+  function toArt(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height || !lastView) return null;
+    const { view, plan } = lastView;
+    return [((clientX - r.left) * (W / r.width) - plan.dx) / z + view.ox, ((clientY - r.top) * (H / r.height) - plan.dy) / z + view.oy];
   }
 
   return {
@@ -271,6 +328,29 @@ export function createCanvasBackend(o) {
       last = null;
     },
     sync(state) { if (map && canvas) draw(state); },
+    /**
+     * What is under a client point in the last frame: { tile: [x, y], hits } —
+     * hits are the drawn props, units and decals there, top-most first. Under a
+     * roof that is showing, nothing below it is hit (the tap is on the building).
+     */
+    pick(clientX, clientY) {
+      const p = last && canvas && toArt(clientX, clientY);
+      if (!p) return null;
+      const [X, Y] = p;
+      const under = (d) => X >= d.x && X < d.x + d.w && Y >= d.y && Y < d.y + d.h;
+      const roofed = last.raised.some((d) => d.kind === 'roof' && d.alpha > 0.5 && under(d));
+      const hits = roofed ? [] : last.sprites.filter(under).reverse().concat(last.decals.filter(under).reverse())
+        .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door')
+        .map((d) => ({ id: d.id, tx: d.tx, ty: d.ty, ref: d.ref }));
+      return { tile: [Math.floor(X / T), Math.floor(Y / T)], hits };
+    },
+    /** The client point over the middle of tile (x, y) in the last frame, or null. */
+    screenOf(tx, ty) {
+      const r = canvas && lastView && canvas.getBoundingClientRect();
+      if (!r || !r.width) return null;
+      const { view, plan } = lastView;
+      return { x: r.left + (((tx + 0.5) * T - view.ox) * z + plan.dx) * (r.width / W), y: r.top + (((ty + 0.5) * T - view.oy) * z + plan.dy) * (r.height / H) };
+    },
     snapshot() {
       return {
         map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast,
@@ -284,7 +364,7 @@ export function createCanvasBackend(o) {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
       if (canvas) canvas.remove();
-      host = canvas = ctx = ro = onResize = map = last = ground = null;
+      host = canvas = ctx = ro = onResize = map = last = lastView = ground = null;
       chunks = new Map();
     },
   };

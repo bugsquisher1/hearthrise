@@ -439,6 +439,8 @@
     "node tests/world-core.mjs": "client-guards",
     "node tests/world-hunt.mjs --selftest": "client-guards",
     "node tests/world-hunt.mjs": "client-guards",
+    "node tests/world-town-home.mjs --selftest": "client-guards",
+    "node tests/world-town-home.mjs": "client-guards",
     "node tests/guard-hygiene.mjs --selftest": "client-guards",
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",

@@ -102,6 +102,19 @@ const RECORDED_ENGINE = {
     [/^import \{ pickSpawn \} from '\.\/hunt-spawn\.js\?v=\d+';\n/m, ''],
     ["  /* RESPAWN. A training fight respawns the same foe (the behaviour both loops\n     had). A HUNT (lane C1, src/data/hunts.js) rolls the next foe from its\n     weighted spawns on THIS engine's seeded rng, after every other draw this\n     kill made — one function, not branched on `ctx.away`, so the attended tick\n     and the away span roll the same sequence (AWAY-1). A one-spawn hunt draws\n     nothing. An id the roster does not know keeps the current foe. */\n  const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;\n  const next = (nextId !== id && ctx.monsters && ctx.monsters[nextId]) || null;\n  if (next) {\n    state.activeMonster = nextId;\n    state.combatKillsThisFoe = 0;\n  }\n  state.monsterHp = (next || m).hp;\n  state.monsterMaxHp = (next || m).hp;\n",
       "  /* Respawn the same foe and keep fighting — the behaviour both loops had. */\n  state.monsterHp = m.hp;\n  state.monsterMaxHp = m.hp;\n"],
+    /* Lane E (hunt sessions) post-dates it too: the recovery import split, the
+       quiver-is-the-bag spend, the action bar in Auto-Eat's place, the Retreat
+       gate and the session span are undone here, exactly. */
+    [/^import \{ AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments,\n {9}retreatAtFall, DAY_MS \} from '\.\/away\.js\?v=(\d+)';\nimport \{ recoveryFor, resumeHpFor \} from '\.\/recovery\.js\?v=\d+';\n[\s\S]*?import \{ runActionBar[^\n]*\n/m,
+      "import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments,\n         retreatAtFall } from './away.js?v=$1';\n"],
+    [/^\/\* A HUNT'S QUIVER IS ITS BAG[\s\S]*?\n\}\n\n(?=export function simulateTick)/m, ''],
+    ['  const hunt = state.huntSession || null;\n  const supply = hunt ? spendFromQuiver(state, hunt, ctx) : spendForSwings(state, 1, ctx);',
+      '  const supply = spendForSwings(state, 1, ctx);'],
+    ["const ate = hunt ? runActionBar(state, ctx) : !!call(fx, 'autoEat', ctx);", "const ate = !!call(fx, 'autoEat', ctx);"],
+    ['  /* A hunt session ends on its own `falls` limit (action-rules.js END_ORDER),\n     never on the Retreat. */\n  const hasCounter = !state.huntSession && ',
+      '  const hasCounter = '],
+    [/^\/\* THE HUNT SPAN'S TWO STATE REPAIRS[\s\S]*?(?=^export function simulateSpan)/m, ''],
+    ['  if (state && state.huntSession) return simulateHuntSpan(state, ctx);\n', ''],
   ],
   stampV: '563',
   sha256: RECORDED_SRC_SHA256,

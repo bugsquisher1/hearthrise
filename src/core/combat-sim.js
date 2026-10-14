@@ -548,12 +548,10 @@ export function resolveTickMs(ctx) {
   return Math.max(floor, asked);
 }
 
-/* Repair the in-flight fight before simulating it. `monsterHp` and
-   `playerHp` are NO_SYNC (they belong to the device you are fighting on),
-   so a save restored FROM THE CLOUD arrives with an activeMonster and no
-   hit points. `Math.max(0, undefined - dmg)` is NaN, `NaN <= 0` is false,
-   and the replay would then run every tick of a twelve-hour absence
-   without ever landing a kill. */
+/* THE HUNT SPAN'S TWO STATE REPAIRS. The away span below keeps its own inline
+   copies byte-for-byte until lane C2 deletes that span with the away model
+   (ruling §3); these two are what survives it.
+   Repair: a fight whose HP never reached this process (NaN would never kill). */
 function repairFight(state, ctx) {
   if (!state.activeMonster) return;
   const m0 = (ctx.monsters || {})[state.activeMonster];
@@ -565,10 +563,7 @@ function repairFight(state, ctx) {
   if (!(state.playerHp > 0)) state.playerHp = state.playerMaxHp;
 }
 
-/* UP AGAIN, SAME FOE AT FULL HP, the character at 40% (recovery.js
-   `resumeHpFor`). Stated here rather than left to `resolveDeath` because a
-   window can OPEN mid-recovery, in which case no death happened inside it and
-   nobody stood the character up. */
+/* Up again: same foe at full HP, the character at 40% (recovery.js). */
 function standUp(state, ctx) {
   const mr0 = (ctx.monsters || {})[state.activeMonster];
   if (mr0) { state.monsterMaxHp = mr0.hp; state.monsterHp = mr0.hp; }
@@ -650,7 +645,7 @@ function simulateHuntSpan(state, ctx) {
     const swing = hs.swingIndex;
     hs.swingIndex = swing + 1;
     hs.nextSwingAtMs = atMs + tickMs;
-    if (recoverUntilMs > atMs) {
+    if (atMs < recoverUntilMs) {
       drain();
       recoverMs += tickMs;
       hs.tally.downMs += tickMs;
@@ -688,9 +683,10 @@ function simulateHuntSpan(state, ctx) {
       state.activeMonster = facing;
       downed = true;
       const rec = Number(r.recoverMs) || 0;
-      if (rec > 0) recoverUntilMs = atMs + tickMs + rec;
-      deathLog.push({ atMs: atMs + tickMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp });
-      events.push({ type: 'fall', atMs: atMs + tickMs, monster: facing });
+      const fellAtMs = hs.nextSwingAtMs;
+      if (rec > 0) recoverUntilMs = fellAtMs + rec;
+      deathLog.push({ atMs: fellAtMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp });
+      events.push({ type: 'fall', atMs: fellAtMs, monster: facing });
       continue;
     }
     if (r.outcome === OUTCOME.STOP) break;
@@ -734,7 +730,23 @@ export function simulateSpan(state, ctx) {
   const tickMs = resolveTickMs(ctx);
   const segments = utcDaySegments(ctx.fromMs, ctx.toMs);
   const rate = rateMult(ctx);
-  repairFight(state, ctx);
+
+  /* Repair the in-flight fight before simulating it. `monsterHp` and
+     `playerHp` are NO_SYNC (they belong to the device you are fighting on),
+     so a save restored FROM THE CLOUD arrives with an activeMonster and no
+     hit points. `Math.max(0, undefined - dmg)` is NaN, `NaN <= 0` is false,
+     and the replay would then run every tick of a twelve-hour absence
+     without ever landing a kill. Silent, total, and only on the cross-device
+     path — the one nobody replays locally. */
+  if (state.activeMonster) {
+    const m0 = (ctx.monsters || {})[state.activeMonster];
+    if (m0) {
+      if (!(state.monsterMaxHp > 0)) state.monsterMaxHp = m0.hp;
+      if (!(state.monsterHp > 0)) state.monsterHp = state.monsterMaxHp;
+    }
+    if (!(state.playerMaxHp > 0)) state.playerMaxHp = 10;
+    if (!(state.playerHp > 0)) state.playerHp = state.playerMaxHp;
+  }
 
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0;
   let died = false; let featuredMs = 0; let featuredDropMult = 1;
@@ -928,7 +940,13 @@ export function simulateSpan(state, ctx) {
         if (downed) {
           downed = false;
           recoverUntilMs = 0;
-          standUp(state, ctx);
+          const mr0 = (ctx.monsters || {})[state.activeMonster];
+          if (mr0) { state.monsterMaxHp = mr0.hp; state.monsterHp = mr0.hp; }
+          /* 40%, NOT full (away.js `resumeHpFor`). Restated here rather than
+             left to `resolveDeath` because a window can OPEN mid-recovery, in
+             which case no death happened inside it and nobody stood the
+             character up. Same function, so the two cannot disagree. */
+          state.playerHp = resumeHpFor(state.playerMaxHp);
         }
         /* THE TICK CLOCK, for a caller that needs to attribute this tick's XP to
            an instant (the away combat-XP settle clamps its credited window to

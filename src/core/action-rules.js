@@ -206,6 +206,8 @@ export function runActionBar(state, ctx) {
   const d = fireRules(v);
   hs.presses = d.keep;
   let ate = false;
+  /* A heal line only heals and a buff line only buffs, whatever else the item
+     does when eaten by hand: Auto-Eat's b163/b220 rules, kept. */
   for (const u of d.uses) {
     if (u.group === 'heal') {
       state.playerHp = Math.min(state.playerMaxHp, state.playerHp + SUPPLIES[u.id].heals);

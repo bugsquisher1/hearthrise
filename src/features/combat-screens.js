@@ -41,20 +41,30 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=576';
-import { ITEMS } from '../data/items.js?v=576';
-import * as ST from './session-tally.js?v=576';
-import { fill } from './signposts.js?v=576';
-import { foeFamily } from '../render/foe-family.js?v=576';
-import { weaknessWords } from '../render/foe-weakness.js?v=576';
-import { SIGNPOSTS } from '../data/signposts.js?v=576';
-import { compactNumber } from '../net/balance.js?v=576';
-import { HUNTS } from '../data/hunts.js?v=576';
-import { BOSSES } from '../data/bosses.js?v=576';
-import { nextCharmAt } from '../core/charms.js?v=576';
+import { MONSTERS } from '../data/monsters.js?v=577';
+import { ITEMS } from '../data/items.js?v=577';
+import * as ST from './session-tally.js?v=577';
+import { fill } from './signposts.js?v=577';
+import { foeFamily } from '../render/foe-family.js?v=577';
+import { weaknessWords } from '../render/foe-weakness.js?v=577';
+import { SIGNPOSTS } from '../data/signposts.js?v=577';
+import { compactNumber } from '../net/balance.js?v=577';
+import { HUNTS } from '../data/hunts.js?v=577';
+import { BOSSES } from '../data/bosses.js?v=577';
+import { nextCharmAt } from '../core/charms.js?v=577';
 
-/** The Adventures window's tabs, in order. */
-const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Training']];
+/** The Adventures window's tabs, in order. The single-monster list keeps its
+    `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
+    with most foes moved into hunts, that is the word they look for. */
+const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Monsters']];
+
+/* THE ONE NOTICE AT THE TOP OF THE WINDOW. Dismissal is a display preference
+   (`G.noticesSeen[id]`, residue), so a NEW id shows again and an old one stays
+   gone across reloads. Plain words; nothing here gates or pays. */
+const WT_NOTICE = Object.freeze({
+  id: 'hunts-arrive',
+  text: 'Big changes are underway: fighting now happens in hunting grounds, and more hunts are coming. Every monster is still in the Monsters tab.',
+});
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -541,6 +551,7 @@ function ensureStructure() {
   views.className = 'cbt-views';
   views.innerHTML = `
     <section class="wt-view" aria-label="War Table">
+      <div class="wt-notice" id="wt-notice" role="status" hidden></div>
       <div class="wt-ribbon" id="wt-ribbon" hidden></div>
       <div class="wt-dest-rail" id="wt-dest-rail" tabindex="0" role="group" aria-label="Destinations — scrolls sideways"><div class="wt-dests" id="wt-dests"></div></div>
       <div class="wt-tabs" id="wt-tabs" role="tablist" aria-label="Adventures">${WT_TABS.map(([k, label]) =>
@@ -753,6 +764,8 @@ function onPanelClick(e) {
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
     else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
     else if (act === 'wtab') { setTab(btn.dataset.wtab); }
+    else if (act === 'notice-ok') { dismissNotice(); }
+    else if (act === 'notice-monsters') { setTab('training'); }
     else if (act === 'fav') { toggleFav(btn.dataset.hunt); }
     else if (act === 'hunt') { startHunt(btn.dataset.hunt); }
     else if (act === 'tier') {
@@ -1120,7 +1133,7 @@ function renderGrid() {
 /* ══════════════════════════════════════════════════════════════════════
    5b · THE ADVENTURES WINDOW
    Four tabs over one screen: Hunts (a themed place, the server picks each foe
-   from its spawn table), Bosses, Dungeons, and Training (the single-monster
+   from its spawn table), Bosses, Dungeons, and Monsters (the single-monster
    list with its tier and class chips). Every lock states its reason; nothing
    here computes a number the server owns — charm progress is the server's
    kill counters (HearthriseCharms), the last XP/h is the server's figure or
@@ -1317,8 +1330,37 @@ function renderDungeonRows() {
   host.innerHTML = html;
 }
 
+function noticeSeen(id) {
+  const g = G(); const s = g && g.noticesSeen;
+  return !!(s && typeof s === 'object' && s[id] === true);
+}
+
+function renderNotice() {
+  const host = document.getElementById('wt-notice');
+  if (!host) return;
+  const off = noticeSeen(WT_NOTICE.id);
+  if (host.hidden !== off) host.hidden = off;
+  if (off || host.dataset.sig === WT_NOTICE.id) return;
+  host.dataset.sig = WT_NOTICE.id;
+  host.innerHTML = `<p class="wt-notice-text">${esc(WT_NOTICE.text)}</p>` +
+    '<div class="wt-notice-acts">' +
+    '<button type="button" class="btn btn-sm" data-cs-act="notice-monsters">Open Monsters</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" data-cs-act="notice-ok">Got it</button></div>';
+}
+
+function dismissNotice() {
+  const g = G();
+  if (!g) return;
+  const seen = (g.noticesSeen && typeof g.noticesSeen === 'object' && !Array.isArray(g.noticesSeen)) ? { ...g.noticesSeen } : {};
+  seen[WT_NOTICE.id] = true;
+  g.noticesSeen = seen;
+  try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) { /* residue rides the next put */ }
+  render();
+}
+
 function render() {
   if (!ensureStructure()) return;
+  renderNotice();
   renderRibbon();
   renderDestinations();
   syncTabs();

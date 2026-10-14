@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=576';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=577';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=576';
+import { applyClientState } from './client-state.js?v=577';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=576';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=577';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=576';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=577';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1001,7 +1001,17 @@ export function applyRecord(G, res) {
      Deep-copied for map fields, because `G[f]` is the very object a second writer
      mutates — keeping the reference would cache the corruption it exists to
      survive. Maps here are ~15 keys and this runs once per settle. */
-  const lastBase = base && base.last && typeof base.last === 'object' ? { ...base.last } : {};
+  /* ⚠ CARRIED ACROSS A FRESH REPLACE TOO (lane a-hunt-level-flicker). `known`
+     and `stamp` are rebuilt from a fresh envelope alone — right for authority —
+     but an envelope that does not restate a field says nothing about it, so the
+     last thing the server DID say is still the last thing it said. Rebuilding
+     `last` with them threw the Combat-56 hero's skills away on any skills-less
+     answer, and every held reader (the reveal's level window, the gate level)
+     fell to a fresh character until the next full envelope: the Adventures grid
+     flipping between four hunts and three. A slot change reloads the page and
+     loadLocal's forget clears `last`, so this never carries across heroes. */
+  const prevLast = G._record && G._record.last && typeof G._record.last === 'object' ? G._record.last : null;
+  const lastBase = prevLast ? { ...prevLast } : {};
   for (const f of written) lastBase[f] = cloneRecordValue(G[f]);
   G._record = {
     version,

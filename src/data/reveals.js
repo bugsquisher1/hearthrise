@@ -26,8 +26,8 @@
 // PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DUNGEONS } from './dungeons.js?v=573';
-import { count, property, workers, companions } from './spine.js?v=573';
+import { DUNGEONS } from './dungeons.js?v=574';
+import { count, property, workers, companions } from './spine.js?v=574';
 
 const skill = (id) => Object.freeze({ fact: 'skill', id });
 const holds = (ids) => Object.freeze({ fact: 'holds', ids: Object.freeze(ids.slice()) });

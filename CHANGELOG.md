@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 574 — 2026-10-14 (Hunts)
+
+**Hunts.** Fighting now happens in named hunting grounds instead of one monster at a time. Pick a hunt and your hero fights whatever lives there, with the server choosing each next foe: the Mill Cellar (rats, slimes and hive wasps), Bramble Edge (young wolves, wild boars and mandrakes), the Goblin Warren (goblins and kobolds) and Ridge Camp (hobgoblins, gnolls and stags, from Combat 15). Hunts keep going while you are away, exactly as they do while you watch. A hunt you are not strong enough for tells you the level it opens at.
+
+**Adventures window.** The war table is now split into Hunts, Bosses, Dungeons and Training tabs. Each hunt has a card showing what lives there and the level it suits, and you can star your favourites so they stay at the top.
+
+**First Steps sends you hunting.** The guide's fighting step now starts you in the Mill Cellar.
+
+**Clan rallies count every kill.** Kills from a hunt count toward your clan's rally by the monster you actually fought.
+
 ## v0.9.2-beta build 573 — 2026-10-13 (First Steps)
 
 **First Steps.** New heroes get a short guide through their first few minutes. One glowing button and one short card at a time walk you through chopping logs, catching and cooking shrimp, your first fights against the Giant Rat, selling loot, planting a seed and leaving something running. It moves on only when you actually do each thing, picks up where you left off after a reload, and hands over to the goal bar when it is done. Skip it from any card, or replay it from Settings.

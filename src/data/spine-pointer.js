@@ -25,8 +25,8 @@
 // deadlocks. PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS, count, combat, property, workers, item, cleared } from './spine.js?v=573';
-import { SHOP_OFFERS } from './shops.js?v=573';
+import { SPINE_STEPS, count, combat, property, workers, item, cleared } from './spine.js?v=574';
+import { SHOP_OFFERS } from './shops.js?v=574';
 
 export const level = (skill, min) => Object.freeze({ fact: 'level', skill, min });
 export const gold = (min) => Object.freeze({ fact: 'gold', min });

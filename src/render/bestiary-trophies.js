@@ -51,8 +51,8 @@
 
 import {
   TROPHY_STAGES, TROPHY_STAGE_NAMES, MAX_TROPHY_STAGE, trophyStageAt, nextTrophyAt,
-} from '../data/bestiary.js?v=573';
-import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=573';
+} from '../data/bestiary.js?v=574';
+import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=574';
 
 const w = () => (typeof window !== 'undefined' ? window : {});
 const g = () => w().G || {};

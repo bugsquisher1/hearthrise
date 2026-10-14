@@ -4,6 +4,25 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-14 · qa-engineer · the core loop plays end to end on b580; three feel findings (lane b-loop-gate)
+
+`tests/core-loop.mjs` (nightly, `.github/workflows/nightly-loop.yml`) plays four loops on the real edge
+verbs against the replayed chain: 30 steps, all green on origin/main b580 (release/b581 changes no
+server-side input, only `?v=` and client world maps). Every verb's envelope equalled hr_load at every
+step; the return settle paid once. Its header is the LOOP MAP a later lane must keep alive. Not dead
+ends, but measured, and each needs a design call:
+
+| # | Sev | Finding (measured) | File | Owner |
+|---|---|---|---|---|
+| 1 | P2 | Named hunts stop at tier 2. Ridge Camp `[15, 99]` is the only hunt above combat 15 and fields tier-2 monsters (hp 26-34); 81 of 113 monsters (tiers 3-6) exist only as one-monster training fights. A combat-40 steel character there eats 9 trout/h and nets +7,176 gold/h, so supplies barely bite. | `src/data/hunts.js:46` | game-designer |
+| 2 | P2 | The first night with only the kit pays 27 of 600 minutes (4.6%): 115 kills, 15 falls, KO for 43 min at return. A hero who lands one kill per life never reaches the Retreat (`resolveKill` resets `consec_falls`), so this is the busy-wait rev. 3 set out to end, for any hero weak enough to die and strong enough to kill once. Not stranded: gather and NPC food are accepted while KO and the hunt resumes after `recovering_until`. | `src/core/away.js:436-504` (`retreatAtFall`), `src/data/start-kit.js:74` | game-designer |
+| 3 | P3 | The NPC upgrade arrow is spent in about 90 minutes. The 7 melee-relevant `equip.*` offers cost 2,165 gold in total. The start kit's 500 gold (350 after one food pack) already buys the first upgrade, and one 30-min Mill Cellar hunt (+881 gold) makes all seven affordable. After that, a melee player's next tier is crafted only (iron: mining 15, smithing 15/20, oak plank) or dropped (iron_sword about 1 per 450 Ridge Camp kills). | `src/data/shops.js` `equip.*` rows -> `supabase/functions/hr-accrue/catalogue.js:279` `GOLD_OFFERS` | game-designer |
+
+REQUIRED ACTION: game-designer rules on 1-3. Any lane that swaps a system on the map (hunt sessions and
+supply bags replacing "away", hybrid supplies, gear enhancement) runs `node tests/core-loop.mjs`
+before it reports. A red step names its arrow (`LOOP-1 step 8: no upgrade reachable from the gold
+earned`).
+
 ## 2026-10-11 · qa-engineer · utc-midnight-replay was load-dependent by construction; a killed child read as a red arm (lane fix-utc-midnight-flake)
 
 P2 (guard flake, blocks lane-done/CI intermittently). Two causes, both fixed. (1) The clock shim offset the REAL clock from process start, and the probe that turned "fixture seconds" into that offset was measured in one replay and spent on the next — so under load every file of the chain began at a load-dependent instant (12.9 s to the fixture idle; one baseline run took 20 min on this box) and an arm's label was a hope. Now `tests/schema-replay.mjs` calls `globalThis.__HR_CLOCK_PIN__(i, name)` before each file (no-op without the shim) and the shim serves file i at exactly midnight + k s + i ms, reads advancing 1 µs, timers advancing virtual time (Postgres re-arms its timeouts forever on a read-counted clock otherwise — measured: replay done, process alive 10 min). The probe is now an assertion (fixture reads 0 µs off its pin); every arm must show `HRCLOCK pins=<chain length>` or it is HARNESS. (2) MEASURED on this lane's own 20× run: arm "+0 s" died exit 143 with no output when something outside the guard SIGTERMed the node process tree — the bare "→" of both reports. Red now requires the replay's own verdict (`failed to apply:` / `SCHEMA DRIFT:`); anything else exits 2 naming exit code, signal and output. **Route (Coordinator):** something on the shared box kills msys-launched node trees mid-run (seen 2026-10-11 ~04:20 UTC); find the lane doing a broad `pkill`/`kill` of node.
@@ -3671,3 +3690,21 @@ PixelLab: standard quadrupeds draw south == north (one overhead view, head up); 
 muddy 2-tile walls in its own projection (unused); map objects bake a grass patch under trees; a Pro Flash
 door asked for at 28x52 came back 32 px tall. Compressed PNG bytes differ by zlib build, so the drift
 guard compares decoded pixels (sha256 of RGBA), never file bytes.
+
+### 2026-10-14 · lane/b-palette-trial (Art Director): where the brown actually lives
+A palette is not the --bg-* ladder. Measured on rendered 1440x900 shots, the brown a player sees is the
+panel floor (art-direction.css), the sidebar/topbar glass and the veil over the global backdrop (all
+JS-injected strings in backdrop.js), the medallion disc (home-dashboard.js + icon-set.js), the toast
+and chat-pill plate, the bag tile lift and five modal plates (audit-overrides.css). All are tokens now
+(--panel-floor-*, --sidebar-glass, --topbar-glass, --backdrop-veil, --medallion-bg, --toast-bg,
+--tile-raised, --modal-bg, --avatar-bg, --lit-wash), default values identical (computed-style check +
+tools/css-ab-pixel-diff.mjs). What stays warm under a cool palette is ~30 hairline/inset highlights at
+<=16% alpha (rgba(255,236,200,...) / rgba(236,225,204,...)), not visible as hue; sweep them into
+--line-soft when the pick becomes the default. Gold washes over navy cancel to GREY (complementary
+mix): the Home reward card needed its own --lit-wash per palette. A mid-grey UI blends with the
+town's grey cobbles exactly as a brown UI blends with the cellar's dirt; separation from the pixel
+world comes from VALUE (darker than the art), not only from hue. Today's --red as text is 2.8:1.
+SHIPPED the same day: Charcoal & Gold is the default; the warm-white tints are one token (--hl) mixed at
+their own strengths, so a future palette moves every highlight by changing one value. Not swept, on
+purpose: src/bug-report.js inline styles (own literal ink) and src/net/account-gate.js (keeps literal
+fallbacks so the front door paints before anything else loads).

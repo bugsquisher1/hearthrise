@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=581';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=581';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=581';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=581';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=584';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=584';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=584';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -1561,6 +1561,94 @@ export default [
       window.shopTab = savedTab;
       try { window.renderShop(); } catch (e) {}
     }
+  }),
+
+  // 2026-10-14, Tyler on live: "Under the counter keeps blanking in and out".
+  // A live frame repaints through refreshActivityBar() + refreshAll(); the shop
+  // rebuilt its whole counter on each one, wiping the four shop companions that
+  // a 1.5 s poller then re-appended under "Under the counter". Twenty frames
+  // over an unchanged shop must write nothing, and a balance change swaps a
+  // Buy button, never its row or the row's art.
+  () => tryRun('regression: the Local Shop holds still across 20 live frames (SHOP-FLICKER-1)', () => {
+    const panel = document.getElementById('shop-panel');
+    const snap = snapshotG();
+    const savedTab = window.shopTab;
+    const frame = () => { window.refreshActivityBar(); window.refreshAll(); };
+    const comps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || ''));
+    assert(comps.length === 4, 'fixture: expected the four shop companions, found ' + comps.length);
+    try {
+      window.showTab('shop');
+      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+        window.setShopTab(tab);
+        const counter = panel.querySelector('.sc-counter');
+        const kids = Array.from(counter.children);
+        const sep = kids.find((c) => c.textContent === 'Under the counter');
+        assert(sep, tab + ': no "Under the counter" separator');
+        const mo = new MutationObserver(() => {});
+        mo.observe(panel, { subtree: true, childList: true, attributes: true, characterData: true });
+        for (let i = 0; i < 20; i++) {
+          frame();
+          const shown = panel.querySelectorAll('.shop-row[data-companion]').length;
+          assert(shown === (tab === 'equip' ? 4 : 0), tab + ' frame ' + i + ': ' + shown + ' companion rows on the counter');
+        }
+        const recs = mo.takeRecords(); mo.disconnect();
+        assert(recs.length === 0, tab + ': 20 frames over an unchanged shop wrote ' + recs.length + ' DOM mutations (first on '
+          + (recs[0] && (recs[0].target.className || recs[0].target.nodeName)) + ')');
+        assert(kids.every((k) => k.parentNode === counter), tab + ': a counter row was replaced by an unchanged frame');
+        if (tab === 'equip') {
+          const order = Array.from(counter.children);
+          const lastComp = order.map((c) => c.hasAttribute('data-companion')).lastIndexOf(true);
+          assert(lastComp >= 0 && lastComp < order.indexOf(sep), 'equip: the companions must sit with the wares, above "Under the counter"');
+        }
+      });
+      const top = window.SEED_SHOP.reduce((a, r) => (r.cost > a.cost ? r : a), window.SEED_SHOP[0]);
+      const rowOf = () => Array.from(panel.querySelectorAll('.shop-row')).find((r) => {
+        const b = r.querySelector('button'); return b && (b.getAttribute('onclick') || '').indexOf("'" + top.id + "'") !== -1;
+      });
+      window.G.gold = top.cost - 1; stampBalanceLikeLoad(window.G);
+      window.setShopTab('seeds');
+      const row = rowOf(), art = row && row.querySelector('.si');
+      assert(row && row.querySelector('button').disabled, 'precondition: the ' + top.cost + 'g row is unaffordable at ' + (top.cost - 1));
+      window.G.gold = top.cost + 1; stampBalanceLikeLoad(window.G);
+      frame();
+      assert(rowOf() === row && row.querySelector('.si') === art, 'an affordability flip replaced the row or its art');
+      assert(!row.querySelector('button').disabled, 'the ' + top.cost + 'g Buy did not light at ' + (top.cost + 1) + ' gold');
+    } finally { window.shopTab = savedTab; restoreGAndRecord(snap); try { window.renderShop(); } catch (e) {} }
+  }),
+
+  // The class behind SHOP-FLICKER-1: no renderer a live frame reaches may write
+  // a host the same markup or text it already holds. Census of innerHTML and
+  // textContent writes, page-wide, over 20 frames on every screen refreshAll()
+  // repaints plus the timers that run between frames.
+  () => tryRunAsync('regression: a live frame rewrites nothing that did not change (PAINT-SWEEP-1)', async () => {
+    const ih = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    const tc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    const last = new WeakMap();
+    const hits = {};
+    let on = false;
+    const where = (el) => (el.id ? '#' + el.id : (el.parentElement && el.parentElement.id ? '#' + el.parentElement.id + '>' : '')
+      + ((el.classList && el.classList[0]) ? '.' + el.classList[0] : el.nodeName));
+    const note = (el, why) => { if (on && el.isConnected) hits[where(el) + ' (' + why + ')'] = (hits[where(el) + ' (' + why + ')'] || 0) + 1; };
+    Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, get() { return ih.get.call(this); },
+      set(v) { const s = String(v); if (last.get(this) === s) note(this, 'innerHTML'); last.set(this, s); ih.set.call(this, v); } });
+    Object.defineProperty(Node.prototype, 'textContent', { configurable: true, get() { return tc.get.call(this); },
+      set(v) { if (this.nodeType === 1 && tc.get.call(this) === String(v == null ? '' : v) && this.childNodes.length === 1) note(this, 'textContent'); tc.set.call(this, v); } });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    try {
+      for (const tab of ['profile', 'combat', 'skills', 'inventory', 'farming', 'shop', 'character']) {
+        window.showTab(tab);
+        window.refreshActivityBar(); window.refreshAll();
+        on = true;
+        for (let i = 0; i < 20; i++) { window.refreshActivityBar(); window.refreshAll(); }
+        await wait(tab === 'profile' ? 1700 : 250);
+        on = false;
+      }
+    } finally {
+      Object.defineProperty(Element.prototype, 'innerHTML', ih);
+      Object.defineProperty(Node.prototype, 'textContent', tc);
+    }
+    const list = Object.keys(hits).map((k) => k + ' x' + hits[k]);
+    assert(!list.length, list.length + ' host(s) rewritten with what they already held: ' + list.join(', '));
   }),
 
   // 10th render-layer extraction: the vendor Buy Back modal moved out of
@@ -4851,7 +4939,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=581');
+          await import('../../data/codex.js?v=584');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5682,7 +5770,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=581');
+    const mod = await import('../../net/activity.js?v=584');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

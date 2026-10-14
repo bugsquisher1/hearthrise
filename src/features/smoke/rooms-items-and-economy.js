@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=581';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=584';
 
 export default [
 
@@ -1644,6 +1644,47 @@ export default [
       ':root --bg-0 must not be the cream light value (got ' + rootBg + ')');
   }),
 
+  // REGRESSION (2026-10-14, Tyler: "brown is not very fitting for the theme").
+  // The default UI is Charcoal & Gold. A palette is not the --bg-* ladder: the
+  // brown a player saw lived in the panel floor, the glass rails and a warm
+  // "light" literal, so this reads the ladder AND the painted surfaces. Midnight
+  // and Iron are staged behind body[data-theme-palette] and must still move it.
+  () => tryRun('PALETTE-1: the default UI is Charcoal & Gold: no brown in the ladder, the light or the painted chrome, the gold unchanged, the staged palettes still apply', () => {
+    const body = document.body;
+    const prev = body.getAttribute('data-theme-palette');
+    const probe = document.createElement('i');
+    body.appendChild(probe);
+    const colours = (s) => [...String(s).matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1].split(/[\s,/]+/).filter(Boolean).map(Number));
+    const tok = (t) => { probe.style.color = 'var(' + t + ')'; return colours(getComputedStyle(probe).color)[0]; };
+    /* Brown is red well above blue at a visible strength; the gold family is excluded by name. */
+    const brown = (c) => (c.length < 4 || c[3] >= 0.25) && c[0] - c[2] > 8;
+    try {
+      body.removeAttribute('data-theme-palette');
+      for (const t of ['--bg-0', '--bg-1', '--bg-2', '--bg-3', '--panel-floor-0', '--panel-floor-1', '--avatar-bg', '--hl', '--ink', '--ink-2', '--ink-3', '--aqua-2']) {
+        assert(!brown(tok(t)), t + ' is brown again (' + tok(t) + '): the default palette is Charcoal & Gold');
+      }
+      assert(tok('--gold').join() === '201,162,74', 'the gold moved (' + tok('--gold') + '): the palette changes the base, never the gold');
+      const panel = document.querySelector('.panel.active');
+      const painted = [['.sidebar', document.querySelector('.sidebar')], ['.topbar', document.querySelector('.topbar')], ['.panel.active', panel]];
+      for (const [name, el] of painted) {
+        if (!el) continue;
+        const cs = getComputedStyle(el);
+        const hit = colours(cs.backgroundColor + ' ' + cs.backgroundImage).find(brown);
+        assert(!hit, name + ' paints brown (' + hit + '): a surface literal is back, or the token it reads is');
+      }
+      const base = tok('--bg-2').join();
+      body.setAttribute('data-theme-palette', 'midnight');
+      const navy = tok('--bg-2');
+      assert(navy.join() !== base && navy[2] > navy[0] + 10, 'the staged Midnight palette no longer moves --bg-2 to navy (' + navy + ')');
+      body.setAttribute('data-theme-palette', 'iron');
+      const iron = tok('--bg-2');
+      assert(iron.join() !== base && Math.abs(iron[0] - iron[2]) <= 8, 'the staged Iron palette no longer moves --bg-2 to steel grey (' + iron + ')');
+    } finally {
+      probe.remove();
+      if (prev === null) body.removeAttribute('data-theme-palette'); else body.setAttribute('data-theme-palette', prev);
+    }
+  }),
+
   // ── b222 · CSS substrate guards ────────────────────────────────────────────
   // The b216 guard above catches ONE shape of always-true selector
   // (`html:not([data-theme])`) in ONE file. b222 found three more shapes that
@@ -1941,7 +1982,7 @@ export default [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../../data/shops.js?v=581');
+    const S = await import('../../data/shops.js?v=584');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -2808,7 +2849,7 @@ export default [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../../data/dungeons.js?v=581');
+    const mod = await import('../../data/dungeons.js?v=584');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -2839,7 +2880,7 @@ export default [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../../data/dungeons.js?v=581');
+    const mod = await import('../../data/dungeons.js?v=584');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);

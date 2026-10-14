@@ -61,7 +61,7 @@
     if (!el || !G) return;
     var n = days(G), A = window.HearthriseAccrual;
     var known = !(A && typeof A.playStreakKnown === 'function') || A.playStreakKnown(G);
-    el.textContent = known ? n : '—';
+    window.HearthrisePaint.text(el, known ? n : '—');
     el.classList.toggle('bal-pending', !known);
     if (el.parentElement) el.parentElement.classList.toggle('hot', n >= 3);
   }

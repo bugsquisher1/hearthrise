@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=581';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=584';
 
 /* The server mirrors snapshotG does not carry: put them back exactly, absent stays absent. */
 const keepServerMirrors = () => {
@@ -2309,8 +2309,10 @@ export default [
         const panel = document.getElementById('shop-panel');
         assert(panel.querySelector('.sc-scene svg'), tab + ': the shopfront scene is missing');
         assert(panel.querySelector('.sc-counter'), tab + ': the offers are not on a counter');
+        // The equip tab renders the shop companions with its wares (render/shop.js).
+        const shopComps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || '')).length;
         const expect = tab === 'seeds' ? window.SEED_SHOP.length
-          : tab === 'equip' ? window.EQUIP_SHOP.length : 4;
+          : tab === 'equip' ? window.EQUIP_SHOP.length + shopComps : 4;
         const rows = panel.querySelectorAll('.sc-counter .shop-row');
         // Name what the counter PAINTED: "got 15, wanted 14" cost a session on its own.
         const _want = expect + Object.keys(window.TRAITS).length;

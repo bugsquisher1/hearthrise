@@ -41,17 +41,17 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=581';
-import { ITEMS } from '../data/items.js?v=581';
-import * as ST from './session-tally.js?v=581';
-import { fill } from './signposts.js?v=581';
-import { foeFamily } from '../render/foe-family.js?v=581';
-import { weaknessWords } from '../render/foe-weakness.js?v=581';
-import { SIGNPOSTS } from '../data/signposts.js?v=581';
-import { compactNumber } from '../net/balance.js?v=581';
-import { HUNTS } from '../data/hunts.js?v=581';
-import { BOSSES } from '../data/bosses.js?v=581';
-import { nextCharmAt } from '../core/charms.js?v=581';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { ITEMS } from '../data/items.js?v=584';
+import * as ST from './session-tally.js?v=584';
+import { fill } from './signposts.js?v=584';
+import { foeFamily } from '../render/foe-family.js?v=584';
+import { weaknessWords } from '../render/foe-weakness.js?v=584';
+import { SIGNPOSTS } from '../data/signposts.js?v=584';
+import { compactNumber } from '../net/balance.js?v=584';
+import { HUNTS } from '../data/hunts.js?v=584';
+import { BOSSES } from '../data/bosses.js?v=584';
+import { nextCharmAt } from '../core/charms.js?v=584';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
@@ -812,7 +812,11 @@ function renderRibbon() {
   const g = G();
   const id = g && g.activeMonster;
   const m = id && MONSTERS[id];
-  if (!m) { host.hidden = true; host.innerHTML = ''; return; }
+  if (!m) {
+    if (!host.hidden) host.hidden = true;
+    if (host.firstChild) { host.innerHTML = ''; delete host.dataset.sig; }   // the next fight paints, even at an equal sig
+    return;
+  }
   host.hidden = false;
   const fp = g.monsterMaxHp ? clamp01(g.monsterHp / g.monsterMaxHp) : 0;
   const pp = g.playerMaxHp ? clamp01(g.playerHp / g.playerMaxHp) : 0;

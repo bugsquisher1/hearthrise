@@ -359,13 +359,14 @@ body[data-theme="classic"] {
 body[data-theme="hearthlight"] {
   --line-strong: rgba(201,162,74,.42);
 
-  /* Text — aged parchment ramp */
-  --ink:         #ece1cc;
-  --ink-2:       #c4b79e;
-  /* b216: was #8f7d63 — every section label (TODAY / BUFFS / Total Lv) sat at
-     3.4-3.9:1 on the card surface, under the 4.5:1 readability floor. This
-     clears it at ~4.9:1 while staying clearly subordinate to --ink-2. */
-  --ink-3:       #9d8b70;
+  /* Text — CHARCOAL & GOLD (2026-10-14): a near-neutral ramp with a breath of
+     blue-grey, so the only warm thing in the UI is the gold. Was an aged
+     parchment ramp (#ece1cc / #c4b79e / #9d8b70) on brown. Every rung clears
+     4.5:1 on every chrome surface, measured on rendered pixels
+     (docs/art-experiments/palette/contrast.png). */
+  --ink:         #e9e7e2;
+  --ink-2:       #b8bcc4;
+  --ink-3:       #979da7;
 
   /* Gilt gold — aged, candlelit (the unifying accent) */
   --gold:        #c9a24a;
@@ -385,15 +386,18 @@ body[data-theme="hearthlight"] {
   --green-bg:    rgba(127,154,79,.15);
   --green-line:  rgba(127,154,79,.34);
 
-  --red:         #b23a2c;              /* oxblood — combat / danger */
+  /* --red is read as TEXT in 19 places (a short cost, a burn line), so it is a
+     red that clears 4.5:1 on the charcoal surfaces; the oxblood #b23a2c it
+     replaces sat at 2.8:1. The fill wash stays oxblood. */
+  --red:         #dc5f4c;              /* combat / danger */
   --red-bg:      rgba(178,58,44,.16);
-  --red-line:    #cf5340;              /* b357: danger EDGE — see the note in the cozy-light block */
+  --red-line:    #e8735e;              /* b357: danger EDGE — see the note in the cozy-light block */
 
   --aqua:        #5c8f89;              /* weathered teal — info */
-  --aqua-2:      #a89a80;
+  --aqua-2:      #a9b2bd;              /* links, focus ring, active chip ink — was khaki #a89a80 */
   --aqua-bg:     rgba(92,143,137,.15);
 
-  --steel:       #7a8791;              /* forged steel — gear / cool accent */
+  --steel:       #808b98;             /* forged steel — gear / cool accent */
 
   --purple:      #6a4560;              /* deep heraldic plum (was lavender) */
   --purple-bg:   rgba(106,69,96,.20);
@@ -401,9 +405,9 @@ body[data-theme="hearthlight"] {
   --gem:         #5262b3;              /* sapphire — gems / premium */
   --gem-bg:      rgba(82,98,179,.18);
 
-  /* Shell surfaces — stone-dark, candle-lit */
-  --sidebar-bg:  linear-gradient(180deg, #17140f, #100d09);
-  --topbar-bg:   linear-gradient(90deg, #201b15, #17130f);
+  /* Shell surfaces — charcoal slate */
+  --sidebar-bg:  linear-gradient(180deg, #101217, #0a0b0e);
+  --topbar-bg:   linear-gradient(90deg, #181b21, #101217);
 
   /* ── Scene palette (b219) ────────────────────────────────────────────────
      Painted atmosphere is still colour, so it is still tokens. These are the
@@ -450,7 +454,7 @@ body[data-theme="hearthlight"] {
 
 /* ── theme-cozy.css · Hearthlight card surface
    · 1 token ── */
-body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a1610);}
+body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg, #20242b, #14161b);}
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -534,36 +538,65 @@ body[data-theme="hearthlight"] {
    *   panel  — grouped content that is dense enough to need an edge
    *   (nothing) — the default. Most content sits directly on the world. */
   --surf-sunken: rgba(0, 0, 0, .30);
-  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(255, 232, 190, .045);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(214, 224, 240, .045);
 
   /* Rules. A section divider is a fading hairline, not a full-width line —
    * it reads as an incised rule rather than a table border. */
   --rule-fade: linear-gradient(90deg, var(--line-strong), rgba(201, 162, 74, .10) 62%, transparent);
 }
 
-/* ── art-direction.css · the widened value ladder (b361) — hues unchanged, value only
-   · 11 tokens ── */
+/* ── art-direction.css · the widened value ladder (b361) — CHARCOAL & GOLD since 2026-10-14
+   · 29 tokens ── */
 :root,
 body[data-theme="hearthlight"] {
-  --bg-0: #0a0806;   /* the world behind everything */
-  --bg-1: #14110c;   /* sidebar / rails */
-  --bg-2: #241d16;   /* panel + card surface */
-  --bg-3: #322920;   /* elevated: modals, hovered objects */
-  --bg-card: linear-gradient(180deg, #2a2219, #1b160f);
+  /* Charcoal slate, a breath of blue-grey (Tyler, 2026-10-14: "I really like
+     the gold in it, but brown is not very fitting"). Was a brown ladder from
+     #0a0806 to #322920. The UI now sits darker than the pixel world's dirt and
+     stone, so the scene separates from the chrome by value, not only by hue. */
+  --bg-0: #0a0b0e;   /* the world behind everything */
+  --bg-1: #101217;   /* sidebar / rails */
+  --bg-2: #1a1d23;   /* panel + card surface */
+  --bg-3: #252931;   /* elevated: modals, hovered objects */
+  --bg-card: linear-gradient(180deg, #20242b, #14161b);
+
+  /* THE LIGHT. Every highlight, hairline and lift in the UI is this one colour
+     at its own strength: color-mix(in srgb, var(--hl) N%, transparent). It was
+     ~80 warm-white literals (rgba(255,236,200,…) and five cousins) that turned
+     a cool palette faintly brown wherever they stacked. */
+  --hl: #d6e0f0;
 
   /* Edges have to catch light or the new levels won't be legible as levels. */
-  --line-soft: rgba(255, 236, 200, .075);
+  --line-soft: rgba(214, 224, 240, .075);
   --line: rgba(201, 162, 74, .24);
 
-  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .10), rgba(255, 236, 200, .03) 55%, rgba(0, 0, 0, .12));
-  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .14), 0 1px 0 rgba(0, 0, 0, .5);
-  --surf-panel: rgba(236, 225, 204, .035);
+  --surf-raised: linear-gradient(180deg, rgba(214, 224, 240, .09), rgba(214, 224, 240, .03) 55%, rgba(0, 0, 0, .14));
+  --surf-raised-edge: inset 0 1px 0 rgba(222, 230, 244, .13), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(214, 224, 240, .035);
 
-  /* App background drops well below the panel so the panel reads as lifted,
-     and the ember glow up top gives the whole thing a direction of light. */
+  /* App background drops well below the panel so the panel reads as lifted;
+     a faint gilt glow up top keeps a direction of light. */
   --app-bg:
-    radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
-    linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .07) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #121419 0%, #0a0b0e 46%, #060709 100%);
+
+  /* The surfaces that were literals in components (b574's lesson: the panel
+     floor and the glass rails ARE what a player sees). */
+  --panel-floor-0: #1a1d23;   /* art-direction.css .panel.active */
+  --panel-floor-1: #16191e;
+  --panel-floor-glow: rgba(201, 162, 74, .06);
+  --panel-floor-rim: rgba(222, 230, 244, .09);
+  /* the veil over the global backdrop scene (backdrop.js) — the pane strip and
+     every gutter show the scene through it */
+  --backdrop-veil: linear-gradient(180deg, rgba(10, 11, 14, .90), rgba(10, 11, 14, .96));
+  --modal-bg: linear-gradient(180deg, #1e2127, #0e1013);   /* audit-overrides.css modals */
+  --avatar-bg: #1a1d23;   /* the topbar portrait well */
+  --lit-wash: linear-gradient(115deg, rgba(214, 178, 92, .22), rgba(201, 162, 74, .08) 58%, rgba(201, 162, 74, .02));   /* Home's one lit object (.hd-daily) */
+  --sidebar-glass: linear-gradient(180deg, rgba(16, 18, 23, .93), rgba(11, 12, 15, .95));   /* backdrop.js */
+  --topbar-glass: rgba(19, 21, 27, .82);
+  --toast-bg: linear-gradient(180deg, #22262d, #14161a);   /* .notif, #chat-dock-min */
+  --medallion-bg: radial-gradient(circle at 38% 28%, #2e333b, #101215 78%);   /* .hr-med, .hd-mile-badge */
+  --tile-raised: linear-gradient(180deg, rgba(214, 224, 240, .10), rgba(214, 224, 240, .02) 60%, rgba(0, 0, 0, .16));   /* a filled bag tile */
+  --tile-raised-line: rgba(214, 224, 240, .12);
 }
 
 
@@ -712,8 +745,126 @@ body[data-theme="hearthlight"] {
   --world-bubble-line:   #2a2018;
   --world-bubble-ink:    #1c1712;
   --world-walk-mark:     rgba(242, 234, 216, .7);
-  --world-hud-bg:        rgba(14, 11, 10, .86);
+  --world-hud-bg:        rgba(11, 12, 15, .88);   /* the HUD plate over the canvas is UI chrome: charcoal */
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6 · STAGED PALETTES — Midnight & Gold, Iron & Gold (2026-10-14).
+   Charcoal & Gold is THE palette (the ladder above). Tyler liked all three; to
+   keep every UI change checkable in ONE palette for now, the other two are
+   staged here, one attribute away, and NOTHING in the game sets it:
+
+     <body data-theme="hearthlight" data-theme-palette="midnight|iron">
+
+   A later lane turns on a Settings picker by writing that attribute (applied
+   before first paint) — no CSS work left to do.
+
+   WHY ON <body> AND WHY THIS NAME. The ladder is declared on
+   body[data-theme="hearthlight"] as well as :root, so a palette on <html> would
+   be shadowed at <body> before any component reads it. These blocks share that
+   specificity (0,1,1) and sit last in the sheet, so they win. The name keeps
+   them theme blocks to tests/css-literal-ratchet.mjs and root-ish to
+   tests/token-single-source.mjs — a palette IS a theme ladder.
+
+   WHAT A PALETTE MOVES: the UI chrome only — the value ladder, the ink ramp,
+   --hl (every highlight and hairline), the glass rails, the panel floor, the
+   HUD plate over the World. WHAT IT DOES NOT: the gold family, the --world-*
+   canvas ladder (the pixel art keeps its own palette), the scene art, premium
+   sapphire, the bounty board and shopfront (wooden OBJECTS, not UI).
+   Contrast, measured on the rendered shots: docs/art-experiments/palette/
+   contrast.png (tools/_palette-shots.mjs regenerates it and the sheets).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 6b · MIDNIGHT & GOLD — deep navy ink, the heraldic blue-and-or ── */
+body[data-theme-palette="midnight"] {
+  --bg-0: #060912;
+  --bg-1: #0b1020;
+  --bg-2: #131a2e;
+  --bg-3: #1c253f;
+  --bg-card: linear-gradient(180deg, #182139, #0e1426);
+  --panel-floor-0: #131a2e;
+  --panel-floor-1: #0f1628;
+  --panel-floor-glow: rgba(201, 162, 74, .07);
+  --panel-floor-rim: rgba(190, 208, 255, .10);
+  --backdrop-veil: linear-gradient(180deg, rgba(8, 12, 24, .90), rgba(6, 9, 18, .96));
+  --modal-bg: linear-gradient(180deg, #172036, #0a0f1d);
+  --avatar-bg: #131a2e;
+  --sidebar-bg: linear-gradient(180deg, #0b1020, #060912);
+  --topbar-bg: linear-gradient(90deg, #121a30, #0b1020);
+  --sidebar-glass: linear-gradient(180deg, rgba(11, 16, 32, .92), rgba(6, 9, 19, .94));
+  --topbar-glass: rgba(13, 19, 36, .80);
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .08) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #0d1426 0%, #070b16 46%, #04060c 100%);
+  --toast-bg: linear-gradient(180deg, #1a2440, #0e1426);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #26314f, #0a0f1d 78%);
+  --lit-wash: linear-gradient(115deg, rgba(227, 190, 100, .24), rgba(201, 162, 74, .09) 50%, rgba(201, 162, 74, .02));
+  --tile-raised: linear-gradient(180deg, rgba(176, 198, 255, .10), rgba(176, 198, 255, .02) 60%, rgba(0, 0, 0, .18));
+  --tile-raised-line: rgba(176, 198, 255, .13);
+  --hl: #b0c6ff;
+
+  --ink:   #ece7da;
+  --ink-2: #b6bccc;
+  --ink-3: #949db4;
+  --steel: #7e8ba6;
+
+  --line-soft: rgba(176, 198, 255, .08);
+  --surf-raised: linear-gradient(180deg, rgba(176, 198, 255, .09), rgba(176, 198, 255, .03) 55%, rgba(0, 0, 0, .16));
+  --surf-raised-edge: inset 0 1px 0 rgba(190, 208, 255, .14), 0 1px 0 rgba(0, 0, 0, .55);
+  --surf-panel: rgba(176, 198, 255, .035);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(176, 198, 255, .05);
+
+  --red: #dc5f4c;
+  --red-line: #e8735e;
+  --green: #8aa75a;
+  --world-hud-bg: rgba(7, 10, 21, .88);
+}
+
+/* ── 6c · IRON & GOLD — dark steel grey, the stone of a keep ── */
+body[data-theme-palette="iron"] {
+  --bg-0: #16181a;
+  --bg-1: #1f2124;
+  --bg-2: #2d3034;
+  --bg-3: #3a3e42;
+  --bg-card: linear-gradient(180deg, #35393d, #26292c);
+  --panel-floor-0: #2e3135;
+  --panel-floor-1: #282b2f;
+  --panel-floor-glow: rgba(201, 162, 74, .06);
+  --panel-floor-rim: rgba(236, 238, 242, .11);
+  --backdrop-veil: linear-gradient(180deg, rgba(24, 26, 28, .90), rgba(20, 22, 24, .96));
+  --modal-bg: linear-gradient(180deg, #33363a, #1d1f22);
+  --avatar-bg: #2d3034;
+  --sidebar-bg: linear-gradient(180deg, #222427, #1a1c1e);
+  --topbar-bg: linear-gradient(90deg, #303337, #25282b);
+  --sidebar-glass: linear-gradient(180deg, rgba(35, 37, 40, .95), rgba(27, 29, 31, .96));
+  --topbar-glass: rgba(42, 45, 48, .88);
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .06) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #24272a 0%, #1b1d1f 46%, #141617 100%);
+  --toast-bg: linear-gradient(180deg, #383c40, #25282b);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #4a4f55, #1c1e20 78%);
+  --lit-wash: linear-gradient(115deg, rgba(214, 178, 92, .18), rgba(201, 162, 74, .08) 58%, rgba(201, 162, 74, .02));
+  --tile-raised: linear-gradient(180deg, rgba(232, 234, 238, .10), rgba(232, 234, 238, .02) 60%, rgba(0, 0, 0, .16));
+  --tile-raised-line: rgba(232, 234, 238, .12);
+  --hl: #e8eaee;
+
+  --ink:   #ecebe7;
+  --ink-2: #c8c9cb;
+  --ink-3: #a6a9ad;
+  --steel: #959fa8;
+
+  --line-soft: rgba(232, 234, 238, .08);
+  --surf-raised: linear-gradient(180deg, rgba(232, 234, 238, .09), rgba(232, 234, 238, .03) 55%, rgba(0, 0, 0, .14));
+  --surf-raised-edge: inset 0 1px 0 rgba(236, 238, 242, .13), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(232, 234, 238, .035);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(232, 234, 238, .05);
+
+  --red: #ee7b63;
+  --red-line: #f48d75;
+  --green: #8ca85a;
+  --world-hud-bg: rgba(18, 19, 21, .88);
 }

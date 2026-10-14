@@ -375,10 +375,10 @@
     var thisWeek = c.utcWeekKey(now);
     var card = document.getElementById('hr-botd-card');
     if (!card || today !== lastDay) { lastDay = today; render(); }
-    else { var timer = document.getElementById('hr-botd-timer'); if (timer) timer.textContent = 'new in ' + fmtCountdown(msUntilRotate()); }
+    else { var timer = document.getElementById('hr-botd-timer'); window.HearthrisePaint.text(timer, 'new in ' + fmtCountdown(msUntilRotate())); }
     var wcard = document.getElementById('hr-weekly-card');
     if (!wcard || thisWeek !== lastWeek) { lastWeek = thisWeek; renderWeekly(); }
-    else { var wtimer = document.getElementById('hr-weekly-timer'); if (wtimer) wtimer.textContent = 'resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()); }
+    else { var wtimer = document.getElementById('hr-weekly-timer'); window.HearthrisePaint.text(wtimer, 'resets in ' + fmtWeekCountdown(msUntilWeeklyRotate())); }
     applyCombatVisibility();   // after any re-render, so it cannot re-show mid-fight
   }
 

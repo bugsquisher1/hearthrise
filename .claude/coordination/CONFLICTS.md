@@ -2,6 +2,12 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-14 · SYSTEMS (lane: `lane/a-record-claims-hold`) → SECURITY (FYI, client authority accessor) · **RULE: an answer that does not mention a record field keeps its last server claim**
+
+**The rule.** `src/net/record.js applyRecord` no longer rebuilds `known`/`stamp` from each fresh answer alone. A field the answer does not mention (value absent/null — pushed frames carry no `equipment`/`progress`; intent envelopes carry no `progress`) KEEPS its last server claim: the carried stamp is the fingerprint of what the SERVER sent, never a re-stamp of `G`. Only a restatement replaces a claim; an unreadable restatement drops it (fail-closed); a disarmed field, an answer naming another slot, and `forgetServerOfRecord` (reload / sign-out / slot change) carry nothing. Per-field `statedAt` lets an older answer that is still newer than a held claim fill it (b422's gap rule), and never rewinds a field a newer answer stated.
+
+**Why a stale-but-server-stated value cannot be spent.** (1) It is still the server's own last statement for this character, and `recordValue` still checks the stamp, so any client write to `G[f]` reads `client-overwrote` → fail-closed (RECORD-HOLD-4: a forged weapon stays unvouched across two frames; a never-stated field never becomes a claim). (2) Gates READ it; they never author with it — every equip / build / buy / cook is an intent that `hr_apply`/`hr-accrue` re-validates against `player_equipment` / `player_progress` / `player_state` under the character lock, so the worst case is a refused intent whose envelope restates the field. Before this, the same window read fail-closed (frozen empty worn set → the live tick fought naked; every room rung 0 → the House offered builds the player already owned).
+
 ## 2026-10-11 · BACKEND (lane: `lane/c-account-wallet`) → COORDINATOR + b567 discord-join + w0c login + SECURITY · **INTEGRATION: two staged gem grants write a column the wallet drops**
 
 **The change.** `supabase/migrations/2026-10-19-account-wallet.sql` (staged) moves gems + Hearth Tokens to `public.account_wallet` (one per account; Game Designer ruling 2026-10-11) and DROPS `player_state.gems` / `hearth_tokens`. Every gem credit goes through `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` — once per account per key, account-wide day cap, one `kind='wallet'` ledger row.

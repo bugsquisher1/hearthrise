@@ -143,6 +143,10 @@ export function huntSessionFromRead(h) {
     shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
     targetMode: typeof h.target_mode === 'string' ? h.target_mode : null,
     pullCount: num(h.pull_count),
+    /* THE GOLD FLOOR and the loot sell-to-cover may sell (hr_hunt_cover_items
+       x this session's own loot still in the bag) — server rows. */
+    goldFloor: num(h.gold_floor),
+    cover: (h.cover && typeof h.cover === 'object') ? h.cover : {},
   });
 }
 

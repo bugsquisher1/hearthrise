@@ -87,7 +87,7 @@ export const SLOT_TARGETS = Object.freeze({
 });
 
 const when = (subject, value) => Object.freeze([Object.freeze({ subject, op: '<=', value })]);
-const slot = (item, conditions) => Object.freeze({ item, on: true, conditions });
+const slot = (item, conditions, on = true) => Object.freeze({ item, on, conditions });
 
 /* The preset every character starts with: eat when HP is at or below half,
    drink when mana is at or below 40%, packed food and drink first, then the
@@ -97,9 +97,12 @@ export const DEFAULT_PRESET = Object.freeze({
   name: 'Eat and drink',
   slots: Object.freeze([
     slot(HEAL_ANY, when('self_hp_pct', 50)),
-    slot('*heal_shop', when('self_hp_pct', 50)),
+    /* OFF for a new character (master plan row 25): the slot shows its price
+       and one tap turns it on; gold moves only through a slot the player
+       switched on. */
+    slot('*heal_shop', when('self_hp_pct', 50), false),
     slot('*mana', when('self_mana_pct', 40)),
-    slot('*mana_shop', when('self_mana_pct', 40)),
+    slot('*mana_shop', when('self_mana_pct', 40), false),
   ]),
 });
 

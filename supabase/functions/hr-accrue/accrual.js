@@ -3189,6 +3189,11 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
        and journals one `supply_buy` row (§5b). */
     buys: Object.fromEntries(Object.entries(t.bought || {})
       .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0)),
+    /* WHAT THIS WINDOW SOLD TO COVER A SHOP CHARGE (master plan row 3),
+       `{item: units}`: hr_hunt_apply re-prices each unit at the vendor's own
+       price and bounds it by this session's loot still in the bag (§5b). */
+    cover: Object.fromEntries(Object.entries(t.covered || {})
+      .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0)),
     /* THE STAMINA POOL AT `to` (Tyler 2026-10-14), walked swing by swing from
        the database's own start value. hr_hunt_apply takes it off the proposal,
        re-bounds it against this window's paid / knocked-out time and the death

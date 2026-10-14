@@ -66,8 +66,12 @@ const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_mi
    like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
    shop supply the purse cannot pay ends the hunt). */
 const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'];
-const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'vigour_low', 'ended'];
-const RULING_PRESET = [['*heal', 'self_hp_pct', 50], ['*heal_shop', 'self_hp_pct', 50], ['*mana', 'self_mana_pct', 40], ['*mana_shop', 'self_mana_pct', 40]];
+/* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
+const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'stamina_low', 'cover', 'ended'];
+/* The 4th column: is the slot ON for a new character? The shop slots are OFF
+   (master plan row 25: gold moves only through a slot the player switched on). */
+const RULING_PRESET = [['*heal', 'self_hp_pct', 50, true], ['*heal_shop', 'self_hp_pct', 50, false],
+  ['*mana', 'self_mana_pct', 40, true], ['*mana_shop', 'self_mana_pct', 40, false]];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
 /* `activity`: the server's name for what the character resumes after an
    automatic end ("fishing at Shrimp Spot", Tyler 2026-10-14). */
@@ -224,8 +228,8 @@ function checkRules(d, f) {
     if (slot.conditions.length > ACTION_SET_LIMITS.conditions) f('R2', `slot ${i} has more than ${ACTION_SET_LIMITS.conditions} conditions`);
     for (const c of slot.conditions) { const e = conditionError(c, SUPPLIES); if (e) f('R2', `slot ${i}: ${e}`); }
   });
-  const shape = preset.slots.map((s) => [s.item, (s.conditions[0] || {}).subject, (s.conditions[0] || {}).value]);
-  if (JSON.stringify(shape) !== JSON.stringify(RULING_PRESET)) f('R2', `the default preset is ${JSON.stringify(shape)}, not food at HP <= 50% and drink at mana <= 40%, bag then shop`);
+  const shape = preset.slots.map((s) => [s.item, (s.conditions[0] || {}).subject, (s.conditions[0] || {}).value, s.on === true]);
+  if (JSON.stringify(shape) !== JSON.stringify(RULING_PRESET)) f('R2', `the default preset is ${JSON.stringify(shape)}, not food at HP <= 50% and drink at mana <= 40%, bag then shop (shop slots off)`);
 }
 
 function checkHuntsAndGuides(d, f) {
@@ -266,7 +270,8 @@ function checkHuntsAndGuides(d, f) {
 
 function checkLimitsAndCopy(d, f) {
   const L = d.limits;
-  if (L.falls.default !== 3 || L.falls.min !== 1 || L.falls.max !== 6) f('L1', 'falls is not 3 (1–6)');
+  /* Three falls end every hunt (master plan row 16): a single value, not a range. */
+  if (L.falls.default !== 3 || L.falls.min !== 3 || L.falls.max !== 3) f('L1', 'falls is not a flat 3');
   if (L.hours.min !== 1 || L.hours.max !== 24 || L.hours.default !== null) f('L1', 'hours is not 1–24, off by default');
   if (L.bagLines !== 10) f('L1', 'a bag is not 10 lines');
 

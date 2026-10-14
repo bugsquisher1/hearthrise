@@ -19,7 +19,7 @@
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=582';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT,
   SLOT_TARGETS } from '../data/rule-subjects.js?v=582';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS } from '../data/hunt-sessions.js?v=582';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR } from '../data/hunt-sessions.js?v=582';
 import { applyBuffSegment } from './buffs.js?v=582';
 import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=582';
 
@@ -70,11 +70,14 @@ export function basicOf(hs, id) {
   const b = hs && hs.basics && typeof id === 'string' && Object.prototype.hasOwnProperty.call(hs.basics, id) ? hs.basics[id] : null;
   return b && Number.isInteger(b.price) && b.price > 0 ? b : null;
 }
-/** The shop shot an empty quiver line of `ammoId` falls back to, or null. */
+/** The shop shot an empty quiver line of `ammoId` falls back to, or null —
+    only when the bar NAMES that shot in a slot that is on: gold moves only
+    through a slot that shows its price (master plan row 1). */
 export function shopShotFor(hs, ammoId) {
+  const named = new Set((Array.isArray(hs && hs.slots) ? hs.slots : []).filter((sl) => sl && sl.on).map((sl) => sl.item));
   for (const id of Object.keys((hs && hs.basics) || {}).sort()) {
     const b = basicOf(hs, id);
-    if (b && b.kind === 'ammo' && b.partner === ammoId) return { id, price: b.price };
+    if (b && b.kind === 'ammo' && b.partner === ammoId && named.has(id)) return { id, price: b.price };
   }
   return null;
 }
@@ -84,14 +87,60 @@ export function buyFromShop(hs, id, n) {
   const b = basicOf(hs, id);
   const want = Math.max(0, int(n, 0));
   if (!b || want <= 0) return 0;
-  const purse = Math.max(0, int(hs.purse, 0));
-  const got = Math.min(want, Math.floor(purse / b.price));
-  if (got < want) hs.goldOut = true;
-  if (got <= 0) return 0;
-  hs.purse = purse - got * b.price;
-  const bought = hs.tally.bought || (hs.tally.bought = {});
-  bought[id] = (bought[id] || 0) + got;
+  let got = 0;
+  for (; got < want; got++) {
+    /* Loot is sold only when the sale lets THIS use be paid: a charge the purse
+       and the sellable loot together cannot cover sells nothing and ends the
+       hunt `gold_out` (hr_hunt_apply refuses loot sold for no purchase). */
+    if (!canAfford(hs, b.price)) { hs.goldOut = true; break; }
+    const purse = Math.max(0, int(hs.purse, 0));
+    if (purse - b.price < floorOf(hs)) sellToCover(hs, floorOf(hs) + b.price - purse);
+    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;
+  }
+  if (got > 0) {
+    const bought = hs.tally.bought || (hs.tally.bought = {});
+    bought[id] = (bought[id] || 0) + got;
+  }
   return got;
+}
+
+/* ── THE GOLD FLOOR AND SELL-TO-COVER (master plan row 3, 2026-10-14) ─────────
+   A shop use never takes the purse below the action set's `goldFloor`. When a
+   use would, the hunt first sells THIS session's sellable loot to the vendor
+   (`hs.cover`: item → { unit, avail }, from hr_hunt_cover_items and the
+   session's own loot still in the bag — server values), CHEAPEST FIRST, just
+   enough to pay; only when that is not enough does the hunt end `gold_out`.
+   The database re-prices and re-bounds every unit (hr_hunt_apply §5b). */
+export function floorOf(hs) { return Math.max(0, int(hs && hs.goldFloor, GOLD_FLOOR.default)); }
+/** What the session's sellable loot would fetch, all of it. */
+export function coverValue(hs) {
+  let v = 0;
+  for (const id of Object.keys((hs && hs.cover) || {})) v += Math.max(0, int(hs.cover[id].avail, 0)) * hs.cover[id].unit;
+  return v;
+}
+/** Sell loot, cheapest first, until `need` gold has come in (or nothing is left). */
+export function sellToCover(hs, need) {
+  let left = Math.max(0, int(need, 0));
+  if (left <= 0 || !hs.cover) return 0;
+  const order = Object.keys(hs.cover).filter((id) => hs.cover[id].avail > 0)
+    .sort((a, b) => (hs.cover[a].unit - hs.cover[b].unit) || (a < b ? -1 : 1));
+  let got = 0;
+  for (const id of order) {
+    if (left <= 0) break;
+    const c = hs.cover[id];
+    const n = Math.min(c.avail, Math.ceil(left / c.unit));
+    c.avail -= n;
+    const gold = n * c.unit;
+    hs.purse = Math.max(0, int(hs.purse, 0)) + gold;
+    left -= gold; got += gold;
+    const covered = hs.tally.covered || (hs.tally.covered = {});
+    covered[id] = (covered[id] || 0) + n;
+  }
+  return got;
+}
+/** Can the purse (with the floor kept, and the loot it could sell) pay `price`? */
+export function canAfford(hs, price) {
+  return Math.max(0, int(hs.purse, 0)) + coverValue(hs) - floorOf(hs) >= price;
 }
 /* Which shop id a slot item names: a shop target resolves by the hunt's tier
    (`hs.shop`), a shop id names itself; anything else is not a shop slot. */
@@ -188,7 +237,7 @@ function resolveSlot(slot, v) {
     if (b.kind === 'mana') return { why: 'no_mana' };          // inert until the mana engine ships
     if (b.kind !== 'heal') return { why: 'not_fireable' };     // shots are spent by the quiver, not fired
     if (!(v.maxHp - v.hp > 0)) return { why: 'full_hp' };
-    return Math.max(0, int(v.hs.purse, 0)) >= b.price
+    return canAfford(v.hs, b.price)
       ? { id: shopId, group: 'heal', buy: true } : { why: 'gold_short', item: shopId, group: 'heal' };
   }
   if (Object.prototype.hasOwnProperty.call(SLOT_TARGETS, want) && SLOT_TARGETS[want].kind === 'mana') {
@@ -416,6 +465,19 @@ export function endReasonAt(hs, atMs) {
   return null;
 }
 
+/* The server's sell-to-cover table: item → { unit (whole gold > 0), avail }. */
+function coverTable(t) {
+  const out = {};
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return out;
+  for (const id of Object.keys(t)) {
+    const c = t[id] || {};
+    const unit = Number(c.unit);
+    if (!/^[a-z0-9_]{1,64}$/.test(id) || !Number.isInteger(unit) || unit <= 0) continue;
+    out[id] = { unit, avail: Math.max(0, int(c.avail, 0)) };
+  }
+  return out;
+}
+
 /* The server's shop catalogue, kept to well-formed rows (whole gold > 0, a
    known kind, a whole effect) — never a client value. */
 function shopTable(t) {
@@ -470,7 +532,12 @@ export function newHuntSession(o) {
        one foe at a time until the combat redesign gives them a fight to shape. */
     targetMode: (typeof s.targetMode === 'string' && Object.prototype.hasOwnProperty.call(TARGET_MODES, s.targetMode)
       && TARGET_MODES[s.targetMode].solo) ? s.targetMode : DEFAULT_TARGET_MODE,
-    pullCount: Math.min(PULL_COUNT.max, Math.max(PULL_COUNT.min, int(s.pullCount, PULL_COUNT.default))),
+    /* THE ENGINE IS SINGLE-TARGET UNTIL U2 (master plan row 18): whatever the
+       action set stores (1-8), a pull is one foe. */
+    pullCount: Math.min(1, Math.max(PULL_COUNT.min, int(s.pullCount, PULL_COUNT.default))),
+    /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
+    goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
+    cover: coverTable(s.cover),
     /* The stamina pool at `nextSwingAtMs`, from the server's read (null = no
        read: the session then never ends on stamina and proposes none, and the
        database refuses the settle — fail closed). */
@@ -480,7 +547,7 @@ export function newHuntSession(o) {
     stopAtMs: s.stopAtMs ?? null,
     down: !!s.down,
     tally: Object.assign({ swings: 0, kills: 0, deaths: 0, downMs: 0, paidMs: 0, coins: 0,
-      xp: {}, loot: {}, supplies: {}, bought: {} }, s.tally || {}),
+      xp: {}, loot: {}, supplies: {}, bought: {}, covered: {} }, s.tally || {}),
     endedReason: s.endedReason || null,
     endedAtMs: s.endedAtMs ?? null,
   };

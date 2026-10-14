@@ -495,7 +495,7 @@ async function q(db, sql, params) { return (await db.query(sql, params)).rows; }
 async function one(db, sql, params) { const r = await q(db, sql, params); return r[0] ? Object.values(r[0])[0] : undefined; }
 const makeExec = (db) => async (text, params) => {
   await db.exec('set role hr_engine');
-  try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
+  try { return (await db.query(text, params)).rows; } catch (e) { if (process.env.HSS_DEBUG) console.log('DEBUG exec err', e.code, String(e.message).slice(0, 300), String(text).slice(0, 120)); throw e; } finally { await db.exec('reset role'); }
 };
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
 const idem = () => crypto.randomUUID();
@@ -582,6 +582,7 @@ async function settleTo(db, M, toMs, o = {}) {
   if (o.tamper) o.tamper(out);
   const res = await M.HS.commitHuntSettle(exec, { user: UID, slot: 0, sessionId: String(h.id), version: env.version,
     intentId: idem(), out, press, project: false });
+  if (res && res.stage === 'raise') console.log('DEBUG RAISE', JSON.stringify(res).slice(0, 600), JSON.stringify(out.hunt).slice(0, 600));
   if (o.tamper) return { res, out };
   if (!res || res.ok !== true) throw new Error(`settle to ${new Date(toMs).toISOString()} refused: ${JSON.stringify(res).slice(0, 400)}`);
   return { res, out };
@@ -798,9 +799,12 @@ const DB_ARMS = {
        then the shop's), and the gold moved is exactly coins − Waste. */
     const price = Number(await one(db, `select price from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp'`));
     const BUYER = { ...WEAK, slots: SHOP_BAR, gold: 25 * price };
+    console.log('DEBUG g0');
     const g0 = await inTx(db, async () => { await hunter(db, M, BUYER); return Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])); });
     if (!(price > 0)) problems.push('CONTROL: the shop catalogue has no salted_shrimp');
+    console.log('DEBUG compare');
     const r = await compareRuns(db, M, BUYER, ticksOf(90000, SPAN_MS), odd);
+    console.log('DEBUG compared');
     const a = canon(r.a); const b = canon(r.b);
     if (a !== b) problems.push(`NPC buys settled at a client's instants wrote different rows than on the tick ${firstDiff(a, b)}`);
     const t = r.a.tally || {};
@@ -813,12 +817,19 @@ const DB_ARMS = {
       problems.push(`gold ${r.a.gold} is not start ${g0} + coins ${t.coins} + cover ${t.cover_gold} − Waste ${t.supply_gold}`);
     }
     if (Number(r.a.gold) < 300 && Number(t.supply_gold) > 0) problems.push(`the buyer's gold ${r.a.gold} went under the 300 floor`);
-    /* (2) A PURSE THAT CANNOT KEEP THE HUNT ends it gold_out, proved. */
+    /* (2) GOLD_OUT IS PROVED FROM THE PURSE: claimed with gold to spare above
+       the floor it is refused; claimed with gold under floor + price it lands. */
     await inTx(db, async () => {
-      const { sid, from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR, mode: { target: 'nearest', pull: 1, floor: 0 }, gold: price + 10 });
-      await settleTo(db, M, from + SPAN_MS);
+      const { sid, from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR });
+      const claim = (o) => { o.hunt.ended = { reason: 'gold_out', at: o.hunt.to }; };
+      await db.query('update public.player_state set gold = 100000 where user_id = $1 and slot = 0', [UID]);
+      const rich = await settleTo(db, M, from + 120000, { tamper: claim });
+      if (!rich.res || rich.res.error !== 'end_not_proven') problems.push(`gold_out with 100000 gold answered ${JSON.stringify(rich.res).slice(0, 200)}`);
+      await db.query('update public.player_state set gold = 0 where user_id = $1 and slot = 0', [UID]);
+      const poor = await settleTo(db, M, from + 120000, { tamper: claim });
+      if (!poor.res || poor.res.ok !== true) problems.push(`gold_out with 0 gold answered ${JSON.stringify(poor.res).slice(0, 200)}`);
       const s = await snapshot(db, sid);
-      if (!s.session || s.session.end_reason !== 'gold_out') problems.push(`a purse of one heal ended the hunt '${s.session && s.session.end_reason}', not gold_out`);
+      if (!s.session || s.session.end_reason !== 'gold_out') problems.push(`a proved gold_out left the hunt '${s.session && s.session.end_reason}'`);
     });
     /* (3) FORGERIES: loot never looted, an item that is no cover item, loot sold
        for no purchase, a drink bought before mana, a knockout that is not flat. */
@@ -831,16 +842,26 @@ const DB_ARMS = {
         ['loot sold for no purchase', (o) => { o.hunt.cover = { bones: 1 }; o.hunt.buys = {}; }, 'cover_unspent'],
         ['a drink before mana', (o) => { o.hunt.buys = { thin_turnip_juice: 1 }; }, 'kind_not_sold'],
         ['a shop use the bar does not name', (o) => { o.hunt.buys = { plain_steel_arrows: 1 }; }, 'not_on_bar'],
-        ['a knockout that is not flat', (o) => { if ((o.delta.deaths || []).length) o.delta.deaths[0].recovery_ms = 120000; else o.forced = true; }, 'bad_knockout'],
       ];
       for (const [label, tamper, want] of cases) {
         let forced = false;
-        const x = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => { tamper(o); forced = o.forced === true; } });
+        let x; try { x = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => { tamper(o); forced = o.forced === true; } }); } catch (e) { console.log('DEBUG', label, String(e.message).slice(0, 300)); throw e; }
+        console.log('DEBUG', label, JSON.stringify(x.res).slice(0, 300));
         if (forced) { problems.push(`CONTROL: ${label}: the window had no fall to tamper`); continue; }
         if (!x.res || x.res.error !== want) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${want}`);
         const now = await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]);
         if (Number(now) !== Number(before)) problems.push(`${label} moved gold ${before} -> ${now}`);
       }
+    });
+    /* A knockout in a hunt is flat (master plan row 16): a longer one is refused. */
+    await inTx(db, async () => {
+      const { from } = await hunter(db, M, WEAK);
+      let fell = false;
+      const x = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => {
+        if ((o.delta.deaths || []).length) { fell = true; o.delta.deaths[0].recovery_ms = 120000; }
+      } });
+      if (!fell) problems.push('CONTROL: the weak hunter never fell in the knockout case');
+      else if (!x.res || x.res.error !== 'bad_knockout') problems.push(`a two-minute knockout answered ${JSON.stringify(x.res).slice(0, 200)}`);
     });
     return problems;
   },
@@ -1008,7 +1029,10 @@ const DB_ARMS = {
     await settleTo(db, M, from + 5 * 60000);
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'heals_out') problems.push(`a dry bag ended the hunt '${s.session.end_reason}', not heals_out`);
-    if (!s.active.startsWith('idle')) problems.push(`the pointer is ${s.active} after the hunt ended`);
+    /* heals_out is automatic: the character walks home and resumes its last
+       activity — a new one's default, fishing the Shrimp Spot (row 25). */
+    const resume = `${M.HSD.DEFAULT_RESUME.kind}:${M.HSD.DEFAULT_RESUME.id}`;
+    if (s.active !== resume) problems.push(`the pointer is ${s.active} after an automatic end, not ${resume}`);
     if (!(s.events || []).some((e) => e[0] === 'ended')) problems.push('no `ended` event was journalled');
     const endedMs = new Date(s.session.ended_at).getTime();
     if (!(endedMs > from && endedMs < from + 5 * 60000)) problems.push('ended_at is not inside the settled window');

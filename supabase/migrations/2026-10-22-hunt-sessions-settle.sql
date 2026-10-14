@@ -1118,8 +1118,9 @@ begin
         if v_n > coalesce(v_avail, 0) then
           perform public.hr_reject('cover_over', jsonb_build_object('item', v_k, 'units', v_n, 'avail', v_avail));
         end if;
+        -- (the bag's rows hold qty > 0: the last units take the row with them)
+        delete from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_k and qty = v_n;
         update public.player_inventory set qty = qty - v_n where user_id = p_user and slot = p_slot and item_id = v_k;
-        delete from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_k and qty = 0;
         v_citems := v_citems || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'unit', v_unit));
         v_cgold := v_cgold + v_n * v_unit;
         v_cunits := v_cunits + v_n;

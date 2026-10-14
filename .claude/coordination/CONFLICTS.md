@@ -1678,3 +1678,10 @@ Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the
 The plan gives `src/data/world/art-budget.js` to W2. W1 had to size its stub boxes before that file exists, so `src/world/stub-atlas.js` carries one box per class taken from the plan's scale table (hero 38 in 64x64, door 48, wall 48 + 10 cap, tree 112, crown 80), and `tests/world-core.mjs` G2 pins them to the budget. W1 did NOT create `art-budget.js`, to avoid an add/add conflict. **Owed by whichever lane lands second:** stub-atlas reads its sizes from W2's `art-budget.js`, and G2 checks the stubs against that file instead of literals.
 
 **RESOLVED 2026-10-14 (W1 merged W2 @8bb3f239):** the stub class table is deleted. The manifests are the one source of frame, anchor, footprint, class and shadow (`src/world/core/book.js`); a sprite no atlas carries draws as one STUB_SPRITE box. `art-budget.js` stays W2's.
+
+---
+
+## 2026-10-14 — SEMANTIC (open): hunt sessions C2's drop in the replay order vs the away client (R1) and full-chain guards
+**Lanes:** `lane/c2-hunt-sessions-edge` (backend) vs `R1, delete the away client` (systems) and every guard that boots the whole chain. No git hunk.
+
+C2 places `2026-10-22-hunt-sessions-away-readers.sql` + `-drop-away.sql` in `order`, so the replayed chain no longer has `hr_set_auto_eat`, `hr_credit_kills(__ungated)`, `hr_attended_kills` or the five `player_state` away columns. C2 re-scopes or retires the guards that drove them, in its own branch. **Owed by R1:** the client still calls `hr_set_auto_eat` / `hr_credit_kills` and reads `last_away_receipt` / `auto_eat_*` (src/net, src/core/auto-eat.js, legacy.js); those two files must not be applied before R1 ships. **Owed by the Coordinator:** `tests/apply-order-honesty.mjs` reads the drop file as stale-staged until `live-hash-drift` is re-measured (the baseline's `touched_by` for `hr_vigour_of` already lists the drop file, at the pre-C2 replay md5). C1's applied `2026-10-21-hunt-sessions.sql` is not in `tests/run-sql-tests.mjs` ALSO_LINTED (its format() revokes are invisible to the regex lints).

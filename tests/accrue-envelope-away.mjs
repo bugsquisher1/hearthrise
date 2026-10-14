@@ -63,7 +63,9 @@ export async function accrueEnvelopeAwayGuard() {
       const end = idx.indexOf('A refused / replayed aux settle', start);
       const branch = idx.slice(start, end < 0 ? start + 2500 : end);
       // The accrued:true return in this branch must carry an away receipt.
-      const ret = branch.match(/return json\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/);
+      /* `respond(...)` since lane C2 (hunt sessions): the same json() return,
+         with a hunter's session view attached — the payload literal is unchanged. */
+      const ret = branch.match(/return (?:json|await respond)\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/);
       if (!ret) {
         fail('SOURCE: could not find the accrued:true return inside the standalone-settle branch');
       } else if (!/\baway\b/.test(ret[0])) {

@@ -233,17 +233,18 @@ const MUTATIONS = {
      transport at all — which is the point: T3/T7 and T1/T2/T6 all still pass
      under it. Only an INDEPENDENTLY transcribed expectation can see it. */
   /* ── T9's mutation. A FOURTH shape: it edits no file at all. It drops
-     `hr_attended_kills` from the booted database AFTER the chain has applied,
-     which is not a forgery — it is the CONFIGURATION production is in until
-     2026-09-10-attended-loot-credit.sql is applied, and the one
+     `hr_perks_of` from the booted database AFTER the chain has applied — a
+     database one migration behind the payload, the configuration
      `collectCurrentWindow`'s 42883 ladder was written for. Over pglite-socket
      that ladder cannot run (a SQL error closes the connection), so without T9
      this arm reproduces b532 verbatim: `harness/runtime failure: write
      CONNECTION_CLOSED`, naming no test, no function and no file. CAUGHT here
      means the guard now says which function is missing and which migration
-     defines it, before it opens the wire. */
-  chain_missing_attended_kills: {
-    dropFn: 'public.hr_attended_kills(uuid, int, timestamptz)',
+     defines it, before it opens the wire. (Until lane C2 the dropped function
+     was hr_attended_kills; the hunt sessions retired it and SEED_SQL's call to
+     it, so the mutant moved to the read SEED_SQL still makes.) */
+  chain_missing_perks_of: {
+    dropFn: 'public.hr_perks_of(uuid, int)',
     why: 'the booted chain lacks a function SEED_SQL calls — the b532 red, which over pglite-socket '
        + 'surfaces as CONNECTION_CLOSED instead of 42883 and names nothing.',
   },
@@ -663,9 +664,11 @@ async function run(mutate) {
         + 'the function names out of that literal, so it can no longer tell whether the chain '
         + 'booted below can answer the collect at all');
       const named = [...new Set([...seedSql.matchAll(/public\.(hr_\w+)\s*\(/g)].map((m) => m[1]))];
-      ok(named.length >= 3,
+      /* Exact, not a count: since lane C2 the literal makes two reads (the
+         attended-kill read went with the attended top-up), and both are named. */
+      ok(named.length >= 2 && named.includes('hr_seed') && named.includes('hr_perks_of'),
         `T9: SEED_SQL names ${named.length} server function(s) (${named.join(', ') || 'none'}), `
-        + 'expected at least three — the extractor has stopped matching the real syntax, so this '
+        + 'expected hr_seed and hr_perks_of — the extractor has stopped matching the real syntax, so this '
         + 'precondition is vacuous and the next missing function is a CONNECTION_CLOSED again');
       const missing = [];
       for (const fn of named) {

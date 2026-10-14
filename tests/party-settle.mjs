@@ -65,8 +65,9 @@ import {
 import {
   parseParties, parsePartyUnit, partyIntentId, memberContribution, settleParty,
 } from '../supabase/functions/hr-accrue/tick-party.js';
-/* Group N: the solo tick and the party unit, the shipped bytes, side by side. */
+/* Group N: the solo reference and the party unit, the shipped bytes, side by side. */
 import { runTick, planSeedLabels } from '../supabase/functions/hr-accrue/tick.js';
+import { readTickPerks, readTickBestiary } from '../supabase/functions/hr-accrue/tick-reads.js';
 import {
   settleCombatSession, sessionFromRoster as combatSessionFromRoster,
 } from '../supabase/functions/hr-accrue/tick-combat.js';
@@ -948,11 +949,33 @@ group('N  a partied member is priced from the solo tick\'s inputs (N4b, AWAY-1)'
   const unitRow = { party_id: '00000000-0000-4000-8000-0000b80202a1',
     hunt_id: '00000000-0000-4000-8000-0000b80202b1', active_id: 'goblin', stance: 'steady',
     accrued_to: new Date(MARK).toISOString(), members: [{ user_id: NX, slot: 0 }] };
+  /* THE SOLO REFERENCE. Until lane C2 this was `runTick`'s solo combat roster;
+     the solo combat channel is retired (a solo fight is a hunt session, settled
+     by ./hunt-settle.js) and runTick now answers `channel_not_driven` for it.
+     The reference is therefore what that channel DID, assembled from the same
+     shipped pieces and none of settleParty's: the envelope and the two reads
+     over the same `exec` (./tick-reads.js), `sessionFromRoster` with the
+     reads on the row, the `hr_seed` ladder over the planned labels, one
+     `settleCombatSession` window, and its first flush delta. A party driver
+     that prices a member from anything else still differs from it (N3). */
   const soloDelta = async (reads) => {
     const w = world(reads);
-    const out = await runTick({ exec: w.exec, body: { op: 'tick', flush_ms: FLUSH, cadence_ms: 10000,
-      roster: [{ user_id: NX, slot: 0 }] } });
-    return { out: out.body, delta: w.solo() };
+    const [row] = await w.exec('select public.hr_state_of($1::uuid, $2::int) as state, cap_ms', [NX, 0]);
+    const perks = await readTickPerks(w.exec, NX, 0);
+    const bestiaryKills = await readTickBestiary(w.exec, NX, 0);
+    const session = combatSessionFromRoster({ user_id: NX, slot: 0, shard: 0, active_kind: 'combat',
+      active_id: 'goblin', active_since: row.state.state.active_since, accrued_to: new Date(MARK).toISOString(),
+      mark_text: MARK_TEXT, version: row.state.version, perks, bestiary_kills: bestiaryKills,
+      cap_ms: row.cap_ms }, row.state);
+    const geom = { cadenceMs: 10000, flushMs: FLUSH, maxPolls: 64, holder: 'cron:guard' };
+    const labels = planSeedLabels(settleCombatSession, session, MARK, MARK + FLUSH,
+      Object.assign({}, geom, { markText: session.accruedToText }));
+    const seeds = new Map(labels.map((x) => [x.ms, seedOf(NX, x.ts)]));
+    const run = settleCombatSession(session, MARK, MARK + FLUSH,
+      Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));
+    const intent = run.intents[0];
+    const solo = intent ? JSON.parse(JSON.stringify(intent.args.p_delta)) : null;
+    return { out: { intents: run.intents.length, stoppedBy: run.stoppedBy || null }, delta: solo };
   };
   const memberDelta = (members) => {
     if (!Array.isArray(members) || members.length !== 1) return null;

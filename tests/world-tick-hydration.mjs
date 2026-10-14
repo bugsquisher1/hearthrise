@@ -201,12 +201,11 @@ async function seedFighter(u) {
   await db.exec(`delete from public.player_progress  where user_id = '${u}';`);
   await db.exec(`
     insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-      active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
+      active_kind, active_id, active_since,
       consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
       fight, buffs, enchant, hunt_stance, hunt_stop)
     values ('${u}', 0, 1234, 40, 99, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
-      true, 'cooked_trout', 70,
       2, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
       now() - interval '3 hours', now() - interval '10 minutes',
       '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb,
@@ -394,7 +393,7 @@ try {
       accruedToMs: fromMs,
       capMs,
       actionBudget: null,
-      attended: null,
+      huntOpen: false,
       seed: SEED,
       bestiaryKills: null,
       perks: null,
@@ -593,9 +592,15 @@ try {
       toolCarry: { from: 'tool_carry', level: 'state' },
       recoveringUntilMs: { from: 'recovering_until', level: 'state' },
       consecFalls: { from: 'consec_falls', level: 'state' },
-      autoEatEnabled: { from: 'auto_eat_enabled', level: 'state', combat: true },
-      autoEatFood: { from: 'auto_eat_food', level: 'state', combat: true },
-      autoEatPct: { from: 'auto_eat_pct', level: 'state', combat: true },
+      /* RETIRED BY LANE C2 (ruling HR-2026-10-14 §3: Auto-Eat became the hunt's
+         action-bar heal slot). The projection is GONE (2026-10-22-hunt-sessions-
+         away-readers.sql) and the columns are dropped; envelope.js still names
+         the three inputs and answers their OFF value. So the pin is inverted:
+         absent from the contract and from both levels of a real envelope, and
+         read as off — never a value an envelope could still carry. */
+      autoEatEnabled: { from: 'auto_eat_enabled', level: 'state', retired: true },
+      autoEatFood: { from: 'auto_eat_food', level: 'state', retired: true },
+      autoEatPct: { from: 'auto_eat_pct', level: 'state', retired: true },
       deathsTodayBefore: { from: 'deaths_today', level: 'state', combat: true },
       deathsLifetimeBefore: { from: 'deaths_lifetime', level: 'state', combat: true },
       combatXpAccruedToMs: { from: 'combat_xp_accrued_to', level: 'state', combat: true },
@@ -661,7 +666,14 @@ try {
     const wrongLevel = [];
     const notOnEnvelope = [];
     const ambiguous = [];
+    const stillThere = [];
     for (const [key, d] of Object.entries(SOURCES)) {
+      if (d.retired) {
+        if (topSet.has(d.from) || stateSet.has(d.from) || d.from in env || d.from in (env.state || {})) {
+          stillThere.push(`${key} (${d.from})`);
+        }
+        continue;
+      }
       const inContract = d.level === 'top' ? topSet.has(d.from) : stateSet.has(d.from);
       if (!inContract && !d.notYetMigrated) wrongLevel.push(`${key} (${d.from} @ ${d.level})`);
       const here = d.level === 'top' ? env : (env.state || {});
@@ -669,6 +681,9 @@ try {
       if (!(d.from in here) && !d.notYetMigrated) notOnEnvelope.push(`${key} (${d.from})`);
       if (d.from in there) ambiguous.push(`${key} (${d.from})`);
     }
+    judge('H5a', stillThere.length === 0,
+      'and the retired Auto-Eat trio is on neither the projection's contract nor a real envelope',
+      `a retired input is still projected: ${stillThere.join(', ')} — the away-readers file did not land`);
     judge('H5a', wrongLevel.length === 0,
       `and every one of them sits where hr_state_of's own c_top / c_state lists put it`,
       `the pinned level disagrees with the projection's contract for: ${wrongLevel.join(', ')}. `
@@ -697,9 +712,7 @@ try {
       fight: env.state.fight, toolCarry: env.state.tool_carry,
       recoveringUntilMs: Date.parse(env.state.recovering_until),
       consecFalls: env.state.consec_falls,
-      autoEatEnabled: env.state.auto_eat_enabled,
-      autoEatFood: env.state.auto_eat_food,
-      autoEatPct: env.state.auto_eat_pct,
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: null,   // retired: the OFF answer
       deathsTodayBefore: env.state.deaths_today,
       deathsLifetimeBefore: env.state.deaths_lifetime,
       combatXpAccruedToMs: Date.parse(env.state.combat_xp_accrued_to),
@@ -747,7 +760,7 @@ try {
     const swapped = [];
     const vacuous = [];
     for (const [key, d] of Object.entries(SOURCES)) {
-      if (d.notYetMigrated) continue;
+      if (d.notYetMigrated || d.retired) continue;
       /* Move the source name to the OTHER level and read again. The map must
          LOSE it: a value that survives is being read off both. */
       const st = { ...(env.state || {}) };
@@ -767,7 +780,7 @@ try {
       }
     }
     judge('H5c', swapped.length === 0,
-      `and every one of the ${Object.keys(SOURCES).length - 1} readable inputs LOSES its value `
+      `and every one of the ${Object.values(SOURCES).filter((d) => !d.notYetMigrated && !d.retired).length} readable inputs LOSES its value `
       + 'when its source is moved to the other level — the read is pinned, not accidentally right',
       `these survived their own level swap, so they are being read off both levels: `
       + `${swapped.join(', ')}`);
@@ -793,9 +806,10 @@ try {
     }, MUTATE ? env.state : env);
     const lost = ENGINE_INPUT_KEYS.filter((k) => !same(csession[k], EXPECT[k])
       && !['accruedToMs', 'activeSinceMs', 'activeKind', 'activeId'].includes(k));
-    judge('H5d', COMBAT_NINE.length === 9,
-      `the nine inputs a combat window is priced from are named: ${COMBAT_NINE.join(', ')}`,
-      `expected nine combat inputs, the table names ${COMBAT_NINE.length}: `
+    /* NINE until lane C2 retired the Auto-Eat trio; six remain. */
+    judge('H5d', COMBAT_NINE.length === 6,
+      `the six inputs a combat window is priced from are named: ${COMBAT_NINE.join(', ')}`,
+      `expected six combat inputs, the table names ${COMBAT_NINE.length}: `
       + COMBAT_NINE.join(', '));
     judge('H5d', lost.length === 0,
       'and combat.js\'s own session carries every one of them, at the value the envelope holds '

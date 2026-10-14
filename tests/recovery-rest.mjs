@@ -23,9 +23,7 @@
 //      is NOT voided by an activity switch (exploit R2).
 //   7. hr_apply FANS OUT the death ledger: one `player_ledger` row per death,
 //      kind='combat' intent='death', value-free, and REFUSES an over-long array.
-//   8. hr_set_auto_eat STAMPS `auto_eat_set_at` on EVERY call — including the
-//      "Keep it off" call — and hr_state_of projects `auto_eat_touched`, so the
-//      one-time switch-on offer can never be made twice.
+//   8. (retired by lane C2 with Auto-Eat itself; see hunt-sessions-db D1.)
 //   9. THE RECOVERY WINDOW REFUSES COMBAT AND NOTHING ELSE (rev. 3) — and the
 //      engine PAYS the gather window it allows: (f) runs the real collect over
 //      five minutes inside a knockout and demands xp, items and an advanced
@@ -122,20 +120,8 @@ const MUTATIONS = {
     find: "    if p_delta ? 'deaths' then\n      for v_death in select value from jsonb_array_elements(p_delta->'deaths') loop\n        insert into public.player_ledger",
     repl: "    if false then\n      for v_death in select value from jsonb_array_elements(p_delta->'deaths') loop\n        insert into public.player_ledger",
   },
-  autoeat_stamp_off: {
-    file: FILE,
-    why: 'hr_set_auto_eat no longer stamps auto_eat_set_at, so `auto_eat_touched` never becomes true '
-       + 'and the one-time switch-on offer is made on every single boot, forever',
-    find: '         auto_eat_set_at  = now(),',
-    repl: '         auto_eat_pct     = v_pct,',
-  },
-  touched_not_projected: {
-    file: FILE,
-    why: 'hr_state_of stops projecting auto_eat_touched, so the client cannot tell a DECISION from a '
-       + 'default and re-prompts a player who said "Keep it off"',
-    find: "      'auto_eat_touched', (v_st.auto_eat_set_at is not null),",
-    repl: "      'auto_eat_touched_x', (v_st.auto_eat_set_at is not null),",
-  },
+  /* (autoeat_stamp_off / touched_not_projected retired with arm 8: lane C2
+     drops the Auto-Eat switch they planted into.) */
   recovery_floor_forfeits_gather: {
     js: 'supabase/functions/hr-accrue/accrual.js',
     why: 'the rev. 2 prefix subtraction is put back in the ENGINE - the declaration is accepted '
@@ -256,7 +242,7 @@ async function seed(db, uid, o = {}) {
 const rest = (db, uid, intent) => asPlayer(db, uid,
   'select public.hr_rest($1::int, $2::uuid) as r', [0, intent]).then((row) => row.r);
 const stateRow = async (db, uid) => (await db.query(
-  `select hp, max_hp, recovering_until, auto_eat_enabled, auto_eat_set_at, version
+  `select hp, max_hp, recovering_until, version
      from public.player_state where user_id=$1 and slot=0`, [uid])).rows[0];
 const invQty = async (db, uid, id) => {
   const r = await db.query(
@@ -424,7 +410,7 @@ async function runAll(db, mutate) {
       } finally { await db.exec('reset role'); }
     };
     const row = (n) => ({ monster: 'slime', recovery_ms: n * 120000, deaths_today: n,
-      deaths_lifetime: n + 10, resume_hp: 4, auto_eat_enabled: false, food_in_bag: false });
+      deaths_lifetime: n + 10, resume_hp: 4, food_in_bag: false });
     const r = await apply({ deaths: [row(1), row(2), row(3)],
       journal: { kind: 'combat', intent: 'accrue' } });
     ok(r && r.ok === true, `a delta with death rows was refused: ${JSON.stringify(r && r.error)}`);
@@ -455,45 +441,12 @@ async function runAll(db, mutate) {
     ok(Number(after) === 3, `the refused delta still wrote rows (${after} total, expected 3)`);
   }
 
-  // ── 8. THE AUTO-EAT TOUCH STAMP. ─────────────────────────────────────────
-  {
-    const I = uidFor('a9');
-    await seed(db, I, { hp: 5, maxHp: 10, until: null });
-    let st = await stateRow(db, I);
-    ok(st.auto_eat_set_at === null,
-      'a fresh character already carries a touch stamp — every one of them would be denied the '
-      + 'one-time switch-on offer');
-    let env = (await db.query(`select public.hr_state_of($1::uuid, 0) as e`, [I])).rows[0].e;
-    ok(env.state.auto_eat_touched === false,
-      `hr_state_of does not project auto_eat_touched:false for an untouched character `
-      + `(got ${JSON.stringify(env.state.auto_eat_touched)})`);
-
-    /* "KEEP IT OFF" — the answer that must ALSO silence the offer. It is the
-       call this stamp exists for: switching it ON obviously counts as a
-       decision, and a stamp that only fired on the way on would re-prompt the
-       one population that has already said no. */
-    const off = await asPlayer(db, I,
-      'select public.hr_set_auto_eat($1::int,$2::boolean,$3::text,$4::int,$5::boolean) as r',
-      [0, false, null, null, false]);
-    ok(off.r && off.r.ok === true, `hr_set_auto_eat(false) failed: ${JSON.stringify(off.r)}`);
-    st = await stateRow(db, I);
-    ok(st.auto_eat_set_at !== null,
-      'hr_set_auto_eat(false) did NOT stamp auto_eat_set_at — a player who chose "Keep it off" '
-      + 'would be re-prompted on every boot, forever');
-    ok(st.auto_eat_enabled === false, 'hr_set_auto_eat(false) turned it ON');
-    env = (await db.query(`select public.hr_state_of($1::uuid, 0) as e`, [I])).rows[0].e;
-    ok(env.state.auto_eat_touched === true,
-      'hr_state_of does not project the touch, so the client cannot tell a DECISION from a default');
-
-    /* AND THE MIGRATION DID NOT BULK-WRITE THE SWITCH. `auto_eat_enabled` has
-       exactly one writer; a row that is enabled with no stamp proves a second. */
-    const bad = (await db.query(
-      `select count(*)::int c from public.player_state where auto_eat_enabled and auto_eat_set_at is null`
-    )).rows[0].c;
-    ok(Number(bad) === 0,
-      `${bad} row(s) are auto_eat_enabled with no touch stamp — something other than hr_set_auto_eat `
-      + 'wrote the switch');
-  }
+  // ── 8. (RETIRED, lane C2) THE AUTO-EAT TOUCH STAMP. ──────────────────────
+  // Hunt sessions retire Auto-Eat (ruling HR-2026-10-14 §3): healing is the
+  // action bar's heal slot, priced by the hunt settle. hr_set_auto_eat, the
+  // five auto_eat columns and the auto_eat_touched projection are dropped by
+  // 2026-10-22-hunt-sessions-drop-away.sql; tests/hunt-sessions-db.mjs D1
+  // asserts they are gone and that a planted reader refuses the drop.
 
   // ── 9. THE LADDER'S COUNTERS ARE PROJECTED AS SCALARS. ───────────────────
   {
@@ -783,8 +736,7 @@ if (argv.includes('--selftest')) {
   console.log('recovery-rest: all assertions passed (hr_rest eats/heals/clears, all-or-nothing, '
     + 'replay-safe, not_hurt + not_recovering + collect_first fuses; hr_apply admits the 64-minute '
     + 'ladder cap, refuses a forgery, is not voided by an activity switch; the death ledger is one '
-    + 'value-free row per death and bounded; hr_set_auto_eat stamps the touch on every call and '
-    + 'hr_state_of projects it; the ladder counters survive a truncated progress array; and '
+    + 'value-free row per death and bounded; the ladder counters survive a truncated progress array; and '
     + 'set_activity §1b refuses COMBAT alone inside the window while gathering runs at full rate, '
     + 'without clearing the line or moving the ladder — and the ENGINE pays that window through the '
     + 'real collect, so the xp and items land, accrued_to advances, and hr_rest is not jammed behind '

@@ -450,7 +450,13 @@ export const BINDS = {
       need(w.away.AWAY_SCOPE.botd === true, 'the featured bonus no longer pays away'),
       need(w.combatSimJs.includes('killXpRoute(ctx.style, m.xp, feat.xpMult)') && w.combatSimJs.includes('hitXpRoute(ctx.style, xpDmg)'),
         'the featured XP bonus no longer scales kill XP alone — "for each kill" is wrong'),
-      need(w.accrualJs.includes('lootCtx.botd = {'), 'the attended top-up no longer applies the featured bonus'),
+      /* "watching or away": since lane C2 a fight is priced by ONE path whether
+         a client is connected or not (the hunt settle — the attended top-up and
+         its own `lootCtx.botd` are gone), so the claim is that path's binding:
+         the featured bonus resolved per segment from the server instant. */
+      need(w.accrualJs.includes('botdFor(atMs) {\n      return { killBonuses(id) { return killBonusesFor(id, atMs, monsters); } };')
+        && !/attended/i.test(w.accrualJs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')),
+        'the one combat settle no longer applies the featured bonus per segment (or a second, attended path is back)'),
       need(/import\s*\{[^}]*\bWEEKLY_BONUS\b[^}]*\}\s*from\s*'\.\/botd\.js/.test(w.src['src/core/combat-xp-cap.js'] || ''), 'the live XP credit no longer allows the weekly bonus'));
   },
   luckyRows: (w) => {
@@ -650,6 +656,7 @@ async function selftest() {
     ['M15 the Party screen grows a Rejoin hunt button', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nvar x = '<button data-party-act=\"hunt-rejoin\">Rejoin hunt</button>';"; }, 'partyCampRejoinsOnReturn'],
     ['M16 the Party screen loses the solo stance picker', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] = w.src['src/render/party-panel.js'].split('huntStanceButtonsHtml').join('ownStanceButtons'); }, 'partyHuntLeaderStarts'],
     ['M17 the Vigour grant drifts from the away limit', 'CODEX-6', (w) => { w.hunt.vigourGrantMin = () => 60; }, 'vigourMatchesAwayCap'],
+    ['M18 the one combat settle drops the featured bonus', 'CODEX-6', (w) => { w.accrualJs = w.accrualJs.replace('return killBonusesFor(id, atMs, monsters);', 'return { dropMult: 1, xpMult: 1 };'); }, 'botdBonus'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

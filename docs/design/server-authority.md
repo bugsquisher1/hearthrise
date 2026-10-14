@@ -1395,3 +1395,52 @@ header is the full contract); guard: `tests/account-wallet.mjs` (+ `--mutate`).
   → **wallet row (leaf)**. No helper takes a lock after the wallet row.
 * **Projection.** `hr_state_of` projects the wallet as `state.gems` / `state.hearth_tokens` on
   every slot; the client contract is unchanged and the client computes nothing.
+
+## 12. HUNT SESSIONS — the settle (lane C2, ruling HR-2026-10-14) — contract
+
+Hunt sessions replace away combat. C1 (`2026-10-21-hunt-sessions.sql`, APPLIED 2026-10-14) owns
+the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
+`supabase/migrations/2026-10-22-hunt-sessions-settle.sql` (header = full contract),
+`supabase/functions/hr-accrue/hunt-settle.js`, `hunt-seed.js`; guards `tests/hunt-sessions-settle.mjs`
+(+ `--mutate`), `tests/hunt-session-engine.mjs`, `tests/hunt-sessions-db.mjs`.
+
+* **One settle, three doors.** The world tick (`hr_hunt_roster` → `tick.js` `hunts`), the
+  player's `hunt_settle`, and `hunt_use` (a press, landing at the first swing boundary at or after
+  it) run the SAME `settleHunt`. A settle-before-mutate verb collects a hunter through it too.
+  Combat outside a session is no longer priced for a hunter: the solo combat channel is out of
+  the tick, `hr_credit_kills` / auto-eat / the away receipt are gone, and the
+  `hr_hunt_accrue_fence` trigger refuses any combat accrue row for a character with an open
+  session unless it is stamped with that session (`hr.hunt_session`).
+* **Edge proposes, Postgres disposes.** The edge reads (`hr_hunt_engine_read` + `hr_state_of` +
+  `now()`), computes `computeAccrual` with the session attached (the one combat body), and calls
+  `hr_hunt_apply(user, slot, session, version, intent, delta, hunt, buffs, press, project)`
+  (hr_engine only). It takes hr_apply's per-character lock, validates a press like `hr_hunt_use`,
+  then in ONE subtransaction: `hr_apply(delta)` under the session GUC (every ledger row stamped),
+  the press, `hr_hunt_buffs_put` (a new/longer buff segment only if this window's bag uses paid
+  for it), `hr_hunt_settle_session` (SECURITY DEFINER; swing CAS, window ≤ now()+skew, bag and
+  use caps, presses only shrink, falls = the stamped death rows, every end re-proved, tally folded
+  from the stamped ledger rows). Any HR000 rolls all of it back and is journalled
+  (`hr_record_rejection`, aggregated): value and session clock move together or not at all.
+* **Error taxonomy.** Pre-lock: `bad_arguments`, `no_hunt`, `bad_press`, `hunt_leaving`,
+  `bad_bar_slot`, `bag_empty`, `press_queued`. Value half: every hr_apply code, `stage:'apply'`.
+  Session half (`stage:'session'`): `session_moved`, `window_in_future`, `bad_window`,
+  `bad_presses`, the use-cap and end-proof codes of C1. Edge retries `session_moved` /
+  `version_conflict` once after a re-read; degradable clamps halve the WINDOW (≤ 3 times), never
+  a rate; everything else leaves the session owed for the next fire.
+* **Clock.** `settled_to` always lands on the session's next swing boundary, so session clock ==
+  watermark and paid + down == window. N tick windows == one span (TICK-1, measured through the
+  database with savepoint-compared runs), and a death with a client connected writes the same
+  rows as one with none (BOTH-PATH).
+* **Determinism.** Per-swing seed = first 4 bytes of HMAC-SHA256(key = the session's
+  `hr_seed(user, slot, 'hunt:'||id)` secret, msg = session id + swing index) — `hunt-seed.js`,
+  Security C1 item 3. A missing/malformed secret refuses the settle; the FNV mix is a planted
+  mutant that turns SEED red.
+* **Idempotency.** The tick's intent key is derived from (session, swing_from, version, secret);
+  a press carries the player's key. hr_apply's `player_intents` answers a replay `replayed` and
+  `hr_hunt_apply` then writes nothing else.
+* **Max HP is raise-only** inside a settle (a hitpoints level-up never lowers it).
+* **Kill switch.** C1 seeds `hr_hunt_config.enabled = false`; `2026-10-22-hunt-sessions-arm.sql`
+  (applied right after the edge deploy) is the only writer that turns it on.
+* **Cost at 100× (~600 hunters).** One accrue row per settle (120/day away at fold 8, ≤ 960/day
+  online), one consumption row per settle that used anything, ladder-bounded death rows, ~5–30
+  events per session, one lease row per open session. No per-tick or per-kill journal.

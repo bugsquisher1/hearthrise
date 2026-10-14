@@ -320,15 +320,15 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
          pins the value (tick chain == one accrue span) and its --mutate puts
          `char.companionXpBacked` back and must go red by name. */
     companionXpBacked: COMPANION_XP_SERVER_BACKED,
-    /* ── THE ATTENDED TOP-UP IS STRUCTURALLY ABSENT, NOT FORGOTTEN ─────────
-       Every term of `min(claimed, attendedKillCap, MAX_FIDELITY x sim) - sim`
-       is priced against the SPAN. Hand sixty windows the same claim and it is
-       paid sixty times; split the claim and the arithmetic is undefined. There
-       is no correct way for a 10 s window to carry one, so the tick never
-       does, and `settleCombatSession` THROWS on a caller that supplies one
-       rather than letting a null look like an oversight
-       (WORLD_TICK_DESIGN.md 16.6, guard C10). */
-    attended: null,
+    /* ── NO ATTENDED KEY, AND NO HUNTER (lane C2) ────────────────────────────
+       The attended top-up is gone from the engine (hunt sessions price every
+       fight through one settle), so there is no `attended` input to null; and
+       `settleCombatSession` still THROWS on a caller that supplies one
+       (WORLD_TICK_DESIGN.md 16.6, guard C10). `huntOpen` is the accrue path's
+       key (index.ts reads hr_hunt_open_of): a tick session is never a hunter's —
+       the solo combat channel is undriven and a partied member's combat accrue
+       row is refused by hr_hunt_accrue_fence if it ever were — so it is false. */
+    huntOpen: false,
     /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
        2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —
        10 s is below the floor and there is no later call that would see a

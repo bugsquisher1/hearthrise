@@ -168,8 +168,9 @@ export default [
         G.inventory = Object.assign({}, G.inventory, { bone_key: 3 });
         G.equipment = Object.assign({}, G.equipment, { boots: 'leather_boots' });
         R.check();
-        /* A product row stays shut until its product is live (S7), whatever its step. */
-        const step1 = R.rows.filter((r) => r.step <= 1 && !r.product).map((r) => r.id).sort();
+        /* A product row stays shut until its product is live (S7), whatever its step; a live one (a code switch, not G) opens at its step. */
+        const live = R.facts().products || {};
+        const step1 = R.rows.filter((r) => r.step <= 1 && (!r.product || live[r.product])).map((r) => r.id).sort();
         const shown = [...R.state().shown].sort();
         assert(JSON.stringify(shown) === JSON.stringify(step1) && shown.indexOf('pane:shop') >= 0,
           'client-written G revealed: ' + shown.filter((id) => step1.indexOf(id) < 0).join(', '));

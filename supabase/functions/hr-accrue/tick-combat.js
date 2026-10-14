@@ -622,6 +622,9 @@ export function foldCombatDelta(deltas) {
 export function foldCombatMeta(metas, windowFromMs, windowToMs) {
   const out = { ms: 0, ticks: 0, kills: 0, capped: false, ate: 0 };
   const spent = {};
+  /* `km` (a named hunt's kills by monster, Security C3): summed across the
+     polls exactly as `spent` is; absent unless a poll carried one. */
+  const km = {};
   let waste = [0, 0];
   /* `mon` (the monster the kills were) is carried when every poll names the
      SAME one — a flush window is one pointer, so that is every honest fold. A
@@ -642,6 +645,9 @@ export function foldCombatMeta(metas, windowFromMs, windowToMs) {
     for (const id of Object.keys(m.spent || {})) {
       spent[id] = (spent[id] || 0) + Math.floor(Number(m.spent[id] || 0));
     }
+    for (const id of Object.keys(m.km || {})) {
+      km[id] = (km[id] || 0) + Math.floor(Number(m.km[id] || 0));
+    }
     if (m.w) {
       const [r, i] = String(m.w).split(',').map((n) => Number(n) || 0);
       waste = [waste[0] + r, waste[1] + i];
@@ -658,6 +664,7 @@ export function foldCombatMeta(metas, windowFromMs, windowToMs) {
      already is. A nested value would be refused by artisan-accrual T7; both of
      these are flat (a map of integers, and a comma-joined scalar). */
   if (Object.keys(spent).length) out.spent = spent;
+  if (Object.keys(km).length) out.km = km;
   if (waste[0] || waste[1]) out.w = `${waste[0]},${waste[1]}`;
   /* ⚠ `ms` IS RESTATED FROM THE WATERMARK, NOT SUMMED FROM THE POLLS. Each
      poll is asked "from my watermark to now", so its own `grantMs` INCLUDES

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=573';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=574';
 
 /* regression (quest-xp): hundred_kills paid 1,500 combat XP through
    window.addXp — client-authored XP into hr_credit_combat_xp. The server now
@@ -3605,7 +3605,8 @@ export default [
       assert(CS, 'HearthriseCombatScreens is not published — the two screens did not boot');
       window.showTab('combat');
       G.activeMonster = null;
-      CS.setView('table');
+      var tier0 = G.currentCombatTier; G.currentCombatTier = 1;   // T1 is open to every hero; an earlier test may leave T6
+      CS.setView('table'); CS.setTab('training');
       CS.render();
       const btn = document.querySelector('#panel-combat .wt-grid .wt-card:not([disabled])');
       assert(btn, 'the War Table rendered no reachable monster card — nothing to grade');
@@ -3632,6 +3633,8 @@ export default [
       assert(/last/i.test(document.getElementById('fs-metrics').textContent),
         'the preview it routes to carries no survival line, which is the reason for routing here');
     } finally {
+      if (tier0 === undefined) delete G.currentCombatTier; else G.currentCombatTier = tier0;
+      CS.setTab('hunts');
       try { if (typeof window.closeMobPreview === 'function') window.closeMobPreview(); } catch (e) {}
       const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');
       try { window.stopCombat(); } catch (e) {}
@@ -4142,7 +4145,7 @@ export default [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../../data/shops.js?v=573');
+    const S = await import('../../data/shops.js?v=574');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -5807,7 +5810,7 @@ export default [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../../data/shops.js?v=573');
+    const S = await import('../../data/shops.js?v=574');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat_2')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat_2',
       'trait:auto_eat_2 is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

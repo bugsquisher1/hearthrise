@@ -11,26 +11,26 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture, watchLiveRpc } from './smoke/_harness.js?v=573';
-import boot from './smoke/boot.js?v=573';
-import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=573';
-import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=573';
-import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=573';
-import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=573';
-import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=573';
-import farmAndProfile from './smoke/farm-and-profile.js?v=573';
-import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=573';
-import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=573';
-import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=573';
-import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=573';
-import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=573';
-import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=573';
-import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=573';
-import marketNightAndPrices from './smoke/market-night-and-prices.js?v=573';
-import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=573';
-import spineReveal from './smoke/spine-reveal.js?v=573';
-import spinePointer from './smoke/spine-pointer.js?v=573';
-import coach from './smoke/coach.js?v=573';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture, watchLiveRpc } from './smoke/_harness.js?v=574';
+import boot from './smoke/boot.js?v=574';
+import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=574';
+import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=574';
+import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=574';
+import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=574';
+import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=574';
+import farmAndProfile from './smoke/farm-and-profile.js?v=574';
+import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=574';
+import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=574';
+import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=574';
+import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=574';
+import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=574';
+import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=574';
+import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=574';
+import marketNightAndPrices from './smoke/market-night-and-prices.js?v=574';
+import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=574';
+import spineReveal from './smoke/spine-reveal.js?v=574';
+import spinePointer from './smoke/spine-pointer.js?v=574';
+import coach from './smoke/coach.js?v=574';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,

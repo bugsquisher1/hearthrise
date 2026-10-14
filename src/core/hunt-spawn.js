@@ -5,7 +5,7 @@
 // path), from the engine's own seeded `ctx.rng` — never Math.random.
 // `huntFor` resolves a combat pointer: a named hunt id, or null for a monster id
 // (a training fight, which keeps its pre-hunt pricing byte for byte).
-import { HUNT_INDEX } from '../data/hunts.js?v=580';
+import { HUNT_INDEX } from '../data/hunts.js?v=582';
 
 /**
  * Weighted pick from `spawns` ([{ monster, w }]). A single spawn returns its

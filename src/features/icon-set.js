@@ -95,9 +95,9 @@
       // currencies), never chrome, so a medallion always means "this is a
       // thing in the world" rather than "this is a control".
       '.hr-med{display:inline-grid;place-items:center;width:var(--sz,40px);height:var(--sz,40px);border-radius:50%;',
-      'background:radial-gradient(circle at 38% 28%,#2e2418,#15100a 78%);',
+      'background:var(--medallion-bg);',
       'border:1px solid color-mix(in srgb,var(--ring,#c9a24a) 55%,transparent);',
-      'box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55),0 1px 2px rgba(0,0,0,.5);',
+      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55),0 1px 2px rgba(0,0,0,.5);',
       'vertical-align:middle;flex:0 0 auto}',
       '.hr-med svg{width:60%;height:60%;display:block;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55))}',
       '.skill-tile .sicon .hr-med,.sk-icon .hr-med{--sz:34px}',

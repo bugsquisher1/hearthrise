@@ -88,7 +88,7 @@
       R + '.hd-who{display:flex;align-items:flex-end;gap:15px;min-width:0}',
       R + '.hd-ava{width:74px;height:74px;border-radius:var(--r);flex:0 0 auto;overflow:hidden;',
       'background:var(--bg-2) !important;border:1px solid var(--line-strong) !important;',
-      'box-shadow:inset 0 1px 0 rgba(255,232,190,.14),0 6px 16px -6px rgba(0,0,0,.95)}',
+      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 14%, transparent),0 6px 16px -6px rgba(0,0,0,.95)}',
       R + '.hd-eyebrow{font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.06em;text-transform:uppercase;',
       'color:var(--scene-gilt) !important;font-weight:700;margin-bottom:2px;text-shadow:0 1px 6px rgba(0,0,0,.9)}',
       R + '.hd-name{font-family:var(--f-display);font-size:31px;font-weight:600;line-height:1.05;',
@@ -182,14 +182,14 @@
       /* Rows sit on the world. A hairline separates them; no card, no radius. */
       R + '.hd-card{background:transparent !important;border:0 !important;border-radius:0;box-shadow:none}',
       R + '.hd-rows{display:flex;flex-direction:column}',
-      R + '.hd-rows > .hd-card + .hd-card{border-top:1px solid rgba(236,225,204,.075) !important}',
+      R + '.hd-rows > .hd-card + .hd-card{border-top:1px solid var(--line-soft) !important}',
 
       R + '.hd-mile{display:flex;align-items:center;gap:15px;padding:13px 4px;position:relative}',
       /* Struck-metal disc, not a gold ring around a floating glyph. */
       R + '.hd-mile-badge{flex:0 0 46px;height:46px;border-radius:50%;display:grid;place-items:center;',
-      'background:radial-gradient(circle at 38% 28%,#2e2418,#15100a 78%) !important;',
+      'background:var(--medallion-bg) !important;',
       'border:1px solid rgba(201,162,74,.5) !important;',
-      'box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55)}',
+      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55)}',
       R + '.hd-mile-body{flex:1;min-width:0}',
       /* Cinzel is a titling face. Setting a TASK in it ("Defeat 5 monsters")
          renders a sentence as engraved capitals, which shouts louder than the
@@ -206,18 +206,18 @@
       /* THE one lit object on the screen. A claimable reward is the only thing
          that is genuinely urgent, so it is the only thing that glows. */
       R + '.hd-daily{cursor:pointer;padding:15px 16px;border-radius:var(--r) !important;',
-      'background:linear-gradient(115deg,rgba(201,162,74,.20),rgba(201,162,74,.07) 58%,rgba(201,162,74,.02)) !important;',
+      'background:var(--lit-wash) !important;',
       'border:1px solid rgba(201,162,74,.55) !important;',
-      'box-shadow:inset 0 1px 0 rgba(255,240,205,.16),0 0 22px -12px rgba(201,162,74,.8);transition:box-shadow .18s}',
-      R + '.hd-daily:hover{box-shadow:inset 0 1px 0 rgba(255,240,205,.22),0 0 26px -8px rgba(201,162,74,.9)}',
+      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 16%, transparent),0 0 22px -12px rgba(201,162,74,.8);transition:box-shadow .18s}',
+      R + '.hd-daily:hover{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 22%, transparent),0 0 26px -8px rgba(201,162,74,.9)}',
       R + '.hd-daily .hd-mile-badge{border-color:rgba(227,199,126,.75) !important;animation:hd-daily-pulse 2.6s ease-in-out infinite}',
       R + '.hd-daily .hd-mile-title{color:var(--gold-2) !important}',
-      '@keyframes hd-daily-pulse{0%,100%{box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 0 rgba(201,162,74,.34)}' +
-        '50%{box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 7px rgba(201,162,74,0)}}',
+      '@keyframes hd-daily-pulse{0%,100%{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 0 rgba(201,162,74,.34)}' +
+        '50%{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 7px rgba(201,162,74,0)}}',
 
       /* Gauge, not a hairline. Recessed channel + lit fill. */
       R + '.hd-bar{height:7px;border-radius:1px;background:rgba(0,0,0,.42) !important;overflow:hidden;',
-      'box-shadow:inset 0 1px 2px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,232,190,.05)}',
+      'box-shadow:inset 0 1px 2px rgba(0,0,0,.7),inset 0 -1px 0 color-mix(in srgb, var(--hl) 5%, transparent)}',
       R + '.hd-bar i{display:block;height:100%;border-radius:0;',
       'background:linear-gradient(180deg,color-mix(in srgb,var(--accent,var(--green)) 82%,#fff2cf),var(--accent,var(--green))) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}',
@@ -238,10 +238,10 @@
          quest row — at --ink-3 on near-black they read as disabled text. */
       R + '.hd-cta.ghost{color:var(--ink-2) !important;font-weight:600;',
       'border:1px solid var(--line) !important;',
-      'background:linear-gradient(180deg,rgba(255,236,200,.075),rgba(255,236,200,.018) 55%,rgba(0,0,0,.1)) !important;',
-      'box-shadow:inset 0 1px 0 rgba(255,240,210,.09),0 1px 0 rgba(0,0,0,.45)}',
+      'background:linear-gradient(180deg,color-mix(in srgb, var(--hl) 7.5%, transparent),color-mix(in srgb, var(--hl) 1.8%, transparent) 55%,rgba(0,0,0,.1)) !important;',
+      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 9%, transparent),0 1px 0 rgba(0,0,0,.45)}',
       R + '.hd-cta.ghost:hover{color:var(--gold-2) !important;border-color:rgba(201,162,74,.45) !important;',
-      'background:linear-gradient(180deg,rgba(255,236,200,.13),rgba(255,236,200,.04)) !important}',
+      'background:linear-gradient(180deg,color-mix(in srgb, var(--hl) 13%, transparent),color-mix(in srgb, var(--hl) 4%, transparent)) !important}',
 
       R + '.hd-mini{padding:10px 4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.8}',
@@ -368,7 +368,7 @@
          (max-width:760px), so no 541–760px gap loses the figures. */
       '@media(max-width:760px){' + R + '.hd-ledger-m{display:flex}}',
       /* Mobile-only ledger row (desktop keeps the in-band .hd-ledger). */
-      R + '.hd-ledger-m{display:none;gap:22px;padding:9px 4px 2px;border-bottom:1px solid rgba(236,225,204,.075) !important}',
+      R + '.hd-ledger-m{display:none;gap:22px;padding:9px 4px 2px;border-bottom:1px solid var(--line-soft) !important}',
       R + '.hd-ledger-m .hd-led{text-align:left}',
       R + '.hd-ledger-m .hd-led b{font-family:var(--f-display);font-size:calc(18px * var(--ui-scale, 1));font-weight:600;',
       'color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',

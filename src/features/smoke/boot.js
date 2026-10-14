@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=574';
-import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=574';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=576';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=576';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
@@ -429,8 +429,8 @@ export default [
     const A = window.HearthriseItemArt;
     assert(A && Array.isArray(A.REJECTED_WRONG_SUBJECT), 'HearthriseItemArt.REJECTED_WRONG_SUBJECT not published');
     const rejected = A.REJECTED_WRONG_SUBJECT.map((k) => k.split('/')[1]);
-    assert(rejected.indexOf('copper_ore') >= 0 && rejected.indexOf('bronze_bar') >= 0
-      && rejected.indexOf('oak_plank') >= 0, 'the flagged wrong-art ids are missing from the reject list');
+    assert(rejected.indexOf('copper_ore') >= 0 && rejected.indexOf('copper_bar') >= 0
+      && rejected.indexOf('duskwood_plank') >= 0, 'the flagged wrong-art ids are missing from the reject list');
 
     const ip = window._itemPath || {};
     const live = rejected.filter((id) => /icons-bundle\/hearthfire\//.test(ip[id] || ''));

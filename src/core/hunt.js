@@ -23,8 +23,8 @@
 //  · No multipliers on a stance. See STANCES.
 // ============================================================================
 
-import { DEFAULT_THRESHOLD } from './auto-eat.js?v=574';
-import { AMMO_DRY_MULT } from './ammo.js?v=574';
+import { DEFAULT_THRESHOLD } from './auto-eat.js?v=576';
+import { AMMO_DRY_MULT } from './ammo.js?v=576';
 
 /* ── THE STANCE TABLE ───────────────────────────────────────────────────────
    ⚠ THE RULE THAT OUTRANKS EVERY OTHER LINE IN THIS FILE (design §2.2):

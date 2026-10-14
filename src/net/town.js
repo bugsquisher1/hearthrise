@@ -383,11 +383,11 @@ function resumeForTest() {
   return pauseDepth;
 }
 
-/** Home or Party visible AND the tab in front. Either falsy ⇒ no read goes out. */
+/** Home, Party or the World pane visible AND the tab in front. Either falsy ⇒ no read goes out. */
 function shouldPoll() {
   const d = (typeof document !== 'undefined') ? document : null;
   if (!d || d.hidden) return false;
-  return ['panel-profile', 'panel-party'].some((id) => {
+  return ['panel-profile', 'panel-party', 'panel-world'].some((id) => {
     const panel = d.getElementById(id);
     return !!(panel && panel.classList.contains('active'));
   });

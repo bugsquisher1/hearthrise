@@ -1,0 +1,29 @@
+{
+  "id": "timber_wall_door",
+  "class": "wall",
+  "material": "native",
+  "source": "timber_wall_door.png",
+  "frame": [
+    32,
+    60
+  ],
+  "anchor_px": [
+    16,
+    59
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "face",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request"
+}

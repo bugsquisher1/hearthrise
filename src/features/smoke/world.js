@@ -223,14 +223,23 @@ export default [
       const rt = await openWorld();
       document.querySelector('#panel-world [data-world-choice="town"]').click();
       assert(await until(() => rt.stats().scene === 'town_common', 2000), 'tapping Town did not show the Common');
+      /* The viewer is listed too (the server's view includes everyone): drawn once,
+         as the hero, never as a peer. A fixture peer that shares the viewer's name
+         would be left out for that very reason — say so rather than miscount. */
+      const I = window.HearthriseIdentity;
+      const you = (I && I.displayName && I.displayName()) || G.playerName || 'Adventurer';
+      const canon = (n) => (I && I.canon ? I.canon(String(n)) : String(n).toLowerCase());
+      assert(!['Brannoc', 'Wren', 'Ilsa'].some((n) => canon(n) === canon(you)), 'the viewer is named "' + you + '", a fixture peer\'s name: an earlier test left its name behind');
       T.__setTown(townBody([
         { name: 'Brannoc', activity_kind: 'combat', activity_id: 'rat', level_band: 30 },
         { name: 'Wren', activity_kind: 'gather', activity_id: 'normal_tree', level_band: 10 },
         { name: 'Ilsa', activity_kind: 'artisan', activity_id: 'bronze_bar', level_band: 20, away: true },
+        { name: you, activity_kind: 'idle', level_band: 0 },
       ]));
       rt.step();
       const placed = rt.stats().walk.units;
       assert(placed.length === 3 && placed.every((u) => / · Lv /.test(u.plate)), 'three peers with name and level band must stand in the Common: ' + JSON.stringify(placed));
+      assert(!placed.some((u) => canon(u.plate.split(' · ')[0]) === canon(you)), 'the viewer must not also stand in the Common as a peer: ' + JSON.stringify(placed));
       const at = (n) => placed.find((u) => u.plate.startsWith(n + ' '));
       const st = rt.stats().walk.stations;
       const by = (u, kind) => u && st && st[kind] && Math.max(Math.abs(u.x - st[kind][0]), Math.abs(u.y - st[kind][1])) <= 2;

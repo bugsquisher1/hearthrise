@@ -2010,9 +2010,15 @@ export const firstRunAnswered = (name) => {
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
+  /* G.playerName goes back too: while the harness name stands, the name readers
+     (legacy.js's "reconcile the stale default up") copy it INTO G.playerName, and
+     that copy outlived the stub — every later test ran as "Wren" (b581: the World
+     pane then rightly left a peer called Wren out of the Common as "yourself"). */
+  const G = window.G, hadName = G && Object.prototype.hasOwnProperty.call(G, 'playerName'), oldName = G && G.playerName;
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
+    if (G && window.G === G) { if (hadName) G.playerName = oldName; else delete G.playerName; }
   };
 };
 

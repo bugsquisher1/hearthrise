@@ -3802,7 +3802,27 @@ export default [
      `the stub origin was asked for 4 request(s): …/hr_town_of, …/hr_heartbeat,
      2 network-status probe(s)`. The spy REJECTS a stub-origin request, so even
      the RED run raises none of the page errors this test exists to prevent. */
-  () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin', async () => {
+  /* REGRESSION (b581): the harness name outlived the stub. While a stubbed session
+     stands, legacy.js _hrDisplayName() (every top-bar paint) copies the harness
+     name into G.playerName as "the stale default reconciled up", and nothing put
+     it back: from the first stub on, every later test ran as "Wren", and the World
+     pane rightly left a peer called Wren out of the Common as the viewer.
+     MUTATION: drop the playerName restore in _harness.js firstRunAnswered → RED. */
+  () => tryRun('STUB-NAME-1: a stubbed session hands G.playerName back exactly as it found it', () => {
+    const G = window.G;
+    const had = Object.prototype.hasOwnProperty.call(G, 'playerName'), was = G.playerName;
+    try {
+      G.playerName = 'Adventurer';
+      const unstub = stubSignedIn(0, 'StubNameProbe');
+      try {
+        if (typeof window.updateTopbar === 'function') window.updateTopbar();
+        assert(G.playerName === 'StubNameProbe', 'CONTROL: under the stub the name readers adopt the harness name (got ' + G.playerName + ')');
+      } finally { unstub(); }
+      assert(G.playerName === 'Adventurer', 'the stub left its name in G.playerName: ' + G.playerName);
+    } finally { if (had) G.playerName = was; else delete G.playerName; }
+  }),
+
+  () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin',async () => {
     const T = window.HearthriseTown, N = window.HearthriseNetStatus;
     const M = window.HearthriseMuster, HF = window.HearthriseHearthfind;
     const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';

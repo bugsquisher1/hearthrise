@@ -3292,3 +3292,10 @@ baked shadow, no iso corner, drift). Sidecars record the PixelLab request/ids. O
   from the rotation frame. Template clips (walk/idle/death) redraw the character and drop or add the
   shield between frames: rejected. `create_1_direction_object` batches (64 candidates, 10 gens) are the
   cheapest consistent props, but draw boxes corner-on; the validator rejects those.
+## 2026-10-13 · art-director -> asset-director · Recraft wave-1 re-roll list (lane/b574-art-wave1)
+Wrong subject: mandrake (neither reads as a root), young grey wolf (both blue), dawn ingot (not violet-gold),
+bronze ingots with an embossed "B" (letters), tin ore (no item id uses it).
+Off-style (glossy/plastic, clashes with the hearthfire shelf): iron/steel/mithril/ember ingots, rune essence,
+potato, copper + iron ore (green rock with red veins, reads as neither).
+Usable but not wired (style clash with shipped hearthfire art; keep for a full re-do): remaining monsters, crops,
+dishes, coal, gold/mithril ore, log, planks, sprout, tilled/watered plots. Sheets: docs/art-experiments/.

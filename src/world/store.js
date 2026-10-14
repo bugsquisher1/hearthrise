@@ -10,9 +10,9 @@
 // allowlist) and never sent; a reload forgets it, which is correct for a view.
 // tests/world-no-authority.mjs fails the build on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../data/hunts.js?v=574';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=574';
-import { huntMapIndex, sceneFor } from './core/scene-route.js?v=574';
+import { HUNT_INDEX } from '../data/hunts.js?v=575';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=575';
+import { huntMapIndex, sceneFor } from './core/scene-route.js?v=575';
 
 const INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);
 

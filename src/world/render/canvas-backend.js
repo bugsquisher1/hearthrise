@@ -18,10 +18,10 @@
 //   3. draw the nameplates at SCREEN resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=574';
-import { zoomFor, frameView } from '../core/camera.js?v=574';
-import { composeFrame, groundTiles } from '../core/compose.js?v=574';
-import { paintStub } from '../stub-atlas.js?v=574';
+import { T } from '../core/grid.js?v=575';
+import { zoomFor, frameView } from '../core/camera.js?v=575';
+import { composeFrame, groundTiles } from '../core/compose.js?v=575';
+import { paintStub } from '../stub-atlas.js?v=575';
 
 const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush

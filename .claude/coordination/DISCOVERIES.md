@@ -3685,3 +3685,7 @@ tools/css-ab-pixel-diff.mjs). What stays warm under a cool palette is ~30 hairli
 mix): the Home reward card needed its own --lit-wash per palette. A mid-grey UI blends with the
 town's grey cobbles exactly as a brown UI blends with the cellar's dirt; separation from the pixel
 world comes from VALUE (darker than the art), not only from hue. Today's --red as text is 2.8:1.
+SHIPPED the same day: Charcoal & Gold is the default; the warm-white tints are one token (--hl) mixed at
+their own strengths, so a future palette moves every highlight by changing one value. Not swept, on
+purpose: src/bug-report.js inline styles (own literal ink) and src/net/account-gate.js (keeps literal
+fallbacks so the front door paints before anything else loads).

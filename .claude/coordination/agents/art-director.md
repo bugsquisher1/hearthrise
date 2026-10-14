@@ -2881,3 +2881,10 @@ Lessons: (1) a gold wash over navy is grey; the one lit object needs its own was
 the same VALUE as the art blurs into it whatever the hue: iron vs the town's cobbles is today's brown vs
 the cellar's dirt; (3) run-to-run screenshot noise is thousands of pixels, so "default unchanged" is proven
 with computed styles and the one-load A/B tool, never by diffing two runs.
+SHIPPED (same day, Tyler + Coordinator): Charcoal & Gold is the default ladder; Midnight and Iron stay staged
+behind the attribute with no picker (one palette to check per UI change for now). ~80 warm-white tints are
+now one light, --hl, at their own strengths (color-mix), hairline borders read --line-soft; --aqua-2 (links,
+focus ring) lost its khaki; the PWA splash/status colour follows. Left warm on purpose: the gold button's own
+highlight, the bounty board and shopfront (wooden objects), farm soil, painted scene art. PALETTE-1 guards
+the ladder AND the painted chrome (a brown panel-floor literal fails it). Lesson: a sweep that recolours
+"the light" must stop at the gold — a highlight ON gold metal is the metal's, not the UI's.

@@ -4,11 +4,11 @@
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
-      "literals": 292,
+      "literals": 235,
       "important": 53
     },
     "audit-overrides.css": {
-      "literals": 427,
+      "literals": 426,
       "important": 124
     },
     "away-ledger.css": {
@@ -84,7 +84,7 @@
       "important": 0
     },
     "theme-cozy.css": {
-      "literals": 131,
+      "literals": 129,
       "important": 547
     },
     "tokens.css": {

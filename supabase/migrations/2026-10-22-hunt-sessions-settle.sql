@@ -894,22 +894,20 @@ begin
 end $$;
 
 -- ── §9 GRANTS — EXACT, REVOKE FIRST ────────────────────────────────────────
-do $mig$
-declare f text; r text;
-begin
-  foreach f in array array[
-    'public.hr_hunt_open_of(uuid, int)', 'public.hr_hunt_engine_read(uuid, int)',
-    'public.hr_hunt_buffs_put(uuid, int, timestamptz, timestamptz, jsonb, jsonb)',
-    'public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean)',
-    'public.hr_hunt_roster(text, int, int)', 'public.hr_tick_cron_run()'] loop
-    execute format('revoke execute on function %s from public', f);
-    foreach r in array array['anon', 'authenticated', 'service_role', 'hr_engine', 'hr_tick'] loop
-      if exists (select 1 from pg_roles where rolname = r) then
-        execute format('revoke execute on function %s from %I', f, r);
-      end if;
-    end loop;
-  end loop;
-end $mig$;
+-- Literal lines, one per function, so tests/run-sql-tests.mjs's grant lints
+-- read every revoke (a loop of format() calls is invisible to them).
+revoke execute on function public.hr_hunt_open_of(uuid, int) from public;
+revoke execute on function public.hr_hunt_open_of(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_hunt_engine_read(uuid, int) from public;
+revoke execute on function public.hr_hunt_engine_read(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_hunt_buffs_put(uuid, int, timestamptz, timestamptz, jsonb, jsonb) from public;
+revoke execute on function public.hr_hunt_buffs_put(uuid, int, timestamptz, timestamptz, jsonb, jsonb) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) from public;
+revoke execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_hunt_roster(text, int, int) from public;
+revoke execute on function public.hr_hunt_roster(text, int, int) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_tick_cron_run() from public;
+revoke execute on function public.hr_tick_cron_run() from anon, authenticated, service_role, hr_engine, hr_tick;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
@@ -1677,7 +1675,7 @@ end $$;
 revoke execute on function public.hr_assert_grant_hygiene(boolean) from public, anon, authenticated, service_role;
 
 -- ── §10 SELF-CHECK (CLAUDE.md §4), EXECUTED AND ROLLED BACK ────────────────
-do $mig$
+do $$
 declare
   v_uid  uuid := '00000000-0000-4000-8000-0000000c2b01';
   v_r    jsonb;
@@ -1856,4 +1854,4 @@ begin
   raise notice 'hunt-sessions-settle: EXECUTED - engine-only read/apply, tick-only roster, the fence refuses a bare '
                'combat accrue for a hunter, a refused session half un-writes the value half, an unpaid buff refuses, '
                'value + clock + bag + tally + press move together, a replay moves nothing, the lease holds; net zero';
-end $mig$;
+end $$;

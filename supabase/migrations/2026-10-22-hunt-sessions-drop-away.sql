@@ -172,6 +172,11 @@ begin
     'spent_min',     v_spent,
     'remaining_min', greatest(0, v_budget - v_spent));
 end $function$;
+-- The ACL 2026-09-25-vigour-price-by-level.sql set, re-stated revoke-first
+-- (create or replace keeps it; the lines are here so the grant lints read them).
+revoke execute on function public.hr_vigour_of(uuid, int) from public;
+revoke execute on function public.hr_vigour_of(uuid, int) from anon, authenticated, service_role;
+grant  execute on function public.hr_vigour_of(uuid, int) to hr_engine;
 
 -- ── §3 THE DROPS ───────────────────────────────────────────────────────────
 drop function if exists public.hr_set_auto_eat(integer, boolean, text, integer, boolean);
@@ -187,7 +192,7 @@ delete from public.hr_client_rpc_baseline
  where grantee = 'authenticated' and proname in ('hr_set_auto_eat', 'hr_credit_kills');
 
 -- ── §4 SELF-CHECK, EXECUTED ────────────────────────────────────────────────
-do $mig$
+do $$
 declare v_h jsonb;
 begin
   if to_regprocedure('public.hr_set_auto_eat(integer,boolean,text,integer,boolean)') is not null
@@ -204,4 +209,4 @@ begin
        or jsonb_array_length(coalesce(v_h->'ungated_client_rpcs', '[]'::jsonb)) <> 0 then
       raise exception 'GATE(c): hr_assert_grant_hygiene is RED after the drop: %', v_h; end if;
   end if;
-end $mig$;
+end $$;

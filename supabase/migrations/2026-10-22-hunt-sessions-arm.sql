@@ -37,10 +37,10 @@ end $mig$;
 
 update public.hr_hunt_config set enabled = true where id and enabled is distinct from true;
 
-do $mig$
+do $$
 begin
   if coalesce((select enabled from public.hr_hunt_config where id), false) is not true then
     raise exception 'GATE: hr_hunt_config.enabled is not true after the flip';
   end if;
   raise notice 'hunt-sessions-arm: EXECUTED - hunts are open (hr_hunt_config.enabled = true)';
-end $mig$;
+end $$;

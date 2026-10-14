@@ -601,6 +601,19 @@ const ALSO_LINTED = [
      new last link — and creates the hr_wallet_* choke point. Listed so the
      derivation walk can extract its body and the grant lints see it. */
   '2026-10-19-account-wallet.sql',
+  /* HUNT SESSIONS (ruling HR-2026-10-14), lane C2. The settle file creates the
+     engine reads, the one applier hr_hunt_apply, the fence trigger and the tick
+     roster, and is link 18 of HR_GRANT_HYGIENE_CHAIN (the CURRENT last toucher
+     of hr_assert_grant_hygiene). The arm, away-readers and drop files grant
+     nothing new; they are listed so a later edit that does is linted.
+     ⚠ NOT LISTED: C1's 2026-10-21-hunt-sessions.sql (APPLIED 2026-10-14). It
+     revokes in a format() loop these regex lints cannot read (31 false FAILs)
+     and its self-check uses a named dollar tag; its ACL is asserted executed by
+     its own §8 and by tests/hunt-sessions-db.mjs instead. */
+  '2026-10-22-hunt-sessions-settle.sql',
+  '2026-10-22-hunt-sessions-arm.sql',
+  '2026-10-22-hunt-sessions-away-readers.sql',
+  '2026-10-22-hunt-sessions-drop-away.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -904,8 +917,15 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // link 17 (Game Designer ruling on B1, 2026-10-08) — the presence horizon's
   // one engine grant (hr_accrue_cap_ms), INSERTED at the head of
   // c_engine_allow, so its declared-removals list below stays EMPTY. Its base
-  // is link 16's TARGET. It is the new last toucher.
+  // is link 16's TARGET.
   '2026-10-10-world-tick-presence-horizon.sql',
+  // link 18 (hunt sessions, lane C2) — three engine grants (hr_hunt_open_of,
+  // hr_hunt_engine_read, hr_hunt_apply), INSERTED at the head of c_engine_allow,
+  // so its declared-removals list below stays EMPTY. Its base is link 17's
+  // TARGET. It is the new last toucher. (hr_attended_kills' entry is kept: the
+  // drop file removes the function after this link applies, and a stale TEXT
+  // entry admits nothing that does not exist.)
+  '2026-10-22-hunt-sessions-settle.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -1114,6 +1134,12 @@ const CLIENT_CALLABLE = new Map([
      accrual engine must never buy a paid trait for anybody. §7 records the
      hr_client_rpc_baseline row. */
   ['hr_trait_buy', ['authenticated']],
+  /* 2026-10-22-hunt-sessions-settle.sql §6b (lane C2) restates the live combat XP
+     credit, a baselined client door since 2026-08-31-combat-xp-credit.sql (whose
+     files predate this list being read for them), so it refuses a character
+     with an OPEN hunt session: a hunter's XP is the session settle's alone.
+     Rate-gated as before; the ACL is re-stated revoke-first. */
+  ['hr_credit_combat_xp', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

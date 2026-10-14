@@ -179,7 +179,7 @@ begin
 end $mig$;
 
 -- ── §5 SELF-CHECK (CLAUDE.md §4), EXECUTED AND ROLLED BACK ─────────────────
-do $mig$
+do $$
 declare
   v_uid uuid := '00000000-0000-4000-8000-0000000c2a01';
   v_r   jsonb;
@@ -248,4 +248,4 @@ begin
   raise notice 'hunt-sessions-away-readers: EXECUTED - no body reads the away receipt / Auto-Eat columns / '
                'hr_credit_kills / hr_set_auto_eat, the envelope no longer projects them, a receipt delta is refused, '
                'an ordinary apply lands; net zero';
-end $mig$;
+end $$;

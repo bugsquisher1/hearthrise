@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=574';
+import { MONSTERS } from './monsters.js?v=576';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -137,6 +137,9 @@ export const SHIPPED = Object.freeze([
   'stonejaw', 'stone_golem', 'storm_elemental', 'the_silence', 'the_unlit',
   'treant', 'vampire_bride', 'vharek', 'watchknight', 'water_elemental',
   'wight', 'wild_boar', 'witchs_apprentice', 'wyvern',
+  /* RECRAFT WAVE 1 — the two T1-T2 gaps that rendered a glyph. `ooze`
+     was a wave-1 reject (a diseased man); this one is the floating mouth. */
+  'air_elemental', 'ooze',
 ]);
 
 /**
@@ -157,7 +160,6 @@ export const WAVE1_REJECTED = Object.freeze({
   cyclops: 'two eyes. The id, the name and the subject line all say one.',
   void_mote: 'a heavy goggled humanoid in a headscarf; the subject is a small hovering hole in the world.',
   elder_cinder: 'no coals, no ash, no core glow — a plain grey brute, indistinguishable at render size from ogre / rock_troll / mountain_troll, all of which ship.',
-  ooze: 'the floating eyes and mouth that identify the subject are missing and it sits on a humanoid torso; reads as a diseased man.',
 });
 
 

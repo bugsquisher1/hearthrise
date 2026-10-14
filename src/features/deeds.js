@@ -22,7 +22,7 @@
 // parks the watcher. Pattern: src/features/hunters-ledger.js tick().
 // ════════════════════════════════════════════════════════════════════════
 
-import { DEEDS, DEED_GROUPS } from '../data/deeds.js?v=574';
+import { DEEDS, DEED_GROUPS } from '../data/deeds.js?v=576';
 
 const SEEN_KEY = 'hearthrise:deeds-seen';
 const MAX_KEYS = 10;

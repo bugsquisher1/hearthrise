@@ -1657,3 +1657,12 @@ The brief asks for `tools/discord-gift-code.mjs`, an operator one-liner that rot
 **Lanes:** `lane/w0a-cuts-and-copy` (2026-10-10-w0a-catalogue-cuts.sql §1c) and `lane/c-account-wallet` (2026-10-19-account-wallet.sql §4), met in `lane/b567-discord-join`. No git hunk; the chain stopped replaying.
 
 Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the wallet routes its gems through `hr_wallet_credit` and pinned its pre-image to the chain WITHOUT W0a, so with both present the wallet refused at §0 (md5 b2a71614). Neither order works alone: wallet-then-W0a would put a `player_state.gems` write back after the column is dropped. **Resolution (in the wallet file, flagged for Security re-review):** the wallet's restatement is rebased onto W0a's seal-less body (the seal declare, `v_seal := 1`, `hr_rally_chest(…, v_seal)` → `0`, and the `seals` ledger/answer keys removed — exactly W0a's diff), and its §0 pin is now pre = b2a71614 (W0a's body), post = dba6d501. Apply order: w0a-catalogue-cuts → name-moderation → account-wallet → discord-gift. Verified on the merged chain: tests/account-wallet.mjs + --mutate, tests/discord-gift.mjs + --mutate, schema-drift, catalogue-coherence.
+
+---
+
+## 2026-10-14 — SEMANTIC (open): two homes for the world art budget (W1 runtime vs W2 art)
+**Lanes:** `lane/w1-world-runtime` (systems-engineer) and `lane/w2-world-art` (asset/art). No git hunk.
+
+The plan gives `src/data/world/art-budget.js` to W2. W1 had to size its stub boxes before that file exists, so `src/world/stub-atlas.js` carries one box per class taken from the plan's scale table (hero 38 in 64x64, door 48, wall 48 + 10 cap, tree 112, crown 80), and `tests/world-core.mjs` G2 pins them to the budget. W1 did NOT create `art-budget.js`, to avoid an add/add conflict. **Owed by whichever lane lands second:** stub-atlas reads its sizes from W2's `art-budget.js`, and G2 checks the stubs against that file instead of literals.
+
+**RESOLVED 2026-10-14 (W1 merged W2 @8bb3f239):** the stub class table is deleted. The manifests are the one source of frame, anchor, footprint, class and shadow (`src/world/core/book.js`); a sprite no atlas carries draws as one STUB_SPRITE box. `art-budget.js` stays W2's.

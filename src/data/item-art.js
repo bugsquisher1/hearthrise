@@ -57,6 +57,7 @@
 // way in the Recipe Book AND the inventory.
 //
 // ── ASSET DIRECTOR PASS (2026-08-17) — UNWIRED, NOT RE-SHOT YET ───────────
+// (Recraft wave 1 re-shot bronze_bar and oak_plank; both are back in SHIPPED.)
 // All six ids above are now REMOVED from SHIPPED (see REJECTED_WRONG_SUBJECT
 // below). Unwiring them was NOT a downgrade to a bare emoji: `legacy.js`'s
 // `LOCAL_ITEM_ICON` literal (the pre-Hearthfire b217 map) already carried
@@ -141,10 +142,10 @@ export const SHIPPED = Object.freeze({
     'cooked_moonfish', 'cooked_panther_meat', 'cooked_shark', 'cooked_shrimp',
     'cooked_swordfish', 'cooked_trout', 'cooked_wolf_meat', 'dragon_stew', 'ember_tart',
     'emberfruit', 'emberfruit_seed', 'frostfin', 'goldenroot', 'goldenroot_roast',
-    'goldenroot_seed', 'herring', 'hunters_feast', 'lich_soul_soup', 'lobster', 'moonbloom',
-    'moonbloom_elixir', 'moonbloom_seed', 'moonfish', 'potato', 'potato_seed', 'pumpkin',
+    'goldenroot_seed', 'goldgill', 'herring', 'hunters_feast', 'lich_soul_soup', 'lobster', 'moonbloom',
+    'moonbloom_elixir', 'moonbloom_seed', 'moonfish', 'pikeperch', 'potato', 'potato_seed', 'pumpkin',
     'pumpkin_pie', 'pumpkin_seed', 'raw_bear_meat', 'raw_panther_meat', 'raw_wolf_meat',
-    'roasted_carrot', 'roasted_pumpkin', 'shark', 'shrimp', 'swordfish', 'tomato',
+    'roasted_carrot', 'roasted_pumpkin', 'shark', 'shrimp', 'silverfin', 'swordfish', 'tomato',
     'tomato_seed', 'tomato_soup', 'trout', 'turnip', 'turnip_mash', 'turnip_seed',
     'vegetable_stew', 'void_banquet', 'wheat', 'wheat_bread', 'wheat_seed',
   ]),
@@ -153,7 +154,7 @@ export const SHIPPED = Object.freeze({
     'alpha_pattern', 'ancient_claw', 'ancient_fragment', 'ancient_rune', 'arcane_tome',
     'ashcrown_greatsword', 'ashlar', 'banded_signet', 'basalt', 'basalt_block', 'bat_wing',
     'bear_claw', 'bear_pelt', 'big_bones', 'blood_rune', 'bone_chips', 'bone_key', 'bones',
-    'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade', 'chaos_rune',
+    'bronze_bar', 'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade', 'chaos_rune',
     'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets', 'coal', 'coarse_whetstone',
     'copper_ring', 'copper_studs', 'copper_whetstone', 'cracked_spellstone',
     'crown_of_the_fallen_king', 'dark_sigil', 'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet',
@@ -177,7 +178,7 @@ export const SHIPPED = Object.freeze({
     'lexarch_seal', 'library_blueprint_t2', 'library_blueprint_t3', 'lich_soul',
     'magic_essence', 'maple_log', 'maple_plank', 'marrow_cookbook', 'mithril_bar',
     'mithril_ore', 'mithril_whetstone', 'night_fang', 'nightstalker_pelt', 'normal_log',
-    'normal_plank', 'oak_log', 'obsidian_sigil', 'panthers_eye_pendant', 'plague_ichor',
+    'normal_plank', 'oak_log', 'oak_plank', 'obsidian_sigil', 'panthers_eye_pendant', 'plague_ichor',
     'plaguewarden_greaves', 'quiet_coat', 'rat_tail', 'razor_claw', 'regent_helm',
     'riftmaw_husk', 'rubble', 'ruby', 'ruby_signet', 'rubyfire_studs', 'rune_bar', 'rune_blank',
     'rune_frag', 'rune_whetstone', 'runewood_log', 'shadow_pelt', 'shadow_thread',
@@ -185,7 +186,7 @@ export const SHIPPED = Object.freeze({
     'small_fang', 'soul_recipe', 'spellstone_diagram', 'spellstone_ring', 'spider_eye',
     'spidereye_studs', 'spidersilk_choker', 'steel_bar', 'steel_whetstone', 'sticky_core',
     'swarm_heart', 'timber_beam', 'traveler_cape', 'troll_hide', 'trollhide_cape',
-    'trophy_blueprint_t2', 'trophy_blueprint_t3', 'vamp_dust', 'venom_sac', 'void_chitin',
+    'trophy_blueprint_t2', 'trophy_blueprint_t3', 'vamp_dust', 'venom_sac', 'verdite_bar', 'void_chitin',
     'void_core', 'void_essence', 'void_fragment', 'voidmaw_scepter', 'voidwoven_sigil',
     'war_crown', 'warband_bulwark', 'warboss_standard', 'warden_girdle', 'warden_seal',
     'warlord_badge', 'warlords_torc', 'water_rune', 'whispering_codex', 'willow_log',
@@ -279,7 +280,9 @@ export const REJECTED_WRONG_SUBJECT = Object.freeze([
   'weapons/void_chitin_weave', 'weapons/willow_rod', 'weapons/yew_rod',
   /* Asset Director, 2026-08-17 — b361 control sweep. See the comment near the
      top of this file for what each file actually depicts. */
-  'items/copper_ore', 'items/copper_bar', 'items/bronze_bar', 'items/oak_plank',
+  /* `bronze_bar` and `oak_plank` left this list — Recraft wave 1 painted
+     the right objects at the same derived paths (a bronze ingot, a plank stack). */
+  'items/copper_ore', 'items/copper_bar',
   'items/duskwood_plank', 'items/runewood_plank',
 ]);
 

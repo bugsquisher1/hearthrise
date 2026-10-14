@@ -26,8 +26,8 @@
 // PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DUNGEONS } from './dungeons.js?v=574';
-import { count, property, workers, companions } from './spine.js?v=574';
+import { DUNGEONS } from './dungeons.js?v=576';
+import { count, property, workers, companions } from './spine.js?v=576';
 
 const skill = (id) => Object.freeze({ fact: 'skill', id });
 const holds = (ids) => Object.freeze({ fact: 'holds', ids: Object.freeze(ids.slice()) });
@@ -62,6 +62,8 @@ export const REVEALS = Object.freeze([
   row('pane:party', 10),
   row('pane:events', 10),
   row('pane:social', 10),
+  // The World pane ships behind its own switch (src/features/world-panel.js WORLD_LAUNCHED).
+  row('pane:world', 1, [], 'world'),
 
   // ── Combat war table ───────────────────────────────────────────────────
   row('war:botd', 3, fought),

@@ -97,6 +97,11 @@ const RECORDED_ENGINE = {
       + '  const xpDmg = Math.min(pDmg, hpBefore);\n', ''],
     ['if (xpDmg > 0) {', 'if (pDmg > 0) {'],
     ['hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, pDmg)'],
+    /* Lane C1 (hunts as named areas) post-dates the recorded payload: its import and
+       its spawn-rolling respawn are undone here, exactly, so the hash pin still proves the rest. */
+    [/^import \{ pickSpawn \} from '\.\/hunt-spawn\.js\?v=\d+';\n/m, ''],
+    ["  /* RESPAWN. A training fight respawns the same foe (the behaviour both loops\n     had). A HUNT (lane C1, src/data/hunts.js) rolls the next foe from its\n     weighted spawns on THIS engine's seeded rng, after every other draw this\n     kill made — one function, not branched on `ctx.away`, so the attended tick\n     and the away span roll the same sequence (AWAY-1). A one-spawn hunt draws\n     nothing. An id the roster does not know keeps the current foe. */\n  const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;\n  const next = (nextId !== id && ctx.monsters && ctx.monsters[nextId]) || null;\n  if (next) {\n    state.activeMonster = nextId;\n    state.combatKillsThisFoe = 0;\n  }\n  state.monsterHp = (next || m).hp;\n  state.monsterMaxHp = (next || m).hp;\n",
+      "  /* Respawn the same foe and keep fighting — the behaviour both loops had. */\n  state.monsterHp = m.hp;\n  state.monsterMaxHp = m.hp;\n"],
   ],
   stampV: '563',
   sha256: RECORDED_SRC_SHA256,
@@ -196,11 +201,12 @@ async function mutantBase(m) {
   const path = join(base, m.file);
   let src = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
   for (const [from, to] of m.edits) {
-    if (!src.includes(from)) {
+    /* A RegExp `from` (C1's ?v=-stamped import line) is one exact match, not a split. */
+    if (from instanceof RegExp ? !from.test(src) : !src.includes(from)) {
       console.error(`--mutate ${m.name}: marker gone from ${m.file} — "${from}"`);
       process.exit(2);
     }
-    src = src.split(from).join(to);
+    src = from instanceof RegExp ? src.replace(from, to) : src.split(from).join(to);
   }
   if (m.stampV) src = src.replace(/\?v=\d+'/g, `?v=${m.stampV}'`);
   if (m.sha256) {

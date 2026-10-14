@@ -19,20 +19,20 @@
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=582';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=582';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=582';
-import { HUNT_INDEX } from '../data/hunts.js?v=582';
-import { compileMap } from './core/map-compile.js?v=582';
-import { STUB_SPRITE } from './core/book.js?v=582';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=582';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=582';
-import { readScene, setChoice, activityOf } from './store.js?v=582';
-import { loadAtlases } from './atlas.js?v=582';
-import { createCanvasBackend } from './render/canvas-backend.js?v=582';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=582';
-import { createHuntScene } from './hunt-scene.js?v=582';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=582';
+import { BUILD } from '../build-info.js?v=583';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=583';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=583';
+import { HUNT_INDEX } from '../data/hunts.js?v=583';
+import { compileMap } from './core/map-compile.js?v=583';
+import { STUB_SPRITE } from './core/book.js?v=583';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=583';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=583';
+import { readScene, setChoice, activityOf } from './store.js?v=583';
+import { loadAtlases } from './atlas.js?v=583';
+import { createCanvasBackend } from './render/canvas-backend.js?v=583';
+import { huntOfMap, mapForActivity } from './hunt-maps.js?v=583';
+import { createHuntScene } from './hunt-scene.js?v=583';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=583';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;

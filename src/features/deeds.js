@@ -64,7 +64,7 @@ export function progressOf(deed, readers) {
 }
 
 /** Deeds done, or null while any deed is still unknown. */
-export function doneCount(readers) {
+function doneCount(readers) {
   let n = 0;
   for (const d of DEEDS) {
     const p = progressOf(d, readers);

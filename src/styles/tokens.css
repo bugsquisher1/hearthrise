@@ -690,6 +690,20 @@ body[data-theme="hearthlight"] {
   --world-light-hero:    #928567;
   --world-plate-self:    #6fe36f;
   --world-plate-line:    #080709;
+  /* the hunt (src/world/hunt-scene.js): foe and bystander names, HP bars, the
+     target square and the swing floats — the W2 cellar still's colours */
+  --world-plate-foe:     #f2ead8;
+  --world-plate-ambient: #b8ad96;
+  --world-bar-back:      #1a1414;
+  --world-bar-hero:      #5ccf5c;
+  --world-bar-foe:       #e2b13c;
+  --world-target:        #d8402e;
+  --world-float-hit:     #ffffff;
+  --world-float-crit:    #ffd25a;
+  --world-float-kill:    #ffb347;
+  --world-float-miss:    #a9a39a;
+  --world-float-hurt:    #ff6a55;
+  --world-hud-bg:        rgba(14, 11, 10, .86);
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);

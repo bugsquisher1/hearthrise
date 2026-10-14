@@ -357,6 +357,10 @@ import './net/enchant.js?v=582';
 // it reuses the shared kill switch (isServerAccrualEnabled) and reconciles HP +
 // inventory absolutely through applyEnvelopeState like every other envelope.
 import './net/eat.js?v=582';
+/* THE HUNT SESSION WIRE (lane B1). Side-effect import: publishes
+   window.HearthriseHunt — the read of the open hunt and the intents the World's
+   hunt screen and the War Table's Hunt button send. Sends nothing on load. */
+import './net/hunt.js?v=582';
 /* THE TROPHY CLAIM (docs/design/BESTIARY_LADDER.md §4). Side-effect import: it
    publishes window.HearthriseTrophyClaim for the Bestiary modal, the sign-in
    wiring and legacy.js's envelope hook. It sends nothing on load — the verb

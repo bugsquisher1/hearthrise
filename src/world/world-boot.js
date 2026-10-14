@@ -18,6 +18,12 @@
 // beat as it happens, so swings taken while the pane was hidden are not lost —
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
+//
+// THE HUNT SESSION (lane B1). While the server holds an open hunt — or one that
+// ended and has not been looked at — the overlay is the hunt screen
+// (hunt-screen.js): vitals, the 2×10 action bar, the session Analyzer, the
+// timeline, the bestiary tracker and the end card, over the hunt's map when
+// the World draws it and over the "not in the World yet" card when it does not.
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=582';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=582';
@@ -33,6 +39,7 @@ import { createCanvasBackend } from './render/canvas-backend.js?v=582';
 import { huntOfMap, mapForActivity } from './hunt-maps.js?v=582';
 import { createHuntScene } from './hunt-scene.js?v=582';
 import { createHuntChrome, hudModel } from './hunt-chrome.js?v=582';
+import { createHuntScreen } from './hunt-screen.js?v=582';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;
@@ -59,12 +66,13 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
  * @param {(id: string) => string} monsterName
  */
 function idleCard(G, ready, monsterName) {
-  const fighting = !!G.activeMonster;
+  const act = activityOf(G);
+  const fighting = !!act;
   if (fighting ? mapForActivity(activityOf(G)) : ready) return null;
   const place = OPEN_HUNT ? OPEN_HUNT.name : 'first hunt';
-  const hunt = G._huntId && HUNT_INDEX[G._huntId];
+  const hunt = act && HUNT_INDEX[act.id];
   const head = !fighting ? 'Town and Home are coming soon.'
-    : (hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster)) + ' isn’t in the World yet.';
+    : (hunt ? hunt.name : 'Your fight with the ' + monsterName(act.id)) + ' isn’t in the World yet.';
   const body = fighting ? 'The ' + place + ' is.' + (ready ? '' : ' Town and Home are coming soon.')
     : 'The ' + place + ' is open now: start a hunt there and watch your hero fight.';
   return '<div class="world-idle-card"><p class="world-idle-head">' + esc(head) + '</p>'
@@ -98,10 +106,14 @@ export async function bootWorld(panel, opts = {}) {
   const obs = win.HearthriseCombatObserver || null;
   let hunt = null, huntMap = null, hudAt = 0, lastHunt = null;
   const unsubscribe = obs ? obs.subscribe((b) => { if (hunt) hunt.beat(b); }) : null;
-  const hud = createHuntChrome(stage, { doc, on: {
-    eat: () => { if (typeof win.eatBestProvision === 'function') win.eatBestProvision(); },
-    leave: () => { if (typeof win.stopCombat === 'function') win.stopCombat(); },
-  } });
+  /* Item art for the bar and the sheets: the shipped icon, else the atlas fallback (never an emoji). */
+  const art = (id) => {
+    const p = win._itemPath && win._itemPath[id];
+    if (p) return '<img src="' + esc(p) + '" alt="" loading="lazy" decoding="async">';
+    return typeof win.itemFallbackIcon === 'function' ? String(win.itemFallbackIcon(id, 28, (win.ITEMS || {})[id]) || '') : '';
+  };
+  const screen = createHuntScreen({ win, doc, art });
+  const hud = createHuntChrome(stage, { doc, art, paint: win.HearthrisePaint, on: screen.handlers });
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
   idle.hidden = true;
@@ -143,7 +155,7 @@ export async function bootWorld(panel, opts = {}) {
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
     if (now - hudAt >= HUD_EVERY_MS) {
       hudAt = now;
-      hud.paint(hudModel({ analyzer: G._huntAnalyzer || null, title: ROWS.get(sc.map).name, down: snap.down, now }));
+      hud.paint(hudModel({ analyzer: G._huntAnalyzer || null, title: ROWS.get(sc.map).name, down: snap.down, now, hunt: screen.input(G, now) }));
     }
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
@@ -164,10 +176,22 @@ export async function bootWorld(panel, opts = {}) {
       paintChrome(sc);
       hudAt = 0;
     }
-    if (sc.kind !== 'hunt') { hunt = null; huntMap = null; lastHunt = null; hud.paint(null); }
+    let session = false;
+    if (sc.kind !== 'hunt') {
+      hunt = null; huntMap = null; lastHunt = null;
+      /* A hunt the World does not draw (or one that just ended) still gets its screen. */
+      const now = Date.now();
+      const input = screen.input(G, now);
+      session = !!input;
+      if (!input) { hud.paint(null); hudAt = 0; } else if (now - hudAt >= HUD_EVERY_MS || !hudAt) {
+        hudAt = now;
+        hud.paint(hudModel({ analyzer: null, title: '', down: null, now, hunt: input }));
+      }
+    }
     const card = sc.kind === 'hunt' ? null : idleCard(G, scenesReady(), monsterName);
     if (card !== lastCard) { lastCard = card; idle.innerHTML = card || ''; }
     idle.hidden = !card;
+    idle.classList.toggle('is-under-hud', session);
     /* A "coming soon" place behind the card is not where the hero is: no title claims it. */
     const title = chrome.querySelector('.world-title');
     const want = card && !scenesReady() ? 'World' : ROWS.get(sc.map).name;
@@ -200,6 +224,9 @@ export async function bootWorld(panel, opts = {}) {
     step(dt);
   }
   function sync() {
+    /* The hunt screen reads the server once a world tick while the pane is in front. */
+    screen.watch(live());
+    if (panel.classList.contains('active')) screen.takePack();
     /* One frame NOW whenever the pane is in front — loop or no loop — so the
        canvas is sized and the scene, card and overlay are painted before (and
        without) any requestAnimationFrame. A throw here must not leave the loop
@@ -236,7 +263,7 @@ export async function bootWorld(panel, opts = {}) {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, hud: hud.text(), sheets: screen.sheets() }, backend.snapshot()),
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
@@ -244,6 +271,7 @@ export async function bootWorld(panel, opts = {}) {
       chrome.removeEventListener('click', onChoice);
       idle.removeEventListener('click', onGo);
       doc.removeEventListener('visibilitychange', sync);
+      screen.destroy();
       hud.destroy();
       idle.remove();
       backend.destroy();

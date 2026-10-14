@@ -87,16 +87,17 @@ export const END_CARD_COPY = Object.freeze({
      renderer from the `fall` events' server-stated `xp_lost`. */
   xpLost: Object.freeze({ one: 'Your falls cost you 1 XP.', other: 'Your falls cost you {n} XP.' }),
   /* After an automatic end the character walks home and picks up what it was
-     doing; `{activity}` is the server's own name for it ("fishing at Shrimp
-     Spot"), drawn from the `ended` event's `resume`. */
-  resumed: Object.freeze({ one: 'Back in town — {activity} again.' }),
+     doing; `{activity}` is that activity's skill in plain words ("fishing"),
+     drawn from the `ended` event's server-stated `resume` (Tyler's wording,
+     2026-10-14: "Back in town and fishing again"). */
+  resumed: Object.freeze({ one: 'Back in town and {activity} again.' }),
 });
 
 export const END_REASON_COPY = Object.freeze({
   falls: Object.freeze({ one: 'You were knocked out, so you walked home to recover.', other: 'You were knocked out {n} times, so you walked home to recover.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
-  gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),
+  gold_out: Object.freeze({ one: 'You ran out of gold for supplies, so the hunt ended.' }),
   stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),

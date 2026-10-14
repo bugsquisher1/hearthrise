@@ -3,7 +3,8 @@
 //
 // READS server state as the client holds it, never a client opinion of it:
 // the fight pointer (`activeMonster` / `_huntId`, which reconcileActivityPointer
-// keeps on the server's `active_kind`/`active_id`). Nothing here predicts.
+// keeps on the server's `active_kind`/`active_id`) and the open hunt session
+// (`_huntSession`, src/net/hunt.js). Nothing here predicts.
 //
 // WRITES only `G._world` — display scratch: the viewer's pick of town or home.
 // It is `_`-prefixed, so it is never in the residue (RESIDUE_FIELDS is an
@@ -25,9 +26,15 @@ export function setChoice(G, choice) {
   worldOf(G).choice = choice === 'home' ? 'home' : 'town';
 }
 
-/** What the server last said the hero is doing: { kind: 'combat', id } or null. */
+/** What the server last said the hero is doing: { kind: 'combat', id } or null.
+    The fight pointer first; else an OPEN hunt session from the server's last
+    read (src/net/hunt.js G._huntSession), so the hunt's map shows from the
+    moment the session opens, before the fight pointer catches up. */
 export function activityOf(G) {
-  return G && G.activeMonster ? { kind: 'combat', id: String(G._huntId || G.activeMonster) } : null;
+  if (G && G.activeMonster) return { kind: 'combat', id: String(G._huntId || G.activeMonster) };
+  const v = G && G._huntSession && G._huntSession.view;
+  const s = v && v.session;
+  return s && !s.ended_at && s.hunt ? { kind: 'combat', id: String(s.hunt) } : null;
 }
 
 /** The scene to show now: { map, kind }. */

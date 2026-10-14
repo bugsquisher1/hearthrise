@@ -755,10 +755,14 @@ function onPanelClick(e) {
     if (act === 'back') { setView('table'); }
     else if (act === 'return') { previewId = null; setView('fight'); }
     else if (act === 'fight') {
+      /* A single-monster fight is a one-spawn hunt (src/data/hunts.js trainingHunt):
+         it opens the same supply bag as a named hunt. */
       const id = previewId;
-      if (id && typeof window.startCombat === 'function') { previewId = null; window.startCombat(id); renderFight(); }
+      if (id && huntDoor()) { previewId = null; huntDoor().openPack(id); }
     } else if (act === 'stop') {
-      if (typeof window.stopCombat === 'function') window.stopCombat();
+      /* A fight is a hunt session: leaving is hr_hunt_leave, never an idle declaration. */
+      if (huntOpen()) huntDoor().leave();
+      else if (typeof window.stopCombat === 'function') window.stopCombat();
       previewId = null;
       setView('table');
     } else if (act === 'world') { if (typeof window.showTab === 'function') window.showTab('world'); }
@@ -1223,14 +1227,24 @@ function resumeHunt(kind, id, fight) {
   return { kind: 'combat', id };
 }
 
+/* THE HUNT BUTTON OPENS THE SUPPLY BAG (lane B1, ruling HR-2026-10-14). A hunt
+   is a session the server opens with its bag and action bar (hr_hunt_enter);
+   the old `set_activity` combat pointer is refused `hunt_required`. So the
+   button sends nothing: it opens the World's packing sheet for this hunt, and
+   Set Out there is the intent. Already on this hunt: the World shows it. */
+function huntDoor() { const H = window.HearthriseHunt; return H && typeof H.openPack === 'function' ? H : null; }
+function huntOpen() {
+  const v = G() && G()._huntSession && G()._huntSession.view;
+  return !!(v && v.session && !v.session.ended_at);
+}
 function startHunt(id) {
   const h = HUNTS.find((x) => x.id === id);
-  const g = G();
-  if (!h || !g || typeof window.startCombat !== 'function') return;
+  if (!h || !huntDoor()) return;
   previewId = null;
   pickedHunt = null;
-  if (!(g._huntId === h.id && g.activeMonster)) window.startCombat(h.spawns[0].monster, { hunt: h.id });
-  setView('fight');
+  const v = G() && G()._huntSession && G()._huntSession.view;
+  if (huntOpen() && v.session.hunt === h.id) { window.showTab('world'); return; }
+  huntDoor().openPack(h.id);
 }
 
 /** The server's kill count per class, or null while the counters are unknown. */

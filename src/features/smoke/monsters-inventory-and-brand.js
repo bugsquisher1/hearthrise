@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=579';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=579';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=580';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=580';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -1169,6 +1169,45 @@ export default [
         + JSON.stringify(window.__hrCombatCredits));
     } finally {
       try { delete window.__hrCombatCredits; } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  /* -- regression suite -- AWAY-LATCH-1 (2026-10-14): every kill resolved by an away replay
+     rebuilds its ctx (COMBAT_FX.killMonster -> combatSimCtx), and `away` there is the offline
+     latch. simulateAwayCombat set `ctx.away` on its OWN ctx only, so a caller outside the
+     latch (COMBAT-UI-24) ran each kill of the night as WATCHED: a "Defeated" toast and a
+     topbar repaint per kill, thousands in one task (COMBAT-UI-24 66-98 s in the full suite
+     order). The span now holds the latch itself. Both paths: the away night raises no kill
+     toast; a watched kill still raises its own. */
+  () => tryRun('AWAY-LATCH-1: an away replay is away to every kill it resolves; a watched kill still says so', () => {
+    assert(typeof window.simulateAwayCombat === 'function' && typeof window.killMonster === 'function',
+      'the combat seams are missing');
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    const said = [];
+    try {
+      window.G.skills = Object.assign({}, window.G.skills,
+        { attack: 300000, strength: 300000, defense: 300000, hitpoints: 300000 });
+      window.G.equipment = Object.assign({}, window.G.equipment, { weapon: 'bronze_sword' });
+      window.G.playerMaxHp = window.levelFromXp(300000);
+      window.G.playerHp = window.G.playerMaxHp;
+      window.G.activeMonster = 'slime';
+      window.G.monsterHp = window.MONSTERS.slime.hp;
+      window.notify = function (msg) { said.push(String(msg)); };
+      /* Called the way COMBAT-UI-24 calls it: NOT inside the harness's _withOfflineReplay. */
+      const out = window.simulateAwayCombat(1, Date.now(), false);
+      assert(out && out.kills > 0, 'the away replay did no work, so this proves nothing (kills=' + (out && out.kills) + ')');
+      const kills = said.filter((m) => /^Defeated /.test(m));
+      assert(kills.length === 0, 'an away replay of ' + out.kills + ' kills raised ' + kills.length
+        + ' "Defeated" toast(s): its kills ran as watched');
+      said.length = 0;
+      window.G.monsterHp = window.MONSTERS.slime.hp;
+      window.killMonster(window.MONSTERS.slime);
+      assert(said.indexOf('Defeated ' + window.MONSTERS.slime.name) !== -1,
+        'a watched kill no longer raises its toast: ' + JSON.stringify(said));
+    } finally {
+      window.notify = realNotify;
       restoreG(snap);
     }
   }),
@@ -5145,7 +5184,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=579')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=580')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -7142,7 +7181,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=579');
+    const A = await import('../../net/accrue.js?v=580');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7167,7 +7206,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=579');
+    const A = await import('../../net/accrue.js?v=580');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7194,7 +7233,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=579');
+    const A = await import('../../net/accrue.js?v=580');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7387,7 +7426,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=579')).text();
+      const raw = await (await fetch(f + '?v=580')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7437,7 +7476,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=579')).text();
+    const raw = await (await fetch('src/observability.js?v=580')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7541,7 +7580,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=579');
+    const _art = await import('../../data/monster-art.js?v=580');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 580 — 2026-10-14 (Smoother play)
+
+**Smoother play.** The menu and the kill pop-ups do far less work on every update, so long fights and busy screens no longer stutter.
+
 ## v0.9.2-beta build 579 — 2026-10-14 (No blank World)
 
 **The World never goes blank.** If your hunt isn't in the World yet, the World tab now says so and offers to take you to the Mill Cellar, instead of showing an empty screen.

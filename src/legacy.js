@@ -6219,7 +6219,7 @@ function simulateAwayCombat(hrs,nowMs,capped,opts){
      out, so a bounty completed on the night's LAST kill still leaves the player
      pointed at the right foe instead of at the one they finished with. */
   _pendingBountySwitch=null;
-  const out=C.combatSim.simulateSpan(G,ctx);
+  const out=withOfflineReplay(()=>C.combatSim.simulateSpan(G,ctx));   // the latch too: every kill rebuilds its ctx from it (COMBAT_FX.killMonster), so an unlatched caller's night toasted and repainted each kill as if watched
   drainBountySwitch();
   return out;
 }

@@ -6,9 +6,9 @@
 // DOM access. Every fact a line names is read from its owner at call time: the
 // bounty ladder from core/bounty.js, item sources from the item index.
 
-import { SIGNPOSTS } from '../data/signposts.js?v=579';
-import { ITEMS } from '../data/items.js?v=579';
-import { SKILLS_DEF } from '../data/skills.js?v=579';
+import { SIGNPOSTS } from '../data/signposts.js?v=580';
+import { ITEMS } from '../data/items.js?v=580';
+import { SKILLS_DEF } from '../data/skills.js?v=580';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

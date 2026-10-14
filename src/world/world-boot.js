@@ -26,23 +26,23 @@
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=579';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=579';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=579';
-import { HUNT_INDEX } from '../data/hunts.js?v=579';
-import { compileMap } from './core/map-compile.js?v=579';
-import { STUB_SPRITE } from './core/book.js?v=579';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=579';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=579';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=579';
-import { loadAtlases } from './atlas.js?v=579';
-import { createCanvasBackend } from './render/canvas-backend.js?v=579';
-import { huntOfMap } from './hunt-maps.js?v=579';
-import { createHuntScene } from './hunt-scene.js?v=579';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=579';
-import { createWalkScene } from './walk-scene.js?v=579';
-import { homeMapFor } from './home-scene.js?v=579';
-import { runAction } from './steer-local.js?v=579';
+import { BUILD } from '../build-info.js?v=580';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=580';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=580';
+import { HUNT_INDEX } from '../data/hunts.js?v=580';
+import { compileMap } from './core/map-compile.js?v=580';
+import { STUB_SPRITE } from './core/book.js?v=580';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=580';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=580';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=580';
+import { loadAtlases } from './atlas.js?v=580';
+import { createCanvasBackend } from './render/canvas-backend.js?v=580';
+import { huntOfMap } from './hunt-maps.js?v=580';
+import { createHuntScene } from './hunt-scene.js?v=580';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=580';
+import { createWalkScene } from './walk-scene.js?v=580';
+import { homeMapFor } from './home-scene.js?v=580';
+import { runAction } from './steer-local.js?v=580';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));

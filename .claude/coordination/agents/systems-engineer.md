@@ -4035,3 +4035,20 @@ Walkable scenes in the World pane: `src/world/{walk-scene,town-scene,home-scene,
    normalised the blob, but the working copy diverged. Use the Edit tool or `newline=''`.
 5. *Plan inputs get checked against the schema.* `state.plot_level` is farm soil, not the house; the
    template keys on the property rung (CONFLICTS.md 2026-10-14).
+
+## 2026-10-14 — lane B, client perf (`lane/b-perf-badges-toasts`)
+
+In-page suite 742.6 s -> 223.2 s; COMBAT-UI-24 in the full order 85.8 s -> 3.2 s (same scratch timer, same box).
+
+1. *Profile the test you were told about, in its full-order position, before trusting the diagnosis.* With the
+   two named hot paths fixed, COMBAT-UI-24 did not move. A scoped profile (in-page `console.profile`; a protocol
+   `Profiler.start` sent during a long sync test is served only after it) put 46 of 57 s in `notify` from an
+   AWAY replay: `simulateAwayCombat` set `ctx.away` on its own ctx, but every kill rebuilds its ctx from the
+   offline latch, so the one unlatched caller ran ~6,500 kills as watched. The span now holds the latch.
+2. *Forced style is the next floor after forced layout.* `sheetOpen()` reads pointer-events first and
+   `checkVisibility()` for the box, so a toast forces no layout; it still forces a style recalc while a closed
+   toggled scrim lingers (#inv-detail-overlay, #hr-death-scrim, #prof-pop-objectives). Cheap at one kill per
+   tick; a burst-proof answer needs delivery batched per frame, which changes push()'s synchronous contract.
+3. *Static markup can be kept, if staleness is self-detecting.* Doors are cached and revalidated by
+   `isConnected`; a menu re-render replaces nodes, which invalidates the cache with no hook to forget.
+4. Next lead, not taken: `HearthriseReveal.shows()` recomputes the whole reveal per call (~10-20 per paint).

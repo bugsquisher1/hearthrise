@@ -39,8 +39,8 @@
 // It never WRITES a skill. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=576';
-import { predictedXp, predictedXpMap } from './predict.js?v=576';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=577';
+import { predictedXp, predictedXpMap } from './predict.js?v=577';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{id, known, value, reason, source}} value is null when !known. */
@@ -327,9 +327,21 @@ function resolveLevelFn(levelFn) {
    opened on xp the server had not credited yet and the server then refused the
    intent — the browser saying one thing and the server another. A gate reads the
    SERVER's level through `skillLevelOf`, with the fail-safe "not unlocked" (1)
-   while the record cannot vouch for it. Display sites keep `getLevel`. */
+   while the record cannot vouch for it. Display sites keep `getLevel`.
+   "Cannot vouch" means NEVER STATED: between two envelopes the gate holds the
+   level the server last stated (record.js `recordLastKnown`, a copy only
+   applyRecord writes), so a known level never drops to the fail-safe 1 because
+   an answer did not restate the map. The prediction is never part of it. */
 export function gateLevelOf(G, id, levelFn) {
-  const lv = skillLevelOf(G, id, levelFn || resolveLevelFn(null));
+  const fn = levelFn || resolveLevelFn(null);
+  let lv = skillLevelOf(G, id, fn);
+  if (!(typeof lv === 'number' && Number.isFinite(lv)) && fn && isServerOfRecord('skills')) {
+    const last = recordLastKnown(G, 'skills');
+    if (last && typeof last === 'object') {
+      const xp = Object.prototype.hasOwnProperty.call(last, String(id)) ? numOrNull(last[id]) : 0;
+      if (xp !== null) lv = Number(fn(xp));
+    }
+  }
   return (typeof lv === 'number' && Number.isFinite(lv) && lv >= 1) ? lv : 1;
 }
 

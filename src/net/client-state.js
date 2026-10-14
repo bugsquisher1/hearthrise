@@ -56,11 +56,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=576';
+import { resolveActiveSlot } from './accrue.js?v=577';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=576';
+import { notePropertyUnlocks } from './property-record.js?v=577';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -377,6 +377,8 @@ export const RESIDUE_FIELDS = Object.freeze([
   'currentCombatTier', // client-only preference: which monster tier the combat picker is showing
   'huntFavs',          // client-only display preference: the hunt ids starred on the Adventures window
                        // (an ordering hint, nothing reads it to gate or pay; bounded by sanitizeResidueField)
+  'noticesSeen',       // client-only display state: {noticeId:true} for the notices this hero has dismissed
+                       // (the Adventures 'big changes' line); gates nothing, bounded by sanitizeResidueField
   /* ⚠ `toolCarry` WAS HERE and is DELETED (2026-09-14). `player_state.tool_carry`
      is a real server column (2026-08-15-tool-carry.sql), hr_apply accepts the
      engine's `tool_carry` delta key, and hr_state_of projects it at
@@ -581,7 +583,19 @@ function handleForbiddenField(body) {
    data, so bounding the next one is a row, not a new mechanism. */
 const LOOT_FILTER_MAX = 32;   // the bag has 10 filterable classes; the cap is headroom, not a design limit
 const HUNT_FAVS_MAX = 16;     // a star per hunt; the cap is headroom over the hunt table
+const NOTICES_SEEN_MAX = 32;  // one key per dismissed notice; headroom, not a design limit
 export function sanitizeResidueField(field, v) {
+  if (field === 'noticesSeen') {
+    const out = {};
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+    let n = 0;
+    for (const id of Object.keys(v)) {
+      if (v[id] !== true || !/^[a-z0-9_-]{1,40}$/.test(id)) continue;
+      out[id] = true;
+      if (++n >= NOTICES_SEEN_MAX) break;
+    }
+    return out;
+  }
   if (field === 'huntFavs') {
     if (!Array.isArray(v)) return [];
     const favs = [];

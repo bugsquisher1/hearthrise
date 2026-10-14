@@ -57,14 +57,25 @@ function harness(msg) { console.error(`deploy-differential: ${msg}`); process.ex
    only, each a different arm's subject. */
 const FN = 'supabase/functions/hr-accrue/';
 const PLANTS = {
-  'drop-op': { arms: 'ii, iii', file: `${FN}tick-contract.js`,
+  'drop-op': { arms: 'ii, iii', channels: ['gather', 'combat'], file: `${FN}tick-contract.js`,
     find: '      prev.add += add;\n', repl: '' },
-  'merge-keys': { arms: 'ii, iii', file: `${FN}tick-contract.js`,
+  'merge-keys': { arms: 'ii, iii', channels: ['gather', 'combat'], file: `${FN}tick-contract.js`,
     find: "    const id = `${op.kind}\\u0000${op.key}\\u0000${op.period ?? ''}`;", repl: '    const id = `${op.kind}`;' },
-  'intent-key': { arms: 'i', file: `${FN}tick-gather.js`,
+  'intent-key': { arms: 'i', channels: ['gather'], file: `${FN}tick-gather.js`,
     find: '  folded.accrued_to = new Date(windowToMs).toISOString();\n',
     repl: '  folded.accrued_to = new Date(windowToMs).toISOString();\n'
       + '  if (folded.xp) for (const k of Object.keys(folded.xp)) folded.xp[k] += 1;\n' },
+  /* The combat flush's counterpart (Security C1, lane c-hunts-c1): one XP point
+     minted per folded combat intent. */
+  'combat-intent-key': { arms: 'i', channels: ['combat'], file: `${FN}tick-combat.js`,
+    find: '  folded.accrued_to = new Date(windowToMs).toISOString();\n',
+    repl: '  folded.accrued_to = new Date(windowToMs).toISOString();\n'
+      + '  if (folded.xp) for (const k of Object.keys(folded.xp)) folded.xp[k] += 1;\n' },
+  /* An ENGINE plant (arm i's one-span and 10 s steps): every combat kill pays one
+     extra gold, in the shared engine the tick and the accrue path both run. */
+  'combat-kill-gold': { arms: 'i', channels: ['combat'], file: 'src/core/combat-sim.js',
+    find: '  state.gold = (state.gold || 0) + gp;\n',
+    repl: '  state.gold = (state.gold || 0) + gp + 1;\n' },
 };
 
 const args = process.argv.slice(2);
@@ -78,10 +89,13 @@ if (args.includes('--prove')) {
   const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probePath, ...extra],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
   let bad = 0;
+  let kind;
+  try { kind = JSON.parse(await readFile(probePath, 'utf8')).activeKind; } catch (e) { harness(`cannot read the probe: ${e.message}`); }
   const ctl = run([]);
   console.log(`  ${ctl.status === 0 ? '✓' : '✗'} control (nothing planted) -> exit ${ctl.status}`);
   if (ctl.status !== 0) bad++;
   for (const [name, p] of Object.entries(PLANTS)) {
+    if (!p.channels.includes(kind)) continue;
     const r = run(['--plant', name]);
     const arms = [...new Set([...r.stdout.matchAll(/✗ (\w+) —/g)].map((m) => m[1]))].join(', ');
     const caught = r.status === 1 && p.arms.split(', ').every((a) => arms.split(', ').includes(a));
@@ -127,10 +141,26 @@ async function packAt(sha, planted = null) {
 
 /** (i) inputs: one span, the 10 s steps, and the flush intents, for one pack. */
 function runPack(P, probe) {
-  const clone = () => JSON.parse(JSON.stringify(probe));
   const combat = probe.activeKind === 'combat';
-  const tick = combat ? P.combat.combatTick : P.gather.gatherTick;
   const f = probe.accruedToMs;
+  /* COMBAT TAKES THE WATERMARK'S TEXT (Security C1, lane c-hunts-c1):
+     `combatTick(char, watermarkMs, watermarkText, nowMs, opts)` seeds from the
+     hr_state_of RENDERING of accrued_to, never a Date. Window 1's label is
+     resolved by THIS checkout's `rosterWatermarkText` (the roster rule: the
+     probe's carried `accruedToText`, else the JSONB rendering of the instant),
+     and every later window by `pgTimestamptzText` — exactly as
+     settleCombatSession re-labels after each settle. Both packs get the same
+     strings, so a pack cannot grade its own spelling. */
+  const text0 = combat ? REF.rosterWatermarkText({ accrued_to: f,
+    mark_text: probe.accruedToText || REF.pgTimestamptzText(f) }, {}) : null;
+  const clone = () => {
+    const c = JSON.parse(JSON.stringify(probe));
+    if (combat) c.accruedToText = text0;
+    return c;
+  };
+  const tick = combat
+    ? (ch, wmMs, nowMs, o) => P.combat.combatTick(ch, wmMs, wmMs === f ? text0 : REF.pgTimestamptzText(wmMs), nowMs, o)
+    : P.gather.gatherTick;
   const t = f + STEPS * STEP_MS;
   const one = tick(P.shadow.hydrate(clone()), f, t, {});
   const ch = P.shadow.hydrate(clone());
@@ -157,6 +187,9 @@ const firstDiff = (a, b) => {
   return -1;
 };
 
+/* THE REFERENCE WATERMARK RENDERERS — this checkout's tick-combat.js, never a
+   pack's (the same rule as the reference coalescer in arm ii). */
+const REF = await import(pathToFileURL(join(ROOT, FN, 'tick-combat.js')).href);
 let probe;
 try { probe = JSON.parse(await readFile(probePath, 'utf8')); } catch (e) { harness(`cannot read the probe: ${e.message}`); }
 if (!Number.isFinite(probe.accruedToMs) || !probe.activeKind) harness('the probe is not an engine session (accruedToMs / activeKind missing)');

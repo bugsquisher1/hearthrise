@@ -22,6 +22,12 @@
 //   R1  REGRESSION: a training fight (monster pointer) prices byte-identically
 //       with and without the hunt seam (no `hunt` in ctx, no extra draw)
 //   C1  the chain replays with both files and a SECOND apply is byte-identical
+//   K1  SECURITY C3: a hunt row journals `km` (kills by monster, spawns only,
+//       summing to `kills`); a training row carries none
+//   K2  the world tick's foldCombatMeta sums `km` across polls; none -> none
+//   F1  a FORGED fight checkpoint on a non-spawn is never resumed on a hunt
+//   X1  --mutate only: the C2 spawn gate and the C3 rally pricing, each
+//       removed from its migration, make that file's executed §4 raise
 //   B1  the band floor is SQL's: the start-gate migration refuses below band
 //       (executed by its own §4 in the chain replay — asserted present here)
 // ════════════════════════════════════════════════════════════════════════
@@ -37,6 +43,7 @@ import { simulateTick, simulateSpan } from '../src/core/combat-sim.js';
 import { createRng } from '../src/core/rng.js';
 import { huntRows } from '../tools/gen-hunts.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { foldCombatMeta } from '../supabase/functions/hr-accrue/tick-combat.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -160,11 +167,74 @@ function run(S) {
       'a one-spawn hunt priced differently from the plain training fight');
   }
 
+  for (const r of serverArms(computeAccrual, foldCombatMeta)) red.push(r);
+
   // B1
   const gate = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-start-gate.sql'), 'utf8');
   ok('B1', /'activity_locked'/.test(gate) && /hr_bounty_combat_level\(p_user, p_slot\)/.test(gate)
     && /GATE\(b\)/.test(gate) && /ridge_camp/.test(gate), 'the start gate lost its band refusal or its executed §4 arm');
   return red;
+}
+
+/* K1 / K2 / F1 — the server engine's hunt journal and its forged-fight guard.
+   Injectable so --mutate can run them against a planted temp copy. */
+function serverArms(CA, FOLD) {
+  const red = [];
+  const ok = (id, cond, msg) => { if (!cond) red.push(`${id}: ${msg}`); };
+  const hunt = HUNT_INDEX.mill_cellar;
+  const NOW = Date.UTC(2026, 9, 20, 9, 0, 0); const FROM = NOW - 2 * 3600000;
+  const skills = { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 };
+  const srv = (over) => CA({
+    userId: '00000000-0000-4000-8000-0000000c1a02', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
+    activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 99,
+    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {}, ...over,
+  });
+  // K1
+  const h = srv({});
+  const meta = h.accrued ? h.delta.journal.meta : {};
+  const km = meta.km || {};
+  const sum = Object.values(km).reduce((a, n) => a + n, 0);
+  ok('K1', h.accrued && sum === meta.kills && sum > 0, `km ${JSON.stringify(km)} does not sum to kills ${meta.kills}`);
+  ok('K1', Object.keys(km).length >= 2 && Object.keys(km).every((m) => hunt.spawns.some((sp) => sp.monster === m)),
+    `km ${JSON.stringify(km)} — want >= 2 spawns, spawns only`);
+  const t = srv({ activeId: 'rat' });
+  ok('K1', t.accrued && !('km' in t.delta.journal.meta), 'a training row carries km');
+  // K2
+  const f = FOLD([{ ticks: 1, kills: 3, ate: 0, km: { rat: 2, slime: 1 } }, { ticks: 1, kills: 2, ate: 0, km: { rat: 2 } }], 0, 20000);
+  ok('K2', JSON.stringify(f.km) === JSON.stringify({ rat: 4, slime: 1 }) && f.kills === 5, `folded km ${JSON.stringify(f.km)}`);
+  const f0 = FOLD([{ ticks: 1, kills: 3, ate: 0 }], 0, 10000);
+  ok('K2', !('km' in f0), 'a fold of training polls grew a km key');
+  // F1 — a goblin checkpoint at 1 HP on a hunt that has no goblins.
+  const forged = srv({ fight: { monster: 'goblin', hp: 1, kills: 0 } });
+  const fk = forged.accrued ? (forged.delta.journal.meta.km || {}) : {};
+  ok('F1', forged.accrued && !('goblin' in fk)
+    && !(forged.delta.progress || []).some((op) => op.key === 'ev:kill_monster:goblin'),
+    `a forged non-spawn checkpoint was fought: km ${JSON.stringify(fk)}`);
+  return red;
+}
+
+/* X1 — each Security change, removed from its migration, makes THAT file's
+   executed §4 raise in the chain replay (scoped upTo the file). */
+async function sqlMutants() {
+  const { bootReplay } = await import('./schema-replay.mjs');
+  const M = [
+    { name: 'C2 spawn gate removed from hr_hunt_gate', file: '2026-10-20-hunts-start-gate.sql', want: 'GATE(d2)',
+      from: '       and (a.is_boss\n', to: '       and (false\n',
+      also: ['                and coalesce((select public.hr_level_from_xp(ps.xp) from public.player_skills ps\n',
+             '                and false and coalesce((select public.hr_level_from_xp(ps.xp) from public.player_skills ps\n'] },
+    { name: 'C3 rally ignores km', file: '2026-10-20-hunts-rally-kills.sql', want: 'GATE(case 1)',
+      from: '                  * (case when k.km_kills is not null\n', to: '                  * (case when false\n' },
+  ];
+  let escaped = 0;
+  for (const m of M) {
+    const pairs = [[m.from, m.to]];
+    if (m.also) pairs.push(m.also);
+    let raised = null;
+    try { const { db } = await bootReplay({ patches: new Map([[m.file, pairs]]), upTo: m.file }); await db.close?.(); } catch (e) { const msg = String(e.message); raised = msg.includes(m.want) ? m.want : null; }
+    console.log(`  ${raised ? 'caught ' : 'ESCAPED'} ${m.name}${raised ? ` (${raised.slice(0, 90)})` : ''}`);
+    if (!raised) escaped++;
+  }
+  return escaped;
 }
 
 /* C1 — THE CHAIN: both files replay, and a SECOND apply of each is
@@ -178,10 +248,10 @@ async function chainArm() {
   const q = async (sql) => (await db.query(sql)).rows;
   const snap = async () => JSON.stringify([await inventory(db),
     await q(`select p.proname, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-             where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_hunt_gate') order by 1`),
+             where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_hunt_gate', 'hr_rally_points_of') order by 1`),
     await q('select * from public.hr_hunts order by 1'), await q('select * from public.hr_hunt_spawns order by 1, 2')]);
   const before = await snap();
-  for (const f of ['2026-10-20-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql']) {
+  for (const f of ['2026-10-20-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }
@@ -204,7 +274,7 @@ async function chainArm() {
 if (!MUTATE) {
   const red = [...run(REAL), ...(await chainArm())];
   if (red.length) { console.error('hunts-c1 RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunts-c1: G1 G2 W1 W2 P1 S1 S2 R1 B1 C1 green');
+  console.log('hunts-c1: G1 G2 W1 W2 P1 S1 S2 R1 K1 K2 F1 B1 C1 green');
 } else {
   const MUTANTS = {
     'uniform pick (ignores weights)': { ...REAL, pickSpawn: (sp, rng) => (sp.length === 1 ? sp[0].monster : sp[rng.int(0, sp.length - 1)].monster) },
@@ -238,6 +308,41 @@ if (!MUTATE) {
       if (!caught) escaped++;
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
+  {
+    const { mkdtempSync, cpSync, rmSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { pathToFileURL } = await import('node:url');
+    const PLANTS = [
+      { name: 'forged non-spawn checkpoint resumed (huntSpawns bypassed)', arm: 'F1',
+        file: 'supabase/functions/hr-accrue/accrual.js',
+        from: '(fight0 && huntSpawns(hunt, fight0.monster)) ? fight0.monster', to: '(fight0 && fight0.monster) ? fight0.monster' },
+      { name: 'hunt row journals no km', arm: 'K1',
+        file: 'supabase/functions/hr-accrue/accrual.js',
+        from: '...(hunt && summary.kills > 0 ? { km: bestiary.counts() } : {}),', to: '' },
+      { name: 'tick fold drops km', arm: 'K2',
+        file: 'supabase/functions/hr-accrue/tick-combat.js',
+        from: '  if (Object.keys(km).length) out.km = km;', to: '' },
+    ];
+    for (const pl of PLANTS) {
+      const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));
+      try {
+        cpSync(join(ROOT, 'src'), join(dir, 'src'), { recursive: true });
+        cpSync(join(ROOT, 'supabase', 'functions', 'hr-accrue'), join(dir, 'supabase', 'functions', 'hr-accrue'), { recursive: true });
+        const f = join(dir, pl.file);
+        const src = readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+        if (src.split(pl.from).length !== 2) throw new Error(`plant anchor moved: ${pl.name}`);
+        writeFileSync(f, src.replace(pl.from, pl.to));
+        const A = await import(pathToFileURL(join(dir, 'supabase/functions/hr-accrue/accrual.js')).href);
+        const T = await import(pathToFileURL(join(dir, 'supabase/functions/hr-accrue/tick-combat.js')).href);
+        const red = serverArms(A.computeAccrual, T.foldCombatMeta).filter((r) => r.startsWith(pl.arm));
+        console.log(`  ${red.length ? 'caught ' : 'ESCAPED'} ${pl.name}${red.length ? ` (${pl.arm})` : ''}`);
+        if (!red.length) escaped++;
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+    const control = serverArms(computeAccrual, foldCombatMeta);
+    if (control.length) { console.log(`  CONTROL RED: ${control[0]}`); escaped++; }
+  }
+  escaped += await sqlMutants();
   for (const [name, S] of Object.entries(MUTANTS)) {
     const red = run(S);
     console.log(`  ${red.length ? 'caught ' : 'ESCAPED'} ${name}${red.length ? ` (${red[0].split(':')[0]})` : ''}`);

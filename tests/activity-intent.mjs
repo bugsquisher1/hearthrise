@@ -382,8 +382,8 @@ const MUTATIONS = {
     file: FN('set-activity.js'),
     why: 'C6 — the catalogue guard goes back to truthiness, so `constructor` and `__proto__` walk '
        + 'past it and reach the database',
-    find: "  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {",
-    repl: "  if (decl.kind === 'combat' && !MONSTERS[decl.id]) {",
+    find: "  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id) && !huntFor(decl.id)) {",
+    repl: "  if (decl.kind === 'combat' && !MONSTERS[decl.id] && !huntFor(decl.id)) {",
   },
   skip_bare_literal: {
     file: FN('accrual.js'),

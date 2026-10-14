@@ -1,0 +1,934 @@
+{
+  "version": 1,
+  "set": "town",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-town.png",
+  "size": [512,428],
+  "pixels": "31da0905a508e7afdc9d8ab21560d41075696fec7f061e3164fb1d0e658dc7e7",
+  "sprites": {
+    "anvil": {
+      "class": "bulky",
+      "layer": "prop",
+      "frame": [32,22],
+      "anchor": [16,20],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 20,
+      "contact": [7,25],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[33,401]]
+          }
+        }
+      }
+    },
+    "apple_crate": {
+      "class": "bulky",
+      "layer": "prop",
+      "frame": [28,30],
+      "anchor": [14,27],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 27,
+      "contact": [1,26],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[428,368]]
+          }
+        }
+      }
+    },
+    "barrel_planter": {
+      "class": "barrel",
+      "layer": "prop",
+      "frame": [24,32],
+      "anchor": [12,29],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 28,
+      "contact": [4,19],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 24,
+        "h": 8,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[231,368]]
+          }
+        }
+      }
+    },
+    "bench": {
+      "class": "bench",
+      "layer": "prop",
+      "frame": [50,16],
+      "anchor": [25,14],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 13,
+      "contact": [4,45],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 51,
+        "h": 18,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[66,401]]
+          }
+        }
+      }
+    },
+    "bush": {
+      "class": "bush",
+      "layer": "prop",
+      "frame": [30,30],
+      "anchor": [15,27],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 27,
+      "contact": [5,24],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[304,368]]
+          }
+        }
+      }
+    },
+    "chimney": {
+      "class": "roof",
+      "layer": "roof",
+      "frame": [18,30],
+      "anchor": [9,29],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 30,
+      "contact": [0,17],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[457,368]]
+          }
+        }
+      }
+    },
+    "deadtree": {
+      "class": "tree",
+      "layer": "unit",
+      "frame": [78,112],
+      "anchor": [40,109],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 91,
+      "contact": [12,62],
+      "shadow": {
+        "kind": "cast",
+        "height": 91,
+        "base": [12,62]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[164,0]]
+          }
+        }
+      }
+    },
+    "door": {
+      "class": "door",
+      "layer": "wall",
+      "frame": [22,50],
+      "anchor": [11,48],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 48,
+      "contact": [1,20],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[298,241]]
+          }
+        }
+      }
+    },
+    "firewood": {
+      "class": "bulky",
+      "layer": "prop",
+      "frame": [30,30],
+      "anchor": [15,28],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 28,
+      "contact": [1,28],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[335,368]]
+          }
+        }
+      }
+    },
+    "flower_bed": {
+      "class": "clutter",
+      "layer": "prop",
+      "frame": [32,24],
+      "anchor": [16,22],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 21,
+      "contact": [2,29],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,401]]
+          }
+        }
+      }
+    },
+    "flower_box": {
+      "class": "hanging",
+      "layer": "wall",
+      "frame": [30,30],
+      "anchor": [15,28],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 10,
+      "height": 28,
+      "contact": [2,27],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[366,368]]
+          }
+        }
+      }
+    },
+    "hatch": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [24,28],
+      "anchor": [12,26],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 26,
+      "contact": [1,22],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[476,368]]
+          }
+        }
+      }
+    },
+    "hedge": {
+      "class": "bush",
+      "layer": "prop",
+      "frame": [30,30],
+      "anchor": [15,28],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 28,
+      "contact": [1,28],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[397,368]]
+          }
+        }
+      }
+    },
+    "lamppost": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [12,62],
+      "anchor": [6,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 58,
+      "contact": [2,9],
+      "shadow": {
+        "kind": "cast",
+        "height": 58,
+        "base": [2,9]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[411,115]]
+          }
+        }
+      }
+    },
+    "mill_sign": {
+      "class": "hanging",
+      "layer": "wall",
+      "frame": [22,32],
+      "anchor": [11,29],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 30,
+      "height": 22,
+      "contact": [3,19],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[281,368]]
+          }
+        }
+      }
+    },
+    "noticeboard": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [34,42],
+      "anchor": [16,40],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 40,
+      "contact": [3,28],
+      "shadow": {
+        "kind": "cast",
+        "height": 40,
+        "base": [3,28]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[321,241]]
+          }
+        }
+      }
+    },
+    "npc_crier": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,3,0],
+      "hover": 0,
+      "height": 34,
+      "contact": [24,39],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 19,
+        "h": 7,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": true,
+          "dirs": {
+            "s": [[0,115]],
+            "e": [[349,0]],
+            "n": [[414,0]],
+            "w": [[65,115]]
+          }
+        }
+      }
+    },
+    "npc_smith": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,3,0],
+      "hover": 0,
+      "height": 36,
+      "contact": [25,43],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 19,
+        "h": 7,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": true,
+          "dirs": {
+            "s": [[260,115]],
+            "e": [[130,115]],
+            "n": [[195,115]],
+            "w": [[325,115]]
+          }
+        }
+      }
+    },
+    "oak": {
+      "class": "tree",
+      "layer": "unit",
+      "frame": [88,114],
+      "anchor": [44,111],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 110,
+      "contact": [36,57],
+      "shadow": {
+        "kind": "cast",
+        "height": 110,
+        "base": [36,57]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
+          }
+        }
+      }
+    },
+    "pine": {
+      "class": "tree",
+      "layer": "unit",
+      "frame": [74,114],
+      "anchor": [37,112],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 108,
+      "contact": [34,47],
+      "shadow": {
+        "kind": "cast",
+        "height": 108,
+        "base": [34,47]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[89,0]]
+          }
+        }
+      }
+    },
+    "roof_slate": {
+      "class": "roof",
+      "layer": "roof",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "slice": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[401,241],[434,241],[33,302],[66,302],[99,302],[132,302],[165,302],[198,302],[231,302],[264,302],[467,241],[0,302]]
+          }
+        }
+      }
+    },
+    "roof_wood": {
+      "class": "roof",
+      "layer": "roof",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "slice": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[297,302],[330,302],[429,302],[462,302],[0,335],[33,335],[66,335],[99,335],[132,335],[165,335],[363,302],[396,302]]
+          }
+        }
+      }
+    },
+    "signpost": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [24,32],
+      "anchor": [12,29],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 28,
+      "contact": [8,15],
+      "shadow": {
+        "kind": "cast",
+        "height": 28,
+        "base": [8,15]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[256,368]]
+          }
+        }
+      }
+    },
+    "statue": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [20,64],
+      "anchor": [10,61],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [1,18],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [1,18]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[390,115]]
+          }
+        }
+      }
+    },
+    "stone_house_end": {
+      "class": "wallend",
+      "layer": "wall",
+      "frame": [12,60],
+      "anchor": [6,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,11],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,11]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[231,241]]
+          }
+        }
+      }
+    },
+    "stone_house_wall": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[424,115],[457,115],[0,180],[33,180]]
+          }
+        }
+      }
+    },
+    "stone_house_wall_door": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[66,180],[99,180],[132,180],[165,180]]
+          }
+        }
+      }
+    },
+    "stone_house_wall_window": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[198,180],[231,180],[264,180],[297,180]]
+          }
+        }
+      }
+    },
+    "timber_end": {
+      "class": "wallend",
+      "layer": "wall",
+      "frame": [12,60],
+      "anchor": [6,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,11],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,11]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[244,241]]
+          }
+        }
+      }
+    },
+    "timber_wall": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[330,180],[363,180],[396,180],[429,180]]
+          }
+        }
+      }
+    },
+    "timber_wall_door": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[462,180],[0,241],[33,241],[66,241]]
+          }
+        }
+      }
+    },
+    "timber_wall_window": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[99,241],[132,241],[165,241],[198,241]]
+          }
+        }
+      }
+    },
+    "waterwheel": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [58,68],
+      "anchor": [29,65],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 65,
+      "contact": [3,54],
+      "shadow": {
+        "kind": "cast",
+        "height": 65,
+        "base": [3,54]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[290,0]]
+          }
+        }
+      }
+    },
+    "well": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [40,52],
+      "anchor": [20,50],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [10,29],
+      "shadow": {
+        "kind": "cast",
+        "height": 50,
+        "base": [10,29]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[257,241]]
+          }
+        }
+      }
+    },
+    "woodpile": {
+      "class": "fixture",
+      "layer": "prop",
+      "frame": [44,34],
+      "anchor": [22,32],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [5,38],
+      "shadow": {
+        "kind": "cast",
+        "height": 32,
+        "base": [5,38]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[356,241]]
+          }
+        }
+      }
+    },
+    "young_oak": {
+      "class": "sapling",
+      "layer": "unit",
+      "frame": [46,90],
+      "anchor": [23,88],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 85,
+      "contact": [17,26],
+      "shadow": {
+        "kind": "cast",
+        "height": 85,
+        "base": [17,26]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[243,0]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {
+    "town_ground": {
+      "kind": "wang16",
+      "lower": "cobble",
+      "upper": "grass",
+      "tiles": {
+        "1000": [[462,335]],
+        "1001": [[0,368]],
+        "1010": [[33,368]],
+        "1011": [[66,368]],
+        "1100": [[99,368]],
+        "1101": [[132,368]],
+        "1110": [[165,368]],
+        "1111": [[198,368]],
+        "0000": [[198,335]],
+        "0001": [[231,335]],
+        "0010": [[264,335]],
+        "0011": [[297,335]],
+        "0100": [[330,335]],
+        "0101": [[363,335]],
+        "0110": [[396,335]],
+        "0111": [[429,335]]
+      }
+    }
+  }
+}

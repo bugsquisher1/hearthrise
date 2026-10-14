@@ -663,3 +663,34 @@ body[data-theme="hearthlight"] {
   --gem-rim:      rgba(201,162,74,.62);   /* the gilt setting */
   --gem-face-ink: #f2f4ff;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5 · the World pane — the pixel-world canvas (src/world/**).
+   The canvas reads these through getComputedStyle; src/styles/world.css reads
+   them for the chrome. The scene is lit by the map, not by the UI theme, so
+   one ladder serves every theme. --world-stub-* paint the boxes a sprite is
+   drawn as until its atlas ships (src/world/stub-atlas.js); --world-light-*
+   are multiplied over the frame (ambient) or added (point lights).
+   ══════════════════════════════════════════════════════════════════════════ */
+:root,
+body[data-theme="hearthlight"] {
+  --world-void:          #0b0a0c;
+  --world-shadow:        #000000;
+  --world-shadow-alpha:  .38;
+  --world-vignette:      rgba(0, 0, 0, .4);
+  /* ambient, multiplied over the frame (the W2 stills: cellar .56, cottage .96) */
+  --world-light-cellar:  #8f8f8f;
+  --world-light-indoor:  #f5f5f5;
+  --world-light-day:     #ffffff;
+  /* point lights, added (colour x strength, as the stills lit them) */
+  --world-light-torch:   #ffa857;
+  --world-light-brazier: #ff9947;
+  --world-light-hearth:  #8c5529;
+  --world-light-hero:    #928567;
+  --world-plate-self:    #6fe36f;
+  --world-plate-line:    #080709;
+  /* a sprite no shipped atlas carries yet */
+  --world-stub-missing:  #8a6238;
+  --world-stub-line:     rgba(0, 0, 0, .45);
+}

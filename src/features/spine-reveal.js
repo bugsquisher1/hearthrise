@@ -31,14 +31,14 @@
 // other states through `__pin(facts | null)`.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS } from '../data/spine.js?v=575';
-import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=575';
-import { SKILLS_DEF } from '../data/skills.js?v=575';
-import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=575';
-import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=575';
-import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=575';
-import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=575';
-import { recordValue } from '../net/record.js?v=575';
+import { SPINE_STEPS } from '../data/spine.js?v=576';
+import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=576';
+import { SKILLS_DEF } from '../data/skills.js?v=576';
+import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=576';
+import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=576';
+import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=576';
+import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=576';
+import { recordValue } from '../net/record.js?v=576';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const CTX = Object.freeze({ startXp: START_SKILL_XP });
@@ -115,7 +115,7 @@ export const FULL = Object.freeze({
   skills: Object.freeze(Object.fromEntries(Object.keys(SKILLS_DEF).map((id) => [id, MAX_XP]))),
   property: 6, workers: 6, companions: 6,
   bag: Object.freeze(Object.fromEntries(DUNGEON_KEYS.map((k) => [k, 1]))),
-  products: Object.freeze({ clans: true }),
+  products: Object.freeze({ clans: true, world: true }),
   gold: 1e9, equipment: Object.freeze({ boots: 'leather_boots' }),
   claimed: Object.freeze(Object.fromEntries(Object.keys(QUEST_REWARDS).map((q) => [q, true]))),
 });
@@ -147,7 +147,11 @@ function serverGold() {
 /** Which unreleased features are live: shipping switches, not player state. */
 function liveProducts() {
   const C = typeof window !== 'undefined' ? window.HearthriseClans : null;
-  return { clans: !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()) };
+  const W = typeof window !== 'undefined' ? window.HearthriseWorld : null;
+  return {
+    clans: !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()),
+    world: !!(W && typeof W.launched === 'function' && W.launched()),
+  };
 }
 
 /** THE FACTS the reveal is decided from right now. */

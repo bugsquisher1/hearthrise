@@ -74,7 +74,9 @@ import { recoveryFor, resumeHpFor } from './recovery.js?v=584';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop } from './action-rules.js?v=584';
+import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop,
+  floorOf, coverValue } from './action-rules.js?v=584';
+import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=584';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -278,7 +280,10 @@ export function resolveDeath(state, ctx) {
   const base = (v) => { const n = Math.floor(Number(v)); return isFinite(n) && n >= 0 ? n : 0; };
   const todayBefore = base(state.deathsTodayBefore) + soFar;
   const lifeBefore  = base(state.deathsLifetimeBefore) + soFar;
-  const recoverMs = recoveryFor({ deathsTodayBefore: todayBefore, deathsLifetimeBefore: lifeBefore });
+  /* INSIDE A HUNT a knockout is a flat minute (master plan row 16); the
+     Recovery Rule's ladder keeps every other fight. */
+  const recoverMs = state.huntSession ? KNOCKOUT_MS
+    : recoveryFor({ deathsTodayBefore: todayBefore, deathsLifetimeBefore: lifeBefore });
   /* ── WAS THE BAG EMPTY *AT THIS FALL*? (Recovery rev. 3) ──────────────────
      Read from the LIVE SIMULATED BAG, here, at the instant of the fall — NOT
      from accrual.js's `hadFood`, which is a window-OPEN snapshot. The ruling is
@@ -354,7 +359,8 @@ export function resolveDeath(state, ctx) {
     died: true, streakBroken, recoverMs,
     deathsToday: todayBefore + 1,
     deathsLifetime: lifeBefore + 1,
-    nextRecoverMs: recoveryFor({ deathsTodayBefore: todayBefore + 1, deathsLifetimeBefore: lifeBefore + 1 }),
+    nextRecoverMs: state.huntSession ? KNOCKOUT_MS
+      : recoveryFor({ deathsTodayBefore: todayBefore + 1, deathsLifetimeBefore: lifeBefore + 1 }),
     resumeHp: state.playerHp,
     /* ── THE RETREAT, AS DATA (rev. 3) ────────────────────────────────────
        Three facts, stated once here and read without re-derivation by all four
@@ -412,7 +418,9 @@ function spendFromQuiver(state, hunt, ctx) {
   const bagLeft = line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0;
   const shot = ammoId ? shopShotFor(hunt, ammoId) : null;
   const price = shot ? shot.price : 0;
-  const buyable = price > 0 ? Math.floor(Math.max(0, Math.floor(Number(hunt.purse) || 0)) / price) : 0;
+  /* What the purse can buy with the floor kept, counting the loot it could sell. */
+  const buyable = price > 0
+    ? Math.floor(Math.max(0, Math.floor(Number(hunt.purse) || 0) + coverValue(hunt) - floorOf(hunt)) / price) : 0;
   const view = { equipment: state.equipment, ammoCarry: state.ammoCarry,
     inventory: ammoId ? { [ammoId]: bagLeft + buyable } : {} };
   const atMs = Number(ctx.atMs) || 0;
@@ -617,7 +625,12 @@ function tallyFx(fx, hs, events, clock) {
   const add = (o, k, n) => { o[k] = (o[k] || 0) + n; };
   return Object.assign({}, fx, {
     addXp(skill, amount, ...rest) { add(t.xp, skill, Number(amount) || 0); return call(fx, 'addXp', skill, amount, ...rest); },
-    addItem(id, n, ...rest) { add(t.loot, id, Number(n) || 0); return call(fx, 'addItem', id, n, ...rest); },
+    addItem(id, n, ...rest) {
+      add(t.loot, id, Number(n) || 0);
+      /* Loot the session may sell to cover a shop charge (row 3) joins the pool as it drops. */
+      if (hs.cover && hs.cover[id] && Number(n) > 0) hs.cover[id].avail += Math.floor(Number(n));
+      return call(fx, 'addItem', id, n, ...rest);
+    },
     /* The coins a kill drops are in the purse at once: an NPC basic bought
        later in the same window may spend them (the database credits them in
        the same settle, before the buys are debited). */
@@ -766,8 +779,12 @@ function simulateHuntSpan(state, ctx) {
     events.push({ type: 'ended', atMs: hs.nextSwingAtMs, reason: why });
   }
   if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
-  state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;
-  hs.down = downed;
+  /* An ENDED hunt leaves no knockout behind: the character walks home (a flat
+     minute is shorter than any walk back plus a new hunt's walk out), and the
+     line is the same however the windows were cut — a span that ran past the
+     line would otherwise clear it while a window cut inside it kept it. */
+  state.recoveringUntilMs = (!hs.endedReason && recoverUntilMs > toMs) ? recoverUntilMs : 0;
+  hs.down = hs.endedReason ? false : downed;
   delete hs._events;
   return {
     kills, foodEaten, crits, ticks, deaths, recoverMs,

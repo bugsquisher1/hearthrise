@@ -6,9 +6,9 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: cad5823f262b40dc0a12e457e810925daf0a4309989b7a39cffc19352180f855
+--   digest: a3cb2da77a2561cb1a9ff4e57764bddd304be104ada5722de9f5cfa337f42850
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
---   7 combat buff types, 19 limits, 9 end reasons, 484 vendor values,
+--   7 combat buff types, 23 limits, 9 end reasons, 484 vendor values,
 --   23 shop supplies paid per use, 4 slot targets, 2 slot kinds,
 --   4 target modes
 --
@@ -73,6 +73,10 @@ create table if not exists public.hr_hunt_basic_supplies (
   price    bigint not null check (price between 1 and 1000000000),
   tiers    int[] not null
 );
+create table if not exists public.hr_hunt_cover_items (
+  item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  unit    bigint not null check (unit >= 1)
+);
 create table if not exists public.hr_hunt_slot_targets (
   target text primary key check (target ~ '^[*][a-z_]{1,32}$'),
   kind   text not null check (kind in ('heal', 'mana')),
@@ -106,11 +110,12 @@ alter table public.hr_hunt_target_modes   enable row level security;
 alter table public.hr_hunt_resumable_kinds enable row level security;
 alter table public.hr_hunt_basic_supplies enable row level security;
 alter table public.hr_hunt_slot_targets   enable row level security;
+alter table public.hr_hunt_cover_items    enable row level security;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
               public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds,
-              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets
+              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets, public.hr_hunt_cover_items
   from public, anon, authenticated, service_role;
 
 delete from public.hr_hunt_supplies;
@@ -198,6 +203,94 @@ insert into public.hr_hunt_slot_targets (target, kind, src) values
   ('*heal_shop', 'heal', 'shop'),
   ('*mana', 'mana', 'bag'),
   ('*mana_shop', 'mana', 'shop');
+delete from public.hr_hunt_cover_items;
+insert into public.hr_hunt_cover_items (item_id, unit) values
+  ('alpha_fang', 450),
+  ('ancient_claw', 1600),
+  ('ancient_fragment', 85),
+  ('ancient_rune', 300),
+  ('bat_wing', 2),
+  ('bear_claw', 36),
+  ('bear_pelt', 52),
+  ('big_bones', 1),
+  ('bone_chips', 2),
+  ('bones', 1),
+  ('brute_plate', 26),
+  ('captain_medal', 700),
+  ('coal', 8),
+  ('copper_ore', 2),
+  ('cracked_spellstone', 260),
+  ('dawnstone_ore', 280),
+  ('death_steel', 110),
+  ('demon_shard', 40),
+  ('dire_fang', 30),
+  ('dragon_bones', 2),
+  ('dragon_gem', 2000),
+  ('dragon_scale', 100),
+  ('duskwood_log', 230),
+  ('ember_bar', 1600),
+  ('ember_essence', 40),
+  ('emberfruit', 96),
+  ('emberstone_ore', 104),
+  ('frost_essence', 40),
+  ('frostfin', 104),
+  ('goblin_ear', 1),
+  ('goblin_totem', 120),
+  ('gold_bar', 280),
+  ('gold_ore', 20),
+  ('goldenroot', 52),
+  ('grave_dust', 19),
+  ('hell_ember', 600),
+  ('herring', 2),
+  ('hollow_sigil', 1400),
+  ('iron_bar', 90),
+  ('iron_fitting', 480),
+  ('iron_ore', 5),
+  ('keystone', 3000),
+  ('lich_soul', 160),
+  ('lobster', 20),
+  ('magic_essence', 10),
+  ('maple_log', 16),
+  ('mithril_bar', 650),
+  ('mithril_ore', 40),
+  ('moonbloom', 170),
+  ('normal_log', 1),
+  ('oak_log', 4),
+  ('plague_ichor', 36),
+  ('poison_essence', 40),
+  ('pumpkin', 30),
+  ('rat_tail', 1),
+  ('raw_bear_meat', 3),
+  ('raw_panther_meat', 1),
+  ('raw_wolf_meat', 1),
+  ('razor_claw', 72),
+  ('ruby', 400),
+  ('rune_bar', 1200),
+  ('rune_frag', 6),
+  ('runewood_log', 96),
+  ('shadow_pelt', 96),
+  ('shadow_thread', 64),
+  ('silk_thread', 11),
+  ('slime_gel', 1),
+  ('small_fang', 3),
+  ('spider_eye', 220),
+  ('steel_bar', 150),
+  ('swarm_heart', 650),
+  ('timber_beam', 300),
+  ('troll_hide', 16),
+  ('trout', 4),
+  ('turnip', 4),
+  ('vamp_dust', 24),
+  ('venom_sac', 15),
+  ('void_chitin', 160),
+  ('void_core', 2200),
+  ('war_crown', 2500),
+  ('warlord_badge', 350),
+  ('wheat', 10),
+  ('willow_log', 8),
+  ('wolf_pelt', 7),
+  ('wraith_veil', 420),
+  ('yew_log', 40);
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
   ('spell', false),
@@ -334,18 +427,22 @@ insert into public.hr_hunt_limits (key, value) values
   ('conditions', 3),
   ('death_xp_permille', 20),
   ('falls_default', 3),
-  ('falls_max', 6),
-  ('falls_min', 1),
+  ('falls_max', 3),
+  ('falls_min', 3),
+  ('gold_floor_default', 300),
+  ('gold_floor_max', 100000),
+  ('gold_floor_min', 0),
   ('hours_max', 24),
   ('hours_min', 1),
+  ('knockout_ms', 60000),
   ('presets', 5),
   ('pull_default', 1),
   ('pull_max', 8),
   ('pull_min', 1),
   ('sessions_kept', 20),
   ('slots', 20),
-  ('stamina_max_min', 720),
-  ('vigour_low_min', 144);
+  ('stamina_low_min', 60),
+  ('stamina_max_min', 720);
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('falls', 1, true),
@@ -377,6 +474,20 @@ alter table public.player_action_sets add constraint player_action_sets_slots_ch
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_presses_check;
 alter table public.hunt_sessions add constraint hunt_sessions_presses_check
   check (jsonb_typeof(presses) = 'array' and jsonb_array_length(presses) <= 20);
+-- The timeline's event types are EVENT_COPY's keys (2026-10-14: stamina_low
+-- replaces vigour_low; cover is sell-to-cover).
+alter table public.hunt_session_events drop constraint if exists hunt_session_events_type_check;
+alter table public.hunt_session_events add constraint hunt_session_events_type_check
+  check (type in ('entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'stamina_low', 'cover', 'ended'));
+-- Each action set's GOLD FLOOR (master plan row 3): a shop use never takes the
+-- character's gold below it.
+alter table public.player_action_sets add column if not exists gold_floor bigint;
+update public.player_action_sets set gold_floor = 300 where gold_floor is null;
+alter table public.player_action_sets alter column gold_floor set default 300;
+alter table public.player_action_sets alter column gold_floor set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
+alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
+  check (gold_floor between 0 and 100000);
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -396,6 +507,9 @@ alter table public.player_action_sets add constraint player_action_sets_pull_cou
 -- written by the trigger 2026-10-22-hunt-sessions-settle.sql installs.
 alter table public.player_state add column if not exists last_activity_kind text;
 alter table public.player_state add column if not exists last_activity_id text;
+-- A new character resumes fishing the Shrimp Spot (master plan row 25).
+alter table public.player_state alter column last_activity_kind set default 'gather';
+alter table public.player_state alter column last_activity_id set default 'shrimp_s';
 alter table public.player_state drop constraint if exists player_state_last_activity_ck;
 alter table public.player_state add constraint player_state_last_activity_ck
   check ((last_activity_kind is null) = (last_activity_id is null)
@@ -403,7 +517,7 @@ alter table public.player_state add constraint player_state_last_activity_ck
          and (last_activity_id is null or last_activity_id ~ '^[a-z0-9_]{1,64}$'));
 delete from public.hr_hunt_default_preset;
 insert into public.hr_hunt_default_preset (id, name, slots) values
-  (true, 'Eat and drink', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*heal_shop","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*mana","on":true,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]},{"item":"*mana_shop","on":true,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]}]'::jsonb);
+  (true, 'Eat and drink', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*heal_shop","on":false,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*mana","on":true,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]},{"item":"*mana_shop","on":false,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]}]'::jsonb);
 delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('abyssal_greaves', 198000),
@@ -898,12 +1012,13 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 98
      or (select count(*) from public.hr_hunt_rule_subjects) <> 6
      or (select count(*) from public.hr_hunt_buff_types) <> 7
-     or (select count(*) from public.hr_hunt_limits) <> 19
+     or (select count(*) from public.hr_hunt_limits) <> 23
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_default_preset) <> 1
      or (select count(*) from public.hr_hunt_vendor_value) <> 484
      or (select count(*) from public.hr_hunt_basic_supplies) <> 23
      or (select count(*) from public.hr_hunt_slot_targets) <> 4
+     or (select count(*) from public.hr_hunt_cover_items) <> 86
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_slot_kinds) <> 2
      or (select count(*) from public.hr_hunt_target_modes) <> 4
@@ -930,7 +1045,7 @@ begin
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets'] loop
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -939,6 +1054,6 @@ begin
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                  'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets')) then
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

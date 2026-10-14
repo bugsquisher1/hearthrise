@@ -333,7 +333,11 @@ export function parseIntent(body) {
 
 /* The highest action-bar index (src/data/rule-subjects.js ACTION_SET_LIMITS.slots
    is 10). A bound on a SELECTOR; the database re-validates the slot exists. */
-export const MAX_BAR_SLOT = 9;
+/* The last index of Huntera's bar: src/data/rule-subjects.js
+   ACTION_SET_LIMITS.slots - 1 (20 slots since 2026-10-14). This module imports
+   nothing, so the number is restated and tests/hunt-sessions-settle.mjs
+   ACTIONBAR-RULE pins it equal to the data. */
+export const MAX_BAR_SLOT = 19;
 
 /**
  * The ACTION-BAR SLOT a `hunt_use` presses: an own property, a real JSON

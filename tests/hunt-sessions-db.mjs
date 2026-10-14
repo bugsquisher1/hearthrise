@@ -401,7 +401,12 @@ async function g1(db) {
       where c.conrelid = 'public.hunt_sessions'::regclass and c.contype = 'c'
         and pg_get_constraintdef(c.oid) like '%end_reason = ANY%'`);
   const ends = defs.length === 1 ? [...defs[0].d.matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]) : null;
-  const types = list(/type\s+text not null check \(type in \(([^)]*)\)\)/);
+  /* The event types too: regenerated from EVENT_COPY by the C2 catalogue
+     (stamina_low replaced vigour_low; `cover` joined, 2026-10-14). */
+  const tdefs = await q(db, `select pg_get_constraintdef(c.oid) d from pg_constraint c
+      where c.conrelid = 'public.hunt_session_events'::regclass and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) like '%type = ANY%'`);
+  const types = tdefs.length === 1 ? [...tdefs[0].d.matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]) : null;
   if (JSON.stringify(ends) !== JSON.stringify([...END_ORDER])) {
     red.push(`G1: hunt_sessions.end_reason CHECK on the chain ${JSON.stringify(ends)} (${defs.length} constraint(s)) <> END_ORDER`);
   }
@@ -577,12 +582,18 @@ if (!MUTATE) {
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} ${m.name}${raised ? ` (${raised})` : mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
   }
-  /* G1 bites: a CHECK list that drifts from the data is red. */
+  /* G1 bites: an event type dropped from the chain's CHECK list is red. */
   {
-    const saved = MIG_TEXT;
-    const drifted = saved.replace("'vigour_low', 'ended'", "'ended'");
-    const types = [...drifted.match(/type\s+text not null check \(type in \(([^)]*)\)\)/)[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
-    const caught = JSON.stringify(types) !== JSON.stringify(Object.keys(EVENT_COPY));
+    const { db: d3 } = await bootReplay({});
+    await d3.query('begin');
+    let red = [];
+    try {
+      const def = await one(d3, `select pg_get_constraintdef(oid) from pg_constraint where conname = 'hunt_session_events_type_check'`);
+      await d3.exec(`alter table public.hunt_session_events drop constraint hunt_session_events_type_check;
+        alter table public.hunt_session_events add constraint hunt_session_events_type_check ${def.replace("'cover'::text, ", '')}`);
+      red = await g1(d3);
+    } finally { await d3.query('rollback'); await d3.close?.(); }
+    const caught = red.some((r) => r.startsWith('G1'));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} G1: an event type dropped from the CHECK list`);
     if (!caught) escaped++;
   }

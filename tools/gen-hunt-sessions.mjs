@@ -24,7 +24,10 @@
 //   hr_hunt_rule_subjects  src/data/rule-subjects.js RULE_SUBJECTS
 //   hr_hunt_buff_types     src/data/supplies.js COMBAT_BUFF_TYPES (a `buff` param)
 //   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + COOLDOWN_GROUPS,
-//                          hunt-sessions.js SESSION_LIMITS + VIGOUR_LOW_MIN + SESSIONS_KEPT
+//                          hunt-sessions.js SESSION_LIMITS + STAMINA_LOW_MIN + SESSIONS_KEPT
+//                          + KNOCKOUT_MS + GOLD_FLOOR (lane C2, master plan rows 3/4/16)
+//   hr_hunt_cover_items    hunt-sessions.js coverSellable over every common monster drop
+//                          (>= 5%) the vendor buys: what sell-to-cover may sell
 //                          + DEATH_XP_LOSS (as `death_xp_permille`, lane C2)
 //                          + STAMINA_MAX_MS (as `stamina_max_min`, lane C2)
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) + RESUME_AFTER_END
@@ -69,8 +72,9 @@ import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
   SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, SLOT_TARGETS } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END } from '../src/data/hunt-sessions.js';
+import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
+  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, DEFAULT_RESUME, EVENT_COPY,
+  coverSellable } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -86,7 +90,8 @@ export function catalogueRows(src = {}) {
     hunts: HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_GROUPS, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
-    vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
+    staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
+    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
@@ -184,7 +189,11 @@ export function catalogueRows(src = {}) {
     falls_min: S.sessionLimits.falls.min, falls_max: S.sessionLimits.falls.max, falls_default: S.sessionLimits.falls.default,
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
     cd_heal_ms: S.cooldowns.heal.ms, cd_buff_ms: S.cooldowns.buff.ms, cd_mana_ms: S.cooldowns.mana.ms,
-    vigour_low_min: S.vigourLow, sessions_kept: S.kept,
+    stamina_low_min: S.staminaLow, sessions_kept: S.kept,
+    /* A knockout inside a hunt (flat, master plan row 16) and the gold floor's
+       range and default (row 3). */
+    knockout_ms: S.knockoutMs,
+    gold_floor_min: S.floor.min, gold_floor_max: S.floor.max, gold_floor_default: S.floor.default,
     /* The price of a fall, in permille of the level's gap. Refused unless the
        fraction is a whole permille in (0, 1000], so the engine's fraction and the
        database's row are the same number exactly — not two roundings of it. */
@@ -195,6 +204,26 @@ export function catalogueRows(src = {}) {
     /* The pull count an action set may store (Huntera's 1-8; default 1). */
     pull_min: S.pull.min, pull_max: S.pull.max, pull_default: S.pull.default,
   };
+  if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
+    throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
+  }
+  if (!(lim.knockout_ms >= 1000)) throw new Error(`KNOCKOUT_MS ${S.knockoutMs} is under a second`);
+  /* SELL-TO-COVER: every common (>= 5%) monster drop the rule admits and the vendor buys. */
+  const dropIds = new Set();
+  for (const m of Object.values(S.monsters)) {
+    for (const d of (m.drops || [])) if (d && d.id && Number(d.ch) >= 0.05) dropIds.add(d.id);
+  }
+  const partnerIds = new Set(basics.map((b) => b.partner));
+  const cover = [...dropIds].filter((id) => own(S.items, id)
+    && coverSellable(S.items[id], own(S.supplies, id) || partnerIds.has(id)))
+    .map((id) => ({ id, unit: vendorPriceOf(S.items, id) })).filter((r) => r.unit >= 1)
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  const resume = S.defaultResume;
+  if (!resume || !S.resumable.includes(resume.kind) || !ID.test(resume.id)) {
+    throw new Error(`DEFAULT_RESUME ${JSON.stringify(resume)} is not a resumable kind and id`);
+  }
+  const eventTypes = Object.keys(S.events);
+  for (const t of eventTypes) if (!ID.test(t)) throw new Error(`event type ${t} is not [a-z0-9_]{1,64}`);
   if (!(lim.pull_min >= 1 && lim.pull_min <= lim.pull_default && lim.pull_default <= lim.pull_max)) {
     throw new Error(`PULL_COUNT ${JSON.stringify(S.pull)} is not 1 <= min <= default <= max`);
   }
@@ -245,6 +274,7 @@ export function catalogueRows(src = {}) {
     if (!ID.test(r.id) || !Number.isInteger(r.unit)) throw new Error(`vendor value ${r.id} = ${r.unit}`);
   }
   return { supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
+    cover, resume, eventTypes,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
@@ -254,6 +284,8 @@ export function render(src) {
   const supplyValues = r.supplies.map((s) => `  (${sq(s.id)}, ${sq(s.kind)}, ${s.essential}, ${s.heals}, ${s.bt ? sq(s.bt) : 'null'})`).join(',\n');
   const basicValues = r.basics.map((b) => `  (${sq(b.id)}, ${sq(b.kind)}, ${sq(b.partner)}, ${b.heals}, ${b.mana}, ${b.price}, '{${b.tiers.join(',')}}'::int[])`).join(',\n');
   const targetRowValues = r.slotTargets.map((x) => `  (${sq(x.t)}, ${sq(x.kind)}, ${sq(x.from)})`).join(',\n');
+  const coverValues = r.cover.map((c) => `  (${sq(c.id)}, ${c.unit})`).join(',\n');
+  const eventList = r.eventTypes.map(sq).join(', ');
   const slotKindValues = r.slotKinds.map((x) => `  (${sq(x.k)}, ${x.active})`).join(',\n');
   const targetValues = r.targets.map((x) => `  (${sq(x.m)}, ${x.solo})`).join(',\n');
   const targetList = r.targets.map((x) => sq(x.m)).join(', ');
@@ -344,6 +376,10 @@ create table if not exists public.hr_hunt_basic_supplies (
   price    bigint not null check (price between 1 and 1000000000),
   tiers    int[] not null
 );
+create table if not exists public.hr_hunt_cover_items (
+  item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  unit    bigint not null check (unit >= 1)
+);
 create table if not exists public.hr_hunt_slot_targets (
   target text primary key check (target ~ '^[*][a-z_]{1,32}$'),
   kind   text not null check (kind in ('heal', 'mana')),
@@ -377,11 +413,12 @@ alter table public.hr_hunt_target_modes   enable row level security;
 alter table public.hr_hunt_resumable_kinds enable row level security;
 alter table public.hr_hunt_basic_supplies enable row level security;
 alter table public.hr_hunt_slot_targets   enable row level security;
+alter table public.hr_hunt_cover_items    enable row level security;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
               public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds,
-              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets
+              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets, public.hr_hunt_cover_items
   from public, anon, authenticated, service_role;
 
 delete from public.hr_hunt_supplies;
@@ -393,6 +430,9 @@ ${basicValues};
 delete from public.hr_hunt_slot_targets;
 insert into public.hr_hunt_slot_targets (target, kind, src) values
 ${targetRowValues};
+delete from public.hr_hunt_cover_items;
+insert into public.hr_hunt_cover_items (item_id, unit) values
+${coverValues};
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
 ${slotKindValues};
@@ -432,6 +472,20 @@ alter table public.player_action_sets add constraint player_action_sets_slots_ch
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_presses_check;
 alter table public.hunt_sessions add constraint hunt_sessions_presses_check
   check (jsonb_typeof(presses) = 'array' and jsonb_array_length(presses) <= ${r.slotsMax});
+-- The timeline's event types are EVENT_COPY's keys (2026-10-14: stamina_low
+-- replaces vigour_low; cover is sell-to-cover).
+alter table public.hunt_session_events drop constraint if exists hunt_session_events_type_check;
+alter table public.hunt_session_events add constraint hunt_session_events_type_check
+  check (type in (${eventList}));
+-- Each action set's GOLD FLOOR (master plan row 3): a shop use never takes the
+-- character's gold below it.
+alter table public.player_action_sets add column if not exists gold_floor bigint;
+update public.player_action_sets set gold_floor = ${r.lim.gold_floor_default} where gold_floor is null;
+alter table public.player_action_sets alter column gold_floor set default ${r.lim.gold_floor_default};
+alter table public.player_action_sets alter column gold_floor set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
+alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
+  check (gold_floor between ${r.lim.gold_floor_min} and ${r.lim.gold_floor_max});
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -451,6 +505,9 @@ alter table public.player_action_sets add constraint player_action_sets_pull_cou
 -- written by the trigger 2026-10-22-hunt-sessions-settle.sql installs.
 alter table public.player_state add column if not exists last_activity_kind text;
 alter table public.player_state add column if not exists last_activity_id text;
+-- A new character resumes fishing the Shrimp Spot (master plan row 25).
+alter table public.player_state alter column last_activity_kind set default ${sq(r.resume.kind)};
+alter table public.player_state alter column last_activity_id set default ${sq(r.resume.id)};
 alter table public.player_state drop constraint if exists player_state_last_activity_ck;
 alter table public.player_state add constraint player_state_last_activity_ck
   check ((last_activity_kind is null) = (last_activity_id is null)
@@ -476,6 +533,7 @@ begin
      or (select count(*) from public.hr_hunt_vendor_value) <> ${r.vendor.length}
      or (select count(*) from public.hr_hunt_basic_supplies) <> ${r.basics.length}
      or (select count(*) from public.hr_hunt_slot_targets) <> ${r.slotTargets.length}
+     or (select count(*) from public.hr_hunt_cover_items) <> ${r.cover.length}
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_slot_kinds) <> ${r.slotKinds.length}
      or (select count(*) from public.hr_hunt_target_modes) <> ${r.targets.length}
@@ -502,7 +560,7 @@ begin
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets'] loop
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -511,7 +569,7 @@ begin
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                  'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets')) then
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;
 `;
@@ -543,6 +601,8 @@ function selftest() {
     'two shop heals for one tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
     'a shop shot whose partner is no ammo': () => ({ basics: BASIC_SUPPLIES.map((b) => (b.kind === 'ammo' ? { ...b, partner: 'cooked_shrimp' } : b)) }),
     'a named hunt with no tier': () => ({ huntTiers: {} }),
+    'a gold floor default above its max': () => ({ floor: { min: 0, max: 100, default: 300 } }),
+    'a default resume that is a hunt': () => ({ defaultResume: { kind: 'combat', id: 'rat' } }),
     'no active supply slot kind': () => ({ slotKinds: { supply: { active: false }, spell: { active: false } } }),
     'a default target mode that is party-only': () => ({ defaultTarget: 'follow' }),
     'a pull default outside its range': () => ({ pull: { min: 1, max: 8, default: 9 } }),

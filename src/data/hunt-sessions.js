@@ -12,21 +12,54 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* Falls ends the hunt after that many knock-outs (replaces Retreat). Hours is
-   an optional limit, off by default: the bag and the falls already bound a
-   hunt, and a timer nobody asked for is a hunt that ends for no reason. */
+/* Falls ends the hunt after that many knock-outs (replaces Retreat): THREE,
+   for everyone (master plan row 16, 2026-10-14 — rulings S and U), so the
+   range is the single value. Hours is an optional limit, off by default: the
+   bag and the falls already bound a hunt, and a timer nobody asked for is a
+   hunt that ends for no reason. */
 export const SESSION_LIMITS = Object.freeze({
-  falls: Object.freeze({ min: 1, max: 6, default: 3 }),
+  falls: Object.freeze({ min: 3, max: 3, default: 3 }),
   hours: Object.freeze({ min: 1, max: 24, default: null }),
   bagLines: 10,
 });
 
-/* TBD-designer (lane C1 placeholder, 2026-10-14). The `vigour_low` timeline
-   event fires once per hunt when the character's Vigour left for the day
-   falls to this many minutes or fewer. Placeholder: 20% of the flat 720-min
-   daily grant. The server reads it through the generated catalogue
-   (tools/gen-hunt-sessions.mjs), so retuning it is this one edit. */
-export const VIGOUR_LOW_MIN = 144;
+/* The `stamina_low` timeline event (master plan row 4, 2026-10-14: it replaces
+   `vigour_low`, Vigour no longer touches a hunt) fires once per hunt when the
+   stamina pool has this many minutes or fewer left. The server reads it
+   through the generated catalogue, so retuning it is this one edit. */
+export const STAMINA_LOW_MIN = 60;
+
+/* A KNOCKOUT INSIDE A HUNT is a flat minute (master plan row 16: rulings S and
+   U replace the Recovery Rule's 0…64 min ladder for sessions); the character
+   gets up at 40% HP (src/core/recovery.js resumeHpFor), and three falls end
+   the hunt (SESSION_LIMITS.falls). */
+export const KNOCKOUT_MS = 60000;
+
+/* THE GOLD FLOOR (master plan row 3, 2026-10-14). A shop use never takes the
+   character's gold below this: when a charge would, the hunt first sells this
+   session's sellable loot to the vendor (COVER), cheapest first; when that is
+   not enough the hunt ends `gold_out`. Per action set (default for a new one),
+   whole gold in the range. */
+export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
+
+/* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
+   (master plan row 25): fishing the Shrimp Spot. A new character's
+   `last_activity_*` starts here (the generated column default). */
+export const DEFAULT_RESUME = Object.freeze({ kind: 'gather', id: 'shrimp_s' });
+
+/* SELL-TO-COVER: WHAT A HUNT MAY SELL TO KEEP THE SHOP PAID (master plan row 3;
+   placeholder rule until the loot-rule defaults of M4 name "Sell"). Loot a
+   monster drops that is plain material: never equipment, never a packed
+   supply or a shop supply's partner, never above `common`, and worth at least
+   1 gold to the vendor. Only units THIS session looted, still in the bag, are
+   ever sold (hr_hunt_apply §5b); the price is the vendor's own
+   (hr_hunt_vendor_value). The generator lists them as hr_hunt_cover_items. */
+export function coverSellable(item, isSupply) {
+  if (!item || typeof item !== 'object') return false;
+  if (item.slot || item.type === 'weapon' || item.type === 'armor' || item.type === 'jewelry') return false;
+  if (isSupply) return false;
+  return item.rarity === undefined || item.rarity === 'common';
+}
 
 /* TBD-designer (Tyler 2026-10-14: "for now a small loss of xp on death";
    lane C2 placeholder). On every fall inside a hunt, each skill the fight
@@ -120,6 +153,8 @@ export const EVENT_COPY = Object.freeze({
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
   fall: Object.freeze({ one: 'Knocked out by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
-  vigour_low: Object.freeze({ one: 'Vigour is low: about 1 minute left.', other: 'Vigour is low: about {n} minutes left.' }),
+  stamina_low: Object.freeze({ one: 'Stamina is low: about 1 minute left.', other: 'Stamina is low: about {n} minutes left.' }),
+  /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */
+  cover: Object.freeze({ one: 'Sold 1 item to keep the shop paid.', other: 'Sold {n} items to keep the shop paid.' }),
   ended: Object.freeze({ one: 'Hunt over: {reason}' }),
 });

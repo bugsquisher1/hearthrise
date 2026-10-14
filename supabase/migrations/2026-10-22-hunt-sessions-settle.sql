@@ -91,7 +91,25 @@
 --   (`gold_short`), debits, and journals ONE row per settle. A buy the purse
 --   cannot cover ends the hunt `gold_out` at the next boundary (re-proved: the
 --   character's gold is below the dearest shop use the bar or the quiver could
---   need). Drinks are inert until the mana engine ships.
+--   need). Drinks are inert until the mana engine ships, and refused here
+--   (`kind_not_sold`: no kind is sold without a cap row — master plan row 18).
+--   THE GOLD FLOOR AND SELL-TO-COVER (master plan row 3): a shop use never takes
+--   gold below the action set's `gold_floor` (default 300); when one would, the
+--   hunt first sells THIS session's loot of the generated hr_hunt_cover_items
+--   to the vendor, cheapest first. (5b) re-prices every unit at
+--   hr_hunt_vendor_value and bounds it by the session's own loot still in the
+--   bag (`cover_over`), credits it and journals ONE `vendor_cover` row (kind
+--   'hunt', positive gold) and a `cover` event, BEFORE the buys are debited.
+--
+-- ── MASTER PLAN 2026-10-14 (rows 4, 5, 16, 20, 25), ALSO IN THIS FILE ─────────
+--   · a knockout in a hunt is a flat KNOCKOUT_MS (60 s): a death row with any
+--     other recovery_ms is refused `bad_knockout`; three falls end every hunt
+--   · `stamina_low` (≤ 60 min left) replaces C1's `vigour_low` event
+--   · an automatic end that resumes an activity stamps a fresh presence anchor
+--     (hr_return_anchor, raise-only) at the walk-home instant
+--   · hr_vigour_refill is REVOKED from clients (hunts no longer spend Vigour)
+--   · a new character: shop slots OFF in the default bar, gold floor 300,
+--     resume = fishing the Shrimp Spot (generated column defaults)
 --
 -- ── THE OLD COMBAT PATH CANNOT PAY A HUNTER (C1 note 2) ─────────────────────
 --   hr_hunt_accrue_fence: a BEFORE INSERT trigger on player_ledger that refuses
@@ -173,6 +191,12 @@ begin
      or to_regclass('public.hr_hunt_resumable_kinds') is null
      or to_regclass('public.hr_hunt_target_modes') is null
      or to_regclass('public.hr_hunt_basic_supplies') is null or to_regclass('public.hr_hunt_slot_targets') is null
+     or to_regclass('public.hr_hunt_cover_items') is null
+     or not exists (select 1 from public.hr_hunt_limits where key = 'knockout_ms')
+     or not exists (select 1 from public.hr_hunt_limits where key = 'stamina_low_min')
+     or not exists (select 1 from public.hr_hunt_limits where key = 'gold_floor_default')
+     or to_regclass('public.hr_return_anchor') is null
+     or to_regprocedure('public.hr_vigour_refill(integer,uuid)') is null
      or exists (select 1 from public.hr_hunt_end_reasons where reason = 'vigour') then
     raise exception 'PRECONDITION: 2026-10-22-hunt-sessions-catalogue.generated.sql is not applied '
                     '(no death_xp_permille / stamina_max_min limit, no stamina end, or vigour still ends a hunt)';
@@ -234,12 +258,16 @@ comment on column public.player_state.stamina_at is
 -- the gold they cost, folded by hr_hunt_apply (5b) from its own `supply_buy` row.
 alter table public.hunt_session_tally add column if not exists bought jsonb not null default '{}'::jsonb;
 alter table public.hunt_session_tally add column if not exists supply_gold bigint not null default 0;
+-- Sell-to-cover (master plan row 3): units sold per item and the gold they fetched.
+alter table public.hunt_session_tally add column if not exists covered jsonb not null default '{}'::jsonb;
+alter table public.hunt_session_tally add column if not exists cover_gold bigint not null default 0;
 do $mig$
 begin
   if not exists (select 1 from pg_constraint where conname = 'hunt_session_tally_buys_ck'
                    and conrelid = 'public.hunt_session_tally'::regclass) then
     alter table public.hunt_session_tally add constraint hunt_session_tally_buys_ck
-      check (jsonb_typeof(bought) = 'object' and supply_gold >= 0);
+      check (jsonb_typeof(bought) = 'object' and supply_gold >= 0
+             and jsonb_typeof(covered) = 'object' and cover_gold >= 0);
   end if;
 end $mig$;
 
@@ -373,6 +401,18 @@ begin
     'pull_count', coalesce((select a.pull_count from public.player_action_sets a
                              where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
                            public.hr_hunt_limit('pull_default')),
+    -- THE GOLD FLOOR, and what sell-to-cover may sell: every cover item's vendor
+    -- price, with what THIS session looted of it, not yet sold, still in the bag.
+    'gold_floor', coalesce((select a.gold_floor from public.player_action_sets a
+                             where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
+                           public.hr_hunt_limit('gold_floor_default')),
+    'cover', coalesce((select jsonb_object_agg(c.item_id, jsonb_build_object('unit', c.unit,
+                 'avail', greatest(0, least(
+                   coalesce((select pi.qty from public.player_inventory pi
+                              where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = c.item_id), 0),
+                   coalesce((t.loot->>c.item_id)::numeric, 0)::bigint - coalesce((t.covered->>c.item_id)::bigint, 0)))))
+                 from public.hr_hunt_cover_items c
+                 left join public.hunt_session_tally t on t.session_id = v_s.id), '{}'::jsonb),
     'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
 end $$;
 
@@ -517,31 +557,51 @@ declare
       when 'vigour' then coalesce((public.hr_vigour_of(p_user, p_slot)->>'remaining_min')::int, 0) <= 1
 $a$;
   c_new constant text := $a$      -- GOLD_OUT (2026-10-22-hunt-sessions-settle.sql §4c): hr_hunt_apply (5b)
-      -- debited this window's buys before this call; the gold left is below the
-      -- dearest priced supply the bar or the quiver could need.
+      -- credited this window's sell-to-cover and debited its buys before this
+      -- call; the gold left, over the action set's floor, is below the dearest
+      -- shop use the bar or the quiver could need.
       when 'gold_out' then coalesce((select ps.gold from public.player_state ps
                                       where ps.user_id = p_user and ps.slot = p_slot), 0)
+                           - coalesce((select a.gold_floor from public.player_action_sets a
+                                        where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
+                                      public.hr_hunt_limit('gold_floor_default'), 0)
                            < coalesce((select max(q.price) from public.hr_hunt_basic_supplies q
-                                        where (q.kind = 'heal' and exists (
+                                        where exists (
                                                  select 1 from jsonb_array_elements(coalesce(
                                                    public.hr_hunt_preset_slots(p_user, p_slot, v_s.preset), '[]'::jsonb)) e
-                                                  where e.value->>'item' = q.basic_id
-                                                     or (e.value->>'item' = '*heal_shop'
-                                                         and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))
-                                           or (q.kind = 'ammo' and q.partner = (select pe.item_id from public.player_equipment pe
-                                                                                 where pe.user_id = p_user and pe.slot = p_slot
-                                                                                   and pe.equip_slot = 'ammo'))), 0)
+                                                  where coalesce((e.value->>'on')::boolean, false)
+                                                    and (e.value->>'item' = q.basic_id
+                                                         or (e.value->>'item' = '*heal_shop' and q.kind = 'heal'
+                                                             and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))
+                                          and (q.kind = 'heal'
+                                               or (q.kind = 'ammo' and q.partner = (select pe.item_id from public.player_equipment pe
+                                                                                     where pe.user_id = p_user and pe.slot = p_slot
+                                                                                       and pe.equip_slot = 'ammo')))), 0)
       -- STAMINA (2026-10-22-hunt-sessions-settle.sql §4c): hr_hunt_apply (5a)
       -- wrote this window's end value at `to` before this call.
       when 'stamina' then coalesce((select ps.stamina_ms from public.player_state ps
                                      where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0
 $a$;
+  -- C1's `vigour_low` event goes (master plan row 4): hr_hunt_apply emits
+  -- `stamina_low` instead, and the type is no longer in the event CHECK.
+  c_old2 constant text := $a$  if not exists (select 1 from public.hunt_session_events e where e.session_id = p_session and e.type = 'vigour_low') then
+    v_vig := (public.hr_vigour_of(p_user, p_slot)->>'remaining_min')::int;
+    if v_vig is not null and v_vig <= coalesce(public.hr_hunt_limit('vigour_low_min'), 0) then
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (p_session, p_user, p_slot, 'vigour_low', v_to, jsonb_build_object('n', v_vig));
+      v_ev := v_ev + 1;
+    end if;
+  end if;
+$a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_settle_session already proves stamina — edit skipped'; return; end if;
+  if strpos(v_def, c_new) > 0 and strpos(v_def, c_old2) = 0 then
+    raise notice 'hr_hunt_settle_session already proves stamina / gold_out and emits no vigour_low — edit skipped'; return; end if;
   v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
   if v_n <> 1 then raise exception 'hr_hunt_settle_session: the Vigour end arm matched % times (need 1) — the body moved', v_n; end if;
-  execute replace(v_def, c_old, c_new);
+  v_n := (length(v_def) - length(replace(v_def, c_old2, ''))) / length(c_old2);
+  if v_n <> 1 then raise exception 'hr_hunt_settle_session: the vigour_low block matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(replace(v_def, c_old, c_new), c_old2, '');
 end $mig$;
 -- hr_hunt_slots_check: a slot may say what it HOLDS (`kind`, SLOT_KINDS); a
 -- reserved kind (`spell`, until the combat redesign) is refused by name; and its
@@ -567,7 +627,7 @@ $a$;
 $a$;
   c_new2 constant text := $a$    if v_item is null or not (exists (select 1 from public.hr_hunt_slot_targets st where st.target = v_item)
                               or exists (select 1 from public.hr_hunt_basic_supplies bs
-                                          where bs.basic_id = v_item and bs.kind in ('heal', 'mana'))
+                                          where bs.basic_id = v_item and bs.kind in ('heal', 'mana', 'ammo'))
                               or exists (select 1 from public.hr_hunt_supplies p
                                           where p.item_id = v_item and p.kind in ('heal', 'buff'))) then
 $a$;
@@ -668,17 +728,20 @@ revoke execute on function public.hr_state_of(uuid, int) from public;
 revoke execute on function public.hr_state_of(uuid, int) from anon, authenticated, service_role;
 grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
--- ── §4d hr_action_set_mode — an action set's TARGET MODE and PULL COUNT ─────
--- (Tyler 2026-10-14, Huntera's bar.) The client sends two catalogue values; a
--- mode outside hr_hunt_target_modes, a party-only mode on a solo set, or a pull
--- outside the limits rows is REFUSED, never clamped. Preset 0 with no saved row
+-- ── §4d hr_action_set_options — an action set's TARGET MODE, PULL COUNT and
+--     GOLD FLOOR ─────────────────────────────────────────────────────────────
+-- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor.) The client
+-- sends three values; a mode outside hr_hunt_target_modes, a party-only mode on
+-- a solo set, a pull or a floor outside the limits rows is REFUSED, never
+-- clamped. Mode and pull are stored and INERT until U2 (row 18). Preset 0 with no saved row
 -- is saved from the catalogue default bar first. Edits to the running set wait
 -- for its settle, like hr_action_set_put. C1's verb shape: identity -> slot ->
 -- idempotency replay -> rate gate -> input -> lock -> state -> write -> stored result.
-create or replace function public.hr_action_set_mode(p_slot int, p_preset int, p_target text, p_pull int, p_idem uuid)
+create or replace function public.hr_action_set_options(p_slot int, p_preset int, p_target text, p_pull int,
+  p_floor bigint, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
-  c_verb constant text := 'action_set_mode';
+  c_verb constant text := 'action_set_options';
   c_slack_ms constant bigint := 20000;
   v_uid  uuid := auth.uid();
   v_r    jsonb;
@@ -700,6 +763,9 @@ begin
   if p_pull is null or p_pull < public.hr_hunt_limit('pull_min') or p_pull > public.hr_hunt_limit('pull_max') then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_pull_count',
       'min', public.hr_hunt_limit('pull_min'), 'max', public.hr_hunt_limit('pull_max'))); end if;
+  if p_floor is null or p_floor < public.hr_hunt_limit('gold_floor_min') or p_floor > public.hr_hunt_limit('gold_floor_max') then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_gold_floor',
+      'min', public.hr_hunt_limit('gold_floor_min'), 'max', public.hr_hunt_limit('gold_floor_max'))); end if;
 
   v_s := public.hr_hunt_lock(v_uid, p_slot);
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
@@ -714,17 +780,24 @@ begin
       select v_uid, p_slot, 0, d.name, d.slots, now() from public.hr_hunt_default_preset d where d.id;
   end if;
   update public.player_action_sets
-     set target_mode = p_target, pull_count = p_pull, updated_at = now()
+     set target_mode = p_target, pull_count = p_pull, gold_floor = p_floor, updated_at = now()
    where user_id = v_uid and slot = p_slot and preset = p_preset;
-  v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', p_target, 'pull_count', p_pull);
+  v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', p_target, 'pull_count', p_pull,
+                            'gold_floor', p_floor);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
 end $$;
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_action_set_mode';
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
+   and proname in ('hr_action_set_mode', 'hr_action_set_options', 'hr_vigour_refill');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_action_set_mode', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_idem uuid', 'authenticated',
-   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14): an action set''s target mode and pull count; catalogue values only, refused not clamped');
+  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid',
+   'authenticated',
+   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3): an action set''s target mode, pull count and gold floor; catalogue / limits values only, refused not clamped');
+-- (master plan row 20) hr_vigour_refill leaves the client surface: hunts no
+-- longer spend Vigour, so a gold-for-Vigour verb buys nothing a hunter needs.
+revoke execute on function public.hr_vigour_refill(int, uuid) from public;
+revoke execute on function public.hr_vigour_refill(int, uuid) from anon, authenticated, service_role;
 
 -- ── §5 hr_hunt_apply — ONE SETTLE, ONE STATEMENT, ONE SUBTRANSACTION ───────
 create or replace function public.hr_hunt_apply(p_user uuid, p_slot int, p_session uuid, p_version bigint,
@@ -792,6 +865,14 @@ declare
   v_cdh       int;
   v_cdb       int;
   v_gold_now  bigint;
+  v_cover     jsonb;
+  v_cgold     bigint := 0;
+  v_cunits    bigint := 0;
+  v_citems    jsonb := '{}'::jsonb;
+  v_unit      bigint;
+  v_avail     bigint;
+  v_floor     bigint;
+  v_ko        int;
   -- THE RESUME (Tyler 2026-10-14)
   v_end       text;
   v_lk        text;
@@ -876,6 +957,17 @@ begin
     v_rate := public.hr_hunt_limit('death_xp_permille');
     if v_rate is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
   end if;
+  -- (2b') A KNOCKOUT IN A HUNT IS FLAT (master plan row 16): every death row of a
+  --       hunt settle names exactly hr_hunt_limit('knockout_ms').
+  if v_nd > 0 then
+    v_ko := public.hr_hunt_limit('knockout_ms');
+    if v_ko is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
+    if exists (select 1 from jsonb_array_elements(p_delta->'deaths') d
+                where jsonb_typeof(d.value->'recovery_ms') is distinct from 'number'
+                   or (d.value->>'recovery_ms')::numeric <> v_ko) then
+      return jsonb_build_object('ok', false, 'error', 'bad_knockout', 'knockout_ms', v_ko);
+    end if;
+  end if;
   -- (2c) THE STAMINA POOL, shape only (no writes). `stamina` is the pool at
   --      `to` as the engine walked it; it is taken off the proposal here
   --      (hr_hunt_settle_session refuses keys it does not know) and re-bounded
@@ -905,6 +997,14 @@ begin
                  where x.key !~ '^[a-z0-9_]{1,64}$' or jsonb_typeof(x.value) <> 'number'
                     or (x.value #>> '{}') !~ '^[0-9]{1,9}$') then
     return jsonb_build_object('ok', false, 'error', 'bad_buys');
+  end if;
+  v_cover := coalesce(v_hunt->'cover', '{}'::jsonb);
+  v_hunt := v_hunt - 'cover';
+  if jsonb_typeof(v_cover) <> 'object' or (select count(*) from jsonb_object_keys(v_cover)) > 64
+     or exists (select 1 from jsonb_each(v_cover) x
+                 where x.key !~ '^[a-z0-9_]{1,64}$' or jsonb_typeof(x.value) <> 'number'
+                    or (x.value #>> '{}') !~ '^[0-9]{1,9}$') then
+    return jsonb_build_object('ok', false, 'error', 'bad_cover');
   end if;
   -- The skills as this window found them (the level a fall may never go below),
   -- and the newest event, so this settle's own fall / level_up rows are known.
@@ -994,6 +1094,54 @@ begin
     --        per UTC day — each kind's buys today ≤ the same bound over 24 h.
     --      The gold must cover the cost after hr_apply credited the window's
     --      coins (`gold_short` otherwise); ONE `supply_buy` row per settle.
+    v_floor := coalesce((select a.gold_floor from public.player_action_sets a
+                          where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
+                        public.hr_hunt_limit('gold_floor_default'), 0);
+    -- SELL-TO-COVER FIRST (master plan row 3): each unit is a cover item, at the
+    -- vendor's own price, and bounded by what THIS session looted of it (the
+    -- folded tally + this window's loot) less what was already sold, and by the
+    -- bag. Credited, taken out of the bag, journalled once, stated as an event.
+    if v_cover <> '{}'::jsonb then
+      for v_k, v_v in select key, value from jsonb_each(v_cover) order by key loop
+        v_n := (v_v #>> '{}')::bigint;
+        continue when v_n = 0;
+        select c.unit into v_unit from public.hr_hunt_cover_items c where c.item_id = v_k;
+        if v_unit is null then perform public.hr_reject('not_coverable', jsonb_build_object('item', v_k)); end if;
+        select least(
+                 coalesce((select pi.qty from public.player_inventory pi
+                            where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_k), 0),
+                 coalesce((select (t.loot->>v_k)::numeric from public.hunt_session_tally t where t.session_id = p_session), 0)::bigint
+                 + greatest(0, coalesce(case when jsonb_typeof(p_delta->'items'->v_k) = 'number'
+                                             then (p_delta->'items'->>v_k)::numeric end, 0))::bigint
+                 - coalesce((select (t.covered->>v_k)::bigint from public.hunt_session_tally t where t.session_id = p_session), 0))
+          into v_avail;
+        if v_n > coalesce(v_avail, 0) then
+          perform public.hr_reject('cover_over', jsonb_build_object('item', v_k, 'units', v_n, 'avail', v_avail));
+        end if;
+        -- (the bag's rows hold qty > 0: the last units take the row with them)
+        delete from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_k and qty = v_n;
+        update public.player_inventory set qty = qty - v_n where user_id = p_user and slot = p_slot and item_id = v_k;
+        v_citems := v_citems || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'unit', v_unit));
+        v_cgold := v_cgold + v_n * v_unit;
+        v_cunits := v_cunits + v_n;
+        v_unit := null; v_avail := null;
+      end loop;
+      if v_cgold > 0 then
+        update public.player_state set gold = gold + v_cgold where user_id = p_user and slot = p_slot;
+        insert into public.player_ledger (user_id, slot, kind, intent, gold, qty, meta, session_id)
+          values (p_user, p_slot, 'hunt', 'vendor_cover', v_cgold, -v_cunits,
+                  jsonb_build_object('reason', 'vendor_cover', 'items', v_citems, 'gold', v_cgold), p_session);
+        update public.hunt_session_tally t
+           set covered = public.hr_jsonb_add(t.covered, (select coalesce(jsonb_object_agg(i.key, (i.value->>'qty')::bigint), '{}'::jsonb)
+                                                            from jsonb_each(v_citems) i)),
+               cover_gold = t.cover_gold + v_cgold
+         where t.session_id = p_session;
+        insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+          values (p_session, p_user, p_slot, 'cover', v_to, jsonb_build_object('n', v_cunits, 'gold', v_cgold));
+      end if;
+      -- Loot is sold only to pay the shop: a window that sold and bought nothing is refused.
+      if v_buys = '{}'::jsonb then perform public.hr_reject('cover_unspent'); end if;
+    end if;
     if v_buys <> '{}'::jsonb then
       v_cdh := public.hr_hunt_limit('cd_heal_ms'); v_cdb := public.hr_hunt_limit('cd_mana_ms');
       if v_cdh is null or v_cdb is null then perform public.hr_reject('catalogue_missing'); end if;
@@ -1002,6 +1150,21 @@ begin
         continue when v_n = 0;
         select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;
         if v_price is null then perform public.hr_reject('not_for_sale', jsonb_build_object('item', v_k)); end if;
+        -- No kind is sold without a cap row (master plan row 18): drinks wait for mana.
+        if v_kind not in ('heal', 'ammo') then perform public.hr_reject('kind_not_sold', jsonb_build_object('item', v_k, 'kind', v_kind)); end if;
+        -- GOLD MOVES ONLY THROUGH A SLOT THAT SHOWS ITS PRICE (master plan row 1):
+        -- the running bar names this shop use in a slot that is on (a shop heal
+        -- may be named by `*heal_shop` at this hunt's tier).
+        if not exists (select 1 from jsonb_array_elements(coalesce(
+                         public.hr_hunt_preset_slots(p_user, p_slot, v_s.preset), '[]'::jsonb)) e
+                        where coalesce((e.value->>'on')::boolean, false)
+                          and (e.value->>'item' = v_k
+                               or (e.value->>'item' = '*heal_shop' and v_kind = 'heal'
+                                   and exists (select 1 from public.hr_hunt_basic_supplies q
+                                                where q.basic_id = v_k
+                                                  and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))) then
+          perform public.hr_reject('not_on_bar', jsonb_build_object('item', v_k));
+        end if;
         v_bk := v_bk || jsonb_build_object(v_kind, coalesce((v_bk->>v_kind)::bigint, 0) + v_n);
         v_items := v_items || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'price', v_price));
         v_cost := v_cost + v_n * v_price;
@@ -1029,9 +1192,11 @@ begin
          or coalesce((v_bk->>'ammo')::bigint, 0) + coalesce((v_day->>'ammo')::bigint, 0) > c_day_ms / c_min_swing + 1 then
         perform public.hr_reject('too_many_buys', jsonb_build_object('why', 'day', 'bought', v_bk, 'today', v_day));
       end if;
+      -- THE FLOOR: after the window's coins and cover, the buys may not take
+      -- gold below the action set's floor.
       select gold into v_gold_now from public.player_state where user_id = p_user and slot = p_slot;
-      if coalesce(v_gold_now, 0) < v_cost then
-        perform public.hr_reject('gold_short', jsonb_build_object('gold', v_gold_now, 'cost', v_cost));
+      if coalesce(v_gold_now, 0) - v_cost < v_floor then
+        perform public.hr_reject('gold_short', jsonb_build_object('gold', v_gold_now, 'cost', v_cost, 'floor', v_floor));
       end if;
       if v_cost > 0 then
         update public.player_state set gold = gold - v_cost where user_id = p_user and slot = p_slot;
@@ -1050,6 +1215,13 @@ begin
     -- C1 rev. 1 answered refusals as {ok:false}; the contract is a rollback.
     if coalesce(v_h->>'ok', 'true') = 'false' then
       perform public.hr_reject(coalesce(v_h->>'error', 'hunt_settle_refused'), v_h);
+    end if;
+    -- STAMINA LOW (master plan row 4): once per hunt, when the pool this window
+    -- left is at or under the limits row, stamped at its end.
+    if v_e <= coalesce(public.hr_hunt_limit('stamina_low_min'), 0)::bigint * 60000
+       and not exists (select 1 from public.hunt_session_events e where e.session_id = p_session and e.type = 'stamina_low') then
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (p_session, p_user, p_slot, 'stamina_low', v_to, jsonb_build_object('n', v_e / 60000));
     end if;
 
     -- (6) THE PRICE OF THE FALLS, RE-CHECKED AND DEBITED. After hr_apply has
@@ -1137,6 +1309,14 @@ begin
            set active_kind = v_lk, active_id = v_li, active_since = v_home, accrued_to = v_home,
                fight = '{}'::jsonb, version = version + 1, updated_at = now()
          where user_id = p_user and slot = p_slot;
+        -- A FRESH PRESENCE ANCHOR at the walk-home instant (master plan row 5):
+        -- the resumed activity's unattended horizon runs from there, so "hunt
+        -- 12 h, then train / gather 12 h" pays. Raise-only.
+        insert into public.hr_return_anchor (user_id, slot, real_return_at, updated_at)
+          values (p_user, p_slot, v_home, now())
+          on conflict (user_id, slot) do update
+            set real_return_at = greatest(public.hr_return_anchor.real_return_at, excluded.real_return_at),
+                updated_at = now();
       end if;
       insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
         values (p_user, p_slot, 'hunt', 'resume',
@@ -1688,9 +1868,9 @@ revoke execute on function public.hr_stamina_view(uuid, int) from public;
 revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_last_activity_note() from public;
 revoke execute on function public.hr_last_activity_note() from anon, authenticated, service_role, hr_engine, hr_tick;
-revoke execute on function public.hr_action_set_mode(int, int, text, int, uuid) from public;
-revoke execute on function public.hr_action_set_mode(int, int, text, int, uuid) from anon, service_role, hr_engine, hr_tick;
-grant  execute on function public.hr_action_set_mode(int, int, text, int, uuid) to authenticated;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) from public;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) from anon, service_role, hr_engine, hr_tick;
+grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) to authenticated;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
@@ -2523,12 +2703,12 @@ begin
     v_sid := (v_r->'session'->>'id')::uuid;
     -- (m) AN ACTION SET'S TARGET MODE AND PULL COUNT: catalogue values only,
     --     refused not clamped, stored, and read back by the engine read.
-    v_r := public.hr_action_set_mode(0, 0, 'follow', 3, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, 'follow', 3, 300, gen_random_uuid());
     if v_r->>'error' is distinct from 'target_mode_party_only' then
       raise exception 'GATE(m): a party-only target mode on a solo set answered %', v_r; end if;
-    v_r := public.hr_action_set_mode(0, 0, 'weakest', 9, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, 'weakest', 9, 300, gen_random_uuid());
     if v_r->>'error' is distinct from 'bad_pull_count' then raise exception 'GATE(m): a pull of 9 answered %', v_r; end if;
-    v_r := public.hr_action_set_mode(0, 0, 'weakest', 3, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, 'weakest', 3, 0, gen_random_uuid());
     if coalesce(v_r->>'ok', 'false') <> 'true' then raise exception 'GATE(m): an honest mode answered %', v_r; end if;
     v_r := public.hr_action_set_put(0, 1, 'spells', '[{"kind":"spell","item":"cooked_shrimp","on":true,"conditions":[]}]'::jsonb,
                                     gen_random_uuid());
@@ -2727,6 +2907,10 @@ begin
     --     (The probe's purse is a fixture, rolled back with all else at HRC2B.)
     select price into v_n from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp';
     if v_n is null then raise exception 'GATE(n): the shop catalogue has no salted_shrimp'; end if;
+    -- The probe's bar turns the shop heal ON (a new bar has it off): gold moves
+    -- only through a slot that shows its price.
+    update public.player_action_sets set slots = '[{"item":"*heal_shop","on":true,"conditions":[]}]'::jsonb
+     where user_id = v_uid and slot = 0 and preset = 0;
     update public.player_state set gold = 10 * v_n where user_id = v_uid and slot = 0;
     -- (the roster gate moved the session clock: the window starts at its settled_to,
     --  and the pool is pinned there so (5a) prices it from a known start)
@@ -2794,8 +2978,10 @@ begin
        or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'hunt' and intent = 'resume'
                                                      and (meta->>'resumed')::boolean) <> 1
        or not exists (select 1 from public.hunt_session_events where session_id = v_sid and type = 'ended'
-                        and data->'resume'->>'id' = v_act) then
-      raise exception 'GATE(r): the automatic end did not resume % after the walk home', v_act; end if;
+                        and data->'resume'->>'id' = v_act)
+       or coalesce((select real_return_at from public.hr_return_anchor where user_id = v_uid and slot = 0), '-infinity')
+          < v_to2 + make_interval(secs => (select travel_s from public.hr_hunt_travel where hunt_id = 'mill_cellar')) then
+      raise exception 'GATE(r): the automatic end did not resume % after the walk home (with a fresh presence anchor)', v_act; end if;
 
     -- (s4) AN EMPTY POOL CANNOT START A HUNT (§4c's gate on hr_hunt_enter).
     update public.hunt_sessions set ended_at = settled_to, end_reason = 'left' where id = v_sid;

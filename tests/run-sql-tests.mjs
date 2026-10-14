@@ -1147,7 +1147,7 @@ const CLIENT_CALLABLE = new Map([
      an action set's target mode and pull count. Catalogue values only
      (hr_hunt_target_modes, the pull limits rows), refused never clamped,
      rate-gated ('hunt' bucket), idempotent, baselined in §4d. Writes no value. */
-  ['hr_action_set_mode', ['authenticated']],
+  ['hr_action_set_options', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

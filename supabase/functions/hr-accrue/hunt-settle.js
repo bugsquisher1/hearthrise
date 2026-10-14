@@ -54,6 +54,7 @@ import { intentIdFor } from './intents.js';
 import { readTickPerks, readTickBestiary } from './tick-reads.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { newHuntSession } from '../../../src/core/action-rules.js';
+import { ACTION_SET_LIMITS } from '../../../src/data/rule-subjects.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
@@ -143,6 +144,10 @@ export function huntSessionFromRead(h) {
     shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
     targetMode: typeof h.target_mode === 'string' ? h.target_mode : null,
     pullCount: num(h.pull_count),
+    /* THE GOLD FLOOR and the loot sell-to-cover may sell (hr_hunt_cover_items
+       x this session's own loot still in the bag) — server rows. */
+    goldFloor: num(h.gold_floor),
+    cover: (h.cover && typeof h.cover === 'object') ? h.cover : {},
   });
 }
 
@@ -218,7 +223,8 @@ async function settleOnce(o, mode) {
   let press = null;
   if (mode === 'use') {
     const bar = Math.floor(Number(o.barSlot));
-    if (!Number.isInteger(bar) || bar < 0 || bar >= 10) return { outcome: 'refused', reason: 'bad_bar_slot', ...refusal(400, 'bad_bar_slot') };
+    /* Huntera's bar: ACTION_SET_LIMITS.slots (20) slots, data — not a literal. */
+    if (!Number.isInteger(bar) || bar < 0 || bar >= ACTION_SET_LIMITS.slots) return { outcome: 'refused', reason: 'bad_bar_slot', ...refusal(400, 'bad_bar_slot') };
     if (h.leave_at_ms != null || h.change_at_ms != null) return { outcome: 'refused', reason: 'hunt_leaving', ...refusal(409, 'hunt_leaving', { ...env, ok: false }) };
     if (nowMs < Number(h.hunt_from_ms)) return { outcome: 'refused', reason: 'hunt_walking', ...refusal(409, 'hunt_walking', { ...env, ok: false }) };
     /* The press joins the queue the engine walks, stamped with THIS read's

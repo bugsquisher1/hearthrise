@@ -242,11 +242,13 @@ const ARMS = {
       if (got !== order[i]) return `with ${order.slice(i).join('+')} true the hunt ended on ${got}, want ${order[i]}`;
     }
     const f = melee(M, '0xe0d');
-    f.state.huntSession.leaveAtMs = T0 + 600000;
+    /* Early in the hunt: three falls end every hunt now (master plan row 16), so
+       a late leave could be overtaken by them. */
+    f.state.huntSession.leaveAtMs = T0 + 60000;
     const r = M.cs.simulateSpan(f.state, Object.assign({}, f.ctx, { fromMs: T0, toMs: T0 + 3600000 }));
     const hs = f.state.huntSession;
     if (!r.huntEnded || r.huntEnded.reason !== 'left') return 'leaving did not end the hunt';
-    if (hs.endedAtMs < T0 + 600000 || hs.endedAtMs >= T0 + 600000 + f.ctx.tickMs) return `ended_at ${hs.endedAtMs - T0} is not the first boundary at/after the leave`;
+    if (hs.endedAtMs < T0 + 60000 || hs.endedAtMs >= T0 + 60000 + f.ctx.tickMs) return `ended_at ${hs.endedAtMs - T0} is not the first boundary at/after the leave`;
     if (hs.nextSwingAtMs !== hs.endedAtMs) return 'a swing ran after the hunt ended';
     return null;
   },

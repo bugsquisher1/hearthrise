@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 577 — 2026-10-14 (Steady hunt screen)
+
+**The hunt screen stops jumping.** The Adventures window no longer flickers between your real level and a beginner view during fights, so every hunt and boss you have unlocked stays on screen.
+
+**Big changes are underway.** Fighting now happens in hunting grounds and more hunts are coming. Every monster is still there: the Training tab is now called Monsters.
+
 ## v0.9.2-beta build 576 — 2026-10-14 (World tab)
 
 **A first look at the World.** Home has a new World tab. It stays locked for now and opens when the first walkable hunting ground is ready.

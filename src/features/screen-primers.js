@@ -15,7 +15,7 @@
 // Exports: setupScreenPrimers().
 // ============================================================
 
-import { SCREEN_PRIMERS } from '../data/screen-primers.js?v=576';
+import { SCREEN_PRIMERS } from '../data/screen-primers.js?v=577';
 
 const KEY = (id) => 'hearthrise:primer:' + id;
 let parked = false;

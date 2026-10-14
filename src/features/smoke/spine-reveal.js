@@ -5,7 +5,7 @@
 // of the suite renders a seasoned account. These tests pin the other states
 // through HearthriseReveal.__pin and read what a player would see.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=576';
+import { tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=577';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 

@@ -1,0 +1,30 @@
+{
+  "id": "roof_wood",
+  "class": "roof",
+  "material": "native",
+  "source": "roof_wood.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "slice",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 9
+      }
+    }
+  ],
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request",
+  "notes": "Roof 9-slice, frames nw n ne w c e sw s se: ridge along the north row, eave and fascia along the south row, barge boards on the gables."
+}

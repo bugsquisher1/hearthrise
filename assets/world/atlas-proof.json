@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "set": "proof",
+  "palette": "hr-world-40-v1",
+  "T": 32,
+  "image": "atlas-proof.png",
+  "size": [512,188],
+  "pixels": "a8446f7190f133ea2557e2de6aff6328815cce1c25d3e6ee626ecfbd39e97540",
+  "sprites": {
+    "plank_cap": {
+      "class": "wallcap",
+      "layer": "wall",
+      "frame": [12,32],
+      "anchor": [6,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[66,155]]
+          }
+        }
+      }
+    },
+    "plank_end": {
+      "class": "wallend",
+      "layer": "wall",
+      "frame": [12,60],
+      "anchor": [6,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,11],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,11]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[165,61]]
+          }
+        }
+      }
+    },
+    "plank_stub": {
+      "class": "stub",
+      "layer": "wall",
+      "frame": [32,24],
+      "anchor": [16,23],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 24,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[79,155],[112,155],[145,155],[178,155]]
+          }
+        }
+      }
+    },
+    "plank_wall": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0],[33,0],[66,0],[99,0]]
+          }
+        }
+      }
+    },
+    "plank_wall_door": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[132,0],[165,0],[198,0],[231,0]]
+          }
+        }
+      }
+    },
+    "roof_slate": {
+      "class": "roof",
+      "layer": "roof",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "slice": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[455,61],[0,122],[33,122],[66,122],[99,122],[132,122],[165,122],[198,122],[231,122]]
+          }
+        }
+      }
+    },
+    "roof_wood": {
+      "class": "roof",
+      "layer": "roof",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "slice": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[264,122],[297,122],[330,122],[363,122],[396,122],[429,122],[462,122],[0,155],[33,155]]
+          }
+        }
+      }
+    },
+    "timber_end": {
+      "class": "wallend",
+      "layer": "wall",
+      "frame": [12,60],
+      "anchor": [6,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,11],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,11]
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[178,61]]
+          }
+        }
+      }
+    },
+    "timber_wall": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[264,0],[297,0],[330,0],[363,0]]
+          }
+        }
+      }
+    },
+    "timber_wall_door": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[396,0],[429,0],[462,0],[0,61]]
+          }
+        }
+      }
+    },
+    "timber_wall_window": {
+      "class": "wall",
+      "layer": "wall",
+      "frame": [32,60],
+      "anchor": [16,59],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 60,
+      "contact": [0,31],
+      "shadow": {
+        "kind": "cast",
+        "height": 60,
+        "base": [0,31]
+      },
+      "anims": {
+        "face": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[33,61],[66,61],[99,61],[132,61]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {
+    "plank_floor": {
+      "kind": "fill",
+      "lower": "planks",
+      "upper": "planks",
+      "cycle": [4,2],
+      "tiles": {
+        "1111": [[191,61],[224,61],[257,61],[290,61],[323,61],[356,61],[389,61],[422,61]]
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "roof_slate",
+  "class": "roof",
+  "material": "native",
+  "source": "roof_slate.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "slice",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 9
+      }
+    }
+  ],
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request",
+  "notes": "Slate colourway of the same 9-slice."
+}

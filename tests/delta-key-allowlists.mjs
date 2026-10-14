@@ -188,7 +188,10 @@ export function proposable({ accrual, ticks }) {
     escapes(b, 'delta', name, bad);
     return new Set([...literalKeys(b, 'delta', bad), ...assignedKeys(b, 'delta')]);
   };
-  const combat = of('computeAccrual');
+  /* LANE C2 (hunt sessions): the combat body moved out of computeAccrual into
+     `accrueCombat` — ONE function for a hunt session's window and the legacy
+     pointer — so the combat delta is built there. Both bodies are read. */
+  const combat = new Set([...of('computeAccrual'), ...of('accrueCombat')]);
   const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
   /* THE TICK LAYER rewrites a settled delta in place in three shapes —

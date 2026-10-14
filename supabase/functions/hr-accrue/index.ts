@@ -799,6 +799,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         trophyRows = null;
       }
+      /* IS A HUNT OPEN? (lane C2). Its own savepoint, the trophy read's rule:
+         a database without 2026-10-22-hunt-sessions-settle.sql answers 42883
+         and that reads as "no hunt", never as a failed accrual. The engine is
+         then told `huntOpen` and answers `hunt_open` — the session owns its
+         window and only the hunt settle prices it. */
+      let huntOpen = false;
+      try {
+        const h = await tx.savepoint((sp: typeof tx) => sp.unsafe(HUNT_OPEN_SQL, [user, slot])) as unknown as Row[];
+        huntOpen = typeof h?.[0]?.session === 'string';
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        huntOpen = false;
+      }
       /* THE SERVER'S COLLECTION COUNT (Ledger of Firsts, 2026-09-27). The
          number of DISTINCT combat drops hr_claim_milestone verifies the items
          rungs against — `count(*)` over hr_collection_of, the exact read that
@@ -820,19 +833,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       } catch (e) {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         collectionFound = null;
-      }
-      /* IS A HUNT OPEN? (lane C2). Its own savepoint, the trophy read's rule:
-         a database without 2026-10-22-hunt-sessions-settle.sql answers 42883
-         and that reads as "no hunt", never as a failed accrual. The engine is
-         then told `huntOpen` and answers `hunt_open` — the session owns its
-         window and only the hunt settle prices it. */
-      let huntOpen = false;
-      try {
-        const h = await tx.savepoint((sp: typeof tx) => sp.unsafe(HUNT_OPEN_SQL, [user, slot])) as unknown as Row[];
-        huntOpen = typeof h?.[0]?.session === 'string';
-      } catch (e) {
-        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
-        huntOpen = false;
       }
       return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows,
         collection_found: collectionFound, hunt_open: huntOpen } as Row;

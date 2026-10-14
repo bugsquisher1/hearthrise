@@ -994,12 +994,14 @@ const MUTATIONS = [
   { name: 'M1 combat: the updateDaily handler is removed (today\'s shipped behaviour)',
     file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    /* `meta` is now READ",
     to: "    /* `meta` is now READ" },
+  /* Re-anchored lane C2: the combat handler also feeds the LIVE charm/trophy
+     ladders inside a hunt session (`killed(...)`), so it is a block now. */
   { name: 'M2 combat: the updateQuest handler is removed',
-    file: 'accrual', from: "    updateQuest(type, amt, meta) { goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },\n\n    /* Still deliberately ABSENT, and each absence",
+    file: 'accrual', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n      if (type === 'kill_monster' && meta) killed(meta.target, amt == null ? 1 : Math.floor(Number(amt) || 0));\n    },\n\n    /* Still deliberately ABSENT, and each absence",
     to: "\n\n    /* Still deliberately ABSENT, and each absence" },
   { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
-    file: 'accrual', from: "goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },",
-    to: "goals.quest(type, amt == null ? 1 : amt); }," },
+    file: 'accrual', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n      if (type === 'kill_monster' && meta) killed(",
+    to: "      if (type === 'kill_monster' && meta) killed(" },
   /* b461 moved both anchors: the modal-goal emit (goal-period.js) now sits
      immediately after each goalProgressOps push, so the distinctive text that
      FOLLOWS the line is its own comment rather than the bestiary / delta. The

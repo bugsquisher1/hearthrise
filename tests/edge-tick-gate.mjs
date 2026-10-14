@@ -828,11 +828,22 @@ async function runArms(mod) {
     const outG = await runTick({ exec: g.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
     ok(outG.body.shadowed === 1 && outG.body.processed === 0,
       'T-PCa — combat armed, a gather character settles in SHADOW', JSON.stringify(outG.body));
+    /* T-PCa's control: arm GATHER and the same character is PAID. (Until lane
+       C2 the control was a combat character under the combat arm; the solo
+       combat channel is retired — T-PCb2 pins that a combat row is skipped by
+       name whatever is armed.) */
+    const g2 = fakeDb({ armed: ['gather'], activeKind: 'gather' });
+    const outG2 = await runTick({ exec: g2.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+    ok(outG2.body.processed >= 1 && outG2.body.shadowed === 0,
+      'T-PCb — gather armed, the same gather character is PAID, so T-PCa is not vacuous',
+      JSON.stringify(outG2.body));
     const c = fakeDb({ armed: ['combat'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true });
     const outC = await runTick({ exec: c.exec, body: { op: 'tick',
       roster: [rosterRow(UID, { active_kind: 'combat', active_id: 'goblin' })] } });
-    ok(outC.body.processed >= 1 && outC.body.shadowed === 0,
-      'T-PCb — the same config, a combat character is PAID, so T-PCa is not vacuous',
+    ok(outC.body.processed === 0 && outC.body.shadowed === 0 && outC.body.skipped === 1 && c.settles.length === 0
+        && JSON.stringify(outC.body.reasons || {}).includes('channel_not_driven'),
+      'T-PCb2 — combat armed, a SOLO combat character is skipped channel_not_driven and settles nothing '
+      + '(a solo fight is a hunt session, settled from the hunts cohort)',
       JSON.stringify(outC.body));
     /* A fence answer that names ANOTHER channel is not this channel's mode:
        the character is skipped by name, nothing is settled, the next fire
@@ -940,16 +951,32 @@ async function runArms(mod) {
   }
 
   // ── T-X1 — THE BESTIARY READ (Security N4, 2026-09-28) ───────────────────
-  group('T-X1  the tick reads hr_bestiary_of as the accrue path does');
+  group('T-X1  hr_bestiary_of is read by the drivers that price combat (the party unit; the hunt settle)');
   {
+    /* LANE C2: only combat prices charms and trophies, and the solo combat
+       channel is retired (a solo fight is a hunt session — its read is
+       ./hunt-settle.js's, proved against a real chain by
+       tests/hunt-sessions-settle.mjs BESTIARY). The channel tick therefore makes
+       NO bestiary read for its gather windows (T-X1n), and every single-member
+       arm below drives the PARTY unit, which makes the read per member. */
     const fire = async (cfg) => {
-      const db = fakeDb(Object.assign({ shadow: true }, cfg || {}));
-      const out = await runTick({ exec: db.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+      const db = fakeDb(Object.assign({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true }, cfg || {}));
+      const out = await runTick({ exec: db.exec, body: { op: 'tick', flush_ms: 72000, roster: [], parties: [{
+        party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
+        accrued_to: new Date((cfg && cfg.markMs) || NOW_MS - 120000).toISOString(),
+        members: [{ user_id: UID, slot: 0 }] }] } });
       return { db, out, reads: db.calls.filter((c) => c.text.includes('hr_bestiary_of')) };
     };
+    {
+      const solo = fakeDb({ shadow: true });
+      const outSolo = await runTick({ exec: solo.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+      ok(outSolo.body.shadowed === 1 && !solo.calls.some((c) => c.text.includes('hr_bestiary_of')),
+        'T-X1n — a gather window settles and the channel tick makes NO bestiary read (gather never prices one)',
+        JSON.stringify(outSolo.body));
+    }
     const a = await fire();
     ok(a.reads.length === 1 && a.reads[0].params[0] === UID && a.reads[0].params[1] === 0,
-      'T-X1a — one read per priced window, bound to the roster row\'s selectors',
+      'T-X1a — one read per priced member window, bound to the member\'s selectors',
       JSON.stringify(a.reads.map((c) => c.params)));
     ok(a.reads.length === 1 && a.reads[0].text === BESTIARY_SQL,
       'T-X1b — the statement IS set-activity.js BESTIARY_SQL, the collect path\'s own bytes');
@@ -969,20 +996,20 @@ async function runArms(mod) {
     }
     const d = await fire({ bestiaryError: '42883' });
     ok(d.out.body.shadowed === 1 && d.db.settles.length === 1,
-      'T-X1d — 42883 (no such function) degrades to "no counters" and the window is still priced',
+      'T-X1d — 42883 (no such function) degrades to "no counters" and the party window is still priced',
       JSON.stringify(d.out.body));
     for (const code of ['42501', '57014', '']) {
       const e = await fire({ bestiaryError: code });
       ok(e.out.body.shadowed === 0 && e.out.body.refused === 1 && e.db.settles.length === 0,
-        `T-X1e — ${code ? 'SQLSTATE ' + code : 'a codeless error'} is NOT swallowed: the character is refused, nothing settles`,
+        `T-X1e — ${code ? 'SQLSTATE ' + code : 'a codeless error'} is NOT swallowed: the party is refused, nothing settles`,
         JSON.stringify(e.out.body));
     }
-    ok(a.out.body.shadowed === 1 && a.out.body.processed === 0 && a.db.cfg.markMs === NOW_MS - 120000
+    ok(a.out.body.shadowed === 1 && a.out.body.processed === 0
       && a.db.cfg.version === 7 && !a.db.calls.some((c) => c.text.includes('hr_apply')),
       'T-X1f — with counters answered, SHADOW still pays nothing: no hr_apply, watermark and version unchanged',
       JSON.stringify(a.out.body));
     const b = await fire({ markMs: NOW_MS - 1000 });
-    ok(b.out.body.skipped === 1 && b.reads.length === 0,
+    ok(b.reads.length === 0 && b.db.settles.length === 0,
       'T-X1g — below the flush line the read is never made (only a priced window costs it)',
       JSON.stringify(b.out.body));
 
@@ -1023,10 +1050,10 @@ async function runArms(mod) {
         .map((c) => `${c.params[0]}:${c.params[1]}`);
       return { db, out, log, owners, perks: readsOf('hr_perks_of'), bestiary: readsOf('hr_bestiary_of') };
     };
-    const bound = (r) => {
+    const bound = (r, whats = ['perks', 'bestiary']) => {
       const bad = [];
       for (const u of r.owners) {
-        for (const what of ['perks', 'bestiary']) {
+        for (const what of whats) {
           const own = r.log.filter((x) => x.owner === u && x.what === what);
           if (!own.some((x) => x.at === u)) bad.push(`${what}(${u.slice(-4)}) never reached its own session`);
           const cross = own.filter((x) => x.at !== u);
@@ -1034,20 +1061,22 @@ async function runArms(mod) {
         }
       }
       if (JSON.stringify(r.perks) !== JSON.stringify(r.owners)
-        || JSON.stringify(r.bestiary) !== JSON.stringify(r.owners)) {
+        || (whats.includes('bestiary') && JSON.stringify(r.bestiary) !== JSON.stringify(r.owners))) {
         bad.push(`reads bound to perks=${JSON.stringify(r.perks)} bestiary=${JSON.stringify(r.bestiary)}`);
       }
       const users = r.db.settles.map((x) => `${x.user}:${x.slot}`).sort();
       if (JSON.stringify(users) !== JSON.stringify([...r.owners].sort())) bad.push(`shadow rows for ${JSON.stringify(users)}`);
       return bad;
     };
-    const h = await twoRow(() => ({ op: 'tick', roster: [rosterRow(UID, { active_kind: 'combat' }),
-      rosterRow(UID2, { active_kind: 'combat' })] }));
-    const hBad = bound(h);
-    ok(hBad.length === 0 && h.out.body.shadowed === 2,
-      'T-X1h — two roster rows, two different perk stacks and bestiaries in one fire: each character\'s '
-      + 'reads are bound to its own row and reach only its own session (N6)',
-      JSON.stringify({ out: h.out.body, bad: hBad }));
+    /* Two SOLO rows are GATHERERS since lane C2 (the solo combat channel is
+       retired), so the channel driver's read is the perk stack alone. */
+    const h = await twoRow(() => ({ op: 'tick', roster: [rosterRow(UID), rosterRow(UID2)] }), undefined,
+      { activeKind: 'gather', activeId: 'normal_tree', jsonbMark: false });
+    const hBad = bound(h, ['perks']);
+    ok(hBad.length === 0 && h.out.body.shadowed === 2 && h.bestiary.length === 0,
+      'T-X1h — two roster rows, two different perk stacks in one fire: each character\'s perk read is '
+      + 'bound to its own row and reaches only its own session (N6); no bestiary read on a gather window',
+      JSON.stringify({ out: h.out.body, bad: hBad, bestiary: h.bestiary }));
     const i = await twoRow(() => ({ op: 'tick', flush_ms: 72000, roster: [], parties: [{
       party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
       accrued_to: new Date(NOW_MS - 120000).toISOString(),
@@ -1540,8 +1569,9 @@ const MUTATIONS = [
           ? [{ kills: null }] : o.exec(text, params)),
       })),
     }),
-    /* N6: the two-row arms see the dropped read on both drivers too. */
-    mustFail: ['T-X1a', 'T-X1h', 'T-X1i'],
+    /* N6: the party's two-member arm sees the dropped read too (the solo
+       two-row arm is gatherers since lane C2 and reads no bestiary). */
+    mustFail: ['T-X1a', 'T-X1i'],
   },
   {
     /* N4b ON THE PERK HALF: the stack is not handed over and the window prices

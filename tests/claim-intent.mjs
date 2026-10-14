@@ -100,6 +100,8 @@ const EXTRA = [
   ['accrual', MIG('2026-08-11-accrual.sql')],
   /* the accrue-cap read the edge modules make since the presence horizon; see the file. */
   ['presence-horizon-slice-shim', join(ROOT, 'tests', 'fixtures', 'presence-horizon-slice-shim.sql')],
+  /* the hunt-open read the accrue and collect paths make since lane C2; see the file. */
+  ['hunt-sessions-slice-shim', join(ROOT, 'tests', 'fixtures', 'hunt-sessions-slice-shim.sql')],
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
   ['activity-intent', MIG('2026-08-15-activity-intent.sql')],

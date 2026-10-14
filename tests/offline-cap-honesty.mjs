@@ -18,7 +18,8 @@
 //          literal puts a number of hours or a percentage next to offline/away, or
 //          raise/extend next to "away limit"/"offline cap", outside the allowlist.
 //   OCH-4  legacy.js offlineCapHours reads G._vigour and no client perk; chain-end
-//          hr_vigour_of floors at c_base_h*60 over hr_offline_cap_ms; the
+//          hr_vigour_of grants a flat c_base_h*60 (+ clan perk) and reads no
+//          hr_offline_cap_ms (ruling HR-2026-10-14 §3); the
 //          2026-09-22 anchored patch projects vigour and is in the apply order.
 //
 // Credential-free, database-free. Exit: 0 green · 1 red · 2 harness.
@@ -159,7 +160,13 @@ export function check(w) {
   const vig = chainEndBody(w.order, w.sql, 'hr_vigour_of');
   const floor = vig && /c_floor_min\s+constant\s+int\s*:=\s*(\d+)/i.exec(vig.text);
   if (!floor || Number(floor[1]) !== baseH * 60) fail('OCH-4', 'hr_vigour_of c_floor_min != c_base_h*60 (' + (floor && floor[1]) + ' vs ' + baseH * 60 + ')');
-  if (!vig || !/greatest\s*\(\s*c_floor_min[\s\S]{0,200}hr_offline_cap_ms/i.test(vig.text)) fail('OCH-4', 'hr_vigour_of grant is not greatest(c_floor_min, hr_offline_cap_ms)');
+  /* RULING HR-2026-10-14 §3 (hunt sessions; restated by
+     2026-10-22-hunt-sessions-drop-away.sql): the daily grant is a FLAT
+     c_floor_min plus the clan perk and reads NO offline cap — Vigour bounds a
+     day of hunting, the away limit no longer exists for combat. */
+  if (!vig || !/v_grant\s*:=\s*c_floor_min\b/i.test(vig.text) || /hr_offline_cap_ms/i.test(vig.text)) {
+    fail('OCH-4', 'hr_vigour_of grant is not the flat c_floor_min (+ the clan perk), or it reads hr_offline_cap_ms again');
+  }
   if (w.order.indexOf(VIGOUR_PATCH) < 0 || (w.sql[VIGOUR_PATCH] || '').indexOf(VIGOUR_ANCHOR) < 0) fail('OCH-4', VIGOUR_PATCH + ' does not project vigour in hr_state_of');
   return bad;
 }
@@ -184,7 +191,8 @@ function selftest(w) {
     ['M4a renown term in SQL, RANKS mismatched (none)', 'OCH-2', (x) => edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4')],
     ['M4b renown term in SQL, RANKS says +2', 'OCH-2', (x) => edit(edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4'), 'files', 'src/features/renown.js', SERF, "perk: { offlineHours: 2 }, unlock: 'The Serf title")],
     ['M5 HearthriseRenown read back in offlineCapHours', 'OCH-4', (x) => edit(x, 'files', 'src/legacy.js', 'var A=window.HearthriseAccrual;', 'var A=window.HearthriseAccrual; var R=window.HearthriseRenown;')],
-    ['M6 c_floor_min 600', 'OCH-4', (x) => edit(x, 'sql', vigFile(x), 'c_floor_min   constant int := 720;', 'c_floor_min   constant int := 600;')],
+    ['M6 c_floor_min 600', 'OCH-4', (x) => edit(x, 'sql', vigFile(x), 'c_floor_min    constant int := 720;', 'c_floor_min    constant int := 600;')],
+    ['M6b the grant reads the offline cap again', 'OCH-4', (x) => edit(x, 'sql', vigFile(x), '  v_grant := c_floor_min\n', '  v_grant := greatest(c_floor_min, public.hr_offline_cap_ms(p_user, v_slot) / 60000)\n')],
     ['M7 vigour anchor text removed', 'OCH-4', (x) => { const c = clone(x); c.sql[VIGOUR_PATCH] = c.sql[VIGOUR_PATCH].split(VIGOUR_ANCHOR).join("'vigour_x', public.hr_vigour_of"); return c; }],
     ['M8 "+25% offline progress" back on Hearth Hall', 'OCH-3', (x) => edit(x, 'files', 'src/legacy.js', '3 character slots and exclusive cosmetics.', '3 character slots, +25% offline progress, exclusive cosmetics.')],
   ];

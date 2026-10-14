@@ -20,9 +20,9 @@ export function mapForActivity(activity) {
   return (id && HUNT_MAP_INDEX[id]) || null;
 }
 
-/** The hunt a map renders first, for its id and spawn weights: { id, spawns } or null. */
+/** The hunt a map renders first: { id, name, spawns } or null. */
 export function huntOfMap(map) {
   const id = map && map.hunts && map.hunts[0];
   const h = id && HUNT_INDEX[id];
-  return h ? { id, spawns: h.spawns || [] } : null;
+  return h ? { id, name: h.name || map.name, spawns: h.spawns || [] } : null;
 }

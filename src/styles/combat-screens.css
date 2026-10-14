@@ -1761,6 +1761,8 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   border: 1px solid var(--line-soft); border-radius: var(--r);
 }
 #panel-combat .wt-hunt.is-fav { border-color: var(--gold-2); }
+/* The hunt another screen pointed at (the World pane's idle card). */
+#panel-combat .wt-hunt.is-picked { border-color: var(--line-strong); box-shadow: 0 0 0 2px var(--gold-2); }
 #panel-combat .wth-art {
   position: relative; height: 84px; flex: 0 0 auto;
   background: var(--surf-sunken) center 35% / cover no-repeat;

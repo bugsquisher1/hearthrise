@@ -40,7 +40,7 @@
 //   step 3 counts ANY 5 kills (slime is the T1 starter, but a player who
 //          opened on goblins must not be trapped before the Farm);
 //   step 5 is the Homestead rung alone (its cost already demands the copper);
-//   step 7 is the first craft (what is WORN changes; a reveal must not).
+//   step 7 is the first craft: a supply (a plank or arrows), never gear.
 // PURE ESM. No DOM, no window. Imports cleanly in Node.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -63,7 +63,7 @@ export const SPINE_STEPS = Object.freeze([
   step(4, 'plant_seeds', [count('ev:planted', 1)], ['pane:farming', 'pane:shop'], 'plant your first seeds'),
   step(5, 'homestead', [property(1)], ['skill:mining', 'pane:house'], 'build your Hearthside Homestead'),
   step(6, 'first_hand', [workers(1)], ['pane:house', 'card:workers'], 'hire your first hand'),
-  step(7, 'first_craft', [count('crafted', 1)], ['pane:combat', 'skill:crafting'], 'craft your first piece of gear'),
+  step(7, 'first_craft', [count('crafted', 1)], ['pane:combat', 'skill:crafting'], 'make your first supply'),
   step(8, 'first_harvest', [count('ev:harvest', 6)], ['pane:farming'], 'harvest six crops'),
   step(9, 'seasoned', [count('ev:kill_any', 100), combat(10)], ['pane:combat'], 'win a hundred fights and reach Combat 10'),
   step(10, 'farmstead', [property(2)], ['pane:house'], 'build your Fieldworth Farmstead'),

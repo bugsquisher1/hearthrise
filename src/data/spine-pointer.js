@@ -27,11 +27,9 @@
 
 import { SPINE_STEPS, count, combat, property, workers, item, cleared } from './spine.js?v=582';
 import { SHOP_OFFERS } from './shops.js?v=582';
-import { ARTISAN_RECIPES } from './recipes.js?v=582';
 
 export const level = (skill, min) => Object.freeze({ fact: 'level', skill, min });
 export const gold = (min) => Object.freeze({ fact: 'gold', min });
-export const wears = (slot) => Object.freeze({ fact: 'wears', slot, min: 1 });
 
 /* WHERE GO TAKES THE PLAYER. `tab` is a pane of src/nav-consolidation.js HUBS,
    `skill` opens that skill's screen on arrival. */
@@ -80,19 +78,6 @@ function buildParts(offerId, rung) {
   return items.concat(coins, [part(property(rung), 'build')]);
 }
 
-/* A craft step's parts, read from the recipe the server checks (src/data/
-   recipes.js, generated into hr_activities), so the bar can never quote a
-   level or an input count the bench does not ask for. Inputs first (each
-   from where it is made), then the item, then the act that finishes the
-   step. */
-function craftParts(skill, recipeId, finish) {
-  const r = (ARTISAN_RECIPES[skill] || []).find((x) => x.id === recipeId);
-  if (!r || !r.output) throw new Error('spine-pointer: no recipe ' + recipeId);
-  const inputs = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}))
-    .map(([id, n]) => part(item(id, n), ITEM_ROUTE[id] || null));
-  return [part(level(skill, r.req || 1), 'craft')].concat(inputs, [part(item(r.output, 1), 'craft'), finish]);
-}
-
 function hireParts(offerId) {
   const offer = SHOP_OFFERS.find((o) => o.id === offerId);
   const coin = offer && offer.cost.find((c) => c.id === 'gold');
@@ -131,14 +116,14 @@ const DISPLAY = {
   first_hand: {
     title: 'Hire your first hand', why: 'Your hand keeps gathering while you are offline.',
     parts: hireParts('worker.1'),
-    opens: opens('Crafting and Smithing open', 'Turn hides and ore into gear you can wear.'),
+    opens: opens('Crafting and Smithing open', 'Turn logs and ore into the planks, arrows and bars your hunts run on.'),
   },
-  /* The reveal counts the first craft; the pointer asks for the boots on the
-     player's feet (the server's worn set), because gear worn is the payoff. */
+  /* The first craft is a SUPPLY, a plank or a bundle of arrows (master plan
+     2026-10-14 row 13: the gear recipes leave with the gear ruling, so the
+     step no longer asks for Leather Boots). A plank is never called gear. */
   first_craft: {
-    title: 'Craft and wear Leather Boots', why: 'Gear you make yourself is the surest way to hit harder.',
-    need: [count('crafted', 1), wears('boots')], chain: true,
-    parts: craftParts('crafting', 'tailor_leather_boots', part(wears('boots'), 'wear')),
+    title: 'Make your first supply', why: 'A plank or a bundle of arrows is the first thing your hunts run on.',
+    parts: [part(count('crafted', 1), 'craft', 'Supplies made')],
     opens: opens('Sell your surplus on the Player Market', 'Other players buy what you do not need.'),
   },
   first_harvest: {

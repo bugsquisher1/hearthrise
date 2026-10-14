@@ -164,13 +164,16 @@ export default [
     } finally { R.__pin(was); TL.__feed(null); restoreG(snap); }
   }),
 
-  () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the boots on your feet; the unlock moment speaks once per newly finished step', async () => {
-    const six = Object.assign({}, FIRST4, { crafted: 1 });
-    await onBar(facts({ counts: six, property: 1, workers: 1, bag: { leather_boots: 1 } }), async (bar) => {
-      assert(/^Step 7/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Wear', 'crafted but not worn: ' + text(bar));
+  /* -- regression suite -- step 7 is the first SUPPLY (master plan 2026-10-14 row 13): it
+     asks for no gear and finishes on the server's first craft. MUTATION: put the
+     Leather Boots parts back on first_craft → RED. */
+  () => tryRunAsync('SPINE-POINTER-7: step 7 is the first supply and finishes on the first craft; the unlock moment speaks once per newly finished step', async () => {
+    await onBar(facts({ counts: FIRST4, property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 7 Make your first supply/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Go craft' && !/Boots|Wolf Pelt/.test(text(bar)),
+        'step 7 does not ask for one supply: ' + text(bar));
     });
-    await onBar(facts({ counts: six, property: 1, workers: 1, equipment: { boots: 'leather_boots' } }), async (bar) => {
-      assert(/^Step 8/.test(text(bar)), 'boots worn did not finish step 7: ' + text(bar));
+    await onBar(facts({ counts: Object.assign({}, FIRST4, { crafted: 1 }), property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 8/.test(text(bar)), 'the first craft did not finish step 7: ' + text(bar));
     });
     const SP = window.HearthriseSpine;
     const was = SP.__park(true);

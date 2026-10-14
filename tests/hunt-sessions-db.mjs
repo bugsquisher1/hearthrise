@@ -9,6 +9,11 @@
 // ARMS (each in its own transaction, rolled back)
 //   G1  the generated catalogue matches src/data (gen-hunt-sessions --check) and
 //       the table CHECK lists equal the data (END_ORDER, EVENT_COPY)
+//   K1  THE KILL SWITCH SHIPS OFF: the chain seeds hr_hunt_config.enabled = false
+//       and a paused enter opens nothing (Security GO-WITH-CHANGES item 1)
+//   R1  A SETTLE REFUSAL RAISES: a real hr_apply under the session GUC, then a
+//       stale settle, in one statement — the ledger row and the version bump
+//       hr_apply made are rolled back with it (Security item 2)
 //   B1  BAG CONSERVATION: across pack, settle, restock, change and leave, the bag
 //       side of the journal equals the bag per (session, item), every pair
 //       cancels, and inventory + consumed = what the character started with
@@ -52,6 +57,9 @@ const idem = () => crypto.randomUUID();
 
 /* A probe character holding 20 Cooked Shrimp and 50 Bronze Arrows, signed in. */
 async function probe(db) {
+  // The switch ships OFF (Security item 1); every arm opens it inside its own
+  // rolled-back transaction. K1 proves the shipped value and the refusal.
+  await db.query(`update public.hr_hunt_config set enabled = true where id`);
   await db.query(`insert into auth.users (id) values ($1)`, [UID]);
   await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID]);
   const r = await call(db, 'hr_create_character', [0]);
@@ -83,7 +91,19 @@ async function engineRows(db, sid, rows) {
   await db.query(`select set_config('hr.hunt_session', '', true)`);
 }
 const at = (from, s) => new Date(new Date(from).getTime() + s * 1000).toISOString();
-async function settle(db, sid, delta) { return call(db, 'hr_hunt_settle_session', [UID, 0, sid, JSON.stringify(delta)]); }
+/* The applier RAISES every refusal (HR000, message = the code). Read it back as
+   {ok:false, error} inside a savepoint so the arm's transaction survives. */
+async function settle(db, sid, delta) {
+  await db.query('savepoint settle');
+  try {
+    const r = await call(db, 'hr_hunt_settle_session', [UID, 0, sid, JSON.stringify(delta)]);
+    await db.query('release savepoint settle');
+    return r;
+  } catch (e) {
+    await db.query('rollback to savepoint settle');
+    return { ok: false, error: String(e.message).split('\n')[0], raised: true };
+  }
+}
 
 async function inTx(db, fn) {
   await db.query('begin');
@@ -92,6 +112,58 @@ async function inTx(db, fn) {
 
 /* ── ARMS ────────────────────────────────────────────────────────────────── */
 const ARMS = {
+  /* K1 — THE SWITCH SHIPS OFF (Security item 1). The chain seeds it false, and
+     while it is false hr_hunt_enter / hr_hunt_change open nothing. */
+  async K1(db, red) {
+    const seeded = await one(db, `select enabled from public.hr_hunt_config where id`);
+    if (seeded !== false) red.push(`K1: hr_hunt_config is seeded enabled=${seeded} (must ship false until C2 flips it)`);
+    await probe(db);
+    await db.query(`update public.hr_hunt_config set enabled = false where id`);
+    const e = await enter(db, [{ item: 'cooked_shrimp', qty: 5 }]);
+    if (e?.error !== 'hunts_paused') red.push(`K1: an enter while paused answered ${JSON.stringify(e)}`);
+    const n = await one(db, `select count(*)::int from public.hunt_sessions where user_id = $1`, [UID]);
+    if (n !== 0 || await inv(db, 'cooked_shrimp') !== 20) red.push('K1: a paused enter opened a session or moved the bag');
+  },
+
+  /* R1 — A REFUSAL AFTER hr_apply LEAVES NO VALUE (Security item 2). One
+     statement does what C2's settle transaction does: a real hr_apply under the
+     session GUC (a stamped ledger row, a version bump), then a stale settle. The
+     settle must RAISE, so the statement and everything hr_apply wrote is gone. */
+  async R1(db, red) {
+    await probe(db);
+    const e = await enter(db, [{ item: 'cooked_shrimp', qty: 5 }]);
+    const sid = e.session.id;
+    const from = await startHunting(db, sid);
+    const ver = await one(db, `select version::int from public.player_state where user_id = $1 and slot = 0`, [UID]);
+    const rows0 = await one(db, `select count(*)::int from public.player_ledger where user_id = $1`, [UID]);
+    const block = (settleSql) => `do $r1$ declare v jsonb; begin
+        perform set_config('hr.hunt_session', '${sid}', true);
+        v := public.hr_apply('${UID}', 0, ${ver}, gen_random_uuid(),
+               '{"fight":{"monster":"rat","hp":3,"kills":0},"journal":{"intent":"set_activity"}}'::jsonb);
+        perform set_config('hr.hunt_session', '', true);
+        if coalesce(v->>'ok', 'false') <> 'true' then raise exception 'R1 CONTROL: hr_apply answered %', v; end if;
+        ${settleSql}
+      end $r1$`;
+    // CONTROL: hr_apply alone writes a stamped row (else the arm proves nothing).
+    await db.query('savepoint r1c');
+    try {
+      await db.exec(block(''));
+      const stamped = await one(db, `select count(*)::int from public.player_ledger where user_id = $1 and session_id = $2`, [UID, sid]);
+      if (stamped < 1) red.push('R1: CONTROL — hr_apply under the GUC wrote no stamped ledger row');
+    } catch (err) { red.push(`R1: CONTROL threw ${String(err.message).split('\n')[0]}`); }
+    await db.query('rollback to savepoint r1c');
+    const bad = JSON.stringify({ swing_from: 99, swing_to: 100, to: at(from, 60), next_swing_at: at(from, 61) });
+    await db.query('savepoint r1');
+    let raised = null;
+    try { await db.exec(block(`perform public.hr_hunt_settle_session('${UID}', 0, '${sid}', '${bad}'::jsonb);`)); }
+    catch (err) { raised = String(err.message).split('\n')[0]; await db.query('rollback to savepoint r1'); }
+    if (raised === null) await db.query('release savepoint r1');
+    if (raised !== 'session_moved') red.push(`R1: a stale settle after hr_apply ${raised === null ? 'did NOT raise' : `raised "${raised}"`}`);
+    const rows1 = await one(db, `select count(*)::int from public.player_ledger where user_id = $1`, [UID]);
+    const ver1 = await one(db, `select version::int from public.player_state where user_id = $1 and slot = 0`, [UID]);
+    if (rows1 !== rows0 || ver1 !== ver) red.push(`R1: the refused settle left hr_apply's value behind (ledger ${rows0} -> ${rows1}, version ${ver} -> ${ver1})`);
+  },
+
   async B1(db, red) {
     await probe(db);
     const e = await enter(db, [{ item: 'cooked_shrimp', qty: 12 }, { item: 'bronze_arrows', qty: 50 }]);
@@ -346,11 +418,17 @@ const BODY_MUTANTS = [
   { name: 'enter admits unknown bag keys (a client time)', arm: 'F1', fn: 'hr_hunt_enter',
     from: "k not in ('item', 'qty', 'essential'))", to: "k not in ('item', 'qty', 'essential', 'at'))" },
   { name: 'settle trusts a future window', arm: 'F1', fn: 'hr_hunt_settle_session',
-    from: "  if v_to > now() + c_skew then return jsonb_build_object('ok', false, 'error', 'window_in_future'); end if;", to: '' },
+    from: "  if v_to > now() + c_skew then perform public.hr_reject('window_in_future'); end if;", to: '' },
+  { name: 'a settle refusal RETURNS instead of raising (hr_apply value kept)', arm: 'R1', fn: 'hr_hunt_settle_session',
+    from: "    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;",
+    to: "    return jsonb_build_object('ok', false, 'error', 'session_moved'); end if;" },
+  { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter',
+    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'hunts_paused')); end if;\n  if p_hunt is null",
+    to: "  if p_hunt is null" },
   { name: 'settle ignores the cooldown cap', arm: 'P1', fn: 'hr_hunt_settle_session',
     from: '    if v_heals > v_win / v_cd_heal + 1 or v_buffs > v_win / v_cd_buff + 1 then', to: '    if false then' },
   { name: 'settle accepts invented presses', arm: 'P1', fn: 'hr_hunt_settle_session',
-    from: "      if v_j >= jsonb_array_length(v_stored) then return jsonb_build_object('ok', false, 'error', 'bad_presses'); end if;\n      v_keep := v_keep || jsonb_build_array(v_stored->v_j);",
+    from: "      if v_j >= jsonb_array_length(v_stored) then perform public.hr_reject('bad_presses'); end if;\n      v_keep := v_keep || jsonb_build_array(v_stored->v_j);",
     to: "      v_keep := v_keep || jsonb_build_array(jsonb_build_object('slot', (p_delta->'presses_left'->>v_i)::int));" },
   { name: 'a press consumes from the bag', arm: 'P1', fn: 'hr_hunt_use',
     from: '  update public.hunt_sessions\n     set presses = presses ||',
@@ -363,6 +441,19 @@ const BODY_MUTANTS = [
 ];
 /* Defects in the migration TEXT that its own §8 must refuse (the replay raises). */
 const TEXT_MUTANTS = [
+  { name: 'the kill switch is seeded ON', arm: 'K1',
+    from: 'insert into public.hr_hunt_config (id, enabled) values (true, false) on conflict (id) do nothing;',
+    to: 'insert into public.hr_hunt_config (id, enabled) values (true, true) on conflict (id) do nothing;' },
+  { name: '§8: a settle refusal returns instead of raising', want: 'GATE(e0)',
+    from: "    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;",
+    to: "    return jsonb_build_object('ok', false, 'error', 'session_moved'); end if;" },
+  // (hr_hunt_change carries the same two lines; the trailing p_preset line makes the anchor enter's alone)
+  { name: '§8: enter ignores the kill switch', want: 'GATE(b0)',
+    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'hunts_paused')); end if;\n"
+      + "  if p_hunt is null or not exists (select 1 from public.hr_hunt_travel where hunt_id = p_hunt) then\n"
+      + "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'unknown_hunt')); end if;\n  if p_preset is null",
+    to: "  if p_hunt is null or not exists (select 1 from public.hr_hunt_travel where hunt_id = p_hunt) then\n"
+      + "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'unknown_hunt')); end if;\n  if p_preset is null" },
   { name: '§8: the one-open index is not unique', want: 'GATE(c3)',
     from: 'create unique index if not exists hunt_sessions_one_open', to: 'create index if not exists hunt_sessions_one_open' },
   { name: '§8: a verb is granted to anon', want: 'GATE(a)',
@@ -377,7 +468,7 @@ if (!MUTATE) {
   const red = [...g1(), ...(await runArms(db)), ...(await d1(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-sessions-db: G1 B1 S1 F1 P1 T1 D1 C1 green');
+  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 C1 green');
 } else {
   let escaped = 0;
   const control = await runArms(db);
@@ -405,13 +496,16 @@ if (!MUTATE) {
   }
   await db.close?.();
   for (const m of TEXT_MUTANTS) {
-    let raised = null;
+    let raised = null; const armRed = [];
     try {
       const { db: d2 } = await bootReplay({ patches: new Map([[MIG, [[m.from, m.to]]]]), upTo: MIG });
+      if (m.arm) { try { await inTx(d2, () => ARMS[m.arm](d2, armRed)); } catch (err) { armRed.push(`${m.arm}: threw ${err.message}`); } }
       await d2.close?.();
-    } catch (e) { raised = String(e.message).includes(m.want) ? m.want : null; }
-    console.log(`  ${raised ? 'caught ' : 'ESCAPED'} ${m.name}${raised ? ` (${raised})` : ''}`);
-    if (!raised) escaped++;
+    } catch (e) { raised = m.want && String(e.message).includes(m.want) ? m.want : null; }
+    const mine = m.arm ? armRed.filter((r) => r.startsWith(m.arm)) : [];
+    const caught = raised || mine.length;
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} ${m.name}${raised ? ` (${raised})` : mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
+    if (!caught) escaped++;
   }
   /* G1 bites: a CHECK list that drifts from the data is red. */
   {

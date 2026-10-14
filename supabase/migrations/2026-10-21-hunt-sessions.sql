@@ -39,7 +39,8 @@
 --                        `hr.hunt_session` for rows another writer (hr_apply,
 --                        under C2's settle) inserts. The trigger stamps only a
 --                        session that belongs to the row's own (user, slot).
---   hr_hunt_config       the operator kill switch (operator_tunable).
+--   hr_hunt_config       the operator kill switch (operator_tunable), SEEDED OFF:
+--                        no hunt opens until C2 deploys and flips it.
 --
 -- ── THE CLIENT SURFACE (ids and small whole numbers only) ───────────────────
 --   hr_hunt_enter(slot, hunt, bag[{item,qty,essential?}], preset, falls, hours, idem)
@@ -63,7 +64,9 @@
 --   use caps from the cooldown catalogue (a manual press can re-order uses but
 --   never add one), bag sufficiency, presses only shrink, falls equal the death
 --   rows stamped in this transaction, every end reason re-proved from server
---   state, and an end the engine owed but did not report is refused. Writes ONE
+--   state, and an end the engine owed but did not report is refused. Every
+--   refusal RAISES (hr_reject) so the hr_apply that ran before it in the same
+--   transaction rolls back with it; SECURITY DEFINER. Writes ONE
 --   consumption row per settle (items in meta.items): the accrue row's own rate
 --   under the world tick's flush/fold, never per swing (journal aggregates).
 --
@@ -108,11 +111,18 @@ begin
 end $mig$;
 
 -- ── §1 TABLES ──────────────────────────────────────────────────────────────
+-- THE KILL SWITCH SHIPS OFF (Security GO-WITH-CHANGES on e482cc54, item 1).
+-- Between this apply and lane C2 the old accrue / world-tick path still pays a
+-- combat pointer, and hr_hunt_enter points the character at combat:<hunt>; an
+-- open session would then be paid once by that path and again by C2's first
+-- settle. So no hunt can open until C2 deploys and flips `enabled` in its own
+-- reviewed file. `on conflict do nothing`: a re-apply never re-closes a switch
+-- an operator (or C2) has opened.
 create table if not exists public.hr_hunt_config (
   id      boolean primary key default true check (id),
-  enabled boolean not null default true
+  enabled boolean not null default false
 );
-insert into public.hr_hunt_config (id, enabled) values (true, true) on conflict (id) do nothing;
+insert into public.hr_hunt_config (id, enabled) values (true, false) on conflict (id) do nothing;
 
 create table if not exists public.hunt_sessions (
   id              uuid primary key default gen_random_uuid(),
@@ -1103,10 +1113,16 @@ end $$;
 -- The edge proposes one window of one session; this decides whether it may
 -- land and applies it. Value movement through hr_apply happens in the SAME
 -- transaction, before this call, with `hr.hunt_session` set so its rows are
--- stamped; this folds them. Returns {ok:false, error} without writing on any
--- refusal (every check runs before the first write).
+-- stamped; this folds them.
+-- EVERY REFUSAL RAISES (hr_reject, SQLSTATE HR000, message = the code), never
+-- `return {ok:false}` (Security GO-WITH-CHANGES on e482cc54, item 2): by the
+-- time this runs, hr_apply has already moved value in the same transaction, so
+-- a soft refusal would commit that value with no settle behind it. A raise rolls
+-- the whole transaction (or the caller's savepoint) back, hr_apply included.
+-- SECURITY DEFINER with a pinned search_path, so the engine role C2 grants it to
+-- never needs a direct grant on any table it writes.
 create or replace function public.hr_hunt_settle_session(p_user uuid, p_slot int, p_session uuid, p_delta jsonb)
-returns jsonb language plpgsql set search_path = public, pg_catalog as $$
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   c_skew       constant interval := interval '60 seconds';
   c_max_window constant bigint   := 24 * 3600000;   -- the outage fuse, never a gameplay cap
@@ -1141,53 +1157,53 @@ declare
 begin
   -- ── VALIDATE (no writes) ───────────────────────────────────────────────
   if p_user is null or p_slot is null or p_session is null or p_delta is null or jsonb_typeof(p_delta) <> 'object' then
-    return jsonb_build_object('ok', false, 'error', 'bad_arguments'); end if;
+    perform public.hr_reject('bad_arguments'); end if;
   if exists (select 1 from jsonb_object_keys(p_delta) k where k <> all (c_keys)) then
-    return jsonb_build_object('ok', false, 'error', 'unknown_delta_key'); end if;
-  if v_cd_heal is null or v_cd_buff is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
+    perform public.hr_reject('unknown_delta_key'); end if;
+  if v_cd_heal is null or v_cd_buff is null then perform public.hr_reject('catalogue_missing'); end if;
   v_s := public.hr_hunt_lock(p_user, p_slot);
-  if v_s.id is null or v_s.id <> p_session then return jsonb_build_object('ok', false, 'error', 'no_hunt'); end if;
+  if v_s.id is null or v_s.id <> p_session then perform public.hr_reject('no_hunt'); end if;
 
   if jsonb_typeof(p_delta->'swing_from') is distinct from 'number' or jsonb_typeof(p_delta->'swing_to') is distinct from 'number'
      or (p_delta->>'swing_from') !~ '^[0-9]{1,15}$' or (p_delta->>'swing_to') !~ '^[0-9]{1,15}$' then
-    return jsonb_build_object('ok', false, 'error', 'bad_swing'); end if;
+    perform public.hr_reject('bad_swing'); end if;
   v_from_i := (p_delta->>'swing_from')::bigint; v_to_i := (p_delta->>'swing_to')::bigint;
   if v_from_i <> v_s.swing_index then
-    return jsonb_build_object('ok', false, 'error', 'session_moved', 'swing_index', v_s.swing_index); end if;
+    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;
   begin
     v_to := (p_delta->>'to')::timestamptz;
     v_next := (p_delta->>'next_swing_at')::timestamptz;
   exception when others then
-    return jsonb_build_object('ok', false, 'error', 'bad_window');
+    perform public.hr_reject('bad_window');
   end;
   if v_to is null or v_next is null or v_to <= v_s.settled_to then
-    return jsonb_build_object('ok', false, 'error', 'bad_window', 'settled_to', v_s.settled_to); end if;
-  if v_to > now() + c_skew then return jsonb_build_object('ok', false, 'error', 'window_in_future'); end if;
+    perform public.hr_reject('bad_window', jsonb_build_object('settled_to', v_s.settled_to)); end if;
+  if v_to > now() + c_skew then perform public.hr_reject('window_in_future'); end if;
   v_win := floor(extract(epoch from (v_to - v_s.settled_to)) * 1000)::bigint;
-  if v_win > c_max_window then return jsonb_build_object('ok', false, 'error', 'window_too_long'); end if;
-  if v_next < v_to or v_next > v_to + c_skew then return jsonb_build_object('ok', false, 'error', 'bad_next_swing'); end if;
+  if v_win > c_max_window then perform public.hr_reject('window_too_long'); end if;
+  if v_next < v_to or v_next > v_to + c_skew then perform public.hr_reject('bad_next_swing'); end if;
   if v_to_i < v_from_i or v_to_i - v_from_i > v_win / c_min_swing_ms + 1 then
-    return jsonb_build_object('ok', false, 'error', 'bad_swing'); end if;
+    perform public.hr_reject('bad_swing'); end if;
 
   -- USES: bag lines only, never more than is left, and each cooldown group
   -- capped by what its cooldown admits in this window.
   if p_delta ? 'uses' then
     if jsonb_typeof(p_delta->'uses') <> 'object' or (select count(*) from jsonb_object_keys(p_delta->'uses')) > 10 then
-      return jsonb_build_object('ok', false, 'error', 'bad_uses'); end if;
+      perform public.hr_reject('bad_uses'); end if;
     for v_k, v_v in select key, value from jsonb_each(p_delta->'uses') loop
       if jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}') !~ '^[0-9]{1,9}$' then
-        return jsonb_build_object('ok', false, 'error', 'bad_uses', 'item', left(v_k, 64)); end if;
+        perform public.hr_reject('bad_uses', jsonb_build_object('item', left(v_k, 64))); end if;
       v_n := (v_v #>> '{}')::bigint;
       select b.qty_left, p.kind into v_left, v_kind
         from public.hunt_bag b left join public.hr_hunt_supplies p on p.item_id = b.item_id
        where b.session_id = p_session and b.item_id = v_k;
-      if v_left is null then return jsonb_build_object('ok', false, 'error', 'not_in_bag', 'item', left(v_k, 64)); end if;
-      if v_n > v_left then return jsonb_build_object('ok', false, 'error', 'bag_short', 'item', v_k, 'left', v_left); end if;
+      if v_left is null then perform public.hr_reject('not_in_bag', jsonb_build_object('item', left(v_k, 64))); end if;
+      if v_n > v_left then perform public.hr_reject('bag_short', jsonb_build_object('item', v_k, 'left', v_left)); end if;
       if v_kind = 'heal' then v_heals := v_heals + v_n; elsif v_kind = 'buff' then v_buffs := v_buffs + v_n; end if;
       v_left := null; v_kind := null;
     end loop;
     if v_heals > v_win / v_cd_heal + 1 or v_buffs > v_win / v_cd_buff + 1 then
-      return jsonb_build_object('ok', false, 'error', 'too_many_uses', 'heals', v_heals, 'buffs', v_buffs, 'window_ms', v_win); end if;
+      perform public.hr_reject('too_many_uses', jsonb_build_object('heals', v_heals, 'buffs', v_buffs, 'window_ms', v_win)); end if;
   end if;
 
   -- COOLDOWNS: absolute instants no later than the window end plus one cooldown.
@@ -1197,20 +1213,20 @@ begin
                    or (c.value #>> '{}')::numeric < 0
                    or (c.value #>> '{}')::numeric > extract(epoch from v_to) * 1000
                         + case c.key when 'heal' then v_cd_heal else v_cd_buff end) then
-    return jsonb_build_object('ok', false, 'error', 'bad_cooldowns'); end if;
+    perform public.hr_reject('bad_cooldowns'); end if;
 
   -- PRESSES ONLY SHRINK: what is left is the stored queue with some removed,
   -- order kept. A settle can never invent a press.
   v_stored := v_s.presses; v_keep := '[]'::jsonb;
   if p_delta ? 'presses_left' then
-    if jsonb_typeof(p_delta->'presses_left') <> 'array' then return jsonb_build_object('ok', false, 'error', 'bad_presses'); end if;
+    if jsonb_typeof(p_delta->'presses_left') <> 'array' then perform public.hr_reject('bad_presses'); end if;
     v_j := 0;
     for v_i in 0 .. jsonb_array_length(p_delta->'presses_left') - 1 loop
       while v_j < jsonb_array_length(v_stored)
             and ((v_stored->v_j->>'slot') is distinct from (p_delta->'presses_left'->>v_i)) loop
         v_j := v_j + 1;
       end loop;
-      if v_j >= jsonb_array_length(v_stored) then return jsonb_build_object('ok', false, 'error', 'bad_presses'); end if;
+      if v_j >= jsonb_array_length(v_stored) then perform public.hr_reject('bad_presses'); end if;
       v_keep := v_keep || jsonb_build_array(v_stored->v_j);
       v_j := v_j + 1;
     end loop;
@@ -1225,27 +1241,27 @@ begin
    where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'combat' and l.intent = 'death';
   v_falls := v_s.falls + v_deaths;
   if (p_delta ? 'falls') and (jsonb_typeof(p_delta->'falls') <> 'number' or (p_delta->>'falls')::numeric <> v_falls) then
-    return jsonb_build_object('ok', false, 'error', 'falls_mismatch', 'journalled', v_falls); end if;
+    perform public.hr_reject('falls_mismatch', jsonb_build_object('journalled', v_falls)); end if;
   if (p_delta ? 'down' and jsonb_typeof(p_delta->'down') <> 'boolean')
      or (p_delta ? 'down_ms' and (jsonb_typeof(p_delta->'down_ms') <> 'number' or (p_delta->>'down_ms')::numeric < 0
                                   or (p_delta->>'down_ms')::numeric > v_win))
      or (p_delta ? 'paid_ms' and (jsonb_typeof(p_delta->'paid_ms') <> 'number' or (p_delta->>'paid_ms')::numeric < 0
                                   or (p_delta->>'paid_ms')::numeric > v_win)) then
-    return jsonb_build_object('ok', false, 'error', 'bad_counts'); end if;
+    perform public.hr_reject('bad_counts'); end if;
   v_raw := coalesce(p_delta->'raw_xp', '{}'::jsonb);
   if jsonb_typeof(v_raw) <> 'object' or (select count(*) from jsonb_object_keys(v_raw)) > 24
      or exists (select 1 from jsonb_each(v_raw) x where x.key !~ '^[a-zA-Z0-9_]{1,64}$' or jsonb_typeof(x.value) <> 'number'
                    or (x.value #>> '{}')::numeric < 0 or (x.value #>> '{}')::numeric > 1e12) then
-    return jsonb_build_object('ok', false, 'error', 'bad_counts'); end if;
+    perform public.hr_reject('bad_counts'); end if;
 
   -- THE END, re-proved from server state as it will stand after the uses.
   if p_delta ? 'ended' and jsonb_typeof(p_delta->'ended') = 'object' then
     v_end := p_delta->'ended'->>'reason';
     begin v_end_at := (p_delta->'ended'->>'at')::timestamptz;
-    exception when others then return jsonb_build_object('ok', false, 'error', 'bad_end'); end;
+    exception when others then perform public.hr_reject('bad_end'); end;
     if v_end is null or not exists (select 1 from public.hr_hunt_end_reasons where reason = v_end)
        or v_end_at is null or v_end_at < v_s.settled_to or v_end_at > v_to then
-      return jsonb_build_object('ok', false, 'error', 'bad_end'); end if;
+      perform public.hr_reject('bad_end'); end if;
     if not coalesce(case v_end
       when 'falls' then v_falls >= v_s.falls_limit
       when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
@@ -1266,10 +1282,10 @@ begin
       when 'changed' then v_s.change_at is not null and v_end_at >= v_s.change_at
       when 'server' then not coalesce((select enabled from public.hr_hunt_config where id), false)
       else false end, false) then
-      return jsonb_build_object('ok', false, 'error', 'end_not_proven', 'reason', v_end);
+      perform public.hr_reject('end_not_proven', jsonb_build_object('reason', v_end));
     end if;
   elsif p_delta ? 'ended' and jsonb_typeof(p_delta->'ended') <> 'null' then
-    return jsonb_build_object('ok', false, 'error', 'bad_end');
+    perform public.hr_reject('bad_end');
   else
     -- AN END THE ENGINE OWED: the falls limit reached, a leave/change/hours
     -- instant more than one skew behind the window end, or the kill switch.
@@ -1277,10 +1293,10 @@ begin
        or (v_s.leave_at is not null and v_to > v_s.leave_at + c_skew)
        or (v_s.change_at is not null and v_to > v_s.change_at + c_skew)
        or (v_s.hours_limit is not null and v_to > v_s.hunt_from + make_interval(hours => v_s.hours_limit) + c_skew) then
-      return jsonb_build_object('ok', false, 'error', 'end_missing'); end if;
+      perform public.hr_reject('end_missing'); end if;
   end if;
   v_hint := coalesce(p_delta->'hints', '{}'::jsonb);
-  if jsonb_typeof(v_hint) <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_hints'); end if;
+  if jsonb_typeof(v_hint) <> 'object' then perform public.hr_reject('bad_hints'); end if;
 
   -- ── APPLY ──────────────────────────────────────────────────────────────
   -- (1) Consumption: the bag, and ONE journal row per settle carrying every
@@ -1600,6 +1616,8 @@ declare
   v_h    jsonb;
   v_ver  bigint;
   v_from timestamptz;
+  v_err  text;
+  v_cfg  boolean := (select enabled from public.hr_hunt_config where id);
   c_fns  constant text[] := array[
     'public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)', 'public.hr_hunt_leave(integer,uuid)',
     'public.hr_hunt_change(integer,text,uuid)', 'public.hr_hunt_restock(integer,text,bigint,uuid)',
@@ -1642,6 +1660,14 @@ begin
     if v_r->>'created' <> 'true' then raise exception 'GATE(b): no probe character: %', v_r; end if;
     delete from public.player_inventory where user_id = v_uid and slot = 0;
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_uid, 0, 'cooked_shrimp', 20), (v_uid, 0, 'bronze_arrows', 50);
+
+    -- (b0) THE SWITCH SHIPS OFF: while disabled no hunt opens. The probe opens
+    --      it inside this rolled-back block only.
+    update public.hr_hunt_config set enabled = false where id;
+    v_r := public.hr_hunt_enter(0, 'mill_cellar', '[{"item":"cooked_shrimp","qty":5}]', 0, null, null, gen_random_uuid());
+    if v_r->>'error' is distinct from 'hunts_paused' or exists (select 1 from public.hunt_sessions where user_id = v_uid) then
+      raise exception 'GATE(b0): an enter while hunts are paused answered %', v_r; end if;
+    update public.hr_hunt_config set enabled = true where id;
 
     -- (b) FORGED / MALFORMED BAGS are refused and move nothing.
     v_r := public.hr_hunt_enter(0, 'mill_cellar', '[{"item":"cooked_shrimp","qty":999}]', 0, null, null, gen_random_uuid());
@@ -1717,12 +1743,35 @@ begin
     if v_r->>'error' is distinct from 'press_queued' then raise exception 'GATE(d): a second press answered %', v_r; end if;
 
     -- (e) THE SETTLE: the engine's stamped rows are folded, uses come out of the
-    --     bag as one row per item, and the tally equals Σ ledger.
+    --     bag as ONE consumption row, and the tally equals Σ ledger. Every
+    --     refusal RAISES (HR000), so it is caught here, never read from a result.
     select hunt_from into v_from from public.hunt_sessions where id = v_sid;
     update public.hunt_sessions set entered_at = now() - interval '10 minutes', hunt_from = now() - interval '9 minutes',
                                     settled_to = now() - interval '9 minutes', next_swing_at = now() - interval '9 minutes'
      where id = v_sid;
     select settled_to into v_from from public.hunt_sessions where id = v_sid;
+    -- (e0) A REFUSAL AFTER hr_apply LEAVES NOTHING (Security item 2): a real
+    --      hr_apply moves a stamped ledger row and the version, then a stale
+    --      settle raises, and both are gone with the block.
+    select count(*) into v_n from public.player_ledger where user_id = v_uid;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_err := null;
+    begin
+      perform set_config('hr.hunt_session', v_sid::text, true);
+      v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+               '{"fight":{"monster":"rat","hp":3,"kills":0},"journal":{"intent":"set_activity"}}'::jsonb);
+      perform set_config('hr.hunt_session', '', true);
+      if coalesce(v_r->>'ok', 'false') <> 'true'
+         or not exists (select 1 from public.player_ledger where user_id = v_uid and session_id = v_sid) then
+        raise exception 'GATE(e0) CANNOT RUN: hr_apply answered % and stamped no ledger row', v_r; end if;
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 5, 'swing_to', 6, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds'));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'session_moved'
+       or (select count(*) from public.player_ledger where user_id = v_uid) <> v_n
+       or (select version from public.player_state where user_id = v_uid and slot = 0) <> v_ver then
+      raise exception 'GATE(e0): a refused settle after hr_apply kept value (refusal %, ledger % -> %)', v_err, v_n,
+        (select count(*) from public.player_ledger where user_id = v_uid); end if;
     perform set_config('hr.hunt_session', v_sid::text, true);
     insert into public.player_ledger (user_id, slot, kind, intent, gold, meta)
       values (v_uid, 0, 'accrue', 'tick', 40, '{"delta":{"g":40,"x":{"attack":30},"i":{"bones":3}},"kills":6}');
@@ -1731,29 +1780,43 @@ begin
     perform set_config('hr.hunt_session', '', true);
     if (select count(*) from public.player_ledger where session_id = v_sid and kind in ('accrue', 'combat')) <> 2 then
       raise exception 'GATE(e): the GUC stamp did not mark the engine rows'; end if;
-    -- stale swing / unproven end / owed end / cap / bag short — all refused, nothing written
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 5, 'swing_to', 6,
-             'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds'));
-    if v_r->>'error' is distinct from 'session_moved' then raise exception 'GATE(e): a stale swing answered %', v_r; end if;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25,
-             'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1,
-             'uses', jsonb_build_object('cooked_shrimp', 40)));
-    if v_r->>'error' is distinct from 'bag_short' then raise exception 'GATE(e): 40 from a bag of 12 answered %', v_r; end if;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 5,
-             'to', v_from + interval '10 seconds', 'next_swing_at', v_from + interval '11 seconds', 'falls', 1,
-             'uses', jsonb_build_object('cooked_shrimp', 10)));
-    if v_r->>'error' is distinct from 'too_many_uses' then raise exception 'GATE(e): 10 heals in 10 s answered %', v_r; end if;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25,
-             'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 0));
-    if v_r->>'error' is distinct from 'falls_mismatch' then raise exception 'GATE(e): hiding a journalled fall answered %', v_r; end if;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25,
-             'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1,
-             'ended', jsonb_build_object('reason', 'heals_out', 'at', v_from + interval '30 seconds')));
-    if v_r->>'error' is distinct from 'end_not_proven' then raise exception 'GATE(e): an unproven end answered %', v_r; end if;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25,
-             'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1,
-             'presses_left', jsonb_build_array(0, 0)));
-    if v_r->>'error' is distinct from 'bad_presses' then raise exception 'GATE(e): an invented press answered %', v_r; end if;
+    -- stale swing / bag short / cap / hidden fall / unproven end / invented press — all raise, nothing written
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 5, 'swing_to', 6, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds'));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'session_moved' then raise exception 'GATE(e): a stale swing answered %', v_err; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1, 'uses', jsonb_build_object('cooked_shrimp', 40)));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'bag_short' then raise exception 'GATE(e): 40 from a bag of 12 answered %', v_err; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 5, 'to', v_from + interval '10 seconds', 'next_swing_at', v_from + interval '11 seconds', 'falls', 1, 'uses', jsonb_build_object('cooked_shrimp', 10)));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'too_many_uses' then raise exception 'GATE(e): 10 heals in 10 s answered %', v_err; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 0));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'falls_mismatch' then raise exception 'GATE(e): hiding a journalled fall answered %', v_err; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1, 'ended', jsonb_build_object('reason', 'heals_out', 'at', v_from + interval '30 seconds')));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'end_not_proven' then raise exception 'GATE(e): an unproven end answered %', v_err; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 0, 'swing_to', 25, 'to', v_from + interval '60 seconds', 'next_swing_at', v_from + interval '61 seconds', 'falls', 1, 'presses_left', jsonb_build_array(0, 0)));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'bad_presses' then raise exception 'GATE(e): an invented press answered %', v_err; end if;
     if (select swing_index from public.hunt_sessions where id = v_sid) <> 0
        or (select ledger_hwm from public.hunt_session_tally where session_id = v_sid) <> 0 then
       raise exception 'GATE(e): a refused settle wrote'; end if;
@@ -1787,9 +1850,12 @@ begin
       raise exception 'GATE(e): tally <> Σ ledger'; end if;
     -- an owed end: the falls limit reached without an end is refused
     update public.hunt_sessions set falls_limit = 1 where id = v_sid;
-    v_r := public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 25, 'swing_to', 30,
-             'to', v_from + interval '70 seconds', 'next_swing_at', v_from + interval '71 seconds', 'falls', 1));
-    if v_r->>'error' is distinct from 'end_missing' then raise exception 'GATE(e): an owed end answered %', v_r; end if;
+    v_err := null;
+    begin
+      perform public.hr_hunt_settle_session(v_uid, 0, v_sid, jsonb_build_object('swing_from', 25, 'swing_to', 30, 'to', v_from + interval '70 seconds', 'next_swing_at', v_from + interval '71 seconds', 'falls', 1));
+    exception when sqlstate 'HR000' then v_err := sqlerrm;
+    end;
+    if v_err is distinct from 'end_missing' then raise exception 'GATE(e): an owed end answered %', v_err; end if;
     update public.hunt_sessions set falls_limit = 3 where id = v_sid;
 
     -- (f) ACTION SETS: the catalogue decides; out-of-range values are refused.
@@ -1869,7 +1935,9 @@ begin
   end;
   perform set_config('request.jwt.claim.sub', '', true);
 
-  -- (z) NOTHING LEAKED.
+  -- (z) NOTHING LEAKED — and the kill switch is where this file found it.
+  if (select enabled from public.hr_hunt_config where id) is distinct from v_cfg then
+    raise exception 'GATE(z): §8 moved the hunt kill switch'; end if;
   if exists (select 1 from public.player_state where user_id = v_uid)
      or exists (select 1 from public.player_ledger where user_id = v_uid)
      or exists (select 1 from public.player_intents where user_id = v_uid)

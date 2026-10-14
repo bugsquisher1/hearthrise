@@ -66,9 +66,12 @@ const ENGINE_PATCHES = {
     '      ? Math.min(stance.eatAt, eatCeiling)',
     '      ? stance.eatAt',
   ]],
+  /* Re-anchored lane C2: the stop rules are the legacy pointer's (`!hs0` — a
+     hunt session ends on its own END_ORDER), and the engine no longer reads an
+     attended split, so "away only" is planted on the attended INPUT S5 hands it. */
   stop_away_only: [[
-    '  if (state.activeMonster && summary.stoppedBy !== COMBAT_STOP.RETREAT) {',
-    '  if (state.activeMonster && summary.stoppedBy !== COMBAT_STOP.RETREAT && !attended) {',
+    '  if (!hs0 && state.activeMonster && summary.stoppedBy !== COMBAT_STOP.RETREAT) {',
+    '  if (!hs0 && state.activeMonster && summary.stoppedBy !== COMBAT_STOP.RETREAT && !inp.attended) {',
   ]],
 };
 

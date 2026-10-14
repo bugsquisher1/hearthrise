@@ -639,8 +639,10 @@ const MUTANTS = [
     id: 'no-emit',
     what: 'the engine never writes a checkpoint back',
     file: 'supabase/functions/hr-accrue/accrual.js',
-    from: '  if (fight0) {\n    const alive',
-    to: '  if (false) {\n    const alive',
+    /* Re-anchored lane C2: the checkpoint has a hunt-session branch first
+       (`fight0 && hs0`); this guard's pointer windows take the else-arm. */
+    from: '  } else if (fight0) {\n    const alive',
+    to: '  } else if (false) {\n    const alive',
   },
   {
     id: 'unconditional-carry',

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 582 — 2026-10-14 (Gear and rooms hold)
+
+**Your gear and house stay put on screen.** The game no longer briefly forgets your equipment or rooms between server updates, so fights and the House always show your real gear and rooms.
+
 ## v0.9.2-beta build 580 — 2026-10-14 (Smoother play)
 
 **Smoother play.** The menu and the kill pop-ups do far less work on every update, so long fights and busy screens no longer stutter.

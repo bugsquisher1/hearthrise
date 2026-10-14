@@ -19,11 +19,11 @@
 // its `opens` line once.
 // ════════════════════════════════════════════════════════════════════════
 
-import { POINTER_STEPS, ROUTES } from '../data/spine-pointer.js?v=580';
-import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=580';
-import { pointerModel, newlyDone, momentsKnown } from '../core/spine-pointer.js?v=580';
-import { barHtml, cardHtml, rewardText } from '../render/spine-pointer.js?v=580';
-import { isRecordPending } from '../net/record.js?v=580';
+import { POINTER_STEPS, ROUTES } from '../data/spine-pointer.js?v=582';
+import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=582';
+import { pointerModel, newlyDone, momentsKnown } from '../core/spine-pointer.js?v=582';
+import { barHtml, cardHtml, rewardText } from '../render/spine-pointer.js?v=582';
+import { isRecordPending } from '../net/record.js?v=582';
 
 const BAR_ID = 'hr-spine-bar';
 const STRIP_IN_TOPBAR = '(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)';

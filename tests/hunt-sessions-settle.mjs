@@ -111,6 +111,7 @@ async function loadEdge(root) {
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
     TR: await import(u(join(FN, 'tick-reads.js'))),
     IN: await import(u(join(FN, 'intents.js'))),
+    REQ: await import(u(join(FN, 'request.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
     /* The client reader is read from the REAL tree (the mutant copies hold only
@@ -432,6 +433,11 @@ const ENGINE_ARMS = {
     const problems = [];
     const RS = M.RS;
     if (RS.ACTION_SET_LIMITS.slots !== 20) problems.push(`the bar holds ${RS.ACTION_SET_LIMITS.slots} slots, not Huntera's 20`);
+    /* The verb's door reads the same bar: request.js MAX_BAR_SLOT is the last index. */
+    if (M.REQ.MAX_BAR_SLOT !== RS.ACTION_SET_LIMITS.slots - 1 || M.REQ.readBarSlot({ bar_slot: 19 }) !== 19
+        || M.REQ.readBarSlot({ bar_slot: 20 }) !== null) {
+      problems.push(`hunt_use's bar_slot door admits 0..${M.REQ.MAX_BAR_SLOT}, the bar has ${RS.ACTION_SET_LIMITS.slots} slots`);
+    }
     const c = { subject: 'self_mana_pct', op: '<=', value: 30 };
     const v = (mana, maxMana) => ({ hs: {}, hp: 10, maxHp: 10, mana, maxMana, buffs: [], atMs: 0 });
     if (!M.AR.conditionHolds(c, v(2, 10)) || M.AR.conditionHolds(c, v(5, 10)) || M.AR.conditionHolds(c, v(0, 0))) {
@@ -1273,6 +1279,8 @@ const MUTANTS = [
     from: '  const recoverMs = state.huntSession ? KNOCKOUT_MS\n', to: '  const recoverMs = false ? KNOCKOUT_MS\n' },
   { arm: 'BUY', name: 'kill coins never reach the purse', file: 'src/core/combat-sim.js',
     from: "      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));", to: '' },
+  { arm: 'ACTIONBAR-RULE', name: 'hunt_use admits only the first ten slots again', file: join(FN, 'request.js'),
+    from: 'export const MAX_BAR_SLOT = 19;', to: 'export const MAX_BAR_SLOT = 9;' },
   { arm: 'ACTIONBAR-RULE', name: 'the mana condition reads hit points', file: 'src/core/action-rules.js',
     from: '      return v.maxMana > 0 && Number.isFinite(value) && compare(v.mana * 100, c.op, value * v.maxMana);',
     to: '      return v.maxHp > 0 && Number.isFinite(value) && compare(v.hp * 100, c.op, value * v.maxHp);' },

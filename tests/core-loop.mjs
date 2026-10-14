@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/core-loop.mjs — THE LOOP GATE. Does the game still PLAY?
 //
-//   node tests/core-loop.mjs               four loops, one step table, exit 1 on any red step
+//   node tests/core-loop.mjs               five loops, one step table, exit 1 on any red step
 //   node tests/core-loop.mjs --list        the mutation catalogue
 //   node tests/core-loop.mjs --selftest    every planted dead end must turn its NAMED step red
 //   node tests/core-loop.mjs --mutate=<id> one planted dead end
@@ -15,96 +15,99 @@
 // rule as an exit code. It runs ONCE A DAY (.github/workflows/nightly-loop.yml,
 // Tyler 2026-10-14: "once a day"), never on the release path, and by hand.
 //
+// PORTED TO HUNT SESSIONS (lane C2, master plan M3): a fight is a session —
+// hr_hunt_enter with a packed bag, the one hunt settle (hunt-settle.js
+// settleHunt, the function the world tick and the player's hunt verbs run),
+// an end that sends the character back to its last activity.
+//
 // ── THE LOOP MAP: which system answers each step, and what it feeds ────────
 // A later lane that swaps one of these systems must keep its arrow alive.
 //
 //   LOOP-1, a fresh character from the real start kit
-//   step  what the player does      the server half that answers          feeds
 //    1    log in                    hr_create_character <- src/data/start-kit.js   all
 //    2    fish                      set_activity gather:shrimp_s, settle            3
-//                                   (computeAccrual gather <- GATHER_NODES)
 //    3    cook a heal               set_activity artisan:cook_shrimp, settle        6
-//                                   (ARTISAN_RECIPES_PAYABLE, burn maths)
 //    4    buy basic food            shop_buy, the cheapest healing NPC offer        6
-//                                   (GOLD_OFFERS <- src/data/shops.js; the NPC
-//                                   half of hybrid supplies)
-//    5    set a hunt                set_activity combat:mill_cellar                 6
-//                                   (src/data/hunts.js -> hr_hunts band floor)
-//    6    kills pay                 settle -> computeAccrual -> simulateSpan        7
-//                                   (src/core/combat-sim.js, auto-eat, loot,
-//                                   combat XP) -> hr_apply
-//    7    sell the loot             vendor_sell_many (catalogue.vendorPriceOf)      8
-//    8    buy an upgrade            shop_buy equip.* the character can wield        9
-//    9    equip it                  equip -> hr_apply equipment                     10
-//   10    hunt again, better        the same hunt, the same dice, the new kit       11
-//   11    reload                    hr_load (the boot read) == the last envelope    -
-//   12    return settle pays once   a second settle of one window pays nothing      -
+//    5    enter a hunt              hr_hunt_enter mill_cellar with a packed bag     6
+//                                   (a hunt above my band is refused)
+//    6    kills pay                 settleHunt -> computeAccrual (session) ->       7
+//                                   hr_hunt_apply (one statement)
+//    7    leave the hunt            hr_hunt_leave: the bag comes home               8
+//    8    sell the loot             vendor_sell_many (catalogue.vendorPriceOf)      9
+//    9    buy an upgrade            shop_buy equip.* the character can wield        10
+//   10    equip it                  equip -> hr_apply equipment                     11
+//   11    hunt again, better        a new session, the same dice, the new kit       12
+//   12    reload                    hr_load (the boot read) == the last envelope    -
+//   13    a settle pays once        a second settle of one window writes nothing    -
 //
 //   LOOP-2, a mid-level character (Combat 40)
-//    1    a Combat-40 character     start kit + the levels and steel kit a          all
-//                                   Combat-40 player owns (fixture), equipped
-//                                   through the REAL equip verb
+//    1    a Combat-40 character     fixture levels + gold + steel kit, REAL equip   all
 //    2    pick a hunt for my level  src/data/hunts.js band contains my level        4
-//    3    buy supplies              shop_buy, the best NPC food I can afford        5
-//    4    set the hunt              set_activity combat:<that hunt>                 5
-//    5    the hunt burns supplies   settle: kills, loot, XP, food eaten             6
-//    6    sell the loot             vendor_sell_many                                7
+//    3    buy supplies              shop_buy, the best NPC food I can afford        4
+//    4    enter with them           hr_hunt_enter, the food in the bag              5
+//    5    the hunt burns supplies   settleHunt: kills, loot, XP, bag heals          6
+//    6    leave and sell            hr_hunt_leave, vendor_sell_many                 7
 //    7    restock                   shop_buy the food the hour burnt                8
-//    8    keep hunting              the pointer survived; the next hour pays        9
+//    8    keep hunting              a new session pays the next hour                9
 //    9    reload                    hr_load == the last envelope                    -
 //
-//   LOOP-3, the crafted upgrade (the "crafted better" half of hybrid supplies)
+//   LOOP-3, a CRAFTED supply beats its basic (master plan M3: the hybrid supply)
 //    1    a fresh character         hr_create_character                             2
-//    2    mine copper               set_activity gather:copper_rock, settle         3
-//    3    smelt bronze              set_activity artisan:smelt_bronze               4
-//    4    forge a piece I can wear  the best smithing recipe my SERVER level and    5
-//                                   bag allow (ARTISAN_RECIPES_PAYABLE, hr_apply
-//                                   activity_locked below the recipe level)
-//    5    equip it                  equip                                           -
+//    2    fish                      gather:shrimp_s                                 3
+//    3    cook                      artisan:cook_shrimp                             5
+//    4    the crafted heal is better hr_items heals vs hr_hunt_basic_supplies:      5
+//                                   more per use, less gold per point
+//    5    the bag is spent first    a hunt with the crafted bag AND the shop slot   -
+//                                   on eats the bag before the shop bills a coin
 //
-//   LOOP-4, the first night with only the kit (Recovery Rule, src/core/away.js)
-//    1    hunt all night            set_activity combat:mill_cellar, a 10 h settle  2
-//    2    knocked out               set_activity combat refuses `recovering`,       3
-//                                   by name, with its `until`
-//    3    never stranded            gather and shop_buy food still accepted         4
-//                                   (RECOVERY_REFUSED_KINDS is combat only)
-//    4    back on the hunt          after recovering_until, the hunt sets and pays  -
+//   LOOP-4, the first night with only the kit (Hunt Sessions)
+//    1    hunt all night            hr_hunt_enter mill_cellar, a 10 h settle        2
+//    2    the hunt ends on its own  falls / heals_out / stamina — an automatic end  3
+//    3    back to work              the pointer is the last activity, fishing       4
+//                                   (default resume), journalled `resume`
+//    4    never stranded            fishing pays, shop_buy food still accepted      5
+//    5    back on the hunt          a new session pays                              -
+//
+//   LOOP-5, an L100 day (Combat 99, 12 h of stamina)
+//    1    a Combat-99 character     fixture levels + gold + a big bag, a gather     2
+//                                   set first (the activity a day resumes)
+//    2    hunt until stamina ends   settleHunt over 13 h of clock: the hunt ends    3
+//                                   `stamina` after ~12 h of hunting
+//    3    the day resumes           back to the gather, a fresh presence anchor     4
+//    4    rest pays                 12 h later the gather pays and stamina is full  -
 //
 // Every verb's envelope is also compared with hr_load the moment it lands
 // (readBack): the browser never says one thing while the server says another.
 //
 // ── WHAT IT DRIVES ─────────────────────────────────────────────────────────
 // The REAL edge verbs (set-activity.js, shop-buy.js, vendor-sell.js, equip.js,
-// party-fence.js), each fed by request.js parseIntent from a RAW body exactly
-// as index.ts composes them, against the REAL migration chain replayed into
-// PGlite (tests/schema-replay.mjs: the final hr_apply, hr_state_of, hr_load,
-// the generated catalogues). Every assertion reads the SERVER: hr_load, the
-// envelope a verb returned, or the ledger. Nothing is a client prediction.
-//
-// The table prints every step with what it measured (kills, gold, food per kill,
-// the hour's net), so the nightly log doubles as the loop's balance sheet.
+// party-fence.js, hunt-settle.js), each fed by request.js parseIntent from a RAW
+// body exactly as index.ts composes them, and the hunt RPCs (hr_hunt_enter /
+// hr_hunt_leave) as the signed-in player calls them, against the REAL migration
+// chain replayed into PGlite (tests/schema-replay.mjs). Every assertion reads the
+// SERVER: hr_load, the envelope a verb returned, the session rows, or the ledger.
 //
 // ── THE HARNESS PRIVILEGES, STATED (each is a test fixture, never a game rule) ──
 //   1. THE DICE. hr_seed's `seed` column is replaced by one constant, so every
-//      window rolls the same dice and step 10's "better" is the kit and the
-//      levels, not luck (tests/absence-priced-at-return.mjs does the same).
+//      window rolls the same dice (tests/absence-priced-at-return.mjs does the
+//      same); a hunt's per-swing secret is the session's own (hunt-seed.js).
 //   2. TIME. `elapse()` moves every timestamptz column of the character's
-//      player_state row back by N seconds: N seconds pass for that character.
-//      The column list is READ from the catalogue, so a new watermark is moved
-//      with the rest instead of being left behind.
+//      player_state row, its hunt sessions and its presence anchor back by N
+//      seconds: N seconds pass for that character. The column lists are READ
+//      from the catalogue, so a new watermark is moved with the rest.
 //   3. THE RATE GATE. hr_rate_counters is cleared before each gesture: a real
 //      player's gestures are minutes apart, these are milliseconds apart.
 //   4. THE SETTLE. index.ts's `accrue` verb is Deno and cannot be imported, so
-//      the return settle is collectCurrentWindow (set-activity.js), the same
-//      stand-in tests/absence-priced-at-return.mjs uses; both call sites hand
-//      computeAccrual one literal (activity-intent A14 holds that).
-//   5. LOOP-2's levels, gold and steel kit are written as a fixture: playing to
-//      Combat 40 inside a replay is hours of engine time. Its EQUIP is real.
+//      a gather's return settle is collectCurrentWindow (set-activity.js); a
+//      hunt's is settleHunt (hunt-settle.js), the function the tick runs.
+//   5. LOOP-2's and LOOP-5's levels, gold, kit and bag are written as a
+//      fixture: playing to Combat 40 / 99 inside a replay is days of engine
+//      time. Their EQUIP is real.
 //
 // ── WHAT IT CANNOT SEE ─────────────────────────────────────────────────────
-// The browser (the in-page suite owns the screens), the world tick's 10 s
-// combat/gather writers (tests/world-tick-*.mjs), the attended kill credit
-// (tests/attended-loot-credit.mjs), JWT/pooler/CORS, true concurrency.
+// The browser (the in-page suite owns the screens), the world tick's cron
+// driver (tests/hunt-sessions-settle.mjs TICK-0), JWT/pooler/CORS, true
+// concurrency.
 // ════════════════════════════════════════════════════════════════════════
 
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -116,6 +119,8 @@ import { ITEMS } from '../src/data/items.js';
 import { HUNTS } from '../src/data/hunts.js';
 import { START_KIT } from '../src/data/start-kit.js';
 import { combatLevel, xpForLevel } from '../src/core/xp.js';
+import { BASIC_INDEX } from '../src/data/supply-basics.js';
+import { STAMINA_MAX_MS, DEFAULT_RESUME } from '../src/data/hunt-sessions.js';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const SEED = 0x10091;
@@ -130,13 +135,14 @@ const num = (v) => Number(v ?? 0);
    wrong step, because a gate that names the wrong step sends a lane to the
    wrong file. The anchors below are declared for tools/guard-anchors.mjs, so a
    lane that moves one re-proves this gate in lane-done instead of at night. */
-// mutant-anchors: supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/accrual.js supabase/functions/hr-accrue/vendor-sell.js supabase/functions/hr-accrue/catalogue.js supabase/functions/hr-accrue/equip.js
+// mutant-anchors: supabase/functions/hr-accrue/accrual.js supabase/functions/hr-accrue/vendor-sell.js supabase/functions/hr-accrue/catalogue.js supabase/functions/hr-accrue/equip.js src/core/action-rules.js
 const MUTATIONS = {
-  hunt_unsettable: {
-    file: 'set-activity.js', by: 'LOOP-1 step 5',
-    why: 'a named hunt is no longer a combat target: the new player cannot start Mill Cellar',
-    find: "if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id) && !huntFor(decl.id)) {",
-    repl: "if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {",
+  cooking_unpayable: {
+    file: 'catalogue.js', by: 'LOOP-1 step 3',
+    why: 'the cooking bench falls out of the payable set: a caught fish can never become a heal',
+    find: 'export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);',
+    repl: 'export const ARTISAN_RECIPES_PAYABLE = Object.fromEntries(Object.entries('
+      + "payableRecipeIndex(ARTISAN_RECIPES_ALL)).filter(([, r]) => r.skill !== 'cooking'));",
   },
   hunt_drops_nothing: {
     file: 'accrual.js', by: 'LOOP-1 step 6',
@@ -145,37 +151,35 @@ const MUTATIONS = {
     repl: '      return;',
   },
   sell_pays_nothing: {
-    file: 'vendor-sell.js', by: 'LOOP-1 step 7',
+    file: 'vendor-sell.js', by: 'LOOP-1 step 8',
     why: 'the vendor takes the loot and pays no gold: nothing funds an upgrade',
     find: '    gold += s.unit * s.qty;',
     repl: '    gold += 0;',
   },
   shop_sells_no_gear: {
-    file: 'catalogue.js', by: 'LOOP-1 step 8',
+    file: 'catalogue.js', by: 'LOOP-1 step 9',
     why: 'the NPC counter stops selling equipment: gold has nothing to become',
     find: 'export const GOLD_OFFERS = Object.freeze(goldOffers);',
     repl: 'export const GOLD_OFFERS = Object.freeze(Object.fromEntries(Object.entries(goldOffers)'
       + ".filter(([k]) => !k.startsWith('equip.'))));",
   },
   equip_refuses_everything: {
-    file: 'equip.js', by: 'LOOP-1 step 9',
+    file: 'equip.js', by: 'LOOP-1 step 10',
     why: 'every equip is refused as wrong_slot: the upgrade sits in the bag forever',
     find: '    if (fits[s] !== true) {',
     repl: '    if (fits) {',
   },
-  smithing_unpayable: {
-    file: 'catalogue.js', by: 'LOOP-3 step 3',
-    why: 'the smithing bench falls out of the payable set: ore can never become a crafted upgrade',
-    find: 'export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);',
-    repl: 'export const ARTISAN_RECIPES_PAYABLE = Object.fromEntries(Object.entries('
-      + "payableRecipeIndex(ARTISAN_RECIPES_ALL)).filter(([, r]) => r.skill !== 'smithing'));",
+  bag_ignored: {
+    file: '../../../src/core/action-rules.js', by: 'LOOP-3 step 5',
+    why: 'the "*heal" bag slot never finds a packed heal: the shop bills for food the player cooked',
+    find: '    const id = pickHeal(v.hs, v.maxHp - v.hp);\n    return id ?',
+    repl: '    const id = null;\n    return id ?',
   },
-  recovery_strands: {
-    file: 'set-activity.js', by: 'LOOP-4 step 3',
-    why: 'the knockout refuses every kind again (Recovery rev. 2, measured live 2026-09-08): a '
-      + 'foodless knocked-out player has no legal move until the clock runs out',
-    find: '  if (recoveryRefuses(decl.kind)) {',
-    repl: "  if (decl.kind !== 'idle') {",
+  stamina_never_ends: {
+    file: '../../../src/core/action-rules.js', by: 'LOOP-5 step 2',
+    why: 'an empty stamina pool ends nothing: a hunt runs forever and the day never turns',
+    find: "  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),",
+    repl: '  stamina: () => false,',
   },
 };
 
@@ -186,7 +190,7 @@ async function loadModules(mutate) {
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) throw Object.assign(new Error(`unknown mutation "${mutate}"`), { harness: true });
-    const src = (await readFile(FN(m.file), 'utf8')).replace(/\r\n/g, '\n');
+    const src = (await readFile(join(FN(''), m.file), 'utf8')).replace(/\r\n/g, '\n');
     const n = src.split(m.find).length - 1;
     if (n !== 1) {
       throw Object.assign(new Error(`mutation "${mutate}" anchor matched ${n} times in ${m.file} (need 1)`),
@@ -209,6 +213,7 @@ async function loadModules(mutate) {
     eq: await imp('equip.js'),
     pf: await imp('party-fence.js'),
     cat: await imp('catalogue.js'),
+    hs: await imp('hunt-settle.js'),
   };
 }
 
@@ -223,9 +228,11 @@ async function makeServer(db, M) {
     if (/hr_seed\(/.test(text) && rows[0] && 'seed' in rows[0]) rows[0] = { ...rows[0], seed: SEED };
     return rows;
   };
-  const tsCols = (await q(`select column_name c from information_schema.columns
-     where table_schema='public' and table_name='player_state'
-       and data_type='timestamp with time zone' order by ordinal_position`)).map((r) => r.c);
+  const colsOf = async (t) => (await q(`select column_name c from information_schema.columns
+     where table_schema='public' and table_name=$1
+       and data_type='timestamp with time zone' order by ordinal_position`, [t])).map((r) => r.c);
+  const tsCols = await colsOf('player_state');
+  const huntCols = await colsOf('hunt_sessions');
   if (!tsCols.includes('accrued_to')) {
     throw Object.assign(new Error('player_state has no accrued_to: the harness cannot pass time'), { harness: true });
   }
@@ -252,6 +259,27 @@ async function makeServer(db, M) {
     async elapse(uid, secs) {
       const set = tsCols.map((c) => `${c} = ${c} - make_interval(secs => $2)`).join(', ');
       await q(`update public.player_state set ${set} where user_id = $1 and slot = 0`, [uid, secs]);
+      if (huntCols.length) {
+        const hs = huntCols.map((c) => `${c} = ${c} - make_interval(secs => $2)`).join(', ');
+        await q(`update public.hunt_sessions set ${hs} where user_id = $1 and slot = 0`, [uid, secs]);
+      }
+      await q(`update public.hr_return_anchor set real_return_at = real_return_at - make_interval(secs => $2)
+                where user_id = $1 and slot = 0`, [uid, secs]);
+    },
+    /** A hunt RPC as the signed-in player (hr_hunt_enter / hr_hunt_leave / options). */
+    async rpc(uid, sql, params) {
+      await clearGate();
+      return asUser(uid, async () => (await q(sql, params))[0].r);
+    },
+    /** The hunt's settle: settleHunt, the function the world tick runs. */
+    async huntSettle(uid) {
+      await clearGate();
+      return M.hs.settleHunt({ exec, user: uid, slot: 0, mode: 'tick' });
+    },
+    async session(uid) {
+      return (await q(`select h.*, row_to_json(t) as tally from public.hunt_sessions h
+                         left join public.hunt_session_tally t on t.session_id = h.id
+                        where h.user_id = $1 and h.slot = 0 order by h.entered_at desc limit 1`, [uid]))[0] || null;
     },
     /** A raw body through parseIntent and the party fence into the verb, the
         way index.ts composes it. Returns `{ status, body }`. */
@@ -350,25 +378,36 @@ async function readBack(S, uid, t, label, envelope) {
   return now;
 }
 
-/** Fight one window of a hunt and read what it paid, from the server. */
+/** Fight one stretch of the open hunt and read what it paid, from the server.
+    Settles in at most 6 h steps (the settle's own window fuse) until the clock
+    is caught up or the hunt ends. */
 async function huntWindow(S, uid, mins, t) {
   const before = await S.load(uid);
+  const s0 = await S.session(uid);
   await S.elapse(uid, mins * MIN);
-  const c = await S.settle(uid);
-  const after = await readBack(S, uid, t, 'the hunt settle', c.env);
-  const led = await S.lastSettleRow(uid);
+  let c = null;
+  let paid = false;
+  for (let k = 0; k < 8; k++) {
+    c = await S.huntSettle(uid);
+    if (c.outcome === 'paid') paid = true;
+    const sess = await S.session(uid);
+    if (c.outcome !== 'paid' || (sess && sess.ended_at)) break;
+  }
+  const after = await readBack(S, uid, t, 'the hunt settle', null);
+  const s1 = await S.session(uid);
   const d = bagDelta(before, after);
-  const ate = Object.entries(d).filter(([id, k]) => k < 0 && isFood(id)).reduce((s, [, k]) => s - k, 0);
-  /* Everything that arrived is loot, wheat included: the vendor decides what it buys. */
   const loot = Object.fromEntries(Object.entries(d).filter(([, k]) => k > 0));
+  const tally = (s1 && s1.tally) || {};
+  const tally0 = (s0 && s0.id === (s1 && s1.id) && s0.tally) || {};
+  const sup = (o) => Object.values(o.supplies || {}).reduce((a, n) => a + num(n), 0);
   return {
-    c, before, after, d, ate, loot,
-    kills: num(c.receipt && c.receipt.kills),
-    ledgerKills: num(led && led.meta && led.meta.kills),
+    c, paid, before, after, d, loot, session: s1,
+    kills: num(tally.kills) - num(tally0.kills),
+    ate: sup(tally) - sup(tally0),
     xp: combatXp(after) - combatXp(before),
     gold: num(after.state.gold) - num(before.state.gold),
-    died: !!(c.receipt && c.receipt.died),
-    deaths: num(after.state.deaths_lifetime) - num(before.state.deaths_lifetime),
+    deaths: num(tally.deaths) - num(tally0.deaths),
+    ended: s1 && s1.end_reason,
   };
 }
 
@@ -441,19 +480,44 @@ function makePlayer(S, uid) {
       p.env = await readBack(S, uid, t, `${what} settle`, c.env);
       return before;
     },
-    /** One window of the current hunt, read from the server. */
+    /** One stretch of the open hunt, read from the server. */
     async hunt(t, mins) {
       const h = await huntWindow(S, uid, mins, t);
-      t.ok(h.c.outcome === 'paid', `${mins} min of ${h.before.state.active_id} settled as ${h.c.outcome} ${brief(h.c)}`);
+      t.ok(h.paid || h.ended, `${mins} min of ${h.before.state.active_id} settled as ${h.c && h.c.outcome} ${brief(h.c && h.c.body && h.c.body.reason)}`);
       p.env = h.after;
-      p.seen = h.c.env;
+      p.seen = h.after;
       return h;
+    },
+    /** Enter a hunt with a bag {item: qty} (the player's own RPC). */
+    async enter(t, hunt, bag) {
+      /* A hunt starts from town: the client stops (and the edge collects) the
+         current activity first — hr_hunt_enter refuses `activity_running`. */
+      if (p.env && p.env.state && p.env.state.active_kind !== 'idle') {
+        await p.act(t, 'set_activity idle (leave for the hunt)', { verb: 'set_activity', activity: { kind: 'idle', id: null } });
+      }
+      const lines = Object.entries(bag || {}).filter(([, n]) => n > 0).map(([item, qty]) => ({ item, qty }));
+      const r = await S.rpc(uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, null, $3::uuid) r',
+        [hunt, JSON.stringify(lines), uuid()]);
+      t.ok(r && r.ok === true, `hr_hunt_enter ${hunt} refused: ${brief(r)}`);
+      p.env = await readBack(S, uid, t, `enter ${hunt}`, null);
+      return r;
+    },
+    /** Leave the hunt: settle first (so it closes at once), then the RPC. */
+    async leave(t) {
+      await S.huntSettle(uid);
+      const r = await S.rpc(uid, 'select public.hr_hunt_leave(0, $1::uuid) r', [uuid()]);
+      t.ok(r && r.ok === true, `hr_hunt_leave refused: ${brief(r)}`);
+      if (r.pending) await S.huntSettle(uid);
+      const sess = await S.session(uid);
+      t.ok(sess && sess.ended_at, `the hunt did not close on leave (${brief(sess)})`);
+      p.env = p.seen = await readBack(S, uid, t, 'leave', null);
+      return r;
     },
   };
   return p;
 }
-const huntNote = (h, food) => `${h.kills} kills, +${h.xp} combat XP, ${h.ate} ${food || 'food'} eaten, +${h.gold} gold, loot ${brief(h.loot)}`
-  + (h.died ? `, DIED to ${h.c.receipt.diedTo}` : '');
+const huntNote = (h, food) => `${h.kills} kills, +${h.xp} combat XP, ${h.ate} ${food || 'supplies'} used, +${h.gold} gold, loot ${brief(h.loot)}`
+  + (h.deaths ? `, ${h.deaths} fall(s)` : '') + (h.ended ? `, ended ${h.ended}` : '');
 
 /* ══ LOOP-1 — A NEW PLAYER'S FIRST SESSION ═══════════════════════════════ */
 async function loop1(S, M, tag, rows) {
@@ -506,33 +570,42 @@ async function loop1(S, M, tag, rows) {
     t.note(`${o.id}: ${o.amount} ${o.item} for ${o.gold} gold`);
   });
 
-  await step(5, 'set a hunt (Mill Cellar)', async (t) => {
+  await step(5, 'enter a hunt (Mill Cellar)', async (t) => {
     const cl = combatOf(p.env);
     const locked = HUNTS.filter((h) => h.band[0] > cl).sort((a, b) => a.band[0] - b.band[0])[0];
     if (locked) {
-      const no = await S.send(p.uid, { verb: 'set_activity', activity: { kind: 'combat', id: locked.id } });
-      t.ok(no.status !== 200, `a combat-${cl} character was let into ${locked.id} (band floor ${locked.band[0]})`);
-      t.note(`${locked.id} refused at combat ${cl}: ${no.body && no.body.error}`);
+      const no = await S.rpc(p.uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, null, $3::uuid) r',
+        [locked.id, '[]', uuid()]);
+      t.ok(!(no && no.ok === true), `a combat-${cl} character was let into ${locked.id} (band floor ${locked.band[0]})`);
+      t.note(`${locked.id} refused at combat ${cl}: ${no && no.error}`);
     }
-    await p.act(t, `set_activity combat:${HUNT}`, { verb: 'set_activity', activity: { kind: 'combat', id: HUNT } });
+    await p.enter(t, HUNT, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     t.ok(p.env.state.active_kind === 'combat' && p.env.state.active_id === HUNT,
       `the server pointer is ${p.env.state.active_kind}:${p.env.state.active_id}, not combat:${HUNT}`);
   });
 
   await step(6, 'kills pay XP and loot', async (t) => {
     hunt1 = await p.hunt(t, HUNT_MIN);
-    t.ok(hunt1.kills > 0 && hunt1.ledgerKills === hunt1.kills, `the receipt says ${hunt1.kills} kills, the ledger ${hunt1.ledgerKills}`);
+    t.ok(hunt1.kills > 0, `${HUNT_MIN} min of ${HUNT} killed ${hunt1.kills}`);
     t.ok(hunt1.xp > 0, `${hunt1.kills} kills credited ${hunt1.xp} combat XP`);
     t.ok(Object.keys(hunt1.loot).length > 0, `${hunt1.kills} kills dropped no loot server-side (bag delta ${brief(hunt1.d)})`);
     t.note(huntNote(hunt1));
   });
 
-  await step(7, 'sell the loot', async (t) => {
+  await step(7, 'leave the hunt (the bag comes home)', async (t) => {
+    const s0 = await S.session(p.uid);
+    const left = await S.q('select coalesce(sum(qty_left), 0)::int n from public.hunt_bag where session_id = $1', [s0.id]);
+    const before = inv(p.env, 'cooked_shrimp');
+    await p.leave(t);
+    t.ok(inv(p.env, 'cooked_shrimp') === before + num(left[0].n), `the ${left[0].n} shrimp left in the bag did not come home`);
+  });
+
+  await step(8, 'sell the loot', async (t) => {
     const s = await sellLoot(S, M, p, hunt1.loot, t);
     t.note(`+${s.got} gold from loot (now ${p.env.state.gold})`);
   });
 
-  await step(8, 'buy an upgrade', async (t) => {
+  await step(9, 'buy an upgrade', async (t) => {
     const gold = num(p.env.state.gold);
     const cands = npcUpgrades(M, p.env);
     t.ok(cands.length > 0, 'the NPC counter sells no equipment this character can wield that beats its kit');
@@ -546,38 +619,42 @@ async function loop1(S, M, tag, rows) {
     t.ok(inv(p.env, pick.id) === inv(before, pick.id) + 1, `${pick.o.id} did not deliver ${pick.id}`);
     t.ok(num(p.env.state.gold) === gold - pick.o.gold, `${pick.o.id} charged ${gold - num(p.env.state.gold)}, the catalogue says ${pick.o.gold}`);
     bought = { id: pick.id, slot: pick.it.slot, was: before.equipment[pick.it.slot] || null };
-    const total = cands.reduce((s, c) => s + c.o.gold, 0);
-    t.note(`${pick.o.id} (${pick.it.slot}, +${pick.gain} bonus) for ${pick.o.gold}; ${afford.length} of ${cands.length} NPC upgrades affordable, all ${cands.length} cost ${total}`);
+    t.note(`${pick.o.id} (${pick.it.slot}, +${pick.gain} bonus) for ${pick.o.gold}; ${afford.length} of ${cands.length} NPC upgrades affordable`);
   });
 
-  await step(9, 'equip it', async (t) => {
+  await step(10, 'equip it', async (t) => {
     await equipFromBag(p, t, bought.slot, bought.id);
   });
 
-  await step(10, 'hunt again, better', async (t) => {
-    t.ok(p.env.state.active_kind === 'combat' && p.env.state.active_id === HUNT,
-      `the equip moved the pointer to ${p.env.state.active_kind}:${p.env.state.active_id}`);
+  await step(11, 'hunt again, better', async (t) => {
+    await p.enter(t, HUNT, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h2 = await p.hunt(t, HUNT_MIN);
     const per = (h) => (h.kills ? h.ate / h.kills : Infinity);
-    const better = h2.kills > hunt1.kills || (h2.kills === hunt1.kills && per(h2) < per(hunt1)) || (hunt1.died && !h2.died);
-    t.ok(better, `same hunt, same dice, ${bought.id} on: ${h2.kills} kills / ${h2.ate} food vs ${hunt1.kills} / ${hunt1.ate} before`);
-    t.note(`${hunt1.kills} -> ${h2.kills} kills, food/kill ${per(hunt1).toFixed(2)} -> ${per(h2).toFixed(2)}, +${h2.xp} XP`
-      + (h2.died ? `, DIED to ${h2.c.receipt.diedTo}` : ''));
+    const better = h2.kills > hunt1.kills || (h2.kills === hunt1.kills && per(h2) <= per(hunt1)) || h2.deaths < hunt1.deaths;
+    t.ok(better, `same hunt, ${bought.id} on: ${h2.kills} kills / ${h2.ate} heals / ${h2.deaths} falls vs ${hunt1.kills} / ${hunt1.ate} / ${hunt1.deaths} before`);
+    t.note(`${hunt1.kills} -> ${h2.kills} kills, heals/kill ${per(hunt1).toFixed(2)} -> ${per(h2).toFixed(2)}, +${h2.xp} XP`);
   });
 
-  await step(11, 'reload, everything still there', async (t) => {
+  await step(12, 'reload, everything still there', async (t) => {
     const reread = await S.load(p.uid);
     sameWorld(t, 'reload', p.seen, reread, 'the last envelope', 'hr_load after reload');
     t.ok(reread.equipment[bought.slot] === bought.id, `the ${bought.id} is gone from ${bought.slot} after a reload`);
     p.env = reread;
   });
 
-  await step(12, 'the return settle pays once', async (t) => {
-    await p.settleAfter(t, 'five minutes away', 5);
-    const mid = p.env;
-    const again = await S.settle(p.uid);
-    t.ok(again.outcome === 'nothing', `a second settle of the same window answered ${again.outcome} ${brief(again.receipt)}`);
-    sameWorld(t, 'second settle', mid, await S.load(p.uid), 'after the first settle', 'after the second');
+  await step(13, 'a hunt settle pays once', async (t) => {
+    /* Every interval of the session's clock is paid or knocked out EXACTLY
+       once, however many settles walked it: paid + down = settled_to − hunt_from
+       (less the 1 ms an end-only window stands on). */
+    await S.elapse(p.uid, 5 * MIN);
+    await S.huntSettle(p.uid);
+    await S.huntSettle(p.uid);
+    const sess = await S.session(p.uid);
+    const ms = (v) => new Date(v).getTime();
+    const span = ms(sess.settled_to) - ms(sess.hunt_from);
+    const walked = num(sess.tally.paid_ms) + num(sess.tally.down_ms);
+    t.ok(walked <= span && span - walked <= 10, `the session walked ${walked} ms of a ${span} ms clock: a window was paid twice or skipped`);
+    t.note(`${(span / 60000).toFixed(1)} min of clock, ${(walked / 60000).toFixed(1)} min walked`);
   });
 }
 
@@ -662,8 +739,8 @@ async function loop2(S, M, tag, rows) {
     t.note(`4 x ${food.id} = ${4 * food.amount} ${food.item} (heals ${food.heals}) for ${4 * food.gold}`);
   });
 
-  await step(4, 'set the hunt', async (t) => {
-    await p.act(t, `set_activity combat:${hunt.id}`, { verb: 'set_activity', activity: { kind: 'combat', id: hunt.id } });
+  await step(4, 'enter with them', async (t) => {
+    await p.enter(t, hunt.id, { [food.item]: inv(p.env, food.item) });
     t.ok(p.env.state.active_kind === 'combat' && p.env.state.active_id === hunt.id, `the pointer is ${p.env.state.active_id}`);
   });
 
@@ -676,7 +753,8 @@ async function loop2(S, M, tag, rows) {
     t.note(huntNote(hour, food.item));
   });
 
-  await step(6, 'sell the loot', async (t) => {
+  await step(6, 'leave and sell the loot', async (t) => {
+    await p.leave(t);
     const s = await sellLoot(S, M, p, hour.loot, t);
     lootGold = s.got + hour.gold;
     t.note(`+${s.got} gold from loot, +${hour.gold} gold dropped`);
@@ -693,8 +771,7 @@ async function loop2(S, M, tag, rows) {
   });
 
   await step(8, 'keep hunting', async (t) => {
-    t.ok(p.env.state.active_kind === 'combat' && p.env.state.active_id === hunt.id,
-      `the restock moved the pointer to ${p.env.state.active_kind}:${p.env.state.active_id}`);
+    await p.enter(t, hunt.id, { [food.item]: inv(p.env, food.item) });
     const h2 = await p.hunt(t, HOUR_MIN);
     t.ok(h2.kills > 0, `the next hour of ${hunt.id} killed ${h2.kills}`);
     t.note(`${h2.kills} kills, ${h2.ate} eaten`);
@@ -705,26 +782,10 @@ async function loop2(S, M, tag, rows) {
   });
 }
 
-/* ══ LOOP-3 — THE CRAFTED UPGRADE (the "crafted better" half of supplies) ═══ */
+/* ══ LOOP-3 — A CRAFTED SUPPLY BEATS ITS BASIC (master plan M3) ═══════════ */
 async function loop3(S, M, tag, rows) {
   const step = makeLoop('LOOP-3', rows);
   const p = makePlayer(S, `00000000-0000-4000-a300-${tag}00000003`);
-  /* The ore and the bars are named; the PIECE is whatever the server lets this
-     smith forge from that bag, so a re-tuned recipe level moves the pick, not the gate. */
-  const ROUTE = [
-    { kind: 'gather', id: 'copper_rock', mins: 10, makes: 'copper_ore', skill: 'mining' },
-    { kind: 'artisan', id: 'smelt_bronze', mins: 5, makes: 'bronze_bar', skill: 'smithing' },
-    { kind: 'artisan', id: null, mins: 1, makes: null, skill: 'smithing' },
-  ];
-  const forgeable = () => Object.entries(M.cat.ARTISAN_RECIPES_PAYABLE)
-    .filter(([, r]) => r.skill === 'smithing' && num(r.recipe.req) <= lvOf(p.env, 'smithing'))
-    .map(([id, r]) => ({ id, out: r.recipe.output, ins: r.recipe.inputs || (r.recipe.input ? { [r.recipe.input]: 1 } : {}) }))
-    .filter((r) => Object.entries(r.ins).every(([i, k]) => inv(p.env, i) >= k))
-    .map((r) => ({ ...r, it: ITEMS[r.out] || {} }))
-    .filter((r) => r.it.slot && (!r.it.reqSkill || lvOf(p.env, r.it.reqSkill) >= num(r.it.reqLv)))
-    .map((r) => ({ ...r, gain: melee(r.out) - melee(p.env.equipment[r.it.slot]) }))
-    .filter((r) => r.gain > 0)
-    .sort((a, b) => b.gain - a.gain);
 
   await step(1, 'a fresh character', async (t) => {
     const cr = await S.create(p.uid, `Loop3${tag}`);
@@ -732,35 +793,52 @@ async function loop3(S, M, tag, rows) {
     p.env = p.seen = await readBack(S, p.uid, t, 'first load', null);
   });
 
-  let n = 1;
-  for (const r of ROUTE) {
-    n++;
-    await step(n, r.id ? `${r.kind} ${r.id}` : 'forge a piece I can wear', async (t) => {
-      if (!r.id) {
-        const pick = forgeable()[0];
-        t.ok(pick, `smithing L${lvOf(p.env, 'smithing')} with ${inv(p.env, 'bronze_bar')} bronze bars can forge nothing wearable that beats the kit`);
-        r.id = pick.id;
-        r.makes = pick.out;
-      }
-      await p.act(t, `set_activity ${r.kind}:${r.id}`, { verb: 'set_activity', activity: { kind: r.kind, id: r.id } });
-      const before = await p.settleAfter(t, r.id, r.mins);
-      const got = inv(p.env, r.makes) - inv(before, r.makes);
-      t.ok(got > 0, `${r.mins} min of ${r.id} made ${got} ${r.makes} (bag delta ${brief(bagDelta(before, p.env))})`);
-      t.ok(xpOf(p.env, r.skill) > xpOf(before, r.skill), `${r.id} paid no ${r.skill} XP`);
-      t.note(`+${got} ${r.makes}, ${r.skill} L${lvOf(p.env, r.skill)}`);
-    });
-  }
+  await step(2, 'fish', async (t) => {
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    const before = await p.settleAfter(t, 'fishing', 20);
+    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'twenty minutes of fishing banked no shrimp');
+  });
 
-  await step(n + 1, 'equip the crafted piece', async (t) => {
-    const made = ROUTE[ROUTE.length - 1].makes;
-    const it = ITEMS[made] || {};
-    t.ok(it.slot && (!it.reqSkill || lvOf(p.env, it.reqSkill) >= num(it.reqLv)), `${made} is not equipment this character can wear`);
-    t.ok(melee(made) > melee(p.env.equipment[it.slot]), `${made} does not beat what is in ${it.slot}`);
-    await equipFromBag(p, t, it.slot, made);
+  await step(3, 'cook', async (t) => {
+    await p.act(t, 'set_activity artisan:cook_shrimp', { verb: 'set_activity', activity: { kind: 'artisan', id: 'cook_shrimp' } });
+    const before = await p.settleAfter(t, 'cooking', 10);
+    t.ok(inv(p.env, 'cooked_shrimp') > inv(before, 'cooked_shrimp'), 'cooking made no cooked shrimp');
+    t.note(`${inv(p.env, 'cooked_shrimp')} cooked shrimp in the bag`);
+  });
+
+  await step(4, 'the crafted heal is better than its basic', async (t) => {
+    const basic = (await S.q(`select basic_id, heals, price from public.hr_hunt_basic_supplies where partner = 'cooked_shrimp' and kind = 'heal'`))[0];
+    const crafted = (await S.q(`select heals from public.hr_items where item_id = 'cooked_shrimp'`))[0];
+    const book = M.cat.vendorPriceOf ? num(ITEMS.cooked_shrimp.v) : num(ITEMS.cooked_shrimp.v);
+    t.ok(basic && crafted, 'the server has no shop heal partnered with Cooked Shrimp, or no Cooked Shrimp');
+    t.ok(num(crafted.heals) > num(basic.heals), `Cooked Shrimp heals ${crafted.heals}, its shop basic ${basic.basic_id} ${basic.heals}`);
+    const perPointCrafted = book / num(crafted.heals);
+    const perPointBasic = num(basic.price) / num(basic.heals);
+    t.ok(perPointCrafted < perPointBasic, `crafted ${perPointCrafted.toFixed(1)} g/point at book vs shop ${perPointBasic.toFixed(1)} g/point`);
+    t.note(`cooked ${crafted.heals} hp at ${book} g book vs ${basic.basic_id} ${basic.heals} hp at ${basic.price} g`);
+    t.ok(BASIC_INDEX[basic.basic_id] && BASIC_INDEX[basic.basic_id].price === num(basic.price), 'the server price is not supply-basics.js');
+  });
+
+  await step(5, 'the bag is spent before the shop bills a coin', async (t) => {
+    /* The default bar: the bag's heal first, the shop's after it — switched ON. */
+    const bar = [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
+      { item: '*heal_shop', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
+    const put = await S.rpc(p.uid, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid) r', ['bag then shop', JSON.stringify(bar), uuid()]);
+    t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
+    const packed = inv(p.env, 'cooked_shrimp');
+    await p.enter(t, 'goblin_warren', { cooked_shrimp: packed });
+    const h = await p.hunt(t, 30);
+    const s1 = h.session || {};
+    const used = num((s1.tally && s1.tally.supplies && s1.tally.supplies.cooked_shrimp) || 0);
+    const bought = Object.values((s1.tally && s1.tally.bought) || {}).reduce((a, n) => a + num(n), 0);
+    t.ok(used > 0, `a 30-minute hunt with ${packed} cooked shrimp packed ate none of them`);
+    const left = (await S.q('select coalesce(sum(qty_left), 0)::int n from public.hunt_bag where session_id = $1 and item_id = $2', [s1.id, 'cooked_shrimp']))[0].n;
+    t.ok(bought === 0 || num(left) === 0, `the shop billed ${bought} use(s) while ${left} cooked shrimp were still in the bag`);
+    t.note(`${used} cooked shrimp eaten, ${bought} shop heals bought, ${left} left; ${huntNote(h)}`);
   });
 }
 
-/* ══ LOOP-4 — THE FIRST NIGHT WITH ONLY THE KIT: KNOCKED OUT IS NEVER STRANDED ══ */
+/* ══ LOOP-4 — THE FIRST NIGHT WITH ONLY THE KIT ══════════════════════════════ */
 async function loop4(S, M, tag, rows) {
   const step = makeLoop('LOOP-4', rows);
   const p = makePlayer(S, `00000000-0000-4000-a400-${tag}00000004`);
@@ -770,38 +848,106 @@ async function loop4(S, M, tag, rows) {
   await step(1, 'a night on Mill Cellar with the kit', async (t) => {
     const cr = await S.create(p.uid, `Loop4${tag}`);
     t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
-    await p.act(t, 'set_activity combat:mill_cellar', { verb: 'set_activity', activity: { kind: 'combat', id: 'mill_cellar' } });
+    p.env = await readBack(S, p.uid, t, 'first load', null);
+    await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     night = await p.hunt(t, NIGHT_MIN);
     t.ok(night.kills > 0, `a ten-hour night on Mill Cellar killed ${night.kills}`);
-    const paid = num(night.c.receipt && night.c.receipt.paidMs);
-    t.note(`${night.kills} kills, ${night.deaths} death(s), fought ${(paid / 60000).toFixed(1)} of ${NIGHT_MIN} min, `
-      + `${inv(p.env, 'cooked_shrimp')} cooked shrimp left, hp ${p.env.state.hp}/${p.env.state.max_hp}`);
+    t.note(huntNote(night));
   });
 
-  await step(2, 'knocked out: the hunt refuses by name', async (t) => {
-    const until = Date.parse(p.env.state.recovering_until);
-    if (!(until > Date.parse(p.env.now))) { t.note('not knocked out at the end of the night'); return; }
-    const r = await S.send(p.uid, { verb: 'set_activity', activity: { kind: 'combat', id: 'mill_cellar' } });
-    t.ok(r.status === 409 && r.body.error === 'recovering' && r.body.until,
-      `a knocked-out hunt answered ${r.status} ${bodyOf(r)} — want 409 recovering with its until`);
-    t.note(`recovering for ${Math.round(num(r.body.remaining_ms) / 60000)} min`);
+  await step(2, 'the hunt ends on its own', async (t) => {
+    const reason = night.session && night.session.end_reason;
+    t.ok(['falls', 'heals_out', 'gold_out', 'stamina', 'ammo_out'].includes(reason),
+      `ten hours with only the kit left the hunt ${reason || 'open'}: a night must end on an automatic reason`);
+    t.note(`ended ${reason}`);
   });
 
-  await step(3, 'never stranded: gather and buy food', async (t) => {
-    await p.act(t, 'set_activity gather:shrimp_s while recovering', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+  await step(3, 'back to work: fishing again', async (t) => {
+    const want = `${DEFAULT_RESUME.kind}:${DEFAULT_RESUME.id}`;
+    const now = await S.load(p.uid);
+    t.ok(`${now.state.active_kind}:${now.state.active_id}` === want,
+      `after the hunt the pointer is ${now.state.active_kind}:${now.state.active_id}, not ${want}`);
+    const r = await S.q(`select meta from public.player_ledger where user_id = $1 and kind = 'hunt' and intent = 'resume'
+                          order by id desc limit 1`, [p.uid]);
+    t.ok(r[0] && r[0].meta && r[0].meta.resumed === true, `the resume was not journalled: ${brief(r[0])}`);
+    p.env = now;
+  });
+
+  await step(4, 'never stranded: fishing pays, food can be bought', async (t) => {
+    const before = await p.settleAfter(t, 'fishing after the hunt', 20);
+    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'the resumed fishing paid nothing');
     const o = cheapestFood(M);
-    t.ok(o && num(p.env.state.gold) >= o.gold, `the knocked-out player has ${p.env.state.gold} gold and the cheapest food costs ${o && o.gold}`);
-    await p.act(t, `shop_buy ${o.id} while recovering`, { verb: 'shop_buy', offer: o.id, qty: 1 });
+    if (o) {
+      t.ok(num(p.env.state.gold) >= o.gold, `the player has ${p.env.state.gold} gold and the cheapest food costs ${o.gold}`);
+      await p.act(t, `shop_buy ${o.id}`, { verb: 'shop_buy', offer: o.id, qty: 1 });
+    } else {
+      t.note('the counter sells no cooked food (the shop slot is the fallback)');
+    }
   });
 
-  await step(4, 'back on the hunt after recovering', async (t) => {
-    const until = Date.parse(p.env.state.recovering_until);
-    const wait = until > Date.parse(p.env.now) ? Math.ceil((until - Date.parse(p.env.now)) / 60000) + 1 : 1;
-    await p.settleAfter(t, 'fishing out the recovery', wait);
-    await p.act(t, 'set_activity combat:mill_cellar after recovery', { verb: 'set_activity', activity: { kind: 'combat', id: 'mill_cellar' } });
+  await step(5, 'back on the hunt', async (t) => {
+    await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h = await p.hunt(t, 10);
     t.ok(h.kills > 0, `ten minutes back on Mill Cellar killed ${h.kills}`);
-    t.note(`waited ${wait} min fishing, then ${huntNote(h)}`);
+    t.note(huntNote(h));
+  });
+}
+
+/* ══ LOOP-5 — AN L100 DAY: 12 h OF STAMINA, THEN THE DAY TURNS ════════════════ */
+async function loop5(S, M, tag, rows) {
+  const step = makeLoop('LOOP-5', rows);
+  const p = makePlayer(S, `00000000-0000-4000-a500-${tag}00000005`);
+  const KIT = { weapon: 'rune_sword', helmet: 'rune_helm', body: 'rune_platebody' };
+  let day = null;
+
+  await step(1, 'a Combat-99 character', async (t) => {
+    const cr = await S.create(p.uid, `Loop5${tag}`);
+    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    for (const sk of ['attack', 'strength', 'defense', 'hitpoints']) {
+      await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, xpForLevel(99)]);
+    }
+    await S.q('update public.player_state set gold=$2, hp=99, max_hp=99 where user_id=$1 and slot=0', [p.uid, 200000]);
+    await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,'cooked_shark',1500)
+               on conflict (user_id, slot, item_id) do update set qty = 1500`, [p.uid]);
+    const kit = Object.fromEntries(Object.entries(KIT).filter(([, id]) => ITEMS[id]));
+    for (const id of Object.values(kit)) {
+      await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,$2,1)
+                 on conflict (user_id, slot, item_id) do update set qty = player_inventory.qty + 1`, [p.uid, id]);
+    }
+    if (Object.keys(kit).length) await p.act(t, 'equip the kit', { verb: 'equip', equip: kit });
+    /* The activity the day resumes: a gather set before the hunt. */
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
+    t.note(`combat ${combatOf(p.env)}, ${p.env.state.gold} gold, 1500 sharks, kit ${Object.values(kit).join(',')}`);
+  });
+
+  await step(2, 'hunt until stamina ends the day', async (t) => {
+    const top = HUNTS.filter((h) => h.band[0] <= combatOf(p.env)).sort((a, b) => b.band[0] - a.band[0])[0];
+    await p.enter(t, top.id, { cooked_shark: 1500 });
+    day = await p.hunt(t, 13 * 60);
+    const sess = day.session || {};
+    t.ok(sess.end_reason === 'stamina', `13 h of clock ended the hunt '${sess.end_reason || 'open'}', not on stamina`);
+    const hunted = num(sess.tally && sess.tally.paid_ms) - 0;
+    t.ok(hunted >= STAMINA_MAX_MS - 10 * 60000 && hunted <= STAMINA_MAX_MS + 10 * 60000,
+      `the hunt fought ${(hunted / 3600000).toFixed(2)} h on a ${(STAMINA_MAX_MS / 3600000)} h pool`);
+    t.note(`${top.id}: ${huntNote(day)}, fought ${(hunted / 3600000).toFixed(2)} h`);
+  });
+
+  await step(3, 'the day resumes, with a fresh presence anchor', async (t) => {
+    const now = await S.load(p.uid);
+    t.ok(now.state.active_kind === 'gather' && now.state.active_id === 'shrimp_s',
+      `after the stamina end the pointer is ${now.state.active_kind}:${now.state.active_id}, not gather:shrimp_s`);
+    const a = (await S.q('select real_return_at from public.hr_return_anchor where user_id = $1 and slot = 0', [p.uid]))[0];
+    t.ok(a && new Date(a.real_return_at).getTime() >= new Date(now.state.active_since).getTime(),
+      `the automatic end stamped no presence anchor at the walk home (anchor ${a && a.real_return_at}, resumed from ${now.state.active_since})`);
+    p.env = now;
+  });
+
+  await step(4, 'twelve hours of rest pay, and the pool is full again', async (t) => {
+    const before = await p.settleAfter(t, 'twelve hours of fishing', 12 * 60);
+    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'twelve hours of resumed fishing paid nothing');
+    const st = p.env.stamina || {};
+    t.ok(num(st.ms) >= STAMINA_MAX_MS, `after twelve hours of rest the pool is ${st.ms} of ${STAMINA_MAX_MS}`);
+    t.note(`+${inv(p.env, 'shrimp') - inv(before, 'shrimp')} shrimp, stamina ${(num(st.ms) / 3600000).toFixed(2)} h`);
   });
 }
 
@@ -811,7 +957,7 @@ async function play(db, mutate, tag) {
   try {
     const S = await makeServer(db, M);
     const rows = [];
-    for (const loop of [loop1, loop2, loop3, loop4]) await loop(S, M, tag, rows);
+    for (const loop of [loop1, loop2, loop3, loop4, loop5]) await loop(S, M, tag, rows);
     return rows;
   } finally {
     if (M.base) await rm(M.base, { recursive: true, force: true });

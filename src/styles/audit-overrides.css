@@ -602,7 +602,7 @@ body.in-combat #combat-area {
 .arena-vs .arena-portrait {
   width: 96px; height: 96px;
   background:
-    radial-gradient(ellipse at 50% 34%, rgba(255,236,200,.075), transparent 68%),
+    radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--hl) 7.5%, transparent), transparent 68%),
     var(--surf-sunken, rgba(0,0,0,.4));
   border: 2px solid var(--gold-2);
   border-radius: var(--r-portrait, 6px);

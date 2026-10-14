@@ -1,19 +1,20 @@
-/** Palette trial walk (lane/b-palette-trial). Boots index.html headless behind
- *  __HR_TEST_HARNESS__ from a server rooted in THIS checkout, seeds a mid-game
- *  save, and photographs five surfaces at 1440x900 under the current palette and
- *  every `body[data-theme-palette]` variant in src/styles/tokens.css, then
- *  composes ONE 4-across sheet per surface (Current | Charcoal | Midnight | Iron).
+/** Palette walk. Boots index.html headless behind __HR_TEST_HARNESS__ from a
+ *  server rooted in THIS checkout, seeds a mid-game save, and photographs five
+ *  surfaces (Home, Adventures, Bag, World town, World hunt) under the default
+ *  palette (Charcoal & Gold) and every staged `body[data-theme-palette]` block in
+ *  src/styles/tokens.css, then composes ONE sheet per surface, palettes across.
  *
- *    node tools/_palette-shots.mjs <outDir>            shots + sheets
- *    node tools/_palette-shots.mjs <outDir> --probe    + the painted surfaces, and
- *                                                       what is still warm, per screen
- *    node tools/_palette-shots.mjs <outDir> --vp 922x423   another viewport
+ *    node tools/_palette-shots.mjs <outDir>                  shots + sheets
+ *    node tools/_palette-shots.mjs <outDir> --default-only   the default palette alone
+ *    node tools/_palette-shots.mjs <outDir> --probe          + the painted surfaces, and
+ *                                                             what is still warm, per screen
+ *    node tools/_palette-shots.mjs <outDir> --vp 922x423     another viewport
  *
  *  At 1440x900 it also writes contrast.png/.json: every text role against every
  *  surface, measured on the rendered pixels.
  *
  *  The World canvas is lit by the map, not by the palette (the --world-* ladder is
- *  never overridden). Its loop keeps running between the four shots of a scene, so
+ *  never overridden). Its loop keeps running between the shots of a scene, so
  *  the hunt's foes may stand in different places; the chrome around it is the
  *  comparison. Descends from tools/_home-banner-shots.mjs. A working aid, never a gate. */
 import { createServer } from 'node:http';
@@ -28,12 +29,12 @@ const PROBE = process.argv.includes('--probe');
 /* `--vp WxH` photographs another viewport (the 922x423 landscape phone); default 1440x900. */
 const VP = (/^(\d+)x(\d+)$/.exec(process.argv.includes('--vp') ? process.argv[process.argv.indexOf('--vp') + 1] : '') || [0, 1440, 900]).slice(1, 3).map(Number);
 if (!OUT) { console.error('usage: node tools/_palette-shots.mjs <outDir> [--probe] [--vp WxH]'); process.exit(2); }
+/* No attribute = the default ladder (Charcoal & Gold); the rest are staged blocks. */
 const PALETTES = [
-  { id: '', label: 'Current' },
-  { id: 'charcoal', label: 'Charcoal & Gold' },
-  { id: 'midnight', label: 'Midnight & Gold' },
-  { id: 'iron', label: 'Iron & Gold' },
-];
+  { id: '', label: 'Charcoal & Gold (default)' },
+  { id: 'midnight', label: 'Midnight & Gold (staged)' },
+  { id: 'iron', label: 'Iron & Gold (staged)' },
+].slice(0, process.argv.includes('--default-only') ? 1 : 3);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
 
 function findPlaywright(from) {
@@ -184,7 +185,7 @@ const SCREENS = [
 ];
 
 async function sheet(browser, files, labels, title, out) {
-  const page = await browser.newPage({ viewport: { width: 2960, height: 600 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 400, height: 300 }, deviceScaleFactor: 1 });
   const cells = await Promise.all(files.map(async (f, i) => {
     const b64 = (await readFile(f)).toString('base64');
     return `<figure><figcaption>${labels[i]}</figcaption><img src="data:image/png;base64,${b64}"></figure>`;
@@ -234,10 +235,10 @@ for (const sc of SCREENS) {
     await page.waitForTimeout(350);
     if (sc.world) await page.evaluate(() => { const rt = window.HearthriseWorld.runtime(); if (rt) rt.step(); });
     await page.evaluate(KILL_OVERLAYS);
-    const f = join(OUT, `${sc.id}-${pal.id || 'current'}.png`);
+    const f = join(OUT, `${sc.id}-${pal.id || 'charcoal'}.png`);
     await page.screenshot({ path: f });
     files.push(f);
-    if (PROBE) probe[`${sc.id}/${pal.id || 'current'}`] = { surfaces: await page.evaluate(SURFACES), warm: pal.id ? await page.evaluate(WARM) : [] };
+    if (PROBE) probe[`${sc.id}/${pal.id || 'charcoal'}`] = { surfaces: await page.evaluate(SURFACES), warm: await page.evaluate(WARM) };
   }
   await sheet(browser, files, PALETTES.map((p) => p.label), `${sc.label} - ${VP[0]}x${VP[1]}`, join(OUT, `sheet-${sc.id}.png`));
   console.log('sheet', sc.id);
@@ -271,7 +272,7 @@ if (VP[0] === 1440 && VP[1] === 900) {
       probeEl.remove(); return out;
     }, { id: pal.id, names: TEXT });
     for (const [name, screen, x, y] of SURF) {
-      const bg = at(join(OUT, `${screen}-${pal.id || 'current'}.png`), x, y);
+      const bg = at(join(OUT, `${screen}-${pal.id || 'charcoal'}.png`), x, y);
       rows.push({ pal: pal.label, surface: name, bg: hex(bg), r: TEXT.map((t) => ratio(toks[t], bg)), toks: TEXT.map((t) => hex(toks[t])) });
     }
   }
@@ -290,7 +291,7 @@ if (VP[0] === 1440 && VP[1] === 900) {
     tr.first td,tr.first th{border-top:2px solid #555} td.warn{color:#ffb44a;font-weight:700} td.bad{color:#ff6464;font-weight:700} td.na{color:#555}
     b{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:6px;outline:1px solid #666} code{color:#999}
     p{margin:6px 0} span{margin-right:10px;white-space:nowrap}
-  </style></head><body><h1>Palette trial - text contrast (WCAG 2.x), measured on the rendered 1440x900 shots</h1>
+  </style></head><body><h1>Palettes - text contrast (WCAG 2.x), measured on the rendered 1440x900 shots</h1>
   <p class="note">Surface = 5x5 mean of real screenshot pixels on empty ground (glass, gradients and alpha composited). Text = the token as the page resolves it under each palette. AA body text needs 4.5. Orange = under 4.5, red = under 3. * The lit reward card carries only --ink-3 and --gold-2 text (measured on .hd-daily); the other roles never sit on it and are dimmed.</p>
   <table><thead><tr><th>palette</th><th>surface</th>${TEXT.map((t) => `<th>${t}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>${swatches}</body></html>`);
   const dim = await cp.evaluate(() => ({ w: document.body.scrollWidth, h: document.body.scrollHeight }));

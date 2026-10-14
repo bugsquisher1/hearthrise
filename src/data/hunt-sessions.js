@@ -21,6 +21,18 @@ export const SESSION_LIMITS = Object.freeze({
   bagLines: 10,
 });
 
+/* TBD-designer (lane C1 placeholder, 2026-10-14). The `vigour_low` timeline
+   event fires once per hunt when the character's Vigour left for the day
+   falls to this many minutes or fewer. Placeholder: 20% of the flat 720-min
+   daily grant. The server reads it through the generated catalogue
+   (tools/gen-hunt-sessions.mjs), so retuning it is this one edit. */
+export const VIGOUR_LOW_MIN = 144;
+
+/* The Analyzer keeps a character's last this-many hunts (ruling §2); an older
+   ended hunt, its bag lines, tally and timeline are pruned when a new one
+   starts. Its ledger rows are never touched: player_ledger is append-only. */
+export const SESSIONS_KEPT = 20;
+
 /* Checked in this order on every swing; the first that holds ends the hunt. */
 export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'vigour', 'hours', 'left', 'changed', 'server']);
 

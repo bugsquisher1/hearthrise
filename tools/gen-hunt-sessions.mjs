@@ -7,7 +7,12 @@
 // against a client value. Every row comes from src/data, which stays the one
 // source of game content:
 //   hr_hunt_supplies       src/data/supplies.js SUPPLIES (kind, essential, heals, buff type)
-//                          + NPC_BASIC_PRICES as `npc_price` (gold per use; lane C2)
+//   hr_hunt_basic_supplies src/data/supply-basics.js BASIC_SUPPLIES — the shop's
+//                          supplies paid per use (Tyler 2026-10-14): kind, crafted
+//                          partner, heals | mana, gold price, the hunt tiers it serves
+//   hr_hunt_slot_targets   rule-subjects.js SLOT_TARGETS (*heal, *heal_shop, *mana, *mana_shop)
+//   hr_hunt_travel.tier    a named hunt's tier (supplies.js BAG_GUIDE_BY_HUNT), a
+//                          training fight's monster tier — what a shop slot resolves by
 //   hr_hunt_slot_kinds     rule-subjects.js SLOT_KINDS (spell reserved: active false)
 //   hr_hunt_target_modes   rule-subjects.js TARGET_MODES (follow: parties only)
 //   hr_hunt_resumable_kinds hunt-sessions.js RESUMABLE_KINDS ('training' reserved)
@@ -59,9 +64,11 @@ import { dirname, join } from 'node:path';
 import { HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
-import { SUPPLIES, COMBAT_BUFF_TYPES, NPC_BASIC_PRICES } from '../src/data/supplies.js';
+import { SUPPLIES, COMBAT_BUFF_TYPES, BAG_GUIDE_BY_HUNT } from '../src/data/supplies.js';
+import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
+import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
-  SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT } from '../src/data/rule-subjects.js';
+  SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
@@ -80,13 +87,55 @@ export function catalogueRows(src = {}) {
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_GROUPS, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
     vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
-    npcPrices: NPC_BASIC_PRICES, slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
+    basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
+    slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
   };
-  for (const [id, p] of Object.entries(S.npcPrices)) {
-    if (!own(S.supplies, id)) throw new Error(`NPC price for ${id}, which is not a supply row`);
-    if (!(Number.isInteger(p) && p >= 1 && p <= 1e9)) throw new Error(`NPC price ${id} = ${p} is not whole gold in 1..1e9`);
+  /* THE SHOP (Tyler 2026-10-14): each row is gold per use, never an item. */
+  const basicSeen = new Set();
+  const basics = [...S.basics].map((b) => {
+    if (!ID.test(b.id) || own(S.items, b.id) || own(S.slotTargets, b.id) || basicSeen.has(b.id)) {
+      throw new Error(`shop supply ${b.id} is not a fresh [a-z0-9_]{1,64} id (an item, a slot target or a repeat)`);
+    }
+    basicSeen.add(b.id);
+    if (!['heal', 'mana', 'ammo'].includes(b.kind)) throw new Error(`shop supply ${b.id} has kind ${b.kind}`);
+    /* A shop drink's partner is a STAGED drink (drinks.js) until the mana engine
+       merges them into ITEMS; every other partner is a catalogued item. */
+    if (!own(S.items, b.partner) && !(b.kind === 'mana' && own(S.drinks, b.partner))) {
+      throw new Error(`shop supply ${b.id} names partner ${b.partner}, which is no item (or staged drink)`);
+    }
+    if (!(Number.isInteger(b.price) && b.price >= 1 && b.price <= 1e9)) throw new Error(`shop supply ${b.id} price ${b.price} is not whole gold in 1..1e9`);
+    const heals = b.kind === 'heal' ? b.heals : 0;
+    const mana = b.kind === 'mana' ? b.mana : 0;
+    if (b.kind === 'heal' && !(Number.isInteger(heals) && heals > 0)) throw new Error(`shop heal ${b.id} heals ${heals}`);
+    if (b.kind === 'mana' && !(Number.isInteger(mana) && mana > 0)) throw new Error(`shop drink ${b.id} restores ${mana}`);
+    if (b.kind === 'ammo' && !(own(S.supplies, b.partner) && S.supplies[b.partner].kind === 'ammo')) {
+      throw new Error(`shop shot ${b.id} names partner ${b.partner}, which is no packed ammo`);
+    }
+    const tiers = [...(b.tiers || [])];
+    for (const t of tiers) if (!(Number.isInteger(t) && t >= 1 && t <= 99)) throw new Error(`shop supply ${b.id} tier ${t}`);
+    return { id: b.id, kind: b.kind, partner: b.partner, heals, mana, price: b.price, tiers };
+  }).sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const kind of ['heal', 'mana']) {
+    const owner = new Map();
+    for (const b of basics.filter((x) => x.kind === kind)) {
+      for (const t of b.tiers) {
+        if (owner.has(t)) throw new Error(`shop ${kind} tier ${t} resolves to both ${owner.get(t)} and ${b.id}`);
+        owner.set(t, b.id);
+      }
+    }
   }
+  const partners = new Map();
+  for (const b of basics.filter((x) => x.kind === 'ammo')) {
+    if (partners.has(b.partner)) throw new Error(`two shop shots share the partner ${b.partner}`);
+    partners.set(b.partner, b.id);
+  }
+  const slotTargets = Object.keys(S.slotTargets).sort().map((t) => {
+    const x = S.slotTargets[t];
+    if (!/^\*[a-z_]{1,32}$/.test(t)) throw new Error(`slot target ${t} is not *[a-z_]`);
+    if (!['heal', 'mana'].includes(x.kind) || !['bag', 'shop'].includes(x.from)) throw new Error(`slot target ${t} is ${JSON.stringify(x)}`);
+    return { t, kind: x.kind, from: x.from };
+  });
   const supplies = Object.keys(S.supplies).sort().map((id) => {
     const s = S.supplies[id];
     if (!ID.test(id) || !own(S.items, id)) throw new Error(`supply ${id} is not a catalogued item id`);
@@ -94,8 +143,7 @@ export function catalogueRows(src = {}) {
     if (s.kind === 'heal' && !(Number.isInteger(s.heals) && s.heals > 0)) throw new Error(`heal ${id} heals ${s.heals}`);
     const bt = s.kind === 'buff' ? (s.buff && s.buff.type) : null;
     if (s.kind === 'buff' && !S.buffTypes.includes(bt)) throw new Error(`buff ${id} has no combat buff type (${bt})`);
-    return { id, kind: s.kind, essential: !!s.essential, heals: s.kind === 'heal' ? s.heals : 0, bt,
-      npc: own(S.npcPrices, id) ? S.npcPrices[id] : null };
+    return { id, kind: s.kind, essential: !!s.essential, heals: s.kind === 'heal' ? s.heals : 0, bt };
   });
   const travel = [];
   const seen = new Set();
@@ -106,13 +154,16 @@ export function catalogueRows(src = {}) {
     if (!(Number.isInteger(h.travelS) && h.travelS >= 10 && h.travelS <= 300 && h.travelS % 10 === 0)) {
       throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 10..300`);
     }
-    travel.push({ id: h.id, s: h.travelS, training });
+    if (!(Number.isInteger(h.tier) && h.tier >= 1 && h.tier <= 99)) throw new Error(`hunt ${h.id} has no tier (${h.tier})`);
+    travel.push({ id: h.id, s: h.travelS, training, tier: h.tier });
   };
-  for (const h of S.hunts) addTravel(h, false);
+  /* The TIER a shop slot resolves by: a named hunt's own (its bag guide), a
+     training fight's monster's. */
+  for (const h of S.hunts) addTravel({ ...h, tier: (S.huntTiers[h.id] || {}).tier }, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
     if (m.boss || m.champion) continue;
-    addTravel(trainingHunt(id, m), true);
+    addTravel({ ...trainingHunt(id, m), tier: m.tier }, true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
   const subjects = Object.keys(S.subjects).sort().map((k) => {
@@ -132,7 +183,7 @@ export function catalogueRows(src = {}) {
     bag_lines: S.sessionLimits.bagLines,
     falls_min: S.sessionLimits.falls.min, falls_max: S.sessionLimits.falls.max, falls_default: S.sessionLimits.falls.default,
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
-    cd_heal_ms: S.cooldowns.heal.ms, cd_buff_ms: S.cooldowns.buff.ms,
+    cd_heal_ms: S.cooldowns.heal.ms, cd_buff_ms: S.cooldowns.buff.ms, cd_mana_ms: S.cooldowns.mana.ms,
     vigour_low_min: S.vigourLow, sessions_kept: S.kept,
     /* The price of a fall, in permille of the level's gap. Refused unless the
        fraction is a whole permille in (0, 1000], so the engine's fraction and the
@@ -182,8 +233,9 @@ export function catalogueRows(src = {}) {
     if (r === 'left' || r === 'changed') throw new Error(`RESUME_AFTER_END names ${r}: a hunt the player left or changed resumes nothing`);
   }
   const preset = { name: String(S.preset.name), slots: S.preset.slots.map((sl) => {
-    if (sl.item !== HEAL_ANY && !(own(S.supplies, sl.item) && ['heal', 'buff'].includes(S.supplies[sl.item].kind))) {
-      throw new Error(`the default preset names ${sl.item}, which no heal/buff supply row has`);
+    if (!own(S.slotTargets, sl.item) && !basicSeen.has(sl.item)
+        && !(own(S.supplies, sl.item) && ['heal', 'buff'].includes(S.supplies[sl.item].kind))) {
+      throw new Error(`the default preset names ${sl.item}: no slot target, shop supply or heal/buff supply row`);
     }
     return { item: sl.item, on: !!sl.on, conditions: sl.conditions.map((c) => ({ subject: c.subject, op: c.op, value: c.value })) };
   }) };
@@ -192,20 +244,22 @@ export function catalogueRows(src = {}) {
   for (const r of vendor) {
     if (!ID.test(r.id) || !Number.isInteger(r.unit)) throw new Error(`vendor value ${r.id} = ${r.unit}`);
   }
-  return { supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable,
+  return { supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
 export function render(src) {
   const r = catalogueRows(src);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
-  const supplyValues = r.supplies.map((s) => `  (${sq(s.id)}, ${sq(s.kind)}, ${s.essential}, ${s.heals}, ${s.bt ? sq(s.bt) : 'null'}, ${s.npc ?? 'null'})`).join(',\n');
+  const supplyValues = r.supplies.map((s) => `  (${sq(s.id)}, ${sq(s.kind)}, ${s.essential}, ${s.heals}, ${s.bt ? sq(s.bt) : 'null'})`).join(',\n');
+  const basicValues = r.basics.map((b) => `  (${sq(b.id)}, ${sq(b.kind)}, ${sq(b.partner)}, ${b.heals}, ${b.mana}, ${b.price}, '{${b.tiers.join(',')}}'::int[])`).join(',\n');
+  const targetRowValues = r.slotTargets.map((x) => `  (${sq(x.t)}, ${sq(x.kind)}, ${sq(x.from)})`).join(',\n');
   const slotKindValues = r.slotKinds.map((x) => `  (${sq(x.k)}, ${x.active})`).join(',\n');
   const targetValues = r.targets.map((x) => `  (${sq(x.m)}, ${x.solo})`).join(',\n');
   const targetList = r.targets.map((x) => sq(x.m)).join(', ');
   const resumeList = r.resumable.map(sq).join(', ');
-  const nPriced = r.supplies.filter((s) => s.npc !== null).length;
-  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training})`).join(',\n');
+
+  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training}, ${t.tier})`).join(',\n');
   const subjectValues = r.subjects.map((s) => `  (${sq(s.k)}, ${s.param ? sq(s.param) : 'null'}, ${s.lo ?? 'null'}, ${s.hi ?? 'null'})`).join(',\n');
   const buffValues = r.buffTypes.map((t) => `  (${sq(t)})`).join(',\n');
   const limValues = Object.entries(r.lim).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `  (${sq(k)}, ${v})`).join(',\n');
@@ -226,7 +280,8 @@ export function render(src) {
 --   digest: ${digest}
 --   ${r.supplies.length} supplies, ${r.travel.length} hunts (named + training), ${r.subjects.length} rule subjects,
 --   ${r.buffTypes.length} combat buff types, ${nLim} limits, ${r.ends.length} end reasons, ${r.vendor.length} vendor values,
---   ${nPriced} NPC-priced supplies, ${r.slotKinds.length} slot kinds, ${r.targets.length} target modes
+--   ${r.basics.length} shop supplies paid per use, ${r.slotTargets.length} slot targets, ${r.slotKinds.length} slot kinds,
+--   ${r.targets.length} target modes
 --
 -- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale.
@@ -279,11 +334,24 @@ create table if not exists public.hr_hunt_vendor_value (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
 );
--- The NPC's per-use price (Tyler 2026-10-14). NULL: not sold per use.
-alter table public.hr_hunt_supplies add column if not exists npc_price bigint;
-alter table public.hr_hunt_supplies drop constraint if exists hr_hunt_supplies_npc_price_ck;
-alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_npc_price_ck
-  check (npc_price is null or npc_price between 1 and 1000000000);
+-- THE SHOP (Tyler 2026-10-14): supplies paid per use, never items.
+create table if not exists public.hr_hunt_basic_supplies (
+  basic_id text primary key check (basic_id ~ '^[a-z0-9_]{1,64}$'),
+  kind     text not null check (kind in ('heal', 'mana', 'ammo')),
+  partner  text not null check (partner ~ '^[a-z0-9_]{1,64}$'),
+  heals    int  not null check (heals >= 0),
+  mana     int  not null check (mana >= 0),
+  price    bigint not null check (price between 1 and 1000000000),
+  tiers    int[] not null
+);
+create table if not exists public.hr_hunt_slot_targets (
+  target text primary key check (target ~ '^[*][a-z_]{1,32}$'),
+  kind   text not null check (kind in ('heal', 'mana')),
+  src    text not null check (src in ('bag', 'shop'))
+);
+-- The tier a shop slot resolves by (a named hunt's bag guide; a training
+-- fight's monster).
+alter table public.hr_hunt_travel add column if not exists tier int;
 create table if not exists public.hr_hunt_slot_kinds (
   kind   text primary key check (kind ~ '^[a-z0-9_]{1,64}$'),
   active boolean not null
@@ -307,15 +375,24 @@ alter table public.hr_hunt_vendor_value   enable row level security;
 alter table public.hr_hunt_slot_kinds     enable row level security;
 alter table public.hr_hunt_target_modes   enable row level security;
 alter table public.hr_hunt_resumable_kinds enable row level security;
+alter table public.hr_hunt_basic_supplies enable row level security;
+alter table public.hr_hunt_slot_targets   enable row level security;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
-              public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds
+              public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds,
+              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets
   from public, anon, authenticated, service_role;
 
 delete from public.hr_hunt_supplies;
-insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type, npc_price) values
+insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type) values
 ${supplyValues};
+delete from public.hr_hunt_basic_supplies;
+insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values
+${basicValues};
+delete from public.hr_hunt_slot_targets;
+insert into public.hr_hunt_slot_targets (target, kind, src) values
+${targetRowValues};
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
 ${slotKindValues};
@@ -323,7 +400,7 @@ delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode, solo) values
 ${targetValues};
 delete from public.hr_hunt_travel;
-insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
+insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
 ${travelValues};
 delete from public.hr_hunt_rule_subjects;
 insert into public.hr_hunt_rule_subjects (subject, param, lo, hi) values
@@ -397,7 +474,9 @@ begin
      or (select count(*) from public.hr_hunt_end_reasons) <> ${r.ends.length}
      or (select count(*) from public.hr_hunt_default_preset) <> 1
      or (select count(*) from public.hr_hunt_vendor_value) <> ${r.vendor.length}
-     or (select count(*) from public.hr_hunt_supplies where npc_price is not null) <> ${nPriced}
+     or (select count(*) from public.hr_hunt_basic_supplies) <> ${r.basics.length}
+     or (select count(*) from public.hr_hunt_slot_targets) <> ${r.slotTargets.length}
+     or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_slot_kinds) <> ${r.slotKinds.length}
      or (select count(*) from public.hr_hunt_target_modes) <> ${r.targets.length}
      or (select count(*) from public.hr_hunt_resumable_kinds) <> ${r.resumable.length}
@@ -422,7 +501,8 @@ begin
   foreach v_role in array array['anon', 'authenticated'] loop
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
-                               'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds'] loop
+                               'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -430,7 +510,8 @@ begin
   if exists (select 1 from pg_policies where schemaname = 'public'
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
-                                 'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds')) then
+                                 'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;
 `;
@@ -457,8 +538,11 @@ function selftest() {
     'a death XP loss of nothing': () => ({ deathXpLoss: 0 }),
     'a stamina cap that is not a whole minute': () => ({ staminaMaxMs: 12 * 3600000 + 1 }),
     'no stamina cap': () => ({ staminaMaxMs: 0 }),
-    'an NPC price on a non-supply': () => ({ npcPrices: { iron_bar: 5 } }),
-    'an NPC price that is not whole gold': () => ({ npcPrices: { cooked_shrimp: 2.5 } }),
+    'a shop supply that is an item': () => ({ basics: [...BASIC_SUPPLIES, { ...BASIC_SUPPLIES[0], id: 'cooked_shrimp' }] }),
+    'a shop price that is not whole gold': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i ? b : { ...b, price: 2.5 })) }),
+    'two shop heals for one tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
+    'a shop shot whose partner is no ammo': () => ({ basics: BASIC_SUPPLIES.map((b) => (b.kind === 'ammo' ? { ...b, partner: 'cooked_shrimp' } : b)) }),
+    'a named hunt with no tier': () => ({ huntTiers: {} }),
     'no active supply slot kind': () => ({ slotKinds: { supply: { active: false }, spell: { active: false } } }),
     'a default target mode that is party-only': () => ({ defaultTarget: 'follow' }),
     'a pull default outside its range': () => ({ pull: { min: 1, max: 8, default: 9 } }),

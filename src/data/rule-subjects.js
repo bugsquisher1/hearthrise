@@ -2,13 +2,15 @@
 // src/data/rule-subjects.js — WHAT THE HUNT ACTION BAR MAY ASK (Hunt Sessions,
 // ruling HR-2026-10-14 §2 "Rules (the action bar)"; Game Designer, lane D)
 //
-// A slot is { kind?, item, on, conditions }: `item` is a supply id from
-// src/data/supplies.js or HEAL_ANY, and every condition must hold for the slot
-// to fire. `kind` is SLOT_KINDS (absent = 'supply'). An action set is up to
+// A slot is { kind?, item, on, conditions }: `item` is a packed supply id from
+// src/data/supplies.js, a shop supply id from src/data/supply-basics.js (paid
+// per use), or one of SLOT_TARGETS; every condition must hold for the slot to
+// fire. `kind` is SLOT_KINDS (absent = 'supply'). An action set is up to
 // ACTION_SET_LIMITS.slots slots (Tyler 2026-10-14: Huntera's bar, two rows of
-// ten) plus its TARGET_MODE and PULL_COUNT. These tables are the WHOLE vocabulary. The client sends a subject
-// id, an operator and a whole number; the server refuses anything not listed
-// here and refuses a value outside the subject's range (never clamps it).
+// ten) plus its TARGET_MODE and PULL_COUNT. These tables are the WHOLE
+// vocabulary. The client sends a subject id, an operator and a whole number;
+// the server refuses anything not listed here and refuses a value outside the
+// subject's range (never clamps it).
 //
 // src/core/action-rules.js (lane E) reads this file; it does not restate it.
 //
@@ -21,13 +23,13 @@
    and no value (it is true or false on its own). */
 export const RULE_SUBJECTS = Object.freeze({
   self_hp_pct: Object.freeze({ param: null, range: Object.freeze([1, 99]), label: 'My HP %' }),
+  /* Mana (Tyler 2026-10-14): drinks restore it, spells cost it. A character
+     with no mana pool reads this condition as FALSE — the slot never fires. */
+  self_mana_pct: Object.freeze({ param: null, range: Object.freeze([1, 99]), label: 'My mana %' }),
   buff_left_s: Object.freeze({ param: 'buff', range: Object.freeze([0, 3600]), label: 'Seconds left on a buff' }),
   buff_missing: Object.freeze({ param: 'buff', range: null, label: 'A buff is not running' }),
   bag_left: Object.freeze({ param: 'item', range: Object.freeze([0, 100000]), label: 'Left in the bag' }),
   session_minutes: Object.freeze({ param: null, range: Object.freeze([0, 1440]), label: 'Minutes into the hunt' }),
-  /* Mana (Tyler 2026-10-14): drinks restore it, spells cost it. A character
-     with no mana pool reads this condition as FALSE — the slot never fires. */
-  self_mana_pct: Object.freeze({ param: null, range: Object.freeze([1, 99]), label: 'My mana %' }),
 });
 
 /* WHAT A SLOT HOLDS (Tyler 2026-10-14, Huntera's bar: a spell or a supply).
@@ -60,10 +62,12 @@ export const RULE_OPERATORS = Object.freeze({
   '>=': Object.freeze({ label: '≥' }),
 });
 
-/* One use per group per swing, then the group waits. Ammo has no group: it is
-   spent by every swing, not fired by a rule. */
+/* One use per group per swing, then the group waits. Eating and drinking are
+   separate groups, so a mage can do both in one swing. Ammo has no group: it
+   is spent by every swing, not fired by a rule. */
 export const COOLDOWN_GROUPS = Object.freeze({
   heal: Object.freeze({ ms: 2000 }),
+  mana: Object.freeze({ ms: 2000 }),
   buff: Object.freeze({ ms: 1000 }),
 });
 
@@ -72,16 +76,30 @@ export const ACTION_SET_LIMITS = Object.freeze({ presets: 5, slots: 20, conditio
 /* "Whatever heal is cheapest in the bag": supplies.js HEAL_ORDER picks it. */
 export const HEAL_ANY = '*heal';
 
-/* The preset every character starts with. It is today's Auto-Eat as one
-   slot: eat the cheapest heal when HP is at or below half. */
+/* The four slot targets that name no single item. `bag` targets fire the
+   cheapest packed line of the kind; `shop` targets fire the shop supply for
+   the hunt's tier (supply-basics.js basicFor) and charge its price. */
+export const SLOT_TARGETS = Object.freeze({
+  [HEAL_ANY]: Object.freeze({ kind: 'heal', from: 'bag' }),
+  '*heal_shop': Object.freeze({ kind: 'heal', from: 'shop' }),
+  '*mana': Object.freeze({ kind: 'mana', from: 'bag' }),
+  '*mana_shop': Object.freeze({ kind: 'mana', from: 'shop' }),
+});
+
+const when = (subject, value) => Object.freeze([Object.freeze({ subject, op: '<=', value })]);
+const slot = (item, conditions) => Object.freeze({ item, on: true, conditions });
+
+/* The preset every character starts with: eat when HP is at or below half,
+   drink when mana is at or below 40%, packed food and drink first, then the
+   shop's per use. Slots are walked in order and fire at most one use per
+   group per swing, so a shop slot fires only when the bag has none left. */
 export const DEFAULT_PRESET = Object.freeze({
-  name: 'Eat when hurt',
+  name: 'Eat and drink',
   slots: Object.freeze([
-    Object.freeze({
-      item: HEAL_ANY,
-      on: true,
-      conditions: Object.freeze([Object.freeze({ subject: 'self_hp_pct', op: '<=', value: 50 })]),
-    }),
+    slot(HEAL_ANY, when('self_hp_pct', 50)),
+    slot('*heal_shop', when('self_hp_pct', 50)),
+    slot('*mana', when('self_mana_pct', 40)),
+    slot('*mana_shop', when('self_mana_pct', 40)),
   ]),
 });
 

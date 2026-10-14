@@ -19,19 +19,20 @@
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=578';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=578';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=578';
-import { compileMap } from './core/map-compile.js?v=578';
-import { STUB_SPRITE } from './core/book.js?v=578';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=578';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=578';
-import { readScene, setChoice, activityOf } from './store.js?v=578';
-import { loadAtlases } from './atlas.js?v=578';
-import { createCanvasBackend } from './render/canvas-backend.js?v=578';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=578';
-import { createHuntScene } from './hunt-scene.js?v=578';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=578';
+import { BUILD } from '../build-info.js?v=582';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=582';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=582';
+import { HUNT_INDEX } from '../data/hunts.js?v=582';
+import { compileMap } from './core/map-compile.js?v=582';
+import { STUB_SPRITE } from './core/book.js?v=582';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=582';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=582';
+import { readScene, setChoice, activityOf } from './store.js?v=582';
+import { loadAtlases } from './atlas.js?v=582';
+import { createCanvasBackend } from './render/canvas-backend.js?v=582';
+import { huntOfMap, mapForActivity } from './hunt-maps.js?v=582';
+import { createHuntScene } from './hunt-scene.js?v=582';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=582';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;
@@ -43,12 +44,32 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
-/** The card a non-hunt scene shows while Town and Home are not open yet. */
-function idleCardHtml(fighting) {
-  return '<div class="world-idle-card"><p class="world-idle-head">' + (fighting ? 'This hunt has no map yet.' : 'Your hero isn’t hunting.') + '</p>'
-    + '<p class="world-idle-body">' + (fighting ? 'The Mill Cellar is the first place you can watch.' : 'Start a hunt in the Mill Cellar and watch it here.')
-    + ' Town and Home are coming soon.</p>'
-    + '<button type="button" class="world-idle-go" data-world-go="combat">Choose a hunt</button></div>';
+/** The hunt the World can show today — the first hunt map's — named from the data. */
+const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
+
+/**
+ * THE CARD FOR "NOTHING HERE TO WATCH", in plain words — or null when the scene
+ * speaks for itself. A fight on a hunt or monster no map renders ALWAYS gets it,
+ * knocked out or not, naming where the hero is; anything else (idle, gathering,
+ * crafting) gets it while Town and Home are not open yet. The button only
+ * navigates: Adventures, with the open hunt picked.
+ * @param {object} G  read only
+ * @param {boolean} ready  are Town and Home open?
+ * @param {(id: string) => string} monsterName
+ */
+function idleCard(G, ready, monsterName) {
+  const fighting = !!G.activeMonster;
+  if (fighting ? mapForActivity(activityOf(G)) : ready) return null;
+  const place = OPEN_HUNT ? OPEN_HUNT.name : 'first hunt';
+  const hunt = G._huntId && HUNT_INDEX[G._huntId];
+  const head = !fighting ? 'Town and Home are coming soon.'
+    : (hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster)) + ' isn’t in the World yet.';
+  const body = fighting ? 'The ' + place + ' is.' + (ready ? '' : ' Town and Home are coming soon.')
+    : 'The ' + place + ' is open now: start a hunt there and watch your hero fight.';
+  return '<div class="world-idle-card"><p class="world-idle-head">' + esc(head) + '</p>'
+    + '<p class="world-idle-body">' + esc(body) + '</p>'
+    + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + place) + '</button></div>';
 }
 
 /**
@@ -95,8 +116,6 @@ export async function bootWorld(panel, opts = {}) {
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
 
   function paintChrome(sc) {
-    const title = chrome.querySelector('.world-title');
-    if (title) title.textContent = ROWS.get(sc.map).name;
     const ready = scenesReady();
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {
       const on = ready && b.getAttribute('data-world-choice') === sc.kind;
@@ -129,7 +148,14 @@ export async function bootWorld(panel, opts = {}) {
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
 
-  function step(dt) {
+  /* ROUTE: which scene, and the HTML around it (title, picks, idle card, overlay).
+     NOT a side effect of the frame loop (live 2026-10-14: a pane opened with no frame
+     ever running — a background tab — kept a 300x150 canvas and a hidden card).
+     sync() routes on every open, tab switch and visibility change; every frame
+     routes again, so the card follows the activity as it changes. */
+  let lastCard = null;
+  const monsterName = (id) => (win.MONSTERS && win.MONSTERS[id] && win.MONSTERS[id].name) || id;
+  function route() {
     const G = win.G || {};
     const sc = readScene(G);
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
@@ -138,22 +164,25 @@ export async function bootWorld(panel, opts = {}) {
       paintChrome(sc);
       hudAt = 0;
     }
+    if (sc.kind !== 'hunt') { hunt = null; huntMap = null; lastHunt = null; hud.paint(null); }
+    const card = sc.kind === 'hunt' ? null : idleCard(G, scenesReady(), monsterName);
+    if (card !== lastCard) { lastCard = card; idle.innerHTML = card || ''; }
+    idle.hidden = !card;
+    /* A "coming soon" place behind the card is not where the hero is: no title claims it. */
+    const title = chrome.querySelector('.world-title');
+    const want = card && !scenesReady() ? 'World' : ROWS.get(sc.map).name;
+    if (title && title.textContent !== want) title.textContent = want;
+    return sc;
+  }
+
+  function step(dt) {
+    const G = win.G || {};
+    const sc = route();
     const map = mapOf(sc.map);
     const I = win.HearthriseIdentity;
     const name = (I && typeof I.displayName === 'function' && I.displayName()) || G.playerName || null;
     const now = Date.now();
-    let cast;
-    if (sc.kind === 'hunt') {
-      cast = huntState(G, sc, map, name, now);
-      idle.hidden = true;
-    } else {
-      hunt = null; huntMap = null; lastHunt = null;
-      hud.paint(null);
-      cast = { hero: { x: map.start[0], y: map.start[1] } };
-      const showIdle = !scenesReady();
-      if (showIdle && idle.hidden) { idle.innerHTML = idleCardHtml(!!G.activeMonster && !mapForActivity(activityOf(G))); idle.hidden = false; }
-      if (!showIdle) idle.hidden = true;
-    }
+    const cast = sc.kind === 'hunt' ? huntState(G, sc, map, name, now) : { hero: { x: map.start[0], y: map.start[1] } };
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
@@ -171,6 +200,13 @@ export async function bootWorld(panel, opts = {}) {
     step(dt);
   }
   function sync() {
+    /* One frame NOW whenever the pane is in front — loop or no loop — so the
+       canvas is sized and the scene, card and overlay are painted before (and
+       without) any requestAnimationFrame. A throw here must not leave the loop
+       state wrong, so it is reported and the loop decision still runs. */
+    if (panel.classList.contains('active')) {
+      try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
+    }
     if (live()) {
       if (!running) { running = true; last = 0; raf = win.requestAnimationFrame(frame); }
     } else {
@@ -186,7 +222,11 @@ export async function bootWorld(panel, opts = {}) {
   }
   function onGo(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-go]');
-    if (b && typeof win.showTab === 'function') win.showTab(b.getAttribute('data-world-go'));
+    if (!b) return;
+    /* Navigation only: Adventures, the War Table's Hunts, the open hunt picked. */
+    if (typeof win.showTab === 'function') win.showTab('combat');
+    const C = win.HearthriseCombatScreens;
+    if (OPEN_HUNT && C && typeof C.showHunt === 'function') C.showHunt(OPEN_HUNT.id);
   }
   chrome.addEventListener('click', onChoice);
   idle.addEventListener('click', onGo);

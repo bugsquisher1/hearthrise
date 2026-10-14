@@ -1,23 +1,36 @@
 #!/usr/bin/env node
 // ============================================================
-// tests/supplies-catalogue.mjs — THE HUNT BAG, THE ACTION BAR AND THE END CARD
-// ARE WELL-FORMED DATA (Hunt Sessions, ruling HR-2026-10-14, lane D).
+// tests/supplies-catalogue.mjs — THE HUNT BAG, THE SHOP'S PER-USE SUPPLIES,
+// THE ACTION BAR AND THE END CARD ARE WELL-FORMED DATA (Hunt Sessions, ruling
+// HR-2026-10-14 and Tyler's 2026-10-14 supply rulings, lane D).
 //
 //   node tests/supplies-catalogue.mjs             the guard
 //   node tests/supplies-catalogue.mjs --selftest  mutation proof (every arm bites)
 //
-//   S1 every supply row names an item that exists
+//   S1 every packed supply row names an item that exists
 //   S2 its kind is the kind the item's own data says (raw food is never one)
 //   S3 it is crafted or sold: an artisan recipe or a shop offer makes it
 //   S4 no id twice; S5 every item that IS a supply is listed (completeness)
-//   S6 essential: heals yes, buffs no, ammo only where an empty slot hurts
+//   S6 essential: heals yes; drinks and buffs no; ammo only where an empty
+//      slot hurts
 //   S7 heal and buff values are the item's own, never a copy
 //   S8 every buff type is sorted into COMBAT or IDLE, and only once
 //   S9 HEAL_ORDER is every heal, cheapest first
-//   R1 the rule vocabulary is exactly the ruling's, and frozen
-//   R2 the default preset only uses that vocabulary, inside its ranges
+//   M1 every staged drink is a mana item with a Cooking recipe from one crop,
+//      a flavour line, and a batch that never vends for more than 5x its crop
+//   K1 heal, mana and ammo each have a shop supply paid per use
+//   B1 every shop supply is not an item, names a crafted partner of its kind,
+//      gives 3/4 of the partner's heal or mana (ammo: the same shot), and costs
+//      more per point or per shot than the partner's book value
+//   B2 every crafted arrow and rune from tier 2 up has a shop version, and
+//      every monster tier has exactly one shop heal and one shop drink
+//   B3 a bigger shop heal or drink never costs less per point than a smaller
+//   R1 the rule vocabulary is exactly the rulings', and frozen
+//   R2 the default preset is food at HP <= 50% and drink at mana <= 40%, bag
+//      first then shop, nothing parked, inside the vocabulary
 //   H1 every hunt walks 10..300 s in whole ticks; every monster tier has a walk
-//   G1 every hunt and every monster tier has a sensible-bag heal
+//   G1 every hunt has a melee, ranged and magic bag and every monster tier a
+//      bag; lines are packed supplies of the right kind; no parked buffs
 //   L1 falls 3 (1–6), hours 1–24 (off by default), 10 bag lines
 //   C1 the end order is the ruling's, and every reason and event has copy
 //      that uses only known placeholders and never says "1 times"
@@ -28,34 +41,42 @@
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import {
-  SUPPLY_KINDS, COMBAT_BUFF_TYPES, IDLE_BUFF_TYPES, SUPPLY_ROWS, SUPPLIES, HEAL_ORDER,
+  SUPPLY_KINDS, COMBAT_BUFF_TYPES, IDLE_BUFF_TYPES, SUPPLY_ROWS, MANA_SUPPLY_ROWS, SUPPLIES, HEAL_ORDER,
   supplyKindOf, BAG_TARGET_HOURS, BAG_GUIDE_BY_HUNT, BAG_GUIDE_BY_TIER, bagGuideFor,
 } from '../src/data/supplies.js';
+import { BASIC_SUPPLIES, BASIC_INDEX, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, basicFor } from '../src/data/supply-basics.js';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import {
-  RULE_SUBJECTS, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET, parseSubject,
+  RULE_SUBJECTS, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, SLOT_TARGETS, DEFAULT_PRESET, parseSubject,
 } from '../src/data/rule-subjects.js';
 import {
   SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
 } from '../src/data/hunt-sessions.js';
 import { HUNTS, TRAINING_TRAVEL_S, trainingHunt } from '../src/data/hunts.js';
+import { CROPS } from '../src/data/gathering.js';
 import { itemSources, ITEMS, MONSTERS } from '../src/data/catalogue-coherence.js';
 import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
+import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
-/* The ruling's own lists (§2), typed once here so the data can be held to them. */
-/* + self_mana_pct (Tyler 2026-10-14: Huntera's bar; drinks restore mana). */
-const RULING_SUBJECTS = ['self_hp_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes', 'self_mana_pct'];
+/* The rulings' own lists, typed once here so the data can be held to them. */
+const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
 /* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check) and
    'stamina' took its place (Tyler, same day: "steal the stamina system, 1:1
-   like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: an
-   NPC basic the purse cannot pay ends the hunt). */
+   like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
+   shop supply the purse cannot pay ends the hunt). */
 const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'];
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'vigour_low', 'ended'];
+const RULING_PRESET = [['*heal', 'self_hp_pct', 50], ['*heal_shop', 'self_hp_pct', 50], ['*mana', 'self_mana_pct', 40], ['*mana_shop', 'self_mana_pct', 40]];
+const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
 /* `activity`: the server's name for what the character resumes after an
    automatic end ("fishing at Shrimp Spot", Tyler 2026-10-14). */
 const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason', 'activity']);
+const BATCH_FAUCET_CAP = 5;                       // tests/recipe-yield-guard.mjs
+const STYLES = ['melee', 'ranged', 'magic'];
 
 const AMMO_FAMILY = { ranged: 'ranged', magic: 'magic' };
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 function deepFrozen(o) {
   if (o === null || typeof o !== 'object') return true;
@@ -70,28 +91,28 @@ function crafted(sources, id) {
 /** Validate one condition against the vocabulary. Returns an error string or null. */
 function conditionError(c, supplies) {
   const { base, param } = parseSubject(c && c.subject);
-  const sub = Object.prototype.hasOwnProperty.call(RULE_SUBJECTS, base) ? RULE_SUBJECTS[base] : null;
+  const sub = own(RULE_SUBJECTS, base) ? RULE_SUBJECTS[base] : null;
   if (!sub) return `subject '${c && c.subject}' is not in the allowed list`;
   if (sub.param === null && param !== null) return `subject '${base}' takes no parameter`;
   if (sub.param === 'buff' && !COMBAT_BUFF_TYPES.includes(param)) return `'${c.subject}' names no combat buff type`;
   if (sub.param === 'item' && !(param in supplies)) return `'${c.subject}' names no supply`;
   if (sub.range === null) return ('op' in c || 'value' in c) ? `'${base}' takes no operator or value` : null;
-  if (!Object.prototype.hasOwnProperty.call(RULE_OPERATORS, c.op)) return `operator '${c.op}' is not <= or >=`;
+  if (!own(RULE_OPERATORS, c.op)) return `operator '${c.op}' is not <= or >=`;
   if (!Number.isInteger(c.value) || c.value < sub.range[0] || c.value > sub.range[1]) return `value ${c.value} is outside ${sub.range.join('..')}`;
   return null;
 }
 
-function templates(entry) {
-  return Object.entries(entry || {});
+/** What one point (or one shot) of a partner costs at book value. */
+function partnerUnit(p, kind) {
+  if (kind === 'heal') return p.v / p.heals;
+  if (kind === 'mana') return p.v / p.mana;
+  return p.v * p.ammoPerShot;
 }
 
-export function check(d) {
-  const fails = [];
-  const f = (code, msg) => fails.push(`${code} ${msg}`);
+function checkPacked(d, f) {
   const sources = itemSources();
   const seen = new Set();
   const listed = Object.create(null);
-
   for (const [kind, id, essential] of d.rows) {
     const it = d.items[id];
     if (!it) { f('S1', `supply '${id}' is not an item in src/data/items.js`); continue; }
@@ -102,7 +123,7 @@ export function check(d) {
     const real = supplyKindOf(it);
     if (real !== kind) f('S2', `supply '${id}' is listed as '${kind}' but its item data says '${real}'`);
     if (!crafted(sources, id)) f('S3', `supply '${id}' has no recipe and no shop offer (sources: ${(sources.get(id) || []).join(', ') || 'none'})`);
-    const want = kind === 'heal' ? true : kind === 'buff' ? false
+    const want = kind === 'heal' ? true : (kind === 'buff' || kind === 'mana') ? false
       : styleNeedsAmmo(AMMO_FAMILY[it.reqSkill] || 'sword');
     if (essential !== want) f('S6', `supply '${id}' essential=${essential}, the rule says ${want}`);
   }
@@ -125,27 +146,89 @@ export function check(d) {
   for (let i = 1; i < HEAL_ORDER.length; i++) {
     if (ITEMS[HEAL_ORDER[i]].v < ITEMS[HEAL_ORDER[i - 1]].v) f('S9', `HEAL_ORDER puts '${HEAL_ORDER[i]}' after a dearer heal`);
   }
+}
 
-  if (JSON.stringify(Object.keys(d.subjects)) !== JSON.stringify(RULING_SUBJECTS)) f('R1', `subjects ${Object.keys(d.subjects).join(',')} are not the ruling's ${RULING_SUBJECTS.join(',')}`);
+function checkDrinks(d, f) {
+  const crops = new Set(Object.values(CROPS).map((c) => c.prod));
+  for (const [kind, id, essential] of MANA_SUPPLY_ROWS) {
+    const it = d.drinks[id];
+    if (!it) { f('M1', `staged mana row '${id}' has no drink in src/data/drinks.js`); continue; }
+    if (kind !== 'mana' || supplyKindOf(it) !== 'mana' || essential !== false) f('M1', `'${id}' is not a non-essential mana supply`);
+    if (own(ITEMS, id) && !d.rows.some((r) => r[1] === id)) f('M1', `'${id}' is in ITEMS but still staged: move it into SUPPLY_ROWS`);
+    if (!own(DRINK_DESC, id)) f('M1', `'${id}' has no flavour line`);
+    const r = d.drinkRecipes.find((x) => x.output === id);
+    if (!r) { f('M1', `'${id}' has no Cooking recipe`); continue; }
+    const ins = Object.keys(r.inputs || {});
+    if (ins.length !== 1 || !crops.has(ins[0])) f('M1', `'${id}' is not made from one Farming crop`);
+    const cropVendor = vendorPriceOf(ITEMS, ins[0]) * (r.inputs[ins[0]] || 0);
+    if (r.outputQty * it.v > BATCH_FAUCET_CAP * cropVendor) f('M1', `'${id}' vends ${r.outputQty * it.v} g a batch from a ${cropVendor} g crop (over ${BATCH_FAUCET_CAP}x)`);
+  }
+}
+
+function checkBasics(d, f) {
+  const kinds = new Set();
+  for (const b of d.basics) {
+    kinds.add(b.kind);
+    if (own(d.items, b.id) || own(d.drinks, b.id)) f('B1', `shop supply '${b.id}' collides with an item id`);
+    const p = d.items[b.partner] || d.drinks[b.partner];
+    if (!p || supplyKindOf(p) !== b.kind) { f('B1', `'${b.id}' partner '${b.partner}' is not a crafted ${b.kind} item`); continue; }
+    if (!(Number.isInteger(b.price) && b.price > 0)) f('B1', `'${b.id}' price ${b.price} is not a whole number of gold`);
+    if (b.kind === 'heal' || b.kind === 'mana') {
+      const key = b.kind === 'heal' ? 'heals' : 'mana';
+      if (b[key] !== Math.floor(p[key] * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
+      if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
+    } else {
+      if (!(p.tier >= 2) || !AMMO_FAMILY[p.reqSkill]) f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow or rune`);
+      if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
+    }
+  }
+  for (const k of PER_USE_KINDS) if (!kinds.has(k)) f('K1', `no shop ${k} is sold per use: a player without the skill cannot supply one`);
+
+  const partnered = new Set(d.basics.map((b) => b.partner));
+  for (const [kind, id] of d.rows) {
+    const it = d.items[id] || {};
+    if (kind === 'ammo' && AMMO_FAMILY[it.reqSkill] && it.tier >= 2 && !partnered.has(id)) f('B2', `crafted ammo '${id}' (tier ${it.tier}) has no shop version`);
+  }
+  const tiers = [...new Set(Object.values(MONSTERS).map((m) => m.tier).filter(Boolean))];
+  for (const k of ['heal', 'mana']) {
+    for (const t of tiers) {
+      const n = d.basics.filter((b) => b.kind === k && b.tiers.includes(t)).length;
+      if (n !== 1) f('B2', `tier ${t} has ${n} shop ${k} rows, not exactly one`);
+    }
+    const key = k === 'heal' ? 'heals' : 'mana';
+    const ladder = d.basics.filter((b) => b.kind === k).sort((a, b) => a[key] - b[key]);
+    for (let i = 1; i < ladder.length; i++) {
+      if (ladder[i].price / ladder[i][key] < ladder[i - 1].price / ladder[i - 1][key]) f('B3', `${ladder[i].n} costs less per point than ${ladder[i - 1].n}, so the smaller one is never fired`);
+    }
+  }
+  if (d.checkValues && (basicFor('heal', 1) !== BASIC_INDEX.salted_shrimp || basicFor('mana', 6) !== BASIC_INDEX.thin_emberfruit_cordial)) f('B2', 'basicFor does not resolve a tier to its shop row');
+}
+
+function checkRules(d, f) {
+  if (JSON.stringify(Object.keys(d.subjects)) !== JSON.stringify(RULING_SUBJECTS)) f('R1', `subjects ${Object.keys(d.subjects).join(',')} are not the rulings' ${RULING_SUBJECTS.join(',')}`);
   if (JSON.stringify(Object.keys(RULE_OPERATORS)) !== '["<=",">="]') f('R1', 'operators are not exactly <= and >=');
-  if (COOLDOWN_GROUPS.heal.ms !== 2000 || COOLDOWN_GROUPS.buff.ms !== 1000 || Object.keys(COOLDOWN_GROUPS).length !== 2) f('R1', 'cooldowns are not heal 2 s, buff 1 s');
-  for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, DEFAULT_PRESET: d.preset })) {
+  if (COOLDOWN_GROUPS.heal.ms !== 2000 || COOLDOWN_GROUPS.mana.ms !== 2000 || COOLDOWN_GROUPS.buff.ms !== 1000 || Object.keys(COOLDOWN_GROUPS).length !== 3) f('R1', 'cooldowns are not heal 2 s, mana 2 s, buff 1 s');
+  for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, SLOT_TARGETS, DEFAULT_PRESET: d.preset })) {
     if (!deepFrozen(o)) f('R1', `${name} is not frozen all the way down`);
   }
   /* 20 slots: Huntera's bar, two rows of ten (Tyler 2026-10-14). */
   if (ACTION_SET_LIMITS.presets !== 5 || ACTION_SET_LIMITS.slots !== 20 || ACTION_SET_LIMITS.conditions !== 3) f('R1', 'action-set limits are not 5 presets, 20 slots, 3 conditions');
+  if (SLOT_TARGETS[HEAL_ANY].kind !== 'heal' || SLOT_TARGETS[HEAL_ANY].from !== 'bag') f('R1', `${HEAL_ANY} is not "cheapest heal in the bag"`);
 
   const preset = d.preset;
   if (!preset.slots.length || preset.slots.length > ACTION_SET_LIMITS.slots) f('R2', 'default preset slot count out of range');
   preset.slots.forEach((slot, i) => {
-    const target = slot.item === HEAL_ANY ? 'heal' : (SUPPLIES[slot.item] || {}).kind;
-    if (target !== 'heal' && target !== 'buff') f('R2', `slot ${i} fires '${slot.item}', which is not a heal or buff supply`);
+    const target = own(SLOT_TARGETS, slot.item) ? SLOT_TARGETS[slot.item].kind
+      : own(BASIC_INDEX, slot.item) ? BASIC_INDEX[slot.item].kind : (SUPPLIES[slot.item] || {}).kind;
+    if (target !== 'heal' && target !== 'mana') f('R2', `slot ${i} fires '${slot.item}', which is not a heal or a drink (buffs are parked)`);
     if (slot.conditions.length > ACTION_SET_LIMITS.conditions) f('R2', `slot ${i} has more than ${ACTION_SET_LIMITS.conditions} conditions`);
     for (const c of slot.conditions) { const e = conditionError(c, SUPPLIES); if (e) f('R2', `slot ${i}: ${e}`); }
   });
-  const first = preset.slots[0] || {}; const c0 = (first.conditions || [])[0] || {};
-  if (first.item !== HEAL_ANY || c0.subject !== 'self_hp_pct' || c0.op !== '<=' || c0.value !== 50) f('R2', 'the default preset does not start with "cheapest heal at HP <= 50%"');
+  const shape = preset.slots.map((s) => [s.item, (s.conditions[0] || {}).subject, (s.conditions[0] || {}).value]);
+  if (JSON.stringify(shape) !== JSON.stringify(RULING_PRESET)) f('R2', `the default preset is ${JSON.stringify(shape)}, not food at HP <= 50% and drink at mana <= 40%, bag then shop`);
+}
 
+function checkHuntsAndGuides(d, f) {
   for (const h of d.hunts) {
     if (!Number.isInteger(h.travelS) || h.travelS < 10 || h.travelS > 300 || h.travelS % 10) f('H1', `hunt '${h.id}' travelS ${h.travelS} is not 10..300 in whole 10 s ticks`);
   }
@@ -155,17 +238,33 @@ export function check(d) {
     if (!Number.isInteger(s) || s < 10 || s > 300 || s % 10) f('H1', `monster tier ${t} has no valid training walk`);
     if (trainingHunt('x', { tier: t }).travelS !== s) f('H1', `trainingHunt ignores TRAINING_TRAVEL_S for tier ${t}`);
   }
-
-  const guideOk = (g, where) => {
-    if (!g || (SUPPLIES[g.heal] || {}).kind !== 'heal') f('G1', `${where}: '${g && g.heal}' is not a heal supply`);
-    else if (!Number.isInteger(g.qty) || g.qty < 1 || g.qty > 100000) f('G1', `${where}: qty ${g.qty} is not a whole bag line`);
+  const staged = new Set(MANA_SUPPLY_ROWS.map((r) => r[1]));
+  const lineOk = (line, kind, where) => {
+    if (!line) { f('G1', `${where}: no ${kind} line`); return; }
+    const ok = kind === 'mana' ? staged.has(line.id) || (SUPPLIES[line.id] || {}).kind === 'mana' : (SUPPLIES[line.id] || {}).kind === kind;
+    if (!ok) f('G1', `${where}: '${line.id}' is not a packed ${kind} supply`);
+    const free = kind === 'ammo' && !(Number(ITEMS[line.id] && ITEMS[line.id].ammoPerShot) > 0);
+    if (!Number.isInteger(line.qty) || line.qty < (free ? 0 : 1) || line.qty > 100000) f('G1', `${where}: qty ${line.qty} is not a whole bag line`);
   };
-  for (const h of d.hunts) guideOk(BAG_GUIDE_BY_HUNT[h.id], `hunt '${h.id}'`);
-  for (const id of Object.keys(BAG_GUIDE_BY_HUNT)) if (!d.hunts.some((h) => h.id === id)) f('G1', `bag guide for unknown hunt '${id}'`);
-  for (const t of tiers) guideOk(BAG_GUIDE_BY_TIER[t], `tier ${t}`);
+  const styleOk = (bag, style, where) => {
+    if (!bag) { f('G1', `${where}: no ${style} bag`); return; }
+    for (const k of Object.keys(bag)) if (!['heal', 'mana', 'ammo'].includes(k)) f('G1', `${where} ${style}: suggests a '${k}' line (buffs are parked)`);
+    lineOk(bag.heal, 'heal', `${where} ${style}`);
+    if (style !== 'melee') lineOk(bag.ammo, 'ammo', `${where} ${style}`);
+    if (style === 'magic') lineOk(bag.mana, 'mana', `${where} ${style}`);
+  };
+  for (const h of d.hunts) {
+    const g = d.guides[h.id];
+    if (!g || !tiers.includes(g.tier)) { f('G1', `hunt '${h.id}' has no bag guide with a monster tier`); continue; }
+    for (const s of STYLES) styleOk(g[s], s, `hunt '${h.id}'`);
+  }
+  for (const id of Object.keys(d.guides)) if (!d.hunts.some((h) => h.id === id)) f('G1', `bag guide for unknown hunt '${id}'`);
+  for (const t of tiers) styleOk((BAG_GUIDE_BY_TIER[t] || {}).melee, 'melee', `tier ${t}`);
   if (bagGuideFor('mill_cellar', 6) !== BAG_GUIDE_BY_HUNT.mill_cellar || bagGuideFor('panther', 5) !== BAG_GUIDE_BY_TIER[5]) f('G1', 'bagGuideFor does not prefer the hunt row, then the tier');
   if (!(BAG_TARGET_HOURS >= 2 && BAG_TARGET_HOURS <= 6)) f('G1', `BAG_TARGET_HOURS ${BAG_TARGET_HOURS} is outside the ruling's 2–6 h`);
+}
 
+function checkLimitsAndCopy(d, f) {
   const L = d.limits;
   if (L.falls.default !== 3 || L.falls.min !== 1 || L.falls.max !== 6) f('L1', 'falls is not 3 (1–6)');
   if (L.hours.min !== 1 || L.hours.max !== 24 || L.hours.default !== null) f('L1', 'hours is not 1–24, off by default');
@@ -177,7 +276,7 @@ export function check(d) {
   const copyTables = { END_REASON_COPY: d.endCopy, EVENT_COPY, END_CARD_COPY, TIMELINE_COPY };
   for (const [tname, table] of Object.entries(copyTables)) {
     for (const [key, entry] of Object.entries(table)) {
-      const forms = typeof entry === 'string' ? [['text', entry]] : templates(entry);
+      const forms = typeof entry === 'string' ? [['text', entry]] : Object.entries(entry || {});
       if (typeof entry !== 'string' && !entry.one) f('C1', `${tname}.${key} has no 'one' form`);
       for (const [form, text] of forms) {
         for (const m of text.matchAll(/\{([a-z]+)\}/g)) if (!PLACEHOLDERS.has(m[1])) f('C1', `${tname}.${key}.${form} uses unknown placeholder {${m[1]}}`);
@@ -187,18 +286,30 @@ export function check(d) {
       }
     }
   }
+}
+
+export function check(d) {
+  const fails = [];
+  const f = (code, msg) => fails.push(`${code} ${msg}`);
+  checkPacked(d, f);
+  checkDrinks(d, f);
+  checkBasics(d, f);
+  checkRules(d, f);
+  checkHuntsAndGuides(d, f);
+  checkLimitsAndCopy(d, f);
   return fails;
 }
 
 const REAL = () => ({
-  rows: SUPPLY_ROWS, items: ITEMS, combatBuffs: COMBAT_BUFF_TYPES, subjects: RULE_SUBJECTS,
-  preset: DEFAULT_PRESET, hunts: HUNTS, limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY,
-  checkValues: true,
+  rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
+  combatBuffs: COMBAT_BUFF_TYPES, subjects: RULE_SUBJECTS, preset: DEFAULT_PRESET, hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
+  limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true,
 });
 
 function presetWith(cond) {
   return Object.freeze({ name: 'p', slots: Object.freeze([Object.freeze({ item: HEAL_ANY, on: true, conditions: Object.freeze([Object.freeze(cond)]) })]) });
 }
+const withBasic = (d, id, patch) => { d.basics = d.basics.map((b) => (b.id === id ? { ...b, ...patch } : b)); };
 
 function selftest() {
   const PLANT = '__supplies_plant_stew';
@@ -208,15 +319,33 @@ function selftest() {
       d.rows = [...d.rows, ['heal', PLANT, true]];
     }],
     ['S1', 'an unknown item id', (d) => { d.rows = [...d.rows, ['heal', 'not_an_item', true]]; }],
+    ['K1', 'a kind with no shop supply paid per use', (d) => { d.basics = d.basics.filter((b) => b.kind !== 'mana'); }],
+    ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 100 }); }],
+    ['B1', 'a shop heal as big as the cooked one', (d) => { withBasic(d, 'salted_trout', { heals: 14 }); }],
+    ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
+    ['B1', 'a shop rune under twice the crafted rune per shot', (d) => { withBasic(d, 'plain_fire_rune', { price: 4 }); }],
+    ['B2', 'a crafted rune with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_blood_rune'); }],
+    ['B2', 'a monster tier with no shop drink', (d) => { d.basics = d.basics.filter((b) => b.id !== 'thin_emberfruit_cordial'); }],
+    ['B3', 'a big shop heal cheaper per point than a small one', (d) => { withBasic(d, 'salted_lobster', { price: 200 }); }],
+    ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
+    ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],
     ['R2', 'a rule subject outside the list', (d) => { d.preset = presetWith({ subject: 'enemy_hp_pct', op: '<=', value: 50 }); }],
+    ['R2', 'a parked buff in the default preset', (d) => {
+      d.preset = Object.freeze({ ...DEFAULT_PRESET, slots: Object.freeze([...DEFAULT_PRESET.slots, Object.freeze({ item: 'vegetable_stew', on: true, conditions: Object.freeze([]) })]) });
+    }],
     ['R1', 'an extra subject in the vocabulary', (d) => { d.subjects = Object.freeze({ ...RULE_SUBJECTS, enemy_hp_pct: RULE_SUBJECTS.self_hp_pct }); }],
-    ['R2', 'a value outside the subject range', (d) => { d.preset = presetWith({ subject: 'self_hp_pct', op: '<=', value: 150 }); }],
-    ['R2', 'a buff subject naming an idle buff', (d) => { d.preset = presetWith({ subject: 'buff_missing:gather_speed' }); }],
+    ['R2', 'a value outside the subject range', (d) => { d.preset = presetWith({ subject: 'self_mana_pct', op: '<=', value: 150 }); }],
     ['S2', 'raw food listed as a heal', (d) => { d.rows = [...d.rows, ['heal', 'trout', true]]; }],
     ['S5', 'a supply item left off the list', (d) => { d.rows = d.rows.filter((r) => r[1] !== 'cooked_trout'); }],
     ['S6', 'whetstones made essential', (d) => { d.rows = d.rows.map((r) => (r[1] === 'iron_whetstone' ? ['ammo', r[1], true] : r)); }],
     ['S8', 'a buff type sorted nowhere', (d) => { d.combatBuffs = COMBAT_BUFF_TYPES.filter((t) => t !== 'damage'); }],
     ['H1', 'a walk that is not a whole tick', (d) => { d.hunts = d.hunts.map((h, i) => (i ? h : { ...h, travelS: 15 })); }],
+    ['G1', 'a suggested bag with a parked feast', (d) => {
+      const g = d.guides.mill_cellar; d.guides = { ...d.guides, mill_cellar: { ...g, melee: { ...g.melee, buff: { id: 'vegetable_stew', qty: 4 } } } };
+    }],
+    ['G1', 'a mage bag with no drinks', (d) => {
+      const g = d.guides.ridge_camp; d.guides = { ...d.guides, ridge_camp: { ...g, magic: { heal: g.magic.heal, ammo: g.magic.ammo } } };
+    }],
     ['L1', 'falls defaulting to 4', (d) => { d.limits = { ...SESSION_LIMITS, falls: { min: 1, max: 6, default: 4 } }; }],
     ['C1', 'the end order shuffled', (d) => { d.endOrder = ['heals_out', 'falls', ...END_ORDER.slice(2)]; }],
     ['C1', 'Vigour ends a hunt again', (d) => { d.endOrder = END_ORDER.map((r) => (r === 'stamina' ? 'vigour' : r)); }],
@@ -253,8 +382,9 @@ if (isMain) {
       process.exit(1);
     }
     const n = (k) => SUPPLY_ROWS.filter((r) => r[0] === k).length;
-    console.log(`supplies-catalogue: OK — ${SUPPLY_ROWS.length} supplies (${n('heal')} heal, ${n('buff')} buff, ${n('ammo')} ammo), `
-      + `each crafted or sold; ${RULING_SUBJECTS.length} rule subjects; default preset valid; ${HUNTS.length} hunts with walks and bag guides; `
+    console.log(`supplies-catalogue: OK — ${SUPPLY_ROWS.length} packed supplies (${n('heal')} heal, ${n('ammo')} ammo, ${n('buff')} parked buff) `
+      + `+ ${MANA_SUPPLY_ROWS.length} staged drinks; ${BASIC_SUPPLIES.length} shop supplies paid per use; ${RULING_SUBJECTS.length} rule subjects; `
+      + `default preset valid; ${HUNTS.length} hunts with walks and melee/ranged/magic bags; `
       + `${END_ORDER.length} end reasons and ${RULING_EVENTS.length} timeline events with copy`);
   } catch (e) {
     console.error('supplies-catalogue: HARNESS ERROR — ' + (e && e.stack || e));

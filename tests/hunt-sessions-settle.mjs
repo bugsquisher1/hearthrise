@@ -363,43 +363,55 @@ const ENGINE_ARMS = {
     return problems;
   },
 
-  /* BUY (engine half) — the purse, the fallback, the end. */
+  /* BUY (engine half) — the shop, paid per use, and the end. */
   'BUY-RULE': async (M) => {
     const problems = [];
-    const heal = [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
-    const mk = (bag, purse) => M.AR.newHuntSession({ id: 'b', huntFromMs: 0, bag, slots: heal,
-      npcPrices: { cooked_shrimp: 3, not_an_item: 1 }, purse });
+    const when = [{ subject: 'self_hp_pct', op: '<=', value: 50 }];
+    const bar = [{ item: '*heal', on: true, conditions: when }, { item: '*heal_shop', on: true, conditions: when },
+      { item: '*mana_shop', on: true, conditions: [] }];
+    const basics = {
+      salted_shrimp: { kind: 'heal', price: 3, heals: 4, mana: 0, partner: 'cooked_shrimp' },
+      thin_turnip_juice: { kind: 'mana', price: 1, heals: 0, mana: 6, partner: 'turnip_juice' },
+      plain_steel_arrows: { kind: 'ammo', price: 1000, heals: 0, mana: 0, partner: 'steel_arrows' },
+      bad_row: { kind: 'heal', price: 2.5, heals: 4 },
+    };
+    const mk = (bag, purse, slots = bar) => M.AR.newHuntSession({ id: 'b', huntFromMs: 0, bag, slots, basics,
+      shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' }, purse });
     const fire = (hs, atMs) => {
-      const st = { playerHp: 2, playerMaxHp: 10, huntSession: hs, buffs: [] };
+      const st = { playerHp: 2, playerMaxHp: 10, playerMana: 0, playerMaxMana: 10, huntSession: hs, buffs: [] };
       const ate = M.AR.runActionBar(st, { atMs });
       return { ate, hp: st.playerHp };
     };
     const hs = mk({}, 7);
-    if (Object.keys(hs.npcPrices).join() !== 'cooked_shrimp') problems.push(`a price for a non-supply survived newHuntSession: ${JSON.stringify(hs.npcPrices)}`);
+    if ('bad_row' in hs.basics) problems.push('a shop row with a fractional price survived newHuntSession');
     const a = fire(hs, 1000); const b = fire(hs, 5000); const c = fire(hs, 9000);
-    if (!a.ate || !b.ate || hs.tally.bought.cooked_shrimp !== 2 || hs.purse !== 1) {
-      problems.push(`two heals bought from a purse of 7 at 3: ate ${a.ate}/${b.ate}, bought ${JSON.stringify(hs.tally.bought)}, purse ${hs.purse}`);
+    if (!a.ate || a.hp !== 6 || !b.ate || hs.tally.bought.salted_shrimp !== 2 || hs.purse !== 1) {
+      problems.push(`two shop heals from a purse of 7 at 3: ate ${a.ate}/${b.ate} hp ${a.hp}, bought ${JSON.stringify(hs.tally.bought)}, purse ${hs.purse}`);
     }
-    if (c.ate || hs.goldOut !== true) problems.push(`a heal the purse cannot cover was eaten (${c.ate}) or did not mark goldOut (${hs.goldOut})`);
+    if (c.ate || hs.goldOut !== true) problems.push(`a shop heal the purse cannot cover was eaten (${c.ate}) or did not mark goldOut (${hs.goldOut})`);
     if (M.AR.endReasonAt(hs, 9000) !== 'gold_out') problems.push(`a dry purse ends '${M.AR.endReasonAt(hs, 9000)}', not gold_out`);
+    if ((hs.tally.bought.thin_turnip_juice || 0) !== 0) problems.push('a shop drink was bought before the mana engine exists');
     const crafted = mk({ cooked_trout: { loaded: 1 } }, 7);
     fire(crafted, 1000);
-    if (crafted.bag.cooked_trout.left !== 0 || crafted.purse !== 7 || (crafted.tally.bought.cooked_shrimp || 0) !== 0) {
-      problems.push('crafted stock in the bag was not spent before the NPC was paid');
+    if (crafted.bag.cooked_trout.left !== 0 || crafted.purse !== 7 || (crafted.tally.bought.salted_shrimp || 0) !== 0) {
+      problems.push('the shop was paid while the bag still held a crafted heal');
     }
     if (M.AR.endReasonAt(mk({ cooked_shrimp: { loaded: 1, left: 0 } }, 0), 0) === 'heals_out') {
-      problems.push('an empty heal line the NPC sells ended the hunt heals_out instead of falling back');
+      problems.push('an empty heal line behind a shop heal slot ended the hunt heals_out');
     }
-    /* Arrows, per shot, through the real span: 3 shots' gold, then gold_out. */
+    if (M.AR.endReasonAt(mk({ cooked_shrimp: { loaded: 1, left: 0 } }, 0, [bar[0]]), 0) !== 'heals_out') {
+      problems.push('CONTROL: an empty heal line with no shop slot did not end heals_out');
+    }
+    /* Shots, per shot, through the real span: 3 shots' gold, then gold_out. */
     const inp = huntInput(M, { hp: 99, maxHp: 99, gold: 3000,
       skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000, ranged: 200000 },
-      equipment: { weapon: 'shortbow', ammo: 'iron_arrows' } });
+      equipment: { weapon: 'shortbow', ammo: 'steel_arrows' } });
     inp.huntSession.bag = {};
-    inp.huntSession.npcPrices = { iron_arrows: 1000 };
+    inp.huntSession.basics = { plain_steel_arrows: basics.plain_steel_arrows };
     const out = M.AC.computeAccrual(inp);
     const h = out.hunt || {};
     if (!h.ended || h.ended.reason !== 'gold_out') problems.push(`a dry quiver ended '${h.ended && h.ended.reason}', not gold_out`);
-    if (!h.buys || h.buys.iron_arrows !== 3) problems.push(`3000 gold at 1000 a shot bought ${JSON.stringify(h.buys)}`);
+    if (!h.buys || h.buys.plain_steel_arrows !== 3) problems.push(`3000 gold at 1000 a shot bought ${JSON.stringify(h.buys)}`);
     return problems;
   },
 
@@ -509,11 +521,8 @@ async function hunter(db, M, o) {
     const r = await one(db, 'select public.hr_action_set_mode(0, 0, $1, $2, $3::uuid)', [o.mode.target, o.mode.pull, idem()]);
     if (!r || r.ok !== true) throw new Error('action set mode refused: ' + JSON.stringify(r));
   }
-  /* Catalogue / fixture rows on a rolled-back probe: an NPC price, the gold
-     the purse starts with, and the activity an automatic end resumes. */
-  for (const [item, price] of Object.entries(o.prices || {})) {
-    await db.query('update public.hr_hunt_supplies set npc_price = $2 where item_id = $1', [item, price]);
-  }
+  /* Fixture rows on a rolled-back probe: the gold the purse starts with, and
+     the activity an automatic end resumes. */
   if (o.gold != null) { await admin(db, { gold: o.gold }); await asUser(db, UID); }
   if (o.lastActivity) {
     await db.query(`update public.player_state set last_activity_kind = $2, last_activity_id = $3 where user_id = $1 and slot = 0`,
@@ -644,7 +653,11 @@ const STRONG = {
    BOTH-PATH vacuous). `magic` sits ONE XP above its level-12 floor and no
    melee style trains it: the DEATHXP arm's below-the-starting-level forgery
    charges it 3 (inside the 2% bound, below the floor). */
-const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 1, hunt: 'goblin_warren',
+/* The bar WEAK fights with: the bag's heal only. Lane D's default preset also
+   carries the SHOP's heal, which a hunter with no gold cannot pay — the hunt
+   would end `gold_out` at its first heal; the shop is BUY's subject. */
+const BAG_ONLY = [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
+const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 1, hunt: 'goblin_warren', slots: BAG_ONLY,
   skillsXp: { attack: 1700, strength: 1700, defense: 1700, magic: 1585 } };
 const SPAN_MS = 30 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
@@ -755,16 +768,19 @@ const DB_ARMS = {
     const problems = [];
     const odd = (from) => [37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
       .map((d) => from + d);
-    /* (1) BOTH PATHS buy the same heals, and the gold moved is exactly coins − Waste. */
-    const BUYER = { ...WEAK, falls: 6, prices: { cooked_shrimp: 2 }, gold: 40 };
+    /* (1) BOTH PATHS buy the same heals (lane D's default bar: the bag's heal,
+       then the shop's), and the gold moved is exactly coins − Waste. */
+    const price = Number(await one(db, `select price from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp'`));
+    const BUYER = { ...WEAK, slots: undefined, falls: 6, gold: 25 * price };
     const g0 = await inTx(db, async () => { await hunter(db, M, BUYER); return Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])); });
+    if (!(price > 0)) problems.push('CONTROL: the shop catalogue has no salted_shrimp');
     const r = await compareRuns(db, M, BUYER, ticksOf(90000, SPAN_MS), odd);
     const a = canon(r.a); const b = canon(r.b);
     if (a !== b) problems.push(`NPC buys settled at a client's instants wrote different rows than on the tick ${firstDiff(a, b)}`);
     const t = r.a.tally || {};
-    const bought = Number((t.bought || {}).cooked_shrimp || 0);
+    const bought = Number((t.bought || {}).salted_shrimp || 0);
     if (!(bought > 0)) problems.push(`CONTROL: the buyer bought nothing (${JSON.stringify(t)})`);
-    if (Number(t.supply_gold) !== bought * 2) problems.push(`the tally's Waste is ${t.supply_gold} for ${bought} heals at 2`);
+    if (Number(t.supply_gold) !== bought * price) problems.push(`the tally's Waste is ${t.supply_gold} for ${bought} heals at ${price}`);
     const journalled = -Number((r.a.buys || {}).gold || 0);
     if (journalled !== Number(t.supply_gold)) problems.push(`the supply_buy rows debit ${journalled}, the tally says ${t.supply_gold}`);
     if (Number(r.a.gold) !== g0 + Number(t.coins) - Number(t.supply_gold)) {
@@ -772,7 +788,7 @@ const DB_ARMS = {
     }
     /* (2) A PURSE THAT CANNOT KEEP THE HUNT ends it gold_out, proved. */
     await inTx(db, async () => {
-      const { sid, from } = await hunter(db, M, { ...WEAK, falls: 6, prices: { cooked_shrimp: 1000 }, gold: 1500 });
+      const { sid, from } = await hunter(db, M, { ...WEAK, slots: undefined, falls: 6, gold: price + 10 });
       await settleTo(db, M, from + SPAN_MS);
       const s = await snapshot(db, sid);
       if (!s.session || s.session.end_reason !== 'gold_out') problems.push(`a purse of one heal ended the hunt '${s.session && s.session.end_reason}', not gold_out`);
@@ -828,6 +844,11 @@ const DB_ARMS = {
     if (!r20 || r20.ok !== true) problems.push(`a 20-slot bar with a mana condition was refused: ${JSON.stringify(r20)}`);
     const r21 = await put(Array.from({ length: 21 }, () => slot));
     if (!r21 || r21.why !== 'too_many_slots') problems.push(`a 21-slot bar answered ${JSON.stringify(r21)}`);
+    const shopBar = await put([{ item: '*heal_shop', on: true, conditions: [] }, { item: '*mana_shop', on: true, conditions: [] },
+      { item: '*mana', on: true, conditions: [] }, { item: 'salted_shrimp', on: true, conditions: [] }]);
+    if (!shopBar || shopBar.ok !== true) problems.push(`a bar of shop targets and a shop heal was refused: ${JSON.stringify(shopBar)}`);
+    const shot = await put([{ item: 'plain_steel_arrows', on: true, conditions: [] }]);
+    if (!shot || shot.why !== 'item_not_fireable') problems.push(`a shop SHOT on the bar answered ${JSON.stringify(shot)}`);
     const sp = await put([{ kind: 'spell', item: 'cooked_shrimp', on: true, conditions: [] }]);
     if (!sp || sp.why !== 'kind_reserved') problems.push(`a spell slot answered ${JSON.stringify(sp)}`);
     const mode = (t, p, preset = 1) => one(db, 'select public.hr_action_set_mode(0, $1, $2, $3, $4::uuid)', [preset, t, p, idem()]);
@@ -1142,15 +1163,18 @@ const MUTANTS = [
     from: '      if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, false);\n', to: '' },
   { arm: 'STAMINA', name: 'the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
-  { arm: 'BUY-RULE', name: 'a heal the bag lacks is never bought', file: 'src/core/action-rules.js',
-    from: "    if (!(npcPriceOf(v.hs, want) > 0)) return { why: 'bag_empty' };", to: "    return { why: 'bag_empty' };" },
-  { arm: 'BUY-RULE', name: 'the NPC is paid before the crafted stock is spent', file: 'src/core/action-rules.js',
-    from: '    const id = pickHeal(v.hs, v.maxHp - v.hp);\n    if (id) return { id, group: \'heal\' };',
-    to: '    const id = pickNpcHeal(v.hs, v.maxHp - v.hp) && null;\n    if (id) return { id, group: \'heal\' };' },
+  { arm: 'BUY-RULE', name: 'a shop slot never buys', file: 'src/core/action-rules.js',
+    from: "      ? { id: shopId, group: 'heal', buy: true } : { why: 'gold_short', item: shopId, group: 'heal' };",
+    to: "      ? { why: 'bag_empty' } : { why: 'gold_short', item: shopId, group: 'heal' };" },
+  { arm: 'BUY-RULE', name: 'a shop heal heals by its crafted partner', file: 'src/core/action-rules.js',
+    from: '      const heals = u.buy ? basicOf(hs, u.id).heals : SUPPLIES[u.id].heals;',
+    to: '      const heals = u.buy ? SUPPLIES[basicOf(hs, u.id).partner].heals : SUPPLIES[u.id].heals;' },
+  { arm: 'BUY-RULE', name: 'a shop drink is bought before mana exists', file: 'src/core/action-rules.js',
+    from: "    if (b.kind === 'mana') return { why: 'no_mana' };          // inert until the mana engine ships\n", to: '' },
   { arm: 'BUY-RULE', name: 'a dry purse ends nothing', file: 'src/core/action-rules.js',
     from: '  gold_out: (hs) => hs.goldOut === true,', to: '  gold_out: () => false,' },
   { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/combat-sim.js',
-    from: '    if (n - fromBag > 0) buyFromNpc(hunt, id, n - fromBag);', to: '' },
+    from: '    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);', to: '' },
   { arm: 'BUY', name: 'kill coins never reach the purse', file: 'src/core/combat-sim.js',
     from: "      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));", to: '' },
   { arm: 'ACTIONBAR-RULE', name: 'the mana condition reads hit points', file: 'src/core/action-rules.js',
@@ -1191,7 +1215,7 @@ const DB_MUTANTS = [
     find: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0", replace: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) >= 0" },
   { arm: 'STAMINA', name: 'an empty pool enters a hunt', fn: 'public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)',
     find: "  if coalesce(public.hr_stamina_of(v_uid, p_slot, now()), 0) <= 0 then", replace: "  if false then" },
-  { arm: 'BUY', name: 'the applier takes the engine\'s word for a unit\'s price', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+  { arm: 'BUY', name: 'the applier prices a use at one gold', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
     find: "        v_cost := v_cost + v_n * v_price;", replace: "        v_cost := v_cost + v_n;" },
   { arm: 'BUY', name: 'a gold_out end is proven on any purse', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
     find: "      when 'gold_out' then coalesce((select ps.gold from public.player_state ps",

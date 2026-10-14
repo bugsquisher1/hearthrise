@@ -8,9 +8,9 @@
 // the decoded images by set. A set that fails is logged and left out — its
 // sprites draw as stubs — so a slow or broken asset never blanks the pane.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=578';
-import { atlasPaths } from '../data/world/art-budget.js?v=578';
-import { createBook } from './core/book.js?v=578';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=582';
+import { atlasPaths } from '../data/world/art-budget.js?v=582';
+import { createBook } from './core/book.js?v=582';
 
 function loadImage(doc, src) {
   return new Promise((resolve, reject) => {

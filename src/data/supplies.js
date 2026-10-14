@@ -2,9 +2,17 @@
 // src/data/supplies.js — WHAT A HUNT BAG MAY HOLD (Hunt Sessions, ruling
 // HR-2026-10-14 §2 "Supplies: a loaded bag"; Game Designer, lane D)
 //
-// A supply is a crafted item the hunt spends: a HEAL (healing food, fired by
-// the action bar), a BUFF (a feast or draught whose buff pays in a fight) or
-// AMMO (arrows, runes, whetstones, spent per swing by src/core/ammo.js).
+// A packed supply is an item the hunt spends: a HEAL (food, fired by the
+// action bar), MANA (a drink, fired by the action bar), AMMO (arrows, runes,
+// whetstones, spent per swing by src/core/ammo.js) or a BUFF (a feast; PARKED,
+// Tyler 2026-10-14: kept as data, left out of suggested bags and the default
+// action bar until buffs are deepened).
+//
+// TWO WAYS TO SUPPLY A HUNT (Tyler, 2026-10-14). The CRAFTED items below are
+// made by a skill and packed in the bag. The shop's BASIC supplies are not
+// items at all: an action-bar slot fires one and the server charges gold per
+// use (src/data/supply-basics.js). Crafted is better and much cheaper per
+// point; basic is the floor that never runs out while there is gold.
 //
 // NO NEW NUMBERS. A row names the item, its kind and whether running out of it
 // ends the hunt. How much it heals and which buff it gives are read from
@@ -16,16 +24,16 @@
 //   · Feasts whose buff pays nothing in a fight (gather speed, farm yield).
 //     Packing one would be a silent waste; IDLE_BUFF_TYPES names them.
 //
-// tests/supplies-catalogue.mjs proves: every row exists, is crafted or sold
-// (a recipe or a shop offer), has the kind its item says, and the list is
-// complete — a new cooked food or arrow that is not classified here goes red.
+// tests/supplies-catalogue.mjs proves: every row exists, is crafted or sold,
+// has the kind its item says, and the list is complete — a new cooked food or
+// arrow that is not classified here goes red.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=578';
+import { ITEMS, foodClassOf } from './items.js?v=582';
 
-export const SUPPLY_KINDS = Object.freeze(['heal', 'buff', 'ammo']);
+export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
 /* Buff types that pay in a fight, and the ones that do not. Together they
    must cover every type in src/core/buffs.js BUFFS_DEF (the guard checks), so
@@ -39,6 +47,7 @@ export const IDLE_BUFF_TYPES = Object.freeze(['gather_speed', 'farm_yield']);
    a sword works unsharpened (src/core/ammo.js R5), so running out of stones
    should cost the edge, not the hunt. Buffs are never essential. */
 const H = 'heal';
+const M = 'mana';
 const B = 'buff';
 const A = 'ammo';
 export const SUPPLY_ROWS = Object.freeze([
@@ -50,7 +59,7 @@ export const SUPPLY_ROWS = Object.freeze([
   [H, 'cooked_lobster', true], [H, 'cooked_bear_meat', true], [H, 'cooked_swordfish', true],
   [H, 'river_chowder', true], [H, 'cooked_shark', true], [H, 'cooked_frostfin', true],
   [H, 'cooked_moonfish', true],
-  // buff — feasts and draughts whose buff pays in a fight
+  // buff — PARKED: feasts and draughts whose buff pays in a fight
   [B, 'tomato_soup', false], [B, 'vegetable_stew', false], [B, 'bear_claw_pie', false],
   [B, 'pumpkin_pie', false], [B, 'fishers_pie', false], [B, 'hunters_feast', false],
   [B, 'ember_tart', false], [B, 'dragon_stew', false], [B, 'lich_soul_soup', false],
@@ -66,20 +75,19 @@ export const SUPPLY_ROWS = Object.freeze([
   [A, 'dawn_whetstone', false],
 ]);
 
-/* ── NPC BASIC SUPPLIES (Tyler 2026-10-14: "exactly like Huntera") ──────────
-   id -> the GOLD a hunt pays the NPC per use (per heal, per shot, per drink,
-   per cast) when the bag holds none of it — no inventory, no packing. Crafted
-   stock in the bag is always spent first. Every key must be a supply row
-   above and every price a whole number > 0 (tools/gen-hunt-sessions.mjs
-   refuses anything else); the server reads them as hr_hunt_supplies.npc_price
-   and never takes a price from a client. EMPTY until the designer prices the
-   basics (lane D): an unpriced catalogue bills nothing. */
-export const NPC_BASIC_PRICES = Object.freeze({});
+/* mana — STAGED with the drinks (src/data/drinks.js): these join SUPPLY_ROWS
+   in the commit that ships the mana engine. Not essential: with no mana a
+   mage loses spells, not the hunt, and the shop drink is the fallback. */
+export const MANA_SUPPLY_ROWS = Object.freeze([
+  [M, 'turnip_juice', false], [M, 'carrot_juice', false], [M, 'tomato_juice', false],
+  [M, 'pumpkin_cider', false], [M, 'goldenroot_tea', false], [M, 'emberfruit_cordial', false],
+]);
 
 /** The kind an item IS, from its own data: what the guard compares rows to. */
 export function supplyKindOf(item) {
   if (!item || typeof item !== 'object' || item.raw) return null;
   if (item.slot === 'ammo') return A;
+  if (Number(item.mana) > 0) return M;
   const cls = foodClassOf(item);
   if (cls === 'healing') return H;
   if (cls === 'buff' && item.buff && COMBAT_BUFF_TYPES.includes(item.buff.type)) return B;
@@ -102,48 +110,82 @@ export const SUPPLIES = Object.freeze(SUPPLY_ROWS.reduce((acc, [kind, id, essent
 export const HEAL_ORDER = Object.freeze(SUPPLY_ROWS.filter((r) => r[0] === H).map((r) => r[1])
   .sort((a, b) => ((ITEMS[a].v - ITEMS[b].v) || (ITEMS[a].heals - ITEMS[b].heals) || (a < b ? -1 : 1))));
 
-/* ── THE SENSIBLE BAG ─────────────────────────────────────────────────────
-   The bag a hunt suggests, sized to last about BAG_TARGET_HOURS for a
-   character at the hunt's entry level. The ruling's band is 2–6 h; 3 h sits
-   low in it on purpose, so a first bag is cheap to cook and a full night is
-   a choice. Ammo is not sized here: src/core/ammo.js hoursOfSupply already
-   turns hours into a stack for the equipped weapon.
+/* ── WHAT A HUNT COSTS AND PAYS, AND THE BAG IT SUGGESTS ──────────────────
+   PRICING RULE (Tyler, 2026-10-14): at a hunt's entry level, gold plus common
+   drops (vendor value) about pays for supplies bought per use at the shop;
+   crafted supplies tip it positive; rare drops are the profit.
+   MEASURED 2026-10-14, the real engine (tick-probe oneSpan, 2 h x 4 seeds,
+   eat at HP <= 50%), gold per hour. income = gold + common drops (chance
+   >= 5%, not lucky); basic = shop heals (and shop shots) per use; crafted =
+   packed Cooked Shrimp / Cooked Trout (and crafted shots) at book value:
+     hunt (entry)          style   heals/h b/c   basic  crafted  income  bal basic  bal crafted  rare
+     Mill Cellar (lv 5)    melee   41.9 / 35.4    3769     637    3371      -398       +2734     123
+                           ranged  60.9 / 48.9    5479     880    5602      +123       +4722
+                           magic   55.3 / 44.9    4973     808    4391      -582*      +3583*
+     Bramble Edge (lv 5)   melee   69.0 / 56.1    6210    1010    6390      +180       +5380      57
+                           ranged  99.0 / 77.5    8910    1395   12511     +3601      +11116
+                           magic   92.9 / 73.8    8359    1328    8734      +375*      +7406*
+     Goblin Warren (lv 5)  melee   43.8 / 36.1    3938     650    4479      +541       +3829     818
+                           ranged  85.5 / 68.3    7695    1229    5700     -1995       +4471
+                           magic   73.9 / 59.3    6649    1067    4672     -1977*      +3605*
+     Ridge Camp (lv 15)    melee   15.5 / 12.3    2480     674    5383     +2903       +4709     751
+                           ranged  16.1 / 12.5    5990    2393    7124     +1134       +4731
+                           magic   35.9 / 27.3    8598    2928    8151      -447*      +5223*
+   ranged/magic at Ridge Camp include 1,705 / 1,429 shots an hour (shop 2 g,
+   crafted 1 g). * before drinks: there is no mana engine to measure yet.
+   One heal price serves every style and all three tier-1 hunts, so it is set
+   on the melee reference (15 g a heal point). Ridge Camp pays about 35 g per
+   point of damage taken against 13-17 g at the tier-1 hunts; its break-even
+   shop heal would cost 35 g a point, which a player would dodge by firing the
+   tier-1 shop heal instead, so no price closes it: its gold and drops are the
+   lever. Crafted Balance is at book value; the market prices cooked food up.
 
-   MEASURED 2026-10-14, the real engine (tick-probe oneSpan over 2 h, 4 seeds,
-   eat at HP ≤ 50%), heals eaten per hour:
-     hunt / tier        character                      heal           per h  bag  lasts
-     Mill Cellar        brand new, Bronze Sword        Cooked Shrimp   46.5  120  2.6 h
-                        level 5, no armour             Cooked Shrimp   35.4  120  3.4 h
-     Goblin Warren      brand new / level 5            Cooked Shrimp   47.3 / 36.1  120  2.5 / 3.3 h
-     Bramble Edge       brand new / level 5            Cooked Shrimp   72.6 / 56.1  150  2.1 / 2.7 h
-     Ridge Camp         level 15, iron, melee/ranged   Cooked Trout    12.3 / 12.5   40  3.2 h
-     tier 2 (Wolf)      level 15, iron                 Cooked Trout    10.6   30  2.8 h
-     tier 3 (Dire Wolf) level 30, steel                Cooked Lobster  14.1   40  2.8 h
-     tier 4 (Bear)      level 45, mithril              Swordfish Steak 19.4   60  3.1 h
-     tier 5 (Panther)   level 60, rune                 Swordfish Steak 28.9   90  3.1 h
-     tier 6 (Ancient Bear) level 75, ember             Cooked Shark    35.9  110  3.1 h
-   A character above the band eats far less (level 10 in bronze armour at
-   the Mill Cellar: 5.5 an hour), which is the reward for gearing up. */
+   THE CRAFTED BAG. Sized to last about BAG_TARGET_HOURS for a character at
+   the hunt's entry level, per style. A mage's drink count is a DESIGN TARGET
+   for the mana engine to meet (an entry mage drinks about one drink for every
+   two heals), not a measurement. Free tier-1 ammo is not counted; tier-2 ammo
+   is sized from the shots per hour above. */
 export const BAG_TARGET_HOURS = 3;
 
+const melee = (heal, qty) => Object.freeze({ heal: Object.freeze({ id: heal, qty }) });
+const ranged = (heal, qty, ammo, aq) => Object.freeze({ heal: Object.freeze({ id: heal, qty }), ammo: Object.freeze({ id: ammo, qty: aq }) });
+const magic = (heal, qty, drink, dq, ammo, aq) => Object.freeze({
+  heal: Object.freeze({ id: heal, qty }), mana: Object.freeze({ id: drink, qty: dq }), ammo: Object.freeze({ id: ammo, qty: aq }),
+});
+
 export const BAG_GUIDE_BY_HUNT = Object.freeze({
-  mill_cellar: Object.freeze({ heal: 'cooked_shrimp', qty: 120 }),
-  goblin_warren: Object.freeze({ heal: 'cooked_shrimp', qty: 120 }),
-  bramble_edge: Object.freeze({ heal: 'cooked_shrimp', qty: 150 }),
-  ridge_camp: Object.freeze({ heal: 'cooked_trout', qty: 40 }),
+  mill_cellar: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 105),
+    ranged: ranged('cooked_shrimp', 145, 'bronze_arrows', 0),
+    magic: magic('cooked_shrimp', 135, 'turnip_juice', 65, 'air_rune', 0) }),
+  bramble_edge: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 170),
+    ranged: ranged('cooked_shrimp', 235, 'bronze_arrows', 0),
+    magic: magic('cooked_shrimp', 220, 'turnip_juice', 110, 'air_rune', 0) }),
+  goblin_warren: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 110),
+    ranged: ranged('cooked_shrimp', 205, 'bronze_arrows', 0),
+    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'air_rune', 0) }),
+  ridge_camp: Object.freeze({ tier: 2,
+    melee: melee('cooked_trout', 35),
+    ranged: ranged('cooked_trout', 40, 'barbed_arrows', 5100),
+    magic: magic('cooked_trout', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
 });
 
-/* A single-monster fight is guided by the monster's tier. */
+/* A single-monster fight is guided by its monster's tier (melee measured:
+   heals an hour at entry level, tier 2 Wolf lv 15 10.6, tier 3 Dire Wolf lv 30
+   14.1, tier 4 Bear lv 45 19.4, tier 5 Panther lv 60 28.9, tier 6 Ancient Bear
+   lv 75 35.9). */
 export const BAG_GUIDE_BY_TIER = Object.freeze({
-  1: Object.freeze({ heal: 'cooked_shrimp', qty: 120 }),
-  2: Object.freeze({ heal: 'cooked_trout', qty: 30 }),
-  3: Object.freeze({ heal: 'cooked_lobster', qty: 40 }),
-  4: Object.freeze({ heal: 'cooked_swordfish', qty: 60 }),
-  5: Object.freeze({ heal: 'cooked_swordfish', qty: 90 }),
-  6: Object.freeze({ heal: 'cooked_shark', qty: 110 }),
+  1: Object.freeze({ tier: 1, melee: melee('cooked_shrimp', 105) }),
+  2: Object.freeze({ tier: 2, melee: melee('cooked_trout', 30) }),
+  3: Object.freeze({ tier: 3, melee: melee('cooked_lobster', 40) }),
+  4: Object.freeze({ tier: 4, melee: melee('cooked_swordfish', 60) }),
+  5: Object.freeze({ tier: 5, melee: melee('cooked_swordfish', 85) }),
+  6: Object.freeze({ tier: 6, melee: melee('cooked_shark', 110) }),
 });
 
-/** The suggested heal line for a hunt id, or for a training fight's monster tier. */
+/** The guide for a hunt id, or for a training fight's monster tier. */
 export function bagGuideFor(huntId, monsterTier) {
   if (Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, huntId)) return BAG_GUIDE_BY_HUNT[huntId];
   return BAG_GUIDE_BY_TIER[monsterTier] || BAG_GUIDE_BY_TIER[1];

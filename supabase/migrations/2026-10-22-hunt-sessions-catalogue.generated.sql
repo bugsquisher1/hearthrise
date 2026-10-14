@@ -6,10 +6,11 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 524c260b4346b587cec1ef5300c9a6551d435a66ea8da1cc25862d954efd1194
+--   digest: cad5823f262b40dc0a12e457e810925daf0a4309989b7a39cffc19352180f855
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
---   7 combat buff types, 18 limits, 9 end reasons, 484 vendor values,
---   0 NPC-priced supplies, 2 slot kinds, 4 target modes
+--   7 combat buff types, 19 limits, 9 end reasons, 484 vendor values,
+--   23 shop supplies paid per use, 4 slot targets, 2 slot kinds,
+--   4 target modes
 --
 -- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale.
@@ -62,11 +63,24 @@ create table if not exists public.hr_hunt_vendor_value (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
 );
--- The NPC's per-use price (Tyler 2026-10-14). NULL: not sold per use.
-alter table public.hr_hunt_supplies add column if not exists npc_price bigint;
-alter table public.hr_hunt_supplies drop constraint if exists hr_hunt_supplies_npc_price_ck;
-alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_npc_price_ck
-  check (npc_price is null or npc_price between 1 and 1000000000);
+-- THE SHOP (Tyler 2026-10-14): supplies paid per use, never items.
+create table if not exists public.hr_hunt_basic_supplies (
+  basic_id text primary key check (basic_id ~ '^[a-z0-9_]{1,64}$'),
+  kind     text not null check (kind in ('heal', 'mana', 'ammo')),
+  partner  text not null check (partner ~ '^[a-z0-9_]{1,64}$'),
+  heals    int  not null check (heals >= 0),
+  mana     int  not null check (mana >= 0),
+  price    bigint not null check (price between 1 and 1000000000),
+  tiers    int[] not null
+);
+create table if not exists public.hr_hunt_slot_targets (
+  target text primary key check (target ~ '^[*][a-z_]{1,32}$'),
+  kind   text not null check (kind in ('heal', 'mana')),
+  src    text not null check (src in ('bag', 'shop'))
+);
+-- The tier a shop slot resolves by (a named hunt's bag guide; a training
+-- fight's monster).
+alter table public.hr_hunt_travel add column if not exists tier int;
 create table if not exists public.hr_hunt_slot_kinds (
   kind   text primary key check (kind ~ '^[a-z0-9_]{1,64}$'),
   active boolean not null
@@ -90,66 +104,100 @@ alter table public.hr_hunt_vendor_value   enable row level security;
 alter table public.hr_hunt_slot_kinds     enable row level security;
 alter table public.hr_hunt_target_modes   enable row level security;
 alter table public.hr_hunt_resumable_kinds enable row level security;
+alter table public.hr_hunt_basic_supplies enable row level security;
+alter table public.hr_hunt_slot_targets   enable row level security;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
-              public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds
+              public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds,
+              public.hr_hunt_basic_supplies, public.hr_hunt_slot_targets
   from public, anon, authenticated, service_role;
 
 delete from public.hr_hunt_supplies;
-insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type, npc_price) values
-  ('air_rune', 'ammo', true, 0, null, null),
-  ('baked_potato', 'heal', true, 20, null, null),
-  ('barbed_arrows', 'ammo', true, 0, null, null),
-  ('bear_claw_pie', 'buff', false, 0, 'damage', null),
-  ('blood_rune', 'ammo', true, 0, null, null),
-  ('bronze_arrows', 'ammo', true, 0, null, null),
-  ('chaos_rune', 'ammo', true, 0, null, null),
-  ('coarse_whetstone', 'ammo', false, 0, null, null),
-  ('cooked_bear_meat', 'heal', true, 13, null, null),
-  ('cooked_copper_crab', 'heal', true, 18, null, null),
-  ('cooked_frostfin', 'heal', true, 38, null, null),
-  ('cooked_goldgill', 'heal', true, 23, null, null),
-  ('cooked_herring', 'heal', true, 6, null, null),
-  ('cooked_lobster', 'heal', true, 25, null, null),
-  ('cooked_moonfish', 'heal', true, 50, null, null),
-  ('cooked_panther_meat', 'heal', true, 9, null, null),
-  ('cooked_pikeperch', 'heal', true, 16, null, null),
-  ('cooked_shark', 'heal', true, 44, null, null),
-  ('cooked_shrimp', 'heal', true, 8, null, null),
-  ('cooked_silverfin', 'heal', true, 21, null, null),
-  ('cooked_swordfish', 'heal', true, 32, null, null),
-  ('cooked_trout', 'heal', true, 14, null, null),
-  ('cooked_wolf_meat', 'heal', true, 6, null, null),
-  ('copper_whetstone', 'ammo', false, 0, null, null),
-  ('dawn_whetstone', 'ammo', false, 0, null, null),
-  ('dawnpoint_arrows', 'ammo', true, 0, null, null),
-  ('death_rune', 'ammo', true, 0, null, null),
-  ('dragon_stew', 'buff', false, 0, 'combat_xp', null),
-  ('earth_rune', 'ammo', true, 0, null, null),
-  ('ember_tart', 'buff', false, 0, 'combat_xp', null),
-  ('emberhead_arrows', 'ammo', true, 0, null, null),
-  ('fire_rune', 'ammo', true, 0, null, null),
-  ('fishers_pie', 'buff', false, 0, 'damage', null),
-  ('hunters_feast', 'buff', false, 0, 'drop_rate', null),
-  ('iron_arrows', 'ammo', true, 0, null, null),
-  ('iron_whetstone', 'ammo', false, 0, null, null),
-  ('lich_soul_soup', 'buff', false, 0, 'gold_find', null),
-  ('mithril_arrows', 'ammo', true, 0, null, null),
-  ('mithril_whetstone', 'ammo', false, 0, null, null),
-  ('moonbloom_elixir', 'buff', false, 0, 'all_xp', null),
-  ('pumpkin_pie', 'buff', false, 0, 'all_xp', null),
-  ('river_chowder', 'heal', true, 30, null, null),
-  ('rune_arrows', 'ammo', true, 0, null, null),
-  ('rune_whetstone', 'ammo', false, 0, null, null),
-  ('steel_arrows', 'ammo', true, 0, null, null),
-  ('steel_whetstone', 'ammo', false, 0, null, null),
-  ('tomato_soup', 'buff', false, 0, 'drop_rate', null),
-  ('turnip_mash', 'heal', true, 5, null, null),
-  ('vegetable_stew', 'buff', false, 0, 'all_xp', null),
-  ('void_banquet', 'buff', false, 0, 'damage_crit', null),
-  ('water_rune', 'ammo', true, 0, null, null),
-  ('wheat_bread', 'heal', true, 18, null, null);
+insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type) values
+  ('air_rune', 'ammo', true, 0, null),
+  ('baked_potato', 'heal', true, 20, null),
+  ('barbed_arrows', 'ammo', true, 0, null),
+  ('bear_claw_pie', 'buff', false, 0, 'damage'),
+  ('blood_rune', 'ammo', true, 0, null),
+  ('bronze_arrows', 'ammo', true, 0, null),
+  ('chaos_rune', 'ammo', true, 0, null),
+  ('coarse_whetstone', 'ammo', false, 0, null),
+  ('cooked_bear_meat', 'heal', true, 13, null),
+  ('cooked_copper_crab', 'heal', true, 18, null),
+  ('cooked_frostfin', 'heal', true, 38, null),
+  ('cooked_goldgill', 'heal', true, 23, null),
+  ('cooked_herring', 'heal', true, 6, null),
+  ('cooked_lobster', 'heal', true, 25, null),
+  ('cooked_moonfish', 'heal', true, 50, null),
+  ('cooked_panther_meat', 'heal', true, 9, null),
+  ('cooked_pikeperch', 'heal', true, 16, null),
+  ('cooked_shark', 'heal', true, 44, null),
+  ('cooked_shrimp', 'heal', true, 8, null),
+  ('cooked_silverfin', 'heal', true, 21, null),
+  ('cooked_swordfish', 'heal', true, 32, null),
+  ('cooked_trout', 'heal', true, 14, null),
+  ('cooked_wolf_meat', 'heal', true, 6, null),
+  ('copper_whetstone', 'ammo', false, 0, null),
+  ('dawn_whetstone', 'ammo', false, 0, null),
+  ('dawnpoint_arrows', 'ammo', true, 0, null),
+  ('death_rune', 'ammo', true, 0, null),
+  ('dragon_stew', 'buff', false, 0, 'combat_xp'),
+  ('earth_rune', 'ammo', true, 0, null),
+  ('ember_tart', 'buff', false, 0, 'combat_xp'),
+  ('emberhead_arrows', 'ammo', true, 0, null),
+  ('fire_rune', 'ammo', true, 0, null),
+  ('fishers_pie', 'buff', false, 0, 'damage'),
+  ('hunters_feast', 'buff', false, 0, 'drop_rate'),
+  ('iron_arrows', 'ammo', true, 0, null),
+  ('iron_whetstone', 'ammo', false, 0, null),
+  ('lich_soul_soup', 'buff', false, 0, 'gold_find'),
+  ('mithril_arrows', 'ammo', true, 0, null),
+  ('mithril_whetstone', 'ammo', false, 0, null),
+  ('moonbloom_elixir', 'buff', false, 0, 'all_xp'),
+  ('pumpkin_pie', 'buff', false, 0, 'all_xp'),
+  ('river_chowder', 'heal', true, 30, null),
+  ('rune_arrows', 'ammo', true, 0, null),
+  ('rune_whetstone', 'ammo', false, 0, null),
+  ('steel_arrows', 'ammo', true, 0, null),
+  ('steel_whetstone', 'ammo', false, 0, null),
+  ('tomato_soup', 'buff', false, 0, 'drop_rate'),
+  ('turnip_mash', 'heal', true, 5, null),
+  ('vegetable_stew', 'buff', false, 0, 'all_xp'),
+  ('void_banquet', 'buff', false, 0, 'damage_crit'),
+  ('water_rune', 'ammo', true, 0, null),
+  ('wheat_bread', 'heal', true, 18, null);
+delete from public.hr_hunt_basic_supplies;
+insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values
+  ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2, '{}'::int[]),
+  ('plain_blood_rune', 'ammo', 'blood_rune', 0, 0, 24, '{}'::int[]),
+  ('plain_chaos_rune', 'ammo', 'chaos_rune', 0, 0, 12, '{}'::int[]),
+  ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24, '{}'::int[]),
+  ('plain_death_rune', 'ammo', 'death_rune', 0, 0, 18, '{}'::int[]),
+  ('plain_earth_rune', 'ammo', 'earth_rune', 0, 0, 2, '{}'::int[]),
+  ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18, '{}'::int[]),
+  ('plain_fire_rune', 'ammo', 'fire_rune', 0, 0, 8, '{}'::int[]),
+  ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8, '{}'::int[]),
+  ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12, '{}'::int[]),
+  ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4, '{}'::int[]),
+  ('plain_water_rune', 'ammo', 'water_rune', 0, 0, 4, '{}'::int[]),
+  ('salted_lobster', 'heal', 'cooked_lobster', 18, 0, 325, '{3}'::int[]),
+  ('salted_shark', 'heal', 'cooked_shark', 33, 0, 790, '{6}'::int[]),
+  ('salted_shrimp', 'heal', 'cooked_shrimp', 6, 0, 90, '{1}'::int[]),
+  ('salted_swordfish', 'heal', 'cooked_swordfish', 24, 0, 505, '{4,5}'::int[]),
+  ('salted_trout', 'heal', 'cooked_trout', 10, 0, 160, '{2}'::int[]),
+  ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 10, 160, '{2}'::int[]),
+  ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 40, 960, '{6}'::int[]),
+  ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 33, 790, '{5}'::int[]),
+  ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 24, 505, '{4}'::int[]),
+  ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 18, 325, '{3}'::int[]),
+  ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 6, 90, '{1}'::int[]);
+delete from public.hr_hunt_slot_targets;
+insert into public.hr_hunt_slot_targets (target, kind, src) values
+  ('*heal', 'heal', 'bag'),
+  ('*heal_shop', 'heal', 'shop'),
+  ('*mana', 'mana', 'bag'),
+  ('*mana_shop', 'mana', 'shop');
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
   ('spell', false),
@@ -161,105 +209,105 @@ insert into public.hr_hunt_target_modes (mode, solo) values
   ('strongest', true),
   ('weakest', true);
 delete from public.hr_hunt_travel;
-insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
-  ('adept', 80, true),
-  ('air_elemental', 40, true),
-  ('ancient_bear', 120, true),
-  ('archmage', 100, true),
-  ('astrologer', 100, true),
-  ('bandit_lord', 100, true),
-  ('barrow_knight', 80, true),
-  ('bear', 80, true),
-  ('bog_vine', 60, true),
-  ('bramble_edge', 30, false),
-  ('carnivorous_plant', 80, true),
-  ('carrion_swarm', 100, true),
-  ('cave_wyrm', 80, true),
-  ('centipede', 60, true),
-  ('chained_demon', 100, true),
-  ('clay_golem', 60, true),
-  ('conjurer', 80, true),
-  ('cutpurse', 20, true),
-  ('cyclops', 100, true),
-  ('dark_wizard', 40, true),
-  ('death_knight', 100, true),
-  ('deserter', 60, true),
-  ('dire_wolf', 60, true),
-  ('drake', 100, true),
-  ('drowned_dead', 80, true),
-  ('dryad', 100, true),
-  ('earth_elemental', 60, true),
-  ('fire_devil', 60, true),
-  ('fire_elemental', 20, true),
-  ('frost_giant', 100, true),
-  ('fury', 100, true),
-  ('gargoyle', 100, true),
-  ('ghoul', 60, true),
-  ('giant_bat', 40, true),
-  ('giant_boar', 100, true),
-  ('giant_spider', 80, true),
-  ('gnoll', 40, true),
-  ('goblin', 20, true),
-  ('goblin_brute', 60, true),
-  ('goblin_warlord', 80, true),
-  ('goblin_warren', 30, false),
-  ('grave_banshee', 100, true),
-  ('hellhound', 80, true),
-  ('hive_wasp', 20, true),
-  ('hobgoblin', 40, true),
-  ('ice_elemental', 80, true),
-  ('imp', 20, true),
-  ('kobold', 20, true),
-  ('lesser_demon', 80, true),
-  ('locust_swarm', 40, true),
-  ('lynx', 60, true),
-  ('magma_elemental', 100, true),
-  ('mammoth', 100, true),
-  ('mandrake', 20, true),
-  ('mill_cellar', 20, false),
-  ('minotaur', 80, true),
-  ('mountain_ram', 60, true),
-  ('mountain_troll', 80, true),
-  ('nightmare', 40, true),
-  ('ogre', 80, true),
-  ('ooze', 40, true),
-  ('panther', 100, true),
-  ('plague_swarm', 80, true),
-  ('rat', 20, true),
-  ('revenant', 120, true),
-  ('ridge_camp', 60, false),
-  ('rock_troll', 60, true),
-  ('salamander', 40, true),
-  ('scarecrow', 20, true),
-  ('shadow_creeper', 100, true),
-  ('shrieker', 40, true),
-  ('skeleton', 40, true),
-  ('slime', 20, true),
-  ('small_wolf', 20, true),
-  ('stag', 40, true),
-  ('starhusk', 100, true),
-  ('stone_golem', 40, true),
-  ('storm_elemental', 120, true),
-  ('the_silence', 120, true),
-  ('vampire_bride', 120, true),
-  ('venom_spider', 60, true),
-  ('void_mote', 80, true),
-  ('void_parasite', 120, true),
-  ('war_king', 120, true),
-  ('warband_captain', 100, true),
-  ('warlock', 60, true),
-  ('watchknight', 80, true),
-  ('water_elemental', 40, true),
-  ('weak_skeleton', 20, true),
-  ('wight', 40, true),
-  ('wild_boar', 20, true),
-  ('winter_wolf', 80, true),
-  ('witchs_apprentice', 20, true),
-  ('wolf', 40, true),
-  ('wraith', 80, true),
-  ('wyrmling', 60, true),
-  ('wyvern', 80, true),
-  ('zombie', 60, true);
+insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
+  ('adept', 80, true, 4),
+  ('air_elemental', 40, true, 2),
+  ('ancient_bear', 120, true, 6),
+  ('archmage', 100, true, 5),
+  ('astrologer', 100, true, 5),
+  ('bandit_lord', 100, true, 5),
+  ('barrow_knight', 80, true, 4),
+  ('bear', 80, true, 4),
+  ('bog_vine', 60, true, 3),
+  ('bramble_edge', 30, false, 1),
+  ('carnivorous_plant', 80, true, 4),
+  ('carrion_swarm', 100, true, 5),
+  ('cave_wyrm', 80, true, 4),
+  ('centipede', 60, true, 3),
+  ('chained_demon', 100, true, 5),
+  ('clay_golem', 60, true, 3),
+  ('conjurer', 80, true, 4),
+  ('cutpurse', 20, true, 1),
+  ('cyclops', 100, true, 5),
+  ('dark_wizard', 40, true, 2),
+  ('death_knight', 100, true, 5),
+  ('deserter', 60, true, 3),
+  ('dire_wolf', 60, true, 3),
+  ('drake', 100, true, 5),
+  ('drowned_dead', 80, true, 4),
+  ('dryad', 100, true, 5),
+  ('earth_elemental', 60, true, 3),
+  ('fire_devil', 60, true, 3),
+  ('fire_elemental', 20, true, 1),
+  ('frost_giant', 100, true, 5),
+  ('fury', 100, true, 5),
+  ('gargoyle', 100, true, 5),
+  ('ghoul', 60, true, 3),
+  ('giant_bat', 40, true, 2),
+  ('giant_boar', 100, true, 5),
+  ('giant_spider', 80, true, 4),
+  ('gnoll', 40, true, 2),
+  ('goblin', 20, true, 1),
+  ('goblin_brute', 60, true, 3),
+  ('goblin_warlord', 80, true, 4),
+  ('goblin_warren', 30, false, 1),
+  ('grave_banshee', 100, true, 5),
+  ('hellhound', 80, true, 4),
+  ('hive_wasp', 20, true, 1),
+  ('hobgoblin', 40, true, 2),
+  ('ice_elemental', 80, true, 4),
+  ('imp', 20, true, 1),
+  ('kobold', 20, true, 1),
+  ('lesser_demon', 80, true, 4),
+  ('locust_swarm', 40, true, 2),
+  ('lynx', 60, true, 3),
+  ('magma_elemental', 100, true, 5),
+  ('mammoth', 100, true, 5),
+  ('mandrake', 20, true, 1),
+  ('mill_cellar', 20, false, 1),
+  ('minotaur', 80, true, 4),
+  ('mountain_ram', 60, true, 3),
+  ('mountain_troll', 80, true, 4),
+  ('nightmare', 40, true, 2),
+  ('ogre', 80, true, 4),
+  ('ooze', 40, true, 2),
+  ('panther', 100, true, 5),
+  ('plague_swarm', 80, true, 4),
+  ('rat', 20, true, 1),
+  ('revenant', 120, true, 6),
+  ('ridge_camp', 60, false, 2),
+  ('rock_troll', 60, true, 3),
+  ('salamander', 40, true, 2),
+  ('scarecrow', 20, true, 1),
+  ('shadow_creeper', 100, true, 5),
+  ('shrieker', 40, true, 2),
+  ('skeleton', 40, true, 2),
+  ('slime', 20, true, 1),
+  ('small_wolf', 20, true, 1),
+  ('stag', 40, true, 2),
+  ('starhusk', 100, true, 5),
+  ('stone_golem', 40, true, 2),
+  ('storm_elemental', 120, true, 6),
+  ('the_silence', 120, true, 6),
+  ('vampire_bride', 120, true, 6),
+  ('venom_spider', 60, true, 3),
+  ('void_mote', 80, true, 4),
+  ('void_parasite', 120, true, 6),
+  ('war_king', 120, true, 6),
+  ('warband_captain', 100, true, 5),
+  ('warlock', 60, true, 3),
+  ('watchknight', 80, true, 4),
+  ('water_elemental', 40, true, 2),
+  ('weak_skeleton', 20, true, 1),
+  ('wight', 40, true, 2),
+  ('wild_boar', 20, true, 1),
+  ('winter_wolf', 80, true, 4),
+  ('witchs_apprentice', 20, true, 1),
+  ('wolf', 40, true, 2),
+  ('wraith', 80, true, 4),
+  ('wyrmling', 60, true, 3),
+  ('wyvern', 80, true, 4),
+  ('zombie', 60, true, 3);
 delete from public.hr_hunt_rule_subjects;
 insert into public.hr_hunt_rule_subjects (subject, param, lo, hi) values
   ('bag_left', 'item', 0, 100000),
@@ -282,6 +330,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('bag_lines', 10),
   ('cd_buff_ms', 1000),
   ('cd_heal_ms', 2000),
+  ('cd_mana_ms', 2000),
   ('conditions', 3),
   ('death_xp_permille', 20),
   ('falls_default', 3),
@@ -354,7 +403,7 @@ alter table public.player_state add constraint player_state_last_activity_ck
          and (last_activity_id is null or last_activity_id ~ '^[a-z0-9_]{1,64}$'));
 delete from public.hr_hunt_default_preset;
 insert into public.hr_hunt_default_preset (id, name, slots) values
-  (true, 'Eat when hurt', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]}]'::jsonb);
+  (true, 'Eat and drink', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*heal_shop","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]},{"item":"*mana","on":true,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]},{"item":"*mana_shop","on":true,"conditions":[{"subject":"self_mana_pct","op":"<=","value":40}]}]'::jsonb);
 delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('abyssal_greaves', 198000),
@@ -849,11 +898,13 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 98
      or (select count(*) from public.hr_hunt_rule_subjects) <> 6
      or (select count(*) from public.hr_hunt_buff_types) <> 7
-     or (select count(*) from public.hr_hunt_limits) <> 18
+     or (select count(*) from public.hr_hunt_limits) <> 19
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_default_preset) <> 1
      or (select count(*) from public.hr_hunt_vendor_value) <> 484
-     or (select count(*) from public.hr_hunt_supplies where npc_price is not null) <> 0
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 23
+     or (select count(*) from public.hr_hunt_slot_targets) <> 4
+     or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_slot_kinds) <> 2
      or (select count(*) from public.hr_hunt_target_modes) <> 4
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
@@ -878,7 +929,8 @@ begin
   foreach v_role in array array['anon', 'authenticated'] loop
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
-                               'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds'] loop
+                               'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -886,6 +938,7 @@ begin
   if exists (select 1 from pg_policies where schemaname = 'public'
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
-                                 'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds')) then
+                                 'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

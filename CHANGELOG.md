@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 582 — 2026-10-14 (Gear and rooms hold)
+
+**Your gear and house stay put on screen.** The game no longer briefly forgets your equipment or rooms between server updates, so fights and the House always show your real gear and rooms.
+
+## v0.9.2-beta build 580 — 2026-10-14 (Smoother play)
+
+**Smoother play.** The menu and the kill pop-ups do far less work on every update, so long fights and busy screens no longer stutter.
+
+## v0.9.2-beta build 579 — 2026-10-14 (No blank World)
+
+**The World never goes blank.** If your hunt isn't in the World yet, the World tab now says so and offers to take you to the Mill Cellar, instead of showing an empty screen.
+
 ## v0.9.2-beta build 578 — 2026-10-14 (Step into the World)
 
 **Step into the World.** The new World tab on Home now shows your hero hunting in the Mill Cellar as a living pixel scene: your hero walks the cellar and fights the rats, slimes and wasps the server sends, with the hunt numbers in the corner. The town and your house are coming next.

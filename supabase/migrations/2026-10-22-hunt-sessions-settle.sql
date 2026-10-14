@@ -31,8 +31,8 @@
 --           window's end value, re-bounded against the pool at the window
 --           start (hr_stamina_of), its paid / knocked-out time and the death
 --           rows' recovery, written at `to`
---      (5b) NPC BASIC SUPPLIES (Tyler 2026-10-14): every unit the window
---           bought re-priced from hr_hunt_supplies.npc_price, capped by the
+--      (5b) THE SHOP, PAID PER USE (Tyler 2026-10-14): every use the window
+--           bought re-priced from hr_hunt_basic_supplies, capped by the
 --           window and the day, the gold debited and ONE `supply_buy` row
 --           journalled (kind 'hunt'), the tally's Waste credited
 --       (5) hr_hunt_settle_session(hunt): swing CAS, window, bag, use caps,
@@ -78,18 +78,20 @@
 --   VIGOUR PLAYS NO PART IN A HUNT any more: no end, no tail, no charge, no
 --   entry gate (the engine skips the session's charge; §4c swaps the gate).
 --
--- ── GOLD MOVES INSIDE THE SETTLE (Tyler 2026-10-14: NPC basic supplies) ─────
---   A slot (or the equipped ammo) naming a supply the server prices per use
---   (hr_hunt_supplies.npc_price, generated from supplies.js NPC_BASIC_PRICES)
---   BUYS it when the bag holds none: food per heal, a draught per use, ammo per
---   shot. The engine proposes UNITS only (`buys`); (5b) prices them from the
---   catalogue, refuses an unpriced item, caps heal/buff buys + bag uses by the
---   window's cooldowns, ammo buys by the swings walked, every kind by the same
---   bounds over the UTC day, refuses a debit the character's gold cannot cover
+-- ── GOLD MOVES INSIDE THE SETTLE (Tyler 2026-10-14: the shop, paid per use) ──
+--   The shop's supplies (hr_hunt_basic_supplies, generated from
+--   src/data/supply-basics.js) are NOT items: a shop slot (`*heal_shop` — the
+--   row for this hunt's tier — or a shop id named directly) buys one use when
+--   it fires, and an empty arrow / rune line falls back per shot to the shop
+--   shot with the same partner. The engine proposes USES only (`buys`); (5b)
+--   prices them from the catalogue (`not_for_sale` otherwise), caps heal buys
+--   + bag heals by the window's heal cooldown, drinks by the mana cooldown,
+--   shots by the swings walked, every kind by the same bounds over the UTC day
+--   (`too_many_buys`), refuses a debit the character's gold cannot cover
 --   (`gold_short`), debits, and journals ONE row per settle. A buy the purse
---   cannot cover ends the hunt `gold_out` at the next boundary (re-proved:
---   the character's gold is below the dearest priced supply the bar or the
---   quiver could need).
+--   cannot cover ends the hunt `gold_out` at the next boundary (re-proved: the
+--   character's gold is below the dearest shop use the bar or the quiver could
+--   need). Drinks are inert until the mana engine ships.
 --
 -- ── THE OLD COMBAT PATH CANNOT PAY A HUNTER (C1 note 2) ─────────────────────
 --   hr_hunt_accrue_fence: a BEFORE INSERT trigger on player_ledger that refuses
@@ -170,6 +172,7 @@ begin
      or not exists (select 1 from public.hr_hunt_limits where key = 'pull_min')
      or to_regclass('public.hr_hunt_resumable_kinds') is null
      or to_regclass('public.hr_hunt_target_modes') is null
+     or to_regclass('public.hr_hunt_basic_supplies') is null or to_regclass('public.hr_hunt_slot_targets') is null
      or exists (select 1 from public.hr_hunt_end_reasons where reason = 'vigour') then
     raise exception 'PRECONDITION: 2026-10-22-hunt-sessions-catalogue.generated.sql is not applied '
                     '(no death_xp_permille / stamina_max_min limit, no stamina end, or vigour still ends a hunt)';
@@ -227,7 +230,7 @@ comment on column public.player_state.stamina_at is
   '2026-10-22 (hunt sessions C2). The instant stamina_ms holds at (a settle''s window end). Never past an open '
   'session''s settled_to.';
 
--- THE TALLY'S WASTE FROM THE NPC (Tyler 2026-10-14): units bought per item and
+-- THE TALLY'S WASTE FROM THE SHOP (Tyler 2026-10-14): uses bought per shop id and
 -- the gold they cost, folded by hr_hunt_apply (5b) from its own `supply_buy` row.
 alter table public.hunt_session_tally add column if not exists bought jsonb not null default '{}'::jsonb;
 alter table public.hunt_session_tally add column if not exists supply_gold bigint not null default 0;
@@ -353,10 +356,18 @@ begin
     -- THE STAMINA POOL AT THE WINDOW START (settled_to), by the same function
     -- hr_hunt_apply re-derives it with under the lock.
     'stamina_ms', public.hr_stamina_of(p_user, p_slot, v_s.settled_to),
-    -- THE NPC'S PER-USE PRICES (catalogue), and the running action set's target
-    -- mode and pull count (stored rows; the defaults when none is saved).
-    'npc_prices', coalesce((select jsonb_object_agg(p.item_id, p.npc_price) from public.hr_hunt_supplies p
-                             where p.npc_price is not null), '{}'::jsonb),
+    -- THE SHOP (catalogue), the ids a shop slot resolves to at this hunt's tier,
+    -- and the running action set's target mode and pull count (stored rows;
+    -- the defaults when none is saved).
+    'basics', coalesce((select jsonb_object_agg(b.basic_id, jsonb_build_object('kind', b.kind, 'price', b.price,
+                          'heals', b.heals, 'mana', b.mana, 'partner', b.partner))
+                          from public.hr_hunt_basic_supplies b), '{}'::jsonb),
+    'shop', (select jsonb_build_object(
+               'heal', (select b.basic_id from public.hr_hunt_basic_supplies b where b.kind = 'heal' and t.tier = any (b.tiers)
+                          order by b.basic_id limit 1),
+               'mana', (select b.basic_id from public.hr_hunt_basic_supplies b where b.kind = 'mana' and t.tier = any (b.tiers)
+                          order by b.basic_id limit 1))
+               from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id),
     'target_mode', coalesce((select a.target_mode from public.player_action_sets a
                               where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'nearest'),
     'pull_count', coalesce((select a.pull_count from public.player_action_sets a
@@ -471,8 +482,9 @@ end $$;
 --                                         `stamina`, proved from the row (5a) wrote
 --   hr_state_of (2026-10-19 restatement)  the envelope gains `stamina`
 --   hr_hunt_slots_check / hr_hunt_use / hr_hunt_view / hr_hunt_analyzer (C1)
---                                         slot kinds; presses on NPC supplies;
---                                         the tally's NPC sales; Waste counts them
+--                                         slot kinds + shop targets; presses on
+--                                         shop slots; the tally's shop sales;
+--                                         Waste counts them
 -- WHY ANCHORED, NOT RESTATED: three one-line swaps in bodies that are at most one
 --   anchored patch from their last whole statement (C1's two are at zero;
 --   hr_state_of takes this and the away-readers deletion, two in all), each
@@ -509,15 +521,16 @@ $a$;
       -- dearest priced supply the bar or the quiver could need.
       when 'gold_out' then coalesce((select ps.gold from public.player_state ps
                                       where ps.user_id = p_user and ps.slot = p_slot), 0)
-                           < coalesce((select max(q.npc_price) from public.hr_hunt_supplies q
-                                        where q.npc_price is not null
-                                          and (exists (select 1 from jsonb_array_elements(coalesce(
-                                                         public.hr_hunt_preset_slots(p_user, p_slot, v_s.preset), '[]'::jsonb)) e
-                                                        where e.value->>'item' = q.item_id
-                                                           or (e.value->>'item' = '*heal' and q.kind = 'heal'))
-                                               or q.item_id = (select pe.item_id from public.player_equipment pe
-                                                                where pe.user_id = p_user and pe.slot = p_slot
-                                                                  and pe.equip_slot = 'ammo'))), 0)
+                           < coalesce((select max(q.price) from public.hr_hunt_basic_supplies q
+                                        where (q.kind = 'heal' and exists (
+                                                 select 1 from jsonb_array_elements(coalesce(
+                                                   public.hr_hunt_preset_slots(p_user, p_slot, v_s.preset), '[]'::jsonb)) e
+                                                  where e.value->>'item' = q.basic_id
+                                                     or (e.value->>'item' = '*heal_shop'
+                                                         and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))
+                                           or (q.kind = 'ammo' and q.partner = (select pe.item_id from public.player_equipment pe
+                                                                                 where pe.user_id = p_user and pe.slot = p_slot
+                                                                                   and pe.equip_slot = 'ammo'))), 0)
       -- STAMINA (2026-10-22-hunt-sessions-settle.sql §4c): hr_hunt_apply (5a)
       -- wrote this window's end value at `to` before this call.
       when 'stamina' then coalesce((select ps.stamina_ms from public.player_state ps
@@ -531,7 +544,9 @@ begin
   execute replace(v_def, c_old, c_new);
 end $mig$;
 -- hr_hunt_slots_check: a slot may say what it HOLDS (`kind`, SLOT_KINDS); a
--- reserved kind (`spell`, until the combat redesign) is refused by name.
+-- reserved kind (`spell`, until the combat redesign) is refused by name; and its
+-- item may be a slot target (SLOT_TARGETS: *heal, *heal_shop, *mana, *mana_shop)
+-- or a shop heal / drink (supply-basics.js) as well as a packed heal or buff.
 do $mig$
 declare
   v_def text; v_n int;
@@ -547,14 +562,26 @@ $a$;
     if v_s ? 'kind' and not (select sk.active from public.hr_hunt_slot_kinds sk where sk.kind = v_s->>'kind') then
       return jsonb_build_object('ok', false, 'error', bad, 'why', 'kind_reserved', 'at', v_i, 'kind', v_s->>'kind'); end if;
 $a$;
+  c_old2 constant text := $a$    if v_item is null or not (v_item = '*heal' or exists (select 1 from public.hr_hunt_supplies p
+                                                            where p.item_id = v_item and p.kind in ('heal', 'buff'))) then
+$a$;
+  c_new2 constant text := $a$    if v_item is null or not (exists (select 1 from public.hr_hunt_slot_targets st where st.target = v_item)
+                              or exists (select 1 from public.hr_hunt_basic_supplies bs
+                                          where bs.basic_id = v_item and bs.kind in ('heal', 'mana'))
+                              or exists (select 1 from public.hr_hunt_supplies p
+                                          where p.item_id = v_item and p.kind in ('heal', 'buff'))) then
+$a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_slots_check(jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_new1) > 0 then raise notice 'hr_hunt_slots_check already reads a slot kind — edit skipped'; return; end if;
+  if strpos(v_def, c_new1) > 0 and strpos(v_def, c_new2) > 0 then
+    raise notice 'hr_hunt_slots_check already reads a slot kind and the shop — edit skipped'; return; end if;
   v_n := (length(v_def) - length(replace(v_def, c_old1, ''))) / length(c_old1);
   if v_n <> 1 then raise exception 'hr_hunt_slots_check: the slot-shape anchor matched % times (need 1) — the body moved', v_n; end if;
-  execute replace(v_def, c_old1, c_new1);
+  v_n := (length(v_def) - length(replace(v_def, c_old2, ''))) / length(c_old2);
+  if v_n <> 1 then raise exception 'hr_hunt_slots_check: the item anchor matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(replace(v_def, c_old1, c_new1), c_old2, c_new2);
 end $mig$;
--- hr_hunt_use: a press on a slot whose item the NPC sells is not `bag_empty`.
+-- hr_hunt_use: a press on a shop slot is not `bag_empty` (it buys).
 do $mig$
 declare
   v_def text; v_n int;
@@ -562,9 +589,9 @@ declare
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bag_empty')); end if;
 $a$;
   c_new constant text := $a$                    and ((v_item = '*heal' and p.kind = 'heal') or b.item_id = v_item))
-     -- NPC BASIC SUPPLIES (2026-10-22-hunt-sessions-settle.sql §4c): buyable at the press.
-     and not exists (select 1 from public.hr_hunt_supplies q where q.npc_price is not null
-                      and ((v_item = '*heal' and q.kind = 'heal') or q.item_id = v_item)) then
+     -- THE SHOP (2026-10-22-hunt-sessions-settle.sql §4c): a shop slot buys at the press.
+     and not exists (select 1 from public.hr_hunt_slot_targets t where t.target = v_item and t.src = 'shop')
+     and not exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_item) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bag_empty')); end if;
 $a$;
 begin
@@ -574,7 +601,7 @@ begin
   if v_n <> 1 then raise exception 'hr_hunt_use: the bag_empty anchor matched % times (need 1) — the body moved', v_n; end if;
   execute replace(v_def, c_old, c_new);
 end $mig$;
--- hr_hunt_view: the tally states what the NPC sold this hunt and its gold.
+-- hr_hunt_view: the tally states what the shop sold this hunt and its gold.
 do $mig$
 declare
   v_def text; v_n int;
@@ -583,24 +610,24 @@ declare
                        'bought', t.bought, 'supply_gold', t.supply_gold)$a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_view(uuid)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_view already states the NPC''s sales — edit skipped'; return; end if;
+  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_view already states the shop''s sales — edit skipped'; return; end if;
   v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
   if v_n <> 1 then raise exception 'hr_hunt_view: the tally anchor matched % times (need 1) — the body moved', v_n; end if;
   execute replace(v_def, c_old, c_new);
 end $mig$;
--- hr_hunt_analyzer: Waste counts the gold the NPC was paid.
+-- hr_hunt_analyzer: Waste counts the gold the shop was paid.
 do $mig$
 declare
   v_def text; v_n int;
   c_old constant text := $a$  v_gold := v_t.coins + v_loot;
 $a$;
   c_new constant text := $a$  v_gold := v_t.coins + v_loot;
-  -- NPC BASIC SUPPLIES (2026-10-22-hunt-sessions-settle.sql §4c): their gold is Waste.
+  -- THE SHOP (2026-10-22-hunt-sessions-settle.sql §4c): its gold is Waste.
   v_waste := v_waste + coalesce(v_t.supply_gold, 0);
 $a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_analyzer(integer,uuid)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_analyzer already counts the NPC''s gold — edit skipped'; return; end if;
+  if strpos(v_def, c_new) > 0 then raise notice 'hr_hunt_analyzer already counts the shop''s gold — edit skipped'; return; end if;
   v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
   if v_n <> 1 then raise exception 'hr_hunt_analyzer: the gold anchor matched % times (need 1) — the body moved', v_n; end if;
   execute replace(v_def, c_old, c_new);
@@ -750,7 +777,7 @@ declare
   v_nsw       bigint;
   v_tick      bigint;
   v_dmax      bigint;
-  -- NPC BASIC SUPPLIES (Tyler 2026-10-14)
+  -- THE SHOP, PAID PER USE (Tyler 2026-10-14)
   c_day_ms    constant bigint := 86400000;
   c_min_swing constant bigint := 500;         -- hr_hunt_settle_session's swing-count fuse
   v_buys      jsonb;
@@ -810,8 +837,8 @@ begin
     if not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
                     where b.session_id = v_s.id and b.qty_left > 0
                       and ((v_item = '*heal' and p.kind = 'heal') or b.item_id = v_item))
-       and not exists (select 1 from public.hr_hunt_supplies q where q.npc_price is not null
-                        and ((v_item = '*heal' and q.kind = 'heal') or q.item_id = v_item)) then
+       and not exists (select 1 from public.hr_hunt_slot_targets t where t.target = v_item and t.src = 'shop')
+       and not exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_item) then
       return jsonb_build_object('ok', false, 'error', 'bag_empty'); end if;
     if exists (select 1 from jsonb_array_elements(v_s.presses) e where (e.value->>'slot')::int = v_pslot)
        or jsonb_array_length(v_s.presses) >= c_slots then
@@ -869,7 +896,7 @@ begin
     return jsonb_build_object('ok', false, 'error', 'stamina_ahead');
   end if;
   v_s0 := public.hr_stamina_of(p_user, p_slot, v_s.settled_to);
-  -- (2d) WHAT THE WINDOW BOUGHT FROM THE NPC, shape only: `{item: units}`,
+  -- (2d) WHAT THE WINDOW BOUGHT FROM THE SHOP, shape only: `{shop id: uses}`,
   --      taken off the proposal (re-priced and debited in (5b)).
   v_buys := coalesce(v_hunt->'buys', '{}'::jsonb);
   v_hunt := v_hunt - 'buys';
@@ -959,21 +986,21 @@ begin
     update public.player_state set stamina_ms = v_e, stamina_at = v_to
      where user_id = p_user and slot = p_slot;
 
-    -- (5b) NPC BASIC SUPPLIES: PRICED BY THE CATALOGUE, CAPPED, DEBITED, JOURNALLED.
-    --      Units only crossed the wire; the price is hr_hunt_supplies.npc_price.
+    -- (5b) THE SHOP: PRICED BY THE CATALOGUE, CAPPED, DEBITED, JOURNALLED.
+    --      Uses only crossed the wire; the price is hr_hunt_basic_supplies.price.
     --      Caps (blast radius of a compromised engine, never balance):
-    --        per window — heal buys + heal bag uses ≤ W / heal cooldown + 1, the
-    --        same for buffs, ammo buys ≤ the swings walked + 1;
+    --        per window — heal buys + heal bag uses ≤ W / heal cooldown + 1,
+    --        drinks ≤ W / mana cooldown + 1, shots ≤ the swings walked + 1;
     --        per UTC day — each kind's buys today ≤ the same bound over 24 h.
     --      The gold must cover the cost after hr_apply credited the window's
     --      coins (`gold_short` otherwise); ONE `supply_buy` row per settle.
     if v_buys <> '{}'::jsonb then
-      v_cdh := public.hr_hunt_limit('cd_heal_ms'); v_cdb := public.hr_hunt_limit('cd_buff_ms');
+      v_cdh := public.hr_hunt_limit('cd_heal_ms'); v_cdb := public.hr_hunt_limit('cd_mana_ms');
       if v_cdh is null or v_cdb is null then perform public.hr_reject('catalogue_missing'); end if;
       for v_k, v_v in select key, value from jsonb_each(v_buys) order by key loop
         v_n := (v_v #>> '{}')::bigint;
         continue when v_n = 0;
-        select q.npc_price, q.kind into v_price, v_kind from public.hr_hunt_supplies q where q.item_id = v_k;
+        select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;
         if v_price is null then perform public.hr_reject('not_for_sale', jsonb_build_object('item', v_k)); end if;
         v_bk := v_bk || jsonb_build_object(v_kind, coalesce((v_bk->>v_kind)::bigint, 0) + v_n);
         v_items := v_items || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'price', v_price));
@@ -989,16 +1016,16 @@ begin
       select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) into v_day from (
         select q.kind as k, sum((x.value->>'qty')::bigint) as n
           from public.player_ledger l, jsonb_each(case when jsonb_typeof(l.meta->'items') = 'object' then l.meta->'items' else '{}'::jsonb end) x
-          join public.hr_hunt_supplies q on q.item_id = x.key
+          join public.hr_hunt_basic_supplies q on q.basic_id = x.key
          where l.user_id = p_user and l.slot = p_slot and l.kind = 'hunt' and l.intent = 'supply_buy'
            and l.at >= public.hr_utc_day_start(now()) group by q.kind) a;
       if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_ukind->>'heal')::bigint, 0) > v_win / v_cdh + 1
-         or coalesce((v_bk->>'buff')::bigint, 0) + coalesce((v_ukind->>'buff')::bigint, 0) > v_win / v_cdb + 1
+         or coalesce((v_bk->>'mana')::bigint, 0) > v_win / v_cdb + 1
          or coalesce((v_bk->>'ammo')::bigint, 0) > v_nsw + 1 then
         perform public.hr_reject('too_many_buys', jsonb_build_object('bought', v_bk, 'used', v_ukind, 'window_ms', v_win));
       end if;
       if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_day->>'heal')::bigint, 0) > c_day_ms / v_cdh + 1
-         or coalesce((v_bk->>'buff')::bigint, 0) + coalesce((v_day->>'buff')::bigint, 0) > c_day_ms / v_cdb + 1
+         or coalesce((v_bk->>'mana')::bigint, 0) + coalesce((v_day->>'mana')::bigint, 0) > c_day_ms / v_cdb + 1
          or coalesce((v_bk->>'ammo')::bigint, 0) + coalesce((v_day->>'ammo')::bigint, 0) > c_day_ms / c_min_swing + 1 then
         perform public.hr_reject('too_many_buys', jsonb_build_object('why', 'day', 'bought', v_bk, 'today', v_day));
       end if;
@@ -2694,11 +2721,13 @@ begin
       if v_r->>'error' is distinct from 'hunt_open' and v_r->>'error' is distinct from 'settle_first' then
         raise exception 'GATE(h): a hunter''s client kill credit answered %', v_r; end if;
     end if;
-    -- (n) AN NPC BASIC SUPPLY is priced by the CATALOGUE and debited in the
-    --     settle: one `supply_buy` row, the tally's Waste; an unpriced item, an
-    --     over-cap buy and a buy the gold cannot cover are refused. (A probe
-    --     price on one row, rolled back with everything else at HRC2B.)
-    update public.hr_hunt_supplies set npc_price = 3 where item_id = 'cooked_shrimp';
+    -- (n) A SHOP USE is priced by the CATALOGUE and debited in the settle:
+    --     one `supply_buy` row, the tally's Waste; an item that is no shop
+    --     supply, an over-cap buy and a buy the gold cannot cover are refused.
+    --     (The probe's purse is a fixture, rolled back with all else at HRC2B.)
+    select price into v_n from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp';
+    if v_n is null then raise exception 'GATE(n): the shop catalogue has no salted_shrimp'; end if;
+    update public.player_state set gold = 10 * v_n where user_id = v_uid and slot = 0;
     -- (the roster gate moved the session clock: the window starts at its settled_to,
     --  and the pool is pinned there so (5a) prices it from a known start)
     select settled_to into v_from from public.hunt_sessions where id = v_sid;
@@ -2712,32 +2741,32 @@ begin
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
-             v_hunt || jsonb_build_object('buys', jsonb_build_object('turnip_mash', 1)));
+             v_hunt || jsonb_build_object('buys', jsonb_build_object('cooked_shrimp', 1)));
     reset role;
-    if v_r->>'error' is distinct from 'not_for_sale' then raise exception 'GATE(n): an unpriced buy answered %', v_r; end if;
+    if v_r->>'error' is distinct from 'not_for_sale' then raise exception 'GATE(n): a buy of a packed item answered %', v_r; end if;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
-             v_hunt || jsonb_build_object('buys', jsonb_build_object('cooked_shrimp', 3)));
+             v_hunt || jsonb_build_object('buys', jsonb_build_object('salted_shrimp', 3)));
     reset role;
     if v_r->>'error' is distinct from 'too_many_buys' then raise exception 'GATE(n): 3 heals in 2.4 s answered %', v_r; end if;
     update public.player_state set gold = 0 where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
-             v_hunt || jsonb_build_object('buys', jsonb_build_object('cooked_shrimp', 2)));
+             v_hunt || jsonb_build_object('buys', jsonb_build_object('salted_shrimp', 2)));
     reset role;
     update public.player_state set gold = v_gold where user_id = v_uid and slot = 0;
     if v_r->>'error' is distinct from 'gold_short' then raise exception 'GATE(n): a buy past the purse answered %', v_r; end if;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, '00000000-0000-4000-8000-0000000c2bf2', v_delta,
-             v_hunt || jsonb_build_object('buys', jsonb_build_object('cooked_shrimp', 1)));
+             v_hunt || jsonb_build_object('buys', jsonb_build_object('salted_shrimp', 1)));
     reset role;
     if coalesce(v_r->>'ok', 'false') <> 'true' then raise exception 'GATE(n): an honest buy answered %', v_r; end if;
-    if (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 1 - 3
+    if (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 1 - v_n
        or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'hunt' and intent = 'supply_buy'
-                                                     and gold = -3 and session_id = v_sid) <> 1
-       or (select supply_gold from public.hunt_session_tally where session_id = v_sid) <> 3
-       or ((select bought from public.hunt_session_tally where session_id = v_sid)->>'cooked_shrimp')::int <> 1 then
-      raise exception 'GATE(n): the buy did not debit 3 gold, journal one row and credit the tally''s Waste'; end if;
+                                                     and gold = -v_n and session_id = v_sid) <> 1
+       or (select supply_gold from public.hunt_session_tally where session_id = v_sid) <> v_n
+       or ((select bought from public.hunt_session_tally where session_id = v_sid)->>'salted_shrimp')::int <> 1 then
+      raise exception 'GATE(n): the buy did not debit % gold, journal one row and credit the tally''s Waste', v_n; end if;
 
     -- (r) AN AUTOMATIC END SENDS THE CHARACTER BACK TO ITS LAST ACTIVITY after
     --     the walk home (the kill switch's `server` end, proved from the config).

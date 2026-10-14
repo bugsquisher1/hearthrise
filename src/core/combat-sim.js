@@ -60,39 +60,39 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=578';
-import { rollDropTable } from './drops.js?v=578';
-import { resolveHearthfind } from './hearthfind.js?v=578';
-import { hitXpRoute, killXpRoute } from './styles.js?v=578';
-import { applyGoldFind } from './pacing.js?v=578';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=582';
+import { rollDropTable } from './drops.js?v=582';
+import { resolveHearthfind } from './hearthfind.js?v=582';
+import { hitXpRoute, killXpRoute } from './styles.js?v=582';
+import { applyGoldFind } from './pacing.js?v=582';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
    ladder, where the design tables live. This file asks the table; it does not
    restate it, so a designer moving a rung moves it in exactly one place. */
 import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments,
-         retreatAtFall, DAY_MS } from './away.js?v=578';
-import { recoveryFor, resumeHpFor } from './recovery.js?v=578';
+         retreatAtFall, DAY_MS } from './away.js?v=582';
+import { recoveryFor, resumeHpFor } from './recovery.js?v=582';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, npcPriceOf, buyFromNpc } from './action-rules.js?v=578';
+import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop } from './action-rules.js?v=582';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
    the trigger and the sentence explaining it cannot disagree. It draws no
    random numbers and mutates nothing, so it is safe to call inside a seeded
    fight (§2.1's contract on `spendForSwings` applies for the same reason). */
-import { chooseFood, resolveAutoEat } from './auto-eat.js?v=578';
+import { chooseFood, resolveAutoEat } from './auto-eat.js?v=582';
 /* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
    see `forecastFight` at the foot of this file. */
-import { createRng } from './rng.js?v=578';
-import { pickSpawn } from './hunt-spawn.js?v=578';
-import { NO_BONUS } from './botd.js?v=578';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=578';
+import { createRng } from './rng.js?v=582';
+import { pickSpawn } from './hunt-spawn.js?v=582';
+import { NO_BONUS } from './botd.js?v=582';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=582';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=578';
+import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=582';
 
 export { AWAY_RATE_MULT };
 
@@ -399,24 +399,26 @@ export function resolveDeath(state, ctx) {
    whose inventory is the bag line of the equipped ammo, and its one
    `removeItem` lands in the bag (spendFromBag) instead of the inventory. The
    carry object is the state's own, so the fractional carry survives swings. */
-/* NPC BASIC AMMO (Tyler 2026-10-14): when the equipped ammo is a supply the
-   server prices per use, the quiver is the bag line FIRST and then whatever the
-   purse can buy, shot by shot (action-rules.js buyFromNpc). A style that needs
-   its ammo and can neither draw nor buy a shot marks the session goldOut — the
-   hunt ends `gold_out` at the next boundary. */
+/* THE SHOP SHOT (Tyler 2026-10-14; supply-basics.js): when the equipped arrow
+   or rune has a shop shot behind it (same partner), the quiver is the bag line
+   FIRST and then whatever the purse can buy, shot by shot — a shop shot hits
+   exactly like its crafted partner (action-rules.js buyFromShop). A style that
+   needs its ammo and can neither draw nor buy a shot marks the session goldOut
+   — the hunt ends `gold_out` at the next boundary. */
 function spendFromQuiver(state, hunt, ctx) {
   const ammoId = (state.equipment && state.equipment.ammo) || null;
   const line = ammoId && hunt.bag ? hunt.bag[ammoId] : null;
   if (!state.ammoCarry || typeof state.ammoCarry !== 'object') state.ammoCarry = {};
   const bagLeft = line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0;
-  const price = ammoId ? npcPriceOf(hunt, ammoId) : 0;
+  const shot = ammoId ? shopShotFor(hunt, ammoId) : null;
+  const price = shot ? shot.price : 0;
   const buyable = price > 0 ? Math.floor(Math.max(0, Math.floor(Number(hunt.purse) || 0)) / price) : 0;
   const view = { equipment: state.equipment, ammoCarry: state.ammoCarry,
     inventory: ammoId ? { [ammoId]: bagLeft + buyable } : {} };
   const atMs = Number(ctx.atMs) || 0;
   const opts = { items: ctx.items, weaponType: ctx.weaponType, fx: { removeItem: (id, n) => {
     const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);
-    if (n - fromBag > 0) buyFromNpc(hunt, id, n - fromBag);
+    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);
   } } };
   if (price > 0 && bagLeft + buyable <= 0) {
     const info = readAmmo(view, opts);

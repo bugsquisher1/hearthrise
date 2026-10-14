@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert } from './_harness.js?v=578';
-import { buildResiduePatch } from '../../net/capstone.js?v=578';
+import { tryRunAsync, assert } from './_harness.js?v=582';
+import { buildResiduePatch } from '../../net/capstone.js?v=582';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(pred, ms) {
@@ -147,6 +147,51 @@ export default [
       assert(/settled \d+ (s|min|h) ago|nothing settled yet/.test(s.hud), 'the overlay must label the Analyzer with its settle age: ' + s.hud);
       assert(/Leave Hunt/.test(s.hud) && /Eat/.test(s.hud), 'the overlay must offer Eat and Leave Hunt: ' + s.hud);
     } finally {
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      window.showTab('profile');
+      if (!hadWorld) delete window.G._world;
+    }
+  }),
+
+  /* REGRESSION (live, 2026-10-14): QA Hero 2 fighting a gnoll at Ridge Camp, which has no
+     world map, opened the World pane to a BLANK stage — a 300x150 canvas, the idle
+     card and the hunt overlay both hidden — because the card was painted only from
+     inside the frame loop (no frame on a hidden page means no card, ever), and an
+     unmapped fight routed to the "coming soon" town with no word about the hunt.
+     Opened here on a HIDDEN page, so not one frame runs. */
+  () => tryRunAsync('WORLD-5: a fight with no world map opens the World pane to a plain card that names it, never a blank stage — even before any frame', async () => {
+    const hadWorld = Object.prototype.hasOwnProperty.call(window.G, '_world');
+    let hiddenStub = false;
+    try {
+      window.showTab('profile');
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      hiddenStub = true;
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.startCombat('gnoll', { confirmed: true });
+      assert(window.G.activeMonster === 'gnoll', 'the fixture fight did not start');
+      window.showTab('world');
+      const rt = await window.HearthriseWorld.load();
+      const panel = document.getElementById('panel-world');
+      const idle = panel.querySelector('.world-idle');
+      const canvas = panel.querySelector('canvas.world-canvas');
+      assert(rt.stats().running === false, 'CONTROL: on a hidden page no frame may run');
+      assert(idle && !idle.hidden && idle.getBoundingClientRect().height > 0, 'the World pane is blank for an unmapped fight: the idle card is hidden');
+      assert(/isn.t in the World yet/.test(idle.textContent) && /Mill Cellar/.test(idle.textContent), 'the card must say, in plain words, that this hunt is not in the World yet: ' + idle.textContent);
+      assert(canvas && (canvas.hidden || !(canvas.width === 300 && canvas.height === 150)), 'the canvas was left at its unsized default 300x150');
+      delete document.hidden;
+      hiddenStub = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      const f0 = rt.stats().frames;
+      assert(await until(() => rt.stats().frames > f0 + 2, 3000), 'the loop did not resume on a visible page');
+      assert(!idle.hidden, 'the card must stay up while the unmapped fight runs');
+      const go = idle.querySelector('[data-world-go]');
+      assert(go && /Hunt in the Mill Cellar/.test(go.textContent), 'the card offers no "Hunt in the Mill Cellar" button');
+      go.click();
+      assert(document.getElementById('panel-combat').classList.contains('active'), 'the button must open Adventures');
+      assert(await until(() => document.querySelector('#panel-combat .wt-hunt[data-hunt="mill_cellar"].is-picked'), 2000), 'the Mill Cellar must be preselected on the War Table');
+      assert(window.G.activeMonster === 'gnoll', 'the button only navigates: it must not start, stop or switch a fight (' + window.G.activeMonster + ')');
+    } finally {
+      if (hiddenStub) { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); }
       if (typeof window.stopCombat === 'function') window.stopCombat();
       window.showTab('profile');
       if (!hadWorld) delete window.G._world;

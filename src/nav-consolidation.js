@@ -69,20 +69,45 @@
     return front ? front.tab : (HUB_OF_PANE[tab] ? tab : h.panes[0].tab);
   }
 
+  // ── The doors' buttons ──────────────────────────────────────
+  // Each door is a rail button (.nav-btn) and a bottom-nav button (.bn-btn)
+  // carrying its hub id in data-tab: static markup in index.html. badges()
+  // repaints after every topbar and screen render, and it used to look each
+  // door up with its own document-wide query (9 querySelectorAll + 9
+  // querySelector per call; 129 s of a 488 s suite profile, 2026-10-14). The
+  // buttons are found with ONE query and kept. A menu that is re-rendered
+  // replaces its buttons, which disconnects the kept ones; the next paint sees
+  // that and queries once more. Cost per paint: a connectivity check.
+  var doorCache = null;   // { rail: {hub: btn}, all: {hub: [btn…]}, els: [btn…] }
+  function doorButtons() {
+    if (doorCache && doorCache.els.every(function (b) { return b.isConnected; })) return doorCache;
+    var c = { rail: {}, all: {}, els: [] };
+    document.querySelectorAll('.nav-btn[data-tab], .bn-btn[data-tab]').forEach(function (btn) {
+      var id = btn.getAttribute('data-tab');
+      // Document order, so the rail entry is the one querySelector would return.
+      if (!c.rail[id] && btn.classList.contains('nav-btn')) c.rail[id] = btn;
+      (c.all[id] = c.all[id] || []).push(btn);
+      c.els.push(btn);
+    });
+    doorCache = c.els.length ? c : null;   // no menu yet: ask again next paint
+    return c;
+  }
+
   // ── Per-pane badges ─────────────────────────────────────────
   var paneBadge = {};
   function badges(map) {
     Object.keys(map || {}).forEach(function (t) { paneBadge[t] = !!map[t]; });
+    var doors = doorButtons(), open = openScreen();
     HUBS.forEach(function (h) {
-      var on = h.panes.some(function (p) { return paneBadge[p.tab] && paneShown(p.tab); });
-      var btn = document.querySelector('.nav-btn[data-tab="' + h.id + '"]');
+      var on = h.panes.some(function (p) { return paneBadge[p.tab] && shownIn(p.tab, open); });
+      var btn = doors.rail[h.id];
       if (!btn) return;
       var dot = btn.querySelector('.nav-badge');
       if (!dot && !on) return;
       if (!dot) { dot = document.createElement('span'); dot.className = 'nav-badge'; btn.appendChild(dot); }
       dot.classList.toggle('hide', !on);
     });
-    paintStrip();
+    paintStripAt(open);
   }
 
   // ── The pane strip ──────────────────────────────────────────
@@ -101,11 +126,17 @@
   // shows, so a link into a pane never strands the player on a blank strip.
   // No reveal module (the boot window before main.js) means show everything:
   // a menu that fails to load must fail OPEN.
-  function paneShown(tab) {
+  function paneShown(tab) { return shownIn(tab, openScreen()); }
+  /* The same answer for a paint pass that has already read the open screen:
+     one DOM read per pass, not one per pane. */
+  function shownIn(tab, open) {
     var R = window.HearthriseReveal;
-    return !R || tab === openScreen() || R.shows('pane:' + tab);
+    return !R || tab === open || R.shows('pane:' + tab);
   }
-  function doorShown(h) { return h.panes.some(function (p) { return paneShown(p.tab); }); }
+  function doorShown(h, open) {
+    if (open === undefined) open = openScreen();
+    return h.panes.some(function (p) { return shownIn(p.tab, open); });
+  }
   /** "The Combat door opens when you win five fights." for a shut door, else null. */
   function doorOpensWhen(id) {
     var h = HUB_BY_ID[id], R = window.HearthriseReveal;
@@ -120,26 +151,30 @@
     var R = window.HearthriseReveal;
     return (R && typeof R.lockReasonAny === 'function') ? R.lockReasonAny(ids) : null;
   }
-  function paintDoors() {
-    var L = window.HearthriseLocks;
+  function paintDoors(open) {
+    var L = window.HearthriseLocks, doors = doorButtons();
     HUBS.forEach(function (h) {
-      var why = doorShown(h) ? null : lockOf(h.panes.map(function (p) { return 'pane:' + p.tab; }));
-      document.querySelectorAll('.nav-btn[data-tab="' + h.id + '"], .bn-btn[data-tab="' + h.id + '"]').forEach(function (btn) {
+      var btns = doors.all[h.id];
+      if (!btns) return;
+      var why = doorShown(h, open) ? null : lockOf(h.panes.map(function (p) { return 'pane:' + p.tab; }));
+      btns.forEach(function (btn) {
         if (btn.style.display === 'none') btn.style.display = '';
         if (L) L.mark(btn, why);
       });
     });
   }
 
-  function paintStrip() {
-    paintDoors();
+  // Hooked to showTab and the reveal event, whose arguments are not the open
+  // screen (a door id, an Event), so it reads the DOM for itself.
+  function paintStrip() { paintStripAt(openScreen()); }
+  function paintStripAt(tab) {
+    paintDoors(tab);
     var host = document.getElementById('hub-tabs');
     if (!host) return;
-    var tab = openScreen();
     var hub = HUB_BY_ID[hubOf(tab)];
     var panes = hub ? hub.panes : [];
     var L = window.HearthriseLocks;
-    var lockedWhy = function (p) { return paneShown(p.tab) ? null : lockOf(['pane:' + p.tab]); };
+    var lockedWhy = function (p) { return shownIn(p.tab, tab) ? null : lockOf(['pane:' + p.tab]); };
     if (!hub || panes.length < 2) {
       if (!host.hidden) { host.hidden = true; host.innerHTML = ''; host.dataset.sig = ''; }
       return;

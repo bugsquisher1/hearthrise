@@ -135,10 +135,12 @@ export function huntSessionFromRead(h) {
     /* THE STAMINA POOL AT THE WINDOW START: the database's own
        hr_stamina_of(settled_to), never a client value. */
     staminaMs: num(h.stamina_ms),
-    /* THE SERVER'S PER-USE PRICES (hr_hunt_supplies.npc_price) and the action
-       set's target mode / pull count — catalogue and stored rows, never a
-       request value; newHuntSession keeps only well-formed entries. */
-    npcPrices: (h.npc_prices && typeof h.npc_prices === 'object') ? h.npc_prices : {},
+    /* THE SHOP (hr_hunt_basic_supplies) and the ids this hunt's tier resolves
+       a shop slot to, and the action set's target mode / pull count —
+       catalogue and stored rows, never a request value; newHuntSession keeps
+       only well-formed entries. */
+    basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},
+    shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
     targetMode: typeof h.target_mode === 'string' ? h.target_mode : null,
     pullCount: num(h.pull_count),
   });

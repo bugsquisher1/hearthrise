@@ -4017,3 +4017,43 @@ Canvas 2D World pane (Home's second pane) behind `{mount,setMap,sync,snapshot,de
    busy box, drive `__smokeTest({only})` from a scratch harness boot instead.
 5. *Headless rAF is not the game's frame rate.* Idle rAF was 17-32/s on the loaded box; measure loop
    frames against raw rAF before blaming a throttle.
+
+## 2026-10-14 — lane B, client perf (`lane/b-perf-badges-toasts`)
+
+In-page suite 742.6 s -> 223.2 s; COMBAT-UI-24 in the full order 85.8 s -> 3.2 s (same scratch timer, same box).
+
+1. *Profile the test you were told about, in its full-order position, before trusting the diagnosis.* With the
+   two named hot paths fixed, COMBAT-UI-24 did not move. A scoped profile (in-page `console.profile`; a protocol
+   `Profiler.start` sent during a long sync test is served only after it) put 46 of 57 s in `notify` from an
+   AWAY replay: `simulateAwayCombat` set `ctx.away` on its own ctx, but every kill rebuilds its ctx from the
+   offline latch, so the one unlatched caller ran ~6,500 kills as watched. The span now holds the latch.
+2. *Forced style is the next floor after forced layout.* `sheetOpen()` reads pointer-events first and
+   `checkVisibility()` for the box, so a toast forces no layout; it still forces a style recalc while a closed
+   toggled scrim lingers (#inv-detail-overlay, #hr-death-scrim, #prof-pop-objectives). Cheap at one kill per
+   tick; a burst-proof answer needs delivery batched per frame, which changes push()'s synchronous contract.
+3. *Static markup can be kept, if staleness is self-detecting.* Doors are cached and revalidated by
+   `isConnected`; a menu re-render replaces nodes, which invalidates the cache with no hook to forget.
+4. Next lead, not taken: `HearthriseReveal.shows()` recomputes the whole reveal per call (~10-20 per paint).
+
+## 2026-10-14 — lane A, record claims hold (`lane/a-record-claims-hold`)
+
+`applyRecord` rebuilt `known`/`stamp` from each fresh answer alone, so an answer that did not
+mention a field un-vouched it. Matrix (10 claim fields x 6 answer shapes): hr_load, the accrue
+settle, gold verbs and the gap heal restate all ten; frames ({state,skills,buffs,place}) omit
+`equipment` and `rooms`; intent answers (activity.js's constructed envelope) omit `rooms`.
+
+1. *A partial answer is silence, not a retraction.* Carry the CLAIM (the server's fingerprint),
+   never a re-stamp of `G`: that keeps the b347 forgery check intact for free. Only a restatement
+   replaces; an unreadable restatement drops (fail-closed); disarm, another slot and forget carry nothing.
+2. *Carrying claims breaks "known means as new as the record".* The stale gap-fill keyed on
+   `known`; a held claim from v10 would have blocked a v11 answer arriving after a lean v12. A
+   per-field `statedAt` restores it: a stale answer fills a claim older than itself, never one a
+   newer answer stated.
+3. *Read the shape the applier hands on, not the body.* The server sends `progress` on every
+   set_activity answer; activity.js's `envelopeOf` drops it, and that envelope is what reaches the record.
+4. *Git Bash rewrites a leading-slash argument.* `run-smoke --only "/A|B/"` arrived as
+   `C:/Program Files/Git/A|B/`, matched nothing, and printed "passed 0/0 ... All green" after 35 min
+   of node gates. Prefix `MSYS_NO_PATHCONV=1`, and read the count before the verdict.
+5. *A filtered slice has its own pre-existing reds.* MOD-NAME-1, b221 Settings rename and B353-3b
+   fail on main in a filtered order (they lean on ambient G from earlier tests); compare against a
+   baseline slice before blaming the lane.

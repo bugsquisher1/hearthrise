@@ -25,21 +25,21 @@
 // timeline, the bestiary tracker and the end card, over the hunt's map when
 // the World draws it and over the "not in the World yet" card when it does not.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=582';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=582';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=582';
-import { HUNT_INDEX } from '../data/hunts.js?v=582';
-import { compileMap } from './core/map-compile.js?v=582';
-import { STUB_SPRITE } from './core/book.js?v=582';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=582';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=582';
-import { readScene, setChoice, activityOf } from './store.js?v=582';
-import { loadAtlases } from './atlas.js?v=582';
-import { createCanvasBackend } from './render/canvas-backend.js?v=582';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=582';
-import { createHuntScene } from './hunt-scene.js?v=582';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=582';
-import { createHuntScreen } from './hunt-screen.js?v=582';
+import { BUILD } from '../build-info.js?v=584';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=584';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=584';
+import { HUNT_INDEX } from '../data/hunts.js?v=584';
+import { compileMap } from './core/map-compile.js?v=584';
+import { STUB_SPRITE } from './core/book.js?v=584';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=584';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=584';
+import { readScene, setChoice, activityOf } from './store.js?v=584';
+import { loadAtlases } from './atlas.js?v=584';
+import { createCanvasBackend } from './render/canvas-backend.js?v=584';
+import { huntOfMap, mapForActivity } from './hunt-maps.js?v=584';
+import { createHuntScene } from './hunt-scene.js?v=584';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=584';
+import { createHuntScreen } from './hunt-screen.js?v=584';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;

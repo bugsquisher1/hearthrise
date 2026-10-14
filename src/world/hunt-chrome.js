@@ -22,14 +22,14 @@
 // HIDDEN until the combat redesign (master plan row 18): the mana bar, spells,
 // target mode and pull count.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=582';
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { HUNT_INDEX } from '../data/hunts.js?v=582';
-import { SKILLS_DEF } from '../data/skills.js?v=582';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=582';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=582';
-import { END_CARD_COPY, END_REASON_COPY, EVENT_COPY, TIMELINE_COPY } from '../data/hunt-sessions.js?v=582';
-import { barModel, quickModel, slotHtml, BAR_COLS } from './hunt-bar.js?v=582';
+import { ITEMS } from '../data/items.js?v=584';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { HUNT_INDEX } from '../data/hunts.js?v=584';
+import { SKILLS_DEF } from '../data/skills.js?v=584';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=584';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=584';
+import { END_CARD_COPY, END_REASON_COPY, EVENT_COPY, TIMELINE_COPY } from '../data/hunt-sessions.js?v=584';
+import { barModel, quickModel, slotHtml, BAR_COLS } from './hunt-bar.js?v=584';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 const num = (v) => (v != null && Number.isFinite(Number(v)) ? Math.round(Number(v)).toLocaleString('en-US') : '—');

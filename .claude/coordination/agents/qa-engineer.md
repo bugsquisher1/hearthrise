@@ -11,6 +11,23 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-14 · the core-loop gate (lane/b-loop-gate, nightly, not per release)
+- The closest harness for "does the server loop play" is absence-priced-at-return's: `bootReplay()` +
+  the real verb modules behind an `exec` seam as `hr_engine` + `collectCurrentWindow` standing in for
+  index.ts's Deno-only `accrue` + the hr_seed column pinned. After the first cold replay (~40 s) the
+  PGlite template boots in 2-3 s, so four loops plus seven mutants run in about a minute.
+- To pass time, shift EVERY timestamptz column of `player_state` (read the list from
+  information_schema). Shifting only `accrued_to` leaves `combat_xp_accrued_to` ahead and the XP
+  leg prices nothing.
+- A `renown_ratchet` ledger row can land AFTER the settle's row. Read the settle by
+  `kind='combat' and intent='accrue'`, not "the last row".
+- Inserting `auth.users` creates the `profiles` row through a trigger, so use `on conflict do nothing`.
+- Make fixture picks data-driven (the forge recipe the SERVER level and bag allow). My first
+  hardcoded `forge_bronze_helm` was refused `activity_locked` at smithing 5. That was the game being
+  right and the test being brittle.
+- Every verb body is a full envelope: compare it with hr_load on the spot (`readBack`), which is the
+  §6 "browser never disagrees" rule as an assertion.
+
 ### 2026-10-03 · the stated-bag triple, per test (lane/b562-serverbag-snapshot, GO-WITH-CHANGES)
 A snapshot-list fix only covers tests that snapshot. The class check belongs at the REAL boundary
 (the runner loop), which found sixteen movers where the review named nine. `__smokeTest({only:'/re/'})`

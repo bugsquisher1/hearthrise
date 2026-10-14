@@ -13,12 +13,12 @@
 // inventory repaint from the re-read.
 // The layer is the modal primitive (.hr-scrim / .hr-sheet).
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=582';
-import { SUPPLY_ROWS, HEAL_ORDER, bagGuideFor } from '../data/supplies.js?v=582';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=582';
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { barModel, slotHtml, resolveTarget, huntTier } from './hunt-bar.js?v=582';
-import { huntName } from './hunt-chrome.js?v=582';
+import { ITEMS } from '../data/items.js?v=584';
+import { SUPPLY_ROWS, HEAL_ORDER, bagGuideFor } from '../data/supplies.js?v=584';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=584';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { barModel, slotHtml, resolveTarget, huntTier } from './hunt-bar.js?v=584';
+import { huntName } from './hunt-chrome.js?v=584';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');

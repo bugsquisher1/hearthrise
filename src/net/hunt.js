@@ -49,9 +49,9 @@
 // uses PostgREST with the signed-in session, as src/net/vigour.js does.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=582';
-import { END_CARD_COPY } from '../data/hunt-sessions.js?v=582';
-import { DEFAULT_PRESET } from '../data/rule-subjects.js?v=582';
+import { resolveActiveSlot } from './accrue.js?v=584';
+import { END_CARD_COPY } from '../data/hunt-sessions.js?v=584';
+import { DEFAULT_PRESET } from '../data/rule-subjects.js?v=584';
 
 const POLL_MS = 10000;          // the world tick's cadence: a read more often learns nothing
 const STALE_MS = 5000;          // a watch that starts on a read older than this re-reads at once

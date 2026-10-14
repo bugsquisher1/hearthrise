@@ -17,11 +17,11 @@
 // The layer is the modal primitive (.hr-scrim / .hr-sheet, Escape through
 // src/render/modal-sheet.js's [data-hr-dismiss]).
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=582';
-import { SUPPLIES, SUPPLY_ROWS, HEAL_ORDER } from '../data/supplies.js?v=582';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=582';
-import { RULE_SUBJECTS, RULE_OPERATORS, ACTION_SET_LIMITS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=582';
-import { resolveTarget } from './hunt-bar.js?v=582';
+import { ITEMS } from '../data/items.js?v=584';
+import { SUPPLIES, SUPPLY_ROWS, HEAL_ORDER } from '../data/supplies.js?v=584';
+import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=584';
+import { RULE_SUBJECTS, RULE_OPERATORS, ACTION_SET_LIMITS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=584';
+import { resolveTarget } from './hunt-bar.js?v=584';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');

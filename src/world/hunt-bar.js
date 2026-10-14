@@ -14,11 +14,11 @@
 // The bar order IS the firing order (the server walks the slots in order), so
 // slots are dense: an empty "+" always appends at the end.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=582';
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { SUPPLIES, HEAL_ORDER, bagGuideFor } from '../data/supplies.js?v=582';
-import { BASIC_INDEX, basicFor } from '../data/supply-basics.js?v=582';
-import { SLOT_TARGETS, RULE_SUBJECTS, RULE_OPERATORS, ACTION_SET_LIMITS, parseSubject } from '../data/rule-subjects.js?v=582';
+import { ITEMS } from '../data/items.js?v=584';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { SUPPLIES, HEAL_ORDER, bagGuideFor } from '../data/supplies.js?v=584';
+import { BASIC_INDEX, basicFor } from '../data/supply-basics.js?v=584';
+import { SLOT_TARGETS, RULE_SUBJECTS, RULE_OPERATORS, ACTION_SET_LIMITS, parseSubject } from '../data/rule-subjects.js?v=584';
 
 export const BAR_ROWS = 2;
 export const BAR_COLS = ACTION_SET_LIMITS.slots / BAR_ROWS;

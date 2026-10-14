@@ -41,17 +41,17 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { ITEMS } from '../data/items.js?v=582';
-import * as ST from './session-tally.js?v=582';
-import { fill } from './signposts.js?v=582';
-import { foeFamily } from '../render/foe-family.js?v=582';
-import { weaknessWords } from '../render/foe-weakness.js?v=582';
-import { SIGNPOSTS } from '../data/signposts.js?v=582';
-import { compactNumber } from '../net/balance.js?v=582';
-import { HUNTS } from '../data/hunts.js?v=582';
-import { BOSSES } from '../data/bosses.js?v=582';
-import { nextCharmAt } from '../core/charms.js?v=582';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { ITEMS } from '../data/items.js?v=584';
+import * as ST from './session-tally.js?v=584';
+import { fill } from './signposts.js?v=584';
+import { foeFamily } from '../render/foe-family.js?v=584';
+import { weaknessWords } from '../render/foe-weakness.js?v=584';
+import { SIGNPOSTS } from '../data/signposts.js?v=584';
+import { compactNumber } from '../net/balance.js?v=584';
+import { HUNTS } from '../data/hunts.js?v=584';
+import { BOSSES } from '../data/bosses.js?v=584';
+import { nextCharmAt } from '../core/charms.js?v=584';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:

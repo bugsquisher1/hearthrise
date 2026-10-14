@@ -11,13 +11,13 @@
 // in progress. A refusal is told to the player in the server's own terms
 // (HearthriseHunt.refusalSentence) through the game's toast.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=582';
-import { HUNT_INDEX } from '../data/hunts.js?v=582';
-import { DEFAULT_PRESET, ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=582';
-import { xpPct, levelFromXp } from '../core/xp.js?v=582';
-import { createConfigSheet } from './hunt-config.js?v=582';
-import { createPackSheet } from './hunt-pack.js?v=582';
-import { huntTier } from './hunt-bar.js?v=582';
+import { MONSTERS } from '../data/monsters.js?v=584';
+import { HUNT_INDEX } from '../data/hunts.js?v=584';
+import { DEFAULT_PRESET, ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=584';
+import { xpPct, levelFromXp } from '../core/xp.js?v=584';
+import { createConfigSheet } from './hunt-config.js?v=584';
+import { createPackSheet } from './hunt-pack.js?v=584';
+import { huntTier } from './hunt-bar.js?v=584';
 
 /** The presets to offer: the saved rows, with the catalogue default standing in for an unsaved preset 0. */
 export function setsOf(rows) {

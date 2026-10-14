@@ -2832,6 +2832,28 @@ the first spawn. Coach step 5 rings the Mill Cellar's Hunt button.
 Lesson: a hidden tab is still in the DOM, so layout tests that measured the grid open Training through
 the shared combatScreen() fixture rather than per test.
 
+### 2026-10-14 · lane/w2-world-art: the pixel world gets one scale, one palette and a floor
+
+Tyler and a friend picked the v3 mockups apart: floating chest and NPC, three shadow styles, roofs
+see-through from outside, wall clipping, characters huge beside the furniture, trees small. All six
+are properties of pixels and placement, so the fix is a pipeline that measures them, not a better
+prompt. `tools/world-art/{png,lock,measure,validate,pack,build}.mjs` (node, zero deps) turns curated
+sources in `art/world/<set>/` into `assets/world/atlas-<set>.{png,json}`; `src/data/world/art-budget.js`
+is the class table (body ±10%, frame, contact rule, shadow, layer) and the manifest contract;
+`tests/world-assets.mjs` measures the SHIPPED atlases and plants the five named defects into real
+sprites (floated chest, 50 px hero, off-palette pixel, baked shadow, iso-corner chest) plus a
+hand-edited atlas pixel; every one is caught by its named rule.
+Run against the v3 raws the validator names the old defects outright (DISCOVERIES 2026-10-14). New
+art: v3 hero at size 40 (36 px body) with v3-custom idle/walk/attack/down in four facings; rat, slime,
+hive wasp with walk/attack/hit/death/corpse; cellar Wang floor; fieldstone walls, rims, arch; 40-odd
+props; `town` and `home` sets (timber/stone/plank walls, ridged roofs, plank floor, furniture per room,
+the four town stations, trees, smith and crier, three peer looks) and the three stills in
+`docs/art-experiments/world/`.
+Lessons: (1) template animations redraw the character: the shield came and went between frames, so
+every clip is a v3 custom clip from the rotation frame; (2) a unit stands on its feet and a chest on
+its base: one "contact row" rule cannot serve both; (3) iso is a shape (a centre corner climbing in
+straight stairs), not a size; (4) the hardcoded-colour ratchet was right to stop a 40-hex palette in
+`src/`: the palette is an art asset (`art/world/palette.json`), the grading rules are data.
 ### 2026-10-13 · b574 Recraft wave 1 (lane/b574-art-wave1)
 130 PNGs reviewed; 12 wired (raw pikeperch/silverfin/goldgill, raw shrimp, cooked trout, turnip seed packet,
 bronze + verdite ingots, oak planks, ooze + air elemental portraits, hero in placeholder-portrait.webp).

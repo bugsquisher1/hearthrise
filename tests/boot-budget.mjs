@@ -33,6 +33,11 @@
 //           dynamic import is one keystroke away from a DEAD CONTROL — the
 //           defect class this repo ships most often (the button looks fine and
 //           silently does nothing).
+//   BOOT-5  The World pane costs a boot nothing: neither a player boot nor a
+//           harness boot requests anything under src/world/, assets/world/ or world.css until
+//           the pane is opened (src/features/world-panel.js imports the runtime
+//           lazily). The opening half — the pane DOES load and draw — is the
+//           in-page WORLD-1 test, so a dead lazy import is red there.
 //
 // It also MEASURES and prints medians over three cold boots: the account gate
 // painted, window.HearthriseCore, `esm-boot` (main.js's body, which runs only
@@ -224,6 +229,7 @@ async function boot(browser, url, { harness, mutate, press, throttle } = {}) {
 }
 
 const isSuite = (u) => u.includes(SUITE);
+const isWorld = (u) => /\/src\/world\/|\/src\/styles\/world\.css|\/assets\/world\//.test(u);
 const jsBytes = (res) => res.filter((r) => /\.js(\?|$)/.test(r.name)).reduce((n, r) => n + r.dec, 0);
 const allBytes = (res) => res.reduce((n, r) => n + r.dec, 0);
 
@@ -328,7 +334,7 @@ async function selftest(browser, url) {
     { id: 'M0-clean-control', want: null,
       why: 'an unmutated player boot must be GREEN, or every "caught" below is an artefact',
       harness: false, mutate: null,
-      check: (r) => (r.requested.some(isSuite) ? 'BOOT-1' : null) },
+      check: (r) => (r.requested.some(isSuite) ? 'BOOT-1' : (r.requested.some(isWorld) ? 'BOOT-5' : null)) },
 
     { id: 'M1-static-import-returns', want: 'BOOT-1',
       why: 'THE REGRESSION THIS GUARD OWNS: one static import of the suite anywhere in main.js\'s '
@@ -343,6 +349,13 @@ async function selftest(browser, url) {
       harness: true,
       mutate: rewrite('**/src/features/smoke-test-loader.js*', () => 'export function setupSmokeTestLoader(){}\nexport function loadSmokeTest(){return Promise.resolve(null);}\n'),
       check: (r) => ((!r.requested.some(isSuite) || r.smokeSource !== 'esm') ? 'BOOT-2' : null) },
+
+    { id: 'M7-world-imported-eagerly', want: 'BOOT-5',
+      why: 'the shortcut the lazy pane invites: one static import of the world runtime in its shell puts the '
+        + 'renderer, the maps and the art book on every player\'s cold boot, opened or not',
+      harness: false,
+      mutate: rewrite('**/src/features/world-panel.js*', (t) => `import '../world/world-boot.js?v=${V}';\n` + t),
+      check: (r) => (r.requested.some(isWorld) ? 'BOOT-5' : null) },
 
     { id: 'M6-key-unwired', want: 'BOOT-4',
       why: 'a dynamic import is one keystroke away from a DEAD CONTROL — the 🧪 button and Ctrl+Shift+T '
@@ -398,7 +411,7 @@ async function selftest(browser, url) {
 
   console.log();
   if (bad) { console.error(`boot-budget --selftest FAILED — ${bad} unproven`); return 1; }
-  console.log('boot-budget --selftest PASSED — 2 clean controls green, 5/5 mutations caught.');
+  console.log('boot-budget --selftest PASSED — 2 clean controls green, 6/6 mutations caught.');
   return 0;
 }
 
@@ -442,6 +455,13 @@ async function selftest(browser, url) {
         problems.push(`BOOT-2  after a harness boot window.__smokeTestSource is ${JSON.stringify(h.smokeSource)} `
           + `and typeof window.__smokeTest is "${h.smokeType}" — the ESM suite never published itself.`);
       }
+      /* BOOT-5 — no boot, player or harness, pays for a pane it never opened. */
+      const worldBoots = player.concat(harness).filter((r) => r.requested.some(isWorld));
+      if (worldBoots.length) {
+        problems.push(`BOOT-5  ${worldBoots.length} boot(s) requested World pane code before the pane was opened `
+          + `(${worldBoots[0].requested.filter(isWorld).slice(0, 3).join(', ')}). src/features/world-panel.js must `
+          + 'import src/world/world-boot.js lazily, on the first open.');
+      }
       const pressed = await boot(browser, url, { harness: false, press: true });
       if (pressed.armError) {
         problems.push(`BOOT-4  could not arm the loader the way main.js does: ${pressed.armError}`);
@@ -478,7 +498,7 @@ async function selftest(browser, url) {
       } else {
         console.log('  ✓ BOOT-1 player boot never fetches the suite · BOOT-2 harness boot does, and publishes it '
           + `· BOOT-3 all ${runners.count} page runners set the harness flag and pin the ESM suite `
-          + '· BOOT-4 Ctrl+Shift+T fetches it on demand');
+          + '· BOOT-4 Ctrl+Shift+T fetches it on demand · BOOT-5 no boot fetches the World pane before it opens');
       }
     }
   } catch (e) {

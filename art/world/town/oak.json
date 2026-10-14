@@ -1,0 +1,43 @@
+{
+  "id": "oak",
+  "class": "tree",
+  "material": "foliage",
+  "source": "oak.png",
+  "frame": [
+    88,
+    114
+  ],
+  "anchor_px": [
+    44,
+    111
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "shadow": "cast",
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "7d86bc0a-ec01-4d8f-8f46-32f74a81f907",
+    "request": {
+      "description": "old oak tree with a broad dense rounded crown of dark green leaves, thick gnarled brown trunk with roots, top-down RPG tree seen from the front and above, muted deep greens, dark outline, no shadow, no ground, no grass",
+      "width": 92,
+      "height": 120,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "The baked grass patch under the roots was erased (green pixels below row 100): shadows and ground are the renderer's, never the sprite's."
+}

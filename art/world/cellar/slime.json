@@ -1,0 +1,133 @@
+{
+  "id": "slime",
+  "class": "critter",
+  "material": "monster",
+  "source": "slime.png",
+  "anchor_px": [
+    24,
+    40
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 12,
+      "loop": false,
+      "hit": 3,
+      "dirs": {
+        "s": 7,
+        "e": 7,
+        "n": 7,
+        "w": 7
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 7,
+        "e": 7,
+        "n": 7,
+        "w": 7
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "object": {
+      "tool": "create_object_pro_flash",
+      "id": "4bef8259-9033-465a-8e7b-3f4e25215ccc",
+      "request": {
+        "description": "small cellar slime monster, a wobbling dome of murky moss-green ooze with a darker core, two small dark eyes, glossy highlight on top, flat base resting on the floor, high top-down RPG monster, dark outline, muted colours",
+        "view": "high top-down",
+        "n_directions": 8,
+        "width": 32,
+        "height": 32
+      }
+    },
+    "animations": {
+      "walk": {
+        "tool": "animate_object",
+        "mode": "v3",
+        "animation_description": "slime creeping forward with a squash and stretch hop, base staying on the floor",
+        "frame_count": 6,
+        "group": "e75c42b1-e215-41f0-b0f6-cbf9edf23471"
+      },
+      "attack": {
+        "tool": "animate_object",
+        "mode": "v3",
+        "animation_description": "slime rearing up and lunging forward to strike, then settling back",
+        "frame_count": 6,
+        "group": "e0f13d0f-74de-43e2-8a3c-9dab3329d52f"
+      },
+      "hit": {
+        "tool": "animate_object",
+        "mode": "v3",
+        "animation_description": "slime recoiling and wobbling from a hard hit",
+        "frame_count": 4,
+        "group": "a48c93fe-30d5-4726-b81e-e4743754a093"
+      },
+      "death": {
+        "tool": "animate_object",
+        "mode": "v3",
+        "animation_description": "slime dying, collapsing and melting into a flat lifeless puddle on the floor",
+        "frame_count": 6,
+        "group": "3abb0db8-321d-4600-ae6d-d6669869cb8f"
+      }
+    }
+  },
+  "notes": "A blob has no legs: it stands on its base row. Death was generated south and east; north reuses east, west mirrors it. Corpse = the flattened last death frame. Every frame is seated on its own base row: the north clips drifted down the canvas as the blob crept forward."
+}

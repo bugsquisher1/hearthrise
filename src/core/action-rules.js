@@ -16,11 +16,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=575';
-import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=575';
-import { END_ORDER, SESSION_LIMITS } from '../data/hunt-sessions.js?v=575';
-import { applyBuffSegment } from './buffs.js?v=575';
-import { hashSeed } from './rng.js?v=575';
+import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=576';
+import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=576';
+import { END_ORDER, SESSION_LIMITS } from '../data/hunt-sessions.js?v=576';
+import { applyBuffSegment } from './buffs.js?v=576';
+import { hashSeed } from './rng.js?v=576';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };

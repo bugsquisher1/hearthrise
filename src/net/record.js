@@ -1001,7 +1001,17 @@ export function applyRecord(G, res) {
      Deep-copied for map fields, because `G[f]` is the very object a second writer
      mutates — keeping the reference would cache the corruption it exists to
      survive. Maps here are ~15 keys and this runs once per settle. */
-  const lastBase = base && base.last && typeof base.last === 'object' ? { ...base.last } : {};
+  /* ⚠ CARRIED ACROSS A FRESH REPLACE TOO (lane a-hunt-level-flicker). `known`
+     and `stamp` are rebuilt from a fresh envelope alone — right for authority —
+     but an envelope that does not restate a field says nothing about it, so the
+     last thing the server DID say is still the last thing it said. Rebuilding
+     `last` with them threw the Combat-56 hero's skills away on any skills-less
+     answer, and every held reader (the reveal's level window, the gate level)
+     fell to a fresh character until the next full envelope: the Adventures grid
+     flipping between four hunts and three. A slot change reloads the page and
+     loadLocal's forget clears `last`, so this never carries across heroes. */
+  const prevLast = G._record && G._record.last && typeof G._record.last === 'object' ? G._record.last : null;
+  const lastBase = prevLast ? { ...prevLast } : {};
   for (const f of written) lastBase[f] = cloneRecordValue(G[f]);
   G._record = {
     version,

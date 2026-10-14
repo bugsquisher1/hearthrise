@@ -311,10 +311,10 @@ export default [
         const fb = CS.huntIntent('mill_cellar');
         assert(fb && fb.kind === 'combat' && fb.id === 'rat', 'before the server lane, Hunt must fight the first spawn: ' + JSON.stringify(fb));
       }
-      const sent = [];
-      window.HearthriseActivity = Object.assign({}, A, { ACTIVITY_KINDS: kinds.concat(kinds.indexOf('hunt') === -1 ? ['hunt'] : []), declare: (k, id) => { sent.push([k, id]); return null; } });
       try { window.stopCombat(); } catch (e) {}
       window.G.activeMonster = null;
+      const sent = [];
+      window.HearthriseActivity = Object.assign({}, A, { ACTIVITY_KINDS: kinds.concat(kinds.indexOf('hunt') === -1 ? ['hunt'] : []), declare: (k, id) => { sent.push([k, id]); return null; } });
       window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
       document.querySelector('#wt-hunts .wt-hunt[data-hunt="mill_cellar"] [data-cs-act="hunt"]').click();
       assert(JSON.stringify(sent) === '[["hunt","mill_cellar"]]', 'the Hunt button sent ' + JSON.stringify(sent));

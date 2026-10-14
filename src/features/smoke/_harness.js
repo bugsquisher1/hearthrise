@@ -2611,10 +2611,13 @@ export const combatScreen = () => {
   assert(CS, 'the two screens did not boot');
   const snap = snapshotG();
   const prevTab = window.activeTab;
-  /* The monster grid is the Adventures window's Training tab. */
+  /* The monster grid is the Adventures window's Training tab, and the browsed
+     tier is not in snapshotG: both are put back, or the next test meets T4. */
+  const tier0 = window.G.currentCombatTier;
   if (typeof CS.setTab === 'function') CS.setTab('training');
   const restore = () => {
     try { window.stopCombat(); } catch (e) {}
+    if (tier0 === undefined) delete window.G.currentCombatTier; else window.G.currentCombatTier = tier0;
     if (typeof CS.setTab === 'function') CS.setTab('hunts');
     restoreG(snap);
     try { window.showTab(prevTab || 'profile'); } catch (e) {}

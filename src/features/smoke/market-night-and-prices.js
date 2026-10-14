@@ -3605,6 +3605,7 @@ export default [
       assert(CS, 'HearthriseCombatScreens is not published — the two screens did not boot');
       window.showTab('combat');
       G.activeMonster = null;
+      var tier0 = G.currentCombatTier; G.currentCombatTier = 1;   // T1 is open to every hero; an earlier test may leave T6
       CS.setView('table'); CS.setTab('training');
       CS.render();
       const btn = document.querySelector('#panel-combat .wt-grid .wt-card:not([disabled])');
@@ -3632,6 +3633,7 @@ export default [
       assert(/last/i.test(document.getElementById('fs-metrics').textContent),
         'the preview it routes to carries no survival line, which is the reason for routing here');
     } finally {
+      if (tier0 === undefined) delete G.currentCombatTier; else G.currentCombatTier = tier0;
       CS.setTab('hunts');
       try { if (typeof window.closeMobPreview === 'function') window.closeMobPreview(); } catch (e) {}
       const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');

@@ -68,8 +68,8 @@
 // cannot). Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=582';
-import { predictedBalance } from './predict.js?v=582';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=583';
+import { predictedBalance } from './predict.js?v=583';
 
 /** The fields this module knows are balances. Not a gate — every accessor
  *  works on any field name — but the set the guards sweep and the set a caller

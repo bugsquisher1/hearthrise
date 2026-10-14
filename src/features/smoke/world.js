@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert } from './_harness.js?v=582';
-import { buildResiduePatch } from '../../net/capstone.js?v=582';
+import { tryRunAsync, assert } from './_harness.js?v=583';
+import { buildResiduePatch } from '../../net/capstone.js?v=583';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(pred, ms) {

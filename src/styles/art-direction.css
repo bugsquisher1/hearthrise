@@ -159,7 +159,7 @@ body[data-theme] .btn {
 body[data-theme] .btn:hover:not(:disabled) {
   color: var(--ink);
   border-color: rgba(201, 162, 74, .38);
-  background: linear-gradient(180deg, rgba(255, 236, 200, .12), rgba(255, 236, 200, .04));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 12%, transparent), color-mix(in srgb, var(--hl) 4%, transparent));
 }
 body[data-theme] .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5); }
 body[data-theme] .btn:disabled { opacity: .38; box-shadow: none; background: none; cursor: not-allowed; }
@@ -171,7 +171,7 @@ body[data-theme] .btn-gold {
   border-color: #e6cd93;
   color: #221803;
   font-weight: 700;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, .35);
+  text-shadow: 0 1px 0 rgba(255, 240, 200, .35);   /* the gold's own light, not the UI's */
   box-shadow: inset 0 1px 0 rgba(255, 246, 220, .55), inset 0 -2px 3px rgba(90, 60, 8, .40), 0 2px 5px -2px rgba(0, 0, 0, .7);
 }
 body[data-theme] .btn-primary:hover:not(:disabled),
@@ -225,7 +225,7 @@ body[data-theme] .btn-ghost {
   color: var(--ink-3);
 }
 body[data-theme] .btn-ghost:hover:not(:disabled) {
-  background: rgba(255, 236, 200, .05);
+  background: color-mix(in srgb, var(--hl) 5%, transparent);
   border-color: transparent;
   color: var(--gold-2);
 }
@@ -251,7 +251,7 @@ body[data-theme] .chip {
   position: relative;
   box-shadow: none;
 }
-body[data-theme] .chip:hover { color: var(--ink-2); background: rgba(255, 236, 200, .04); }
+body[data-theme] .chip:hover { color: var(--ink-2); background: color-mix(in srgb, var(--hl) 4%, transparent); }
 body[data-theme] .chip.active {
   background: linear-gradient(180deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .04));
   border-color: var(--line-soft);
@@ -391,9 +391,9 @@ body[data-theme] .player-avatar {
   width: 32px; height: 32px;
   border-radius: var(--r-sm);
   /* was a cyan-tinted glass chip — a hue from a retired palette */
-  background: #201b15;
+  background: var(--avatar-bg);
   border: 1px solid rgba(201, 162, 74, .34);
-  box-shadow: inset 0 1px 0 rgba(255, 232, 190, .12);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 12%, transparent);
 }
 body[data-theme] .player-name {
   font-family: var(--f-display);
@@ -453,7 +453,7 @@ body[data-theme] .icon-btn {
 }
 body[data-theme] .icon-btn:hover {
   color: var(--gold-2);
-  background: rgba(255, 236, 200, .06);
+  background: color-mix(in srgb, var(--hl) 6%, transparent);
   border-color: var(--line-soft);
 }
 body[data-theme] .streak-badge {
@@ -545,7 +545,7 @@ body[data-theme] .ce-champ {
   border-radius: 50%;
   border: 1px solid rgba(201, 162, 74, .45);
   box-shadow:
-    inset 0 2px 0 rgba(255, 240, 205, .12),
+    inset 0 2px 0 color-mix(in srgb, var(--hl) 12%, transparent),
     0 18px 34px -18px rgba(0, 0, 0, .95),
     0 0 40px -14px rgba(201, 162, 74, .35);
   filter: saturate(.92) contrast(1.04);
@@ -574,7 +574,7 @@ body[data-theme] .ce-next {
   border-radius: var(--r);
   border: 1px solid rgba(201, 162, 74, .34);
   background: linear-gradient(180deg, rgba(38, 32, 25, .92), rgba(22, 18, 13, .94));
-  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .10), 0 6px 18px -10px rgba(0, 0, 0, .9);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 10%, transparent), 0 6px 18px -10px rgba(0, 0, 0, .9);
   cursor: pointer;
   transition: border-color .14s, transform .06s;
 }
@@ -613,12 +613,12 @@ body[data-theme] .monster-row {
   background: none;
   border: 0;
   border-radius: 0;
-  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  border-bottom: 1px solid var(--line-soft);
   margin-bottom: 0;
   padding: 9px 8px;
   min-height: 54px;
 }
-body[data-theme] .monster-row:hover:not(:disabled) { background: rgba(255, 236, 200, .045); border-color: rgba(236, 225, 204, .06); }
+body[data-theme] .monster-row:hover:not(:disabled) { background: color-mix(in srgb, var(--hl) 4.5%, transparent); border-color: var(--line-soft); }
 body[data-theme] .monster-row.fighting { background: rgba(178, 58, 44, .14); box-shadow: inset 3px 0 0 var(--red); border-color: transparent; }
 body[data-theme] .monster-row .mi { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; }
 body[data-theme] .monster-row .mi img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65)); }
@@ -711,12 +711,12 @@ body[data-theme] .skill-tile {
   min-height: 46px;
   padding: 7px 8px;
   border: 0;
-  border-bottom: 1px solid rgba(236, 225, 204, .055);
+  border-bottom: 1px solid var(--line-soft);
   border-radius: 0;
   background: none;
   text-align: left;
 }
-body[data-theme] .skill-tile:hover { background: rgba(255, 236, 200, .045); transform: none; border-color: rgba(236, 225, 204, .055); }
+body[data-theme] .skill-tile:hover { background: color-mix(in srgb, var(--hl) 4.5%, transparent); transform: none; border-color: var(--line-soft); }
 /* Selection is gilt — .skill-tile.active was --aqua-2, a teal from the retired
  * palette, which is why one tile on the Skills screen was always mint green. */
 body[data-theme] .skill-tile.active {
@@ -751,15 +751,15 @@ body[data-theme] .act-tile {
   min-height: 0;
   padding: 14px 10px 16px;
   gap: 0;
-  background: linear-gradient(180deg, rgba(255, 236, 200, .045), rgba(0, 0, 0, .12));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 4.5%, transparent), rgba(0, 0, 0, .12));
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 7%, transparent);
 }
 body[data-theme] .act-tile:hover {
   border-color: rgba(201, 162, 74, .42);
   transform: none;
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .12), 0 4px 14px -8px rgba(0, 0, 0, .9);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 12%, transparent), 0 4px 14px -8px rgba(0, 0, 0, .9);
 }
 body[data-theme] .act-tile.active {
   border-color: rgba(201, 162, 74, .7);
@@ -929,7 +929,7 @@ body[data-theme] .act-tile.locked {
   opacity: 1;
   filter: none;
   background: rgba(0, 0, 0, .26);
-  border-color: rgba(236, 225, 204, .05);
+  border-color: var(--line-soft);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, .55);
 }
 /* Don't grayscale locked art: `filter` is a single property, so this cancelled
@@ -1002,7 +1002,7 @@ body[data-theme] .act-head {
   align-items: center;
   gap: 15px;
   padding: 14px 16px;
-  background: linear-gradient(180deg, rgba(255, 236, 200, .05), rgba(0, 0, 0, .14));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 5%, transparent), rgba(0, 0, 0, .14));
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
 }
@@ -1080,7 +1080,7 @@ body[data-theme] .invc-topbar button {
   background: var(--surf-raised);
   box-shadow: var(--surf-raised-edge);
 }
-body[data-theme] .invc-topbar button:hover { color: var(--ink); border-color: rgba(201, 162, 74, .4); background: linear-gradient(180deg, rgba(255,236,200,.12), rgba(255,236,200,.04)); }
+body[data-theme] .invc-topbar button:hover { color: var(--ink); border-color: rgba(201, 162, 74, .4); background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 12%, transparent), color-mix(in srgb, var(--hl) 4%, transparent)); }
 body[data-theme] .invc-topbar button.active { color: var(--gold-2); border-color: rgba(201, 162, 74, .55); background: linear-gradient(180deg, rgba(201,162,74,.2), rgba(201,162,74,.06)); }
 /* b269: "Buy space" is the primary action on this bar — give it the gilt fill. */
 body[data-theme] .invc-topbar button.invc-buyspace {
@@ -1135,11 +1135,11 @@ body[data-theme] .invc-cat-strip {
 body[data-theme] .invc-cat-btn {
   width: 36px; height: 36px;
   border-radius: var(--r);
-  border: 1px solid rgba(236, 225, 204, .07);
+  border: 1px solid var(--line-soft);
   background: rgba(0, 0, 0, .22);
   color: var(--ink-3);
 }
-body[data-theme] .invc-cat-btn:hover { background: rgba(255, 236, 200, .06); border-color: var(--line-soft); color: var(--ink-2); }
+body[data-theme] .invc-cat-btn:hover { background: color-mix(in srgb, var(--hl) 6%, transparent); border-color: var(--line-soft); color: var(--ink-2); }
 body[data-theme] .invc-cat-btn.active {
   background: linear-gradient(180deg, rgba(201, 162, 74, .2), rgba(201, 162, 74, .05));
   border-color: rgba(201, 162, 74, .45);
@@ -1150,7 +1150,7 @@ body[data-theme] .invc-cat-btn.active {
 /* The bag itself: a recessed container of raised tiles. */
 body[data-theme] .invc-bag-col {
   background: rgba(0, 0, 0, .26);
-  border: 1px solid rgba(236, 225, 204, .05);
+  border: 1px solid var(--line-soft);
   border-radius: var(--r);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6);
   padding: 9px;
@@ -1158,12 +1158,12 @@ body[data-theme] .invc-bag-col {
 body[data-theme] .invc-tile {
   border-radius: var(--r-sm);
   border: 1px solid rgba(255, 255, 255, .07);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 7%, transparent);
 }
 body[data-theme] .invc-tile:hover {
   border-color: rgba(201, 162, 74, .55);
   transform: none;
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .14), 0 0 0 1px rgba(201, 162, 74, .28);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 14%, transparent), 0 0 0 1px rgba(201, 162, 74, .28);
 }
 /* Count badge: bottom-RIGHT and legible. It was a 9px centred label under a
  * full-width scrim, which read as a caption rather than a stack size. */
@@ -1191,8 +1191,8 @@ body[data-theme] .iap-card {
   padding: 18px 16px 15px;
   border-radius: var(--r);
   border: 1px solid var(--line-soft);
-  background: linear-gradient(180deg, rgba(255, 236, 200, .045), rgba(0, 0, 0, .16));
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 4.5%, transparent), rgba(0, 0, 0, .16));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 7%, transparent);
 }
 body[data-theme] .iap-card.gold { border-color: rgba(201, 162, 74, .34); }
 /* b371 (F24) — THE PRODUCT MARK IS A STRUCK MEDALLION, not a floating line
@@ -1301,13 +1301,13 @@ body[data-theme] .comp-medallion { display: inline-flex; flex: 0 0 auto; line-he
 body[data-theme] .shop-row {
   background: none;
   border: 0;
-  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  border-bottom: 1px solid var(--line-soft);
   border-radius: 0;
   padding: 9px 6px;
   gap: 12px;
   align-items: center;
 }
-body[data-theme] .shop-row:hover { background: rgba(255, 236, 200, .035); }
+body[data-theme] .shop-row:hover { background: color-mix(in srgb, var(--hl) 3.5%, transparent); }
 body[data-theme] .shop-row .si { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; }
 body[data-theme] .shop-row .si img { width: 34px; height: 34px; object-fit: contain; }
 body[data-theme] .shop-row .info b { font-size:calc(17px * var(--ui-scale, 1)); font-weight: 600; color: var(--ink); }
@@ -1403,12 +1403,12 @@ body[data-theme] .farm-tile {
   border: 1px solid rgba(90, 66, 38, .55);
   /* Soil: a dark loam base, furrow stripes, and light falling from above. */
   background-image:
-    linear-gradient(180deg, rgba(255, 226, 175, .07), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--hl) 7%, transparent), transparent 34%),
     repeating-linear-gradient(112deg,
       rgba(0, 0, 0, .26) 0 9px,
-      rgba(255, 232, 190, .028) 9px 19px),
+      color-mix(in srgb, var(--hl) 2.8%, transparent) 9px 19px),
     linear-gradient(180deg, #2a2016, #14100b);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 232, 190, .05);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .55), inset 0 -1px 0 color-mix(in srgb, var(--hl) 5%, transparent);
   gap: 8px;
   padding: 12px;
   transition: border-color .14s, box-shadow .14s;
@@ -1439,7 +1439,7 @@ body[data-theme] .farm-tile small {
 }
 body[data-theme] .farm-tile.locked {
   background-image: linear-gradient(180deg, rgba(0, 0, 0, .34), rgba(0, 0, 0, .5));
-  border-color: rgba(236, 225, 204, .06);
+  border-color: var(--line-soft);
   border-style: solid;
 }
 body[data-theme] .farm-tile .ft-lock { color: var(--ink-3); }
@@ -1565,10 +1565,10 @@ body[data-theme] #panel-house .shop-row .btn:disabled { opacity: .45; }
  * ---------------------------------------------------------------------- */
 body[data-theme] .cr-slots,
 body[data-theme] .cr-card {
-  background: linear-gradient(180deg, rgba(255, 236, 200, .035), rgba(0, 0, 0, .14));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 3.5%, transparent), rgba(0, 0, 0, .14));
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .05);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 5%, transparent);
 }
 body[data-theme] .cr-section-title {
   font-family: var(--f-label);
@@ -1589,7 +1589,7 @@ body[data-theme] .cr-slot {
 body[data-theme] .cr-slot.active {
   border-color: rgba(201, 162, 74, .55);
   background: linear-gradient(180deg, rgba(201, 162, 74, .12), rgba(0, 0, 0, .28));
-  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .12);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 12%, transparent);
 }
 body[data-theme] .cr-slot .cr-slot-portrait {
   border: 1px solid rgba(201, 162, 74, .3);
@@ -1608,7 +1608,7 @@ body[data-theme] .cr-slot.active .cr-slot-badge {
   background: rgba(201, 162, 74, .2); color: var(--gold-2); border: 1px solid rgba(201, 162, 74, .38);
 }
 body[data-theme] .cr-slot.locked .cr-slot-badge {
-  background: rgba(236, 225, 204, .07); color: var(--ink-3); border: 1px solid rgba(236, 225, 204, .1);
+  background: color-mix(in srgb, var(--hl) 7%, transparent); color: var(--ink-3); border: 1px solid var(--line-soft);
 }
 /* Premium is a sapphire note, not a gilt one — gilt already means "act". */
 body[data-theme] .cr-paywall-hint {
@@ -1632,7 +1632,7 @@ body[data-theme] .cr-paywall-hint button {
   letter-spacing: 0;
 }
 /* Stat rows */
-body[data-theme] .cr-stat-row { padding: 6px 0; border-bottom: 1px solid rgba(236, 225, 204, .05); background: none; }
+body[data-theme] .cr-stat-row { padding: 6px 0; border-bottom: 1px solid var(--line-soft); background: none; }
 body[data-theme] .cr-stat-row:last-child { border-bottom: 0; }
 body[data-theme] .cr-stat-row > span:first-child { color: var(--ink-3); font-size: var(--t-small); }
 body[data-theme] .cr-stat-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -1650,7 +1650,7 @@ body[data-theme] .cr-hero-stat span {
  * their job and sit at the end of the row they act on.
  * ---------------------------------------------------------------------- */
 body[data-theme] .bounty-option {
-  background: linear-gradient(180deg, rgba(255, 236, 200, .035), rgba(0, 0, 0, .12));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 3.5%, transparent), rgba(0, 0, 0, .12));
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
   padding: 12px 14px;
@@ -1661,8 +1661,8 @@ body[data-theme] .bounty-chip {
   font-family: var(--f-label);
   font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700; letter-spacing: .02em; text-transform: none;
   padding: 2px 9px; border-radius: var(--r-sm);
-  background: rgba(236, 225, 204, .06); color: var(--ink-3);
-  border: 1px solid rgba(236, 225, 204, .08);
+  background: color-mix(in srgb, var(--hl) 6%, transparent); color: var(--ink-3);
+  border: 1px solid var(--line-soft);
 }
 body[data-theme] .bounty-reward {
   display: flex; align-items: center; gap: 14px;
@@ -1693,7 +1693,7 @@ body[data-theme] .bh-unlock {
   font-size: var(--t-micro); font-weight: 600;
   padding: 4px 10px; border-radius: var(--r-sm);
   background: rgba(0, 0, 0, .26);
-  border: 1px solid rgba(236, 225, 204, .06);
+  border: 1px solid var(--line-soft);
   color: var(--ink-3);
 }
 body[data-theme] .bh-unlock em {
@@ -1709,7 +1709,7 @@ body[data-theme] .bh-unlock.is-on em { color: #9ab76a; opacity: 1; }
 /* Bounty shop rows */
 body[data-theme] .bounty-shop-row {
   background: none; border: 0;
-  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  border-bottom: 1px solid var(--line-soft);
   border-radius: 0; padding: 10px 4px; gap: 12px; align-items: center;
 }
 body[data-theme] .bounty-shop-row .si { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink-3); }
@@ -1731,9 +1731,9 @@ body[data-theme] #chat-dock-min {
   border-radius: var(--r);
   padding: 8px 14px;
   font-size: var(--t-small);
-  background: linear-gradient(180deg, #2a231a, #191410);
+  background: var(--toast-bg);
   border: 1px solid rgba(201, 162, 74, .3);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .09), 0 6px 18px -8px rgba(0, 0, 0, .8);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 9%, transparent), 0 6px 18px -8px rgba(0, 0, 0, .8);
   color: var(--ink-2);
 }
 body[data-theme] #chat-dock-min:hover { color: var(--ink); border-color: rgba(201, 162, 74, .5); transform: none; }
@@ -1764,9 +1764,9 @@ body[data-theme] .notif {
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: 0;
-  background: linear-gradient(180deg, #2a231a, #191410);
+  background: var(--toast-bg);
   border: 1px solid var(--line);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .07), 0 8px 22px -10px rgba(0, 0, 0, .85);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 7%, transparent), 0 8px 22px -10px rgba(0, 0, 0, .85);
   color: var(--ink);
   animation: notif-in .22s ease-out both;
 }
@@ -1938,10 +1938,10 @@ body[data-theme] .activity-bar.v2 .ab-stop {
  * across the ground itself. */
 body[data-theme="hearthlight"] .panel.active {
   background:
-    radial-gradient(140% 50% at 50% -14%, rgba(201, 162, 74, .07), transparent 55%),
-    linear-gradient(180deg, #241d16 0%, #201a13 100%);
+    radial-gradient(140% 50% at 50% -14%, var(--panel-floor-glow), transparent 55%),
+    linear-gradient(180deg, var(--panel-floor-0) 0%, var(--panel-floor-1) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 240, 205, .10),
+    inset 0 1px 0 var(--panel-floor-rim),
     0 12px 40px -20px rgba(0, 0, 0, .9);
 }
 
@@ -1973,15 +1973,15 @@ body[data-theme="hearthlight"] .sidebar {
 
 /* Rows and objects on the panel now have a surface to sit on, so their lift
  * has somewhere to read from. */
-body[data-theme] .hr-box { background: rgba(255, 236, 200, .045); }
+body[data-theme] .hr-box { background: color-mix(in srgb, var(--hl) 4.5%, transparent); }
 body[data-theme] .bounty-option,
 body[data-theme] .cr-card,
 body[data-theme] .cr-slots,
 body[data-theme] .act-tile,
 body[data-theme] .iap-card,
 body[data-theme] .act-head {
-  background: linear-gradient(180deg, rgba(255, 236, 200, .07), rgba(0, 0, 0, .10));
-  border-color: rgba(255, 236, 200, .09);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 7%, transparent), rgba(0, 0, 0, .10));
+  border-color: var(--line-soft);
 }
 body[data-theme] .invc-bag-col,
 body[data-theme] .cr-slot,
@@ -2000,7 +2000,7 @@ body[data-theme] #panel-inventory .invc-tile.invc-slot {
   border: 1px solid rgba(0, 0, 0, .55) !important;
   box-shadow:
     inset 0 2px 3px rgba(0, 0, 0, .75),
-    inset 0 -1px 0 rgba(255, 236, 200, .07) !important;
+    inset 0 -1px 0 color-mix(in srgb, var(--hl) 7%, transparent) !important;
 }
 body[data-theme] .invc-slot:hover {
   border-color: rgba(201, 162, 74, .3) !important;
@@ -2008,9 +2008,9 @@ body[data-theme] .invc-slot:hover {
 }
 /* A filled tile is an OBJECT sitting in the well — it lifts. */
 body[data-theme] #panel-inventory .invc-tile:not(.invc-slot) {
-  background: linear-gradient(180deg, rgba(255, 236, 200, .11), rgba(255, 236, 200, .02) 60%, rgba(0, 0, 0, .14));
-  border-color: rgba(255, 236, 200, .13);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .16), 0 1px 2px rgba(0, 0, 0, .6);
+  background: var(--tile-raised);
+  border-color: var(--tile-raised-line);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 16%, transparent), 0 1px 2px rgba(0, 0, 0, .6);
 }
 body[data-theme] .mr-active {
   font-family: var(--f-label); font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700;
@@ -2050,7 +2050,7 @@ body[data-theme] .td-doll .td-slot {
   border-radius: var(--r);
   background: rgba(0, 0, 0, .42);
   border: 1px solid rgba(0, 0, 0, .5);
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(255, 236, 200, .07);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), inset 0 -1px 0 color-mix(in srgb, var(--hl) 7%, transparent);
 }
 body[data-theme] .td-doll .td-slot.empty {
   border-style: solid;
@@ -2064,9 +2064,9 @@ body[data-theme] .td-doll .td-slot:hover {
 }
 /* A filled slot holds an object, so it lifts out of the recess. */
 body[data-theme] .td-doll .td-slot:has(img) {
-  background: linear-gradient(180deg, rgba(255, 236, 200, .12), rgba(255, 236, 200, .02) 60%, rgba(0, 0, 0, .16));
-  border-color: rgba(255, 236, 200, .16);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .18), 0 1px 2px rgba(0, 0, 0, .6);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 12%, transparent), color-mix(in srgb, var(--hl) 2%, transparent) 60%, rgba(0, 0, 0, .16));
+  border-color: color-mix(in srgb, var(--hl) 16%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 18%, transparent), 0 1px 2px rgba(0, 0, 0, .6);
 }
 /* Whole words only, at the floor, in the slot (visual gate 5): the fallback face
    set "Neckla ce" at 700 with tracking; 500 untracked fits every slot name. */

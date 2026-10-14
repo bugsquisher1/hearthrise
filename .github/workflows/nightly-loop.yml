@@ -1,0 +1,64 @@
+# ============================================================
+# .github/workflows/nightly-loop.yml — DOES THE GAME STILL PLAY? (once a day)
+#
+# Tyler, 2026-10-14: "we need to make sure the game still PLAYS as we are
+# expecting, there's still a loop" — and, the same day, "lets not test the game
+# on every release; lets do it like once a day". So this is NOT on the release
+# path: it is not in smoke.yml, it never gates a push to main, release/** or
+# next, and tests/ci-shape.mjs / run-ci-local do not enumerate it. A red run is
+# a visible job failure on the Actions page and in the morning's vitals, owned
+# by whoever's lane broke the arrow the failing step names.
+#
+# tests/core-loop.mjs plays four loops against the REAL edge verbs and the REAL
+# migration chain replayed into PGlite: a new player's first session (fish ->
+# cook -> buy food -> hunt -> sell -> buy an upgrade -> equip -> hunt better ->
+# reload), a Combat-40 hunt (supplies -> hunt -> sell -> restock -> keep going),
+# the crafted upgrade (mine -> smelt -> forge -> equip) and the first night with
+# only the kit (knocked out, never stranded). Its header is the LOOP MAP: which
+# system feeds which step. Run it by hand any time:  node tests/core-loop.mjs
+#
+# On main only (a schedule always runs the default branch), at 06:00 UTC: after
+# the 00:00-00:10 UTC day boundary and well clear of the 20:00 UTC cut.
+# ============================================================
+name: nightly-loop
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+# Least privilege: it checks out, installs and runs a test. Nothing is written.
+permissions:
+  contents: read
+
+jobs:
+  core-loop:
+    runs-on: ubuntu-latest
+    # Measured locally 2026-10-14: the chain replays cold in ~40 s and the
+    # four loops plus seven mutants take well under two minutes.
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # The gate: every loop, step by step, from the server's answers. The
+      # printed table is also the loop's daily balance sheet (kills, gold per
+      # hunt, food per kill, the mid-level hour's net).
+      - name: Core loop - every step of every loop plays
+        run: node tests/core-loop.mjs
+
+      # The proof: seven dead ends planted in the shipping edge bytes, each of
+      # which must turn its NAMED step red first. A gate that has never been red
+      # is decoration.
+      - name: Core loop - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/core-loop.mjs --selftest

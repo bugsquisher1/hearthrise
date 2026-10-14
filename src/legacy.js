@@ -9113,10 +9113,10 @@ function installPwa(){
     start_url:'./',
     display:'fullscreen',
     orientation:'any',
-    // b108: switched from old dark navy to cozy parchment palette so the
-    // installed-PWA splash screen + status bar match the in-game UI.
-    background_color:'#fff8e2',     // parchment cream
-    theme_color:'#5c2d08',           // cocoa
+    // Splash + status bar = the in-game UI (Charcoal & Gold, 2026-10-14), the same
+    // value as index.html's <meta name="theme-color">; was parchment/cocoa (b108).
+    background_color:'#0b1117',
+    theme_color:'#0b1117',
     categories:['games','entertainment'],
     icons:[
       // b361: the approved heraldic crest, square-padded to 512² with a real

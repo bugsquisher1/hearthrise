@@ -602,7 +602,7 @@ body.in-combat #combat-area {
 .arena-vs .arena-portrait {
   width: 96px; height: 96px;
   background:
-    radial-gradient(ellipse at 50% 34%, rgba(255,236,200,.075), transparent 68%),
+    radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--hl) 7.5%, transparent), transparent 68%),
     var(--surf-sunken, rgba(0,0,0,.4));
   border: 2px solid var(--gold-2);
   border-radius: var(--r-portrait, 6px);
@@ -743,7 +743,7 @@ body.in-combat #combat-area {
 @keyframes mp-fade { from { opacity: 0 } to { opacity: 1 } }
 
 .mp-modal {
-  background: linear-gradient(180deg,#201b15,#110e0a);
+  background: var(--modal-bg);
   border: 1px solid rgba(243,209,129,.3); border-radius: 12px;
   width: min(820px, 100%);
   box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 80px rgba(243,209,129,.08);
@@ -1036,7 +1036,7 @@ body.in-combat #combat-area {
   backdrop-filter: blur(4px);
 }
 .qs-modal {
-  background: linear-gradient(180deg,#201b15,#110e0a);
+  background: var(--modal-bg);
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   padding: 22px 26px 18px;
@@ -1342,7 +1342,7 @@ body.in-combat #combat-area {
 }
 .dgn-run-overlay.open { display: flex; }
 .drm-modal {
-  background: linear-gradient(180deg,#201b15,#110e0a);
+  background: var(--modal-bg);
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(680px, 100%);
@@ -1604,7 +1604,7 @@ body.in-combat #combat-area {
 }
 .scv-overlay.open { display: flex; }
 .scv-modal {
-  background: linear-gradient(180deg, #201b15, #110e0a);
+  background: var(--modal-bg);
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(820px, 100%);
@@ -1763,7 +1763,7 @@ body.in-combat #combat-area {
 }
 .char-select-overlay.open { display: flex; }
 .cs-modal {
-  background: linear-gradient(180deg, #201b15, #110e0a);
+  background: var(--modal-bg);
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(560px, 100%);

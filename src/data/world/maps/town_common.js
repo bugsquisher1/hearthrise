@@ -44,7 +44,7 @@ export default Object.freeze({
   ]),
   path: Object.freeze([]),
   spawns: Object.freeze([]),
-  stations: Object.freeze({ combat: [15, 7], gather: [19, 9], artisan: [7, 8], idle: [4, 11] }),
+  stations: Object.freeze({ combat: [16, 7], gather: [19, 9], artisan: [7, 8], idle: [4, 11] }),
   exits: Object.freeze([{ x: 15, y: 6, to: 'mill_cellar' }]),
   start: Object.freeze([11, 9]),
   focus: Object.freeze([11, 7]),

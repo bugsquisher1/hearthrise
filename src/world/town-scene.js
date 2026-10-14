@@ -14,10 +14,10 @@
 // THE CRIER speaks the realm's latest find from its spot by the notice board.
 // PURE: no DOM, no window, no G — the caller passes the view and the helpers.
 // ════════════════════════════════════════════════════════════════════════
-import { STATION_FALLBACK, PEER_LOOKS, CRIER_SPRITE } from '../data/world/stations.js?v=578';
-import { reachFrom } from './core/path.js?v=578';
-import { inRect } from './core/grid.js?v=578';
-import { hash32 } from './choreo.js?v=578';
+import { STATION_FALLBACK, PEER_LOOKS, CRIER_SPRITE } from '../data/world/stations.js?v=579';
+import { reachFrom } from './core/path.js?v=579';
+import { inRect } from './core/grid.js?v=579';
+import { hash32 } from './choreo.js?v=579';
 
 /** An away peer is drawn at this alpha: there, but not at the keyboard. */
 const AWAY_ALPHA = 0.55;
@@ -30,8 +30,11 @@ export function stationOf(map, kind) {
 
 /**
  * Every tile a peer may stand on, nearest first from each station: open,
- * reachable from the start, outside every building, not an exit, and not a
- * station's own tile (that one is kept for the local hero).
+ * reachable from the start, in the clear (no placed thing, wall or roof shares
+ * a pixel with a body there — map-compile.js bodyOverlap — so nobody is half
+ * inside a hedge and a dimmed, translucent away peer shows only ground through
+ * it), outside every building, not an exit, and not a station's own tile (that
+ * one is kept for the local hero).
  */
 function standTiles(map) {
   const seen = reachFrom(map.mask, map.w, map.h, map.start);
@@ -39,7 +42,7 @@ function standTiles(map) {
   const out = [];
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
-      if (!seen[y * map.w + x]) continue;
+      if (!seen[y * map.w + x] || (map.overlap && map.overlap[y * map.w + x])) continue;
       if (map.buildings.some((b) => inRect(b.rect, x, y))) continue;
       if (map.exits.some((e) => e.x === x && e.y === y)) continue;
       if (anchors.some((a) => a[0] === x && a[1] === y)) continue;

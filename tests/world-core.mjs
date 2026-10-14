@@ -20,7 +20,8 @@
 //      down-right in proportion to height; one mask; hung art is lifted
 //   C  zoom table and one-device-pixel camera steps
 //   L  map lint over every shipped map, and over planted bad rows (whole
-//      tiles, doors, roofs, reachability of walked maps, the wall kit)
+//      tiles, doors, roofs, reachability of walked maps, the wall kit, stations
+//      in plain view)
 //   P  8-way A* never cuts a corner
 //   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
 //      floor is laid in its cycle order
@@ -188,6 +189,7 @@ function check(M) {
       ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
       ['an enterable building with no inside wall kit', 'L-KIT', 'town_common', (r) => { delete r.buildings[0].closed; }],
       ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [40, 7]; }],
+      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [15, 7] }); }],
     ];
     for (const [what, code, id, edit] of want) ok('L1', plant(id, edit).includes(code), 'the lint did not reject ' + what + ' with ' + code);
   });

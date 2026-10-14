@@ -13,6 +13,9 @@
 //     and the neighbour's stays; a peer standing inside a building never lifts
 //     its roof (peers are units, never the hero); the inside view's south wall
 //     is the stub kit with the doorway open
+//   C IN THE CLEAR: forty peers drawn as units share no pixel of their body with
+//     a prop, tree, wall or roof (read off compose's frame, not the overlap grid
+//     placement uses), and every station is in plain view
 //   P NOT SAVED: tap-to-walk moves only G._world.pos, the residue allowlist
 //     (RESIDUE_FIELDS, read from src/net/client-state.js) is frozen and holds no
 //     world/position field, and nothing else in G changes
@@ -114,6 +117,30 @@ function check(M) {
     ok('R', home.length === 5 && !home.some(inCottage), 'a peer is never placed inside a building, even beside a station that is: ' + JSON.stringify(home.map((p) => [p.x, p.y])));
     ok('R', placed.length === 40 && placed.every((p) => !town.buildings.some((b) => p.x >= b.rect.x && p.y >= b.rect.y && p.x < b.rect.x + b.rect.w && p.y < b.rect.y + b.rect.h)),
       'forty peers must all be placed, none inside a building');
+  });
+
+  /* C — IN THE CLEAR, read off the DRAWN frame (compose.js is the oracle, not the
+     overlap grid the placement uses): forty peers drawn as units, and not one
+     shares a pixel of its body with a prop, a tree, a wall or a roof, in front
+     of it or behind it. Odo on the bench row (live 2026-10-14) was the case. */
+  fam('C', () => {
+    const placed = M.town.placePeers(town, Array.from({ length: 40 }, (_, i) => ({ name: 'p' + i, kind: ['combat', 'gather', 'artisan', 'idle', 'unheard_of'][i % 5] })));
+    const units = placed.map((p, i) => ({ id: M.stations.PEER_LOOKS[i % M.stations.PEER_LOOKS.length], x: p.x, y: p.y, ref: { peer: i } }));
+    const f = frame(town, { hero: null, units });
+    const isPeer = (d) => !!(d.ref && d.ref.peer != null);
+    const drawn = f.sprites.concat(f.raised).filter((d) => !isPeer(d) && d.kind !== 'void');
+    const hit = [];
+    for (const d of f.sprites.filter(isPeer)) {
+      const s = M.book.sprite(d.id);
+      const cx = d.x + s.anchor[0], foot = d.y + s.anchor[1];
+      const body = { x: cx - 12, y: foot - 38, w: 24, h: 38 };
+      const touch = drawn.find((q) => q.x < body.x + body.w && q.x + q.w > body.x && q.y < body.y + body.h && q.y + q.h > body.y);
+      if (touch) hit.push(d.tx + ',' + d.ty + ' touches ' + touch.id + '@' + touch.tx + ',' + touch.ty);
+    }
+    ok('C', placed.length === 40 && f.sprites.filter(isPeer).length === 40, 'forty peers must be placed and drawn, got ' + placed.length);
+    ok('C', !hit.length, 'a peer must stand in the clear, but ' + hit.slice(0, 4).join('; '));
+    ok('C', placed.every((p) => town.overlap[p.y * town.w + p.x] === 0) && town.overlap[11 * town.w + 3] !== 0, 'the bench row (3,11) must read as occupied in the overlap grid');
+    for (const [k, at] of Object.entries(town.stations)) ok('C', !(town.overlap[at[1] * town.w + at[0]] & M.mapc.OVER), 'the ' + k + ' station must be in plain view');
   });
 
   fam('P', () => {
@@ -224,7 +251,7 @@ function check(M) {
     ok('H', walk.kind === 'walk' && walk.to.join() === '11,9', 'open ground is a walk');
     const exit = M.steer.tapAction(cottage, { tile: [22, 12], hits: [] }, o);
     ok('H', exit.kind === 'scene' && exit.choice === 'town', 'the home lane\'s exit leads to the town scene');
-    const navSrc = (M.bootSrc.match(/const nav = \{[\s\S]*?\n {2}\};/) || [''])[0];
+    const navSrc = (M.bootSrc.match(/const nav = \{[\s\S]*?\n {2}\};/) || [''])[0] + (M.bootSrc.match(/function openHunt\(id\) \{[\s\S]*?\n {2}\}/) || [''])[0];
     ok('H', navSrc.length > 200 && !/startHunt|huntIntent|startCombat|declareActivity|upgradeRoom|buyUnlock|rpc|fetch|stopCombat|startSkill/.test(navSrc),
       'the world\'s navigation table must name nothing that sends an intent');
   });
@@ -284,6 +311,8 @@ function plantIn(dir, rel, edits) {
 const MUTANTS = [
   ['R', 'the roof lifts for the first unit inside', 'src/world/core/compose.js', [['const heroId = heroBuilding(map.buildings, hero);', 'const heroId = heroBuilding(map.buildings, (state.units || []).find((u) => heroBuilding(map.buildings, u)) || hero);']]],
   ['R', 'peers placed inside buildings', 'src/world/town-scene.js', [['if (map.buildings.some((b) => inRect(b.rect, x, y))) continue;', '']]],
+  ['C', 'peers placed on tiles a prop or tree shares', 'src/world/town-scene.js', [['if (!seen[y * map.w + x] || (map.overlap && map.overlap[y * map.w + x])) continue;', 'if (!seen[y * map.w + x]) continue;']]],
+  ['C', 'the overlap grid blind to trees and props', 'src/world/core/map-compile.js', [["    if (!s || s.layer === 'decal') continue;\n    const air", "    if (!s || s.layer !== 'decal') continue;\n    const air"]]],
   ['P', 'the position written onto G', 'src/world/store.js', [['export function notePos(G, map, x, y) {', 'export function notePos(G, map, x, y) {\n  G.pos = { map, x, y };']]],
   ['T', 'every peer at the bench', 'src/world/town-scene.js', [["const key = (map.stations || {})[p.kind] ? p.kind : STATION_FALLBACK;", 'const key = STATION_FALLBACK;']]],
   ['T', 'ranked in the order the server listed them', 'src/world/town-scene.js', [['const x = canon(a.name), y = canon(b.name); return x < y ? -1 : x > y ? 1 : 0;', 'return 0;']]],
@@ -292,7 +321,7 @@ const MUTANTS = [
   ['F', 'furniture merged across envelopes', 'src/world/home-scene.js', [['export function furnish(mapId, rooms, trophies, nameOf) {', 'const KEPT = new Map();\nexport function furnish(mapId, rooms, trophies, nameOf) {\n  const out0 = furnish0(mapId, rooms, trophies, nameOf);\n  for (const p of out0) if (p.ref && p.ref.room) KEPT.set(p.id + p.x + "," + p.y, p);\n  return out0.filter((p) => !(p.ref && p.ref.room)).concat([...KEPT.values()]);\n}\nfunction furnish0(mapId, rooms, trophies, nameOf) {']]],
   ['F', 'a room with a rung missing from its layout', 'src/data/world/house-layouts.js', [[", [p('basket', 6, 3)]]),", ']),']]],
   ['H', 'the hatch also moves the hero', 'src/world/steer-local.js', [["if (act.kind === 'hunt') return nav.hunt(act.hunt);", "if (act.kind === 'hunt') { nav.walk([0, 0]); return nav.hunt(act.hunt); }"]]],
-  ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["      win.showTab('combat');\n", "      win.showTab('combat');\n      if (win.HearthriseCombatScreens) win.HearthriseCombatScreens.startHunt(id);\n"]]],
+  ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["    const CS = win.HearthriseCombatScreens;\n    return !!(CS && typeof CS.showHunt", "    const CS = win.HearthriseCombatScreens;\n    if (CS) CS.startHunt(id);\n    return !!(CS && typeof CS.showHunt"]]],
   ['S', 'a corner-cutting walk', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['S', 'the hero never goes back to its station', 'src/world/walk-scene.js', [['if (sentTo !== key) { sentTo = key; steer.walkTo(station, now, false); }', 'void key;']]],
   ['S', 'a hero just arrived counts as long idle', 'src/world/steer-local.js', [['let legs = [], leg = null, restSince = null,', 'let legs = [], leg = null, restSince = 0,']]],

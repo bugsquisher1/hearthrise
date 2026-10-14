@@ -8,15 +8,15 @@
 // changes. The spawn weights the bystanders are drawn from come from the same
 // hunt row.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../data/hunts.js?v=578';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=578';
-import { huntMapIndex } from './core/scene-route.js?v=578';
+import { HUNT_INDEX } from '../data/hunts.js?v=579';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=579';
+import { huntMapIndex } from './core/scene-route.js?v=579';
 
 export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);
 
-/** The hunt a map renders first, for its id and spawn weights: { id, spawns } or null. */
+/** The hunt a map renders first: { id, name, spawns } or null. */
 export function huntOfMap(map) {
   const id = map && map.hunts && map.hunts[0];
   const h = id && HUNT_INDEX[id];
-  return h ? { id, spawns: h.spawns || [] } : null;
+  return h ? { id, name: h.name || map.name, spawns: h.spawns || [] } : null;
 }

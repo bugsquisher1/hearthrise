@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=578';
-import { buildResiduePatch } from '../../net/capstone.js?v=578';
+import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=579';
+import { buildResiduePatch } from '../../net/capstone.js?v=579';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {
@@ -165,7 +165,55 @@ export default [
     }
   }),
 
-  () => tryRunAsync('WORLD-5: the Common — peers stand at their stations from the town view; a tap walks the hero in G._world only (the residue PUT never carries it); the mill hatch only navigates to Adventures on the Mill Cellar', async () => {
+
+  /* REGRESSION (live, 2026-10-14): QA Hero 2 fighting a gnoll at Ridge Camp, which has no
+     world map, opened the World pane to a BLANK stage — a 300x150 canvas, the idle
+     card and the hunt overlay both hidden — because the card was painted only from
+     inside the frame loop (no frame on a hidden page means no card, ever), and an
+     unmapped fight routed to the "coming soon" town with no word about the hunt.
+     Opened here on a HIDDEN page, so not one frame runs. */
+  () => tryRunAsync('WORLD-5: a fight with no world map opens the World pane to a plain card that names it, never a blank stage — even before any frame', async () => {
+    const hadWorld = Object.prototype.hasOwnProperty.call(window.G, '_world');
+    let hiddenStub = false;
+    try {
+      window.showTab('profile');
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      hiddenStub = true;
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.startCombat('gnoll', { confirmed: true });
+      assert(window.G.activeMonster === 'gnoll', 'the fixture fight did not start');
+      window.showTab('world');
+      const rt = await window.HearthriseWorld.load();
+      const panel = document.getElementById('panel-world');
+      const idle = panel.querySelector('.world-idle');
+      const canvas = panel.querySelector('canvas.world-canvas');
+      assert(rt.stats().running === false, 'CONTROL: on a hidden page no frame may run');
+      assert(idle && !idle.hidden && idle.getBoundingClientRect().height > 0, 'the World pane is blank for an unmapped fight: the idle card is hidden');
+      assert(/isn.t in the World yet/.test(idle.textContent) && /Mill Cellar/.test(idle.textContent), 'the card must say, in plain words, that this hunt is not in the World yet: ' + idle.textContent);
+      assert(canvas && (canvas.hidden || !(canvas.width === 300 && canvas.height === 150)), 'the canvas was left at its unsized default 300x150');
+      const choice = (window.G._world && window.G._world.choice) || 'town';
+      assert(rt.stats().kind === choice && rt.stats().walk && rt.stats().walk.hero, 'behind the banner the viewer\'s ' + choice + ' must be drawn, got ' + rt.stats().kind);
+      delete document.hidden;
+      hiddenStub = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      const f0 = rt.stats().frames;
+      assert(await until(() => rt.stats().frames > f0 + 2, 3000), 'the loop did not resume on a visible page');
+      assert(!idle.hidden, 'the card must stay up while the unmapped fight runs');
+      const go = idle.querySelector('[data-world-go]');
+      assert(go && /Hunt in the Mill Cellar/.test(go.textContent), 'the card offers no "Hunt in the Mill Cellar" button');
+      go.click();
+      assert(document.getElementById('panel-combat').classList.contains('active'), 'the button must open Adventures');
+      assert(await until(() => document.querySelector('#panel-combat .wt-hunt[data-hunt="mill_cellar"].is-picked'), 2000), 'the Mill Cellar must be preselected on the War Table');
+      assert(window.G.activeMonster === 'gnoll', 'the button only navigates: it must not start, stop or switch a fight (' + window.G.activeMonster + ')');
+    } finally {
+      if (hiddenStub) { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); }
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      window.showTab('profile');
+      if (!hadWorld) delete window.G._world;
+    }
+  }),
+
+  () => tryRunAsync('WORLD-6: the Common — peers stand at their stations from the town view; a tap walks the hero in G._world only (the residue PUT never carries it); the mill hatch only navigates to Adventures on the Mill Cellar', async () => {
     const G = window.G, T = window.HearthriseTown, CS = window.HearthriseCombatScreens, CSt = window.HearthriseClientState;
     const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world'), prevTown = G._town;
     const calls = [], saved = {};
@@ -184,8 +232,10 @@ export default [
       const placed = rt.stats().walk.units;
       assert(placed.length === 3 && placed.every((u) => / · Lv /.test(u.plate)), 'three peers with name and level band must stand in the Common: ' + JSON.stringify(placed));
       const at = (n) => placed.find((u) => u.plate.startsWith(n + ' '));
-      assert(Math.abs(at('Brannoc').x - 15) <= 1 && Math.abs(at('Wren').x - 19) <= 1 && Math.abs(at('Ilsa').x - 7) <= 1 && at('Ilsa').alpha < 1,
-        'combat at the hatch, gathering at the woodpile, artisan (away, dimmed) at the anvil: ' + JSON.stringify(placed));
+      const st = rt.stats().walk.stations;
+      const by = (u, kind) => u && st && st[kind] && Math.max(Math.abs(u.x - st[kind][0]), Math.abs(u.y - st[kind][1])) <= 2;
+      assert(by(at('Brannoc'), 'combat') && by(at('Wren'), 'gather') && by(at('Ilsa'), 'artisan') && at('Ilsa').alpha < 1,
+        'combat at the hatch, gathering at the woodpile, artisan (away, dimmed) at the anvil: ' + JSON.stringify({ placed, st }));
       T.__setTown(townBody([]));
       rt.step();
       assert(rt.stats().walk.units.length === 0 && !/online/i.test(document.getElementById('panel-world').textContent), 'an empty plaza shows nobody and prints no count');
@@ -210,12 +260,7 @@ export default [
       tapTile(rt, 15, 6);
       assert(document.getElementById('panel-combat').classList.contains('active'), 'the mill hatch did not open Adventures');
       assert(!CS || CS.tab === 'hunts', 'Adventures must open on its Hunts list, got ' + (CS && CS.tab));
-      assert(await until(() => {
-        const ring = document.querySelector('.hr-coach-ring.is-flash'), card = document.querySelector('#panel-combat .wt-hunt[data-hunt="mill_cellar"]');
-        if (!ring || !card) return false;
-        const a = ring.getBoundingClientRect(), b = card.getBoundingClientRect();
-        return a.left <= b.left && a.right >= b.right && a.top <= b.top && a.bottom >= b.bottom;
-      }, 2000), 'the Mill Cellar\'s card must be ringed as the preselected hunt');
+      assert(await until(() => document.querySelector('#panel-combat .wt-hunt[data-hunt="mill_cellar"].is-picked'), 2000), 'the Mill Cellar must be preselected on the War Table');
       assert(calls.length === 0 && G.activeMonster === monster, 'the hatch must only navigate, but it called ' + calls.join(', '));
     } finally {
       for (const k of intents) if (k in saved) window[k] = saved[k];
@@ -226,7 +271,7 @@ export default [
     }
   }),
 
-  () => tryRunAsync('WORLD-6: your cottage — its furniture follows the server\'s room rungs and is replaced on every envelope; a piece opens its room, a signpost the House screen', async () => {
+  () => tryRunAsync('WORLD-7: your cottage — its furniture follows the server\'s room rungs and is replaced on every envelope; a piece opens its room, a signpost the House screen', async () => {
     const G = window.G, H = window.HearthriseHomestead, M = window.HearthriseRoomModal;
     const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world');
     const snap = snapshotG();

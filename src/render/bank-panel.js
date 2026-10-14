@@ -43,8 +43,8 @@
 // live account. Only `openDepot`/`closeDepot`/`repaint` touch the DOM.
 // ============================================================================
 
-import { bankItems, bankMoveSettled, bankMoveRefusalText } from '../net/bank-sync.js?v=578';
-import { lastBankFoldMode } from '../net/accrue.js?v=578';
+import { bankItems, bankMoveSettled, bankMoveRefusalText } from '../net/bank-sync.js?v=579';
+import { lastBankFoldMode } from '../net/accrue.js?v=579';
 
 const OVERLAY_ID = 'bank-panel-overlay';
 const STYLE_ID = 'bank-panel-css';

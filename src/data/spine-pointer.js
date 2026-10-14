@@ -131,7 +131,7 @@ const DISPLAY = {
   seasoned: {
     title: 'Become a seasoned fighter', why: 'A seasoned fighter can take on the wider realm.',
     parts: [part(count('ev:kill_any', 100), 'fight', 'Monsters defeated'), part(combat(10), 'fight', 'Combat level')], quest: 'hundred_kills',
-    opens: opens('Ready for the Farmstead', 'A bigger home with more plots and a second hand.'),
+    opens: opens('Runecrafting opens', 'Bind runes for a staff, and save up for the Farmstead.'),
   },
   farmstead: {
     title: 'Build the Fieldworth Farmstead', why: 'The Farmstead adds plots, a second hand and the Workshop, Cellar and Forge.',

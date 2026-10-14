@@ -43,9 +43,11 @@
 //              never before; with nothing in the bag it is refused bag_empty.
 //   END        a bag that runs dry ends the hunt heals_out at its boundary, the
 //              pointer goes idle and the `ended` event is journalled.
-//   TICK-0     the shipped runTick settles its `hunts` cohort over the real
-//              driver: one stamped accrue row, the clock advanced, a selector
-//              naming another session skipped by name.
+//   TICK-0     cron to edge: hr_tick_cron_run leases the due session and queues
+//              its own `hunts` body; the shipped runTick settles from that body
+//              over the real driver — one stamped accrue row, the clock
+//              advanced, a malformed selector dropped, a selector naming
+//              another session skipped by name.
 //   BESTIARY   the hunt settle prices hr_bestiary_of: 20,000 counted kills of
 //              every spawn pay differently from none (the read is not dropped
 //              or mis-folded).
@@ -55,6 +57,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHmac } from 'node:crypto';
+import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -475,11 +478,11 @@ const DB_ARMS = {
     if (!(endedMs > from && endedMs < from + 5 * 60000)) problems.push('ended_at is not inside the settled window');
     return problems;
   }),
-  /* TICK-0 — THE SHIPPED ENTRY. `runTick` (the function index.ts's op:'tick'
-     calls) over the real driver, with a `hunts` cohort and an empty roster:
-     the open session is settled once through settleHunt, the window lands as
-     ONE accrue row stamped with the session, the clock advances, and a
-     selector naming another session settles nothing. */
+  /* TICK-0 — CRON TO EDGE. hr_tick_cron_run's (3c) body, off the pg_net
+     queue, handed to `runTick` (the function index.ts's op:'tick' calls) over
+     the real driver: the open session is settled once through settleHunt, the
+     window lands as ONE accrue row stamped with the session, the clock
+     advances, and a selector naming another session settles nothing. */
   'TICK-0': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, STRONG);
@@ -495,7 +498,27 @@ const DB_ARMS = {
     if (!other.hunts || other.hunts.settled !== 0 || (other.hunts.reasons || {}).session_changed !== 1 || await stamped() !== 0) {
       problems.push(`a selector naming another session was not skipped by name: ${JSON.stringify(other.hunts)}`);
     }
-    const f = await fire([{ user_id: UID, slot: 0, session_id: sid }, { user_id: 'not-a-uuid', slot: 0, session_id: sid }]);
+    /* THE CRON LEG: hr_tick_cron_run (3c) leases the due session through
+       hr_hunt_roster and queues its OWN body; that body, read off the pg_net
+       queue, is what runTick is handed (plus one malformed selector, which
+       parseHunts must drop). Supabase's pgcrypto / vault / pg_net are the
+       token guards' pinned shims. */
+    await db.exec(SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
+    await db.query(`update public.hr_tick_config set flush_seconds = 90, cadence_seconds = 10, batch_limit = 200,
+                      lease_ms = 30000, shards = 1,
+                      edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue' where id`);
+    await db.query('delete from net.http_request_queue');
+    await db.query('select public.hr_tick_cron_run()');
+    const bodies = (await q(db, `select convert_from(body, 'UTF8') as b from net.http_request_queue order by id`))
+      .map((r) => JSON.parse(r.b)).filter((b) => Array.isArray(b.hunts));
+    const huntBody = bodies[0];
+    if (bodies.length !== 1 || !huntBody || huntBody.hunts.length !== 1 || huntBody.hunts[0].session_id !== sid
+        || huntBody.hunts[0].user_id !== UID || huntBody.hunts[0].slot !== 0 || (huntBody.roster || []).length !== 0) {
+      problems.push(`the cron did not queue ONE hunts body naming this session: ${JSON.stringify(bodies).slice(0, 300)}`);
+      return problems;
+    }
+    huntBody.hunts.push({ user_id: 'not-a-uuid', slot: 0, session_id: sid });
+    const f = (await M.TK.runTick({ exec, body: huntBody })).body;
     const rows = await stamped();
     const to = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_sessions where id = $1`, [sid]));
     if (!f.hunts || f.hunts.settled !== 1) problems.push(`runTick did not settle the hunt cohort: ${JSON.stringify(f)}`);
@@ -600,6 +623,8 @@ const DB_MUTANTS = [
     find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
   { arm: 'TALLY', name: 'the fold drops the consumption rows', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
     find: "supplies = public.hr_jsonb_add(t.supplies, v_sup)", replace: "supplies = t.supplies" },
+  { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
+    find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];
 
 /* SQL mutants: planted in the migration TEXT; its own §10 must refuse each. */

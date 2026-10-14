@@ -418,7 +418,10 @@ export default [
       assert(home.test(wired[id]) || (pixelSet && /^assets\/icons-bundle\/hearthfire\//.test(wired[id])),
         id + ' wired outside the active item art folder: ' + wired[id]);
     });
-    assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
+    /* A withheld FILE must never be wired. Checked on the path, not the id: in the pixel set the
+       same id is rightly wired to its own pixel icon, and that is not the rejected painting. */
+    const rejectedPaths = (A.REJECTED_WRONG_SUBJECT || []).map((k) => A.HEARTHFIRE_DIR + k.split('/')[0] + '/' + A.fileFor(k.split('/')[1]));
+    assert(rejectedPaths.length > 0 && !ids.some((id) => rejectedPaths.indexOf(wired[id]) >= 0),
       'a file withheld for depicting the wrong object got wired anyway');
   }),
   /* Asset Director, 2026-08-17 — Tyler: "the copper is still showing as a

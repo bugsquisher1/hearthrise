@@ -39,14 +39,44 @@ export const ITEMS={
   ...BOSS_FORGE_ITEMS,
   ...CHAMPION_ITEMS,
 
-  /* HELD (demolition 2026-10-14): tools, dungeon keys and their engines are
-     deleted, but the Journeyman's Road still pays these four ids. They leave
-     together with the re-reward (designer ruling §6), which is a three-way
-     change — goal-catalogue QUEST_REWARDS, legacy.js QUEST_DEFS and the
-     hr_quest_rewards seed (Security GO) — bound by tests/quest-reward-parity.mjs. */
+  /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
+     type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
+     auto-applies to its skill (Melvor-style, no equip juggling):
+     see src/features/tools.js bestToolSpeed(). DEMOLITION (2026-10-14): the
+     tool RECIPES were deleted; the items stay until the new roster replaces
+     the catalogue and the tool engine (tool_carry) leaves with lane C2. */
+  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
   iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
+  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
+  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
+  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
+  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
   iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
+  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
+  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
+  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
+  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
   oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
+  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
+  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
+  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
+  /* Wave 3: ARTISAN tools — the counterpart to gathering tools, so tools improve
+     crafting/smithing/cooking too (Tyler). Best owned auto-applies (tools.js);
+     each grants speed + tier-derived XP + a double-craft chance. */
+  bronze_hammer:{n:'Bronze Hammer',icon:'🔨',v:70,type:'tool',toolSkill:'smithing',toolTier:1,toolSpeed:.05},
+  steel_hammer:{n:'Steel Hammer',icon:'🔨',v:950,type:'tool',toolSkill:'smithing',toolTier:3,toolSpeed:.15},
+  rune_hammer:{n:'Rune Hammer',icon:'🔨',v:9200,type:'tool',toolSkill:'smithing',toolTier:5,toolSpeed:.25},
+  bone_needle:{n:'Bone Needle',icon:'🪡',v:70,type:'tool',toolSkill:'crafting',toolTier:1,toolSpeed:.05},
+  steel_needle:{n:'Steel Needle',icon:'🪡',v:950,type:'tool',toolSkill:'crafting',toolTier:3,toolSpeed:.15},
+  rune_needle:{n:'Rune Needle',icon:'🪡',v:9200,type:'tool',toolSkill:'crafting',toolTier:5,toolSpeed:.25},
+  bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
+  steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
+  rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
+  /* HELD (demolition 2026-10-14): dungeon keys are deleted, but the
+     Journeyman's Road still pays a Bone Key. It leaves with the re-reward
+     (designer ruling §6), a three-way change — goal-catalogue QUEST_REWARDS,
+     legacy.js QUEST_DEFS and the hr_quest_rewards seed (Security GO) — bound by
+     tests/quest-reward-parity.mjs. */
   bone_key:{n:'Bone Key',icon:'🦴',v:0,bop:true,rarity:'uncommon',tag:'key',unlocks:'crypt_of_bones'},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
@@ -397,6 +427,14 @@ export const ITEMS={
   moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:40, foodTier:5, foodClass:'buff',
     buff:{type:'all_xp', magnitude:5, durationMs:480000}},
 
+  /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
+     the final gather-speed upgrades (+30% / +35%). */
+  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:22000, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
+  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:55000, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
+  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:22000, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
+  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:55000, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
+  duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
+  dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 
   /* ── Cooked crops (farm → cooking) — extension hooks for upcoming
      pumpkin pie / carrot stew recipes. Defined with placeholder buffs

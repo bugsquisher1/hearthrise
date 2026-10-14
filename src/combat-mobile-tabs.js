@@ -34,11 +34,10 @@
   const STORAGE_KEY = 'hearthrise:combat-mobile-subtab';
 
   function getActive() {
-    try { return localStorage.getItem(STORAGE_KEY) || 'monsters'; }
-    catch { return 'monsters'; }
+    return window.HearthriseStorage.get(STORAGE_KEY) || 'monsters';
   }
   function setActive(id) {
-    try { localStorage.setItem(STORAGE_KEY, id); } catch {}
+    window.HearthriseStorage.set(STORAGE_KEY, id);
   }
 
   function buildBar() {

@@ -74,7 +74,7 @@
 // change and rests on the very connection that is dead in this failure mode.
 // ============================================================
 
-import { BUILD } from '../build-info.js?v=574';
+import { BUILD } from '../build-info.js?v=580';
 
 /* ── Cadence ────────────────────────────────────────────────────────────────
    POLL_INTERVAL_MS: 15 minutes. We ship a handful of builds on a busy day, so
@@ -263,20 +263,16 @@ export const BUILD_INFO_URL = (() => {
   catch (e) { return 'src/build-info.js'; }
 })();
 
-/* The auto-reload stamp lives in sessionStorage because it must survive the
-   reload it guards and must NOT survive the tab (a new tab is a new decision).
-   Unreadable / garbage / a future timestamp all read as "never" — uncertainty
-   must not be able to BLOCK the rescue either. */
+/* The auto-reload stamp lives in the seam's TAB store (sessionStorage) because it
+   must survive the reload it guards and must NOT survive the tab (a new tab is a
+   new decision). Unreadable / garbage / a future timestamp all read as "never" —
+   uncertainty must not be able to BLOCK the rescue either. */
 function readAutoReloadStamp() {
-  try {
-    if (typeof sessionStorage === 'undefined') return 0;
-    const n = Number(sessionStorage.getItem(AUTO_RELOAD_KEY));
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  } catch (e) { return 0; }
+  const n = Number(globalThis.HearthriseStorage?.session.get(AUTO_RELOAD_KEY));
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 function writeAutoReloadStamp(now) {
-  try { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(AUTO_RELOAD_KEY, String(now)); }
-  catch (e) {}
+  globalThis.HearthriseStorage?.session.set(AUTO_RELOAD_KEY, String(now));
 }
 
 const state = {
@@ -631,7 +627,7 @@ if (typeof window !== 'undefined') {
     __setBusyProbe: (fn) => { busyProbe = typeof fn === 'function' ? fn : defaultBusyProbe; },
     __clearAutoReloadStamp: () => {
       state.lastAutoReloadAt = 0;
-      try { if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(AUTO_RELOAD_KEY); } catch (e) {}
+      globalThis.HearthriseStorage?.session.remove(AUTO_RELOAD_KEY);
     },
   };
   startBuildWatch();

@@ -188,26 +188,22 @@
      and releases loudly as before — a reload loop would hide the fault.
      The CORE_READY_TIMEOUT_MS failsafe goes through the same decision, so a core
      that is merely 30 s late now costs one reload before it releases loudly.
-     The storage READ is inside the try on purpose: where site data is blocked
-     (the itch.io iframe in an Incognito window, a sandboxed iframe) merely
-     touching window.sessionStorage throws SecurityError, and a throw here would
-     escape release('core') itself — the happy path — and the gate would never
-     open. No readable store = the loop cannot be bounded = release loudly.
-     `host` (whose .sessionStorage is read; window in production) and `reload`
-     are injectable so the in-page suite can drive the decision without
+     The mark lives in a storage-seam store because a seam store never throws:
+     where site data is blocked (the itch.io iframe in an Incognito window, a
+     sandboxed iframe) merely touching the tab store throws SecurityError, and a
+     throw here would escape release('core') itself — the happy path — and the
+     gate would never open. No durable mark = the loop cannot be bounded =
+     release loudly. `tab` (HearthriseStorage.session in production) and
+     `reload` are injectable so the in-page suite can drive the decision without
      navigating; tests/run-smoke.mjs coreRetryGuard drives the real one. */
   var RETRY_KEY = 'hr-core-retry';
   var reloading = false;
-  function retryOnce(reason, host, reload) {
-    var store = null;
-    try { store = host.sessionStorage || null; } catch (e) {}
-    if (reason === 'core') { try { if (store) store.removeItem(RETRY_KEY); } catch (e) {} return false; }
-    if (!store) return false;                        // cannot bound the loop → release loudly
-    try {
-      if (store.getItem(RETRY_KEY)) return false;
-      store.setItem(RETRY_KEY, String(reason));
-      reload();
-    } catch (e) { return false; }                    // storage refused, or the reload did → release loudly
+  function retryOnce(reason, tab, reload) {
+    if (reason === 'core') { tab.remove(RETRY_KEY); return false; }
+    if (tab.get(RETRY_KEY)) return false;
+    // A mark the store refused cannot bound the loop → release loudly.
+    if (!tab.set(RETRY_KEY, String(reason), { durable: true })) return false;
+    try { reload(); } catch (e) { return false; }   // the reload refused → release loudly
     return true;
   }
   window.__hrCoreRetry = retryOnce;
@@ -217,7 +213,7 @@
 
   function release(reason) {
     if (ready || reloading) return;
-    if (retryOnce(reason, window, function () { location.reload(); })) {
+    if (retryOnce(reason, window.HearthriseStorage.session, function () { location.reload(); })) {
       reloading = true;
       console.warn('[core-ready] core did not arrive (' + reason + ') — reloading once before the engine boots');
       return;

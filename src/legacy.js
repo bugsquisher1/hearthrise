@@ -664,15 +664,9 @@ function saveLocal(){
      whole of saveLocal now, and the name is kept because ~90 call sites say it. */
   try{ if(!document.hidden) G.lastSeen=Date.now(); }catch(e){}
 }
-// One accessor for reading a raw save string, via the seam when present.
-function _readSave(key){
-  try{ return window.HearthriseStorage ? window.HearthriseStorage.get(key) : localStorage.getItem(key); }
-  catch(e){ try{ return localStorage.getItem(key); }catch(_){ return null; } }
-}
-function _removeSave(key){
-  try{ if(window.HearthriseStorage){window.HearthriseStorage.remove(key);} else {localStorage.removeItem(key);} }
-  catch(e){ try{ localStorage.removeItem(key); }catch(_){ } }
-}
+// One accessor for reading a raw save string, through the storage seam.
+function _readSave(key){ return window.HearthriseStorage.get(key); }
+function _removeSave(key){ window.HearthriseStorage.remove(key); }
 /* ══════════════════════════════════════════════════════════════════════
    b318 — SAVE OWNERSHIP (V2: cross-account clobber + account-data bleed).
 
@@ -697,7 +691,7 @@ function currentSaveOwnerId(){
      session blob is the same source auth.js reads, so this is not a second
      source of truth — just an order-independent reader of the first. */
   try{
-    const s=JSON.parse(localStorage.getItem('hearthrise:supabaseSession')||'null');
+    const s=window.HearthriseStorage.getJSON('hearthrise:supabaseSession',null);
     const id=s&&s.user&&s.user.id;
     return (typeof id==='string'&&id)?id:null;
   }catch(_){ return null; }
@@ -720,7 +714,7 @@ function parkLocalSave(tag){
     if(!owner){ const uid=currentSaveOwnerId(); if(uid){ owner=uid; blob._saveOwner=uid; raw=JSON.stringify(blob); } }
   }catch(_){ }
   const key=_parkKey(tag,owner);
-  try{ localStorage.setItem(key,raw); }catch(_){ return null; }   /* never remove what we failed to copy */
+  if(!window.HearthriseStorage.set(key,raw,{durable:true})) return null;   /* never remove what we failed to copy */
   _removeSave(SAVE_KEY);
   return key;
 }
@@ -743,7 +737,7 @@ function unparkOwnSave(){
   if(!owner) return null;
   const cands=['signout','foreign','parked'].map(function(t){
     const k=_parkKey(t,owner);
-    let raw=null; try{ raw=localStorage.getItem(k); }catch(_){ }
+    const raw=_readSave(k);
     return raw?{key:k,raw:raw}:null;
   }).filter(Boolean);
   const best=chooseParkedSave(cands);
@@ -751,10 +745,7 @@ function unparkOwnSave(){
   /* Verify the stamp inside the blob too — the key is a convenience, the stamp
      is the truth. */
   try{ if(JSON.parse(best.raw)._saveOwner!==owner) return null; }catch(_){ return null; }
-  try{
-    if(window.HearthriseStorage&&typeof window.HearthriseStorage.set==='function') window.HearthriseStorage.set(SAVE_KEY,best.raw);
-    else localStorage.setItem(SAVE_KEY,best.raw);
-  }catch(_){ try{ localStorage.setItem(SAVE_KEY,best.raw); }catch(__){ return null; } }
+  window.HearthriseStorage.set(SAVE_KEY,best.raw);
   window.__saveParked=false;
   return best.key;
 }
@@ -1007,7 +998,7 @@ function loadLocal(){
      UNKNOWN means unknown, the display ladder cannot resurrect a default, and
      src/features/boot-hydration.js holds the veil until a verdict lands. */
   try{ _removeSave(SAVE_KEY); }catch(e){}
-  try{ const RETIRED_PREFIXES=['hearthrise:save-backup:','hearthrise:char:']; for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&RETIRED_PREFIXES.some(p=>k.indexOf(p)===0)) localStorage.removeItem(k); } }catch(e){}
+  try{ const S=window.HearthriseStorage, RETIRED_PREFIXES=['hearthrise:save-backup:','hearthrise:char:']; S.keys().forEach(k=>{ if(RETIRED_PREFIXES.some(p=>k.indexOf(p)===0)) S.remove(k); }); }catch(e){}
   try{ if(window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
 }
 /* ════════════════════════════════════════════════════════════════
@@ -6228,7 +6219,7 @@ function simulateAwayCombat(hrs,nowMs,capped,opts){
      out, so a bounty completed on the night's LAST kill still leaves the player
      pointed at the right foe instead of at the one they finished with. */
   _pendingBountySwitch=null;
-  const out=C.combatSim.simulateSpan(G,ctx);
+  const out=withOfflineReplay(()=>C.combatSim.simulateSpan(G,ctx));   // the latch too: every kill rebuilds its ctx from it (COMBAT_FX.killMonster), so an unlatched caller's night toasted and repainted each kill as if watched
   drainBountySwitch();
   return out;
 }
@@ -9259,8 +9250,8 @@ function installPwa(){
   let deferredPrompt=null;
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;
     /* only nudge once per session */
-    if(!sessionStorage.getItem('install-prompted')){
-      sessionStorage.setItem('install-prompted','1');
+    if(!window.HearthriseStorage.session.get('install-prompted')){
+      window.HearthriseStorage.session.set('install-prompted','1');
       setTimeout(()=>{
         /* b373: our own nudge is an in-game modal. `deferredPrompt.prompt()`
            below is the browser's BeforeInstallPromptEvent — a different API
@@ -11167,196 +11158,8 @@ try{
 
 console.log('Activity bar: loaded');
 
-// ── Combat-mode arena VS visualization ─────────────────────────
-// Toggles body.in-combat and injects a centered "PLAYER vs FOE" portrait
-// + HP bars panel into #panel-combat .combat-arena when a fight is active.
-(function setupArenaVs(){
-  function ensureArenaVs(){
-    var arena = document.querySelector('#panel-combat .combat-arena');
-    if(!arena) return null;
-    var vs = arena.querySelector(':scope > .arena-vs');
-    if(!vs){
-      vs = document.createElement('div');
-      vs.className = 'arena-vs';
-      /* b227: each fighter now carries an action slot directly under their own
-         HP readout. They are MOUNTS, not markup — everything inside them is
-         painted by HearthriseCombatHud (src/features/combat-render.js), which
-         is where the new combat UI lives. The stage owns the geometry; the
-         render module owns the contents. */
-      vs.innerHTML = `
-        <div class="arena-side player">
-          <div class="arena-portrait" id="arena-player-portrait">${_hrGly('navCharacter',48)}</div>
-          <div class="arena-name" id="arena-player-name">You</div>
-          <div class="arena-hp-bar"><i id="arena-player-hp" style="width:100%"></i></div>
-          <div class="arena-hp-text" id="arena-player-hp-text">10 / 10</div>
-          <div class="arena-act arena-act-player" id="arena-act-player"></div>
-        </div>
-        <div class="arena-vs-divider">VS</div>
-        <div class="arena-side foe">
-          <div class="arena-portrait" id="arena-foe-portrait">${_hrGly('uiSkull',48,'--red')}</div>
-          <div class="arena-name" id="arena-foe-name">—</div>
-          <div class="arena-hp-bar"><i id="arena-foe-hp" style="width:100%"></i></div>
-          <div class="arena-hp-text" id="arena-foe-hp-text">— / —</div>
-          <div class="arena-act arena-act-foe" id="arena-act-foe"></div>
-        </div>`;
-      // Insert before the card-body so it sits at the top of the arena.
-      var head = arena.querySelector('.card-head');
-      if(head && head.nextSibling){ arena.insertBefore(vs, head.nextSibling); }
-      else { arena.appendChild(vs); }
-    }
-    return vs;
-  }
-
-  function refreshArenaVs(){
-    var inCombat = !!(window.G && window.G.activeMonster);
-    document.body.classList.toggle('in-combat', inCombat);
-    var existing = document.querySelector('#panel-combat .combat-arena > .arena-vs');
-    if(!inCombat){
-      // Hide the arena-vs panel when not fighting so stale player/foe
-      // portraits don't linger.
-      if(existing) existing.style.display = 'none';
-      if(window.HearthriseCombatHud) window.HearthriseCombatHud.refresh();
-      return;
-    }
-    ensureArenaVs();
-    if(existing) existing.style.display = '';
-    var m = window.MONSTERS && window.MONSTERS[window.G.activeMonster];
-    var foeIcon = (window._monsterIcon && window._monsterIcon[window.G.activeMonster])
-      ? '<img src="'+window._monsterIcon[window.G.activeMonster]+'" alt="">'
-      /* was `m.icon || '👾'` — a space-invader, at portrait size, in the
-         middle of the combat arena, on any monster whose art is not wired. */
-      : monsterFallbackIcon(window.G.activeMonster, 64);
-    var pf = document.getElementById('arena-foe-portrait');
-    var pn = document.getElementById('arena-foe-name');
-    var phb = document.getElementById('arena-foe-hp');
-    var pht = document.getElementById('arena-foe-hp-text');
-    /* b297: only rewrite the foe icon when it actually changes. This tick runs
-       every 200ms; blindly setting innerHTML wiped any floating damage number
-       or DEFEATED stamp appended to the portrait within 200ms — the death FX
-       had nothing to render into. Keyed on monster + icon string so a late
-       icon-load still swaps in, while a respawn of the same foe leaves the
-       overlay children alone. */
-    if(pf){
-      var wantFoe = window.G.activeMonster + '|' + foeIcon;
-      if(pf.getAttribute('data-foe') !== wantFoe){ pf.innerHTML = foeIcon; pf.setAttribute('data-foe', wantFoe); }
-    }
-    if(pn) pn.textContent = m?.name || window.G.activeMonster;
-    var foePct = window.G.monsterMaxHp ? Math.max(0, (window.G.monsterHp/window.G.monsterMaxHp)*100) : 0;
-    if(phb) phb.style.width = foePct.toFixed(1)+'%';
-    if(pht) pht.textContent = (window.G.monsterHp||0)+' / '+(window.G.monsterMaxHp||0);
-
-    var pp = document.getElementById('arena-player-portrait');
-    // b186: painted player portrait (set once so damage-number children survive)
-    if(pp && !pp.querySelector('img')){
-      /* b371 (F22): data-hr-avatar puts this plate on the identity seam's
-         repaint registry. It is painted ONCE by the guard above (so damage
-         numbers survive), which before the registry meant a portrait changed
-         mid-session never reached the arena at all. */
-      pp.innerHTML = '<img src="'+(window._playerAvatar||'assets/icons-bundle/painted/npc/player.png')+'" alt="" data-hr-avatar>';
-    }
-    var pnp = document.getElementById('arena-player-name');
-    var php = document.getElementById('arena-player-hp');
-    var phpt = document.getElementById('arena-player-hp-text');
-    if(pnp) pnp.textContent = window.G.playerName || 'You';
-    var pPct = window.G.playerMaxHp ? Math.max(0, (window.G.playerHp/window.G.playerMaxHp)*100) : 0;
-    if(php) php.style.width = pPct.toFixed(1)+'%';
-    if(phpt) phpt.textContent = (window.G.playerHp||0)+' / '+(window.G.playerMaxHp||0);
-    /* b278 (Tyler: "I don't see my pet in the combat UI"): perch the equipped
-       companion beside the hero in the arena, so it reads as fighting alongside
-       you. Lives inside the player portrait (position:relative, overflow:visible).
-       Painted icon only; hidden when no pet is equipped. The data-pet guard makes
-       the 200ms refresh a no-op once drawn. */
-    if(pp){
-      var petHost = document.getElementById('arena-player-pet');
-      if(!petHost){ petHost = document.createElement('div'); petHost.id='arena-player-pet'; petHost.className='arena-pet'; pp.appendChild(petHost); }
-      var petId = (window.G.companions && window.G.companions.equipped) || null;
-      if(petId && window.COMPANIONS && window.COMPANIONS[petId] && typeof window.companionIconHtml==='function'){
-        var wantPet = 'pet:'+petId;
-        if(petHost.getAttribute('data-pet')!==wantPet){
-          petHost.innerHTML = window.companionIconHtml(petId, 30);
-          petHost.setAttribute('data-pet', wantPet);
-          petHost.title = (window.COMPANIONS[petId].n||'Companion') + ' — fighting with you';
-        }
-        petHost.style.display = '';
-      } else if(petHost) { petHost.style.display = 'none'; }
-    }
-
-    /* b227: the two action slots ride the same 200ms tick as the HP bars, so
-       "Eat · +8 HP · 12 left" can never disagree with the HP number printed
-       directly above it. The HUD diffs before it repaints — see combat-render. */
-    if(window.HearthriseCombatHud) window.HearthriseCombatHud.refresh();
-  }
-
-  /* b227: the stage's build step is published so the render module can paint
-     into it on demand instead of waiting up to 200ms for the next tick. */
-  window.HearthriseArenaStage = { ensure: ensureArenaVs, refresh: refreshArenaVs };
-
-  // Tick alongside the activity bar
-  setInterval(refreshArenaVs, 200);
-  console.log('Arena VS: loaded');
-
-  // Hook combatTick to also pop damage numbers on the new arena-vs portraits
-  // (the original .fighter elements live inside .arena which we hid).
-  var _lastP = null, _lastM = null;
-  function popDmg(target, value, opts){
-    if(!target) return;
-    var num = document.createElement('div');
-    num.className = 'dmg-num-vs' + (opts && opts.kill ? ' kill' : '') + (opts && opts.crit ? ' crit' : '') + (opts && opts.miss ? ' miss' : '');
-    num.textContent = (opts && opts.miss) ? 'miss' : (value > 0 ? '-' + value : '0');
-    target.appendChild(num);
-    if(!opts || !opts.miss){
-      target.classList.add('hit-shake');
-      setTimeout(function(){ target.classList.remove('hit-shake'); }, 320);
-    }
-    setTimeout(function(){ num.remove(); }, 1100);
-  }
-  /* b297: the death throe. killMonster() has already respawned the foe to full
-     HP by the time we get here, so we can't read the killing damage off the HP
-     diff — pass in the HP the foe had before the fatal swing (a faithful stand-in
-     for the killing hit). Shows that number big, stamps DEFEATED, and plays the
-     collapse animation on the portrait, which the icon-guard now lets survive. */
-  function deathFx(target, killDmg){
-    if(!target) return;
-    popDmg(target, killDmg > 0 ? killDmg : 1, { kill: true, crit: !!(window.G && window.G._lastPlayerCrit) });
-    var tag = document.createElement('div');
-    tag.className = 'defeat-tag';
-    tag.textContent = 'Defeated';
-    target.appendChild(tag);
-    setTimeout(function(){ if(tag.parentNode) tag.parentNode.removeChild(tag); }, 1300);
-    target.classList.add('foe-dying');
-    setTimeout(function(){ target.classList.remove('foe-dying'); }, 760);
-  }
-  var _origTick = window.combatTick;
-  if(typeof _origTick === 'function'){
-    window.combatTick = function(){
-      var beforeP = window.G && window.G.playerHp;
-      var beforeM = window.G && window.G.monsterHp;
-      var beforeKills = (window.G && window.G.stats && window.G.stats.kills) || 0;
-      var r = _origTick.apply(this, arguments);
-      var afterP = window.G && window.G.playerHp;
-      var afterM = window.G && window.G.monsterHp;
-      var afterKills = (window.G && window.G.stats && window.G.stats.kills) || 0;
-      var foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
-      var youP = document.querySelector('#panel-combat .arena-vs .arena-side.player .arena-portrait');
-      if(afterKills > beforeKills){
-        /* A foe died this tick. beforeM is the HP it had before the fatal blow. */
-        deathFx(foeP, beforeM != null ? beforeM : 0);
-      } else if(beforeM != null && afterM < beforeM){
-        popDmg(foeP, beforeM - afterM, { crit: !!(window.G && window.G._lastPlayerCrit) });
-      } else if(beforeM != null && afterM === beforeM && window.G && window.G.activeMonster){
-        var last = window.G.combatLog && window.G.combatLog[window.G.combatLog.length-1] || '';
-        if(/miss/i.test(last) && /You/i.test(last)){
-          popDmg(foeP, 0, { miss: true });
-        }
-      }
-      if(beforeP != null && afterP < beforeP){
-        popDmg(youP, beforeP - afterP, {});
-      }
-      _lastP = afterP; _lastM = afterM;
-      return r;
-    };
-  }
-})();
+// The arena VS stage and its damage pops: src/render/arena-vs.js, a subscriber of the
+// one swing observer src/render/combat-observer.js (both extracted here in lane W3).
 
 // ═════════════════════════════════════════════════════════════
 // Combat preview modal — clicking a monster opens this panel with
@@ -12307,7 +12110,7 @@ setTimeout(function(){
       if(btn) btn.textContent = '☾ Night';
     }
   }
-  function setTheme(name){ try{ localStorage.setItem(KEY, name); }catch(_){} applyTheme(name); }
+  function setTheme(name){ window.HearthriseStorage.set(KEY, name); applyTheme(name); }
   function init(){
     // b174: RETIRED. Theming is owned entirely by theme-picker.js v2, which now
     // pins the single Hearthlight theme (data-theme="hearthlight"). This legacy
@@ -12324,7 +12127,7 @@ setTimeout(function(){
     setTimeout(init, 0);
   }
   /* Helper: window.resetTheme() clears storage */
-  window.resetTheme = function(){ try{ localStorage.removeItem('hb_theme'); }catch(_){} location.reload(); };
+  window.resetTheme = function(){ window.HearthriseStorage.remove('hb_theme'); location.reload(); };
 })();
 
 // ===== block 12: script-12 — Poneti v1 icon paths (DELETED b126) =====

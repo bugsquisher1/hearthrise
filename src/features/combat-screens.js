@@ -41,20 +41,30 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=574';
-import { ITEMS } from '../data/items.js?v=574';
-import * as ST from './session-tally.js?v=574';
-import { fill } from './signposts.js?v=574';
-import { foeFamily } from '../render/foe-family.js?v=574';
-import { weaknessWords } from '../render/foe-weakness.js?v=574';
-import { SIGNPOSTS } from '../data/signposts.js?v=574';
-import { compactNumber } from '../net/balance.js?v=574';
-import { HUNTS } from '../data/hunts.js?v=574';
-import { BOSSES } from '../data/bosses.js?v=574';
-import { nextCharmAt } from '../core/charms.js?v=574';
+import { MONSTERS } from '../data/monsters.js?v=580';
+import { ITEMS } from '../data/items.js?v=580';
+import * as ST from './session-tally.js?v=580';
+import { fill } from './signposts.js?v=580';
+import { foeFamily } from '../render/foe-family.js?v=580';
+import { weaknessWords } from '../render/foe-weakness.js?v=580';
+import { SIGNPOSTS } from '../data/signposts.js?v=580';
+import { compactNumber } from '../net/balance.js?v=580';
+import { HUNTS } from '../data/hunts.js?v=580';
+import { BOSSES } from '../data/bosses.js?v=580';
+import { nextCharmAt } from '../core/charms.js?v=580';
 
-/** The Adventures window's tabs, in order. */
-const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Training']];
+/** The Adventures window's tabs, in order. The single-monster list keeps its
+    `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
+    with most foes moved into hunts, that is the word they look for. */
+const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Monsters']];
+
+/* THE ONE NOTICE AT THE TOP OF THE WINDOW. Dismissal is a display preference
+   (`G.noticesSeen[id]`, residue), so a NEW id shows again and an old one stays
+   gone across reloads. Plain words; nothing here gates or pays. */
+const WT_NOTICE = Object.freeze({
+  id: 'hunts-arrive',
+  text: 'Big changes are underway: fighting now happens in hunting grounds, and more hunts are coming. Every monster is still in the Monsters tab.',
+});
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -541,6 +551,7 @@ function ensureStructure() {
   views.className = 'cbt-views';
   views.innerHTML = `
     <section class="wt-view" aria-label="War Table">
+      <div class="wt-notice" id="wt-notice" role="status" hidden></div>
       <div class="wt-ribbon" id="wt-ribbon" hidden></div>
       <div class="wt-dest-rail" id="wt-dest-rail" tabindex="0" role="group" aria-label="Destinations — scrolls sideways"><div class="wt-dests" id="wt-dests"></div></div>
       <div class="wt-tabs" id="wt-tabs" role="tablist" aria-label="Adventures">${WT_TABS.map(([k, label]) =>
@@ -563,6 +574,7 @@ function ensureStructure() {
       </div>
       <div class="fs-body">
         <aside class="fs-manage" id="fs-manage" aria-label="Loadout, provisions and drops">
+          <button type="button" class="btn fsm-world" id="fsm-world" data-cs-act="world" hidden>Watch in World</button>
           <section class="fsm-block">
             <div class="fsm-head"><span>Loadout</span><b id="fsm-totals"></b></div>
             <div class="fsm-doll" id="fsm-doll"></div>
@@ -749,10 +761,13 @@ function onPanelClick(e) {
       if (typeof window.stopCombat === 'function') window.stopCombat();
       previewId = null;
       setView('table');
-    } else if (act === 'history') { openHistory(); }
+    } else if (act === 'world') { if (typeof window.showTab === 'function') window.showTab('world'); }
+    else if (act === 'history') { openHistory(); }
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
     else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
     else if (act === 'wtab') { setTab(btn.dataset.wtab); }
+    else if (act === 'notice-ok') { dismissNotice(); }
+    else if (act === 'notice-monsters') { setTab('training'); }
     else if (act === 'fav') { toggleFav(btn.dataset.hunt); }
     else if (act === 'hunt') { startHunt(btn.dataset.hunt); }
     else if (act === 'tier') {
@@ -1120,13 +1135,28 @@ function renderGrid() {
 /* ══════════════════════════════════════════════════════════════════════
    5b · THE ADVENTURES WINDOW
    Four tabs over one screen: Hunts (a themed place, the server picks each foe
-   from its spawn table), Bosses, Dungeons, and Training (the single-monster
+   from its spawn table), Bosses, Dungeons, and Monsters (the single-monster
    list with its tier and class chips). Every lock states its reason; nothing
    here computes a number the server owns — charm progress is the server's
    kill counters (HearthriseCharms), the last XP/h is the server's figure or
    hidden, and the Hunt button sends an intent.
    ══════════════════════════════════════════════════════════════════════ */
 let wtTab = 'hunts';
+/* The hunt another screen sent the player to look at (the World pane's "Hunt in
+   the Mill Cellar"), ringed on its card until a hunt is started. Display only. */
+let pickedHunt = null;
+
+/** NAVIGATION ONLY: the War Table's Hunts tab with hunt `id` picked. No intent. */
+function showHunt(id) {
+  if (!HUNTS.some((x) => x.id === id)) return false;
+  pickedHunt = id;
+  previewId = null;
+  wtTab = 'hunts';
+  setView('table');
+  const card = document.querySelector('#panel-combat .wt-hunt.is-picked');
+  if (card && typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
+  return true;
+}
 
 function setTab(k) {
   if (!WT_TABS.some(([id]) => id === k)) return;
@@ -1194,6 +1224,7 @@ function startHunt(id) {
   const g = G();
   if (!h || !g || typeof window.startCombat !== 'function') return;
   previewId = null;
+  pickedHunt = null;
   if (!(g._huntId === h.id && g.activeMonster)) window.startCombat(h.spawns[0].monster, { hunt: h.id });
   setView('fight');
 }
@@ -1239,7 +1270,7 @@ function huntCard(h, lv, kills, starred) {
   const band = h.band[1] ? `Combat ${h.band[0]}–${h.band[1]}` : `Combat ${h.band[0]}+`;
   const btn = locked ? lockLine(h.band[0])
     : `<button type="button" class="btn btn-sm btn-primary wth-go" data-cs-act="hunt" data-hunt="${esc(h.id)}">Hunt</button>`;
-  return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}" data-hunt="${esc(h.id)}">
+  return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}${h.id === pickedHunt ? ' is-picked' : ''}" data-hunt="${esc(h.id)}">
     <div class="wth-art" data-art="${esc((MONSTERS[h.art] || MONSTERS[h.spawns[0].monster] || {}).cls || '')}">
       <button type="button" class="wth-fav" data-cs-act="fav" data-hunt="${esc(h.id)}" aria-pressed="${starred ? 'true' : 'false'}"` +
       ` aria-label="${starred ? 'Unstar' : 'Star'} ${esc(h.name)}" title="${starred ? 'Starred' : 'Star this hunt'}">${uiGlyph('uiStar', 14)}</button>
@@ -1317,8 +1348,37 @@ function renderDungeonRows() {
   host.innerHTML = html;
 }
 
+function noticeSeen(id) {
+  const g = G(); const s = g && g.noticesSeen;
+  return !!(s && typeof s === 'object' && s[id] === true);
+}
+
+function renderNotice() {
+  const host = document.getElementById('wt-notice');
+  if (!host) return;
+  const off = noticeSeen(WT_NOTICE.id);
+  if (host.hidden !== off) host.hidden = off;
+  if (off || host.dataset.sig === WT_NOTICE.id) return;
+  host.dataset.sig = WT_NOTICE.id;
+  host.innerHTML = `<p class="wt-notice-text">${esc(WT_NOTICE.text)}</p>` +
+    '<div class="wt-notice-acts">' +
+    '<button type="button" class="btn btn-sm" data-cs-act="notice-monsters">Open Monsters</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" data-cs-act="notice-ok">Got it</button></div>';
+}
+
+function dismissNotice() {
+  const g = G();
+  if (!g) return;
+  const seen = (g.noticesSeen && typeof g.noticesSeen === 'object' && !Array.isArray(g.noticesSeen)) ? { ...g.noticesSeen } : {};
+  seen[WT_NOTICE.id] = true;
+  g.noticesSeen = seen;
+  try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) { /* residue rides the next put */ }
+  render();
+}
+
 function render() {
   if (!ensureStructure()) return;
+  renderNotice();
   renderRibbon();
   renderDestinations();
   syncTabs();
@@ -1854,6 +1914,10 @@ function renderFight() {
   }
 
   if (!live) paintPreviewStage(id, m);
+  /* "Watch in World" (lane W3): a running fight, once the World pane is revealed. */
+  const watch = document.getElementById('fsm-world');
+  const R = window.HearthriseReveal;
+  if (watch) watch.hidden = !(live && (!R || R.shows('pane:world')));
   /* b368 — OUTSIDE the preview branch on purpose. The champion plate is the
      player's own face and it is wrong in exactly the same way mid-fight; a fix
      that only lands in preview would look fixed until they pressed Fight. */
@@ -2027,7 +2091,7 @@ export function setupCombatScreens() {
        a gated dungeon" defect lived, so the guard reads it directly rather
        than trying to find a disabled button in a strip the tick repaints. */
     _destinations: destinations,
-    setTab, huntIntent, startHunt, toggleFav,
+    setTab, huntIntent, startHunt, toggleFav, showHunt,
     get tab() { return wtTab; },
     get previewId() { return previewId; },
   };

@@ -38,16 +38,14 @@
   const STORAGE_KEY = 'hearthrise:activities-mobile-skill';
 
   function getActiveSkill() {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && SKILLS.find(s => s.id === stored)) return stored;
-    } catch {}
+    const stored = window.HearthriseStorage.get(STORAGE_KEY);
+    if (stored && SKILLS.find(s => s.id === stored)) return stored;
     // Fall back to whatever skill the player is currently training, if any
     if (window.G && window.G.activeSkill) return window.G.activeSkill;
     return SKILLS[0].id;
   }
   function setActiveSkill(id) {
-    try { localStorage.setItem(STORAGE_KEY, id); } catch {}
+    window.HearthriseStorage.set(STORAGE_KEY, id);
   }
 
   function buildStrip() {

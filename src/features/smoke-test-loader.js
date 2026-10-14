@@ -50,7 +50,7 @@ let pending = null;
  */
 export function loadSmokeTest() {
   if (!pending) {
-    pending = import('./smoke-test.js?v=574')
+    pending = import('./smoke-test.js?v=580')
       .then((m) => { m.setupSmokeTest(); return m; })
       .catch((e) => {
         /* Do not cache a failure: a dropped request on a flaky connection must
@@ -87,10 +87,7 @@ function addButton() {
   // is sticky in localStorage). Ctrl+Shift+T still works for everyone, so
   // testers can still kick off the suite if asked. Keeps the regular UI
   // clean of dev affordances during beta.
-  const isAdmin = (() => {
-    try { return localStorage.getItem('hearthrise:admin') === '1'; }
-    catch (e) { return false; }
-  })();
+  const isAdmin = window.HearthriseStorage.get('hearthrise:admin') === '1';
   if (!isAdmin) return;
   const b = document.createElement('button');
   b.id = 'smoke-test-btn';

@@ -383,6 +383,9 @@
  * Vigour block with no priced meter) must take no room, header included. */
 #panel-combat .fsm-block[hidden] { display: none; }
 #panel-combat .fsm-block-grow { flex: 1 1 auto; min-height: 74px; }
+/* "Watch in World" heads the rail while a fight runs (src/world, lane W3). */
+#panel-combat .fsm-world { flex: 0 0 auto; width: 100%; min-height: 34px; font-weight: 700; }
+#panel-combat .fsm-world[hidden] { display: none; }
 #panel-combat .fsm-head {
   display: flex; align-items: baseline; gap: 6px;
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
@@ -1714,7 +1717,7 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 }
 
 /* ══ THE ADVENTURES WINDOW ════════════════════════════════════════
- * Tabs (Hunts / Bosses / Dungeons / Training) over the war table. Hunt cards
+ * Tabs (Hunts / Bosses / Dungeons / Monsters) over the war table. Hunt cards
  * are the one containment on this screen that is earned: a card is a place you
  * go. The art strip reuses the per-class combat backdrops with no dark wash,
  * the body is the raised surface, and every colour is a token. */
@@ -1732,6 +1735,18 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 #panel-combat .wt-tab:hover { color: var(--ink); }
 #panel-combat .wt-tab.active { color: var(--ink); border-bottom-color: var(--gold-2); }
 #panel-combat .wt-tab:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+/* The one notice at the top of the window: a raised strip with a gold edge,
+   its words, and two buttons that meet the tap floor at every size. */
+#panel-combat .wt-notice {
+  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+  padding: 6px 8px 6px 12px;
+  background: var(--surf-raised); color: var(--ink);
+  border: 1px solid var(--line-soft); border-left: 3px solid var(--gold-2); border-radius: var(--r);
+}
+#panel-combat .wt-notice[hidden] { display: none; }
+#panel-combat .wt-notice-text { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--t-small, 13px); line-height: 1.35; }
+#panel-combat .wt-notice-acts { display: flex; gap: 6px; flex: 0 0 auto; }
+#panel-combat .wt-notice-acts .btn { min-height: var(--tap); padding: 0 12px; white-space: nowrap; }
 #panel-combat .wt-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 #panel-combat .wt-pane[hidden] { display: none; }
 
@@ -1746,6 +1761,8 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   border: 1px solid var(--line-soft); border-radius: var(--r);
 }
 #panel-combat .wt-hunt.is-fav { border-color: var(--gold-2); }
+/* The hunt another screen pointed at (the World pane's idle card). */
+#panel-combat .wt-hunt.is-picked { border-color: var(--line-strong); box-shadow: 0 0 0 2px var(--gold-2); }
 #panel-combat .wth-art {
   position: relative; height: 84px; flex: 0 0 auto;
   background: var(--surf-sunken) center 35% / cover no-repeat;
@@ -1814,6 +1831,8 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   #panel-combat .wt-tab { min-height: var(--tap); padding: 0 10px; font-size: var(--t-micro, 11px); }
+  #panel-combat .wt-notice { padding: 4px 6px 4px 10px; gap: 8px; }
+  #panel-combat .wt-notice-text { font-size: var(--t-micro, 11px); }
   #panel-combat .wt-hunts { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
   #panel-combat .wth-art { height: 46px; }
   #panel-combat .wth-theme { display: none; }

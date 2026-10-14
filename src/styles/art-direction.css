@@ -2737,3 +2737,8 @@ a.hr-dc-btn { text-decoration: none; }
   .hr-dc-claim { margin-top: 8px; }
   .hr-dc-actions .hd-cta { min-height: 44px; }
 }
+
+/* Pixel item icons (assets/icons-bundle/pixel/items/, 32x32 native, ITEM_ART_SET in item-art.js):
+ * hard pixel edges wherever they are drawn. Several item surfaces force `image-rendering: auto` for
+ * the painted set, so this out-ranks them by specificity and is scoped to the pixel folder alone. */
+body[data-theme] img[src*="/pixel/items/"] { image-rendering: pixelated; }

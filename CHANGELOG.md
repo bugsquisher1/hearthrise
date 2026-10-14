@@ -4,6 +4,36 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 580 — 2026-10-14 (Smoother play)
+
+**Smoother play.** The menu and the kill pop-ups do far less work on every update, so long fights and busy screens no longer stutter.
+
+## v0.9.2-beta build 579 — 2026-10-14 (No blank World)
+
+**The World never goes blank.** If your hunt isn't in the World yet, the World tab now says so and offers to take you to the Mill Cellar, instead of showing an empty screen.
+
+## v0.9.2-beta build 578 — 2026-10-14 (Step into the World)
+
+**Step into the World.** The new World tab on Home now shows your hero hunting in the Mill Cellar as a living pixel scene: your hero walks the cellar and fights the rats, slimes and wasps the server sends, with the hunt numbers in the corner. The town and your house are coming next.
+
+**New pixel icons for every item.** All 506 items have new hand-checked pixel-art icons to match the world.
+
+**Settings save more reliably.** Your display preferences now save the same way everywhere, including private windows.
+
+## v0.9.2-beta build 577 — 2026-10-14 (Steady hunt screen)
+
+**The hunt screen stops jumping.** The Adventures window no longer flickers between your real level and a beginner view during fights, so every hunt and boss you have unlocked stays on screen.
+
+**Big changes are underway.** Fighting now happens in hunting grounds and more hunts are coming. Every monster is still there: the Training tab is now called Monsters.
+
+## v0.9.2-beta build 576 — 2026-10-14 (World tab)
+
+**A first look at the World.** Home has a new World tab. It stays locked for now and opens when the first walkable hunting ground is ready.
+
+## v0.9.2-beta build 575 — 2026-10-14 (New item art)
+
+**New art for fish, bars and more.** Shrimp, trout and the other catches, bronze and verdite bars, oak planks and turnip seeds have new icons, and the Ooze and Air Elemental have new portraits.
+
 ## v0.9.2-beta build 574 — 2026-10-14 (Hunts)
 
 **Hunts.** Fighting now happens in named hunting grounds instead of one monster at a time. Pick a hunt and your hero fights whatever lives there, with the server choosing each next foe: the Mill Cellar (rats, slimes and hive wasps), Bramble Edge (young wolves, wild boars and mandrakes), the Goblin Warren (goblins and kobolds) and Ridge Camp (hobgoblins, gnolls and stags, from Combat 15). Hunts keep going while you are away, exactly as they do while you watch. A hunt you are not strong enough for tells you the level it opens at.

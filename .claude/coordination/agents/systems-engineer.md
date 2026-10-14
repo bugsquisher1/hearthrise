@@ -3978,3 +3978,59 @@ guard `tests/spine.mjs` (+`--selftest`).
 
 Server gap (lane C): nothing projects a dungeon clear (`hr_dungeon_settle` journals the ledger only).
 Step 17 reads `dungeon_clear:<id>` progress rows, shows the pending dash, and is forgiven once the Keep stands.
+
+## 2026-10-14 — W4.1 platform seam (`lane/w4-platform-seam`)
+
+Every web-storage touch in shipped src goes through `src/platform/storage.js` (device store +
+`.session` tab store + `createStore` for a shell adapter); `tests/platform-seam.mjs` (PS-1..5,
+18-case selftest) forbids the rest and EXECUTES the seam's contract in a vm.
+
+1. *A seam with a memory mirror is not "the same behaviour".* The old seam wrote every value to
+   an in-page mirror and answered from it whenever the backend said null, so a key another tab (or
+   a sign-out) removed kept reading back here. The stand-in now exists only for writes the backend
+   REFUSED, cleared by the next good write/remove. Routing 40 raw call sites through the old
+   mirror would have changed cross-tab semantics silently.
+2. *Durability is part of some callers' meaning.* A device id, the tab instance id, a park copy
+   and the core-retry mark are "landed or nothing": a refused id that reads back on the next call
+   flips 'd-ephemeral' to a random id mid-page (a tab id that changes evicts its own claim).
+   `set(k, v, {durable:true})` keeps nothing on refusal; `set` answers a boolean.
+3. *Inject the store, not the host.* core-ready's retry decision read `host.sessionStorage`; it now
+   takes a seam store, and the in-page test builds its refusing / blocked fakes with `createStore`,
+   so the real seam code runs under the fake backend.
+4. Not done, on purpose: `src/platform/env.js` (no caller needs detection yet and its contract
+   depends on the shell — W4.2); supabase-js's own auth persistence (vendor: pass `auth.storage`
+   from the seam once a non-localStorage backend exists); index.html's head kill-switch (runs
+   before any src script by design).
+
+## 2026-10-14 — lane W1, the world runtime (`lane/w1-world-runtime`)
+
+Canvas 2D World pane (Home's second pane) behind `{mount,setMap,sync,snapshot,destroy}`; pure core in
+`src/world/core/*`; maps as rows in `src/data/world/maps/*`; shipped OFF behind the `world` product.
+
+1. *Make the node test read the same list the canvas paints.* Both backends draw `composeFrame()`'s output,
+   so y-sort, roof and shadow rules are asserted on real maps without a browser; the canvas only executes.
+2. *A vacuous `every()` hid a dead check.* R3 passed over an empty slice list because the inn was culled out
+   of the default view; the selftest caught it. Pin the population (`length === 6`) next to every `every`.
+3. *Deep writes slip a first-segment regex.* `G.stats.kills++` passed the first W-G pattern; the guard now
+   allows a member chain after the captured first segment. Plant nested writes in any write guard.
+4. *A filtered `run-smoke --only` still runs the whole node gate list first.* For one in-page slice on a
+   busy box, drive `__smokeTest({only})` from a scratch harness boot instead.
+5. *Headless rAF is not the game's frame rate.* Idle rAF was 17-32/s on the loaded box; measure loop
+   frames against raw rAF before blaming a throttle.
+
+## 2026-10-14 — lane B, client perf (`lane/b-perf-badges-toasts`)
+
+In-page suite 742.6 s -> 223.2 s; COMBAT-UI-24 in the full order 85.8 s -> 3.2 s (same scratch timer, same box).
+
+1. *Profile the test you were told about, in its full-order position, before trusting the diagnosis.* With the
+   two named hot paths fixed, COMBAT-UI-24 did not move. A scoped profile (in-page `console.profile`; a protocol
+   `Profiler.start` sent during a long sync test is served only after it) put 46 of 57 s in `notify` from an
+   AWAY replay: `simulateAwayCombat` set `ctx.away` on its own ctx, but every kill rebuilds its ctx from the
+   offline latch, so the one unlatched caller ran ~6,500 kills as watched. The span now holds the latch.
+2. *Forced style is the next floor after forced layout.* `sheetOpen()` reads pointer-events first and
+   `checkVisibility()` for the box, so a toast forces no layout; it still forces a style recalc while a closed
+   toggled scrim lingers (#inv-detail-overlay, #hr-death-scrim, #prof-pop-objectives). Cheap at one kill per
+   tick; a burst-proof answer needs delivery batched per frame, which changes push()'s synchronous contract.
+3. *Static markup can be kept, if staleness is self-detecting.* Doors are cached and revalidated by
+   `isConnected`; a menu re-render replaces nodes, which invalidates the cache with no hook to forget.
+4. Next lead, not taken: `HearthriseReveal.shows()` recomputes the whole reveal per call (~10-20 per paint).

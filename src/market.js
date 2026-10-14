@@ -39,8 +39,9 @@
   const LISTING_TTL_MS = 48 * 3600 * 1000;
   const PER_CHAR_LIMIT_BASE = 12;
   var _seq = 0;   // local temp-id suffix; ids are never random
+  var store = window.HearthriseStorage;   // src/platform/storage.js
   // The retired client-side price series: purge it from every device.
-  try{ localStorage.removeItem('hearthrise:market:history'); }catch(e){}
+  store.remove('hearthrise:market:history');
 
   /* The server's limit (hr_market_config.max_listings, 12); no client perk raises it. */
   function listingLimit(){ return PER_CHAR_LIMIT_BASE; }
@@ -49,23 +50,20 @@
   // Listings: { id, sellerId, sellerName, itemId, qty, askEach, postedAt }
   // Listings: { id, sellerId, sellerName, itemId, qty, askEach, postedAt }
   function loadListings(){
-    try { return JSON.parse(localStorage.getItem(MARKET_KEY)) || []; }
-    catch(e){ return []; }
+    return store.getJSON(MARKET_KEY, null) || [];
   }
   function saveListings(list){
-    try { localStorage.setItem(MARKET_KEY, JSON.stringify(list)); }
-    catch(e){}
+    store.setJSON(MARKET_KEY, list);
   }
   // ── Buy offers (open buy orders) ───────────────────────────
   // Schema: { id, buyerId, buyerName, itemId, qty, maxEach, postedAt, escrowed }
   // Gold is escrowed up-front (buyer can't double-spend the same gold).
   // When a matching sell listing posts at <= maxEach, the offer auto-fills.
   function loadOffers(){
-    try { return JSON.parse(localStorage.getItem(OFFERS_KEY)) || []; }
-    catch(e){ return []; }
+    return store.getJSON(OFFERS_KEY, null) || [];
   }
   function saveOffers(arr){
-    try { localStorage.setItem(OFFERS_KEY, JSON.stringify(arr)); } catch(e){}
+    store.setJSON(OFFERS_KEY, arr);
   }
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -910,19 +908,18 @@
   var UI_STATE_KEY = 'hearthrise:market:ui';
   /* The last For-sale category, per viewer. */
   var CAT_KEY = 'hearthrise:market:cat';
-  function loadCat(){ try { return localStorage.getItem(CAT_KEY) || 'all'; } catch(e){ return 'all'; } }
-  function saveCat(id){ try { localStorage.setItem(CAT_KEY, id); } catch(e){} }
+  function loadCat(){ return store.get(CAT_KEY) || 'all'; }
+  function saveCat(id){ store.set(CAT_KEY, id); }
   var _mkQuery = '';   // search text: kept across re-renders, dropped on reload
   function loadUiState(){
-    try { return Object.assign({ q:'', sort:'price-asc', ledger:'all' }, JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}')); }
-    catch(e){ return { q:'', sort:'price-asc', ledger:'all' }; }
+    return Object.assign({ q:'', sort:'price-asc', ledger:'all' }, store.getJSON(UI_STATE_KEY, {}));
   }
   function saveUiState(s){
     /* b213 (phase 2): persist the SORT preference but never the search
        query — a stale filter from last session made the market open on
        "matching 'log' (0) — No matching listings", which reads as an
        empty market. */
-    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ sort: s.sort, ledger: s.ledger })); } catch(e){}
+    store.setJSON(UI_STATE_KEY, { sort: s.sort, ledger: s.ledger });
   }
 
   /* ══════════════════════════════════════════════════════════════════════

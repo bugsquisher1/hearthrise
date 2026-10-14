@@ -26,10 +26,10 @@
   }
 
   function lastSeen() {
-    try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
+    return window.HearthriseStorage.get(SEEN_KEY);
   }
   function markSeen(key) {
-    try { localStorage.setItem(SEEN_KEY, key); } catch {}
+    window.HearthriseStorage.set(SEEN_KEY, key);
   }
 
   function parseFirstSection(md) {
@@ -189,7 +189,7 @@
   // force(): removing the key made maybeShow() take the "first-ever load" skip
   // branch — Settings → "Show what's new" never showed anything. Set a stale
   // sentinel instead so the "already saw this build" check misses.
-  window.HearthriseWelcome = { show: maybeShow, force: () => { forced = true; try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
+  window.HearthriseWelcome = { show: maybeShow, force: () => { forced = true; window.HearthriseStorage.set(SEEN_KEY, '__force__'); maybeShow(); } };
   // Test seam (smoke suite asserts CRLF parsing + emoji stripping, and that
   // the front-door guard matches the overlays that actually exist)
   window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS, holdsForDayOne };

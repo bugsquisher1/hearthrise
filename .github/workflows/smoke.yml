@@ -3888,6 +3888,17 @@ jobs:
           node tests/market-prices.mjs --mutate
           node tests/market-prices.mjs
 
+      # PLATFORM SEAM (W4.1, Steam/mobile shells): shipped src reaches web storage
+      # only through src/platform/storage.js, which loads first; the tab id stays in
+      # the tab store; the seam's never-throw / refused-write contract is executed
+      # in a vm. --selftest plants a direct localStorage use, a late seam, a shared
+      # tab id and five broken seams, plus two negative controls.
+      - name: Platform seam - web storage only through src/platform/storage.js
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/platform-seam.mjs --selftest
+          node tests/platform-seam.mjs
+
       # VENDOR/SHOP ARBITRAGE (b564): no shop_buy offer may cost less gold than
       # vendor_sell pays for what it grants (buy -> sell -> repeat is a faucet).
       # Reads the edge GOLD_OFFERS + vendorPriceOf and hr_items.value at the end
@@ -4234,6 +4245,33 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/signposts.mjs
 
+      # World art (lane W2): every committed world atlas keeps one scale and stands
+      # on the floor - class body budget, locked palette, shared 64x64 character
+      # anchor, contact row, no baked shadow, no isometric corner, atlas <= 2048 -
+      # and equals a rebuild of art/world/** (tools/world-art/build.mjs). --selftest
+      # plants a floated chest, a 50 px hero, an off-palette pixel, a baked shadow,
+      # an iso-corner chest and a hand-edited atlas pixel into real sprites.
+      - name: World art - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-assets.mjs --selftest
+
+      - name: World art - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-assets.mjs
+
+      # Pixel item icons (2026-10-14): one 32x32, palette-locked, binary-alpha PNG per
+      # ITEMS key under assets/icons-bundle/pixel/items/, none orphaned, and the one
+      # ITEM_ART_SET switch still wired. --selftest plants a missing icon, an orphan,
+      # a 16x16, an off-palette pixel, a partial-alpha pixel, an empty icon and a
+      # lost switch.
+      - name: Pixel item icons - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/pixel-icons.mjs --selftest
+
+      - name: Pixel item icons - base run
+        if: ${{ !cancelled() }}
+        run: node tests/pixel-icons.mjs
+
       # Settle-before-mutate, client half (SEC_SETTLE_BEFORE_MUTATE_F2F3 row 1b):
       # every client-direct sender of the twelve settle-gated RPCs goes through
       # src/net/settle-first.js, and every claim/shop surface carries the
@@ -4245,6 +4283,42 @@ jobs:
       - name: Settle-first callers - base run
         if: ${{ !cancelled() }}
         run: node tests/settle-first-callers.mjs
+
+      # The World pane renders server state and writes nothing but G._world:
+      # no engine imports, no server calls, no simulate*, no Math.random /
+      # setInterval, no storage (AWAY-12's one-engine rule, extended to
+      # src/world). --selftest plants 24 violations + 5 negative controls.
+      - name: World no-authority - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-no-authority.mjs --selftest
+
+      - name: World no-authority - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-no-authority.mjs
+
+      # The renderer's pure rules on the real modules: y-sort, roofs, shadows,
+      # zoom/camera steps, map lint + mask hashes, A*, Wang, routing, art budget,
+      # layer order. --selftest plants 18 defects into a temp copy.
+      - name: World core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-core.mjs --selftest
+
+      - name: World core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-core.mjs
+
+      # The hunt scene (lane W3) on the REAL engine's attended tick: the foe is
+      # G.activeMonster and next to the hero at every swing for tickMs 600..3600;
+      # knocked out = down with no floats; a swap breaks off with no corpse;
+      # no item name before the receipt; the overlay prints only the settled
+      # Analyzer; the room camera; one engine. --selftest plants 8 defects.
+      - name: World hunt - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-hunt.mjs --selftest
+
+      - name: World hunt - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-hunt.mjs
 
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}

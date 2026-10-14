@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=574';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=580';
 
 /* The server mirrors snapshotG does not carry: put them back exactly, absent stays absent. */
 const keepServerMirrors = () => {
@@ -1179,6 +1179,54 @@ export default [
       }
     } finally {
       try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  /* -- regression suite -- NAV-PERF-1 (2026-10-14, Tyler: "super weird and choppy"):
+     badges() repaints after every topbar and screen render, and it looked each door up
+     with its own document-wide query: 9 querySelectorAll (plus 9 querySelector for the
+     dots and one per pane for the open screen) per call, growing with the menu. 129 s of
+     a 488 s suite profile. The doors are found once and kept, so a call costs at most 2
+     querySelectorAll at ANY door count — proved with twenty extra doors — and still
+     paints the same dot. */
+  () => tryRun('NAV-PERF-1: badges() makes at most 2 querySelectorAll calls, whatever the door count', () => {
+    const N = window.HearthriseNav;
+    assert(N && typeof N.badges === 'function' && Array.isArray(N.hubs), 'window.HearthriseNav is not published');
+    const D = Document.prototype, E = Element.prototype;
+    const real = { dAll: D.querySelectorAll, eAll: E.querySelectorAll, dOne: D.querySelector };
+    let all = 0, one = 0;
+    const measure = () => {
+      all = 0; one = 0;
+      D.querySelectorAll = function () { all++; return real.dAll.apply(this, arguments); };
+      E.querySelectorAll = function () { all++; return real.eAll.apply(this, arguments); };
+      D.querySelector = function () { one++; return real.dOne.apply(this, arguments); };
+      try { N.badges({}); } finally { D.querySelectorAll = real.dAll; E.querySelectorAll = real.eAll; D.querySelector = real.dOne; }
+      return { all, one };
+    };
+    const hadBadge = N.badgeOf('inventory');
+    const extra = [];
+    for (let i = 0; i < 20; i++) extra.push({ id: 'perf-door-' + i, panes: [{ tab: 'perf-pane-' + i, label: 'Perf ' + i, glyph: 'uiBook' }] });
+    let pushed = false;
+    try {
+      N.badges({});   // the first paint after boot may be the one that finds the doors
+      const nine = measure();
+      N.hubs.push(...extra); pushed = true;
+      const many = measure();
+      assert(nine.all <= 2, 'badges() made ' + nine.all + ' querySelectorAll calls with ' + (N.hubs.length - extra.length)
+        + ' doors (at most 2): a document-wide query per door is the hot path this test exists for');
+      assert(many.all <= 2, 'badges() made ' + many.all + ' querySelectorAll calls with ' + N.hubs.length + ' doors (at most 2)');
+      assert(many.one === nine.one, 'document.querySelector calls grow with the menu: ' + nine.one + ' at '
+        + (N.hubs.length - extra.length) + ' doors, ' + many.one + ' at ' + N.hubs.length);
+      N.hubs.splice(N.hubs.length - extra.length, extra.length); pushed = false;
+      /* Same paint: the Bag pane's dot lights the Character door, and clears. */
+      N.badges({ inventory: true });
+      const dot = document.querySelector('#sidebar .nav-btn[data-tab="character"] .nav-badge');
+      assert(dot && !dot.classList.contains('hide'), 'a Bag badge no longer lights the Character door');
+      N.badges({ inventory: false });
+      assert(dot.classList.contains('hide'), 'clearing the Bag badge left the Character door lit');
+    } finally {
+      if (pushed) N.hubs.splice(N.hubs.length - extra.length, extra.length);
+      N.badges({ inventory: hadBadge });
     }
   }),
 

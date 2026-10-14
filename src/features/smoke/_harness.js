@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=574';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=574';
+import { on, snapshot } from '../../net/events.js?v=580';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=580';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=574';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=580';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=574';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=580';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2611,7 +2611,7 @@ export const combatScreen = () => {
   assert(CS, 'the two screens did not boot');
   const snap = snapshotG();
   const prevTab = window.activeTab;
-  /* The monster grid is the Adventures window's Training tab, and the browsed
+  /* The monster grid is the Adventures window's Monsters tab (key `training`), and the browsed
      tier is not in snapshotG: both are put back, or the next test meets T4. */
   const tier0 = window.G.currentCombatTier;
   if (typeof CS.setTab === 'function') CS.setTab('training');

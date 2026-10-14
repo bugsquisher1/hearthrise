@@ -448,12 +448,10 @@
   var CAT_KEY = 'hearthrise:lb-category';
   var BOARD_KEY = 'hearthrise:lb-board';
   function readPref(k) {
-    try { return window.HearthriseStorage ? window.HearthriseStorage.get(k) : localStorage.getItem(k); }
-    catch (e) { return null; }
+    return window.HearthriseStorage.get(k);
   }
   function writePref(k, v) {
-    try { if (window.HearthriseStorage) window.HearthriseStorage.set(k, v); else localStorage.setItem(k, v); }
-    catch (e) {}
+    window.HearthriseStorage.set(k, v);
   }
 
   // INTENT and RESOLUTION are deliberately separate. `want*` is what the player

@@ -2,7 +2,7 @@
 // src/net/supabase-bootstrap.js
 //
 // Single entry point for "go live with Supabase." Reads stored
-// credentials from localStorage (or DEFAULT_CONFIG below for
+// credentials from the storage seam (or DEFAULT_CONFIG below for
 // hard-coded production deploys), then wires:
 //
 //   • src/net/auth.js   — sign-in / sign-up / session
@@ -25,7 +25,7 @@
 // what the player pastes in.
 // ============================================================
 
-import { setupAuth } from './auth.js?v=574';
+import { setupAuth } from './auth.js?v=580';
 
 // ============================================================
 // PRODUCTION CREDENTIALS — paste once, ship to players.
@@ -54,27 +54,23 @@ const DEFAULT_CONFIG = {
 };
 
 const CONFIG_KEY = 'hearthrise:supabase:config';
+/** The platform storage seam (src/platform/storage.js); absent under Node = no storage. */
+const store = () => globalThis.HearthriseStorage || null;
 
 function loadStoredConfig() {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-  return null;
+  const s = store();
+  return s ? s.getJSON(CONFIG_KEY, null) : null;
 }
 
 function saveStoredConfig(cfg) {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-    return true;
-  } catch (e) {
-    console.warn('[supabase-bootstrap] failed to save config:', e.message);
-    return false;
-  }
+  const s = store();
+  if (s && s.setJSON(CONFIG_KEY, cfg)) return true;
+  console.warn('[supabase-bootstrap] failed to save config');
+  return false;
 }
 
 function clearStoredConfig() {
-  try { localStorage.removeItem(CONFIG_KEY); } catch (e) {}
+  store()?.remove(CONFIG_KEY);
 }
 
 function pickConfig() {
@@ -128,9 +124,9 @@ async function importBackendsLazily() {
   // Each backend self-installs a `window.HearthriseChat.setBackend(...)` /
   // `HearthriseMarket.setBackend(...)` swap, so chat + market upgrade
   // from local to cloud automatically once they're loaded.
-  try { await import('./supabase-chat-backend.js?v=574'); }
+  try { await import('./supabase-chat-backend.js?v=580'); }
   catch (e) { console.warn('[supabase-bootstrap] chat backend skipped:', e.message); }
-  try { await import('./supabase-market-backend.js?v=574'); }
+  try { await import('./supabase-market-backend.js?v=580'); }
   catch (e) { console.warn('[supabase-bootstrap] market backend skipped:', e.message); }
 }
 

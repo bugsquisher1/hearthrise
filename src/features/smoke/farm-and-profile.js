@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 86 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=574';
-import { fold } from '../lifetime-tally.js?v=574';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=580';
+import { fold } from '../lifetime-tally.js?v=580';
 
 /* THE WIRE HOLDS. Every request whose URL contains `match` is recorded and
    left UNANSWERED until the test calls answer() — or, while `wire.auto` is set,
@@ -1266,6 +1266,74 @@ export default [
           + ' vs ' + JSON.stringify({ t: r.top | 0, b: r.bottom | 0, l: r.left | 0, r: r.right | 0 }));
       });
     } finally { T.clear(); }
+  }),
+
+  /* -- regression suite -- TOAST-PERF-1 (2026-10-14, Tyler: "super weird and choppy"): a kill
+     toast lands straight after the render that dirtied the page, and push() asked sheetOpen(),
+     whose getClientRects() forced a synchronous layout on every toast (57 s of a 488 s suite
+     profile; COMBAT-UI-24 66-98 s in the full order, 9 s alone). show() re-measured the column
+     on every toast too. A burst now reads no geometry: sheetOpen() decides from style, and the
+     column is measured once, in the next frame, before it paints. The closed item-detail
+     scrim is the real candidate this meets in play: it stays in the DOM at pointer-events:none. */
+  () => tryRunAsync('TOAST-PERF-1: a toast burst forces no layout; the column is placed once, next frame', async () => {
+    const T = window.HearthriseToasts, notifs = document.getElementById('notifs');
+    assert(T && typeof T.sheetOpen === 'function' && notifs, 'the toast queue or its column is missing');
+    const E = Element.prototype, H = HTMLElement.prototype;
+    const methods = ['getBoundingClientRect', 'getClientRects'].map((k) => [E, k, Object.getOwnPropertyDescriptor(E, k)]);
+    const getters = [[H, 'offsetHeight'], [H, 'offsetWidth'], [H, 'offsetTop'], [H, 'offsetLeft'],
+      [E, 'clientHeight'], [E, 'clientWidth'], [E, 'scrollHeight'], [E, 'scrollWidth']]
+      .map(([o, k]) => [o, k, Object.getOwnPropertyDescriptor(o, k)]);
+    let reads = [];
+    const watch = () => {
+      reads = [];
+      for (const [o, k, d] of methods) Object.defineProperty(o, k, Object.assign({}, d, { value: function () { reads.push(k); return d.value.apply(this, arguments); } }));
+      for (const [o, k, d] of getters) Object.defineProperty(o, k, Object.assign({}, d, { get: function () { reads.push(k); return d.get.call(this); } }));
+    };
+    const unwatch = () => { for (const [o, k, d] of methods.concat(getters)) Object.defineProperty(o, k, d); };
+    const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const closed = document.createElement('div'); closed.className = 'inv-detail hr-scrim';
+    const sheet = document.createElement('div'); sheet.className = 'hr-scrim';   // a sheet opened by insertion
+    const SENTINEL = 'calc(777px + var(--safe-b, 0px))';
+    try {
+      await frames();   // a column placement an earlier toast queued lands now, not inside the burst
+      T.clear();
+      document.body.appendChild(closed);
+      notifs.style.bottom = SENTINEL;
+      let open;
+      watch();
+      try {
+        open = T.sheetOpen();
+        for (let i = 0; i < 6; i++) window.notify('ToastProbePerf defeated', 'kill');
+        for (let i = 0; i < 6; i++) window.notify('ToastProbePerf found ' + i, 'loot');
+      } finally { unwatch(); }
+      assert(open === false, 'a closed item-detail scrim (pointer-events:none) read as an open sheet');
+      assert(reads.length === 0, 'a 12-toast burst read geometry ' + reads.length + ' time(s) ('
+        + [...new Set(reads)].join(', ') + '): every read after a DOM write forces a synchronous layout');
+      const st = T.state();
+      assert(st.visible === T.config.MAX_VISIBLE && st.pending === 3 && st.counts[0] === 6,
+        'the burst did not queue as before: ' + JSON.stringify(st));
+      assert(notifs.style.bottom === SENTINEL, 'the column was measured inside the burst, not in the next frame');
+      await frames();
+      assert(notifs.style.bottom !== SENTINEL, 'the column was never placed after the burst: the next-frame layout did not run');
+
+      T.clear();
+      document.body.appendChild(sheet);
+      watch();
+      try {
+        open = T.sheetOpen();
+        window.notify('ToastProbePerf held', 'info');
+      } finally { unwatch(); }
+      assert(open === true, 'a sheet opened by insertion did not read as open');
+      assert(T.state().held === 1 && !findToast('ToastProbePerf held'), 'a toast over an open sheet was not held');
+      assert(reads.length === 0, 'deciding that a sheet is open read geometry ' + reads.length + ' time(s) ('
+        + [...new Set(reads)].join(', ') + ')');
+    } finally {
+      unwatch();
+      T.clear();
+      closed.remove();
+      sheet.remove();
+      T.layout();
+    }
   }),
 
   // b219 (found while verifying #7): claiming the daily reward printed ~700

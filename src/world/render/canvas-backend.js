@@ -214,8 +214,9 @@ export function createCanvasBackend(o) {
       ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       ctx.lineWidth = Math.max(2, Math.round(px / 6));
       ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
-      const [x, y0] = at(p.x, p.y - 3);
+      const [ax, y0] = at(p.x, p.y - 3);
       const half = ctx.measureText(p.text).width / 2 + px / 3;
+      const x = Math.max(half, Math.min(W - half, ax));   // a name at the stage edge slides in, never cut
       let y = y0;
       for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
       placed.push({ l: x - half, r: x + half, t: y - px, b: y });
@@ -228,19 +229,22 @@ export function createCanvasBackend(o) {
     for (const b of list.bubbles || []) bubble(b, at, font(4.2));
   }
 
-  /* A speech bubble: a boxed line with a tail, its foot on (b.x, b.y), kept on the canvas. */
+  /* A speech bubble: a boxed line with a tail, its foot on (b.x, b.y). */
   function bubble(b, at, px) {
     ctx.font = '600 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
     const padX = Math.round(px * 0.6), padY = Math.round(px * 0.45), tail = Math.round(px * 0.5);
     const w = Math.ceil(ctx.measureText(b.text).width) + 2 * padX, h = px + 2 * padY;
     const [x, y] = at(b.x, b.y);
-    const left = Math.max(4, Math.min(W - w - 4, Math.round(x - w / 2))), top = y - h - tail;
+    /* Kept on the canvas: slid in from the sides, and dropped below the top edge (the tail is then left off). */
+    const left = Math.max(4, Math.min(W - w - 4, Math.round(x - w / 2))), top = Math.max(4, y - h - tail);
     ctx.beginPath();
     if (typeof ctx.roundRect === 'function') ctx.roundRect(left, top, w, h, Math.round(px / 3));
     else ctx.rect(left, top, w, h);
-    ctx.moveTo(x - tail, top + h);
-    ctx.lineTo(x, top + h + tail);
-    ctx.lineTo(x + tail, top + h);
+    if (top === y - h - tail) {
+      ctx.moveTo(x - tail, top + h);
+      ctx.lineTo(x, top + h + tail);
+      ctx.lineTo(x + tail, top + h);
+    }
     ctx.fillStyle = tone('bubble-bg');
     ctx.fill();
     ctx.lineWidth = Math.max(1, Math.round(dpr));

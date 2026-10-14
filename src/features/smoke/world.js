@@ -44,7 +44,7 @@ function sampleCanvas(canvas) {
 }
 
 export default [
-  () => tryRunAsync('WORLD-1: the World pane loads on its first open and draws a frame that is not blank', async () => {
+  () => tryRunAsync('WORLD-1: the World pane loads its atlases on the first open and draws a real-art frame that is not blank', async () => {
     const hadWorld = Object.prototype.hasOwnProperty.call(window.G, '_world');
     try {
       const rt = await openWorld();
@@ -57,6 +57,7 @@ export default [
       assert(canvas && canvas.width > 1 && canvas.height > 1, 'no sized canvas in the stage');
       const s = rt.stats();
       assert(s.z >= 2 && Number.isInteger(s.z), 'zoom must be a whole number >= 2, got ' + s.z);
+      assert(Array.isArray(s.stubbed) && s.stubbed.length === 0, 'sprites drawn as stubs, so an atlas did not load: ' + (s.stubbed || []).slice(0, 5).join(', '));
       const [colours, opaque] = sampleCanvas(canvas);
       assert(opaque > 0.9, 'the frame is mostly transparent (' + Math.round(opaque * 100) + '% opaque): nothing was blitted');
       assert(colours >= 4, 'the frame is blank or flat: ' + colours + ' distinct colours over 81 samples');

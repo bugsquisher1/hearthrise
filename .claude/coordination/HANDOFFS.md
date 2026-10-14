@@ -3235,6 +3235,10 @@ The World pane (Home's second pane, `uiMap`) renders on Canvas 2D behind `{mount
 - **W4 (town/home):** peers are NOT a compose input yet; world-core R2 already asserts a `state.peers` list
   never lifts a roof — keep it so. `G._world` is `{choice}`; add `pos` there, nowhere else. `core/path.js
   findPath` is the 8-way no-corner-cut A*.
+- **2026-10-14 update, W2 merged:** the world now renders W2's real atlases. Manifests load as JSON modules
+  (`src/world/atlas.js`) and are indexed by `src/world/core/book.js`; `atlas-sets.js` is now just the set list. Maps
+  name W2 sprite ids and follow `wlib.py`/`s_build.py` rules (contact row, wall cycles, inside/outside kits, raised
+  rock + caps, 12-slice roofs, vertex-grid Wang). The camera follows the hero, so framing differs from the whole-scene stills (W3/W4's call).
 - **W5 (presence):** mask hashes are pinned in each map row (`maskHash`, FNV-1a over w,h,mask bytes;
   `node tests/world-core.mjs --hashes`). `world-no-authority` forbids rpc/fetch in `src/world/**` — a
   feed module needs an explicit carve-out in that guard, argued in its header.

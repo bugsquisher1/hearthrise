@@ -1,18 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/world/core/roofs.js — WHICH ROOF LIFTS, AND HOW FAR THE SOUTH WALL DROPS.
+// src/world/core/roofs.js — WHICH ROOF LIFTS.
 //
 // A roof hides ONLY for the building whose rect contains YOUR tile. Other
 // players are not an input to any function here, so a peer walking into a
-// house can never lift its roof for you (or show you who is inside). While you
-// are inside, that building's south wall — and its south door — is cut to a
-// SOUTH_STUB_PX stub so the wall stops covering you. Roofs fade over
-// ROOF_FADE_MS rather than popping.
+// house can never lift its roof for you (or show you who is inside). The
+// building you are in is drawn from the inside (compose.js: north face, side
+// caps, a south stub); every other building shows its front face under its
+// roof. Roofs fade over ROOF_FADE_MS rather than popping.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { inRect } from './grid.js?v=574';
 
 export const ROOF_FADE_MS = 150;
-export const SOUTH_STUB_PX = 12;
 
 /** The id of the building the local hero stands in (tile coords, rounded), or null. */
 export function heroBuilding(buildings, hero) {
@@ -33,9 +32,4 @@ export function roofTargets(buildings, heroId) {
 export function stepAlpha(current, target, dtMs) {
   const step = Math.max(0, dtMs) / ROOF_FADE_MS;
   return current < target ? Math.min(target, current + step) : Math.max(target, current - step);
-}
-
-/** The drawn height of a wall/door slice: a stub on the hero's own south wall, else full. */
-export function wallHeight(slice, heroId, fullPx) {
-  return (heroId && slice.building === heroId && String(slice.side || '').includes('s')) ? SOUTH_STUB_PX : fullPx;
 }

@@ -13,38 +13,41 @@
 // one state object.
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=574';
-import { TERRAIN, PROPS } from '../data/world/terrain.js?v=574';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=574';
 import { WORLD_MAPS } from '../data/world/maps/index.js?v=574';
 import { compileMap } from './core/map-compile.js?v=574';
+import { STUB_SPRITE } from './core/book.js?v=574';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=574';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=574';
 import { readScene, setChoice } from './store.js?v=574';
-import { createAtlasBook } from './atlas.js?v=574';
+import { loadAtlases } from './atlas.js?v=574';
 import { createCanvasBackend } from './render/canvas-backend.js?v=574';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 
 /**
- * Mount the world into `panel` (#panel-world). Returns the runtime:
+ * Load the art, then mount the world into `panel` (#panel-world). Resolves to the runtime:
  *   sync()     start or stop the loop to match the panel and the page
  *   stats()    { running, frames, scene, ...backend.snapshot() } for tests
  *   destroy()
  */
-export function bootWorld(panel) {
+export async function bootWorld(panel) {
   const win = window, doc = document;
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
   const css = (name) => styles.getPropertyValue(name).trim();
-  let backend = null;
-  const book = createAtlasBook({ doc, colour: (n) => css('--world-' + n), version: BUILD.cache, onChange: () => backend && backend.invalidate() });
-  backend = createCanvasBackend({ win, doc, book, css });
+  const { book, images } = await loadAtlases({ doc, version: BUILD.cache });
+  /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
+  const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
+  const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+  const backend = createCanvasBackend({ win, doc, book, images, tables, css });
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
 
   const compiled = new Map();
   const mapOf = (id) => {
-    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), { terrain: TERRAIN, props: PROPS }));
+    if (!compiled.has(id)) compiled.set(id, compileMap(ROWS.get(id), tables));
     return compiled.get(id);
   };
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
@@ -75,7 +78,7 @@ export function bootWorld(panel) {
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     const I = win.HearthriseIdentity;
     const name = (I && typeof I.displayName === 'function' && I.displayName()) || G.playerName || null;
-    backend.sync({ hero, name, roofAlpha });
+    backend.sync({ hero, name, roofAlpha, t: win.performance.now() });
     frames++;
   }
 

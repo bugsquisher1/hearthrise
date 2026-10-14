@@ -1664,3 +1664,5 @@ Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the
 **Lanes:** `lane/w1-world-runtime` (systems-engineer) and `lane/w2-world-art` (asset/art). No git hunk.
 
 The plan gives `src/data/world/art-budget.js` to W2. W1 had to size its stub boxes before that file exists, so `src/world/stub-atlas.js` carries one box per class taken from the plan's scale table (hero 38 in 64x64, door 48, wall 48 + 10 cap, tree 112, crown 80), and `tests/world-core.mjs` G2 pins them to the budget. W1 did NOT create `art-budget.js`, to avoid an add/add conflict. **Owed by whichever lane lands second:** stub-atlas reads its sizes from W2's `art-budget.js`, and G2 checks the stubs against that file instead of literals.
+
+**RESOLVED 2026-10-14 (W1 merged W2 @8bb3f239):** the stub class table is deleted. The manifests are the one source of frame, anchor, footprint, class and shadow (`src/world/core/book.js`); a sprite no atlas carries draws as one STUB_SPRITE box. `art-budget.js` stays W2's.

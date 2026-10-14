@@ -2,15 +2,17 @@
 // src/world/render/canvas-backend.js — THE WORLD ON A 2D CANVAS.
 //
 // Interface { mount, setMap, sync, snapshot, destroy } — the same as
-// null-backend.js, and both draw composeFrame()'s list, so what the node tests
-// assert is what this paints.
+// null-backend.js, and both draw composeFrame()'s list over the same manifest
+// book, so what the node tests assert is what this paints.
 //
 // One frame:
-//   1. compose at ART resolution (T = 32) on an offscreen canvas: baked ground
-//      chunks (16x16 tiles each, baked once per map from the Wang overlays),
-//      decals, the ONE shadow mask at --world-shadow-alpha, the y-sorted
-//      sprites, canopies, roofs, then light (a multiplied ambient with additive
-//      point lights; a vignette by day);
+//   1. compose at ART resolution (T = 32) on an offscreen canvas: ground
+//      chunks (16x16 tiles, baked once per map from groundTiles()), decals,
+//      the ONE shadow mask at --world-shadow-alpha (ellipses, polygons and
+//      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
+//      raised layer (rock tops, capstones, roofs), then light: the map's
+//      ambient multiplied with stepped point-light pools added in, and a
+//      vignette outdoors;
 //   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z,
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
 //   3. draw the nameplates at SCREEN resolution so text stays crisp.
@@ -18,23 +20,24 @@
 // ════════════════════════════════════════════════════════════════════════
 import { T } from '../core/grid.js?v=574';
 import { zoomFor, frameView } from '../core/camera.js?v=574';
-import { composeFrame } from '../core/compose.js?v=574';
-import { wangLayers } from '../core/wang.js?v=574';
-import { TERRAIN } from '../../data/world/terrain.js?v=574';
+import { composeFrame, groundTiles } from '../core/compose.js?v=574';
+import { paintStub } from '../stub-atlas.js?v=574';
 
 const CHUNK = 16 * T;
+const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 
 /**
- * @param {{win: Window, doc: Document, book: object, css: (token: string) => string}} o
- *   css('--world-void') → the token's current value
+ * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
+ *          css: (token: string) => string}} o   css('--world-void') → the token's value
  */
 export function createCanvasBackend(o) {
-  const { win, doc, book, css } = o;
+  const { win, doc, book, images, tables, css } = o;
   const tone = (name) => css('--world-' + name);
   const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
   const comp = layer(), shade = layer(), lit = layer();
+  const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
-  let map = null, wang = [], chunks = new Map();
+  let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true;
   let frames = 0, msAvg = 0, msLast = 0, last = null;
 
@@ -50,6 +53,19 @@ export function createCanvasBackend(o) {
     dirty = false;
   }
 
+  /** The source to blit a draw-list entry from: its atlas image, or a stub box. */
+  function source(d) {
+    if (d.set && images[d.set]) return { img: images[d.set], sx: d.sx, sy: d.sy };
+    let s = stubs.get(d.w + 'x' + d.h);
+    if (!s) {
+      s = doc.createElement('canvas');
+      s.width = d.w; s.height = d.h;
+      paintStub(s.getContext('2d'), d.w, d.h, tone);
+      stubs.set(d.w + 'x' + d.h, s);
+    }
+    return { img: s, sx: 0, sy: 0 };
+  }
+
   function chunk(cx, cy) {
     const key = cx + ',' + cy;
     let c = chunks.get(key);
@@ -59,78 +75,106 @@ export function createCanvasBackend(o) {
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    for (const t of wang) {
-      const px = t.vx * T - T / 2, py = t.vy * T - T / 2;
-      if (px >= x0 + CHUNK || py >= y0 + CHUNK || px + T <= x0 || py + T <= y0) continue;
-      const f = book.frame('wang:' + t.id + ':' + t.idx, 'wang');
-      g.drawImage(f.src, f.sx, f.sy, f.w, f.h, px - x0, py - y0, T, T);
+    const inside = (t) => t.x < x0 + CHUNK && t.y < y0 + CHUNK && t.x + T > x0 && t.y + T > y0;
+    g.fillStyle = tone('void');
+    for (const v of ground.voids) if (inside(v)) g.fillRect(v.x - x0, v.y - y0, T, T);
+    for (const t of ground.tiles) {
+      if (!inside(t) || !images[t.set]) continue;
+      g.drawImage(images[t.set], t.sx, t.sy, T, T, t.x - x0, t.y - y0, T, T);
     }
     chunks.set(key, c);
     return c;
   }
 
-  function blit(g, d, view, cls) {
-    const f = book.frame(d.sprite, cls);
-    const crop = d.crop || 0;
-    g.drawImage(f.src, f.sx, f.sy + crop, f.w, f.h - crop, d.x - view.ox, d.y - view.oy, f.w, f.h - crop);
+  function blit(g, d, view) {
+    if (d.kind === 'void') { g.fillStyle = tone('void'); g.fillRect(d.x - view.ox, d.y - view.oy, d.w, d.h); return; }
+    const s = source(d);
+    g.drawImage(s.img, s.sx, s.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
   }
 
-  function roof(g, r, view) {
-    const f = book.frame(r.sprite, 'roof');
-    const x = r.x - view.ox, y = r.y - view.oy;
-    if (!f.nine) { g.drawImage(f.src, f.sx, f.sy, f.w, f.h, x, y, r.w, r.h); return; }
-    const [l, t, rr, b] = f.nine;
-    const cols = [[0, l, 0, l], [l, f.w - l - rr, l, r.w - l - rr], [f.w - rr, rr, r.w - rr, rr]];
-    const rows = [[0, t, 0, t], [t, f.h - t - b, t, r.h - t - b], [f.h - b, b, r.h - b, b]];
-    for (const [sx, sw, dx, dw] of cols) for (const [sy, sh, dy, dh] of rows) {
-      if (sw > 0 && sh > 0 && dw > 0 && dh > 0) g.drawImage(f.src, f.sx + sx, f.sy + sy, sw, sh, x + dx, y + dy, dw, dh);
+  function shadows(g, list, view) {
+    sizeTo(shade.c, view.w, view.h);
+    const s = shade.g;
+    s.setTransform(1, 0, 0, 1, 0, 0);
+    s.globalCompositeOperation = 'source-over';
+    s.clearRect(0, 0, view.w, view.h);
+    s.fillStyle = tone('shadow');
+    for (const sh of list.shadows) {
+      if (sh.type === 'cast') {
+        const [a, b, c, d, e, f] = sh.m;
+        s.setTransform(a, b, c, d, e - view.ox, f - view.oy);
+        const src = source(sh.sprite);
+        s.drawImage(src.img, src.sx, src.sy, sh.sprite.w, sh.sprite.h, sh.sprite.x, sh.sprite.y, sh.sprite.w, sh.sprite.h);
+        s.setTransform(1, 0, 0, 1, 0, 0);
+        continue;
+      }
+      s.beginPath();
+      if (sh.type === 'ellipse') s.ellipse(sh.cx - view.ox, sh.cy - view.oy, sh.w / 2, sh.h / 2, 0, 0, Math.PI * 2);
+      else sh.pts.forEach(([x, y], i) => (i ? s.lineTo(x - view.ox, y - view.oy) : s.moveTo(x - view.ox, y - view.oy)));
+      s.fill();
     }
+    /* Silhouettes arrive in their own colours: flatten the whole mask to one tone. */
+    s.globalCompositeOperation = 'source-in';
+    s.fillRect(0, 0, view.w, view.h);
+    s.globalCompositeOperation = 'source-over';
+    g.globalAlpha = parseFloat(tone('shadow-alpha')) || 0;
+    g.drawImage(shade.c, 0, 0);
+    g.globalAlpha = 1;
   }
 
   function light(g, list, view, fv) {
-    const { kind, points } = list.lights;
-    if (kind === 'day') {
-      const cx = fv.cam.x + W / z / 2 - view.ox, cy = fv.cam.y + H / z / 2 - view.oy;
-      const rad = Math.max(W, H) / z * 0.75;
-      const v = g.createRadialGradient(cx, cy, rad * 0.45, cx, cy, rad);
+    const { kind, points, vignette } = list.lights;
+    if (kind !== 'day' || points.length) {
+      sizeTo(lit.c, view.w, view.h);
+      const l = lit.g;
+      l.globalCompositeOperation = 'source-over';
+      l.globalAlpha = 1;
+      l.fillStyle = tone('light-' + kind);
+      l.fillRect(0, 0, view.w, view.h);
+      l.globalCompositeOperation = 'lighter';
+      l.globalAlpha = 1 / (LIGHT_BANDS + 1);
+      for (const p of points) {
+        l.fillStyle = tone('light-' + p.tint);
+        for (let k = 1; k <= LIGHT_BANDS; k++) {
+          l.beginPath();
+          l.ellipse(p.x - view.ox, p.y - view.oy, p.r * k / (LIGHT_BANDS + 1), p.r * k / (LIGHT_BANDS + 1) / 1.15, 0, 0, Math.PI * 2);
+          l.fill();
+        }
+      }
+      l.globalAlpha = 1;
+      g.globalCompositeOperation = 'multiply';
+      g.drawImage(lit.c, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+    }
+    if (vignette) {
+      const vw = W / z, vh = H / z;
+      const cx = fv.cam.x + vw / 2 - view.ox, cy = fv.cam.y + vh / 2 - view.oy;
+      g.save();
+      g.translate(cx, cy);
+      g.scale(vw / 2, vh / 2);
+      const v = g.createRadialGradient(0, 0, 0.55, 0, 0, 1.55);
       v.addColorStop(0, 'transparent');
       v.addColorStop(1, tone('vignette'));
       g.fillStyle = v;
-      g.fillRect(0, 0, view.w, view.h);
-      return;
+      g.fillRect(-2, -2, 4, 4);
+      g.restore();
     }
-    sizeTo(lit.c, view.w, view.h);
-    const l = lit.g;
-    l.globalCompositeOperation = 'source-over';
-    l.fillStyle = tone('light-' + kind);
-    l.fillRect(0, 0, view.w, view.h);
-    l.globalCompositeOperation = 'lighter';
-    for (const p of points) {
-      const x = p.x - view.ox, y = p.y - view.oy;
-      const grad = l.createRadialGradient(x, y, 0, x, y, p.r);
-      grad.addColorStop(0, tone('light-' + p.tint));
-      grad.addColorStop(1, 'transparent');
-      l.fillStyle = grad;
-      l.fillRect(x - p.r, y - p.r, 2 * p.r, 2 * p.r);
-    }
-    g.globalCompositeOperation = 'multiply';
-    g.drawImage(lit.c, 0, 0);
-    g.globalCompositeOperation = 'source-over';
   }
 
   function plates(list, view, plan) {
     if (!list.plates.length) return;
-    const px = Math.round(12 * dpr);
+    const px = Math.max(Math.round(5 * z), Math.round(12 * dpr));
     ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2, Math.round(px / 6));
     for (const p of list.plates) {
-      const sx = Math.round((p.x - view.ox) * z + plan.dx), sy = Math.round((p.y - view.oy) * z + plan.dy) - Math.round(4 * dpr);
-      const w = Math.ceil(ctx.measureText(p.text).width) + Math.round(10 * dpr), h = px + Math.round(6 * dpr);
-      ctx.fillStyle = tone('plate-bg');
-      ctx.fillRect(sx - w / 2, sy - h, w, h);
-      ctx.fillStyle = tone('plate-ink');
-      ctx.fillText(p.text, sx, sy - Math.round(3 * dpr));
+      const sx = Math.round((p.x - view.ox) * z + plan.dx), sy = Math.round((p.y - 3 - view.oy) * z + plan.dy);
+      ctx.strokeStyle = tone('plate-line');
+      ctx.strokeText(p.text, sx, sy);
+      ctx.fillStyle = tone('plate-self');
+      ctx.fillText(p.text, sx, sy);
     }
   }
 
@@ -140,37 +184,24 @@ export function createCanvasBackend(o) {
     const fv = frameView(state.hero, W / z, H / z, map, z, T);
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
-    const list = composeFrame(map, book.geometry, state, view, T);
+    const list = composeFrame(map, book, state, view, tables, T);
     const g = comp.g;
     g.imageSmoothingEnabled = false;
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
     g.fillStyle = tone('void');
     g.fillRect(0, 0, view.w, view.h);
-    const mw = map.w * T + T, mh = map.h * T + T;
+    const mw = map.w * T, mh = map.h * T;
     for (let cy = Math.floor(view.oy / CHUNK); cy * CHUNK < view.oy + view.h; cy++) {
       for (let cx = Math.floor(view.ox / CHUNK); cx * CHUNK < view.ox + view.w; cx++) {
-        if (cx * CHUNK >= mw || cy * CHUNK >= mh || (cx + 1) * CHUNK <= -T || (cy + 1) * CHUNK <= -T) continue;
+        if (cx < 0 || cy < 0 || cx * CHUNK >= mw || cy * CHUNK >= mh) continue;
         g.drawImage(chunk(cx, cy), cx * CHUNK - view.ox, cy * CHUNK - view.oy);
       }
     }
-    for (const d of list.decals) blit(g, d, view, d.cls);
-    sizeTo(shade.c, view.w, view.h);
-    const s = shade.g;
-    s.clearRect(0, 0, view.w, view.h);
-    s.fillStyle = tone('shadow');
-    for (const sh of list.shadows) {
-      s.beginPath();
-      if (sh.type === 'ellipse') s.ellipse(sh.cx - view.ox, sh.cy - view.oy, sh.w / 2, sh.h / 2, 0, 0, Math.PI * 2);
-      else sh.pts.forEach(([x, y], i) => (i ? s.lineTo(x - view.ox, y - view.oy) : s.moveTo(x - view.ox, y - view.oy)));
-      s.fill();
-    }
-    g.globalAlpha = parseFloat(tone('shadow-alpha')) || 0;
-    g.drawImage(shade.c, 0, 0);
-    g.globalAlpha = 1;
-    for (const d of list.sprites) blit(g, d, view, d.cls);
-    for (const c of list.canopies) { g.globalAlpha = c.alpha; blit(g, c, view, 'canopy'); }
-    for (const r of list.roofs) { if (r.alpha > 0) { g.globalAlpha = r.alpha; roof(g, r, view); } }
+    for (const d of list.decals) blit(g, d, view);
+    shadows(g, list, view);
+    for (const d of list.sprites) blit(g, d, view);
+    for (const d of list.raised) { g.globalAlpha = d.alpha; blit(g, d, view); }
     g.globalAlpha = 1;
     light(g, list, view, fv);
     ctx.imageSmoothingEnabled = false;
@@ -198,26 +229,25 @@ export function createCanvasBackend(o) {
     },
     setMap(m) {
       map = m;
-      wang = wangLayers(m.ground, m.w, m.h, TERRAIN);
+      ground = groundTiles(m, book, tables, T);
       chunks = new Map();
       last = null;
     },
-    /** Real art arrived: re-bake the ground from it. */
-    invalidate() { chunks = new Map(); },
     sync(state) { if (map && canvas) draw(state); },
     snapshot() {
       return {
         map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast,
         heroBuilding: last ? last.heroBuilding : null,
         sprites: last ? last.sprites.length : 0,
-        roofs: last ? last.roofs.map((r) => ({ id: r.id, alpha: r.alpha })) : [],
+        stubbed: last ? last.sprites.concat(last.raised).filter((d) => d.kind !== 'void' && !(d.set && images[d.set])).map((d) => d.id) : [],
+        roofs: last ? last.roofs : [],
       };
     },
     destroy() {
       if (ro) ro.disconnect();
       if (onResize) win.removeEventListener('resize', onResize);
       if (canvas) canvas.remove();
-      host = canvas = ctx = ro = onResize = map = last = null;
+      host = canvas = ctx = ro = onResize = map = last = ground = null;
       chunks = new Map();
     },
   };

@@ -52,7 +52,8 @@ function loadWorld() {
   if (!pending) {
     ensureStyles();
     pending = import('../world/world-boot.js?v=574')
-      .then((m) => { runtime = m.bootWorld(panel()); runtime.sync(); return runtime; })
+      .then((m) => m.bootWorld(panel()))
+      .then((rt) => { runtime = rt; runtime.sync(); return runtime; })
       .catch((e) => {
         pending = null;
         console.error('[world] the world failed to load', e);

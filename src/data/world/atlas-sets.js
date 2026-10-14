@@ -1,39 +1,13 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/world/atlas-sets.js — WHICH WORLD ART HAS SHIPPED.
 //
-// The world renderer (src/world/atlas.js) draws every sprite from a frame in
-// one of these sets. A sprite id no set carries is drawn from the runtime stub
-// atlas instead (a box sized by its art-budget class), so a map can name art
-// before the art exists and nothing breaks when it arrives.
-//
-// THIS FILE IS WRITTEN BY tools/world-art/pack.mjs (lane W2). Adding a set is a
-// data row, never a code change. Row shape:
-//
-//   <set>: {
-//     image: 'assets/world/atlas-<set>.png',   // loaded with ?v=<BUILD.cache>
-//     w, h,                                    // atlas size, <= 2048 each
-//     frames: {
-//       <sprite id>: {
-//         x, y, w, h,              // the frame rect in the atlas
-//         anchor_px: [ax, ay],     // the contact row's centre, frame-relative
-//         class,                   // art-budget class (src/data/world/terrain.js)
-//         footprint: [fw, fh],     // tiles
-//         overhang_px, hover_px,   // declared overhang; a flier's lift
-//         shadow,                  // 'ellipse' | 'cast' | 'none'
-//         nine: [l, t, r, b],      // roofs only: 9-slice insets, px
-//       },
-//     },
-//   }
-//
-// SPRITE ID CONVENTIONS the renderer looks up:
-//   <prop id>               a PROPS row (barrel, pine, ...); a tree adds
-//                           '<id>:canopy' for its crown
-//   hero                    the local hero's idle frame
-//   wall:<material>:<side>  one 1-tile wall slice; side is s|n|w|e|sw|se|nw|ne
-//   door:<material>         a door in a wall of that material
-//   roof:<kind>             a roof, 9-sliced over the building's rect
-//   wang:<terrain>:<0-15>   a corner-Wang overlay tile, transparent where the
-//                           corner is not <terrain> (bit order in core/wang.js)
+// One row per atlas set built by tools/world-art/build.mjs. Each set is
+// assets/world/atlas-<set>.png + .json (paths: atlasPaths() in
+// src/data/world/art-budget.js, which also documents the manifest shape). The
+// renderer loads every set listed here on the World pane's first open; a sprite
+// id that no loaded set carries is drawn as a stub box (src/world/stub-atlas.js),
+// so a map can name art before it exists and a failed load never blanks a scene.
+// A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze({});
+export const ATLAS_SETS = Object.freeze(['hero', 'cellar', 'town', 'home']);

@@ -3,28 +3,30 @@
 //
 // A map row (src/data/world/maps/*.js) is authored as an ASCII legend plus
 // objects, buildings, a patrol path, spawns, stations and exits — all on whole
-// tiles. compileMap() turns it into the ground grid, the collision mask (and
-// its hash, which the server will freeze), the static drawables the y-sort
-// interleaves with units, the roofs, the canopies and the point lights.
-// lintMap() is the authoring contract; tests/world-core.mjs runs it over every
-// shipped map.
+// tiles, all naming sprites by their atlas-manifest id. compileMap() resolves it
+// against the manifests' sprite records (class, footprint) and the material
+// table into: the material grid, the collision mask (and its hash, which the
+// server will freeze), the placed objects, the buildings and the point lights.
+// What the rock and the buildings LOOK like is compose.js's job, because it
+// depends on where the hero stands. lintMap() is the authoring contract;
+// tests/world-core.mjs runs it over every shipped map.
 //
 // ROW SHAPE
 //   id, name, kind ('hunt' | 'town' | 'home'), hunts: [hunt ids it renders]
-//   outdoor (bool), light (one of LIGHT_KINDS)
-//   legend { char: TERRAIN id }, rows [string, …] (equal widths)
-//   objects   [{ id: PROPS id, x, y }]           whole tiles, nothing else
-//   buildings [{ id, rect:[x,y,w,h], wall, floor, doors:[[x,y]],
-//               roof:{ rect:[x,y,w,h], kind } }]  rect includes the walls
-//   path      [[x,y], …] corner waypoints of a CLOSED loop; every leg is a
-//             straight run in one of the eight directions
+//   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 terrain id:
+//     its lower/upper materials are what the legend's characters name)
+//   legend { char: MATERIALS id }, rows [string, …] (equal widths)
+//   faces     [{ x, y, id }] a rock face drawn with a variant (an arch)
+//   objects   [{ id, x, y }] whole tiles, nothing else
+//   buildings [{ id, rect:[x,y,w,h], wall, floor, doors:[[x,y]], windows:[x],
+//               chimney: x|null, roof:{ rect:[x,y,w,h], kind } }] rect includes
+//             the walls; doors and windows sit on the south (front) row
+//   path      [[x,y], …] corner waypoints of a CLOSED loop of straight 8-way legs
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
 //   maskHash  hash of the collision mask (maskHash below)
-//
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=574';
-import { BIAS } from './zsort.js?v=574';
 
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);
@@ -61,12 +63,13 @@ function stepOutside(r, x, y) {
 }
 
 /**
- * Compile a map row. Tables are injected so the guard can compile a planted row.
+ * Compile a map row. Tables are injected so a guard can compile a planted row.
  * @param {object} row
- * @param {{terrain: object, props: object}} tables
+ * @param {{materials: object, sprites: object, openClasses: string[], lights: object}} tables
+ *   sprites: every manifest's sprite records merged by id
  */
 export function compileMap(row, tables) {
-  const { terrain, props } = tables;
+  const { materials, sprites, openClasses, lights } = tables;
   const h = row.rows.length, w = row.rows[0].length;
   const ground = new Array(w * h);
   const mask = new Uint8Array(w * h);
@@ -74,18 +77,7 @@ export function compileMap(row, tables) {
     for (let x = 0; x < w; x++) {
       const id = row.legend[row.rows[y][x]];
       ground[y * w + x] = id;
-      if (terrain[id] && terrain[id].solid) mask[y * w + x] = 1;
-    }
-  }
-  const statics = [], canopies = [], lights = [];
-  // Terrain walls show a face only where you can stand south of them.
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const t = terrain[ground[y * w + x]];
-      const below = y + 1 < h ? terrain[ground[(y + 1) * w + x]] : null;
-      if (t && t.wall && below && !below.solid) {
-        statics.push({ kind: 'wall', sprite: 'wall:' + t.wall + ':n', x, y, fw: 1, fh: 1, row: y, bias: BIAS.wall, building: null, side: 'n' });
-      }
+      if (materials[id] && materials[id].solid) mask[y * w + x] = 1;
     }
   }
   const buildings = (row.buildings || []).map((b) => {
@@ -93,30 +85,25 @@ export function compileMap(row, tables) {
     const doors = b.doors.map(([x, y]) => ({ x, y }));
     for (let y = r.y; y < r.y + r.h; y++) {
       for (let x = r.x; x < r.x + r.w; x++) {
-        if (!onEdge(r, x, y)) { ground[y * w + x] = b.floor; continue; }
-        const door = doors.some((d) => d.x === x && d.y === y);
-        if (!door) mask[y * w + x] = 1;
-        else ground[y * w + x] = b.floor;
-        statics.push({
-          kind: door ? 'door' : 'wall', sprite: door ? 'door:' + b.wall : 'wall:' + b.wall + ':' + sideOf(r, x, y),
-          x, y, fw: 1, fh: 1, row: y, bias: BIAS.wall, building: b.id, side: sideOf(r, x, y),
-        });
+        if (onEdge(r, x, y) && !doors.some((d) => d.x === x && d.y === y)) mask[y * w + x] = 1;
       }
     }
-    return { id: b.id, rect: r, wall: b.wall, doors, roof: { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
+    return { id: b.id, rect: r, wall: b.wall, floor: b.floor, doors, windows: b.windows || [], chimney: b.chimney == null ? null : b.chimney,
+      roof: { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
   });
+  const objects = [], lit = [];
   for (const o of row.objects || []) {
-    const p = props[o.id];
-    const [fw, fh] = p.footprint;
-    for (let y = o.y; y < o.y + fh; y++) for (let x = o.x; x < o.x + fw; x++) if (p.solid) mask[y * w + x] = 1;
-    const kind = p.class === 'decal' ? 'decal' : (p.canopy ? 'trunk' : 'prop');
-    statics.push({ kind, sprite: o.id, cls: p.class, x: o.x, y: o.y, fw, fh, row: o.y + fh - 1, bias: BIAS[kind], building: null });
-    if (p.canopy) canopies.push({ sprite: o.id + ':canopy', x: o.x, y: o.y, fw, fh });
-    if (p.light) lights.push({ x: o.x + fw / 2, y: o.y + fh / 2, radius: p.light.radius, tint: p.light.tint });
+    const s = sprites[o.id];
+    const [fw, fh] = s.footprint;
+    if (!openClasses.includes(s.class)) for (let y = o.y; y < o.y + fh; y++) for (let x = o.x; x < o.x + fw; x++) mask[y * w + x] = 1;
+    objects.push({ id: o.id, x: o.x, y: o.y, fw, fh, cls: s.class });
+    if (lights[o.id]) lit.push({ x: o.x + fw / 2, y: o.y + fh / 2, radius: lights[o.id].radius, tint: lights[o.id].tint });
   }
+  const faces = {};
+  for (const f of row.faces || []) faces[f.x + ',' + f.y] = f.id;
   return {
     id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h,
-    ground, mask, maskHash: maskHash(mask, w, h), statics, canopies, lights, buildings,
+    groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start,
   };
@@ -126,28 +113,30 @@ const WHOLE = (v) => Number.isInteger(v);
 
 /**
  * THE AUTHORING CONTRACT. Returns [{code, msg}]; empty means the map ships.
- *   L-ROWS  equal widths, every char in the legend, every legend id a terrain
- *   L-WHOLE objects are { id, x, y } on whole tiles, in bounds, a real prop
- *   L-SPACE no two objects share a tile; nothing solid underfoot or in a wall
+ *   L-ROWS  equal widths, every char in the legend, every legend id a material
+ *   L-WHOLE objects are { id, x, y } on whole tiles, in bounds, a real sprite
+ *   L-SPACE no two solid objects share a tile; nothing stands on rock or in a
+ *           wall, except a hung sprite on a wall face
  *   L-BUILD building rect in bounds, >= 3x3, on open ground, not overlapping
  *   L-DOOR  doors on the rect's edge (not a corner) with open ground both sides
  *   L-ROOF  the roof is exactly the building's footprint
- *   L-NORTH no furniture on the row directly north of a south wall
+ *   L-NORTH no solid piece on the row directly north of a south wall
  *   L-PATH  a hunt has a closed patrol loop of straight 8-way legs on open ground
  *   L-WALK  start, spawns, stations and exits stand on open ground
  *   L-TREES an outdoor map has a tree in every TREE_WINDOW-square window
- *   L-KIND  kind and light are known values
+ *   L-KIND  kind and light are known values; ground names a terrain
  *   L-HASH  maskHash matches the compiled mask
  */
 export function lintMap(row, tables) {
   const out = [];
   const bad = (code, msg) => out.push({ code, msg: row.id + ': ' + msg });
-  const { terrain, props } = tables;
+  const { materials, sprites, openClasses, treeClasses, terrains } = tables;
   if (!MAP_KINDS.includes(row.kind)) bad('L-KIND', 'kind "' + row.kind + '" is not one of ' + MAP_KINDS.join('/'));
   if (!LIGHT_KINDS.includes(row.light)) bad('L-KIND', 'light "' + row.light + '" is not one of ' + LIGHT_KINDS.join('/'));
+  if (terrains && !terrains[row.ground]) bad('L-KIND', 'ground "' + row.ground + '" is not a terrain in any atlas');
   const rows = row.rows || [];
   if (!rows.length || rows.some((r) => r.length !== rows[0].length)) { bad('L-ROWS', 'rows are empty or ragged'); return out; }
-  for (const [ch, id] of Object.entries(row.legend || {})) if (!terrain[id]) bad('L-ROWS', 'legend "' + ch + '" names unknown terrain "' + id + '"');
+  for (const [ch, id] of Object.entries(row.legend || {})) if (!materials[id]) bad('L-ROWS', 'legend "' + ch + '" names unknown material "' + id + '"');
   rows.forEach((r, y) => [...r].forEach((ch, x) => { if (!(ch in row.legend)) bad('L-ROWS', 'char "' + ch + '" at ' + x + ',' + y + ' is not in the legend'); }));
   if (out.length) return out;
   const h = rows.length, w = rows[0].length;
@@ -159,20 +148,22 @@ export function lintMap(row, tables) {
   for (const o of row.objects || []) {
     const extra = Object.keys(o).filter((k) => k !== 'id' && k !== 'x' && k !== 'y');
     if (extra.length) bad('L-WHOLE', 'object ' + o.id + ' carries ' + extra.join(',') + ': placement is whole tiles only');
-    if (!props[o.id]) { bad('L-WHOLE', 'object ' + o.id + ' is not a prop'); continue; }
-    const [fw, fh] = props[o.id].footprint;
+    if (!sprites[o.id]) { bad('L-WHOLE', 'object ' + o.id + ' is not a sprite in any atlas'); continue; }
+    const [fw, fh] = sprites[o.id].footprint;
     if (!inside(o.x, o.y) || !inside(o.x + fw - 1, o.y + fh - 1)) bad('L-WHOLE', 'object ' + o.id + ' at ' + o.x + ',' + o.y + ' is not on whole tiles inside the map');
   }
   if (out.length) return out;
   const map = compileMap(row, tables);
   const open = (x, y) => inside(x, y) && map.mask[y * w + x] === 0;
+  const solidAt = (x, y) => { const m = materials[map.ground[y * w + x]]; return !!(m && m.solid); };
   const B = map.buildings;
+  const wallFace = (x, y) => (solidAt(x, y) && inside(x, y + 1) && !solidAt(x, y + 1))
+    || B.some((b) => onEdge(b.rect, x, y) && (y === b.rect.y || y === b.rect.y + b.rect.h - 1));
   B.forEach((b, i) => {
     const r = b.rect;
     if (r.w < 3 || r.h < 3 || !inside(r.x, r.y) || !inside(r.x + r.w - 1, r.y + r.h - 1)) bad('L-BUILD', 'building ' + b.id + ' is smaller than 3x3 or leaves the map');
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
-      const t = terrain[row.legend[rows[y] && rows[y][x]]];
-      if (t && t.solid) bad('L-BUILD', 'building ' + b.id + ' stands on solid ' + row.legend[rows[y][x]] + ' at ' + x + ',' + y);
+      if (inside(x, y) && solidAt(x, y)) bad('L-BUILD', 'building ' + b.id + ' stands on solid ' + map.ground[y * w + x] + ' at ' + x + ',' + y);
     }
     B.slice(i + 1).forEach((o) => {
       const q = o.rect;
@@ -187,21 +178,20 @@ export function lintMap(row, tables) {
     }
   });
   const taken = new Map();
-  for (const o of row.objects || []) {
-    const p = props[o.id];
-    for (let y = o.y; y < o.y + p.footprint[1]; y++) for (let x = o.x; x < o.x + p.footprint[0]; x++) {
+  for (const o of map.objects) {
+    const hung = o.cls === 'hanging';
+    const solid = !openClasses.includes(o.cls);
+    for (let y = o.y; y < o.y + o.fh; y++) for (let x = o.x; x < o.x + o.fw; x++) {
       const k = x + ',' + y;
-      if (taken.has(k)) bad('L-SPACE', o.id + ' and ' + taken.get(k) + ' share tile ' + k);
-      taken.set(k, o.id);
-      const t = terrain[map.ground[y * w + x]];
-      if (t && t.solid) bad('L-SPACE', o.id + ' stands on solid ground at ' + k);
+      if (solid) { if (taken.has(k)) bad('L-SPACE', o.id + ' and ' + taken.get(k) + ' share tile ' + k); taken.set(k, o.id); }
+      if (hung && wallFace(x, y)) continue;
+      if (solidAt(x, y)) bad('L-SPACE', o.id + ' stands on solid ground at ' + k);
       if (B.some((b) => onEdge(b.rect, x, y))) bad('L-SPACE', o.id + ' stands in a wall at ' + k);
     }
-    if (p.furniture) {
+    if (solid && !treeClasses.includes(o.cls)) {
       for (const b of B) {
         const southRow = b.rect.y + b.rect.h - 1;
-        const footRow = o.y + p.footprint[1] - 1;
-        if (footRow === southRow - 1 && o.x >= b.rect.x && o.x < b.rect.x + b.rect.w) bad('L-NORTH', o.id + ' at ' + o.x + ',' + o.y + ' stands directly north of ' + b.id + '\'s south wall');
+        if (o.y + o.fh - 1 === southRow - 1 && o.x > b.rect.x && o.x < b.rect.x + b.rect.w - 1) bad('L-NORTH', o.id + ' at ' + o.x + ',' + o.y + ' stands directly north of ' + b.id + '\'s south wall');
       }
     }
   }
@@ -214,7 +204,7 @@ export function lintMap(row, tables) {
     Object.entries(row.stations || {}), (row.exits || []).map((e) => ['exit to ' + e.to, [e.x, e.y]]));
   for (const [what, at] of spots) if (!at || !open(at[0], at[1])) bad('L-WALK', what + ' ' + JSON.stringify(at) + ' is not on walkable ground');
   if (row.outdoor) {
-    const trees = (row.objects || []).filter((o) => props[o.id].canopy);
+    const trees = map.objects.filter((o) => treeClasses.includes(o.cls));
     const ww = Math.min(TREE_WINDOW, w), wh = Math.min(TREE_WINDOW, h);
     for (let wy = 0; wy + wh <= h; wy++) for (let wx = 0; wx + ww <= w; wx++) {
       if (!trees.some((t) => t.x >= wx && t.x < wx + ww && t.y >= wy && t.y < wy + wh)) {

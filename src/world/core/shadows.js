@@ -1,33 +1,33 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/core/shadows.js — ONE SHADOW RULE FOR EVERYTHING.
 //
-// Art carries no baked shadow (the asset validator rejects pixels below the
-// contact row). The renderer draws every shadow into ONE mask and composites
-// that mask once at --world-shadow-alpha, so two overlapping shadows never
-// darken twice.
-//   units and props  an ellipse under the contact point: w = 0.8 x footprint
-//                    width x T, h = 0.35 w, offset +2,+2. A flier's ellipse
-//                    stays on the ground; only its sprite is lifted.
-//   walls and trees  the footprint swept down-right by SHADOW_SKEW x height —
-//                    a parallelogram for a thin base, and adjacent wall slices'
-//                    sweeps overlap into one continuous band.
+// Art carries no baked shadow; each manifest sprite names its runtime shadow
+// ({kind:'ellipse', w, h, dx, dy} or {kind:'cast', height, base}) and the
+// renderer draws every shadow into ONE mask composited once at
+// --world-shadow-alpha, so two overlapping shadows never darken twice.
+//   ellipse  centred on the contact point, offset as the W2 stills place it
+//            (dx - 2, dy - 1); a flier's contact is its GROUND point, so its
+//            shadow stays down while its sprite hovers.
+//   cast     the sprite's own silhouette laid on the floor down-right: a pixel
+//            h px above the contact row lands SHEAR.x * h right and SHEAR.y * h
+//            below it — one affine map per sprite (castMatrix).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHADOW_OFFSET = Object.freeze({ x: 2, y: 2 });
-export const SHADOW_SKEW = Object.freeze({ x: 0.5, y: 0.25 });
+export const SHEAR = Object.freeze({ x: 0.5, y: 0.22 });
 
-/** The ground ellipse for a footprint `fw` tiles wide whose contact point is (ax, ay), art px. */
-export function ellipseShadow(ax, ay, fw, T) {
-  const w = 0.8 * fw * T;
-  return { cx: ax + SHADOW_OFFSET.x, cy: ay + SHADOW_OFFSET.y, w, h: 0.35 * w };
+/** The ellipse for a sprite whose contact point is (cx, cy), art px. */
+export function ellipseShadow(spec, cx, cy) {
+  return { cx: cx + spec.dx - 2, cy: cy + spec.dy - 1, w: spec.w, h: spec.h };
 }
 
-/**
- * The cast shadow of something `heightPx` tall standing on the base rect
- * x0..x1 by y0..y1 (art px): the rect swept by SHADOW_SKEW x height, as a polygon.
- */
-export function castShadow(x0, x1, y0, y1, heightPx) {
-  const dx = heightPx * SHADOW_SKEW.x, dy = heightPx * SHADOW_SKEW.y;
-  return [[x0, y0], [x1, y0], [x1 + dx, y0 + dy], [x1 + dx, y1 + dy], [x0 + dx, y1 + dy], [x0, y1]];
+/** Where a world pixel (px, py) of a sprite standing on contact row `cy` falls as cast shadow. */
+export function castPoint(px, py, cy) {
+  const hgt = cy - py;
+  return [px + SHEAR.x * hgt, cy + SHEAR.y * hgt];
+}
+
+/** castPoint as a canvas transform [a, b, c, d, e, f]: x' = a x + c y + e, y' = b x + d y + f. */
+export function castMatrix(cy) {
+  return [1, 0, -SHEAR.x, -SHEAR.y, SHEAR.x * cy, (1 + SHEAR.y) * cy];
 }

@@ -34,7 +34,7 @@
 //           defect class this repo ships most often (the button looks fine and
 //           silently does nothing).
 //   BOOT-5  The World pane costs a boot nothing: neither a player boot nor a
-//           harness boot requests anything under src/world/ or world.css until
+//           harness boot requests anything under src/world/, assets/world/ or world.css until
 //           the pane is opened (src/features/world-panel.js imports the runtime
 //           lazily). The opening half — the pane DOES load and draw — is the
 //           in-page WORLD-1 test, so a dead lazy import is red there.
@@ -229,7 +229,7 @@ async function boot(browser, url, { harness, mutate, press, throttle } = {}) {
 }
 
 const isSuite = (u) => u.includes(SUITE);
-const isWorld = (u) => /\/src\/world\/|\/src\/styles\/world\.css/.test(u);
+const isWorld = (u) => /\/src\/world\/|\/src\/styles\/world\.css|\/assets\/world\//.test(u);
 const jsBytes = (res) => res.filter((r) => /\.js(\?|$)/.test(r.name)).reduce((n, r) => n + r.dec, 0);
 const allBytes = (res) => res.reduce((n, r) => n + r.dec, 0);
 

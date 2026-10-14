@@ -113,10 +113,22 @@
   var SHEET_SEL = '.modal.show, .hr-scrim:is(.open, .show), .hr-scrim:not(.welcome-overlay, '
     + '.char-select-overlay, .dgn-run-overlay, .scv-overlay, .mob-preview-overlay, .acq-overlay, .ach-overlay, '
     + '[hidden], [style*="display: none"])';
+  /* NO LAYOUT READ (2026-10-14). push() asks this on every toast, and a kill
+     toast lands straight after the render that dirtied the page, so the old
+     getClientRects() forced a synchronous layout per kill (57 s of a 488 s
+     suite profile; the live game's "choppy" combat). The answer is unchanged
+     and comes from style alone: pointer-events first, which settles the
+     commonest candidate (a closed .inv-detail scrim stays in the DOM at
+     pointer-events:none) without asking for a box; then checkVisibility(),
+     which answers "has a box" from the layout TREE, not from geometry.
+     getClientRects() is kept only for an engine without checkVisibility. */
+  function rendered(el) {
+    return typeof el.checkVisibility === 'function' ? el.checkVisibility() : el.getClientRects().length > 0;
+  }
   function sheetOpen() {
     var els = document.querySelectorAll(SHEET_SEL);
     for (var i = 0; i < els.length; i++) {
-      if (els[i].getClientRects().length && getComputedStyle(els[i]).pointerEvents !== 'none') return true;
+      if (getComputedStyle(els[i]).pointerEvents !== 'none' && rendered(els[i])) return true;
     }
     return false;
   }
@@ -254,6 +266,18 @@
     return off;
   }
 
+  /* A burst measures ONCE. The clearance depends on the chrome around the
+     column, not on the toasts in it, and show() used to re-measure on every
+     toast it drew — a forced layout per toast, read straight after the append
+     that dirtied the page. The frame callback runs before that frame paints,
+     so the first frame that draws a new toast already has the column placed. */
+  var layoutFrame = 0;
+  function layoutNextFrame() {
+    if (layoutFrame) return;
+    if (typeof requestAnimationFrame !== 'function') { layout(); return; }
+    layoutFrame = requestAnimationFrame(function () { layoutFrame = 0; layout(); });
+  }
+
   function register(selector) {
     if (typeof selector !== 'string' || !selector) return;
     if (OBSTACLES.indexOf(selector) < 0) OBSTACLES.push(selector);
@@ -325,7 +349,7 @@
     t.el = build(t);
     el.appendChild(t.el);
     visible.push(t);
-    layout();
+    layoutNextFrame();
     arm(t);
     return t;
   }

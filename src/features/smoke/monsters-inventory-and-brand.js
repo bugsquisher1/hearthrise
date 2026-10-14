@@ -1173,6 +1173,45 @@ export default [
     }
   }),
 
+  /* -- regression suite -- AWAY-LATCH-1 (2026-10-14): every kill resolved by an away replay
+     rebuilds its ctx (COMBAT_FX.killMonster -> combatSimCtx), and `away` there is the offline
+     latch. simulateAwayCombat set `ctx.away` on its OWN ctx only, so a caller outside the
+     latch (COMBAT-UI-24) ran each kill of the night as WATCHED: a "Defeated" toast and a
+     topbar repaint per kill, thousands in one task (COMBAT-UI-24 66-98 s in the full suite
+     order). The span now holds the latch itself. Both paths: the away night raises no kill
+     toast; a watched kill still raises its own. */
+  () => tryRun('AWAY-LATCH-1: an away replay is away to every kill it resolves; a watched kill still says so', () => {
+    assert(typeof window.simulateAwayCombat === 'function' && typeof window.killMonster === 'function',
+      'the combat seams are missing');
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    const said = [];
+    try {
+      window.G.skills = Object.assign({}, window.G.skills,
+        { attack: 300000, strength: 300000, defense: 300000, hitpoints: 300000 });
+      window.G.equipment = Object.assign({}, window.G.equipment, { weapon: 'bronze_sword' });
+      window.G.playerMaxHp = window.levelFromXp(300000);
+      window.G.playerHp = window.G.playerMaxHp;
+      window.G.activeMonster = 'slime';
+      window.G.monsterHp = window.MONSTERS.slime.hp;
+      window.notify = function (msg) { said.push(String(msg)); };
+      /* Called the way COMBAT-UI-24 calls it: NOT inside the harness's _withOfflineReplay. */
+      const out = window.simulateAwayCombat(1, Date.now(), false);
+      assert(out && out.kills > 0, 'the away replay did no work, so this proves nothing (kills=' + (out && out.kills) + ')');
+      const kills = said.filter((m) => /^Defeated /.test(m));
+      assert(kills.length === 0, 'an away replay of ' + out.kills + ' kills raised ' + kills.length
+        + ' "Defeated" toast(s): its kills ran as watched');
+      said.length = 0;
+      window.G.monsterHp = window.MONSTERS.slime.hp;
+      window.killMonster(window.MONSTERS.slime);
+      assert(said.indexOf('Defeated ' + window.MONSTERS.slime.name) !== -1,
+        'a watched kill no longer raises its toast: ' + JSON.stringify(said));
+    } finally {
+      window.notify = realNotify;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('COMBAT-UI-23: a REAL kill declares its drops end to end', () => {
     /* COMBAT-UI-22 drives the effect binding directly, which proves the filter
        but not the WIRING. This one runs a real kill through the real loop —

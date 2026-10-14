@@ -834,6 +834,23 @@ jobs:
           node tests/hunt-sessions-db.mjs
           node tests/hunt-sessions-db.mjs --mutate
 
+      # Lane C2 hunt sessions — THE SETTLE (supabase/functions/hr-accrue/
+      # hunt-settle.js + 2026-10-22-hunt-sessions-settle.sql, ruling
+      # HR-2026-10-14 §4): TICK-2 (no ctx.away / presence / cap read on the hunt
+      # path; presence inputs inert), the per-swing seed is HMAC-keyed by the
+      # 64-bit secret (an FNV text mix is red), max HP is raise-only (FX-4), the
+      # old path never prices a hunter, and on the REAL chain: 20 world-tick
+      # windows == one span (tally, bag, character, clock), a death with a
+      # client connected writes the same rows as one with none, tally = Σ
+      # ledger, a press lands at its first swing boundary and never before, and
+      # a dry bag ends the hunt. --mutate plants 9 engine, 2 live-body and 3
+      # migration-text defects; each must go red.
+      - name: Hunt sessions settle — TICK-1/TICK-2, both paths, tally = ledger, keyed seed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-sessions-settle.mjs
+          node tests/hunt-sessions-settle.mjs --mutate
+
       # 2026-10-11-name-moderation.sql (Security): a name other players see is
       # the server's to refuse and to take back. On the WHOLE chain, as the
       # client roles: blocked variants refused name_blocked (never echoed), the

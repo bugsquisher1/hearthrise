@@ -501,14 +501,23 @@ const MUTANTS = [
     from: '  if (inp.huntOpen === true) return { accrued: false, reason: SKIP.HUNT_OPEN };', to: '' },
   { arm: 'PRESS', name: 'a press fires before it was made', file: 'src/core/action-rules.js',
     from: '    if (p.at > v.atMs) { out.keep.push(entry); continue; }', to: '' },
-  { arm: 'TICK-1', name: 'the buff queue is measured at the window start, not the swing clock', file: join(FN, 'accrual.js'),
-    from: 'buffs: buffQueueFromServer(inp.buffs, hs0 ? hs0.nextSwingAtMs : credit.fromMs),', to: 'buffs: buffQueueFromServer(inp.buffs, credit.fromMs - 1700),' },
+  /* (Measuring at the window START is an equivalent mutant: a session's
+     settled_to IS its next swing. The defect worth a guard is the read clock.) */
+  { arm: 'TICK-1', name: 'the buff queue is measured at the read clock, not the swing clock', file: join(FN, 'accrual.js'),
+    from: 'buffs: buffQueueFromServer(inp.buffs, hs0 ? hs0.nextSwingAtMs : credit.fromMs),', to: 'buffs: buffQueueFromServer(inp.buffs, nowMs),' },
   { arm: 'BOTH-PATH', name: 'a knocked-out foe is not carried across a settle', file: join(FN, 'accrual.js'),
     from: "            ? Math.floor(state.monsterHp) : Math.max(1, Math.floor(nat(m.hp, 1))),", to: "            ? Math.floor(state.monsterHp) : 0," },
-  { arm: 'TALLY', name: 'the settle journals one kill too many', file: join(FN, 'accrual.js'),
-    from: 'meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,', to: 'meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills + (hs0 ? 1 : 0), capped,' },
   { arm: 'END', name: 'a dry heal line does not end the hunt', file: 'src/core/action-rules.js',
     from: '  heals_out: (hs) => essentialOut(hs, \'heal\'),', to: '  heals_out: () => false,' },
+];
+
+/* DB mutants: planted in a LIVE function body of the booted chain (create or
+   replace), the arm run, the body restored. */
+const DB_MUTANTS = [
+  { arm: 'TALLY', name: 'the fold counts one kill the ledger does not hold', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+    find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
+  { arm: 'TALLY', name: 'the fold drops the consumption rows', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+    find: "supplies = public.hr_jsonb_add(t.supplies, v_sup)", replace: "supplies = t.supplies" },
 ];
 
 /* SQL mutants: planted in the migration TEXT; its own §10 must refuse each. */
@@ -527,7 +536,10 @@ async function main() {
   }
   if (MUTATE) {
     let bad = 0;
-    for (const m of MUTANTS) {
+    /* --mutant=<text> re-runs only the mutants whose name contains it (a re-check, never the record). */
+    const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+    const picked = (list) => list.filter((m) => !pick || m.name.includes(pick));
+    for (const m of picked(MUTANTS)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-c2-'));
       try {
         cpSync(join(ROOT, 'src', 'core'), join(dir, 'src', 'core'), { recursive: true });
@@ -542,7 +554,17 @@ async function main() {
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }
-    for (const m of SQL_MUTANTS) {
+    for (const m of picked(DB_MUTANTS)) {
+      const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');
+      if (def.split(m.find).length !== 2) { console.error(`✗ db mutant "${m.name}": anchor not found exactly once`); bad++; continue; }
+      await db.exec(def.replace(m.find, () => m.replace));
+      try {
+        const res = await runArms(ROOT, db, [m.arm]);
+        if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
+        else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
+      } finally { await db.exec(def); }
+    }
+    for (const m of picked(SQL_MUTANTS)) {
       let refused = null;
       try {
         await bootReplay({ patches: new Map([['2026-10-22-hunt-sessions-settle.sql', [[m.find, m.replace]]]]), upTo: LAST_PATCHED });
@@ -550,7 +572,7 @@ async function main() {
       if (refused && !e2harness(refused)) console.log(`✓ §10 refuses: ${m.name}`);
       else { console.error(`✗ §10 applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    const total = MUTANTS.length + SQL_MUTANTS.length;
+    const total = picked(MUTANTS).length + picked(DB_MUTANTS).length + picked(SQL_MUTANTS).length;
     console.log(bad ? `hunt-sessions-settle --mutate: ${bad} mutant(s) survived` : `hunt-sessions-settle --mutate: all ${total} mutants killed`);
     process.exit(bad ? 1 : 0);
   }

@@ -9,8 +9,9 @@
 // ARMS (each in its own transaction, rolled back)
 //   G1  the generated catalogue matches src/data (gen-hunt-sessions --check) and
 //       the table CHECK lists equal the data (END_ORDER, EVENT_COPY)
-//   K1  THE KILL SWITCH SHIPS OFF: the chain seeds hr_hunt_config.enabled = false
-//       and a paused enter opens nothing (Security GO-WITH-CHANGES item 1)
+//   K1  THE KILL SWITCH SHIPS OFF: C1 seeds hr_hunt_config.enabled = false, only
+//       lane C2's arm file turns it on, and a paused enter opens nothing
+//       (Security GO-WITH-CHANGES item 1)
 //   R1  A SETTLE REFUSAL RAISES: a real hr_apply under the session GUC, then a
 //       stale settle, in one statement — the ledger row and the version bump
 //       hr_apply made are rolled back with it (Security item 2)
@@ -27,6 +28,9 @@
 //       are capped by the cooldown with or without presses queued
 //   T1  TALLY = Σ LEDGER over two settles: coins, xp, loot, supplies, kills and
 //       deaths equal the session's stamped ledger rows, each row folded once
+//   D1  THE DROP on the chain: the away columns and functions are gone,
+//       hr_offline_cap_ms stays, the grant is the flat 720, and a planted
+//       reader makes a second apply of the drop file refuse
 //   C1  a SECOND apply of both files is byte-identical (schema inventory,
 //       function bodies + ACLs, catalogue rows)
 // --mutate plants each defect into the LIVE function body (create or replace,
@@ -45,6 +49,9 @@ const MIG = '2026-10-21-hunt-sessions.sql';
 const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
+/* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
+const ARM = '2026-10-22-hunt-sessions-arm.sql';
+let chainArmed = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order.includes(ARM);
 
 /* ── harness ─────────────────────────────────────────────────────────────── */
 async function q(db, sql, params) { return (await db.query(sql, params)).rows; }
@@ -115,8 +122,11 @@ const ARMS = {
   /* K1 — THE SWITCH SHIPS OFF (Security item 1). The chain seeds it false, and
      while it is false hr_hunt_enter / hr_hunt_change open nothing. */
   async K1(db, red) {
+    // C1 seeds it false; lane C2's arm file (ordered after the edge deploy) is
+    // the ONE writer that turns it on. A chain stopped at C1 must read false,
+    // the full chain true.
     const seeded = await one(db, `select enabled from public.hr_hunt_config where id`);
-    if (seeded !== false) red.push(`K1: hr_hunt_config is seeded enabled=${seeded} (must ship false until C2 flips it)`);
+    if (seeded !== chainArmed) red.push(`K1: hr_hunt_config reads enabled=${seeded} on a chain ${chainArmed ? 'through' : 'stopped before'} ${ARM} (want ${chainArmed})`);
     await probe(db);
     await db.query(`update public.hr_hunt_config set enabled = false where id`);
     const e = await enter(db, [{ item: 'cooked_shrimp', qty: 5 }]);
@@ -316,31 +326,39 @@ const ARMS = {
   },
 };
 
-/* D1 — the staged drop-away file REFUSES while anything still reads the away
-   objects (today: hr_apply, hr_state_of, the tick settle ...), and drops
-   nothing; its hr_vigour_of restatement grants a clanless character 720, the
-   number the cap-derived grant gives today. Run on the live db in a rolled-back
-   transaction. */
+/* D1 — THE DROP, PLACED BY LANE C2 (2026-10-22-hunt-sessions-away-readers.sql
+   removed the last readers; the drop file sits in the replay order right after
+   it). On the chain every dropped object is GONE, hr_offline_cap_ms is KEPT
+   (gather and artisan keep their horizon until lane G), and the restated
+   hr_vigour_of grants a clanless character the flat 720. AND THE FENCE STILL
+   BITES: with a body that reads a dropped name planted on the chain, a second
+   apply of the drop file REFUSES ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-drop-away.sql';
 const DROP_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', DROP), 'utf8').replace(/\r\n/g, '\n');
 async function d1(db, text = DROP_TEXT) {
   const red = [];
-  const before = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
+  const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
+      and table_name = 'player_state' and column_name in ('last_away_receipt', 'auto_eat_enabled', 'auto_eat_food',
+                                                          'auto_eat_pct', 'auto_eat_set_at')`);
+  if (cols !== 0) red.push(`D1: ${cols} away column(s) survived the drop on the chain`);
+  const fns = await one(db, `select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated',
+                                                   'hr_attended_kills')`);
+  if (fns !== 0) red.push(`D1: ${fns} away function(s) survived the drop on the chain`);
+  if (!(await one(db, `select to_regprocedure('public.hr_offline_cap_ms(uuid,integer)') is not null`))) {
+    red.push('D1: hr_offline_cap_ms was dropped; gather and artisan still read it until lane G');
+  }
+  const grant = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
+  if (grant !== 720) red.push(`D1: a clanless character's daily Vigour grant is ${grant}, not the flat 720`);
   await db.query('begin');
   try {
+    await db.exec(`create function public.hr__d1_reader() returns void language plpgsql as $f$
+                   begin perform public.hr_set_auto_eat(0, true, null, null, false); end $f$`);
     let refused = null;
     try { await db.exec(text); } catch (e) { refused = String(e.message); }
-    if (!refused || !/still read by/.test(refused)) red.push(`D1: the drop file did not refuse on a chain whose readers remain (${refused ? refused.slice(0, 120) : 'it applied'})`);
-  } finally { await db.query('rollback'); }
-  const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
-      and table_name = 'player_state' and column_name in ('last_away_receipt', 'auto_eat_enabled')`);
-  if (cols !== 2) red.push('D1: the refused drop file removed a column');
-  const vig = DROP_TEXT.slice(DROP_TEXT.indexOf('-- ── §2 hr_vigour_of'), DROP_TEXT.indexOf('-- ── §3 THE DROPS'));
-  await db.query('begin');
-  try {
-    await db.exec(vig);
-    const after = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
-    if (after !== before || after !== 720) red.push(`D1: the restated grant is ${after}, today's is ${before}`);
+    if (!refused || !/still read by/.test(refused)) {
+      red.push(`D1: the drop file applied over a planted reader (${refused ? refused.slice(0, 120) : 'it applied'})`);
+    }
   } finally { await db.query('rollback'); }
   return red;
 }
@@ -485,7 +503,7 @@ if (!MUTATE) {
     console.log(`  ${mine.length ? 'caught ' : 'ESCAPED'} ${m.name}${mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!mine.length) escaped++;
   }
-  /* D1 bites: the drop file with its reader scan blinded applies (and drops). */
+  /* D1 bites: the drop file with its reader scan blinded applies over a planted reader. */
   {
     const anchor = "  if v_readers is not null then\n";
     if (DROP_TEXT.split(anchor).length !== 2) throw new Error('D1 mutant anchor moved');
@@ -495,6 +513,7 @@ if (!MUTATE) {
     if (!caught) escaped++;
   }
   await db.close?.();
+  chainArmed = false; // every TEXT mutant boots the chain up to C1's file only
   for (const m of TEXT_MUTANTS) {
     let raised = null; const armRed = [];
     try {

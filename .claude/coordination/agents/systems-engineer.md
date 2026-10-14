@@ -3978,3 +3978,26 @@ guard `tests/spine.mjs` (+`--selftest`).
 
 Server gap (lane C): nothing projects a dungeon clear (`hr_dungeon_settle` journals the ledger only).
 Step 17 reads `dungeon_clear:<id>` progress rows, shows the pending dash, and is forgiven once the Keep stands.
+
+## 2026-10-14 — W4.1 platform seam (`lane/w4-platform-seam`)
+
+Every web-storage touch in shipped src goes through `src/platform/storage.js` (device store +
+`.session` tab store + `createStore` for a shell adapter); `tests/platform-seam.mjs` (PS-1..5,
+18-case selftest) forbids the rest and EXECUTES the seam's contract in a vm.
+
+1. *A seam with a memory mirror is not "the same behaviour".* The old seam wrote every value to
+   an in-page mirror and answered from it whenever the backend said null, so a key another tab (or
+   a sign-out) removed kept reading back here. The stand-in now exists only for writes the backend
+   REFUSED, cleared by the next good write/remove. Routing 40 raw call sites through the old
+   mirror would have changed cross-tab semantics silently.
+2. *Durability is part of some callers' meaning.* A device id, the tab instance id, a park copy
+   and the core-retry mark are "landed or nothing": a refused id that reads back on the next call
+   flips 'd-ephemeral' to a random id mid-page (a tab id that changes evicts its own claim).
+   `set(k, v, {durable:true})` keeps nothing on refusal; `set` answers a boolean.
+3. *Inject the store, not the host.* core-ready's retry decision read `host.sessionStorage`; it now
+   takes a seam store, and the in-page test builds its refusing / blocked fakes with `createStore`,
+   so the real seam code runs under the fake backend.
+4. Not done, on purpose: `src/platform/env.js` (no caller needs detection yet and its contract
+   depends on the shell — W4.2); supabase-js's own auth persistence (vendor: pass `auth.storage`
+   from the seam once a non-localStorage backend exists); index.html's head kill-switch (runs
+   before any src script by design).

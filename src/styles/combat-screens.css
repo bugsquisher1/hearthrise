@@ -383,6 +383,9 @@
  * Vigour block with no priced meter) must take no room, header included. */
 #panel-combat .fsm-block[hidden] { display: none; }
 #panel-combat .fsm-block-grow { flex: 1 1 auto; min-height: 74px; }
+/* "Watch in World" heads the rail while a fight runs (src/world, lane W3). */
+#panel-combat .fsm-world { flex: 0 0 auto; width: 100%; min-height: 34px; font-weight: 700; }
+#panel-combat .fsm-world[hidden] { display: none; }
 #panel-combat .fsm-head {
   display: flex; align-items: baseline; gap: 6px;
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);

@@ -237,10 +237,10 @@ function check(M) {
       drawn = b.snapshot().last;
     } catch (e) { drawn = null; }
     ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'hero'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
-    const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'plates(list'];
+    const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'overlay(list'];
     const draw = M.canvasSrc.slice(M.canvasSrc.indexOf('function draw('));
     const pos = order.map((k) => draw.indexOf(k));
-    ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, plates in that order (' + pos.join(',') + ')');
+    ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, screen overlay in that order (' + pos.join(',') + ')');
   });
   return fails;
 }
@@ -277,7 +277,7 @@ const MUTANTS = [
   ['S1', 'the ellipse ignores its offset', 'src/world/core/shadows.js', [['cx: cx + spec.dx - 2', 'cx: cx']]],
   ['S2', 'a cast shadow that ignores height', 'src/world/core/shadows.js', [['return [px + SHEAR.x * hgt,', 'return [px + SHEAR.x * 10,']]],
   ['S3', 'a second shadow composite', 'src/world/render/canvas-backend.js', [['    g.drawImage(shade.c, 0, 0);\n', '    g.drawImage(shade.c, 0, 0);\n    g.drawImage(shade.c, 0, 0);\n']]],
-  ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["if (s.class === 'hanging') y -= s.hover || 0;", '']]],
+  ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
   ['C1', 'zoom with a floor of 1', 'src/world/core/camera.js', [['Math.max(2, Math.round(', 'Math.max(1, Math.round(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
@@ -287,7 +287,7 @@ const MUTANTS = [
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
-    ['    for (const d of list.sprites) blit(g, d, view);\n', ''],
+    ['    for (const d of list.sprites) { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
 ];
 

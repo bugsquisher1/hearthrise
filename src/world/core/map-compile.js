@@ -105,7 +105,7 @@ export function compileMap(row, tables) {
     id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h,
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
-    exits: row.exits || [], start: row.start,
+    exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null,
   };
 }
 

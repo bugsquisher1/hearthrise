@@ -15,7 +15,12 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=576';
 
-const WORLD_LAUNCHED = false;
+const WORLD_LAUNCHED = true;
+/* Town and Home (lane W4) are not open yet: their buttons read "Coming soon" and a
+   non-hunt scene shows a card pointing at the Mill Cellar. The harness opens them,
+   as it reveals every product. */
+const SCENES_LAUNCHED = false;
+const scenesReady = () => SCENES_LAUNCHED || !!window.__HR_TEST_HARNESS__;
 let pending = null;
 let runtime = null;
 
@@ -52,7 +57,7 @@ function loadWorld() {
   if (!pending) {
     ensureStyles();
     pending = import('../world/world-boot.js?v=576')
-      .then((m) => m.bootWorld(panel()))
+      .then((m) => m.bootWorld(panel(), { scenesReady }))
       .then((rt) => { runtime = rt; runtime.sync(); return runtime; })
       .catch((e) => {
         pending = null;
@@ -79,6 +84,7 @@ export function setupWorldPanel() {
 
 window.HearthriseWorld = Object.freeze({
   launched: () => WORLD_LAUNCHED,
+  scenesReady,
   load: loadWorld,
   runtime: () => runtime,
 });

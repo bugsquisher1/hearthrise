@@ -19,7 +19,7 @@
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
 import { T } from '../core/grid.js?v=576';
-import { zoomFor, frameView } from '../core/camera.js?v=576';
+import { zoomFor, frameView, fitZoom, frameCentre } from '../core/camera.js?v=576';
 import { composeFrame, groundTiles } from '../core/compose.js?v=576';
 import { paintStub } from '../stub-atlas.js?v=576';
 
@@ -161,27 +161,63 @@ export function createCanvasBackend(o) {
     }
   }
 
-  function plates(list, view, plan) {
-    if (!list.plates.length) return;
-    const px = Math.max(Math.round(5 * z), Math.round(12 * dpr));
-    ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+  /* Screen-resolution marks: the target square, HP bars, damage floats, then
+     nameplates on top. Sizes scale with the zoom so they track the art. */
+  function overlay(list, view, plan) {
+    const at = (x, y) => [Math.round((x - view.ox) * z + plan.dx), Math.round((y - view.oy) * z + plan.dy)];
+    const unitPx = Math.max(1, Math.round(z / 2));
+    if (list.target) {
+      const [x, y] = at(list.target.x, list.target.y);
+      ctx.strokeStyle = tone('target');
+      ctx.lineWidth = Math.max(2, unitPx);
+      ctx.strokeRect(x, y, list.target.w * z, list.target.h * z);
+    }
+    for (const b of list.bars || []) {
+      const [x, y] = at(b.x - b.w / 2, b.y);
+      const w = b.w * z, h = Math.max(3, Math.round(1.5 * z));
+      ctx.fillStyle = tone('bar-back');
+      ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+      ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : 'bar-foe');
+      ctx.fillRect(x, y, Math.round(w * b.pct), h);
+    }
+    const font = (k) => Math.max(Math.round(k * z), Math.round(12 * dpr));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2, Math.round(px / 6));
-    for (const p of list.plates) {
-      const sx = Math.round((p.x - view.ox) * z + plan.dx), sy = Math.round((p.y - 3 - view.oy) * z + plan.dy);
+    for (const f of list.floats || []) {
+      const px = Math.max(Math.round((f.kind === 'kill' ? 9 : 8) * z), Math.round((f.kind === 'kill' ? 20 : 16) * dpr));
+      ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+      ctx.lineWidth = Math.max(2, Math.round(px / 5));
+      ctx.globalAlpha = f.alpha;
+      const [x, y] = at(f.x, f.y);
       ctx.strokeStyle = tone('plate-line');
-      ctx.strokeText(p.text, sx, sy);
-      ctx.fillStyle = tone('plate-self');
-      ctx.fillText(p.text, sx, sy);
+      ctx.strokeText(f.text, x, y);
+      ctx.fillStyle = tone('float-' + f.kind);
+      ctx.fillText(f.text, x, y);
     }
+    ctx.globalAlpha = 1;
+    for (const p of list.plates) {
+      const px = font(p.kind === 'self' ? 5 : 4.5);
+      ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+      ctx.lineWidth = Math.max(2, Math.round(px / 6));
+      ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
+      const [x, y] = at(p.x, p.y - 3);
+      ctx.strokeStyle = tone('plate-line');
+      ctx.strokeText(p.text, x, y);
+      ctx.fillStyle = tone('plate-' + (p.kind || 'self'));
+      ctx.fillText(p.text, x, y);
+    }
+    ctx.globalAlpha = 1;
   }
 
   function draw(state) {
     const t0 = win.performance.now();
     if (dirty) measure();
-    const fv = frameView(state.hero, W / z, H / z, map, z, T);
+    /* A map with a `frame` (a hunt room) is shown whole at the largest whole zoom
+       that fits; otherwise, and on a phone, the camera follows the hero. */
+    const fit = fitZoom(map.frame, W, H, dpr, T);
+    z = fit || zoomFor(win.innerHeight, dpr);
+    const fv = frameView(fit ? frameCentre(map.frame) : state.hero, W / z, H / z, map, z, T);
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
     const list = composeFrame(map, book, state, view, tables, T);
@@ -200,14 +236,15 @@ export function createCanvasBackend(o) {
     }
     for (const d of list.decals) blit(g, d, view);
     shadows(g, list, view);
-    for (const d of list.sprites) blit(g, d, view);
+    for (const d of list.sprites) { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }
+    g.globalAlpha = 1;
     for (const d of list.raised) { g.globalAlpha = d.alpha; blit(g, d, view); }
     g.globalAlpha = 1;
     light(g, list, view, fv);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(comp.c, plan.dx, plan.dy, view.w * z, view.h * z);
-    plates(list, view, plan);
+    overlay(list, view, plan);
     msLast = win.performance.now() - t0;
     msAvg = frames ? msAvg * 0.9 + msLast * 0.1 : msLast;
     frames++;

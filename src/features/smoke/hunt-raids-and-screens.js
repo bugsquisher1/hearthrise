@@ -1563,6 +1563,94 @@ export default [
     }
   }),
 
+  // 2026-10-14, Tyler on live: "Under the counter keeps blanking in and out".
+  // A live frame repaints through refreshActivityBar() + refreshAll(); the shop
+  // rebuilt its whole counter on each one, wiping the four shop companions that
+  // a 1.5 s poller then re-appended under "Under the counter". Twenty frames
+  // over an unchanged shop must write nothing, and a balance change swaps a
+  // Buy button, never its row or the row's art.
+  () => tryRun('regression: the Local Shop holds still across 20 live frames (SHOP-FLICKER-1)', () => {
+    const panel = document.getElementById('shop-panel');
+    const snap = snapshotG();
+    const savedTab = window.shopTab;
+    const frame = () => { window.refreshActivityBar(); window.refreshAll(); };
+    const comps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || ''));
+    assert(comps.length === 4, 'fixture: expected the four shop companions, found ' + comps.length);
+    try {
+      window.showTab('shop');
+      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+        window.setShopTab(tab);
+        const counter = panel.querySelector('.sc-counter');
+        const kids = Array.from(counter.children);
+        const sep = kids.find((c) => c.textContent === 'Under the counter');
+        assert(sep, tab + ': no "Under the counter" separator');
+        const mo = new MutationObserver(() => {});
+        mo.observe(panel, { subtree: true, childList: true, attributes: true, characterData: true });
+        for (let i = 0; i < 20; i++) {
+          frame();
+          const shown = panel.querySelectorAll('.shop-row[data-companion]').length;
+          assert(shown === (tab === 'equip' ? 4 : 0), tab + ' frame ' + i + ': ' + shown + ' companion rows on the counter');
+        }
+        const recs = mo.takeRecords(); mo.disconnect();
+        assert(recs.length === 0, tab + ': 20 frames over an unchanged shop wrote ' + recs.length + ' DOM mutations (first on '
+          + (recs[0] && (recs[0].target.className || recs[0].target.nodeName)) + ')');
+        assert(kids.every((k) => k.parentNode === counter), tab + ': a counter row was replaced by an unchanged frame');
+        if (tab === 'equip') {
+          const order = Array.from(counter.children);
+          const lastComp = order.map((c) => c.hasAttribute('data-companion')).lastIndexOf(true);
+          assert(lastComp >= 0 && lastComp < order.indexOf(sep), 'equip: the companions must sit with the wares, above "Under the counter"');
+        }
+      });
+      const top = window.SEED_SHOP.reduce((a, r) => (r.cost > a.cost ? r : a), window.SEED_SHOP[0]);
+      const rowOf = () => Array.from(panel.querySelectorAll('.shop-row')).find((r) => {
+        const b = r.querySelector('button'); return b && (b.getAttribute('onclick') || '').indexOf("'" + top.id + "'") !== -1;
+      });
+      window.G.gold = top.cost - 1; stampBalanceLikeLoad(window.G);
+      window.setShopTab('seeds');
+      const row = rowOf(), art = row && row.querySelector('.si');
+      assert(row && row.querySelector('button').disabled, 'precondition: the ' + top.cost + 'g row is unaffordable at ' + (top.cost - 1));
+      window.G.gold = top.cost + 1; stampBalanceLikeLoad(window.G);
+      frame();
+      assert(rowOf() === row && row.querySelector('.si') === art, 'an affordability flip replaced the row or its art');
+      assert(!row.querySelector('button').disabled, 'the ' + top.cost + 'g Buy did not light at ' + (top.cost + 1) + ' gold');
+    } finally { window.shopTab = savedTab; restoreGAndRecord(snap); try { window.renderShop(); } catch (e) {} }
+  }),
+
+  // The class behind SHOP-FLICKER-1: no renderer a live frame reaches may write
+  // a host the same markup or text it already holds. Census of innerHTML and
+  // textContent writes, page-wide, over 20 frames on every screen refreshAll()
+  // repaints plus the timers that run between frames.
+  () => tryRunAsync('regression: a live frame rewrites nothing that did not change (PAINT-SWEEP-1)', async () => {
+    const ih = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    const tc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    const last = new WeakMap();
+    const hits = {};
+    let on = false;
+    const where = (el) => (el.id ? '#' + el.id : (el.parentElement && el.parentElement.id ? '#' + el.parentElement.id + '>' : '')
+      + ((el.classList && el.classList[0]) ? '.' + el.classList[0] : el.nodeName));
+    const note = (el, why) => { if (on && el.isConnected) hits[where(el) + ' (' + why + ')'] = (hits[where(el) + ' (' + why + ')'] || 0) + 1; };
+    Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, get() { return ih.get.call(this); },
+      set(v) { const s = String(v); if (last.get(this) === s) note(this, 'innerHTML'); last.set(this, s); ih.set.call(this, v); } });
+    Object.defineProperty(Node.prototype, 'textContent', { configurable: true, get() { return tc.get.call(this); },
+      set(v) { if (this.nodeType === 1 && tc.get.call(this) === String(v == null ? '' : v) && this.childNodes.length === 1) note(this, 'textContent'); tc.set.call(this, v); } });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    try {
+      for (const tab of ['profile', 'combat', 'skills', 'inventory', 'farming', 'shop', 'character']) {
+        window.showTab(tab);
+        window.refreshActivityBar(); window.refreshAll();
+        on = true;
+        for (let i = 0; i < 20; i++) { window.refreshActivityBar(); window.refreshAll(); }
+        await wait(tab === 'profile' ? 1700 : 250);
+        on = false;
+      }
+    } finally {
+      Object.defineProperty(Element.prototype, 'innerHTML', ih);
+      Object.defineProperty(Node.prototype, 'textContent', tc);
+    }
+    const list = Object.keys(hits).map((k) => k + ' x' + hits[k]);
+    assert(!list.length, list.length + ' host(s) rewritten with what they already held: ' + list.join(', '));
+  }),
+
   // 10th render-layer extraction: the vendor Buy Back modal moved out of
   // legacy.js to src/render/buyback.js. openBuyback + renderBuyback must stay on
   // window (repurchase() and repaintBalanceSurfaces() call renderBuyback bare).

@@ -4057,3 +4057,24 @@ settle, gold verbs and the gap heal restate all ten; frames ({state,skills,buffs
 5. *A filtered slice has its own pre-existing reds.* MOD-NAME-1, b221 Settings rename and B353-3b
    fail on main in a filtered order (they lean on ambient G from earlier tests); compare against a
    baseline slice before blaming the lane.
+
+## 2026-10-14 — lane A, shop flicker (`lane/a-shop-flicker`)
+
+Root cause: live frames run refreshAll() -> renderShop(), which rebuilt the whole counter and
+wiped the four shop companions a 1.5 s legacy poller re-appended BELOW "Under the counter".
+Companions now render inside renderShop (poller deleted); `src/render/paint.js`
+(HearthrisePaint.html/rows/text/mount) guards ~30 frame-path writers on 7 screens, the 10 Hz
+activity bar and the topbar.
+
+1. *Measure redundancy by census, not by reading.* An innerHTML/textContent setter override that
+   flags "same value to the same host" over 20 frames found 42 hosts; reading refreshAll's callees
+   would have found a third of them. It is now PAINT-SWEEP-1.
+2. *Ownership is "my nodes are still children", not "first/last child unchanged".* Decorators
+   PREPEND siblings (inventory mobile tabs, the combat doll); a first-child check rewrote every
+   frame and re-triggered the decorator. Tolerate foreign siblings; rewrite only when ours left.
+3. *A poller that re-adds what a renderer wipes IS the flicker, whatever its period.* Move the rows
+   into the renderer; the inventory mobile-tab strip (MutationObserver re-install) is the same shape.
+4. *Never `git checkout <ref> -- src/` for a proof over uncommitted edits.* The restore came from
+   the WIP commit and silently dropped an edit made after it. Commit, then prove.
+5. B353-3, B353-3b and the emoji-as-icon "home DIV" red reproduce ALONE in a scratch harness boot on
+   origin/main too: runner context (run-smoke's page setup), not lane regressions.

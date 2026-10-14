@@ -239,7 +239,7 @@ function itemArt(id, px){
 function setActivityIcon(el, glyphKey, color){
   if(!el) return;
   var g = (window.HR && window.HR.icon) ? window.HR.icon(glyphKey, 18, color || 'currentColor') : null;
-  el.innerHTML = g || '';
+  window.HearthrisePaint.html(el, g || '');   /* the bar repaints ten times a second */
 }
 
 /* ── ART FIT ───────────────────────────────────────────────────────────────

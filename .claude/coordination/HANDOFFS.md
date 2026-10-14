@@ -3218,3 +3218,11 @@ src/render/icons.js), so canvas margins no longer change apparent size. What CSS
 - `hearthfire/items/iron_bar.png`, `steel_bar.png`, `mithril_bar.png` carry a painter's mark in the bottom
   rows. The runtime crop drops it as debris on cards and in the Recipe Book, but any surface that draws the
   raw file (inventory, market) still shows it. Trim the files.
+
+## 2026-10-13 · art-director -> asset-director · Recraft wave-1 re-roll list (lane/b574-art-wave1)
+Wrong subject: mandrake (neither reads as a root), young grey wolf (both blue), dawn ingot (not violet-gold),
+bronze ingots with an embossed "B" (letters), tin ore (no item id uses it).
+Off-style (glossy/plastic, clashes with the hearthfire shelf): iron/steel/mithril/ember ingots, rune essence,
+potato, copper + iron ore (green rock with red veins, reads as neither).
+Usable but not wired (style clash with shipped hearthfire art; keep for a full re-do): remaining monsters, crops,
+dishes, coal, gold/mithril ore, log, planks, sprout, tilled/watered plots. Sheets: docs/art-experiments/.

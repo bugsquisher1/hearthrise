@@ -109,8 +109,12 @@ const ARMS = {
     const l = await call(db, 'hr_hunt_leave', [0, idem()]);
     if (!l || l.ok !== true) return red.push(`B1: leave answered ${JSON.stringify(l)}`);
     const drift = await q(db, `select x.session_id, x.item_id, x.j, coalesce(b.qty_left, 0) as left
-        from (select session_id, item_id, sum(qty) as j from public.player_ledger
-               where user_id = $1 and kind = 'hunt' and meta->>'side' = 'bag' group by 1, 2) x
+        from (select session_id, item_id, sum(q) as j from (
+                select session_id, item_id, qty as q from public.player_ledger
+                 where user_id = $1 and kind = 'hunt' and meta->>'side' = 'bag' and item_id is not null
+                union all
+                select l.session_id, i.key, -(i.value::bigint) from public.player_ledger l, jsonb_each_text(l.meta->'items') i
+                 where l.user_id = $1 and l.kind = 'hunt' and l.intent = 'hunt_consume') u group by 1, 2) x
         left join public.hunt_bag b on b.session_id = x.session_id and b.item_id = x.item_id
        where x.j <> coalesce(b.qty_left, 0)`, [UID]);
     if (drift.length) red.push(`B1: bag side of the journal <> the bag: ${JSON.stringify(drift)}`);
@@ -224,8 +228,10 @@ const ARMS = {
         jsonb_each_text(coalesce(l.meta->'delta'->'x', '{}')) x where l.session_id = $1 group by 1`, [sid])).map((r) => [r.key, r.v]));
     const loot = Object.fromEntries((await q(db, `select x.key, sum(x.value::numeric)::int as v from public.player_ledger l,
         jsonb_each_text(coalesce(l.meta->'delta'->'i', '{}')) x where l.session_id = $1 group by 1`, [sid])).map((r) => [r.key, r.v]));
-    const sup = Object.fromEntries((await q(db, `select item_id as key, (-sum(qty))::int as v from public.player_ledger
-        where session_id = $1 and intent = 'hunt_consume' group by 1`, [sid])).map((r) => [r.key, r.v]));
+    const sup = Object.fromEntries((await q(db, `select i.key, sum(i.value::numeric)::int as v from public.player_ledger l,
+        jsonb_each_text(l.meta->'items') i where l.session_id = $1 and l.intent = 'hunt_consume' group by 1`, [sid])).map((r) => [r.key, r.v]));
+    const rows = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'hunt_consume'`, [sid]);
+    if (rows !== 2) red.push(`T1: ${rows} consumption rows for two settles (want one per settle)`);
     const num = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Number(v)]).sort());
     const eq = (a, b) => JSON.stringify(num(a)) === JSON.stringify(num(b));
     if (Number(t.coins) !== L.coins || Number(t.kills) !== L.kills || Number(t.deaths) !== L.deaths) {
@@ -350,8 +356,8 @@ const BODY_MUTANTS = [
     from: '  update public.hunt_sessions\n     set presses = presses ||',
     to: "  update public.hunt_bag set qty_left = qty_left - 1 where session_id = v_s.id and qty_left > 0 and item_id = (select item_id from public.hunt_bag where session_id = v_s.id and qty_left > 0 order by item_id limit 1);\n  update public.hunt_sessions\n     set presses = presses ||" },
   { name: 'the fold reads past the high-water mark (double count)', arm: 'T1', fn: 'hr_hunt_settle_session',
-    from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm;",
-    to: "    from public.player_ledger l where l.session_id = p_session and l.id > 0;" },
+    from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;",
+    to: "    from public.player_ledger l where l.session_id = p_session and l.id > 0 and l.at >= v_fold_from;" },
   { name: 'the fold drops xp', arm: 'T1', fn: 'hr_hunt_settle_session',
     from: 'xp = public.hr_jsonb_add(t.xp, v_xp)', to: 'xp = t.xp' },
 ];

@@ -2,6 +2,16 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-14 · BACKEND (lane: `lane/c1-hunt-sessions-db`) → SECURITY + C2 + B1/R1 + GAME DESIGNER · **HUNT SESSIONS DB: the seed choice, and what C2 must do**
+
+**Seed (for Security).** The ruling's §4 text says `hr_seed(user, slot, 'hunt:'||session_id||':'||swing_index)` per swing. The engine lane chose, and C1 keeps: ONE secret seed per session, `hr_seed(user, slot, 'hunt:' || session_id)`, fetched once per settle by the settler, mixed per swing in `src/core/action-rules.js huntSwingSeed` with the label `'hunt:<session>:<swing_index>'`. Same unpredictability (the secret is in the session seed; the client never sees it and cannot call `hr_seed`), same split-independence (the swing index is mixed in, never the window), ~1,500 fewer round trips per character-hour. No column stores the seed. Security to confirm.
+
+**C2 must:** (1) set `hr.hunt_session` to the session id before `hr_apply` so its ledger rows are stamped (the trigger stamps only the row's own character), then call `hr_hunt_settle_session(user, slot, session, delta)` in the SAME transaction, and grant it to `hr_engine` (an `hr_assert_grant_hygiene` engine-allowlist edit); (2) stop the old accrue / tick combat path from paying a character with an open session (C1 points `player_state` at `combat:<hunt>` and a guard trigger refuses any other pointer move while it is open — `hr_reject('hunt_open')`); (3) settle on `hr_hunt_leave` / `hr_hunt_change` / `hr_hunt_use` when they answer `pending` / `settle_first` (mid-hunt verbs need the settle within 20 s; leave/change close at once past 15 min of stall, forfeiting the unsettled window); (4) presses are stored as `{slot, at}` — the engine must not fire one before its `at`; (5) then place `2026-10-22-hunt-sessions-drop-away.sql` in `order` after its own files: it refuses while any body still reads the away objects.
+
+**B1/R1.** The drop file's `hr_vigour_of` no longer returns `dry_mult` (no Vigour tail). Action-bar values out of range are REFUSED (`bad_slots` + `why`), never clamped, as `src/data/rule-subjects.js` says (the lane brief said "clamped"). Bag lines' `essential` is set at pack/restock only; there is no mid-hunt toggle in v1.
+
+**Game Designer.** `VIGOUR_LOW_MIN = 144` in `src/data/hunt-sessions.js` is a TBD-designer placeholder (20% of the 720-min grant). `SESSIONS_KEPT = 20` restates the ruling's "last 20 sessions" as a data row.
+
 ## 2026-10-11 · BACKEND (lane: `lane/c-account-wallet`) → COORDINATOR + b567 discord-join + w0c login + SECURITY · **INTEGRATION: two staged gem grants write a column the wallet drops**
 
 **The change.** `supabase/migrations/2026-10-19-account-wallet.sql` (staged) moves gems + Hearth Tokens to `public.account_wallet` (one per account; Game Designer ruling 2026-10-11) and DROPS `player_state.gems` / `hearth_tokens`. Every gem credit goes through `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` — once per account per key, account-wide day cap, one `kind='wallet'` ledger row.

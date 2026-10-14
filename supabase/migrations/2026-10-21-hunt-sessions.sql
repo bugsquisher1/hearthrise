@@ -63,8 +63,16 @@
 --   use caps from the cooldown catalogue (a manual press can re-order uses but
 --   never add one), bag sufficiency, presses only shrink, falls equal the death
 --   rows stamped in this transaction, every end reason re-proved from server
---   state, and an end the engine owed but did not report is refused. Writes one
---   consumption row per item per settle (journal aggregates, never per tick).
+--   state, and an end the engine owed but did not report is refused. Writes ONE
+--   consumption row per settle (items in meta.items): the accrue row's own rate
+--   under the world tick's flush/fold, never per swing (journal aggregates).
+--
+-- ── SCALE (100x: ~600 hunters) ──────────────────────────────────────────────
+--   ledger   +1 consumption row per settle that used anything (<= the accrue
+--            rows the same settle writes: 120-960 per hunting character-day)
+--            plus 2 rows per pack / restock / return line (a handful a hunt).
+--   sessions a few per character-day; the last 20 kept (older pruned at enter).
+--   events   ~5-30 per session, <= 512 B each; tally 1 row per session.
 --
 -- ── SEED (ruling §4, engine lane E) ─────────────────────────────────────────
 --   ONE secret seed per session: hr_seed(user, slot, 'hunt:' || session_id),
@@ -1123,6 +1131,13 @@ declare
   v_vig int; v_next_id uuid;
   v_cool jsonb;
   v_raw jsonb;
+  v_used   jsonb := '{}'::jsonb;
+  v_used_n bigint := 0;
+  -- THE FOLD'S TIME BOUND. Every row this folds was stamped in the transaction
+  -- of a settle (C2 sets hr.hunt_session immediately before hr_apply), and a
+  -- window is at most c_max_window, so nothing it must read is older than 25 h;
+  -- the bound keeps every read far inside the ledger's retention (ledger-rollup).
+  v_fold_from timestamptz := now() - interval '25 hours';
 begin
   -- ── VALIDATE (no writes) ───────────────────────────────────────────────
   if p_user is null or p_slot is null or p_session is null or p_delta is null or jsonb_typeof(p_delta) <> 'object' then
@@ -1207,7 +1222,7 @@ begin
   select t.ledger_hwm into v_hwm from public.hunt_session_tally t where t.session_id = p_session;
   v_hwm := coalesce(v_hwm, 0);
   select count(*) into v_deaths from public.player_ledger l
-   where l.session_id = p_session and l.id > v_hwm and l.kind = 'combat' and l.intent = 'death';
+   where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'combat' and l.intent = 'death';
   v_falls := v_s.falls + v_deaths;
   if (p_delta ? 'falls') and (jsonb_typeof(p_delta->'falls') <> 'number' or (p_delta->>'falls')::numeric <> v_falls) then
     return jsonb_build_object('ok', false, 'error', 'falls_mismatch', 'journalled', v_falls); end if;
@@ -1268,15 +1283,18 @@ begin
   if jsonb_typeof(v_hint) <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_hints'); end if;
 
   -- ── APPLY ──────────────────────────────────────────────────────────────
-  -- (1) Consumption: the bag, and ONE journal row per item per settle.
+  -- (1) Consumption: the bag, and ONE journal row per settle carrying every
+  --     item used in meta.items (qty = the units destroyed, negative). One
+  --     row per settle is the accrue row's own rate (world-tick flush/fold),
+  --     never per swing (CLAUDE.md rule 6).
   if p_delta ? 'uses' then
     for v_k, v_v in select key, value from jsonb_each(p_delta->'uses') order by key loop
       v_n := (v_v #>> '{}')::bigint;
       continue when v_n = 0;
       update public.hunt_bag set qty_left = qty_left - v_n where session_id = p_session and item_id = v_k
         returning qty_left into v_left;
-      insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, meta, session_id)
-        values (p_user, p_slot, 'hunt', 'hunt_consume', v_k, -v_n, jsonb_build_object('side', 'bag'), p_session);
+      v_used := v_used || jsonb_build_object(v_k, v_n);
+      v_used_n := v_used_n + v_n;
       if v_left = 0 then
         v_at := least(greatest(coalesce(public.hr_hunt_hint_at(v_hint->'slot_dry'->v_k), v_to), v_s.settled_to), v_to);
         insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
@@ -1284,6 +1302,11 @@ begin
         v_ev := v_ev + 1;
       end if;
     end loop;
+    if v_used_n > 0 then
+      insert into public.player_ledger (user_id, slot, kind, intent, qty, meta, session_id)
+        values (p_user, p_slot, 'hunt', 'hunt_consume', -v_used_n,
+                jsonb_build_object('side', 'bag', 'items', v_used), p_session);
+    end if;
   end if;
 
   -- (2) THE FOLD: every row stamped with this session since the high-water mark.
@@ -1291,29 +1314,31 @@ begin
          coalesce(sum(case when jsonb_typeof(l.meta->'kills') = 'number' then greatest(0, (l.meta->>'kills')::numeric) else 0 end), 0)::bigint,
          max(l.id)
     into v_coins, v_kills, v_new_hwm
-    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm;
+    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;
   select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into v_xp from (
     select x.key as k, sum(x.value::numeric) as v
       from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'delta'->'x') = 'object'
                                                          then l.meta->'delta'->'x' else '{}'::jsonb end) x
-     where l.session_id = p_session and l.id > v_hwm and l.kind <> 'hunt'
+     where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
      group by x.key) a;
   select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into v_loot from (
     select k, sum(v) as v from (
       select i.key as k, i.value::numeric as v
         from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'delta'->'i') = 'object'
                                                            then l.meta->'delta'->'i' else '{}'::jsonb end) i
-       where l.session_id = p_session and l.id > v_hwm and l.kind <> 'hunt'
+       where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
       union all
       select '*', (l.meta->'delta'->>'i_sum')::numeric
         from public.player_ledger l
-       where l.session_id = p_session and l.id > v_hwm and l.kind <> 'hunt'
+       where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
          and jsonb_typeof(l.meta->'delta'->'i_sum') = 'number') u
     group by k) a;
-  select coalesce(jsonb_object_agg(item_id, n), '{}'::jsonb) into v_sup from (
-    select l.item_id, sum(-l.qty) as n from public.player_ledger l
-     where l.session_id = p_session and l.id > v_hwm and l.kind = 'hunt' and l.intent = 'hunt_consume'
-     group by l.item_id) a;
+  select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) into v_sup from (
+    select i.key as k, sum(i.value::numeric) as n
+      from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'items') = 'object'
+                                                         then l.meta->'items' else '{}'::jsonb end) i
+     where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'hunt' and l.intent = 'hunt_consume'
+     group by i.key) a;
   update public.hunt_session_tally t
      set coins = t.coins + v_coins, kills = t.kills + v_kills, deaths = t.deaths + v_deaths,
          xp = public.hr_jsonb_add(t.xp, v_xp), loot = public.hr_jsonb_add(t.loot, v_loot),
@@ -1327,7 +1352,7 @@ begin
   --     fold credited; rare drops only for items this fold looted.
   v_i := 0;
   for v_r in select l.at, l.meta->>'monster' as monster from public.player_ledger l
-              where l.session_id = p_session and l.id > v_hwm and l.kind = 'combat' and l.intent = 'death' order by l.id loop
+              where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'combat' and l.intent = 'death' order by l.id loop
     v_at := least(greatest(coalesce(public.hr_hunt_hint_at(v_hint->'fall'->v_i), v_r.at), v_s.settled_to), v_to);
     insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
       values (p_session, p_user, p_slot, 'fall', v_at, jsonb_build_object('monster', left(coalesce(v_r.monster, ''), 64)));
@@ -1592,9 +1617,8 @@ begin
   foreach v_f in array c_fns loop
     if not has_function_privilege('authenticated', v_f, 'execute') then raise exception 'GATE(a): authenticated cannot execute %', v_f; end if;
     if has_function_privilege('anon', v_f, 'execute') then raise exception 'GATE(a): anon can execute %', v_f; end if;
-    if strpos((select prosrc from pg_proc where oid = v_f::regprocedure), 'hr_rpc_gate(') = 0 then
-      raise exception 'GATE(a): % is not rate-gated', v_f; end if;
   end loop;
+  -- (every one is rate-gated: hr_assert_grant_hygiene's ungated_client_rpcs, at (y))
   foreach v_f in array c_internal loop
     foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
       if has_function_privilege(v_role, v_f, 'execute') then raise exception 'GATE(a): % can execute %', v_role, v_f; end if;
@@ -1749,8 +1773,9 @@ begin
        or (select falls from public.hunt_sessions where id = v_sid) <> 1 then
       raise exception 'GATE(e): the tally / bag / falls after the settle are wrong: %',
         (select row_to_json(t) from public.hunt_session_tally t where session_id = v_sid); end if;
-    if (select count(*) from public.player_ledger where session_id = v_sid and intent = 'hunt_consume') <> 2 then
-      raise exception 'GATE(e): consumption was not one row per item'; end if;
+    if (select count(*) from public.player_ledger where session_id = v_sid and intent = 'hunt_consume') <> 1
+       or (select qty from public.player_ledger where session_id = v_sid and intent = 'hunt_consume') <> -29 then
+      raise exception 'GATE(e): consumption was not ONE row of -29 for the settle'; end if;
     if (select count(*) from public.hunt_session_events where session_id = v_sid and type = 'fall') <> 1
        or (select count(*) from public.hunt_session_events where session_id = v_sid and type = 'rare_drop') <> 1 then
       raise exception 'GATE(e): the derived events are wrong (a fall, and only the looted rare drop)'; end if;
@@ -1758,7 +1783,7 @@ begin
     if (select coins from public.hunt_session_tally where session_id = v_sid)
        <> (select coalesce(sum(gold), 0) from public.player_ledger where session_id = v_sid and kind <> 'hunt')
        or (select (supplies->>'bronze_arrows')::numeric from public.hunt_session_tally where session_id = v_sid)
-       <> (select -sum(qty) from public.player_ledger where session_id = v_sid and intent = 'hunt_consume' and item_id = 'bronze_arrows') then
+       <> (select sum((meta->'items'->>'bronze_arrows')::numeric) from public.player_ledger where session_id = v_sid and intent = 'hunt_consume') then
       raise exception 'GATE(e): tally <> Σ ledger'; end if;
     -- an owed end: the falls limit reached without an end is refused
     update public.hunt_sessions set falls_limit = 1 where id = v_sid;
@@ -1814,8 +1839,13 @@ begin
        or exists (select 1 from public.hunt_sessions where user_id = v_uid and ended_at is null) then
       raise exception 'GATE(i): leave did not return the bag (shrimp 16, arrows 25) or free the pointer'; end if;
     -- BAG CONSERVATION: per session, the bag side of the journal equals the bag.
-    if exists (select 1 from (select l.session_id, l.item_id, sum(l.qty) as j from public.player_ledger l
-                               where l.user_id = v_uid and l.kind = 'hunt' and l.meta->>'side' = 'bag'
+    --     (pairs carry item_id; the per-settle consumption row carries meta.items)
+    if exists (select 1 from (select session_id, item_id, sum(q) as j from (
+                                 select l.session_id, l.item_id, l.qty as q from public.player_ledger l
+                                  where l.user_id = v_uid and l.kind = 'hunt' and l.meta->>'side' = 'bag' and l.item_id is not null
+                                 union all
+                                 select l.session_id, i.key, -(i.value::bigint) from public.player_ledger l, jsonb_each_text(l.meta->'items') i
+                                  where l.user_id = v_uid and l.kind = 'hunt' and l.intent = 'hunt_consume') u
                                group by 1, 2) x
                 where x.j <> coalesce((select b.qty_left from public.hunt_bag b where b.session_id = x.session_id and b.item_id = x.item_id), 0)) then
       raise exception 'GATE(i): the bag side of the journal does not equal the bag'; end if;

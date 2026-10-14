@@ -7622,10 +7622,7 @@ export default [
 
     const ITEMS = window.ITEMS || {};
     const path = window._itemPath || {};
-    /* The pixel item set (ITEM_ART_SET) maps EVERY item by construction (tests/pixel-icons.mjs), so
-       nothing is unmapped; the fallback still draws any icon that fails to load, so it is measured
-       over the whole catalogue then. With the painted set it is the unmapped ids, as before. */
-    const pixelSet = !!(window.HearthriseItemArt && window.HearthriseItemArt.ITEM_ART_SET === 'pixel');
+    const pixelSet = !!(window.HearthriseItemArt && window.HearthriseItemArt.ITEM_ART_SET === 'pixel');   // maps EVERY item, so the fallback (a failed load) is measured over all
     const unmapped = pixelSet ? Object.keys(ITEMS) : Object.keys(ITEMS).filter((id) => !path[id]);
     assert(unmapped.length > 0, 'no unmapped items at all — this guard has nothing to measure (suspicious)');
 

@@ -872,6 +872,16 @@
    "replay": 5,
    "note": "Hand-seeded by 2026-08-08-hunt.sql: the hunt tier thresholds. Rebuilt from repo, never restored."
   },
+  "hr_hunt_spawns": {
+   "class": "seeded",
+   "replay": 11,
+   "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): which monsters each named hunt spawns and their weights. Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunts": {
+   "class": "seeded",
+   "replay": 4,
+   "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): the named hunts and their level bands, read by hr_hunt_gate. Rebuilt from repo, never restored; nothing player-owned."
+  },
   "hr_import_marker": {
    "class": "restore_only",
    "wiped_at_cutover": false,

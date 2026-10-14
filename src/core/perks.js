@@ -35,9 +35,8 @@
 // state read out of the database. Neither side has its own copy of the
 // arithmetic.
 //
-// The six wrapper layers ABOVE layer 0 are untouched and are not this file's
-// business: companions, food buffs, clan level perks, the castle, the muster
-// aura and blessings each still add through their own owner. Which of them
+// The wrapper layers ABOVE layer 0 (food buffs) are not this file's
+// business: they add through their own owner. Which of them
 // pay while away is `src/core/away.js AWAY_SCOPE`'s ruling, not this file's.
 // This file is the `permanent` channel, and `AWAY_SCOPE.permanent` is true.
 //
@@ -124,7 +123,6 @@ export const TOTAL_CAP = 0.30;
 export const GOVERNED = Object.freeze({
   allXP: 1, combatXP: 1, goldFind: 1,
   gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1,
-  raidPower: 1,
 });
 
 export function governed(key) { return own(GOVERNED, key) && GOVERNED[key] === 1; }
@@ -185,9 +183,6 @@ export const EMPTY_PERKS = Object.freeze({
   rooms: Object.freeze({}),
   plots: Object.freeze({}),
   propertyTier: 0,
-  renownAllXp: 0,
-  clanPerks: Object.freeze({}),
-  castle: null,
 });
 
 const nonNegInt = (v) => {
@@ -230,29 +225,10 @@ export function normalisePerkState(raw) {
     if (n > 0) plots[id] = n;
   }
 
-  const clanPerks = Object.create(null);
-  const rawClan = (r.clanPerks && typeof r.clanPerks === 'object') ? r.clanPerks : {};
-  for (const k of Object.keys(rawClan)) {
-    const v = Number(rawClan[k]);
-    /* A clan perk IS a magnitude off the wire, unlike a room level — so it is
-       range-checked against the same fuse rather than accepted. Today every
-       clan-level perk is `offlineHours`, which is not a getBonus key at all,
-       so this branch is inert; it is written now so that wiring the ladder
-       later cannot arrive without a bound. */
-    if (Number.isFinite(v) && v > 0) clanPerks[k] = Math.min(v, PERMANENT_CAP);
-  }
-
-  const renown = Number(r.renownAllXp);
-
   return {
     rooms,
     plots,
     propertyTier: nonNegInt(r.propertyTier),
-    renownAllXp: Number.isFinite(renown) && renown > 0 ? Math.min(renown, PERMANENT_CAP) : 0,
-    clanPerks,
-    /* NOT WIRED. See §5. Carried so the shape is settled and a later wiring
-       is a body change rather than a contract change. */
-    castle: null,
   };
 }
 
@@ -300,17 +276,6 @@ export function permanentBonus(key, state) {
   if ((s.propertyTier | 0) >= CASTLE_TIER && own(CAPSTONE_PERKS, key)) {
     t += Number(CAPSTONE_PERKS[key]) || 0;
   }
-
-  /* Renown. One key today (`allXP`); the ladder's other four perks are
-     offline hours, a market slot and a daily-task slot — capacity and access,
-     none of them a getBonus key. */
-  if (key === 'allXP') t += Number(s.renownAllXp) || 0;
-
-  /* Clan level perks. Every rung is `offlineHours` or a cosmetic today, so
-     this contributes 0 — wired anyway so the ladder gaining a real key is a
-     data change and not a code change. */
-  const clan = s.clanPerks || {};
-  if (own(clan, key)) t += Number(clan[key]) || 0;
 
   return t;
 }
@@ -392,56 +357,11 @@ export function restedPayload(state) {
        Until an unlock is actually WRITTEN, the seam returns no rows, this
        channel returns 0, and the engine behaves exactly as it does today.
 
-   ── DERIVABLE NOW, and contributes nothing ──────────────────────────────
-   clanPerks
-       Clan membership and `clans.level` are server-owned and have been since
-       the clan-seat migration. But `src/features/clans.js PERKS` grants
-       `offlineHours` at Lv4/Lv7 and a cosmetic banner at Lv10 — no getBonus
-       key at any rung (clan-overhaul.md §8.3 re-scoped them away). Offline
-       hours are already server-side in `hr_offline_cap_ms`, which is a
-       different channel. So wiring the read would be decoration: it is
-       carried in the contract and left unread, and this note is what stops
-       the next reader concluding it was forgotten.
-
-   ── DERIVED NOW, and wired (live-progress Slice 4, 2026-08-20) ───────────
-   renownAllXp   SERVER-DERIVED via `public.hr_renown_of` (see
-       supabase/migrations/2026-08-20-renown.sql). `hr_perks_of` computes the
-       renown SCORE from server rows only — totalLevel/combatLevel/skill99
-       (player_skills), the lifetime kill aggregate and per-boss kills
-       (player_progress ev:kill_any / ev:kill_monster:<id> ∩ hr_activities
-       is_boss), collection (Slice 2 ev:loot:%), streak (Slice 3
-       player_state.streak_days) and goldLog (player_state.gold) — and maps it
-       through the RANKS allXP thresholds to fill this channel. Worth up to +4%
-       allXP at High King, capped at PERMANENT_CAP.
-       ⚠ TWO terms — `questDone` and `bountyDone` — have NO server progress
-       model in any merged slice and are DEGRADED TO 0 server-side rather than
-       trusted from the client (renown is a rankable surface; a forged input is
-       a NO-GO). So the server renown UNDER-pays a player with quests/bounties,
-       which is the safe direction for a perk. The visible rank/title stays the
-       client's ratcheted score until the claim RPC makes rank server-owned.
-       Fully closes with the quest/daily/bounty progress models.
-
-   castle        BLOCKED ON: nothing structural — it is scope, and it crosses
-       an ownership boundary. Castle building levels and the castle tier are
-       server-owned (`hr_castle_buildings` + the clan seat tables), the perk
-       ladder is +1% at building level 4/7/10 for five buildings, and Tyler's
-       2026-08-15 ruling says clan buffs DO pay while away. What it needs that
-       this change does not have: the perk table lives in
-       `src/features/clan-seat-ui.js` (another classic script → a second
-       generator), `perkScale()` folds the clan's UPKEEP STATE (strained x0.6,
-       dormant x0) into every magnitude, and both are surfaces another agent
-       holds. `state.castle` is `null` and the contract is settled, so wiring
-       it is a body change here plus a read in `hr_perks_of`.
-       Worth up to +3% on goldFind / craftSmith / smithSpeed / raidPower and
-       +4% allXP, to clan members only.
-
-   companions    BLOCKED ON: no server model for the equipped pet at all.
-       Worth ~+2.45% on one narrow key at pet level 30. Not in this contract:
-       it is a wrapper layer (layer 1), not part of layer 0, and adding it
-       here would mean this file owned a source the client adds elsewhere.
-
-   ── OUT OF SCOPE BY RULING, not by omission ─────────────────────────────
-   blessings (AWAY_SCOPE.blessing = false — server-wide events do not pay
-   while away, Tyler 2026-08-15), the feast, the muster aura, and consumable
-   buffs (their own away branch; `AWAY_SCOPE.buff`).
+   ── REMOVED (clean-slate demolition, 2026-10-14) ────────────────────────
+   renownAllXp, clanPerks and castle were the renown, clan-level and clan
+   castle sources; companions, blessings, the feast and the muster aura were
+   wrapper layers. Those systems are deleted. normalisePerkState no longer
+   reads the three fields, so an hr_perks_of that still returns them pays
+   nothing for them. Output for every room/plot/property input is unchanged
+   (tests/perk-channel.mjs P10 pins it by hash).
    ══════════════════════════════════════════════════════════════════════════ */

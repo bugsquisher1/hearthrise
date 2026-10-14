@@ -43,6 +43,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -328,8 +329,8 @@ async function run(patch) {
       'P5: an unknown id survived normalisation');
     ok(!('constructor' in hostile.rooms),
       'P5: `constructor` survived — ROOM_PERKS[id] truthiness would have accepted it');
-    ok(hostile.renownAllXp <= PERMANENT_CAP,
-      `P5: renownAllXp ${hostile.renownAllXp} exceeds the permanent fuse`);
+    ok(!('renownAllXp' in hostile) && !('clanPerks' in hostile) && !('castle' in hostile),
+      'P5: a deleted perk source (renown/clan/castle) survived normalisation');
     for (const k of ALL_KEYS) {
       if (!GOVERNED[k]) continue;
       ok(makeBonus(hostile)(k) <= PERMANENT_CAP + 1e-9,
@@ -542,6 +543,43 @@ async function run(patch) {
       'P9 CONTROL: an empty perk envelope paid differently from no envelope at all — the degrade '
       + 'path is not inert, so applying the migration would change every night before a single '
       + 'unlock exists');
+  }
+
+  // ── P10 · THE DEMOLITION MOVED NO KEPT NUMBER (2026-10-14) ────────────
+  // renownAllXp / clanPerks / castle left the channel with their systems.
+  // Every room, plot and property input must price byte-for-byte as it did
+  // before: the hash below was computed from origin/main 6ee379c8 perks.js
+  // over this exact grid. A deleted source smuggled back in (CONTROL) must
+  // move nothing either.
+  {
+    const KEYS = [...new Set([...ALL_KEYS.filter((k) => k !== 'raidPower'),
+      'allXP', 'combatXP', 'goldFind', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
+      'craftSpeed', 'prayerSpeed', 'noBurn', 'notAKey', 'constructor'])].sort();
+    const states = [{}];
+    for (const id of Object.keys(ROOM_PERKS).sort()) {
+      for (let lv = 0; lv <= ROOM_PERKS[id].length + 1; lv++) states.push({ rooms: { [id]: lv } });
+    }
+    for (const id of Object.keys(PLOT_PERKS).sort()) {
+      for (let n = 0; n <= 3; n++) states.push({ plots: { [id]: n } });
+    }
+    for (let t = 0; t <= 6; t++) states.push({ propertyTier: t });
+    const maxRooms = Object.fromEntries(Object.keys(ROOM_PERKS).map((id) => [id, ROOM_PERKS[id].length]));
+    states.push({ rooms: maxRooms, plots: { toolshed: 2, scarecrow: 2, watchtower: 1, farm_plot: 3 }, propertyTier: 5 });
+    const rows = states.map((st) => {
+      const b = makeBonus(st);
+      const n = normalisePerkState(st);
+      return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.plots, n.propertyTier];
+    });
+    const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+    ok(hash === '936651e0905070d031453ee2d1c30520da311d2c7d31405bf39b1d2fbc548b1b',
+      `P10: makeBonus over ${states.length} kept inputs x ${KEYS.length} keys hashed ${hash} — `
+      + 'a kept perk number moved');
+    const base = { rooms: maxRooms, propertyTier: 5 };
+    const withDead = { ...base, renownAllXp: 0.04, clanPerks: { allXP: 0.05 }, castle: { allXP: 1 } };
+    for (const k of KEYS) {
+      ok(makeBonus(withDead)(k) === makeBonus(base)(k),
+        `P10 CONTROL: a deleted source still pays ${k} (${makeBonus(withDead)(k)} vs ${makeBonus(base)(k)})`);
+    }
   }
 
   await db.close?.();

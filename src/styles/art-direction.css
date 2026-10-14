@@ -1939,7 +1939,7 @@ body[data-theme] .activity-bar.v2 .ab-stop {
 body[data-theme="hearthlight"] .panel.active {
   background:
     radial-gradient(140% 50% at 50% -14%, rgba(201, 162, 74, .07), transparent 55%),
-    linear-gradient(180deg, #241d16 0%, #201a13 100%);
+    linear-gradient(180deg, var(--panel-floor-0) 0%, var(--panel-floor-1) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 240, 205, .10),
     0 12px 40px -20px rgba(0, 0, 0, .9);

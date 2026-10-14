@@ -367,8 +367,8 @@
       // Hearthlight = glass panels over the scene. Cozy Day untouched.
       'body[data-theme="hearthlight"] .app{background:transparent !important}',
       'body[data-theme="hearthlight"] .main{background:transparent !important}',
-      'body[data-theme="hearthlight"] .sidebar{background:linear-gradient(180deg,rgba(26,19,12,.82),rgba(18,13,8,.86)) !important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}',
-      'body[data-theme="hearthlight"] .topbar{background:rgba(28,22,16,.62) !important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}',
+      'body[data-theme="hearthlight"] .sidebar{background:var(--sidebar-glass) !important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}',
+      'body[data-theme="hearthlight"] .topbar{background:var(--topbar-glass) !important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}',
       /* b219: the b216 Home overrides that used to live here are gone. They
          were written when Home floated transparent cards straight over the
          global backdrop; b217 rebuilt Home as hairline-separated rows on the

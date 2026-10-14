@@ -61,6 +61,11 @@ begin
     raise exception 'hr_hunt_spawns names a monster that is not in hr_activities'; end if;
   if exists (select 1 from public.hr_hunts h join public.hr_activities a on a.activity_id = h.hunt_id) then
     raise exception 'a hunt id collides with an hr_activities id'; end if;
+  -- Security C2: no spawn carries its own gate (a skill requirement or a boss flag).
+  if exists (select 1 from public.hr_hunt_spawns s join public.hr_activities a
+               on a.kind = 'combat' and a.activity_id = s.monster_id
+              where a.req_skill is not null or a.req_lv is not null or a.is_boss) then
+    raise exception 'a hunt spawn carries its own gate (req_skill / req_lv / is_boss)'; end if;
   -- No client role reads or writes either table; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_hunts', 'select,insert,update,delete,truncate')

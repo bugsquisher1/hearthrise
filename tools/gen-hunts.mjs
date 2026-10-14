@@ -15,7 +15,10 @@
 //
 // REFUSES (throws, nothing written): an unknown monster id, a hunt id that is
 // also a monster id (the pointer would be ambiguous), a bad id shape, duplicate
-// hunt or spawn ids, a non-positive/non-integer weight, an invalid band.
+// hunt or spawn ids, a non-positive/non-integer weight, an invalid band, and
+// (Security C2) a spawn that carries its OWN gate — a skill requirement, or a
+// boss/champion flag — because a hunt's only gate is band[0] and a gated
+// monster inside a hunt would be fought without its own gate ever being asked.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -28,6 +31,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-catalogue.generated.sql');
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+/* A monster field that gates fighting it. Any of these on a spawn is refused. */
+const GATE_KEYS = ['reqSkill', 'reqLv', 'req', 'req_skill', 'req_lv', 'boss', 'champion'];
 
 /** Validate `hunts` against `monsters`; returns normalised rows or throws. */
 export function huntRows(hunts, monsters) {
@@ -49,6 +54,12 @@ export function huntRows(hunts, monsters) {
     const spawns = h.spawns.map((s) => {
       if (!s || !own(monsters, s.monster)) throw new Error(`hunt ${h.id} names unknown monster ${s && s.monster}`);
       if (mons.has(s.monster)) throw new Error(`hunt ${h.id} lists ${s.monster} twice`);
+      const m = monsters[s.monster];
+      for (const g of GATE_KEYS) {
+        if (m[g] !== undefined && m[g] !== null && m[g] !== false) {
+          throw new Error(`hunt ${h.id} spawn ${s.monster} carries its own gate (${g}); gated monsters are fought by declaration only`);
+        }
+      }
       mons.add(s.monster);
       if (!(Number.isInteger(s.w) && s.w >= 1 && s.w <= 1000)) {
         throw new Error(`hunt ${h.id} spawn ${s.monster} has invalid weight ${s.w}`);
@@ -116,6 +127,11 @@ begin
     raise exception 'hr_hunt_spawns names a monster that is not in hr_activities'; end if;
   if exists (select 1 from public.hr_hunts h join public.hr_activities a on a.activity_id = h.hunt_id) then
     raise exception 'a hunt id collides with an hr_activities id'; end if;
+  -- Security C2: no spawn carries its own gate (a skill requirement or a boss flag).
+  if exists (select 1 from public.hr_hunt_spawns s join public.hr_activities a
+               on a.kind = 'combat' and a.activity_id = s.monster_id
+              where a.req_skill is not null or a.req_lv is not null or a.is_boss) then
+    raise exception 'a hunt spawn carries its own gate (req_skill / req_lv / is_boss)'; end if;
   -- No client role reads or writes either table; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_hunts', 'select,insert,update,delete,truncate')
@@ -129,7 +145,10 @@ end $$;
 }
 
 /* --selftest: every refusal bites, and the shipped data passes. */
+const BOSS = Object.keys(MONSTERS).find((id) => MONSTERS[id].boss === true);
+
 function selftest() {
+  if (!BOSS) { console.error('gen-hunts --selftest CANNOT RUN: no boss in the roster'); process.exit(2); }
   const base = HUNTS.map((h) => ({ ...h, spawns: h.spawns.map((s) => ({ ...s })) }));
   const cases = {
     'unknown monster': (b) => { b[0].spawns[0].monster = 'not_a_monster'; },
@@ -141,14 +160,18 @@ function selftest() {
     'fractional weight': (b) => { b[0].spawns[0].w = 1.5; },
     'inverted band': (b) => { b[0].band = [10, 5]; },
     'proto id': (b) => { b[0].spawns[0].monster = 'constructor'; },
+    'skill-gated spawn': (b) => { b[0].spawns[0].monster = '__gated_probe'; },
+    'boss spawn': (b) => { b[0].spawns[0].monster = BOSS; },
   };
   let bad = 0;
   huntRows(base, MONSTERS);
+  /* The skill-gate case needs a monster that carries one; none does today. */
+  const withGated = { ...MONSTERS, __gated_probe: { ...MONSTERS.rat, reqSkill: 'attack', reqLv: 50 } };
   for (const [name, mut] of Object.entries(cases)) {
     const b = base.map((h) => ({ ...h, band: [...h.band], spawns: h.spawns.map((s) => ({ ...s })) }));
     mut(b);
     let threw = false;
-    try { huntRows(b, MONSTERS); } catch { threw = true; }
+    try { huntRows(b, withGated); } catch { threw = true; }
     console.log(`  ${threw ? 'ok ' : 'RED'} refuses: ${name}`);
     if (!threw) bad++;
   }

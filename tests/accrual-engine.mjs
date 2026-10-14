@@ -3549,7 +3549,17 @@ async function shapeGuard() {
        WHY NOT NESTED: one scalar; nesting it to keep a count down would be the
        number-raising this note forbids, wearing a hat.
      The next key gets the same treatment. */
-  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
+  /* THIRTEENTH KEY, 2026-10-13: `km` (lane C1, Security C3). Added WITH the
+     arithmetic, never by raising a number.
+       WHAT IT IS: a NAMED HUNT's kills by monster ({id: n}); `mon` is the area
+       id on those rows, so rally points need the per-monster split to price
+       each kill at its server tier (2026-10-20-hunts-rally-kills.sql).
+       ROWS ADDED: ZERO. A flat map of integers on a row that already exists.
+       BYTES: one entry per spawn (<= 3 today, ~20 bytes each), OMITTED on every
+       training row. At 100x (500 active, ~12k accrue rows/day) the ceiling if
+       EVERY row were a hunt is ~12k x 60 bytes = ~720 KB/day; rows unchanged.
+       WHY NOT NESTED: it is already one object, the `spent` shape. */
+  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'km', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
   const metaProblems = (m) => {
     const out = [];
     if (typeof m !== 'object' || m === null || Array.isArray(m)) return ['meta is not an object'];

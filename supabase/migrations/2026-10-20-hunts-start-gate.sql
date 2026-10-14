@@ -45,6 +45,21 @@ begin
     perform public.hr_reject('activity_locked',
       jsonb_build_object('id', p_hunt, 'combat_level', v_cl, 'band_min', v_min));
   end if;
+  -- SECURITY C2: every spawn's OWN gate is asked too (defence in depth; the
+  -- generator and the catalogue self-check refuse a gated spawn outright). A
+  -- boss is never a spawn; a skill-gated monster needs its skill level.
+  if exists (
+    select 1 from public.hr_hunt_spawns s
+      join public.hr_activities a on a.kind = 'combat' and a.activity_id = s.monster_id
+     where s.hunt_id = p_hunt
+       and (a.is_boss
+            or (a.req_skill is not null and a.req_lv is not null
+                and coalesce((select public.hr_level_from_xp(ps.xp) from public.player_skills ps
+                               where ps.user_id = p_user and ps.slot = p_slot
+                                 and ps.skill_id = a.req_skill), 1) < a.req_lv)))
+  then
+    perform public.hr_reject('activity_locked', jsonb_build_object('id', p_hunt, 'spawn_gate', true));
+  end if;
 end $$;
 revoke execute on function public.hr_hunt_gate(uuid, int, text) from public, anon, authenticated, service_role;
 
@@ -139,6 +154,18 @@ begin
           is distinct from 'combat:mill_cellar' then
       raise exception 'GATE(d): starting mill_cellar answered % (pointer %)', v_r,
         (select active_kind || ':' || active_id from public.player_state where user_id = v_uid and slot = 0); end if;
+
+    -- (d2) SECURITY C2: a spawn's OWN gate is asked. Gate slime behind Attack 99
+    --      (inside this rolled-back subtransaction) and mill_cellar is refused.
+    update public.hr_activities set req_skill = 'attack', req_lv = 99
+     where kind = 'combat' and activity_id = 'slime';
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object('activity',
+             jsonb_build_object('kind', 'combat', 'id', 'mill_cellar', 'restart', true), 'journal', c_j));
+    if v_r->>'error' is distinct from 'activity_locked' then
+      raise exception 'GATE(d2): a hunt with an Attack-99-gated spawn started at Attack 1: %', v_r; end if;
+    update public.hr_activities set req_skill = null, req_lv = null
+     where kind = 'combat' and activity_id = 'slime';
 
     -- (e) THE VOID, SPAWN-AWARE: a checkpoint on a spawn survives ...
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;

@@ -3070,6 +3070,13 @@ export function computeAccrual(input) {
          that already exists: no rows added. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
               ate: foodEaten, mon: String(inp.activeId).slice(0, 64),
+              /* `km` — A NAMED HUNT's kills BY MONSTER (Security C3, lane C1).
+                 `mon` is the area id there, so rally points
+                 (2026-10-20-hunts-rally-kills.sql) price each monster at its
+                 server tier from this map; it sums to `kills` exactly (the
+                 top-up never pays a hunt). At most one entry per spawn; absent
+                 on every training row, which is therefore byte-identical. */
+              ...(hunt && summary.kills > 0 ? { km: bestiary.counts() } : {}),
               ...(stoppedBy ? { stopped: stoppedBy } : {}),
               ...(attended ? { att: { claimed: attClaimed, cap: attCap,
                                       sim: Math.floor(nat(summary.kills, 0)),

@@ -1,0 +1,39 @@
+{
+  "id": "chest_iron",
+  "class": "box",
+  "material": "wood",
+  "source": "chest_iron.png",
+  "frame": [
+    28,
+    24
+  ],
+  "anchor_px": [
+    14,
+    22
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_1_direction_object",
+    "id": "8304f632-dc96-4369-a3fa-1d7ac2a62ed9",
+    "candidate": 35,
+    "request": {
+      "description": "prop for a grounded medieval town and a timber house interior in a top-down RPG, seen from the front and slightly above, muted earthy colours, dark outline, detailed shading, not isometric, no shadow",
+      "size": 32,
+      "view": "top-down",
+      "item_description": "(an extra candidate drawn from the batch description)"
+    }
+  }
+}

@@ -3219,6 +3219,80 @@ src/render/icons.js), so canvas margins no longer change apparent size. What CSS
   rows. The runtime crop drops it as debris on cards and in the Recipe Book, but any surface that draws the
   raw file (inventory, market) still shows it. Trim the files.
 
+## 2026-10-14 · systems-engineer -> W2 art, W3 hunt, W4 town/home, W5 presence · the world runtime (lane/w1-world-runtime)
+
+The World pane (Home's second pane, `uiMap`) renders on Canvas 2D behind `{mount,setMap,sync,snapshot,destroy}`
+(`src/world/render/{canvas,null}-backend.js`, both drawing `src/world/core/compose.js`'s list). Ships OFF:
+`WORLD_LAUNCHED` in `src/features/world-panel.js` is the `world` product of the reveal; flip it when W2+W3 land.
+- **W2 (art):** the drop-in contract is `src/data/world/atlas-sets.js` (row shape + sprite-id conventions in its
+  header: `<prop>`, `<prop>:canopy`, `hero`, `wall:<material>:<side>`, `door:<material>`, `roof:<kind>` with
+  `nine`, `wang:<terrain>:<0-15>` as TRANSPARENT overlays, bit order NW8 NE4 SW2 SE1). Your pack writes rows
+  there; no code changes. Stub boxes are sized in `src/world/stub-atlas.js` from the plan's scale table — when
+  your `art-budget.js` lands, make it the one source (see CONFLICTS 2026-10-14).
+- **W3 (hunt):** `store.js activityOf()` reads the reconciled fight pointer; `core/scene-route.js` routes a
+  hunt id or any monster its spawns name to the map whose row lists the hunt (`hunts: [...]`). Units go into
+  `composeFrame` as `kind:'unit'` with `row` = interpolated tile y; the patrol is `map.path` (expanded cells).
+- **W4 (town/home):** peers are NOT a compose input yet; world-core R2 already asserts a `state.peers` list
+  never lifts a roof — keep it so. `G._world` is `{choice}`; add `pos` there, nowhere else. `core/path.js
+  findPath` is the 8-way no-corner-cut A*.
+- **2026-10-14 update, W2 merged:** the world now renders W2's real atlases. Manifests load as JSON modules
+  (`src/world/atlas.js`) and are indexed by `src/world/core/book.js`; `atlas-sets.js` is now just the set list. Maps
+  name W2 sprite ids and follow `wlib.py`/`s_build.py` rules (contact row, wall cycles, inside/outside kits, raised
+  rock + caps, 12-slice roofs, vertex-grid Wang). The camera follows the hero, so framing differs from the whole-scene stills (W3/W4's call).
+- **W5 (presence):** mask hashes are pinned in each map row (`maskHash`, FNV-1a over w,h,mask bytes;
+  `node tests/world-core.mjs --hashes`). `world-no-authority` forbids rpc/fetch in `src/world/**` — a
+  feed module needs an explicit carve-out in that guard, argued in its header.
+## 2026-10-14 · art-director -> W1 world-runtime · the atlas manifest is real now (lane/w2-world-art)
+
+No `lane/w1-world-runtime` existed on origin, so the contract is defined in
+`src/data/world/art-budget.js` (MANIFEST block) and four real atlases ship: `assets/world/atlas-hero`
+(the hero + three peer looks), `atlas-cellar` (W3's hunt), `atlas-town` and `atlas-home` (W4) as .png +
+.json. Build against them, not stubs. `tests/world-assets.mjs` pins the content you build on: the
+hero's clips, the three monsters' clips, the four town stations (`hatch` combat, `woodpile` gather,
+`anvil` artisan, `bench` away/idle) and `npc_crier` by the `noticeboard`, one home piece per room, and
+each set's floor. A scene that needs town ground around the house loads `town` + `home`. Rules the
+renderer owns:
+- **Placement:** whole tiles. Draw a frame at `(tx*T + T*fw/2 - anchor.x, ty*T + T*fh - 1 - anchor.y)`;
+  sort by that contact row. Never offset a sprite by hand: a float is a data bug the guard catches.
+- **Units** share one frame per class (character 64x64 anchor 32,58; critter/flier 48x48). Fliers carry
+  their hover inside the frame: the anchor is the GROUND point, so the ellipse shadow goes at the anchor.
+- **`hanging`** sprites (torches, trophies, nests, webs) are mounted `hover` px above their tile's floor
+  line on a wall face: draw at y - hover. **`wallcap`** strips are raised 48 px (the wall height);
+  `stone_cap` rims a rock mass with the room to its east, `stone_cap_w` to its west, `stone_cap_h` along
+  its north edge. Out-of-map rock is flat void, raised 48 px, sorted by its row.
+- **Wall slices** (`wall`, `stub`) are a horizontal CYCLE: column x uses frame `x mod frames` (4), so a
+  128 px pattern never seams. `_door`/`_window`/`_arch` variants share the cycle. Inside a building the
+  south row uses `*_stub`; `*_end` stands at the south end of each side wall.
+- **Roofs** (`roof_wood`, `roof_slate`): 12 frames = rows north/ridge/south/eave x cols w/c/e. A roof of
+  n rows = north, ridge, south x (n-3), eave (2 rows = ridge + eave). It covers the building rect from
+  12 px below the north wall's top, so the eave overhangs the south wall's cap; `chimney` sits on it.
+- **Terrain:** `kind:'wang16'` by corners NW NE SW SE (pick a variant by a hash), `kind:'fill'` by
+  `cycle` (`plank_floor` is 4x2).
+- **Shadows:** `{kind:'ellipse',w,h,dx,dy}` or `{kind:'cast',height,base}`, ONE mask at one alpha. The
+  stills used a silhouette laid down-right (x += 0.5h, y += 0.22h per row of height) for `cast`; any
+  equivalent is fine as long as there is one rule.
+The stills' compositor (scratchpad `w2/wlib.py`, `s_*.py`) is a working reference for every rule above.
+
+## 2026-10-14 · art-director -> asset-director · world art: what is final, what is a proof (lane/w2-world-art)
+
+`art/world/<set>/<id>.{png,json}` is the source of truth; atlases are built by
+`node tools/world-art/build.mjs` and guarded by `tests/world-assets.mjs` (budget, palette, contact, no
+baked shadow, no iso corner, drift). Sidecars record the PixelLab request/ids. Open items:
+- **`town` and `home` are first sets, approved on best judgement** (Tyler, 2026-10-14: "approve art
+  designs for now with best judgement and we can adjust as needed"). Walls, roofs, floor, rug, door
+  stretch and chimney are hand-authored with a seeded scratch brush (`made_by` in the sidecar);
+  furniture, trees, NPCs and peers are PixelLab. Peers and NPCs have idle facings only: walk clips come
+  with W6's shared walking. Not yet made: the plan's knight/mage/ranger/banker/skeleton re-generations
+  beyond the three peer looks, the wolf, graves, statues per maxed skill, cliff/ruin/watchtower re-measures.
+- **Polish pass done:** the rat is now a Pro Flash object with true facings; the hunt floor is one flat
+  hand-authored `cellar_earth` fill (the flagstone Wang patch read as a raised slab and is unused). The
+  palette is now `hr-world-56-v2`: bronze, iron, steel and mithril ramps (4 tones each) for the item
+  icon re-make. **Still open:** barrels measure 30 px against a 24-28 nominal (inside the tolerance);
+  the hive wasp's facings are rotations of one overhead view (PixelLab's own side views are edge-on).
+- **Method that works:** `create_character` v3 at size 40 (36 px body); animations as v3 custom clips
+  from the rotation frame. Template clips (walk/idle/death) redraw the character and drop or add the
+  shield between frames: rejected. `create_1_direction_object` batches (64 candidates, 10 gens) are the
+  cheapest consistent props, but draw boxes corner-on; the validator rejects those.
 ## 2026-10-13 · art-director -> asset-director · Recraft wave-1 re-roll list (lane/b574-art-wave1)
 Wrong subject: mandrake (neither reads as a root), young grey wolf (both blue), dawn ingot (not violet-gold),
 bronze ingots with an embossed "B" (letters), tin ore (no item id uses it).

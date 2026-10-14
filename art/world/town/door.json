@@ -1,0 +1,41 @@
+{
+  "id": "door",
+  "class": "door",
+  "material": "wood",
+  "source": "door.png",
+  "frame": [
+    22,
+    50
+  ],
+  "anchor_px": [
+    11,
+    48
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "id": "699000ad-74e9-484e-9270-6408045e9548",
+    "request": {
+      "description": "closed medieval wooden plank door with dark iron strap hinges and a ring handle, straight front view, fills the doorway, top-down RPG, muted brown wood, dark outline, no shadow, no wall around it",
+      "name": "w2 door",
+      "view": "high top-down",
+      "n_directions": 1,
+      "width": 28,
+      "height": 52
+    }
+  },
+  "notes": "PixelLab drew the leaf 32 px tall; plank-only rows were repeated to reach the 48 px door budget (straps, ring and frame kept once)."
+}

@@ -1,0 +1,30 @@
+{
+  "id": "plank_wall",
+  "class": "wall",
+  "material": "native",
+  "source": "plank_wall.png",
+  "frame": [
+    32,
+    60
+  ],
+  "anchor_px": [
+    16,
+    59
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "face",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request",
+  "notes": "Interior boards, a dark post every 64 px. 128 px cycle."
+}

@@ -1,0 +1,41 @@
+{
+  "id": "counter",
+  "class": "station",
+  "material": "wood",
+  "source": "counter.png",
+  "frame": [
+    58,
+    32
+  ],
+  "anchor_px": [
+    28,
+    30
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "9c3ea5da-f103-4240-b575-ed10979aa991",
+    "request": {
+      "description": "long wooden kitchen counter with a cutting board, a knife, onions and a clay jug on top, straight front view, top-down RPG furniture, muted colours, dark outline, no shadow, no floor",
+      "width": 60,
+      "height": 36,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

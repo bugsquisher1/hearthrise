@@ -3650,3 +3650,24 @@ intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need
    axis. A letterboxed view box still paints the cropped pixels, so `object-fit:contain` alone is wrong.
 3. Widths: grid tracks were equal (226.5px); `auto-fit` made one-card lanes (Castle Stores) full-width.
    Now `auto-fill`.
+
+## 2026-10-14 · art-director · the v3 mockup defects were all measurable in the pixels (lane/w2-world-art)
+Run against the v3 raws, `tools/world-art/validate.mjs` names each defect the feedback named: the v3
+chest is 27 px tall (box budget 20) with 17 px under its contact row, the strongbox rests on 8 of its
+28 columns, four fresh PixelLab chests came back corner-on (iso-corner), the skull is 23 px (small budget 12), barrels 35 px (24-28), the bush and oak
+carry baked ground. "Characters look huge" was the v3 hero at 50 px; at size 40 the v3 generator draws
+36 px. Three measuring lessons:
+1. **A unit stands on its feet, a prop on its base.** The "widest row near the bottom" contact rule is
+   right for chests and wrong for a side-on rat (the belly is wider than the paws): units use the lowest
+   row two columns bottom out on; props the widest; legged furniture and posts their feet.
+2. **Measure the mass, not the box.** A 3x3 opening drops blades, tails and antennae, so a sword does not
+   inflate the hero's body and a tail does not inflate a rat. Line art (webs, decals) has no mass and is
+   measured on its box; fliers on their narrower extent (spread wings are their sword).
+3. **Iso is a shape, not a size.** A corner-on box still rests >40% of its width within 2 px of its
+   lowest row (2:1 stairs). The tell is the underside: one short run at the middle and a straight stair
+   of 1-3 px steps climbing >=3 rows on both sides. Barrels (long bottom run) and footed chests (two
+   runs) pass.
+PixelLab: standard quadrupeds draw south == north (one overhead view, head up); the building kit returns
+muddy 2-tile walls in its own projection (unused); map objects bake a grass patch under trees; a Pro Flash
+door asked for at 28x52 came back 32 px tall. Compressed PNG bytes differ by zlib build, so the drift
+guard compares decoded pixels (sha256 of RGBA), never file bytes.

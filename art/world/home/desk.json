@@ -1,0 +1,41 @@
+{
+  "id": "desk",
+  "class": "station",
+  "material": "wood",
+  "source": "desk.png",
+  "frame": [
+    34,
+    34
+  ],
+  "anchor_px": [
+    17,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "20eb5ea7-90cd-4aa7-86fd-30420bf38b56",
+    "request": {
+      "description": "small wooden writing desk with an open book, an ink pot and a candle, straight front view, top-down RPG furniture, muted colours, dark outline, no shadow, no floor",
+      "width": 40,
+      "height": 36,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

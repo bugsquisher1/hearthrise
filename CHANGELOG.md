@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 576 — 2026-10-14 (World tab)
+
+**A first look at the World.** Home has a new World tab. It stays locked for now and opens when the first walkable hunting ground is ready.
+
 ## v0.9.2-beta build 575 — 2026-10-14 (New item art)
 
 **New art for fish, bars and more.** Shrimp, trout and the other catches, bronze and verdite bars, oak planks and turnip seeds have new icons, and the Ooze and Air Elemental have new portraits.

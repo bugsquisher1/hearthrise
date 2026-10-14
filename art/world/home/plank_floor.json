@@ -1,0 +1,51 @@
+{
+  "id": "plank_floor",
+  "class": "terrain",
+  "kind": "fill",
+  "material": "native",
+  "source": "plank_floor.png",
+  "lower": "planks",
+  "upper": "planks",
+  "cycle": [
+    4,
+    2
+  ],
+  "tiles": {
+    "1111": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ]
+    ]
+  },
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request",
+  "notes": "A 128 x 64 periodic plank field cut into a 4 x 2 cycle."
+}

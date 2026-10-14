@@ -22,9 +22,8 @@ const SKILL_LABEL = {
 };
 
 /* b372 — WHICH COUNTER SELLS IT. The index answered "where's this from?" from
-   drops, recipes, nodes, crops and (b355) dungeons — but NOT from the shops,
-   which is how a player gets every seed, the starter weapons, the companions
-   and the bounty-shop stock. So the flyout for a Wheat Seed, opened from the
+   drops, recipes, nodes and crops — but NOT from the shops, which is how a
+   player gets every seed and the starter weapons. So the flyout for a Wheat Seed, opened from the
    farm's own requirement, said nothing at all.
 
    SHOP_OFFERS is the generated price catalogue (tools/gen-shops.mjs, guarded
@@ -37,13 +36,10 @@ const SHOP_LABEL = {
      seeds. A player told to buy a rune blank at the SEED shop goes looking for
      a second shop. (The offer-id prefix stays `seed.` because it is a
      generated key; only the sentence a human reads changes.) */
-  equip: 'the Store', seed: 'the Local Shop', bounty: 'the Bounty shop',
-  trait: 'the Store', cosmetic: 'the Store', companion: 'the Store',
-  dungeon: 'the Quartermaster', iap: 'the Hearth Shop',
+  equip: 'the Store', seed: 'the Local Shop',
 };
 const CURRENCY_LABEL = {
-  gold: 'g', gems: ' Gems', marks: ' Bounty Marks', bounty_marks: ' Bounty Marks',
-  scrip: ' Dungeon Scrip', dungeon_scrip: ' Dungeon Scrip', hearth_token: ' Hearth Tokens',
+  gold: 'g', gems: ' Gems',
 };
 function priceText(cost) {
   const cur = (cost || []).find((c) => c && c.kind === 'currency');
@@ -67,7 +63,7 @@ let _idx = null;
 function build() {
   const src = {};   // id -> { craft:{skill,req}, gather:label, farm:bool, monsters:Set }
   const used = {};  // id -> Set of output item names
-  const S = (id) => (src[id] = src[id] || { monsters: new Set(), dungeons: new Set() });
+  const S = (id) => (src[id] = src[id] || { monsters: new Set() });
 
   const M = window.MONSTERS || MONSTERS;
   Object.values(M || {}).forEach((m) => {
@@ -121,24 +117,8 @@ function build() {
     });
   });
 
-  /* b355 — DUNGEON LOOT AND THE QUARTERMASTER ARE SOURCES TOO.
-     The index answered "where's this from?" from monsters, recipes, nodes and
-     crops only, so every dungeon-only item — the eight housing blueprints, the
-     farm deeds, the signature boss weapons — returned an EMPTY source line.
-     That emptiness is what forced the room modal's blueprint gate to carry
-     hardcoded prose ("they drop from dungeons"), which is the thing this index
-     exists to make unnecessary. Data in, sentence out: a blueprint moved to a
-     new dungeon, or added to the scrip shop, now re-describes itself. */
-  const D = window.DUNGEONS || null;
-  if (D) {
-    Object.values(D).forEach((d) => {
-      (d.loot || []).forEach((L) => { if (L && L.id) S(L.id).dungeons.add(d.name || 'a dungeon'); });
-    });
-  }
-  (window.QM_STOCK || []).forEach((q) => { if (q && q.id) S(q.id).scrip = q.scrip; });
-
   /* b372 — the shop counters. Only offers that GRANT an item are sources; an
-     offer that SPENDS one (a dungeon key buying entry) is a use, not a route,
+     offer that SPENDS one is a use, not a route,
      and belongs to the used-in index rather than here. First offer wins so a
      one-off starter bundle cannot rename the counter a repeatable sells at. */
   ((window.SHOP_OFFERS && window.SHOP_OFFERS.length) ? window.SHOP_OFFERS : SHOP_OFFERS || [])
@@ -152,14 +132,9 @@ function build() {
     });
 
   _idx = { src, used };
-  /* Do NOT memoise a half-built index. dungeons.js is a classic script and the
-     first sourceLine() call can legitimately land before it has run; caching
-     that answer would leave every dungeon item sourceless for the session. */
-  _full = !!D;
   return _idx;
 }
-let _full = false;
-function idx() { return (_idx && _full) ? _idx : build(); }
+function idx() { return _idx || build(); }
 
 function sourceLine(id) {
   const s = idx().src[id];
@@ -175,11 +150,6 @@ function sourceLine(id) {
     const list = [...s.monsters];
     parts.push('Dropped by ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
   }
-  if (s.dungeons && s.dungeons.size) {
-    const list = [...s.dungeons];
-    parts.push('Drops in ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
-  }
-  if (s.scrip) parts.push('Quartermaster · ' + s.scrip + ' Dungeon Scrip');
   if (s.shop) parts.push('Bought at ' + s.shop.where + (s.shop.price ? ' · ' + s.shop.price : ''));
   return parts.join(' · ');
 }

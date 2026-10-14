@@ -85,7 +85,7 @@
   color: var(--ink-3);
 }
 
-#panel-world .world-scene.is-soon { opacity: .55; cursor: default; }
+#panel-world .world-stage.is-hot { cursor: pointer; }
 
 /* ── The hunt overlay (src/world/hunt-chrome.js): the settled Analyzer top-left,
    the knockout line, and Eat / Leave Hunt along the bottom. ── */
@@ -176,31 +176,6 @@
 }
 #panel-world .whud-btn:hover { color: var(--gold-2); }
 #panel-world .whud-btn.is-leave { border-color: var(--red); }
-
-/* A non-hunt scene while Town and Home are not open yet. */
-#panel-world .world-idle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--world-hud-bg); }
-#panel-world .world-idle[hidden] { display: none; }
-#panel-world .world-idle-card {
-  max-width: 420px;
-  padding: 18px 22px;
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  background: var(--world-hud-bg);
-  text-align: center;
-  color: var(--ink-2);
-}
-#panel-world .world-idle-head { margin: 0 0 6px; font-family: var(--f-display); font-size: calc(17px * var(--ui-scale, 1)); color: var(--gold-2); }
-#panel-world .world-idle-body { margin: 0 0 14px; }
-#panel-world .world-idle-go {
-  min-height: 38px;
-  padding: 6px 18px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--gold-bg);
-  color: var(--ink);
-  font-weight: 700;
-  cursor: pointer;
-}
 
 /* The landscape phone: a thumb-sized pick, and the stage takes the rest; the
    Analyzer folds to its numbers and the actions shrink to fit the short stage. */

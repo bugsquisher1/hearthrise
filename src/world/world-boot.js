@@ -18,6 +18,11 @@
 // beat as it happens, so swings taken while the pane was hidden are not lost —
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
+//
+// THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
+// draws them from what the client holds from the server, read here into one
+// `env` per frame. A tap walks the local hero (display only: G._world.pos) or
+// opens an existing screen; no tap sends an intent (steer-local.js runAction).
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=577';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=577';
@@ -26,15 +31,20 @@ import { compileMap } from './core/map-compile.js?v=577';
 import { STUB_SPRITE } from './core/book.js?v=577';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=577';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=577';
-import { readScene, setChoice, activityOf } from './store.js?v=577';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=577';
 import { loadAtlases } from './atlas.js?v=577';
 import { createCanvasBackend } from './render/canvas-backend.js?v=577';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=577';
+import { huntOfMap } from './hunt-maps.js?v=577';
 import { createHuntScene } from './hunt-scene.js?v=577';
 import { createHuntChrome, hudModel } from './hunt-chrome.js?v=577';
+import { createWalkScene } from './walk-scene.js?v=577';
+import { homeMapFor } from './home-scene.js?v=577';
+import { runAction } from './steer-local.js?v=577';
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
+const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;
+const FLASH_MS = 2200;
 
 /** The fight as the client holds it, when the observer is not installed (a bare harness). */
 function bareSnapshot(G) {
@@ -43,29 +53,47 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
-/** The card a non-hunt scene shows while Town and Home are not open yet. */
-function idleCardHtml(fighting) {
-  return '<div class="world-idle-card"><p class="world-idle-head">' + (fighting ? 'This hunt has no map yet.' : 'Your hero isn’t hunting.') + '</p>'
-    + '<p class="world-idle-body">' + (fighting ? 'The Mill Cellar is the first place you can watch.' : 'Start a hunt in the Mill Cellar and watch it here.')
-    + ' Town and Home are coming soon.</p>'
-    + '<button type="button" class="world-idle-go" data-world-go="combat">Choose a hunt</button></div>';
+/**
+ * What the town and home read this frame, from the client's copies of server
+ * state (each through the module that owns it). Every reader fails safe: an
+ * unknown property rung is the first template, unknown rooms are none, an
+ * unknown trophy set hangs nothing, an absent town view shows nobody.
+ */
+function readEnv(win, G) {
+  const fn = (o, k) => (o && typeof o[k] === 'function' ? o[k] : null);
+  const Rooms = win.HearthriseRooms, Tr = win.HearthriseTrophies, Town = win.HearthriseTown, TP = win.HearthriseTownPanel, I = win.HearthriseIdentity;
+  const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
+  const rooms = fn(Rooms, 'roomsMap') ? Rooms.roomsMap(G) : {};
+  const known = fn(Tr, 'claimsKnown') && Tr.claimsKnown() === true;
+  return {
+    kind: (pointer && pointer.kind) || 'idle',
+    rooms,
+    trophies: known && fn(Tr, 'wallRows') ? Tr.wallRows({ known: true, cap: 1000 }) : null,
+    roomName: (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id,
+    town: fn(Town, 'readTown') ? Town.readTown() : null,
+    pollMs: (Town && Town.TOWN_POLL_MS) || 25000,
+    you: (fn(I, 'displayName') && I.displayName()) || G.playerName || null,
+    canon: fn(I, 'canon') ? (n) => I.canon(String(n)) : null,
+    band: fn(TP, 'bandText'),
+    crierLine: fn(TP, 'crierLine'),
+  };
 }
 
 /**
  * Load the art, then mount the world into `panel` (#panel-world). Resolves to the runtime:
  *   sync()     start or stop the loop to match the panel and the page
- *   stats()    { running, frames, scene, hunt, ...backend.snapshot() } for tests
+ *   step()     paint one frame now
+ *   stats()    { running, frames, scene, kind, hunt, walk, ...backend.snapshot() } for tests
+ *   screenOf(x, y)  the client point over tile (x, y) of the scene showing, for a test's tap
  *   destroy()
  * @param {HTMLElement} panel
- * @param {{scenesReady?: () => boolean}} [opts]  are Town and Home open to walk in?
  */
-export async function bootWorld(panel, opts = {}) {
+export async function bootWorld(panel) {
   const win = window, doc = document;
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
   const css = (name) => styles.getPropertyValue(name).trim();
-  const scenesReady = () => (typeof opts.scenesReady === 'function' ? !!opts.scenesReady() : true);
   const { book, images } = await loadAtlases({ doc, version: BUILD.cache });
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
@@ -81,10 +109,6 @@ export async function bootWorld(panel, opts = {}) {
     eat: () => { if (typeof win.eatBestProvision === 'function') win.eatBestProvision(); },
     leave: () => { if (typeof win.stopCombat === 'function') win.stopCombat(); },
   } });
-  const idle = doc.createElement('div');
-  idle.className = 'world-idle';
-  idle.hidden = true;
-  stage.appendChild(idle);
 
   const compiled = new Map();
   const mapOf = (id) => {
@@ -93,17 +117,14 @@ export async function bootWorld(panel, opts = {}) {
   };
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
+  let walk = null, lastWalk = null;
 
   function paintChrome(sc) {
     const title = chrome.querySelector('.world-title');
     if (title) title.textContent = ROWS.get(sc.map).name;
-    const ready = scenesReady();
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {
-      const on = ready && b.getAttribute('data-world-choice') === sc.kind;
+      const on = b.getAttribute('data-world-choice') === sc.kind;
       b.classList.toggle('active', on);
-      b.classList.toggle('is-soon', !ready);
-      b.disabled = !ready;
-      b.title = ready ? '' : 'Coming soon';
       b.setAttribute('aria-pressed', String(on));
       b.hidden = sc.kind === 'hunt';
     });
@@ -129,9 +150,22 @@ export async function bootWorld(panel, opts = {}) {
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
 
+  function walkState(G, map, now) {
+    if (!walk || walk.map !== map) {
+      walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF });
+    }
+    const env = readEnv(win, G);
+    const f = walk.frame(env, now);
+    notePos(G, map.id, f.hero.x, f.hero.y);
+    lastWalk = { hero: f.hero, cell: walk.cell(), units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
+      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })), bubbles: f.bubbles.map((b) => b.text), mark: f.mark };
+    return f;
+  }
+
   function step(dt) {
     const G = win.G || {};
-    const sc = readScene(G);
+    const P = win.HearthriseProperty;
+    const sc = readScene(G, homeMapFor(P && typeof P.serverPropertyTier === 'function' ? P.serverPropertyTier() : null));
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
       scene = sc;
@@ -145,19 +179,66 @@ export async function bootWorld(panel, opts = {}) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      idle.hidden = true;
+      walk = null; lastWalk = null;
     } else {
       hunt = null; huntMap = null; lastHunt = null;
       hud.paint(null);
-      cast = { hero: { x: map.start[0], y: map.start[1] } };
-      const showIdle = !scenesReady();
-      if (showIdle && idle.hidden) { idle.innerHTML = idleCardHtml(!!G.activeMonster && !mapForActivity(activityOf(G))); idle.hidden = false; }
-      if (!showIdle) idle.hidden = true;
+      cast = walkState(G, map, now);
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
     frames++;
+  }
+
+  /* Where a tap goes. Every way out is a screen the game already has. */
+  const nav = {
+    walk: () => true,
+    hunt(id) {
+      if (typeof win.showTab !== 'function') return false;
+      win.showTab('combat');
+      const CS = win.HearthriseCombatScreens;
+      if (CS && typeof CS.setView === 'function') CS.setView('table');
+      if (CS && typeof CS.setTab === 'function') CS.setTab('hunts');
+      /* "Preselected": the hunt's card is scrolled to and ringed once the pane paints. */
+      win.setTimeout(() => {
+        const card = doc.querySelector('#panel-combat .wt-hunt[data-hunt="' + id + '"]');
+        if (!card) return;
+        if (typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
+        const C = win.HearthriseCoach;
+        if (C && typeof C.flash === 'function') C.flash(card, FLASH_MS);
+      }, 120);
+      return true;
+    },
+    skill(id) {
+      if (typeof win.showTab !== 'function') return false;
+      win.showTab('skills');
+      if (typeof win.openSkillDetail === 'function') win.openSkillDetail(id);
+      return true;
+    },
+    room(id) {
+      const H = win.HearthriseHomestead;
+      return !!(H && typeof H.openRoom === 'function' && H.openRoom(id));
+    },
+    house() {
+      if (typeof win.showTab !== 'function') return false;
+      win.showTab('house');
+      return true;
+    },
+    scene(choice) { setChoice(win.G || {}, choice); if (running) step(0); return true; },
+  };
+
+  function onTap(e) {
+    if (!walk || !scene || scene.kind === 'hunt') return;
+    const pick = backend.pick(e.clientX, e.clientY);
+    if (!pick) return;
+    runAction(walk.tap(pick, Date.now()), nav);
+  }
+  function onHover(e) {
+    if (!walk || !scene || scene.kind === 'hunt' || e.pointerType === 'touch') return;
+    const pick = backend.pick(e.clientX, e.clientY);
+    const act = pick && walk.peek(pick);
+    stage.classList.toggle('is-hot', !!act && act.kind !== 'walk');
   }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
@@ -180,32 +261,30 @@ export async function bootWorld(panel, opts = {}) {
   }
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');
-    if (!b || b.disabled) return;
+    if (!b) return;
     setChoice(win.G || {}, b.getAttribute('data-world-choice'));
     if (running) step(0);
   }
-  function onGo(e) {
-    const b = e.target && e.target.closest && e.target.closest('[data-world-go]');
-    if (b && typeof win.showTab === 'function') win.showTab(b.getAttribute('data-world-go'));
-  }
   chrome.addEventListener('click', onChoice);
-  idle.addEventListener('click', onGo);
+  stage.addEventListener('click', onTap);
+  stage.addEventListener('pointermove', onHover);
   doc.addEventListener('visibilitychange', sync);
 
   return {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: lastWalk, hud: hud.text() }, backend.snapshot()),
+    screenOf: (x, y) => backend.screenOf(x, y),
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
       chrome.removeEventListener('click', onChoice);
-      idle.removeEventListener('click', onGo);
+      stage.removeEventListener('click', onTap);
+      stage.removeEventListener('pointermove', onHover);
       doc.removeEventListener('visibilitychange', sync);
       hud.destroy();
-      idle.remove();
       backend.destroy();
     },
   };

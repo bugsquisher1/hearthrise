@@ -19,17 +19,24 @@
 //   faces     [{ x, y, id }] a rock face drawn with a variant (an arch)
 //   objects   [{ id, x, y }] whole tiles, nothing else
 //   buildings [{ id, rect:[x,y,w,h], wall, floor, doors:[[x,y]], windows:[x],
-//               chimney: x|null, roof:{ rect:[x,y,w,h], kind } }] rect includes
-//             the walls; doors and windows sit on the south (front) row
+//               chimney: x|null, closed?: true, roof:{ rect:[x,y,w,h], kind } }]
+//             rect includes the walls; doors and windows sit on the south
+//             (front) row; a `closed` building is a facade — its doors block
+//             a step, so nobody walks in and it needs no inside wall kit
 //   path      [[x,y], …] corner waypoints of a CLOSED loop of straight 8-way legs
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
+//   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
+//             the heart of the place stays in view wherever the hero stands
 //   maskHash  hash of the collision mask (maskHash below)
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=577';
+import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=577';
+import { reachFrom } from './path.js?v=577';
 
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);
+/** The kinds a player taps to walk in; a hunt's hero only walks its patrol loop. */
+export const WALKED_KINDS = Object.freeze(['town', 'home']);
 /** Outdoor maps need a tree in every window this many tiles square. */
 export const TREE_WINDOW = 12;
 
@@ -83,13 +90,14 @@ export function compileMap(row, tables) {
   const buildings = (row.buildings || []).map((b) => {
     const r = rectOf(b.rect);
     const doors = b.doors.map(([x, y]) => ({ x, y }));
+    const closed = b.closed === true;
     for (let y = r.y; y < r.y + r.h; y++) {
       for (let x = r.x; x < r.x + r.w; x++) {
-        if (onEdge(r, x, y) && !doors.some((d) => d.x === x && d.y === y)) mask[y * w + x] = 1;
+        if (onEdge(r, x, y) && (closed || !doors.some((d) => d.x === x && d.y === y))) mask[y * w + x] = 1;
       }
     }
     return { id: b.id, rect: r, wall: b.wall, floor: b.floor, doors, windows: b.windows || [], chimney: b.chimney == null ? null : b.chimney,
-      roof: { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
+      closed, roof: { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
   });
   const objects = [], lit = [];
   for (const o of row.objects || []) {
@@ -105,7 +113,7 @@ export function compileMap(row, tables) {
     id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h,
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
-    exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null,
+    exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
   };
 }
 
@@ -123,6 +131,11 @@ const WHOLE = (v) => Number.isInteger(v);
  *   L-NORTH no solid piece on the row directly north of a south wall
  *   L-PATH  a hunt has a closed patrol loop of straight 8-way legs on open ground
  *   L-WALK  start, spawns, stations and exits stand on open ground
+ *   L-REACH on a map the player walks (WALKED_KINDS), every open tile outside
+ *           a closed building is reachable from start
+ *   L-KIT   every wall piece a building can be drawn with is in an atlas: the
+ *           front (wall, door, window) always; the inside view (cap, stub,
+ *           end) unless the building is closed — so nothing draws as a stub
  *   L-TREES an outdoor map has a tree in every TREE_WINDOW-square window
  *   L-KIND  kind and light are known values; ground names a terrain
  *   L-HASH  maskHash matches the compiled mask
@@ -200,9 +213,21 @@ export function lintMap(row, tables) {
     if (!cells) bad('L-PATH', 'the patrol path is missing, open or has a leg that is not a straight 8-way run');
     else cells.filter(([x, y]) => !open(x, y)).forEach(([x, y]) => bad('L-PATH', 'the patrol path crosses a blocked tile at ' + x + ',' + y));
   }
+  if (row.focus && !inside(row.focus[0], row.focus[1])) bad('L-WHOLE', 'focus ' + JSON.stringify(row.focus) + ' is not a whole tile inside the map');
   const spots = [['start', row.start]].concat((row.spawns || []).map((s) => ['spawn', s]),
     Object.entries(row.stations || {}), (row.exits || []).map((e) => ['exit to ' + e.to, [e.x, e.y]]));
   for (const [what, at] of spots) if (!at || !open(at[0], at[1])) bad('L-WALK', what + ' ' + JSON.stringify(at) + ' is not on walkable ground');
+  if (WALKED_KINDS.includes(row.kind)) {
+    const reached = reachFrom(map.mask, w, h, row.start);
+    const facade = (x, y) => B.some((b) => b.closed && inRect(b.rect, x, y));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (open(x, y) && !reached[y * w + x] && !facade(x, y)) { bad('L-REACH', 'open tile ' + x + ',' + y + ' cannot be reached from the start'); y = h; break; }
+    }
+  }
+  for (const b of B) {
+    const kit = ['_wall', '_wall_door'].concat(b.windows.length ? ['_wall_window'] : [], b.closed ? [] : ['_cap', '_stub', '_end']);
+    for (const k of kit) if (!sprites[b.wall + k]) bad('L-KIT', 'building ' + b.id + ' needs ' + b.wall + k + (b.closed ? '' : ' (it can be walked into)') + ', which no atlas carries');
+  }
   if (row.outdoor) {
     const trees = map.objects.filter((o) => treeClasses.includes(o.cls));
     const ww = Math.min(TREE_WINDOW, w), wh = Math.min(TREE_WINDOW, h);

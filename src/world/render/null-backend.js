@@ -15,7 +15,7 @@ export function createNullBackend(o) {
     setMap(m) { map = m; last = null; ground = groundTiles(m, o.book, o.tables, T); },
     sync(state) {
       if (!map) return;
-      const fv = frameView(state.hero, view.w, view.h, map, 1, T);
+      const fv = frameView(state.camera || state.hero, view.w, view.h, map, 1, T);
       last = composeFrame(map, o.book, state, fv.view, o.tables, T);
       frames++;
     },

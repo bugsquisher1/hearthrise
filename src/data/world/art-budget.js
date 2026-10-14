@@ -16,7 +16,8 @@
 // contact how the sprite meets the floor at its anchor (the contact row):
 //         unit   frames share the class anchor; feet stand on it
 //         solid  ≥ 40% of the width rests within 2 px of the anchor; no iso corner
-//         legged ≥ 2 contact spans covering ≥ 60% of the width (tables, chairs)
+//         legged ≥ 2 contact spans covering ≥ 60% of the width (tables, chairs,
+//                stations: waist-high counters, desks, workbenches, grindstones)
 //         post   one trunk or post centred on its footprint (trees, lamps)
 //         touch  something reaches the anchor (small clutter)
 //         flier  the lowest pixel hovers hover_px above the anchor
@@ -47,6 +48,8 @@ export const CLASSES = Object.freeze({
   clutter: row({ body: [12, 22], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   bed: row({ body: [40, 60], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   table: row({ body: [20, 24], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
+  station: row({ body: [22, 32], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
+  bench: row({ body: [12, 20], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   barrel: row({ body: [24, 28], measure: 'h', contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
@@ -55,6 +58,7 @@ export const CLASSES = Object.freeze({
   bush: row({ body: [12, 28], measure: 'h', contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   fixture: row({ body: [16, 72], measure: 'h', contact: 'post', shadow: 'cast', layer: 'prop' }),
   tree: row({ body: [96, 128], measure: 'h', canopy: [64, 96], contact: 'post', shadow: 'cast', layer: 'unit' }),
+  sapling: row({ body: [60, 100], measure: 'h', contact: 'post', shadow: 'cast', layer: 'unit' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),
   wallend: row({ frame: [12, 60], anchor: [6, 59], body: [56, 60], measure: 'h', contact: 'wall', shadow: 'cast', layer: 'wall' }),

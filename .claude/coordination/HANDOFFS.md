@@ -3222,8 +3222,13 @@ src/render/icons.js), so canvas margins no longer change apparent size. What CSS
 ## 2026-10-14 · art-director -> W1 world-runtime · the atlas manifest is real now (lane/w2-world-art)
 
 No `lane/w1-world-runtime` existed on origin, so the contract is defined in
-`src/data/world/art-budget.js` (MANIFEST block) and three real atlases ship: `assets/world/atlas-hero`,
-`atlas-cellar`, `atlas-proof` (.png + .json). Build against them, not stubs. Rules the renderer owns:
+`src/data/world/art-budget.js` (MANIFEST block) and four real atlases ship: `assets/world/atlas-hero`
+(the hero + three peer looks), `atlas-cellar` (W3's hunt), `atlas-town` and `atlas-home` (W4) as .png +
+.json. Build against them, not stubs. `tests/world-assets.mjs` pins the content you build on: the
+hero's clips, the three monsters' clips, the four town stations (`hatch` combat, `woodpile` gather,
+`anvil` artisan, `bench` away/idle) and `npc_crier` by the `noticeboard`, one home piece per room, and
+each set's floor. A scene that needs town ground around the house loads `town` + `home`. Rules the
+renderer owns:
 - **Placement:** whole tiles. Draw a frame at `(tx*T + T*fw/2 - anchor.x, ty*T + T*fh - 1 - anchor.y)`;
   sort by that contact row. Never offset a sprite by hand: a float is a data bug the guard catches.
 - **Units** share one frame per class (character 64x64 anchor 32,58; critter/flier 48x48). Fliers carry
@@ -3250,9 +3255,12 @@ The stills' compositor (scratchpad `w2/wlib.py`, `s_*.py`) is a working referenc
 `art/world/<set>/<id>.{png,json}` is the source of truth; atlases are built by
 `node tools/world-art/build.mjs` and guarded by `tests/world-assets.mjs` (budget, palette, contact, no
 baked shadow, no iso corner, drift). Sidecars record the PixelLab request/ids. Open items:
-- **`proof` set is a sign-off proof, not the town/house sets.** Walls, roofs, floor, rug, door-stretch
-  and chimney are hand-authored with a seeded scratch brush; furniture/trees/peers are PixelLab. The
-  real `town` and `home` sets wait for Tyler's sign-off on the stills.
+- **`town` and `home` are first sets, approved on best judgement** (Tyler, 2026-10-14: "approve art
+  designs for now with best judgement and we can adjust as needed"). Walls, roofs, floor, rug, door
+  stretch and chimney are hand-authored with a seeded scratch brush (`made_by` in the sidecar);
+  furniture, trees, NPCs and peers are PixelLab. Peers and NPCs have idle facings only: walk clips come
+  with W6's shared walking. Not yet made: the plan's knight/mage/ranger/banker/skeleton re-generations
+  beyond the three peer looks, the wolf, graves, statues per maxed skill, cliff/ruin/watchtower re-measures.
 - **Re-roll candidates:** the rat (standard-mode quadruped, low detail; its grey-pink fur needed the
   `fur` grade); barrels measure 30 px against a 24-28 nominal (inside the tolerance, still tall); the
   hive wasp's four facings are rotations of one overhead view; the cellar flagstones read a little

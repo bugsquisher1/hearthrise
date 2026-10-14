@@ -91,7 +91,9 @@ export function validateSprite(sp) {
   if (body < lo || body > hi) out.push({ rule: 'budget', id, detail: `body ${body}px (${cls.measure}), class ${sp.class} allows ${cls.body.join('-')} ±${TOLERANCE * 100}% = ${lo.toFixed(1)}-${hi.toFixed(1)}` });
   const massW = median(refs.map((f) => meas.get(f).mass.w));
   if (cls.maxW && massW > cls.maxW * (1 + TOLERANCE)) out.push({ rule: 'width', id, detail: `mass ${massW}px wide, class ${sp.class} allows ${cls.maxW}` });
-  if (cls.canopy && (massW < cls.canopy[0] * (1 - TOLERANCE) || massW > cls.canopy[1] * (1 + TOLERANCE))) out.push({ rule: 'canopy', id, detail: `canopy ${massW}px wide, class ${sp.class} allows ${cls.canopy.join('-')}` });
+  // a crown is read by its outline, bare branches included: canopy is the box width
+  const boxW = median(refs.map((f) => meas.get(f).box.w));
+  if (cls.canopy && (boxW < cls.canopy[0] * (1 - TOLERANCE) || boxW > cls.canopy[1] * (1 + TOLERANCE))) out.push({ rule: 'canopy', id, detail: `canopy ${boxW}px wide, class ${sp.class} allows ${cls.canopy.join('-')}` });
 
   const c = cls.contact;
   if (c === 'unit') {

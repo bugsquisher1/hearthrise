@@ -2846,8 +2846,9 @@ hand-edited atlas pixel; every one is caught by its named rule.
 Run against the v3 raws the validator names the old defects outright (DISCOVERIES 2026-10-14). New
 art: v3 hero at size 40 (36 px body) with v3-custom idle/walk/attack/down in four facings; rat, slime,
 hive wasp with walk/attack/hit/death/corpse; cellar Wang floor; fieldstone walls, rims, arch; 40-odd
-props; a `proof` set (timber/plank walls, roofs with a ridge, plank floor, furniture, trees, three peer
-looks) for the three stills in `docs/art-experiments/world/`.
+props; `town` and `home` sets (timber/stone/plank walls, ridged roofs, plank floor, furniture per room,
+the four town stations, trees, smith and crier, three peer looks) and the three stills in
+`docs/art-experiments/world/`.
 Lessons: (1) template animations redraw the character: the shield came and went between frames, so
 every clip is a v3 custom clip from the rotation frame; (2) a unit stands on its feet and a chest on
 its base: one "contact row" rule cannot serve both; (3) iso is a shape (a centre corner climbing in

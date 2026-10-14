@@ -1,0 +1,42 @@
+{
+  "id": "waterwheel",
+  "class": "fixture",
+  "material": "wood",
+  "source": "waterwheel.png",
+  "frame": [
+    58,
+    68
+  ],
+  "anchor_px": [
+    29,
+    65
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "shadow": "cast",
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "23d8714a-5586-4b82-894b-bd54d2363aa1",
+    "request": {
+      "description": "large wooden mill waterwheel with paddles mounted upright against a wall, straight side-on front view, top-down RPG, muted brown wood and dark iron, dark outline, no water, no shadow",
+      "width": 64,
+      "height": 76,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  }
+}

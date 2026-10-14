@@ -4,8 +4,8 @@
   "palette": "hr-world-40-v1",
   "T": 32,
   "image": "atlas-hero.png",
-  "size": [1024,456],
-  "pixels": "ae06fdc6aa7de8144335b42bf72e196c974e4735952f2ce1ff89deb867027add",
+  "size": [1024,520],
+  "pixels": "b597f5c9da72abb943d5fb1b2550d7af15c5684a1e1c13aeac7be7248f119ce7",
   "sprites": {
     "hero": {
       "class": "character",
@@ -64,6 +64,96 @@
             "e": [[195,195],[585,65],[650,65],[715,65],[780,65],[845,65],[910,65]],
             "n": [[520,195],[0,130],[65,130],[130,130],[195,130],[260,130],[325,130]],
             "w": [[195,260],[780,130],[845,130],[910,130],[0,195],[65,195],[130,195]]
+          }
+        }
+      }
+    },
+    "peer_knight": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,3,0],
+      "hover": 0,
+      "height": 37,
+      "contact": [10,38],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 26,
+        "h": 9,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": true,
+          "dirs": {
+            "s": [[780,390]],
+            "e": [[650,390]],
+            "n": [[715,390]],
+            "w": [[845,390]]
+          }
+        }
+      }
+    },
+    "peer_mage": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,3,0],
+      "hover": 0,
+      "height": 34,
+      "contact": [23,40],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 17,
+        "h": 6,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": true,
+          "dirs": {
+            "s": [[65,455]],
+            "e": [[910,390]],
+            "n": [[0,455]],
+            "w": [[130,455]]
+          }
+        }
+      }
+    },
+    "peer_ranger": {
+      "class": "character",
+      "layer": "unit",
+      "frame": [64,64],
+      "anchor": [32,58],
+      "footprint": [1,1],
+      "overhang": [0,0,3,0],
+      "hover": 0,
+      "height": 36,
+      "contact": [24,38],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 19,
+        "h": 7,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": true,
+          "dirs": {
+            "s": [[325,455]],
+            "e": [[195,455]],
+            "n": [[260,455]],
+            "w": [[390,455]]
           }
         }
       }

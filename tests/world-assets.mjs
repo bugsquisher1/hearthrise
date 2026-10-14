@@ -25,7 +25,8 @@
 //
 // The content contract the world renderer builds against is pinned too: the hero
 // idles, walks and attacks in four directions; rat, slime and hive wasp walk,
-// attack, flinch and leave a corpse in four.
+// attack, flinch and leave a corpse in four; the town has its four stations and
+// its crier, the house one piece per room, and each set its floor.
 //
 // --selftest plants the five defects the feedback named into REAL shipped sprites
 // — a floated chest, a 50 px hero, an off-palette pixel, a baked shadow, an
@@ -44,15 +45,35 @@ import { decodePNG, encodePNG, pixelHash, cloneImage, createImage, blit, scaleNe
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
-import { CLASSES, DIRS, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
+import { CLASSES, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 
+// What the hunt (W3) and the town/home scenes (W4) are built against. A prop needs
+// its one idle frame; a unit every listed clip in all four facings.
+const UNIT = ['s', 'e', 'n', 'w'], PROP = ['s'];
 const REQUIRED = {
-  hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'] },
-  rat: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'] },
-  slime: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'] },
-  hive_wasp: { set: 'cellar', class: 'flier', anims: ['walk', 'attack', 'hit', 'corpse'] },
+  hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'], dirs: UNIT },
+  rat: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
+  slime: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
+  hive_wasp: { set: 'cellar', class: 'flier', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
+  // town stations: combat at the mill hatch, gather at the woodpile, artisan at the anvil,
+  // away/idle on benches; the crier speaks from the notice board
+  hatch: { set: 'town', class: 'decal', anims: ['idle'], dirs: PROP },
+  woodpile: { set: 'town', class: 'fixture', anims: ['idle'], dirs: PROP },
+  anvil: { set: 'town', class: 'bulky', anims: ['idle'], dirs: PROP },
+  bench: { set: 'town', class: 'bench', anims: ['idle'], dirs: PROP },
+  noticeboard: { set: 'town', class: 'fixture', anims: ['idle'], dirs: PROP },
+  npc_crier: { set: 'town', class: 'character', anims: ['idle'], dirs: UNIT },
+  // one piece per house room (kitchen, forge, library, trophy, workshop, shrine) + the bed
+  hearth: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
+  forge: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
+  bookshelf: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
+  display_case: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
+  workbench: { set: 'home', class: 'station', anims: ['idle'], dirs: PROP },
+  altar: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
+  bed: { set: 'home', class: 'bed', anims: ['idle'], dirs: PROP },
 };
+const REQUIRED_TERRAIN = { cellar_floor: 'cellar', town_ground: 'town', plank_floor: 'home' };
 
 function loadAtlases(root = ROOT) {
   const dir = join(root, OUT_DIR);
@@ -86,7 +107,11 @@ function guard() {
     if (!got) { fails.push(`content: no sprite "${id}" in set ${want.set}`); continue; }
     if (got.set !== want.set) fails.push(`content: "${id}" is in set ${got.set}, the renderer loads it from ${want.set}`);
     if (got.sprite.class !== want.class) fails.push(`content: "${id}" is class ${got.sprite.class}, expected ${want.class}`);
-    for (const a of want.anims) for (const d of DIRS) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
+    for (const a of want.anims) for (const d of want.dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
+  }
+  for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
+    const m = atlases.find((a) => a.manifest.set === set);
+    if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
   }
   const { findings, drift } = checkAll(ROOT);
   for (const f of findings) fails.push(`source: [${f.rule}] ${f.id}: ${f.detail}`);

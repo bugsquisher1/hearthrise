@@ -65,7 +65,7 @@ const WT_NOTICE = Object.freeze({
   id: 'hunts-arrive',
   text: 'Big changes are underway: fighting now happens in hunting grounds, and more hunts are coming. Every monster is still in the Monsters tab.',
   /* WHO IT IS FOR (Game Designer loop check 2026-10-14): a hero who fought
-     before hunting grounds arrived (b574 went live 2026-10-14 06:30 UTC). A
+     before hunting grounds arrived (they went live 2026-10-14 06:30 UTC). A
      brand-new hero met it on their very first Combat visit, which is First
      Steps' fight step, announcing a change to a screen they had never seen. */
   foughtBefore: Date.parse('2026-10-14T06:30:00Z'),

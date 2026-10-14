@@ -111,7 +111,7 @@ export const PERMANENT_CAP = 0.20;
 export const TEMPORARY_CAP = 0.15;
 export const TOTAL_CAP = 0.30;
 
-/* The nine keys the budget governs — every one multiplies a RATE.
+/* The eight keys the budget governs — every one multiplies a RATE.
    Everything else a rung can pay is deliberately outside it:
      farmYield      capacity — a COUNT of extra crops, not a multiplier
      noBurn         reliability — burn-proof is burn-proof; it cannot stack

@@ -253,7 +253,7 @@
       +   '<div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">'
       +   '<p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">' + (isSignUp
               ? 'Hearthrise is in open beta — make an account and play. It\'s rough in places; tell us in Discord.'
-              : 'Join the realm: clans, chat, market and leaderboards.') + '</p>'
+              : 'Join the realm: chat, market and leaderboards.') + '</p>'
       +   nameRow
       +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
@@ -489,17 +489,10 @@
   function ownsAutoEat(){
     try {
       var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-      if (AE && typeof AE.autoEatTier === 'function') return AE.autoEatTier((window.G && window.G.traits) || {}) > 0;
-      return (typeof window.hasTrait === 'function') && !!window.hasTrait('auto_eat');
+      return !!(AE && typeof AE.autoEatTier === 'function'
+        && AE.autoEatTier((window.G && window.G.traits) || {}) > 0);
     }
     catch(e){ return false; }
-  }
-  function autoEatPrice(){
-    /* The fallback tracks the ENTRY tier's authored price (src/core/auto-eat.js
-       AUTO_EAT_TIERS[1].marks). A stale literal here is a lie about a price. */
-    var t = (window.TRAITS && window.TRAITS.auto_eat) || { cost:15, currency:'marks' };
-    var n = Number(t.cost); if(!isFinite(n)) n = 15;
-    return n.toLocaleString() + (t.currency === 'marks' ? ' Bounty Marks' : ' gold');
   }
   /* ── THE HINT UNDER THE DIAL — ONE SOURCE, THREE STATES ──────────────────
      It used to be written out TWICE (here and again in the `data-autoeat`
@@ -528,7 +521,7 @@
      of the same promise and the two are meant to rhyme. */
   var AUTO_EAT_AWAY_WARNING =
     'You will not heal while away. A fight that outlasts your health ends the night early.';
-  function autoEatHint(on, threshold, upsell){
+  function autoEatHint(on, threshold){
     if(!on){
       return 'Auto-Eat is switched off, so this threshold does nothing until you turn it on above. '
         + AUTO_EAT_AWAY_WARNING;
@@ -547,10 +540,10 @@
        there is a real consequence to inform; here there is none left. */
     if(Number(threshold) >= 1){
       return '100% — eat the moment I take any damage. '
-        + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
+        + 'Feasts & Draughts are never auto-eaten.';
     }
     return 'Eat one Provision automatically on each swing your HP is below this percentage. '
-      + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
+      + 'Feasts & Draughts are never auto-eaten.';
   }
 
   /* Re-say the hint from the LIVE control values. Both writers (the switch and
@@ -566,13 +559,7 @@
     var row = slider.closest ? slider.closest('.ss-row') : null;
     var hint = row ? row.nextElementSibling : null;
     if(!hint || !hint.classList || !hint.classList.contains('ss-hint')) return;
-    /* The upsell is carried on the node, not re-derived. It is a PURCHASE
-       PROMPT read from TRAITS at render time; re-deriving it on every toggle
-       would make this a second reader of the price, which is the drift the
-       death sheet's b432 note is about. Stashing it means the tier-II line
-       survives a repaint instead of vanishing on the first flip. */
-    hint.textContent = autoEatHint(!!toggle.checked, parseFloat(slider.value),
-      hint.getAttribute('data-upsell') || '');
+    hint.textContent = autoEatHint(!!toggle.checked, parseFloat(slider.value));
   }
 
   function autoEatHtml(){
@@ -580,8 +567,7 @@
     if(!ownsAutoEat()){
       return '<div class="ss-row is-locked"><div class="ss-label">Auto-Eat health threshold</div>'
         +      '<span class="ss-locked-tag">Locked</span></div>'
-        +    '<div class="ss-hint">Auto-Eat is a Store unlock (' + esc(autoEatPrice())
-        +      ' — Store → Bounty Shop). Until you own it, healing in combat is manual: '
+        +    '<div class="ss-hint">Auto-Eat is not unlocked on this character. Healing in combat is manual: '
         +      'press <b>Eat</b> beside your champion on the Combat screen.</div>';
     }
     var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
@@ -605,10 +591,6 @@
         maxT = AE.maxPctForTier(tier) / 100;
       }
     } catch(e){}
-    var upsell = (tier < 2 && window.TRAITS && window.TRAITS.auto_eat_2)
-      ? ' Auto-Eat II (' + esc(String(Number(window.TRAITS.auto_eat_2.cost) || 100).toLocaleString())
-        + ' Bounty Marks — Store → Bounty Shop) raises the ceiling.'
-      : '';
     var val = Math.max(0, Math.min(1, Number(d.autoEatPct) || 0));
     if(val > maxT) maxT = val;
     return '<div class="ss-row"><div class="ss-label">Auto-Eat</div>'
@@ -617,8 +599,7 @@
       +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
       +    '</div>'
       + sliderRow('Auto-Eat health threshold', 'autoEatPct', val,
-          0, maxT, 0.05, pct(val), autoEatHint(on, val, upsell),
-          'data-upsell="' + esc(upsell) + '"');
+          0, maxT, 0.05, pct(val), autoEatHint(on, val));
   }
 
   // ── Gameplay ───────────────────────────────────────────────
@@ -642,7 +623,6 @@
     try { blockedCount = store().getJSON('hearthrise:chat:blocked', []).length; } catch(e){}
     var whisperOpts = [
       ['all',  'Everyone'],
-      ['clan', 'Clan members only'],
       ['none', 'No one'],
     ];
     return ''
@@ -799,10 +779,7 @@
       +   '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span>'
       + '</label>';
   }
-  /* `hintAttrs` is an optional attribute string on the hint node — used by the
-     auto-eat row to CARRY its upsell across a repaint (see
-     repaintAutoEatHint), so the price stays read from TRAITS exactly once. */
-  function sliderRow(label, key, value, min, max, step, displayValue, hint, hintAttrs){
+  function sliderRow(label, key, value, min, max, step, displayValue, hint){
     return '<div class="ss-row">'
       +     '<div class="ss-label">' + esc(label) + '</div>'
       +     '<div class="ss-slider">'
@@ -810,7 +787,7 @@
       +       '<span class="ss-slider-value">' + esc(displayValue) + '</span>'
       +     '</div>'
       +   '</div>'
-      + (hint ? '<div class="ss-hint"' + (hintAttrs ? ' ' + hintAttrs : '') + '>' + esc(hint) + '</div>' : '');
+      + (hint ? '<div class="ss-hint">' + esc(hint) + '</div>' : '');
   }
   function selectRow(label, key, current, options, namespace){
     var attr = (namespace === 'chat') ? 'data-chat-set' : 'data-set';

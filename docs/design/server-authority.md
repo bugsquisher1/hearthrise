@@ -1439,6 +1439,13 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   a press carries the player's key. hr_apply's `player_intents` answers a replay `replayed` and
   `hr_hunt_apply` then writes nothing else.
 * **Max HP is raise-only** inside a settle (a hitpoints level-up never lowers it).
+* **Knockouts.** set_activity no longer carries a knockout refusal (a `combat` declaration is
+  `hunt_required`, and its §1b branch is deleted). The combat body reads `recovering_until`: a hunt
+  window inside it earns nothing, whoever opened the session (guard arm KNOCKOUT).
+* **Cron to edge.** `hr_tick_cron_run` (3c) leases due sessions through `hr_hunt_roster` and posts
+  them as their own body (`roster: []`, `hunts: [{user_id, slot, session_id}]`) under shard 0's
+  holder; `runTick` settles each through `settleHunt` (guard arm TICK-0 drives the cron's queued body
+  through the shipped entry). The solo combat channel is undriven (`channel_not_driven`).
 * **Kill switch.** C1 seeds `hr_hunt_config.enabled = false`; `2026-10-22-hunt-sessions-arm.sql`
   (applied right after the edge deploy) is the only writer that turns it on.
 * **Cost at 100× (~600 hunters).** One accrue row per settle (120/day away at fold 8, ≤ 960/day

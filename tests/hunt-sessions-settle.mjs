@@ -27,6 +27,8 @@
 //              32-bit FNV-1a mix it replaced still seed differently; an
 //              unseeded swing is refused.
 //   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
+//   KNOCKOUT   a hunt window wholly inside `recovering_until` earns nothing and
+//              half inside earns about half: exploit R1's door is the engine.
 //   FENCE      a hunter is never priced by the old path: the engine answers
 //              hunt_open; the database refuses a bare combat accrue row.
 //   TICK-1     N world-tick windows (90 s) == ONE span, through the database:
@@ -226,6 +228,29 @@ const ENGINE_ARMS = {
     if (!(lv > 5)) problems.push(`CONTROL — hitpoints did not level inside the window (level ${lv})`);
     else if (!(out.maxHp >= 10)) problems.push(`a hitpoints level-up to ${lv} lowered max HP 10 to ${out.maxHp} (FX-4)`);
     if (out.delta && out.delta.hp > Math.max(10, lv)) problems.push(`hp ${out.delta.hp} exceeds max HP`);
+    return problems;
+  },
+
+  /* KNOCKOUT — exploit R1 has no door into a hunt. set_activity no longer
+     carries a knockout refusal (a `combat` declaration is hunt_required), and
+     hr_hunt_enter does not read `recovering_until`: the ONE combat body does.
+     A window that lies wholly inside the knockout earns nothing; half inside
+     earns roughly half (the control that the line is read, not that the
+     fixture cannot fight). */
+  KNOCKOUT: async (M) => {
+    const problems = [];
+    const val = (o) => ({ kills: Number((o.summary && o.summary.kills) || 0), gold: Number((o.delta && o.delta.gold) || 0),
+      xp: Object.values((o.delta && o.delta.xp) || {}).reduce((a, b) => a + Number(b || 0), 0) });
+    const up = val(M.AC.computeAccrual(huntInput(M)));
+    const half = val(M.AC.computeAccrual(huntInput(M, { recoveringUntilMs: T0 + 450000 })));
+    const down = val(M.AC.computeAccrual(huntInput(M, { recoveringUntilMs: T0 + 1800000 })));
+    if (!(up.kills > 0)) problems.push('CONTROL: the reference hunt window killed nothing');
+    if (down.kills !== 0 || down.gold !== 0 || down.xp !== 0) {
+      problems.push(`a window wholly inside a knockout earned ${JSON.stringify(down)} — a knocked-out hunter fights (exploit R1)`);
+    }
+    if (!(half.kills > 0 && half.kills < up.kills)) {
+      problems.push(`half a window inside a knockout earned ${half.kills} kills against ${up.kills} up — the line is not read`);
+    }
     return problems;
   },
 
@@ -608,6 +633,8 @@ const MUTANTS = [
     from: "            ? Math.floor(state.monsterHp) : Math.max(1, Math.floor(nat(m.hp, 1))),", to: "            ? Math.floor(state.monsterHp) : 0," },
   { arm: 'END', name: 'a dry heal line does not end the hunt', file: 'src/core/action-rules.js',
     from: '  heals_out: (hs) => essentialOut(hs, \'heal\'),', to: '  heals_out: () => false,' },
+  { arm: 'KNOCKOUT', name: 'the combat body ignores the recovery line', file: join(FN, 'accrual.js'),
+    from: '  state.recoveringUntilMs = recoverCol ? nat(inp.recoveringUntilMs, 0) : 0;', to: '  state.recoveringUntilMs = 0;' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
   { arm: 'BESTIARY', name: 'the hunt settle drops the bestiary read', file: join(FN, 'hunt-settle.js'),

@@ -13,9 +13,10 @@
 //
 //   MP-1  zero Math.random in src/market.js, src/net/market-*.js, src/item-ux.js
 //         (comments and string literals stripped first).
-//   MP-2  the retired history key appears at most once, only on a
-//         localStorage.removeItem( line in src/market.js; none of the retired
-//         series' identifiers appears anywhere in shipped code.
+//   MP-2  the retired history key appears at most once, only on a purge line
+//         (the storage seam's .remove( — src/platform/storage.js) in
+//         src/market.js; none of the retired series' identifiers appears
+//         anywhere in shipped code.
 //   MP-3  none of the retired phrases appears in shipped code.
 //   MP-4  non-vacuity: src/net/market-prices.js exists and is imported from
 //         src/main.js with ?v=, and src/item-ux.js carries both the
@@ -29,6 +30,10 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const HISTORY_KEY = 'hearthrise:market:history';
 const RETIRED_IDENTS = ['recordSale', 'getStats7d', 'getTopMovers7d', 'getMarketAvgPrice', 'seedFakeListings', 'clearSeed'];
 const RETIRED_PHRASES = ['7d avg', 'vs avg', 'Top movers', 'Player market avg', 'No 7-day sales', 'market avg', 'last sale'];
+// The purge goes through the storage seam (tests/platform-seam.mjs forbids a direct
+// localStorage in shipped src); a line that also reads or writes the key is no purge.
+const PURGE_LINE = /\b(?:store|HearthriseStorage)\.remove\(/;
+const WRITE_OR_READ = /getItem|setItem|\.(?:get|set)(?:JSON)?\(/;
 const RANDOM_FREE = (p) => p === 'src/market.js' || p === 'src/item-ux.js' || /^src\/net\/market-[^/]+\.js$/.test(p);
 
 /** Two views of a JS source: comments blanked (strings kept), and comments AND
@@ -103,7 +108,7 @@ export function check(files) {
     for (let idx = noC.indexOf(HISTORY_KEY); idx >= 0; idx = noC.indexOf(HISTORY_KEY, idx + 1)) {
       keyHits++;
       const line = noC.split('\n')[lineOf(noC, idx) - 1];
-      if (p !== 'src/market.js' || !/localStorage\.removeItem\(/.test(line) || /getItem|setItem/.test(line)) {
+      if (p !== 'src/market.js' || !PURGE_LINE.test(line) || WRITE_OR_READ.test(line)) {
         problems.push(`MP-2 ${p}:${lineOf(noC, idx)} the retired price-history key is read or written`);
       }
     }
@@ -130,6 +135,8 @@ function selftest() {
     ['clean tree', {}, null],
     ['Math.random in market.js code', { 'src/market.js': (s) => s + '\nvar __x = Math.random();\n' }, 'MP-1'],
     ['setItem of the history key', { 'src/market.js': (s) => s + "\nlocalStorage.setItem('" + HISTORY_KEY + "', '{}');\n" }, 'MP-2'],
+    ['the purge turned into a seam write', { 'src/market.js': (s) => s.replace("store.remove('" + HISTORY_KEY + "')", "store.set('" + HISTORY_KEY + "', '{}')") }, 'MP-2'],
+    ['the purge turned into a seam read', { 'src/market.js': (s) => s.replace("store.remove('" + HISTORY_KEY + "')", "store.getJSON('" + HISTORY_KEY + "', [])") }, 'MP-2'],
     ['a retired identifier', { 'src/item-ux.js': (s) => s + '\nwindow.getMarketAvgPrice && 0;\n' }, 'MP-2'],
     ['a "7d avg" phrase in item-ux.js', { 'src/item-ux.js': (s) => s + "\nvar __y = '7d avg ' + x;\n" }, 'MP-3'],
     ['the HearthriseMarketPrices reader removed from item-ux.js', { 'src/item-ux.js': (s) => s.replace(/HearthriseMarketPrices/g, 'HearthriseMarketPricez') }, 'MP-4'],

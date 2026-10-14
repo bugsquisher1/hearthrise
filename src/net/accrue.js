@@ -1567,14 +1567,13 @@ export function isReconcilePending() {
 }
 
 export function isReplacementAcknowledged() {
-  try { return localStorage.getItem(ACCRUE_REPLACE_ACK_KEY) === 'yes'; } catch (e) { return false; }
+  return globalThis.HearthriseStorage?.get(ACCRUE_REPLACE_ACK_KEY) === 'yes';
 }
 
 export function acknowledgeReplacement(on) {
-  try {
-    if (on === false) localStorage.removeItem(ACCRUE_REPLACE_ACK_KEY);
-    else localStorage.setItem(ACCRUE_REPLACE_ACK_KEY, 'yes');
-  } catch (e) {}
+  const s = globalThis.HearthriseStorage;
+  if (s && on === false) s.remove(ACCRUE_REPLACE_ACK_KEY);
+  else if (s) s.set(ACCRUE_REPLACE_ACK_KEY, 'yes');
   return isReplacementAcknowledged();
 }
 
@@ -2476,10 +2475,7 @@ export function isInventoryAbsolute() {
  *  shared with isEnvelopeAbsolute so the two cannot drift. Storage that cannot
  *  be read is not a decision to merge. */
 function bagMergeForced() {
-  try {
-    if (typeof localStorage === 'undefined') return false;
-    return localStorage.getItem(ENVELOPE_MERGE_KEY) === 'on';
-  } catch (e) { return false; }
+  return globalThis.HearthriseStorage?.get(ENVELOPE_MERGE_KEY) === 'on';
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

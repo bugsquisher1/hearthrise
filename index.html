@@ -896,6 +896,9 @@
        repo-wide guard in tests/run-smoke.mjs (thirdPartyCdnGuard) and smoke test
        SEC-CDN-1 both fail the build on one. -->
   <script src="src/vendor/supabase-js-2.103.0.umd.js?v=577"></script>
+  <!-- the platform storage seam: the only src/ file that touches web storage, so it loads
+       before every other src/ script (tests/platform-seam.mjs pins the order) -->
+  <script src="src/platform/storage.js?v=577"></script>
   <!-- build-info loads as a module (exports BUILD constant) -->
   <script type="module" src="src/build-info.js?v=577"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
@@ -906,8 +909,6 @@
        feature module that registers a tap, so the owner is installed once and
        there is no monkey-patch race. safe.js's wrapShowTab delegates here. -->
   <script src="src/utils/showtab-registry.js?v=577"></script>
-  <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
-  <script src="src/platform/storage.js?v=577"></script>
   <!-- b340: the ONE home for "does this server RPC exist yet?". Dependency-free
        and loaded early because both a classic script (features/clans.js) and an
        ESM module (net/supabase-market-backend.js) read it, and the strangler-fig

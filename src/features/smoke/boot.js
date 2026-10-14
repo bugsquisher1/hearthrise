@@ -789,4 +789,39 @@ export default [
     }
     assert(locks().length === 0, 'this test did not put the shell back the way it found it');
   }),
+
+  /* -- regression suite -- STORAGE-SEAM-1 (W4.1): every web-storage touch goes through
+     src/platform/storage.js, so a residue preference must still survive a reload on the
+     device's own key. The preference is the UI scale: G.settings.uiScale is residue
+     (RESIDUE_FIELDS 'settings') and hearthrise:ui-scale is its device mirror, painted
+     before the account hydrates. MUTATIONS: settings-page.js on another key (arm 1 red);
+     the seam keeping every write in memory, the pre-W4.1 mirror (arm 2 red); the seam
+     dropping a refused write (arm 3 red). */
+  () => tryRun('STORAGE-SEAM-1: a residue preference round-trips through the storage seam, and a refusing store still holds it for the session', () => {
+    const S = window.HearthriseStorage, U = window.HearthriseUIScale, G = window.G;
+    assert(S && S.session && U && G && G.settings, 'the storage seam, HearthriseUIScale or G.settings is not published');
+    const K = U.KEY, before = U.get(), raw = localStorage.getItem(K), hadScale = typeof G.settings.uiScale === 'number', scale = G.settings.uiScale;
+    const realSet = Storage.prototype.setItem;
+    try {
+      U.set(120, true);
+      assert(localStorage.getItem(K) === '120', 'the device holds "' + localStorage.getItem(K) + '" under ' + K + ' after choosing 120% — the key or the backend moved');
+      delete G.settings.uiScale;                       // a boot before the account's settings land
+      assert(U.get() === 120, 'a reload with no account value read ' + U.get() + '%, not the 120% saved through the seam');
+      localStorage.removeItem(K);                      // another tab, or the player, cleared the device
+      assert(U.get() === U.DEFAULT, 'the key is gone from the device but the seam still answered ' + U.get() + '% from a stale copy');
+      Storage.prototype.setItem = function () { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; };
+      U.set(95, true);
+      delete G.settings.uiScale;
+      assert(U.get() === 95, 'a store that refused the write lost the 95% choice inside the session that made it');
+      assert(localStorage.getItem(K) === null, 'a refused write reached the device store');
+      assert(S.set('__hr_seam_probe__', 'x') === false && S.session.set('__hr_seam_probe__', 'x') === false,
+        'set() reported a refused write as durable');
+    } finally {
+      Storage.prototype.setItem = realSet;
+      S.remove('__hr_seam_probe__'); S.session.remove('__hr_seam_probe__');
+      if (hadScale) U.set(scale, true); else delete G.settings.uiScale;
+      if (raw == null) S.remove(K); else S.set(K, raw);
+      U.apply(before);
+    }
+  }),
 ];

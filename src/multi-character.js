@@ -7,7 +7,7 @@
 // Switching characters serializes the active slot back to storage,
 // then loads the chosen slot.
 //
-// Storage layout (localStorage):
+// Storage layout (the device store, src/platform/storage.js):
 //   hearthrise:profile = {
 //     activeSlot:    0,                              // 0..4
 //     unlockedSlots: 1,                              // 1..MAX_SLOTS
@@ -39,6 +39,7 @@
   const SLOT_COSTS_GEMS = [0, 200, 500, 900, 1500];   // index = slotIndex (0..4)
   const PROFILE_KEY = 'hearthrise:profile';
   const SAVE_KEY = 'hearthbound-save-v2';
+  const store = window.HearthriseStorage;
 
   /* b371 — how long the switch waits for the CURRENT character's cloud flush
      before it gives up and tells the player. Any wait at all has to be bounded:
@@ -60,19 +61,18 @@
   // ── Profile load / save / migrate ─────────────────────────────
   function loadProfile(){
     try {
-      var raw = localStorage.getItem(PROFILE_KEY);
+      var raw = store.get(PROFILE_KEY);
       if(raw) return JSON.parse(raw);
     } catch(e){ console.warn('[multi-char] profile parse failed', e); }
     return null;
   }
   function saveProfile(p){
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
-    catch(e){ console.warn('[multi-char] profile save failed', e); }
+    if(!store.setJSON(PROFILE_KEY, p)) console.warn('[multi-char] profile save failed');
   }
   function migrateLegacySave(){
     // First time loading the multi-char system: copy the existing single
     // save (if any) into slot 0 and create a profile.
-    var legacy = localStorage.getItem(SAVE_KEY);
+    var legacy = store.get(SAVE_KEY);
     var profile = {
       activeSlot: 0,
       unlockedSlots: 1,
@@ -82,7 +82,7 @@
     };
     if(legacy){
       // Stash legacy save into slot 0.
-      localStorage.setItem(charKey(0), legacy);
+      store.set(charKey(0), legacy);
       // Crack open the save to populate slot meta.
       try {
         var d = JSON.parse(legacy);
@@ -385,8 +385,8 @@
     if(typeof window.G !== 'undefined' && typeof window.saveLocal === 'function'){
       window.saveLocal();
       // saveLocal writes to SAVE_KEY; copy that into the active slot.
-      var snap = localStorage.getItem(SAVE_KEY);
-      if(snap) localStorage.setItem(charKey(profile.activeSlot), snap);
+      var snap = store.get(SAVE_KEY);
+      if(snap) store.set(charKey(profile.activeSlot), snap);
     }
     /* BEFORE THE POINTER MOVES. Anything the accrual module is still holding
        for the outgoing character — a deferred combat-XP snapshot above all —
@@ -398,12 +398,12 @@
     saveProfile(profile);
     // Now load the new slot's data into SAVE_KEY so the engine picks
     // it up on reload.
-    var nextSnap = localStorage.getItem(charKey(slotId));
+    var nextSnap = store.get(charKey(slotId));
     if(nextSnap){
-      localStorage.setItem(SAVE_KEY, nextSnap);
+      store.set(SAVE_KEY, nextSnap);
     } else {
       // First time activating this slot — clear so engine creates fresh.
-      localStorage.removeItem(SAVE_KEY);
+      store.remove(SAVE_KEY);
     }
     return profile;
   }

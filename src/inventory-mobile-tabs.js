@@ -28,11 +28,10 @@
   const STORAGE_KEY = 'hearthrise:inventory-mobile-subtab';
 
   function getActive() {
-    try { return localStorage.getItem(STORAGE_KEY) || 'bag'; }
-    catch { return 'bag'; }
+    return window.HearthriseStorage.get(STORAGE_KEY) || 'bag';
   }
   function setActive(id) {
-    try { localStorage.setItem(STORAGE_KEY, id); } catch {}
+    window.HearthriseStorage.set(STORAGE_KEY, id);
   }
 
   function buildBar() {

@@ -79,7 +79,7 @@
   var SCALE_STEP    = 5;
   var SCALE_DEFAULT = 100;
 
-  function store(){ return window.HearthriseStorage || null; }
+  function store(){ return window.HearthriseStorage; }
 
   function clampScale(n){
     n = Number(n);
@@ -89,9 +89,7 @@
   }
 
   function readDeviceScale(){
-    var s = store();
-    var raw = null;
-    try { raw = s ? s.get(UI_SCALE_KEY) : window.localStorage.getItem(UI_SCALE_KEY); } catch(_){}
+    var raw = store().get(UI_SCALE_KEY);
     return raw == null || raw === '' ? SCALE_DEFAULT : clampScale(raw);
   }
 
@@ -115,8 +113,7 @@
     if(persist === false) return v;
     var G = window.G;
     if(G && G.settings) G.settings.uiScale = v;
-    var s = store();
-    try { if(s) s.set(UI_SCALE_KEY, String(v)); else window.localStorage.setItem(UI_SCALE_KEY, String(v)); } catch(_){}
+    store().set(UI_SCALE_KEY, String(v));
     if(typeof window.saveLocal === 'function') window.saveLocal();
     return v;
   }
@@ -349,9 +346,7 @@
           // post-hoc claim_beta_invite RPC it used to feed has been revoked from
           // `authenticated` — it burned an unused code for whoever called it and
           // granted the caller nothing.
-          try {
-            localStorage.removeItem('hearthrise:pending-invite');
-          } catch(e){}
+          store().remove('hearthrise:pending-invite');
           status.style.color = '#7f9a4f';
           status.textContent = '✓ Check your inbox for a confirmation email.';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 2200);
@@ -387,7 +382,7 @@
     // and the RPC's `authenticated` grant is revoked. All this does is clear the
     // stale key off devices that still carry one.
     function claimPendingInvite(){
-      try { localStorage.removeItem('hearthrise:pending-invite'); } catch(e){}
+      store().remove('hearthrise:pending-invite');
     }
     document.body.appendChild(overlay);
     setTimeout(function(){ var f = form.querySelector('input[name="email"]'); if(f) f.focus(); }, 50);
@@ -644,7 +639,7 @@
   function chatHtml(){
     var c = (window.Chat && window.Chat.getSettings) ? window.Chat.getSettings() : {};
     var blockedCount = 0;
-    try { blockedCount = JSON.parse(localStorage.getItem('hearthrise:chat:blocked') || '[]').length; } catch(e){}
+    try { blockedCount = store().getJSON('hearthrise:chat:blocked', []).length; } catch(e){}
     var whisperOpts = [
       ['all',  'Everyone'],
       ['clan', 'Clan members only'],
@@ -865,7 +860,7 @@
           // Legacy convention: 'dark' = data-theme attribute set, 'cozy' = no attribute
           if(v === 'dark') document.body.setAttribute('data-theme', 'dark');
           else document.body.removeAttribute('data-theme');
-          try { localStorage.setItem('hb-theme', v === 'dark' ? 'dark' : 'cozy'); } catch(_){}
+          store().set('hb-theme', v === 'dark' ? 'dark' : 'cozy');
         }
         if(key === 'autoEatPct'){
           /* b326 (Xarn, live b324): this slider used to write ONLY
@@ -1140,7 +1135,7 @@
   // ── Block list modal ───────────────────────────────────────
   function showBlockList(){
     var blocked = [];
-    try { blocked = JSON.parse(localStorage.getItem('hearthrise:chat:blocked') || '[]'); } catch(e){}
+    blocked = store().getJSON('hearthrise:chat:blocked', []);
     var html = blocked.length
       ? blocked.map(function(id){
           return '<div class="ss-backup-row">'

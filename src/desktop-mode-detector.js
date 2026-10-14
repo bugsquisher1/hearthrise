@@ -154,7 +154,7 @@
 
   function build() {
     if (document.getElementById('hr-desktopmode-banner')) return null;
-    if (sessionStorage.getItem(DISMISS_KEY) === '1') return null;
+    if (window.HearthriseStorage.session.get(DISMISS_KEY) === '1') return null;
 
     var bar = document.createElement('div');
     bar.id = 'hr-desktopmode-banner';
@@ -220,7 +220,7 @@
     x.textContent = 'Dismiss';
     x.style.cssText = CHIP + ';color:var(--ink-2)';
     x.addEventListener('click', function () {
-      try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
+      window.HearthriseStorage.session.set(DISMISS_KEY, '1');
       if (bar.parentNode) bar.parentNode.removeChild(bar);
       unreserve();
     });

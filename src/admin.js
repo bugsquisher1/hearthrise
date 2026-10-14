@@ -41,8 +41,8 @@
   // (written by auth.js), so the gate is decided correctly at load without
   // waiting on the async auth round-trip.
   function cachedUid(){
-    try { var s = JSON.parse(localStorage.getItem('hearthrise:supabaseSession')||'null'); return (s && s.user && s.user.id) || null; }
-    catch(e){ return null; }
+    var s = window.HearthriseStorage.getJSON('hearthrise:supabaseSession', null);
+    return (s && s.user && s.user.id) || null;
   }
   if(!adminGate(location.hostname, cachedUid())){
     // Not authorised on this host: register NOTHING, define NO window.Admin,
@@ -52,12 +52,12 @@
 
   var url = new URL(location.href);
   var optIn = url.searchParams.get('admin') === '1' ||
-              localStorage.getItem('hearthrise:admin') === '1';
+              window.HearthriseStorage.get('hearthrise:admin') === '1';
   if(url.searchParams.get('admin') === '1'){
-    localStorage.setItem('hearthrise:admin', '1');
+    window.HearthriseStorage.set('hearthrise:admin', '1');
   }
   if(url.searchParams.get('admin') === '0'){
-    localStorage.removeItem('hearthrise:admin');
+    window.HearthriseStorage.remove('hearthrise:admin');
     return;
   }
 

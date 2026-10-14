@@ -18,6 +18,8 @@ let authConfig = null;     // {url, anonKey}
 let session = null;        // current session
 
 const LOCAL_KEY = 'hearthrise:supabaseSession';
+/** The platform storage seam (src/platform/storage.js); absent under Node = no storage. */
+const store = () => globalThis.HearthriseStorage || null;
 
 /**
  * WHAT AN AUTH EVENT MEANS FOR THE CACHED SESSION — pure, and exported so the
@@ -104,12 +106,13 @@ export function liveAccessToken(now) {
 }
 
 function readCachedSession() {
-  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch (e) { return null; }
+  const s = store();
+  return s ? s.getJSON(LOCAL_KEY, null) : null;
 }
 
 function adoptSession(s) {
   session = s;
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(s)); } catch (e) {}
+  store()?.setJSON(LOCAL_KEY, s);
   try { resetAuthGate(); } catch (e) {}          // the breaker may open again
   syncDownSince = 0;
   hideAuthExpiredGate();
@@ -259,7 +262,7 @@ export async function setupAuth(config) {
      "awaited-on-auth" half; record.js's ladder is the "and retried" half, and
      both are needed — this one removes the guaranteed first failure, the ladder
      covers every failure this cannot foresee. */
-  const cached = localStorage.getItem(LOCAL_KEY);
+  const cached = store()?.get(LOCAL_KEY);
   if (cached) {
     try {
       session = JSON.parse(cached);
@@ -312,19 +315,18 @@ export async function setupAuth(config) {
     } catch (e) {}
   }
 
-  // Auth state listener — keep session in localStorage + reconfigure sync.
+  // Auth state listener — keep the session cached + reconfigure sync.
   // The rule itself is decideSessionEvent() below, so it can be proved.
   supabase.auth.onAuthStateChange((event, newSession) => {
     const act = decideSessionEvent(event, newSession);
     if (act === 'ignore') return;                    // transient null — keep what we have
     if (act === 'persist') {
       session = newSession;
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(newSession));
+      store()?.setJSON(LOCAL_KEY, newSession);
       enableLiveSync();
     } else {
       session = null;
-      localStorage.removeItem(LOCAL_KEY);
-      // Sync stays in offline mode (events buffer to localStorage)
+      store()?.remove(LOCAL_KEY);
     }
     renderAuthUi();
     // Trigger a full panel re-render so the Profile sheet's
@@ -944,10 +946,10 @@ export async function signOut() {
      the account that just left. Sign-out does NOT reload, so without this they
      are live module state when the next account signs in on this tab. */
   try { window.HearthriseAccrual?.resetAccrualIdentity?.(); } catch (e) {}
-  if (!supabase) { session = null; try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} return; }
+  if (!supabase) { session = null; store()?.remove(LOCAL_KEY); return; }
   await supabase.auth.signOut();
   session = null;
-  localStorage.removeItem(LOCAL_KEY);
+  store()?.remove(LOCAL_KEY);
 }
 
 /** The user id carried by a supabase session object, or null. Pure. */
@@ -965,8 +967,7 @@ export function readUserIdFromSession(s) {
 export function currentUserId() {
   const live = readUserIdFromSession(session);
   if (live) return live;
-  try { return readUserIdFromSession(JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null')); }
-  catch (e) { return null; }
+  return readUserIdFromSession(readCachedSession());
 }
 
 export function getSession() {
@@ -1219,11 +1220,3 @@ if (document.readyState === 'loading') {
   setTimeout(renderAuthUi, 500);
 }
 
-// b300: after a cloud-restore reload, tell the player their newer save was
-// pulled in — a silent state swap on sign-in would otherwise look like a bug.
-try {
-  if (sessionStorage.getItem('hr:restoredFromCloud') === '1') {
-    sessionStorage.removeItem('hr:restoredFromCloud');
-    setTimeout(() => { if (typeof window.notify === 'function') window.notify('☁️ Restored your latest progress from the cloud.', 'info'); }, 1800);
-  }
-} catch (e) {}

@@ -87,10 +87,7 @@ function addButton() {
   // is sticky in localStorage). Ctrl+Shift+T still works for everyone, so
   // testers can still kick off the suite if asked. Keeps the regular UI
   // clean of dev affordances during beta.
-  const isAdmin = (() => {
-    try { return localStorage.getItem('hearthrise:admin') === '1'; }
-    catch (e) { return false; }
-  })();
+  const isAdmin = window.HearthriseStorage.get('hearthrise:admin') === '1';
   if (!isAdmin) return;
   const b = document.createElement('button');
   b.id = 'smoke-test-btn';

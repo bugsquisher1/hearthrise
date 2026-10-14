@@ -45,12 +45,15 @@ export function groundTiles(map, book, tables, T) {
   const tiles = [], voids = [];
   const terr = book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
+  const fill = terr && terr.kind === 'fill' ? terr.cycle || [1, 1] : null;
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
-      const t = book.tile(map.groundTerrain, tileKey(g, map.w, x, y), x * 7 + y * 13);
+      /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
+      const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;
+      const t = book.tile(map.groundTerrain, fill ? '1111' : tileKey(g, map.w, x, y), n);
       if (t) tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T });
     }
   }

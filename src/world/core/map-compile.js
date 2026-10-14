@@ -13,7 +13,7 @@
 //
 // ROW SHAPE
 //   id, name, kind ('hunt' | 'town' | 'home'), hunts: [hunt ids it renders]
-//   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 terrain id:
+//   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 or fill terrain id:
 //     its lower/upper materials are what the legend's characters name)
 //   legend { char: MATERIALS id }, rows [string, …] (equal widths)
 //   faces     [{ x, y, id }] a rock face drawn with a variant (an arch)

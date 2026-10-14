@@ -8,8 +8,9 @@
 // WHAT THIS IS: window.buildTibiaDoll — the "Tibia-style" equipment paper-doll
 // reused WHOLESALE by every equipment surface (the Character screen's Equipment
 // card AND the Combat War Table doll). It READS EQUIP_SLOTS / EQUIP_SLOT_META /
-// G.equipment / G.companions / COMPANIONS / ITEMS and returns a DETACHED DOM node
-// (a .td-wrap with three sub-panes: Equipment gear grid, Stats, Companion). It
+// G.equipment / ITEMS and returns a DETACHED DOM node
+// (a .td-wrap with two sub-panes: Equipment gear grid, Stats). The Companion
+// pane left with the companion system (2026-10-14 demolition). It
 // writes NO authoritative state — the only state it touches is the session-UI
 // scratch field window._tdPane (the persisted sub-tab, same convention as
 // _invFilter). Because it returns a detached node rather than mutating a host's
@@ -27,8 +28,7 @@
 //
 // THE HANDLERS STAY GLOBAL IN legacy.js. The doll wires state-mutating clicks —
 // unequip(slot) (a legacy.js top-level function declaration → window.unequip in a
-// classic script) and window.unequipCompanion() — plus window.showTab for the
-// "Open the Stable" button. None of those move here; they are resolved via
+// classic script). It does not move here; they are resolved via
 // window.* at CALL time, so this module only PAINTS and delegates. Globals are
 // read via window.* (resolved at call time), so this script may load in any order
 // after legacy.js. Only buildTibiaDoll is re-exported onto window, under its exact
@@ -71,36 +71,7 @@
        guessed (repeat(4,auto) for a layout that used four) it left two empty
        90px tracks under the boots. */
     if(plan.rows) doll.style.gridTemplateRows = 'repeat(' + plan.rows + ', auto)';
-    var companionPane = document.createElement('div');
-    companionPane.className = 'td-pet-pane';
-    /* The companion is drawn into its OWN pane (b216) and has no place on a
-       body, so it is walked separately from the doll's reading order. */
-    plan.order.concat(EQUIP_SLOTS.indexOf('companion') >= 0 ? ['companion'] : []).forEach(function(s){
-      // b229: the companion slot used to resolve through `ITEMS[G.equipment.
-      // companion]` like every other slot, but equipCompanion() only ever
-      // mirrors the legacy 'fox_companion' item id into G.equipment.companion
-      // for the fox — every other companion (wolf_pup, hawk, ...) writes its
-      // raw COMPANIONS id there instead, which ITEMS doesn't have. That silently
-      // rendered 21 of the 22 companions as an EMPTY slot here even while
-      // equipped (the info panel below already read the right source). Resolve
-      // this slot from G.companions.equipped/window.COMPANIONS directly instead
-      // of piggybacking on the generic ITEMS path.
-      if(s === 'companion'){
-        var eqId = (G.companions && G.companions.equipped) || null;
-        var cdef = eqId && window.COMPANIONS ? window.COMPANIONS[eqId] : null;
-        var cslot = document.createElement('div');
-        cslot.className = 'td-slot td-companion' + (cdef?'':' empty') + ' td-companion-slot';
-        var cLabel = EQUIP_SLOT_META[s]?.label || s;
-        cslot.title = cdef ? (cLabel + ': ' + cdef.n + ' (click to unequip)') : cLabel;
-        cslot.onclick = function(){
-          if(cdef && typeof window.unequipCompanion === 'function') window.unequipCompanion();
-        };
-        cslot.innerHTML = cdef
-          ? window.companionIconHtml(eqId, 44)
-          : (slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(cLabel||s)+'</span>');
-        companionPane.appendChild(cslot);
-        return;
-      }
+    plan.order.forEach(function(s){
       /* b459 (journey-audit P1-3): the doll is a DISPLAY surface, so it follows
          the b456 display ladder — record KNOWN → server truth; record UNKNOWN
          (no/failed session, boot window) → the local optimistic value, exactly
@@ -139,7 +110,6 @@
         // goes where (faint tiny glyphs alone were unreadable).
         slot.innerHTML = slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(slotLabel||s)+'</span>';
       }
-      // 'companion' is handled by the early-return branch above.
       var pos = plan.pos[s];
       if(pos){ slot.style.gridColumn = pos[0]; slot.style.gridRow = pos[1]; }
       doll.appendChild(slot);
@@ -152,65 +122,24 @@
     statsPane.className = 'td-stats-pane';
     statsPane.innerHTML = window.renderEquipmentStatsHTML();
 
-    /* b218 (backlog #4): the Companion tab used to hold ONLY the companion equip
-       slot — a lone icon — so the companion's own level/XP/stats were invisible
-       here; the always-on stat sheet beside the doll shows the PLAYER's stats,
-       which is what players saw when they opened this tab. Wire the equipped
-       companion's own progression into the pane. All data is authored in
-       src/data/companions.js and read through the companions ESM module's
-       window bindings (companionLevelFromXp / companionXpToReach /
-       HearthriseCompanions.paidLines) — only what the engine pays, the same
-       lines the Stable renders. */
-    (function(){
-      var info = document.createElement('div');
-      info.className = 'td-companion-info';
-      var eq = (G.companions && G.companions.equipped) || null;
-      var def = eq && window.COMPANIONS ? window.COMPANIONS[eq] : null;
-      if(def && typeof window.companionLevelFromXp === 'function'){
-        var xp = (G.companions.xp && G.companions.xp[eq]) || 0;
-        var lv = window.companionLevelFromXp(xp);
-        var nextXp = window.companionXpToReach(lv + 1);
-        var thisXp = window.companionXpToReach(lv);
-        var pct = nextXp > thisXp ? Math.min(100, ((xp - thisXp) / (nextXp - thisXp)) * 100) : 100;
-        var HC = window.HearthriseCompanions;
-        var lines = HC && typeof HC.paidLines === 'function' ? HC.paidLines(eq, xp) : [];
-        var bonuses = lines.map(function(l){
-          return '<span class="td-comp-bonus"><b>' + l.text + '</b> ' + l.label + '</span>';
-        }).join('');
-        info.innerHTML =
-          '<div class="td-comp-head"><span class="td-comp-icon">' + window.companionIconHtml(eq, 28) + '</span>' +
-            '<div class="td-comp-idcol"><div class="td-comp-name">' + def.n + ' <span class="td-comp-lv">Lv ' + lv + '</span></div>' +
-            '<div class="td-comp-role">' + (def.role || '') + ' companion</div></div></div>' +
-          '<div class="td-comp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
-          '<div class="td-comp-xp">' + xp.toLocaleString() + ' / ' + nextXp.toLocaleString() + ' XP</div>' +
-          (bonuses ? '<div class="td-comp-bonuses">' + bonuses + '</div>' : '');
-      } else {
-        info.innerHTML = '<div class="td-comp-empty">No companion equipped.<br>'
-          + '<button class="td-comp-stable" onclick="window.showTab&&window.showTab(\'stable\')">Open the Stable →</button></div>';
-      }
-      companionPane.appendChild(info);
-    })();
-
-    /* Tabs — Equipment | Stats | Companion.
+    /* Tabs — Equipment | Stats.
        b218 (backlog #3): the doll is rebuilt from scratch on every panel
        re-render (renderInvFancy fires on the game tick via updateTopbar/addItem;
        renderCharacter re-runs every 2s), and each rebuild hardcoded the Equipment
-       pane active — so a player who opened Stats or Companion was snapped back to
+       pane active — so a player who opened Stats was snapped back to
        Equipment within seconds. Persist the selected pane in a single session-UI
        field (same window._* convention as _invFilter) and
        restore it on build so the choice survives auto-refresh. */
-    var activePane = (window._tdPane === 'stats' || window._tdPane === 'pet') ? window._tdPane : 'gear';
+    var activePane = window._tdPane === 'stats' ? 'stats' : 'gear';
     var tabs = document.createElement('div');
     tabs.className = 'td-tabs';
     tabs.innerHTML =
       '<button class="td-tab'+(activePane==='gear'?' active':'')+'" data-td-pane="gear" title="Equipment">'+ slotGlyphSVG('body') +'<span>Equipment</span></button>'+
-      '<button class="td-tab'+(activePane==='stats'?' active':'')+'" data-td-pane="stats" title="Stats">'+ slotGlyphSVG('weapon') +'<span>Stats</span></button>'+
-      '<button class="td-tab'+(activePane==='pet'?' active':'')+'" data-td-pane="pet" title="Companion">'+ slotGlyphSVG('companion') +'<span>Companion</span></button>';
+      '<button class="td-tab'+(activePane==='stats'?' active':'')+'" data-td-pane="stats" title="Stats">'+ slotGlyphSVG('weapon') +'<span>Stats</span></button>';
     function applyPane(pane){
       tabs.querySelectorAll('.td-tab').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-td-pane') === pane); });
       doll.style.display          = pane === 'gear'  ? '' : 'none';
       statsPane.style.display     = pane === 'stats' ? '' : 'none';
-      companionPane.style.display = pane === 'pet'   ? '' : 'none';
       // Recompute on open so it always reflects what's currently worn.
       if(pane === 'stats') statsPane.innerHTML = window.renderEquipmentStatsHTML();
     }
@@ -224,7 +153,6 @@
     wrap.appendChild(tabs);
     wrap.appendChild(doll);
     wrap.appendChild(statsPane);
-    wrap.appendChild(companionPane);
     applyPane(activePane);   // restore the persisted sub-tab on (re)build
     return wrap;
   }

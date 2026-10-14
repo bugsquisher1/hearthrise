@@ -182,7 +182,10 @@ export async function armHomingGuard() {
     // the 18 legacy contract fields
     'skills', 'inventory', 'bank', 'equipment', 'companions', 'farmPlots', 'rooms',
     'bountyHunter', 'gold', 'gems', 'stats', 'playerName', 'activeStyle', 'foodSlot',
-    'restedXp', 'restedAt', 'chronicle',
+    'restedXp', 'restedAt',
+    /* `chronicle` LEFT THIS CENSUS ON 2026-10-14 because it left the GAME: the
+       Milestones log was cut (demolition, designer ruling §5) and no writer in
+       src/ remains. A re-added `G.chronicle =` write is caught by the SCANNER. */
     // the residue-census tail (b439 audit)
     /* ⚠ `ownedThemes` / `ownedCosmetics` LEFT THIS CENSUS ON 2026-09-14 because
        they left the GAME. They are not un-homed fields that someone forgot to

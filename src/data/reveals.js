@@ -83,9 +83,7 @@ export const REVEALS = Object.freeze([
   row('card:holding', 5, [property(1)]),
   row('card:workers', 6, [workers(1)]),
   row('card:recipe-book', 7, [count('crafted', 1), count('smithed', 1)]),
-  row('card:quests-chip', 8),
   row('card:vigour', 9),
-  row('card:realm', 10),
   row('card:heroes', 10),
 ]);
 

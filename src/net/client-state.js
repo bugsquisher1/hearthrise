@@ -13,7 +13,6 @@
 // THE RESIDUE (the fields this store carries):
 //   · bountyHunter (MINUS marks and xp — both are server-owned)
 //   · stats            (kills/gathered/harvested/rareDrops — goal counters)
-//   · chronicle        (the permanent achievement log)
 //   · activeStyle      (which loadout is active — a pref)
 //   … plus the self-only tail (settings, houseTheme, daily, collection, quests,
 //   entitlements, …). EVERY entry carries its own one-line justification in the
@@ -120,8 +119,9 @@ export const RESIDUE_FIELDS = Object.freeze([
   'stats',          // the goal engine's device counters (kills/gathered/harvested/rareDrops). The envelope
                     // DOES project the lifetime stat rows; screens read them through HearthriseLifetime
                     // (src/features/lifetime-tally.js), never this bag
-  'chronicle',      // client-only log: rank-ups, 99s, first kills. Nothing reads it for a gate;
-                    // capped at 500 entries by chronicle.js compaction
+  /* ⚠ `chronicle` WAS HERE and is DELETED (2026-10-14 demolition, designer
+     ruling §5): the permanent Milestones log was cut; chronicle.js keeps only
+     the in-memory session ring, which is never persisted. */
   'activeStyle',    // client-only preference: which saved loadout is active (the gear is the record's)
   /* ⚠ `foodSlot` WAS HERE and is DELETED (2026-09-14). The pointer that counts
      is `player_state.auto_eat_food` — the column hr_set_auto_eat writes and
@@ -677,18 +677,6 @@ export function applyClientState(res, G) {
      exactly the population that needs it. Guarded: an observation must never
      break a record load. */
   try { notePropertyUnlocks(res); } catch (e) {}
-  /* AND WHAT THE REALM HAS COUNTED IN RENOWN, off the same body and for
-     the same reason: the boot load is the only envelope an idle session gets,
-     and the renown mirror (src/features/renown.js noteServerRenown) is what the
-     rank headline and the rank-up card read. Today it learns the `renown_claim:`
-     once-guard flags out of `progress` (a FLOOR under the server's high-water);
-     the day hr_state_of projects `renown_high` the same call picks it up EXACT.
-     Observation only — nothing is written into G — and guarded, because an
-     observation must never break a record load. */
-  try {
-    const RN = (typeof window !== 'undefined') && window.HearthriseRenown;
-    if (RN && typeof RN.noteServerRenown === 'function') RN.noteServerRenown(res);
-  } catch (e) {}
   /* AND THE PLAYER'S OWN PLACE — `place:{zone,quiet}` — for the same reason and
      by the same rules: the boot load is the only envelope an idle session gets,
      and the presence opt-out is a setting a player must see the TRUTH of. It

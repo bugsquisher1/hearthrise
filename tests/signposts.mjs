@@ -184,9 +184,9 @@ export function check(w) {
 const MUTATIONS = {
   unreferencedKey: ['SIGN-1', (w) => { w.lines['zz.orphan'] = { text: 'A line nobody in the game ever shows to a player.' }; }],
   badTab: ['SIGN-2', (w) => { w.lines['bag.all'].door.tab = 'nope'; }],
-  paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'stable'); }],
+  paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'shops'); }],
   digit: ['SIGN-3', (w) => { w.lines['farm.noSeeds'].text += ' Costs 5 gold.'; }],
-  missingBagTools: ['SIGN-4', (w) => { delete w.lines['bag.tools']; }],
+  missingBagSeeds: ['SIGN-4', (w) => { delete w.lines['bag.seeds']; }],
   undeclaredVar: ['SIGN-5', (w) => { w.lines['chronicle.recentEmpty'].text += ' {x}'; }],
   coreImport: ['SIGN-7', (w) => { w.sources['src/core/zz-planted.js'] = "import { SIGNPOSTS } from '../data/signposts.js';\n"; }],
   packCarries: ['SIGN-7', (w) => { w.packOrigins.push('src/data/signposts.js'); }],

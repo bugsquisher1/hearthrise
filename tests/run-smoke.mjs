@@ -46,6 +46,8 @@ import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
+import { hrClockGuard } from './hr-clock.mjs';
+import { roomModalGuard } from './room-modal.mjs';
 import { companionPerkGuard } from './companion-perk.mjs';
 import { companionXpGuard } from './companion-xp.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
@@ -2303,6 +2305,24 @@ const run = async () => {
     } else {
       console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
         + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
+    }
+    /* ── The neutral server clock (src/net/hr-clock.js, 2026-10-14) ──────── */
+    const clockProblems = hrClockGuard();
+    if (clockProblems.length) {
+      console.log('\nServer clock guard — FAILED:');
+      for (const p of clockProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nServer clock guard — the clock follows the envelope and degrades to the device clock.');
+    }
+    /* ── The room modal, moved out of the clan seat (2026-10-14) ─────────── */
+    const roomModalProblems = roomModalGuard();
+    if (roomModalProblems.length) {
+      console.log('\nRoom modal guard — FAILED:');
+      for (const p of roomModalProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nRoom modal guard — self-contained, clan-free, loaded on the boot path.');
     }
     /* ── The companion perk-channel guard (2026-08-20-companion-model) ───────
        The equipped companion's passive bonus is server-owned and byte-parity-

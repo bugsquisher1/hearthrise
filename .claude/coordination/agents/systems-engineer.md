@@ -4078,3 +4078,23 @@ activity bar and the topbar.
    the WIP commit and silently dropped an edit made after it. Commit, then prove.
 5. B353-3, B353-3b and the emoji-as-icon "home DIV" red reproduce ALONE in a scratch harness boot on
    origin/main too: runner context (run-smoke's page setup), not lane regressions.
+
+## 2026-10-14 — lane D3, demolition keep-strip (`lane/demo-keep-strip`)
+
+Removed every read of a deleted system from the KEEP files D3 owns; new `src/net/hr-clock.js`
+(server clock from the envelope's `now`, no RPC) and `src/render/room-modal.js` (moved verbatim
+out of clan-seat-ui.js — the homestead's room modal lived inside the clan seat).
+
+1. *A shared component inside a deleted feature is the trap the inventory did not list.*
+   HearthriseRoomModal (homestead, combat-render, legacy) and the castle-good glyphs lived in
+   clan-seat-ui.js; deleting that file whole would have broken the Homestead. Grep every
+   whole-file delete for `window.X =` publishers before deleting it.
+2. *Reader-first demolition moves the red into the data owner's guards.* Removing a reader makes
+   its data row dead (reveal-coverage R4, signposts SIGN-1, dead-exports). Pay it in the same
+   commit, even across a lane boundary, or the lane cannot be green.
+3. *A pinned hash from the old module is the cheapest byte-identity proof.* perk-channel P10
+   hashes makeBonus over 81 kept inputs x 16 keys; run it once against origin/main's perks.js
+   (hash green, CONTROL red) before trusting it.
+4. *Lockstep client/server bindings cannot be split by lane.* Hero-slot gold prices and the
+   plot-tier deed column are bound to SQL catalogues (hero-slot-buy, plot-tier-parity); their
+   client half waits for M2 rather than landing red.

@@ -2,14 +2,14 @@
 //
 // Three sub-tabs, Skills default:
 //   • Skills    — the character OVERVIEW: an identity banner (portrait, name,
-//                 rank · renown, TOTAL LEVEL) + a dense grid of EVERY skill
+//                 class tagline, TOTAL LEVEL) + a dense grid of EVERY skill
 //                 (icon + level + xp bar) + the Hero·Account stat panel. It does
 //                 NOT embed the activity tiles — each tile routes OUT via
 //                 window.hrOpenActivity: combat→Combat, farm→Farm, and every
 //                 gathering/artisan skill→the standalone Adventure→Skills screen
 //                 (#panel-skills) where training actually happens.
 //   • Equipment — window.buildTibiaDoll() reused WHOLESALE (its internal
-//                 Equipment / Stats / Companion panes come free, _tdPane intact).
+//                 Equipment / Stats panes come free, _tdPane intact).
 //   • Hero      — identity header + the Account stat grid + Melee/Ranged/Magic
 //                 breakdown + best rates.
 //
@@ -28,6 +28,10 @@ import { SKILL_GUIDE } from '../data/skill-guide.js?v=584';
    the surfaces that must render a pending balance rather than a number. */
 import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=584';
 import { heroClass } from '../render/skill-guide.js?v=584';
+/* Side-effect import: publishes window.HearthriseRoomModal, the house/room modal
+   that lived inside the deleted clan seat (2026-10-14). The Character door is on
+   every boot path; every consumer reads the modal at call time. */
+import '../render/room-modal.js?v=584';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */
@@ -188,19 +192,6 @@ function buildHeroCard() {
   const maxHp = (typeof G.playerMaxHp === 'number') ? G.playerMaxHp
               : (typeof window.getMaxHp === 'function') ? window.getMaxHp()
               : '—';
-  // b229: renown rank rides the identity block — the Hero screen is where a
-  // player checks their standing, and the ladder itself stays on Home.
-  let rankLine = '';
-  try {
-    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
-    if (rn && rn.rank) {
-      /* Names the RANK and prints no figure, so it carries no settle note
-         either — the ONE lag tooltip rides the ONE headline figure (the Home
-         hearth band). Tyler, 2026-09-12: a standing line explains nothing. */
-      rankLine = `<div class="cr-build">Standing: <span>${esc(rn.rank.name)}</span></div>`;
-    }
-  } catch (e) { /* renown optional */ }
-
   return `<div class="cr-hero">
     <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-hr-avatar data-no-fallback /></div>
     <div class="cr-hero-id">
@@ -208,7 +199,6 @@ function buildHeroCard() {
       ${founderMarkHtml()}
       <div class="cr-class">${cls.tagline}</div>
       <div class="cr-build">HP: <span>${hp} / ${maxHp}</span></div>
-      ${rankLine}
     </div>
     <div class="cr-hero-stats">
       <div class="cr-hero-stat"><b>${cl}</b><span>Combat Lv</span></div>
@@ -221,10 +211,8 @@ function buildHeroCard() {
 
 /* The OSRS-our-own Account panel. Total XP sits behind a "click to reveal" the
    way OSRS hides its precise figures — the reveal state is a session field so it
-   survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
-   counts, Achievements the deeds the realm's counts have met, and Days running
-   is the server's play streak, each a pending dash until stated; Collections is
-   the realm's completion. The foot row is the Journal's door. */
+   survives the 2s auto-refresh. Quests is the realm's lifetime count, a pending
+   dash until stated; Collections is the realm's completion. The foot row is the Journal's door. */
 function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
@@ -233,22 +221,12 @@ function buildAccountStatGrid() {
   const LT = window.HearthriseLifetime;
   const q = LT ? LT.quests() : null;
   const questCell = q ? `${fmt(q.n)}${q.exact ? '' : '+'} / ${q.of}` : countMarkup(null);
-  const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
-  const D = window.HearthriseDeeds;
-  const achN = D ? D.doneCount(D.readers()) : null;
   let colPct = countMarkup(null);
   try {
     const o = window.HearthriseCollection && window.HearthriseCollection.serverStats
       ? window.HearthriseCollection.serverStats(G).overall : null;
     if (o != null) colPct = Math.round(o * 100) + '%';
   } catch (e) { /* collection optional */ }
-  let rank = '—';
-  try {
-    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
-    if (rn && rn.rank) rank = rn.rank.name;
-  } catch (e) { /* renown optional */ }
-  const A = window.HearthriseAccrual, SC = window.HearthriseStreakChip;
-  const days = (A && typeof A.playStreakKnown === 'function' && A.playStreakKnown(G) && SC) ? fmt(SC.days(G)) : countMarkup(null);
   const reveal = window._charReveal || (window._charReveal = { xp: false });
 
   const cell = (val, label) => `<div class="cr-acct-cell"><b>${val}</b><span>${label}</span></div>`;
@@ -262,11 +240,7 @@ function buildAccountStatGrid() {
       ${cell(tlv, 'Total Lv')}
       ${xpCell}
       ${cell(questCell, 'Quests')}
-      ${cell((achN === null ? countMarkup(null) : fmt(achN)) + ' / ' + ach.length, 'Achievements')}
-      ${cell(lifetime('bounty_turnins'), 'Bounties')}
       ${cell(colPct, 'Collections')}
-      ${cell(esc(rank), 'Renown')}
-      ${cell(days, 'Days running')}
     </div>
     <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.HearthriseJournal&&window.HearthriseJournal.open('stats')">${crGlyph('uiBook')}Journal</button></div></div>`;
 }
@@ -311,7 +285,7 @@ function buildRatesCard() {
 }
 
 /* The identity banner that heads the Skills sub-tab — portrait, name, the
-   rank · renown line, and TOTAL LEVEL as the headline figure on the right.
+   class tagline, and TOTAL LEVEL as the headline figure on the right.
    This is the top of the character overview Tyler designed: who you are, at a
    glance, above the skills grid. */
 function buildSkillsHeader() {
@@ -319,19 +293,7 @@ function buildSkillsHeader() {
   const avatarSrc = getActiveAvatar();
   const name = esc(playerName());
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
-  let sub = '';
-  try {
-    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
-    if (rn && rn.rank) {
-      /* `rn.score` NEVER EXISTED on the state object, so this line has
-         always fallen through to `G.renownHigh` — the CLIENT's ratcheted
-         prediction, which the kill-faucet rules keep permanently ahead of the
-         realm's count. `rn.renown` is the figure the server decides claims on
-         (getState's header); every other renown headline already reads it. */
-      sub = `${esc(rn.rank.name)} · ${fmt(rn.renown)} Renown`;
-    }
-  } catch (e) { /* renown optional */ }
-  if (!sub) sub = esc(deriveClass().tagline);
+  const sub = esc(deriveClass().tagline);
   return `<div class="csk-hero">
     <div class="csk-hero-portrait"><img src="${avatarSrc}" alt="" data-hr-avatar data-no-fallback /></div>
     <div class="csk-hero-id">
@@ -350,9 +312,9 @@ function buildSkillsHeader() {
    renders, appended at the end, so adding a skill can never drop it silently. */
 const SKILL_ORDER = [
   'woodcutting', 'mining', 'fishing', 'farming',
-  'cooking', 'crafting', 'smithing', 'runecrafting', 'stonemason',
+  'cooking', 'crafting', 'smithing', 'runecrafting',
   'attack', 'strength', 'defense', 'hitpoints',
-  'magic', 'ranged', 'prayer', 'bountyHunter',
+  'magic', 'ranged', 'prayer',
 ];
 
 function orderedSkillIds() {
@@ -469,7 +431,7 @@ window.hrOpenActivity = function (id) {
 function refreshEquipPane() {
   const host = document.getElementById('char-equip');
   if (!host) return;
-  // Reuse the b218 paper-doll WHOLESALE — its Equipment / Stats / Companion
+  // Reuse the b218 paper-doll WHOLESALE — its Equipment / Stats
   // internal panes and _tdPane persistence come free. Built on every refresh
   // and mounted only when it differs from the one on screen (render/paint.js);
   // _tdPane keeps the chosen internal pane.

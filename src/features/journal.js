@@ -2,12 +2,9 @@
 // src/features/journal.js — THE JOURNAL (window.HearthriseJournal)
 //
 // Every record of a hero's own history in one place, four tabs
-// (coherence audit, 2026-10-09): Collection, Bestiary, Deeds, Stats.
-// It replaced eleven separate screens — the Collection Log, Deeds,
-// the bestiary with its trophies and charms, the lifetime stats and
-// tally, the Chronicle, the Hunter's Ledger, the drop table, the luck
-// ledger, the standings and "your week" — whose renderers now paint
-// into the tab that holds them.
+// (coherence audit, 2026-10-09; Deeds became Recent in the 2026-10-14
+// demolition): Collection, Bestiary, Recent, Stats. Each tab's renderer
+// is owned by the module that reads the server's projection.
 //
 // The Journal is a pane of the Character door (#panel-journal). It
 // owns no number: every count is drawn by the module that reads the
@@ -23,10 +20,10 @@
   var TABS = [
     { id: 'collection', label: 'Collection', glyph: 'uiChest' },
     { id: 'bestiary', label: 'Bestiary', glyph: 'uiSkull' },
-    { id: 'deeds', label: 'Deeds', glyph: 'uiTrophy' },
+    { id: 'recent', label: 'Recent', glyph: 'uiClock' },
     { id: 'stats', label: 'Stats', glyph: 'uiTrend' }
   ];
-  var ALIAS = { achievements: 'deeds', chronicle: 'deeds', lifetime: 'stats', records: null };
+  var ALIAS = { chronicle: 'recent', lifetime: 'stats', records: null };
   var detailMon = null;
 
   function tabOf(name) {
@@ -41,7 +38,6 @@
   function gly(key, px) {
     return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 16, null) || '') : '';
   }
-  function heading(text) { return '<h3 class="jr-h">' + text + '</h3>'; }
   function safe(fn) { try { return fn() || ''; } catch (e) { return ''; } }
 
   function shell(panel) {
@@ -78,24 +74,19 @@
         body.innerHTML = '<div class="jr-sec jr-detail">' + CL.monsterDetailHtml(detailMon) + '</div>';
         return;
       }
-      var HL = window.HearthriseHuntersLedger;
       var B = window.HearthriseBestiary;
-      body.innerHTML = safe(function () { return HL && HL.card(); }) +
-        '<div class="jr-sec">' + (B ? B.html() : '') + '</div>';
+      body.innerHTML = '<div class="jr-sec">' + (B ? B.html() : '') + '</div>';
       return;
     }
-    if (tab === 'deeds') {
-      var D = window.HearthriseDeedsList;
-      body.innerHTML = '<div class="jr-col jr-chronicle"></div>' +
-        '<div class="jr-col">' + heading('Deeds of the Realm') + (D ? D.html() : '') + '</div>';
+    if (tab === 'recent') {
+      body.innerHTML = '<div class="jr-sec jr-chronicle"></div>';
       var CH = window.HearthriseChronicle;
       if (CH && CH.paint) CH.paint(body.querySelector('.jr-chronicle'));
       return;
     }
-    var LS = window.HearthriseLifetimeSheet, TW = window.HearthriseThisWeek, ST = window.HearthriseStandings;
+    var LS = window.HearthriseLifetimeSheet, ST = window.HearthriseStandings;
     body.innerHTML = '<div class="jr-sec jr-stats">' + (LS ? LS.html() : '') + '</div>' +
-      '<div class="jr-sec jr-week">' + safe(function () { return TW && TW.card(); }) +
-      safe(function () { return ST && ST.card(window.G || {}); }) + '</div>';
+      '<div class="jr-sec jr-week">' + safe(function () { return ST && ST.card(window.G || {}); }) + '</div>';
   }
 
   function paint() {

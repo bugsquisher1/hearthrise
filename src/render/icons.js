@@ -96,13 +96,17 @@ function itemTintClass(id) {
    Order matters: the `def` tests are facts the data states outright, the id
    patterns underneath are inference and only run when the data is silent.
    `uiChest` is now a genuine last resort rather than the common case. */
+/* The building materials the Homestead's rooms cost. The id patterns below
+   would file a Timber Beam under uiChest; these are the shapes the atlas has
+   for what they are. (Moved here from the deleted clan seat, 2026-10-14.) */
+var MATERIAL_GLYPHS = { timber_beam: 'uiLog', iron_fitting: 'uiAnvil', field_ration: 'uiFood', keystone: 'uiOre' };
 function itemGlyphKey(id, def){
+  if(Object.prototype.hasOwnProperty.call(MATERIAL_GLYPHS, id)) return MATERIAL_GLYPHS[id];
   def = def || (window.ITEMS && window.ITEMS[id]) || null;
   if(def){
     if(def.type === 'weapon')    return 'uiSword';
     if(def.type === 'armor')     return 'uiBody';
     if(def.type === 'jewelry')   return 'uiAmulet';
-    if(def.type === 'companion') return 'uiPaw';
     if(def.type === 'ammo')      return 'uiArrow';
     if(def.heals)   return 'uiFood';
     if(def.seed)    return 'uiSeed';
@@ -125,10 +129,9 @@ function itemGlyphKey(id, def){
   if(/potion|brew|draught/.test(s))       return 'uiPotion';
   if(/gem|ruby|sapphire|emerald|diamond/.test(s)) return 'uiGem';
   if(/fish|shrimp|trout|lobster|shark/.test(s))   return 'uiFish';
-  if(/token/.test(s))                     return 'token';
   /* ── the 49, grouped ───────────────────────────────────────────────────── */
   if(/rune/.test(s))                      return 'runecrafting';
-  if(/blueprint|_deed$|scroll|tome|codex|manual/.test(s)) return 'uiScroll';
+  if(/scroll|tome|codex|manual/.test(s)) return 'uiScroll';
   if(/^.*_key$|^key_|sigil|seal$|_seal_/.test(s))         return 'uiKey';
   if(/fang|claw|tooth|tusk|horn|scale|chitin|shell/.test(s)) return 'uiBone';
   if(/pelt|hide|leather|fur|veil|cloth|silk|thread|wool/.test(s)) return 'uiCape';
@@ -145,17 +148,13 @@ function itemGlyphKey(id, def){
    In legacy.js every one of these helpers was a script-scope `function`
    declaration, which in a classic script IS a property of the global object.
    A bare `itemGlyphKey(...)` inside itemFallbackIcon therefore resolved
-   through the scope chain to `window.itemGlyphKey` — and two feature modules
-   REPLACE that property after legacy.js loads: clan-seat-ui.js wraps it for
-   the four castle goods. The wrapper is
-   additive and delegates to the previous function, so the chain worked.
+   through the scope chain to `window.itemGlyphKey` — and a feature module may
+   REPLACE that property after legacy.js loads with an additive wrapper that
+   delegates to the previous function.
 
    Inside this file the same helpers are closure-locals of the module IIFE, so
-   a bare call would bind to the local declaration and silently bypass both
-   wrappers. Measured, not assumed: tools/js-ab-icon-diff.mjs reported exactly
-   the ids drawing a different glyph than main — iron_fitting and timber_beam,
-   i.e. the wrapped ones (and the since-cut muster_seal). Going through `window` restores the
-   original resolution and keeps the wrap-point a wrap-point. */
+   a bare call would bind to the local declaration and silently bypass any
+   wrapper. Going through `window` keeps the wrap-point a wrap-point. */
 function itemFallbackIcon(id, px, def){
   var g = (window.HR && window.HR.icon)
     ? window.HR.icon(window.itemGlyphKey(id, def), px || 28, 'var(--ink-3)')
@@ -163,7 +162,7 @@ function itemFallbackIcon(id, px, def){
   return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
 }
 /* EXPLICIT exports. These two ARE the no-emoji backstop, and renderers outside
-   this file (dungeons.js, market.js, item-ux.js, collection-log.js, the render/
+   this file (market.js, item-ux.js, collection-log.js, the render/
    modules) are exactly the ones that were still falling through to `it.icon`.
    Relying on "a top-level function declaration lands on window" is the
    cross-IIFE trap this file has already been bitten by four times (b127, b130,
@@ -385,7 +384,6 @@ function installIconLayer(deps){
 
 var BUNDLE_SKILL_ICON = {
   "attack": "assets/raw-bundle/sword-rpg-icons/shadow/1.png",
-  "bountyHunter": "assets/raw-bundle/weapon-achievement-vector-rpg-icons/1.png",
   "cooking": "assets/raw-bundle/rpg-medieval-food-icons/background/5.png",
   "crafting": "assets/raw-bundle/crafting-material-vector-icons/shadow/1.png",
   "defense": "assets/raw-bundle/50-shields-rpg-icon-pack/background/1.png",
@@ -440,7 +438,6 @@ var BUNDLE_ITEM_ICON  = {
   "dragon_bones": "assets/raw-bundle/skull-and-bone-rpg-icons/shadow/48.png",
   "dragon_gem": "assets/raw-bundle/rpg-gems-vector-icons/shadow/35.png",
   "dragon_scale": "assets/raw-bundle/dragon-loot-vector-rpg-icons/shadow/18.png",
-  "fox_companion": "assets/raw-bundle/monster-rpg-256x256-icons/shadow/18.png",
   "goblin_ear": "assets/raw-bundle/rpg-kobold-loot-icons/background/10.png",
   "goblin_totem": "assets/raw-bundle/rpg-kobold-loot-icons/background/30.png",
   "gold_ore": "assets/raw-bundle/48-mineral-rpg-icons/shadow/32.png",
@@ -517,33 +514,6 @@ var BUNDLE_ITEM_ICON  = {
   "wheat_seed": "assets/raw-bundle/berries-and-seeds-icons/background/20.png",
   "wolf_pelt": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/5.png",
   "wraith_veil": "assets/raw-bundle/rpg-undead-loot-icons/background/42.png",
-
-  // ─── Bind-on-Pickup dungeon keys ───
-  // The mining pack actually has good key icons at slots 44 (gold key)
-  // and 45 (lock-and-key). For the rest we use scroll-pack tomes since
-  // there's no dedicated key pack large enough to cover six unique keys.
-  "bone_key":        "assets/raw-bundle/48-mining-rpg-icons/shadow/44.png",     /* literal key */
-  "goblin_seal":     "assets/raw-bundle/48-mining-rpg-icons/shadow/45.png",     /* lock+key */
-  "arcane_tome":     "assets/raw-bundle/magic-book-game-icons/shadow/29.png",   /* purple tome */
-  "obsidian_sigil":  "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/40.png", /* dark sigil */
-  "void_fragment":   "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/42.png", /* purple fragment */
-  "dragonsbane_key": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/44.png", /* legendary artifact */
-
-  // ─── Bind-on-Pickup housing blueprints ───
-  // Magic-book pack has 48 distinct tome icons — perfect for blueprints.
-  "kitchen_blueprint_t2": "assets/raw-bundle/magic-book-game-icons/shadow/5.png",
-  "kitchen_blueprint_t3": "assets/raw-bundle/magic-book-game-icons/shadow/18.png",
-  "forge_blueprint_t2":   "assets/raw-bundle/magic-book-game-icons/shadow/7.png",
-  "forge_blueprint_t3":   "assets/raw-bundle/magic-book-game-icons/shadow/27.png",
-  "library_blueprint_t2": "assets/raw-bundle/magic-book-game-icons/shadow/14.png",
-  "library_blueprint_t3": "assets/raw-bundle/magic-book-game-icons/shadow/30.png",
-  "trophy_blueprint_t2":  "assets/raw-bundle/magic-book-game-icons/shadow/32.png",
-  "trophy_blueprint_t3":  "assets/raw-bundle/magic-book-game-icons/shadow/47.png",
-
-  // ─── Bind-on-Pickup raid currencies ───
-  "dragon_relic":  "assets/raw-bundle/dragon-loot-vector-rpg-icons/shadow/30.png",
-  "void_essence":  "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/30.png",
-  "hearth_token":  "assets/raw-bundle/weapon-achievement-vector-rpg-icons/12.png",  /* medal */
 
   // ─── Cooking outputs ───
   // The current ITEMS table defines cooked food. Map them to the medieval
@@ -661,18 +631,6 @@ var BUNDLE_MONSTER_ICON = {
       Why: monster-rpg-256x256 has one bear and one beast — not enough
         for big-cat / dire-wolf differentiation.
       Look for: "wolf monster icons", "panther beast pack"
-
-   4. BLUEPRINT / SCROLL VARIETY PACK  (~24 icons)
-      Currently OK using magic-book-game-icons (8 of 48 used) but a
-      dedicated "architectural blueprint" pack would read better for
-      the housing system specifically.
-
-   5. KEY PACK (10–20 icons)
-      Affected: bone_key, goblin_seal, arcane_tome, obsidian_sigil,
-        void_fragment, dragonsbane_key
-      Why: currently borrowing two literal keys from mining pack and
-        four artifact icons. A dedicated "fantasy keys" pack would let
-        each dungeon key feel distinct.
 
    Total recommended spend: ~$20–40 on Itch.io.
    ──────────────────────────────────────────────────────────────────── */

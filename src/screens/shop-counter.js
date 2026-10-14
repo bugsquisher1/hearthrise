@@ -7,8 +7,8 @@
 // purchase handlers stayed behind, so half a screen lived in each place. This
 // file is the other half — the counter itself. Two neighbourhoods:
 //
-//   BUYING  (legacy.js 9149–9192) — window.shopTab, setShopTab, buyShopItem,
-//           buyCosmetic. The handlers src/render/shop.js's rendered buttons call.
+//   BUYING  (legacy.js 9149–9192) — window.shopTab, setShopTab, buyShopItem.
+//           The handlers src/render/shop.js's rendered buttons call.
 //   SELLING (legacy.js 10691–10856) — vendorPrice (the ONE vendor bid in the
 //           game), vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
 //           sell-lock, the vendor-sale record and buy-back repurchase.
@@ -22,11 +22,8 @@
 // 10427, with unrelated balance-reader code between). It is reunited with
 // `vendorPrice` here. Nothing else moved, was renamed, or changed shape.
 //
-// (One MERGE, not a move: `buyCosmetic` was rewired onto hr_buy_gem_unlock by
-// the gem-unlock lane while this extraction was in flight. Their body is the one
-// below — the lane that changes behaviour wins, the lane that moves code
-// re-homes it — so the local `G.gems -=` debit and the ownedCosmetics residue
-// push are gone from this file as well as from the monolith.)
+// (The gem cosmetics purchase, buyCosmetic, left with the gem unlocks in the
+// 2026-10-14 demolition.)
 //
 // ── WHY THE NAMES ARE PUBLISHED AT THE FOOT ─────────────────────────────────
 // At legacy.js's top level `function invSellOne(){}` WAS `window.invSellOne` by
@@ -43,11 +40,9 @@
 // gestures are keyed by their goldSettle SITE STRING (`seam:vendor.sell_one`,
 // `seam:shop.buy`, …), which travels with the code, so the census follows this
 // file without a key change; only the ledger's human `site:` prose was updated
-// to name the new path. The GEM ledger has no row for anything in this file at
-// all any more, and that is correct rather than an omission: `buyCosmetic` moves
-// no gems now that it sends hr_buy_gem_unlock, and a row for a site that does
-// not exist is what gem-site-census L2 fails on. If a future edit reintroduces
-// `G.gems -=` here, L1 reports an UNDECLARED site and the build goes red.
+// to name the new path. The GEM ledger has no row for anything in this file:
+// nothing here moves gems. If a future edit introduces `G.gems -=` here, L1
+// reports an UNDECLARED site and the build goes red.
 //
 // ── LOAD POSITION ───────────────────────────────────────────────────────────
 // Loads with the other screen controllers BEFORE legacy.js. Safe because every
@@ -126,26 +121,6 @@ function buyShopItem(id,qty,cost){
     },()=>{});
   } else notify(_said,'loot');
   updateTopbar();renderShop();
-}
-/* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
-   was one line and every part of it was a client-authored premium purchase —
-   `G.gems -= price` on an ARMED record balance (retired by the next envelope)
-   plus an unconditional `G.ownedCosmetics.push(id)` into RESIDUE (which
-   persisted). Free cosmetics, repeatable. It now goes through the SAME server
-   verb buyTheme does, so there is one purchase path for the premium currency and
-   the `price` argument the shop passes is a LABEL: it never crosses the wire and
-   the server reads the cost from its own catalogue. */
-function buyCosmetic(id,price){
-  var cost=Math.max(0,Number(price)||0);
-  if(window.ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
-  if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
-  return window.buyGemUnlock('cosmetic:'+id,'that cosmetic',function(){
-    notify('That cosmetic is already yours.','info');
-    renderShop();
-  }).then(function(res){
-    if(res&&res.ok===true){ notify('Cosmetic unlocked!','levelup'); saveLocal(); }
-    updateTopbar();renderShop();
-  });
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -509,41 +484,34 @@ window.recordVendorSale = recordVendorSale;
 window.repurchase = repurchase;
 
 /* ── THE BUY-SPACE DIALOG (legacy.js 9173–9215, moved verbatim 2026-09-14).
-   It is a PURCHASE COUNTER — "how much does the next rung of bag space cost,
-   in gold and in gems, side by side" — so it belongs with the other two
+   It is a PURCHASE COUNTER — "how much does the next rung of bag space cost"
+   — so it belongs with the other two
    counters rather than in the middle of the monolith, and it is the last
-   piece of the shop that was still there. It renders only: the two BUYERS
-   (buyBankSpaceGold / buyBankSpaceGem) stay in legacy.js with their gold and
-   gem ledger rows, and the inline onclick attributes below resolve them
+   piece of the shop that was still there. It renders only: the BUYER
+   (buyBankSpaceGold) stays in legacy.js with its gold ledger row, and the inline onclick attributes below resolve them
    against window when the player clicks, exactly as before. Its callers are
    src/screens/inventory.js (the bag toolbar's "Buy space") and
    src/render/bank-panel.js, both through window.openBankModal.
-   `_renderBankModal` is published because legacy.js's two buyers call it
+   `_renderBankModal` is published because legacy.js's buyers call it
    bare at four sites to repaint the open dialog after a purchase — at the
    monolith's top level that bare name resolved through window, and it still
    must. ── */
-/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
-   cost (escalating) and the flat gem deal side-by-side so the better value of
-   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
+/* b269: the "Buy space" dialog for the bank. Shows the live cap and the next
+   gold cost (escalating). The gem deal left with the gems (ruling 2026-10-14
+   §4: the bank grows only through bankRungPrice). Reuses the .qm-overlay
+   backdrop + .btn classes — no new CSS. */
 function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
 function _bankRowsHTML(){
   var used=bankUsed(), cap=bankCap();
-  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
-  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
+  var gCost=bankGoldCost();
+  var canG=balCanAfford(gCost,'gold');
   var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
-  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
-  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
   return ''
     + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
     + '<div class="bank-opt">'
       + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
       + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
       + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
-    + '</div>'
-    + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat price and a better deal ('+goldPerSlot.toFixed(0)+' gold a slot vs '+gemPerSlot.toFixed(2)+' gems a slot).</span></div>'
-      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
-      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
     + '</div>';
 }
 function _renderBankModal(){
@@ -567,13 +535,12 @@ function openBankModal(){
 try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
 window._renderBankModal = _renderBankModal;
 
-/* ── PUBLISHED. These six were window properties only because a classic
+/* ── PUBLISHED. These were window properties only because a classic
       script's top-level `function f(){}` is one; inside an IIFE they must be
       stated. Callers:
         setShopTab       inline onclick on the shop tab strip (src/render/shop.js),
                          the tab-strip click wiring in legacy.js, features/death-sheet.js
         buyShopItem      inline onclick on every shop row
-        buyCosmetic      inline onclick on the cosmetics rows, src/multi-character.js
         invSellOne       inline onclick in the item flyout, features/inv-context-menu.js
         invSellAll       inline onclick in the item flyout
         invSellSelected  the bag's multi-select sweep (legacy.js + the smoke suite)
@@ -582,7 +549,6 @@ window.setShopTab      = setShopTab;
 window.buyShopItem     = buyShopItem;
 window.shopBuyPending  = shopBuyPending;
 window.__shopBuyLock   = shopBuyLock;
-window.buyCosmetic     = buyCosmetic;
 window.invSellOne      = invSellOne;
 window.invSellAll      = invSellAll;
 window.invSellSelected = invSellSelected;

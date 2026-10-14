@@ -3599,10 +3599,6 @@ jobs:
         run: |
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
-          # This Week: Home's weekly card names only counters the server stamps
-          # and reads only the tally cache (tests/this-week.mjs).
-          node tests/this-week.mjs
-          node tests/this-week.mjs --selftest
           # W0: the old goals board stays cut (client, residue and chain) and
           # the one daily list counts nothing in the browser.
           node tests/goal-board-gone.mjs

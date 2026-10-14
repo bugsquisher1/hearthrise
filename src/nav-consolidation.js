@@ -22,9 +22,6 @@
 (function(){
   'use strict';
 
-  // Early Access has no premium door: the web build cannot sell the packs.
-  // Every premium route lands on the Local Shop until Steam purchases work.
-  var PREMIUM_OPEN = false;
 
   var HUBS = [
     { id: 'profile', panes: [
@@ -35,18 +32,10 @@
       { tab: 'inventory', label: 'Bag', glyph: 'navInventory' },
       { tab: 'journal', label: 'Journal', glyph: 'uiBook' }] },
     { id: 'skills', panes: [{ tab: 'skills', label: 'Skills', glyph: 'navSkills' }] },
-    { id: 'combat', panes: [
-      { tab: 'combat', label: 'Field', glyph: 'navCombat' },
-      { tab: 'bounty', label: 'Bounty Board', glyph: 'navBounty' },
-      { tab: 'dungeons', label: 'Dungeons', glyph: 'navDungeons' }] },
+    { id: 'combat', panes: [{ tab: 'combat', label: 'Field', glyph: 'navCombat' }] },
     { id: 'homestead', panes: [
       { tab: 'farming', label: 'Farm', glyph: 'navFarm' },
-      { tab: 'house', label: 'House', glyph: 'navHouse' },
-      { tab: 'stable', label: 'Stable', glyph: 'navStable' }] },
-    { id: 'clan', panes: [
-      { tab: 'clan', label: 'Clan', glyph: 'uiCastle' },
-      { tab: 'party', label: 'Party', glyph: 'uiPeople' }] },
-    { id: 'events', panes: [{ tab: 'events', label: 'Events', glyph: 'uiEvent' }] },
+      { tab: 'house', label: 'House', glyph: 'navHouse' }] },
     { id: 'shops', panes: [
       { tab: 'shop', label: 'Local Shop', glyph: 'navStore' },
       { tab: 'market', label: 'Player Market', glyph: 'navMarket' }] },
@@ -64,7 +53,7 @@
     var h = HUB_BY_ID[tab];
     if (!h || tab === 'shops') return tab;   // 'shops' keeps the remembered shop pane
     if (HUB_OF_PANE[tab] && paneShown(tab)) return tab;
-    // A door opens on its first OPEN pane (Clan opens on Party while clans are shut).
+    // A door opens on its first OPEN pane.
     var front = h.panes.filter(function (p) { return paneShown(p.tab); })[0];
     return front ? front.tab : (HUB_OF_PANE[tab] ? tab : h.panes[0].tab);
   }
@@ -204,14 +193,12 @@
   });
 
   // ── Which shop pane a shop route opens ──────────────────────
-  var PANES = PREMIUM_OPEN ? ['local', 'market', 'premium'] : ['local', 'market'];
+  var PANES = ['local', 'market'];
   var PANE_ALIAS = {
     shops: null,            // null → "whatever was last chosen"
     shop: 'local', store: 'local', stores: 'local', localshop: 'local',
     'local-shop': 'local', local: 'local', seedshop: 'local', shopfront: 'local',
-    market: 'market', exchange: 'market', marketplace: 'market',
-    premium: 'premium', premiumshop: 'premium', 'premium-shop': 'premium',
-    gems: 'premium', iap: 'premium'
+    market: 'market', exchange: 'market', marketplace: 'market'
   };
   // Session-scoped (the window._tdPane convention): a fresh load opens on
   // the Local Shop, the front door, never on last session's Market.
@@ -236,8 +223,7 @@
     hubs: HUBS, hubOf: hubOf, resolve: resolve, badges: badges, paintStrip: paintStrip,
     paneShown: paneShown, doorShown: function (id) { return !!HUB_BY_ID[id] && doorShown(HUB_BY_ID[id]); },
     doorOpensWhen: doorOpensWhen,
-    badgeOf: function (tab) { return !!paneBadge[tab]; },
-    premiumOpen: PREMIUM_OPEN
+    badgeOf: function (tab) { return !!paneBadge[tab]; }
   });
 
   // On a landscape phone the strip sits in the top bar's empty middle

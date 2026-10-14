@@ -22,8 +22,8 @@
 // (b354). `open()` takes a BUILD FUNCTION so the modal re-derives itself from
 // live state after every action.
 //
-// Loaded as a side-effect module import (src/features/character-page.js) until
-// index.html carries its own tag; every consumer resolves it at CALL time.
+// A classic script, loaded by index.html before homestead.js; every consumer
+// resolves it at CALL time.
 // ============================================================================
 (function () {
   'use strict';

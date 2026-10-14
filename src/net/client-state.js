@@ -11,10 +11,9 @@
 // the blob can be retired.
 //
 // THE RESIDUE (the fields this store carries):
-//   · bountyHunter (MINUS marks and xp — both are server-owned)
 //   · stats            (kills/gathered/harvested/rareDrops — goal counters)
 //   · activeStyle      (which loadout is active — a pref)
-//   … plus the self-only tail (settings, houseTheme, daily, collection, quests,
+//   … plus the self-only tail (settings, collection, quests,
 //   entitlements, …). EVERY entry carries its own one-line justification in the
 //   list below, in one of exactly two forms: "client-only preference/display
 //   state/marker: …", or a named reason why no projection holds the fact yet.
@@ -105,17 +104,8 @@ export function __setClientStateArm(v) {
    capstone.js imports RESIDUE_FIELDS from here (it already depends on this
    module), so there is one list and no cycle. The server enforces the same
    boundary independently (hr_put_client_state deny-list) — defense in depth. */
-/* The contract's in-flight scratch: stripped from `bountyHunter.active` at BOTH
-   residue seams (here on the way in, capstone.js buildResiduePatch on the way
-   out). A saved `_confirming` wedged the turn-in shut and a saved `_retryTimer`
-   disarmed the retry; the server figure lives in G._bountyServer, never here.
-   `_serverContract` and `_acceptError` ride on purpose (legacy.js accept path). */
-export const BOUNTY_TRANSIENT_KEYS = Object.freeze(['_confirming', '_syncNoticed', '_retryTimer', '_creditAt', '_confirmed', '_awaitingServerClaim', '_serverConfirmed']);
 
 export const RESIDUE_FIELDS = Object.freeze([
-  'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY
-                    // residue: marks are the record's top-level G.marks and BH xp is a server SKILL,
-                    // and hydrateInto + buildResiduePatch DROP both keys, so the bag shadows neither
   'stats',          // the goal engine's device counters (kills/gathered/harvested/rareDrops). The envelope
                     // DOES project the lifetime stat rows; screens read them through HearthriseLifetime
                     // (src/features/lifetime-tally.js), never this bag
@@ -147,13 +137,7 @@ export const RESIDUE_FIELDS = Object.freeze([
      `_gemUnlocks` scratch and legacy.js ownsGemUnlock reads ONLY that. Nothing
      in src/ writes either field any more. Re-adding one would give ownership two
      sources, and the residue is the one a cloud restore can rewind (§6). */
-  'houseTheme',     // the EQUIPPED theme, a per-character display pointer — NOT ownership.
-                    // It stays residue because it is a preference the server has no column for,
-                    // and it FAILS CLOSED: legacy.js activeHouseTheme() renders `default` when the
-                    // equipped id is not in the server's owned set, silently and without re-granting.
-                    // A forged value can therefore only ever paint a wall you already own.
   'plotBuildings',  // client-only display state: which building art sits on which yard tile
-  'daily',          // client-only marker: the day's shown task sheet; the PAY is server once-guarded
   'collection',     // client-only progress: {itemId:count}, "have I ever held this". No projection
   'quests',         // client-only display state: the quest chain's local marks (hr_claim_quest pays)
   'entitlements',   // {hearthHall:true,…} convenience flags with no projection yet (hr_unlocks has an
@@ -179,18 +163,7 @@ export const RESIDUE_FIELDS = Object.freeze([
      one direction that matters — a restore-rewindable bag claiming an entitlement —
      which IS the b371 gem dupe. The hero list now renders the server's set, and
      before the first envelope it renders the free slot only: fails closed. */
-  /* b462 — THE "SHOWN TODAY" MARKERS. These four were self-only flags that
-     lived in the save blob; with the blob retired every reload forgot them, so
-     the daily-reward sheet re-opened on every refresh (Tyler, beta morning:
-     "every refresh i get a new daily reward"). The SERVER once-guards the pay
-     (claim_reward refuses the second claim — those were the not_claimable
-     blips) so no gold moved twice, but the player was shown a reward that did
-     not land, every time. None of these is an authority field: the server
-     derives the real streak from its own claim rows; these are "what have I
-     already been shown". */
-  'dailyReward',    // client-only marker: { lastClaimDay } — "has today's sheet been SHOWN".
-                    // The PAY is server-once-guarded (hr_claim_reward refuses the second claim),
-                    // so a forged or lost marker moves no gold; it only re-opens a sheet.
+
   /* ⚠ `streak` ({count,lastDay}) WAS HERE and is DELETED (2026-09-14). It was a
      PLAY streak counted from the DEVICE clock, per browser profile, against a
      server that has counted the same thing at `player_state.streak_days` since
@@ -263,9 +236,6 @@ export const RESIDUE_FIELDS = Object.freeze([
      src/dungeons.js canRun() reads. Nothing in src/ writes `G.dungeons` any more.
      Re-adding it would give one gate two clocks, and the client's is the one a
      restore can rewind — the residue-ahead class in §6. */
-  'renown',         // client-only marker: { claimed:[], seenRank } — which rank cards have been SHOWN.
-                    // The claim is server once-guarded, and the SCORE the ladder is judged against is
-                    // the server's `renown_high` (see the renownHigh tombstone below).
   /* ⚠ `unlockedRecipes` WAS HERE and is DELETED, not re-homed (2026-09-14). Its
      own comment claimed "server rows exist; this is the read cache", and the
      first half was never true: 2026-08-16-artisan-progress-model.sql built the
@@ -277,7 +247,6 @@ export const RESIDUE_FIELDS = Object.freeze([
      projects `unlocked_recipes`; accrue.js reconcileRecipes lands it in the
      `_recipeUnlocks` scratch and legacy.js unlockedRecipesMap() is the one read
      both the attended gate and the away engine now agree on. */
-  'tools',          // client-only preference: which tools the loadout kit holds
   /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
      read "active consumable buffs (remainingMs) — short-lived, but a potion must
      survive a reload", and both halves of that were the problem: a `remainingMs`
@@ -403,13 +372,6 @@ export const RESIDUE_FIELDS = Object.freeze([
   'ammoCarry',
   'buyback',        // client-only display state: the 15-entry recently-sold list. The BUY-BACK itself is a
                     // normal server purchase; losing the list only costs a misclick its undo
-  'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay, solo:{week,…},
-                    // claimed:{}}. The PAY is server once-guarded; the cooldown is the part with no server
-                    // clock behind it, so this stays until one exists (b288: a forgotten cooldown is a faucet)
-  'muster',         // client-only marker: the day/slot/claimed state the player has already been SHOWN.
-                    // The pay is server once-guarded
-  'rallyPledge',    // client-only state: a pledge deliberately OUTLIVES the UTC day roll — settlement clears
-                    // it, not the clock
   'pendingItemSpends', // item-ledger.js's outstanding client-authored trades. Its own header: an
                     // outstanding trade that did not survive a reload "would be reverted by the first
                     // envelope after it, taking the player's blueprint with it"
@@ -732,8 +694,7 @@ export function isClientStateHydrated() { return hydratedOnce; }
 /** Write the residue bag into G — ALLOWLISTED. Iterates RESIDUE_FIELDS, never the
  *  bag's own key set, so a forged AUTHORITY key in `cs` (gold/skills/inventory/…)
  *  is IGNORED and can never reach G. This is the security boundary: the bag is the
- *  raw, client-writable player_state.client_state, so it is untrusted input. The
- *  bountyHunter/marks carve-out preserves the record-owned marks. */
+ *  raw, client-writable player_state.client_state, so it is untrusted input. */
 /* EXPORTED (b466) so the round-trip is testable as a PURE function. The live
    hydrate is once-per-session and latched (see applyClientState), so a test that
    drove it through the envelope path would either be vacuous — the latch is
@@ -743,32 +704,6 @@ export function isClientStateHydrated() { return hydratedOnce; }
 export function hydrateInto(G, cs) {
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(cs, f)) continue;   // bag didn't supply it
-    if (f === 'bountyHunter') {
-      /* Marks MIGRATED to the top-level scalar `G.marks` (a record field like gold),
-         so bountyHunter is now WHOLLY residue — there is no nested authority to
-         preserve. We still DROP any `marks` key defensively: a forged marks in the
-         bag, or a stray nested marks from a legacy blob, must never land inside
-         G.bountyHunter and shadow the record's top-level authority. */
-      const bagBH = cs[f];
-      if (bagBH === null || typeof bagBH !== 'object' || Array.isArray(bagBH)) { G[f] = bagBH; continue; }
-      const merged = { ...bagBH };
-      delete merged.marks;                  // never a nested marks — top-level G.marks is authority
-      /* ── AND NEVER A NESTED `xp` (b503) ────────────────────────────────────
-         Bounty-Hunter XP is a SKILL: it lives in player_skills on the server and
-         is read through the record as `G.skills.bountyHunter`. `bountyHunter.xp`
-         was a client-authored mirror of that server value, and a residue field
-         shadowing a server-owned one is the SA-002 class — the shape that
-         deadlocked the property tier. Dropped on the way IN for the same reason
-         `marks` is: a legacy blob, or a forged bag, must never put a second copy
-         of a server number into G where a read site might prefer it. */
-      delete merged.xp;
-      if (merged.active && typeof merged.active === 'object' && !Array.isArray(merged.active)) {
-        merged.active = { ...merged.active };
-        for (const k of BOUNTY_TRANSIENT_KEYS) delete merged.active[k];
-      }
-      G[f] = merged;
-      continue;
-    }
     if (f === 'autoActions') {
       /* NEVER HYDRATE THE `eat` BRANCH. It is the three auto-eat COLUMNS
          (auto_eat_enabled / auto_eat_pct / auto_eat_food), read back off the

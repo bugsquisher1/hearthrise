@@ -310,26 +310,6 @@ const PLOT_BUILDINGS={
   toolshed:{name:'Tool Shed',icon:'🏚️',cost:{gold:800,normal_log:40},desc:'+2% gather speed.',max:1},
   watchtower:{name:'Watchtower',icon:'🗼',cost:{gold:1500,oak_log:30},desc:'+2% combat XP.',max:1},
 };
-/* `glyph`, not `icon`. These six shipped literal emoji (🏡🌲🏜️❄️🌋🧚) and the
-   Themes tab printed them at 36px as the PRODUCT ART for a gem purchase — the
-   worst place in the game to show a system pictograph. Logged as a standing
-   FINAL-DIRECTIVE violation in the art-director log on 2026-08-19 and unowned
-   since. Six atlas glyphs is an honest holding; the right answer is six painted
-   theme plates, which is an Asset request rather than a code change (filed). */
-const HOUSE_THEMES=[
-  {id:'default',name:'Cozy Cottage',glyph:'uiHome',price:0},
-  {id:'forest',name:'Forest Lodge',glyph:'uiTree',price:500,currency:'gem'},
-  {id:'desert',name:'Desert Oasis',glyph:'uiWell',price:500,currency:'gem'},
-  {id:'winter',name:'Winter Chalet',glyph:'uiBed',price:750,currency:'gem'},
-  {id:'volcanic',name:'Volcanic Keep',glyph:'uiFire',price:1000,currency:'gem'},
-  {id:'fairy',name:'Fairy Glen',glyph:'uiSpark',price:750,currency:'gem'},
-];
-/* Published for the same reason BANK_SPACE is (legacy.js ~4296): it is a PRICE
-   TABLE, and anything that reasons about what a theme costs — the suite's gem
-   battery, a future render module — must read the authored number rather than
-   restate it. A test that hardcodes 500 goes green on the day a Designer
-   reprices Forest Lodge and stops testing the thing it was written for. */
-try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
 /* b243 (progression audit): the three ENDGAME seeds — goldenroot (Farming 62),
    emberfruit (75), moonbloom (88) — had NO source anywhere (not sold, dropped,
    or yielded), so farming hard-stopped at ~62 and the top 37 levels were
@@ -418,59 +398,6 @@ if (typeof window !== 'undefined') {
 }
 
 /* ════════════════════════════════════════════════
-   PREMIUM STORE / IAP CATALOG
-   Real product SKUs the store routes to platform billing.
-   ════════════════════════════════════════════════ */
-/* b217: every product's art was a raw emoji — 🪙 💎 🏆 👑 🚫 ⏰ 🎁 🏛,
-   drawn by the system font in full Apple/Windows colour on a warm-black
-   medieval store page. Two different packs even shared the same 💎, so
-   "Starter Gems" and "Traveler Pack" were visually identical. This is the
-   storefront: it is the one screen where looking generated costs real money.
-   Products now carry a `glyph` key resolved through the shipped icon set. */
-const IAP_CATALOG=[
-  {sku:'hearth_tokens_3',type:'currency',glyph:'token',title:'Hearth Tokens ×3',desc:'Tradable premium bonds — sell on the player market for gold, or redeem for 150 gems each.',price:'$6.99',tokens:3,style:'gold',ribbon:'Tradable'},
-  {sku:'gems_starter',type:'currency',glyph:'uiGem',title:'Starter Gems',desc:'250 gems — kick off your homestead with cosmetics and slots.',price:'$4.99',gems:250,style:'gem'},
-  {sku:'gems_traveler',type:'currency',glyph:'gems',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
-  {sku:'gems_hero',type:'currency',glyph:'uiChest',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
-  {sku:'gems_legend',type:'currency',glyph:'uiCrown',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
-  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots. More Premium perks arrive only once they exist — nothing is sold before it is built.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
-];
-/* ── THE STORE RULES (Tyler, 2026-09-05 — "kill the starter bundle, remove ads,
-   and both offline boosts"). Four products were removed and MAY NOT COME BACK,
-   because each one was a class rather than a mistake:
-     · remove_ads      sold the removal of something that does not exist. There
-                       are no ads anywhere in this codebase.
-     · offline_boost   sold a bigger away-accrual cap (12h → 16h) on a shared,
-                       ranked economy. The server floors offline at 12h and
-                       never honoured it, so it also sold nothing.
-     · starter_bundle  sold 200,000 GOLD for cash. Gold is the tradeable,
-                       rankable currency; money → gold at the store makes the
-                       Hearth Token bond (the ONE sanctioned cash→value path,
-                       priced by players on the market) pointless.
-     · the "+25% offline progress" line on Hearth Hall Premium — the same
-                       accrual class as offline_boost. The SUBSCRIPTION stays;
-                       the boost does not.
-   The two standing rules, enforced at runtime by the b505 guard in
-   src/features/smoke-test.js: NO IAP GRANTS GOLD, and NOTHING PURCHASABLE
-   MOVES AN ACCRUAL RATE OR TOTAL. Premium is convenience and cosmetics. */
-/* b221 — see the note on SEED_SHOP. Until now the b215 "no purchasable XP
-   multiplier" guard read `window.IAP_CATALOG || []` and checked nothing. */
-window.IAP_CATALOG=IAP_CATALOG;
-
-
-/* ════════════════════════════════════════════════
-   BOUNTY HUNTER DATA
-   ════════════════════════════════════════════════ */
-/* PHASE A: the six bounty tables moved to src/core/bounty.js and are
-   published onto `window` by src/core-bridge.js. The bare identifiers below
-   (BOUNTY_TYPE_LABEL etc., used by the board renderer) still resolve — a
-   classic script's global lookup finds the window property — but there is
-   now exactly ONE copy, and the accrual/board-generation engine on the
-   server reads that same copy. A top-level `const` here would have
-   lexically SHADOWED the window property, which is precisely how b222's
-   data double-copy went unnoticed for months. */
-
-/* ════════════════════════════════════════════════
    GAME STATE
    ════════════════════════════════════════════════ */
 const SAVE_KEY='hearthbound-save-v2';
@@ -516,7 +443,6 @@ let G={
   enchant:{},
   rooms:{},
   plotBuildings:[],
-  houseTheme:'default',
   farmPlots:[],
   /* b495 — THE FOOD SLOT STARTS FILLED, and that is a correctness fix as much
      as a convenience one. `estimateSurvival()` (the away-honesty preview) reads
@@ -536,29 +462,12 @@ let G={
   playerHp:10,playerMaxHp:10,
   combatLog:[],
   activeSkill:null,skillTargetId:null,skillProgress:0,skillMs:3000,
-  clanName:null,
-  daily:{lastReset:null,tasks:[]},
   collection:{},
   quests:[],
   /* The goal engine's device counters. The lifetime figures a player reads are
      the realm's (src/features/lifetime-tally.js); nothing here is shown as one,
      and nothing times play on the device. */
   stats:{kills:0,gathered:0,harvested:0,rareDrops:0},
-  /* Bounty Marks are a TOP-LEVEL scalar currency (like gold/gems) — the record
-     framework strip keys on a top-level field, so this is the single client home.
-     They used to live nested at bountyHunter.marks; ensureBountyState() migrates a
-     legacy nested value up on load. */
-  marks:0,
-  /* b503 — NO `xp` KEY HERE, AND THAT IS THE FIX, NOT AN OMISSION.
-     Bounty-Hunter XP is a SKILL. It lives in `player_skills` (server) and is
-     read through the record as `bountyHunter` like every other skill. It used
-     to ALSO live at `bountyHunter.xp` — a residue mirror shadowing a
-     server-owned value, the same class that deadlocked the property tier
-     (SA-002) — and the two disagreed permanently, because the server had never
-     credited a single point. One home only. `hydrateInto` and
-     `buildResiduePatch` DROP a stray `xp` key defensively, exactly as they do
-     for the migrated `marks`. */
-  bountyHunter:{completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
   lastOfflineSummary:null,
   lastSeen:Date.now(),
   /* b226: nothing ever stamped a creation date, which is why the Founder's
@@ -823,13 +732,8 @@ window.remapItemIds = remapItemIds;
    loss is immediate and total; `renownHigh` protects the RANK but not the
    progress toward the next one, and the leaderboard value drops with it.
 
-   A monster id is a SAVE KEY in nine places (agility-and-monster-foundation
-   §2.4). Two of them hide the id INSIDE a string:
-     • G.bountyHunter.*.id   is `type_monsterId_now_rand`
-     • G.chronicle.entries[].id is `'boss:' + monsterId`
-   Miss those two and an accepted bounty can never complete, and a re-kill
-   under a new id writes a SECOND "First kill" row because the idempotency
-   key it de-dupes on was orphaned.
+   A monster id is a SAVE KEY in several places (agility-and-monster-foundation
+   §2.4); remapMonsterIds folds every one of them.
 
    THE MAP SHIPPED EMPTY and now carries its first three entries — the b362
    fold audit (docs/design/combat-screen-rework.md §7.2). Each line is a MERGE,
@@ -872,32 +776,6 @@ window._hrDropBonusNote=_hrDropBonusNote;
 
 function _monAliasId(id){ const a=window.MONSTER_ALIAS; return (a && (id in a)) ? a[id] : id; }
 
-/* A bounty's own id is `type_<monsterId>_<now>_<rand>` (src/core/bounty.js
-   makeBounty). MONSTER IDS CONTAIN UNDERSCORES — `weak_skeleton`,
-   `dark_wizard`, `goblin_warlord` — so `split('_')[1]` reads "weak", not the
-   id, and the rewrite silently does nothing. That is exactly the failure
-   MON-ALIAS-2 caught, and it is why the id is parsed from BOTH ENDS instead:
-   the type is a single word from a fixed list, and the last two segments are
-   a timestamp and a seeded int. Everything between them is the monster. */
-function _remapBountyId(str){
-  if(typeof str!=='string' || !str) return str;
-  const parts=str.split('_');
-  if(parts.length<4) return str;                 // not the expected shape — leave it alone
-  const mid=parts.slice(1,-2).join('_');
-  const nid=_monAliasId(mid);
-  if(!nid || nid===mid) return str;
-  return [parts[0], nid, parts[parts.length-2], parts[parts.length-1]].join('_');
-}
-
-/* The chronicle key is `'boss:' + monsterId`. Colons cannot appear in an id,
-   so this one really is a positional split. */
-function _remapChronicleId(str){
-  if(typeof str!=='string' || str.indexOf('boss:')!==0) return str;
-  const mid=str.slice(5);
-  const nid=_monAliasId(mid);
-  return (nid && nid!==mid) ? ('boss:'+nid) : str;
-}
-
 function remapMonsterIds(G){
   const A=window.MONSTER_ALIAS; if(!A || !Object.keys(A).length || !G) return;
   const live=(id)=>id && window.MONSTERS && window.MONSTERS[id];
@@ -926,27 +804,6 @@ function remapMonsterIds(G){
   };
   G.bestiary = foldById(G.bestiary);
   G.dropLog  = foldById(G.dropLog);
-
-  /* bountyHunter — .target, .proofItem's owner, and the id STRING. */
-  const bh=G.bountyHunter;
-  if(bh && typeof bh==='object'){
-    const fix=(b)=>{
-      if(!b || typeof b!=='object') return b;
-      if(b.target){ const n=_monAliasId(b.target); b.target = n || b.target; }
-      if(b.id) b.id=_remapBountyId(b.id);
-      return b;
-    };
-    if(Array.isArray(bh.board)){ bh.board.forEach(fix); bh.board=bh.board.filter(b=>b&&live(b.target)); }
-    if(bh.active){ fix(bh.active); if(!live(bh.active.target)) bh.active=null; }
-  }
-
-  /* chronicle — the id is `'boss:' + monsterId` and it is the idempotency
-     key. The DISPLAY text stores the name at write time, so it survives. */
-  if(G.chronicle && Array.isArray(G.chronicle.entries)){
-    G.chronicle.entries.forEach(function(e){
-      if(e) e.id=_remapChronicleId(e.id);
-    });
-  }
 
   /* lastActivity (the launchpad's Resume) + the in-flight fight. */
   const la=G.lastActivity;
@@ -1298,7 +1155,6 @@ window.equipmentMapG=equipmentMapG;window.equippedItemG=equippedItemG;
 
      startCombat(mId)          → {combat, mId}
      stopCombat()              → {idle, null}
-     drainBountySwitch()       → {combat, id}   (the b344 away switch)
      startSkill(t,id,ms)       → {gather, id}   ← b348
      stopSkill()               → {idle, null}   ← b348
      startArtisan(s,r) ×2      → {artisan, r}, downgraded to {idle,null} by
@@ -1817,9 +1673,7 @@ function creditServerAwayKills(summary){
   if(G.activeMonster&&!(s.combat&&s.combat.died)) G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+k;
   /* The mirrored kill quests (hundred_kills, road_hunt) read stats.evKillAny,
      the server's projection, not this client tally; a non-mirror kill_any
-     quest and the kill_any dailies add `k`. An observer that throws must never
-     eat the credit, hence the guards. */
-  try{ if(typeof updateDaily==='function') updateDaily('kill_any',k); }catch(e){}
+     quest adds `k`. An observer that throws must never eat the credit. */
   try{ if(typeof updateQuest==='function') updateQuest('kill_any',k); }catch(e){}
   return k;
 }
@@ -2007,50 +1861,6 @@ function _awayActivityPays(){
     if(SA&&typeof SA.serverAccruedSkill==='function') return !!SA.serverAccruedSkill(sk);
   }catch(e){}
   return false;
-}
-/* THE AUTO-EAT STATE THE CLIENT-PATH AWAY REPLAY ACTUALLY RAN WITH.
-   (Designer ruling 2b, 2026-08-31 — the return receipt must NAME why nothing
-   healed, and b341's standard for that row is STATED, NOT INFERRED.)
-
-   Read HERE, at the moment the receipt is written, because this IS the state
-   the span was simulated with: `simulateSpan` → COMBAT_FX.autoEat →
-   HearthriseAuto.maybeAutoEat(), whose gates are exactly the three below. A
-   renderer reading them later would be describing a different instant — the
-   player may have switched auto-eat back on the moment they saw the corpse.
-
-   `enabled` folds the ENTITLEMENT into the switch on purpose: a character
-   without the trait never heals either, and the receipt's job is to state the
-   outcome, not to audit which of two gates produced it. The server has one
-   column for the same reason (accrual.js: hr_set_auto_eat refuses to write
-   `auto_eat_enabled = true` without the ownership flag).
-
-   Returns null when the module is not up — "we cannot tell" is honest, and
-   `receiptDeathCause` then claims nothing. */
-/* `hadFood` is a PARAMETER, not something read here, and that is the whole
-   point (First-Night Idle Rescue): by the time this runs the night has already
-   eaten out of the bag, so a lookup at this instant would answer a different
-   question than the receipt asks. The caller samples it at WINDOW START through
-   `awayHadFood()` below — the same `chooseFood` the simulation gates on. */
-function awayAutoEatState(hadFood){
-  try{
-    var A=window.HearthriseAuto;
-    if(!A||typeof A.getEat!=='function') return null;
-    var eat=A.getEat()||{};
-    var owned=true;
-    var AE=window.HearthriseCore&&window.HearthriseCore.autoEat;
-    if(AE&&typeof AE.autoEatTier==='function') owned=AE.autoEatTier((G&&G.traits)||{})>0;
-    else owned=!!(G&&G.traits&&G.traits.auto_eat);
-    var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
-    var n=Number(t);
-    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`), local only until it speaks. */
-    var _on=(typeof A.eatEnabled==='function')?A.eatEnabled():!!eat.enabled;
-    return { enabled: !!(_on&&owned),
-             pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
-             /* `undefined` when the caller did not sample it — the receipt then
-                claims nothing about the bag, which is the honest degradation
-                and the same shape an older server envelope produces. */
-             hadFood: (typeof hadFood==='boolean')?hadFood:undefined };
-  }catch(e){ return null; }
 }
 
 /* DID THE BAG HOLD ANY AUTO-EATABLE FOOD? Sampled by processOffline BEFORE the
@@ -2293,12 +2103,7 @@ const NetClient=(()=>{
           .map((u,i)=>({...u,rank:i+1}));
         return {ok:true,mode,list};
       }
-      if(path==='/clan/list')return {ok:true,clans:[
-        {id:'c1',name:'AshenForge',members:42,bonus:'+5% combat XP'},
-        {id:'c2',name:'SilverHearth',members:36,bonus:'+5% gather speed'},
-        {id:'c3',name:'GreenHollow',members:51,bonus:'+5% farm yield'},
-      ]};
-      if(path==='/iap/validate')return {ok:true,sku:opts.body.sku,receipt:'mock-'+Date.now()};
+
       return {ok:false,error:'unknown route '+path};
     },
   };
@@ -2306,8 +2111,7 @@ const NetClient=(()=>{
   return {
     online:isOnline,
     async leaderboard(mode='total'){return call('/leaderboard?mode='+encodeURIComponent(mode));},
-    async clans(){return call('/clan/list');},
-    async iapValidate(sku,receipt){return call('/iap/validate',{method:'POST',body:{sku,receipt}});},
+
   };
 })();
 
@@ -2365,116 +2169,6 @@ function updateNetStatus(){
        CONNECTION state, so the pill says so. */
     pill.querySelector('span:last-child').textContent=online?'Online':'Offline';
   }
-}
-
-/* ════════════════════════════════════════════════
-   IAP — platform router
-   On Steam (Electron wrapper): window.steam.purchase(sku)
-   On iOS: window.webkit.messageHandlers.iap.postMessage({sku})
-   On Android (Capacitor): window.cordova.plugins.inAppPurchase.buy(sku)
-   On web: Stripe Checkout redirect or PaymentRequest API
-   The store calls IAP.buy(sku) and lets the platform handle the rest.
-   ════════════════════════════════════════════════ */
-const IAP=(()=>{
-  function detectPlatform(){
-    if(window.steam)return 'steam';
-    if(window.webkit?.messageHandlers?.iap)return 'ios';
-    if(window.cordova?.plugins?.inAppPurchase)return 'android';
-    return 'web';
-  }
-  async function buy(sku){
-    const product=IAP_CATALOG.find(p=>p.sku===sku);
-    /* b465: "Product not found" is a shop-API error string. */
-    if(!product){notify('That item is no longer in the store','kill');return;}
-    const platform=detectPlatform();
-    /* show confirm */
-    const confirmed=await confirmIAP(product,platform);
-    if(!confirmed)return;
-
-    /* Each branch hands off to native billing. b206 (final directive:
-       no fake functionality): the web fallback used to mint a mock
-       receipt that the mock validator always approved — anyone could
-       call IAP.buy from devtools and mint free gems. Web now refuses
-       honestly until real checkout ships with the Steam/iOS wrappers. */
-    let receipt;
-    try{
-      switch(platform){
-        case 'steam':receipt=await window.steam.purchase(sku);break;
-        case 'ios':window.webkit.messageHandlers.iap.postMessage({sku});return; /* iOS resolves via callback */
-        case 'android':receipt=await new Promise(r=>window.cordova.plugins.inAppPurchase.buy(sku,r));break;
-        default:
-          notify('Purchases open with the Steam launch — not available in this build yet.','info');
-          return;
-      }
-    }catch(e){notify('Purchase cancelled','kill');return;}
-
-    /* server-side receipt verify (mock in dev) */
-    const v=await NetClient.iapValidate(sku,receipt);
-    /* b465: "Receipt validation failed" reads like the player did something
-       wrong. On a purchase, the one thing they need to know is that they have
-       not been charged for nothing. */
-    if(!v.ok){notify('We couldn’t confirm that purchase — you have not been charged. Contact us if your store says otherwise.','kill');return;}
-
-    /* grant entitlements */
-    grant(product);
-    saveLocal();updateTopbar();renderShop();
-    notify(`Purchased ${product.title}`,'levelup');
-  }
-  function grant(p){
-    /* SECURITY (gold record-flip, Finding #2): IAP entitlement gold/gems are
-       client-authored here (IAP_RECEIPT blocker — real money wants a store
-       receipt check that credits server-side). Web-beta refuses before this
-       runs, but gate the balance writes on the record seam anyway so the flip
-       cannot erase them; no-op until gold is armed. Tokens/entitlements/themes
-       are not on the record and stay as-is. */
-    if(p.gems&&clientMayWriteRecordField('gems'))G.gems=(G.gems||0)+p.gems;
-    /* b505: NO IAP GRANTS GOLD. The gold branch is gone rather than gated —
-       gold is the tradeable, rankable currency, so money→gold at the store is
-       pay-to-win however carefully it is written. The guard in smoke-test.js
-       fails the build if a `gold:` field ever reappears on a product. */
-    if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
-    if(p.ent)G.entitlements[p.ent]=true;
-    /* ⚠ `p.unlocks` USED TO PUSH THEME IDS INTO A RESIDUE BAG and the line is
-       gone with the bag (2026-09-14). No product in IAP_CATALOG carries
-       `unlocks`, so nothing regresses today — and the shape was wrong anyway: a
-       theme granted by a purchase is an ENTITLEMENT, and entitlements are
-       player_progress flags the server writes. A future themed product grants
-       through the server (hr_buy_gem_unlock's catalogue or a receipt-checked
-       grant), never by appending to a bag the client owns. */
-    /* b215: the Season Pass was retired — it sold a permanent +10% all-XP
-       multiplier, which is pay-to-win on public leaderboards and against the
-       design rule that premium is convenience/cosmetic only. */
-  }
-  /* b306 SECURITY: `grant` is NOT exported. It mints gems/gold/tokens/entitlements
-     with no validation, so exposing it on window.IAP made `IAP.grant({gems:1e9})`
-     a one-line console cheat that also forged the paid subscription entitlement.
-     It stays a private closure member — confirmIAP() (above, same IIFE) still
-     calls it after a validated purchase. Only buy/detectPlatform are public. */
-  return {buy,detectPlatform};
-})();
-window.IAP=IAP; /* b206: expose for platform wrappers (Steam/iOS bridges) */
-
-function confirmIAP(p,platform){
-  return new Promise(res=>{
-    const m=document.getElementById('iap-modal');
-    document.getElementById('iap-modal-body').innerHTML=`
-      <div style="text-align:center;padding:8px 0 16px">
-        <div class="iap-confirm-art">${(window.HR&&window.HR.icon)?(window.HR.icon(p.glyph||'uiChest',44,'--gold-2')||''):''}</div>
-        <h3 style="font-family:var(--f-display);font-size:calc(19px * var(--ui-scale, 1));color:var(--gold-2);margin:6px 0">${p.title}</h3>
-        <div style="color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:14px">${p.desc}</div>
-        <div style="font-size:calc(25px * var(--ui-scale, 1));font-weight:800;color:var(--ink)">${p.price}</div>
-        <div class="status-pill" style="margin-top:10px"><span class="dot"></span><span>Platform: ${platform}</span></div>
-      </div>
-      <div class="row" style="gap:8px">
-        <button class="btn btn-block" id="iap-cancel">Cancel</button>
-        <button class="btn btn-block btn-gem" id="iap-confirm">Confirm</button>
-      </div>
-      <div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;margin-top:10px">Nothing is granted until the receipt is confirmed. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Paid through the App Store.':platform==='android'?'Paid through Google Play.':platform==='steam'?'Paid through Steam.':'Test checkout.'}</div>`;
-    m.classList.add('show');
-    const cleanup=v=>{m.classList.remove('show');res(v);};
-    document.getElementById('iap-cancel').onclick=()=>cleanup(false);
-    document.getElementById('iap-confirm').onclick=()=>cleanup(true);
-  });
 }
 
 /* ════════════════════════════════════════════════
@@ -2538,18 +2232,6 @@ function getEquipmentStats(){
 }
 function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore,id=null){ /* CHARMS phase 2 — the 3rd arg is the SAME HearthriseCore.charms() combatCtx reads, so the loot preview, the live tick and the away replay quote ONE drop rate. TROPHIES (BESTIARY_LADDER.md) — the 4th and 5th, and the 5th is load-bearing: the index is keyed by MONSTER ID and no roster row carries one, so a caller that omits it pays every charm and no trophy, silently and on this path only. src/core-bridge.js. */
   return C.combat.weaknessInfo(m,eq,(typeof C.charms==='function')?C.charms():null,(typeof C.trophies==='function')?C.trophies():null,id||((typeof C.monsterId==='function')?C.monsterId(m):null));
-}
-/* ELEMENTS v1 — CROSS-VERB COUPLING (flagged in CONFLICTS.md). Whenever the
-   item in the weapon slot CHANGES, the enchant it carried is void: it is bound
-   to a weapon, not to the player. This is the CLIENT reflect; the server clears
-   its own G.enchant when the equip verb changes the weapon (its state is the
-   authority — this only keeps the local prediction honest so a stale +15% badge
-   does not linger for a settle cadence). Called from every path that writes
-   G.equipment.weapon. Same-item re-equip is a no-op (the enchant survives). */
-function clearEnchantOnWeaponChange(slot,oldId,newId){
-  if(slot!=='weapon')return;
-  if(oldId===newId)return;
-  if(G.enchant&&G.enchant.weapon){ G.enchant={}; }
 }
 function getPreferredSlot(def){
   if(!def)return null;
@@ -2776,10 +2458,6 @@ window.speedClamp=speedClamp;
 function clientPerkState(){
   const plots={};
   (G.plotBuildings||[]).forEach(b=>{ if(b&&b.id) plots[b.id]=(plots[b.id]||0)+1; });
-  let renownAllXp=0;
-  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-    try{ renownAllXp=window.HearthriseRenown.getPerks(G).allXP||0; }catch(e){}
-  }
   /* The capstone is `getTier() === TIERS.length - 1` on this side and
      `propertyTier >= CASTLE_TIER` in core. Both are 5, and core names the
      constant so a sixth tier has to move one number rather than two. */
@@ -2787,7 +2465,7 @@ function clientPerkState(){
   if(window.HearthriseHomestead && typeof window.HearthriseHomestead.getTier==='function'){
     try{ propertyTier=window.HearthriseHomestead.getTier()||0; }catch(e){}
   }
-  return { rooms: roomsMapG(), plots, propertyTier, renownAllXp, clanPerks:{}, castle:null };
+  return { rooms: roomsMapG(), plots, propertyTier };
 }
 window.clientPerkState = clientPerkState;
 
@@ -3175,10 +2853,7 @@ function blessingsApply(){ return !inOfflineReplay() && sessionOnline(); }
 try{
   window.addEventListener('hearthrise:netmode', function(){
     try{ retimeActivity(); }catch(e){}
-    try{
-      const WE = window.HearthriseWorldEvents;
-      if(WE && typeof WE.renderBlessing === 'function') WE.renderBlessing();
-    }catch(e){}
+
     try{
       const HD = window.HearthriseHome;
       if(HD && typeof HD.render === 'function') HD.render();
@@ -3330,11 +3005,6 @@ function addXp(sk,amt,opts){
        will state the truth); only the event is dropped. */
     if(!_disp.known) res={ ...res, events: [] };
   }
-  /* b269: attribute the equipped pet's real marginal allXP share of this grant
-     to the session-impact panel. Honest by construction — pet-session asks the
-     power budget what the pet actually bought after the clamp, so a clamped-away
-     bonus contributes nothing. Cheap no-op when no pet is equipped. */
-  if(window.HearthrisePetSession){ try{ window.HearthrisePetSession.recordXp(res.base); }catch(e){} }
   for(const ev of res.events){
     if(ev.type!=='levelup') continue;
     if(ev.skill==='hitpoints' && Number(ev.to) > (Number(G.playerMaxHp)||0)) G.playerMaxHp=Number(ev.to);   // RAISE-ONLY, like hrSyncMaxHp: playerMaxHp is projected from player_state.max_hp and may sit above the bare level; a bare assignment here rolled a server value back
@@ -3551,426 +3221,13 @@ function addItem(id,qty=1,track=true){
   }
   G.inventory[id]=(G.inventory[id]||0)+qty;
   if(track)trackCollection(id,qty);
-  _retimeIfTool(id);
   return true;
 }
-function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];_retimeIfTool(id);}
+function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];}
 function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
 
-/* ── b487 (#33, live: "sold the pickaxe, the boost still applied") ──────────
-   THE TOOL BONUS IS DERIVED, NOT CACHED — `HearthriseTools.bestTool()` scans
-   G.inventory on every call, so the moment a pickaxe leaves the bag the bonus
-   is 0 and `activityIntervalMs()` re-derives the slower interval. What was NOT
-   re-derived is `G.skillMs`, the interval the RUNNING setInterval is armed at.
-   Nothing on the sell path (invSellOne / invSellAll / invSellSelected /
-   sellJunk / onItemTap / a market listing / a bank move / a craft input) called
-   `retimeActivity()`, so a player who sold their tool mid-gather kept swinging
-   at the boosted rate until the NEXT action happened to retime it — and if they
-   closed the tab first, the boosted number is what got persisted.
-
-   THE SEAM IS THE BAG, NOT THE SELL BUTTON. There are seven+ ways to lose an
-   item and more will be added; wiring each one is how the next one gets missed.
-   addItem/removeItem are the ONE place the bag changes, and the guard is a
-   single property read on the item row (`type==='tool'`) so the hot gather path
-   pays nothing. It fixes the mirror papercut too — buying a Rune Axe mid-session
-   now speeds the run you are already in, rather than on the next restart.
-
-   `retimeActivity()` is itself a no-op when the number has not moved and is
-   fenced out of the offline replay, so this cannot thrash a timer. */
-function _retimeIfTool(id){
-  try{
-    var it = (typeof ITEMS!=='undefined') && ITEMS[id];
-    if(!it || it.type!=='tool') return;
-    if(typeof retimeActivity==='function') retimeActivity();
-  }catch(e){}
-}
-
-
-/* ─── Bounty Hunter ─── */
-function ensureBountyState(){
-  /* b503 — NO `xp` KEY IN THE BASE, AND THAT IS THE FIX, NOT AN OMISSION.
-     Bounty-Hunter XP is a SKILL: it lives in player_skills on the server,
-     credited by hr_claim_bounty, and is read through the record as
-     `G.skills.bountyHunter`. It used to ALSO be seeded here, and a residue
-     field shadowing a server-owned value is the SA-002 class that deadlocked
-     the property tier. Keep this shape in step with the default G at the top of
-     this file and with the two strippers (hydrateInto / buildResiduePatch);
-     BHX-11 in tests/bounty-hunter-xp.mjs fails if any of the three regrows it. */
-  const base={completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
-  G.bountyHunter=Object.assign(base,G.bountyHunter||{});
-  /* Dropping it from `base` alone is NOT sufficient: base is the Object.assign
-     TARGET, so anything G.bountyHunter already carries wins. hydrateInto strips
-     a bag-borne `xp` on the way in, but a legacy local blob reaches G by other
-     routes — so the ensure that runs on boot AND on every kill is the place the
-     invariant is made unconditional rather than merely likely. The `in` guard
-     keeps the steady state free of any hidden-class transition. */
-  if('xp' in G.bountyHunter) delete G.bountyHunter.xp;
-  G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
-  G.bountyHunter.warrants=G.bountyHunter.warrants||{};
-  /* The FIRST ensure of a session — i.e. a boot, i.e. the one moment a save's
-     contents have just arrived and may predate a rule the build now enforces.
-     Read once, because the latch is set further down. */
-  const _firstEnsure=!window.__hrBountyBootStripped;
-  /* R5: the two-phase turn-in flags are TRANSIENT (an in-flight lock + a
-     once-notice latch). A reload mid-confirm could persist them into the save;
-     clear them on every boot/ensure so a stale `_confirming` can never wedge a
-     bounty's turn-in shut. The next kill re-runs the server-gated turn-in. */
-  if(G.bountyHunter.active){
-    const _a=G.bountyHunter.active;
-    delete _a._confirming; delete _a._syncNoticed;
-    /* In-flight scratch never survives a reload: BOUNTY_TRANSIENT_KEYS is
-       stripped at both residue seams (src/net/client-state.js). */
-    if(_firstEnsure){
-      /* ── THE RESCUE (2026-08-31) ─────────────────────────────────────────
-         A save written before the BOUNTY_TURN_IN filter can still hold an
-         ACTIVE contract of a type nothing can settle — that is the live bug:
-         the bar fills, the turn-in has nowhere to land, and because the board
-         rail hides "New notices" while a bounty is active, the player is
-         locked out of the whole board with no exit but a Marks-charging
-         Abandon. Withdraw it ONCE at boot, free, and say so. Boot-once (not
-         every ensure, which runs on every kill) so the notice cannot spam. */
-      if(!bountyTypeIsOfferable(_a.type)){
-        G.bountyHunter.active=null;
-        G.bountyHunter.board=[];                    // repost from the payable set
-        try{ if(typeof notify==='function') notify('That contract could no longer be settled — it has been withdrawn from your record at no charge, and the board has been reposted.','info'); }catch(e){}
-      }
-    }
-  }
-  /* Session-scoped latch (NOT saved — a window flag, reset on every reload=boot),
-     so the transient strip above runs exactly once per session. */
-  window.__hrBountyBootStripped=true;
-  /* MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field keyed at
-     the TOP LEVEL (G.marks), like gold — the framework strip only removes a top-
-     level key, so the client home must be top-level too or a stale nested copy
-     coexists with the server record under arm (the two-sources bug). Back-compat:
-     a save that only carries the legacy nested G.bountyHunter.marks maps it up ONCE.
-     GATED on the arm: while dormant the client owns G.marks and seeds it; under arm
-     the record owns marks and the client must NOT author it (leave it to be stripped
-     and supplied by applyRecord). The nested mirror is ALWAYS dropped so there is
-     exactly ONE client home in every arm state. */
-  if(clientMayWriteRecordField('marks')){
-    if(typeof G.marks!=='number'||!isFinite(G.marks)||G.marks<0){
-      const _legacy=(G.bountyHunter&&typeof G.bountyHunter.marks==='number')?G.bountyHunter.marks:0;
-      G.marks=Math.max(0,Math.floor(_legacy)||0);
-    }
-  }
-  if(G.bountyHunter&&Object.prototype.hasOwnProperty.call(G.bountyHunter,'marks'))delete G.bountyHunter.marks;
-  /* ── THE BOARD'S DAY ────────────────────────────────────────────────────────
-     `freeRerolls` and `rerollsToday` were seeded once and never moved again:
-     nothing in the game reset them, `boardGeneratedAt` was written and never
-     read, and the Bounty Shop sells "+1 Free Reroll/day" (`extraRerolls`) that
-     nothing consumed. Two consequences, both measured on a driven board:
-       · ONE free reroll per ACCOUNT LIFETIME, not per day, and the rail says
-         "Free rerolls: 0" forever after it.
-       · The paid price is `5 + rerollsToday*5` and rerollsToday only ever
-         climbs — while the SERVER (hr_bounty_spend, 2026-08-26-marks-record.sql)
-         derives the same price from the PAID rerolls in TODAY's ledger, which
-         does reset. So the client's affordability check drifts permanently
-         above the price the server would actually charge and starts refusing
-         rerolls the player can afford.
-     The day key is UTC to match the server's hr_utc_day_key — a local-midnight
-     key would hand players in some timezones two resets against the server's
-     one. Stored on `bountyHunter`, which is WHOLLY residue (src/net/client-
-     state.js RESIDUE_FIELDS), so the new field survives a reload like the rest
-     of the object. */
-  const _bDay=hrBountyDayKey();
-  if(G.bountyHunter.rerollDay!==_bDay){
-    G.bountyHunter.rerollDay=_bDay;
-    G.bountyHunter.rerollsToday=0;
-    G.bountyHunter.freeRerolls=1+Math.max(0,Math.floor(Number(G.bountyHunter.upgrades.extraRerolls)||0));
-  }
-  if(!Array.isArray(G.bountyHunter.board))G.bountyHunter.board=[];
-  /* A board saved before the BOUNTY_TURN_IN filter can still hold an OFFER whose
-     type has no turn-in. Accepting one is the bug, so drop the whole slate and
-     repost rather than leave a trap nailed to the board.
-     ⚠ BOOT-ONCE, for the same reason the transient strip above is: this runs on
-     EVERY kill, and a board is only ever written by generateBountyBoard (already
-     filtered) or by a save arriving. Sanitising on every ensure would also make
-     the function fight any other legitimate writer of the slate — including the
-     suite, which hand-nails a specific notice to the board to test it. */
-  if(_firstEnsure && G.bountyHunter.board.some(function(b){return !b||!bountyTypeIsOfferable(b.type);}))G.bountyHunter.board=[];
-  if(!G.bountyHunter.board.length)G.bountyHunter.board=generateBountyBoard();
-}
-/* UTC day key, the same shape the server's hr_utc_day_key produces (YYYYMMDD as
-   a number). Deliberately NOT the local-date helper further down this file —
-   the reroll price is settled server-side against a UTC ledger day. */
-function hrBountyDayKey(){
-  const d=new Date();
-  return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
-}
-try{ window.hrBountyDayKey=hrBountyDayKey; }catch(_){}
-/* b503 — THE SERVER OWNS THIS LEVEL. It used to read the residue mirror
-   `G.bountyHunter.xp`; the mirror is gone (see the default shape above) and the
-   xp is a normal skill, so this is `getLevel('bountyHunter')` like every other
-   skill — server truth + the display prediction, via src/net/skill-record.js.
-   Re-defined further down this file with the same body; both are kept in step
-   because the later `window.` assignment wins at runtime and a stale one here
-   would be a silent second answer.
-
-   GUARDED, and the guard is not decoration: getLevel()'s last resort is
-   `window.HearthriseCore.xp.levelOf(...)`, which THROWS if the module layer has
-   not attached — and this function is reachable from ensureBountyState() via
-   getUnlockedBountyTier(). The catch degrades to the same raw read getLevel
-   itself would have made, never to a bare 1 (a silent 1 is the level-bounce
-   class b455 exists to prevent). */
-function getBountyHunterLevel(){
-  try{ return getLevel('bountyHunter'); }
-  catch(e){ return levelFromXp((G.skills&&G.skills.bountyHunter)||0); }
-}
-/* PHASE A — bounty generation delegates to src/core/bounty.js.
-   Everything below is an ADAPTER: it resolves the ambient state (levels,
-   the monster/item catalogues, the bag, the clock) and hands it to the pure
-   generator. No numbers, no draw order and no fallbacks changed; the only
-   real difference is that the board is now REPLAYABLE from a seed, because
-   the id stamp and the third-slot type roll used bare Math.random() before
-   and now take the injected RNG. */
-function getUnlockedBountyTier(){
-  return window.HearthriseCore.bounty.unlockedTier(getCombatLevel());
-}
-function getPlayerWeaponTypes(){
-  return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, equipmentMapG(), ITEMS);
-}
-/* May the CLIENT still settle a bounty out of its own pocket? Under the gold arm
-   it cannot (finalizeBounty's `G.gold+=` is gated on exactly this), which is what
-   makes a proof/weapon/streak contract unpayable — see BOUNTY_TURN_IN in
-   src/core/bounty.js. Missing helper ⇒ a pre-arm runtime, where the client did
-   own gold, so the honest answer there is `true`. */
-function bountyClientMayPay(){
-  return (typeof clientMayWriteRecordField!=='function') || !!clientMayWriteRecordField('gold');
-}
-/** True iff the board may POST this type right now (server-settled, or client-
-    settled while the client still owns gold). */
-function bountyTypeIsOfferable(type){
-  const CK=window.HearthriseCore;
-  if(!CK||!CK.bounty||typeof CK.bounty.isOfferableType!=='function')return true;  // pre-core boot: don't churn
-  return CK.bounty.isOfferableType(type, bountyClientMayPay());
-}
-function generateBountyBoard(){
-  const CK=window.HearthriseCore;
-  const out=CK.bounty.generateBountyBoard({
-    monsters:MONSTERS, items:ITEMS,
-    combatLevel:getCombatLevel(),
-    bountyLevel:getBountyHunterLevel(),
-    ownedTypes:getPlayerWeaponTypes(),
-    rng:CK.rng,
-    now:Date.now(),
-    clientMayPay:bountyClientMayPay(),
-  });
-  G.bountyHunter.boardGeneratedAt=out.generatedAt;
-  return out.board;
-}
-/* Proof progress counts ONLY items collected AFTER the bounty was accepted.
-   Tester report (paione): accepting a "collect N proof" task paid out instantly
-   without any kills, because completion read the ABSOLUTE inventory count — so a
-   stack you already held from earlier kills satisfied it. `proofBaseline` is the
-   count at accept time; progress = current - baseline. Legacy active bounties
-   (accepted before this fix) have no baseline → 0 → old absolute behaviour, so
-   nobody loses in-flight progress. */
-function bountyProofHave(b){
-  return Math.max(0, (G.inventory[b.proofItem]||0) - (b.proofBaseline||0));
-}
-/* Repaints whichever bounty surface exists; called from accept, abandon and
-   reroll, which used to repaint only combat. */
-function repaintBounty(){
-  try{ if(typeof renderBountyPanel==='function') renderBountyPanel(); }catch(e){}
-  try{ if(typeof window.renderBountyTab==='function') window.renderBountyTab(); }catch(e){}
-}
-function acceptBounty(index){
-  ensureBountyState();
-  if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
-  if((window.hrBountyBusy?window.hrBountyBusy():{}).abandon){notify('Abandoning your bounty, one moment.','info');return;}
-  const b=G.bountyHunter.board[index];if(!b)return;
-  G.bountyHunter.active=JSON.parse(JSON.stringify(b));
-  /* Snapshot the proof-item count at accept time so only kills AFTER this count
-     toward the task (fixes instant auto-complete from a pre-existing stack). */
-  if(G.bountyHunter.active.type==='proof'){
-    G.bountyHunter.active.proofBaseline=G.inventory[G.bountyHunter.active.proofItem]||0;
-    G.bountyHunter.active.progress=0;
-  }
-  G.bountyHunter.board.splice(index,1);
-  /* SERVER BASELINE (2026-08-23-bounty.sql): a CULL turn-in is server-credited, and
-     the server must snapshot the target's kill count at ACCEPT so the claim requires
-     NEW kills. Fire the accept intent for cull bounties in LIVE play only — never
-     inside the away replay (a synchronous night must not fire network calls; away
-     bounties stay client-side, a documented follow-up for the accrual engine). */
-  if(G.bountyHunter.active.type==='cull' && (typeof inOfflineReplay!=='function' || !inOfflineReplay())){
-    try{
-      if(window.HearthriseGoalClaim && HearthriseGoalClaim.acceptBounty){
-        /* Captured by IDENTITY so the adopt below can tell "my accept came back"
-           from "the player abandoned this and took another while it was in
-           flight" — see hrAdoptAcceptedBounty. */
-        const _accepted=G.bountyHunter.active;
-        const _p=HearthriseGoalClaim.acceptBounty(_accepted);
-        try{window.HearthriseBountyView.trackAccept(_p);}catch(e){}
-        if(_p&&_p.then)_p.then(function(res){ hrAdoptAcceptedBounty(res,_accepted); }).catch(function(){});
-        else if(_p&&_p.catch)_p.catch(function(){});
-      }
-    }catch(e){}
-  }
-  notify(`Accepted bounty: ${MONSTERS[b.target]?.name}`,'info');
-  renderCombat();repaintBounty();saveLocal();
-}
-/* ── THE SERVER'S CONTRACT **IS** THE CONTRACT (b497 · Security condition F2) ─
-   THE DEAD-BOUNTY CLASS THIS ENDS. `hr_accept_bounty` does not accept the
-   client's `required` — it CLAMPS it into a server-computed range and returns
-   the number it actually wrote, plus `tier` and the three reward figures.
-   Nothing read that envelope. The call was fire-and-forget, so any disagreement
-   between what the board drew and what the server stored stayed invisible until
-   the turn-in, which then refuses forever while the bar sits full — the
-   beta-morning dead-claims shape, with a progress bar on it.
-
-   b497 makes that disagreement REACHABLE rather than theoretical: the difficulty
-   now scales the kill count, so a `hard` tier-1 slot drawn BEFORE the deploy
-   holds a `required` in [80, 95] and the post-deploy server clamps it up to 96 —
-   roughly 39% of tier-1 hard slots. And boards PERSIST: ensureBountyState only
-   regenerates when the board is EMPTY, so the window stays open until the player
-   rerolls, not until the deploy lands.
-
-   Adopting the envelope closes the count drift AND the reward drift, for this
-   ruling and every future one, because the client stops holding an opinion about
-   a number the server owns. It is also the only binding of its kind here:
-   tests/bounty-drift.mjs and tests/bounty-difficulty-count.mjs both bind SQL to
-   src/core — file to file — and neither can see the envelope reaching (or
-   failing to reach) client state.
-
-   @param res       the hr_accept_bounty envelope
-   @param accepted  the object that was sent (optional; identity guard)
-   @returns {adopted, reason, changed[]} — a receipt, so the suite asserts the
-            RULE rather than a rendered string. */
-function hrAdoptAcceptedBounty(res,accepted){
-  const out={adopted:false,reason:'',changed:[]};
-  if(!res||typeof res!=='object'){out.reason='no_envelope';return out;}
-  const act=G.bountyHunter&&G.bountyHunter.active;
-  if(!act){out.reason='no_active';return out;}
-  /* TWO IDENTITY CHECKS, both load-bearing, AND THEY SIT ON OPPOSITE SIDES OF
-     THE REFUSAL BRANCH — see the F7 note below for why that is not tidiness.
-     The reply is asynchronous, so by the time it lands the player may have
-     abandoned this contract and accepted another; writing a stale `required`
-     onto a live bounty would manufacture the exact desync this function exists
-     to remove. Object identity (here) catches abandon→accept, because
-     acceptBounty deep-copies and a new active is a different object. The
-     id/target pair (below, guarding the ADOPT only) catches everything else,
-     including a success reply for a bounty a reload has already replaced. */
-  if(accepted&&act!==accepted){out.reason='superseded';return out;}
-
-  /* ⚠ THE REFUSAL CHECK COMES BEFORE THE id/target PAIR, AND THE ORDER IS THE
-     WHOLE REASON THIS BRANCH IS REACHABLE (Security F7). It shipped the other
-     way round in 66709733 and was DEAD CODE: not one refusal envelope the
-     system can produce carries `bounty_id`, so every real refusal fell out at
-     the pair check as `mismatch` and `_acceptError` never fired. Enumerated
-     from source rather than assumed — server:
-       not_signed_in (bare) · rate_limited (bare, the rate wrapper) ·
-       no_character (+slot) · type_not_server_verifiable (+type) ·
-       bad_difficulty (+difficulty,+tier) · tier_locked (+tier,+unlocked_tier,
-       +combat_level) · unknown_monster (+target ONLY — still no id)
-     and the transport (goal-claim.js `call()`): not_signed_in · rpc_missing ·
-     no_config · bad_response (+status) · network. Twelve shapes, zero ids.
-     `tier_locked` and `rate_limited` are reachable by ordinary players, so the
-     silence this function was written to end was still fully in place.
-
-     SAFE TO REORDER because a failure envelope writes NO NUMBERS — only the
-     marker below — and the identity guard above already covers abandon→accept
-     (acceptBounty deep-copies, so a new active is a different object).
-     `call()` never rejects: every failure is a RESOLVED envelope, which is what
-     makes this reachable from the `.then` at the call site at all. */
-  if(res.ok!==true){
-    /* NOT SILENT ANY MORE. A refused accept means there is no active_bounty row,
-       so the turn-in can never settle — the contract is already dead, and the
-       honest thing available here is to record why. Withdrawing and reposting it
-       is a designer decision; raised as a handoff, not invented here.
-       ⚠ `_acceptError` (and `_serverContract` below) are CLIENT-AUTHORED
-       MARKERS — diagnostics only. They ride nested under `bountyHunter`, so the
-       top-level `_`-strip does not reach them and they persist through residue.
-       Harmless today; they MUST NEVER BECOME A GATE, because a forged client
-       value must not be able to decide whether a contract is payable. */
-    act._acceptError=String(res.error||'unknown');
-    out.reason='refused:'+act._acceptError;
-    try{console.warn('[Bounty] accept refused ('+act._acceptError+') — this contract has no server '
-      +'row, so its turn-in will not settle');}catch(e){}
-    return out;
-  }
-
-  /* The pair check guards the ADOPT only: it stops a success envelope for one
-     bounty writing its numbers onto another. */
-  if(String(res.bounty_id||'')!==String(act.id||'')
-     ||String(res.target||'')!==String(act.target||'')){out.reason='mismatch';return out;}
-  delete act._acceptError;
-
-  /* EVERY FIELD IS RE-DERIVED AND VALIDATED, never spread: a malformed or absent
-     field must leave the client's value alone rather than stamp NaN onto the bar
-     the player is watching. */
-  const n=Math.floor(Number(res.required));
-  if(Number.isFinite(n)&&n>0&&n!==act.required){out.changed.push('required '+act.required+'->'+n);act.required=n;}
-  const t=Math.floor(Number(res.tier));
-  if(Number.isFinite(t)&&t>0&&t!==act.tier){out.changed.push('tier '+act.tier+'->'+t);act.tier=t;}
-  act.rewards=act.rewards||{};
-  ['gold','marks','xp'].forEach(function(k){
-    const v=Math.floor(Number(res[k]));
-    if(Number.isFinite(v)&&v>=0&&v!==act.rewards[k]){
-      out.changed.push(k+' '+act.rewards[k]+'->'+v);act.rewards[k]=v;
-    }
-  });
-  act._serverContract=true;hrNoteBountyProgress({bounty_id:res.bounty_id,target:res.target,progress:0});
-  out.adopted=true;
-  /* Repaint only when something MOVED — an accept that agreed (the common case,
-     and every case once the board is drawn post-deploy) must not churn the DOM.
-     The save is unconditional: `_serverContract` is what a later reader uses to
-     tell an adopted contract from one that never heard back. */
-  if(out.changed.length){ try{renderCombat();}catch(e){} try{repaintBounty();}catch(e){} }
-  try{saveLocal();}catch(e){}
-  return out;
-}
-window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
-/* Abandon (server fee, contract ends only on ok:true) lives in src/render/bounty-progress.js. */
-function abandonBounty(){const V=window.HearthriseBountyView;return (V&&V.abandon)?V.abandon():Promise.resolve(null);}
-/* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
-   Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
-   that took no arguments, so a purchased reroll ALSO burned the free one, or
-   charged the escalating Marks price a second time. Named, and honoured. */
-function rerollBountyBoard(prepaid){
-  ensureBountyState();
-  if(prepaid){ /* already paid for by the caller — charge nothing here */ }
-  else if(G.bountyHunter.freeRerolls>0){G.bountyHunter.freeRerolls--;}
-  else{
-    const cost=5+(G.bountyHunter.rerollsToday||0)*5;
-    if(clientMayWriteRecordField('marks')){
-      /* DORMANT: client owns marks — spend locally exactly as before. */
-      if((G.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      G.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
-    } else {
-      /* ARMED: the real debit is hr_bounty_spend (server prices it, one press per latch — goal-claim.js
-         bountyRerollOnce; a held press returns BEFORE any toast). Local writes are display-only. */
-      const MR=window.HearthriseMarks,GC=window.HearthriseGoalClaim;if(!GC||!GC.bountyRerollOnce||GC.bountyRerollHeld())return;
-      if(MR&&!MR.canAffordMarks(G,cost)){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      const _p=GC.bountyRerollOnce();if(!_p)return;_p.catch(()=>{});
-      G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
-    }
-  }
-  G.bountyHunter.board=generateBountyBoard();notify('Bounty board refreshed','info');renderCombat();repaintBounty();saveLocal();
-}
-/* ── bug #5 ROOT — CREDIT THE SERVER COUNTER ON A CADENCE, NOT ONLY AT TARGET ─
-   b484 only credited the server kill-counter from completeBounty, i.e. the one
-   instant the LOCAL bar reached `required`. Real play never hits that cleanly:
-   the credit is clamped to floor(1.3 × elapsed_since_accept / min_time_to_kill),
-   so a burst of fast kills reaches the target bar while the server cap is still
-   below it — the turn-in is refused, the player STOPS, and with the retry gated
-   on "the next kill" the bounty hangs forever (Paione, live). The fix is to make
-   the server counter climb continuously DURING the fight and to keep retrying on
-   a TIMER after the bar is full, so the cap catches up to the observed count as
-   `elapsed` grows even when no further kills happen. Both reuse the reviewed,
-   capped, idempotent, journalled hr_credit_kills — the client mints nothing.
-
-   THROTTLED so a 600 ms swing does not fire an RPC per kill: at most one credit
-   per HR_BOUNTY_CREDIT_MS while below target (the cap is time-based, so more
-   frequent calls buy nothing), and the RPC's own 60/min rate gate is the backstop.
-   Server-authoritative and safe: only the target id + the client's OBSERVED count
-   cross the wire; the cap, the damage level and the clock are all the server's. */
-const HR_BOUNTY_CREDIT_MS=15000;   // cadence floor while a cull bounty is below target
-const HR_BOUNTY_RETRY_MS =12000;   // hold-retry cadence once the bar is full (cap catch-up)
-
 /* ── ATTENDED COMBAT-XP CREDIT (bug #5 root pt2) ────────────────────────────
-   The combat skills the server's hr_credit_combat_xp will accept (its allowlist).
-   NOT 'bountyHunter' — that is a client-only meta-skill with no player_skills row. */
+   The combat skills the server's hr_credit_combat_xp will accept (its allowlist). */
 const HR_COMBAT_XP_SKILLS=['attack','strength','defense','hitpoints','ranged','magic','prayer'];
 /* One credit per this window at most — a burst of 600ms swings must not fire an
    RPC per hit. Chosen shorter than the ~90s live-settle cadence so the server has
@@ -4075,53 +3332,6 @@ function hrCreditCombatXpFlush(force){
 }
 window.hrCreditCombatXpFlush=hrCreditCombatXpFlush;
 
-function hrBountyServerReady(b){
-  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
-  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
-  const _GC=window.HearthriseGoalClaim;
-  return _armed && _live && b && b.type==='cull' && _GC
-    && typeof _GC.creditKills==='function' && _GC.isSignedIn && _GC.isSignedIn() ? _GC : null;
-}
-/* Fire-and-forget mid-fight credit. Advances the server counter toward the
-   observed count (server clamps). NEVER completes the bounty — that stays the
-   two-phase completeBounty()'s job (the one turn-in / pay-once authority). */
-function hrBountyCadenceCredit(b){
-  const _GC=hrBountyServerReady(b);
-  if(!_GC) return;
-  const now=Date.now();
-  if(b._creditAt && (now-b._creditAt)<HR_BOUNTY_CREDIT_MS) return;
-  b._creditAt=now;
-  const observed=Math.max(0,Math.floor(Number(b.progress)||0));
-  if(observed<=0) return;
-  try{
-    const p=_GC.creditKills(b.target,observed);
-    Promise.resolve(p).then(function(cr){
-      if(!G.bountyHunter || G.bountyHunter.active!==b) return;
-      /* The server's figure goes to the one mirror; b.progress stays the local count. */
-      if(cr&&cr.ok&&typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
-    }).catch(function(){});
-  }catch(e){}
-}
-/* Once the bar is full but the server has not yet confirmed, keep retrying the
-   two-phase turn-in on a timer — the plausibility cap grows with elapsed time,
-   so a bounty the player STOPPED at target still completes on its own. Cleared
-   on finalize / abandon / accept so it never leaks across bounties. */
-function hrScheduleBountyRetry(b){
-  if(!b || b._retryTimer) return;
-  if(!hrBountyServerReady(b)) return;
-  b._retryTimer=setTimeout(function(){
-    b._retryTimer=null;
-    if(!G.bountyHunter || G.bountyHunter.active!==b) return;
-    if(b._confirmed) return;
-    // EITHER count re-arms it: a contract finished AWAY never reaches it locally.
-    if(bountyAttemptProgress(b)>=b.required){
-      completeBounty();                 // re-enters the two-phase credit+claim
-      hrScheduleBountyRetry(b);         // and keep the timer alive until it lands
-    }
-  },HR_BOUNTY_RETRY_MS);
-}
-function hrClearBountyRetry(b){ if(b && b._retryTimer){ clearTimeout(b._retryTimer); b._retryTimer=null; } }
-
 /* ── BOUNTY-FREE KILL CREDIT (live report #41 residual — "30/30 · Confirming…") ─
    Daily AND weekly kill goals are graded on the SERVER row
    player_progress(kind='daily', key='ev:kill_any', period=<utc day key>), and its
@@ -4208,15 +3418,6 @@ function hrKillCreditReady(){
 function hrRecordKillForCredit(monsterId){
   if(typeof monsterId!=='string' || !monsterId) return;
   if(!hrKillCreditReady()) return;
-  /* The BOUNTY cadence already credits THIS target on its own schedule, with
-     CUMULATIVE-since-baseline semantics. Buffering here too would send a second,
-     DELTA-shaped claim for the same kills — a server-side no-op (the top-up
-     computes a lower target value and applies nothing), but a wasted call and a
-     confusing receipt. The skip is a cadence decision only: the SERVER still
-     chooses the branch from its own active_bounty row, so a stale local view can
-     neither mint nor lose anything. */
-  const ab=(G.bountyHunter&&G.bountyHunter.active)||null;
-  if(ab && ab.target===monsterId) return;
   if(!G._killCreditPending||typeof G._killCreditPending!=='object') G._killCreditPending={};
   G._killCreditPending[monsterId]=Math.min(HR_KILL_PENDING_MAX,
     (Number(G._killCreditPending[monsterId])||0)+1);
@@ -4277,476 +3478,6 @@ window.hrKillCreditFlush.armTrail=hrArmKillCreditTrail;
 window.hrKillCreditFlush.pendingTotal=hrKillCreditPendingTotal;
 window.hrKillCreditFlush.trailArmed=function(){ return !!_hrKillCreditTimer; };
 
-function handleBountyKill(monsterId,m){
-  ensureBountyState();
-  /* EVERY kill feeds the server's daily kill counter, bounty or not. This runs
-     before the bounty early-return on purpose: the bounty branch below returns
-     for any monster that is not the active target, which is precisely the case
-     the daily goal was losing. */
-  hrRecordKillForCredit(monsterId);
-  const b=G.bountyHunter.active;if(!b||b.target!==monsterId)return;
-  if(b.type==='proof'){
-    const have=bountyProofHave(b);
-    b.progress=have;
-    if(have>=b.required)completeBounty();
-    return;
-  }
-  if(b.type==='weapon'){
-    const eq=getEquipmentStats();
-    /* b356: `neutral` is retired, but an IN-FLIGHT bounty accepted before this
-       build still carries requiredWeaponType:'neutral' — and a null one can
-       exist if a monster ever loses its weakness. Both mean "any weapon", so
-       an accepted bounty can never become uncompletable. */
-    if(!b.requiredWeaponType||b.requiredWeaponType==='neutral'||eq.weaponType===b.requiredWeaponType)b.progress=(b.progress||0)+1;
-  }else if(b.type==='streak'){
-    b.progress=(b.progress||0)+1;b.streak=(b.streak||0)+1;
-  }else{
-    b.progress=(b.progress||0)+1;
-    /* CULL: feed the server counter continuously so it reaches `required` from
-       the credit path (clamped, idempotent) rather than depending on the local
-       bar to hit target unaided. Fires below target; completeBounty owns at/above. */
-    if((b.progress||0)<b.required) hrBountyCadenceCredit(b);
-  }
-  if((b.progress||0)>=b.required)completeBounty();
-}
-function completeBounty(){
-  const b=G.bountyHunter.active;if(!b)return;
-  const r=b.rewards||{gold:0,marks:0,xp:0};
-  const _isCull=b.type==='cull';
-  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
-  /* ── R1/R5 — SERVER-GATED CULL TURN-IN (two-phase commit) ─────────────────
-     A CULL bounty is server-verified (hr_claim_bounty checks kills-since-accept
-     >= required). The ~90s span-sim can lag the local kill count, so a naive
-     "credit + celebrate + clear the bounty, fire-and-forget" produced the
-     "completed, 0 marks" report: the local display advanced, the server refused
-     the turn-in, and the next envelope reconciled the phantom marks away.
-
-     Under the ARM, in LIVE play, we now HOLD: the bounty stays active in a
-     "Confirming…" state and we do NOT celebrate, credit or consume until the
-     server confirms the turn-in. On confirm → finalizeBounty (the full
-     celebration + auto-accept). On denial → hold, ONE calm notice, and let the
-     next kill retry (the active_bounty row is the server once-guard, so the
-     retry pays exactly once). The AWAY replay and the DORMANT (client-owned)
-     path are UNCHANGED — finalizeBounty runs synchronously, so the seeded night
-     stays byte-identical (AWAY-1) and the offline suite behaves as before. */
-  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
-  const _GC=window.HearthriseGoalClaim;
-  const _canServer=_armed && _GC && typeof _GC.claimBounty==='function' && _GC.isSignedIn && _GC.isSignedIn();
-  if(_isCull && _live && _canServer){
-    if(b._confirming) return;   // a turn-in is already in flight — never double-fire
-    b._confirming=true;
-    repaintBounty();
-    /* ── bug #5 — CREDIT THE SERVER COUNTER, THEN VERIFY THE TURN-IN ─────────
-       The away/span-sim undercounts the attended player's kills (60–99% fewer),
-       so hr_claim_bounty refuses forever once the player stops. We first submit
-       the client's OBSERVED kill count to hr_credit_kills, which TOPS UP the
-       server counter (clamped server-side to the physical-max plausibility cap,
-       granting no gold/XP), then fire the turn-in. On denial we HOLD, reconcile
-       the bar DOWN to the server-confirmed count, show ONE calm notice, and let
-       the next kill retry — the credit's returned progress advances each time,
-       so a stopped-at-target bounty is never a permanent lie. */
-    const _observed = Math.max(0, Math.floor(Number(b.progress)||0));
-    let _creditP;
-    try{ _creditP = (typeof _GC.creditKills==='function') ? _GC.creditKills(b.target, _observed) : Promise.resolve(null); }
-    catch(e){ _creditP = Promise.resolve(null); }
-    Promise.resolve(_creditP).then(function(cr){
-      if(!G.bountyHunter || G.bountyHunter.active!==b){ b._confirming=false; return null; }
-      /* Decision 1: the confirmed count is the server's, never the local phantom. */
-      if(cr && cr.ok && typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
-      return _GC.claimBounty();
-    }).then(function(res){
-      b._confirming=false;
-      if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
-      if(res && res.ok){
-        /* ── THE SERVER'S OWN XP FIGURE, AND THE KEY THAT GATES TRUSTING IT ────
-           b503. hr_claim_bounty credits player_skills.bountyHunter in the same
-           transaction as the gold+Marks and stamps `xp_skill` on the receipt.
-           That key is the CONTRACT MARKER: a server without the migration
-           applied still returns `xp` (it always did — it just never credited
-           it), so predicting off `xp` alone would show a level that vanishes at
-           the next envelope. Requiring `xp_skill` makes the client half safe to
-           ship before, after, or without the migration. */
-        const _srvXp=(res.xp_skill==='bountyHunter')?(Number(res.xp)||0):0;
-        finalizeBounty(b, r, _isCull, _srvXp);
-        /* ── bug_reports #46: "completed 1 task but I got 0 marks" ─────────────
-           REPRODUCED headless, and it is not the RPC. hr_claim_bounty DID credit
-           the gold and the Marks into player_state — but gold and marks are
-           SERVER-OF-RECORD, so finalizeBounty's `if(clientMayWriteRecordField
-           ('marks')) G.marks += …` is a permanent no-op, and the counter the
-           player is looking at reads the RECORD, which nothing refreshed. Result:
-           the toast says "+5 Marks", the balance sits on its old number, and the
-           only thing that moves it is the next envelope — a reload, or an
-           accrual settle that may never come while the player is standing still.
-           Measured: 100 Marks before, hr_claim_bounty ok with +5, 100 Marks
-           after, zero hr_load requests. With the refresh: 100 → 105.
-
-           buyTrait already solved exactly this for its server purchase, and its
-           comment calls requestRecord "the cheapest honest refresh there is" —
-           the largest Marks credit in the game simply never got the same line.
-           ONE call refreshes the whole envelope, so it fixes the gold half too.
-           Fire-and-forget: requestRecord coalesces in-flight callers, applies the
-           envelope itself, and a failure leaves the field exactly as honest as it
-           was. Gated on the ARM because while the client owns the balance
-           finalizeBounty has already written the real number. */
-        if(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('marks')){
-          try{
-            if(window.HearthriseRecord && typeof window.HearthriseRecord.requestRecord==='function'){
-              const _rr=window.HearthriseRecord.requestRecord();
-              if(_rr && _rr.then) _rr.then(function(){ try{ updateTopbar(); repaintBounty(); }catch(e){} }).catch(function(){});
-            }
-          }catch(e){}
-        }
-      } else {
-        /* Denied — the server hasn't counted enough kills yet. HOLD (never
-           "0 reward"/failed, never consume). One calm notice; the next kill
-           re-enters completeBounty, tops the counter up again, and retries (the
-           active_bounty row is the server once-guard, so the retry pays once). */
-        if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Checking your kills — keep fighting and they will count.','info'); }
-        /* ROOT: do not wait for "the next kill". The plausibility cap grows with
-           elapsed-since-accept, so a bounty the player STOPPED at target still
-           locks in on a timer as the cap catches up to the observed count. */
-        hrScheduleBountyRetry(b);
-        repaintBounty();
-      }
-    }).catch(function(){ b._confirming=false; });
-    return;
-  }
-  /* A CULL CONTRACT IS NEVER FINALIZED WITHOUT THE SERVER'S RECEIPT. The AWAY REPLAY
-     runs this same chain with `inOfflineReplay()` true, so the two-phase branch
-     above was skipped and control fell into finalizeBounty(), which nulls the
-     active bounty. Under the ARM that finalize pays NOTHING (gold and
-     Marks are server-of-record), so a FINISHED contract vanished from the client
-     with its Marks unclaimed while the server's active_bounty row lived on and
-     nothing was left to claim it from. Scoped to the REPLAY: a live turn-in that cannot
-     reach the server is the two-phase branch's own, already-handled problem.
-     HOLD instead — the turn-in then fires from the next envelope, attended kill
-     or board Claim, all through hr_claim_bounty, whose active_bounty row is the
-     once-guard. `_awaitingServerClaim` is a latch, never a gate (AWAY-1). */
-  if(_isCull && _armed && !_live){
-    b._awaitingServerClaim=true;
-    try{ repaintBounty(); }catch(e){}
-    return;
-  }
-  finalizeBounty(b, r, _isCull);
-}
-/* The client-authored finalize: celebration + credit (display-prediction under
-   the arm) + auto-accept. Reached synchronously by the AWAY replay, the DORMANT
-   path, and non-cull turn-ins; and by the server-confirmed cull turn-in above.
-   NOTE: the cull server intent is fired by completeBounty BEFORE this runs, so
-   finalize never fires it again (no double turn-in). */
-/* @param serverXp — the Bounty-Hunter XP the SERVER reported crediting on this
-   turn-in (hr_claim_bounty's `xp`, and only when its receipt names `xp_skill`).
-   Absent/0 on every path where nothing was credited server-side. Display-only:
-   it is PREDICTED, never written into G.skills. See the block below. */
-function finalizeBounty(b, r, _isCull, serverXp){
-  b._confirmed=true; hrClearBountyRetry(b);   // the turn-in landed — stop the cap-catch-up timer
-  /* ── THE LAST b411 BARE RETURN, AND WHY IT IS NOT ONE ANY MORE ─────────────
-     This line used to read:
-
-         if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
-
-     — the b411 "defer", kept "for THEM only — do not burn the bounty for a
-     reward that never lands". The b461 sweep deleted that idiom from the
-     milestone, rank, quest and modal-goal claims after Tyler found every Claim
-     button was a silent no-op under the arm; this one was missed, because it
-     lives in a turn-in rather than a claim. It is the same defect: a completed
-     contract, no RPC, no state change, NO TOAST. Driven on the real board it
-     read 26/26 with `completed` still 0, forever, and the rail hides the reroll
-     button while a bounty is active — so the whole board was locked behind it.
-
-     There is no reward to defer TO: proof/weapon/streak have no server verb
-     (2026-08-23-bounty.sql refuses them) and the client may not mint gold or
-     Marks. Holding the contract open for a payout that cannot arrive is not
-     caution, it is a lie with a progress bar on it. So: WITHDRAW it, free,
-     say so once, and repost the board. Belt-and-braces — generateBountyBoard no
-     longer POSTS an unsettleable type and ensureBountyState withdraws an
-     in-flight one at boot, so this is the third net, not the first.
-     When a type gets a server verb, move its BOUNTY_TURN_IN row to 'server' and
-     this branch stops being reachable for it. */
-  if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold')){
-    G.bountyHunter.active=null;
-    G.bountyHunter.board=[];                              // repost from the payable set
-    try{ ensureBountyState(); }catch(e){}
-    notify('That contract could not be settled at the board — withdrawn at no charge, and the board has been reposted.','kill');
-    try{ console.warn('[Bounty] unsettleable turn-in withdrawn: type='+b.type+' — no server verb and the client may not write gold'); }catch(e){}
-    updateTopbar();renderCombat();repaintBounty();saveLocal();
-    return;
-  }
-  if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
-  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+(r.marks||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
-  /* ── BOUNTY-HUNTER XP IS THE SERVER'S (b503) ────────────────────────────────
-     THE P0 THIS ENDS. This line used to read
-         G.bountyHunter.xp = (G.bountyHunter.xp||0) + (r.xp||0);
-     and a wrapper further down mirrored it into G.skills.bountyHunter. G.skills
-     is SERVER_OF_RECORD, so applyRecord's wholesale replace overwrote it from a
-     server map where the row had NEVER been credited — measured on production
-     2026-09-05: 36 characters, max(xp) = 0, for the whole life of the beta. The
-     level therefore snapped back to 1 after every envelope, and
-     getUnlockedBountyTier is keyed off it, so tiers 2-6 of the board were
-     unreachable for EVERYONE, permanently.
-
-     hr_claim_bounty now credits player_skills.bountyHunter in the same
-     transaction as the gold and the Marks
-     (supabase/migrations/2026-09-11-bounty-hunter-xp.sql). The client authors
-     NOTHING: `serverXp` is the amount the SERVER said it credited, and it is
-     PREDICTED for display only — tagged `credited:true` so record.js retires it
-     by how far the record actually advanced rather than by the accrued_to
-     coverage clock, which an RPC credit does not move (the b491 defect).
-
-     serverXp is 0 on every path where no server credit happened (the away
-     replay, the dormant client-owned path, a non-cull turn-in), and 0 predicts
-     nothing — the honest answer, because on those paths no XP exists. It is
-     also 0 against a server that has not had the migration applied yet: the
-     caller only passes a number when the receipt carries
-     `xp_skill === 'bountyHunter'`, so the two halves ship in either order
-     without a phantom level that snaps back. */
-  const oldLevel=getBountyHunterLevel();
-  const _bhXp=Math.max(0,Math.floor(Number(serverXp)||0));
-  if(_bhXp>0)hrPredictXp('bountyHunter',_bhXp,true);
-  const newLevel=getBountyHunterLevel();
-  /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
-     handleBountyKill, which runs inside killMonster, which runs inside the AWAY
-     replay — so a bare draw here means the same seeded night pays a different
-     number of Marks every time it is replayed, and replayability is the single
-     property server-side accrual rests on (given the same state and seed the
-     server must be able to re-run an absence and prove what it paid).
-
-     MEASURED before the fix, with the seed pinned and only Math.random() varied:
-     the identical night, 41 turn-ins, 4,519 gold either way — and 1,230 Marks
-     with Math.random()=0.01 against 820 Marks with 0.99.
-
-     The b221 pass that moved board generation into src/core/bounty.js converted
-     "the id stamp and the third-slot type roll" (see the note above
-     generateBountyBoard) and missed this one, because it lives in the turn-in
-     rather than the generator. Same idiom as companions.js and dungeons.js: the
-     bare fallback exists only for a pre-boot call, never for a real fight. */
-  const _CK=window.HearthriseCore;
-  const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
-  /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
-     on a screen whose whole point this pass was to stop looking generated. */
-  /* ⚠ THE BONUS IS ANNOUNCED ONLY WHERE IT IS PAID (bug_reports #46's second
-     half). The 10% bonus exists ONLY here — hr_claim_bounty's reward is
-     base × type × difficulty with no bonus roll (2026-08-23-bounty.sql) — so
-     under the Marks arm the credit is a no-op and the toast was promising
-     Marks that nothing anywhere grants. Two toasts, one turn-in, both naming a
-     number the balance never showed, is most of what "I got 0 marks" feels
-     like. Announce it where it lands; a real server-side bonus is a Systems +
-     Designer change (raised in HANDOFFS), not a louder toast. */
-  if(bonusRoll && clientMayWriteRecordField('marks')){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
-  G.combatLog.push(`Bounty complete! +${r.marks} Marks, +${r.gold} gold`);
-  notify(`Bounty complete: +${r.marks} Marks`,'levelup');
-  if(newLevel>oldLevel)notify(`Bounty Hunter ${newLevel}!`,'levelup');
-  G.bountyHunter.active=null;
-  // b136: Farmer's Deed roll on bounty turn-in (0.5%). Higher than the
-  // per-kill rate because bounties take longer to complete.
-  if(window.HearthriseFarm && typeof window.HearthriseFarm.rollBountyDeed === 'function'){
-    window.HearthriseFarm.rollBountyDeed();
-  }
-  if(G.bountyHunter.autoBounty>=1&&G.bountyHunter.board.length){
-    const _wasFighting = !!G.activeMonster;
-    acceptBounty(0);
-    /* b264 (tester): Auto-Accept took the next bounty but left you grinding the
-       OLD monster. If you were in a fight, seamlessly switch combat to the new
-       bounty's target (when you meet its level gate).
-       b344: the SCHEDULING of that switch is now requestBountySwitch's job,
-       because "defer it past this tick" is only correct while a tick is a tick.
-       Read the block above that function before changing this. */
-    const _na = G.bountyHunter.active;
-    if(_wasFighting && _na && MONSTERS[_na.target] && G.activeMonster !== _na.target){
-      const _req = (MONSTERS[_na.target].tier - 1) * 15;
-      if((typeof getCombatLevel==='function' ? getCombatLevel() : 0) >= _req){
-        requestBountySwitch(_na.target);
-      } else {
-        notify(`New bounty: ${MONSTERS[_na.target].name} (Combat Lv ${_req} to fight)`,'info');
-      }
-    }
-  }
-  updateTopbar();renderCombat();saveLocal();
-}
-/* ══════════════════════════════════════════════════════════════════════
-   b344 — THE SWITCH HAS TO HAPPEN INSIDE THE NIGHT.
-
-   The b264 defer was correct for LIVE play and silently wrong AWAY, and the
-   b325 unification is exactly what hid it: there is now ONE combat loop, and
-   an away absence computes the whole night SYNCHRONOUSLY in a single pass. A
-   `setTimeout(…,0)` callback therefore cannot run until the night is already
-   over. MEASURED on a two-hour absence: 1,589 kills, the bounty auto-accepted
-   on kill #1, 806 goblin ears and ZERO wolf pelts in the bag, and the new
-   bounty's progress at sunrise was 0. The player ground the old monster until
-   morning and the switch landed after the last swing.
-
-   This is the interesting shape of bug: a fix that is right in one mode and
-   wrong in the other, invisible precisely BECAUSE the two modes were unified.
-   So the two modes now share one request function and differ only in WHEN and
-   HOW the switch lands — context, not a second code path, same as the rest of
-   the away ruling:
-
-     LIVE   still deferred a turn, then the full startCombat(): interval, log,
-            repaint. Still deferred for the reason the b264 comment gives, and
-            it is stronger than "a race" — startCombat CLEARS AND RE-ARMS
-            combatInterval and then calls combatTick() itself, so running it
-            from inside a tick is re-entrancy into the loop that is running.
-     AWAY   queued, and drained at COMBAT_FX.killMonster: the one point in a
-            tick where every killMonster wrapper has returned AND resolveKill
-            has already executed its `state.monsterHp = m.hp` respawn line.
-            THAT LINE IS THE RACE the b264 comment names — switching before it
-            leaves the new foe wearing the old foe's hit points. Draining after
-            it makes the switch safe rather than merely late. Away needs none
-            of startCombat's other work: there is no interval to arm, no panel
-            to paint and no combat log while the latch is closed.
-
-   `_pendingBountySwitch` is a module-level let, never a G field: it is
-   in-flight combat state with a lifetime of one tick, and the save must not
-   learn about it (a persisted pending id would fire on a device that never
-   completed the bounty).
-   ══════════════════════════════════════════════════════════════════════ */
-let _pendingBountySwitch=null;
-function requestBountySwitch(targetId){
-  if(inOfflineReplay()){ _pendingBountySwitch=targetId; return; }
-  setTimeout(()=>bountyAutoSwitch(targetId), 0);
-}
-/* Drained from COMBAT_FX.killMonster after every away kill, and once more when
-   the span ends — a bounty completed on the night's LAST kill still has to
-   leave the player pointed at the right foe, and no pending id may leak across
-   the away/live boundary. Returns whether it moved the fight, so a caller (and
-   the suite) can tell "nothing pending" from "refused". */
-function drainBountySwitch(){
-  const id=_pendingBountySwitch;
-  if(!id)return false;
-  _pendingBountySwitch=null;
-  const a=G.bountyHunter&&G.bountyHunter.active;
-  if(!a||a.target!==id)return false;                        // abandoned / rerolled mid-night
-  if(!G.activeMonster||G.activeMonster===id)return false;   // died, stopped, or already there
-  const m=MONSTERS[id];
-  if(!m)return false;
-  G.activeMonster=id;
-  G.monsterHp=m.hp;G.monsterMaxHp=m.hp;
-  G.combatKillsThisFoe=0;
-  /* PERSIST THE NEW TARGET. processOffline() never calls saveLocal(), and
-     completeBounty()'s own save runs BEFORE this drain — so measured, the local
-     save still read `goblin` after a night that had switched to `wolf`, and only
-     the next ordinary autosave corrected it. Close the browser inside that
-     window and the player reopens on the old monster holding the new bounty:
-     the pre-fix symptom, in miniature. Costs nothing — completeBounty already
-     writes a save on every turn-in, and this fires strictly less often. */
-  try{ if(typeof saveLocal==='function') saveLocal(); }catch(e){}
-  /* b347 SEAM 3. This is the one pointer writer that does NOT go through
-     startCombat — away needs none of its interval/paint work — so it is also
-     the one that would silently stop telling the server. Stated honestly: with
-     the b337 switch ON there is no client-side away replay at all
-     (processOffline returns before it), so today this line is unreachable while
-     the seam is armed. It is here because the contract says all four writers
-     are the seam, and because the alternative is a fifth writer appearing the
-     day the away path and the switch overlap. */
-  declareActivity('combat',id);
-  return true;
-}
-/* Read-only seams for the suite: "is a switch queued?" and "drain it now". */
-window.__bountySwitchPending=function(){ return _pendingBountySwitch; };
-window.__drainBountySwitch=drainBountySwitch;
-/* b264: seamless auto-bounty combat switch (exposed for the smoke test). Guarded
-   so a stale deferred call can't hijack combat after the player moved on. */
-function bountyAutoSwitch(targetId){
-  try{
-    const a = G.bountyHunter && G.bountyHunter.active;
-    if(a && a.target === targetId && G.activeMonster && G.activeMonster !== a.target && MONSTERS[a.target]){
-      startCombat(a.target);
-      notify(`Auto-bounty: now hunting ${MONSTERS[a.target].name}`,'info');
-    }
-  }catch(e){}
-}
-window.bountyAutoSwitch=bountyAutoSwitch;
-/* b221 — THE BOARD IS AN OBJECT.
-   The bounty screen used to be three bordered rows in a card: a list that
-   happened to be called a board. It is now a physical noticeboard at the town
-   gate — a timber frame, a plank field, a hanging lantern, and each bounty a
-   parchment notice nailed to it.
-
-   Pin position and sheet rotation are DETERMINISTIC per slot (indexed
-   constants, never Math.random) because the panel re-renders on every kill.
-   A board whose notices jump on each repaint is not furniture, it's noise. */
-const BB_ROT=['-0.8deg','0.55deg','-0.4deg','0.75deg','-0.6deg','0.35deg'];
-const BB_PIN=['42%','58%','47%','62%','38%','54%'];
-/* The lantern hanging off the board's top rail. It is the only light source in
-   the picture, so the plank field is lit from that corner (see .bb-board's
-   radial wash) and every notice casts its shadow away from it. Colours are
-   --scene-* tokens: painted atmosphere is still colour, so it is still tokens. */
-const BB_LANTERN=`<svg class="bb-lantern" viewBox="0 0 60 78" aria-hidden="true" focusable="false">
-  <defs><radialGradient id="bbGlow" cx="50%" cy="46%" r="50%">
-    <stop offset="0%" stop-color="var(--scene-glow-1)"/><stop offset="55%" stop-color="var(--scene-glow-2)"/><stop offset="100%" stop-color="var(--scene-glow-0)"/>
-  </radialGradient></defs>
-  <ellipse cx="30" cy="42" rx="30" ry="34" fill="url(#bbGlow)"/>
-  <path d="M30 4v9" stroke="var(--bb-iron)" stroke-width="2.4" fill="none"/>
-  <path d="M22 15h16l-2-4H24z" fill="var(--bb-iron)"/>
-  <path d="M21 19h18l3 30H18z" fill="var(--bb-iron-2)"/>
-  <path d="M24 22h12l2 24H22z" fill="var(--scene-lit)" opacity=".9"/>
-  <path d="M30 27c3 4 4 6 4 9s-1.8 5-4 5-4-2-4-5 1-5 4-9z" fill="var(--bb-flame)"/>
-  <path d="M17 51h26l-2 5H19z" fill="var(--bb-iron)"/>
-</svg>`;
-function renderBountyPanel(){
-  ensureBountyState();
-  const bh=G.bountyHunter,active=bh.active;
-  let notices='';
-  if(active){
-    const m=MONSTERS[active.target];
-    // One reader for text, bar AND Claim gate — the count hr_claim_bounty honours.
-    const v=hrBountyView(active);
-    const pct=v.known?Math.min(100,(v.progress/active.required)*100):0;
-    const _claimable=v.claimable;
-    const _claimBtn=_claimable
-      ? `<button class="btn btn-sm btn-primary" onclick="hrTurnInBounty()">Claim reward</button>`
-      : `<button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button>`;
-    /* The claimed notice stays ON the board, over-stamped. One strong device —
-       a clerk's oxblood stamp — rather than three weak ones. */
-    notices=`<article class="bb-notice is-taken" style="--bb-rot:-0.6deg;--bb-pin:47%">
-      ${_bbNail()}
-      <span class="bb-stamp" aria-hidden="true">Claimed</span>
-      <header class="bb-head">
-        ${_bbCut(active.target)}
-        <span class="bb-ident">
-          <span class="bb-kind">${BOUNTY_DIFFICULTY_LABEL[active.difficulty]||''} ${BOUNTY_TYPE_LABEL[active.type]}</span>
-          <b class="bb-name">${m?.name||'Unknown'}</b>
-        </span>
-      </header>
-      <p class="bb-task">${bountyLabel(active)}</p>
-      <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(active.target):''}</p>${window.HearthriseFoe?window.HearthriseFoe.noticeHtml(active.target):''}
-      <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
-      ${active.rewards&&active.rewards.gold!=null?`<div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>`:''}
-      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()"${(window.hrBountyBusy?window.hrBountyBusy():{}).any?' disabled':''}>Abandon</button></div>
-    </article>`;
-  }else{
-    notices=bh.board.map((b,i)=>{
-      const m=MONSTERS[b.target];
-      const hard=b.difficulty==='hard'||b.difficulty==='elite';
-      /* b217 (kept): `Accept` is a normal-sized control on the notice it acts
-         on, not a full-bleed gilt slab repeated once per bounty. */
-      return `<article class="bb-notice" style="--bb-rot:${BB_ROT[i%BB_ROT.length]};--bb-pin:${BB_PIN[i%BB_PIN.length]}">
-        ${_bbNail()}
-        <header class="bb-head">
-          ${_bbCut(b.target)}
-          <span class="bb-ident">
-            <span class="bb-kind${hard?' is-grave':''}">${BOUNTY_DIFFICULTY_LABEL[b.difficulty]} ${BOUNTY_TYPE_LABEL[b.type]}</span>
-            <b class="bb-name">${m?.name||'Unknown'}</b>
-          </span>
-        </header>
-        <p class="bb-task">${bountyLabel(b)}</p>
-        <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
-        <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
-        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${(window.hrBountyBusy?window.hrBountyBusy():{}).abandon?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
-      </article>`;
-    }).join('');
-  }
-  /* b217: the card header repeated the panel heading and its sub-line verbatim.
-     b221 removes the last of that — the Marks tally was printed a third time,
-     40px under the identical figure in the card's own sub-line. */
-  return `<div class="bb-board">
-    ${BB_LANTERN}
-    <div class="bb-notices${active?' is-single':''}">${notices}</div>
-    <div class="bb-rail">${active
-      ? '<span class="bb-rail-t">Notice taken — settle this contract before the board is posted again.</span>'
-      : '<span class="bb-rail-t">Free rerolls: '+(bh.freeRerolls||0)+'</span><button class="btn btn-sm" onclick="rerollBountyBoard()">New notices</button>'}</div>
-  </div>`;
-}
 /* ═══════════════════════════════════════════════════════════════════════
    QUEST_DEFS — the onboarding chain, as DATA.
 
@@ -4885,8 +3616,6 @@ function syncMirroredQuests(){
 
 /* ─── retention ─── */
 function ensureRetentionState(){
-  if(!G.daily)G.daily={lastReset:null,tasks:[]};
-  if(!Array.isArray(G.daily.tasks))G.daily.tasks=[];
   if(!G.collection)G.collection={};
   if(!G.stats)G.stats={kills:0,gathered:0,harvested:0,rareDrops:0};
   /* b341: quests are SEEDED BY ID from QUEST_DEFS, not "only when the array is
@@ -4949,340 +3678,6 @@ function ensureRetentionState(){
   });
   syncMirroredQuests();
 }
-/* Daily task pool — pick 3 per day for variety. Each entry is a template
-   factory that returns a fresh task object so we can adjust goals per
-   level/character later if we want. Deterministic seed = date string.
-   Only types with corresponding updateDaily() call sites are listed —
-   adding a new type requires hooking the source counter too. */
-/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
-   The pool paid a 13:1 spread across gold-per-effort-minute and the FIGHTERS
-   sat at the bottom of it: killing 60 monsters is the longest task in the pool
-   and paid 900 g, while "Craft 8 items" — eight bench pulls, ~8 seconds of
-   actual input — paid 450. The ruled numbers below flatten that.
-   ⚠ EVERY NUMBER HERE IS ALSO SERVER-OWNED. hr_claim_daily credits the gold
-   from its own CASE catalogue, so a change here is a change in THREE places
-   (this table, src/data/goal-catalogue.js DAILY_TASK_REWARDS, and the SQL) and
-   tests/goal-catalogue-drift.mjs fails the build if only one of them moves. */
-const DAILY_TASK_POOL=[
-  ()=>({id:'daily_kill',     type:'kill_any', label:'Defeat 25 monsters',       goal:25, progress:0, reward:600, done:false}),
-  ()=>({id:'daily_kill_big', type:'kill_any', label:'Defeat 60 monsters',       goal:60, progress:0, reward:1400, done:false}),
-  ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
-  ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
-  /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
-     it measures varies 6× across the property ladder — at Wanderer's Camp
-     (2 plots of 4h turnips, ~6 produce a cycle) that was ~17 hours of
-     babysitting for 700g, and at the castle it was one harvest pass. These
-     entries are factories evaluated at generation time, so the goal can simply
-     scale with the plot cap. Reward scales with it too. */
-  /* b495 (balance audit): the FLOOR was 10 and the scaling term never reached
-     it at the starting property. Wanderer's Camp has TWO plots
-     (features/homestead.js TIERS[0].plots), turnips take 4h and yield 2-4, so
-     one full harvest round is ~6 produce and `max(10, 2*3)` clamped to 10 —
-     TWO grow cycles, ~8 wall-clock hours, for a daily that resets at UTC
-     midnight. A starter who logged in after noon could not finish it at all.
-     The floor is now 6 = ONE harvest round at the camp; every tier from
-     homestead (4 plots) up is governed by `n*3` exactly as before, so nothing
-     above the starting property moves by a single crop. */
-  /* W0: a FIXED goal (one harvest round at the camp's two plots), so the
-     server can grade and pay it (2026-10-16-daily-harvest-credit.sql). The
-     plot-cap-scaled goal was offered and never paid. */
-  ()=>({id:'daily_harvest',  type:'harvest',  label:'Harvest 6 crops',          goal:6,  progress:0, reward:300, done:false}),
-  ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 dishes',           goal:12, progress:0, reward:400, done:false}),
-  /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
-     (artisan actions are ~2.4-4.6 s and run unattended), which made these two
-     the cheapest gold in the game by an order of magnitude. 40 items ≈ 40
-     seconds of bench time and puts them on the same effort footing as the kill
-     and gather rows. The Workshop/Forge eligibility filter
-     (src/data/goal-catalogue.js DAILY_TASK_REQUIREMENTS) still keeps them away
-     from an account that cannot reach a bench at all. */
-  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 40 items',           goal:40, progress:0, reward:500, done:false}),
-  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 40 items',           goal:40, progress:0, reward:500, done:false}),
-];
-/* b220: exposed so the smoke suite can evaluate a factory deterministically
-   instead of depending on which 3 tasks today's date happens to draw. */
-window.DAILY_TASK_POOL = DAILY_TASK_POOL;
-/* Simple FNV-1a hash on a string so we can derive a deterministic
-   shuffle from the date — every player on the same day gets the same
-   3 tasks, but each new day rotates them. */
-/* b332: Math.imul, not `h*0x01000193` — the float multiply loses the low bits
-   past 2^53. The LCG shuffle below rescued COVERAGE (every task could still be
-   drawn) but not fairness: measured over 730 days, "Craft 8 items" appeared 20
-   times against "Gather 50 resources" 453 — a 22x skew a player would read as
-   a missing task. Reference implementation: src/core/rng.js hashSeed. */
-function dailySeed(s){
-  let h=0x811c9dc5;
-  s=String(s);
-  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,0x01000193); }
-  return h>>>0;
-}
-/* b332: the date -> task-order draw, lifted out of generateDailyTasks so the
-   suite can sweep YEARS of date keys against the REAL shuffle instead of
-   trusting whatever today deals. Behaviour is unchanged; this is the same
-   Fisher-Yates over the same LCG, just callable. */
-function dailyTaskIndexes(dateStr){
-  let seed=dailySeed(dateStr);
-  const indexes=DAILY_TASK_POOL.map((_,i)=>i);
-  for(let i=indexes.length-1;i>0;i--){
-    seed=(seed*1664525+1013904223)>>>0;       // LCG step
-    const j=seed%(i+1);
-    [indexes[i],indexes[j]]=[indexes[j],indexes[i]];
-  }
-  return indexes;
-}
-window.dailyTaskIndexes=dailyTaskIndexes;
-/* THE DAILY DAY KEY — the UTC day key the SERVER seeds its selection from
-   (public.hr_utc_day_key / src/core/goals.js utcDayKey: no zero padding, e.g.
-   `2026-8-20`). b414: the daily task SET is now server-authoritative
-   (hr_daily_task_set + hr_claim_daily), so the client MUST seed the SAME string
-   the server does — it used to seed from `new Date().toDateString()` (a LOCAL
-   date), which desynced the offered set from the server across time zones and
-   let the audit flag client-owned selection. tests/goal-catalogue-drift.mjs
-   binds this to src/core/goals.js utcDayKey and to the SQL over a date sweep. */
-function hrGoalDayKey(nowMs){
-  const d=new Date(typeof nowMs==='number'?nowMs:Date.now());
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
-}
-window.hrGoalDayKey=hrGoalDayKey;
-/* ── THE ELIGIBILITY CAPS (b45x, P0) ────────────────────────────────────────
-   What the daily-task filter in src/data/goal-catalogue.js is allowed to ask
-   about this character. Read through the SAME accessors the rest of the engine
-   uses — `HearthriseHomestead.roomLevel` (which routes through the rooms record,
-   so it becomes server-first the day that arm flips) and `skillXp` (the
-   record-first XP read) — because a second way of asking "do you own the Forge?"
-   is a second answer waiting to disagree with the server's.
-
-   FAIL CLOSED: if the homestead module is not up we report NOTHING unlocked, so
-   the worst case is a doable task instead of a padlocked one. The old behaviour
-   was the padlock. */
-function dailyTaskCaps(){
-  const rooms={}, sx={};
-  try{
-    const HH=window.HearthriseHomestead;
-    if(HH&&typeof HH.roomLevel==='function'){
-      rooms.workshop=HH.roomLevel('workshop')||0;
-      rooms.forge=HH.roomLevel('forge')||0;
-    }
-  }catch(e){}
-  try{
-    if(typeof skillXp==='function'){ sx.crafting=skillXp('crafting')||0; sx.smithing=skillXp('smithing')||0; }
-  }catch(e){}
-  /* W0 harvest gate (game-designer 2026-10-10; server twin hr_daily_harvest_ready).
-     Every input is the SERVER's: the seed count a gate may read (heldByServer),
-     the projected plots, the property cap and today's tally. Unknown = not ready. */
-  const farm={plots:0, plantable:false, growing:0, today:0};
-  try{
-    const CF=window.HearthriseCore&&window.HearthriseCore.farm;
-    farm.plots=(typeof window.farmPlotCap==='function')?(Number(window.farmPlotCap())||0):0;
-    if(CF&&typeof CF.pickSeedToPlant==='function'&&typeof window.heldByServer==='function'&&typeof CROPS==='object'&&CROPS){
-      const seeds={};
-      Object.values(CROPS).forEach(c=>{ seeds[c.seed]=Number(window.heldByServer(c.seed))||0; });
-      farm.plantable=!!CF.pickSeedToPlant({crops:CROPS, seeds, farmingLevel:getLevel('farming'),
-        plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1});
-    }
-    farm.growing=(G.farmPlots||[]).filter(Boolean).length;
-    const DQ=window.HearthriseDailyQuests;
-    if(DQ&&typeof DQ.serverCount==='function'){
-      ['harvest','planted'].forEach(t=>{ farm.today+=Number(DQ.serverCount({type:t, goal:1e9}))||0; });
-    }
-  }catch(e){}
-  return {rooms:rooms, skillXp:sx, farm:farm};
-}
-window.dailyTaskCaps=dailyTaskCaps;
-/* ── b497 — THE AUTHORED NUMBERS OF EVERY DAILY, BY ID (all fixed since W0).
-   Memoised on the POOL'S IDENTITY, not unconditionally: generateDailyTasks runs
-   on EVERY updateDaily (i.e. every kill), so calling eight factories per tick
-   would be real cost on the hot path — while a test that swaps the pool still
-   gets a fresh answer instead of a stale cache. */
-let _dailySpecPool=null, _dailySpecs=null;
-function dailyTaskSpecs(){
-  if(_dailySpecs&&_dailySpecPool===DAILY_TASK_POOL) return _dailySpecs;
-  const m={};
-  DAILY_TASK_POOL.forEach(function(f){
-    let t=null; try{ t=f(); }catch(e){}
-    if(t&&t.id) m[t.id]={goal:t.goal,reward:t.reward,label:t.label};
-  });
-  _dailySpecPool=DAILY_TASK_POOL; _dailySpecs=m;
-  return m;
-}
-function generateDailyTasks(notice=true){
-  ensureRetentionState();
-  /* window seam, not the local binding — same reason the caps read below goes
-     through window: DAILY-HEAL-1 sweeps the heal across 60 consecutive day keys,
-     and a roll-shape-dependent defect must not be able to hide behind "green
-     today". Identical in production (window.hrGoalDayKey IS hrGoalDayKey). */
-  const today=(typeof window.hrGoalDayKey==='function')?window.hrGoalDayKey():hrGoalDayKey();
-  if(G.daily.lastReset===today&&G.daily.tasks.length){
-    /* ── b461 — HEAL a pre-eligibility slate. The b459 eligibility filter
-       applies at GENERATION, so a slate rolled BEFORE the fix keeps its
-       impossible tasks all day (found live: Tyler's account still carried
-       Craft 8 + Smith 8 the morning after). If any UN-done task in today's
-       stored slate is ineligible NOW, rebuild the slate from the filtered
-       deterministic set. Safe by construction: eligibility only WIDENS during
-       a day (skills/rooms are never lost; harvest, once a seed is planted or a
-       crop harvested today, stays dealt), so ineligible-now ⇒ no progress on
-       it ⇒ zero progress lost; and every eligible old member is necessarily
-       in the new set (same seeded order, bad members only free slots), so
-       progress/done on kept tasks is preserved via the id match below. */
-    try{
-      const GCat=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
-      if(GCat&&typeof GCat.dailyTaskEligible==='function'&&typeof GCat.dailyTaskSetIndexes==='function'){
-        /* window seam, not the local binding — DAILY-HEAL-1 stubs the caps. */
-        const caps=(typeof window.dailyTaskCaps==='function')?window.dailyTaskCaps():dailyTaskCaps();
-        const hasBad=G.daily.tasks.some(t=>t&&!t.done&&!GCat.dailyTaskEligible(t.id,caps));
-        if(hasBad){
-          const oldById={};
-          G.daily.tasks.forEach(t=>{ if(t&&t.id) oldById[t.id]=t; });
-          const fixed=GCat.dailyTaskSetIndexes(today,caps,G.daily.tasks.length);
-          if(Array.isArray(fixed)&&fixed.length){
-            G.daily.tasks=fixed.map(i=>{
-              const fresh=DAILY_TASK_POOL[i]();
-              const old=oldById[fresh.id];
-              if(old){ fresh.progress=old.progress||0; fresh.done=!!old.done; }
-              return fresh;
-            });
-          }
-        }
-      }
-    }catch(e){}
-    /* ── b497 — HEAL A SLATE WHOSE NUMBERS THE CATALOGUE HAS MOVED PAST ──────
-       The eligibility heal above is the same class one trigger over: a slate is
-       rolled ONCE a day and frozen in the save, so any change to the pool's
-       authored numbers is invisible until UTC midnight. That is not cosmetic
-       here, because the SERVER moved with the catalogue and the client did not:
-
-         · stored daily_smith says "Smith 8 items"; hr_claim_daily requires 40.
-         · the player smiths 8 → updateDaily latches `done` and fires
-           claimDaily ONCE, fire-and-forget.
-         · the server answers `incomplete`, the envelope is discarded, and
-           `done` means the task can never fire again.
-         · under the gold arm the local credit is a no-op.
-       Net: the daily is spent, nothing is paid, and the UI says it is finished.
-       Exactly the "fire-and-forget over a server verdict where the local state
-       is consumed" class the rank/milestone claims were fixed for.
-
-       TWO REPAIRS, deliberately separate, because they break in different ways:
-       (1) the NUMBERS are re-read from the authored pool;
-       (2) `done` is re-derived from `progress >= goal` UNCONDITIONALLY. (2) is
-           not a consequence of (1): the eligibility rebuild above already
-           produces the bad state on its own by copying an old `done` onto a
-           freshly-generated task, so a repair gated on "the numbers differ"
-           would walk straight past it. `done` unsupported by its own progress
-           is never legitimate — updateDaily only ever sets it at
-           progress >= goal — so this is an invariant of the structure and not a
-           guess about how it broke. */
-    try{
-      const spec=dailyTaskSpecs();
-      G.daily.tasks.forEach(function(t){
-        if(!t||!t.id)return;
-        const s=spec[t.id];
-        if(!s)return;
-        if(t.goal!==s.goal||t.reward!==s.reward||t.label!==s.label){
-          t.goal=s.goal; t.reward=s.reward; t.label=s.label;
-        }
-        t.progress=Math.min(t.goal,Math.max(0,Number(t.progress)||0));
-        if(t.done&&t.progress<t.goal)t.done=false;
-      });
-    }catch(e){}
-    return;
-  }
-  G.daily.lastReset=today;
-  // Deterministic shuffle of pool by date seed
-  const indexes=dailyTaskIndexes(today);
-  /* Three tasks: the server's daily task set offers no more (not_offered). */
-  const taskCount=Math.min(DAILY_TASK_POOL.length, 3);
-  /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
-     SET skips a task whose bench the player has not built and takes the next one
-     down the same order. The rule and the algorithm live in
-     src/data/goal-catalogue.js so the server's hr_daily_task_set_for is a port of
-     ONE implementation rather than a second one — see that file's header for the
-     ruling (a fresh account was dealt Craft 8 + Smith 8, 900 of 1300 daily gold,
-     against zero craftable recipes at level 1).
-     If the bridge is not up we fall back to the raw slice, which is exactly
-     today's behaviour — degraded, never broken, and never a second copy of the
-     filter. */
-  let chosen=null;
-  try{
-    const GC=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
-    if(GC&&typeof GC.dailyTaskSetIndexes==='function'){
-      chosen=GC.dailyTaskSetIndexes(today,dailyTaskCaps(),taskCount);
-    }
-  }catch(e){}
-  if(!Array.isArray(chosen)||chosen.length!==taskCount)chosen=indexes.slice(0,taskCount);
-  G.daily.tasks=chosen.map(i=>DAILY_TASK_POOL[i]());
-  if(notice)notify('New daily tasks!','info');
-}
-/* Exposed so the suite can roll and heal a slate deterministically. (The King's
-   4th task this once proved was retired: the server never paid it.) */
-window.generateDailyTasks=generateDailyTasks;
-function updateDaily(type,amt=1){
-  generateDailyTasks(false);
-  G.daily.tasks.forEach(t=>{
-    if(t.type===type&&!t.done){
-      t.progress=Math.min(t.goal,(t.progress||0)+amt);
-      if(t.progress>=t.goal){
-        /* b414: daily-task gold is now SERVER-CREDITED. hr_claim_daily
-           (2026-08-20-goal-reward-rpc-credit.sql) VERIFIES completion from the
-           server's own kind='daily' ev:<type> counter for today's UTC day, owns
-           the fixed gold amount, once-guards per (day, task) and journals it.
-           The local G.gold write is a GATED PREDICTION — pre-arm it credits
-           locally; under arm it no-ops and the server credit arrives on the next
-           envelope (identical to muster/raid chest crediting). Every pool
-           task is server-paid (daily_harvest since 2026-10-16). */
-        t.done=true;
-        if(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimDaily==='function'){
-          const _p=window.HearthriseGoalClaim.claimDaily(t.id); if(_p&&_p.catch)_p.catch(()=>{});
-        }
-        if(clientMayWriteRecordField('gold'))G.gold+=t.reward;   // prediction; no-op under arm
-        notify(`Daily: ${t.label} (+${t.reward}g)`,'loot');
-      }
-    }
-  });
-}
-/* ════════════════════════════════════════════════════════════════
-   b222 (SEAM 4) — the updateDaily wrapper chain, with names.
-
-   updateDaily() is the single seam that already sees EVERY player action
-   (kill_any / gather / harvest / cooked / smithed / crafted), which makes it
-   the natural feed for any contribution meter. The Muster wraps it today
-   (muster.js), and castle Labour (clan-overhaul v2 §6.3) will wrap it next —
-   CONFLICTS #6 flags the collision: each wrapper needs its own idempotency
-   flag or a boot retry double-counts, and a second system copying the first
-   one's `window.__xHooked` global would silently no-op instead of wiring.
-
-   A private per-system boolean is the pattern that produces exactly that bug,
-   because nothing can see it. So the chain carries its OWN roster:
-   `updateDaily.__wrappedBy` is a Set of system names, copied forward on every
-   wrap. Double-wrapping under the same name THROWS — loudly, at boot, in
-   development — rather than silently doubling a player's contribution.
-
-   Wrapping order is irrelevant provided each layer registers its name. One
-   action feeding both the Muster bar and a Work Order is intended: they are
-   different rewards for the same hour of play, not double-dipping.
-   ════════════════════════════════════════════════════════════════ */
-function wrapUpdateDaily(name, after){
-  if(typeof name !== 'string' || !name) throw new Error('wrapUpdateDaily: a system name is required');
-  if(typeof after !== 'function') throw new Error('wrapUpdateDaily: after() must be a function');
-  const base = window.updateDaily;
-  if(typeof base !== 'function') return false;      // caller retries until defined
-  const owners = base.__wrappedBy instanceof Set ? base.__wrappedBy : new Set();
-  if(owners.has(name)) throw new Error('wrapUpdateDaily: "'+name+'" has already wrapped updateDaily');
-  const wrapped = function(type, amt){
-    const r = base.apply(this, arguments);
-    /* The observer must never break the counter it observes: a throwing
-       Work-Order flush cannot be allowed to eat a daily-task tick. */
-    try { after(type, amt == null ? 1 : amt); } catch(e){}
-    return r;
-  };
-  wrapped.__wrappedBy = new Set(owners);
-  wrapped.__wrappedBy.add(name);
-  window.updateDaily = wrapped;
-  return true;
-}
-window.wrapUpdateDaily = wrapUpdateDaily;
-window.updateDailyWrappers = function(){
-  const f = window.updateDaily;
-  return (f && f.__wrappedBy instanceof Set) ? Array.from(f.__wrappedBy) : [];
-};
 
 function updateQuest(type,amt=1,meta={}){
   ensureRetentionState();
@@ -5526,13 +3921,6 @@ function trackCollection(id,qty=1){if(id&&ITEMS[id])G.collection[id]=(G.collecti
 
 /* ─── combat ─── */
 let combatInterval=null;
-/* b227 (Tyler): the bounty board's Fight-target button fed the TOGGLE below,
-   so clicking it while already fighting the target STOPPED the fight. Intent
-   from the board is "take me to the fight" — never a toggle. */
-window.fightBountyTarget=function(mId){
-  if(G.activeMonster!==mId) startCombat(mId);
-  if(typeof showTab==='function') showTab('combat');
-};
 /* b245 (Tyler): attack SPEED is a real lever now. spdB ("gear speed") was summed
    and shown on the stats panel and fed nothing — the swing interval was a flat
    tickMs. It now shortens the swing by your total spdB, capped at 20% so a future
@@ -5906,14 +4294,7 @@ const COMBAT_FX={
     }
   },
   killMonster:function(m){
-    const info=killMonster(m);
-    /* b344 — THE ONE SAFE POINT IN A TICK FOR THE TARGET TO CHANGE. Every
-       killMonster wrapper has returned AND resolveKill has already run its
-       `state.monsterHp = m.hp` respawn line, so nothing left in this tick can
-       overwrite the new target's hit points. See requestBountySwitch(). Live
-       play queues nothing, so this is a null check on the live path. */
-    drainBountySwitch();
-    return info;
+    return killMonster(m);
   },
   recordKill:function(id,dropped){
     if(window.HearthriseDropLog&&typeof window.HearthriseDropLog.recordKill==='function'){
@@ -5925,9 +4306,7 @@ const COMBAT_FX={
       window.HearthriseFarm.rollKillDeed(m);
     }
   },
-  updateDaily:function(t,n){ updateDaily(t,n); },
   updateQuest:function(t,n,meta){ updateQuest(t,n,meta); },
-  handleBountyKill:function(id,m){ handleBountyKill(id,m); },
   /* Healing auto-eat. Survival, not a bonus — it runs away and it consumes.
      Heal-only: it never applies a food's timed buff (b163). */
   autoEat:function(){
@@ -6049,7 +4428,7 @@ const COMBAT_FX={
     const log=G.combatLog;
     const _served=hrServerOwnsFall();
     if(Array.isArray(log)){
-      if(info&&info.streakBroken)log.push('Bounty streak broken. Progress reset.');
+
       /* NOT "Respawning…" when the server owns the fall: nothing respawns,
          the run is paused while the hearth prices the window. */
       log.push(_served?'You fell! Waiting on the hearth…':'You died! Respawning…');
@@ -6214,14 +4593,7 @@ function simulateAwayCombat(hrs,nowMs,capped,opts){
   ctx.fx=Object.assign({},COMBAT_FX,{
     segment:function(atMs,run){ return withAwaySegment(atMs,run); },
   });
-  /* b344: no pending target switch may enter or leave a span. Cleared going in
-     (nothing from an earlier replay may hijack this fight) and drained coming
-     out, so a bounty completed on the night's LAST kill still leaves the player
-     pointed at the right foe instead of at the one they finished with. */
-  _pendingBountySwitch=null;
-  const out=withOfflineReplay(()=>C.combatSim.simulateSpan(G,ctx));   // the latch too: every kill rebuilds its ctx from it (COMBAT_FX.killMonster), so an unlatched caller's night toasted and repainted each kill as if watched
-  drainBountySwitch();
-  return out;
+  return withOfflineReplay(()=>C.combatSim.simulateSpan(G,ctx));   // the latch too: every kill rebuilds its ctx from it (COMBAT_FX.killMonster), so an unlatched caller's night toasted and repainted each kill as if watched
 }
 window.simulateAwayCombat=simulateAwayCombat;
 
@@ -6262,11 +4634,6 @@ function activityIntervalMs(){
   const d=currentActionDef();
   if(!d) return null;
   let speed=(typeof getBonus==='function')?(getBonus(d.key)||0):0;
-  /* Wave 3: tool speed now applies to ARTISAN skills too, not just gathering — a
-     Forge Hammer speeds smithing exactly as a Rune Axe speeds woodcutting. */
-  if(window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
-    try{ speed += (window.HearthriseTools.bestToolSpeed(G.activeSkill)||0); }catch(e){}
-  }
   /* b228 merge: the bonus-census fuse applies at THE consumption point — this
      single formula — rather than at ten call sites. */
   return Math.max(500, Math.floor(pacedActionMs(d.act.ms||3000)*speedClamp(speed)));
@@ -6354,14 +4721,12 @@ function startSkill(type,targetId,ms){
      pricing a span of milliseconds and classifying `below_min_span`. */
   activityQuietly(stopSkill);
   G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
-  /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze.
-     b227: through activityIntervalMs(), the single formula the live loop, the
+  /* b227: through activityIntervalMs(), the single formula the live loop, the
      retimer and the offline replay all read — a second copy of this arithmetic
      is exactly how the b226 offline dampener happened. */
   let actualMs=activityIntervalMs();
   if(actualMs==null){
-    const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
-    actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-(getBonus('gatherSpeed')+toolSpeed))));
+    actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-getBonus('gatherSpeed'))));
   }
   /* b226 (spec §1.6) — G.skillMs stores the ACTUAL interval, not the raw `ms`.
      It used to store the raw duration while the live interval used the
@@ -6478,25 +4843,12 @@ function doSkillAction(silent){
      and so the server has a column to own when accrual moves off the client.
      Mutated in place by the resolver, exactly as before. */
   G.toolCarry=G.toolCarry||{};
-  const T=window.HearthriseTools;
   const r=C.skillSim.resolveGatherTick(G, entry.node, {
     skillId:type,
     rng:C.rng,
-    /* Through window.HearthriseTools, not straight to core: that object is a
-       published API other feature modules wrap, and resolving the tool here
-       would silently escape whoever replaced it. */
-    toolDouble:(T&&T.bestToolDouble)?T.bestToolDouble(type):0,
-    toolXpB:(T&&T.bestToolXpB)?T.bestToolXpB(type):0,
     fx:{
       addItem:function(id,q){ addItem(id,q); },
       addXp:function(sk,amt){ addXp(sk,amt); },
-      /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for
-         "logs" without naming one log. The old goals board used to read
-         item-specific collection counters: a level-90 woodcutter chopping
-         Duskwood made ZERO progress on "Gather 25 logs". The map that decides
-         which counter moves is core's SKILL_ACTION_STAT, so an away night and
-         a live hour cannot move different rows. */
-      updateDaily:function(k,n){ updateDaily(k,n); },
       updateQuest:function(k,n){ updateQuest(k,n); },
       /* The level gate. Core STATES the fact; the client decides it means
          stopSkill(). Core never nulls the pointer itself. */
@@ -6689,7 +5041,6 @@ function showTab(tab){
   /* Route aliases: a route that used to work never stops working because a
      screen moved. A door id that is not itself a screen opens its front pane
      (HearthriseNav.resolve: 'homestead' → 'farming'). */
-  if(tab==='castle'||tab==='clanseat'||tab==='clan-seat'||tab==='clans')tab='clan';
   if(tab==='records'||tab==='achievements'||tab==='bestiary'||tab==='collection'||tab==='chronicle'){
     if(window.HearthriseJournal){window.HearthriseJournal.open(tab);return;}
     tab='journal';
@@ -6720,7 +5071,6 @@ function showTab(tab){
   if(tab==='farming')renderFarm();
   if(tab==='house')renderHouse();
   if(tab==='social')renderSocial();
-  if(tab==='clan')renderClan();
   if(tab==='shop')renderShop();
   /* The shop pane is applied AFTER the panel is active; the Market renders
      through its own published seam (window.renderMarket). */
@@ -6807,8 +5157,6 @@ function updateTopbar(){
      server name. getDisplayName resolves the confirmed unique name, then
      G.playerName, then 'Adventurer' — never an email local-part. */
   HearthrisePaint.text(document.getElementById('player-name'),_hrDisplayName());
-  const ct=document.getElementById('clan-tag');
-  if(G.clanName){ct.classList.remove('hide');HearthrisePaint.text(ct,'['+G.clanName+']');}else ct.classList.add('hide');
 }
 
 /* ────────────────────────────────────────────────
@@ -6825,7 +5173,6 @@ function renderProfile(){
      buffs read — there is exactly one "are we replaying?" oracle. */
   if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
      && window.HearthrisePresence.inOfflineReplay()) return;
-  generateDailyTasks(false);
   /* user card */
   const cl=getCombatLevel(),tl=getTotalLevel();
   // b119: defensive null guards — these elements only exist when the
@@ -7002,7 +5349,7 @@ function renderProfile(){
   }
 
   /* objectives */
-  const all=[...(G.daily?.tasks||[]),...(G.quests||[])];
+  const all=[...(G.quests||[])];
   const open=all.filter(q=>!q.done),done=all.filter(q=>q.done);
   /* A quest step's number is the server's count (CLAIM-FROM-SERVER), the
      pending dash while unknown; daily tasks keep their own count. */
@@ -7053,7 +5400,7 @@ function renderProfile(){
       </div>
       <div class="hmstead-col">
         <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
-        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
+        <div class="muted tiny" style="line-height:1.6">${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
       </div>
     </div>`);
 }
@@ -7097,82 +5444,21 @@ function renderCombat(){
      player only VIEWS combat after an away settle (no new startCombat). Cheap,
      idempotent, raise-only. */
   hrSyncMaxHp();
-  /* Tester report (paione): the auto-eat food dropdown "keeps closing every few
-     ticks". renderCombat rebuilds this area's innerHTML on every combat tick,
-     which destroys the <select> mid-pick and closes its native menu. If the
-     player is actively choosing food (the select holds focus while its menu is
-     open), skip the repaint for this tick — the fight keeps running underneath;
-     only the HP numbers pause for the moment the menu is open. */
-  const _ae=document.activeElement;
-  if(_ae && _ae.tagName==='SELECT' && el.contains(_ae)) return;
   const stop=document.getElementById('combat-stop');
   if(!G.activeMonster){
-    HearthrisePaint.html(el,`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">${_hrGly('navCombat',18)}</div><div class="fighter enemy"><div class="portrait">${_hrGly('uiTarget',30)}</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Pick a monster from the list to begin.</div>`);
+    HearthrisePaint.html(el,`<div class="arena"><div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">${_hrGly('navCombat',18)}</div><div class="fighter enemy"><div class="portrait">${_hrGly('uiTarget',30)}</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Pick a monster from the list to begin.</div>`);
     stop.style.display='none';return;
   }
   const m=MONSTERS[G.activeMonster];
   const php=(G.playerHp/G.playerMaxHp)*100,mhp=(G.monsterHp/G.monsterMaxHp)*100;
-  /* b220: the auto-eat picker offers only what auto-eat may actually eat —
-     Provisions (foodClass 'healing'). Listing Feasts & Draughts here let a
-     player select a Void Banquet as their auto-eat food and then watch it
-     never fire; the engine filter is in HearthriseAuto.maybeAutoEat(). */
-  const _autoEatOk=(id)=>window.HearthriseAuto&&typeof window.HearthriseAuto.isAutoEatable==='function'
-    ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
-    : !!(ITEMS[id]&&ITEMS[id].heals&&ITEMS[id].foodClass!=='buff');
-  const foods=Object.entries(G.inventory).filter(([id])=>_autoEatOk(id));
-  /* ── b224: the food row, rebuilt ────────────────────────────────────────
-     It used to be one unlabelled `Auto-eat:` dropdown. Three things were
-     wrong with that on the screen where you actually take damage:
-       • there was no way to heal by hand — and for a new player there is no
-         other kind of healing, because Auto-Eat is a 5,000g Store trait they
-         do not own yet. The dropdown was the only food control in combat and
-         it configured a feature they could not use.
-       • it never said what auto-eat does, when it fires, or that it only ever
-         spends Provisions.
-       • with an empty bag it rendered as a lone "None" option, which reads as
-         a broken control rather than "you have no healing food".
-     Now: a real Eat button first, then auto-eat, then one line of plain
-     English about whichever of those two is actually in play.
-
-     ── b227 (Tyler): "the eat food button is hard to read, and it needs to be
-     closer to the character screen. Right now I have to scroll down to see it."
-     He was right, and the reason is structural: this element renders into
-     #combat-area, which sits UNDER the arena stage and is the only scrolling
-     box on the screen. On a 900×760 window #combat-area was 91px tall holding
-     796px of content, so the one control that saves your life was 470px below
-     the fold DURING a fight.
-
-     The Eat BUTTON therefore no longer renders here. It is painted onto the
-     player's side of the arena stage — beside their own portrait and HP bar,
-     inside the non-scrolling region — by HearthriseCombatHud in
-     src/features/combat-render.js. What stays here is the auto-eat CONFIG,
-     which is a setting rather than an action and does not need to be reachable
-     inside one second.
-
-     Also gone from this box, and for the same reason: the six-tile `.calc`
-     grid, the drop-rate line, and (in injectCombatExtras) the Forecast card.
-     They are reference tables you consult between decisions, not things you
-     watch — so they became the two modals hung off the ENEMY portrait. */
-  const _hasAutoEat = (typeof hasTrait === 'function') && hasTrait('auto_eat');
-  const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-  /* SELECTED = the server's `auto_eat_food` (eatFoodId), never the local
-     preference: the browser must not name one food while the engine eats another. */
-  const _eatLab = (window.HearthriseAuto && window.HearthriseAuto.autoEatLabel) ? window.HearthriseAuto.autoEatLabel() : null;
-  const _eatAutoFood = (window.HearthriseAuto && typeof window.HearthriseAuto.eatFoodId === 'function')
-    ? window.HearthriseAuto.eatFoodId() : (_eatCfg ? (_eatCfg.foodId||null) : null);
-  /* b326: read the engine's own effective threshold rather than re-deriving it
-     here — `x || 0.5` turned a deliberate 0% into 50% and let the printed
-     number drift from the one maybeAutoEat() actually tests. */
-  const _threshPct = Math.round(((window.HearthriseAuto && window.HearthriseAuto.eatThreshold)
-    ? window.HearthriseAuto.eatThreshold()
-    : ((_eatCfg && typeof _eatCfg.threshold === 'number') ? _eatCfg.threshold : 0.5)) * 100);
+  /* Provisions only (foodClass 'healing'): the Eat button beside the champion
+     (HearthriseCombatHud, src/features/combat-render.js) spends them by hand. */
+  const _healOk=(id)=>!!(ITEMS[id]&&ITEMS[id].heals&&ITEMS[id].foodClass!=='buff');
+  const foods=Object.entries(G.inventory).filter(([id])=>_healOk(id));
   const _foodNote = !foods.length
     ? 'No Provisions in your bag. Cook fish or bake bread — Feasts &amp; Draughts heal too, but only when you use them by hand.'
-    : _hasAutoEat
-      ? `Auto-Eat eats one Provision on each swing while your health is below ${_threshPct}%, so a big heal takes a few swings. Feasts &amp; Draughts are never auto-eaten.`
-      : `Auto-Eat is unlocked in the Bounty Shop. Until then, heal by hand: press Eat beside your champion.`;
+    : 'Heal by hand: press Eat beside your champion.';
   HearthrisePaint.html(el,`
-    ${renderBountyPanel()}
     <div class="arena">
       <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
       <div class="vs">${_hrGly('navCombat',18)}</div>
@@ -7180,13 +5466,6 @@ function renderCombat(){
     </div>
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
     <div class="cbt-food">
-      ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-Eat:
-          <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
-            ${(_eatLab && _eatLab.state!=='off' && _eatLab.state!=='food') ? `<option value="" disabled selected hidden>${_eatLab.text}</option>` : ''}
-            <option value="">Off</option>
-            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${(G.inventory[id]||0).toLocaleString()}</option>`).join('')}
-          </select>
-        </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
     </div>`);
   stop.style.display='inline-flex';
@@ -7219,7 +5498,6 @@ function renderLoadout(){
       <div class="stat"><b>+${Math.round(s.spdB*100)}%</b><span>Spd</span></div>
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
     </div>
-    ${enchantAffordanceHtml()}
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`);
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -7570,31 +5848,6 @@ window.equipOpsFromSnapshot=equipOpsFromSnapshot;
    above: a seam, not a test poking a closure. */
 window.restoreEquipSnapshot=restoreEquipSnapshot;
 
-/* ══════════════════════════════════════════════════════════════════════════
-   ELEMENTS v1 — THE ENCHANT GESTURE (bind an element rune to the weapon slot)
-   ══════════════════════════════════════════════════════════════════════════
-   It has no flip of its own. The enchant only changes `G.enchant`, which is
-   NOT tradeable/rankable/contributable — a forged element cannot cross into
-   another player's economy — so its envelope is applied through the same
-   `applyServerEnvelope` path (which reconciles gold/xp/inventory the collect
-   may carry) with no absolute-inventory arming to negotiate. It borrows the
-   equip transport's endpoint + token so nothing new has to be configured. */
-function wireServerEnchant(){
-  const E=window.HearthriseEnchant,Q=window.HearthriseEquip;
-  if(!E)return null;                                  // module not loaded — enchant is unavailable, never silent below
-  /* Borrow whatever the equip transport was configured with (same hr-accrue
-     endpoint + auth). If equip is not configured, enchant is not either — both
-     go dark together, which is correct in an offline/dark build. */
-  const cfg=(Q&&typeof Q.getEquipConfig==='function')?Q.getEquipConfig():null;
-  if(cfg&&typeof E.configureEnchant==='function')E.configureEnchant(cfg);
-  const h=(typeof E.getEnchantHooks==='function')?E.getEnchantHooks():null;
-  if(!(h&&typeof h.onEnvelope==='function')&&typeof E.setEnchantHooks==='function'){
-    E.setEnchantHooks({onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); }});
-  }
-  return E;
-}
-window.wireServerEnchant=wireServerEnchant;
-
 /* ── MANUAL EAT (2026-08-25, Paione P0) ────────────────────────────────────
    Install the envelope hook ONCE. The eat transport is CONFIGURED at sign-in by
    src/net/auth.js (configureEat(w.eat)); this only teaches it where to send the
@@ -7860,143 +6113,7 @@ window.__eatQueueState=function(){ return {queued:_eatQueue.slice(),lastSentAt:_
 window.__eatQueueReset=function(){ const n=_eatQueue.length; _eatQueue=[];
   if(_eatTimer){ clearTimeout(_eatTimer); _eatTimer=null; } return n; };
 
-/* Route a chosen rune to the server. Optimistic: NOTHING local is authored —
-   the element is the server's to set, so the client waits for the envelope and
-   renders what it returns. A refusal is surfaced; an unreachable server leaves
-   the (unchanged) client state honest. */
-function routeEnchantGesture(runeId){
-  const E=wireServerEnchant();
-  if(!E||typeof E.sendEnchant!=='function'){
-    try{ if(typeof notify==='function')notify('Enchanting is unavailable right now.','kill'); }catch(e){}
-    return null;
-  }
-  try{
-    return E.sendEnchant(runeId,{}).then(v=>enchantVerdictOutcome(v,runeId,null))
-      .catch(e=>{ console.warn('[enchant] gesture threw:',(e&&e.message)||e); return null; });
-  }catch(e){ console.warn('[enchant] gesture threw:',(e&&e.message)||e); return null; }
-}
-window.routeEnchantGesture=routeEnchantGesture;
-
-function enchantVerdictOutcome(v,runeId,key){
-  const E=window.HearthriseEnchant;
-  const o=(v&&v.outcome)||'unreachable';
-  if(o==='enchanted'||o==='replayed'){
-    try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(e){}
-    try{ if(typeof notify==='function'){
-      const el=(G&&G.enchant&&G.enchant.weapon)||null;
-      notify(el?`Weapon enchanted — +15% vs ${el}-weak foes.`:'Weapon enchanted.','info');
-    } }catch(e){}
-    return v;
-  }
-  /* NOT ANSWERED ⇒ ONE RETRY ON THE SAME KEY (rule 1), then stop. */
-  if(E&&typeof E.isAnswered==='function'&&!E.isAnswered(o)){
-    if(key)return v;
-    return E.sendEnchant(runeId,{key:v&&v.key}).then(v2=>enchantVerdictOutcome(v2,runeId,(v&&v.key)||'retried'));
-  }
-  if(o==='unconfigured'||o==='undeliverable')return v;   // nothing reached the network; local state stands
-  if(o==='malformed')return v;
-  const msg=(E&&typeof E.enchantRefusalMessage==='function')
-    ? E.enchantRefusalMessage(o==='rate-limited'?'rate_limited':(v&&v.error))
-    : 'That enchant did not go through.';
-  try{ if(typeof notify==='function')notify(msg,'kill'); }catch(e){}
-  return v;
-}
-window.enchantVerdictOutcome=enchantVerdictOutcome;
-
-/* ELEMENTS v1 — the ONE enchant affordance, shared by every gear surface.
-   b392 (Tyler, live: "I don't see an enchant option… super confusing"):
-   the enchant entry point used to live only in the Combat-tab loadout panel,
-   while the Inventory paper-doll — the surface the loadout note literally tells
-   players to use to "manage gear" — had none. A player who followed that copy
-   to their weapon found no way to enchant it. This helper renders the entry
-   point as an ACTION (not a muted status line) in all three states, and is
-   mounted into the shared Tibia paper-doll so it appears EVERYWHERE gear does:
-   Combat, Inventory, Character. CSS TOKENS ONLY. Returns an HTML string. */
-function enchantAffordanceHtml(){
-  if(typeof G==='undefined'||!G) return '';
-  const wid=equippedItemG('weapon');const wit=wid?ITEMS[wid]:null;
-  const wrap=(inner)=>`<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:10px;max-width:100%;box-sizing:border-box">${inner}</div>`;
-  if(!wit||wit.type!=='weapon'){
-    // No weapon equipped — a disabled-look row, never nothing.
-    return wrap(`<div style="flex:1;min-width:0"><span style="color:var(--ink-2);font-weight:700">✦ Enchant</span> <span class="muted tiny">— equip a weapon first</span></div>`);
-  }
-  const el=(G.enchant&&G.enchant.weapon)||null;
-  if(el){
-    return wrap(
-      `<div style="flex:1;min-width:0"><span style="color:var(--accent);font-weight:700">✦ ${el} enchant</span><br><span class="muted tiny">+15% vs ${el}-weak foes</span></div>`
-      +`<button class="btn ghost" onclick="openEnchantPicker()">Change</button>`);
-  }
-  return wrap(
-    `<button class="btn btn-primary" style="flex:1;min-width:0;text-align:left" onclick="openEnchantPicker()">✦ Enchant weapon</button>`
-    +`<div class="muted tiny" style="flex:1;min-width:0">Bind an element rune · +15% vs weak foes</div>`);
-}
-window.enchantAffordanceHtml=enchantAffordanceHtml;
-
-/* Open a picker of the runes the player owns and fire the intent on choice.
-   CSS tokens only — reuses the existing modal shell. */
-function openEnchantPicker(preselectId){
-  if(typeof G==='undefined'||!G)return;
-  const wid=equippedItemG('weapon');
-  const wit=wid&&ITEMS[wid];
-  if(!wit||wit.type!=='weapon'){ try{ if(typeof notify==='function')notify('Equip a weapon first to enchant it.','kill'); }catch(e){} return; }
-  const owned=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='rune'&&(G.inventory[id]||0)>0);
-  const cur=(G.enchant&&G.enchant.weapon)||null;
-  const rows=owned.length?owned.map(id=>{
-    const it=ITEMS[id];
-    const hot=(preselectId&&id===preselectId);
-    return `<button class="btn enchant-rune-opt" data-rune="${id}" style="display:flex;align-items:center;gap:8px;width:100%;margin:4px 0;justify-content:flex-start${hot?';border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)':''}" onclick="chooseEnchantRune('${id}')">`
-      +`<span class="ench-rune-art">${itemArt(it.id||'',20)}</span>`
-      +`<span style="flex:1;text-align:left">${it.n} <span class="muted tiny">×${G.inventory[id]}</span></span>`
-      +`<span class="tiny" style="color:var(--accent)">+15% vs ${it.element}-weak</span></button>`;
-  }).join(''):(function(){
-    /* NO-RUNE STATE — teach the whole path in plain language, never a dead
-       picker (b392, Tyler: "make sure it's very easy to understand"). A rune is
-       the thing you bind; you make one from ELEMENTAL ESSENCES that drop from
-       matched foes, at Crafting 25. Always show those three steps; if the player
-       is already holding essences, name the specific one so the next step is
-       unambiguous. CSS tokens only. */
-    const ess=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='reagent'&&/_essence$/.test(id)&&(G.inventory[id]||0)>0);
-    let msg=`<div style="padding:6px 0 2px"><b>You have no runes yet.</b> A rune is what you bind to your weapon. Here's how to get one:</div>`;
-    msg+=`<ol style="margin:6px 0 4px;padding-left:20px;line-height:1.5">`
-      +`<li class="tiny">Fight foes of an element (ember, frost, poison) — they drop matching <b>essences</b>. A monster's panel shows its weakness.</li>`
-      +`<li class="tiny">Reach <b>Crafting 25</b> to unlock the Runes lane.</li>`
-      +`<li class="tiny">Craft essences into a <b>rune</b>, then come back here to bind it.</li>`
-      +`</ol>`;
-    if(ess.length){
-      const e=ess[0];const it=ITEMS[e];const runeId=e.replace(/_essence$/,'_rune');const runeName=(ITEMS[runeId]&&ITEMS[runeId].n)||'rune';
-      msg+=`<div class="tiny" style="color:var(--accent);padding:4px 0 2px">✦ You already have ${G.inventory[e]} ${it.n} — craft ${runeName==='rune'?'a rune':('a'+(/^[AEIOU]/.test(runeName)?'n ':' ')+runeName)} at Crafting 25.</div>`;
-    }
-    msg+=`<div class="muted tiny" style="padding:2px 0">Runes are tradeable — you can also buy one on the Market.</div>`;
-    return msg;
-  })();
-  const ov=document.getElementById('enchant-overlay')||(function(){
-    const el=document.createElement('div');
-    el.id='enchant-overlay';
-    el.className='inv-detail hr-scrim';
-    el.addEventListener('click',e=>{ if(e.target===el)closeEnchantPicker(); });
-    document.body.appendChild(el);
-    return el;
-  })();
-  ov.innerHTML=`<div class="inv-detail-card hr-sheet" style="max-width:360px">`
-    +`<div class="inv-detail-head hr-sheet-head"><b>Enchant Weapon</b>`
-    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close" data-hr-dismiss>✕</button></div>`
-    +`<div class="hr-sheet-body"><div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
-    +`A match pays +15% damage against foes weak to that element; a mismatch is harmless.</div>`
-    +rows+`</div>`
-    +`</div>`;
-  ov.classList.add('show');
-  if(preselectId){ try{ const hot=ov.querySelector(`.enchant-rune-opt[data-rune="${preselectId}"]`); if(hot&&hot.scrollIntoView)hot.scrollIntoView({block:'nearest'}); }catch(e){} }
-}
-window.openEnchantPicker=openEnchantPicker;
-function closeEnchantPicker(){ const ov=document.getElementById('enchant-overlay'); if(ov)ov.classList.remove('show'); }
-window.closeEnchantPicker=closeEnchantPicker;
-function chooseEnchantRune(runeId){
-  closeEnchantPicker();
-  routeEnchantGesture(runeId);
-}
-window.chooseEnchantRune=chooseEnchantRune;
-
-function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;clearEnchantOnWeaponChange(slot,id,null);notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
+function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
 /* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires
    Lv X" but equipItem equipped anything — a phantom gate. Now armour is gated
    on Defence and weapons on their combat style, at the tier's level (Bronze 1 →
@@ -8029,7 +6146,6 @@ function equipItem(id){
   const _b=equipStateSnapshot();
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
   G.equipment[slot]=id;removeItem(id,1);
-  clearEnchantOnWeaponChange(slot,old,id);
   notify(`Equipped ${def.n}`,'info');
   renderInventory();renderLoadout();
   routeEquipGesture(_b);
@@ -8128,25 +6244,9 @@ function renderInventory(){
 function onItemTap(id){
   const d=ITEMS[id];if(!d)return;
   if(d.type==='weapon'||d.type==='armor'||d.type==='jewelry'||d.type==='ammo'||d.type==='companion'){equipItem(id);return;}
-  /* b220: tapping a food assigns the auto-eat slot — but only for Provisions.
-     A Feast or Draught is spent deliberately (the Eat button on the tile), so
-     assigning one here would promise an auto-eat that never fires. Say so
-     instead of silently falling through to the sell prompt. */
+  /* A food is eaten deliberately (the Eat button on the tile), never sold by a tap. */
   if(d.foodClass==='buff'){notify(`${d.n} is a feast — eat it when you want the buff`,'info');return;}
-  /* b499 — ROUTE THE INVENTORY FOOD TAP THROUGH THE ONE WRITER.
-     This wrote `G.foodSlot` and toasted "Auto-eat: <food>" — and that is ALL it
-     did. The engine reads `G.autoActions.eat.foodId` (b134); `G.foodSlot` is the
-     legacy mirror nothing consumes, which is the exact complaint written above
-     window.setAutoEatFood. So tapping a Provision in the bag SAID auto-eat was
-     set and changed nothing the fight would honour — and, now that the choice is
-     also pushed to the server (hr_set_auto_eat), it would have left the server
-     eating the biggest healer in the bag too. setAutoEatFood is the one writer:
-     it keeps the mirror in step, routes through HearthriseAuto.setEat, and says
-     something true when the food is not eligible or the trait is not owned. */
-  if(d.heals){
-    if(typeof window.setAutoEatFood === 'function'){ window.setAutoEatFood(id); return; }
-    G.foodSlot=id;notify(`Auto-Eat: ${d.n}`,'info');return;
-  }
+  if(d.heals){ if(typeof window.eatFromInventory==='function') window.eatFromInventory(id); return; }
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
   const _p=vendorPrice(id);
@@ -8281,13 +6381,6 @@ function renderHouse(){
       const can=canPayCost(b.cost);
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
-  } else {
-    /* The cards are src/render/house-themes.js — OWNERSHIP IS THE REALM'S and
-       the three states are explained there. Every read is passed in, so the
-       painter has no opinion about where ownership comes from. */
-    el.innerHTML=window.HearthriseHouseThemes.houseThemeGridHtml(HOUSE_THEMES,{
-      owns:window.ownsGemUnlock, activeId:window.activeHouseTheme,
-      glyph:_hrGly, gem:_gem, gp:_gp });
   }
 
   /* bonuses panel */
@@ -8577,49 +6670,6 @@ function buildPlot(id){
     notify('The realm couldn’t record that plot right now — nothing was spent. Try again in a moment.','kill');
   });
 }
-/* EQUIPPING is gated on OWNERSHIP, and ownership is the SERVER's set
-   (ownsGemUnlock). `houseTheme` is the equipped pointer and stays residue, but
-   it is read back through activeHouseTheme(), which paints `default` for a theme
-   the owned set does not carry — so a write here can never outlive the
-   entitlement behind it. */
-function setTheme(id){if(!window.ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
-function buyTheme(id){
-  const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
-  /* ── b4xx — THEMES ARE GEMS-ONLY (designer ruling, slice 6). ─────────────────
-     The old gold else-branch only ever fired for the FREE default theme
-     (currency!=='gem', price 0), so it was a client gold spend that could never
-     charge anything — dead weight the gold census had to carry and a hole a
-     future non-zero gold theme could silently fall into. Non-gem themes are now
-     equipped FREE (the default is a free equip), never bought with gold. No gold
-     wiring: a gold-priced theme is not a thing this game authors. */
-  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Re-buying equips what you already
-     own, which is what the gesture means; the server refuses `already_owned`
-     anyway, so this is a courtesy rather than the guard. */
-  if(window.ownsGemUnlock('theme',id)){ setTheme(id); return; }
-  /* THE FREE DEFAULT IS NOT A PURCHASE. It is `currency !== 'gem'`, it is the
-     `free` row in the realm's own catalogue (refused `not_for_sale` if anyone
-     ever posts it), and it equips through setTheme the moment the owned set
-     arrives. A zero-priced "purchase" path is an infinite faucet — the unlock
-     catalogue's own warning — so there is not one here. */
-  if(t.currency!=='gem'){
-    notify('The realm is still fetching your wardrobe — try again in a moment.','info');
-    return;
-  }
-  /* The affordability check runs FIRST so "need more gems" still wins when that
-     is the true answer, and it reads the RECORD (balance.js → the server's gems)
-     rather than a local number. The server checks it again under the lock and
-     quotes its own shortfall; this one only saves a doomed round trip. */
-  if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
-  return window.buyGemUnlock('theme:'+id,'that theme',function(){
-    notify('That theme is already yours.','info');
-    setTheme(id);
-  }).then(function(res){
-    if(res&&res.ok===true){
-      G.houseTheme=id;
-      notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
-    }else{ renderHouse(); }
-  });
-}
 
 /* ────────────────────────────────────────────────
    RENDER — Social (leaderboard, clan)
@@ -8655,88 +6705,12 @@ async function renderSocial(){
       lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
     }
   }
-  /* b225 (#18): friends + a signpost to the hold.
-     This half of Social used to BE the clan screen. The clan screen moved to
-     its own top-level destination, so what stays here is what genuinely belongs
-     beside the leaderboards — the people you know — plus one line telling
-     anyone who arrives on muscle memory where the hold went. A signpost is a
-     single row with a single button; the moment it starts drawing standing
-     bars again, #18 has quietly reverted. */
+  /* The people you know, beside the leaderboards. */
   const cl=document.getElementById('social-panel');
   if(!cl)return;
-  const inClan=!!(clanDisplayName());
-  /* b465 — "Find a clan" was a promise the game could not keep. Clans are behind
-     CLAN_LAUNCHED (features/clans.js), so the button took you to the honest
-     "coming in Open Beta 1" card — but only AFTER telling you to go find one.
-     The pitch is worth keeping; the verb is not. While the flag is down the
-     signpost says WHEN, and the button offers what it can actually do. Flip the
-     flag and both revert to the finding copy on their own. */
-  const clanShut=(function(){
-    try{ const C=window.HearthriseClans;
-      return !!(C&&typeof C.clanLaunched==='function'&&!C.clanLaunched()); }catch(e){ return false; }
-  })();
   cl.innerHTML=
-    `<div class="friend-row is-empty">No friends list yet. The boards above show who is climbing beside you, and the Common on Home shows who is out and about.</div>`+
-    `<div class="soc-signpost">`+
-      `<div class="soc-signpost-txt">`+
-        (inClan
-          ? `Your hold <b>${escapeHtml(clanDisplayName())}</b> — its castle, rooms and Work Orders live on the Clan screen.`
-          : clanShut
-            ? `Clans open in Open Beta 1: a shared castle, its rooms, Work Orders and a weekly boss no one downs alone.`
-            : `Clans build a castle together, with shared rooms, Work Orders and a weekly boss.`)+
-      `</div>`+
-      `<button class="btn btn-sm btn-primary" onclick="showTab('clan')">`+
-        (inClan?'Open the Clan Seat':clanShut?'See what’s coming':'Find a clan')+`</button>`+
-    `</div>`;
+    `<div class="friend-row is-empty">No friends list yet. The boards above show who is climbing beside you, and the Common on Home shows who is out and about.</div>`;
 }
-/* The clan's name as the game currently knows it, whichever layer holds it:
-   the live server record (clans.js) first, the legacy save field second. */
-function clanDisplayName(){
-  try{
-    const c=window.HearthriseClans&&window.HearthriseClans.myClan&&window.HearthriseClans.myClan();
-    if(c&&c.name)return c.name;
-  }catch(e){}
-  return G.clanName||null;
-}
-/* ────────────────────────────────────────────────
-   RENDER — the Clan Seat screen (b225, backlog #18)
-
-   The no-module fallback ONLY. src/features/clans.js replaces this the moment
-   it boots, because the real screen — the hold, its six rooms, Standing, the
-   Storehouse and the Work Orders — is drawn by clan-seat-ui.js from the
-   server's numbers. What is written here is what the game can say honestly with
-   no network layer at all: that a clan is a thing you can found or join.
-   ──────────────────────────────────────────────── */
-async function renderClan(){
-  syncClanActivity();
-  const cl=document.getElementById('clan-panel');
-  if(!cl)return;
-  if(clanDisplayName()){
-    cl.innerHTML=`<div class="clan-empty"><h4>${escapeHtml(clanDisplayName())}</h4>`+
-      `<p>Reading the hold…</p></div>`;
-    return;
-  }
-  const cr=await NetClient.clans();
-  cl.innerHTML=`<div class="clan-empty"><h4>Find a hold, or found one</h4>`+
-    `<p>A clan raises a castle together — six rooms, shared Work Orders, and a weekly boss no one downs alone.</p></div>`+
-    (cr&&cr.ok?cr.clans.map(c=>`<div class="shop-row"><div class="info"><b>${escapeHtml(c.name)}</b><span>${c.members} members · ${c.bonus}</span></div><button class="btn btn-sm btn-primary" onclick="joinClan('${String(c.name).replace(/'/g,'')}')">Join</button></div>`).join(''):'')+
-    `<div class="clan-found"><input type="text" id="clan-input" maxlength="24" placeholder="Name your own hold"><button class="btn btn-primary" onclick="joinClan(document.getElementById('clan-input').value)">Found it</button></div>`;
-}
-/* The Clan Activity feed is a section of the clan screen, not of Social — its
-   subject is your members and its audience is your hold. It only exists when
-   you have one: a feed above a recruitment list is furniture. */
-function syncClanActivity(){
-  const p=document.getElementById('panel-clan');
-  if(!p)return;
-  p.setAttribute('data-inclan',clanDisplayName()?'1':'0');
-  const host=document.getElementById('clan-activity');
-  if(host&&!host.childElementCount){
-    host.innerHTML='<div class="friend-row is-empty">Nothing yet — deeds your members do for the hold will show up here.</div>';
-  }
-}
-window.renderClan=renderClan;
-window.syncClanActivity=syncClanActivity;
-window.clanDisplayName=clanDisplayName;
 /* b222: kept as the legacy entry point (deep links + the old chip markup). The
    three old mode names map onto the new board ids so an old call still lands
    on the board it meant. */
@@ -8750,234 +6724,6 @@ function setLbMode(m){
   }
   renderSocial();
 }
-/* b225 (#18): both of these change what the CLAN screen should say, so both
-   refresh it as well as Social — the signpost on one and the hold on the other
-   have to agree the moment membership changes. */
-/* b465: "Need at least 3 chars" — `chars` is a variable name, not a word we
-   say to a player. clans.js already words the same rule properly. */
-function joinClan(name){if(!name||name.length<3){notify('A clan name needs at least 3 letters','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();renderClan();updateTopbar();}
-function leaveClan(){G.clanName=null;renderSocial();renderClan();updateTopbar();}
-/* b206 (SYS-10): redeem a tradable Hearth Token for gems. The other exit for
-   a token is the player market (sell for gold) — that's the bond economy. */
-function redeemHearthToken(){
-  if((G.inventory?.hearth_token||0)<1){notify('No Hearth Tokens','kill');return;}
-  /* ── FOUND IN THE GEM SWEEP, AND IT POINTS THE OTHER WAY. Every other site in
-     this class was free money for the player; this one BURNS a Hearth Token —
-     the IAP-only bond, the single most valuable object in the game — and pays
-     150 gems the next envelope erases, because nothing server-side has ever
-     heard of this redemption. The token consume is a local removeItem and the
-     inventory absolute arm is dormant, so it does not come back either. Refuse
-     while the client may not write the balance: keeping the token is the only
-     outcome here that is not a loss. The server half is the same migration the
-     three purchase twins need (an `hr_redeem_token`-shaped verb). */
-  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that Hearth Token redemption');return;}
-  removeItem('hearth_token',1);
-  G.gems=(G.gems||0)+150;
-  notify('Redeemed a Hearth Token for 150 gems','levelup');
-  saveLocal();updateTopbar();renderShop();
-}
-window.redeemHearthToken=redeemHearthToken;
-
-/* ────────────────────────────────────────────────
-   RENDER — Shop / IAP store → the painter is src/render/shop.js, the COUNTER is
-   src/screens/shop-counter.js. window.shopTab, setShopTab, buyShopItem and
-   buyCosmetic moved there with the vendor's sell side, so buying and selling
-   read as one file instead of two regions 1,500 lines apart. All four are still
-   globals, published at the foot of that file. Pure refactor.
-   ──────────────────────────────────────────────── */
-/* The "Buy space" dialog moved to src/screens/shop-counter.js with the rest of
-   the shop counter (task #129). buyBankSpaceGold / buyBankSpaceGem stay here,
-   with their ledger rows, and still call _renderBankModal() bare — it is
-   published from there. Pure refactor — identical DOM. */
-/* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
-   early game is manual eating (click food in combat); players buy the
-   convenience once they're established. Gate lives in
-   HearthriseAuto.maybeAutoEat() so it can't be bypassed via the settings
-   toggle. Data-driven so more QoL traits can be added later. */
-const TRAITS={
-  /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold.
-     b354: SOLD at the bounty board too — bountyShopOffers() lifts every marks-
-     priced trait that is not `starter` (granted at creation) onto it. `desc` is
-     read on two screens; the old copy ended "Earned with Bounty Marks", which
-     was a signpost to a currency the reader is now standing in. */
-  /* b45x (Designer ruling 2026-08-23) — TWO TIERS. The death sheet teaches
-     "unlock Auto-Eat" on the player's first death and quotes THIS row's price
-     (src/features/death-sheet.js reads window.TRAITS.auto_eat.cost and
-     G.traits.auto_eat), so the ENTRY tier keeps the `auto_eat` id: the sheet
-     then names the cheapest unlockable price and goes quiet the moment the
-     player owns any tier, with no change to the sheet itself.
-     What a tier buys is a CEILING on the trigger point — the rule and the
-     numbers live in src/core/auto-eat.js AUTO_EAT_TIERS, shared with the
-     server's away simulation, and tests/auto-eat-authority.mjs binds these
-     prices to that table. */
-  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',starter:true,desc:'Eats for you when your health drops below a quarter, even while you\'re away, so your fights last far longer.'},
-  auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — upgrades the Auto-Eat every hero starts with, unlocking the full threshold slider in Settings → Gameplay instead of the fixed quarter.'},
-};
-window.TRAITS=TRAITS;
-function hasTrait(id){return !!(G.traits&&G.traits[id]);}
-window.hasTrait=hasTrait;
-/* b46x — EVERYTHING THAT HAPPENS AFTER A TRAIT PURCHASE IS AGREED, IN ONE
-   PLACE, so the pre-arm local path and the server-authoritative path cannot
-   drift into granting different things. `ownedIds` is the SERVER's whole owned
-   set when it sent one — a union, never a replace, exactly as
-   src/net/accrue.js reconcileTraits explains: a trait bought before the server
-   verb existed has no server row and must never be revoked. */
-function applyTraitUnlock(id, ownedIds){
-  const t=TRAITS[id]||{};
-  G.traits=G.traits||{};
-  if(Array.isArray(ownedIds)){
-    ownedIds.forEach(function(x){ if(typeof x==='string'&&x) G.traits[x]=true; });
-  }
-  G.traits[id]=true;
-  // Buying auto-eat turns it on so it works immediately; threshold stays default
-  // (b45x: the TIER CEILING is applied on read by HearthriseAuto.eatThreshold, so
-  // the stored preference survives an upgrade to Auto-Eat II instead of being
-  // overwritten at purchase time). Server-side the SAME switch is thrown by
-  // hr_trait_buy calling hr_set_auto_eat — the single writer of that column —
-  // so the two halves of one purchase leave the player in one state.
-  if(id==='auto_eat'&&window.HearthriseAuto&&typeof window.HearthriseAuto.setEat==='function'){
-    window.HearthriseAuto.setEat({enabled:true});
-  }
-  notify(`Unlocked ${t.name||id}!`,'levelup');
-  if(typeof saveLocal==='function')saveLocal();
-  if(typeof updateTopbar==='function')updateTopbar();
-  if(typeof renderShop==='function')renderShop();
-  /* The Bounty Shop panel and the death sheet both quote this price and both
-     stop nagging once it is owned. spendMarks() repaints the bounty tab
-     synchronously, which under the SERVER path happens before the answer
-     arrives — so repaint it again here, when the answer is in. */
-  try{ if(typeof renderBountyTab==='function') renderBountyTab(); }catch(e){}
-}
-/* The honest toast for each machine code hr_trait_buy can answer. Named per
-   error rather than a single "unavailable": a player told "you cannot afford
-   it" when the real answer is "sign in" files the wrong bug, and this shop's
-   whole failure mode for the last two builds was ONE opaque sentence. */
-const TRAIT_BUY_TOASTS={
-  unknown_trait:'That upgrade is not available',
-  already_owned:'Already unlocked',
-  insufficient_marks:'Not enough Bounty Marks — hunt bounties to earn them',
-  insufficient_gold:'Not enough gold',
-  trait_daily_cap:'You have bought all the upgrades you can for today',
-  no_character:'Your character is still loading — try again in a moment',
-  bad_slot:'Your character is still loading — try again in a moment',
-  rate_limited:'Slow down a moment, then try again',
-  not_signed_in:'Sign in to unlock upgrades',
-  rpc_missing:'That upgrade is unavailable right now',
-  no_endpoint:'That upgrade is unavailable right now',
-  no_token:'Sign in to unlock upgrades'
-};
-function traitBuyToast(res){
-  const _sf=window.HearthriseSettleFirst&&window.HearthriseSettleFirst.settleRefusalText(res);
-  if(_sf) return _sf;
-  const reason=String((res&&res.reason)||'');
-  /* `requires:<id>` carries the id in its NAME, so it is rendered from the
-     authored table rather than from a second copy of the ladder. */
-  if(reason.indexOf('requires:')===0){
-    const need=TRAITS[reason.slice(9)];
-    return `Unlock ${(need&&need.name)||reason.slice(9)} first`;
-  }
-  if(TRAIT_BUY_TOASTS[reason]) return TRAIT_BUY_TOASTS[reason];
-  const outcome=String((res&&res.outcome)||'');
-  if(outcome==='unreachable'||outcome==='timeout') return 'No connection — your unlock did not go through';
-  if(outcome==='unavailable') return 'The realm is busy — try again in a moment';
-  return 'That upgrade is unavailable right now';
-}
-function buyTrait(id){
-  const t=TRAITS[id];if(!t)return;
-  if(hasTrait(id)){notify('Already unlocked','info');return;}
-  /* b45x — a TIERED trait declares its predecessor as data (`req`). Refusing
-     here rather than silently granting the predecessor keeps the price ladder
-     honest: Auto-Eat II is priced as an UPGRADE from I, so selling it to someone
-     who skipped I would hand out the entry tier for free. The SERVER refuses the
-     same thing (`requires:<id>`) from its own catalogue — this is the local
-     courtesy, not the authority. */
-  if(t.req && !hasTrait(t.req)){
-    const need=TRAITS[t.req];
-    notify(`Unlock ${(need&&need.name)||t.req} first`,'kill');return;
-  }
-  const field = t.currency==='marks' ? 'marks' : 'gold';
-  const mayWrite = (typeof window.clientMayWriteRecordField!=='function')
-    || window.clientMayWriteRecordField(field);
-  /* ══════════════════════════════════════════════════════════════════════
-     THE ARMED PATH — THE SERVER OWNS THE PURCHASE (b46x).
-     ══════════════════════════════════════════════════════════════════════
-     `mayWrite === false` means the balance has MOVED HOME: it is
-     player_state.marks / player_state.gold, and a local `G.marks -= cost` would
-     be a client-authored debit the next envelope reconciles away while the
-     trait stayed granted — a self-mint. For two builds this branch was a bare
-     refusal ("That upgrade is unavailable right now") because no server verb
-     existed, which meant AUTO-EAT — the purchase the death sheet teaches on a
-     player's first death — could not be bought AT ALL. hr_trait_buy
-     (supabase/migrations/2026-08-23-trait-buy.sql) is that verb.
-
-     ⚠ NOTHING LOCAL IS DEBITED HERE, not even optimistically. The server owns
-       both balances; the client sends a trait id and a slot and renders what
-       comes back. The new balance is reconciled by the record refresh below and
-       by the next envelope — never written from this answer. */
-  if(!mayWrite){
-    const GG=window.HearthriseGold;
-    if(!GG||typeof GG.buyTrait!=='function'||typeof GG.newIntentKey!=='function'){
-      notify('That upgrade is unavailable right now','kill');return;
-    }
-    /* ONE PURCHASE IN FLIGHT PER TRAIT. A double tap must not spend two intent
-       keys on one gesture: the second would be refused `already_owned` and read
-       to the player as a failure. `_`-prefixed, so it is scratch and never
-       synced. */
-    G._traitBuying=G._traitBuying||{};
-    if(G._traitBuying[id])return;
-    const key=GG.newIntentKey();
-    if(!key){notify('That upgrade is unavailable right now','kill');return;}
-    G._traitBuying[id]=true;
-    let p=null;
-    try{ p=GG.buyTrait(id,key); }catch(e){ p=null; }
-    if(!p||typeof p.then!=='function'){
-      G._traitBuying[id]=false;
-      notify('That upgrade is unavailable right now','kill');return;
-    }
-    p.then(function(res){
-      const ownedNow=!!(GG.isTraitOwnedOutcome&&GG.isTraitOwnedOutcome(res&&res.outcome));
-      if(ownedNow){
-        applyTraitUnlock(id,res&&res.owned);
-        /* Pull the new balance from the server rather than believing the
-           receipt: `res.marks` is for rendering, and the RECORD is what every
-           affordability check reads. One extra hr_load per purchase — twice in
-           the lifetime of a character — is the cheapest honest refresh there
-           is. Fire-and-forget; the next envelope settles it either way. */
-        try{
-          if(window.HearthriseRecord&&typeof window.HearthriseRecord.requestRecord==='function'){
-            const r=window.HearthriseRecord.requestRecord();
-            if(r&&r.catch)r.catch(function(){});
-          }
-        }catch(e){}
-      } else if(res&&res.reason==='already_owned'){
-        /* The server says the character already holds it — a stale local
-           G.traits, not a failure. Adopt the truth and say so once. */
-        applyTraitUnlock(id,res&&res.owned);
-      } else {
-        notify(traitBuyToast(res),'kill');
-      }
-    }).catch(function(){
-      notify('That upgrade is unavailable right now','kill');
-    }).then(function(){ G._traitBuying[id]=false; });
-    return;
-  }
-  /* ══════════════════════════════════════════════════════════════════════
-     THE PRE-ARM PATH — byte-for-byte today's behaviour while the balance is
-     still the client's. Unchanged on purpose: this is what runs on a build with
-     the record dormant, and it is what the b227 regression test grades.
-     ══════════════════════════════════════════════════════════════════════ */
-  if(t.currency==='marks'){
-    const MR=window.HearthriseMarks;
-    if(MR?(!MR.canAffordMarks(G,t.cost)):((G.marks||0)<t.cost)){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
-    G.marks=(G.marks||0)-t.cost;
-  } else {
-    if(!balCanAfford(t.cost,'gold')){notify(balShortfall(t.cost,'gold'),'kill');return;}
-    G.gold-=t.cost;
-  }
-  applyTraitUnlock(id,null);
-}
-window.buyTrait=buyTrait;
-try{ window.applyTraitUnlock=applyTraitUnlock; window.traitBuyToast=traitBuyToast; }catch(_){}
 
 /* ────────────────────────────────────────────────
    helpers
@@ -9014,9 +6760,6 @@ function bindEvents(){
      only Settings door that exists in the landscape-phone left-rail layout. */
   ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>window.openSettings&&window.openSettings()));
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
-  /* The topbar gem counter means "what do gems buy": the Premium Shop when it has a
-     door, and in Early Access (no premium door) the Local Shop's gem-priced Cosmetics. */
-  document.getElementById('top-gem-btn').addEventListener('click',()=>{showTab('premium');if(!(window.HearthriseNav&&window.HearthriseNav.premiumOpen)){const c=document.querySelector('#panel-shop .chip[data-shop="cosmetics"]');if(c)c.click();}});
   /* modals close; the backdrop is DELEGATED so a .modal built after boot (buy-back, block list) closes too */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
   document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('modal'))e.target.classList.remove('show');});
@@ -9282,13 +7025,13 @@ function boot(){
   /* auto-save every 90 seconds */
   setInterval(()=>{saveLocal();},90000);
   /* expose dev helpers */
-  window.G=G;window.IAP=IAP;window.NetClient=NetClient;window.generateBountyBoard=generateBountyBoard;
+  window.G=G;window.NetClient=NetClient;
   /* b371 — the engine has now PAINTED a screen (showTab('profile') above).
      `__hrIconsReady()` reads this to decide whether the icon map arriving
      late needs to force a repaint, or whether it beat first paint and has
      nothing to correct. See the long block at `__hrIconsReady`. */
   window.__hrBooted = true;
-  window.testerBoost=()=>{G.gold+=5000;G.gems+=200;ensureBountyState();G.marks=(G.marks||0)+50;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
+  window.testerBoost=()=>{G.gold+=5000;G.gems+=200;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
 }
 /* b224 ACCOUNT WALL — the engine does not start behind the gate.
    Everything that makes the game PROGRESS is started from boot(): loadLocal()
@@ -9556,14 +7299,6 @@ function bestProvisionId(){
 }
 window.bestProvisionId = bestProvisionId;
 
-/* Is auto-eat currently pointed at this exact item (and switched on)? */
-function _autoEatUsesThis(id){
-  const A = window.HearthriseAuto;                      // the EFFECTIVE nomination,
-  const cfg = (A && A.getEat) ? A.getEat() : null;     // i.e. the server's auto_eat_food
-  const fid = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : (cfg ? cfg.foodId : null);
-  return !!(((A && A.eatEnabled) ? A.eatEnabled() : (cfg && cfg.enabled)) && fid === id);
-}
-
 /* Eat from a UI surface: consume, then refresh what the player is looking at.
    eatFood() owns the rules and the toast; this owns the repaint. */
 window.eatFromInventory = function(id){
@@ -9579,94 +7314,6 @@ window.eatBestProvision = function(){
   if(!id){ notify('No healing food in your bag — cook fish or bake bread.','kill'); return false; }
   return window.eatFromInventory(id);
 };
-/* Route auto-eat config through the ONE writer the engine reads (b134).
-   The old inline `G.foodSlot='x'` handler wrote a field nothing consumes. */
-window.setAutoEatFood = function(id){
-  const info = foodUseInfo(id);
-  if(!info || !info.autoEatable){
-    notify('Auto-Eat only uses Provisions — ' + ((ITEMS[id]||{}).n || id) + ' must be eaten by hand.','kill');
-    return false;
-  }
-  if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
-    notify('Auto-Eat is locked — unlock it in the Bounty Shop.','kill');
-    return false;
-  }
-  G.foodSlot = id;   /* kept in step for old saves / loadout presets */
-  const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
-  if(_A && _A.setEat) _A.setEat({foodId:id, enabled:true}, {announce:true}); if(!_live) notify('Auto-Eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
-  if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
-  return true;
-};
-/* Combat picker onchange — "" is the explicit Off option, not a bad item id. */
-window.setCombatAutoEat = function(value){
-  if(!value){
-    G.foodSlot = null;
-    const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
-    if(_A && _A.setEat) _A.setEat({foodId:null, enabled:false}, {announce:true}); if(!_live) notify('Auto-Eat off.','info');
-    if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
-    return false;
-  }
-  return window.setAutoEatFood(value);
-};
-
-/* b267: Auto-eat food PICKER — a compact modal so the choice is reachable from
-   the always-visible arena HUD (the old in-combat <select> sat below the fold on
-   landscape; paione: "on landscape I don't have the option to select food").
-   Lists every eligible Provision + an Off option; picking one sets it and closes. */
-window.openAutoEatPicker = function(){
-  if(typeof G==='undefined'||!G) return;
-  /* b294: the eligibility helper `_autoEatOk` is a const scoped inside the
-     combat-render function, NOT visible here — this is a separate top-level
-     function. Referencing it made `typeof _autoEatOk` resolve to 'undefined',
-     so the filter rejected EVERY item and the picker always claimed the bag
-     held no Provisions (tester: "won't let me pick food … says no provisions").
-     Use the same authority the engine eats from, inline, so the two can't drift. */
-  const _aeOk = (id)=> (window.HearthriseAuto && typeof window.HearthriseAuto.isAutoEatable==='function')
-    ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
-    : !!(ITEMS[id] && ITEMS[id].heals && ITEMS[id].foodClass!=='buff');
-  const foods = Object.entries(G.inventory||{}).filter(([id])=> _aeOk(id));
-  const _lab = (window.HearthriseAuto && window.HearthriseAuto.autoEatLabel) ? window.HearthriseAuto.autoEatLabel() : null;
-  const cur = (_lab && _lab.state === 'food') ? _lab.foodId : null;
-  const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  /* b341 — DO NOT OFFER A CHOICE THAT WILL BE REFUSED.
-     setAutoEatFood() has always rejected every pick when the Auto-Eat trait is
-     not owned, but this picker rendered its rows live anyway: tapping one closed
-     the overlay as if it had taken, `foodId` stayed null, the only contradiction
-     was a toast that expires, and re-opening showed "— Off —" still marked
-     `is-on`. The player is told they failed by an artifact that is gone in ten
-     seconds while the surface itself keeps insisting nothing happened.
-     Locked now means locked ON THE ROWS, with the reason stated in place. */
-  const _locked = (typeof hasTrait === 'function') && !hasTrait('auto_eat');
-  const _act = (arg)=> _locked ? '' : ` onclick="setCombatAutoEat(${arg});closeAutoEatPicker()"`;
-  const rows = foods.map(([id,q])=>{
-    const it=ITEMS[id]; if(!it) return '';
-    const on = !_locked && cur===id;
-    return `<button class="aep-row${on?' is-on':''}"${_locked?' disabled':''}${_act(`'${id}'`)}>
-        <span class="aep-ic">${it.icon||''}</span>
-        <span class="aep-nm">${esc(it.n)}</span>
-        <span class="aep-heal">+${it.heals||0} HP</span>
-        <span class="aep-q">×${(q||0).toLocaleString()}</span>
-      </button>`;
-  }).join('');
-  const offRow = `<button class="aep-row${(!_locked && _lab && _lab.state === 'off')?' is-on':''}"${_locked?' disabled':''}${_act(`''`)}>
-      <span class="aep-ic">—</span><span class="aep-nm">Off — heal by hand</span></button>`;
-  const empty = _locked
-    ? '<div class="aep-empty">Auto-Eat is locked. Unlock it in the Bounty Shop to choose a food; until then, heal by hand with the Eat button beside your champion.</div>'
-    : (foods.length ? '' : '<div class="aep-empty">No Provisions in your bag. Cook fish or bake bread first — Feasts &amp; Draughts are eaten by hand only.</div>');
-  let ov = document.getElementById('aep-overlay');
-  if(!ov){
-    ov = document.createElement('div'); ov.id='aep-overlay'; ov.className='aep-overlay';
-    document.body.appendChild(ov);
-    ov.addEventListener('click', e=>{ if(e.target===ov) window.closeAutoEatPicker(); });
-  }
-  ov.innerHTML = `<div class="aep-modal" role="dialog" aria-label="Choose auto-eat food">
-      <div class="aep-head"><span>Auto-Eat food</span><button class="aep-x" onclick="closeAutoEatPicker()" aria-label="Close">✕</button></div>
-      <div class="aep-body">${empty}${offRow}${rows}</div>
-      <div class="aep-note">${_lab ? 'Now: ' + esc(_lab.text) + '. ' : ''}Spends one Provision when your HP drops low. Feasts &amp; Draughts are never auto-eaten.</div>
-    </div>`;
-  ov.style.display = 'flex';
-};
-window.closeAutoEatPicker = function(){ const ov=document.getElementById('aep-overlay'); if(ov) ov.style.display='none'; };
 
 /* ───── Item detail flyout ───── */
 function openInvDetail(id){
@@ -9706,17 +7353,7 @@ function openInvDetail(id){
   if(_food && _food.heals) stats.push(`<div><b>+${_food.heals} HP</b><span>${_food.kind==='provision'?'heals when eaten':'also heals'}</span></div>`);
   else if(it.heals) stats.push(`<div><b>+${it.heals}</b><span>heals</span></div>`);
   if(_food && _food.buffText) stats.push(`<div><b>${_food.buffText.split(' for ')[0]}</b><span>${_food.buffText.includes(' for ')?'for '+_food.buffText.split(' for ')[1]:'timed buff'}</span></div>` + (typeof window.buffGestureNoteHTML==='function' ? window.buffGestureNoteHTML() : ''));
-  if(it.speed != null) stats.push(`<div><b>+${Math.round((it.speed||0)*100)}%</b><span>tool speed</span></div>`);
-  if(it.smithSpeed != null) stats.push(`<div><b>+${Math.round((it.smithSpeed||0)*100)}%</b><span>smith speed</span></div>`);
-  if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
-  if(it.noBurn != null) stats.push(`<div><b>+${Math.round((it.noBurn||0)*100)}%</b><span>no-burn</span></div>`);
   if(it.weaponType) stats.push(`<div><b>${it.weaponType}</b><span>weapon type</span></div>`);
-  /* ELEMENTS v1 — if THIS is the equipped weapon and it carries an enchant,
-     show the bound element + what it pays. The enchant lives on the loadout
-     (G.enchant.weapon), not the item, so it only reads on the worn weapon. */
-  if(it.weaponType && equippedItemG('weapon')===id && G.enchant && G.enchant.weapon){
-    stats.push(`<div><b>✦ ${G.enchant.weapon}</b><span>+15% vs ${G.enchant.weapon}-weak</span></div>`);
-  }
   /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
      hand-authored plate pieces (iron/steel helm + platebody, bronze belt) and
      the early weapons carry neither field; their gate comes from `tier` via
@@ -9756,12 +7393,6 @@ function openInvDetail(id){
         ? (_food.healText ? ' — ' + _food.healText : '')
         : (_food.buffText ? ' — ' + _food.buffText : '');
       acts.push(`<button class="btn btn-primary" onclick="eatFromInventory('${id}')">${_food.verb}${sub}</button>`);
-    }
-    /* Auto-eat is offered only where it is true: a Provision, and a trait the
-       player actually owns. Everything else gets a sentence, not a button. */
-    if(_food.autoEatable && typeof hasTrait === 'function' && hasTrait('auto_eat')
-       && !_autoEatUsesThis(id)){
-      acts.push(`<button class="btn" onclick="setAutoEatFood('${id}');closeInvDetail()">Set as Auto-Eat food</button>`);
     }
   }
   if(it.kind === 'upgrade' || it.upgradesTo){
@@ -9803,32 +7434,11 @@ function openInvDetail(id){
     if(window.HearthriseDepot) acts.push(window.HearthriseDepot.flyoutButtonHtml(id, G.inventory[id]|0));   /* → the Depot (this slot was a dead `bankItem` guard for a hundred builds) */
   }
 
-  /* b385 — ELEMENTS discoverability. The reverse "Used in" index is RECIPE-based,
-     so it is blind to enchanting: a rune's real answer to "what is this for?" is
-     an explicit action, and an essence's answer is one line of copy. */
-  if(it.tag === 'rune'){
-    acts.push(`<button class="btn btn-primary" onclick="openEnchantPicker('${id}');closeInvDetail()">Enchant a weapon with this</button>`);
-  }
-  let enchantNote = '';
-  if(it.tag === 'reagent' && /_essence$/.test(id)){
-    enchantNote = `<div class="inv-detail-note muted">→ Bind into a rune at Crafting 25, then enchant your weapon (+15% vs weak foes).</div>`;
-  }
-
-  /* b224: one sentence saying what this food is for, plus the honest status of
-     auto-eat. b217's rule is that comprehension gets fixed in the UI, not in a
-     tutorial — so the screen that offers the button also explains the button. */
+  /* b224: one sentence saying what this food is for. b217's rule is that
+     comprehension gets fixed in the UI, not in a tutorial. */
   let foodNote = '';
   if(_food){
-    const bits = [_food.blurb];
-    if(_food.autoEatable){
-      if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
-        const _tae=(window.TRAITS&&window.TRAITS.auto_eat)||{cost:100,currency:'marks'};const cost=_tae.cost.toLocaleString()+(_tae.currency==='marks'?' Bounty Marks':'g');
-        bits.push(`You have not unlocked Auto-Eat yet (${cost} in the Bounty Shop). For now, heal by hand from here or the Combat screen.`);
-      } else if(_autoEatUsesThis(id)){
-        bits.push('Auto-Eat is using this food.');
-      }
-    }
-    foodNote = `<div class="inv-detail-note">${bits.join(' ')}</div>`;
+    foodNote = `<div class="inv-detail-note">${_food.blurb}</div>`;
   } else if(it.note){
     /* b225: the same slot for a non-food item that needs one sentence of
        explanation. Burnt Food is the first: without this, a player who has
@@ -9879,8 +7489,7 @@ function openInvDetail(id){
     <div class="hr-sheet-body">${descHtml}
     <div class="inv-detail-stats">${stats.join('')}</div>
     ${infoBlock}
-    ${foodNote}
-    ${enchantNote}</div>
+    ${foodNote}</div>
     <div class="inv-detail-actions hr-sheet-foot">${sellNote}${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
@@ -10195,7 +7804,6 @@ function unequipSlotInv(slot){
   else {
     const id = G.equipment[slot]; if(!id) return;
     G.equipment[slot] = null; addItem(id, 1);
-    clearEnchantOnWeaponChange(slot,id,null);
     notify(`Unequipped ${ITEMS[id]?.n||id}`,'info');
   }
   setTimeout(renderInvNew, 0);
@@ -10217,111 +7825,6 @@ window.HearthriseShowTab.wrapShowTab('inv-new', function(tab){
 /* Initial paint refresh */
 setTimeout(()=>{ if(typeof activeTab !== 'undefined' && activeTab === 'inventory') renderInvNew(); }, 50);
 console.log('Inventory rework + loadout presets: loaded');
-
-// ===== block 2: script-2 =====
-"use strict";
-/* ════════════════════════════════════════════════════════════
-   BOUNTY HUNTER — THE SERVER OWNS THE XP (b503)
-
-   Source of truth: `player_skills(skill_id='bountyHunter')` on the SERVER, read
-   here through the record like every other skill. There is no client copy and
-   no legacy mirror: `G.bountyHunter.xp` is GONE (ensureBountyState's default
-   shape no longer carries it, and hydrateInto/buildResiduePatch drop a stray
-   one), because a residue field shadowing a server-owned value is the SA-002
-   class — the same shape that deadlocked the property tier.
-
-   XP is credited by `hr_claim_bounty` on turn-in, in the same transaction as
-   the gold and the Marks, from `active_bounty.xp_reward` — a figure the server
-   computed at ACCEPT time from its own catalogue. The client never authors it
-   and never sends an amount. Never per kill.
-
-   WHAT USED TO BE HERE, AND WHY IT COULD NOT WORK. A parse-time IIFE healed
-   `G.skills.bountyHunter = max(G.bountyHunter.xp, G.skills.bountyHunter)` and a
-   completeBounty wrapper wrote the sum back into both. `G.skills` is
-   SERVER_OF_RECORD, so applyRecord's wholesale `G.skills = <server map>` undid
-   it on the very next envelope — and the server map had never been credited
-   (production 2026-09-05: 36 characters, max(xp) = 0). The heal ran at parse
-   time, i.e. against the DEFAULT G, before any save had loaded, so it healed
-   nothing even once. Do not reintroduce either half.
-   ════════════════════════════════════════════════════════════ */
-
-(function warmBountyState(){
-  /* PHASE 0 (server authority) — LOAD-ORDER NOTE, read before adding work here.
-     This IIFE runs at classic-script PARSE time, which is before any <script
-     type="module"> has executed — so window.HearthriseCore (and therefore every
-     delegated simulation function, including getCombatLevel) is not up yet.
-     ensureBountyState() reaches getCombatLevel() via getUnlockedBountyTier(),
-     so the warm-up is deferred to DOMContentLoaded.
-
-     Nothing is lost by deferring it: this IIFE runs against the DEFAULT G —
-     boot() (and therefore loadLocal(), which calls ensureBountyState itself)
-     does not run until DOMContentLoaded either, and boot's listener is
-     registered earlier in this file so it still goes first.
-
-     b503: the SKILL MIGRATION that used to run synchronously here is DELETED,
-     not moved. It healed G.skills.bountyHunter from the residue mirror, which
-     (a) could never work — it ran against the default G, before any save loaded
-     — and (b) was the client authoring a SERVER_OF_RECORD field. The XP is the
-     server's now; there is nothing to heal and nothing to mirror. Only the
-     warm-up remains, which is why this IIFE was renamed.
-
-     If you add parse-time work to legacy.js that needs the core, the suite will
-     tell you: the account-wall guard fails the build on any console error. */
-  document.addEventListener('DOMContentLoaded', function(){
-    try{ ensureBountyState && ensureBountyState(); }catch(e){}
-  });
-})();
-
-/* b503 — THE SERVER'S xp, read through the record like every other skill.
-   getLevel() is src/net/skill-record.js's DISPLAY read: the server's value plus
-   the in-flight prediction, with the fallback ladder that makes the level-1
-   bounce structurally unreachable. It used to read `G.skills.bountyHunter`
-   directly, which is exactly the un-gated read that reports a forged or a
-   half-applied map as truth. */
-window.getBountyHunterLevel = function getBountyHunterLevel(){
-  /* Guarded for the same reason as the earlier definition: getLevel()'s last
-     resort dereferences window.HearthriseCore, which is not up at parse time. */
-  try{ return getLevel('bountyHunter'); }
-  catch(e){ return levelFromXp((G.skills&&G.skills.bountyHunter)||0); }
-};
-
-/* getUnlockedBountyTier — the BOUNTY-HUNTER-level ladder (Lv20 → tier 2 board,
-   30 → 3, 40 → 4, 50 → 5, 60 → 6). The player still needs combat power to fight
-   a tier-N monster; this only controls how deep the BOARD may post.
-
-   b503: the ladder itself moved to src/core/bounty.js
-   (`boardTierForBountyLevel`) — pure, dual-runtime, and therefore assertable
-   outside a browser, which is how tests/bounty-hunter-xp.mjs can prove the gate
-   actually opens at the XP the server credits. This is the adapter; the numbers
-   live in exactly one place. The inline fallback is for a pre-module boot only
-   and is a transcription of the same table. */
-window.getUnlockedBountyTier = function getUnlockedBountyTier(){
-  const lv = getBountyHunterLevel();
-  const C = window.HearthriseCore;
-  if(C && C.bounty && typeof C.bounty.boardTierForBountyLevel === 'function'){
-    return C.bounty.boardTierForBountyLevel(lv);
-  }
-  if(lv >= 60) return 6;
-  if(lv >= 50) return 5;
-  if(lv >= 40) return 4;
-  if(lv >= 30) return 3;
-  if(lv >= 20) return 2;
-  return 1;
-};
-
-/* ── THE completeBounty WRAPPER IS GONE (b503), AND MUST NOT COME BACK ───────
-   It existed to do one thing: `G.skills.bountyHunter = Math.max(G.skills
-   .bountyHunter || 0, G.bountyHunter.xp)` after every turn-in, plus a duplicate
-   level-up toast. That was the CLIENT AUTHORING A SERVER_OF_RECORD FIELD, and
-   it lost the race with applyRecord every single time — which is why not one
-   player in the beta ever held a point of Bounty-Hunter XP.
-
-   The XP is credited by hr_claim_bounty now, and finalizeBounty PREDICTS the
-   returned amount for display (tagged `credited`) and owns the single level-up
-   toast. `window.completeBounty` is once again the function declared above,
-   with no wrapper in front of it. If you find yourself needing one, you are
-   probably about to re-author a server value. */
-console.log('BountyHunter: xp is SERVER-owned (player_skills.bountyHunter) — the client authors none of it');
 
 // ===== block 3: script-3 =====
 "use strict";
@@ -10447,226 +7950,6 @@ window._itemSVG = {
    Moves the bounty board out of the combat tab into a dedicated panel.
    Bounty Shop spends G.marks (top-level record field) for utility unlocks.
    ════════════════════════════════════════════════════════════ */
-
-(function injectBountyPanel(){
-  const main = document.querySelector('.main'); if(!main) return;
-  if(document.getElementById('panel-bounty')) return;
-  const sec = document.createElement('section');
-  sec.className = 'panel layout-2col';
-  sec.id = 'panel-bounty';
-  sec.innerHTML = `
-    <div class="card bounty-main">
-      <div class="card-head">
-        <div class="card-title">Bounty Board</div>
-        <span class="card-sub" id="bounty-sub">Lv 1 · 0 marks</span>
-      </div>
-      <div class="card-body" id="bounty-board-body"></div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">Bounty Shop</div>
-        <span class="card-sub">Spend Marks</span>
-      </div>
-      <div class="card-body" id="bounty-shop-body"></div>
-    </div>`;
-  main.appendChild(sec);
-})();
-
-/* Items the player can buy with Bounty Marks */
-/* b217: emoji art (🔁 ⚡ 🎲 💰 🦸) swapped for glyph keys from the shipped set. */
-const BOUNTY_SHOP = [
-  {id:'reroll_token',  name:'Reroll Token',      glyph:'uiScroll',    cost:5,  desc:'Refresh the bounty board once.', repeatable:true},
-  {id:'auto_bounty_1', name:'Auto-Accept I',     glyph:'uiSpark',     cost:80, desc:'Auto-accept the next bounty after each turn-in.', flag:'autoBounty', value:1},
-  {id:'free_reroll_2', name:'+1 Free Reroll/day',glyph:'uiClock',     cost:50, desc:'Adds one free reroll per day.', flag:'extraRerolls', incr:true},
-  {id:'mark_pouch',    name:'Hunter\'s Pouch',   glyph:'uiCoinStack', cost:200,desc:'+10% gold from bounty turn-ins forever.', flag:'goldBoost', value:0.10},
-  {id:'cosmetic_cape', name:'Hunter Cloak',      glyph:'uiCape',      cost:300,desc:'A cosmetic cloak for your Hearth Hall.', flag:'cosmeticCloak', value:true},
-];
-
-/* ── WHAT THE BOUNTY SHOP SELLS = the board's own upgrades PLUS everything
-   else in the game that is PRICED IN BOUNTY MARKS ────────────────────────────
-   b354. Tyler ruled (2026-08-09) that auto-eat costs 100 Bounty Marks, and it
-   ended up sold only on the Shop tab's trait strip — a screen a player who is
-   grinding bounties never opens. The marks and the one thing worth spending
-   them on were two tabs apart.
-
-   The fix is the RULE, not the row: anything whose price is in marks belongs on
-   the screen that holds the marks. So this composes rather than copies, and the
-   next marks-priced trait appears here by being DATA.
-
-   Why not a second authored row in BOUNTY_SHOP: it would be a second OFFER ID
-   for one purchase. `trait.auto_eat` is already in the generated server
-   catalogue (tools/gen-shops.mjs → src/data/shops.js) at 100 marks granting
-   `trait:auto_eat`; a `bounty.auto_eat` beside it would be a second id for the
-   same transaction — the shape that needs its own once-per-character
-   bookkeeping the day marks get a server home, and a permanently-refused row in
-   hr_unlock_offers until then. Measured cost of that alternative: it changes
-   src/data/shops.js, which the hr-accrue Edge payload bundles, so it would have
-   required a production redeploy to sell nothing new.
-
-   A composed row carries `trait:`, which means it DELEGATES: buyTrait owns the
-   price, the debit and G.traits. This list never owns state. */
-function bountyShopOffers(){
-  const T = window.TRAITS || {};
-  const marksTraits = Object.keys(T)
-    .filter(function(id){ return T[id] && T[id].currency === 'marks' && !T[id].starter; })
-    .map(function(id){
-      return { id:'trait_'+id, trait:id, name:T[id].name, glyph:T[id].glyph,
-               cost:T[id].cost, desc:T[id].desc };
-    });
-  return marksTraits.concat(BOUNTY_SHOP);
-}
-try{ window.BOUNTY_SHOP = BOUNTY_SHOP; window.bountyShopOffers = bountyShopOffers; }catch(_){}
-
-function spendMarks(itemId){
-  const def = bountyShopOffers().find(x=>x.id===itemId); if(!def) return;
-  /* A trait row DELEGATES. buyTrait is the single writer of G.traits and the
-     single place the marks are debited for it — this function must not charge
-     first and then call it, or the player pays twice, and it must not set an
-     ownership key of its own. Affordability, the refusal message, the save and
-     the shop repaint all belong to buyTrait; the only thing owed here is a
-     repaint of THIS panel, which buyTrait has no business knowing about. */
-  if(def.trait){
-    if(typeof window.buyTrait === 'function') window.buyTrait(def.trait);
-    renderBountyTab();
-    return;
-  }
-  /* ARM-BLOCKER (marks flip): a BOUNTY_SHOP upgrade has no server spend verb yet
-     (only reroll/abandon moved). Under arm the raw debit is a client-authored spend
-     on a server-owned balance. Fail CLOSED until it is server-owned; no-op while
-     dormant. */
-  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('marks')){
-    notify('That upgrade is unavailable right now','kill');return;
-  }
-  const MR=window.HearthriseMarks;
-  const have = MR ? (MR.marksOr(G,0)) : (G.marks || 0);
-  if(have < def.cost){ notify(`Need ${def.cost - have} more Marks`, 'kill'); return; }
-  /* ── CHECK BEFORE YOU CHARGE (the b465 handoff, closed) ────────────────────
-     The debit used to happen HERE and the "can this even work" test three lines
-     later, so a missing rerollBountyBoard meant the player paid and got nothing
-     and the only remedy on offer was "reload". Nothing about a Reroll Token
-     requires charging first: ask the question, refuse for free, then charge. */
-  if(def.id === 'reroll_token' && typeof rerollBountyBoard !== 'function'){
-    notify('The board isn’t taking new notices right now — you have not been charged.','kill');
-    try{ console.warn('[Bounty] rerollBountyBoard is missing — the Reroll Token purchase was refused before charging'); }catch(e){}
-    return;
-  }
-  G.marks = (G.marks||0) - def.cost;
-  G.bountyHunter.upgrades = G.bountyHunter.upgrades || {};
-  if(def.id === 'reroll_token'){
-    /* PREPAID: the Marks were taken one line above, so the refresh must charge
-       nothing of its own. This used to pass `true` into a zero-argument
-       rerollBountyBoard, which ignored it and then burned the free reroll (or
-       charged the escalating Marks price a SECOND time). */
-    rerollBountyBoard(true);
-  } else if(def.flag){
-    if(def.value !== undefined && !def.incr) G.bountyHunter.upgrades[def.flag] = def.value;
-    else if(def.incr) G.bountyHunter.upgrades[def.flag] = (G.bountyHunter.upgrades[def.flag]||0) + 1;
-    else G.bountyHunter.upgrades[def.flag] = true;
-    if(def.flag === 'autoBounty') G.bountyHunter.autoBounty = def.value;
-  }
-  notify(`✓ ${def.name}`, 'levelup');
-  saveLocal && saveLocal();
-  updateTopbar && updateTopbar();
-  renderBountyTab();
-}
-
-/* Render the dedicated bounty tab */
-window.renderBountyTab = renderBountyTab; /* b228: cross-IIFE export — repaintBounty() lives in another block */
-function renderBountyTab(){
-  ensureBountyState && ensureBountyState();
-  const lv = (typeof getBountyHunterLevel === 'function') ? getBountyHunterLevel() : 1;
-  /* Marks display through the record accessor: server truth under arm, the local
-     balance while dormant, and a pending em dash rather than a forged number when
-     the balance is UNKNOWN. */
-  const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.marks || 0);
-  const completed = G.bountyHunter?.completed || 0;
-  const sub = document.getElementById('bounty-sub');
-  if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${Number(completed).toLocaleString()} completed`;
-
-  const board = document.getElementById('bounty-board-body');
-  if(board){
-    /* Header KPIs + the existing renderBountyPanel HTML */
-    /* b217: this KPI row is gone. "Lv 1 · 0 Marks · 0 completed" was already
-       printed in the panel sub-heading immediately above it, and AGAIN in the
-       bounty card's own header immediately below it — the same three numbers
-       three times inside 200 vertical pixels. */
-    const kpiRow = '';
-    const unlockHtml = window.HearthriseSignposts ? window.HearthriseSignposts.bountyStripHtml({level:lv, clientMayPay:bountyClientMayPay(), bounty:window.HearthriseCore.bounty}) : '';
-    /* Pull ChatGPT's renderBountyPanel HTML */
-    const boardHtml = (typeof renderBountyPanel === 'function') ? renderBountyPanel() : '<div class="empty">The Bounty Board is still loading.</div>';
-    board.innerHTML = kpiRow + boardHtml + unlockHtml;
-  }
-
-  const shop = document.getElementById('bounty-shop-body');
-  if(shop){
-    shop.innerHTML = bountyShopOffers().map(it=>{
-      /* A delegating row asks the OWNER of the fact, never a second key: the
-         price is the one buyTrait will charge and ownership is hasTrait(). */
-      const cost = it.cost;
-      const owned = it.trait
-        ? (typeof hasTrait === 'function' && hasTrait(it.trait))
-        : (G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable);
-      const can = window.HearthriseMarks ? window.HearthriseMarks.canAffordMarks(G, cost) : ((G.marks || 0) >= cost);
-      /* ── AN ENABLED BUY THAT ALWAYS REFUSES IS A BUG, NOT A GATE ────────────
-         spendMarks() fails CLOSED for every non-trait row while Marks are
-         server-owned: BOUNTY_SHOP has no server spend verb (hr_bounty_spend
-         only knows 'reroll' and 'abandon'), so the raw local debit would be a
-         client-authored write on a server-owned balance. That refusal is
-         correct. What was NOT correct is that the button rendered ENABLED and
-         primary-styled whenever the player could afford it — driven with 500
-         Marks on the board, all five rows offered "Buy" and all five answered
-         "That upgrade is unavailable right now". The row must ask the same
-         question the spend asks, and say the answer before the click. */
-      const sellable = it.trait ? true
-        : (typeof window.clientMayWriteRecordField !== 'function' || window.clientMayWriteRecordField('marks'));
-      const dead = owned || !sellable || !can;
-      const label = owned ? 'Owned' : (sellable ? 'Buy' : 'Unavailable');
-      return `<div class="bounty-shop-row${sellable?'':' is-unavailable'}" data-offer="${it.id}"${sellable?'':' title="This upgrade cannot be bought yet."'}>
-        <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
-        <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>
-        <span class="price">${(window.HR&&window.HR.amount)?window.HR.amount('bountyHunter',cost,13,'--gold-2'):cost+' Marks'}</span>
-        <button class="btn btn-sm ${dead?'':'btn-primary'}" ${dead?'disabled':''} onclick="spendMarks('${it.id}')">${label}</button>
-      </div>`;
-    }).join('');
-  }
-}
-
-/* Patch showTab to also dispatch the new bounty panel */
-window.HearthriseShowTab.wrapShowTab('bounty-tab', function(tab){
-  if(tab === 'bounty') renderBountyTab();
-});
-
-/* Patch the combat tab to NO longer show the bounty board (it has its own home now).
-   We do this by overriding renderBountyPanel to return empty when we're rendering
-   from the combat path. Simpler: leave it injected but make it tighter — just a tiny
-   "Active Bounty" pill if one is active. */
-const _origRenderBountyPanel = window.renderBountyPanel;
-window.renderBountyPanel = function(){
-  /* If the document-active panel is combat, return a compact summary; if bounty,
-     return the full board. The active tab is on document via the 'active' class. */
-  const onCombat = document.getElementById('panel-combat')?.classList.contains('active');
-  if(!onCombat) return _origRenderBountyPanel ? _origRenderBountyPanel.apply(this, arguments) : '';
-  /* Compact summary for combat — show only an active bounty pill, hide the full board */
-  ensureBountyState && ensureBountyState();
-  const bh = G.bountyHunter;
-  const a = bh && bh.active;
-  if(!a) return '';
-  const m = MONSTERS[a.target];
-  const v = hrBountyView(a);   // the server's figure or '—', never the local count
-  const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-  const pct = v.known ? Math.min(100, (v.progress/a.required)*100) : 0;
-  const _curLabel = v.confirming ? `${_mark}/${a.required} · Verifying your kills…` : `${_mark}/${a.required}`;
-  return `<div class="bounty-card${v.confirming?' confirming':''}" style="margin-bottom:8px">
-    <div class="row between">
-      <div class="bounty-title">Active bounty: ${m?.name||'?'}</div>
-      <button class="btn btn-sm" onclick="showTab('bounty')">View Board</button>
-    </div>
-    <div class="bounty-progress"><div class="bar"><i style="width:${pct}%"></i></div><div class="row between tiny"><span>${_curLabel}</span><span>${(a.rewards?.gold||0).toLocaleString()}g · ${a.rewards?.marks||0} marks</span></div></div>
-  </div>`;
-};
-
-
-console.log('Bounty tab + sidebar groups: loaded');
 
 // ===== block 5: script-5 =====
 "use strict";
@@ -10879,7 +8162,6 @@ function _activityAwayXpHr(live){
    of the predicate over there is the drift this exists to prevent. */
 function awayFightSustains(){
   try{
-    if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
     const A = window.HearthriseAuto; if(A && A.eatEnabled && !A.eatEnabled()) return false;   /* the server's switch */
     const id = autoEatFoodId();
     if(!id) return false;
@@ -10975,14 +8257,7 @@ function refreshActivityBar(){
          the fold of the short landscape combat view, so "how many kills left for
          my task" wasn't visible. Surface it in the always-on activity bar when
          the active bounty targets the monster you're fighting. */
-      let bountyChip = '';
-      const _ab = G.bountyHunter && G.bountyHunter.active;
-      if(_ab && _ab.target === G.activeMonster){
-        const v = hrBountyView(_ab);
-        const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-        const _bw = _hrGly('navBounty',13)+'<span class="ab-chip-word">Bounty </span>', _req = (Number(_ab.required)||0).toLocaleString();
-        bountyChip = '<span class="ab-bounty'+(v.confirming?' confirming':'')+'" title="Bounty task">'+_bw+'<b>'+_mark+'/'+_req+(v.confirming?' · verifying':'')+'</b></span>';
-      }
+
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level
          up while fighting?". Primary trained skill = the active style's highest-
@@ -10999,20 +8274,14 @@ function refreshActivityBar(){
           return '<span class="ab-xp" role="img" title="'+_said+'" aria-label="'+_said+'">'+_l+' <b>'+(_max?99:_xv.level)+'</b>'+(_max?'':' · '+_xv.toGo.toLocaleString()+' to go')+'</span>';
         })();
       }
-      /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
-         stored forecast (night-plan.js chipHtml): pays away, you fall, or no
-         food; a pending mark until the server has stated the bag. It never computes. */
       // Word and figure sit in spans the bar's fit steps (render/bar-fit.js) trade away.
       const _cn = window.HearthriseBalance?.compactNumber;
       const _ltc = window.HearthriseLifetime?.count('kills'), licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!window.HearthriseLifetime ? '—' : '<span class="ab-n-full">'+window.HearthriseLifetime.markup('kills')+'</span><span class="ab-n-short">'+window.HearthriseLifetime.markup('kills', _cn)+'</span>')+'</b></span>';
-      const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
-      const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
+
       HearthrisePaint.html(metaEl, ''
         + '<span class="ab-kills" title="Kills this fight: '+kills.toLocaleString()+'">'+_hrGly('uiSword',13)+' <b>'+(_BF ? _BF.figure(kills) : kills.toLocaleString())+'</b><span class="ab-chip-word"> this fight</span></span>'
         + xpChip
-        + bountyChip
-        + licChip
-        + awayChip);
+        + licChip);
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -11291,7 +8560,7 @@ console.log('Activity bar: loaded');
     var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
     var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
     var pool = 0, foodId = autoEatFoodId();
-    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat') && !(window.HearthriseAuto && typeof window.HearthriseAuto.eatEnabled === 'function' && !window.HearthriseAuto.eatEnabled());
+    var owns = !(window.HearthriseAuto && typeof window.HearthriseAuto.eatEnabled === 'function' && !window.HearthriseAuto.eatEnabled());
     if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
       /* A heal is wasted above the bar, so one food is worth at most a full
          bar — otherwise 60 shrimp on a 10 HP character reads as 180 kills. */
@@ -11640,7 +8909,7 @@ console.log('Activity bar: loaded');
 // ===== block 9: script-9 =====
 "use strict";
 /* ════════════════════════════════════════════════════════════
-   LIFETIME STATS — pure additive read of G.stats + G.bountyHunter
+   LIFETIME STATS — pure additive read of G.stats
    ════════════════════════════════════════════════════════════ */
 
 (function ensureStatsTracking(){
@@ -12355,11 +9624,9 @@ console.log('Poneti v2 loaded:', Object.keys(window._skillIcon).length, 'skills,
    * The row now emits the painted portrait itself, in its own .bo-art slot at
    * a real size. Leaving the sweep in place made every bounty show the monster
    * TWICE — once in .bo-art and once spliced into the name. */
-  function paintBountyMonsters(){ /* renderer owns this now */ }
-
-  function paintAllV3(){ paintFighters(); paintBountyMonsters(); }
-  // Hook combat & bounty renderers
-  ['renderCombat','renderBounties','renderBounty','renderBountyBoard','showTab'].forEach(function(name){
+  function paintAllV3(){ paintFighters(); }
+  // Hook the combat renderer
+  ['renderCombat','showTab'].forEach(function(name){
     var orig = window[name];
     if(typeof orig !== 'function') return;
     window[name] = function(){ var r = orig.apply(this, arguments); setTimeout(paintAllV3, 0); return r; };
@@ -12446,7 +9713,7 @@ window.renderCharacter = function(){
       '</div></div>';
   }
 
-  var combat = ['attack','strength','defense','hitpoints','prayer','magic','ranged','bountyHunter'];
+  var combat = ['attack','strength','defense','hitpoints','prayer','magic','ranged'];
   var gather = ['woodcutting','mining','fishing','farming'];
   /* Derived from SKILLS_DEF's own `cat`, so a new bench appears on the
      Character page by adding its data row (it did not, before b357). */
@@ -12516,25 +9783,11 @@ console.log('Character page loaded');
 /* ─── State migration ─── */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
-  /* NO `G.streak` SEED (2026-09-14). The play streak is the server's
-     `player_state.streak_days`, read through HearthriseStreakChip.days(); the
-     device counter that used to live here is deleted, not defaulted. */
+
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
   if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
 }
 [0, 100, 500, 1500].forEach(function(t){ setTimeout(migrate, t); });
-
-/* ─── Day key (UTC) ─── */
-function todayKey(){
-  var d = new Date();
-  return d.getUTCFullYear()*10000 + (d.getUTCMonth()+1)*100 + d.getUTCDate();
-}
-
-/* ─── Streak counter + flame chip: EXTRACTED to src/render/streak-chip.js ───
-   The device counter, the reader every play-streak surface asks (the server's
-   `streak_days` first) and the paint, in one module. Called through the seam
-   below; absent module = the chip simply does not paint. */
-function streakChip(){ return window.HearthriseStreakChip || null; }
 
 /* ─── Welcome-back modal (fires once per session if returning after 30min+) ─── */
 /* Returns WHAT IT SAID, because the presenter has to know (see WELCOME_GATE): 'away'
@@ -12597,18 +9850,7 @@ function maybeShowWelcome(opts){
   })(_srvSpan);
   if(_awayLbl !== null) rows.push({g:'uiHourglass', t: 'Time away', v: _awayLbl});
   if(_fresh){
-    /* ── SET THE NIGHT, THE MORNING HALF (slate §3) ────────────────────
-       How right last night's forecast was. It LEADS, because "what you set" beside
-       "what you got" is the point of the return; every figure describing the night
-       comes from THIS receipt and only the predicted span from the stored forecast
-       (absent, stale or another character's ⇒ null, and the modal says less).
-       Spoken once: the forecast is dropped after grading, so a second reload
-       cannot re-grade last night against tonight's receipt. */
-    try{
-      var _STN = window.HearthriseSetTheNight;
-      var _nightLine = _STN && _STN.morningLine ? _STN.morningLine(_off) : null;
-      if(_nightLine){ rows.push({g:'uiHourglass', t:_nightLine, v:''}); _STN.forget(); }
-    }catch(e){}
+
     /* WHAT THE NIGHT ACTUALLY PAID. One row per channel that moved, and none
        at all for a channel that did not — a "+0 gold" row is noise, and a
        missing row for a channel that DID pay is the bug this fixes. */
@@ -12775,18 +10017,11 @@ function maybeShowWelcome(opts){
         if(_uplift >= 1.2){
           var _ae = (_off.autoEat && typeof _off.autoEat === 'object') ? _off.autoEat : null;
           var _hadFood = _ae ? _ae.hadFood : undefined;
-          var _aeOn = _ae ? !!_ae.enabled : true;
           var _ateAll = (Number(_off.foodEaten) || 0) > 0 && _hadFood !== false;
           var _fix;
           if(_hadFood === false){
             _fix = 'You had nothing to eat. A stocked bag would have turned that recovery into '
                  + 'fighting — about ' + _upTxt + ' tonight\'s loot.';
-          } else if(_hadFood === true && !_aeOn){
-            /* NO QUANTITY. The receipt states the bag held food, not how much;
-               today's bag is a different instant (food bought since would be
-               quoted as the night's), so the sentence names no count. */
-            _fix = 'Auto-Eat was switched off. Switched on, your provisions were worth about '
-                + _upTxt + ' tonight\'s loot.';
           } else if(_ateAll){
             _fix = 'You ate every provision you had and still fell. Cook a tier up, or take a '
                  + 'softer target — a night that never breaks pays about ' + _upTxt + ' this one.';
@@ -12794,7 +10029,7 @@ function maybeShowWelcome(opts){
             _fix = 'Food would have turned that recovery time into fighting — about '
                  + _upTxt + ' the loot.';
           }
-          rows.push({g:'uiFood', t: _fix, v: (window.HearthriseNightPlan && HearthriseNightPlan.doorsHtml(HearthriseNightPlan.ctxNow(G))) || ''});
+          rows.push({g:'uiFood', t: _fix, v: ''});
         }
       }
       /* ── THE COST, ON ONE LINE ────────────────────────────────────────────
@@ -12861,8 +10096,7 @@ function maybeShowWelcome(opts){
      days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
      RULING: the reward sheet keeps the day language and drops "streak"; every
      play-streak surface says PLAYED / RUNNING and never "daily". */
-  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
-  if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
+
   rows.push({g:'uiTarget', t: 'Monsters slain, all time', v: (window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
@@ -13132,7 +10366,7 @@ function paintNavBadges(){
   if(typeof G !== 'object' || !G || !window.HearthriseNav) return;
   var invCount = Object.values(G.inventory||{}).reduce(function(a,b){return a+(b||0);},0);
   window.HearthriseNav.badges({
-    bounty: !!(window.hrBountyView && G.bountyHunter && G.bountyHunter.active && window.hrBountyView(G.bountyHunter.active).claimable),
+
     farming: (G.farmPlots||[]).some(function(p){return p && p.state==='ready';}),
     inventory: invCount > 250,
     combat: !!G.activeMonster
@@ -13141,7 +10375,6 @@ function paintNavBadges(){
 
 /* ─── Hooks ─── */
 function paintAll(){
-  var _S = streakChip(); if(_S) _S.paint(G);
   paintNavBadges();
 }
 ['updateTopbar','renderProfile','renderCombat','renderFarm','renderInvNew','showTab'].forEach(function(name){
@@ -13256,17 +10489,6 @@ function injectFriendsStub(){ /* no-op — see the b225 note above */ }
 /* =========================================================
    HOOKS + WELCOME-BACK CATCHUP INTEGRATION
    ========================================================= */
-/* b225 (#18): the Clan Activity section is state-dependent, so it is
-   re-evaluated every time the clan screen opens. */
-window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
-  // b407 flicker fix: syncClanActivity is a PURE synchronous DOM function (sets
-  // data-inclan and, only when the activity host is empty, writes an empty-state
-  // placeholder — it never blanks existing content and makes no network call),
-  // so it is safe to run in the activating task. Removes the 50ms defer that let
-  // the activity host flash empty. (Prior investigation flagged this as a network
-  // tap — verified against the code, it is not.)
-  if(tab === 'clan') syncClanActivity();
-});
 
 /* THE CATCHUP INJECTOR LIVED HERE AND IS DELIBERATELY NOT REPLACED (b342): it
    PREPENDED rows from `calcCatchup()`, an estimate of an absence already settled, so
@@ -13288,7 +10510,6 @@ function injectProfileButtons(){
 }
 
 setTimeout(injectProfileButtons, 600);
-setTimeout(function(){ if(typeof syncClanActivity==='function') syncClanActivity(); }, 600);
 
 console.log('5 retention features loaded');
 })();
@@ -13303,7 +10524,6 @@ console.log('5 retention features loaded');
  * applyLocalIcons() IIFE near the bottom of this file. Cooked-fish
  * items fall back to their emoji glyph (🦐 🐟 🦞 🦈) which matches
  * the cozy theme. The smoke test asserts no icons3/* leakage. */
-
 
 /* ─── Artisan render: replaces 'Train by fighting' empty state ─── */
 window.renderArtisanActivities = function(skillId){
@@ -13418,7 +10638,6 @@ window._stopArtisan = function(){
 "use strict";
 if(typeof ITEMS === 'undefined') return;
 
-
 /* b127: Removed icons3/* paths for raw meats + recipe scrolls + the
  * three extra bars (bronze_bar / steel_bar / rune_bar). All these
  * items have emoji glyphs in their ITEMS data and render fine with
@@ -13426,7 +10645,6 @@ if(typeof ITEMS === 'undefined') return;
  * LOCAL_ITEM_ICON if we ship art for them later. */
 window._itemPath = window._itemPath || {};
 window._itemSVG = window._itemSVG || {};
-
 
 /* ─── Patch artisan loop to support multi-input recipes (inputs dict) ─── */
 /* PHASE A: the recipe-shape readers live in src/core/artisan.js now — one
@@ -13569,11 +10787,6 @@ window.doArtisanAction = function(skillId, recipeId, opts){
     noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
     bonus: function(k){ return (typeof getBonus==='function') ? (getBonus(k)||0) : 0; },
     toolCarry: G.toolCarry,
-    /* Through window.HearthriseTools, not straight to core: that object is a
-       published API other feature modules wrap, and resolving the tool here
-       would silently escape whoever replaced it. */
-    toolDouble: (window.HearthriseTools && window.HearthriseTools.bestToolDouble) ? window.HearthriseTools.bestToolDouble(skillId) : 0,
-    toolXpB: (window.HearthriseTools && window.HearthriseTools.bestToolXpB) ? window.HearthriseTools.bestToolXpB(skillId) : 0,
     rng: CK.rng,
   });
 
@@ -13621,7 +10834,6 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   G.stats = G.stats || {};
   Object.keys(res.stats).forEach(function(k){ G.stats[k] = (G.stats[k]||0) + res.stats[k]; });
   res.progress.forEach(function(key){
-    if(typeof updateDaily==='function') updateDaily(key, 1);
     if(typeof updateQuest==='function') updateQuest(key, 1);
   });
   /* b227: re-derive the interval after each LIVE action so a speed blessing
@@ -13876,7 +11088,7 @@ window._calcForSkill = function(skill){
     }
   }
   /* Combat skills: compute from active monster + style routing */
-  var combatSkills = ['attack','strength','defense','hitpoints','prayer','magic','ranged','bountyHunter'];
+  var combatSkills = ['attack','strength','defense','hitpoints','prayer','magic','ranged'];
   if(combatSkills.indexOf(skill) >= 0 && G.activeMonster && typeof MONSTERS !== 'undefined'){
     var m = MONSTERS[G.activeMonster];
     if(!m) return null;
@@ -14174,8 +11386,7 @@ function buildProfileToolbar(){
   /* Active objective count */
   var quests = (G.quests && G.quests.list) || [];
   var activeQuestCount = quests.filter(function(q){return !q.done;}).length;
-  var dailyCount = ((G.dailyTasks||{}).list||[]).filter(function(t){return !t.done;}).length;
-  var pendingObj = activeQuestCount + dailyCount;
+  var pendingObj = activeQuestCount;
 
   var bar = document.createElement('div');
   bar.className = 'prof-toolbar';
@@ -14397,8 +11608,6 @@ function _costPart(itemId, qty){
     art + '<b>' + qty.toLocaleString() + '</b> <span class="hh-cost-nm">' + name + '</span></span>';
 }
 
-
-
 /* ─── Inventory screen (blocks 25 + 26) → src/screens/inventory.js ───────────
    The inventory-rebuild IIFE and the drag-and-drop IIFE moved VERBATIM to
    src/screens/inventory.js — the first screen-controller extraction (task #129,
@@ -14432,7 +11641,6 @@ function fmtQty(n){
   if(n>=1000) return (n/1000).toFixed(1).replace('.0','')+'K';
   return String(n);
 }
-
 
 /* ── Patch the Skills list (left card) to filter out combat ── */
 function patchSkillsList(){
@@ -14482,16 +11690,6 @@ function patchSkillsList(){
 }
 
 /* ── Build a gather tile ── */
-/* Wave 3: one tool-line renderer for gather AND artisan tiles — names the best
-   owned tool and its full effect (speed + double-yield chance). */
-window.hrToolLineHtml = function(skillId){
-  var T = window.HearthriseTools; if(!T || typeof T.bestTool!=='function') return '';
-  var t = T.bestTool(skillId); if(!t) return '';
-  var spd = Math.round((t.toolSpeed||0)*100);
-  var dbl = Math.round((typeof T.bestToolDouble==='function' ? T.bestToolDouble(skillId) : 0)*100);
-  if(spd<=0 && dbl<=0) return '';
-  return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% speed</b>'+(dbl>0 ? ' · <b>'+dbl+'% double yield</b>' : '')+'</div>';
-};
 
 function tileForGather(action, skillId){
   var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
@@ -14515,10 +11713,7 @@ function tileForGather(action, skillId){
   var ms = rate ? rate.ms
     : Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp((typeof getBonus==='function')?getBonus('gatherSpeed'):0)));
   var xpPer = rate ? rate.xpPerAction : Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)));
-  /* Wave 1/3 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
-     tool DID apply, but nothing on screen said so. Name the active tool and ALL its
-     bonuses (speed + double-yield) so the effect is legible. Shared with artisan tiles. */
-  var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
+
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
@@ -14536,7 +11731,7 @@ function tileForGather(action, skillId){
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +'<div class="at-yield">Yields '+prodName+'</div>'
-    +(unlocked ? toolLine : '')
+
     +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+'Level '+action.req, false, qty, null)
     +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
@@ -14644,7 +11839,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
-    +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
+
     +HearthriseActivityCard.statusHtml(unlocked, lockGlyph()+lockLabel, benchLock, qty, HearthriseActivityCard.makeCount(inputs))
     +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
         ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'
@@ -14905,12 +12100,7 @@ function patchSkillDetail(){
         ? window.HearthriseArtisanCat.recipesFor(id)
         : window.ARTISAN_RECIPES[id];
       cats = window.HearthriseArtisanCat ? window.HearthriseArtisanCat.strip(id) : '';
-      /* b385 — one muted line under the Runes lane so the enchant loop reads at
-         a glance (bind → enchant). Only when that lane is the selected one. */
-      if(id==='crafting' && window.HearthriseArtisanCat
-         && window.HearthriseArtisanCat.selected('crafting')==='runes'){
-        cats += '<div class="muted tiny" style="margin:2px 0 8px">Bind essences into runes, then enchant your weapon (Combat) for +15% vs element-weak foes.</div>';
-      }
+
       tiles = recipes.map(function(r){return tileForArtisan(r, id);}).join('');
     } else {
       tiles = '<div class="act-tile" style="grid-column:1/-1"><div class="at-name">No activities</div><div class="at-meta">This skill has no available activities.</div></div>';
@@ -15068,7 +12258,7 @@ var TESTS = [
   });},
 
   function(){return tryRun('tabs: each tab activates', function(){
-    var tabs = ['profile','character','combat','bounty','skills','inventory','shop','farming','house','social'];
+    var tabs = ['profile','character','combat','skills','inventory','shop','farming','house','social'];
     tabs.forEach(function(t){
       try { showTab(t); }
       catch(e){ throw new Error('showTab("'+t+'") threw: '+(e.message||e)); }
@@ -15181,29 +12371,6 @@ var TESTS = [
     });
   });},
 
-  // 11. Companions
-  function(){return tryRun('companions: data + state', function(){
-    assert(typeof window.COMPANIONS === 'object' && Object.keys(window.COMPANIONS).length >= 12, 'expected 12+ companions');
-    assert(window.COMPANIONS.fox, 'fox starter missing');
-    assert(typeof G.companions === 'object', 'G.companions not set');
-    assert(G.companions.ownedIds.indexOf('fox') >= 0, 'fox should be in starting ownedIds');
-  });},
-  function(){return tryRun('companions: bonus + stable panel', function(){
-    var snap = JSON.stringify(G.companions);
-    window.equipCompanion('fox');
-    var b = window.getCompanionBonus();
-    /* b228: `xpB` was a MISSPELLING of `allXP` — the Fox paid nothing for its
-       whole life. The corrected key is what must be non-zero now. */
-    assert(b.allXP > 0, 'fox allXP should apply when equipped');
-    /* Stable renders via setTimeout in showTab hook — verify panel exists; render manually for grid check */
-    var panel = document.getElementById('panel-stable');
-    assert(panel, 'panel-stable missing in DOM');
-    /* Trigger renderStable via showTab path then check after small wait isn't possible synchronously,
-       so we just assert panel + stable-body exist; grid populates async */
-    var body = document.getElementById('stable-body');
-    assert(body, 'stable-body missing');
-    G.companions = JSON.parse(snap);
-  });},
 ];
 
 // ── Runner ──
@@ -15288,191 +12455,6 @@ if(document.readyState === 'loading'){
 
 console.log('[Smoke Test v1] loaded — run with __smokeTest() or Ctrl+Shift+T or 🧪 button bottom-left');
 })();
-
-// ===== block 30: companions-data =====
-(function(){
-"use strict";
-
-/* ── b228 — THE SECOND COMPANION TABLE IS GONE ────────────────────────────
-   This block used to declare its own `window.COMPANIONS` — twelve of the
-   twenty-two pets, at the pre-rebase magnitudes, with the three misspelled
-   keys still in it. src/data/companions.js declares the real twenty-two and
-   main.js publishes it onto `window` at import time, which happens before any
-   render here can run, so this copy was always overwritten and never read.
-
-   It is deleted rather than "kept in sync": a second copy of a balance table
-   is how a rebase gets half-applied, and this one had already drifted ten
-   entries and two grammars away from the live data. One table, one owner. */
-
-/* b229 (Asset Director — "pet icons"): the Stable was rendering all ~22
-   companions/pets as raw emoji in `.sc-icon` (audit finding, art-director
-   log 2026-08-08) — a live 0-emoji-rule violation. `def.icon` stays an emoji
-   in the data (other code paths/tests may still read it as a label char),
-   but every RENDER seam bypasses it through this helper instead, mirroring
-   raids.js's `bossPortraitHtml()`: painted portrait wins if we have one,
-   else the shared gilt "paw" atlas glyph (`uiPaw`) — never emoji, never a
-   broken-image icon (`onerror` removes the tag; the glyph is the graceful
-   floor for a missing/mismatched file, not a fallback for a working one).
-   Only 2 of the 22 have an honest identity match in `_archive/reserve-art`
-   (painted animal portraits, promoted here): Wolf Pup -> the wolf portrait,
-   Hawk -> the falcon portrait (same "bird of prey" identity; the file itself
-   reads generically enough not to claim a false species). The other 20 (fox,
-   sparrow, bunny, honeybee, badger, whelp, scorpion, raccoon, owl, tortoise,
-   beaver, rock_golem, heron, squirrel, phoenix_chick, forge_imp, silkling,
-   grave_wisp, lichling, dragonling) have no honest match on disk — reserve-art
-   has a dolphin/horse/boar/lynx/vulture portrait and none of those animals
-   are in this roster; the superseded monster-portraits set and raw-packs/
-   icons3 were re-swept too (raw-packs is a different, flatter icon style —
-   never shipped, per CLAUDE.md — so it's not a style-honest substitute even
-   where a name loosely matches, e.g. "Skill_Phoenix.png"). They stay on the
-   glyph until a human artist paints them — see the brief in
-   ASSET_MANIFEST.md / the Asset Director's log. */
-var COMPANION_PORTRAIT = {
-  wolf_pup: 'assets/icons-bundle/painted/companions/wolf_pup.png',
-  hawk:     'assets/icons-bundle/painted/companions/hawk.png',
-  /* b371 (F19) — the ONE honest match in the shipped bundles. I looked at every
-     candidate at full size before wiring any of them, because b362 is a long
-     record of what happens when you trust a filename: `stone_golem.png` is a
-     cracked-stone humanoid bust and a Rock Golem IS that creature. The others I
-     checked and REFUSED: `imp.png` (a grinning imp holding a SPOON — reads
-     cooking, not Forge Imp), `lich.png` (a 128px legacy asset, and the legacy
-     30 already read as placeholders beside the hearthfire set), and
-     `drake.png` / `dragon.png` for Whelp and Dragonling (adult animals standing
-     in for hatchlings). Nineteen companions still have no portrait; that is an
-     art request, filed, not something to paper over with a near-enough
-     picture. */
-  rock_golem: 'assets/icons-bundle/hearthfire/monsters/stone_golem.png'
-};
-/* b371 (F19) — WHILE THE ART IS MISSING, THE MEDALLION SAYS WHAT THE PET DOES.
-   Twenty of twenty-two companions rendered the SAME paw glyph, so the Stable
-   was a wall of identical discs and pet identity was carried entirely by the
-   name text. There is no per-species glyph in the baked atlas (I checked all
-   134 keys — it is skills, chrome and gear), so inventing one is not available
-   and an emoji is forbidden. What IS available is the companion's own `role`,
-   which is also the actual question the screen answers: which of these helps me
-   fight, gather, craft, or earn. Four silhouettes turn one undifferentiated
-   wall into four legible families, and nothing here claims to be a picture of
-   the animal. */
-var COMPANION_ROLE_GLYPH = {
-  combat:  'uiSword',
-  gather:  'uiLeaf',
-  artisan: 'uiAnvil',
-  utility: 'uiSpark',
-  hybrid:  'uiPaw'
-};
-window.companionIconHtml = function(id, px){
-  var size = px || 40;
-  var path = COMPANION_PORTRAIT[id];
-  if(path){
-    return '<img src="'+path+'" alt="" loading="lazy" draggable="false" '
-      + 'style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;'
-      + 'border:2px solid var(--gold-2);box-shadow:0 0 6px rgba(0,0,0,.45)" onerror="this.remove()" />';
-  }
-  var def = (window.COMPANIONS && window.COMPANIONS[id]) || null;
-  var glyph = (def && COMPANION_ROLE_GLYPH[def.role]) || 'uiPaw';
-  if(!(window.HR && window.HR.medallion)) return '';
-  return '<span class="comp-medallion" data-role="' + (def && def.role ? def.role : 'hybrid') + '">'
-    + (window.HR.medallion(glyph, size) || '') + '</span>';
-};
-
-// Companion XP curve. Level 1..30. Cumulative XP needed to REACH level L:
-//   xpToLevel(1) = 0;  xpToLevel(L) = round(50 * 1.18^(L-1) * (L-1))   ~roughly 50K at lv 30
-window.companionXpToReach = function(L){
-  if(L <= 1) return 0;
-  var total = 0;
-  for(var i=1; i<L; i++){
-    total += Math.floor(50 * Math.pow(1.18, i-1) * i);
-  }
-  return total;
-};
-window.companionLevelFromXp = function(xp){
-  for(var L=30; L>=1; L--){
-    if(xp >= window.companionXpToReach(L)) return L;
-  }
-  return 1;
-};
-
-// State migration
-function ensureCompanionState(){
-  if(typeof G === 'undefined') return;
-  /* FAIL-CLOSED: the SERVER owns the roster — ownership rows, the equipped
-     column and per-id XP, projected on the envelope and rebuilt into
-     G.companions by accrue.js reconcileCompanions (on the hr_load boot path via
-     record.js). Seeding the starter fox here BEFORE that envelope arrives would
-     silently RESET every player's roster and that reset is what the UI would
-     render until the envelope lands. So we NEVER invent fox: an EMPTY roster
-     ("no companions yet") that reconcileCompanions replaces with server truth,
-     and no read of equippedItemG (a client value).
-     b515: this used to be the ARMED half of an `isBlobRetired()` fork whose
-     dormant half seeded `ownedIds:['fox']` from the client. That fork ANDed the
-     retired b353 kill switch, so the fox-seed was reachable on any device
-     holding `hr:serverAccrual=off`. Deleted with the switch. */
-  if(!G.companions){
-    G.companions = { ownedIds: [], xp: {}, equipped: null };
-  }
-  /* The fox_companion equip MIGRATION is gone with the fork above: it read
-     equippedItemG('companion'), a client value, and the armed path always
-     returned before it. reconcileCompanions sets `equipped` from the server's
-     own column. */
-}
-
-// Award XP to the equipped companion. b228: the cap is DERIVED from the curve
-// (companionXpToReach(30)) — the old flat 50,000 stopped every pet at level 14
-// on a bar the Stable draws as "/ 30".
-/* NOTE: the LIVE awardCompanionXp is the ESM one in features/companions.js
-   (it assigns window.awardCompanionXp after this file loads). This classic-script
-   copy is the pre-ESM fallback and is overridden in production. The b313
-   level-up doll-refresh lives in the ESM copy. */
-window.awardCompanionXp = function(amount){
-  ensureCompanionState();
-  var eq = G.companions && G.companions.equipped;
-  if(!eq) return;
-  var cap = window.companionXpToReach(30);
-  G.companions.xp[eq] = Math.min(cap, (G.companions.xp[eq]||0) + amount);
-};
-
-// Add a companion to the player's stable
-window.unlockCompanion = function(id){
-  ensureCompanionState();
-  if(!window.COMPANIONS[id]) return false;
-  if(G.companions.ownedIds.indexOf(id) >= 0) return false;
-  G.companions.ownedIds.push(id);
-  G.companions.xp[id] = 0;
-  /* b465: same fix as features/companions.js — the raw `icon` emoji does not
-     belong in a plain-text toast, and the two copies must say the same thing. */
-  if(typeof notify === 'function') notify('Companion unlocked: '+window.COMPANIONS[id].n, 'loot');
-  return true;
-};
-
-// Equip a companion (sync to G.equipment slot for legacy systems)
-window.equipCompanion = function(id){
-  ensureCompanionState();
-  if(!G.companions.ownedIds.includes(id)){ if(typeof notify==='function') notify('You don\'t own that companion','kill'); return; }
-  G.companions.equipped = id;
-  // sync legacy equipment slot
-  if(G.equipment) G.equipment.companion = id === 'fox' ? 'fox_companion' : id;
-  if(typeof renderProfile==='function') renderProfile();
-  if(typeof renderInvFancy==='function') renderInvFancy();
-};
-
-window.unequipCompanion = function(){
-  ensureCompanionState();
-  G.companions.equipped = null;
-  if(G.equipment) G.equipment.companion = null;
-  if(typeof renderProfile==='function') renderProfile();
-  if(typeof renderInvFancy==='function') renderInvFancy();
-};
-
-ensureCompanionState();
-/* b228: the table lives in data/companions.js and is published by main.js, so
-   this classic block no longer owns it and must not assume it has arrived. */
-console.log('[Companions A: logic] loaded — table owned by data/companions.js ('
-  + Object.keys(window.COMPANIONS || {}).length + ' seen at this point)');
-})();
-
-// ===== block 32: companions-ui-js — REMOVED (bug-duty, Stable single-owner) =====
-/* The Stable's panel and renderer live in src/features/companions.js (single owner);
-   its door is the Homestead entry in the menu (src/nav-consolidation.js). */
 
 // ===== block 34: character-rebuild-js =====
 (function(){
@@ -15744,77 +12726,6 @@ window.HearthriseShowTab.wrapShowTab('character-rebuild', function(name){
 });
 
 console.log('[Character Rebuild v1] loaded');
-})();
-
-// ===== block 35: companions-acquisition-js =====
-(function(){
-"use strict";
-
-/* ── b342 P0 — THE DUPLICATED ACQUISITION HOOKS, REMOVED ──────────────────
-   Same defect as block 31, same fix, same commit. The companion DROP roll,
-   the dragon-egg hatch prompt and the bunny harvest counter each existed here
-   AND in features/companions.js, and both copies wrapped the same seams:
-
-     killMonster -> TWO independent drop rolls per kill, so the Wolf Pup's 1%
-                    was really 1.99%. This copy also rolled on Math.random()
-                    while companions.js deliberately rolls on the SEEDED core
-                    stream (HearthriseCore.rng) so an away kill stays
-                    replayable — so this copy was also the one breaking
-                    determinism on the away path.
-     invItemTap  -> MEASURED: one tap on a Dragon Egg cost the player TWO
-                    confirm() prompts (2 -> 1 after this removal).
-     harvestPlot -> MEASURED: G.stats.cropsHarvested rose by 2 per harvest, so
-                    the Bunny quest ("harvest 100") completed at 50 and the
-                    weekly wk_harvest ("Harvest 120 crops") at 60.
-
-   The four shop companion rows now render inside the shop itself (render/shop.js);
-   _buyCompanion is the only thing this block still owns. */
-
-window._buyCompanion = function(id, price){
-  /* ── b4xx — SHOP COMPANIONS ARE SERVER-OWNED unlocks NOW (unlock_buy, slice 4). ──
-     _buyCompanion is the SHOP path ONLY — render/shop.js wires this button
-     for the four `shop:` companions (sparrow/honeybee/raccoon/owl); drop/quest/
-     skill/boss/starter/hatch companions reach unlockCompanion by other paths and
-     never touch this function. The offer id is `companion.<id>`; hr_unlock_buy
-     reads the PRICE and the skill prerequisite (honeybee cooking 25, owl prayer 50)
-     off public.hr_unlock_offers and merges the one-rung ladder GREATEST — NO PRICE
-     and NO skill level cross the wire. The gold line goes through the record seam
-     so it is a PREDICTION under the accrual switch and flip-safe.
-
-     ── ARM-GATE LIFTED (b420, was designer ruling b / slice 4). ────────────────
-     The gate that used to defer the buy under arm is GONE. It existed because the
-     companion's pet EFFECT was CLIENT-applied, so buying a bonus pet once gold was
-     armed would be "pay gold, bonus silently doesn't apply". That reason is now
-     closed server-side: the equipped id is SERVER-OWNED (player_state.
-     companion_equipped, written only by hr_companion_equip after an ownership
-     check — see equipCompanion()'s transport in src/features/companions.js), and
-     hr_perks_of PROJECTS the equipped companion's PASSIVE bonus, priced at accrual
-     by src/core/companion-perk.js. So the passive bonus is honoured by the SERVER
-     whether or not gold is armed, and the purchase is safe to arm.
- */
-  if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
-  if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
-  var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;
-  goldSettle(-price,'companion.buy',_ck);
-  /* ── b500 SCAN — LEFT DELIBERATELY (self-healing prediction, NOT the stranded
-     class). unlockCompanion(id) pushes to G.companions.ownedIds, which
-     accrue.js `reconcileCompanions` REBUILDS ABSOLUTELY from the server's
-     owned-set on every envelope — so a refused purchase's optimistic grant is
-     healed DOWN to server truth, unlike the property tier whose reconcile only
-     heals UP (a permanent false floor). The optimistic shop grant is a
-     deliberate display PREDICTION (b420: "the purchase arms now"), pinned by the
-     `slice 4` and `b420` smoke tests. Converting it to a synchronous await would
-     fork the economy's predict-and-reconcile model and break that contract. The
-     correct fix for any residual "watch it vanish" gap is arming
-     reconcileCompanions, not this site. */
-  if(typeof window.unlockCompanion === 'function') window.unlockCompanion(id);
-  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
-  if(_ck&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){var _cp=window.HearthriseGold.buyUnlock('companion.'+id,_ck);if(_cp&&_cp.catch)_cp.catch(function(){});}
-  if(typeof updateTopbar === 'function') updateTopbar();
-  if(typeof renderShop === 'function') renderShop();
-};
-
-console.log('[Companions D: acquisition] wired — shop rows only; drops, hatch and the bunny quest are owned by features/companions.js (b342)');
 })();
 
 // ===== block 36: buff-queue-js =====
@@ -16393,4 +13304,3 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     }, 100);
   };
 })();
-

@@ -182,43 +182,16 @@ const B = Object.freeze({
     + 'switch-off client and goes with the v1 backend.',
   UNLOCK_BUY: 'a SELLABLE namespace in unlock_buy. The verb is LIVE (hr-accrue routes it; '
     + 'hr_unlock_buy + public.hr_unlock_offers exist) and `property`/`room` are wired through it '
-    + '(seam:homestead.upgrade, seam:house.upgrade_room), as are worker/plot/bank (slices 2-3) and '
-    + 'companion (slice 4 — the req_skill/req_skill_level gate is now implemented, so the shop '
-    + 'companions sell through seam:companion.buy). The namespaces still parked here are refused BY '
-    + 'DESIGN, each for a server-authority reason: theme is gem-priced; trait:auto_eat already has '
-    + 'its own applied RPC (hr_set_auto_eat); the non-farm plot buildings (scarecrow) have no ladder. '
-    + 'Wiring them is NOT "add catalogue rows" — it is net-new server invariants + a Designer/Security '
-    + 'pass, tracked as separate work items.',
-  CLAN_DEPOSIT_GOLD: '`clan_deposit_gold`. `clan_deposit` exists for ITEMS (2026-08-08-clan-seat.sql) '
-    + 'and has the whole pattern — server catalogue, server clock, per-call and per-day clamps off '
-    + 'an append-only ledger. Gold needs the same shape and does not have it. Blocked with market-v2 '
-    + 'on `player_inventory` holding real rows.',
-  LIVE_ACTION_INTENTS: 'live-action intents. This fires inside the loop the server already '
-    + 'simulates (`computeAccrual`), so it does not want a verb — it wants the accrual engine to '
-    + 'pay it, and this client site is DELETED when live actions move server-side.',
-  /* B.MARKS_COLUMN was RETIRED on 2026-08-23: player_state.marks now exists and the
-     CULL bounty turn-in is server-credited (hr_claim_bounty, 2026-08-23-bounty.sql),
-     so completeBounty carries a serverCredits flipGuard rather than this blocker. See
-     that row. The kill-driven AWAY accrual of bounties remains an accrual-engine
-     follow-up, tracked at the completeBounty row, not here. */
-  /* B.COLLECTION_MODEL and B.RENOWN_MODEL were RETIRED on 2026-08-22: the
-     collection-milestone and renown-rank payouts are now server-credited
-     (hr_claim_milestone / hr_claim_rank), so their sites carry a serverCredits
-     flipGuard rather than a blocker. See those rows below. */
+    + '(seam:homestead.upgrade, seam:house.upgrade_room), as are worker/plot/bank (slices 2-3). '
+    + 'The non-farm plot buildings (scarecrow) are refused BY DESIGN: they have no ladder, and '
+    + 'wiring them is NOT "add catalogue rows" — it is net-new server invariants + a Designer/Security '
+    + 'pass, tracked as a separate work item.',
   /* B.BULK_VENDOR was RETIRED on 2026-10-06: Sell Selected and the
      sell-junk sweep paid gold through it and sent nothing, so the envelope took
      it back. They are `wired` rows naming `vendor_sell_many` now. */
-  DERIVED_PRICE: 'a server-owned price. This spend computes its cost at call time and is NOT in '
-    + 'SHOP_OFFERS — see DERIVED_PRICES in src/data/shops.js. A server that authorises a spend must '
-    + 'own the price, and for this one it would also have to own the purchase COUNT the price '
-    + 'escalates from, plus a cap the client does not have.',
-  DUNGEON_ENTRY: 'a dungeon-entry verb. The six dungeon offers price an ENTRY, not an item — the '
-    + 'grant is a run, which has no delta shape in hr_apply. Sits with the live-action intents.',
   BUYBACK_LEDGER: '`G.buyback` becoming server state. Buy-back re-purchases at the exact price the '
     + 'vendor paid, off a 15-entry local list; a server that authorises it must own that list, or '
     + 'the price is client-supplied — which is the one thing that may never happen.',
-  IAP_RECEIPT: 'platform receipt verification. This is real money and wants a store receipt check, '
-    + 'not a progression intent. Disabled in the web beta.',
 });
 
 /**
@@ -290,25 +263,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'hr_unlock_buy, never sent; GREATEST merge makes a re-buy idempotent. The client also clamps '
       + 'at goldBuys<=30 as defence-in-depth. Gold is predicted; switch OFF it is the plain debit.',
   },
-  'seam:companion.buy': {
-    kind: 'spend', status: 'wired', verb: 'unlock_buy',
-    site: 'src/legacy.js _buyCompanion() — the four shop companions (slice 4)',
-    note: 'Offer id `companion.<id>` (sparrow/honeybee/raccoon/owl — the ONLY four companions with a '
-      + '`shop:` source; drop/quest/skill/boss/starter/hatch companions never reach this path). '
-      + 'hr_unlock_buy reads the price AND the skill prerequisite (honeybee cooking 25, owl prayer 50) '
-      + 'off public.hr_unlock_offers and merges the one-rung `companion:<id>` ladder GREATEST — NO '
-      + 'PRICE and no skill level cross the wire. The gold debit is a PREDICTION keyed to the intent. '
-      + '── ARM-GATE LIFTED (b420). The buy is NO LONGER gated on clientMayWriteRecordField(\'gold\'); '
-      + 'it is buyable under arm, because the pet EFFECT is now SERVER-OWNED. The server owns the '
-      + 'equipped id (player_state.companion_equipped, written only by hr_companion_equip after an '
-      + 'ownership check) and PROJECTS the passive bonus (hr_perks_of → companion:{id,xp}; '
-      + 'sources.companions → derived), priced at accrual by src/core/companion-perk.js. The paired '
-      + 'client wiring landed WITH the un-gate: equipCompanion()/unequipCompanion() in '
-      + 'src/features/companions.js fire HearthriseGoalClaim.equipCompanion()/.unequipCompanion() '
-      + '(hr_companion_equip), so the server learns the equipped id and pays the passive bonus. '
-      + 'A companion pays nothing else: the client proc roll is deleted, so no companion site '
-      + 'writes gold; engine-paid procs are a LANE C follow-up.',
-  },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/screens/shop-counter.js invSellOne() — the bag\'s Sell 1',
@@ -341,15 +295,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'seam:vendor.sell_junk': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell_many',
     site: 'src/features/inv-context-menu.js settleJunk() — the sell-junk sweep',
-  },
-  'seam:claim.daily_login': {
-    kind: 'grant', status: 'wired', verb: 'claim_reward',
-    site: 'src/features/daily-reward.js claim() — the daily login reward',
-    note: 'THE double-pay surface Security flagged. The local payment is a PREDICTION; the '
-      + 'server\'s envelope is applied ABSOLUTELY and `granted` is rendered, never added. '
-      + '`s.lastClaimDay` stays a local "have I shown the sheet" cache and stops being the '
-      + 'eligibility test — eligibility is the server\'s `not_claimable`, the only answer that '
-      + 'survives a second device.',
   },
 
   // ══ THE DISPLAY-PREDICTION LAYER (b455) ═══════════════════════════════════
@@ -458,8 +403,8 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/net/client-state.js#hydrateInto': {
     kind: 'seam', status: 'none',
-    why: 'F6 — `G[f] = bagBH`, the non-object bountyHunter fallback of the blob-retire capstone '
-      + 'residue hydrate. `f` here is the fixed allowlist key `bountyHunter`, never gold/authority. '
+    why: 'F6 — `G[f] = bagAA`, the non-object autoActions fallback of the blob-retire capstone '
+      + 'residue hydrate. `f` here is the fixed allowlist key `autoActions`, never gold/authority. '
       + 'The whole hydrate iterates the RESIDUE_FIELDS ALLOWLIST (client-state.js), NEVER the bag\'s '
       + 'own key set — so a forged AUTHORITY key like `gold`/`skills` in the client-writable '
       + 'client_state bag is IGNORED and can never reach G.gold. Enforced twice: the allowlist here '
@@ -468,24 +413,12 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/net/client-state.js#hydrateInto@2': {
     kind: 'seam', status: 'none',
-    why: 'The bountyHunter merge branch — `G[f] = merged`, where `merged` is the bag\'s bountyHunter '
-      + 'with `.marks` DELETED (marks is authority, owned by the record) and G\'s record-set marks '
-      + 'preserved. `f` is the allowlist key `bountyHunter`; still allowlist-bounded, cannot write gold.',
-  },
-  'src/net/client-state.js#hydrateInto@3': {
-    kind: 'seam', status: 'none',
-    why: 'The bountyHunter branch early-returns: its `G[f] = bagBH` twin — still the fixed allowlist key '
-      + '`bountyHunter`, still allowlist-bounded, cannot write gold.',
-  },
-  'src/net/client-state.js#hydrateInto@4': {
-    kind: 'seam', status: 'none',
     why: 'The `autoActions` branch (2026-09-14) — `G[f] = mergedAA`, the bag autoActions minus its '
       + '`eat` key DELETED. That branch is the three auto-eat COLUMNS (auto_eat_enabled/pct/food), '
-      + 'which the server owns and projects, so it is stripped on the way in exactly as the bountyHunter '
-      + 'branch strips `marks`/`xp`. `f` is the allowlist key `autoActions`; it cannot write gold, and the '
+      + 'which the server owns and projects, so it is stripped on the way in. `f` is the allowlist key `autoActions`; it cannot write gold, and the '
       + 'un-projected halves (farmReplant, trainGoal) are real client-only prefs.',
   },
-  'src/net/client-state.js#hydrateInto@5': {
+  'src/net/client-state.js#hydrateInto@3': {
     kind: 'seam', status: 'none',
     why: 'The general residue branch — `G[f] = sanitizeResidueField(f, cs[f])` for `f` drawn from the '
       + 'RESIDUE_FIELDS allowlist (stats/chronicle/settings/…), never an arbitrary bag key. A forged '
@@ -568,84 +501,9 @@ export const GOLD_SITE_LEDGER = Object.freeze({
      of the claim that now runs only after the server's verdict. Same site, same
      verb, renamed with it: a census row that names a function nobody runs is
      read as coverage that does not exist. */
-  'src/features/renown.js#grantLocally': {
-    kind: 'grant', status: 'deferred',
-    /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
-       SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
-       (player_state.renown_high) so a transient low read cannot un-earn a
-       reached rank, maps the high-water to the rank via a server-owned
-       catalogue, owns the gold+gems amount, once-guards a player_progress
-       kind='flag' claim row per rank, and journals it. claimRank fires
-       HearthriseGoalClaim.claimRank(id); the local gold/gems write is a GATED
-       prediction the envelope reconciles.
-
-       R1/R5 (two-phase commit, the b494 fix): under the arm the DISPLAY write —
-       and, decisively, the `G.renown.claimed` mark — happen ONLY AFTER
-       hr_claim_rank returns ok. The claim used to be fire-and-forget with an
-       UNCONDITIONAL claimed-push, and `G.renown` is residue, so a `not_reached`
-       refusal marked a reached rank claimed forever: a permanent, silent loss of
-       up to 1,000,000 gold + 500 gems. A refusal now writes nothing, keeps the
-       rank claimable, and answers in a sentence. requestRecord() refreshes the
-       balance after an ok credit (the bug_reports #46 class). */
-    flipGuard: { serverCredits: 'hr_claim_rank (2026-08-22-renown-claim.sql) reads hr_renown_of, '
-      + 'ratchets player_state.renown_high, maps it to the rank via a server-owned catalogue, owns '
-      + 'the fixed gold+gems amount, once-guards a player_progress kind=flag renown_claim row per '
-      + 'rank, journals player_ledger kind=renown.' },
-    blockedBy: 'nothing for the VALUE — hr_claim_rank credits gold+gems server-side (see flipGuard). '
-      + 'This stays deferred (not wired) only because the local write is a DIRECT display write gated '
-      + 'on clientMayWriteRecordField, not yet a HearthriseGold.settle prediction the envelope '
-      + 'reconciles by key — the same follow-up as muster/raid.',
-    site: 'the renown rank-up payout',
-  },
   /* 'src/legacy.js#grant' — the IAP gold-grant branch — was DELETED in b507
      (the store sells no gold; `IAP.grant()` no longer has a `p.gold` arm).
      The census must not describe a site nobody runs, so the row is gone with it. */
-  'src/legacy.js#finalizeBounty': {
-    kind: 'grant', status: 'deferred',
-    /* SERVER-CREDITED for CULL bounties (2026-08-23-bounty.sql). hr_accept_bounty
-       snapshots the target's kill count as a baseline and owns the tier+reward;
-       hr_claim_bounty verifies (kills-since-accept >= required) from the server's own
-       ev:kill_monster:<id> counter and credits server-owned gold + the new
-       player_state.marks (Bounty Marks) once-guarded by the active_bounty row,
-       journalled kind='bounty'.
-
-       R1/R5 (two-phase commit): the gold/marks DISPLAY write lives in
-       finalizeBounty, which for a CULL turn-in in LIVE play runs ONLY AFTER
-       hr_claim_bounty confirms (completeBounty holds in a "Confirming…" state and
-       fires the server intent first — see the completeBounty header). The AWAY
-       replay and the DORMANT path call finalizeBounty synchronously. The local
-       gold/marks write is a GATED display prediction; proof/weapon/streak keep the
-       clientMayWriteRecordField defer (NOT server-verifiable). */
-    flipGuard: { serverCredits: 'hr_claim_bounty (2026-08-23-bounty.sql) verifies kills-since-accept '
-      + 'from ev:kill_monster:<id> against the hr_accept_bounty baseline, owns tier+reward, credits '
-      + 'server-owned gold + player_state.marks once-guarded by active_bounty, journals '
-      + 'player_ledger kind=bounty. CULL only; proof/weapon/streak stay clientMayWriteRecordField-gated.' },
-    blockedBy: 'nothing for CULL — hr_claim_bounty credits gold+marks server-side. This stays deferred '
-      + '(not wired) because (a) the local gold/marks write is a DIRECT display write gated on '
-      + 'clientMayWriteRecordField, not yet a HearthriseGold.settle prediction reconciled by key '
-      + '(same follow-up as muster/raid), (b) MARKS have no record-field arm yet, so client marks are '
-      + 'display-only until a marks envelope key lands, and (c) proof/weapon/streak are not server-'
-      + 'verifiable (loot-consume ruling / weapon-at-kill / death-streak are unmodelled).',
-    site: 'the bounty turn-in payout (cull server-credited; other types client-deferred)',
-  },
-  'src/legacy.js#updateDaily': {
-    kind: 'grant', status: 'deferred',
-    /* SERVER-CREDITED (2026-08-20-goal-reward-rpc-credit.sql). hr_claim_daily
-       VERIFIES the fixed daily task from the server's own kind='daily'
-       ev:<type> counter for TODAY's UTC day, derives the offered SET server-side
-       (hr_daily_task_set, keyed on the UTC day key — the client seeds the same
-       string now), credits the server-owned gold into player_state once-guarded
-       per (day, task) and journals it (kind='daily'). updateDaily fires
-       HearthriseGoalClaim.claimDaily(t.id); the local G.gold write is a GATED
-       prediction the envelope reconciles. All eight tasks are fixed rows
-       (daily_harvest since 2026-10-16-daily-harvest-credit.sql). */
-    flipGuard: { serverCredits: 'hr_claim_daily (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
-      + 'kind=daily ev:<type> counter for the UTC day, owns the fixed gold amount, once-guards a '
-      + 'player_progress kind=daily claim row per (day, task), journals player_ledger kind=daily. '
-      + 'daily_harvest is a fixed row since 2026-10-16-daily-harvest-credit.sql.' },
-    blockedBy: 'nothing — hr_claim_daily credits all eight tasks.',
-    site: 'the daily-task payout',
-  },
   'src/legacy.js#completeQuest': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED (2026-08-20-goal-reward-rpc-credit.sql). hr_claim_quest
@@ -669,11 +527,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ SPENDS WITH NO VERB YET ═══════════════════════════════════════════════
-  'src/dungeon-scavenger.js#startScavengerRun': {
-    kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY,
-  },
-  'src/dungeons.js#runDungeon': { kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY },
-  'src/dungeons.js#startManualRun': { kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY },
   /* upgradeProperty is now `seam:homestead.upgrade` (wired, unlock_buy) — it no
      longer writes `.gold` raw, so the scanner reports it under the seam id. */
   /* hire() is now `seam:workers.hire` (wired, unlock_buy — slice 2). */
@@ -705,28 +558,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
     site: 'the NON-farm plot buildings (scarecrow) — farm_plot itself is now seam:farm.build_plot',
   },
-  /* buyTheme no longer writes gold at all — themes are gems-only and the free
-     default is a free equip (slice 6). The old deferred gold row is retired. */
-  /* b46x — THE MARKS HALF IS NOW SERVER-OWNED. hr_trait_buy
-     (supabase/migrations/2026-08-23-trait-buy.sql) debits the server-owned
-     balance from its own catalogue and writes the kind='flag' trait:<id>
-     ownership row; legacy.js buyTrait() routes there whenever
-     clientMayWriteRecordField(<currency>) is false, and the local debit below
-     runs ONLY pre-arm. The row stays `deferred` because the GOLD arm has no
-     content yet — every authored trait is priced in Marks — so this site's
-     `.gold` write is unreachable today and untested by a real purchase. It is
-     gated either way, which is what the flipGuard states. */
-  'src/legacy.js#buyTrait': {
-    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
-    site: 'src/legacy.js buyTrait() — the local debit is the PRE-ARM path only; under arm the '
-      + 'purchase is hr_trait_buy (marks and gold alike), which takes the price from '
-      + 'public.hr_traits and never from this client.',
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-  },
-  /* _buyCompanion is now `seam:companion.buy` (wired, unlock_buy — slice 4); it no
-     longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
-     the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row
-     above. Companion procs no longer exist on the client. */
+
   /* 2026-09-14: the vendor counter moved out of the monolith into the shop
      screen controller (task #129). The row follows the code — the census fails
      BOTH ways on a stale path (undeclared site here, missing site there), which
@@ -736,53 +568,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ TRANSFERS — value crossing to another player ══════════════════════════
-  'src/features/clans.js#contribute': {
-    kind: 'transfer', status: 'deferred', blockedBy: B.CLAN_DEPOSIT_GOLD,
-    /* Finding #1's site. TWO gates, and the declared one is now the RECORD seam:
-       CLAN_LAUNCHED (b378) is a PRODUCT switch — "is this feature shipped" — and
-       a product switch can be flipped by a designer for a reason that has nothing
-       to do with gold authority, at which point the census's promise evaporates.
-       b511 added `clientMayWriteRecordField('gold')` ahead of the fetch, so the
-       debit AND the treasury-minting RPC are both refused while gold is
-       server-of-record, whatever CLAN_LAUNCHED says. */
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-  },
-  'src/features/muster.js#payChest': {
-    kind: 'transfer', status: 'deferred',
-    /* SERVER-CREDITED (2026-08-19-muster-raid-rpc-credit.sql). world_event_claim
-       now credits v_gold/v_gems INTO player_state, atomically with consuming the
-       once-per-day claim, and journals one player_ledger row. muster.js passes
-       p_slot; the b411 entry-point defer is removed. payChest's local gold/gems
-       write is now a DISPLAY prediction the server envelope reconciles (pre-arm it
-       still credits locally; post-arm it no-ops via clientMayWriteRecordField and
-       the server value arrives on the next envelope) — not a second record. */
-    flipGuard: { serverCredits: 'world_event_claim (2026-08-19-muster-raid-rpc-credit.sql) '
-      + 'credits gold+gems into player_state after the claim-consuming conditional update, '
-      + 'once-per-day guard covers the credit, journalled to player_ledger kind=rally' },
-    blockedBy: 'nothing for the VALUE — world_event_claim credits it server-side (see flipGuard). '
-      + 'What keeps this row deferred rather than wired is that payChest\'s local gold/gems write is '
-      + 'a DIRECT display write gated on clientMayWriteRecordField, not yet a HearthriseGold.settle '
-      + 'prediction the envelope reconciles by key. Folding it onto the settle seam (or dropping the '
-      + 'local write and rendering the returned amount) is the follow-up that makes it wired.',
-  },
-  'src/features/raids.js#grantReward': {
-    kind: 'transfer', status: 'deferred',
-    /* SERVER-CREDITED (2026-08-19-muster-raid-rpc-credit.sql). raid_claim now
-       credits the chest gold/gems INTO player_state, atomically with consuming the
-       once-per-week claim (clan: hr_hunt_tiers.chest_gold/gems × server v_scale;
-       solo: the flat 2,800/5 × 0.4 constant pinned server-side), and journals one
-       player_ledger row (kind=raid). raids.js passes p_slot through the single
-       serverClaim() choke; the b411 entry-point defer is removed. grantReward's
-       local gold/gems write is now a DISPLAY prediction reconciled by the server
-       envelope, not a second record. */
-    flipGuard: { serverCredits: 'raid_claim (2026-08-19-muster-raid-rpc-credit.sql) credits '
-      + 'gold+gems into player_state after the raid_claims on-conflict-do-nothing guard, '
-      + 'once-per-week PK covers the credit, journalled to player_ledger kind=raid' },
-    blockedBy: 'nothing for the VALUE — raid_claim credits it server-side (see flipGuard). This row '
-      + 'stays deferred (not wired) only because grantReward\'s local gold/gems write is a DIRECT '
-      + 'display write gated on clientMayWriteRecordField, not yet a HearthriseGold.settle prediction '
-      + 'the envelope reconciles by key. Same follow-up as muster payChest.',
-  },
   /* ── THE MARKET (b355). The first value that crosses to another player. ───
      `seam:market.buy` and `seam:market.buy_aggregated` are one gesture each and
      both are `market_buy`: a sweep across five sellers is FIVE transfers to five
@@ -844,10 +629,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ NOT BALANCES AT ALL ═══════════════════════════════════════════════════
-  'src/features/daily-reward.js#rewardFor': {
-    kind: 'false-positive', status: 'none',
-    why: '`out.gold = p.gold` builds the reward DESCRIPTION handed to the renderer. No balance moves.',
-  },
   'src/net/sync.js#readRealmProjection': {
     kind: 'false-positive', status: 'none',
     why: '`out.gold = …` copies the figure OFF the hr_load envelope into the cloud-save '

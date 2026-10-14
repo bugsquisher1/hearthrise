@@ -779,8 +779,12 @@ function simulateHuntSpan(state, ctx) {
     events.push({ type: 'ended', atMs: hs.nextSwingAtMs, reason: why });
   }
   if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
-  state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;
-  hs.down = downed;
+  /* An ENDED hunt leaves no knockout behind: the character walks home (a flat
+     minute is shorter than any walk back plus a new hunt's walk out), and the
+     line is the same however the windows were cut — a span that ran past the
+     line would otherwise clear it while a window cut inside it kept it. */
+  state.recoveringUntilMs = (!hs.endedReason && recoverUntilMs > toMs) ? recoverUntilMs : 0;
+  hs.down = hs.endedReason ? false : downed;
   delete hs._events;
   return {
     kills, foodEaten, crits, ticks, deaths, recoverMs,

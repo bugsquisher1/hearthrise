@@ -495,7 +495,7 @@ async function q(db, sql, params) { return (await db.query(sql, params)).rows; }
 async function one(db, sql, params) { const r = await q(db, sql, params); return r[0] ? Object.values(r[0])[0] : undefined; }
 const makeExec = (db) => async (text, params) => {
   await db.exec('set role hr_engine');
-  try { return (await db.query(text, params)).rows; } catch (e) { if (process.env.HSS_DEBUG) console.log('DEBUG exec err', e.code, String(e.message).slice(0, 300), String(text).slice(0, 120)); throw e; } finally { await db.exec('reset role'); }
+  try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
 };
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
 const idem = () => crypto.randomUUID();
@@ -582,7 +582,6 @@ async function settleTo(db, M, toMs, o = {}) {
   if (o.tamper) o.tamper(out);
   const res = await M.HS.commitHuntSettle(exec, { user: UID, slot: 0, sessionId: String(h.id), version: env.version,
     intentId: idem(), out, press, project: false });
-  if (res && res.stage === 'raise') console.log('DEBUG RAISE', JSON.stringify(res).slice(0, 600), JSON.stringify(out.hunt).slice(0, 600));
   if (o.tamper) return { res, out };
   if (!res || res.ok !== true) throw new Error(`settle to ${new Date(toMs).toISOString()} refused: ${JSON.stringify(res).slice(0, 400)}`);
   return { res, out };
@@ -799,12 +798,9 @@ const DB_ARMS = {
        then the shop's), and the gold moved is exactly coins − Waste. */
     const price = Number(await one(db, `select price from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp'`));
     const BUYER = { ...WEAK, slots: SHOP_BAR, gold: 25 * price };
-    console.log('DEBUG g0');
     const g0 = await inTx(db, async () => { await hunter(db, M, BUYER); return Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])); });
     if (!(price > 0)) problems.push('CONTROL: the shop catalogue has no salted_shrimp');
-    console.log('DEBUG compare');
     const r = await compareRuns(db, M, BUYER, ticksOf(90000, SPAN_MS), odd);
-    console.log('DEBUG compared');
     const a = canon(r.a); const b = canon(r.b);
     if (a !== b) problems.push(`NPC buys settled at a client's instants wrote different rows than on the tick ${firstDiff(a, b)}`);
     const t = r.a.tally || {};
@@ -832,7 +828,7 @@ const DB_ARMS = {
       if (!s.session || s.session.end_reason !== 'gold_out') problems.push(`a proved gold_out left the hunt '${s.session && s.session.end_reason}'`);
     });
     /* (3) FORGERIES: loot never looted, an item that is no cover item, loot sold
-       for no purchase, a drink bought before mana, a knockout that is not flat. */
+       for no purchase, a drink bought before mana, a shop use the bar does not name. */
     await inTx(db, async () => {
       const { from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR, gold: 25 * price });
       const before = await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]);
@@ -844,10 +840,7 @@ const DB_ARMS = {
         ['a shop use the bar does not name', (o) => { o.hunt.buys = { plain_steel_arrows: 1 }; }, 'not_on_bar'],
       ];
       for (const [label, tamper, want] of cases) {
-        let forced = false;
-        let x; try { x = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => { tamper(o); forced = o.forced === true; } }); } catch (e) { console.log('DEBUG', label, String(e.message).slice(0, 300)); throw e; }
-        console.log('DEBUG', label, JSON.stringify(x.res).slice(0, 300));
-        if (forced) { problems.push(`CONTROL: ${label}: the window had no fall to tamper`); continue; }
+        const x = await settleTo(db, M, from + SPAN_MS, { tamper });
         if (!x.res || x.res.error !== want) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${want}`);
         const now = await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]);
         if (Number(now) !== Number(before)) problems.push(`${label} moved gold ${before} -> ${now}`);

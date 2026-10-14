@@ -74,10 +74,15 @@ import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CAL
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
 import { engineInputsFromEnvelope } from './envelope.js';
+/* THE "WHILE YOU WERE AWAY" RECEIPT — KEPT FOR GATHERING AND THE BENCHES
+   (swap then delete, designer loop check 2026-10-14): they still return through
+   it until lane G gives them sessions. A combat settle never writes one (the
+   builder refuses it): a fight is a hunt session, and the hunt's timeline is
+   its record. */
+import { withAwayReceipt, receiptRescue } from './away-receipt.js';
 /* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). The two hunt verbs, and the
    cheap "is a hunt open?" read the accrue path makes so the old combat pricing
-   never runs for a hunter. The stored away receipt (away-receipt.js,
-   `last_away_receipt`) is GONE with the away model it described (ruling §3). */
+   never runs for a hunter. */
 import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
 /* THE COMPANION-XP ARM SWITCH — ARMED (b550). Threaded into computeAccrual's
    input as `companionXpBacked` (A14-mirrored in set-activity.js). TRUE → the
@@ -1428,11 +1433,61 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    /* The stored away receipt (`last_away_receipt`, its F2 rescue retry) is
-       gone with the away model (ruling HR-2026-10-14 §3), so the single writer
-       is the statement itself. */
-    const apply = applyOnce;
-    let res = await apply(mergeAux(out.delta), 0);
+    /* ── THE CARD IS NEVER WORTH THE NIGHT (F2, security 2026-09-07) ─────────
+       `bad_receipt` is deliberately NOT in DEGRADABLE and that is right —
+       shortening a span cannot repair a malformed object. But it left the whole
+       absence hostage to the card: hr_apply refuses the DELTA, not the key, and
+       `bad_receipt` is not a clamp, so the degrade ladder is never entered. One
+       receipt the database disagrees with — a builder field `c_receipt_keys` has
+       not learnt yet, a bound the two sides read differently, an `at` outside the
+       clock slack — would 409 EVERY away settle for EVERY player until a
+       redeploy, watermark frozen and night unpaid, over a Home card.
+
+       So a refusal of the receipt now costs the RECEIPT and nothing else: the
+       single writer retries the SAME delta once with the key DELETED. Placed
+       here rather than at the two call sites because this is the one function
+       that talks to hr_apply — a future apply site inherits the rescue instead
+       of re-learning this lesson.
+
+       ⚠ The retry carries its own `attempt` number, so `intentIdFor` derives a
+         DIFFERENT key: this is a fresh apply, never a replay of the rejected
+         one. `RECEIPT_RETRY_BASE` is past both the degrade rungs (1..MAX_DEGRADE)
+         and the forfeit (MAX_DEGRADE + 1), so no two paths can collide on a key.
+       ⚠ Retried ONCE, and only when the delta ACTUALLY CARRIED a receipt. A
+         `bad_receipt` on a delta with no receipt in it is a different defect and
+         must not be masked by a retry that changes nothing.
+       ⚠ hr_apply has already journalled the refusal (hr_record_rejection) and
+         `receiptRejected` puts it on the response, so "the card is missing" and
+         "the engine and the database disagree about the receipt shape" are never
+         the same observation from outside. Pay the player, then tell them. */
+    const RECEIPT_RETRY_BASE = MAX_DEGRADE + 2;
+    let receiptRejected: string | null = null;
+    const apply = async (delta: unknown, attempt: number) => {
+      const r = await applyOnce(delta, attempt);
+      const rescued = receiptRescue(r, delta);
+      if (!rescued) return r;
+      receiptRejected = String((r as Row).why ?? 'refused');
+      console.warn('[hr-accrue] hr_apply refused the away receipt (' + receiptRejected
+        + ') — retrying the same delta WITHOUT it so the night is still paid');
+      return await applyOnce(rescued, RECEIPT_RETRY_BASE + attempt);
+    };
+
+    /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ──────────────
+       A receipt the server PAID is progression, not preference. Built by
+       ./away-receipt.js — plain ESM so tests/away-receipt-journal.mjs grades THE
+       SHIPPED FUNCTION rather than a transcription of it, which is the only way
+       a guard on a Deno TypeScript shell can bite.
+
+       ⚠ RECOMPUTED ON EVERY DEGRADE ATTEMPT, never computed once. The clamp
+         ladder HALVES the span, and a halved span can fall under SYNC_MAX_MS —
+         at which point hr_apply would answer `bad_receipt` and 409 the WHOLE
+         absence over a card. Recomputed, the receipt is simply the first thing
+         dropped: pay the player, then tell them, in that order.
+
+       ⚠ Composed OUTSIDE mergeAux deliberately. mergeAux is the crew + rested
+         bank and also rides the POINTER-IDLE settle above, which has no span and
+         must never carry a receipt. */
+    let res = await apply(withAwayReceipt(mergeAux(out.delta), out), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1461,7 +1516,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(mergeAux(out.delta), attempt);
+      res = await apply(withAwayReceipt(mergeAux(out.delta), out), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {
@@ -1556,6 +1611,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            nothing because nothing is unlocked" from "deployed against a
            database with no perk channel" from the outside. */
         perkChannel,
+        /* ── DID THE STORED RECEIPT LAND? (F2) ───────────────────────────────
+           OMITTED ENTIRELY on the ordinary path, present with hr_apply's own
+           `why` when the receipt was REFUSED and the delta was re-applied
+           without it. It is a deployment fact of the same family as
+           `perkChannel` / `attendedChannel` and it names no number: without it,
+           "this night was paid but the Home card is empty after a reload" and
+           "the engine and the database disagree about the receipt shape" are
+           the same observation from outside, which is exactly how a
+           disagreement about a jsonb key would survive a verification pass. */
+        ...(receiptRejected ? { receiptRefused: receiptRejected } : {}),
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

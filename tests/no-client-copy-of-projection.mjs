@@ -148,9 +148,12 @@ const STATE = {
   deaths_today:          { kind: 'reconciled', client: ['deathsToday'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the Recovery Rule counter' },
   deaths_lifetime:       { kind: 'reconciled', client: ['deathsLifetime'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the durable death counter (a death is never a free heal)' },
   recovering_until:      { kind: 'reconciled', client: ['recoveringUntil'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the recovery clock is the server\'s' },
-  /* last_away_receipt and the four auto_eat_* keys left the projection in lane C2
-     (2026-10-22-hunt-sessions-away-readers.sql; ruling HR-2026-10-14 §3: the away
-     receipt and Auto-Eat are retired). Their client halves are lane R1's to delete. */
+  /* The four auto_eat_* keys left the projection in lane C2
+     (2026-10-22-hunt-sessions-away-readers.sql; ruling HR-2026-10-14 §3: Auto-Eat
+     became the hunt's action bar). Their client half is lane R1's to delete.
+     last_away_receipt STAYS until lane G (swap then delete): gathering and the
+     benches still return through the "while you were away" card. */
+  last_away_receipt:     { kind: 'reconciled', client: ['_awayReceipt'], reader: ['src/net/accrue.js', 'reconcileAwayReceipt'], why: 'the night the server kept (gathering / benches; combat writes none since lane C2)' },
   combat_style:          { kind: 'reconciled', client: ['combatStyle'], reader: ['src/net/accrue.js', 'reconcileCombatStyle'], why: 'server-wins per family, with the in-flight pick held in `_pendingStyle` scratch. Off RESIDUE_FIELDS since 2026-09-14 — the map is rebuilt from the envelope, never persisted' },
   tool_carry:            { kind: 'reconciled', client: ['toolCarry'], reader: ['src/net/accrue.js', 'reconcileToolCarry'], why: 'the fractional gather carry is the server\'s: the engine advances player_state.tool_carry through the same core advanceToolCarry the attended tick uses, and reconcileToolCarry replaces the prediction on every envelope (client half landed 2026-09-14, closing the OWED)' },
   streak_days:           { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'THE PLAY STREAK. The client counter is DELETED (2026-09-14): streak-chip.js advances nothing, `streak` is off RESIDUE_FIELDS, and playStreakDays() answers 0 until the realm speaks' },

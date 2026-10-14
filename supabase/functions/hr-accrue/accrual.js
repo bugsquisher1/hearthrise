@@ -1882,11 +1882,10 @@ function accrueCombat(inp, span, hunt) {
         : vigourBudgetMin({ offlineCapMs: vigIn.offline_cap_ms, refills: vigIn.refills }))
     : null;
   const vigSpentMin = vigIn ? nat(vigIn.spent_min, 0) : 0;
-  /* A HUNT ENDS AT VIGOUR 0 (ruling §2 end order 4); the 0.25x tail is gone.
-     The minutes left, from the server's own budget read, are the session's
-     clock: the span charges one interval per boundary and ends the hunt the
-     boundary they run out. `null` (no Vigour read) never ends a hunt. */
-  if (hs0) hs0.vigourLeftMs = vigBudgetMin === null ? null : Math.max(0, vigBudgetMin - vigSpentMin) * 60000;
+  /* A HUNT IS NOT BOUNDED BY VIGOUR (designer ruling, 2026-10-14 loop check:
+     "no cap on combat"). The session neither ends at Vigour 0 nor pays the
+     0.25x tail (`vigSplit` below is null for a session); it only CHARGES the
+     swing clock it walked to the meter (see the progress rows further down). */
 
   /* ── THE RECOVERY CLOCK, SEEDED FROM THE ROW (First-Night Idle Rescue) ────
      `player_state.recovering_until` is an ABSOLUTE server timestamp and the
@@ -2387,6 +2386,12 @@ function accrueCombat(inp, span, hunt) {
 
   // ── (5) Run the SHARED span. ─────────────────────────────────────────────
   const summary = simulateSpan(state, ctx);
+  /* NO BLESSING ON A FIGHT (Tyler 2026-10-14: the daily blessings are removed
+     for now). This engine applies no blessing or world-blessing multiplier to
+     any combat window — hunt or pointer, watched or not — and with `ctx.away`
+     gone `channelApplies(BLESSING)` would read true and the receipt would
+     claim one. It states what was paid: none. */
+  summary.blessed = false;
 
   // ── (6) Turn the mutated state into a delta hr_apply will accept. ────────
   // Every value below is an INTEGER. hr_apply casts with `::bigint`, and a
@@ -2442,10 +2447,14 @@ function accrueCombat(inp, span, hunt) {
      Grouped by skill rather than interleaved by tick; nothing reads the ordering.
      (Named without call syntax on purpose: the quest-modal BIND guard counts
      literal `modalGoalOps` call sites in this file and expects exactly three.) */
+  /* A hunt's falls DEBIT xp the proposal does not net (hr_hunt_apply journals
+     the loss on its own row), so the level a crossing reaches is the banked
+     total AFTER that debit — never a level the fall took back. */
+  const xpLostOf = (hs0 && summary.xpLost) ? summary.xpLost : {};
   for (const k in xpDelta) {
     const before = nat(skills0[k], 0);
     const from = levelFromXp(before);
-    const to = levelFromXp(before + xpDelta[k]);
+    const to = levelFromXp(before + xpDelta[k] - (Number(xpLostOf[k]) || 0));
     for (let lv = from; lv < to; lv++) levelUps.push({ skill: k, from: lv, to: lv + 1 });
   }
 
@@ -3168,6 +3177,14 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     raw_xp: rawXp,
     hints,
     ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs) } : null,
+    /* THE PRICE OF EACH FALL (Tyler 2026-10-14), one `{skill: xp}` per death
+       row this window proposes, in the same order and the same slice as
+       `delta.deaths` — hr_hunt_apply takes it off the proposal before
+       hr_hunt_settle_session sees it, re-checks every number against
+       player_skills and hr_hunt_limit('death_xp_permille'), debits, journals
+       one `death_xp` row and states it on each `fall` event. */
+    death_xp: ((summary && Array.isArray(summary.deathLog)) ? summary.deathLog : [])
+      .slice(0, MAX_DEATH_ROWS).map((d) => Object.assign({}, (d && d.xpLost) || {})),
   };
 }
 

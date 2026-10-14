@@ -1,24 +1,25 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Hearthrise — HUNT SESSIONS: THE AWAY OBJECTS LOSE THEIR LAST READERS
+-- Hearthrise — HUNT SESSIONS: AUTO-EAT AND THE COMBAT CREDIT LOSE THEIR READERS
 -- (lane C2, ruling HR-2026-10-14 §3 "Delete").
 -- STAGED, NOT APPLIED — REVIEW ONLY. Lane C: Security GO, then the Coordinator
 -- applies (tools/apply-migration.mjs, one file). Applies AFTER
 -- 2026-10-22-hunt-sessions-settle.sql and IMMEDIATELY BEFORE
 -- 2026-10-22-hunt-sessions-drop-away.sql (C1), whose §1 refuses while any
 -- function body still names an object it drops. CLIENT HALF: lane R1 (the
--- Auto-Eat UI and the "while you were away" card stop reading the projection
--- keys this file removes) ships with or before this apply.
+-- Auto-Eat UI stops reading the projection keys this file removes) ships with
+-- or before this apply.
+--
+-- ⚠ SWAP THEN DELETE (designer loop check, 2026-10-14): GATHERING AND THE
+--   BENCHES STILL WRITE AND READ THE "WHILE YOU WERE AWAY" RECEIPT until lane G
+--   gives them sessions. `last_away_receipt` (the hr_apply key, its (4a-r)
+--   validation, its SET write, the hr_state_of projection) and the edge's
+--   away-receipt.js STAY. Only the COMBAT edge stopped sending one: a fight is
+--   a hunt session, whose own timeline and Analyzer are its record.
 --
 -- ── WHAT IT REMOVES, AND FROM WHERE ─────────────────────────────────────────
---   hr_apply        · `last_away_receipt` from the delta-key allowlist (a delta
---                     carrying it is now refused unknown_delta_key — the edge
---                     stopped sending it with lane C2, away-receipt.js deleted)
---                   · the (4a-r) receipt validation block
---                   · the `last_away_receipt = …` write in the SET clause
---                   · the death row's `auto_eat_enabled` meta key (Auto-Eat
+--   hr_apply        · the death row's `auto_eat_enabled` meta key (Auto-Eat
 --                     became the hunt's action bar; the edge stopped sending it)
 --   hr_state_of     · state.auto_eat_enabled / _food / _pct / auto_eat_touched
---                   · state.last_away_receipt
 --   hr_create_character · the bootstrap's Auto-Eat switch-on (the columns go)
 --   hr_trait_buy__ungated · §(10)'s call to hr_set_auto_eat (it is dropped);
 --                     the answer's `auto_eat` key is null from here on
@@ -27,14 +28,14 @@
 -- Nothing else in any body moves.
 --
 -- RESTATEMENT-DEBT-ACK: hr_apply is a 176 KB body already several anchored
---   patches past its 2026-09-14 restatement; these are four DELETIONS of an
---   away feature the ruling retires (no new logic is added to the chain), each
---   anchored exactly once and proven by §5's execution and by the drop file's
---   own reader scan. Restating 176 KB to delete forty lines is the riskier
+--   patches past its 2026-09-14 restatement; this is one DELETION of a
+--   feature the ruling retires (no new logic is added to the chain), anchored
+--   exactly once and proven by §5's execution and by the drop file's
+--   own reader scan. Restating 176 KB to delete one line is the riskier
 --   change; the restatement belongs to the slice-7 queue, not to this lane.
 --
 -- ── MONEY ───────────────────────────────────────────────────────────────────
---   None. Every removed line DESCRIBED value (a receipt, a setting, a meta
+--   None. Every removed line DESCRIBED value (a setting, a meta
 --   key); no clamp, balance or conservation term is touched. §5 asserts a
 --   gold + item + death apply still lands and journals.
 --
@@ -58,52 +59,18 @@ end $mig$;
 -- ── §1 hr_apply ────────────────────────────────────────────────────────────
 do $mig$
 declare
-  v_def text; v_n int; v_i int; v_j int;
-  c_key  constant text := $a$    -- 2026-09-07 ruling: THE LAST AWAY-CLASSIFIED RECEIPT. An ABSOLUTE jsonb
-    -- object, or an explicit null VOID. ENGINE OUTPUT, never client input:
-    -- validated at (4a-r) below against the LOCKED row and the server clock,
-    -- and written in the SET clause. It moves NO VALUE - it DESCRIBES the value
-    -- the rest of this same delta moved - so it enters no conservation sum.
-    'last_away_receipt',
-$a$;
-  c_blk0 constant text := $a$    --    introduced by 2026-09-07-last-away-receipt.sql
-    -- (4a-r) THE LAST AWAY-CLASSIFIED RECEIPT (2026-09-07 ruling).$a$;
-  c_blk1 constant text := $a$    --    introduced by 2026-09-07-retreat.sql
-    -- (4a-c) THE RETREAT COUNTER (Recovery rev. 3).$a$;
-  c_set  constant text := $a$           -- The last away-classified receipt (2026-09-07 ruling). An ABSOLUTE,
-           -- validated at (4a-r). Absent key = untouched; present = set,
-           -- INCLUDING to null. NOT voided by an activity switch: the night
-           -- already happened and a pointer change does not un-happen it.
-           last_away_receipt = case when p_delta ? 'last_away_receipt'
-                                    then v_receipt else last_away_receipt end,
-$a$;
+  v_def text; v_n int;
   c_death constant text := $a$             'auto_eat_enabled', coalesce((v_death->>'auto_eat_enabled')::boolean, false),
 $a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_blk0) = 0 and strpos(v_def, c_key) = 0 and strpos(v_def, c_set) = 0 and strpos(v_def, c_death) = 0 then
-    raise notice 'hr_apply already carries no away receipt / Auto-Eat death key — edit skipped'; return;
+  v_n := (length(v_def) - length(replace(v_def, c_death, ''))) / length(c_death);
+  if v_n = 0 then raise notice 'hr_apply already journals no Auto-Eat death key — edit skipped'; return; end if;
+  if v_n <> 1 then
+    raise exception 'hr_apply: the Auto-Eat death-key anchor matched % times (need exactly 1) — the body moved; re-derive it', v_n;
   end if;
-  foreach v_n in array array[
-      (length(v_def) - length(replace(v_def, c_key, ''))) / length(c_key),
-      (length(v_def) - length(replace(v_def, c_blk0, ''))) / length(c_blk0),
-      (length(v_def) - length(replace(v_def, c_blk1, ''))) / length(c_blk1),
-      (length(v_def) - length(replace(v_def, c_set, ''))) / length(c_set),
-      (length(v_def) - length(replace(v_def, c_death, ''))) / length(c_death)] loop
-    if v_n <> 1 then
-      raise exception 'hr_apply: an away-receipt / Auto-Eat anchor matched % times (need exactly 1) — the body moved; re-derive the anchors', v_n;
-    end if;
-  end loop;
-  v_def := replace(v_def, c_key, '');
-  v_def := replace(v_def, c_set, '');
-  v_def := replace(v_def, c_death, '');
-  -- THE (4a-r) BLOCK: everything from its banner up to the next section's.
-  v_i := strpos(v_def, c_blk0);
-  v_j := strpos(v_def, c_blk1);
-  if v_i = 0 or v_j <= v_i then raise exception 'hr_apply: the (4a-r) block is not followed by (4a-c)'; end if;
-  v_def := left(v_def, v_i - 1) || substr(v_def, v_j);
-  execute v_def;
-  raise notice 'hr_apply: last_away_receipt (key, validation, write) and the death row''s auto_eat_enabled removed';
+  execute replace(v_def, c_death, '');
+  raise notice 'hr_apply: the death row''s auto_eat_enabled removed (the away receipt stays for gathering)';
 end $mig$;
 revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from public;
 revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from anon, authenticated, service_role;
@@ -120,14 +87,12 @@ $a$,
 $a$,
     $a$      'auto_eat_pct', v_st.auto_eat_pct,
 $a$,
-    $a$      'last_away_receipt', v_st.last_away_receipt,
-$a$,
     $a$      'auto_eat_touched', (v_st.auto_eat_set_at is not null),
 $a$];
 begin
   v_def := replace(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure), chr(13), '');
   if not exists (select 1 from unnest(c_lines) x where strpos(v_def, x) > 0) then
-    raise notice 'hr_state_of already projects no Auto-Eat / away-receipt key — edit skipped'; return;
+    raise notice 'hr_state_of already projects no Auto-Eat key — edit skipped'; return;
   end if;
   foreach a in array c_lines loop
     v_n := (length(v_def) - length(replace(v_def, a, ''))) / length(a);
@@ -187,12 +152,13 @@ declare
   v_readers text;
   v_h   jsonb;
 begin
-  -- (a) NO BODY STILL NAMES A DROPPED AWAY OBJECT (the drop file's own scan,
-  --     minus hr_offline_cap_ms, which gather keeps until lane G).
+  -- (a) NO BODY STILL NAMES A DROPPED OBJECT (the drop file's own scan: the
+  --     away receipt and hr_offline_cap_ms are NOT on it — gather keeps both
+  --     until lane G).
   select string_agg(distinct p.oid::regprocedure::text || ' -> ' || o.obj, '; ')
     into v_readers
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
-         unnest(array['last_away_receipt', 'auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at',
+         unnest(array['auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at',
                       'hr_credit_kills', 'hr_set_auto_eat', 'hr_attended_kills']) o(obj)
    where n.nspname = 'public'
      and p.proname not in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated', 'hr_attended_kills',
@@ -206,22 +172,21 @@ begin
     v_r := public.hr_create_character(0);
     if v_r->>'created' <> 'true' then raise exception 'GATE(b): no probe character: %', v_r; end if;
     perform set_config('request.jwt.claim.sub', '', true);
-    -- (b) THE ENVELOPE no longer carries the keys.
+    -- (b) THE ENVELOPE no longer carries the Auto-Eat keys — and STILL carries
+    --     the away receipt gathering reads (swap then delete, lane G).
     v_r := public.hr_state_of(v_uid, 0);
-    if (v_r->'state') ?| array['auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_touched', 'last_away_receipt'] then
-      raise exception 'GATE(b): hr_state_of still projects an Auto-Eat / away-receipt key'; end if;
-    -- (c) A RECEIPT DELTA IS REFUSED BY NAME; a gold + item + death apply still lands.
+    if (v_r->'state') ?| array['auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_touched'] then
+      raise exception 'GATE(b): hr_state_of still projects an Auto-Eat key'; end if;
+    if not ((v_r->'state') ? 'last_away_receipt') then
+      raise exception 'GATE(b): hr_state_of lost last_away_receipt — gathering''s "while you were away" card reads it'; end if;
+    -- (c) a gold + item + death apply still lands, its death row carries no
+    --     Auto-Eat key, and the receipt key is STILL ON THE ALLOWLIST (an
+    --     explicit void is accepted, not refused unknown_delta_key).
     select version into v_v from public.player_state where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_apply(v_uid, 0, v_v, gen_random_uuid(),
-             jsonb_build_object('last_away_receipt', jsonb_build_object('awayMs', 3600000),
-                                'journal', jsonb_build_object('kind', 'admin', 'intent', 'c2a_probe')));
-    reset role;
-    if v_r->>'error' is distinct from 'unknown_delta_key' then
-      raise exception 'GATE(c): a last_away_receipt delta answered %', v_r; end if;
-    set local role hr_engine;
-    v_r := public.hr_apply(v_uid, 0, v_v, gen_random_uuid(),
              jsonb_build_object('gold', 7, 'items', jsonb_build_object('bones', 2),
+                                'last_away_receipt', null,
                                 'deaths', jsonb_build_array(jsonb_build_object('monster', 'rat', 'recovery_ms', 0,
                                   'deaths_today', 1, 'deaths_lifetime', 1, 'resume_hp', 4, 'food_in_bag', false)),
                                 'accrued_to', to_jsonb(now()),
@@ -245,7 +210,7 @@ begin
        or jsonb_array_length(coalesce(v_h->'engine_execute_outside_allowlist', '[]'::jsonb)) <> 0 then
       raise exception 'GATE(y): hr_assert_grant_hygiene is RED after this file: %', v_h; end if;
   end if;
-  raise notice 'hunt-sessions-away-readers: EXECUTED - no body reads the away receipt / Auto-Eat columns / '
-               'hr_credit_kills / hr_set_auto_eat, the envelope no longer projects them, a receipt delta is refused, '
+  raise notice 'hunt-sessions-away-readers: EXECUTED - no body reads the Auto-Eat columns / hr_credit_kills / '
+               'hr_set_auto_eat, the envelope no longer projects Auto-Eat and still projects the away receipt, '
                'an ordinary apply lands; net zero';
 end $$;

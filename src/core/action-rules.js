@@ -18,8 +18,9 @@
 
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=578';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=578';
-import { END_ORDER, SESSION_LIMITS } from '../data/hunt-sessions.js?v=578';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=578';
 import { applyBuffSegment } from './buffs.js?v=578';
+import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=578';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
@@ -250,7 +251,6 @@ const END_CHECKS = Object.freeze({
   falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
-  vigour: (hs) => hs.vigourLeftMs !== null && hs.vigourLeftMs !== undefined && !(Number(hs.vigourLeftMs) > 0),
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   left: (hs, t) => at(hs.leaveAtMs, t),
   changed: (hs, t) => at(hs.changeAtMs, t),
@@ -258,6 +258,40 @@ const END_CHECKS = Object.freeze({
 });
 for (const k of END_ORDER) {
   if (typeof END_CHECKS[k] !== 'function') throw new Error('action-rules: END_ORDER names "' + k + '" and no check implements it');
+}
+
+/* ── THE PRICE OF A FALL (Tyler 2026-10-14; data row DEATH_XP_LOSS) ─────────
+   Each skill the fight trains — the combat style's XP route, `style.xp`'s
+   keys (Attack when no style resolved, exactly as killXpRoute credits) — loses
+   DEATH_XP_LOSS of the XP its CURRENT level needs to reach the next, and only
+   out of the progress made inside that level: never a de-level, 0 at a level
+   floor, 0 at the top level. Integer XP, floored, so the loss can never round
+   up past the bound the database re-checks (hr_hunt_apply). PURE: it draws no
+   random number, so a seeded swing replays identically with it. */
+export function deathXpLossFor(xp, fraction = DEATH_XP_LOSS) {
+  const x = Math.max(0, Math.floor(Number(xp) || 0));
+  const lv = levelFromXp(x);
+  if (lv >= MAX_LEVEL) return 0;
+  const floor = xpForLevel(lv);
+  const gap = xpForLevel(lv + 1) - floor;
+  const f = Number(fraction);
+  if (!(f > 0) || !(gap > 0)) return 0;
+  return Math.max(0, Math.min(Math.floor(gap * f), x - floor));
+}
+/** The skills a fall costs: the style's XP route, sorted (one order, every caller). */
+export function deathXpSkills(style) {
+  const route = style && style.xp && typeof style.xp === 'object' ? Object.keys(style.xp) : ['attack'];
+  return route.slice().sort();
+}
+/** One fall's loss as `{skill: xp}` (zeros omitted), read off `skills` and
+    NOT applied — the caller debits the same numbers it journals. */
+export function deathXpLoss(skills, style, fraction = DEATH_XP_LOSS) {
+  const out = {};
+  for (const k of deathXpSkills(style)) {
+    const n = deathXpLossFor(skills ? skills[k] : 0, fraction);
+    if (n > 0) out[k] = n;
+  }
+  return out;
 }
 
 /** Why the hunt ends at this swing boundary, first match in END_ORDER; null when it hunts on. */
@@ -293,7 +327,6 @@ export function newHuntSession(o) {
     falls: Math.max(0, int(s.falls, 0)),
     fallsLimit: Math.min(lim.max, Math.max(lim.min, int(s.fallsLimit, lim.default))),
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
-    vigourLeftMs: s.vigourLeftMs === null || s.vigourLeftMs === undefined ? null : Number(s.vigourLeftMs),
     leaveAtMs: s.leaveAtMs ?? null,
     changeAtMs: s.changeAtMs ?? null,
     stopAtMs: s.stopAtMs ?? null,

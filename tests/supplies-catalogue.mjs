@@ -44,7 +44,10 @@ import { styleNeedsAmmo } from '../src/core/ammo.js';
 
 /* The ruling's own lists (§2), typed once here so the data can be held to them. */
 const RULING_SUBJECTS = ['self_hp_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
-const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'vigour', 'hours', 'left', 'changed', 'server'];
+/* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check: "no cap
+   on combat"); a hunt ends on its bag, falls, optional hours, leave, change or
+   the server only. */
+const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'hours', 'left', 'changed', 'server'];
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'vigour_low', 'ended'];
 const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason']);
 
@@ -211,6 +214,7 @@ function selftest() {
     ['H1', 'a walk that is not a whole tick', (d) => { d.hunts = d.hunts.map((h, i) => (i ? h : { ...h, travelS: 15 })); }],
     ['L1', 'falls defaulting to 4', (d) => { d.limits = { ...SESSION_LIMITS, falls: { min: 1, max: 6, default: 4 } }; }],
     ['C1', 'the end order shuffled', (d) => { d.endOrder = ['heals_out', 'falls', ...END_ORDER.slice(2)]; }],
+    ['C1', 'Vigour ends a hunt again', (d) => { d.endOrder = [...END_ORDER.slice(0, 3), 'vigour', ...END_ORDER.slice(3)]; }],
     ['C1', 'a "(s)" plural hack in end copy', (d) => { d.endCopy = { ...END_REASON_COPY, falls: { one: 'You fell {n} time(s).' } }; }],
   ];
   let missed = 0;

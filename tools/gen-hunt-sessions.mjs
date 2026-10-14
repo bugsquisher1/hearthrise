@@ -13,11 +13,22 @@
 //   hr_hunt_buff_types     src/data/supplies.js COMBAT_BUFF_TYPES (a `buff` param)
 //   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + COOLDOWN_GROUPS,
 //                          hunt-sessions.js SESSION_LIMITS + VIGOUR_LOW_MIN + SESSIONS_KEPT
-//   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position)
+//                          + DEATH_XP_LOSS (as `death_xp_permille`, lane C2)
+//   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) — and,
+//                          from the C2 file on, hunt_sessions.end_reason's CHECK
 //   hr_hunt_default_preset rule-subjects.js DEFAULT_PRESET
 //   hr_hunt_vendor_value   vendorPriceOf (supabase/functions/hr-accrue/catalogue.js)
 //                          for every item a vendor buys: the Analyzer's
 //                          "Gold at vendor value" and "Waste".
+//
+// ── WHICH FILE (lane C2, 2026-10-14) ─────────────────────────────────────────
+// The catalogue is a FORWARD file: an applied generated file is history and is
+// never regenerated in place. 2026-10-21-hunt-sessions-catalogue.generated.sql
+// (C1) was APPLIED 2026-10-14 13:39 UTC with 'vigour' in the end order and no
+// death-XP row; lane C2's data moved (Vigour ends no hunt; a fall costs XP), so
+// the generator now writes 2026-10-22-hunt-sessions-catalogue.generated.sql,
+// which the replay applies after C1's and which rewrites every table wholesale.
+// The next data move after C2 applies starts a new dated file the same way.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -38,11 +49,12 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT } from '../src/data/hunt-sessions.js';
+import { SESSION_LIMITS, END_ORDER, VIGOUR_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-21-hunt-sessions-catalogue.generated.sql');
+export const OUT_NAME = '2026-10-22-hunt-sessions-catalogue.generated.sql';
+export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const sq = (s) => `'${String(s).replace(/'/g, "''")}'`;
@@ -53,7 +65,7 @@ export function catalogueRows(src = {}) {
     hunts: HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_GROUPS, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
-    vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, ...src,
+    vigourLow: VIGOUR_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, ...src,
   };
   const supplies = Object.keys(S.supplies).sort().map((id) => {
     const s = S.supplies[id];
@@ -101,13 +113,22 @@ export function catalogueRows(src = {}) {
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
     cd_heal_ms: S.cooldowns.heal.ms, cd_buff_ms: S.cooldowns.buff.ms,
     vigour_low_min: S.vigourLow, sessions_kept: S.kept,
+    /* The price of a fall, in permille of the level's gap. Refused unless the
+       fraction is a whole permille in (0, 1000], so the engine's fraction and the
+       database's row are the same number exactly — not two roundings of it. */
+    death_xp_permille: Math.round(Number(S.deathXpLoss) * 1000),
   };
+  if (!(lim.death_xp_permille > 0 && lim.death_xp_permille <= 1000 && lim.death_xp_permille / 1000 === Number(S.deathXpLoss))) {
+    throw new Error(`DEATH_XP_LOSS ${S.deathXpLoss} is not a whole permille in (0, 1]`);
+  }
   for (const [k, v] of Object.entries(lim)) {
     if (!(Number.isInteger(v) && v >= 0 && v <= 100000)) throw new Error(`limit ${k} = ${v} is not a whole number in 0..100000`);
   }
   if (!(lim.falls_min <= lim.falls_default && lim.falls_default <= lim.falls_max)) throw new Error('falls default outside its range');
   const ends = S.endOrder.map((r, i) => {
     if (!ID.test(r)) throw new Error(`end reason ${r} is not [a-z0-9_]{1,64}`);
+    /* The 2026-10-14 loop-check ruling: Vigour ends no hunt ("no cap on combat"). */
+    if (r === 'vigour') throw new Error("END_ORDER names 'vigour': Vigour ends no hunt (designer ruling 2026-10-14)");
     return { r, i: i + 1 };
   });
   const preset = { name: String(S.preset.name), slots: S.preset.slots.map((sl) => {
@@ -133,6 +154,7 @@ export function render(src) {
   const buffValues = r.buffTypes.map((t) => `  (${sq(t)})`).join(',\n');
   const limValues = Object.entries(r.lim).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `  (${sq(k)}, ${v})`).join(',\n');
   const endValues = r.ends.map((e) => `  (${sq(e.r)}, ${e.i})`).join(',\n');
+  const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
   const preset = JSON.stringify(r.preset.slots);
   const nLim = Object.keys(r.lim).length;
@@ -147,6 +169,9 @@ export function render(src) {
 --   digest: ${digest}
 --   ${r.supplies.length} supplies, ${r.travel.length} hunts (named + training), ${r.subjects.length} rule subjects,
 --   ${r.buffTypes.length} combat buff types, ${nLim} limits, ${r.ends.length} end reasons, ${r.vendor.length} vendor values
+--
+-- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale.
 --
 -- Read by the hunt-session RPCs (2026-10-21-hunt-sessions.sql). Server-only:
 -- RLS on, NO policy, no client grant (the client reads src/data). Idempotent:
@@ -227,6 +252,13 @@ ${limValues};
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord) values
 ${endValues};
+-- hunt_sessions.end_reason's CHECK is END_ORDER too. C1 typed it inline in
+-- 2026-10-21-hunt-sessions.sql; from this file on the generator owns it, so the
+-- wall and the catalogue cannot name different reasons (2026-10-14: 'vigour'
+-- left both). Applies after that file (the table must exist).
+alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
+alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
+  check (end_reason in (${endList}));
 delete from public.hr_hunt_default_preset;
 insert into public.hr_hunt_default_preset (id, name, slots) values
   (true, ${sq(r.preset.name)}, ${sq(preset)}::jsonb);
@@ -293,6 +325,9 @@ function selftest() {
     'inverted subject range': () => ({ subjects: { ...S.subjects, self_hp_pct: { ...S.subjects.self_hp_pct, range: [99, 1] } } }),
     'unknown subject param': () => ({ subjects: { ...S.subjects, self_hp_pct: { ...S.subjects.self_hp_pct, param: 'monster' } } }),
     'preset names a non-supply': () => ({ preset: { ...S.preset, slots: [{ item: 'iron_bar', on: true, conditions: [] }] } }),
+    'vigour back in the end order': () => ({ endOrder: [...END_ORDER, 'vigour'] }),
+    'a death XP loss that is not a whole permille': () => ({ deathXpLoss: 0.0205 }),
+    'a death XP loss of nothing': () => ({ deathXpLoss: 0 }),
   };
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
@@ -313,7 +348,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     if (process.argv.includes('--check')) {
       const have = await readFile(OUT, 'utf8').catch(() => '');
       if (have.replace(/\r\n/g, '\n') !== wanted) {
-        console.error('gen-hunt-sessions --check FAILED: 2026-10-21-hunt-sessions-catalogue.generated.sql is stale. Run: node tools/gen-hunt-sessions.mjs');
+        console.error(`gen-hunt-sessions --check FAILED: ${OUT_NAME} is stale. Run: node tools/gen-hunt-sessions.mjs`);
         process.exit(1);
       }
       console.log('gen-hunt-sessions --check: catalogue matches src/data');

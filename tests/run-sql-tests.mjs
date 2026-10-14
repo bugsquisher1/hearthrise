@@ -609,7 +609,10 @@ const ALSO_LINTED = [
      ⚠ NOT LISTED: C1's 2026-10-21-hunt-sessions.sql (APPLIED 2026-10-14). It
      revokes in a format() loop these regex lints cannot read (31 false FAILs)
      and its self-check uses a named dollar tag; its ACL is asserted executed by
-     its own §8 and by tests/hunt-sessions-db.mjs instead. */
+     its own §8 and by tests/hunt-sessions-db.mjs instead.
+     The C2 FORWARD CATALOGUE (generated; tables + rows + a self-check, no
+     function) is listed so its revoke-all and RLS lines are linted too. */
+  '2026-10-22-hunt-sessions-catalogue.generated.sql',
   '2026-10-22-hunt-sessions-settle.sql',
   '2026-10-22-hunt-sessions-arm.sql',
   '2026-10-22-hunt-sessions-away-readers.sql',

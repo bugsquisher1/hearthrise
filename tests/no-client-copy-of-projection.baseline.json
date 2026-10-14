@@ -63,6 +63,7 @@
       "hp",
       "hunt_stance",
       "hunt_stop",
+      "last_away_receipt",
       "marks",
       "max_hp",
       "plot_level",

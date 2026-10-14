@@ -1,14 +1,20 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Hearthrise — HUNT SESSIONS: DROP THE AWAY OBJECTS (lane C1, ruling
--- HR-2026-10-14 §3 "Delete"). STAGED, ORDERED AFTER LANE C2.
+-- Hearthrise — HUNT SESSIONS: DROP THE COMBAT AWAY OBJECTS (lane C1, ruling
+-- HR-2026-10-14 §3 "Delete"; re-scoped to COMBAT ONLY by lane C2 after the
+-- 2026-10-14 designer loop check). STAGED, ORDERED AFTER LANE C2.
 --
 -- Drops, once nothing reads them:
---   player_state.last_away_receipt                       (away receipt)
 --   player_state.auto_eat_enabled / _food / _pct / _set_at  (Auto-Eat -> the action bar)
 --   hr_set_auto_eat(...)                                 (its client RPC + baseline row)
 --   hr_credit_kills(...) / hr_credit_kills__ungated(...)  (attended kill credit + baseline row)
 --   hr_attended_kills(uuid, int, timestamptz)            (the attended kill ledger read; lane C2
 --                                                         removed its only reader, the edge)
+-- KEPT FOR GATHERING (swap then delete, designer loop check 2026-10-14):
+--   player_state.last_away_receipt, the hr_apply key + (4a-r) validation + SET
+--   write, the hr_state_of projection and the edge's away-receipt.js. Gathering
+--   and the benches still return through the "while you were away" card until
+--   lane G gives them sessions; lane G drops the receipt with that swap. §4
+--   asserts the column SURVIVES this file.
 -- KEPT, deliberately (lane C2, 2026-10-14): hr_offline_cap_ms. The ruling lists
 -- it, but the same ruling keeps GATHER and ARTISAN "on their current tick path,
 -- horizon included, until the follow-up lane" (§3 Keep), and that path reads it
@@ -27,7 +33,7 @@
 -- hr_accrue_cap_ms, hr_return_anchor_presence, hr_create_character,
 -- hr_put_client_state__ungated, hr_renown_of, hr_credit_combat_xp__ungated and
 -- the four callers of hr_set_auto_eat's name — C2 (edge settle, horizon and
--- receipt removal) and the hr_apply / hr_state_of restatements remove them.
+-- Auto-Eat removal) and the hr_apply / hr_state_of restatements remove them.
 -- Two bodies name them as DATA, not code, and are exempt by name:
 --   hr_rpc_gate              the dead 'hr_credit_kills' rate bucket (inert string)
 --   hr_assert_grant_hygiene  its engine allowlist text (no call)
@@ -55,7 +61,7 @@ begin
   select string_agg(distinct p.oid::regprocedure::text || ' -> ' || o.obj, '; ')
     into v_readers
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
-         unnest(array['last_away_receipt', 'auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at',
+         unnest(array['auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at',
                       'hr_credit_kills', 'hr_set_auto_eat', 'hr_attended_kills']) o(obj)
    where n.nspname = 'public'
      and p.proname not in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated', 'hr_attended_kills',
@@ -183,7 +189,6 @@ drop function if exists public.hr_set_auto_eat(integer, boolean, text, integer, 
 drop function if exists public.hr_credit_kills(integer, text, bigint, text);
 drop function if exists public.hr_credit_kills__ungated(integer, text, bigint, text);
 drop function if exists public.hr_attended_kills(uuid, integer, timestamp with time zone);
-alter table public.player_state drop column if exists last_away_receipt;
 alter table public.player_state drop column if exists auto_eat_enabled;
 alter table public.player_state drop column if exists auto_eat_food;
 alter table public.player_state drop column if exists auto_eat_pct;
@@ -199,8 +204,12 @@ begin
      or to_regprocedure('public.hr_credit_kills(integer,text,bigint,text)') is not null
      or to_regprocedure('public.hr_attended_kills(uuid,integer,timestamp with time zone)') is not null
      or exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state'
-                  and column_name in ('last_away_receipt', 'auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at')) then
-    raise exception 'GATE(a): an away object survived the drop'; end if;
+                  and column_name in ('auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct', 'auto_eat_set_at')) then
+    raise exception 'GATE(a): a combat away object survived the drop'; end if;
+  -- SWAP THEN DELETE: gathering's receipt is not this file's to take.
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state'
+                   and column_name = 'last_away_receipt') then
+    raise exception 'GATE(a2): player_state.last_away_receipt is gone — gathering still returns through it until lane G'; end if;
   if (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int <> 720 then
     raise exception 'GATE(b): a clanless character''s grant is not 720'; end if;
   if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is not null then

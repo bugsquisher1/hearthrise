@@ -1408,9 +1408,24 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   player's `hunt_settle`, and `hunt_use` (a press, landing at the first swing boundary at or after
   it) run the SAME `settleHunt`. A settle-before-mutate verb collects a hunter through it too.
   Combat outside a session is no longer priced for a hunter: the solo combat channel is out of
-  the tick, `hr_credit_kills` / auto-eat / the away receipt are gone, and the
+  the tick, `hr_credit_kills` / auto-eat are gone, a combat settle writes no away receipt, and the
   `hr_hunt_accrue_fence` trigger refuses any combat accrue row for a character with an open
   session unless it is stamped with that session (`hr.hunt_session`).
+* **Swap then delete (designer loop check, 2026-10-14).** Gathering and the benches still return
+  through the "while you were away" card until lane G gives them sessions, so C2 removes only the
+  COMBAT away objects. STAYS for lane G: `player_state.last_away_receipt`, its `hr_apply` key +
+  (4a-r) validation + SET write, the `hr_state_of` projection, the edge's `away-receipt.js` (which
+  now refuses a `journal.kind = 'combat'` settle) and the F2 rescue, `hr_offline_cap_ms` and the
+  gather/artisan presence horizon. GOES (drop file): the four `auto_eat_*` columns,
+  `hr_set_auto_eat`, `hr_credit_kills(__ungated)`, `hr_attended_kills`.
+* **Vigour ends no hunt (designer ruling, 2026-10-14, "no cap on combat").** `END_ORDER` is
+  falls → heals_out → ammo_out → hours → left → changed → server. The forward generated catalogue
+  `2026-10-22-hunt-sessions-catalogue.generated.sql` removes `vigour` from `hr_hunt_end_reasons`
+  and regenerates `hunt_sessions.end_reason`'s CHECK from the same list (a `vigour` end is
+  `bad_end`). Inside a hunt Vigour also scales nothing (no 0.25× tail). What it still does in
+  combat: the session's swing clock is CHARGED to the daily meter (`ev:vigour_min`), the
+  `vigour_low` timeline event fires, and C1's `hr_hunt_enter` refuses `no_vigour` at 0 — the
+  designer owes a ruling on those two (guard arm VIGOUR).
 * **Edge proposes, Postgres disposes.** The edge reads (`hr_hunt_engine_read` + `hr_state_of` +
   `now()`), computes `computeAccrual` with the session attached (the one combat body), and calls
   `hr_hunt_apply(user, slot, session, version, intent, delta, hunt, buffs, press, project)`
@@ -1439,6 +1454,20 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   a press carries the player's key. hr_apply's `player_intents` answers a replay `replayed` and
   `hr_hunt_apply` then writes nothing else.
 * **Max HP is raise-only** inside a settle (a hitpoints level-up never lowers it).
+* **The price of a fall (Tyler 2026-10-14).** Each fall in a hunt costs every skill the style trains
+  `DEATH_XP_LOSS` (2%, `src/data/hunt-sessions.js`) of its current level's gap, from in-level
+  progress only — never a de-level, 0 at a floor or at 99. The engine debits it at the fall (so N
+  windows == one span) and proposes one `{skill: xp}` per death row (`death_xp`); `hr_hunt_apply`
+  strips it, refuses a missing / mismatched price (`bad_death_xp`), re-bounds each share by the gap of
+  the level the window ended at (limits row `death_xp_permille`) and the debit by the floor of the
+  level it started at (`death_xp_over`), debits, journals ONE `kind 'hunt'` / `death_xp` row per
+  costly settle, states each fall's `xp_lost` on its event and corrects a `level_up` a fall took
+  back. Identical watched or not (guard arms DEATHXP, BOTH-PATH).
+* **No blessing on a fight (Tyler 2026-10-14).** The combat settle (hunt or pointer) applies no
+  blessing / world-blessing multiplier and its receipt states `blessed: false`.
+* **The price-of-a-fall row is data.** `death_xp_permille` is generated into `hr_hunt_limits` from
+  `DEATH_XP_LOSS` (the generator refuses a fraction that is not a whole permille); the settle
+  file's §0 refuses to apply before the C2 catalogue.
 * **Knockouts.** set_activity no longer carries a knockout refusal (a `combat` declaration is
   `hunt_required`, and its §1b branch is deleted). The combat body reads `recovering_until`: a hunt
   window inside it earns nothing, whoever opened the session (guard arm KNOCKOUT).

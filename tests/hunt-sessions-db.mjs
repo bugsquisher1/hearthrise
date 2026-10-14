@@ -8,7 +8,9 @@
 //
 // ARMS (each in its own transaction, rolled back)
 //   G1  the generated catalogue matches src/data (gen-hunt-sessions --check) and
-//       the table CHECK lists equal the data (END_ORDER, EVENT_COPY)
+//       the table CHECK lists equal the data: hunt_sessions.end_reason AS
+//       INSTALLED ON THE CHAIN (the C2 catalogue regenerates it; 'vigour' left
+//       it 2026-10-14) = END_ORDER, and the event types = EVENT_COPY
 //   K1  THE KILL SWITCH SHIPS OFF: C1 seeds hr_hunt_config.enabled = false, only
 //       lane C2's arm file turns it on, and a paused enter opens nothing
 //       (Security GO-WITH-CHANGES item 1)
@@ -28,11 +30,14 @@
 //       are capped by the cooldown with or without presses queued
 //   T1  TALLY = Σ LEDGER over two settles: coins, xp, loot, supplies, kills and
 //       deaths equal the session's stamped ledger rows, each row folded once
-//   D1  THE DROP on the chain: the away columns and functions are gone,
-//       hr_offline_cap_ms stays, the grant is the flat 720, and a planted
-//       reader makes a second apply of the drop file refuse
-//   C1  a SECOND apply of both files is byte-identical (schema inventory,
-//       function bodies + ACLs, catalogue rows)
+//   D1  THE DROP on the chain: the combat away columns and functions are
+//       gone, last_away_receipt and hr_offline_cap_ms stay (gathering keeps
+//       both until lane G — swap then delete), the grant is the flat 720, and
+//       a planted reader makes a second apply of the drop file refuse
+//   C1  a SECOND apply of the hunt-session files, in chain order (C1's
+//       catalogue, C1's file, then the C2 forward catalogue that supersedes
+//       C1's rows), is byte-identical (schema inventory, function bodies +
+//       ACLs, catalogue rows)
 // --mutate plants each defect into the LIVE function body (create or replace,
 // rolled back) and requires the arm that owns it to go red; two more defects
 // are planted in the migration TEXT and must be refused by its own §8.
@@ -47,6 +52,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const MIG = '2026-10-21-hunt-sessions.sql';
 const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
+/* The FORWARD catalogue the generator writes today (lane C2): C1's is applied
+   history and is superseded wholesale by this one, later in the chain. */
+const { OUT_NAME: CAT_NOW } = await import('../tools/gen-hunt-sessions.mjs');
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
@@ -329,7 +337,9 @@ const ARMS = {
 /* D1 — THE DROP, PLACED BY LANE C2 (2026-10-22-hunt-sessions-away-readers.sql
    removed the last readers; the drop file sits in the replay order right after
    it). On the chain every dropped object is GONE, hr_offline_cap_ms is KEPT
-   (gather and artisan keep their horizon until lane G), and the restated
+   (gather and artisan keep their horizon until lane G), the away receipt is
+   KEPT (gathering still returns through the "while you were away" card until
+   lane G — the designer loop check's swap THEN delete), and the restated
    hr_vigour_of grants a clanless character the flat 720. AND THE FENCE STILL
    BITES: with a body that reads a dropped name planted on the chain, a second
    apply of the drop file REFUSES ("still read by"). Rolled back. */
@@ -338,9 +348,15 @@ const DROP_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', DROP), 'utf8
 async function d1(db, text = DROP_TEXT) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
-      and table_name = 'player_state' and column_name in ('last_away_receipt', 'auto_eat_enabled', 'auto_eat_food',
+      and table_name = 'player_state' and column_name in ('auto_eat_enabled', 'auto_eat_food',
                                                           'auto_eat_pct', 'auto_eat_set_at')`);
   if (cols !== 0) red.push(`D1: ${cols} away column(s) survived the drop on the chain`);
+  const receipt = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
+      and table_name = 'player_state' and column_name = 'last_away_receipt'`);
+  if (receipt !== 1) red.push('D1: player_state.last_away_receipt was dropped; gathering still returns through it until lane G');
+  const projected = await one(db, `select position('last_away_receipt' in
+      pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure)) > 0`);
+  if (!projected) red.push('D1: hr_state_of no longer projects last_away_receipt; the gathering card renders nothing after a reload');
   const fns = await one(db, `select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated',
                                                    'hr_attended_kills')`);
@@ -372,15 +388,23 @@ async function runArms(db, only) {
   return red;
 }
 
-/* G1 — generator and CHECK-list drift. */
-function g1() {
+/* G1 — generator and CHECK-list drift. The end-reason wall is read off the
+   CHAIN (pg_constraint), not C1's text: the C2 catalogue regenerates it. */
+async function g1(db) {
   const red = [];
   const chk = spawnSync(process.execPath, [join(ROOT, 'tools', 'gen-hunt-sessions.mjs'), '--check'], { encoding: 'utf8' });
   if (chk.status !== 0) red.push(`G1: gen-hunt-sessions --check exited ${chk.status}: ${chk.stderr.trim()}`);
   const list = (re) => { const m = MIG_TEXT.match(re); return m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : null; };
-  const ends = list(/end_reason\s+text check \(end_reason in \(([^)]*)\)\)/);
+  const defs = await q(db, `select pg_get_constraintdef(c.oid) d from pg_constraint c
+      where c.conrelid = 'public.hunt_sessions'::regclass and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) like '%end_reason = ANY%'`);
+  const ends = defs.length === 1 ? [...defs[0].d.matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]) : null;
   const types = list(/type\s+text not null check \(type in \(([^)]*)\)\)/);
-  if (JSON.stringify(ends) !== JSON.stringify([...END_ORDER])) red.push(`G1: hunt_sessions.end_reason CHECK ${JSON.stringify(ends)} <> END_ORDER`);
+  if (JSON.stringify(ends) !== JSON.stringify([...END_ORDER])) {
+    red.push(`G1: hunt_sessions.end_reason CHECK on the chain ${JSON.stringify(ends)} (${defs.length} constraint(s)) <> END_ORDER`);
+  }
+  const rows = (await q(db, 'select reason from public.hr_hunt_end_reasons order by ord')).map((r) => r.reason);
+  if (JSON.stringify(rows) !== JSON.stringify([...END_ORDER])) red.push(`G1: hr_hunt_end_reasons on the chain ${JSON.stringify(rows)} <> END_ORDER`);
   if (JSON.stringify(types) !== JSON.stringify(Object.keys(EVENT_COPY))) red.push(`G1: hunt_session_events.type CHECK ${JSON.stringify(types)} <> EVENT_COPY keys`);
   return red;
 }
@@ -398,7 +422,7 @@ async function c1(db) {
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  for (const f of [CAT, MIG]) {
+  for (const f of [CAT, MIG, CAT_NOW]) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }
@@ -483,7 +507,7 @@ const TEXT_MUTANTS = [
 const { bootReplay } = await import('./schema-replay.mjs');
 const { db } = await bootReplay({});
 if (!MUTATE) {
-  const red = [...g1(), ...(await runArms(db)), ...(await d1(db)), ...(await c1(db))];
+  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
   console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 C1 green');
@@ -510,6 +534,21 @@ if (!MUTATE) {
     const red = await d1(db, DROP_TEXT.replace(anchor, '  if false then\n'));
     const caught = red.some((r) => r.startsWith('D1'));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} D1: the drop file's reader scan blinded${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    if (!caught) escaped++;
+  }
+  /* G1 bites ON THE CHAIN: Vigour is let back into the end-reason wall, and
+     into the catalogue — each alone must be red. Rolled back. */
+  for (const [label, sql] of [
+    ['the end_reason CHECK re-admits vigour', `alter table public.hunt_sessions drop constraint hunt_sessions_end_reason_check;
+       alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
+         check (end_reason in ('falls', 'heals_out', 'ammo_out', 'vigour', 'hours', 'left', 'changed', 'server'))`],
+    ['hr_hunt_end_reasons gains vigour', `insert into public.hr_hunt_end_reasons (reason, ord) values ('vigour', 99)`],
+  ]) {
+    await db.query('begin');
+    let red = [];
+    try { await db.exec(sql); red = await g1(db); } finally { await db.query('rollback'); }
+    const caught = red.some((r) => r.startsWith('G1'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} G1: ${label}${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
   }
   await db.close?.();

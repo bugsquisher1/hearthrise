@@ -74,7 +74,7 @@ import { recoveryFor, resumeHpFor } from './recovery.js?v=578';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt } from './action-rules.js?v=578';
+import { runActionBar, spendFromBag, endReasonAt, deathXpLoss } from './action-rules.js?v=578';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -618,9 +618,10 @@ function tallyFx(fx, hs, events, clock) {
  * same order (TICK-1). No rate multiplier, no away scope: a hunt is a hunt.
  *
  * Each boundary, in order: the end checks (action-rules.js END_ORDER, and
- * `endedAtMs` is that boundary) → Vigour is charged one interval → a knocked-
- * out boundary drains buffs and earns nothing → otherwise one swing, the
- * action bar inside it → the buff queue drains one interval.
+ * `endedAtMs` is that boundary) → a knocked-out boundary drains buffs and
+ * earns nothing → otherwise one swing, the action bar inside it → the buff
+ * queue drains one interval. Vigour ends nothing here (2026-10-14 ruling); the
+ * settle charges the swing clock walked to the meter (accrual.js).
  */
 function simulateHuntSpan(state, ctx) {
   const hs = state.huntSession;
@@ -640,6 +641,7 @@ function simulateHuntSpan(state, ctx) {
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0; let deaths = 0;
   let recoverMs = 0; let buffPaidMs = 0; let featuredMs = 0; let featuredDropMult = 1;
   const deathLog = []; const buffsExpired = []; const consumed = Object.create(null);
+  const xpLostTotal = {};
   const days = new Map();
   const dayCtx = (atMs) => {
     const day = atMs - (((atMs % DAY_MS) + DAY_MS) % DAY_MS);
@@ -663,7 +665,6 @@ function simulateHuntSpan(state, ctx) {
       events.push({ type: 'ended', atMs, reason: why });
       break;
     }
-    if (hs.vigourLeftMs !== null && hs.vigourLeftMs !== undefined) hs.vigourLeftMs = Number(hs.vigourLeftMs) - tickMs;
     const swing = hs.swingIndex;
     hs.swingIndex = swing + 1;
     hs.nextSwingAtMs = atMs + tickMs;
@@ -707,8 +708,17 @@ function simulateHuntSpan(state, ctx) {
       const rec = Number(r.recoverMs) || 0;
       const fellAtMs = hs.nextSwingAtMs;
       if (rec > 0) recoverUntilMs = fellAtMs + rec;
-      deathLog.push({ atMs: fellAtMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp });
-      events.push({ type: 'fall', atMs: fellAtMs, monster: facing });
+      /* THE PRICE OF THE FALL (Tyler 2026-10-14; action-rules.js deathXpLoss).
+         Read off the RUNNING xp at this boundary and debited here, so a later
+         fall in the same span prices off what is left and a span cut into N
+         windows debits exactly what one span does (TICK-1). Stated on the
+         death log and the fall event; the settle journals it and the database
+         re-checks every number (hr_hunt_apply). Draws nothing. */
+      const xpLost = deathXpLoss(state.skills, ctx.style);
+      for (const k in xpLost) state.skills[k] = (Number(state.skills[k]) || 0) - xpLost[k];
+      for (const k in xpLost) xpLostTotal[k] = (xpLostTotal[k] || 0) + xpLost[k];
+      deathLog.push({ atMs: fellAtMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp, xpLost });
+      events.push({ type: 'fall', atMs: fellAtMs, monster: facing, xpLost });
       continue;
     }
     if (r.outcome === OUTCOME.STOP) break;
@@ -733,6 +743,8 @@ function simulateHuntSpan(state, ctx) {
     featuredDropMult,
     huntEnded: hs.endedReason ? { reason: hs.endedReason, atMs: hs.endedAtMs } : null,
     huntEvents: events,
+    /* Every fall's XP debit, summed per skill (already taken off state.skills). */
+    xpLost: xpLostTotal,
   };
 }
 

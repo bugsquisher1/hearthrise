@@ -13,10 +13,12 @@
 // deploy, not a transcription.
 //
 // ARMS
-//   TICK-2     (a) source: nothing under hr-accrue/** reaches the away receipt,
-//              the attended kill read or hr_credit_kills; the hunt settle
-//              (hunt-settle.js, hunt-seed.js, accrual.js accrueCombat) carries
-//              no `away` key, no ctx.away read and no presence/cap/horizon read.
+//   TICK-2     (a) source: nothing under hr-accrue/** reaches the attended
+//              kill read or hr_credit_kills; the hunt settle (hunt-settle.js,
+//              hunt-seed.js, accrual.js accrueCombat) carries no `away` key,
+//              no ctx.away read, no presence/cap/horizon read and no away
+//              receipt (gathering KEEPS the receipt until lane G — swap then
+//              delete — so it is not forbidden repo-wide).
 //              (b) behaviour: a hunt window is byte-identical under every
 //              presence- and away-era input (accrued_to, active_since, the
 //              offline cap, the live combat-XP watermark, Auto-Eat, stance,
@@ -29,6 +31,15 @@
 //   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
 //   KNOCKOUT   a hunt window wholly inside `recovering_until` earns nothing and
 //              half inside earns about half: exploit R1's door is the engine.
+//   VIGOUR     Vigour bounds no hunt (designer ruling, 2026-10-14 loop check:
+//              "no cap on combat"): a hunt with the day's meter spent — or far
+//              past it — settles byte-identically to one with a full meter (no
+//              end, no 0.25x tail); 'vigour' is in no end order.
+//   DEATHXP-RULE  the price of a fall (Tyler 2026-10-14): DEATH_XP_LOSS of the
+//              level's gap, from in-level progress only, never a de-level.
+//   DEATHXP    end to end: fall events state their price, one death_xp row per
+//              costly settle, bank = start + gains − price, the row equals the
+//              data file; an over-charge / below-start / missing price is refused.
 //   FENCE      a hunter is never priced by the old path: the engine answers
 //              hunt_open; the database refuses a bare combat accrue row.
 //   TICK-1     N world-tick windows (90 s) == ONE span, through the database:
@@ -74,6 +85,7 @@ async function loadEdge(root) {
     TR: await import(u(join(FN, 'tick-reads.js'))),
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
+    HSD: await import(u('src/data/hunt-sessions.js')),
     HUNTS: await import(u('src/data/hunts.js')),
     AR: await import(u('src/core/action-rules.js')),
     XP: await import(u('src/core/xp.js')),
@@ -125,30 +137,40 @@ const ENGINE_ARMS = {
     const problems = [];
     // (a) THE SOURCE.
     const dir = join(M.root, FN);
-    const gone = /away-receipt|withAwayReceipt|receiptRescue|last_away_receipt|hr_attended_kills|hr_credit_kills|ATTENDED_MAX_FIDELITY|normaliseAttended|attendedKillCap/;
+    /* The attended kill credit is deleted everywhere (ruling §3). The away
+       RECEIPT is not: gathering and the benches still return through it until
+       lane G (swap THEN delete, designer loop check 2026-10-14) — so it is
+       forbidden only on the HUNT's own path (hunt-settle.js, hunt-seed.js and
+       the combat body below), and away-receipt.js itself refuses a combat
+       settle (tests/away-receipt-journal.mjs AWAY-RECEIPT-C2a). */
+    const gone = /hr_attended_kills|hr_credit_kills|ATTENDED_MAX_FIDELITY|normaliseAttended|attendedKillCap/;
     for (const f of readdirSync(dir).filter((n) => /\.(js|ts)$/.test(n))) {
       const code = stripComments(readFileSync(join(dir, f), 'utf8'));
       const m = code.match(gone);
-      if (m) problems.push(`${f} still names \`${m[0]}\` in code (the away receipt / attended credit are deleted, ruling §3)`);
+      if (m) problems.push(`${f} still names \`${m[0]}\` in code (the attended credit is deleted, ruling §3)`);
     }
+    const receipt = /away-receipt|withAwayReceipt|receiptRescue|awayReceiptFor|last_away_receipt/;
     const presence = /\baway\b|presence|last_seen|capMs|cap_ms|hr_accrue_cap_ms|hr_offline_cap_ms|return_anchor|horizon/;
     for (const f of ['hunt-settle.js', 'hunt-seed.js']) {
       const code = stripComments(readFileSync(join(dir, f), 'utf8'));
-      const m = code.match(presence);
-      if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap or ctx.away (TICK-2)`);
+      const m = code.match(presence) || code.match(receipt);
+      if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap, ctx.away or the away receipt (TICK-2)`);
     }
     const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8'));
     const i = acc.indexOf('function accrueCombat(');
     const j = acc.indexOf('\nfunction ', i + 10);
     const body = i >= 0 ? acc.slice(i, j > i ? j : undefined) : '';
     if (!body) problems.push('accrual.js has no accrueCombat — the combat body moved; re-point TICK-2');
-    for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /inp\.capMs/, /presence|last_seen|horizon|return_anchor/]) {
+    for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /inp\.capMs/, /presence|last_seen|horizon|return_anchor/, receipt]) {
       const m = body.match(re);
       if (m) problems.push(`accrueCombat (the combat body) contains \`${m[0]}\` — combat reads no ctx.away and no presence (TICK-2)`);
     }
     // (b) THE BEHAVIOUR: presence / away-era inputs are inert for a session.
     const base = M.AC.computeAccrual(huntInput(M));
     if (!base.accrued || !base.hunt) problems.push(`the reference hunt window did not settle (${base.reason})`);
+    /* NO BLESSING ON A HUNT (Tyler 2026-10-14): no blessing multiplier is paid,
+       watched or not, and the receipt says so. */
+    if (!base.summary || base.summary.blessed !== false) problems.push(`a hunt window reports blessed=${base.summary && base.summary.blessed}`);
     const variants = {
       accruedToMs: T0 - 7200000, activeSinceMs: T0 - 86400000, capMs: 1, combatXpAccruedToMs: T0 + 600000,
       autoEatEnabled: true, autoEatPct: 90, autoEatFood: 'cooked_shrimp', huntStance: 'careful',
@@ -254,6 +276,50 @@ const ENGINE_ARMS = {
     return problems;
   },
 
+  /* VIGOUR — the meter ends nothing and scales nothing inside a hunt. */
+  'VIGOUR': async (M) => {
+    const problems = [];
+    if (M.HSD.END_ORDER.includes('vigour')) problems.push("END_ORDER still names 'vigour' — Vigour ends hunts again");
+    const full = M.AC.computeAccrual(huntInput(M));
+    if (!full.accrued || !full.hunt) { problems.push(`the reference hunt window did not settle (${full.reason})`); return problems; }
+    const a = canon({ d: full.delta, h: full.hunt, b: full.huntBuffs });
+    for (const spent of [720, 5000]) {
+      const out = M.AC.computeAccrual(huntInput(M, { vigour: { budget_min: 720, spent_min: spent, day_key: '2026-10-14' } }));
+      if (out.hunt && out.hunt.ended && out.hunt.ended.reason === 'vigour') {
+        problems.push(`a hunt with ${spent}/720 Vigour minutes spent ENDED on vigour`);
+      }
+      const b = canon({ d: out.delta, h: out.hunt, b: out.huntBuffs });
+      if (a !== b) problems.push(`a hunt with ${spent}/720 Vigour spent settled differently from a full meter ${firstDiff(a, b)}`);
+    }
+    return problems;
+  },
+
+  /* DEATHXP (engine half) — the price of a fall, as a rule. */
+  'DEATHXP-RULE': async (M) => {
+    const problems = [];
+    const f = M.AR.deathXpLossFor;
+    const L = (lv) => M.XP.xpForLevel(lv);
+    const rate = M.HSD.DEATH_XP_LOSS;
+    if (f(L(20)) !== 0) problems.push('a character at a level floor pays XP for a fall');
+    if (f(L(99) + 5000) !== 0) problems.push('a character at the top level pays XP for a fall');
+    const gap = L(31) - L(30);
+    const mid = L(30) + Math.floor(gap / 2);
+    if (f(mid) !== Math.floor(gap * rate)) problems.push(`a mid-level fall costs ${f(mid)}, not ${Math.floor(gap * rate)} (${rate} of the level's gap)`);
+    if (f(L(30) + 1) !== 1 || M.XP.levelFromXp(L(30) + 1 - f(L(30) + 1)) !== 30) problems.push('a fall one XP above the floor does not stop AT the floor');
+    for (let x = 0; x < 200000; x += 977) {
+      const n = f(x);
+      if (n < 0 || M.XP.levelFromXp(x - n) !== M.XP.levelFromXp(x)) { problems.push(`a fall at ${x} xp de-levels (−${n})`); break; }
+    }
+    const ctl = M.AR.deathXpLoss({ attack: mid, strength: L(30), defense: mid }, { xp: { attack: 0.33, strength: 0.33, defense: 0.34 } });
+    if (JSON.stringify(ctl) !== JSON.stringify({ attack: Math.floor(gap * rate), defense: Math.floor(gap * rate) })) {
+      problems.push(`a controlled-style fall costs ${JSON.stringify(ctl)} — every trained skill, zeros omitted`);
+    }
+    if (JSON.stringify(M.AR.deathXpLoss({ attack: mid }, null)) !== JSON.stringify({ attack: Math.floor(gap * rate) })) {
+      problems.push('with no style the fall does not cost Attack (killXpRoute\'s default)');
+    }
+    return problems;
+  },
+
   FENCE: async (M) => {
     const inp = huntInput(M, { huntOpen: true, capMs: 43200000, seed: 3 });
     delete inp.huntSession;
@@ -302,6 +368,7 @@ async function hunter(db, M, o) {
     await admin(db, { xp: { attack: xp, strength: xp, defense: xp, hitpoints: xp } });
     await asUser(db, UID);
   }
+  if (o.skillsXp) { await admin(db, { xp: o.skillsXp }); await asUser(db, UID); }
   if (o.hp) { await admin(db, { hp: o.hp }); await asUser(db, UID); }
   if (o.slots) {
     const r = await one(db, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid)', ['C2', JSON.stringify(o.slots), idem()]);
@@ -337,8 +404,10 @@ async function settleTo(db, M, toMs, o = {}) {
     secret: h.secret, pressAtMs: press ? press.at : null });
   const out = M.AC.computeAccrual(engIn);
   if (!out.accrued) return { skipped: out.reason };
+  if (o.tamper) o.tamper(out);
   const res = await M.HS.commitHuntSettle(exec, { user: UID, slot: 0, sessionId: String(h.id), version: env.version,
     intentId: idem(), out, press, project: false });
+  if (o.tamper) return { res, out };
   if (!res || res.ok !== true) throw new Error(`settle to ${new Date(toMs).toISOString()} refused: ${JSON.stringify(res).slice(0, 400)}`);
   return { res, out };
 }
@@ -368,7 +437,13 @@ async function snapshot(db, sid) {
       'events', (select jsonb_agg(jsonb_build_array(type, at, data) order by at, type, data::text)
                    from public.hunt_session_events where session_id = $2 and type in ('fall', 'slot_dry', 'ended')),
       'rare_items', (select jsonb_agg(distinct data->>'item') from public.hunt_session_events
-                      where session_id = $2 and type = 'rare_drop'))
+                      where session_id = $2 and type = 'rare_drop'),
+      /* The falls' XP price, SUMMED per skill: how many death_xp rows carry it
+         is a property of the cut (one per settle that cost anything), the
+         total is the hunt's. Each fall's own price rides its event above. */
+      'death_xp', (select jsonb_object_agg(k, v) from (select x.key k, sum((x.value #>> '{}')::bigint) v
+                     from public.player_ledger l, jsonb_each(l.meta->'xp') x
+                    where l.session_id = $2 and l.kind = 'hunt' and l.intent = 'death_xp' group by 1) d))
       from public.player_state ps where ps.user_id = $1 and ps.slot = 0`, [UID, sid]);
 }
 
@@ -403,7 +478,13 @@ const STRONG = {
   slots: [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
     { item: 'hunters_feast', on: true, conditions: [{ subject: 'buff_missing:drop_rate' }] }],
 };
-const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 1, hunt: 'goblin_warren' };
+/* WEAK falls — and carries XP INSIDE its levels, so each fall has a price to
+   pay (a character at a level floor pays 0 and would make the death_xp half of
+   BOTH-PATH vacuous). `magic` sits ONE XP above its level-12 floor and no
+   melee style trains it: the DEATHXP arm's below-the-starting-level forgery
+   charges it 3 (inside the 2% bound, below the floor). */
+const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 1, hunt: 'goblin_warren',
+  skillsXp: { attack: 1700, strength: 1700, defense: 1700, magic: 1585 } };
 const SPAN_MS = 30 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 
@@ -429,6 +510,9 @@ const DB_ARMS = {
     const problems = [];
     if (a !== b) problems.push(`a death with a client connected wrote different rows than one with none ${firstDiff(a, b)}`);
     if (!((r.a.deaths || []).length > 0)) problems.push('CONTROL: the weak fixture never fell — the arm proves nothing about deaths');
+    if (!Object.values(r.a.death_xp || {}).some((v) => Number(v) > 0)) {
+      problems.push('CONTROL: the weak fixture\'s falls cost no XP — the death-XP half of the arm proves nothing');
+    }
     if (!r.a.session || r.a.session.end_reason !== 'falls') problems.push(`CONTROL: the weak hunt ended '${r.a.session && r.a.session.end_reason}', not on its fall`);
     return problems;
   },
@@ -470,6 +554,13 @@ const DB_ARMS = {
     const fixture = { minutesAgo: 20, skillsLevel: 25, hp: 20, inv: { cooked_shrimp: 10 }, bag: [{ item: 'cooked_shrimp', qty: 10 }],
       slots: [{ item: '*heal', on: false, conditions: [] }] };
     const { sid, from } = await hunter(db, M, fixture);
+    /* A HEAL MUST BE POSSIBLE AT EVERY BOUNDARY, or the arm is a coin flip: a
+       heal fires only on a deficit, and whether the fighter is hurt before the
+       press depends on the per-database seed secret — a press that "fired
+       early" with nothing to heal fires at the same boundary either way, and
+       the mutant survived exactly that (2026-10-14). Fixture setup by the
+       harness owner, not a path under test. */
+    await db.query('update public.player_state set max_hp = 60, hp = 20 where user_id = $1 and slot = 0', [UID]);
     const at = from + 7000;                       // two boundaries already behind it at a 2.4 s swing
     const r1 = await settleTo(db, M, at, { pressAtMs: at, pressSlot: 0 });
     let s = await snapshot(db, sid);
@@ -503,6 +594,79 @@ const DB_ARMS = {
     if (!(endedMs > from && endedMs < from + 5 * 60000)) problems.push('ended_at is not inside the settled window');
     return problems;
   }),
+  /* DEATHXP — THE PRICE OF A FALL, end to end (Tyler 2026-10-14). The weak
+     hunter falls inside real settles: every fall's event states its price, the
+     settle journals ONE death_xp row (kind 'hunt') per settle that cost
+     anything, player_skills = start + the window's gains − the price, no skill
+     ends below the level it started at, every fall's share is within the data
+     row's bound, no level_up event names a level the bank does not hold, and
+     the database row equals the data file. A proposal that over-charges, or
+     that would take a skill below its starting level, is refused and moves
+     nothing. */
+  DEATHXP: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const permille = await one(db, `select public.hr_hunt_limit('death_xp_permille')`);
+    if (permille !== Math.round(M.HSD.DEATH_XP_LOSS * 1000)) {
+      problems.push(`hr_hunt_limits death_xp_permille is ${permille}, src/data says ${M.HSD.DEATH_XP_LOSS} (drift)`);
+    }
+    const { sid, from } = await hunter(db, M, WEAK);
+    const xp0 = Object.fromEntries((await q(db, `select skill_id, xp from public.player_skills where user_id = $1 and slot = 0`, [UID]))
+      .map((r) => [r.skill_id, Number(r.xp)]));
+    /* (a) the forged proposals, each in its own savepoint, on the first window */
+    for (const [what, tamper, want] of [
+      ['ten times the price', (out) => { out.hunt.death_xp = out.hunt.death_xp.map((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v * 10 + 50]))); }, 'death_xp_over'],
+      ['a price below the starting level', (out) => { out.hunt.death_xp = out.hunt.death_xp.map((d, i) => (i === 0 ? { ...d, magic: 3 } : d)); }, 'death_xp_over'],
+      ['a fall with its price left off', (out) => { out.hunt.death_xp = out.hunt.death_xp.slice(1); }, 'bad_death_xp'],
+    ]) {
+      await db.query('savepoint dxp');
+      let cut = null;
+      for (const t of ticksOf(90000, 30 * 60000)(from)) {
+        const pre = await settleTo(db, M, t, { tamper: (out) => { if ((out.delta.deaths || []).length) { tamper(out); cut = out; } } });
+        if (cut) { if (!pre.res || pre.res.error !== want) problems.push(`${what}: answered ${JSON.stringify(pre.res).slice(0, 200)}, not ${want}`); break; }
+        if (pre.res && pre.res.ok !== true) { problems.push(`${what}: an honest window was refused ${JSON.stringify(pre.res).slice(0, 160)}`); break; }
+      }
+      if (!cut) problems.push(`CONTROL (${what}): no window fell, so the forgery was never sent`);
+      else {
+        const rows = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'death_xp'`, [sid]);
+        const deaths = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'death'`, [sid]);
+        if (rows !== 0 || deaths !== 0) problems.push(`${what}: the refused settle left ${rows} death_xp / ${deaths} death row(s)`);
+      }
+      await db.query('rollback to savepoint dxp');
+    }
+    /* (b) the honest hunt */
+    for (const t of ticksOf(90000, 30 * 60000)(from)) { const r = await settleTo(db, M, t); if (r.skipped === 'closed') break; }
+    const fin = Object.fromEntries((await q(db, `select skill_id, xp from public.player_skills where user_id = $1 and slot = 0`, [UID]))
+      .map((r) => [r.skill_id, Number(r.xp)]));
+    const gained = Object.fromEntries((await q(db, `select x.key k, sum((x.value #>> '{}')::bigint)::bigint v
+        from public.player_ledger l, jsonb_each(l.meta->'delta'->'x') x where l.session_id = $1 and l.kind <> 'hunt' group by 1`, [sid]))
+      .map((r) => [r.k, Number(r.v)]));
+    const lostRows = await q(db, `select meta from public.player_ledger where session_id = $1 and kind = 'hunt' and intent = 'death_xp' order by id`, [sid]);
+    const lost = {};
+    for (const r of lostRows) for (const [k, v] of Object.entries(r.meta.xp || {})) lost[k] = (lost[k] || 0) + Number(v);
+    const falls = await q(db, `select data from public.hunt_session_events where session_id = $1 and type = 'fall' order by at, id`, [sid]);
+    const evLost = {};
+    for (const e of falls) for (const [k, v] of Object.entries((e.data && e.data.xp_lost) || {})) evLost[k] = (evLost[k] || 0) + Number(v);
+    if (!falls.length) problems.push('CONTROL: the weak hunter never fell');
+    if (!Object.values(lost).some((v) => v > 0)) problems.push('CONTROL: no fall cost any XP');
+    if (falls.some((e) => !e.data || typeof e.data.xp_lost !== 'object' || typeof e.data.xp !== 'number')) {
+      problems.push('a fall event does not state its price (xp_lost / xp)');
+    }
+    if (JSON.stringify(Object.entries(lost).sort()) !== JSON.stringify(Object.entries(evLost).sort())) {
+      problems.push(`the journal's price ${JSON.stringify(lost)} is not the fall events' ${JSON.stringify(evLost)}`);
+    }
+    if (lostRows.some((r) => r.meta.reason !== 'death_xp' || !(r.meta.falls > 0))) problems.push('a death_xp row does not say why or for how many falls');
+    for (const k of new Set([...Object.keys(xp0), ...Object.keys(fin)])) {
+      const want = (xp0[k] || 0) + (gained[k] || 0) - (lost[k] || 0);
+      if ((fin[k] || 0) !== want) problems.push(`${k}: banked ${fin[k]}, want start ${xp0[k] || 0} + gained ${gained[k] || 0} − lost ${lost[k] || 0} = ${want}`);
+      if (M.XP.levelFromXp(fin[k] || 0) < M.XP.levelFromXp(xp0[k] || 0)) problems.push(`${k}: a fall cost a level`);
+    }
+    const ups = await q(db, `select data from public.hunt_session_events where session_id = $1 and type = 'level_up'`, [sid]);
+    for (const u of ups) {
+      if (Number(u.data.level) > M.XP.levelFromXp(fin[u.data.skill] || 0)) problems.push(`a level_up event names ${u.data.skill} ${u.data.level}, the bank holds ${M.XP.levelFromXp(fin[u.data.skill] || 0)}`);
+    }
+    return problems;
+  }),
+
   /* TICK-0 — CRON TO EDGE. hr_tick_cron_run's (3c) body, off the pg_net
      queue, handed to `runTick` (the function index.ts's op:'tick' calls) over
      the real driver: the open session is settled once through settleHunt, the
@@ -635,6 +799,17 @@ const MUTANTS = [
     from: '  heals_out: (hs) => essentialOut(hs, \'heal\'),', to: '  heals_out: () => false,' },
   { arm: 'KNOCKOUT', name: 'the combat body ignores the recovery line', file: join(FN, 'accrual.js'),
     from: '  state.recoveringUntilMs = recoverCol ? nat(inp.recoveringUntilMs, 0) : 0;', to: '  state.recoveringUntilMs = 0;' },
+  { arm: 'TICK-2', name: 'a hunt window states a blessing', file: join(FN, 'accrual.js'),
+    from: '  summary.blessed = false;', to: '' },
+  { arm: 'TICK-2', name: 'the hunt settle writes an away receipt', file: join(FN, 'hunt-settle.js'),
+    from: "import { computeAccrual } from './accrual.js';",
+    to: "import { computeAccrual } from './accrual.js';\nimport { withAwayReceipt } from './away-receipt.js';" },
+  { arm: 'VIGOUR', name: 'a hunt pays the 0.25x tired tail again', file: join(FN, 'accrual.js'),
+    from: '  const vigSplit = (hs0 || vigBudgetMin === null) ? null', to: '  const vigSplit = (vigBudgetMin === null) ? null' },
+  { arm: 'DEATHXP-RULE', name: 'a fall takes the whole gap, de-levelling', file: 'src/core/action-rules.js',
+    from: '  return Math.max(0, Math.min(Math.floor(gap * f), x - floor));', to: '  return Math.max(0, Math.floor(gap * f));' },
+  { arm: 'BOTH-PATH', name: 'a fall costs nothing', file: 'src/core/combat-sim.js',
+    from: '      const xpLost = deathXpLoss(state.skills, ctx.style);', to: '      const xpLost = {};' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
   { arm: 'BESTIARY', name: 'the hunt settle drops the bestiary read', file: join(FN, 'hunt-settle.js'),
@@ -650,6 +825,11 @@ const DB_MUTANTS = [
     find: 'kills = t.kills + v_kills,', replace: 'kills = t.kills + v_kills + 1,' },
   { arm: 'TALLY', name: 'the fold drops the consumption rows', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
     find: "supplies = public.hr_jsonb_add(t.supplies, v_sup)", replace: "supplies = t.supplies" },
+  { arm: 'DEATHXP', name: 'the applier stops bounding a fall\'s price', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "                    > floor((public.hr_xp_for_level(v_lv + 1) - public.hr_xp_for_level(v_lv)) * v_rate / 1000.0)) then",
+    replace: "                    > 1000000000) then" },
+  { arm: 'DEATHXP', name: 'the applier lets a fall take a skill below its starting level', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "        if v_cur - v_n < public.hr_xp_for_level(v_lv0) then", replace: "        if false then" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];

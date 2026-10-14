@@ -30,7 +30,13 @@
 --       (5) hr_hunt_settle_session(hunt): swing CAS, window, bag, use caps,
 --           presses-only-shrink, falls = the death rows (3) just wrote, every
 --           end re-proved, tally folded from the stamped rows, events derived
---     All of (2)–(5) is ONE SUBTRANSACTION: any refusal in it (hr_apply's own
+--       (6) THE PRICE OF THE FALLS (Tyler 2026-10-14): each fall's `death_xp`
+--           (src/data/hunt-sessions.js DEATH_XP_LOSS, the limits row
+--           `death_xp_permille`) re-bounded against player_skills, never below
+--           the level the window started at, debited, ONE `death_xp` row
+--           (kind 'hunt') per settle that cost anything, stated on each `fall`
+--           event; a level_up event a fall took back is corrected
+--     All of (2)–(6) is ONE SUBTRANSACTION: any refusal in it (hr_apply's own
 --     {ok:false}, an HR000 from the session applier) rolls every write of the
 --     settle back, journals the refusal (hr_record_rejection, aggregated), and
 --     answers {ok:false, error, stage}. Nothing half-lands: the value and the
@@ -102,6 +108,13 @@ begin
      or to_regclass('public.hr_tick_config') is null then
     raise exception 'PRECONDITION: the hunt-session tables / applier (2026-10-21-hunt-sessions.sql), hr_apply, '
                     'hr_state_of, hr_seed, hr_item_buffs, hr_hunt_supplies or hr_tick_config is absent';
+  end if;
+  -- The C2 catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql) carries
+  -- the price of a fall and drops 'vigour' from the end order; it applies first.
+  if not exists (select 1 from public.hr_hunt_limits where key = 'death_xp_permille' and value > 0)
+     or exists (select 1 from public.hr_hunt_end_reasons where reason = 'vigour') then
+    raise exception 'PRECONDITION: 2026-10-22-hunt-sessions-catalogue.generated.sql is not applied '
+                    '(no death_xp_permille limit, or vigour still ends a hunt)';
   end if;
   select md5(replace(p.prosrc, chr(13), '')) into v_cron from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_cron_run()');
@@ -276,6 +289,10 @@ begin
    where user_id = p_user and slot = p_slot;
 end $$;
 
+-- (The price of a fall is the hr_hunt_limits row `death_xp_permille`, written
+-- by the GENERATED catalogue 2026-10-22-hunt-sessions-catalogue.generated.sql
+-- from src/data/hunt-sessions.js DEATH_XP_LOSS — data, never a literal here.)
+
 -- ── §5 hr_hunt_apply — ONE SETTLE, ONE STATEMENT, ONE SUBTRANSACTION ───────
 create or replace function public.hr_hunt_apply(p_user uuid, p_slot int, p_session uuid, p_version bigint,
   p_intent uuid, p_delta jsonb, p_hunt jsonb, p_buffs jsonb default null, p_press jsonb default null,
@@ -295,6 +312,25 @@ declare
   v_out       jsonb;
   v_code      text;
   v_detail    text;
+  -- THE PRICE OF A FALL (Tyler 2026-10-14; src/data/hunt-sessions.js DEATH_XP_LOSS)
+  c_xp_skills constant text[] := array['attack', 'defense', 'magic', 'ranged', 'strength'];
+  v_hunt      jsonb;
+  v_dx        jsonb;
+  v_nd        int;
+  v_el        jsonb;
+  v_k         text;
+  v_v         jsonb;
+  v_lost      jsonb := '{}'::jsonb;
+  v_rate      int;
+  v_xp0       jsonb := '{}'::jsonb;
+  v_ev0       bigint := 0;
+  v_n         bigint;
+  v_cur       bigint;
+  v_lv        int;
+  v_lv0       int;
+  v_fin       int;
+  v_fi        int;
+  v_r         record;
 begin
   -- (0) IDENTITY: the engine, never a request role (the primary control is the
   --     GRANT in §9; this is the hr_apply-style secondary seam).
@@ -343,6 +379,40 @@ begin
                       floor(extract(epoch from now()) * 1000)::bigint);
   end if;
 
+  -- (2b) THE PRICE OF EACH FALL, shape only (no writes). `death_xp` is ONE
+  --      `{skill: xp}` per death row in p_delta, in that order; it is taken off
+  --      the proposal here (hr_hunt_settle_session refuses keys it does not
+  --      know) and re-checked against player_skills after hr_apply, below. A
+  --      fall that states no price is refused: the engine always states one,
+  --      zeros included, so silence is a defect, never a discount.
+  v_dx := p_hunt->'death_xp';
+  v_hunt := p_hunt - 'death_xp';
+  v_nd := case when jsonb_typeof(p_delta->'deaths') = 'array' then jsonb_array_length(p_delta->'deaths') else 0 end;
+  if v_dx is null and v_nd = 0 then v_dx := '[]'::jsonb; end if;
+  if v_dx is null or jsonb_typeof(v_dx) <> 'array' or jsonb_array_length(v_dx) <> v_nd then
+    return jsonb_build_object('ok', false, 'error', 'bad_death_xp');
+  end if;
+  for v_el in select value from jsonb_array_elements(v_dx) loop
+    if jsonb_typeof(v_el) <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_death_xp'); end if;
+    for v_k, v_v in select key, value from jsonb_each(v_el) loop
+      if v_k <> all (c_xp_skills) or jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}') !~ '^[0-9]{1,9}$' then
+        return jsonb_build_object('ok', false, 'error', 'bad_death_xp');
+      end if;
+      if (v_v #>> '{}')::bigint > 0 then
+        v_lost := v_lost || jsonb_build_object(v_k, coalesce((v_lost->>v_k)::bigint, 0) + (v_v #>> '{}')::bigint);
+      end if;
+    end loop;
+  end loop;
+  if v_lost <> '{}'::jsonb then
+    v_rate := public.hr_hunt_limit('death_xp_permille');
+    if v_rate is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
+  end if;
+  -- The skills as this window found them (the level a fall may never go below),
+  -- and the newest event, so this settle's own fall / level_up rows are known.
+  select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_xp0
+    from public.player_skills where user_id = p_user and slot = p_slot and skill_id = any (c_xp_skills);
+  select coalesce(max(id), 0) into v_ev0 from public.hunt_session_events where session_id = p_session;
+
   -- (3)–(5) ONE SUBTRANSACTION: a refusal anywhere in it un-writes all of it.
   begin
     perform set_config('hr.hunt_session', p_session::text, true);
@@ -367,11 +437,71 @@ begin
       exception when others then perform public.hr_reject('bad_window'); end;
       perform public.hr_hunt_buffs_put(p_user, p_slot, v_s.settled_to, v_to, p_hunt->'uses', p_buffs);
     end if;
-    v_h := public.hr_hunt_settle_session(p_user, p_slot, p_session, p_hunt);
+    v_h := public.hr_hunt_settle_session(p_user, p_slot, p_session, v_hunt);
     -- C1 rev. 1 answered refusals as {ok:false}; the contract is a rollback.
     if coalesce(v_h->>'ok', 'true') = 'false' then
       perform public.hr_reject(coalesce(v_h->>'error', 'hunt_settle_refused'), v_h);
     end if;
+
+    -- (6) THE PRICE OF THE FALLS, RE-CHECKED AND DEBITED. After hr_apply has
+    --     credited the window, each skill's xp is the highest it reached, so
+    --     its level's gap bounds EVERY fall's share (the XP curve's gaps only
+    --     grow); and the debit may never take the skill below the level the
+    --     window STARTED at. Any refusal rolls the whole settle back.
+    if v_lost <> '{}'::jsonb then
+      for v_k, v_n in select key, (value #>> '{}')::bigint from jsonb_each(v_lost) order by key loop
+        select xp into v_cur from public.player_skills
+         where user_id = p_user and slot = p_slot and skill_id = v_k for update;
+        if v_cur is null then perform public.hr_reject('bad_death_xp', jsonb_build_object('skill', v_k)); end if;
+        v_lv := public.hr_level_from_xp(v_cur);
+        if v_lv >= 99 or exists (
+             select 1 from jsonb_array_elements(v_dx) e
+              where coalesce((e.value->>v_k)::bigint, 0)
+                    > floor((public.hr_xp_for_level(v_lv + 1) - public.hr_xp_for_level(v_lv)) * v_rate / 1000.0)) then
+          perform public.hr_reject('death_xp_over', jsonb_build_object('skill', v_k, 'level', v_lv));
+        end if;
+        v_lv0 := public.hr_level_from_xp(coalesce((v_xp0->>v_k)::bigint, 0));
+        if v_cur - v_n < public.hr_xp_for_level(v_lv0) then
+          perform public.hr_reject('death_xp_over', jsonb_build_object('skill', v_k, 'floor_level', v_lv0));
+        end if;
+        update public.player_skills set xp = xp - v_n
+         where user_id = p_user and slot = p_slot and skill_id = v_k;
+      end loop;
+      -- ONE row per settle that cost anything (journal rule 6): kind 'hunt', so
+      -- the session fold never counts it as gain; stamped with the session.
+      insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
+        values (p_user, p_slot, 'hunt', 'death_xp',
+                jsonb_build_object('reason', 'death_xp', 'xp', v_lost, 'falls', v_nd, 'permille', v_rate), p_session);
+      -- A level the falls took back is not reached: hr_hunt_settle_session
+      -- derived this settle's level_up events from the xp BEFORE the debit.
+      for v_r in select e.id, e.data->>'skill' as sk, (e.data->>'level')::int as lv
+                   from public.hunt_session_events e
+                  where e.session_id = p_session and e.id > v_ev0 and e.type = 'level_up'
+                    and v_lost ? (e.data->>'skill') loop
+        v_fin := public.hr_level_from_xp((select xp from public.player_skills
+                                           where user_id = p_user and slot = p_slot and skill_id = v_r.sk));
+        v_lv0 := public.hr_level_from_xp(coalesce((v_xp0->>v_r.sk)::bigint, 0));
+        if v_r.lv > v_fin then
+          if v_fin > v_lv0 then
+            update public.hunt_session_events set data = data || jsonb_build_object('level', v_fin) where id = v_r.id;
+          else
+            delete from public.hunt_session_events where id = v_r.id;
+          end if;
+        end if;
+      end loop;
+    end if;
+    -- Every fall of this settle states its own price, in fall order (one
+    -- `fall` row per death row, inserted in death-row order), zeros included.
+    v_fi := 0;
+    for v_r in select e.id from public.hunt_session_events e
+                where e.session_id = p_session and e.id > v_ev0 and e.type = 'fall' order by e.id loop
+      v_el := coalesce(v_dx->v_fi, '{}'::jsonb);
+      update public.hunt_session_events
+         set data = data || jsonb_build_object('xp_lost', v_el,
+                     'xp', (select coalesce(sum((x.value #>> '{}')::bigint), 0) from jsonb_each(v_el) x))
+       where id = v_r.id;
+      v_fi := v_fi + 1;
+    end loop;
   exception when sqlstate 'HR000' then
     get stacked diagnostics v_code = message_text, v_detail = pg_exception_detail;
     perform set_config('hr.hunt_session', '', true);
@@ -1805,6 +1935,29 @@ begin
        or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 10
        or (select swing_index from public.hunt_sessions where id = v_sid) <> 10 then
       raise exception 'GATE(f2): a replayed key answered % or moved value again', v_r; end if;
+
+    -- (f3) THE PRICE OF A FALL is stated, matched to the death rows, or the
+    --      settle is refused before any write (§5 (2b)); the limits row the
+    --      bound is read from exists. (The debit itself — the bound, the level
+    --      floor, the journal row, the fall events — is driven through the real
+    --      engine by tests/hunt-sessions-settle.mjs DEATHXP.)
+    if coalesce(public.hr_hunt_limit('death_xp_permille'), 0) <= 0 then
+      raise exception 'GATE(f3): hr_hunt_limits has no death_xp_permille row'; end if;
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
+             v_hunt || jsonb_build_object('swing_from', 10, 'death_xp', jsonb_build_array(jsonb_build_object('attack', 1))));
+    reset role;
+    if v_r->>'error' is distinct from 'bad_death_xp'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 10 then
+      raise exception 'GATE(f3): a price for a fall that did not happen answered %', v_r; end if;
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(),
+             v_delta || jsonb_build_object('deaths', jsonb_build_array(jsonb_build_object('monster', 'rat'))),
+             v_hunt || jsonb_build_object('swing_from', 10));
+    reset role;
+    if v_r->>'error' is distinct from 'bad_death_xp'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold + 10 then
+      raise exception 'GATE(f3): a fall with no stated price answered %', v_r; end if;
 
     -- (g) THE ROSTER offers a due session once, leased; a second driver skips it.
     update public.hunt_sessions set entered_at = now() - interval '30 minutes', hunt_from = now() - interval '25 minutes',

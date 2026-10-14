@@ -77,7 +77,7 @@ function melee(M, seed) {
   const hs = M.AR.newHuntSession({
     id: 'sess-melee', huntFromMs: T0 + 20000,
     bag: { cooked_shrimp: { loaded: 40 }, cooked_trout: { loaded: 6 } },
-    slots: M.RS.DEFAULT_PRESET.slots, fallsLimit: 6, vigourLeftMs: 3 * 3600000,
+    slots: M.RS.DEFAULT_PRESET.slots, fallsLimit: 6,
   });
   const state = { activeMonster: 'rat', playerHp: 12, playerMaxHp: 12, huntSession: hs, stats: {},
     deathsTodayBefore: 1, deathsLifetimeBefore: 9, inventory: {} };
@@ -226,10 +226,10 @@ const ARMS = {
   END: (M) => {
     const order = M.HSD.END_ORDER;
     const base = () => M.AR.newHuntSession({ id: 'e', huntFromMs: 0,
-      bag: { cooked_shrimp: { loaded: 1 }, iron_arrows: { loaded: 1 } }, hoursLimit: 1, vigourLeftMs: 1 });
+      bag: { cooked_shrimp: { loaded: 1 }, iron_arrows: { loaded: 1 } }, hoursLimit: 1 });
     const make = {
       falls: (h) => { h.falls = h.fallsLimit; }, heals_out: (h) => { h.bag.cooked_shrimp.left = 0; },
-      ammo_out: (h) => { h.bag.iron_arrows.left = 0; }, vigour: (h) => { h.vigourLeftMs = 0; },
+      ammo_out: (h) => { h.bag.iron_arrows.left = 0; },
       hours: () => {}, left: (h) => { h.leaveAtMs = 0; }, changed: (h) => { h.changeAtMs = 0; },
       server: (h) => { h.stopAtMs = 0; },
     };

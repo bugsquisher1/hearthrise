@@ -332,7 +332,7 @@ export default [
        either curated home and keep the unshipped-folder guard strict. */
     ['bronze_sword', 'rune_sword', 'steel_platebody', 'copper_ring'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/(painted\/gear|hearthfire)\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+      assert(p && /assets\/icons-bundle\/(painted\/gear|hearthfire|pixel\/items)\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
       assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
   }),
@@ -346,7 +346,7 @@ export default [
        Hearthfire file is a pool ball and was withheld (see item-art.js). */
     ['slime_gel', 'bones', 'carrot', 'cooked_shark', 'ruby', 'bat_wing', 'turnip_seed'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/(painted\/items|hearthfire\/(items|food|armour|weapons))\//.test(p),
+      assert(p && /assets\/icons-bundle\/(painted\/items|pixel\/items|hearthfire\/(items|food|armour|weapons))\//.test(p),
         'item icon missing/unshipped for ' + id + ': ' + p);
       assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
@@ -363,7 +363,11 @@ export default [
   () => tryRun('b358: hearthfire item art survives a __mapGeneratedGearIcons re-run', () => {
     const A = window.HearthriseItemArt;
     assert(A && typeof A.wiredIconMap === 'function', 'HearthriseItemArt manifest not published');
-    const wired = A.wiredIconMap();
+    /* The pixel item set (ITEM_ART_SET) is wired OVER the painted one for every
+       ITEMS id, so the property is checked against the map main.js actually
+       applied. With the switch on 'painted' this is exactly the old map. */
+    const pixelSet = A.ITEM_ART_SET === 'pixel';
+    const wired = pixelSet ? A.activeIconMap(Object.keys(window.ITEMS || {})) : A.wiredIconMap();
     const ids = Object.keys(wired);
     assert(ids.length > 300, 'expected the full item batch to be wired, got ' + ids.length);
     assert(typeof window.__applyHearthfireItemIcons === 'function',
@@ -403,11 +407,16 @@ export default [
     const paintedBefore = Object.keys(window.ITEMS || {}).filter((id) => !wired[id]
       && (window.ITEMS[id] || {}).tier
       && /icons-bundle\/painted\/gear\//.test((window._itemPath || {})[id] || ''));
-    assert(paintedBefore.length > 0, 'control failed: the generated map paints no un-covered id at all');
+    /* In the pixel set every ITEMS id is covered, so the generated mapper owns
+       nothing by design and the control would be vacuous-by-construction; the
+       painted-set control comes back with ITEM_ART_SET = 'painted'. */
+    assert(pixelSet || paintedBefore.length > 0, 'control failed: the generated map paints no un-covered id at all');
 
     /* Every wired path is inside the one shipped bundle, and none is an emoji. */
+    const home = pixelSet ? /^assets\/icons-bundle\/pixel\/items\// : /^assets\/icons-bundle\/hearthfire\//;
     ids.forEach((id) => {
-      assert(/^assets\/icons-bundle\/hearthfire\//.test(wired[id]), id + ' wired outside the hearthfire folder: ' + wired[id]);
+      assert(home.test(wired[id]) || (pixelSet && /^assets\/icons-bundle\/hearthfire\//.test(wired[id])),
+        id + ' wired outside the active item art folder: ' + wired[id]);
     });
     assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
       'a file withheld for depicting the wrong object got wired anyway');
@@ -501,7 +510,7 @@ export default [
   () => tryRun('b361: item-detail modal icon === grid icon, and the card carries no emoji', () => {
     assert(typeof window.openInvDetail === 'function', 'openInvDetail missing');
     const A = window.HearthriseItemArt;
-    const wired = (A && A.wiredIconMap && A.wiredIconMap()) || {};
+    const wired = (A && A.activeIconMap && A.activeIconMap(Object.keys(window.ITEMS || {}))) || {};
     /* A hearthfire-wired id that is really in ITEMS. Prefer the one Tyler
        reported so the regression is the reported bug, not a cousin of it. */
     const id = (wired.wheat_seed && window.ITEMS.wheat_seed) ? 'wheat_seed'

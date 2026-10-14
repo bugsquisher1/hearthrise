@@ -149,7 +149,7 @@ export async function bootWorld(panel, opts = {}) {
   }
 
   /* ROUTE: which scene, and the HTML around it (title, picks, idle card, overlay).
-     NOT a side effect of the frame loop (b578 live: a pane opened with no frame
+     NOT a side effect of the frame loop (live 2026-10-14: a pane opened with no frame
      ever running — a background tab — kept a 300x150 canvas and a hidden card).
      sync() routes on every open, tab switch and visibility change; every frame
      routes again, so the card follows the activity as it changes. */

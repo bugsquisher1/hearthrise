@@ -153,7 +153,7 @@ export default [
     }
   }),
 
-  /* REGRESSION (b578, live): QA Hero 2 fighting a gnoll at Ridge Camp, which has no
+  /* REGRESSION (live, 2026-10-14): QA Hero 2 fighting a gnoll at Ridge Camp, which has no
      world map, opened the World pane to a BLANK stage — a 300x150 canvas, the idle
      card and the hunt overlay both hidden — because the card was painted only from
      inside the frame loop (no frame on a hidden page means no card, ever), and an

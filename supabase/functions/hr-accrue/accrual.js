@@ -1437,7 +1437,10 @@ function huntSpanOf(inp) {
     tally: null, endedReason: null, endedAtMs: null,
   }));
   if (!hs.id) return null;
-  const pressAtMs = Number.isFinite(Number(w.pressAtMs)) ? Math.floor(Number(w.pressAtMs)) : null;
+  /* `null`/absent is "no press" — and NOT `Number(null)`, which is 0: a press
+     at the epoch would end every window at its first boundary. */
+  const pressAtMs = (w.pressAtMs !== null && w.pressAtMs !== undefined && Number.isFinite(Number(w.pressAtMs)))
+    ? Math.floor(Number(w.pressAtMs)) : null;
   return {
     nowMs: toMs, grantMs: toMs - fromMs, capped: false, sinceMs: fromMs,
     credit: { fromMs, toMs, paidMs: toMs - fromMs, unpaidMs: 0 },
@@ -1499,7 +1502,7 @@ function accrueCombat(inp, span, hunt) {
      resolves to no multiplier at all, which is the pre-charm behaviour byte for
      byte and the under-paying direction. One value, read by BOTH the away span
      and the attended top-up below, so AWAY-1 parity holds by construction. */
-  const charms = charmIndex(killsByClass(inp.bestiaryKills, monsters));
+  let charms = charmIndex(killsByClass(inp.bestiaryKills, monsters));
   /* THE TROPHY INDEX — the SAME `inp.bestiaryKills` rows the charm folds, read
      PER MONSTER instead of per class, against the same sealed catalogue. It is
      derived here, ONCE, and handed to both the away span and the attended
@@ -1508,7 +1511,23 @@ function accrueCombat(inp, span, hunt) {
      database without 2026-08-20-bestiary.sql, or a character who has not ground
      2,500 of anything — resolves to no multiplier at all, which is the
      pre-trophy behaviour byte for byte and the under-paying direction. */
-  const trophies = trophyIndex(inp.bestiaryKills, monsters);
+  let trophies = trophyIndex(inp.bestiaryKills, monsters);
+  /* A SESSION'S LADDERS ARE LIVE (lane C2). The charm and trophy indexes are
+     functions of the kill counters, and a hunt's counters grow DURING the
+     window: a 10 s tick chain re-reads hr_bestiary_of every window and so
+     prices a drop at the rank the kill before it reached, while one long span
+     read once would price the whole span at the opening rank — N windows and
+     one span would pay different loot (TICK-1). So in a session the counters
+     are carried live and both indexes are re-derived the moment a kill moves
+     them; a roll always sees the rank its own history earned, however the
+     windows are cut. The legacy span keeps its window-open read. */
+  const liveKills = hs0 ? Object.assign(Object.create(null), inp.bestiaryKills || {}) : null;
+  const killed = (target, n) => {
+    if (!liveKills || typeof target !== 'string' || !catalogueHas(monsters, target)) return;
+    liveKills[target] = (Number(liveKills[target]) || 0) + n;
+    charms = charmIndex(killsByClass(liveKills, monsters));
+    trophies = trophyIndex(liveKills, monsters);
+  };
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
   /* THE PLAYER'S CHOSEN STYLE, FROM SERVER STATE (2026-08-24-combat-style.sql).
@@ -2207,7 +2226,11 @@ function accrueCombat(inp, span, hunt) {
        declares a target), so the two models PARTITION the event: one aggregate
        count under `ev:kill_any`, one per-monster count under
        `ev:kill_monster:<id>`, never double-counted. See src/core/goals.js. */
-    updateQuest(type, amt, meta) { goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },
+    updateQuest(type, amt, meta) {
+      goals.quest(type, amt == null ? 1 : amt);
+      bestiary.record(type, amt == null ? 1 : amt, meta);
+      if (type === 'kill_monster' && meta) killed(meta.target, amt == null ? 1 : Math.floor(Number(amt) || 0));
+    },
 
     /* Still deliberately ABSENT, and each absence is a decision, not an
        oversight:
@@ -2260,6 +2283,10 @@ function accrueCombat(inp, span, hunt) {
   const fightSkills = vigDry ? { ...skills0 } : state.skills;
   const fightGain = Object.create(null);
 
+  /* THE CELLAR'S BUFF SCALE for a Feast the action bar fires: the same [1, 2]
+     clamp hr_apply applies to an eaten buff, stamped on the segment as hr_apply
+     stamps it. */
+  const huntBuffScale = hs0 ? Math.min(2, Math.max(1, 1 + (Number(bonus('buffDuration')) || 0))) : 1;
   /* THE SESSION'S WINDOW END. A press settle runs through the first boundary at
      or after the press (never past one interval beyond the server's now). */
   const huntToMs = !hs0 ? null
@@ -2281,8 +2308,7 @@ function accrueCombat(inp, span, hunt) {
     toMs: hs0 ? huntToMs : credit.toMs,
     /* THE SESSION'S KEYED PER-SWING SEED and the Cellar's buff scale (the same
        [1, 2] clamp hr_apply applies to an eaten buff), for the action bar. */
-    ...(hs0 ? { swingSeed: huntSeeder,
-                buffScale: Math.min(2, Math.max(1, 1 + (Number(bonus('buffDuration')) || 0))) } : {}),
+    ...(hs0 ? { swingSeed: huntSeeder, buffScale: huntBuffScale } : {}),
     tickMs,                        // DERIVED from server-owned equipment
     capped,
     rng: createRng(nat(inp.seed, 0)),
@@ -3026,7 +3052,10 @@ function accrueCombat(inp, span, hunt) {
        apply in the same transaction — the clock, the bag uses, the cooldowns,
        the presses left, the falls, the end. Absent outside a session. */
     ...(hs0 ? { hunt: huntProposal(hs0, huntSwingFrom, settledTo, summary),
-                huntBuffs: huntBuffsOf(hs0, state.buffs, settledTo) } : {}),
+                huntBuffs: huntBuffsOf(hs0, state.buffs, settledTo, inp.buffs, huntBuffScale),
+                /* The max HP the window ENDED at (raise-only, FX-4) — reported
+                   for the guard; the row's max_hp is hr_sync_max_hp's. */
+                maxHp: state.playerMaxHp } : {}),
     /* Per-monster kills of a NAMED HUNT, for the shadow carrier's bestiary
        (tick-shadow.js). Present only for a hunt, so a training window's result
        is byte-identical to the pre-C1 engine (the deploy differential). */
@@ -3144,28 +3173,38 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
 
 /* THE BUFF QUEUE A SESSION LEAVES BEHIND, in the server's absolute shape
    (`player_state.buffs`: {type, magnitude, until, from, scale}), or null when
-   no buff line fired this window — the stored absolute queue then drains on the
-   wall clock by itself and nothing is written. Proposed, never trusted:
-   hr_hunt_apply admits a new or lengthened segment only when this window's own
-   bag uses paid for it (2026-10-22-hunt-sessions-settle.sql §2). */
-export function huntBuffsOf(hs, buffs, settledToMs) {
+   there is nothing to say: no stored segment and no buff line fired.
+   CANONICAL, so N windows and one span leave the SAME row (TICK-1): whenever
+   anything is stored or fired, the queue as it stands at the window end — live
+   segments only — is written back. A stored segment keeps its stored instants
+   VERBATIM (a manual eat's `until` carries microseconds the engine's
+   millisecond clock cannot re-spell, and hr_hunt_buffs_put recognises an
+   unchanged segment by its exact instants). Proposed, never trusted:
+   hr_hunt_buffs_put admits a new or lengthened segment only when this window's
+   own bag uses paid for it (2026-10-22-hunt-sessions-settle.sql §4). */
+export function huntBuffsOf(hs, buffs, settledToMs, storedRows, newScale) {
   const sup = (hs.tally && hs.tally.supplies) || {};
   const usedBuff = Object.keys(sup).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'buff' && sup[id] > 0);
-  if (!usedBuff) return null;
+  const stored = Array.isArray(storedRows) && storedRows.length > 0;
+  if (!usedBuff && !stored) return null;
   const out = [];
   for (const b of Array.isArray(buffs) ? buffs : []) {
     if (!b || !(b.remainingMs > 0)) continue;
-    const until = typeof b.until === 'number' ? b.until : Date.parse(String(b.until));
-    if (!Number.isFinite(until) || until <= settledToMs) continue;
+    const untilMs = typeof b.until === 'number' ? b.until : Date.parse(String(b.until));
+    if (!Number.isFinite(untilMs) || untilMs <= settledToMs) continue;
+    const seg = { type: b.type, magnitude: b.magnitude,
+      until: typeof b.until === 'number' ? huntIso(b.until) : String(b.until) };
     const fromRaw = b.from !== undefined ? b.from : b._from;
-    const from = typeof fromRaw === 'number' ? fromRaw : Date.parse(String(fromRaw ?? ''));
-    const seg = { type: b.type, magnitude: b.magnitude, until: huntIso(until) };
-    if (Number.isFinite(from) && from <= until) seg.from = huntIso(from);
-    const scale = b.scale !== undefined ? b.scale : b._scale;
+    if (typeof fromRaw === 'number' && Number.isFinite(fromRaw) && fromRaw <= untilMs) seg.from = huntIso(fromRaw);
+    else if (typeof fromRaw === 'string' && fromRaw) seg.from = fromRaw;
+    /* A stored segment keeps its stamped scale (hr_state_of projects 1 for one
+       written before the key existed); a segment the bar fired carries the
+       scale it was bought at, as hr_apply's buff_apply stamps one. */
+    const scale = b.scale !== undefined ? b.scale : (b._scale !== undefined && b._scale !== null ? b._scale : newScale);
     if (Number.isFinite(Number(scale)) && Number(scale) >= 1) seg.scale = Number(scale);
     out.push(seg);
   }
-  out.sort((a, c) => (a.until < c.until ? -1 : a.until > c.until ? 1 : 0));
+  out.sort((a, c) => (Date.parse(a.until) - Date.parse(c.until)));
   return out;
 }
 

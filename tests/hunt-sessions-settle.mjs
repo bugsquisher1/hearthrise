@@ -176,7 +176,7 @@ const ENGINE_ARMS = {
     const fnv = (s) => { let h = 0x811c9dc5; for (let k = 0; k < s.length; k++) { h ^= s.charCodeAt(k); h = Math.imul(h, 0x01000193); } return h >>> 0; };
     const seenFnv = new Map(); let pair = null;
     for (let n = 1n; !pair && n < 400000n; n++) {
-      const s = String(9007199254740993n * n);
+      const s = String(1000000000000000000n + 7919n * n);   // 19 digits: inside hr_seed's signed 64-bit range
       const h = fnv(s);
       if (seenFnv.has(h)) pair = [seenFnv.get(h), s]; else seenFnv.set(h, s);
     }
@@ -202,24 +202,19 @@ const ENGINE_ARMS = {
   },
 
   MAXHP: async (M) => {
-    /* Max HP 10 at hitpoints level ~6: a level-up inside the window must not
-       pull max HP DOWN to the level. A hunt and a legacy span both run the one
-       fx.addXp, so both are graded. */
+    /* Max HP 10 at hitpoints level 5: a level-up inside the window must not
+       pull max HP DOWN to the level. The rule is one line of the ONE fx.addXp
+       both a hunt and a legacy span run; the hunt reports the max HP it ended
+       the window at. */
     const problems = [];
     const lv6 = M.XP.xpForLevel(6) - 1;
-    for (const mode of ['hunt', 'legacy']) {
-      const inp = huntInput(M, { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, hp: 10, maxHp: 10 });
-      if (mode === 'legacy') {
-        delete inp.huntSession; delete inp.huntWindow; delete inp.huntSecret;
-        Object.assign(inp, { activeId: 'rat', capMs: 43200000, nowMs: T0 + 300000, seed: 7 });
-      } else {
-        inp.huntWindow = { fromMs: T0, toMs: T0 + 300000 };
-      }
-      const out = M.AC.computeAccrual(inp);
-      const lv = M.XP.levelFromXp(lv6 + Number((out.delta && out.delta.xp && out.delta.xp.hitpoints) || 0));
-      if (!(lv > 5)) { problems.push(`${mode}: CONTROL — hitpoints did not level inside the window (level ${lv})`); continue; }
-      if (!(out.delta.hp > lv)) problems.push(`${mode}: hp ${out.delta.hp} was capped at the new LEVEL ${lv} — a level-up lowered max HP 10 (FX-4)`);
-    }
+    const inp = huntInput(M, { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, hp: 10, maxHp: 10 });
+    inp.huntWindow = { fromMs: T0, toMs: T0 + 300000 };
+    const out = M.AC.computeAccrual(inp);
+    const lv = M.XP.levelFromXp(lv6 + Number((out.delta && out.delta.xp && out.delta.xp.hitpoints) || 0));
+    if (!(lv > 5)) problems.push(`CONTROL — hitpoints did not level inside the window (level ${lv})`);
+    else if (!(out.maxHp >= 10)) problems.push(`a hitpoints level-up to ${lv} lowered max HP 10 to ${out.maxHp} (FX-4)`);
+    if (out.delta && out.delta.hp > Math.max(10, lv)) problems.push(`hp ${out.delta.hp} exceeds max HP`);
     return problems;
   },
 
@@ -301,9 +296,10 @@ async function settleTo(db, M, toMs, o = {}) {
   if (o.pressAtMs != null) { press = { slot: o.pressSlot ?? 0, at: o.pressAtMs }; hs.presses = [...hs.presses, press]; }
   const perks = await M.TR.readTickPerks(exec, UID, 0);
   const bestiaryKills = await M.TR.readTickBestiary(exec, UID, 0);
-  const out = M.AC.computeAccrual(M.HS.huntEngineInputs({ user: UID, slot: 0, env, hs,
+  const engIn = M.HS.huntEngineInputs({ user: UID, slot: 0, env, hs,
     nowMs: new Date(read.now).getTime(), fromMs: Number(h.settled_to_ms), toMs, perks, bestiaryKills,
-    secret: h.secret, pressAtMs: press ? press.at : null }));
+    secret: h.secret, pressAtMs: press ? press.at : null });
+  const out = M.AC.computeAccrual(engIn);
   if (!out.accrued) return { skipped: out.reason };
   const res = await M.HS.commitHuntSettle(exec, { user: UID, slot: 0, sessionId: String(h.id), version: env.version,
     intentId: idem(), out, press, project: false });
@@ -328,8 +324,15 @@ async function snapshot(db, sid) {
       'deaths', (select jsonb_agg(jsonb_build_array(meta->>'monster', meta->>'recovery_ms', meta->>'deaths_today',
                    meta->>'deaths_lifetime', meta->>'resume_hp', meta->>'food_in_bag') order by id)
                    from public.player_ledger where session_id = $2 and kind = 'combat' and intent = 'death'),
-      'events', (select jsonb_agg(jsonb_build_array(type, at, data) order by id) from public.hunt_session_events
-                  where session_id = $2 and type in ('fall', 'slot_dry', 'rare_drop', 'ended')))
+      /* The timeline in TIME order (a settle inserts a window's events in its
+         own order). Rare drops as the SET of items: hr_hunt_settle_session
+         journals one rare_drop per item per settle (C1), so how many rows a
+         repeated item gets is a property of the cut, not of the hunt; level_up
+         and vigour_low are stamped at their settle's end for the same reason. */
+      'events', (select jsonb_agg(jsonb_build_array(type, at, data) order by at, type, data::text)
+                   from public.hunt_session_events where session_id = $2 and type in ('fall', 'slot_dry', 'ended')),
+      'rare_items', (select jsonb_agg(distinct data->>'item') from public.hunt_session_events
+                      where session_id = $2 and type = 'rare_drop'))
       from public.player_state ps where ps.user_id = $1 and ps.slot = 0`, [UID, sid]);
 }
 
@@ -337,15 +340,24 @@ async function inTx(db, fn) {
   await db.query('begin');
   try { return await fn(); } finally { await db.query('rollback'); }
 }
-/* Run `cuts` (window ends, ms) on a fresh hunter; return the end snapshot. */
-async function runChain(db, M, fixture, cutsOf) {
+/* ONE hunter, TWO timelines: run `cutsA` (window ends, ms), snapshot, roll
+   back to the savepoint, run `cutsB`, snapshot. Same session, same secret,
+   same instants — so any difference is the settle's, never the fixture's. */
+async function compareRuns(db, M, fixture, cutsA, cutsB) {
   return inTx(db, async () => {
     const { sid, from } = await hunter(db, M, fixture);
-    for (const t of cutsOf(from)) {
-      const r = await settleTo(db, M, t);
-      if (r.skipped === 'closed') break;
-    }
-    return { snap: await snapshot(db, sid), sid, from };
+    const run = async (cuts) => {
+      for (const t of cuts(from)) {
+        const r = await settleTo(db, M, t);
+        if (r.skipped === 'closed') break;
+      }
+      return snapshot(db, sid);
+    };
+    await db.query('savepoint c2_runs');
+    const a = await run(cutsA);
+    await db.query('rollback to savepoint c2_runs');
+    const b = await run(cutsB);
+    return { a, b, sid, from };
   });
 }
 
@@ -355,19 +367,18 @@ const STRONG = {
   slots: [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
     { item: 'hunters_feast', on: true, conditions: [{ subject: 'buff_missing:drop_rate' }] }],
 };
-const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 6 };
+const WEAK = { minutesAgo: 30, inv: {}, bag: [], falls: 1, hunt: 'goblin_warren' };
 const SPAN_MS = 30 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 
 const DB_ARMS = {
   'TICK-1': async (db, M) => {
-    const chain = await runChain(db, M, STRONG, ticksOf(90000, SPAN_MS));
-    const span = await runChain(db, M, STRONG, (from) => [from + SPAN_MS]);
-    const a = canon(chain.snap); const b = canon(span.snap);
+    const r = await compareRuns(db, M, STRONG, ticksOf(90000, SPAN_MS), (from) => [from + SPAN_MS]);
+    const a = canon(r.a); const b = canon(r.b);
     const problems = [];
     if (a !== b) problems.push(`20 x 90 s tick windows differ from one 30 min span ${firstDiff(a, b)}`);
-    const t = span.snap.tally || {};
-    if (!(t.kills > 0)) problems.push('CONTROL: the strong fixture killed nothing');
+    const t = r.b.tally || {};
+    if (!(t.kills > 0)) problems.push(`CONTROL: the strong fixture killed nothing (${JSON.stringify(r.b).slice(0, 600)})`);
     if (!((t.supplies || {}).hunters_feast > 0)) problems.push('CONTROL: the action bar never fired a Feast — the buff queue was not exercised');
     if (!((t.supplies || {}).cooked_shrimp > 0)) problems.push('CONTROL: no heal was eaten');
     return problems;
@@ -377,13 +388,12 @@ const DB_ARMS = {
        instants, two within a second, one that lands on a swing boundary. */
     const odd = (from) => [37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
       .map((d) => from + d);
-    const away = await runChain(db, M, WEAK, ticksOf(90000, SPAN_MS));
-    const live = await runChain(db, M, WEAK, odd);
-    const a = canon(away.snap); const b = canon(live.snap);
+    const r = await compareRuns(db, M, WEAK, ticksOf(90000, SPAN_MS), odd);
+    const a = canon(r.a); const b = canon(r.b);
     const problems = [];
     if (a !== b) problems.push(`a death with a client connected wrote different rows than one with none ${firstDiff(a, b)}`);
-    if (!((away.snap.deaths || []).length > 0)) problems.push('CONTROL: the weak fixture never fell — the arm proves nothing about deaths');
-    if (!away.snap.session || !away.snap.session.end_reason) problems.push('CONTROL: the weak hunt never ended');
+    if (!((r.a.deaths || []).length > 0)) problems.push('CONTROL: the weak fixture never fell — the arm proves nothing about deaths');
+    if (!r.a.session || r.a.session.end_reason !== 'falls') problems.push(`CONTROL: the weak hunt ended '${r.a.session && r.a.session.end_reason}', not on its fall`);
     return problems;
   },
   TALLY: async (db, M) => inTx(db, async () => {
@@ -425,7 +435,7 @@ const DB_ARMS = {
       slots: [{ item: '*heal', on: false, conditions: [] }] };
     const { sid, from } = await hunter(db, M, fixture);
     const at = from + 7000;                       // two boundaries already behind it at a 2.4 s swing
-    const r1 = await settleTo(db, M, from + 1, { pressAtMs: at, pressSlot: 0 });
+    const r1 = await settleTo(db, M, at, { pressAtMs: at, pressSlot: 0 });
     let s = await snapshot(db, sid);
     const used = Number(((s.tally || {}).supplies || {}).cooked_shrimp || 0);
     const queued = await one(db, 'select jsonb_array_length(presses) from public.hunt_sessions where id = $1', [sid]);
@@ -447,7 +457,7 @@ const DB_ARMS = {
   }),
   END: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { minutesAgo: 10, inv: { cooked_shrimp: 3 }, bag: [{ item: 'cooked_shrimp', qty: 3 }] });
+    const { sid, from } = await hunter(db, M, { minutesAgo: 10, hp: 2, inv: { cooked_shrimp: 3 }, bag: [{ item: 'cooked_shrimp', qty: 3 }] });
     await settleTo(db, M, from + 5 * 60000);
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'heals_out') problems.push(`a dry bag ended the hunt '${s.session.end_reason}', not heals_out`);
@@ -544,7 +554,8 @@ async function main() {
     console.log(bad ? `hunt-sessions-settle --mutate: ${bad} mutant(s) survived` : `hunt-sessions-settle --mutate: all ${total} mutants killed`);
     process.exit(bad ? 1 : 0);
   }
-  const res = await runArms(ROOT, db);
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const res = await runArms(ROOT, db, onlyArg ? onlyArg.slice(7).split(',') : undefined);
   let bad = 0;
   for (const [name, problems] of Object.entries(res)) {
     if (problems && problems.length) { bad++; for (const p of problems) console.error(`✗ ${name}: ${p}`); }

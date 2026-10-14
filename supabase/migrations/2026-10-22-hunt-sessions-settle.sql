@@ -404,6 +404,92 @@ create trigger hr_hunt_accrue_fence before insert on public.player_ledger
   for each row when (new.kind = 'combat' and new.intent = 'accrue')
   execute function public.hr_hunt_accrue_fence();
 
+-- ── §6b THE TWO CLIENT CREDIT DOORS ARE SHUT FOR A HUNTER ───────────────────
+-- hr_credit_combat_xp (live combat XP) and hr_credit_kills (attended kill
+-- credit) let the CLIENT report what its own 2.4 s fight did. A hunt has no
+-- client fight: the hunt settle pays every swing's XP and files every kill
+-- counter itself, ignoring combat_xp_accrued_to — so a credit on top would pay
+-- the same fight TWICE (XP is ranked; the kill counters feed bounties, dailies
+-- and renown). Each wrapper is RESTATED WHOLE from its installed body (md5
+-- pinned below) with ONE change: the call to __ungated is skipped, and
+-- `hunt_open` answered instead, while the caller holds an open session. Still
+-- ONE hr_note_rejection seam per wrapper (tests/rejections-journal.mjs P6).
+-- hr_credit_kills is dropped outright by 2026-10-22-hunt-sessions-drop-away.sql;
+-- this covers the window between the C2 deploy and that apply.
+do $mig$
+declare v_md5 text;
+begin
+  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc
+   where oid = to_regprocedure('public.hr_credit_combat_xp(integer,jsonb,text)');
+  if v_md5 is null or (v_md5 <> 'b96fd20d3a8e7226a69a3857653212df'
+       and strpos((select prosrc from pg_proc where oid = 'public.hr_credit_combat_xp(integer,jsonb,text)'::regprocedure),
+                  'hr_hunt_open_of') = 0) then
+    raise exception 'hr_credit_combat_xp is not the body this file restates (md5 %) — restate from the installed body', v_md5;
+  end if;
+  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc
+   where oid = to_regprocedure('public.hr_credit_kills(integer,text,bigint,text)');
+  if v_md5 is not null and v_md5 <> 'b5362b470a8b442e1ba8ed72fafcb7ed'
+     and strpos((select prosrc from pg_proc where oid = 'public.hr_credit_kills(integer,text,bigint,text)'::regprocedure),
+                'hr_hunt_open_of') = 0 then
+    raise exception 'hr_credit_kills is not the body this file restates (md5 %) — restate from the installed body', v_md5;
+  end if;
+end $mig$;
+
+CREATE OR REPLACE FUNCTION public.hr_credit_combat_xp(p_slot integer, p_xp jsonb, p_idem text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+begin
+  if not public.hr_rpc_gate('hr_credit_combat_xp') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited')::jsonb;
+  end if;
+  -- HUNT SESSIONS (2026-10-22-hunt-sessions-settle.sql §6b): a hunter's combat
+  -- XP is the hunt settle's to pay; a client credit on top would pay it twice.
+  return public.hr_note_rejection('hr_credit_combat_xp', p_slot,
+    case when public.hr_hunt_open_of(auth.uid(), coalesce(p_slot, 0)) is not null
+         then jsonb_build_object('ok', false, 'error', 'hunt_open')
+         else public.hr_credit_combat_xp__ungated($1, $2, $3) end);
+end $function$;
+revoke execute on function public.hr_credit_combat_xp(integer, jsonb, text) from public, anon, service_role;
+grant execute on function public.hr_credit_combat_xp(integer, jsonb, text) to authenticated;
+
+do $mig$
+begin
+  if to_regprocedure('public.hr_credit_kills(integer,text,bigint,text)') is null then return; end if;
+  execute $def$
+CREATE OR REPLACE FUNCTION public.hr_credit_kills(p_slot integer, p_target text, p_claimed bigint, p_idem text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+begin
+  -- SETTLE-BEFORE-MUTATE (2026-09-28-settle-before-mutate.sql, Security F2). An
+  -- unpaid window is priced at the state that existed during it, so nothing that
+  -- moves a priced input lands while one is open. Refuses before anything else
+  -- and writes nothing to the character. (A nested block, not an exception
+  -- block: no subtransaction on the accepted path.)
+  declare v_settle jsonb := public.hr_settle_first_noted('hr_credit_kills', auth.uid(), p_slot);
+  begin
+    if v_settle is not null then return v_settle; end if;
+  end;
+  if not public.hr_rpc_gate('hr_credit_kills') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited')::jsonb;
+  end if;
+  -- HUNT SESSIONS (2026-10-22-hunt-sessions-settle.sql §6b): a hunter's kill
+  -- counters are the hunt settle's to file; a client credit would file them twice.
+  return public.hr_note_rejection('hr_credit_kills', p_slot,
+    case when public.hr_hunt_open_of(auth.uid(), coalesce(p_slot, 0)) is not null
+         then jsonb_build_object('ok', false, 'error', 'hunt_open')
+         else public.hr_credit_kills__ungated($1, $2, $3, $4) end);
+end $function$;
+$def$;
+  execute 'revoke execute on function public.hr_credit_kills(integer, text, bigint, text) from public, anon, service_role';
+  execute 'grant execute on function public.hr_credit_kills(integer, text, bigint, text) to authenticated';
+end $mig$;
+
 -- ── §7 hr_hunt_roster — the due open sessions, leased to ONE driver ────────
 create or replace function public.hr_hunt_roster(p_holder text, p_limit int default 200, p_lease_ms int default 30000)
 returns table (user_id uuid, slot int, session_id uuid)
@@ -1732,6 +1818,18 @@ begin
     select count(*) into v_n from public.hr_hunt_roster('selfcheck:b', 50, 30000) r where r.session_id = v_sid;
     reset role;
     if v_n <> 0 then raise exception 'GATE(g): a leased session was handed to a second driver'; end if;
+
+    -- (h) THE CLIENT CREDIT DOORS ARE SHUT FOR A HUNTER (§6b).
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    v_r := public.hr_credit_combat_xp(0, '{"attack": 5}'::jsonb, 'c2-selfcheck');
+    if v_r->>'error' is distinct from 'hunt_open' then
+      raise exception 'GATE(h): a hunter''s client combat-XP credit answered %', v_r; end if;
+    if to_regprocedure('public.hr_credit_kills(integer,text,bigint,text)') is not null then
+      v_r := public.hr_credit_kills(0, 'rat', 3, 'c2-selfcheck');
+      if v_r->>'error' is distinct from 'hunt_open' and v_r->>'error' is distinct from 'settle_first' then
+        raise exception 'GATE(h): a hunter''s client kill credit answered %', v_r; end if;
+    end if;
+    perform set_config('request.jwt.claim.sub', '', true);
 
     raise exception using errcode = 'HRC2B', message = 'hunt-sessions-settle §10 complete — rolling back';
   exception when sqlstate 'HRC2B' then null;

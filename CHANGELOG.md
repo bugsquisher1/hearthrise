@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 585 — 2026-10-14 (Town and home)
+
+**Walk around town and your house.** The World tab now has The Common, a corner of town where other online players stand by what they are doing, the town crier calls out news, and you can click to walk. Your cottage shows the rooms you have built, with the roof lifted only while you are inside. The mill hatch takes you to the Mill Cellar hunt.
+
 ## v0.9.2-beta build 584 — 2026-10-14 (Steadier screens)
 
 **Smoother screens everywhere.** The shop no longer flickers, and the Home, Combat, Bag, Skills, Farm and Character screens only redraw what actually changed, so the whole game feels steadier.

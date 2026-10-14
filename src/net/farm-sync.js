@@ -41,9 +41,9 @@
 // window for legacy.js — but the ESM exports exist for the Node guard.
 // ============================================================================
 
-import { isFarmServerArmed } from '../data/item-authority.js?v=584';
-import { withSettleFirstRetry } from './settle-first.js?v=584';
-import { createIntentLatch } from './intent-latch.js?v=584';
+import { isFarmServerArmed } from '../data/item-authority.js?v=585';
+import { withSettleFirstRetry } from './settle-first.js?v=585';
+import { createIntentLatch } from './intent-latch.js?v=585';
 
 export { isFarmServerArmed };
 

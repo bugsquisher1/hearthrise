@@ -103,7 +103,6 @@ export const LATCH_SURFACES = [
   'src/features/daily-quests.js',   // the one daily list's claim (w0c retired the legacy goals board)
   'src/features/collection-log.js', // milestone claim
   'src/features/renown.js',         // rank claim
-  'src/render/shop.js',             // trait buy
   'src/render/bank-panel.js',       // bank move
   'src/screens/farm.js',            // harvest
   'src/settings-page.js',           // auto-eat toggle
@@ -199,7 +198,7 @@ const PLANTS = [
   ['SF-3', 'farm harvest sent bare', (t) => { t['src/net/farm-sync.js'] = t['src/net/farm-sync.js'].replace("withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o))", "callFarmRpc('hr_farm_harvest', body, o)"); }],
   ['SF-3', 'muster sends the claim without the handler', (t) => { t['src/features/muster.js'] = t['src/features/muster.js'].replace('SF.withSettleFirstRetry(send)', 'send()'); }],
   ['SF-3', 'raids sends the claim without the handler', (t) => { t['src/features/raids.js'] = t['src/features/raids.js'].replace('SF.withSettleFirstRetry(send)', 'send()'); }],
-  ['SF-4', 'the trait Buy button loses its latch', (t) => { t['src/render/shop.js'] = t['src/render/shop.js'].split('data-hr-settle-latch').join(''); }],
+  ['SF-4', 'the auto-eat toggle loses its latch', (t) => { t['src/settings-page.js'] = t['src/settings-page.js'].split('data-hr-settle-latch').join(''); }],
 ];
 const CONTROLS = [
   ['a comment-only mention', (t) => { t['src/features/new-thing.js'] = "// hr_bank_move is the Depot verb\n/* 'hr_claim_rank' */\n"; }],

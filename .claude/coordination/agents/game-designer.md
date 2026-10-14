@@ -756,3 +756,25 @@ away night goes 0.5 min → 13.5 min / 40 kills, and attended deaths in the firs
   `sticky_core`, `keystone`), and three of those are bounty-proof or a shop cost. The b356 wave
   closed it.
 - "Harvest 25 crops" — b220 already made it scale; the residue was the FLOOR, fixed here.
+
+---
+
+# 2026-10-14 — GEM CONVERSION RULING (design/gem-conversion)
+
+Full ruling and build split: `docs/planning/PRIORITY_BOARD.md`, section "2026-10-14 — GEM CONVERSION".
+
+**Learnings.**
+- Start any currency question from two lists: the wallet migration's own census
+  (`2026-10-19-account-wallet.sql` §4) and the client census `src/net/gem-sites.js`. There is
+  also a third path: `hr_apply`'s generic delta arm, which neither list names as a source.
+- Four gem cosmetics (Golden Name, Emote Pack, Dragon Avatar, Phoenix Pet) are SOLD and have no
+  renderer anywhere. A real-money shop cannot carry a row that changes nothing. They are off sale
+  until each one renders.
+- The Legend Pack (5,800 gems) is larger than the account gem day cap (5,000), so a real purchase
+  would be refused. Caps built for earned drips must not meter purchases.
+- Never replace an earned premium at a gold-per-gem rate. A server-set rate is a published gem
+  price the player market then has to fight. Replace the moment, not the value.
+
+**Handoffs raised (in the board's build split):** Security and Systems own lanes 1 and 4 (lane C).
+The Art Director owns lane 2 (banner art and the Trophy Room render). Lane 3 is data cuts. Tyler
+owns two finance items: the gem price of Premium, and dropping the Hearth Token SKU.

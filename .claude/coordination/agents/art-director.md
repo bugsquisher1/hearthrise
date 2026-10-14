@@ -2831,3 +2831,19 @@ grid + tier chips live on under Training. Hunt sends `hunt` when the server list
 the first spawn. Coach step 5 rings the Mill Cellar's Hunt button.
 Lesson: a hidden tab is still in the DOM, so layout tests that measured the grid open Training through
 the shared combatScreen() fixture rather than per test.
+
+### 2026-10-13 · b574 Recraft wave 1 (lane/b574-art-wave1)
+130 PNGs reviewed; 12 wired (raw pikeperch/silverfin/goldgill, raw shrimp, cooked trout, turnip seed packet,
+bronze + verdite ingots, oak planks, ooze + air elemental portraits, hero in placeholder-portrait.webp).
+Everything else held back: the wave is cleaner/glossier than the shipped hearthfire set, so it only replaces art
+that was WRONG (trout drumstick, bronze = copper dupe, verdite = steel dupe) or MISSING (emoji/glyph). Separate
+theme-lift commits (7472d3d9 + its visible redo 5cfeed99) were REVERTED on this branch at the Coordinator's call;
+both stay in history for a theme lane to cherry-pick.
+Lesson: a style-trained generator still drifts glossy; screen against the shelf it lands on, not against the
+prompt. Cut-out = edge flood-fill of near-white + whiteness-ramp alpha + un-premultiply; enclosed white pockets
+(bow strings, padlock shackles) need a second pass.
+Lesson 2: lifting --bg-* changed nothing a player could see. The visible surfaces were literals: the panel
+floor in art-direction.css and the sidebar/topbar glass in backdrop.js. Measure the computed background at
+a few screen points BEFORE choosing which token to move.
+Lesson 3: "clashes with the current shelf" is my call, not Tyler's; when holding art back, show him the
+held-back picks beside the current art (docs/art-experiments/review/) instead of deciding silently.

@@ -5,9 +5,7 @@
 //
 // Design (see ROADMAP.md "Housing-gated farm progression"):
 //   • Crops unlock by farm-plot level (1..5), NOT by farming level.
-//   • Plot upgrades cost a `farm_deed` item that drops from
-//     gameplay (0.1% per Tier 2+ kill, 0.5% per bounty turn-in).
-//   • Deeds are tradable on the market — explicitly NOT BoP.
+//   • Plot upgrades are priced by the server (hr_farm_upgrade_plot).
 //   • Single integer `G.plotLevels` applies to all 8 plots
 //     (kept simple — Tyler's design ask).
 //
@@ -50,7 +48,6 @@
      called (legacy.js boots on DOMContentLoaded). Resolved per call rather
      than captured, so there is no load-order hazard to get wrong. */
   function core(){ return window.HearthriseCore && window.HearthriseCore.farm; }
-  function rng(){ return window.HearthriseCore && window.HearthriseCore.rng; }
   function crops(){ return window.CROPS || {}; }
   function nowMs(){ return Date.now(); }
 
@@ -261,46 +258,9 @@
 
   function getTierMap(){ return core().PLOT_TIERS; }
 
-  // ── Deed-drop helpers ─────────────────────────────────────
-  // Called from killMonster() and completeBounty() in legacy.js.
-  // The CHANCES and the tier gate are the core's; the roll uses the shared
-  // seeded generator so an offline replay of these drops is reproducible.
-
-  function rollBountyDeed(){
-    if(rng().chance(core().BOUNTY_DEED_CHANCE)){
-      grantDeed('bounty');
-      return true;
-    }
-    return false;
-  }
-
-  function rollKillDeed(monster){
-    // Tier-1 mobs are intentionally pure-progression — deeds drop
-    // only at Tier 2+ to keep early game clean. Bounties cover Tier-1.
-    if(!core().killDeedEligible(monster)) return false;
-    if(rng().chance(core().KILL_DEED_CHANCE)){
-      grantDeed('kill');
-      return true;
-    }
-    return false;
-  }
-
-  function grantDeed(source){
-    if(typeof window.addItem === 'function'){
-      window.addItem('farm_deed', 1);
-    } else if(window.G && window.G.inventory){
-      window.G.inventory.farm_deed = (window.G.inventory.farm_deed | 0) + 1;
-    }
-    if(typeof window.notify === 'function'){
-      window.notify("Rare drop: Farmer's Deed!", 'levelup');
-    }
-    // Combat log breadcrumb if available
-    try {
-      if(window.G && Array.isArray(window.G.combatLog)){
-        window.G.combatLog.push("<span class=\"rare\">📜 RARE: Farmer's Deed</span>");
-      }
-    } catch(e){}
-  }
+  /* The Farmer's Deed drop rolls (rollKillDeed / rollBountyDeed, a client-side
+     addItem('farm_deed')) were deleted in the 2026-10-14 demolition (designer
+     ruling §2): the client never mints an item. */
 
   // ══════════════════════════════════════════════════════════
   // b220 — GROWTH MODEL (Backlog #13, docs/design/farming-watering.md)
@@ -347,9 +307,6 @@
     getFarmingLevel: getFarmingLevel,
     upgradePlot: upgradePlot,
     getTierMap: getTierMap,
-    // Drop hooks — called by killMonster + completeBounty.
-    rollKillDeed: rollKillDeed,
-    rollBountyDeed: rollBountyDeed,
     // b220 growth model — the single source of truth for crop growth.
     growthHours: growthHours,
     progressPct: progressPct,
@@ -366,8 +323,6 @@
     // Constants — exposed for tests + UI. Read live from the core so there
     // is exactly one authored value for each.
     get MAX_LEVEL(){ return core().MAX_PLOT_LEVEL; },
-    get BOUNTY_DEED_CHANCE(){ return core().BOUNTY_DEED_CHANCE; },
-    get KILL_DEED_CHANCE(){ return core().KILL_DEED_CHANCE; },
     get WATER_WINDOW_H(){ return core().WATER_WINDOW_H; },
     get WATER_RATE(){ return core().WATER_RATE; },
   };

@@ -2012,7 +2012,7 @@ export const firstRunAnswered = (name) => {
   const hadRec = JSON.parse(JSON.stringify(I._record()));
   /* G.playerName goes back too: while the harness name stands, the name readers
      (legacy.js's "reconcile the stale default up") copy it INTO G.playerName, and
-     that copy outlived the stub — every later test ran as "Wren" (b581: the World
+     that copy outlived the stub — every later test ran as "Wren" (2026-10-14: the World
      pane then rightly left a peer called Wren out of the Common as "yourself"). */
   const G = window.G, hadName = G && Object.prototype.hasOwnProperty.call(G, 'playerName'), oldName = G && G.playerName;
   I._installHarnessIdentity({ name: name || 'Adventurer' });

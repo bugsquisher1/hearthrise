@@ -1649,7 +1649,7 @@ export default [
       /* G.playerName may only be what it was or the stubbed session's own name (the
          top bar's name reader reconciles a default up to it). This used to demand
          `=== savedName` and passed only because an earlier stub had leaked "Wren"
-         into G.playerName, which the reader never overwrites (fixed b581, STUB-NAME-1). */
+         into G.playerName, which the reader never overwrites (fixed 2026-10-14, STUB-NAME-1). */
       assert(JSON.stringify(I._record()) === before && window.G.playerName !== 'Quiet Probe'
         && (window.G.playerName === savedName || window.G.playerName === 'Harness Knight'),
         'a refused name was adopted locally anyway: G.playerName ' + JSON.stringify(window.G.playerName));

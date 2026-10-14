@@ -3802,12 +3802,8 @@ export default [
      `the stub origin was asked for 4 request(s): …/hr_town_of, …/hr_heartbeat,
      2 network-status probe(s)`. The spy REJECTS a stub-origin request, so even
      the RED run raises none of the page errors this test exists to prevent. */
-  /* REGRESSION (b581): the harness name outlived the stub. While a stubbed session
-     stands, legacy.js _hrDisplayName() (every top-bar paint) copies the harness
-     name into G.playerName as "the stale default reconciled up", and nothing put
-     it back: from the first stub on, every later test ran as "Wren", and the World
-     pane rightly left a peer called Wren out of the Common as the viewer.
-     MUTATION: drop the playerName restore in _harness.js firstRunAnswered → RED. */
+  /* REGRESSION (2026-10-14): legacy.js's name reader copied the stub's name into G.playerName and it
+     outlived the stub. MUTATION: drop the playerName restore in _harness.js firstRunAnswered → RED. */
   () => tryRun('STUB-NAME-1: a stubbed session hands G.playerName back exactly as it found it', () => {
     const G = window.G;
     const had = Object.prototype.hasOwnProperty.call(G, 'playerName'), was = G.playerName;
@@ -5455,12 +5451,8 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated+bounty') return;
               const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-              /* THE 100 MS REPAINT IS HELD while a case is measured, as a clock is pinned.
-                 legacy.js rewrites the meta from G every 100 ms, which puts back the real
-                 XP and away chips over the crowded ones this fixture injects; the fit then
-                 follows a frame later, and a measurement landing in that frame saw the
-                 sparse meta under the crowded fit — "took compact while the bar had room"
-                 (b581, once in three full runs). Each case paints itself, once, for real. */
+              /* Hold the 100 ms repaint (legacy.js) while measuring, as a clock is pinned: it puts back the real
+                 chips and the fit follows a frame later, so a sample in that frame saw a stale fit (2026-10-14). */
               const realRefresh = window.refreshActivityBar;
               let held = true;
               window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };
@@ -5477,7 +5469,6 @@ export default [
                   await tick(); await tick(); // the observers' frame runs the fit
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
-                // The hold is real: three repaint periods later the bar measured is still the crowded one.
                 const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();
                 await new Promise((r) => setTimeout(r, 350));
                 if (meta.textContent.indexOf(toGo) < 0) bad.push('the 100 ms repaint was not held: the crowded XP chip (' + toGo + ' to go) is gone, so a case could be measured on the sparse meta');

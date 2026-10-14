@@ -56,14 +56,18 @@
 //   + wyrmgilt_mantle, swing interval 2,328 ms), fed (auto-eat to full, zero
 //   deaths in the hour) — the real rates are:
 //
-//        elk_king     92 kills/h   (accuracy .95, max hit 59 vs 466 hp)
+//        elk_king     93 kills/h   (accuracy .95, max hit 59 vs 466 hp)
 //        grim_reaper 111 kills/h   (accuracy .95, max hit 60 vs 388 hp)
-//        dragon       82 kills/h   (accuracy .95, max hit 59 vs 520 hp)
+//        dragon       83 kills/h   (accuracy .95, max hit 59 vs 520 hp)
 //
 //   RE-MEASURED 2026-10-06 (was 91 / 113 / 83): the defence curve (monster accuracy
 //   0.02 a point, floor 0.05) halves the bosses' landed hits on this plated
 //   character, so the fixed seed walks a different draw path — the player's
 //   own rolls are unchanged. Hours stay as ruled; the derived one_in moves <2%.
+//   RE-MEASURED 2026-10-14 (was 92 / 111 / 82): the demolition removed drop rows
+//   (dragon's gemcutter_note and dragonsbane_key among them), so the same seed
+//   walks a different draw path again. Hours stay as ruled; one_in for elk_king
+//   moves 23000 -> 23250 and for dragon 14760 -> 14940 (regenerated catalogue).
 //
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
@@ -159,9 +163,9 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 92 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 93 }),
   Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 111 }),
-  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 82 }),
+  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 83 }),
 
   // ── Woodcutting. Door / gate / cap.
   Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),

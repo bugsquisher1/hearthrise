@@ -56,8 +56,8 @@
   var SKILL_ORDER = [
     'attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged',
     'woodcutting', 'mining', 'fishing', 'farming',
-    'cooking', 'crafting', 'smithing', 'runecrafting', 'stonemason', 'bountyHunter'
-  ];
+    'cooking', 'crafting', 'smithing', 'runecrafting'
+  ];   // stonemason and bountyHunter left SKILLS_DEF in the 2026-10-14 demolition
   /* ⚠ RUNECRAFTING AND STONEMASON NEED THE STAGED MIGRATION
      `2026-08-17-leaderboard-skills.sql`, which adds them to
      `public.hr_lb_skills()`. Until it is APPLIED, `hr_leaderboard('skill:

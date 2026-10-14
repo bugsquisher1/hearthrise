@@ -22,9 +22,7 @@ export const SKILL_GUIDE = Object.freeze({
   fishing: g('A patient line feeds a hungry camp, and only a well-fed camp ever wins a fight worth telling about', 'Cooking, and so every fight you plan to walk away from', 'Angler'),
   farming: g('Crops grow in real time whether you watch or not, which makes a planted plot the most honest promise in the valley', 'Cooking stews, pies, bread and roasts', 'Farmhand'),
   cooking: g('Raw food heals a little and cooked food heals a great deal, which is the whole argument for building a kitchen', 'every meal Auto-Eat reaches for, watched or away', 'Chef'),
-  crafting: g('Logs become planks, hides and cloth become armour, and a steady hand turns out bows, arrows and rings at the one bench', 'planks, bows, arrows, light armour and jewellery', 'Artificer'),
-  smithing: g('Ore becomes bars and bars become blades, plate and the iron fittings no manor can be raised without', 'weapons, armour, tools and your homestead\'s fittings', 'Smith'),
-  runecrafting: g('Rune essence from the hill takes a rune the way wax takes a seal, and a mage without runes is only a person holding a stick', 'runes for every staff, and elemental enchants for your weapon', 'Runebinder'),
-  stonemason: g('Stonemason is the builder\'s skill, and the stone you cut here becomes the walls of your manor, its rooms and your clan\'s castle', 'the builder\'s stone for your manor, rooms and castle, and whetstones', 'Mason'),
-  bountyHunter: g('Bounty Hunter is earned at the board rather than in the field, one finished contract at a time', 'your standing with the hunt masters', 'Bounty Hunter'),
+  crafting: g('Logs become planks, and a steady hand turns planks into arrows, timber beams and the keystones a castle stands on', 'planks, arrows and building materials', 'Artificer'),
+  smithing: g('Ore becomes bars, and bars become whetstones and the iron fittings no manor can be raised without', 'bars, whetstones and your homestead\'s fittings', 'Smith'),
+  runecrafting: g('Rune essence from the hill takes a rune the way wax takes a seal, and a mage without runes is only a person holding a stick', 'runes for every staff', 'Runebinder'),
 });

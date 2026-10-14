@@ -41,6 +41,4 @@ export const MASTERY_LORE = Object.freeze({
   crafting: 'Needle, knife and awl sit easy in your hands now, and the stall keepers in town have taken to asking how you finish your seams',
   smithing: 'Your hammer rings a note the whole valley recognises, and the blades that leave your anvil will outlive the halls they are hung in',
   runecrafting: 'Blank stones seem to wait for your touch, and the old binders at the altar have started to leave the most stubborn stones for you',
-  stonemason: 'Walls you raise will be standing when the names of the lords who paid for them are long forgotten, and every mason in the quarry knows it',
-  bountyHunter: 'The hunt masters speak your name in the same breath as the old legends, and the notices on the board are read aloud in your hearing',
 });

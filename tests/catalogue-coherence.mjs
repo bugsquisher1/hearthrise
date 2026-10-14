@@ -38,7 +38,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   itemSources, itemUses, skillConsumers, deadEffectKinds, obtainableItemIds,
-  CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS,
+  CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS, AWAITING_ROSTER,
   // The SAME data identities the module reads (see its re-export note).
   ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS,
 } from '../src/data/catalogue-coherence.js';
@@ -52,6 +52,7 @@ export const PENDING_USE = Object.freeze({
   lexarch_seal:     'w0f — boss trophies hang in the trophy room',
   voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
   dragon_relic:     'w0f — boss trophies hang in the trophy room',
+  bone_key:         'M2 — the road_hunt re-reward (designer ruling 2026-10-14 §6) retires it',
 });
 export const PENDING_CONSUMER = Object.freeze({
   prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',
@@ -66,9 +67,15 @@ export function check({ read = realRead } = {}) {
   const uses = itemUses();
 
   // C1 / C2
-  const noSource = ids.filter((id) => !src.has(id));
+  /* AWAITING_ROSTER (src/data/catalogue-coherence.js): kept, sourceless until
+     the new roster, exempt from C1/C2, shrink-only — a row that gained a
+     source or left ITEMS is stale and fails here. */
+  const awaiting = new Set(AWAITING_ROSTER);
+  const staleAwait = AWAITING_ROSTER.filter((id) => !ITEMS[id] || src.has(id));
+  if (staleAwait.length) fails.push(`C1 stale AWAITING_ROSTER row(s) — the id gained a source or left ITEMS, delete the row: ${staleAwait.join(', ')}`);
+  const noSource = ids.filter((id) => !src.has(id) && !awaiting.has(id));
   if (noSource.length) fails.push(`C1 ${noSource.length} item(s) with NO SOURCE (no drop, node, recipe, shop, reward or coded grant): ${noSource.join(', ')}`);
-  const noUse = ids.filter((id) => !uses.has(id) && !PENDING_USE[id]);
+  const noUse = ids.filter((id) => !uses.has(id) && !PENDING_USE[id] && !awaiting.has(id));
   if (noUse.length) fails.push(`C2 ${noUse.length} item(s) with NO USE (nothing spends, wears, eats, plants or redeems them): ${noUse.join(', ')}`);
   const staleUse = Object.keys(PENDING_USE).filter((id) => !ITEMS[id] || uses.has(id));
   if (staleUse.length) fails.push(`C2 stale PENDING_USE row(s) — the gap is closed, delete the row: ${staleUse.join(', ')}`);
@@ -112,7 +119,7 @@ export function check({ read = realRead } = {}) {
 
   // C7 — the Collection Log counts what can be got, and that is everything.
   const ob = obtainableItemIds();
-  if (ob.size !== ids.length) fails.push(`C7 obtainableItemIds() has ${ob.size} of ${ids.length} items — the Collection Log would be unfinishable`);
+  if (ob.size + awaiting.size !== ids.length) fails.push(`C7 obtainableItemIds() has ${ob.size} of ${ids.length} items (${awaiting.size} awaiting the roster) — the Collection Log would be unfinishable`);
   const log = read('src/features/collection-log.js');
   if (!/HearthriseCatalogue/.test(log) || !/obtainable/.test(log)) {
     fails.push('C7 src/features/collection-log.js no longer reads HearthriseCatalogue.obtainable — it is counting raw ITEMS again');
@@ -120,7 +127,7 @@ export function check({ read = realRead } = {}) {
   const main = read('src/main.js');
   if (!/HearthriseCatalogue/.test(main)) fails.push('C7 src/main.js no longer publishes window.HearthriseCatalogue');
 
-  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length } };
+  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, awaiting: AWAITING_ROSTER.length } };
 }
 
 /* ── THE MUTATION PROOF ──────────────────────────────────────────────────────
@@ -157,10 +164,15 @@ function mutate() {
       ARTISAN_RECIPES[skill] = saved[skill].filter((r) => {
         const inp = Object.assign({}, r.inputs || {}, r.secondary || {});
         if (r.input) inp[r.input] = 1;
-        return !('rat_tail' in inp);
+        return !('flux_salt' in inp);
       });
     }
     return { restore: () => { Object.assign(ARTISAN_RECIPES, saved); } };
+  });
+  run('a stale AWAITING_ROSTER row (the id left ITEMS)', 'C1', () => {
+    const id = AWAITING_ROSTER[0]; const was = ITEMS[id];
+    delete ITEMS[id];
+    return { restore: () => { ITEMS[id] = was; } };
   });
   run('a stale PENDING_USE row', 'C2', () => {
     const it = ITEMS.warboss_standard; const was = it.heals;
@@ -210,7 +222,7 @@ if (isMain) {
       fails.forEach((f) => console.error('  ✗ ' + f));
       process.exit(1);
     }
-    console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use, `
+    console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use (${counts.awaiting} held, sourceless, for the roster), `
       + `${counts.skills} skills each with a consumer, the shop sells starter gear only, `
       + `the Collection Log counts the obtainable catalogue (pending: ${counts.pendingUse} item uses, `
       + `${counts.pendingConsumer} skill consumer, owned by other W0 lanes)`);

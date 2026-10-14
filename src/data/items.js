@@ -30,8 +30,8 @@ export const ITEMS={
      override one. See src/data/library2-items.js for the derivation, the three
      landing states, and the power-budget accounting. */
   ...LIB2_ITEMS,
-  /* Runecrafting + Stonemason: quarried stone, dressed blocks, blank runes,
-     the 7-tier rune ladder, the 7-tier whetstone ladder and `ashlar`.
+  /* Runecrafting: rune essence, blank runes, the 7-tier rune ladder and the
+     7-tier whetstone ladder (smithed since Stonemason was cut, 2026-10-14).
      New ids only. See src/data/stonecraft.js for every ruling behind them. */
   ...STONECRAFT_ITEMS,
   /* W0 (2026-10-10): the three boss-forged body pieces (src/data/boss-forge.js)
@@ -42,8 +42,9 @@ export const ITEMS={
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
      auto-applies to its skill (Melvor-style, no equip juggling):
-     see src/features/tools.js bestToolSpeed(). Crafted via smithing
-     (axes/picks) and crafting (rods) — recipes in data/recipes.js. */
+     see src/features/tools.js bestToolSpeed(). DEMOLITION (2026-10-14): the
+     tool RECIPES were deleted; the items stay until the new roster replaces
+     the catalogue and the tool engine (tool_carry) leaves with lane C2. */
   bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
   iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
   steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
@@ -71,6 +72,12 @@ export const ITEMS={
   bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
   steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
   rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
+  /* HELD (demolition 2026-10-14): dungeon keys are deleted, but the
+     Journeyman's Road still pays a Bone Key. It leaves with the re-reward
+     (designer ruling §6), a three-way change — goal-catalogue QUEST_REWARDS,
+     legacy.js QUEST_DEFS and the hr_quest_rewards seed (Security GO) — bound by
+     tests/quest-reward-parity.mjs. */
+  bone_key:{n:'Bone Key',icon:'🦴',v:0,bop:true,rarity:'uncommon',tag:'key',unlocks:'crypt_of_bones'},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},
@@ -78,22 +85,6 @@ export const ITEMS={
   troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
   demon_shard:{n:'Demon Shard',icon:'🔴',v:200},dragon_scale:{n:'Dragon Scale',icon:'🐲',v:500},
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
-  /* ── ELEMENTS v1 (elements/enchanting) ──────────────────────────────────
-     Three essences (a monster drop → a crafting reagent) and three runes
-     (bound to the weapon slot via the enchant intent → a flat +15% vs the
-     element the monster is weak to). The runes' `element` field is
-     LOAD-BEARING: src/core/elements.js runeElement() and the server both read
-     it to map a rune id to the element it binds — never a name parse. Both
-     tiers are `tradeable` (no `bop`) — the server owns the market allowlist,
-     but the client carries the intent so nothing here mints a protected
-     currency. See src/core/elements.js and docs/design/consumable-economy.md
-     §11. */
-  ember_essence:{n:'Ember Essence',icon:'🔥',v:40,tag:'reagent',tradeable:true},
-  frost_essence:{n:'Frost Essence',icon:'❄️',v:40,tag:'reagent',tradeable:true},
-  poison_essence:{n:'Poison Essence',icon:'🧪',v:40,tag:'reagent',tradeable:true},
-  ember_rune:{n:'Ember Rune',icon:'🔴',v:180,tag:'rune',element:'ember',tradeable:true},
-  frost_rune:{n:'Frost Rune',icon:'🔵',v:180,tag:'rune',element:'frost',tradeable:true},
-  poison_rune:{n:'Poison Rune',icon:'🟣',v:180,tag:'rune',element:'poison',tradeable:true},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
   sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},small_fang:{n:'Small Fang',icon:'🦷',v:15},
@@ -505,11 +496,6 @@ export const ITEMS={
      Explicitly NOT bind-on-pickup — tradable on the player market.
      Drop hooks live in src/features/farm-progression.js. Keep this in sync
      with the inline ITEMS const in src/legacy.js. */
-  /* b268: Deeds are TRADEABLE (non-BoP) — Tyler's call: dungeon-runners farm
-     them and sell to players who'd rather not run dungeons, so deeds become a
-     market money source rather than a personal-only currency. Rarish. Faucets:
-     dungeons (tier-scaled), the bounty trickle, and (b269) any-activity Scraps. */
-  farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
 
   /* ── Phase A.1 items mirrored from legacy.js (b139 — QA sweep §1.1)
      These were defined in legacy.js's NEW_ITEMS block but missing from
@@ -542,54 +528,11 @@ export const ITEMS={
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
   rune_bar:   {n:'Rune Bar',   icon:'🔷', v:1200},
-  // Recipe scrolls — drop from named bosses, single-use unlocks for gated recipes
-  chief_blade_recipe:   {n:"Chief's Blade Recipe",      icon:'📜', v:0, recipe:'chief_blade'},
-  captain_recipe:       {n:"Captain's Ribblade Recipe", icon:'📜', v:0, recipe:'captains_ribblade'},
-  alpha_pattern:        {n:'Alpha Cloak Pattern',       icon:'📜', v:0, recipe:'alpha_cloak'},
-  spellstone_diagram:   {n:'Spellstone Diagram',        icon:'📜', v:0, recipe:'spellstone_ring'},
-  gemcutter_note:       {n:"Gemcutter's Note",          icon:'📜', v:0, recipe:'dragon_gem_earrings'},
+  // Recipe scrolls — single-use unlocks for the gated cooking recipes
   soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
   marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
   field_cookbook:       {n:'Field Cookbook',            icon:'📜', v:0, recipe:'hunters_feast'},
 
-  /* ── Housing blueprints ─────────────────────────────────────────
-     These drop from daily quests / monster drops / dungeons / raids.
-     They unlock the corresponding room upgrade tier when consumed.
-     b268: now TRADEABLE (non-BoP) — Tyler's call. Dungeon-runners sell
-     blueprints on the market to players who'd rather buy their castle
-     progression than farm dungeons, making dungeon loot a money source. */
-  kitchen_blueprint_t2: {
-    n:'Kitchen Blueprint II', icon:'📜', v:500,
-    rarity:'rare', tag:'housing', unlocks:'kitchen.2',
-  },
-  kitchen_blueprint_t3: {
-    n:'Kitchen Blueprint III', icon:'📜', v:2000,
-    rarity:'epic', tag:'housing', unlocks:'kitchen.3',
-  },
-  forge_blueprint_t2: {
-    n:'Forge Blueprint II', icon:'📜', v:500,
-    rarity:'rare', tag:'housing', unlocks:'forge.2',
-  },
-  forge_blueprint_t3: {
-    n:'Forge Blueprint III', icon:'📜', v:2000,
-    rarity:'epic', tag:'housing', unlocks:'forge.3',
-  },
-  library_blueprint_t2: {
-    n:'Library Blueprint II', icon:'📜', v:500,
-    rarity:'rare', tag:'housing', unlocks:'library.2',
-  },
-  library_blueprint_t3: {
-    n:'Library Blueprint III', icon:'📜', v:2000,
-    rarity:'epic', tag:'housing', unlocks:'library.3',
-  },
-  trophy_blueprint_t2: {
-    n:'Trophy Blueprint II', icon:'📜', v:500,
-    rarity:'rare', tag:'housing', unlocks:'trophy.2',
-  },
-  trophy_blueprint_t3: {
-    n:'Trophy Blueprint III', icon:'📜', v:2000,
-    rarity:'epic', tag:'housing', unlocks:'trophy.3',
-  },
 
   /* ── Bind-on-Pickup high-tier rewards ──────────────────────────
      These come from raids / world bosses and gate cosmetic / power
@@ -747,26 +690,11 @@ export const ITEMS={
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
-  /* b281 — DUNGEON SCRIP: the dungeon economy currency. Earned on every dungeon
-     clear (scaled by the dungeon's level), spent at the Quartermaster for keys,
-     blueprints and — the point — a DETERMINISTIC path to the signature boss
-     weapons, so chasing a 3% drop isn't the only way. Bind-on-pickup (earned, not
-     traded) and never touches hearth_token (mint-leak guard). */
-  dungeon_scrip: {n:'Dungeon Scrip', icon:'🎟️', v:0, bop:true, tag:'currency', rarity:'uncommon', },
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
   dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, spdB:.03, reqSkill:'attack', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
-  /* ── Bind-on-Pickup dungeon keys ──
-     Replace gold entry costs. Drop from monsters whose family/tier match
-     the dungeon (set in MONSTERS.drops). Untradeable. */
-  bone_key:        {n:'Bone Key',        icon:'🦴', v:0, bop:true, rarity:'uncommon',  tag:'key', unlocks:'crypt_of_bones'},
-  goblin_seal:     {n:'Goblin Seal',     icon:'🗝️', v:0, bop:true, rarity:'uncommon',  tag:'key', unlocks:'goblin_warcamp'},
-  arcane_tome:     {n:'Arcane Tome',     icon:'📕', v:0, bop:true, rarity:'rare',      tag:'key', unlocks:'haunted_archive'},
-  obsidian_sigil:  {n:'Obsidian Sigil',  icon:'⬛', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'obsidian_keep'},
-  void_fragment:   {n:'Void Fragment',   icon:'🌑', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'voidbringer'},
-  dragonsbane_key: {n:'Dragonsbane Key', icon:'🗡️', v:0, bop:true, rarity:'legendary', tag:'key', unlocks:'ancient_wyrm'},
 
   /* ── THE FOUR HEARTHFINDS (Feature Slate §2; Designer ruling 2026-09-08) ──
      The set is named "The Four Hearthfinds" (HEARTHFIND_SET_NAME in
@@ -910,21 +838,7 @@ const RAW_DROPS = [
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
 ];
 
-/* QUARRIED STONE — the outputs of Stonemason's input-free Quarry lane
-   (stonecraft.js §8.4 ruling). Economically these are gathered material: a
-   quarry rung mints from nothing at a fixed rate, exactly as a mining node
-   does, so the vendor must bid the same 20% or the lane becomes a gold
-   printer that beats mining at its own job.
-
-   Listed explicitly rather than derived because items.js CANNOT import
-   recipes.js — recipes.js imports this file, and the cycle would leave ITEMS
-   half-built at the moment RAW_MATERIAL_IDS runs. The safety net is instead a
-   smoke guard: every input-free artisan recipe's output must be `raw`, so a
-   future quarry rung that forgets this list fails the build rather than
-   quietly vendoring at full book value. */
-const RAW_QUARRIED = ['rubble', 'granite', 'basalt'];
-
-export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...RAW_QUARRIED])];
+export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS])];
 for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
 
 /* ══════════════════════════════════════════════════════════════════════

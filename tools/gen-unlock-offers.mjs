@@ -70,7 +70,8 @@ import {
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-16-unlock-offers.generated.sql');
+/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlock-offers.generated.sql stays in the chain. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlock-offers.generated.sql');
 const die = makeDie('gen-unlock-offers');
 
 const argv = process.argv.slice(2);

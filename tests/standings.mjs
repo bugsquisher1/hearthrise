@@ -64,7 +64,8 @@ export function check(w) {
   if (!same([...w.skillOrder].sort(), [...w.skillsDef].sort())) {
     add('STAND-1', `SKILL_ORDER [${w.skillOrder}] differs from keys(SKILLS_DEF) [${w.skillsDef}]`);
   }
-  if (crownKeys.length !== 17) add('STAND-1', `STANDING_CROWNS has ${crownKeys.length} keys, want 17`);
+  // 15 since the 2026-10-14 demolition (stonemason and bountyHunter left SKILLS_DEF).
+  if (crownKeys.length !== 15) add('STAND-1', `STANDING_CROWNS has ${crownKeys.length} keys, want 15`);
 
   if (w.corpus.length < MIN_CORPUS) add('STAND-2', `the name corpus holds ${w.corpus.length} names (want ${MIN_CORPUS}+); a source did not load`);
   const corpus = w.corpus.map((n) => String(n).toLowerCase());

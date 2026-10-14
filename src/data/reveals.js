@@ -22,24 +22,22 @@
 //   count(key, min)   a permanent `stat` progress row
 //   skill(id)         server XP above the character's starting XP
 //   property(min) · workers(min) · companions(min)
-//   holds(ids)        any of these items in the server's bag
 // PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DUNGEONS } from './dungeons.js?v=584';
 import { count, property, workers, companions } from './spine.js?v=584';
 
 const skill = (id) => Object.freeze({ fact: 'skill', id });
-const holds = (ids) => Object.freeze({ fact: 'holds', ids: Object.freeze(ids.slice()) });
 const row = (id, step, uses, product) => Object.freeze({ id, step, uses: Object.freeze(uses || []), product: product || null });
 
-/* A dungeon key in the bag reveals the dungeon door and card at any step. */
-export const DUNGEON_KEYS = Object.freeze([...new Set(Object.values(DUNGEONS)
-  .map((d) => d && d.cost && d.cost.key).filter(Boolean))]);
+/* Demolition (2026-10-14): dungeons, their keys and the reveal rows they
+   opened were deleted. DUNGEON_KEYS is empty only because
+   src/features/spine-reveal.js still imports it; the lane that edits that file
+   removes the import, and this export goes with it. */
+export const DUNGEON_KEYS = Object.freeze([]);
 
 const COMBAT_SKILLS = ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic', 'prayer'];
 const fought = [count('ev:kill_any', 1)].concat(COMBAT_SKILLS.map(skill));
-const bountied = [count('bounty_turnins', 1), skill('bountyHunter')];
 
 export const REVEALS = Object.freeze([
   // ── rail panes ─────────────────────────────────────────────────────────
@@ -56,11 +54,6 @@ export const REVEALS = Object.freeze([
   row('pane:farming', 4, [count('ev:planted', 1), skill('farming')]),
   row('pane:house', 5, [property(1)]),
   row('pane:stable', 10, [companions(1)]),
-  row('pane:bounty', 9, bountied),
-  row('pane:dungeons', 9, [holds(DUNGEON_KEYS)]),
-  row('pane:clan', 10, [], 'clans'),
-  row('pane:party', 10),
-  row('pane:events', 10),
   row('pane:social', 10),
   // The World pane ships behind its own switch (src/features/world-panel.js WORLD_LAUNCHED).
   row('pane:world', 1, [], 'world'),
@@ -68,10 +61,6 @@ export const REVEALS = Object.freeze([
   // ── Combat war table ───────────────────────────────────────────────────
   row('war:botd', 3, fought),
   row('war:weekly', 3, fought),
-  row('war:bounty', 9, bountied),
-  row('war:dungeon', 9, [holds(DUNGEON_KEYS)]),
-  row('war:clanhunt', 10, [], 'clans'),
-  row('war:worldevent', 10),
   /* From the last step on, the war table also shows the ONE nearest card
      beyond the ten-level window: the next thing worth climbing toward. */
   row('war:next', 10),
@@ -85,9 +74,7 @@ export const REVEALS = Object.freeze([
   row('skill:mining', 5, [skill('mining')]),
   row('skill:crafting', 7, [skill('crafting')]),
   row('skill:smithing', 7, [skill('smithing')]),
-  row('skill:bountyHunter', 9, bountied),
   row('skill:runecrafting', 10, [skill('runecrafting')]),
-  row('skill:stonemason', 13, [skill('stonemason')]),
 
   // ── Home cards and chrome ──────────────────────────────────────────────
   row('card:upkeep', 2),

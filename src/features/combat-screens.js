@@ -41,17 +41,17 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=573';
-import { ITEMS } from '../data/items.js?v=573';
-import * as ST from './session-tally.js?v=573';
-import { fill } from './signposts.js?v=573';
-import { foeFamily } from '../render/foe-family.js?v=573';
-import { weaknessWords } from '../render/foe-weakness.js?v=573';
-import { SIGNPOSTS } from '../data/signposts.js?v=573';
-import { compactNumber } from '../net/balance.js?v=573';
-import { HUNTS } from '../data/hunts.js?v=573';
-import { BOSSES } from '../data/bosses.js?v=573';
-import { nextCharmAt } from '../core/charms.js?v=573';
+import { MONSTERS } from '../data/monsters.js?v=574';
+import { ITEMS } from '../data/items.js?v=574';
+import * as ST from './session-tally.js?v=574';
+import { fill } from './signposts.js?v=574';
+import { foeFamily } from '../render/foe-family.js?v=574';
+import { weaknessWords } from '../render/foe-weakness.js?v=574';
+import { SIGNPOSTS } from '../data/signposts.js?v=574';
+import { compactNumber } from '../net/balance.js?v=574';
+import { HUNTS } from '../data/hunts.js?v=574';
+import { BOSSES } from '../data/bosses.js?v=574';
+import { nextCharmAt } from '../core/charms.js?v=574';
 
 /** The Adventures window's tabs, in order. */
 const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Training']];

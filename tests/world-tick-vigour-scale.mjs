@@ -101,12 +101,16 @@ const MUTANTS = [
   {
     name: 'tail charged twice', arm: 'W3',
     file: 'supabase/functions/hr-accrue/accrual.js',
-    edits: [['vigourCharge(grantMs - deferredMs)', 'vigourCharge(grantMs)']],
+    /* (re-anchored lane C2: a hunt session charges its swing clock, so the absence
+       charge is the ternary's else-arm) */
+    edits: [[': grantMs - deferredMs);', ': grantMs);']],
   },
   {
     name: 'tail charged twice (carried)', arm: 'W4',
     file: 'supabase/functions/hr-accrue/accrual.js',
-    edits: [['vigourCharge(grantMs - deferredMs)', 'vigourCharge(grantMs)']],
+    /* (re-anchored lane C2: a hunt session charges its swing clock, so the absence
+       charge is the ternary's else-arm) */
+    edits: [[': grantMs - deferredMs);', ': grantMs);']],
   },
   /* SEC (same review, LOW): a non-finite or negative multiplier paid the full
      rested `r`. The fail-closed lines removed must turn W2 red. */

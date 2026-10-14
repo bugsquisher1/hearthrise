@@ -6,8 +6,7 @@
     "ownedThemes": 0,
     "ownedCosmetics": 0,
     "unlockedRecipes": 0,
-    "renownHigh": 0,
-    "autoActions": 5
+    "renownHigh": 0
   },
   "projection": {
     "top": [
@@ -46,10 +45,6 @@
       "active_id",
       "active_kind",
       "active_since",
-      "auto_eat_enabled",
-      "auto_eat_food",
-      "auto_eat_pct",
-      "auto_eat_touched",
       "bank_cap",
       "combat_style",
       "combat_xp_accrued_to",
@@ -68,7 +63,6 @@
       "hp",
       "hunt_stance",
       "hunt_stop",
-      "last_away_receipt",
       "marks",
       "max_hp",
       "plot_level",
@@ -82,5 +76,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-11"
+  "generatedAt": "2026-10-14"
 }

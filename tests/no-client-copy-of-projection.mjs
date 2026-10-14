@@ -148,12 +148,10 @@ const STATE = {
   deaths_today:          { kind: 'reconciled', client: ['deathsToday'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the Recovery Rule counter' },
   deaths_lifetime:       { kind: 'reconciled', client: ['deathsLifetime'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the durable death counter (a death is never a free heal)' },
   recovering_until:      { kind: 'reconciled', client: ['recoveringUntil'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the recovery clock is the server\'s' },
-  last_away_receipt:     { kind: 'reconciled', client: ['_awayReceipt'], reader: ['src/net/accrue.js', 'reconcileAwayReceipt'], why: 'the night the server kept' },
+  /* last_away_receipt and the four auto_eat_* keys left the projection in lane C2
+     (2026-10-22-hunt-sessions-away-readers.sql; ruling HR-2026-10-14 §3: the away
+     receipt and Auto-Eat are retired). Their client halves are lane R1's to delete. */
   combat_style:          { kind: 'reconciled', client: ['combatStyle'], reader: ['src/net/accrue.js', 'reconcileCombatStyle'], why: 'server-wins per family, with the in-flight pick held in `_pendingStyle` scratch. Off RESIDUE_FIELDS since 2026-09-14 — the map is rebuilt from the envelope, never persisted' },
-  auto_eat_enabled:      { kind: 'split', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatEnabled'], ratchet: true, why: 'the switch the engine obeys. `autoActions` is a COMPOUND bag: its eat branch is server-owned and is STRIPPED from the residue patch (capstone.js), while replant/trainGoal are real prefs and ride' },
-  auto_eat_food:         { kind: 'split', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatFoodId'], ratchet: true, why: 'THE 2026-09-14 REGRESSION: the browser said cooked_shrimp while player_state.auto_eat_food said otherwise. eatFoodId() is the one reader' },
-  auto_eat_pct:          { kind: 'reconciled', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatThreshold'], why: 'THE THRESHOLD THE ENGINE EATS ON. `autoEatPct` is DELETED (2026-09-14) — the slider gesture lives in memory inside autoActions.eat, which no longer rides the residue PUT, and eatThreshold() answers from state.auto_eat_pct' },
-  auto_eat_touched:      { kind: 'meta', why: 'has the player ever set auto-eat (server-side first-run marker)' },
   tool_carry:            { kind: 'reconciled', client: ['toolCarry'], reader: ['src/net/accrue.js', 'reconcileToolCarry'], why: 'the fractional gather carry is the server\'s: the engine advances player_state.tool_carry through the same core advanceToolCarry the attended tick uses, and reconcileToolCarry replaces the prediction on every envelope (client half landed 2026-09-14, closing the OWED)' },
   streak_days:           { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'THE PLAY STREAK. The client counter is DELETED (2026-09-14): streak-chip.js advances nothing, `streak` is off RESIDUE_FIELDS, and playStreakDays() answers 0 until the realm speaks' },
   streak_day_key:        { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'the UTC day the server counted, so the chip cannot double-count across a roll' },
@@ -494,9 +492,10 @@ function selftest() {
     /* RE-TARGETED 2026-09-14: this arm added a `G.streak.count` read, and `streak`
        stopped being a client field that day (the counter was DELETED, not preferred
        second), so the mutation stopped being a violation and the arm stopped
-       proving anything. `autoActions` IS still mapped and pinned. */
-    ['a render site reading the raw copy (`G.autoActions.eat.foodId` added to src/render/achievements.js)', 'RAW-READ-ROSE',
-      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.autoActions.eat.foodId;\n'); return i; }],
+       proving anything. RE-TARGETED AGAIN 2026-10-14 (lane C2): `autoActions` left the
+       ratchet with the auto_eat_* projections; `renownHigh` is still mapped and pinned. */
+    ['a render site reading the raw copy (`G.renownHigh` added to src/render/achievements.js)', 'RAW-READ-ROSE',
+      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.renownHigh;\n'); return i; }],
     ['a projected key dropped from the mapping (state.streak_days unmapped)', 'PROJ-UNMAPPED',
       () => clone(), (b) => ({ ...b, projection: { top: b.projection.top, state: [...b.projection.state, 'streak_days_v2'] } })],
     ['a War Table figure read off the attended counter (`active.progress` planted in src/features/combat-screens.js)', 'RAW-READ-ROSE',

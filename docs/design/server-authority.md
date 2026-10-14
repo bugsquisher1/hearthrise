@@ -1418,14 +1418,45 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   now refuses a `journal.kind = 'combat'` settle) and the F2 rescue, `hr_offline_cap_ms` and the
   gather/artisan presence horizon. GOES (drop file): the four `auto_eat_*` columns,
   `hr_set_auto_eat`, `hr_credit_kills(__ungated)`, `hr_attended_kills`.
-* **Vigour ends no hunt (designer ruling, 2026-10-14, "no cap on combat").** `END_ORDER` is
-  falls → heals_out → ammo_out → hours → left → changed → server. The forward generated catalogue
-  `2026-10-22-hunt-sessions-catalogue.generated.sql` removes `vigour` from `hr_hunt_end_reasons`
-  and regenerates `hunt_sessions.end_reason`'s CHECK from the same list (a `vigour` end is
-  `bad_end`). Inside a hunt Vigour also scales nothing (no 0.25× tail). What it still does in
-  combat: the session's swing clock is CHARGED to the daily meter (`ev:vigour_min`), the
-  `vigour_low` timeline event fires, and C1's `hr_hunt_enter` refuses `no_vigour` at 0 — the
-  designer owes a ruling on those two (guard arm VIGOUR).
+* **Vigour plays no part in a hunt (2026-10-14 rulings).** `END_ORDER` is falls → heals_out →
+  ammo_out → gold_out → stamina → hours → left → changed → server. The forward generated catalogue
+  `2026-10-22-hunt-sessions-catalogue.generated.sql` removes `vigour` from `hr_hunt_end_reasons` and
+  regenerates `hunt_sessions.end_reason`'s CHECK from the same list. A session neither ends at
+  Vigour 0, nor pays the 0.25× tail, nor charges the meter, and `hr_hunt_enter` gates on stamina
+  (`no_stamina`), not Vigour. The `vigour_low` timeline event (C1) is the one leftover; the
+  designer owes a ruling on it (rename to a stamina warning, or drop).
+* **Stamina (Tyler 2026-10-14, "1:1 like Huntera"; 12 h).** `player_state.stamina_ms / stamina_at`
+  hold the pool AT an instant (null = full). The engine walks it per swing interval: hunting
+  drains 1:1 (floor 0), a knockout interval rests 1:1 (never past `STAMINA_MAX_MS`, never down to
+  it); every instant outside a hunting interval rests (`hr_stamina_of`). `hr_hunt_apply` (5a)
+  re-derives the start from the row, requires paid + down = the window, bounds knocked-out time
+  by the stored recovery line + the death rows' `recovery_ms`, bounds the end value, refuses an
+  unended window on an empty pool, writes it at `to`. At 0 the hunt ends `stamina`, re-proved from
+  the row. Projected as `stamina {ms, at, max_ms, hunting}` (client scratch `_stamina`). REFILL
+  HOOK (separate lane, never Crowns): add at `coalesce(open session's settled_to, now())`, never
+  move `stamina_at` past `settled_to` (`stamina_ahead`).
+* **Gold inside the settle: NPC basic supplies (Tyler 2026-10-14).** A supply priced per use
+  (`hr_hunt_supplies.npc_price` ← `supplies.js NPC_BASIC_PRICES`, empty until the designer prices
+  the basics) is bought when the bag holds none — per heal, per draught, per shot; crafted stock
+  first. The engine's purse = gold at the window start + kill coins; it proposes UNITS only
+  (`buys`). `hr_hunt_apply` (5b) prices them from the catalogue (`not_for_sale`), caps heal/buff
+  buys + bag uses by the window's cooldowns and ammo buys by the swings walked, the same bounds per
+  UTC day (`too_many_buys`), refuses a debit the gold cannot cover (`gold_short`), debits, journals
+  ONE `kind 'hunt'` / `supply_buy` row (gold −cost, meta items {qty, price}), and credits the
+  tally (`bought`, `supply_gold` = Waste in the Analyzer). A buy the purse cannot cover ends the hunt
+  `gold_out` at the next boundary, proved as "gold below the dearest priced supply the bar or the
+  quiver could need".
+* **Back to work after an automatic end (Tyler 2026-10-14).** A BEFORE trigger notes every pointer
+  move onto a resumable kind (`hr_hunt_resumable_kinds`: gather, artisan; `training` reserved) in
+  `player_state.last_activity_*`. When a settle ends a hunt for a reason `hr_hunt_end_reasons.resumes`
+  admits (every automatic end; never leave / change), (7) points the character back at it from
+  `ended_at + the hunt's walk`, if its catalogue row and skill gate still admit it (else idle), journals
+  a `resume` row and states it on the `ended` event.
+* **Huntera's action bar.** 20 slots (`ACTION_SET_LIMITS`, the table walls regenerated from data),
+  a slot `kind` (`spell` reserved and refused), `self_mana_pct` (false without a mana pool), and per
+  action set `target_mode` / `pull_count` written only by `hr_action_set_mode` (refused out of
+  range, never clamped), read by the settle and clamped by the engine. The single-target engine
+  does not yet act on mode or pull (the combat redesign does).
 * **Edge proposes, Postgres disposes.** The edge reads (`hr_hunt_engine_read` + `hr_state_of` +
   `now()`), computes `computeAccrual` with the session attached (the one combat body), and calls
   `hr_hunt_apply(user, slot, session, version, intent, delta, hunt, buffs, press, project)`
@@ -1478,5 +1509,7 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
 * **Kill switch.** C1 seeds `hr_hunt_config.enabled = false`; `2026-10-22-hunt-sessions-arm.sql`
   (applied right after the edge deploy) is the only writer that turns it on.
 * **Cost at 100× (~600 hunters).** One accrue row per settle (120/day away at fold 8, ≤ 960/day
-  online), one consumption row per settle that used anything, ladder-bounded death rows, ~5–30
-  events per session, one lease row per open session. No per-tick or per-kill journal.
+  online), one consumption row per settle that used anything, one `supply_buy` row per settle that
+  bought anything, one `death_xp` row per costly settle, one `resume` row per automatic end,
+  ladder-bounded death rows, ~5–30 events per session, one lease row per open session. No per-tick,
+  per-kill or per-purchase journal.

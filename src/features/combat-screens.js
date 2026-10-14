@@ -41,17 +41,17 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=577';
-import { ITEMS } from '../data/items.js?v=577';
-import * as ST from './session-tally.js?v=577';
-import { fill } from './signposts.js?v=577';
-import { foeFamily } from '../render/foe-family.js?v=577';
-import { weaknessWords } from '../render/foe-weakness.js?v=577';
-import { SIGNPOSTS } from '../data/signposts.js?v=577';
-import { compactNumber } from '../net/balance.js?v=577';
-import { HUNTS } from '../data/hunts.js?v=577';
-import { BOSSES } from '../data/bosses.js?v=577';
-import { nextCharmAt } from '../core/charms.js?v=577';
+import { MONSTERS } from '../data/monsters.js?v=578';
+import { ITEMS } from '../data/items.js?v=578';
+import * as ST from './session-tally.js?v=578';
+import { fill } from './signposts.js?v=578';
+import { foeFamily } from '../render/foe-family.js?v=578';
+import { weaknessWords } from '../render/foe-weakness.js?v=578';
+import { SIGNPOSTS } from '../data/signposts.js?v=578';
+import { compactNumber } from '../net/balance.js?v=578';
+import { HUNTS } from '../data/hunts.js?v=578';
+import { BOSSES } from '../data/bosses.js?v=578';
+import { nextCharmAt } from '../core/charms.js?v=578';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
@@ -574,6 +574,7 @@ function ensureStructure() {
       </div>
       <div class="fs-body">
         <aside class="fs-manage" id="fs-manage" aria-label="Loadout, provisions and drops">
+          <button type="button" class="btn fsm-world" id="fsm-world" data-cs-act="world" hidden>Watch in World</button>
           <section class="fsm-block">
             <div class="fsm-head"><span>Loadout</span><b id="fsm-totals"></b></div>
             <div class="fsm-doll" id="fsm-doll"></div>
@@ -760,7 +761,8 @@ function onPanelClick(e) {
       if (typeof window.stopCombat === 'function') window.stopCombat();
       previewId = null;
       setView('table');
-    } else if (act === 'history') { openHistory(); }
+    } else if (act === 'world') { if (typeof window.showTab === 'function') window.showTab('world'); }
+    else if (act === 'history') { openHistory(); }
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
     else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
     else if (act === 'wtab') { setTab(btn.dataset.wtab); }
@@ -1896,6 +1898,10 @@ function renderFight() {
   }
 
   if (!live) paintPreviewStage(id, m);
+  /* "Watch in World" (lane W3): a running fight, once the World pane is revealed. */
+  const watch = document.getElementById('fsm-world');
+  const R = window.HearthriseReveal;
+  if (watch) watch.hidden = !(live && (!R || R.shows('pane:world')));
   /* b368 — OUTSIDE the preview branch on purpose. The champion plate is the
      player's own face and it is wrong in exactly the same way mid-fight; a fix
      that only lands in preview would look fixed until they pressed Fight. */

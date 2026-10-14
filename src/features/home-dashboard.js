@@ -21,8 +21,7 @@
   //   localStorage.setItem('hearthrise:home-v2','0')   → old Home back
   //   localStorage.removeItem('hearthrise:home-v2')    → new Home again
   function enabled() {
-    try { return localStorage.getItem('hearthrise:home-v2') !== '0'; }
-    catch (e) { return true; }
+    return window.HearthriseStorage.get('hearthrise:home-v2') !== '0';
   }
 
   function css() {
@@ -74,7 +73,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=577) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=578) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two

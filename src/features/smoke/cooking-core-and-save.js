@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 92 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=577';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=578';
 
 export default [
 
@@ -626,16 +626,16 @@ export default [
      core-bridge.js fail to load, the gate released without a core and boot()
      painted Home into it (getTotalLevel "reading 'xp'", error boundary
      "Something broke here"). A coreless release must reload ONCE, and never loop.
-     This drives the gate's real decision with fake hosts and a fake reload; it
-     cannot see release() wiring it up or the boot events being held — that half
+     This drives the gate's real decision with seam stores over fake backends and a
+     fake reload; it cannot see release() wiring it up or the boot events held — that half
      is tests/run-smoke.mjs coreRetryGuard (first-load abort, always-abort, and
      sessionStorage that throws on access). */
   () => tryRun('b562: a coreless release reloads once instead of booting the engine', () => {
     const decide = window.__hrCoreRetry;
     assert(typeof decide === 'function', 'window.__hrCoreRetry is missing — a failed core load boots the engine into a coreless page');
+    const over = window.HearthriseStorage.createStore;
     const m = new Map();
-    const store = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
-    const host = { sessionStorage: store };
+    const host = over(() => ({ getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }));
     let reloads = 0;
     const reload = () => { reloads++; };
     assert(decide('core-bridge failed to load', host, reload) === true && reloads === 1,
@@ -651,7 +651,7 @@ export default [
        coreless release releases loudly — no store means the loop cannot be
        bounded, so no reload. */
     const denied = () => { const e = new Error('The operation is insecure.'); e.name = 'SecurityError'; throw e; };
-    const blockedHost = Object.defineProperty({}, 'sessionStorage', { get: denied });
+    const blockedHost = over(denied);
     let threw = null, verdict;
     try { verdict = decide('core', blockedHost, reload); } catch (e) { threw = e; }
     assert(threw === null && verdict === false,
@@ -660,10 +660,10 @@ export default [
     try { verdict = decide('core-bridge failed to load', blockedHost, reload); } catch (e) { threw = e; }
     assert(threw === null && verdict === false && reloads === 1,
       'with sessionStorage access denied, a coreless release must release loudly without reloading');
-    const refusing = { sessionStorage: { getItem: denied, setItem: denied, removeItem: denied } };
+    const refusing = over(() => ({ getItem: denied, setItem: denied, removeItem: denied }));
     assert(decide('core', refusing, reload) === false && decide('core-bridge failed to load', refusing, reload) === false && reloads === 1,
       'a store whose every call throws must release on both paths and never reload');
-    assert(decide('core-bridge failed to load', { sessionStorage: { getItem: () => null, setItem: () => {} } }, denied) === false,
+    assert(decide('core-bridge failed to load', over(() => ({ getItem: () => null, setItem: () => {} })), denied) === false,
       'a reload that throws must fall through to a loud release, not strand the gate');
 
     assert(window.isCoreReady() === true && !!window.HearthriseCore,

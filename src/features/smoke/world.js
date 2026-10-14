@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert } from './_harness.js?v=577';
-import { buildResiduePatch } from '../../net/capstone.js?v=577';
+import { tryRunAsync, assert } from './_harness.js?v=578';
+import { buildResiduePatch } from '../../net/capstone.js?v=578';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(pred, ms) {
@@ -119,6 +119,35 @@ export default [
       window.showTab('inventory');
       assert(T.shouldPoll() === false, 'CONTROL: the Common must not poll on an unrelated screen');
     } finally {
+      window.showTab('profile');
+      if (!hadWorld) delete window.G._world;
+    }
+  }),
+
+  () => tryRunAsync('WORLD-4: a fight on a rat is watched in the Mill Cellar from the Fight screen: the engaged foe is the fight\'s, every swing is observed, the overlay is the settled Analyzer', async () => {
+    const hadWorld = Object.prototype.hasOwnProperty.call(window.G, '_world');
+    const O = window.HearthriseCombatObserver;
+    assert(O && typeof O.subscribe === 'function', 'src/render/combat-observer.js did not install HearthriseCombatObserver');
+    try {
+      window.startCombat('rat', { confirmed: true });
+      window.showTab('combat');
+      const watch = document.getElementById('fsm-world');
+      assert(await until(() => watch && !watch.hidden, 3000), 'the Fight screen shows no "Watch in World" during a running fight');
+      watch.click();
+      const rt = await window.HearthriseWorld.load();
+      assert(document.getElementById('panel-world').classList.contains('active'), '"Watch in World" did not open the World pane');
+      assert(await until(() => rt.stats().kind === 'hunt' && rt.stats().hunt, 3000), 'a rat fight must show the hunt scene (' + JSON.stringify(rt.stats().scene) + ')');
+      const seen = [];
+      const off = O.subscribe((b) => seen.push(b));
+      try { window.combatTick(); } finally { off(); }
+      assert(seen.length === 1 && seen[0].foe === 'rat', 'one swing must be one observed beat: ' + JSON.stringify(seen));
+      rt.step();
+      const s = rt.stats();
+      assert(s.hunt.foe === window.G.activeMonster, 'the engaged foe ' + s.hunt.foe + ' is not the fight\'s ' + window.G.activeMonster);
+      assert(/settled \d+ (s|min|h) ago|nothing settled yet/.test(s.hud), 'the overlay must label the Analyzer with its settle age: ' + s.hud);
+      assert(/Leave Hunt/.test(s.hud) && /Eat/.test(s.hud), 'the overlay must offer Eat and Leave Hunt: ' + s.hud);
+    } finally {
+      if (typeof window.stopCombat === 'function') window.stopCombat();
       window.showTab('profile');
       if (!hadWorld) delete window.G._world;
     }

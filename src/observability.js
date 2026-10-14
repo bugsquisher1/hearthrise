@@ -181,7 +181,7 @@
   function pushLocalError(err, ctx){
     try {
       var key = 'hearthrise:errors';
-      var arr = JSON.parse(localStorage.getItem(key) || '[]');
+      var arr = window.HearthriseStorage.getJSON(key, []);
       arr.push({
         msg: (err && err.message) || String(err),
         stack: (err && err.stack) || null,
@@ -189,11 +189,11 @@
         ts: Date.now(),
       });
       while(arr.length > 20) arr.shift();
-      localStorage.setItem(key, JSON.stringify(arr));
+      window.HearthriseStorage.setJSON(key, arr);
     } catch(e){}
   }
   window.getLocalErrors = function(){
-    try { return JSON.parse(localStorage.getItem('hearthrise:errors') || '[]'); }
+    try { return window.HearthriseStorage.getJSON('hearthrise:errors', []); }
     catch(e){ return []; }
   };
 
@@ -237,7 +237,7 @@
 
   function loadBuffer(){
     if(_buf) return _buf;
-    try { _buf = JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '[]'); }
+    try { _buf = window.HearthriseStorage.getJSON(ANALYTICS_KEY, []); }
     catch(e){ _buf = []; }
     if(!Array.isArray(_buf)) _buf = [];
     return _buf;
@@ -246,7 +246,7 @@
     if(_persistTimer != null){ clearTimeout(_persistTimer); _persistTimer = null; }
     if(!_dirty) return;
     _dirty = false;
-    try { localStorage.setItem(ANALYTICS_KEY, JSON.stringify(_buf || [])); }
+    try { window.HearthriseStorage.setJSON(ANALYTICS_KEY, _buf || []); }
     catch(e){}
   }
   function saveBuffer(arr){

@@ -56,11 +56,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=577';
+import { resolveActiveSlot } from './accrue.js?v=578';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=577';
+import { notePropertyUnlocks } from './property-record.js?v=578';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -493,22 +493,18 @@ export function __resetForbiddenField() {
 export function forbiddenResidueFields() { return Array.from(FORBIDDEN_DROPPED); }
 
 function forbiddenSeen(field) {
-  try {
-    if (typeof sessionStorage === 'undefined') return false;
-    const raw = sessionStorage.getItem(FORBIDDEN_RELOAD_KEY);
-    return !!raw && String(raw).split(',').indexOf(field) >= 0;
-  } catch (e) { return false; }
+  const raw = globalThis.HearthriseStorage?.session.get(FORBIDDEN_RELOAD_KEY);
+  return !!raw && String(raw).split(',').indexOf(field) >= 0;
 }
 function rememberForbidden(field) {
-  try {
-    if (typeof sessionStorage === 'undefined') return;
-    const raw = sessionStorage.getItem(FORBIDDEN_RELOAD_KEY) || '';
-    const list = raw ? String(raw).split(',') : [];
-    if (list.indexOf(field) < 0) list.push(field);
-    // Bounded: the deny-list is a server list of names, not an open set, and a
-    // hostile answer must not be able to grow a storage key without limit.
-    sessionStorage.setItem(FORBIDDEN_RELOAD_KEY, list.slice(-24).join(','));
-  } catch (e) {}
+  const tab = globalThis.HearthriseStorage?.session;
+  if (!tab) return;
+  const raw = tab.get(FORBIDDEN_RELOAD_KEY) || '';
+  const list = raw ? String(raw).split(',') : [];
+  if (list.indexOf(field) < 0) list.push(field);
+  // Bounded: the deny-list is a server list of names, not an open set, and a
+  // hostile answer must not be able to grow a storage key without limit.
+  tab.set(FORBIDDEN_RELOAD_KEY, list.slice(-24).join(','));
 }
 
 /* The b124 kill-switch's body, minus its mismatch detection: purge every cache,

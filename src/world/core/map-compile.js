@@ -13,7 +13,7 @@
 //
 // ROW SHAPE
 //   id, name, kind ('hunt' | 'town' | 'home'), hunts: [hunt ids it renders]
-//   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 terrain id:
+//   outdoor (bool), light (one of LIGHT_KINDS), ground (a wang16 or fill terrain id:
 //     its lower/upper materials are what the legend's characters name)
 //   legend { char: MATERIALS id }, rows [string, …] (equal widths)
 //   faces     [{ x, y, id }] a rock face drawn with a variant (an arch)
@@ -26,7 +26,7 @@
 //   maskHash  hash of the collision mask (maskHash below)
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=577';
+import { rectOf, onEdge, isCorner, sideOf } from './grid.js?v=578';
 
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);
@@ -105,7 +105,7 @@ export function compileMap(row, tables) {
     id: row.id, name: row.name, kind: row.kind, outdoor: !!row.outdoor, light: row.light, w, h,
     groundTerrain: row.ground, ground, mask, maskHash: maskHash(mask, w, h), faces, objects, lights: lit, buildings,
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
-    exits: row.exits || [], start: row.start,
+    exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null,
   };
 }
 

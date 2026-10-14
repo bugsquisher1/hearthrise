@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=577';
+//   import { setupSync } from './net/sync.js?v=578';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,28 +16,30 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=577';
+import { on, snapshot } from './events.js?v=578';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=577';
+import { resolveActiveSlot } from './accrue.js?v=578';
 /* THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
    record.js's own request builder and response classifier rather than growing a
    second copy of the hr_load shape. NO CYCLE: record.js imports accrue /
    client-state / predict / property-record / dungeon-scrip-record, none of which
    import sync.js. (The old `balanceState` import went with the round-trip diff
    the projection replaced — the figures now come from the server, not from G.) */
-import { buildLoadRequest, classifyLoadResponse } from './record.js?v=577';
+import { buildLoadRequest, classifyLoadResponse } from './record.js?v=578';
 /* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
    The authoritative snapshot() blob is NOT uploaded: the authority fields flow
    through their own server writes (record / RPCs / accrual) and only the
    self-only residue is persisted, via putClientState. buildResiduePatch is the
    census→patch. No cycle: neither capstone.js nor client-state.js imports
    sync.js. */
-import { buildResiduePatch } from './capstone.js?v=577';
-import { putClientState, isClientStateFromServer } from './client-state.js?v=577';
+import { buildResiduePatch } from './capstone.js?v=578';
+import { putClientState, isClientStateFromServer } from './client-state.js?v=578';
 
+/** The platform storage seam (src/platform/storage.js); absent under Node = no storage. */
+const store = () => globalThis.HearthriseStorage || null;
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
 const DEVICE_KEY = 'hr:deviceId';
@@ -99,7 +101,7 @@ let claimCheckTimer = null;
 let flushStartTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
-let concurrentWarned = '';   // b366: fallback when sessionStorage is unavailable
+let concurrentWarned = '';   // b366: fallback when there is no storage seam (Node)
 // b366 — THE ONE CLAIM VERDICT. { owner, hbMs, at } — who holds the session
 // claim, when their heartbeat last beat, and when we read it. Written by
 // checkSessionClaim / claimSession / fetchClaimRow and read by everything that
@@ -118,10 +120,10 @@ let claimView = null;
 // our own just-made claim as foreign.
 let myEpochMs = 0;
 const MY_EPOCH_KEY = 'hr:claimEpoch';
-try { myEpochMs = Number(sessionStorage.getItem(MY_EPOCH_KEY)) || 0; } catch (e) {}
+myEpochMs = Number(store()?.session.get(MY_EPOCH_KEY)) || 0;
 function setMyEpoch(ms) {
   myEpochMs = Number(ms) || 0;
-  try { sessionStorage.setItem(MY_EPOCH_KEY, String(myEpochMs)); } catch (e) {}
+  store()?.session.set(MY_EPOCH_KEY, String(myEpochMs));
 }
 let paused = false;        // b302: set when this device is evicted — stops all cloud writes
 let evicted = false;       // b302: latch so we fire onEvicted once
@@ -199,11 +201,13 @@ export function isEventAllowed(type) { return EVENT_ALLOWLIST.has(type); }
 /** The kill switch. Defaults ON; disables event upload ONLY — cloud saves are untouched. */
 export function isEventLogEnabled() {
   if (config && config.eventLog === false) return false;
-  try { if (localStorage.getItem(EVENT_LOG_KEY) === 'off') return false; } catch (e) {}
+  if (store()?.get(EVENT_LOG_KEY) === 'off') return false;
   return true;
 }
 export function setEventLogEnabled(on) {
-  try { if (on) localStorage.removeItem(EVENT_LOG_KEY); else localStorage.setItem(EVENT_LOG_KEY, 'off'); } catch (e) {}
+  const s = store();
+  if (s && on) s.remove(EVENT_LOG_KEY);
+  else if (s) s.set(EVENT_LOG_KEY, 'off');
   if (config) config.eventLog = on ? true : false;
   return isEventLogEnabled();
 }
@@ -253,41 +257,40 @@ export function resetEventLimiter() {
 }
 
 /**
- * b301 — a stable per-DEVICE id (not per-account). Persisted in localStorage so
+ * b301 — a stable per-DEVICE id (not per-account). Persisted in the device store so
  * it survives reloads; a fresh install / cleared storage gets a new one. Stamped
  * into every uploaded snapshot so any device can tell whether the last cloud
  * write came from ITSELF or from another device signed into the same account.
+ * DURABLE or nothing: an id the store refused is not this device's id.
  */
 function getDeviceId() {
-  try {
-    let id = localStorage.getItem(DEVICE_KEY);
-    if (!id) { id = 'd-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36); localStorage.setItem(DEVICE_KEY, id); }
-    return id;
-  } catch (e) { return 'd-ephemeral'; }
+  const s = store();
+  const have = s && s.get(DEVICE_KEY);
+  if (have) return have;
+  const id = 'd-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+  return s && s.set(DEVICE_KEY, id, { durable: true }) ? id : 'd-ephemeral';
 }
 
 /**
- * b303 — a per-TAB instance id, stored in sessionStorage. Unlike the device id
- * (localStorage, shared by every tab of a browser), sessionStorage is scoped to
+ * b303 — a per-TAB instance id, in the seam's TAB store (sessionStorage). Unlike the
+ * device id (localStorage, shared by every tab of a browser), sessionStorage is scoped to
  * a single tab and SURVIVES a reload — so it is exactly "one running game
  * instance". This is what the single-active-session claim keys on: two tabs of
  * the same browser are two instances and must not both run. The device id was
  * wrong for this (both tabs shared it, so neither ever saw a "different owner").
  */
 function getInstanceId() {
-  try {
-    let id = sessionStorage.getItem(INSTANCE_KEY);
-    if (!id) { id = 'i-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36); sessionStorage.setItem(INSTANCE_KEY, id); }
-    return id;
-  } catch (e) { return getDeviceId(); }
+  const tab = store()?.session;
+  const have = tab && tab.get(INSTANCE_KEY);
+  if (have) return have;
+  const id = 'i-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+  return tab && tab.set(INSTANCE_KEY, id, { durable: true }) ? id : getDeviceId();
 }
 
 /** Load the offline buffer (events captured while offline / pre-config). */
 function loadBuffer() {
-  try {
-    const raw = localStorage.getItem(BUFFER_KEY);
-    if (raw) buffer = JSON.parse(raw);
-  } catch {}
+  const raw = store()?.get(BUFFER_KEY);
+  try { if (raw) buffer = JSON.parse(raw); } catch {}
   // b319: a buffer written before the allowlist existed can hold up to MAX_BUFFER
   // high-frequency rows. Drop them here rather than uploading the backlog on the
   // first flush after the fix ships.
@@ -299,9 +302,7 @@ function loadBuffer() {
 }
 
 function saveBuffer() {
-  try {
-    localStorage.setItem(BUFFER_KEY, JSON.stringify(buffer));
-  } catch {}
+  store()?.setJSON(BUFFER_KEY, buffer);
 }
 
 /**
@@ -1445,12 +1446,12 @@ export function decideClaimAction(view, me, myEpoch, nowMs) {
 /** b366 — have we already accused this instance? Survives a reload (P0-B). */
 export function hasWarnedConcurrent(other) {
   if (!other) return true;                       // nothing to warn about
-  try { return sessionStorage.getItem(CONCURRENT_WARN_KEY) === other; }
-  catch (e) { return concurrentWarned === other; }
+  const tab = store()?.session;
+  return tab ? tab.get(CONCURRENT_WARN_KEY) === other : concurrentWarned === other;
 }
 export function markWarnedConcurrent(other) {
   concurrentWarned = other || '';
-  try { sessionStorage.setItem(CONCURRENT_WARN_KEY, other || ''); } catch (e) {}
+  store()?.session.set(CONCURRENT_WARN_KEY, other || '');
 }
 
 // ── b302: SINGLE ACTIVE DEVICE (session claim) ──────────────────────────────

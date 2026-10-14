@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=577';
-import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=577';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=578';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=578';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
@@ -332,7 +332,7 @@ export default [
        either curated home and keep the unshipped-folder guard strict. */
     ['bronze_sword', 'rune_sword', 'steel_platebody', 'copper_ring'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/(painted\/gear|hearthfire)\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+      assert(p && /assets\/icons-bundle\/(painted\/gear|hearthfire|pixel\/items)\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
       assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
   }),
@@ -346,7 +346,7 @@ export default [
        Hearthfire file is a pool ball and was withheld (see item-art.js). */
     ['slime_gel', 'bones', 'carrot', 'cooked_shark', 'ruby', 'bat_wing', 'turnip_seed'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/(painted\/items|hearthfire\/(items|food|armour|weapons))\//.test(p),
+      assert(p && /assets\/icons-bundle\/(painted\/items|pixel\/items|hearthfire\/(items|food|armour|weapons))\//.test(p),
         'item icon missing/unshipped for ' + id + ': ' + p);
       assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
@@ -363,7 +363,11 @@ export default [
   () => tryRun('b358: hearthfire item art survives a __mapGeneratedGearIcons re-run', () => {
     const A = window.HearthriseItemArt;
     assert(A && typeof A.wiredIconMap === 'function', 'HearthriseItemArt manifest not published');
-    const wired = A.wiredIconMap();
+    /* The pixel item set (ITEM_ART_SET) is wired OVER the painted one for every
+       ITEMS id, so the property is checked against the map main.js actually
+       applied. With the switch on 'painted' this is exactly the old map. */
+    const pixelSet = A.ITEM_ART_SET === 'pixel';
+    const wired = pixelSet ? A.activeIconMap(Object.keys(window.ITEMS || {})) : A.wiredIconMap();
     const ids = Object.keys(wired);
     assert(ids.length > 300, 'expected the full item batch to be wired, got ' + ids.length);
     assert(typeof window.__applyHearthfireItemIcons === 'function',
@@ -403,13 +407,21 @@ export default [
     const paintedBefore = Object.keys(window.ITEMS || {}).filter((id) => !wired[id]
       && (window.ITEMS[id] || {}).tier
       && /icons-bundle\/painted\/gear\//.test((window._itemPath || {})[id] || ''));
-    assert(paintedBefore.length > 0, 'control failed: the generated map paints no un-covered id at all');
+    /* In the pixel set every ITEMS id is covered, so the generated mapper owns
+       nothing by design and the control would be vacuous-by-construction; the
+       painted-set control comes back with ITEM_ART_SET = 'painted'. */
+    assert(pixelSet || paintedBefore.length > 0, 'control failed: the generated map paints no un-covered id at all');
 
     /* Every wired path is inside the one shipped bundle, and none is an emoji. */
+    const home = pixelSet ? /^assets\/icons-bundle\/pixel\/items\// : /^assets\/icons-bundle\/hearthfire\//;
     ids.forEach((id) => {
-      assert(/^assets\/icons-bundle\/hearthfire\//.test(wired[id]), id + ' wired outside the hearthfire folder: ' + wired[id]);
+      assert(home.test(wired[id]) || (pixelSet && /^assets\/icons-bundle\/hearthfire\//.test(wired[id])),
+        id + ' wired outside the active item art folder: ' + wired[id]);
     });
-    assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
+    /* A withheld FILE must never be wired. Checked on the path, not the id: in the pixel set the
+       same id is rightly wired to its own pixel icon, and that is not the rejected painting. */
+    const rejectedPaths = (A.REJECTED_WRONG_SUBJECT || []).map((k) => A.HEARTHFIRE_DIR + k.split('/')[0] + '/' + A.fileFor(k.split('/')[1]));
+    assert(rejectedPaths.length > 0 && !ids.some((id) => rejectedPaths.indexOf(wired[id]) >= 0),
       'a file withheld for depicting the wrong object got wired anyway');
   }),
   /* Asset Director, 2026-08-17 — Tyler: "the copper is still showing as a
@@ -501,7 +513,7 @@ export default [
   () => tryRun('b361: item-detail modal icon === grid icon, and the card carries no emoji', () => {
     assert(typeof window.openInvDetail === 'function', 'openInvDetail missing');
     const A = window.HearthriseItemArt;
-    const wired = (A && A.wiredIconMap && A.wiredIconMap()) || {};
+    const wired = (A && A.activeIconMap && A.activeIconMap(Object.keys(window.ITEMS || {}))) || {};
     /* A hearthfire-wired id that is really in ITEMS. Prefer the one Tyler
        reported so the regression is the reported bug, not a cousin of it. */
     const id = (wired.wheat_seed && window.ITEMS.wheat_seed) ? 'wheat_seed'
@@ -788,5 +800,40 @@ export default [
       captureShellLocks();
     }
     assert(locks().length === 0, 'this test did not put the shell back the way it found it');
+  }),
+
+  /* -- regression suite -- STORAGE-SEAM-1 (W4.1): every web-storage touch goes through
+     src/platform/storage.js, so a residue preference must still survive a reload on the
+     device's own key. The preference is the UI scale: G.settings.uiScale is residue
+     (RESIDUE_FIELDS 'settings') and hearthrise:ui-scale is its device mirror, painted
+     before the account hydrates. MUTATIONS: settings-page.js on another key (arm 1 red);
+     the seam keeping every write in memory, the pre-W4.1 mirror (arm 2 red); the seam
+     dropping a refused write (arm 3 red). */
+  () => tryRun('STORAGE-SEAM-1: a residue preference round-trips through the storage seam, and a refusing store still holds it for the session', () => {
+    const S = window.HearthriseStorage, U = window.HearthriseUIScale, G = window.G;
+    assert(S && S.session && U && G && G.settings, 'the storage seam, HearthriseUIScale or G.settings is not published');
+    const K = U.KEY, before = U.get(), raw = localStorage.getItem(K), hadScale = typeof G.settings.uiScale === 'number', scale = G.settings.uiScale;
+    const realSet = Storage.prototype.setItem;
+    try {
+      U.set(120, true);
+      assert(localStorage.getItem(K) === '120', 'the device holds "' + localStorage.getItem(K) + '" under ' + K + ' after choosing 120% — the key or the backend moved');
+      delete G.settings.uiScale;                       // a boot before the account's settings land
+      assert(U.get() === 120, 'a reload with no account value read ' + U.get() + '%, not the 120% saved through the seam');
+      localStorage.removeItem(K);                      // another tab, or the player, cleared the device
+      assert(U.get() === U.DEFAULT, 'the key is gone from the device but the seam still answered ' + U.get() + '% from a stale copy');
+      Storage.prototype.setItem = function () { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; };
+      U.set(95, true);
+      delete G.settings.uiScale;
+      assert(U.get() === 95, 'a store that refused the write lost the 95% choice inside the session that made it');
+      assert(localStorage.getItem(K) === null, 'a refused write reached the device store');
+      assert(S.set('__hr_seam_probe__', 'x') === false && S.session.set('__hr_seam_probe__', 'x') === false,
+        'set() reported a refused write as durable');
+    } finally {
+      Storage.prototype.setItem = realSet;
+      S.remove('__hr_seam_probe__'); S.session.remove('__hr_seam_probe__');
+      if (hadScale) U.set(scale, true); else delete G.settings.uiScale;
+      if (raw == null) S.remove(K); else S.set(K, raw);
+      U.apply(before);
+    }
   }),
 ];

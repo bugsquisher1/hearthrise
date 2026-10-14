@@ -21,7 +21,8 @@
 //   C  zoom table and one-device-pixel camera steps
 //   L  map lint over every shipped map, and over planted bad rows
 //   P  8-way A* never cuts a corner
-//   W  the Wang vertex grid melts lone tiles and keeps plains whole
+//   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
+//      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
 //      draws the layers in the plan's order
 //
@@ -217,6 +218,16 @@ function check(M) {
       const open = m.ground.filter((mat) => !tables.materials[mat].solid).length;
       ok('W2', g.tiles.filter((t) => t.set).length >= open && g.voids.length === m.ground.length - open, id + ': the ground must cover every open tile with art and every rock tile with void');
     }
+    /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams. */
+    for (const id of Object.keys(rows)) {
+      const m = compiled(id), terr = book.terrains[m.groundTerrain];
+      if (!terr || terr.kind !== 'fill') continue;
+      const [cols, rws] = terr.cycle || [1, 1];
+      const want = (x, y) => book.tile(m.groundTerrain, '1111', (y % rws) * cols + (x % cols));
+      const bad = M.compose.groundTiles(m, book, tables, T).tiles.filter((t) => { const w = want(t.x / T, t.y / T); return !w || w.sx !== t.sx || w.sy !== t.sy; });
+      ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle');
+    }
+    ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be the flat cellar_earth fill (the flagstone Wang patch reads as a raised slab)');
   });
 
   fam('G', () => {
@@ -237,10 +248,10 @@ function check(M) {
       drawn = b.snapshot().last;
     } catch (e) { drawn = null; }
     ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'hero'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
-    const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'plates(list'];
+    const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'overlay(list'];
     const draw = M.canvasSrc.slice(M.canvasSrc.indexOf('function draw('));
     const pos = order.map((k) => draw.indexOf(k));
-    ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, plates in that order (' + pos.join(',') + ')');
+    ok('G3', pos.every((p, i) => p > 0 && (!i || pos[i - 1] < p)), 'canvas-backend draw() must paint ground, decals, shadows, sprites, raised, light, blit, screen overlay in that order (' + pos.join(',') + ')');
   });
   return fails;
 }
@@ -277,17 +288,18 @@ const MUTANTS = [
   ['S1', 'the ellipse ignores its offset', 'src/world/core/shadows.js', [['cx: cx + spec.dx - 2', 'cx: cx']]],
   ['S2', 'a cast shadow that ignores height', 'src/world/core/shadows.js', [['return [px + SHEAR.x * hgt,', 'return [px + SHEAR.x * 10,']]],
   ['S3', 'a second shadow composite', 'src/world/render/canvas-backend.js', [['    g.drawImage(shade.c, 0, 0);\n', '    g.drawImage(shade.c, 0, 0);\n    g.drawImage(shade.c, 0, 0);\n']]],
-  ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["if (s.class === 'hanging') y -= s.hover || 0;", '']]],
+  ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
   ['C1', 'zoom with a floor of 1', 'src/world/core/camera.js', [['Math.max(2, Math.round(', 'Math.max(1, Math.round(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###....................#',\n", "    '###.......#............#',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
+  ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;', 'const n = x * 7 + y * 13;']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
-    ['    for (const d of list.sprites) blit(g, d, view);\n', ''],
+    ['    for (const d of list.sprites) { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
 ];
 

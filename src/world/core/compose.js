@@ -25,10 +25,10 @@
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=577';
-import { heroBuilding } from './roofs.js?v=577';
-import { ellipseShadow, castMatrix } from './shadows.js?v=577';
-import { vertexGrid, tileKey } from './wang.js?v=577';
+import { ySort } from './zsort.js?v=578';
+import { heroBuilding } from './roofs.js?v=578';
+import { ellipseShadow, castMatrix } from './shadows.js?v=578';
+import { vertexGrid, tileKey } from './wang.js?v=578';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -45,12 +45,15 @@ export function groundTiles(map, book, tables, T) {
   const tiles = [], voids = [];
   const terr = book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
+  const fill = terr && terr.kind === 'fill' ? terr.cycle || [1, 1] : null;
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
-      const t = book.tile(map.groundTerrain, tileKey(g, map.w, x, y), x * 7 + y * 13);
+      /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
+      const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;
+      const t = book.tile(map.groundTerrain, fill ? '1111' : tileKey(g, map.w, x, y), n);
       if (t) tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T });
     }
   }
@@ -89,9 +92,12 @@ export function composeFrame(map, book, state, view, tables, T) {
     let { sx, sy, w, h, ax, ay } = f;
     if (o.crop) { const [c0, c1, c2, c3] = o.crop; sx += c0; sy += c1; w = c2 - c0; h = c3 - c1; ax -= c0; ay -= c1; }
     const [fw, fh] = o.fp || s.footprint;
-    const x = tx * T + Math.floor((fw * T) / 2) - ax + (o.dx || 0);
-    let y = ty * T + fh * T - 1 - ay - (o.lift || 0);
-    if (s.class === 'hanging') y -= s.hover || 0;
+    const x = Math.round(tx * T + Math.floor((fw * T) / 2) - ax + (o.dx || 0));
+    let y = Math.round(ty * T + fh * T - 1 - ay - (o.lift || 0));
+    /* Hung art and fliers are drawn `hover` px up; a flier's shadow stays on the floor. */
+    const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;
+    y -= air;
+    const ground = s.class === 'flier' ? air : 0;
     const d = { id, set: f.set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
       kind: o.kind || s.layer, cls: s.class, tx, ty };
     if (!near(x, y, w, h)) return d;
@@ -99,7 +105,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     else if (o.raised) raised.push(d);
     else stand.push(d);
     if (o.shadow !== false && s.shadow) {
-      if (s.shadow.kind === 'ellipse') shadows.push(Object.assign({ type: 'ellipse' }, ellipseShadow(s.shadow, x + ax, y + ay)));
+      if (s.shadow.kind === 'ellipse') shadows.push(Object.assign({ type: 'ellipse' }, ellipseShadow(s.shadow, x + ax, y + ay + ground)));
       else shadows.push({ type: 'cast', sprite: d, m: castMatrix(y + ay) });
     }
     return d;
@@ -159,16 +165,47 @@ export function composeFrame(map, book, state, view, tables, T) {
 
   for (const o of map.objects) place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
 
-  const plates = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
-  if (hero) {
-    const s = book.sprite('hero');
-    const clip = s.anims && s.anims.idle;
-    const i = clip && clip.fps ? Math.floor(((state.t || 0) * clip.fps) / 1000) : 0;
-    const d = place('hero', hero.x, hero.y, { anim: 'idle', dir: 's', i, kind: 'unit' });
+  const plates = [], bars = [], floats = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
+  let target = null;
+  /* A unit: { id, x, y, anim, dir, age (ms into the clip), alpha, plate:{text,kind}, bar, target }. */
+  function unit(u, isHero) {
+    const s = book.sprite(u.id);
+    const anim = u.anim || 'idle';
+    const i = clipFrame(book, u.id, anim, u.dir || 's', u.age == null ? state.t || 0 : u.age);
+    const d = place(u.id, u.x, u.y, { anim, dir: u.dir || 's', i, kind: 'unit', alpha: u.alpha });
     const cx = d.x + s.anchor[0], foot = d.y + s.anchor[1];
-    if (state.name) plates.push({ text: state.name, x: cx, y: foot - (s.height || 36) });
-    if (map.light === 'cellar') points.push({ x: cx, y: foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });
+    const top = foot - (s.height || 20) - (s.class === 'flier' ? s.hover || 0 : 0);
+    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.alpha == null ? 1 : u.alpha });
+    if (u.bar != null) bars.push({ x: cx, y: top - 2, w: 18, pct: Math.max(0, Math.min(1, u.bar)), kind: isHero ? 'hero' : 'foe' });
+    if (u.target) target = { x: cx - 15, y: top - 2, w: 30, h: foot - top + 6 };
+    return { cx, foot, top };
+  }
+  if (hero) {
+    const h = unit(Object.assign({ id: 'hero', anim: 'idle', dir: 's' }, hero, {
+      plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
+    if (map.light === 'cellar') points.push({ x: h.cx, y: h.foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });
+  }
+  for (const u of state.units || []) unit(u, false);
+  /* Floats rise 14 art px over their life and fade in the last third; the
+     caller passes their age so the same list draws the same frame anywhere. */
+  for (const f of state.floats || []) {
+    const k = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
+    floats.push({ text: f.text, kind: f.kind, x: (f.x + 0.5) * T, y: f.y * T - 6 - 14 * k, alpha: k < 0.66 ? 1 : (1 - k) / 0.34 });
   }
   const roofs = map.buildings.map((b) => ({ id: b.id, alpha: state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1) }));
-  return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points }, plates };
+  return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points },
+    plates, bars, floats, target };
+}
+
+/**
+ * The frame of a clip `age` ms in: looping clips cycle at their fps; a one-shot
+ * (attack, hit, death, down) plays once and HOLDS its last frame.
+ */
+function clipFrame(book, id, anim, dir, age) {
+  const s = book.sprite(id);
+  const clip = s.anims && (s.anims[anim] || s.anims.idle);
+  if (!clip || !clip.fps) return 0;
+  const n = book.frames(id, s.anims[anim] ? anim : 'idle', dir);
+  const i = Math.floor((Math.max(0, age) * clip.fps) / 1000);
+  return clip.loop === false ? Math.min(n - 1, i) : i % n;
 }

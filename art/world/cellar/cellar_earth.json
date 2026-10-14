@@ -1,0 +1,51 @@
+{
+  "id": "cellar_earth",
+  "class": "terrain",
+  "kind": "fill",
+  "material": "native",
+  "source": "cellar_earth.png",
+  "lower": "earth",
+  "upper": "earth",
+  "cycle": [
+    4,
+    2
+  ],
+  "tiles": {
+    "1111": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ]
+    ]
+  },
+  "made_by": "hand-authored with the scratch procedural brush (seeded, palette-native, periodic on 32 px); no PixelLab request",
+  "notes": "One flat cellar floor: packed earth with worn and damp patches, grit, pebbles and cracks. A 128 x 64 periodic field cut into a 4 x 2 cycle. Replaces the flagstone patch in the hunt, which read as a raised slab."
+}

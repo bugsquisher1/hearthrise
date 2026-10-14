@@ -1,11 +1,11 @@
 {
   "version": 1,
   "set": "home",
-  "palette": "hr-world-40-v1",
+  "palette": "hr-world-56-v2",
   "T": 32,
   "image": "atlas-home.png",
   "size": [512,164],
-  "pixels": "e07756748964ae43927711f0edaf4a249aa9588f3286e63440759294a25d0d48",
+  "pixels": "3d6a216a67325247c2185c2a0ad572e62c9641cb1129e3182e42b2027d7bb4c3",
   "sprites": {
     "altar": {
       "class": "fixture",

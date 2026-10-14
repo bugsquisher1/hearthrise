@@ -1,7 +1,7 @@
 {
   "id": "rat",
   "class": "critter",
-  "material": "fur",
+  "material": "monster",
   "source": "rat.png",
   "anchor_px": [
     24,
@@ -87,50 +87,47 @@
     }
   ],
   "pixellab": {
-    "character": {
-      "tool": "create_character",
-      "id": "bc3281c4-300d-458f-b3f5-1ecfac9fdd92",
+    "object": {
+      "tool": "create_object_pro_flash",
+      "id": "18ec0bfa-136c-47ba-a3c8-11ddfa50bceb",
       "request": {
-        "description": "giant cellar rat, coarse grey-brown fur, long thin tail, small black eyes, hunched back, muted earthy colours, gritty medieval dungeon vermin, seen from above",
-        "body_type": "quadruped",
-        "template": "cat",
-        "mode": "standard",
-        "n_directions": 4,
-        "size": 19,
+        "description": "giant cellar rat monster, mangy dark grey-brown fur with lighter belly, long bare pink-grey tail, sharp yellow teeth, beady dark eyes, clawed feet, hunched aggressive pose, high top-down RPG monster, strong dark outline, detailed shading, muted gritty colours",
         "view": "high top-down",
-        "outline": "single color black outline",
-        "shading": "detailed shading",
-        "detail": "high detail"
+        "n_directions": 8,
+        "width": 24,
+        "height": 24
       }
     },
     "animations": {
       "walk": {
-        "tool": "animate_character",
-        "template_animation_id": "walk-6-frames",
-        "group": "620ca288-445b-44c1-bd13-cfdb2a6213af"
+        "tool": "animate_object",
+        "mode": "v3",
+        "animation_description": "rat scurrying forward on all four legs, tail swaying",
+        "frame_count": 6,
+        "group": "cb092cf0-ab8b-427a-b9e5-156c2f303ff4"
       },
       "attack": {
-        "tool": "animate_character",
+        "tool": "animate_object",
         "mode": "v3",
-        "action_description": "lunging forward and biting, then recoiling back to stance",
+        "animation_description": "rat lunging forward and biting, then pulling back",
         "frame_count": 6,
-        "group": "26e1c09b-6119-4139-a310-e68435723bf2"
+        "group": "70a1fc0b-7335-42a3-ba7e-ae9be255723d"
       },
       "hit": {
-        "tool": "animate_character",
+        "tool": "animate_object",
         "mode": "v3",
-        "action_description": "flinching backwards from a hard hit, then steadying",
+        "animation_description": "rat flinching backwards from a hard hit, then steadying",
         "frame_count": 4,
-        "group": "411b632d-89d8-4468-aa2e-61bd6ff60054"
+        "group": "8dd3f3d7-d368-42a3-abd6-9a495ae80b7f"
       },
       "death": {
-        "tool": "animate_character",
+        "tool": "animate_object",
         "mode": "v3",
-        "action_description": "collapsing and rolling onto its side, lying dead and still on the floor",
+        "animation_description": "rat collapsing onto its side and lying dead and still on the floor",
         "frame_count": 6,
-        "group": "05cda938-0c52-45c6-890c-aca366f95d48"
+        "group": "fedeacc5-ad42-48fa-96f6-5ed57b3efeed"
       }
     }
   },
-  "notes": "Size 19 (the first, size-24 rat measured 27 px long: over budget). PixelLab drew south and north as the same overhead view (head up), so south is the north view turned 180 degrees. Top views stand on the body (mass) bottom; the tail lies on the floor behind and is declared as 6 px overhang. Death and corpse use the east clip for every direction, mirrored for n/w; corpse = the last death frame."
+  "notes": "Pro Flash object (true facings, strong outline) replaced the standard-mode quadruped, which read as a brown blob at x3. Every frame is seated on its own feet row. Death/corpse use the east clip, mirrored for n/w; corpse = the last death frame. The tail lying behind is declared as 6 px overhang."
 }

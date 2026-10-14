@@ -73,7 +73,7 @@ const REQUIRED = {
   altar: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
   bed: { set: 'home', class: 'bed', anims: ['idle'], dirs: PROP },
 };
-const REQUIRED_TERRAIN = { cellar_floor: 'cellar', town_ground: 'town', plank_floor: 'home' };
+const REQUIRED_TERRAIN = { cellar_earth: 'cellar', town_ground: 'town', plank_floor: 'home' };
 
 function loadAtlases(root = ROOT) {
   const dir = join(root, OUT_DIR);

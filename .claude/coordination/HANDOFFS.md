@@ -3261,10 +3261,11 @@ baked shadow, no iso corner, drift). Sidecars record the PixelLab request/ids. O
   furniture, trees, NPCs and peers are PixelLab. Peers and NPCs have idle facings only: walk clips come
   with W6's shared walking. Not yet made: the plan's knight/mage/ranger/banker/skeleton re-generations
   beyond the three peer looks, the wolf, graves, statues per maxed skill, cliff/ruin/watchtower re-measures.
-- **Re-roll candidates:** the rat (standard-mode quadruped, low detail; its grey-pink fur needed the
-  `fur` grade); barrels measure 30 px against a 24-28 nominal (inside the tolerance, still tall); the
-  hive wasp's four facings are rotations of one overhead view; the cellar flagstones read a little
-  raised at their edges (a flush re-roll looked no better).
+- **Polish pass done:** the rat is now a Pro Flash object with true facings; the hunt floor is one flat
+  hand-authored `cellar_earth` fill (the flagstone Wang patch read as a raised slab and is unused). The
+  palette is now `hr-world-56-v2`: bronze, iron, steel and mithril ramps (4 tones each) for the item
+  icon re-make. **Still open:** barrels measure 30 px against a 24-28 nominal (inside the tolerance);
+  the hive wasp's facings are rotations of one overhead view (PixelLab's own side views are edge-on).
 - **Method that works:** `create_character` v3 at size 40 (36 px body); animations as v3 custom clips
   from the rotation frame. Template clips (walk/idle/death) redraw the character and drop or add the
   shield between frames: rejected. `create_1_direction_object` batches (64 candidates, 10 gens) are the

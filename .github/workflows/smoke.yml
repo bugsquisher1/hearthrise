@@ -805,6 +805,20 @@ jobs:
           node tests/bestiary-target.mjs
           node tests/bestiary-target.mjs --mutate
 
+      # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
+      # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE
+      # engine rolls the next foe from the hunt's weights on its seeded rng; the
+      # attended loop and the away span agree on a mixed hunt (AWAY-1); the server
+      # files per-monster bestiary ops; training prices as before; the chain
+      # replays and re-applies byte-identically with the §4 band gate executed.
+      - name: Hunts as named areas — generated catalogue, one engine, band gate
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-hunts.mjs --check
+          node tools/gen-hunts.mjs --selftest
+          node tests/hunts-c1.mjs
+          node tests/hunts-c1.mjs --mutate
+
       # 2026-10-11-name-moderation.sql (Security): a name other players see is
       # the server's to refuse and to take back. On the WHOLE chain, as the
       # client roles: blocked variants refused name_blocked (never echoed), the

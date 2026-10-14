@@ -60,33 +60,34 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=573';
-import { rollDropTable } from './drops.js?v=573';
-import { resolveHearthfind } from './hearthfind.js?v=573';
-import { hitXpRoute, killXpRoute } from './styles.js?v=573';
-import { applyGoldFind } from './pacing.js?v=573';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=574';
+import { rollDropTable } from './drops.js?v=574';
+import { resolveHearthfind } from './hearthfind.js?v=574';
+import { hitXpRoute, killXpRoute } from './styles.js?v=574';
+import { applyGoldFind } from './pacing.js?v=574';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
    ladder, where the design tables live. This file asks the table; it does not
    restate it, so a designer moving a rung moves it in exactly one place. */
 import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments,
-         retreatAtFall } from './away.js?v=573';
+         retreatAtFall } from './away.js?v=574';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
    the trigger and the sentence explaining it cannot disagree. It draws no
    random numbers and mutates nothing, so it is safe to call inside a seeded
    fight (§2.1's contract on `spendForSwings` applies for the same reason). */
-import { chooseFood, resolveAutoEat } from './auto-eat.js?v=573';
+import { chooseFood, resolveAutoEat } from './auto-eat.js?v=574';
 /* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
    see `forecastFight` at the foot of this file. */
-import { createRng } from './rng.js?v=573';
-import { NO_BONUS } from './botd.js?v=573';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=573';
+import { createRng } from './rng.js?v=574';
+import { pickSpawn } from './hunt-spawn.js?v=574';
+import { NO_BONUS } from './botd.js?v=574';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=574';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult } from './ammo.js?v=573';
+import { spendForSwings, applyAmmoMult } from './ammo.js?v=574';
 
 export { AWAY_RATE_MULT };
 
@@ -214,9 +215,20 @@ export function resolveKill(state, m, ctx) {
   if (found) info.hearthfind = found;
   call(fx, 'onKill', info, ctx);
 
-  /* Respawn the same foe and keep fighting — the behaviour both loops had. */
-  state.monsterHp = m.hp;
-  state.monsterMaxHp = m.hp;
+  /* RESPAWN. A training fight respawns the same foe (the behaviour both loops
+     had). A HUNT (lane C1, src/data/hunts.js) rolls the next foe from its
+     weighted spawns on THIS engine's seeded rng, after every other draw this
+     kill made — one function, not branched on `ctx.away`, so the attended tick
+     and the away span roll the same sequence (AWAY-1). A one-spawn hunt draws
+     nothing. An id the roster does not know keeps the current foe. */
+  const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;
+  const next = (nextId !== id && ctx.monsters && ctx.monsters[nextId]) || null;
+  if (next) {
+    state.activeMonster = nextId;
+    state.combatKillsThisFoe = 0;
+  }
+  state.monsterHp = (next || m).hp;
+  state.monsterMaxHp = (next || m).hp;
   return info;
 }
 

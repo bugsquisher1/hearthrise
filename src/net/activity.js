@@ -85,14 +85,14 @@ import { fetchWrite,
   /* THE RECEIPT READERS and the once-per-window seam every verb's `collected`
      feeds (2026-09-28) — they live beside the away holder they write. */
   collectedOf, awayFromCollected, applyCollectedReceipt,
-} from './accrue.js?v=573';
+} from './accrue.js?v=574';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=573';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=573';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=574';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=574';
 
 export const ACTIVITY_VERB = 'set_activity';
 
@@ -641,8 +641,18 @@ export const ACTIVITY_REFUSALS = Object.freeze({
   below_min_span: 'That was too quick to settle — try again in a moment.',
   would_confiscate: 'The hearth couldn’t settle the last stretch — nothing was lost; try again.',
 });
-export function activityRefusalMessage(code) {
+export function activityRefusalMessage(code, body) {
   const k = String(code || '');
+  /* A hunt above the hero: the server says the two levels (hr_hunt_gate), so the line names them. */
+  if (k === 'activity_locked') {
+    const b = (body && typeof body === 'object') ? body : {};
+    const d = (b.detail && typeof b.detail === 'object') ? b.detail : b;
+    const need = Number(d.band_min), have = Number(d.combat_level);
+    if (Number.isFinite(need) && need > 0) {
+      return 'That hunt opens at Combat ' + need + (Number.isFinite(have) ? ' (you are Combat ' + have + ')' : '') + ' — nothing was started.';
+    }
+    return 'That isn’t open to you yet — nothing was started.';
+  }
   if (Object.prototype.hasOwnProperty.call(ACTIVITY_REFUSALS, k)) return ACTIVITY_REFUSALS[k];
   return k ? 'The hearth refused that (' + k + ') — the activity stopped.'
     : 'The hearth did not take that — the activity stopped.';

@@ -2821,3 +2821,13 @@ gold…" instead of "Not enough gold". Paydown: every .mk-* override in audit-ov
 .mk-screen joined the carve-out string.
 Lesson: an empty state is a claim about the whole list, so it has to be computed over the same set
 the player thinks of as "the market" - which includes their own listing.
+
+## 2026-10-13 — Adventures window (lane/b575-adventures-ui)
+Combat's war table is now four tabs: Hunts / Bosses / Dungeons / Training. Hunt cards (src/data/hunts.js)
+wear the per-class combat backdrops undimmed, list spawns as portrait chips, show server charm progress
+and "last XP/h" only when the server states one; a locked hunt says "Opens at Combat N". The star is the
+`huntFavs` residue preference (sanitised both ways). Bosses/Dungeons are plain rows, not cards. The old
+grid + tier chips live on under Training. Hunt sends `hunt` when the server lists that kind, else fights
+the first spawn. Coach step 5 rings the Mill Cellar's Hunt button.
+Lesson: a hidden tab is still in the DOM, so layout tests that measured the grid open Training through
+the shared combatScreen() fixture rather than per test.

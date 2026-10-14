@@ -1408,7 +1408,7 @@ window.activityQuietly=activityQuietly;
    answers "what is the player doing", and the honest answer is "cooking". */
 function localActivityPointer(){
   if(typeof G==='undefined'||!G) return {kind:'idle',id:null};
-  if(G.activeMonster) return {kind:'combat',id:G.activeMonster};
+  if(G.activeMonster) return {kind:'combat',id:G._huntId||G.activeMonster};   // a named hunt is combat:<hunt id> (HUNTS_AND_ANALYZER.md §2.1a)
   if(G.activeSkill&&G.skillTargetId){
     const artisan=!!(window.ARTISAN_RECIPES&&window.ARTISAN_RECIPES[G.activeSkill]);
     return {kind:artisan?'artisan':'gather',id:G.skillTargetId};
@@ -1540,7 +1540,7 @@ function explainUnownedStop(was,verdict){
     const S=window.HearthriseDeathSheet, M=window.HearthriseActivity;
     if(down&&S&&typeof S.answerTap==='function'){ S.answerTap(HR_RECOVERING_LINE); return; }
     if(typeof notify==='function'){
-      notify(down?HR_RECOVERING_LINE:((why&&M&&typeof M.activityRefusalMessage==='function')?M.activityRefusalMessage(why):'The hearth did not take that — the activity stopped.'),'kill');
+      notify(down?HR_RECOVERING_LINE:((why&&M&&typeof M.activityRefusalMessage==='function')?M.activityRefusalMessage(why,verdict&&verdict.body):'The hearth did not take that — the activity stopped.'),'kill');
     }
   }catch(e){}
 }
@@ -1620,7 +1620,7 @@ function reconcileActivityPointer(a,fight,verdict){
      refused tap and a dead button looked identical. The stop branch has owed
      that sentence since b519; a SWITCH is the same debt on the same screen. */
   const _before=localActivityPointer();
-  const applied=activityQuietly(function(){
+  const applied=activityQuietly(function(){ const _h=window.hrResumeHunt&&window.hrResumeHunt(kind,id,fight); if(_h)return _h;   // a named hunt: combat-screens.js
     if(kind==='combat'&&id&&MONSTERS[id]){
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
       if(G.activeMonster!==id&&typeof startCombat==='function'){
@@ -1719,7 +1719,7 @@ function reconcileActivityPointer(a,fight,verdict){
       console.warn('[activity] the switch to '+_before.kind+':'+_before.id+' was refused ('+(why||'refused')+') — the realm is still running '+applied.kind+':'+applied.id);
       if(typeof notify==='function'){
         notify((why&&M&&typeof M.activityRefusalMessage==='function')
-          ?M.activityRefusalMessage(why):'The hearth did not take that — nothing changed.','kill');
+          ?M.activityRefusalMessage(why,verdict&&verdict.body):'The hearth did not take that — nothing changed.','kill');
       }
     }catch(e){}
   }
@@ -5575,8 +5575,8 @@ function retimeCombat(){
 }
 window.retimeCombat=retimeCombat;
 window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test seam (COMBAT-RETIME-1)
-function startCombat(mId,opts){   // warning: src/render/fight-warning.js
-  if(G.activeMonster===mId){stopCombat();return;}
+function startCombat(mId,opts){const huntId=(opts&&opts.hunt)||null;   // warning: src/render/fight-warning.js; opts.hunt: a named hunt opening on this spawn
+  if(G.activeMonster===mId&&(G._huntId||null)===huntId){stopCombat();return;}
   if(!(opts&&opts.confirmed)){   // THE ADVISORY GATE never refuses; every exit re-enters {confirmed:true}
     const _FW=window.HearthriseFightWarning;
     if(_FW&&typeof _FW.gate==='function'){
@@ -5624,7 +5624,7 @@ function startCombat(mId,opts){   // warning: src/render/fight-warning.js
     }
   }catch(e){}
   const m=MONSTERS[mId];
-  G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
+  G._huntId=huntId;G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`You attack the ${m.name}!`];
   _combatIntervalMs=combatTickMs();
   combatInterval=setInterval(combatTick,_combatIntervalMs);
@@ -5636,7 +5636,7 @@ function startCombat(mId,opts){   // warning: src/render/fight-warning.js
      player is fighting a monster that just killed them, and the LAST
      declaration wins. Measured shape, not a hypothetical: the away-death branch
      exists precisely because a fresh character can die in one exchange. */
-  if(G.activeMonster===mId) declareActivity('combat',mId);
+  if(huntId?(G.activeMonster&&G._huntId===huntId):G.activeMonster===mId) declareActivity('combat',huntId||mId);
 }
 function stopCombat(){
   /* THE MOMENT THE CLIENT LAST OWNED THE HP BAR (b511). Stamped only when a
@@ -5644,7 +5644,7 @@ function stopCombat(){
      client writes hp on its own authority. startCombat's server-hp seed reads
      it to decide whether the server's last statement is NEWER than the client's
      own — see the seed block above. Scratch (`_`), so it never syncs. */
-  try{ if(G.activeMonster) G._hpLocalAt = Date.now(); }catch(e){}
+  try{ if(G.activeMonster) G._hpLocalAt = Date.now(); }catch(e){} G._huntId=null;
   // b138: launchpad Resume hook — see stopSkill() above.
   if(G.activeMonster && window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.recordStop === 'function'){
     window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);
@@ -6100,7 +6100,7 @@ function combatSimCtx(){
     weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
     /* Resolved for THIS instant, which during a replay is the segment's start
        and not "now". */
-    botd:{ killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } },
+    botd:{ killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } }, hunt:(G._huntId&&C.huntSpawn)?C.huntSpawn.huntFor(G._huntId):null,   // AWAY-1: the attended kill rolls the hunt's spawns
     fx:COMBAT_FX,
   };
 }

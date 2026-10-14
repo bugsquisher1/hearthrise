@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=573';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=573';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=573';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=573';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=574';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=574';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=574';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=574';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -2037,6 +2037,7 @@ export default [
     const savedTier = g.currentCombatTier;
     g.currentCombatTier = m.tier || 1;
     window.showTab('combat');
+    CS.setTab('training');
     try {
       CS.render();
       // Defensively clear any class filter left by an earlier test.
@@ -2053,6 +2054,7 @@ export default [
       assert(shown.size >= 3, 'expected the full table (>2 rows), got ' + shown.size);
     } finally {
       g.currentCombatTier = savedTier;
+      CS.setTab('hunts');
     }
   }),
 
@@ -2425,7 +2427,7 @@ export default [
     const snap = snapshotG(); const prevTab = window.activeTab; const bad = [];
     const txt = (el) => (el ? el.textContent.replace(/\s+/g, ' ') : '');
     try {
-      window.showTab('combat');
+      window.showTab('combat'); window.HearthriseCombatScreens.setTab('training');
       for (const id of ids) {
         const m = MON[id]; const w = weaknessOf(m);
         for (const t of Object.keys(WEAPON_TYPES)) {
@@ -2453,6 +2455,7 @@ export default [
       assert(!bad.length, bad.length + ' disagreements: ' + bad.slice(0, 6).join(' | '));
     } finally {
       try { HUD.close(); } catch (e) {}
+      window.HearthriseCombatScreens.setTab('hunts');
       restoreG(snap);
       try { window.showTab(prevTab || 'combat'); } catch (e) {}
     }
@@ -4832,7 +4835,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=573');
+          await import('../../data/codex.js?v=574');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5654,7 +5657,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=573');
+    const mod = await import('../../net/activity.js?v=574');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

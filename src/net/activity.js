@@ -641,8 +641,18 @@ export const ACTIVITY_REFUSALS = Object.freeze({
   below_min_span: 'That was too quick to settle — try again in a moment.',
   would_confiscate: 'The hearth couldn’t settle the last stretch — nothing was lost; try again.',
 });
-export function activityRefusalMessage(code) {
+export function activityRefusalMessage(code, body) {
   const k = String(code || '');
+  /* A hunt above the hero: the server says the two levels (hr_hunt_gate), so the line names them. */
+  if (k === 'activity_locked') {
+    const b = (body && typeof body === 'object') ? body : {};
+    const d = (b.detail && typeof b.detail === 'object') ? b.detail : b;
+    const need = Number(d.band_min), have = Number(d.combat_level);
+    if (Number.isFinite(need) && need > 0) {
+      return 'That hunt opens at Combat ' + need + (Number.isFinite(have) ? ' (you are Combat ' + have + ')' : '') + ' — nothing was started.';
+    }
+    return 'That isn’t open to you yet — nothing was started.';
+  }
   if (Object.prototype.hasOwnProperty.call(ACTIVITY_REFUSALS, k)) return ACTIVITY_REFUSALS[k];
   return k ? 'The hearth refused that (' + k + ') — the activity stopped.'
     : 'The hearth did not take that — the activity stopped.';

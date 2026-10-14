@@ -49,6 +49,12 @@ import { foeFamily } from '../render/foe-family.js?v=573';
 import { weaknessWords } from '../render/foe-weakness.js?v=573';
 import { SIGNPOSTS } from '../data/signposts.js?v=573';
 import { compactNumber } from '../net/balance.js?v=573';
+import { HUNTS } from '../data/hunts.js?v=573';
+import { BOSSES } from '../data/bosses.js?v=573';
+import { nextCharmAt } from '../core/charms.js?v=573';
+
+/** The Adventures window's tabs, in order. */
+const WT_TABS = [['hunts', 'Hunts'], ['bosses', 'Bosses'], ['dungeons', 'Dungeons'], ['training', 'Training']];
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -537,11 +543,18 @@ function ensureStructure() {
     <section class="wt-view" aria-label="War Table">
       <div class="wt-ribbon" id="wt-ribbon" hidden></div>
       <div class="wt-dest-rail" id="wt-dest-rail" tabindex="0" role="group" aria-label="Destinations — scrolls sideways"><div class="wt-dests" id="wt-dests"></div></div>
-      <div class="wt-bar">
-        <div class="wt-chips" id="wt-tiers"></div>
-        <div class="wt-chips wt-classes" id="wt-classes"></div>
+      <div class="wt-tabs" id="wt-tabs" role="tablist" aria-label="Adventures">${WT_TABS.map(([k, label]) =>
+        `<button type="button" class="wt-tab" role="tab" data-cs-act="wtab" data-wtab="${k}">${label}</button>`).join('')}</div>
+      <div class="wt-pane" data-wpane="hunts" role="tabpanel"><div class="wt-hunts" id="wt-hunts"></div></div>
+      <div class="wt-pane" data-wpane="bosses" role="tabpanel" hidden><div class="wt-rows" id="wt-bosses"></div></div>
+      <div class="wt-pane" data-wpane="dungeons" role="tabpanel" hidden><div class="wt-rows" id="wt-dungeons"></div></div>
+      <div class="wt-pane" data-wpane="training" role="tabpanel" hidden>
+        <div class="wt-bar">
+          <div class="wt-chips" id="wt-tiers"></div>
+          <div class="wt-chips wt-classes" id="wt-classes"></div>
+        </div>
+        <div class="wt-grid" id="wt-grid"></div>
       </div>
-      <div class="wt-grid" id="wt-grid"></div>
     </section>
     <section class="fs-view" aria-label="The Fight">
       <div class="fs-top">
@@ -739,6 +752,9 @@ function onPanelClick(e) {
     } else if (act === 'history') { openHistory(); }
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
     else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
+    else if (act === 'wtab') { setTab(btn.dataset.wtab); }
+    else if (act === 'fav') { toggleFav(btn.dataset.hunt); }
+    else if (act === 'hunt') { startHunt(btn.dataset.hunt); }
     else if (act === 'tier') {
       const tier = parseInt(btn.dataset.tier || '1', 10);
       const g = G(); if (g) g.currentCombatTier = tier;
@@ -1101,10 +1117,214 @@ function renderGrid() {
   host.innerHTML = html || '<div class="empty">No monsters match this filter.</div>';
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   5b · THE ADVENTURES WINDOW
+   Four tabs over one screen: Hunts (a themed place, the server picks each foe
+   from its spawn table), Bosses, Dungeons, and Training (the single-monster
+   list with its tier and class chips). Every lock states its reason; nothing
+   here computes a number the server owns — charm progress is the server's
+   kill counters (HearthriseCharms), the last XP/h is the server's figure or
+   hidden, and the Hunt button sends an intent.
+   ══════════════════════════════════════════════════════════════════════ */
+let wtTab = 'hunts';
+
+function setTab(k) {
+  if (!WT_TABS.some(([id]) => id === k)) return;
+  wtTab = k;
+  render();
+}
+
+function syncTabs() {
+  document.querySelectorAll('#wt-tabs .wt-tab').forEach((b) => {
+    const on = b.dataset.wtab === wtTab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#panel-combat .wt-pane').forEach((p) => { p.hidden = p.dataset.wpane !== wtTab; });
+}
+
+/** The starred hunt ids — a display preference in the residue (`huntFavs`). */
+function favs() { const g = G(); return (g && Array.isArray(g.huntFavs)) ? g.huntFavs : []; }
+
+function toggleFav(id) {
+  const g = G();
+  if (!g || !HUNTS.some((h) => h.id === id)) return;
+  const next = favs().slice();
+  const at = next.indexOf(id);
+  if (at === -1) next.push(id); else next.splice(at, 1);
+  g.huntFavs = next;
+  try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) { /* residue rides the next put */ }
+  render();
+}
+
+/** What the Hunt button asks the server for: the existing `set_activity`
+    with the hunt id as a combat pointer (HUNTS_AND_ANALYZER.md §2.1a). Pure. */
+function huntIntent(id) {
+  const h = HUNTS.find((x) => x.id === id);
+  return h ? { kind: 'combat', id: h.id } : null;
+}
+
+/* The fight opens on the first spawn for instant feedback; the server's
+   envelope reconciles it and rolls every foe after. A below-band start is the
+   server's `activity_locked`, worded by activityRefusalMessage. */
+/* THE SERVER NAMES A HUNT (reconcileActivityPointer in legacy.js asks here
+   first). Already on it: the local fight is live, leave it. Otherwise open it on
+   the carried foe when that foe is one of its spawns, else its first spawn.
+   Returns the applied pointer, or null when `combat:<id>` is not a named hunt. */
+function resumeHunt(kind, id, fight) {
+  const C = window.HearthriseCore;
+  const hunt = (kind === 'combat' && id && C && C.huntSpawn) ? C.huntSpawn.huntFor(id) : null;
+  const g = G();
+  if (!hunt || !g) return null;
+  if (g.activeSkill && typeof window.stopSkill === 'function') window.stopSkill();
+  if (!(g._huntId === id && g.activeMonster) && typeof window.startCombat === 'function') {
+    const fm = fight && fight.monster;
+    const first = (fm && C.huntSpawn.huntSpawns(hunt, fm)) ? fm : hunt.spawns[0].monster;
+    if (MONSTERS[first]) {
+      window.startCombat(first, { confirmed: true, hunt: id });
+      if (typeof window.applyCarriedFight === 'function' && window.applyCarriedFight(first, fight)
+        && typeof window.renderCombat === 'function') window.renderCombat();
+    }
+  }
+  return { kind: 'combat', id };
+}
+
+function startHunt(id) {
+  const h = HUNTS.find((x) => x.id === id);
+  const g = G();
+  if (!h || !g || typeof window.startCombat !== 'function') return;
+  previewId = null;
+  if (!(g._huntId === h.id && g.activeMonster)) window.startCombat(h.spawns[0].monster, { hunt: h.id });
+  setView('fight');
+}
+
+/** The server's kill count per class, or null while the counters are unknown. */
+function classKills() {
+  const C = window.HearthriseCharms;
+  if (!C || typeof C.countersKnown !== 'function' || !C.countersKnown()) return null;
+  const out = {};
+  try { for (const row of C.charmClasses()) out[row.cls] = row.kills; } catch (e) { return null; }
+  return out;
+}
+
+/** The server's last stated XP/h for a hunt, or null (then the line is hidden). */
+function lastXph(id) {
+  const g = G();
+  const row = g && g._hunts && g._hunts[id];
+  const n = row && Number(row.xph);
+  return n > 0 ? n : null;
+}
+
+function lockLine(need) {
+  return `<button type="button" class="btn btn-sm wt-locked" disabled>${uiGlyph('uiLock', 12)}Opens at Combat ${num(need)}</button>`;
+}
+
+function huntCard(h, lv, kills, starred) {
+  const locked = lv < h.band[0];
+  const mons = h.spawns.filter((s) => MONSTERS[s.monster]);
+  const chips = mons.map((s) => `<li class="wth-mon" data-monster="${esc(s.monster)}">` +
+    `<span class="wth-mon-art">${monsterArt(s.monster, 'wth-mon-img')}</span>${esc(MONSTERS[s.monster].name)}</li>`).join('');
+  const classes = [];
+  mons.forEach((s) => { const c = MONSTERS[s.monster].cls; if (c && classes.indexOf(c) < 0) classes.push(c); });
+  const charms = kills ? classes.map((c) => {
+    const n = Number(kills[c]) || 0;
+    const nx = nextCharmAt(n);
+    const fam = (mons.find((s) => MONSTERS[s.monster].cls === c) || {}).monster;
+    const label = esc((MONSTERS[fam] || {}).family || c);
+    if (!nx) return `<span class="wth-charm is-max"><em>${label} charm</em><b>max</b></span>`;
+    const pct = Math.max(0, Math.min(100, (n / nx.at) * 100));
+    return `<span class="wth-charm"><em>${label} charm</em><i><s style="width:${pct.toFixed(1)}%"></s></i><b>${num(n)}/${num(nx.at)}</b></span>`;
+  }).join('') : '';
+  const xph = lastXph(h.id);
+  const band = h.band[1] ? `Combat ${h.band[0]}–${h.band[1]}` : `Combat ${h.band[0]}+`;
+  const btn = locked ? lockLine(h.band[0])
+    : `<button type="button" class="btn btn-sm btn-primary wth-go" data-cs-act="hunt" data-hunt="${esc(h.id)}">Hunt</button>`;
+  return `<article class="wt-hunt${locked ? ' is-locked' : ''}${starred ? ' is-fav' : ''}" data-hunt="${esc(h.id)}">
+    <div class="wth-art" data-art="${esc((MONSTERS[h.art] || MONSTERS[h.spawns[0].monster] || {}).cls || '')}">
+      <button type="button" class="wth-fav" data-cs-act="fav" data-hunt="${esc(h.id)}" aria-pressed="${starred ? 'true' : 'false'}"` +
+      ` aria-label="${starred ? 'Unstar' : 'Star'} ${esc(h.name)}" title="${starred ? 'Starred' : 'Star this hunt'}">${uiGlyph('uiStar', 14)}</button>
+      <span class="wth-band">${esc(band)}</span>
+    </div>
+    <div class="wth-body">
+      <b class="wth-name">${esc(h.name)}</b>
+      <p class="wth-theme">${esc(h.theme)}</p>
+      <ul class="wth-mons">${chips}</ul>
+      ${charms ? `<div class="wth-charms">${charms}</div>` : ''}
+      ${xph ? `<span class="wth-xph">Last ${num(xph)} XP/h</span>` : ''}
+    </div>
+    <footer>${btn}</footer>
+  </article>`;
+}
+
+function renderHunts() {
+  const host = document.getElementById('wt-hunts');
+  if (!host) return;
+  const lv = combatLevel();
+  const kills = classKills();
+  const fav = favs();
+  /* The reveal's ten-level window, as on the destination rail: a hunt far above
+     the hero folds into one "Next at Combat N" line rather than a wall of locks. */
+  const R = window.HearthriseReveal;
+  const inWindow = R ? R.warCards(HUNTS.map((h) => ({ req: h.band[0], pinned: fav.indexOf(h.id) !== -1 }))) : HUNTS.map(() => true);
+  const shown = HUNTS.filter((h, i) => inWindow[i]);
+  const later = HUNTS.filter((h, i) => !inWindow[i]).map((h) => h.band[0]);
+  shown.sort((a, b) => (fav.indexOf(b.id) !== -1) - (fav.indexOf(a.id) !== -1));
+  let html = shown.map((h) => huntCard(h, lv, kills, fav.indexOf(h.id) !== -1)).join('');
+  if (later.length) html += `<p class="wt-more">${uiGlyph('uiLock', 12)}More hunts open as you level · next at Combat ${num(Math.min(...later))}</p>`;
+  const sig = html.length + '|' + lv + '|' + fav.join() + '|' + JSON.stringify(kills);
+  if (host.dataset.sig === sig) return;
+  host.dataset.sig = sig;
+  host.innerHTML = html;
+}
+
+function rowHtml(o) {
+  return `<article class="wt-row${o.locked ? ' is-locked' : ''}" data-row="${esc(o.id)}">
+    <span class="wtr-glyph">${uiGlyph(o.glyph, 22)}</span>
+    <div class="wtr-main"><b>${esc(o.name)}</b><span>${esc(o.meta)}</span></div>
+    ${o.locked ? lockLine(o.locked)
+      : `<button type="button" class="btn btn-sm btn-primary" data-cs-act="dest" data-go="tab" data-tab="${esc(o.tab)}">${esc(o.verb)}</button>`}
+  </article>`;
+}
+
+function renderBosses() {
+  const host = document.getElementById('wt-bosses');
+  if (!host) return;
+  const lv = combatLevel();
+  const D = window.DUNGEONS || {};
+  const rows = Object.values(BOSSES).slice().sort((a, b) => a.reqLv - b.reqLv).map((b) => rowHtml({
+    id: b.id, glyph: 'uiSkull', name: b.name,
+    meta: `${b.title} · waits in ${(D[b.dungeon] && D[b.dungeon].name) || 'a dungeon'}`,
+    locked: lv < b.reqLv ? b.reqLv : 0, verb: 'Find ▸', tab: 'dungeons',
+  }));
+  const html = rows.join('');
+  if (host.dataset.sig === html) return;
+  host.dataset.sig = html;
+  host.innerHTML = html;
+}
+
+function renderDungeonRows() {
+  const host = document.getElementById('wt-dungeons');
+  if (!host) return;
+  const lv = combatLevel();
+  const D = window.DUNGEONS || {};
+  const html = Object.keys(D).sort((a, b) => D[a].reqLv - D[b].reqLv).map((id) => rowHtml({
+    id, glyph: D[id].glyph || 'uiCastle', name: D[id].name,
+    meta: D[id].boss ? `Boss: ${D[id].boss.name}` : 'a dungeon run',
+    locked: lv < D[id].reqLv ? D[id].reqLv : 0, verb: 'Enter ▸', tab: 'dungeons',
+  })).join('') || '<div class="empty">No dungeons yet.</div>';
+  if (host.dataset.sig === html) return;
+  host.dataset.sig = html;
+  host.innerHTML = html;
+}
+
 function render() {
   if (!ensureStructure()) return;
   renderRibbon();
   renderDestinations();
+  syncTabs();
+  if (wtTab === 'hunts') renderHunts();
+  else if (wtTab === 'bosses') renderBosses();
+  else if (wtTab === 'dungeons') renderDungeonRows();
   renderFilters();
   renderGrid();
 }
@@ -1797,6 +2017,7 @@ export function setupCombatScreens() {
     window.renderCombat = w;
   }
 
+  window.hrResumeHunt = resumeHunt;
   window.HearthriseCombatScreens = {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     repaintGear,
@@ -1806,6 +2027,8 @@ export function setupCombatScreens() {
        a gated dungeon" defect lived, so the guard reads it directly rather
        than trying to find a disabled button in a strip the tick repaints. */
     _destinations: destinations,
+    setTab, huntIntent, startHunt, toggleFav,
+    get tab() { return wtTab; },
     get previewId() { return previewId; },
   };
 

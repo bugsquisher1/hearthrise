@@ -105,6 +105,7 @@ import * as workers from './core/workers.js?v=573';
    suite can derive "which sources pay which trophy" from the one catalogue
    instead of naming the four trophies by hand. */
 import * as hearthfind from './core/hearthfind.js?v=573';
+import * as huntSpawn from './core/hunt-spawn.js?v=573';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -430,7 +431,7 @@ window.HearthriseCore = {
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, bane, elements, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
-  autoEat, perks, ammo, goalCatalogue, workers, hearthfind,
+  autoEat, perks, ammo, goalCatalogue, workers, hearthfind, huntSpawn,
 
   /* The session RNG. */
   get rng() { return rng; },

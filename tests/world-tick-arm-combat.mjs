@@ -172,10 +172,19 @@ async function attempt(db, sql, f) {
     // What tests/world-tick-combat-replay.mjs --live --attest would print for these
     // rows: every closed combat probe's id:digest, minus the ones it did not replay.
     const unattested = (f.unattest || []).map((g) => ids[g]);
-    const pairs = (await q(`select coalesce(array_agg(p.id::text || ':' || ${REPLAY_DIGEST_SQL} order by p.id), '{}') as a
+    /* The digest is read off the file UNDER TEST (its P2a line), so a mutant that
+       drops a column from both digest lines is judged on its own arithmetic;
+       tests/world-tick-combat-replay.mjs FX-2 holds the committed file to
+       REPLAY_DIGEST_SQL verbatim. */
+    const digestSql = (sql.match(/ {3}where p\.id::text \|\| ':' \|\| (encode\(.*)\n/) || [])[1];
+    if (!digestSql) throw Object.assign(new Error('the arm file has no P2a digest line'), { harness: true });
+    const pairs = (await q(`select coalesce(array_agg(p.id::text || ':' || ${digestSql} order by p.id), '{}') as a
                               from public.hr_tick_probe p
                              where p.channel = 'combat' and p.status = 'closed' and not (p.id = any ($1::bigint[]))`,
     [unattested])).rows[0].a;
+    if (f.seedAfter != null) {
+      await q('update public.hr_tick_probe set seed = seed + 1 where id = $1', [ids[f.seedAfter]]);
+    }
     if (f.changeAfter != null) {
       await q("update public.hr_tick_probe set result = result || '{\"gold\": 101}'::jsonb where id = $1", [ids[f.changeAfter]]);
     }
@@ -262,6 +271,9 @@ const CASES = [
     what: 'no probe on a named hunt: refused at P2' },
   { id: 'C24', f: { ret: QUIET, unattest: [3] }, want: /^ARM-P2: 3 replayed closed combat probes/,
     what: 'a probe the replay guard did not attest is not counted (3 left): refused at P2' },
+  { id: 'C27', f: { ret: QUIET, probes: [...PROBES, { act: 'slime', ate: 0, deaths: 0 }], seedAfter: 4 },
+    want: /^ARM-P2: 4 of 5 replayed probes are present and unchanged/,
+    what: '5 attested probes, one SEED edited after the replay (Security C1): refused at P2 integrity' },
   { id: 'C25', f: { ret: QUIET, probes: [...PROBES, { act: 'slime', ate: 0, deaths: 0 }], changeAfter: 4 },
     want: /^ARM-P2: 4 of 5 replayed probes are present and unchanged/,
     what: '5 attested probes, one changed after the replay (4 would still count): refused at P2 integrity' },
@@ -361,6 +373,11 @@ const MUTANTS = [
   { name: 'noAttestFilter', why: 'P2 counts a probe the replay guard never attested', expect: /^C24$/,
     find: `     and p.input is not null and p.seed is not null\n     and p.id::text || ':' || ${REPLAY_DIGEST_SQL}\n         = any (c_replayed);\n`,
     repl: '     and p.input is not null and p.seed is not null;\n' },
+  { name: 'seedNotInDigest', why: 'both digest lines drop the seed: a seed edited after the replay still counts (Security C1)', expect: /^C27$/,
+    find: "coalesce(p.seed::text, '')), 'UTF8')), 'hex')\n         = any (c_replayed);\n  if v_n <> cardinality",
+    repl: "''), 'UTF8')), 'hex')\n         = any (c_replayed);\n  if v_n <> cardinality",
+    then: ["coalesce(p.seed::text, '')), 'UTF8')), 'hex')\n         = any (c_replayed);\n  if v_n < 4",
+      "''), 'UTF8')), 'hex')\n         = any (c_replayed);\n  if v_n < 4"] },
   { name: 'noIntegrityCheck', why: 'P2 ignores an attested probe that changed after the replay', expect: /^C25$/,
     find: '  if v_n <> cardinality(c_replayed) then\n', repl: '  if false then\n' },
   { name: 'noReplayedP0', why: 'P0 accepts the placeholder replayed set', expect: /^C1b$/,

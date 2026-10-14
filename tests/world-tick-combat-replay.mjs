@@ -50,7 +50,9 @@
 //
 // SEED HYGIENE (tests/world-tick-seed-no-leak.mjs covers this file): a probe's
 // stored seed is secret-equivalent. It is read here and used in memory only —
-// never printed, written, attested or sent to CI. The digest excludes it.
+// never printed, written or sent to CI. The attested digest COVERS it (Security C1:
+// a seed edited after the replay must refuse) as one sha256 input among the
+// whole row's, which does not reveal it to anyone who cannot already read the row.
 //
 // Exit: 0 green · 1 red · 2 harness OR missing coverage.
 // ============================================================================
@@ -77,10 +79,10 @@ export const BAR = Object.freeze({
 });
 export const COVERAGE = Object.freeze({ ate: 2, death_timer: 2, named_hunt: 1, utc_midnight: 1 });
 /* What the ARM file's P2 hashes to bind a counted probe to the row this guard
-   replayed. The seed is NOT in it (secret-equivalent; tests/world-tick-seed-no-leak.mjs). */
+   replayed: the whole row, seed included (Security C1, 2026-10-14). */
 export const REPLAY_DIGEST_SQL = "encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, "
   + "coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), "
-  + "coalesce(p.input::text, ''), coalesce(p.result::text, '')), 'UTF8')), 'hex')";
+  + "coalesce(p.input::text, ''), coalesce(p.result::text, ''), coalesce(p.seed::text, '')), 'UTF8')), 'hex')";
 const ARM_FILE = 'supabase/migrations/2026-10-14-world-tick-arm-combat.sql';
 const ENGINE_URL = pathToFileURL(join(ROOT, 'tools', 'lib', 'engine-pack.mjs')).href;
 
@@ -330,6 +332,28 @@ export function fixtureSpecs() {
       p: sessionProbe(/away goblin grind/, at(4, 2, 0), FIX_USER(5)) },
   ].map((x) => Object.assign(x, { p: asStored(x.p) }));
 }
+/* FX-4 (Security C2, 2026-10-14): the death-heavy ceiling. The "bag empties"
+   fixture (auto-eat on, ~10 deaths per 4 h, food runs out mid-span) is the one
+   input class where the chain was measured over one span (+5.3 % +- 1.1 % at
+   800 seeds). It is pinned here, kept OUT of the low-noise R2 fixture, and must
+   stay under +8 % on gold, XP and kills. 3 placements x 200 seeds: se ~0.9 %. */
+export const DEATH_HEAVY = Object.freeze({ ceiling: 0.08, seeds: 200, hours: Object.freeze([3, 10, 17]) });
+async function deathHeavyCeiling(dir) {
+  const ps = DEATH_HEAVY.hours.map((h, i) => asStored(sessionProbe(/bag empties/, Date.UTC(2026, 9, 5, h, 0, 0),
+    `00000000-0000-4000-8000-${String(0xdea700 + i).padStart(12, '0')}`)));
+  const tasks = [];
+  for (const p of ps) for (let r = 0; r < DEATH_HEAVY.seeds; r++) tasks.push([dir, p, r]);
+  const flat = await poolMap(ENGINE_URL, 'packReplicaSample', tasks);
+  const parts = BAR.fields.map((f) => {
+    const one = flat.reduce((a, s) => a + s.one[f], 0);
+    const chain = flat.reduce((a, s) => a + s.chain[f], 0);
+    return { f, rel: one > 0 ? chain / one - 1 : (chain > 0 ? Infinity : 0) };
+  });
+  const worst = parts.reduce((a, b) => (b.rel > a.rel ? b : a));
+  return { ok: parts.every((x) => x.rel <= DEATH_HEAVY.ceiling),
+    line: `FX-4 death-heavy ceiling ("bag empties", ${ps.length} x ${DEATH_HEAVY.seeds} seeds): chain vs one span `
+      + `${parts.map((x) => `${x.f} ${pct(x.rel)}`).join(', ')} (fails above ${pct(DEATH_HEAVY.ceiling)}; worst ${worst.f})` };
+}
 const isoPg = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
 /** Records as production stores them; the result is the engine's own, on the synthetic seed. */
 export function fixtureRecords(eng, tag) {
@@ -510,6 +534,8 @@ const MUTANTS = [
   { id: 'chainBias5', want: 'R2agg', why: 'a 5 % chain bias: inside +-6 %, caught by |z| > 3.29', engine: [chainPlant(1.05, 'true')] },
   { id: 'chainOverpaysOneInput', want: 'R2input', why: 'the chain over-pays ONE input (the bow user vs rats) by 25 %',
     engine: [chainPlant(1.25, "char.activeId === 'rat'")] },
+  { id: 'deathHeavyOverpays', want: 'FX4', why: 'the chain over-pays the death-heavy small_wolf span by a further 6 %',
+    engine: [chainPlant(1.06, "char.activeId === 'small_wolf'")] },
   { id: 'noNamedHunt', want: 'cov:named_hunt', why: 'no probe on a named hunt', drop: [1, 2, 3] },
   { id: 'noMidnight', want: 'cov:utc_midnight', why: 'no probe crosses UTC midnight', drop: [1] },
   { id: 'oneEating', want: 'cov:ate', why: 'only one probe ate', drop: [2] },
@@ -528,7 +554,7 @@ async function runFixture() {
   if (!MUTATE) {
     console.log(`\nworld-tick-combat-replay (fixture): ${control.length} synthetic probes on this checkout's engine`);
     for (const s of fixtureSpecs()) console.log(`  · probe ${s.id}: ${s.what}`);
-    const fx = await fixtureAssertions(base);
+    const fx = [...await fixtureAssertions(base), await deathHeavyCeiling(base.dir)];
     const out = await run(base, control);
     await db.close();
     print([...fx, ...out.lines]);
@@ -542,6 +568,8 @@ async function runFixture() {
 
   console.log('\nworld-tick-combat-replay --mutate: every planted defect must go RED on its named arm');
   const ctl = await run(base, control);
+  const ctlFx4 = await deathHeavyCeiling(base.dir);
+  if (!ctlFx4.ok) ctl.red.FX4 = [ctlFx4.line];
   if (arms(ctl.red).length || ctl.missing.length) {
     console.error(`harness: the unmutated control is not green (${[...arms(ctl.red), ...ctl.missing].join(', ')})`);
     await db.close();
@@ -559,6 +587,8 @@ async function runFixture() {
     const kept = CONTROL || !m.drop ? recs : recs.filter((r) => !m.drop.includes(r.id));
     const needR2 = Boolean(m.engine) && !CONTROL;
     const out = await run(eng, kept, { dbPlant: CONTROL ? null : (m.db || null), skipR2: !needR2 && !m.want.startsWith('R2') });
+    out.red.FX4 = [];
+    if (m.want === 'FX4') { const x = await deathHeavyCeiling(eng.dir); if (!x.ok) out.red.FX4.push(x.line); }
     const hit = m.want.startsWith('cov:') ? out.missing.includes(m.want.slice(4)) : out.red[m.want].length > 0;
     console.log(`[mutant] ${m.id} ${hit ? 'caught' : 'survived'}`);
     const got = [...arms(out.red), ...out.missing.map((k) => `cov:${k}`)];

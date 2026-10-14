@@ -105,7 +105,8 @@ begin
   --      ledger, R2 chain vs one span); this counts only what it ATTESTED:
   --   P2a every c_replayed pair names a probe row whose digest is unchanged
   --       since the replay (REPLAY_DIGEST_SQL, verbatim in the guard): a row
-  --       edited, pruned (input NULLed past 4 days) or mistyped refuses here;
+  --       edited (result, input or seed), pruned (input+seed NULLed past 4 days)
+  --       or mistyped refuses here;
   --   P2b of the attested probes, those closed on the pin at both ends with
   --       stored input and seed: >= 4, of them >= 2 with result.ate > 0,
   --       >= 2 with result.deaths > 0, >= 1 on a named-hunt pointer
@@ -120,7 +121,7 @@ begin
   end if;
   select count(*) into v_n
     from public.hr_tick_probe p
-   where p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, '')), 'UTF8')), 'hex')
+   where p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, ''), coalesce(p.seed::text, '')), 'UTF8')), 'hex')
          = any (c_replayed);
   if v_n <> cardinality(c_replayed) then
     raise exception 'ARM-P2: % of % replayed probes are present and unchanged — a probe moved after tests/world-tick-combat-replay.mjs replayed it; re-run --live --attest',
@@ -136,7 +137,7 @@ begin
    where p.channel = 'combat' and p.status = 'closed'
      and p.payload_open = c_pin and p.payload_close = c_pin
      and p.input is not null and p.seed is not null
-     and p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, '')), 'UTF8')), 'hex')
+     and p.id::text || ':' || encode(sha256(convert_to(concat_ws('|', p.id::text, p.payload_open, coalesce(p.payload_close, ''), to_jsonb(p.span_from) #>> '{}', coalesce(to_jsonb(p.span_to) #>> '{}', ''), coalesce(p.input::text, ''), coalesce(p.result::text, ''), coalesce(p.seed::text, '')), 'UTF8')), 'hex')
          = any (c_replayed);
   if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then
     raise exception 'ARM-P2: % replayed closed combat probes with stored input on the pin (% ate, % with a death, % on a named hunt) — need >= 4 / >= 2 / >= 2 / >= 1',

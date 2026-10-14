@@ -187,7 +187,7 @@
       R + '.hd-mile{display:flex;align-items:center;gap:15px;padding:13px 4px;position:relative}',
       /* Struck-metal disc, not a gold ring around a floating glyph. */
       R + '.hd-mile-badge{flex:0 0 46px;height:46px;border-radius:50%;display:grid;place-items:center;',
-      'background:radial-gradient(circle at 38% 28%,#2e2418,#15100a 78%) !important;',
+      'background:var(--medallion-bg) !important;',
       'border:1px solid rgba(201,162,74,.5) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55)}',
       R + '.hd-mile-body{flex:1;min-width:0}',

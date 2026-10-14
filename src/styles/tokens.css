@@ -564,6 +564,25 @@ body[data-theme="hearthlight"] {
   --app-bg:
     radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
     linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
+
+  /* The surfaces that were literals in components, so a palette could not move
+     them (b574's lesson: the panel floor and the glass rails ARE what a player
+     sees). These are the exact values the components carried: no pixel moves. */
+  --panel-floor-0: #241d16;   /* art-direction.css .panel.active */
+  --panel-floor-1: #201a13;
+  --panel-floor-glow: rgba(201, 162, 74, .07);
+  --panel-floor-rim: rgba(255, 240, 205, .10);
+  /* the veil over the global backdrop scene (backdrop.js) — the pane strip and
+     every gutter show the scene through it */
+  --backdrop-veil: radial-gradient(120% 90% at 50% 26%, transparent 38%, rgba(8, 6, 5, .6)), linear-gradient(180deg, rgba(8, 6, 5, .28), rgba(8, 6, 5, .55));
+  --modal-bg: linear-gradient(180deg, #201b15, #110e0a);   /* audit-overrides.css modals */
+  --avatar-bg: #201b15;   /* the topbar portrait well */
+  --sidebar-glass: linear-gradient(180deg, rgba(26, 19, 12, .82), rgba(18, 13, 8, .86));   /* backdrop.js */
+  --topbar-glass: rgba(28, 22, 16, .62);
+  --toast-bg: linear-gradient(180deg, #2a231a, #191410);   /* .notif, #chat-dock-min */
+  --medallion-bg: radial-gradient(circle at 38% 28%, #2e2418, #15100a 78%);   /* .hr-med, .hd-mile-badge */
+  --tile-raised: linear-gradient(180deg, rgba(255, 236, 200, .11), rgba(255, 236, 200, .02) 60%, rgba(0, 0, 0, .14));   /* a filled bag tile */
+  --tile-raised-line: rgba(255, 236, 200, .13);
 }
 
 
@@ -707,4 +726,159 @@ body[data-theme="hearthlight"] {
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6 · PALETTE TRIAL (lane/b-palette-trial, 2026-10-14) — comparison only.
+   Tyler: "I really like the gold in it, but brown is not very fitting for the
+   theme." Three cool bases under the same gold, each one attribute away:
+
+     <body data-theme="hearthlight" data-theme-palette="charcoal|midnight|iron">
+
+   No attribute = today's Hearthlight, unchanged, which is what every player
+   gets: nothing in the game sets this attribute. The pick becomes the default
+   ladder above and these blocks go; until then they are the trial.
+
+   WHY ON <body> AND WHY THIS NAME. The Hearthlight ladder is declared on
+   body[data-theme="hearthlight"] as well as :root, so a palette on <html> would
+   be shadowed at <body> before any component reads it. These blocks share that
+   specificity (0,1,1) and sit last in the sheet, so they win. The name keeps
+   them theme blocks to tests/css-literal-ratchet.mjs and root-ish to
+   tests/token-single-source.mjs — a palette IS a theme ladder.
+
+   WHAT MOVES: the UI chrome only — the value ladder, the ink ramp, the light
+   tints, the glass rails, the panel floor, the HUD plate over the World. WHAT
+   DOES NOT: the gold family (Tyler's keeper), the --world-* canvas ladder (the
+   pixel art keeps its own palette), the scene art, premium sapphire, the
+   bounty board and shopfront (they are wooden OBJECTS in the world, not UI).
+   Contrast is measured in docs/art-experiments/palette/contrast.md.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 6a · CHARCOAL & GOLD — near-black slate, a breath of blue-grey ── */
+body[data-theme-palette="charcoal"] {
+  --bg-0: #0b0c0e;
+  --bg-1: #121418;
+  --bg-2: #1c1f24;
+  --bg-3: #272b31;
+  --bg-card: linear-gradient(180deg, #22252b, #16181c);
+  --panel-floor-0: #1c1f24;
+  --panel-floor-1: #181a1f;
+  --panel-floor-glow: rgba(201, 162, 74, .06);
+  --panel-floor-rim: rgba(222, 230, 244, .09);
+  --backdrop-veil: linear-gradient(180deg, rgba(11, 12, 14, .90), rgba(11, 12, 14, .96));
+  --modal-bg: linear-gradient(180deg, #1f2227, #0f1113);
+  --avatar-bg: #1c1f24;
+  --sidebar-bg: linear-gradient(180deg, #121418, #0b0c0e);
+  --topbar-bg: linear-gradient(90deg, #191c21, #121418);
+  --sidebar-glass: linear-gradient(180deg, rgba(18, 20, 24, .92), rgba(12, 13, 16, .94));
+  --topbar-glass: rgba(21, 23, 28, .80);
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .07) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #131519 0%, #0b0c0e 46%, #070809 100%);
+  --toast-bg: linear-gradient(180deg, #24272d, #15171b);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #30343b, #111316 78%);
+  --tile-raised: linear-gradient(180deg, rgba(214, 224, 240, .10), rgba(214, 224, 240, .02) 60%, rgba(0, 0, 0, .16));
+  --tile-raised-line: rgba(214, 224, 240, .12);
+
+  --ink:   #e9e7e2;
+  --ink-2: #b8bcc4;
+  --ink-3: #8e949e;
+  --steel: #808b98;
+
+  --line-soft: rgba(214, 224, 240, .075);
+  --surf-raised: linear-gradient(180deg, rgba(214, 224, 240, .09), rgba(214, 224, 240, .03) 55%, rgba(0, 0, 0, .14));
+  --surf-raised-edge: inset 0 1px 0 rgba(222, 230, 244, .13), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(214, 224, 240, .035);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(214, 224, 240, .045);
+
+  --red: #c4483a;
+  --red-line: #dc5f4c;
+  --world-hud-bg: rgba(11, 12, 15, .88);
+}
+
+/* ── 6b · MIDNIGHT & GOLD — deep navy ink, the heraldic blue-and-or ── */
+body[data-theme-palette="midnight"] {
+  --bg-0: #060912;
+  --bg-1: #0b1020;
+  --bg-2: #131a2e;
+  --bg-3: #1c253f;
+  --bg-card: linear-gradient(180deg, #182139, #0e1426);
+  --panel-floor-0: #131a2e;
+  --panel-floor-1: #0f1628;
+  --panel-floor-glow: rgba(201, 162, 74, .07);
+  --panel-floor-rim: rgba(190, 208, 255, .10);
+  --backdrop-veil: linear-gradient(180deg, rgba(8, 12, 24, .90), rgba(6, 9, 18, .96));
+  --modal-bg: linear-gradient(180deg, #172036, #0a0f1d);
+  --avatar-bg: #131a2e;
+  --sidebar-bg: linear-gradient(180deg, #0b1020, #060912);
+  --topbar-bg: linear-gradient(90deg, #121a30, #0b1020);
+  --sidebar-glass: linear-gradient(180deg, rgba(11, 16, 32, .92), rgba(6, 9, 19, .94));
+  --topbar-glass: rgba(13, 19, 36, .80);
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .08) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #0d1426 0%, #070b16 46%, #04060c 100%);
+  --toast-bg: linear-gradient(180deg, #1a2440, #0e1426);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #26314f, #0a0f1d 78%);
+  --tile-raised: linear-gradient(180deg, rgba(176, 198, 255, .10), rgba(176, 198, 255, .02) 60%, rgba(0, 0, 0, .18));
+  --tile-raised-line: rgba(176, 198, 255, .13);
+
+  --ink:   #ece7da;
+  --ink-2: #b6bccc;
+  --ink-3: #8a93ab;
+  --steel: #7e8ba6;
+
+  --line-soft: rgba(176, 198, 255, .08);
+  --surf-raised: linear-gradient(180deg, rgba(176, 198, 255, .09), rgba(176, 198, 255, .03) 55%, rgba(0, 0, 0, .16));
+  --surf-raised-edge: inset 0 1px 0 rgba(190, 208, 255, .14), 0 1px 0 rgba(0, 0, 0, .55);
+  --surf-panel: rgba(176, 198, 255, .035);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(176, 198, 255, .05);
+
+  --red: #d04e3e;
+  --red-line: #e2654f;
+  --green: #8aa75a;
+  --world-hud-bg: rgba(7, 10, 21, .88);
+}
+
+/* ── 6c · IRON & GOLD — dark steel grey, the stone of a keep ── */
+body[data-theme-palette="iron"] {
+  --bg-0: #121314;
+  --bg-1: #1a1b1d;
+  --bg-2: #27292c;
+  --bg-3: #34373a;
+  --bg-card: linear-gradient(180deg, #2f3235, #212326);
+  --panel-floor-0: #282a2d;
+  --panel-floor-1: #232528;
+  --panel-floor-glow: rgba(201, 162, 74, .06);
+  --panel-floor-rim: rgba(236, 238, 242, .10);
+  --backdrop-veil: linear-gradient(180deg, rgba(20, 21, 23, .90), rgba(17, 18, 19, .96));
+  --modal-bg: linear-gradient(180deg, #2d3033, #18191b);
+  --avatar-bg: #27292c;
+  --sidebar-bg: linear-gradient(180deg, #1c1d1f, #141516);
+  --topbar-bg: linear-gradient(90deg, #2a2c2f, #1f2023);
+  --sidebar-glass: linear-gradient(180deg, rgba(29, 31, 33, .93), rgba(21, 22, 24, .95));
+  --topbar-glass: rgba(33, 35, 38, .84);
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(201, 162, 74, .06) 0%, rgba(201, 162, 74, 0) 62%),
+    linear-gradient(180deg, #1d1f21 0%, #151617 46%, #0f1011 100%);
+  --toast-bg: linear-gradient(180deg, #313437, #1f2124);
+  --medallion-bg: radial-gradient(circle at 38% 28%, #42464b, #18191b 78%);
+  --tile-raised: linear-gradient(180deg, rgba(232, 234, 238, .10), rgba(232, 234, 238, .02) 60%, rgba(0, 0, 0, .16));
+  --tile-raised-line: rgba(232, 234, 238, .12);
+
+  --ink:   #ecebe7;
+  --ink-2: #c2c3c5;
+  --ink-3: #9da0a4;
+  --steel: #8b959e;
+
+  --line-soft: rgba(232, 234, 238, .08);
+  --surf-raised: linear-gradient(180deg, rgba(232, 234, 238, .09), rgba(232, 234, 238, .03) 55%, rgba(0, 0, 0, .14));
+  --surf-raised-edge: inset 0 1px 0 rgba(236, 238, 242, .13), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(232, 234, 238, .035);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(232, 234, 238, .05);
+
+  --red: #cc4a3b;
+  --red-line: #e0604c;
+  --green: #8ca85a;
+  --world-hud-bg: rgba(18, 19, 21, .88);
 }

@@ -43,13 +43,17 @@ import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 
 /* The ruling's own lists (§2), typed once here so the data can be held to them. */
-const RULING_SUBJECTS = ['self_hp_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
+/* + self_mana_pct (Tyler 2026-10-14: Huntera's bar; drinks restore mana). */
+const RULING_SUBJECTS = ['self_hp_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes', 'self_mana_pct'];
 /* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check) and
    'stamina' took its place (Tyler, same day: "steal the stamina system, 1:1
-   like Huntera"). */
-const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'stamina', 'hours', 'left', 'changed', 'server'];
+   like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: an
+   NPC basic the purse cannot pay ends the hunt). */
+const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'];
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'vigour_low', 'ended'];
-const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason']);
+/* `activity`: the server's name for what the character resumes after an
+   automatic end ("fishing at Shrimp Spot", Tyler 2026-10-14). */
+const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason', 'activity']);
 
 const AMMO_FAMILY = { ranged: 'ranged', magic: 'magic' };
 
@@ -128,7 +132,8 @@ export function check(d) {
   for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, DEFAULT_PRESET: d.preset })) {
     if (!deepFrozen(o)) f('R1', `${name} is not frozen all the way down`);
   }
-  if (ACTION_SET_LIMITS.presets !== 5 || ACTION_SET_LIMITS.slots !== 10 || ACTION_SET_LIMITS.conditions !== 3) f('R1', 'action-set limits are not 5 presets, 10 slots, 3 conditions');
+  /* 20 slots: Huntera's bar, two rows of ten (Tyler 2026-10-14). */
+  if (ACTION_SET_LIMITS.presets !== 5 || ACTION_SET_LIMITS.slots !== 20 || ACTION_SET_LIMITS.conditions !== 3) f('R1', 'action-set limits are not 5 presets, 20 slots, 3 conditions');
 
   const preset = d.preset;
   if (!preset.slots.length || preset.slots.length > ACTION_SET_LIMITS.slots) f('R2', 'default preset slot count out of range');

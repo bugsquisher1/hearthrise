@@ -1475,6 +1475,10 @@ function accrueCombat(inp, span, hunt) {
      one, so the settle refuses rather than rolling on anything else. */
   const huntSeeder = hs0 ? swingSeederFor(String(inp.huntSecret ?? ''), hs0.id) : null;
   const huntSwingFrom = hs0 ? hs0.swingIndex : 0;
+  /* THE PURSE an NPC basic supply is paid from (Tyler 2026-10-14): the
+     character's gold as the server projected it at the window start. Kill
+     coins join it as they drop (combat-sim.js tallyFx). */
+  if (hs0) hs0.purse = nat(inp.gold, 0);
 
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
@@ -3179,6 +3183,12 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     raw_xp: rawXp,
     hints,
     ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs) } : null,
+    /* WHAT THIS WINDOW BOUGHT FROM THE NPC (Tyler 2026-10-14), `{item: units}`.
+       Units only: hr_hunt_apply prices every unit from ITS catalogue
+       (hr_hunt_supplies.npc_price), caps them by the window, debits the gold
+       and journals one `supply_buy` row (§5b). */
+    buys: Object.fromEntries(Object.entries(t.bought || {})
+      .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0)),
     /* THE STAMINA POOL AT `to` (Tyler 2026-10-14), walked swing by swing from
        the database's own start value. hr_hunt_apply takes it off the proposal,
        re-bounds it against this window's paid / knocked-out time and the death

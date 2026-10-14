@@ -229,7 +229,8 @@ const ARMS = {
       bag: { cooked_shrimp: { loaded: 1 }, iron_arrows: { loaded: 1 } }, hoursLimit: 1 });
     const make = {
       falls: (h) => { h.falls = h.fallsLimit; }, heals_out: (h) => { h.bag.cooked_shrimp.left = 0; },
-      ammo_out: (h) => { h.bag.iron_arrows.left = 0; }, stamina: (h) => { h.staminaMs = 0; },
+      ammo_out: (h) => { h.bag.iron_arrows.left = 0; }, gold_out: (h) => { h.goldOut = true; },
+      stamina: (h) => { h.staminaMs = 0; },
       hours: () => {}, left: (h) => { h.leaveAtMs = 0; }, changed: (h) => { h.changeAtMs = 0; },
       server: (h) => { h.stopAtMs = 0; },
     };

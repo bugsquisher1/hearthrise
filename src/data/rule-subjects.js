@@ -2,9 +2,11 @@
 // src/data/rule-subjects.js — WHAT THE HUNT ACTION BAR MAY ASK (Hunt Sessions,
 // ruling HR-2026-10-14 §2 "Rules (the action bar)"; Game Designer, lane D)
 //
-// A slot is { item, on, conditions }: `item` is a supply id from
+// A slot is { kind?, item, on, conditions }: `item` is a supply id from
 // src/data/supplies.js or HEAL_ANY, and every condition must hold for the slot
-// to fire. These tables are the WHOLE vocabulary. The client sends a subject
+// to fire. `kind` is SLOT_KINDS (absent = 'supply'). An action set is up to
+// ACTION_SET_LIMITS.slots slots (Tyler 2026-10-14: Huntera's bar, two rows of
+// ten) plus its TARGET_MODE and PULL_COUNT. These tables are the WHOLE vocabulary. The client sends a subject
 // id, an operator and a whole number; the server refuses anything not listed
 // here and refuses a value outside the subject's range (never clamps it).
 //
@@ -23,7 +25,34 @@ export const RULE_SUBJECTS = Object.freeze({
   buff_missing: Object.freeze({ param: 'buff', range: null, label: 'A buff is not running' }),
   bag_left: Object.freeze({ param: 'item', range: Object.freeze([0, 100000]), label: 'Left in the bag' }),
   session_minutes: Object.freeze({ param: null, range: Object.freeze([0, 1440]), label: 'Minutes into the hunt' }),
+  /* Mana (Tyler 2026-10-14): drinks restore it, spells cost it. A character
+     with no mana pool reads this condition as FALSE — the slot never fires. */
+  self_mana_pct: Object.freeze({ param: null, range: Object.freeze([1, 99]), label: 'My mana %' }),
 });
+
+/* WHAT A SLOT HOLDS (Tyler 2026-10-14, Huntera's bar: a spell or a supply).
+   `active: false` is RESERVED: the server refuses a slot of that kind until
+   the combat redesign ships spells. Absent `kind` = 'supply'. */
+export const SLOT_KINDS = Object.freeze({
+  supply: Object.freeze({ active: true }),
+  spell: Object.freeze({ active: false }),
+});
+
+/* WHICH FOE A PULL FIGHTS FIRST, per action set (Huntera's target mode).
+   `solo: false` is reserved for parties ('follow' the leader's target) and
+   refused on a solo action set. */
+export const TARGET_MODES = Object.freeze({
+  nearest: Object.freeze({ solo: true, label: 'Nearest' }),
+  weakest: Object.freeze({ solo: true, label: 'Weakest' }),
+  strongest: Object.freeze({ solo: true, label: 'Strongest' }),
+  follow: Object.freeze({ solo: false, label: 'Follow the leader' }),
+});
+export const DEFAULT_TARGET_MODE = 'nearest';
+
+/* HOW MANY FOES ONE PULL BRINGS, per action set (Huntera's pull count; it
+   replaces the stance pull size). Stored, read and clamped by the settle; the
+   single-target engine fights one at a time until the combat redesign. */
+export const PULL_COUNT = Object.freeze({ min: 1, max: 8, default: 1 });
 
 /* The two comparisons. Stored as ASCII; drawn as ≤ and ≥. */
 export const RULE_OPERATORS = Object.freeze({
@@ -38,7 +67,7 @@ export const COOLDOWN_GROUPS = Object.freeze({
   buff: Object.freeze({ ms: 1000 }),
 });
 
-export const ACTION_SET_LIMITS = Object.freeze({ presets: 5, slots: 10, conditions: 3 });
+export const ACTION_SET_LIMITS = Object.freeze({ presets: 5, slots: 20, conditions: 3 });
 
 /* "Whatever heal is cheapest in the bag": supplies.js HEAL_ORDER picks it. */
 export const HEAL_ANY = '*heal';

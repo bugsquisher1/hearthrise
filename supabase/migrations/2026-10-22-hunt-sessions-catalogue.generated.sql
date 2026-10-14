@@ -6,9 +6,10 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: b9a23b196a5dcc7ca8058239c029e36837783d6e2dc639c49556b112a7fc194f
---   52 supplies, 98 hunts (named + training), 5 rule subjects,
---   7 combat buff types, 15 limits, 8 end reasons, 484 vendor values
+--   digest: 524c260b4346b587cec1ef5300c9a6551d435a66ea8da1cc25862d954efd1194
+--   52 supplies, 98 hunts (named + training), 6 rule subjects,
+--   7 combat buff types, 18 limits, 9 end reasons, 484 vendor values,
+--   0 NPC-priced supplies, 2 slot kinds, 4 target modes
 --
 -- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale.
@@ -61,6 +62,23 @@ create table if not exists public.hr_hunt_vendor_value (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
 );
+-- The NPC's per-use price (Tyler 2026-10-14). NULL: not sold per use.
+alter table public.hr_hunt_supplies add column if not exists npc_price bigint;
+alter table public.hr_hunt_supplies drop constraint if exists hr_hunt_supplies_npc_price_ck;
+alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_npc_price_ck
+  check (npc_price is null or npc_price between 1 and 1000000000);
+create table if not exists public.hr_hunt_slot_kinds (
+  kind   text primary key check (kind ~ '^[a-z0-9_]{1,64}$'),
+  active boolean not null
+);
+create table if not exists public.hr_hunt_target_modes (
+  mode text primary key check (mode ~ '^[a-z0-9_]{1,64}$'),
+  solo boolean not null
+);
+create table if not exists public.hr_hunt_resumable_kinds (
+  kind text primary key check (kind ~ '^[a-z0-9_]{1,64}$')
+);
+alter table public.hr_hunt_end_reasons add column if not exists resumes boolean not null default false;
 alter table public.hr_hunt_supplies       enable row level security;
 alter table public.hr_hunt_travel         enable row level security;
 alter table public.hr_hunt_rule_subjects  enable row level security;
@@ -69,65 +87,79 @@ alter table public.hr_hunt_limits         enable row level security;
 alter table public.hr_hunt_end_reasons    enable row level security;
 alter table public.hr_hunt_default_preset enable row level security;
 alter table public.hr_hunt_vendor_value   enable row level security;
+alter table public.hr_hunt_slot_kinds     enable row level security;
+alter table public.hr_hunt_target_modes   enable row level security;
+alter table public.hr_hunt_resumable_kinds enable row level security;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
-              public.hr_hunt_default_preset, public.hr_hunt_vendor_value
+              public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
+              public.hr_hunt_slot_kinds, public.hr_hunt_target_modes, public.hr_hunt_resumable_kinds
   from public, anon, authenticated, service_role;
 
 delete from public.hr_hunt_supplies;
-insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type) values
-  ('air_rune', 'ammo', true, 0, null),
-  ('baked_potato', 'heal', true, 20, null),
-  ('barbed_arrows', 'ammo', true, 0, null),
-  ('bear_claw_pie', 'buff', false, 0, 'damage'),
-  ('blood_rune', 'ammo', true, 0, null),
-  ('bronze_arrows', 'ammo', true, 0, null),
-  ('chaos_rune', 'ammo', true, 0, null),
-  ('coarse_whetstone', 'ammo', false, 0, null),
-  ('cooked_bear_meat', 'heal', true, 13, null),
-  ('cooked_copper_crab', 'heal', true, 18, null),
-  ('cooked_frostfin', 'heal', true, 38, null),
-  ('cooked_goldgill', 'heal', true, 23, null),
-  ('cooked_herring', 'heal', true, 6, null),
-  ('cooked_lobster', 'heal', true, 25, null),
-  ('cooked_moonfish', 'heal', true, 50, null),
-  ('cooked_panther_meat', 'heal', true, 9, null),
-  ('cooked_pikeperch', 'heal', true, 16, null),
-  ('cooked_shark', 'heal', true, 44, null),
-  ('cooked_shrimp', 'heal', true, 8, null),
-  ('cooked_silverfin', 'heal', true, 21, null),
-  ('cooked_swordfish', 'heal', true, 32, null),
-  ('cooked_trout', 'heal', true, 14, null),
-  ('cooked_wolf_meat', 'heal', true, 6, null),
-  ('copper_whetstone', 'ammo', false, 0, null),
-  ('dawn_whetstone', 'ammo', false, 0, null),
-  ('dawnpoint_arrows', 'ammo', true, 0, null),
-  ('death_rune', 'ammo', true, 0, null),
-  ('dragon_stew', 'buff', false, 0, 'combat_xp'),
-  ('earth_rune', 'ammo', true, 0, null),
-  ('ember_tart', 'buff', false, 0, 'combat_xp'),
-  ('emberhead_arrows', 'ammo', true, 0, null),
-  ('fire_rune', 'ammo', true, 0, null),
-  ('fishers_pie', 'buff', false, 0, 'damage'),
-  ('hunters_feast', 'buff', false, 0, 'drop_rate'),
-  ('iron_arrows', 'ammo', true, 0, null),
-  ('iron_whetstone', 'ammo', false, 0, null),
-  ('lich_soul_soup', 'buff', false, 0, 'gold_find'),
-  ('mithril_arrows', 'ammo', true, 0, null),
-  ('mithril_whetstone', 'ammo', false, 0, null),
-  ('moonbloom_elixir', 'buff', false, 0, 'all_xp'),
-  ('pumpkin_pie', 'buff', false, 0, 'all_xp'),
-  ('river_chowder', 'heal', true, 30, null),
-  ('rune_arrows', 'ammo', true, 0, null),
-  ('rune_whetstone', 'ammo', false, 0, null),
-  ('steel_arrows', 'ammo', true, 0, null),
-  ('steel_whetstone', 'ammo', false, 0, null),
-  ('tomato_soup', 'buff', false, 0, 'drop_rate'),
-  ('turnip_mash', 'heal', true, 5, null),
-  ('vegetable_stew', 'buff', false, 0, 'all_xp'),
-  ('void_banquet', 'buff', false, 0, 'damage_crit'),
-  ('water_rune', 'ammo', true, 0, null),
-  ('wheat_bread', 'heal', true, 18, null);
+insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type, npc_price) values
+  ('air_rune', 'ammo', true, 0, null, null),
+  ('baked_potato', 'heal', true, 20, null, null),
+  ('barbed_arrows', 'ammo', true, 0, null, null),
+  ('bear_claw_pie', 'buff', false, 0, 'damage', null),
+  ('blood_rune', 'ammo', true, 0, null, null),
+  ('bronze_arrows', 'ammo', true, 0, null, null),
+  ('chaos_rune', 'ammo', true, 0, null, null),
+  ('coarse_whetstone', 'ammo', false, 0, null, null),
+  ('cooked_bear_meat', 'heal', true, 13, null, null),
+  ('cooked_copper_crab', 'heal', true, 18, null, null),
+  ('cooked_frostfin', 'heal', true, 38, null, null),
+  ('cooked_goldgill', 'heal', true, 23, null, null),
+  ('cooked_herring', 'heal', true, 6, null, null),
+  ('cooked_lobster', 'heal', true, 25, null, null),
+  ('cooked_moonfish', 'heal', true, 50, null, null),
+  ('cooked_panther_meat', 'heal', true, 9, null, null),
+  ('cooked_pikeperch', 'heal', true, 16, null, null),
+  ('cooked_shark', 'heal', true, 44, null, null),
+  ('cooked_shrimp', 'heal', true, 8, null, null),
+  ('cooked_silverfin', 'heal', true, 21, null, null),
+  ('cooked_swordfish', 'heal', true, 32, null, null),
+  ('cooked_trout', 'heal', true, 14, null, null),
+  ('cooked_wolf_meat', 'heal', true, 6, null, null),
+  ('copper_whetstone', 'ammo', false, 0, null, null),
+  ('dawn_whetstone', 'ammo', false, 0, null, null),
+  ('dawnpoint_arrows', 'ammo', true, 0, null, null),
+  ('death_rune', 'ammo', true, 0, null, null),
+  ('dragon_stew', 'buff', false, 0, 'combat_xp', null),
+  ('earth_rune', 'ammo', true, 0, null, null),
+  ('ember_tart', 'buff', false, 0, 'combat_xp', null),
+  ('emberhead_arrows', 'ammo', true, 0, null, null),
+  ('fire_rune', 'ammo', true, 0, null, null),
+  ('fishers_pie', 'buff', false, 0, 'damage', null),
+  ('hunters_feast', 'buff', false, 0, 'drop_rate', null),
+  ('iron_arrows', 'ammo', true, 0, null, null),
+  ('iron_whetstone', 'ammo', false, 0, null, null),
+  ('lich_soul_soup', 'buff', false, 0, 'gold_find', null),
+  ('mithril_arrows', 'ammo', true, 0, null, null),
+  ('mithril_whetstone', 'ammo', false, 0, null, null),
+  ('moonbloom_elixir', 'buff', false, 0, 'all_xp', null),
+  ('pumpkin_pie', 'buff', false, 0, 'all_xp', null),
+  ('river_chowder', 'heal', true, 30, null, null),
+  ('rune_arrows', 'ammo', true, 0, null, null),
+  ('rune_whetstone', 'ammo', false, 0, null, null),
+  ('steel_arrows', 'ammo', true, 0, null, null),
+  ('steel_whetstone', 'ammo', false, 0, null, null),
+  ('tomato_soup', 'buff', false, 0, 'drop_rate', null),
+  ('turnip_mash', 'heal', true, 5, null, null),
+  ('vegetable_stew', 'buff', false, 0, 'all_xp', null),
+  ('void_banquet', 'buff', false, 0, 'damage_crit', null),
+  ('water_rune', 'ammo', true, 0, null, null),
+  ('wheat_bread', 'heal', true, 18, null, null);
+delete from public.hr_hunt_slot_kinds;
+insert into public.hr_hunt_slot_kinds (kind, active) values
+  ('spell', false),
+  ('supply', true);
+delete from public.hr_hunt_target_modes;
+insert into public.hr_hunt_target_modes (mode, solo) values
+  ('follow', false),
+  ('nearest', true),
+  ('strongest', true),
+  ('weakest', true);
 delete from public.hr_hunt_travel;
 insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('adept', 80, true),
@@ -234,6 +266,7 @@ insert into public.hr_hunt_rule_subjects (subject, param, lo, hi) values
   ('buff_left_s', 'buff', 0, 3600),
   ('buff_missing', 'buff', null, null),
   ('self_hp_pct', null, 1, 99),
+  ('self_mana_pct', null, 1, 99),
   ('session_minutes', null, 0, 1440);
 delete from public.hr_hunt_buff_types;
 insert into public.hr_hunt_buff_types (buff_type) values
@@ -257,27 +290,68 @@ insert into public.hr_hunt_limits (key, value) values
   ('hours_max', 24),
   ('hours_min', 1),
   ('presets', 5),
+  ('pull_default', 1),
+  ('pull_max', 8),
+  ('pull_min', 1),
   ('sessions_kept', 20),
-  ('slots', 10),
+  ('slots', 20),
   ('stamina_max_min', 720),
   ('vigour_low_min', 144);
 delete from public.hr_hunt_end_reasons;
-insert into public.hr_hunt_end_reasons (reason, ord) values
-  ('falls', 1),
-  ('heals_out', 2),
-  ('ammo_out', 3),
-  ('stamina', 4),
-  ('hours', 5),
-  ('left', 6),
-  ('changed', 7),
-  ('server', 8);
+insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
+  ('falls', 1, true),
+  ('heals_out', 2, true),
+  ('ammo_out', 3, true),
+  ('gold_out', 4, true),
+  ('stamina', 5, true),
+  ('hours', 6, true),
+  ('left', 7, false),
+  ('changed', 8, false),
+  ('server', 9, true);
+delete from public.hr_hunt_resumable_kinds;
+insert into public.hr_hunt_resumable_kinds (kind) values
+  ('gather'),
+  ('artisan'),
+  ('training');
 -- hunt_sessions.end_reason's CHECK is END_ORDER too. C1 typed it inline in
 -- 2026-10-21-hunt-sessions.sql; from this file on the generator owns it, so the
 -- wall and the catalogue cannot name different reasons (2026-10-14: 'vigour'
 -- left both). Applies after that file (the table must exist).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'stamina', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'));
+-- The action bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten,
+-- Tyler 2026-10-14): the stored bar and the queued presses, both walls.
+alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
+alter table public.player_action_sets add constraint player_action_sets_slots_check
+  check (jsonb_typeof(slots) = 'array' and jsonb_array_length(slots) <= 20);
+alter table public.hunt_sessions drop constraint if exists hunt_sessions_presses_check;
+alter table public.hunt_sessions add constraint hunt_sessions_presses_check
+  check (jsonb_typeof(presses) = 'array' and jsonb_array_length(presses) <= 20);
+-- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
+alter table public.player_action_sets add column if not exists target_mode text;
+alter table public.player_action_sets add column if not exists pull_count smallint;
+update public.player_action_sets set target_mode = 'nearest' where target_mode is null;
+update public.player_action_sets set pull_count = 1 where pull_count is null;
+alter table public.player_action_sets alter column target_mode set default 'nearest';
+alter table public.player_action_sets alter column target_mode set not null;
+alter table public.player_action_sets alter column pull_count set default 1;
+alter table public.player_action_sets alter column pull_count set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_target_mode_ck;
+alter table public.player_action_sets add constraint player_action_sets_target_mode_ck
+  check (target_mode in ('follow', 'nearest', 'strongest', 'weakest'));
+alter table public.player_action_sets drop constraint if exists player_action_sets_pull_count_ck;
+alter table public.player_action_sets add constraint player_action_sets_pull_count_ck
+  check (pull_count between 1 and 8);
+-- THE LAST NON-HUNT ACTIVITY an automatic hunt end resumes (Tyler 2026-10-14);
+-- written by the trigger 2026-10-22-hunt-sessions-settle.sql installs.
+alter table public.player_state add column if not exists last_activity_kind text;
+alter table public.player_state add column if not exists last_activity_id text;
+alter table public.player_state drop constraint if exists player_state_last_activity_ck;
+alter table public.player_state add constraint player_state_last_activity_ck
+  check ((last_activity_kind is null) = (last_activity_id is null)
+         and (last_activity_kind is null or last_activity_kind in ('gather', 'artisan', 'training'))
+         and (last_activity_id is null or last_activity_id ~ '^[a-z0-9_]{1,64}$'));
 delete from public.hr_hunt_default_preset;
 insert into public.hr_hunt_default_preset (id, name, slots) values
   (true, 'Eat when hurt', '[{"item":"*heal","on":true,"conditions":[{"subject":"self_hp_pct","op":"<=","value":50}]}]'::jsonb);
@@ -773,12 +847,17 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 52
      or (select count(*) from public.hr_hunt_travel) <> 98
-     or (select count(*) from public.hr_hunt_rule_subjects) <> 5
+     or (select count(*) from public.hr_hunt_rule_subjects) <> 6
      or (select count(*) from public.hr_hunt_buff_types) <> 7
-     or (select count(*) from public.hr_hunt_limits) <> 15
-     or (select count(*) from public.hr_hunt_end_reasons) <> 8
+     or (select count(*) from public.hr_hunt_limits) <> 18
+     or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_default_preset) <> 1
-     or (select count(*) from public.hr_hunt_vendor_value) <> 484 then
+     or (select count(*) from public.hr_hunt_vendor_value) <> 484
+     or (select count(*) from public.hr_hunt_supplies where npc_price is not null) <> 0
+     or (select count(*) from public.hr_hunt_slot_kinds) <> 2
+     or (select count(*) from public.hr_hunt_target_modes) <> 4
+     or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every supply and every vendor value is a catalogued item; every named hunt is
   -- in hr_hunts; every training id is a non-boss combat target.
@@ -798,13 +877,15 @@ begin
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
-                               'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value'] loop
+                               'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
+                               'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
   if exists (select 1 from pg_policies where schemaname = 'public'
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
-                                 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value')) then
+                                 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
+                                 'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

@@ -66,6 +66,16 @@ export const SUPPLY_ROWS = Object.freeze([
   [A, 'dawn_whetstone', false],
 ]);
 
+/* ── NPC BASIC SUPPLIES (Tyler 2026-10-14: "exactly like Huntera") ──────────
+   id -> the GOLD a hunt pays the NPC per use (per heal, per shot, per drink,
+   per cast) when the bag holds none of it — no inventory, no packing. Crafted
+   stock in the bag is always spent first. Every key must be a supply row
+   above and every price a whole number > 0 (tools/gen-hunt-sessions.mjs
+   refuses anything else); the server reads them as hr_hunt_supplies.npc_price
+   and never takes a price from a client. EMPTY until the designer prices the
+   basics (lane D): an unpriced catalogue bills nothing. */
+export const NPC_BASIC_PRICES = Object.freeze({});
+
 /** The kind an item IS, from its own data: what the guard compares rows to. */
 export function supplyKindOf(item) {
   if (!item || typeof item !== 'object' || item.raw) return null;

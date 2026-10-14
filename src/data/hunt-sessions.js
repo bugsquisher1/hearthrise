@@ -56,9 +56,26 @@ export const STAMINA_MAX_MS = 12 * 3600000;
 
 /* Checked in this order on every swing; the first that holds ends the hunt.
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,
-   2026-10-14 loop check). The server reads this list as hr_hunt_end_reasons
-   and as hunt_sessions.end_reason's CHECK (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'stamina', 'hours', 'left', 'changed', 'server']);
+   2026-10-14 loop check). `gold_out` (Tyler, same day): an NPC basic supply
+   the purse cannot pay ends the hunt at the next boundary. The server reads
+   this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
+   (tools/gen-hunt-sessions.mjs). */
+export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server']);
+
+/* WHICH ENDS SEND THE CHARACTER BACK TO WHAT THEY WERE DOING (Tyler
+   2026-10-14): every AUTOMATIC end. A hunt the player left or changed is the
+   player's own choice and resumes nothing. After the walk home the server
+   points the character at its last non-hunt activity
+   (player_state.last_activity_kind / _id), if that is still allowed; else
+   idle in town. A data row so Huntera-style combat training can take its
+   place later without touching the settle. */
+export const RESUME_AFTER_END = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'server']);
+
+/* The non-hunt activity kinds a character's "last activity" may name. `training`
+   is RESERVED for the combat redesign (train a chosen combat skill in town while
+   stamina refills): stored and resumed by name the day it exists, refused until
+   then (it has no catalogue rows). */
+export const RESUMABLE_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
 /* The end card: a title, then the reason in one plain sentence. */
 export const END_CARD_COPY = Object.freeze({
@@ -69,12 +86,17 @@ export const END_CARD_COPY = Object.freeze({
   /* The hunt's falls cost this much XP in all (DEATH_XP_LOSS), summed by the
      renderer from the `fall` events' server-stated `xp_lost`. */
   xpLost: Object.freeze({ one: 'Your falls cost you 1 XP.', other: 'Your falls cost you {n} XP.' }),
+  /* After an automatic end the character walks home and picks up what it was
+     doing; `{activity}` is the server's own name for it ("fishing at Shrimp
+     Spot"), drawn from the `ended` event's `resume`. */
+  resumed: Object.freeze({ one: 'Back in town — {activity} again.' }),
 });
 
 export const END_REASON_COPY = Object.freeze({
   falls: Object.freeze({ one: 'You were knocked out, so you walked home to recover.', other: 'You were knocked out {n} times, so you walked home to recover.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
+  gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),
   stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),

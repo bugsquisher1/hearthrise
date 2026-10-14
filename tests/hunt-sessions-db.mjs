@@ -35,9 +35,9 @@
 //       both until lane G — swap then delete), the grant is the flat 720, and
 //       a planted reader makes a second apply of the drop file refuse
 //   C1  a SECOND apply of the hunt-session files, in chain order (C1's
-//       catalogue, C1's file, then the C2 forward catalogue that supersedes
-//       C1's rows), is byte-identical (schema inventory, function bodies +
-//       ACLs, catalogue rows)
+//       catalogue, C1's file, the C2 forward catalogue that supersedes C1's
+//       rows, and C2's settle file, which edits four C1 bodies), is
+//       byte-identical (schema inventory, function bodies + ACLs, catalogue rows)
 // --mutate plants each defect into the LIVE function body (create or replace,
 // rolled back) and requires the arm that owns it to go red; two more defects
 // are planted in the migration TEXT and must be refused by its own §8.
@@ -47,6 +47,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { END_ORDER, EVENT_COPY } from '../src/data/hunt-sessions.js';
+import { ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -55,6 +56,7 @@ const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
 /* The FORWARD catalogue the generator writes today (lane C2): C1's is applied
    history and is superseded wholesale by this one, later in the chain. */
 const { OUT_NAME: CAT_NOW } = await import('../tools/gen-hunt-sessions.mjs');
+const SETTLE = '2026-10-22-hunt-sessions-settle.sql';
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
@@ -405,6 +407,16 @@ async function g1(db) {
   }
   const rows = (await q(db, 'select reason from public.hr_hunt_end_reasons order by ord')).map((r) => r.reason);
   if (JSON.stringify(rows) !== JSON.stringify([...END_ORDER])) red.push(`G1: hr_hunt_end_reasons on the chain ${JSON.stringify(rows)} <> END_ORDER`);
+  /* THE BAR'S SIZE IS DATA (ACTION_SET_LIMITS.slots, 20 since 2026-10-14): ONE
+     length wall on the stored bar and ONE on the queued presses, each at it. */
+  for (const [table, col] of [['player_action_sets', 'slots'], ['hunt_sessions', 'presses']]) {
+    const walls = await q(db, `select pg_get_constraintdef(c.oid) d from pg_constraint c
+        where c.conrelid = $1::regclass and c.contype = 'c' and pg_get_constraintdef(c.oid) like $2`,
+      ['public.' + table, `%jsonb_array_length(${col})%`]);
+    if (walls.length !== 1 || !walls[0].d.includes(`<= ${ACTION_SET_LIMITS.slots}`)) {
+      red.push(`G1: ${table}.${col} carries ${walls.length} length wall(s) ${JSON.stringify(walls.map((w) => w.d))}, want one at ${ACTION_SET_LIMITS.slots}`);
+    }
+  }
   if (JSON.stringify(types) !== JSON.stringify(Object.keys(EVENT_COPY))) red.push(`G1: hunt_session_events.type CHECK ${JSON.stringify(types)} <> EVENT_COPY keys`);
   return red;
 }
@@ -422,7 +434,7 @@ async function c1(db) {
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  for (const f of [CAT, MIG, CAT_NOW]) {
+  for (const f of [CAT, MIG, CAT_NOW, SETTLE]) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }

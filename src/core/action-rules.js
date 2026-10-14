@@ -17,7 +17,7 @@
 // ============================================================
 
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=578';
-import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=578';
+import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT } from '../data/rule-subjects.js?v=578';
 import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS } from '../data/hunt-sessions.js?v=578';
 import { applyBuffSegment } from './buffs.js?v=578';
 import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=578';
@@ -46,6 +46,50 @@ function kindOf(id) { const s = SUPPLIES[id]; return s ? s.kind : null; }
 function isEssential(id, line) {
   if (line && typeof line.essential === 'boolean') return line.essential;
   return !!(SUPPLIES[id] && SUPPLIES[id].essential);
+}
+
+/* ── NPC BASIC SUPPLIES (Tyler 2026-10-14: "exactly like Huntera") ───────────
+   A supply the SERVER prices per use (`hs.npcPrices`, read from
+   hr_hunt_supplies.npc_price — never a client value) is BOUGHT at the moment
+   it is used when the bag holds none of it: the price leaves `hs.purse` (the
+   character's gold at the window start plus the coins this window has earned),
+   never the inventory. Crafted stock in the bag is always spent first. A buy
+   the purse cannot cover sets `hs.goldOut`, and the hunt ends `gold_out` at the
+   next swing boundary (simulateHuntSpan). The database re-prices every buy from
+   its own catalogue and debits it in the locked settle (hr_hunt_apply §5b). */
+export function npcPriceOf(hs, id) {
+  const p = hs && hs.npcPrices ? Number(hs.npcPrices[id]) : 0;
+  return Number.isInteger(p) && p > 0 ? p : 0;
+}
+/** Buy `n` units of `id` from the purse, all or none of each unit. Returns the
+    units bought; a shortfall on the FIRST unit marks the session goldOut. */
+export function buyFromNpc(hs, id, n) {
+  const price = npcPriceOf(hs, id);
+  const want = Math.max(0, int(n, 0));
+  if (!(price > 0) || want <= 0) return 0;
+  const purse = Math.max(0, int(hs.purse, 0));
+  const got = Math.min(want, Math.floor(purse / price));
+  if (got < want) hs.goldOut = true;
+  if (got <= 0) return 0;
+  hs.purse = purse - got * price;
+  const b = hs.tally.bought || (hs.tally.bought = {});
+  b[id] = (b[id] || 0) + got;
+  return got;
+}
+/* The basic heal a "*heal" buys when the bag has none: the same covering rule
+   as pickHeal, ranked by the SERVER's per-use price (then id). */
+function pickNpcHeal(hs, deficit) {
+  const need = Number(deficit);
+  if (!(need > 0)) return null;
+  let cover = null; let coverP = Infinity; let big = null; let bigHeals = 0; let bigP = Infinity;
+  for (const id of Object.keys((hs && hs.npcPrices) || {}).sort()) {
+    const p = npcPriceOf(hs, id);
+    if (!(p > 0) || kindOf(id) !== 'heal') continue;
+    const heals = SUPPLIES[id].heals;
+    if (heals >= need && p < coverP) { cover = id; coverP = p; }
+    if (heals > bigHeals || (heals === bigHeals && p < bigP)) { big = id; bigHeals = heals; bigP = p; }
+  }
+  return cover || big;
 }
 
 /* ── THE "*heal" RULE (Game Designer balance note, lane E) ──────────────────
@@ -104,28 +148,43 @@ export function conditionHolds(c, v) {
       return Number.isFinite(value) && compare(leftOf(v.hs, param), c.op, value);
     case 'session_minutes':
       return Number.isFinite(value) && compare(Math.floor((v.atMs - v.hs.huntFromMs) / 60000), c.op, value);
+    /* No mana pool (maxMana absent or 0) reads FALSE: the slot never fires. */
+    case 'self_mana_pct':
+      return v.maxMana > 0 && Number.isFinite(value) && compare(v.mana * 100, c.op, value * v.maxMana);
     default:
       return false;
   }
 }
 
-/* Which item a slot would spend, and why not when it cannot. */
+/* Which item a slot would spend, and why not when it cannot. `buy` marks an
+   NPC basic the bag lacks; `gold_short` is a buy the purse cannot cover. */
 function resolveSlot(slot, v) {
+  if (slot && slot.kind !== undefined && slot.kind !== 'supply') return { why: 'not_fireable' };
   const want = slot && slot.item;
+  const purseCovers = (id) => Math.max(0, int(v.hs.purse, 0)) >= npcPriceOf(v.hs, id);
   if (want === HEAL_ANY) {
     const id = pickHeal(v.hs, v.maxHp - v.hp);
-    return id ? { id, group: 'heal' } : { why: v.hp >= v.maxHp ? 'full_hp' : 'bag_empty' };
+    if (id) return { id, group: 'heal' };
+    if (v.hp >= v.maxHp) return { why: 'full_hp' };
+    const npc = pickNpcHeal(v.hs, v.maxHp - v.hp);
+    if (!npc) return { why: 'bag_empty' };
+    return purseCovers(npc) ? { id: npc, group: 'heal', buy: true } : { why: 'gold_short', item: npc };
   }
   const kind = kindOf(want);
   if (kind !== 'heal' && kind !== 'buff') return { why: 'not_fireable' };
-  if (leftOf(v.hs, want) <= 0) return { why: 'bag_empty' };
+  let buy = false;
+  if (leftOf(v.hs, want) <= 0) {
+    if (!(npcPriceOf(v.hs, want) > 0)) return { why: 'bag_empty' };
+    buy = true;
+  }
   if (kind === 'heal' && !(v.maxHp - v.hp > 0)) return { why: 'full_hp' };
   if (kind === 'buff') {
     const trial = (Array.isArray(v.buffs) ? v.buffs : []).map((b) => Object.assign({}, b));
     const r = applyBuffSegment(trial, SUPPLIES[want].buff, { atMs: v.atMs, scale: v.buffScale });
     if (!r.ok) return { why: r.why };
   }
-  return { id: want, group: kind };
+  if (buy && !purseCovers(want)) return { why: 'gold_short', item: want };
+  return buy ? { id: want, group: kind, buy: true } : { id: want, group: kind };
 }
 
 /* A queued press, as stored (`{slot, at}`, hunt_sessions.presses, at = the
@@ -154,25 +213,29 @@ function pressOf(e) {
  * whose item cannot be used at all (bag empty, nothing to heal, buff refused)
  * is dropped with its reason.
  *
- * @param v { hs, hp, maxHp, buffs, atMs, buffScale }
- * @returns { uses: [{slot, id, group, manual}], keep: [press…] (as queued), dropped: [{slot, why}] }
+ * A slot (rule or press) that wanted an NPC basic the purse cannot pay is
+ * reported in `short`: the purse ran dry, and the hunt ends `gold_out`.
+ *
+ * @param v { hs, hp, maxHp, mana, maxMana, buffs, atMs, buffScale }
+ * @returns { uses: [{slot, id, group, manual, buy}], keep: [press…] (as queued), dropped: [{slot, why}], short }
  */
 export function fireRules(v) {
   const hs = v.hs;
   const slots = Array.isArray(hs.slots) ? hs.slots : [];
   const cd = hs.cooldowns || {};
   const used = new Set();
-  const out = { uses: [], keep: [], dropped: [] };
+  const out = { uses: [], keep: [], dropped: [], short: false };
   const ready = (g) => !used.has(g) && !(Number(cd[g]) > v.atMs);
   for (const entry of Array.isArray(hs.presses) ? hs.presses : []) {
     const p = pressOf(entry);
     const idx = p.slot;
     if (p.at > v.atMs) { out.keep.push(entry); continue; }
     const r = resolveSlot(slots[idx], v);
+    if (r.why === 'gold_short' && ready(kindOf(r.item))) out.short = true;
     if (!r.id) { out.dropped.push({ slot: idx, why: r.why }); continue; }
     if (!ready(r.group)) { out.keep.push(entry); continue; }
     used.add(r.group);
-    out.uses.push({ slot: idx, id: r.id, group: r.group, manual: true });
+    out.uses.push({ slot: idx, id: r.id, group: r.group, manual: true, buy: r.buy === true });
   }
   for (let i = 0; i < slots.length; i++) {
     const s = slots[i];
@@ -180,9 +243,11 @@ export function fireRules(v) {
     const conds = Array.isArray(s.conditions) ? s.conditions : [];
     if (!conds.every((c) => conditionHolds(c, v))) continue;
     const r = resolveSlot(s, v);
+    /* A rule that would have fired (its group ready) but cannot pay: the purse ran dry. */
+    if (r.why === 'gold_short' && ready(kindOf(r.item))) out.short = true;
     if (!r.id || !ready(r.group)) continue;
     used.add(r.group);
-    out.uses.push({ slot: i, id: r.id, group: r.group, manual: false });
+    out.uses.push({ slot: i, id: r.id, group: r.group, manual: false, buy: r.buy === true });
   }
   return out;
 }
@@ -215,32 +280,44 @@ export function runActionBar(state, ctx) {
   if (!(Number(state.playerHp) > 0)) return false;
   if (!Array.isArray(state.buffs)) state.buffs = [];
   const v = { hs, hp: Number(state.playerHp) || 0, maxHp: Number(state.playerMaxHp) || 0,
+    mana: Number(state.playerMana) || 0, maxMana: Number(state.playerMaxMana) || 0,
     buffs: state.buffs, atMs, buffScale: ctx.buffScale };
   const d = fireRules(v);
   hs.presses = d.keep;
+  if (d.short) hs.goldOut = true;
   let ate = false;
   /* A heal line only heals and a buff line only buffs, whatever else the item
      does when eaten by hand — Auto-Eat's two rules (a heal never applies its
      timed buff; a Feast is never eaten for HP), kept. */
   for (const u of d.uses) {
+    /* An NPC basic is paid BEFORE it works; fireRules already checked the
+       purse, so a refusal here is a defect, and it simply does not fire. */
+    if (u.buy && buyFromNpc(hs, u.id, 1) !== 1) continue;
     if (u.group === 'heal') {
       state.playerHp = Math.min(state.playerMaxHp, state.playerHp + SUPPLIES[u.id].heals);
       ate = true;
     } else {
       applyBuffSegment(state.buffs, SUPPLIES[u.id].buff, { atMs, scale: ctx.buffScale });
     }
-    spendFromBag(hs, u.id, 1, atMs);
+    if (!u.buy) spendFromBag(hs, u.id, 1, atMs);
     hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS[u.group].ms;
   }
   return ate;
 }
 
+/* A kind is OUT when every essential bag line of it is empty AND nothing of
+   that kind can be bought instead: a priced line, or (heals) any priced heal a
+   "*heal" can fall back to, keeps the hunt going until the purse runs dry —
+   then it ends `gold_out`, not `heals_out` / `ammo_out`. */
 function essentialOut(hs, kind) {
   let any = false;
   for (const id of Object.keys(hs.bag || {})) {
     if (kindOf(id) !== kind || !isEssential(id, hs.bag[id])) continue;
     any = true;
-    if (leftOf(hs, id) > 0) return false;
+    if (leftOf(hs, id) > 0 || npcPriceOf(hs, id) > 0) return false;
+  }
+  if (any && kind === 'heal' && Object.keys(hs.npcPrices || {}).some((id) => kindOf(id) === 'heal' && npcPriceOf(hs, id) > 0)) {
+    return false;
   }
   return any;
 }
@@ -251,6 +328,7 @@ const END_CHECKS = Object.freeze({
   falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
+  gold_out: (hs) => hs.goldOut === true,
   stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   left: (hs, t) => at(hs.leaveAtMs, t),
@@ -316,6 +394,17 @@ export function endReasonAt(hs, atMs) {
   return null;
 }
 
+/* The server's price table, kept to whole positive gold per catalogued supply. */
+function priceTable(t) {
+  const out = {};
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return out;
+  for (const id of Object.keys(t)) {
+    const p = Number(t[id]);
+    if (Object.prototype.hasOwnProperty.call(SUPPLIES, id) && Number.isInteger(p) && p > 0) out[id] = p;
+  }
+  return out;
+}
+
 /**
  * A session in the engine's shape, every field present. The caller (the tick)
  * builds it from hunt_sessions / hunt_bag / player_action_sets; the engine
@@ -343,6 +432,17 @@ export function newHuntSession(o) {
     falls: Math.max(0, int(s.falls, 0)),
     fallsLimit: Math.min(lim.max, Math.max(lim.min, int(s.fallsLimit, lim.default))),
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
+    /* NPC BASIC SUPPLIES: the server's per-use prices (whole gold > 0 only),
+       the purse they are paid from, and the "a buy failed" flag. */
+    npcPrices: priceTable(s.npcPrices),
+    purse: Math.max(0, int(s.purse, 0)),
+    goldOut: s.goldOut === true,
+    /* THE ACTION SET'S TARGET MODE AND PULL COUNT (Huntera's bar), clamped to
+       the data vocabulary. Read by the settle; the single-target engine fights
+       one foe at a time until the combat redesign gives them a fight to shape. */
+    targetMode: (typeof s.targetMode === 'string' && Object.prototype.hasOwnProperty.call(TARGET_MODES, s.targetMode)
+      && TARGET_MODES[s.targetMode].solo) ? s.targetMode : DEFAULT_TARGET_MODE,
+    pullCount: Math.min(PULL_COUNT.max, Math.max(PULL_COUNT.min, int(s.pullCount, PULL_COUNT.default))),
     /* The stamina pool at `nextSwingAtMs`, from the server's read (null = no
        read: the session then never ends on stamina and proposes none, and the
        database refuses the settle — fail closed). */
@@ -352,7 +452,7 @@ export function newHuntSession(o) {
     stopAtMs: s.stopAtMs ?? null,
     down: !!s.down,
     tally: Object.assign({ swings: 0, kills: 0, deaths: 0, downMs: 0, paidMs: 0, coins: 0,
-      xp: {}, loot: {}, supplies: {} }, s.tally || {}),
+      xp: {}, loot: {}, supplies: {}, bought: {} }, s.tally || {}),
     endedReason: s.endedReason || null,
     endedAtMs: s.endedAtMs ?? null,
   };

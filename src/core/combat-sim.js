@@ -74,7 +74,7 @@ import { recoveryFor, resumeHpFor } from './recovery.js?v=578';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=578';
+import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, npcPriceOf, buyFromNpc } from './action-rules.js?v=578';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -92,7 +92,7 @@ import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=578';
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult } from './ammo.js?v=578';
+import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=578';
 
 export { AWAY_RATE_MULT };
 
@@ -399,14 +399,30 @@ export function resolveDeath(state, ctx) {
    whose inventory is the bag line of the equipped ammo, and its one
    `removeItem` lands in the bag (spendFromBag) instead of the inventory. The
    carry object is the state's own, so the fractional carry survives swings. */
+/* NPC BASIC AMMO (Tyler 2026-10-14): when the equipped ammo is a supply the
+   server prices per use, the quiver is the bag line FIRST and then whatever the
+   purse can buy, shot by shot (action-rules.js buyFromNpc). A style that needs
+   its ammo and can neither draw nor buy a shot marks the session goldOut — the
+   hunt ends `gold_out` at the next boundary. */
 function spendFromQuiver(state, hunt, ctx) {
   const ammoId = (state.equipment && state.equipment.ammo) || null;
   const line = ammoId && hunt.bag ? hunt.bag[ammoId] : null;
   if (!state.ammoCarry || typeof state.ammoCarry !== 'object') state.ammoCarry = {};
+  const bagLeft = line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0;
+  const price = ammoId ? npcPriceOf(hunt, ammoId) : 0;
+  const buyable = price > 0 ? Math.floor(Math.max(0, Math.floor(Number(hunt.purse) || 0)) / price) : 0;
   const view = { equipment: state.equipment, ammoCarry: state.ammoCarry,
-    inventory: ammoId ? { [ammoId]: line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0 } : {} };
-  return spendForSwings(view, 1, { items: ctx.items, weaponType: ctx.weaponType,
-    fx: { removeItem: (id, n) => spendFromBag(hunt, id, n, Number(ctx.atMs) || 0) } });
+    inventory: ammoId ? { [ammoId]: bagLeft + buyable } : {} };
+  const atMs = Number(ctx.atMs) || 0;
+  const opts = { items: ctx.items, weaponType: ctx.weaponType, fx: { removeItem: (id, n) => {
+    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);
+    if (n - fromBag > 0) buyFromNpc(hunt, id, n - fromBag);
+  } } };
+  if (price > 0 && bagLeft + buyable <= 0) {
+    const info = readAmmo(view, opts);
+    if (info.needed && info.spends && info.perShot > 0) hunt.goldOut = true;
+  }
+  return spendForSwings(view, 1, opts);
 }
 
 export function simulateTick(state, ctx) {
@@ -600,7 +616,14 @@ function tallyFx(fx, hs, events, clock) {
   return Object.assign({}, fx, {
     addXp(skill, amount, ...rest) { add(t.xp, skill, Number(amount) || 0); return call(fx, 'addXp', skill, amount, ...rest); },
     addItem(id, n, ...rest) { add(t.loot, id, Number(n) || 0); return call(fx, 'addItem', id, n, ...rest); },
-    onLoot(gp, ...rest) { t.coins += Number(gp) || 0; return call(fx, 'onLoot', gp, ...rest); },
+    /* The coins a kill drops are in the purse at once: an NPC basic bought
+       later in the same window may spend them (the database credits them in
+       the same settle, before the buys are debited). */
+    onLoot(gp, ...rest) {
+      t.coins += Number(gp) || 0;
+      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));
+      return call(fx, 'onLoot', gp, ...rest);
+    },
     onDrop(ev, ...rest) {
       if (ev && ev.rare) events.push({ type: 'rare_drop', atMs: clock.atMs, item: ev.id });
       return call(fx, 'onDrop', ev, ...rest);
@@ -726,6 +749,20 @@ function simulateHuntSpan(state, ctx) {
     if (r.outcome === OUTCOME.STOP) break;
   }
 
+  /* AN END THAT IS ALREADY CERTAIN is stamped at the VERY NEXT boundary, even
+     when that boundary lies past this window's end: a buy the purse could not
+     cover (the flag is not part of the stored session, so a later window could
+     not see it), and the falls limit reached on this window's last swing
+     (hr_hunt_settle_session requires that end in the SAME settle as the fall).
+     Ending here makes the instant the same however the windows were cut; the
+     full end order is asked at that boundary, so an earlier reason that also
+     holds there wins, exactly as the loop would have answered. */
+  if (!hs.endedReason && (hs.goldOut === true || endReasonAt(hs, hs.nextSwingAtMs) === 'falls')) {
+    const why = endReasonAt(hs, hs.nextSwingAtMs) || 'gold_out';
+    hs.endedReason = why;
+    hs.endedAtMs = hs.nextSwingAtMs;
+    events.push({ type: 'ended', atMs: hs.nextSwingAtMs, reason: why });
+  }
   if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
   state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;
   hs.down = downed;

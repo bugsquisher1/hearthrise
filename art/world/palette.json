@@ -1,20 +1,98 @@
 {
-  "id": "hr-world-40-v1",
-  "about": "The locked colour set of the pixel world: material ramps, dark to light. An art asset, read by tools/world-art (never by UI code). Accent ramps (torch, blood, frost, venom, gold) are for light, magic, loot and blood only. Widening a ramp is a deliberate act: bump id and rebuild every set.",
+  "id": "hr-world-56-v2",
+  "about": "The locked colour set of the pixel world: material ramps, dark to light. An art asset, read by tools/world-art (never by UI code). Metal ramps (bronze, iron, steel, mithril) are for worked metal: gear, tools, item icons. Accent ramps (torch, blood, frost, venom, gold) are for light, magic, loot and blood only. Widening a ramp is a deliberate act: bump id and rebuild every set.",
   "ramps": {
-    "shadow": ["#0b0a0c", "#17141a", "#231d1f", "#2f2723"],
-    "stone": ["#3a3a3e", "#4f4e52", "#6a6865", "#8a867d", "#aaa49a"],
-    "earth": ["#2a1c14", "#3d2a1d", "#553a26", "#6e4c30", "#8a6440", "#a88457", "#c49a5c"],
-    "leaf": ["#16241a", "#1f3322", "#2c4a2c", "#3d6234", "#557a3e", "#73944c"],
-    "moss": ["#4a5a2a", "#6b7a38"],
-    "bone": ["#c9bfa0", "#e6dcbc"],
-    "water": ["#1a2c44", "#2b4a6a"],
-    "cloth": ["#3e1216", "#5e1a1f"],
-    "skin": ["#b5835f", "#dcae86"],
-    "torch": ["#f2a03a", "#ffd36a"],
-    "blood": ["#8e1f1f", "#c23a2a"],
-    "frost": ["#4fa8e8", "#a8e4ff"],
-    "venom": ["#7ccf4a"],
-    "gold": ["#e8c547"]
+    "shadow": [
+      "#0b0a0c",
+      "#17141a",
+      "#231d1f",
+      "#2f2723"
+    ],
+    "stone": [
+      "#3a3a3e",
+      "#4f4e52",
+      "#6a6865",
+      "#8a867d",
+      "#aaa49a"
+    ],
+    "earth": [
+      "#2a1c14",
+      "#3d2a1d",
+      "#553a26",
+      "#6e4c30",
+      "#8a6440",
+      "#a88457",
+      "#c49a5c"
+    ],
+    "leaf": [
+      "#16241a",
+      "#1f3322",
+      "#2c4a2c",
+      "#3d6234",
+      "#557a3e",
+      "#73944c"
+    ],
+    "moss": [
+      "#4a5a2a",
+      "#6b7a38"
+    ],
+    "bone": [
+      "#c9bfa0",
+      "#e6dcbc"
+    ],
+    "water": [
+      "#1a2c44",
+      "#2b4a6a"
+    ],
+    "cloth": [
+      "#3e1216",
+      "#5e1a1f"
+    ],
+    "skin": [
+      "#b5835f",
+      "#dcae86"
+    ],
+    "torch": [
+      "#f2a03a",
+      "#ffd36a"
+    ],
+    "blood": [
+      "#8e1f1f",
+      "#c23a2a"
+    ],
+    "frost": [
+      "#4fa8e8",
+      "#a8e4ff"
+    ],
+    "venom": [
+      "#7ccf4a"
+    ],
+    "gold": [
+      "#e8c547"
+    ],
+    "bronze": [
+      "#4a2e18",
+      "#7a4f26",
+      "#a8743a",
+      "#cfa25c"
+    ],
+    "iron": [
+      "#2c2e33",
+      "#4a4d54",
+      "#6e727a",
+      "#969aa1"
+    ],
+    "steel": [
+      "#3a4652",
+      "#5c6c7a",
+      "#8a9aa8",
+      "#c4ccd2"
+    ],
+    "mithril": [
+      "#2e4a52",
+      "#4f7a80",
+      "#86b4b4",
+      "#c8e6e0"
+    ]
   }
 }

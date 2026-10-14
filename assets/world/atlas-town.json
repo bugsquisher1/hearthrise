@@ -1,11 +1,11 @@
 {
   "version": 1,
   "set": "town",
-  "palette": "hr-world-40-v1",
+  "palette": "hr-world-56-v2",
   "T": 32,
   "image": "atlas-town.png",
   "size": [512,428],
-  "pixels": "5ab21fe32693970da417028af5eabaf0f328b57764a3660abe40dac3c7d8cb97",
+  "pixels": "31da0905a508e7afdc9d8ab21560d41075696fec7f061e3164fb1d0e658dc7e7",
   "sprites": {
     "anvil": {
       "class": "bulky",

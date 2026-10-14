@@ -13,9 +13,6 @@
 export const GRADE = Object.freeze({
   unit: Object.freeze({ sat: 0.85, dk: 1.0 }),
   monster: Object.freeze({ sat: 0.85, dk: 0.95 }),
-  // grey-pink generated fur snaps to stone grey and vanishes on flagstones; turned
-  // toward ochre and saturated it lands on the earth ramp
-  fur: Object.freeze({ sat: 1.5, dk: 0.95, hue: 22 }),
   wood: Object.freeze({ sat: 0.8, dk: 0.92 }),
   stone: Object.freeze({ sat: 0.7, dk: 0.92 }),
   foliage: Object.freeze({ sat: 0.75, dk: 0.85 }),

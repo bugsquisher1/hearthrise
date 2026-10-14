@@ -2611,7 +2611,7 @@ export const combatScreen = () => {
   assert(CS, 'the two screens did not boot');
   const snap = snapshotG();
   const prevTab = window.activeTab;
-  /* The monster grid is the Adventures window's Training tab, and the browsed
+  /* The monster grid is the Adventures window's Monsters tab (key `training`), and the browsed
      tier is not in snapshotG: both are put back, or the next test meets T4. */
   const tier0 = window.G.currentCombatTier;
   if (typeof CS.setTab === 'function') CS.setTab('training');

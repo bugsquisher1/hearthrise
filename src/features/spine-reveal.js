@@ -10,9 +10,10 @@
 // lifetime tally at both envelope sites (src/net/accrue.js, the boot hydrate
 // in src/net/record.js) and folds the permanent `stat` rows, the property
 // rung, the crew and the bag into a module view; skill XP is read through the
-// record accessor, which answers unknown the moment anything but an envelope
-// has written G.skills. Nothing here reads a G field the client writes, so a
-// client-only flag cannot reveal anything (SPINE-REVEAL-3 proves it).
+// record accessor, holding the server's last statement (record.js
+// recordLastKnown) while the record cannot vouch for the map — never a client
+// write. Nothing here reads a G field the client writes, so a client-only flag
+// cannot reveal anything (SPINE-REVEAL-3 proves it).
 //
 // Every fact only grows within a character, so the view only ratchets up and
 // a reveal is never taken away. A slot change starts a fresh view.
@@ -38,7 +39,7 @@ import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=576';
 import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=576';
 import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=576';
 import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=576';
-import { recordValue } from '../net/record.js?v=576';
+import { recordValue, recordLastKnown } from '../net/record.js?v=576';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const CTX = Object.freeze({ startXp: START_SKILL_XP });
@@ -132,16 +133,26 @@ let lastSig = null;
 
 function harness() { return typeof window !== 'undefined' && !!window.__HR_TEST_HARNESS__; }
 
-/** A record field (skills, equipment) the server vouches for, or null. */
+/** A record field (skills, equipment) as the server last stated it, or null.
+ *  The vouched value first; while the record cannot vouch for it (an answer
+ *  that did not restate the field, or a write between settles), the copy
+ *  applyRecord took of the last server statement. Never a G field the client
+ *  writes, so SPINE-REVEAL-3 still holds. Only a field the server has never
+ *  stated this session is unknown — the fresh-character view is for that alone,
+ *  not for a Combat-56 hero between two envelopes (the flipping hunt grid). */
 function serverRecord(field) {
   const G = typeof window !== 'undefined' ? window.G : null;
   const rv = recordValue(G, field);
-  return (rv.known && rv.value && typeof rv.value === 'object') ? rv.value : null;
+  if (rv.known && rv.value && typeof rv.value === 'object') return rv.value;
+  const last = recordLastKnown(G, field);
+  return (last && typeof last === 'object') ? last : null;
 }
 function serverGold() {
   const G = typeof window !== 'undefined' ? window.G : null;
   const rv = recordValue(G, 'gold');
-  return (rv.known && fin(rv.value)) ? Number(rv.value) : null;
+  if (rv.known && fin(rv.value)) return Number(rv.value);
+  const last = recordLastKnown(G, 'gold');
+  return fin(last) ? Number(last) : null;
 }
 
 /** Which unreleased features are live: shipping switches, not player state. */

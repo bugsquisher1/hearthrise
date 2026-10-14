@@ -154,6 +154,11 @@ export default [
   () => tryRunAsync('SPINE-REVEAL-3: a client-only flag cannot reveal anything', async () => {
     await withPin('live', async (R) => {
       const view = R.__swapView(null);
+      /* "Never stated" is made true here rather than inherited from whatever
+         record an earlier test left: the reveal holds the server's LAST statement
+         (record.js recordLastKnown), so the precondition is no record at all. */
+      const rec0 = window.G._record;
+      window.G._record = null;
       try {
         const G = window.G;
         G.skills = Object.assign({}, G.skills, { attack: 5000000, farming: 5000000, crafting: 5000000 });
@@ -169,6 +174,16 @@ export default [
         assert(JSON.stringify(shown) === JSON.stringify(step1) && shown.indexOf('pane:shop') >= 0,
           'client-written G revealed: ' + shown.filter((id) => step1.indexOf(id) < 0).join(', '));
         assert(R.combatLevel() === null, 'the reveal read a combat level the server never stated');
+        /* Once the server HAS stated a map, a client write over it still moves
+           nothing: the reveal holds the stated level, never the forged one. */
+        const stated = {};
+        Object.keys(G.skills).forEach((k) => { stated[k] = { xp: 0 }; });
+        window.HearthriseRecord.applyRecord(G, { ok: true, version: 1, state: { gold: 0, gems: 0 }, skills: stated, inventory: {} });
+        const lv0 = R.combatLevel();
+        assert(typeof lv0 === 'number' && lv0 < 10, 'CONTROL: the stated all-zero map does not read as a low level (' + lv0 + ')');
+        G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
+        assert(R.combatLevel() === lv0, 'a client write over a stated map moved the reveal level from ' + lv0 + ' to ' + R.combatLevel());
+        window.G._record = null;
         /* Control: the same facts arriving in an ENVELOPE do reveal. */
         R.noteEnvelope({ progress_truncated: false, state: { slot: 1 }, workers: [{ uid: 'w1' }],
           progress: [{ kind: 'stat', period: '', key: 'chopped', value: 20 }, { kind: 'stat', period: '', key: 'ev:kill_any', value: 3 },
@@ -176,7 +191,7 @@ export default [
         assert(R.shows('skill:fishing') && R.shows('pane:house') && R.shows('card:workers'),
           'a server envelope did not reveal what it confirms: ' + [...R.state().shown].join(','));
         assert(!R.shows('pane:bounty'), 'an envelope revealed a step it did not reach');
-      } finally { R.__swapView(view); }
+      } finally { R.__swapView(view); window.G._record = rec0; }
     });
   }),
 

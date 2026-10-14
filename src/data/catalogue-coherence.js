@@ -68,7 +68,7 @@ export const CODED_USES = Object.freeze({
 export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_totem', 'burnt_food',
   /* DEMOLITION (2026-10-14): crafted gear, its recipes and the dungeon chests
      were deleted, and these lost every consumer they had. They still drop
-     (or, for the three bars/planks and heartgarnet, are still made or mined),
+     (or, for the two bars and heartgarnet, are still made or mined),
      so until the new roster gives them a job they are sold, nothing more.
      rat_tail and small_fang are also the coach's sell-loot step (coach.js
      COACH_LOOT). Heartgarnet's Mining node is a dead end awaiting a designer
@@ -77,7 +77,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'venom_sac', 'spider_eye', 'brute_plate', 'dire_fang', 'alpha_fang', 'plague_ichor',
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
-  'runewood_plank', 'heartgarnet',
+  'heartgarnet',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -92,30 +92,30 @@ export const AWAITING_ROSTER = Object.freeze([
   'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
   'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
-  'bronze_axe', 'bronze_boots', 'bronze_hammer', 'bronze_helm', 'bronze_knife',
-  'bronze_pickaxe', 'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
+  'bronze_boots', 'bronze_hammer', 'bronze_helm', 'bronze_knife',
+  'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_axe', 'dawn_belt',
-  'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_pickaxe', 'dawn_platebody',
+  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
+  'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
   'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
   'dragon_relic', 'dragonfang_pike', 'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots',
   'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'dragonrend_greatblade',
   'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
-  'ember_axe', 'ember_belt', 'ember_boots', 'ember_helm', 'ember_pickaxe', 'ember_platebody',
+  'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
   'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak', 'iron_helm',
   'iron_platebody', 'iron_platelegs', 'leather_body', 'leather_pants', 'lexarch_seal',
-  'longbow', 'maple_rod', 'maple_staff', 'mithril_axe', 'mithril_helm', 'mithril_pickaxe',
+  'longbow', 'maple_rod', 'maple_staff', 'mithril_helm',
   'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
   'nightstalker_pelt', 'oak_staff', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
-  'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs', 'rune_axe',
-  'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_pickaxe', 'rune_platebody',
+  'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
+  'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
   'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
-  'spellstone_ring', 'spidereye_studs', 'steel_axe', 'steel_hammer', 'steel_knife',
-  'steel_needle', 'steel_pickaxe', 'steel_platebody', 'steel_platelegs', 'steel_warhammer',
+  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
+  'steel_needle', 'steel_platebody', 'steel_platelegs', 'steel_warhammer',
   'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',

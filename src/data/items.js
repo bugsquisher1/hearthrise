@@ -42,9 +42,10 @@ export const ITEMS={
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
      auto-applies to its skill (Melvor-style, no equip juggling):
-     see src/features/tools.js bestToolSpeed(). DEMOLITION (2026-10-14): the
-     tool RECIPES were deleted; the items stay until the new roster replaces
-     the catalogue and the tool engine (tool_carry) leaves with lane C2. */
+     see src/features/tools.js bestToolSpeed(). DEMOLITION (2026-10-14, designer
+     ruling): tools stay as optional boosts; only the axe/pickaxe ladder keeps
+     its smithing recipes. Rods, hammers, needles and knives have no source for
+     now (catalogue-coherence AWAITING_ROSTER). */
   bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
   iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
   steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},

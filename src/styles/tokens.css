@@ -365,7 +365,7 @@ body[data-theme="hearthlight"] {
   /* b216: was #8f7d63 — every section label (TODAY / BUFFS / Total Lv) sat at
      3.4-3.9:1 on the card surface, under the 4.5:1 readability floor. This
      clears it at ~4.9:1 while staying clearly subordinate to --ink-2. */
-  --ink-3:       #ad9b80;   /* b574: holds >=4.5:1 on the lifted card surface */
+  --ink-3:       #9d8b70;
 
   /* Gilt gold — aged, candlelit (the unifying accent) */
   --gold:        #c9a24a;
@@ -402,8 +402,8 @@ body[data-theme="hearthlight"] {
   --gem-bg:      rgba(82,98,179,.18);
 
   /* Shell surfaces — stone-dark, candle-lit */
-  --sidebar-bg:  linear-gradient(180deg, #1f1912, #17120d);
-  --topbar-bg:   linear-gradient(90deg, #2a2219, #1f1913);
+  --sidebar-bg:  linear-gradient(180deg, #17140f, #100d09);
+  --topbar-bg:   linear-gradient(90deg, #201b15, #17130f);
 
   /* ── Scene palette (b219) ────────────────────────────────────────────────
      Painted atmosphere is still colour, so it is still tokens. These are the
@@ -437,8 +437,8 @@ body[data-theme="hearthlight"] {
   --scene-fire-0:    rgba(255,178,92,0);
   --scene-smoke:     rgba(206,190,166,.14);
   /* Scrims that keep UI legible on top of the picture. */
-  --scene-scrim-1:   rgba(9,7,5,.10);   /* b574: lighter Home banner veil */
-  --scene-scrim-2:   rgba(9,7,5,.60);
+  --scene-scrim-1:   rgba(9,7,5,.20);
+  --scene-scrim-2:   rgba(9,7,5,.72);
   /* Type that sits ON the picture gets its own ink role: its background is the
      scene under a dark scrim, not the theme's surface, so it stays light in
      BOTH themes. Reading --ink here put cocoa text on a sunset in Cozy Day. */
@@ -450,7 +450,7 @@ body[data-theme="hearthlight"] {
 
 /* ── theme-cozy.css · Hearthlight card surface
    · 1 token ── */
-body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#30271d,#211a12);}
+body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a1610);}
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -545,11 +545,11 @@ body[data-theme="hearthlight"] {
    · 11 tokens ── */
 :root,
 body[data-theme="hearthlight"] {
-  --bg-0: #110d09;   /* the world behind everything (b574: lifted one step) */
-  --bg-1: #1c1711;   /* sidebar / rails */
-  --bg-2: #2d2419;   /* panel + card surface (b574: warmer) */
-  --bg-3: #3c3125;   /* elevated: modals, hovered objects */
-  --bg-card: linear-gradient(180deg, #33291c, #231b12);
+  --bg-0: #0a0806;   /* the world behind everything */
+  --bg-1: #14110c;   /* sidebar / rails */
+  --bg-2: #241d16;   /* panel + card surface */
+  --bg-3: #322920;   /* elevated: modals, hovered objects */
+  --bg-card: linear-gradient(180deg, #2a2219, #1b160f);
 
   /* Edges have to catch light or the new levels won't be legible as levels. */
   --line-soft: rgba(255, 236, 200, .075);
@@ -563,7 +563,7 @@ body[data-theme="hearthlight"] {
      and the ember glow up top gives the whole thing a direction of light. */
   --app-bg:
     radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
-    linear-gradient(180deg, #1b150e 0%, #130f0a 46%, #0d0a07 100%);
+    linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
 }
 
 

@@ -30,8 +30,8 @@
 //   maskHash  hash of the collision mask (maskHash below)
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { T, rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=580';
-import { reachFrom } from './path.js?v=580';
+import { T, rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=581';
+import { reachFrom } from './path.js?v=581';
 
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home']);
 export const LIGHT_KINDS = Object.freeze(['cellar', 'indoor', 'day']);

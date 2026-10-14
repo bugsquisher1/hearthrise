@@ -22,12 +22,12 @@
 // Nothing touches `window` at import time, so the node guard can load it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SKILLS_DEF } from '../data/skills.js?v=580';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=580';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=580';
-import { ITEMS } from '../data/items.js?v=580';
-import { requiredPlotLevel } from '../core/farm.js?v=580';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=580';
+import { SKILLS_DEF } from '../data/skills.js?v=581';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=581';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=581';
+import { ITEMS } from '../data/items.js?v=581';
+import { requiredPlotLevel } from '../core/farm.js?v=581';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=581';
 
 const GATHER_NODES = { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS };
 const GEAR_SKILLS = new Set(['attack', 'defense', 'ranged', 'magic', 'prayer']);

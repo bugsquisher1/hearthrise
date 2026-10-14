@@ -16,8 +16,8 @@
 // except through the memo's key.
 // ════════════════════════════════════════════════════════════════════════
 
-import { fill } from './signposts.js?v=580';
-import { SIGNPOSTS } from '../data/signposts.js?v=580';
+import { fill } from './signposts.js?v=581';
+import { SIGNPOSTS } from '../data/signposts.js?v=581';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const label = (key) => SIGNPOSTS.labels[key] || '';

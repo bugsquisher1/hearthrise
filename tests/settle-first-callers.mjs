@@ -46,16 +46,16 @@ export const GATED = [
 const count = (code, s) => code.split(s).length - 1;
 export const SENDERS = {
   'src/net/goal-claim.js': {
-    literals: { hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_milestone: 1,
-      hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1 },
+    literals: { hr_claim_quest: 1, hr_claim_milestone: 1,
+      hr_credit_kills: 1, hr_set_auto_eat: 1 },
     wire: [
       ['call() routes gated verbs through the handler',
         (c) => /SF\.withSettleFirstRetry\(function \(\) \{ return callOnce\(name, body\); \}\)/.test(c)],
       ['callOnce is reached only from call()', (c) => count(c, 'callOnce(') === 3],
       ['every gated verb is in SETTLE_GATED', (c) => {
         const m = c.match(/var SETTLE_GATED = \{([^}]*)\}/);
-        return !!m && ['hr_claim_daily', 'hr_claim_quest', 'hr_claim_milestone',
-          'hr_claim_rank', 'hr_credit_kills', 'hr_set_auto_eat'].every((n) => new RegExp('\\b' + n + ':').test(m[1]));
+        return !!m && ['hr_claim_quest', 'hr_claim_milestone',
+          'hr_credit_kills', 'hr_set_auto_eat'].every((n) => new RegExp('\\b' + n + ':').test(m[1]));
       }],
       ['no gated verb is sent through callOnce directly', (c) => !/callOnce\('/.test(c)],
     ],
@@ -192,8 +192,8 @@ const PLANTS = [
   ['SF-1', 'the handler forgets a verb', (t) => { t['src/net/settle-first.js'] = t['src/net/settle-first.js'].replace(/'hr_claim_rank',\s*/, ''); }],
   ['SF-2', 'a new bare sender', (t) => { t['src/features/new-thing.js'] = "fetch(u + '/rest/v1/rpc/' + 'hr_claim_rank', {});\n"; }],
   ['SF-2', 'a second send in a registered file', (t) => { t['src/net/bank-sync.js'] += "\nfetch('hr_bank_move');\n"; }],
-  ['SF-3', 'goal-claim drops a verb from SETTLE_GATED', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace('hr_claim_rank: 1, hr_credit_kills', 'hr_credit_kills'); }],
-  ['SF-3', 'goal-claim sends a gated verb unwrapped', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace("return call('hr_claim_daily'", "return callOnce('hr_claim_daily'"); }],
+  ['SF-3', 'goal-claim drops a verb from SETTLE_GATED', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace(/hr_claim_milestone: 1,\s*hr_credit_kills/, 'hr_credit_kills'); }],
+  ['SF-3', 'goal-claim sends a gated verb unwrapped', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace("return call('hr_claim_quest'", "return callOnce('hr_claim_quest'"); }],
   ['SF-3', 'bank-sync calls the primitive directly', (t) => { t['src/net/bank-sync.js'] = t['src/net/bank-sync.js'].replace('withSettleFirstRetry(() => postBankMove(f, cfg, body))', 'postBankMove(f, cfg, body)'); }],
   ['SF-3', 'gold.js buyTrait bypasses the handler', (t) => { t['src/net/gold.js'] = t['src/net/gold.js'].replace('withSettleFirstRetry(() => buyTraitOnce(traitId, key))', 'buyTraitOnce(traitId, key)'); }],
   ['SF-3', 'farm harvest sent bare', (t) => { t['src/net/farm-sync.js'] = t['src/net/farm-sync.js'].replace("withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o))", "callFarmRpc('hr_farm_harvest', body, o)"); }],

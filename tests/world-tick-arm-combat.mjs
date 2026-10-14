@@ -8,30 +8,41 @@
 // supabase/migrations/2026-10-14-world-tick-arm-combat.sql is EXCLUDED from the
 // replay chain (arming is earned on live evidence), so nothing else executes
 // it. This guard replays the whole chain on PGlite (2026-10-14-world-tick-m4-
-// party-horizon.sql included), builds a live-shaped fixture — gather ARMED with
-// its tick rows, 13 closed combat probes on a pin with retained input, 2 h of
-// cron fires and combat shadow rows, one owned combat sentinel with a real
-// return — and EXECUTES the arm file inside a transaction that is always
-// rolled back. The committed file carries the placeholder pin; every case but
-// C1 runs it with a test pin substituted, exactly the GO commit's one edit.
+// party-horizon.sql and the hunts catalogue included), builds a live-shaped
+// fixture — gather ARMED with its tick rows, 4 closed combat probes on a pin
+// with stored input + seed (one on a named hunt, two that ate, two that died),
+// 2 h of cron fires and combat shadow rows, one owned combat sentinel with a
+// real return — and EXECUTES the arm file inside a transaction that is always
+// rolled back. The committed file carries the placeholder pin and replayed
+// set; every case but C1/C1b runs it with a test pin and the fixture's own
+// attested `id:digest` pairs substituted (REPLAY_DIGEST_SQL from
+// tests/world-tick-combat-replay.mjs), exactly the GO commit's one edit.
 //
-//   C0  ★ return 2 h 05 ago, quiet: ARMS, reads back {gather,combat}
-//   C1  ★ the file AS COMMITTED (placeholder pin): ARM-P0
+// P2 is Security's R4 (GO-WITH-CHANGES 2026-10-14): >= 4 replayed probes on the
+// pin with stored input, >= 2 ate, >= 2 deaths, >= 1 named hunt; the 12-probe /
+// 48 h floor is gone.
+//
+//   C0  ★ 4 probes meeting every minimum, return 2 h 05 ago, quiet: ARMS
+//   C1  ★ the file AS COMMITTED (placeholder pin + set): ARM-P0
+//   C1b the pin filled, the replayed set still the placeholder: ARM-P0
 //   C2  ★ return 5 min ago: ARM-P3 sentinel, BEFORE the write, naming a time
 //   C3  return 90 min ago: ARM-P3 sentinel (F2b's 2 h, not less)
 //   C4  return 4 h 05 ago: ARM-P3 freshness
-//   C5  eleven probes of 6 h (66 h): ARM-P2 on the count
-//   C19 eleven probes of 4 h (44 h): ARM-P2
+//   C5  3 probes: ARM-P2 on the count
+//   C19 only 1 probe ate: ARM-P2
+//   C22 only 1 probe died: ARM-P2
+//   C23 no probe on a named hunt: ARM-P2
+//   C24 an unattested probe (not replayed by the guard) is not counted: ARM-P2
+//   C25 an attested probe changed after the replay: ARM-P2 (present and unchanged)
+//   C26 no hunt catalogue installed: ARM-P2
 //   C20 the frac-keys party settle (no cohort, no party 8d): ARM-P4
 //   C21 the start-gate hunt start (no cohort gate): ARM-P4
-//   The committed file may carry the placeholder OR the Security-filled pin;
-//   C1 always runs with the placeholder put back.
-//   C6  twelve probes, one CLOSED on another payload (a deploy mid-probe):
-//       11 counted, ARM-P2. (A 48 h shortfall at 12 probes is unconstructible:
-//       hr_tick_probe_span_ck holds every span to 4-6 h, so the file's 48 h
-//       floor is defence in depth and has no mutant.)
+//   The committed file may carry the placeholders OR the Security-filled
+//   lines; C1/C1b always run with the placeholders put back.
+//   C6  the newest probe CLOSED on another payload (a deploy mid-probe): 3
+//       counted, ARM-P2
 //   C7  a gather probe on another payload opened inside the evidence: ARM-P2
-//   C8  one counted probe lost its input (11 retained): ARM-P2
+//   C8  a probe without stored input is not counted (3 left): ARM-P2
 //   C9  two owned combat characters: ARM-P3 cohort
 //   C10 a live party hunt: ARM-P3
 //   C11 combat already armed: ARM-P1
@@ -49,6 +60,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { REPLAY_DIGEST_SQL } from './world-tick-combat-replay.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -58,18 +70,34 @@ const HORIZON_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-1
 const DROP_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-08-world-tick-party-drop.sql'), 'utf8')).replace(/\r\n/g, '\n');
 const GATE_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-09-party-hunt-start-gate.sql'), 'utf8')).replace(/\r\n/g, '\n');
 const PLACEHOLDER = "c_pin   constant text := 'SET-AT-SECURITY-GO';";
+const REPLAYED_PLACEHOLDER = "c_replayed constant text[] := array['SET-AT-SECURITY-GO']::text[];";
 const PIN = 'c0b4a7'.padEnd(64, 'e');
 const OFFPIN = 'bb1c64e2'.padEnd(64, '0');
-/* The committed file carries EITHER the placeholder (staged) OR a real 64-hex
-   pin (the Security GO commit fills it — Security #2: the guard must stay green
-   on that commit). Every case runs with the test pin; C1 runs with the
-   placeholder put back, so "an unfilled file never arms" is proven either way. */
+/* The committed file carries EITHER the placeholders (staged) OR the real pin
+   and replayed set (the Security GO commit fills them — Security #2: the guard
+   must stay green on that commit). Every case runs with the test pin and the
+   fixture's own attested set; C1/C1b run with placeholders put back, so "an
+   unfilled file never arms" is proven either way. */
 const PIN_LINE = /c_pin   constant text := '(SET-AT-SECURITY-GO|[0-9a-f]{64})';/g;
-if ((ARM_SQL.match(PIN_LINE) || []).length !== 1) {
-  console.error('harness: the arm file does not carry exactly one c_pin line (placeholder or a 64-hex pin)'); process.exit(2);
+const REPLAYED_LINE = /c_replayed constant text\[\] := array\[[^\]]*\]::text\[\];/g;
+if ((ARM_SQL.match(PIN_LINE) || []).length !== 1 || (ARM_SQL.match(REPLAYED_LINE) || []).length !== 1) {
+  console.error('harness: the arm file does not carry exactly one c_pin line and one c_replayed line'); process.exit(2);
 }
 const withPin = (sql) => sql.replace(PIN_LINE, () => `c_pin   constant text := '${PIN}';`);
-const asCommittedUnfilled = (sql) => sql.replace(PIN_LINE, () => PLACEHOLDER);
+const withReplayed = (sql, pairs) => sql.replace(REPLAYED_LINE,
+  () => `c_replayed constant text[] := array[${pairs.map((x) => `'${x}'`).join(', ')}]::text[];`);
+const asCommittedUnfilled = (sql) => sql.replace(PIN_LINE, () => PLACEHOLDER).replace(REPLAYED_LINE, () => REPLAYED_PLACEHOLDER);
+const replayedUnfilled = (sql) => sql.replace(REPLAYED_LINE, () => REPLAYED_PLACEHOLDER);
+
+/* The fixture's evidence, newest first (each 4 h, back to back, the newest
+   closing 1 h ago): the minimum R4 asks for and nothing more. */
+const PROBES = Object.freeze([
+  Object.freeze({ act: 'mill_cellar', ate: 3, deaths: 1 }),   // named hunt, ate, died
+  Object.freeze({ act: 'slime', ate: 2, deaths: 0 }),         // ate
+  Object.freeze({ act: 'slime', ate: 0, deaths: 2 }),         // died
+  Object.freeze({ act: 'slime', ate: 0, deaths: 0 }),         // the fourth
+]);
+const probesWith = (i, over) => PROBES.map((p, k) => (k === i ? Object.assign({}, p, over) : p));
 
 /** A whole `create or replace function public.<name>(` statement out of a migration, any dollar tag. */
 function fnStatement(sql, name) {
@@ -110,25 +138,25 @@ async function attempt(db, sql, f) {
                      flush_seconds = 90, cadence_seconds = 10,
                      frame_push = ${f.framePush ? 'true' : 'false'} where id;`);
     for (const u of [UC, UC2, UG]) await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
-    // Evidence: closed combat probes back to back on the pin, the newest closing 1 h ago,
-    // then the one open now (the live payload).
-    const spanH = f.spanH ?? 4;
-    const n = f.probes ?? 13;
-    await q(`insert into public.hr_tick_probe (user_id, slot, channel, holder, status, span_from, span_to,
+    // Evidence: closed combat probes back to back on the pin, the newest (index 0)
+    // closing 1 h ago, then the one open now (the live payload).
+    const probes = f.probes || PROBES;
+    const ids = [];
+    for (let g = 0; g < probes.length; g++) {
+      const p = probes[g];
+      const r = (await q(`insert into public.hr_tick_probe (user_id, slot, channel, holder, status, span_from, span_to,
                                                base_version, version_close, payload_open, payload_close,
                                                input, seed, result, opened_at, closed_at)
-             select $1::uuid, 0, 'combat', 'arm-guard', 'closed',
-                    now() - make_interval(hours => 1) - make_interval(secs => (g * $4::numeric * 3600)::int),
-                    now() - make_interval(hours => 1) - make_interval(secs => ((g - 1) * $4::numeric * 3600)::int),
-                    1, 1, $2, $2, case when g = 1 and $5::boolean then null else '{}'::jsonb end,
-                    case when g = 1 and $5::boolean then null else 7 end, '{}'::jsonb,
-                    now() - make_interval(hours => 1) - make_interval(secs => (g * $4::numeric * 3600)::int),
-                    now() - make_interval(hours => 1) - make_interval(secs => ((g - 1) * $4::numeric * 3600)::int)
-               from generate_series(1, $3::int) g`, [UC, PIN, n, spanH, Boolean(f.noInput)]);
-    if (f.closeOffPin) {
-      await q(`update public.hr_tick_probe set payload_close = $1
-                where id = (select id from public.hr_tick_probe where status = 'closed' and channel = 'combat'
-                             order by closed_at desc limit 1)`, [OFFPIN]);
+             values ($1::uuid, 0, 'combat', 'arm-guard', 'closed',
+                     now() - interval '1 hour' - make_interval(hours => 4 * ($3::int + 1)),
+                     now() - interval '1 hour' - make_interval(hours => 4 * $3::int),
+                     1, 1, $2, $4, $5::jsonb, case when $5::jsonb is null then null else 7 end, $6::jsonb,
+                     now() - interval '1 hour' - make_interval(hours => 4 * ($3::int + 1)),
+                     now() - interval '1 hour' - make_interval(hours => 4 * $3::int))
+             returning id`,
+      [UC, PIN, g, p.closeOffPin ? OFFPIN : PIN, p.noInput ? null : JSON.stringify({ activeId: p.act }),
+        JSON.stringify({ ate: p.ate, deaths: p.deaths, gold: 100 })])).rows[0].id;
+      ids.push(Number(r));
     }
     await q(`insert into public.hr_tick_probe (user_id, slot, channel, holder, status, span_from, base_version,
                                                payload_open, input, opened_at)
@@ -138,9 +166,21 @@ async function attempt(db, sql, f) {
       await q(`insert into public.hr_tick_probe (user_id, slot, channel, holder, status, span_from, span_to,
                                                  base_version, version_close, payload_open, payload_close,
                                                  input, result, opened_at, closed_at)
-               values ($1::uuid, 0, 'gather', 'arm-guard', 'closed', now() - interval '20 hours', now() - interval '16 hours',
-                       1, 1, $2, $2, null, '{}'::jsonb, now() - interval '20 hours', now() - interval '16 hours')`, [UG, OFFPIN]);
+               values ($1::uuid, 0, 'gather', 'arm-guard', 'closed', now() - interval '10 hours', now() - interval '6 hours',
+                       1, 1, $2, $2, null, '{}'::jsonb, now() - interval '10 hours', now() - interval '6 hours')`, [UG, OFFPIN]);
     }
+    // What tests/world-tick-combat-replay.mjs --live --attest would print for these
+    // rows: every closed combat probe's id:digest, minus the ones it did not replay.
+    const unattested = (f.unattest || []).map((g) => ids[g]);
+    const pairs = (await q(`select coalesce(array_agg(p.id::text || ':' || ${REPLAY_DIGEST_SQL} order by p.id), '{}') as a
+                              from public.hr_tick_probe p
+                             where p.channel = 'combat' and p.status = 'closed' and not (p.id = any ($1::bigint[]))`,
+    [unattested])).rows[0].a;
+    if (f.changeAfter != null) {
+      await q("update public.hr_tick_probe set result = result || '{\"gold\": 101}'::jsonb where id = $1", [ids[f.changeAfter]]);
+    }
+    if (f.noHunts) await db.exec('drop table public.hr_hunt_spawns, public.hr_hunts cascade;');
+    sql = f.replayedUnfilled ? sql : withReplayed(sql, pairs);
     // The combat sentinel (QA slot 1's shape): on combat for days, a real return `ret` ago.
     const combat = [{ u: UC, ret: f.ret, since: f.combatSince ?? '3 days' }];
     if (f.twoCombat) combat.push({ u: UC2, ret: f.ret, since: '3 days' });
@@ -202,27 +242,41 @@ async function attempt(db, sql, f) {
 
 const QUIET = '2 hours 5 minutes';
 const CASES = [
-  { id: 'C0', f: { ret: QUIET }, want: /^ARMED$/, what: 'return 2 h 05 ago, offline since: ARMS, reads back {gather,combat}' },
-  { id: 'C1', committed: true, f: { ret: QUIET }, want: /^ARM-P0: c_pin is not a 64-hex/, what: 'the file AS COMMITTED (placeholder pin): refused at P0' },
+  { id: 'C0', f: { ret: QUIET }, want: /^ARMED$/,
+    what: '4 replayed probes (2 ate, 2 died, 1 named hunt), return 2 h 05 ago, offline since: ARMS, reads back {gather,combat}' },
+  { id: 'C1', committed: true, f: { ret: QUIET }, want: /^ARM-P0: c_pin is not a 64-hex/, what: 'the file AS COMMITTED (placeholder pin + set): refused at P0' },
+  { id: 'C1b', f: { ret: QUIET, replayedUnfilled: true }, want: /^ARM-P0: c_replayed is not a list of/,
+    what: 'the pin filled but the replayed set still the placeholder: refused at P0' },
   { id: 'C2', f: { ret: '5 minutes' }, want: /^ARM-P3: the owned combat character cannot be the armed sentinel.*earliest arm \d{4}-/,
     what: 'return 5 min ago: refused at P3c before the write, earliest arm time named' },
   { id: 'C3', f: { ret: '90 minutes' }, want: /^ARM-P3: the owned combat character cannot be the armed sentinel/,
     what: 'return 90 min ago: still inside F2b\'s 2 h window, refused at P3c' },
   { id: 'C4', f: { ret: '4 hours 5 minutes' }, want: /^ARM-P3: .*older than 4 h/, what: 'return 4 h 05 ago: refused at P3b (4 h bound)' },
-  { id: 'C5', f: { ret: QUIET, probes: 11, spanH: 6 }, want: /^ARM-P2: 11 closed combat probes with retained input \/ 66/,
-    what: 'eleven probes of 6 h (66 h): refused at P2 on the COUNT' },
+  { id: 'C5', f: { ret: QUIET, probes: PROBES.slice(0, 3) }, want: /^ARM-P2: 3 replayed closed combat probes with stored input on the pin \(2 ate, 2 with a death, 1 on a named hunt\)/,
+    what: '3 probes (every other minimum met): refused at P2 on the COUNT' },
+  { id: 'C19', f: { ret: QUIET, probes: probesWith(1, { ate: 0 }) }, want: /^ARM-P2: 4 replayed .*\(1 ate, 2 with a death, 1 on a named hunt\)/,
+    what: 'only 1 probe ate: refused at P2' },
+  { id: 'C22', f: { ret: QUIET, probes: probesWith(2, { deaths: 0 }) }, want: /^ARM-P2: 4 replayed .*\(2 ate, 1 with a death, 1 on a named hunt\)/,
+    what: 'only 1 probe died: refused at P2' },
+  { id: 'C23', f: { ret: QUIET, probes: probesWith(0, { act: 'slime' }) }, want: /^ARM-P2: 4 replayed .*\(2 ate, 2 with a death, 0 on a named hunt\)/,
+    what: 'no probe on a named hunt: refused at P2' },
+  { id: 'C24', f: { ret: QUIET, unattest: [3] }, want: /^ARM-P2: 3 replayed closed combat probes/,
+    what: 'a probe the replay guard did not attest is not counted (3 left): refused at P2' },
+  { id: 'C25', f: { ret: QUIET, probes: [...PROBES, { act: 'slime', ate: 0, deaths: 0 }], changeAfter: 4 },
+    want: /^ARM-P2: 4 of 5 replayed probes are present and unchanged/,
+    what: '5 attested probes, one changed after the replay (4 would still count): refused at P2 integrity' },
+  { id: 'C26', f: { ret: QUIET, noHunts: true }, want: /^ARM-P2: no hunt catalogue/,
+    what: 'no hunt catalogue installed: refused at P2' },
   { id: 'C20', f: { ret: QUIET, settleNoCohort: true }, want: /^ARM-P4: hr_party_tick_settle lacks the M4 cohort\/horizon fences/,
     what: 'the frac-keys party settle (no cohort, no party 8d) is installed: refused at P4 (Security #3)' },
   { id: 'C21', f: { ret: QUIET, startNoCohort: true }, want: /^ARM-P4: hr_party_hunt_start lacks the armed gate or the cohort gate/,
     what: 'the start-gate hr_party_hunt_start (no cohort gate) is installed: refused at P4 (Security #3)' },
-  { id: 'C19', f: { ret: QUIET, probes: 11 }, want: /^ARM-P2: 11 closed combat probes with retained input \/ 44/,
-    what: 'eleven probes of 4 h (44 h): refused at P2' },
-  { id: 'C6', f: { ret: QUIET, probes: 12, closeOffPin: true }, want: /^ARM-P2: 11 closed combat probes with retained input/,
-    what: 'twelve probes, the newest closed on another payload: 11 counted, refused at P2' },
+  { id: 'C6', f: { ret: QUIET, probes: probesWith(3, { closeOffPin: true }) }, want: /^ARM-P2: 3 replayed closed combat probes/,
+    what: 'one probe opened on the pin but CLOSED on another payload: 3 counted, refused at P2' },
   { id: 'C7', f: { ret: QUIET, offPin: true }, want: /^ARM-P2: a probe opened since .* ran on another payload/,
     what: 'a gather probe on another payload inside the evidence: refused at P2' },
-  { id: 'C8', f: { ret: QUIET, probes: 12, noInput: true }, want: /^ARM-P2: 11 closed combat probes with retained input/,
-    what: 'one counted probe without its input (11 retained): refused at P2' },
+  { id: 'C8', f: { ret: QUIET, probes: probesWith(3, { noInput: true }) }, want: /^ARM-P2: 3 replayed closed combat probes/,
+    what: 'a probe without stored input (attested anyway) is not counted (3 left): refused at P2' },
   { id: 'C9', f: { ret: QUIET, twoCombat: true }, want: /^ARM-P3: 2 owned combat rows/, what: 'two owned combat characters: refused at P3a' },
   { id: 'C10', f: { ret: QUIET, partyHunt: true }, want: /^ARM-P3: a party hunt is live/, what: 'a live party hunt: refused at P3a' },
   { id: 'C11', f: { ret: QUIET, combatArmed: true }, want: /^ARM-P1: armed_channels is \{gather,combat\}/, what: 'combat already armed: refused at P1' },
@@ -242,7 +296,9 @@ const CASES = [
 async function arms(db, sql, { log = true } = {}) {
   const red = [];
   for (const c of CASES) {
-    const got = await attempt(db, c.committed ? asCommittedUnfilled(sql) : withPin(sql), c.f);
+    const got = c.committed
+      ? await attempt(db, asCommittedUnfilled(sql), Object.assign({}, c.f, { replayedUnfilled: true }))
+      : await attempt(db, withPin(c.f.replayedUnfilled ? replayedUnfilled(sql) : sql), c.f);
     const pass = c.want.test(got);
     if (!pass) red.push(c.id);
     if (log) console.log(`  ${pass ? '✓' : '✗'} ${c.id} — ${c.what}${pass ? '' : `: got ${got}`}`);
@@ -264,7 +320,7 @@ if (!MUTATE) {
   }
   await db.close();
   console.log(red.length ? `\nRED: ${red.join(', ')}`
-    : '\nGREEN: the arm file has an arming state 2-4 h after a real return, refuses an unfilled pin, and keeps every P/S refusal');
+    : '\nGREEN: the arm file arms 2-4 h after a real return on 4 replayed probes meeting R4, refuses an unfilled pin or set, and keeps every P/S refusal');
   process.exit(red.length ? 1 : 0);
 }
 
@@ -294,19 +350,34 @@ const MUTANTS = [
   { name: 'noCohortCap', why: 'P3a widened silently', expect: /C9/, find: '  if v_n <> 1 then\n', repl: '  if v_n < 1 or v_n > 20 then\n' },
   { name: 'noPartyCheck', why: 'P3a ignores a live party hunt', expect: /C10/,
     find: '  if exists (select 1 from public.party_hunt h where h.ended_at is null) then\n', repl: '  if false then\n' },
-  { name: 'probeFloor11', why: 'P2 floor at 11 probes', expect: /C5/, find: '  if v_n < 12 or v_ms', repl: '  if v_n < 11 or v_ms' },
-  { name: 'countsOpenPinOnly', why: 'P2 counts a probe that OPENED on the pin but closed on another payload', expect: /C6/,
-    find: '     and payload_open = c_pin and payload_close = c_pin\n', repl: '     and payload_open = c_pin\n' },
-  { name: 'noOffPinCheck', why: 'P2 ignores a deploy inside the evidence', expect: /C7/,
+  { name: 'probeFloor3', why: 'P2 floor at 3 probes (R4 says 4)', expect: /^C5$/,
+    find: '  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then\n', repl: '  if v_n < 3 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then\n' },
+  { name: 'ateFloor1', why: 'P2 accepts one eating probe (R4 says 2)', expect: /^C19$/,
+    find: '  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then\n', repl: '  if v_n < 4 or v_ate < 1 or v_dead < 2 or v_hunt < 1 then\n' },
+  { name: 'deathFloor1', why: 'P2 accepts one dying probe (R4 says 2)', expect: /^C22$/,
+    find: '  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then\n', repl: '  if v_n < 4 or v_ate < 2 or v_dead < 1 or v_hunt < 1 then\n' },
+  { name: 'huntFloor0', why: 'P2 accepts no named-hunt probe (R4 says 1)', expect: /^C23$/,
+    find: '  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 1 then\n', repl: '  if v_n < 4 or v_ate < 2 or v_dead < 2 or v_hunt < 0 then\n' },
+  { name: 'noAttestFilter', why: 'P2 counts a probe the replay guard never attested', expect: /^C24$/,
+    find: `     and p.input is not null and p.seed is not null\n     and p.id::text || ':' || ${REPLAY_DIGEST_SQL}\n         = any (c_replayed);\n`,
+    repl: '     and p.input is not null and p.seed is not null;\n' },
+  { name: 'noIntegrityCheck', why: 'P2 ignores an attested probe that changed after the replay', expect: /^C25$/,
+    find: '  if v_n <> cardinality(c_replayed) then\n', repl: '  if false then\n' },
+  { name: 'noReplayedP0', why: 'P0 accepts the placeholder replayed set', expect: /^C1b$/,
+    find: "  if coalesce(cardinality(c_replayed), 0) < 1\n     or exists (select 1 from unnest(c_replayed) e where e !~ '^[0-9]+:[0-9a-f]{64}$') then\n",
+    repl: '  if false then\n' },
+  { name: 'noHuntCatalogueCheck', why: 'P2 reads a hunt catalogue that is not installed', expect: /^C26$/,
+    find: "  if to_regclass('public.hr_hunts') is null then\n", repl: '  if false then\n' },
+  { name: 'countsOpenPinOnly', why: 'P2 counts a probe that OPENED on the pin but closed on another payload', expect: /^C6$/,
+    find: '     and p.payload_open = c_pin and p.payload_close = c_pin\n', repl: '     and p.payload_open = c_pin\n' },
+  { name: 'noOffPinCheck', why: 'P2 ignores a deploy inside the evidence', expect: /^C7$/,
     find: '                and (payload_open <> c_pin or coalesce(payload_close, c_pin) <> c_pin)) then\n',
     repl: '                and false) then\n' },
-  { name: 'noInputCheck', why: 'P2 counts a probe whose input was not retained (no replay possible)', expect: /C8/,
-    find: '     and input is not null;\n', repl: ';\n' },
+  { name: 'noInputCheck', why: 'P2 counts a probe whose input (and seed) was not retained (no replay possible)', expect: /^C8$/,
+    find: '     and p.input is not null and p.seed is not null\n', repl: '' },
   { name: 'noCapBodyCheck', why: 'P4 accepts the partied short-circuit', expect: /C15/,
     find: "         and position('hr_partied(p_user, p_slot) then return v_cap' in p.prosrc) = 0\n         and position('or public.hr_partied(p_user, p_slot) then' in p.prosrc) > 0) <> 1 then",
     repl: '         ) <> 1 then' },
-  { name: 'noSpanFloor', why: 'P2 floor at 11 probes AND 4 h: 44 h of evidence arms', expect: /C19/,
-    find: '  if v_n < 12 or v_ms < 48 * 3600 * 1000 then', repl: '  if v_n < 11 or v_ms < 4 * 3600 * 1000 then' },
   { name: 'noPreStall', why: 'P4 arms over an unwatched/stalled combat shadow', expect: /C17/,
     find: "  if coalesce((v_stall->>'judged')::boolean, false) is not true\n     or coalesce((v_stall->>'stalled')::boolean, true) is not false\n     or not coalesce((v_stall->'watched_channels') ? 'combat', false) then",
     repl: '  if false then',

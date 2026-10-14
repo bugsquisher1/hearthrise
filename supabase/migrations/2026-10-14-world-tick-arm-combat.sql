@@ -71,9 +71,9 @@ begin
   if c_pin !~ '^[0-9a-f]{64}$' then
     raise exception 'ARM-P0: c_pin is not a 64-hex payload_sha256 — the Security GO commit fills it with the live payload R1 + R2 read GREEN on';
   end if;
-  if cardinality(c_replayed) < 4
+  if coalesce(cardinality(c_replayed), 0) < 1
      or exists (select 1 from unnest(c_replayed) e where e !~ '^[0-9]+:[0-9a-f]{64}$') then
-    raise exception 'ARM-P0: c_replayed is not >= 4 <probe id>:<64-hex digest> pairs — the Security GO commit pastes what tests/world-tick-combat-replay.mjs --live --attest printed';
+    raise exception 'ARM-P0: c_replayed is not a list of <probe id>:<64-hex digest> pairs — the Security GO commit pastes what tests/world-tick-combat-replay.mjs --live --attest printed';
   end if;
 
   select * into v_cfg from public.hr_tick_config where id;

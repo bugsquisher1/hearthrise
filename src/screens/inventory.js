@@ -76,9 +76,7 @@ var CATEGORIES = [
   {id:'mats',    glyph:'uiOre',    name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
   {id:'seeds',   glyph:'uiSeed',   name:'Seeds',        test:function(it){return it && it.seed;}},
   {id:'bones',   glyph:'uiBone',   name:'Bones',        test:function(it){return it && it.buryXp;}},
-  {id:'tools',   glyph:'uiPickaxe',name:'Tools',        test:function(it){return it && it.type==='tool';}},
   {id:'recipes', glyph:'uiScroll', name:'Recipes',      test:function(it){return it && it.recipe;}},
-  {id:'comp',    glyph:'uiPaw',    name:'Companions',   test:function(it){return it && it.type==='companion';}},
 ];
 
 window._invFilter = {category:'all', search:''};
@@ -370,20 +368,8 @@ function renderInvFancy(){
   /* Inject Tibia doll into the host */
   var host = document.getElementById('invc-doll-host');
   if(host && typeof window.buildTibiaDoll === 'function'){
-    var doll = window.buildTibiaDoll(), _ench = null;
-    /* b392: the enchant entry point, mounted on the Inventory gear surface.
-       Before this, the Inventory tab — the very surface the Combat loadout note
-       tells players to use to "manage gear" — had NO way to enchant a weapon, so
-       "I don't see an enchant option" was literally true here. It now sits right
-       under the paper doll, beside the weapon a player is looking at. Rebuilt on
-       every renderInvFancy, so it tracks the equipped weapon + bound element. */
-    if(typeof enchantAffordanceHtml === 'function'){
-      _ench = document.createElement('div');
-      _ench.className = 'invc-enchant-mount';
-      _ench.style.cssText = 'width:100%;max-width:100%;box-sizing:border-box';
-      _ench.innerHTML = enchantAffordanceHtml();
-    }
-    HearthrisePaint.mount(host, [doll, _ench]);
+    var doll = window.buildTibiaDoll();
+    HearthrisePaint.mount(host, [doll]);
   }
 }
 
@@ -534,7 +520,7 @@ function makeTileDraggable(tile){
       if(t === 'doll' || t === 'slot') return;
       /* Find specific slot via class list */
       var slotKey = null;
-      ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'].forEach(function(s){
+      ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots'].forEach(function(s){
         if(slot.classList.contains('td-'+s)) slotKey = s;
       });
       if(slotKey && isSlotCompatible(def, slotKey)){
@@ -561,7 +547,7 @@ function makeSlotDroppable(slot){
   slot.dataset.dropWired = '1';
   /* Find slot key from class list */
   var slotKey = null;
-  ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'].forEach(function(s){
+  ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots'].forEach(function(s){
     if(slot.classList.contains('td-'+s)) slotKey = s;
   });
   if(!slotKey) return;

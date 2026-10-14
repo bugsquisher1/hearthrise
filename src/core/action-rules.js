@@ -20,7 +20,6 @@ import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=577';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject } from '../data/rule-subjects.js?v=577';
 import { END_ORDER, SESSION_LIMITS } from '../data/hunt-sessions.js?v=577';
 import { applyBuffSegment } from './buffs.js?v=577';
-import { hashSeed } from './rng.js?v=577';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
@@ -30,17 +29,12 @@ export function swingSeedLabel(sessionId, swingIndex) {
   return 'hunt:' + String(sessionId) + ':' + int(swingIndex, 0);
 }
 
-/* THE PER-SWING SEED. `sessionSeed` is hr_seed(user, slot, 'hunt:'||session_id):
-   secret-mixed, so a client cannot predict a roll, and fetched ONCE per settle
-   (a per-swing hr_seed call would be ~1,500 round trips a character-hour).
-   The swing index is mixed in here, so the stream depends on the swing and
-   never on the window that happened to contain it. */
-export function huntSwingSeed(sessionSeed, sessionId, swingIndex) {
-  if (sessionSeed === undefined || sessionSeed === null || sessionSeed === '') {
-    throw new Error('huntSwingSeed: a hunt session needs ctx.sessionSeed (hr_seed of the session) — refusing an unseeded swing');
-  }
-  return hashSeed(String(sessionSeed), swingSeedLabel(sessionId, swingIndex));
-}
+/* THE PER-SWING SEED is NOT derived in this file (Security, C1 review item 3).
+   The label above is mixed with the session's 64-bit secret by a keyed hash
+   (HMAC-SHA256, supabase/functions/hr-accrue/hunt-seed.js) and handed to the
+   engine as `ctx.swingSeed(swingIndex)`; combat-sim.js refuses a swing
+   without it. A 32-bit text hash here (FNV-1a, the first draft) collapsed the
+   secret into one 32-bit state an observer could brute-force from swings. */
 
 function bagLine(hs, id) {
   const b = hs && hs.bag;
@@ -133,10 +127,25 @@ function resolveSlot(slot, v) {
   return { id: want, group: kind };
 }
 
+/* A queued press, as stored (`{slot, at}`, hunt_sessions.presses, at = the
+   server instant of the press in epoch ms) or as a bare slot index (a press
+   with no time, due at once). */
+function pressOf(e) {
+  if (e && typeof e === 'object') {
+    const at = Number(e.at);
+    return { slot: int(e.slot, -1), at: Number.isFinite(at) ? at : -Infinity };
+  }
+  return { slot: int(e, -1), at: -Infinity };
+}
+
 /**
  * THE DECISION. Pure: reads a view, returns what fires, mutates nothing.
  *
  * Pending manual presses go first, in press order, then the slots in order.
+ * A press is never considered before its own `at` (lane C2: the press lands at
+ * the first swing boundary at or after the moment it was made — never earlier,
+ * so a press cannot reach back into a window it did not see). A press not yet
+ * due keeps its place in the queue.
  * At most ONE use per cooldown group per swing, and none while the group's
  * cooldown runs. A press skips its slot's conditions — that is what pressing
  * means — and nothing else: it waits out a cooldown like a rule would, so a
@@ -145,7 +154,7 @@ function resolveSlot(slot, v) {
  * is dropped with its reason.
  *
  * @param v { hs, hp, maxHp, buffs, atMs, buffScale }
- * @returns { uses: [{slot, id, group, manual}], keep: [slot…], dropped: [{slot, why}] }
+ * @returns { uses: [{slot, id, group, manual}], keep: [press…] (as queued), dropped: [{slot, why}] }
  */
 export function fireRules(v) {
   const hs = v.hs;
@@ -154,10 +163,13 @@ export function fireRules(v) {
   const used = new Set();
   const out = { uses: [], keep: [], dropped: [] };
   const ready = (g) => !used.has(g) && !(Number(cd[g]) > v.atMs);
-  for (const idx of Array.isArray(hs.presses) ? hs.presses : []) {
+  for (const entry of Array.isArray(hs.presses) ? hs.presses : []) {
+    const p = pressOf(entry);
+    const idx = p.slot;
+    if (p.at > v.atMs) { out.keep.push(entry); continue; }
     const r = resolveSlot(slots[idx], v);
     if (!r.id) { out.dropped.push({ slot: idx, why: r.why }); continue; }
-    if (!ready(r.group)) { out.keep.push(idx); continue; }
+    if (!ready(r.group)) { out.keep.push(entry); continue; }
     used.add(r.group);
     out.uses.push({ slot: idx, id: r.id, group: r.group, manual: true });
   }

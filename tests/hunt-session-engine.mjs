@@ -35,6 +35,12 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+/* THE SEEDER IS THE EDGE'S (lane C2): HMAC-SHA256 keyed by the session's 64-bit
+   secret, injected as ctx.swingSeed — the engine has no seed of its own. Taken
+   from the REPO, never from a mutant's temp copy of src/core: the mutants plant
+   defects in the engine, and the seeder is not the engine. */
+const { swingSeederFor } = await import(pathToFileURL(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'hunt-seed.js')).href);
+const seederOf = (seed, sid) => swingSeederFor(String(BigInt(seed)), sid);
 
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
@@ -75,7 +81,7 @@ function melee(M, seed) {
   });
   const state = { activeMonster: 'rat', playerHp: 12, playerMaxHp: 12, huntSession: hs, stats: {},
     deathsTodayBefore: 1, deathsLifetimeBefore: 9, inventory: {} };
-  const ctx = { tickMs: 2400, sessionSeed: seed, monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+  const ctx = { tickMs: 2400, swingSeed: seederOf(seed, hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     playerRolls: () => ({ accuracy: 0.55, maxHit: 3, critChance: 0.05 }),
     monsterRolls: () => ({ accuracy: 0.7, maxHit: 7 }) };
@@ -93,7 +99,7 @@ function ranged(M, seed) {
   });
   const state = { activeMonster: 'rat', playerHp: 30, playerMaxHp: 30, huntSession: hs, stats: {}, inventory: {},
     equipment: { weapon: 'shortbow', ammo: 'iron_arrows' }, buffs: [] };
-  const ctx = { tickMs: 2200, sessionSeed: seed, monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+  const ctx = { tickMs: 2200, swingSeed: seederOf(seed, hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
     weaponType: 'ranged', bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     playerRolls: () => ({ accuracy: 0.7, maxHit: 4, critChance: 0.05 }),
     monsterRolls: () => ({ accuracy: 0.5, maxHit: 3 }) };
@@ -272,13 +278,13 @@ async function runArms(root) {
 /* Each mutant names the arm that must go red. */
 const MUTANTS = [
   { arm: 'TICK-1', name: 'the swing seed is indexed per window', file: 'src/core/combat-sim.js',
-    from: 'huntSwingSeed(ctx.sessionSeed, hs.id, swing)', to: 'huntSwingSeed(ctx.sessionSeed, hs.id, ticks)' },
+    from: 'createRng(swingSeedOf(ctx, swing))', to: 'createRng(swingSeedOf(ctx, ticks))' },
   { arm: 'TICK-1', name: 'the cooldown is stamped from the window start', file: 'src/core/action-rules.js',
     from: 'hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS', to: 'hs.cooldowns[u.group] = (Number(ctx.fromMs) || 0) + COOLDOWN_GROUPS' },
   { arm: 'BOTH-PATH', name: 'the knock-out clock is not carried across a settle', file: 'src/core/combat-sim.js',
     from: 'state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;', to: 'state.recoveringUntilMs = 0;' },
   { arm: 'TICK-MANUAL', name: 'a press skips the cooldown', file: 'src/core/action-rules.js',
-    from: 'if (!ready(r.group)) { out.keep.push(idx); continue; }', to: 'if (used.has(r.group)) { out.keep.push(idx); continue; }' },
+    from: 'if (!ready(r.group)) { out.keep.push(entry); continue; }', to: 'if (used.has(r.group)) { out.keep.push(entry); continue; }' },
   { arm: 'BAG', name: 'a heal is eaten without leaving the bag', file: 'src/core/action-rules.js',
     from: '    spendFromBag(hs, u.id, 1, atMs);', to: '    if (u.group !== \'heal\') spendFromBag(hs, u.id, 1, atMs);' },
   { arm: 'HEAL', name: '*heal is plain cheapest-first', file: 'src/core/action-rules.js',

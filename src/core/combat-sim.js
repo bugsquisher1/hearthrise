@@ -74,7 +74,7 @@ import { recoveryFor, resumeHpFor } from './recovery.js?v=577';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, huntSwingSeed } from './action-rules.js?v=577';
+import { runActionBar, spendFromBag, endReasonAt } from './action-rules.js?v=577';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
@@ -563,6 +563,28 @@ function repairFight(state, ctx) {
   if (!(state.playerHp > 0)) state.playerHp = state.playerMaxHp;
 }
 
+/* THE PER-SWING SEED (ruling HR-2026-10-14 §4; Security, C1 review item 3).
+   INJECTED, never derived here: `ctx.swingSeed(swingIndex)` is the server's
+   keyed mix of the session secret (hr_seed(user, slot, 'hunt:' || session)) and
+   the label `hunt:<session>:<swing_index>` — HMAC-SHA256 in the edge
+   (supabase/functions/hr-accrue/hunt-seed.js), which needs a crypto primitive
+   this browser-shared file must not import. A 32-bit hash of the secret's TEXT
+   (the FNV mix this replaced) collapsed the 64-bit secret into one 32-bit state
+   recoverable from observed swings. No seeder, or a seeder that answers
+   anything but an unsigned 32-bit integer, refuses the swing: an unseeded hunt
+   swing is a predictable one. */
+function swingSeedOf(ctx, swingIndex) {
+  const f = ctx && ctx.swingSeed;
+  if (typeof f !== 'function') {
+    throw new Error('simulateHuntSpan: a hunt session needs ctx.swingSeed(swingIndex) — refusing an unseeded swing');
+  }
+  const v = f(swingIndex);
+  if (!Number.isInteger(v) || v < 0 || v > 0xffffffff) {
+    throw new Error('simulateHuntSpan: ctx.swingSeed answered ' + String(v) + ', not an unsigned 32-bit integer');
+  }
+  return v;
+}
+
 /* Up again: same foe at full HP, the character at 40% (recovery.js). */
 function standUp(state, ctx) {
   const mr0 = (ctx.monsters || {})[state.activeMonster];
@@ -656,7 +678,7 @@ function simulateHuntSpan(state, ctx) {
     const facing = state.activeMonster;
     const botd = dayCtx(atMs);
     const swingCtx = Object.assign({}, ctx, { atMs, botd, fx,
-      rng: createRng(huntSwingSeed(ctx.sessionSeed, hs.id, swing)) });
+      rng: createRng(swingSeedOf(ctx, swing)) });
     const buffLive = hasActiveBuff(state.buffs);
     const r = (typeof fx.segment === 'function')
       ? (() => { let out; fx.segment(atMs, () => { out = simulateTick(state, swingCtx); }); return out; })()

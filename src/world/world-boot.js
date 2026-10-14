@@ -53,29 +53,37 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
+const fn = (o, k) => (o && typeof o[k] === 'function' ? o[k] : null);
+
 /**
- * What the town and home read this frame, from the client's copies of server
+ * What the town or home reads this frame, from the client's copies of server
  * state (each through the module that owns it). Every reader fails safe: an
  * unknown property rung is the first template, unknown rooms are none, an
- * unknown trophy set hangs nothing, an absent town view shows nobody.
+ * unknown trophy set hangs nothing, an absent town view shows nobody. The
+ * claimed-trophy wall is re-read only when the trophy mirror is replaced.
  */
-function readEnv(win, G) {
-  const fn = (o, k) => (o && typeof o[k] === 'function' ? o[k] : null);
-  const Rooms = win.HearthriseRooms, Tr = win.HearthriseTrophies, Town = win.HearthriseTown, TP = win.HearthriseTownPanel, I = win.HearthriseIdentity;
-  const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
-  const rooms = fn(Rooms, 'roomsMap') ? Rooms.roomsMap(G) : {};
-  const known = fn(Tr, 'claimsKnown') && Tr.claimsKnown() === true;
-  return {
-    kind: (pointer && pointer.kind) || 'idle',
-    rooms,
-    trophies: known && fn(Tr, 'wallRows') ? Tr.wallRows({ known: true, cap: 1000 }) : null,
-    roomName: (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id,
-    town: fn(Town, 'readTown') ? Town.readTown() : null,
-    pollMs: (Town && Town.TOWN_POLL_MS) || 25000,
-    you: (fn(I, 'displayName') && I.displayName()) || G.playerName || null,
-    canon: fn(I, 'canon') ? (n) => I.canon(String(n)) : null,
-    band: fn(TP, 'bandText'),
-    crierLine: fn(TP, 'crierLine'),
+function createEnvReader(win) {
+  let wallOf = null, wall = null;
+  return function readEnv(G, kind) {
+    const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
+    const I = win.HearthriseIdentity;
+    const env = { kind: (pointer && pointer.kind) || 'idle', you: (fn(I, 'displayName') && I.displayName()) || G.playerName || null,
+      canon: fn(I, 'canon') ? (n) => I.canon(String(n)) : null };
+    if (kind === 'home') {
+      const Rooms = win.HearthriseRooms, Tr = win.HearthriseTrophies;
+      env.rooms = fn(Rooms, 'roomsMap') ? Rooms.roomsMap(G) : {};
+      const known = !!fn(Tr, 'claimsKnown') && Tr.claimsKnown() === true && !!fn(Tr, 'wallRows');
+      if (!known) { wallOf = null; wall = null; } else if (wallOf !== G._bestiaryTrophies) { wallOf = G._bestiaryTrophies; wall = Tr.wallRows({ known: true, cap: 1000 }); }
+      env.trophies = wall;
+      env.roomName = (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id;
+    } else {
+      const Town = win.HearthriseTown, TP = win.HearthriseTownPanel;
+      env.town = fn(Town, 'readTown') ? Town.readTown() : null;
+      env.pollMs = (Town && Town.TOWN_POLL_MS) || 25000;
+      env.band = fn(TP, 'bandText');
+      env.crierLine = fn(TP, 'crierLine');
+    }
+    return env;
   };
 }
 
@@ -118,8 +126,10 @@ export async function bootWorld(panel) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
+  const readEnv = createEnvReader(win);
 
   function paintChrome(sc) {
+    stage.classList.remove('is-hot');
     const title = chrome.querySelector('.world-title');
     if (title) title.textContent = ROWS.get(sc.map).name;
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {
@@ -154,8 +164,7 @@ export async function bootWorld(panel) {
     if (!walk || walk.map !== map) {
       walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF });
     }
-    const env = readEnv(win, G);
-    const f = walk.frame(env, now);
+    const f = walk.frame(readEnv(G, map.kind), now);
     notePos(G, map.id, f.hero.x, f.hero.y);
     lastWalk = { hero: f.hero, cell: walk.cell(), units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })), bubbles: f.bubbles.map((b) => b.text), mark: f.mark };

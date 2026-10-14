@@ -3994,3 +3994,21 @@ Canvas 2D World pane (Home's second pane) behind `{mount,setMap,sync,snapshot,de
    busy box, drive `__smokeTest({only})` from a scratch harness boot instead.
 5. *Headless rAF is not the game's frame rate.* Idle rAF was 17-32/s on the loaded box; measure loop
    frames against raw rAF before blaming a throttle.
+
+## 2026-10-14 — lane W4, the town and the home (`lane/w4-world-town-home`)
+
+Walkable scenes in the World pane: `src/world/{walk-scene,town-scene,home-scene,steer-local}.js` over
+`src/data/world/{stations,house-layouts}.js`; guard `tests/world-town-home.mjs` (+`--selftest`, 13 mutants).
+
+1. *Read the record seam, not the field.* `G.rooms` set by hand reads as NO rooms: rooms are server-of-
+   record, so `HearthriseRooms.roomsMap(G)` is empty until an envelope (or `stampRecordLikeLoad`) states
+   them. The first home screenshot was all signposts for exactly that reason, which is the correct answer.
+2. *A lint over the superset proves every subset.* Each room's signpost stands on its first piece's tile,
+   so "every rung of every room placed at once" blocks a superset of any real house; one L-REACH run over
+   it proves no build order can wall off a tile. Three yard layouts failed it before one passed.
+3. *A redundant rule needs its own fixture.* "No peer inside a building" never bit on the town (its
+   buildings are closed, so their floors are unreachable anyway); it only goes red on the cottage map.
+4. *Python text mode on Windows writes CRLF.* Every `open(p,'w')` edit flipped a file's endings; git
+   normalised the blob, but the working copy diverged. Use the Edit tool or `newline=''`.
+5. *Plan inputs get checked against the schema.* `state.plot_level` is farm soil, not the house; the
+   template keys on the property rung (CONFLICTS.md 2026-10-14).

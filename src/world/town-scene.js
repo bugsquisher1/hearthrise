@@ -20,7 +20,7 @@ import { inRect } from './core/grid.js?v=577';
 import { hash32 } from './choreo.js?v=577';
 
 /** An away peer is drawn at this alpha: there, but not at the keyboard. */
-export const AWAY_ALPHA = 0.55;
+const AWAY_ALPHA = 0.55;
 
 /** The stand tile for an activity kind: its own station, else the fallback, else the start. */
 export function stationOf(map, kind) {
@@ -57,6 +57,7 @@ function standTiles(map) {
  * @param {{canon?: (name: string) => string}} [o]
  */
 export function placePeers(map, peers, o = {}) {
+  if (!peers || !peers.length) return [];
   const canon = o.canon || ((n) => String(n).toLowerCase());
   const tiles = standTiles(map);
   const taken = new Set();
@@ -92,7 +93,7 @@ const fresh = (view, now, pollMs) => !!view && view.status === 'ok' && Math.abs(
  * without the viewer, each name once.
  * @param {{pollMs: number, you?: string|null, canon?: Function}} o
  */
-export function peersOf(view, now, o) {
+function peersOf(view, now, o) {
   if (!fresh(view, now, o.pollMs) || !Array.isArray(view.peers)) return [];
   const canon = o.canon || ((n) => String(n).toLowerCase());
   const you = o.you ? canon(o.you) : null;

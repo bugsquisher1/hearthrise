@@ -41,7 +41,7 @@ This session is the **Coordinator**: the only writer on `main`; owns integration
 
 **Briefs are scoped by lane.** A bug brief = root cause + fix + ONE regression test that fails without it, target ≤30 min. Hardening (standing guards, mutation proofs, census re-pins) is a separate parallel branch that never blocks the fix.
 
-**Token budget (Tyler, 2026-10-11):** at most 3–4 lanes at once; batch related fixes into one lane; resume an agent (SendMessage) rather than spawn a new one; give exact paths so it doesn't re-read the repo.
+**Token budget (Tyler, 2026-10-11):** at most 3–4 lanes at once; batch related fixes into one lane; resume an agent (SendMessage) rather than spawn a new one; give exact paths so it doesn't re-read the repo. Read pages as text (`get_page_text`/`read_page`); screenshots only for the visual gate. Start a fresh Coordinator session daily from `current-state` rather than running one past repeated compactions; use lower effort for routine turns. Coordination logs before 2026-10-14 are in `.claude/coordination/archive/` — grep, never read whole.
 
 ### 3.2 Priority
 Player-visible bugs first, in the order a player meets them. No new feature track while a P0/P1 player-visible bug is open. Kill the CLASS, not the bug: sweep every field/surface of a "forgotten on reload" or "residue-ahead" bug and fix the whole list at once.

@@ -1,0 +1,1659 @@
+# CONFLICTS
+
+_Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
+
+## 2026-10-11 · BACKEND (lane: `lane/c-account-wallet`) → COORDINATOR + b567 discord-join + w0c login + SECURITY · **INTEGRATION: two staged gem grants write a column the wallet drops**
+
+**The change.** `supabase/migrations/2026-10-19-account-wallet.sql` (staged) moves gems + Hearth Tokens to `public.account_wallet` (one per account; Game Designer ruling 2026-10-11) and DROPS `player_state.gems` / `hearth_tokens`. Every gem credit goes through `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` — once per account per key, account-wide day cap, one `kind='wallet'` ledger row.
+
+**The conflict.** Neither interlock merges cleanly into `origin/main` (git conflicts, not hand-resolved): `lane/b567-discord-join` conflicts in 8 files (incl. `2026-08-11-catalogue.generated.sql`, `schema-apply-order.json`, `restore-census.baseline.json`); `lane/w0c-daily-and-login` in 10 (incl. `schema-drift.baseline.json`, `schema-apply-order.json`, smoke files). Semantically, once the wallet is applied: `2026-10-18-discord-gift.sql` credits `player_state.gems` and its §8 inserts that column → it FAILS TO APPLY; `2026-10-16-login-reward.sql`'s `hr_login_bonus_ready` reads `gems_in` per `(user, slot)` → it must read the account (`kind='wallet'` rows, any slot), and its hr_apply anchor (`progress_claim`) is untouched by the wallet's five edits.
+
+**Order.** Wallet first (it is the last file on main), then each lane merges main into itself and converts: discord → `hr_wallet_credit(v_uid, p_slot, c_gift_gems, 'discord_gift', null)` (the once-row stays; the key makes it structural); login → gems via the engine already pass through the wallet under `apply:<journal.intent>`.
+
+**Also found (not fixed — owners: Game Designer + Systems).** `world_event_absence_claim__ungated` returns `gems: 1` for an absent pledge, but no server body credits that gem (verified by a census of every function naming gems, replay and production); under the armed record the client does not credit it either, so the receipt promises a gem that never lands (§6 class). Its gold (750) is said to be owned by "the gold arm" — not traced here.
+
+**F1 (Security GO-WITH-CHANGES on 59c3852e) — BLOCKED, not authored, 2026-10-11.** On `origin/main`, `world_event_pledges.slot` is the rally **window** (1 | 13), not a hero (2026-08-09-rally-v2.sql). Crediting the absence gold to `v_p.slot` as specified would pay hero 1 for a window-1 pledge and nobody for window 13 (main's chest items already land on that wrong slot — a live bug). The correct target is `world_event_pledges.char_slot` (muster rev.2), which exists only on `lane/b567-quest-xp-absence-pay` (via b567-muster-xp-server). That lane already credits the absence gold + gems to `char_slot` and budget-checks them — but into `player_state.gems`, and it conflicts with `origin/main` in 9 files (it carries w0a), so it cannot be merged into the wallet lane without hand-resolving another lane's SQL. **Route:** b567 merges main + `lane/c-account-wallet`, applies AFTER the wallet, and changes exactly: gems via `hr_wallet_credit(auth.uid(), v_cs, v_gems_out, 'world_event_absence:' || v_day_key, now() + interval '3 days')`, the response/journal echo `gems_paid`, no `gems_in` on its own row (the wallet row carries it), its §8 fixtures without `player_state.gems`; plus the attended test Security asked for (wallet and gold actually move).
+
+## 2026-09-28 · SYSTEMS (lane: `lane/blessings-promise-honesty`) → GAME DESIGNER + COORDINATOR · **HONESTY: Blessings promised speed, yield, gold find and XP the realm never pays — WITHDRAWN**
+
+**The claim.** Home ("The realm"), the Events blessing card, the login toast and the note beside the running activity printed each day's and week's blessing as a magnitude — "+4% gather speed", "+2 farm yield", "+3% gold find", "+4% all XP", "−25% burn chance" — "while online". `src/features/world-events.js` backed it by wrapping `window.getBonus` with a blessing layer, so the browser predicted rates and yields from it.
+
+**The server truth.** `bonusFor` in `supabase/functions/hr-accrue/accrual.js` sums three layers — rooms/perks (fused), the equipped companion, the buff queue — and has NO blessing layer; no migration or RPC reads a world event. The engine pays a blessed player exactly what it pays an unblessed one. §6: the browser said one thing and the server another.
+
+**Withdrawn.** The getBonus layer, every pool `bonus` table, `bonusFor`/`liveBonusFor`/`summaryFor`/`KEY_LABEL`, the power budget's blessing part, the activity-note effect, and the sentences "blessings … pay while you play" (Home away card, activity-bar tooltip). The pools keep their ids, names, order and glyphs (the day's pick is unchanged); each `desc` now says what the day is FOR in the realm's words, no number. The card still says a blessing is active while online.
+
+**→ Game Designer.** If blessings should pay again, it is a lane-C engine layer (`AWAY_SCOPE.blessing` already exists and is `false`), a Security GO, then copy that quotes the server's number — never a client magnitude first. `tests/blessing-promise-honesty.mjs` is RED on any blessing magnitude, getBonus layer, calendar-amount reader or "blessing pays/speeds/yields" sentence in shipped client code until then.
+
+## 2026-09-14 · SYSTEMS (lane: gem-unlock + recipe-learn client half) → COORDINATOR · **TWO LANES ARE WRITING `src/features/gem-unlocks.js`**
+
+Branch `lane/b547-gem-recipe-client` (worktree `agent-aade13cac01003e53`) created `src/features/gem-unlocks.js` and `src/features/recipe-scrolls.js` as ESM side-effect modules imported by `src/main.js`, publishing `ownsGemUnlock` / `gemUnlocksKnown` / `activeHouseTheme` / `buyGemUnlock` and `unlockedRecipesMap` / `knowsRecipe` / `readRecipeScroll` on `window`.
+
+A SECOND lane (`agent-afc3a91d534c61393`) is extracting the SAME file with a DIFFERENT shape — a classic-script IIFE relying on the global lookup, and a different API: `gemUnlockIsFree()` and `noteGemUnlockOptimistic()` (an OPTIMISTIC local grant of an unlock). Both cannot land.
+
+**Two real disagreements, not just a file collision.**
+1. **Optimistic ownership.** `noteGemUnlockOptimistic` writes the bought id into `G._gemUnlocks` before the realm answers. This lane deliberately does NOT: ownership is adopted only from `gem_unlocks` on the verdict or the next envelope, because a locally-granted entitlement that a refusal never retracts is the b371 sticking half in a new store (the scratch key rather than the residue bag). If instant feedback is wanted, it belongs in a render-only flag the purchase path cannot read.
+2. **`gemUnlockIsFree()` as a fallback for ownership.** Deciding "free ⇒ owned" from the CLIENT's `HOUSE_THEMES` literal re-derives an entitlement the realm already states: `hr_gem_unlocks_of` unions `where g.free`, so `theme:default` is in EVERY projection. A client-side free-list is a second answer to the one question, and it answers before the first envelope in a direction ("owned") this lane deliberately refuses.
+
+**Recommendation:** take one lane's file whole; do not merge the two by hand (§3.3). This lane's is green by exit code: `tools/lane-done.mjs` all green, suite 1293/1306 / 0 failed, `no-client-copy-of-projection` exit 0 with the OWED pin 3 -> 1 and the three raw-read pins at zero, and six planted defects turn its arms red.
+
+## 2026-09-13 · SYSTEMS (lane: Bestiary Charms phase 1) → ART DIRECTOR + GAME DESIGNER
+
+**Art Director.** The Bestiary modal (`src/render/bestiary.js`) grew a charm strip above the roster and an element line inside each discovered row, with a new `.charm-*` block in `src/styles/legacy.css`. Atlas glyphs only (`uiMedal` / `uiTarget` / `uiSpark`) and tokens only — the four rank tints are `color-mix(in srgb, var(--gold-2) N%, transparent)`, no colour literal was added (`css-literal-ratchet` exit 0), no emoji. Measured at 1440×900 and 852×393: no horizontal spill, chips wrap to two columns, zero console errors. If the strip wants a different home (its own header, or folded into the row) that is the Art Director's call — the markup is one function, `paintCharmStrip`.
+
+**Game Designer.** Two notes in `src/data/item-effects.js` were corrected, NEITHER flipped. `reveal_hidden_weak` STAYS `live:false`: both of its stated dependencies now exist (the element axis shipped with Elements v1; the bestiary reveal shipped here), but the KIND means the *item* half — jewelry that reveals without the kills — and its only carrier `unlit_earrings` has no recipe, no drop and no shop offer, so flipping it would correctly turn the reachability guard RED. `bestiary_rate` stays false as phase 2. The one player-facing information change: a class at rank ≥1 now prints its ELEMENT weakness in the Bestiary. The WEAPON weakness was already public (fight screen, monster cards, bounty notice); the element axis was printed NOWHERE before this (grepped). That reveal is the 2026-09-13 ruling, restated here so it lives on the record and not only in a lane brief.
+
+**Not a conflict, but a near-miss worth writing down.** `src/core/charms.js` folds kills into classes through `classOfMonster` and never reads `monster.cls`. `normalizeClass('extradimensional')` — the spelling every roster row and `MONSTER_CLASS_ORDER` use — returns **null**; the right answer only arrives because `classOfMonster` falls back to `family: 'Extra Dimensional'` with the space. Verified over the whole roster (108/108 resolve, 6 to `extra_dimensional`). Anyone who "simplifies" a class fold to the `cls` field silently loses Extra Dimensional — the one class whose hidden weakness this feature exists to reveal.
+
+## 2026-09-12 · SYSTEMS (lane: Depot client half) → the INVENTORY-RENDERER lane · **b327 is RED on `next`**
+
+```
+✗ b327: the bag survives a 423px-tall viewport — paione bug #24 (922x423 Android landscape)
+      the bag must own MORE than half the panel; chrome had 55%
+```
+
+Reproduced in `agent-a50e80b5a0c025fcb` after merging `origin/next` (7b45f2f8). **Proved it is not
+mine**: re-ran `--only "b327"` with the Depot toolbar button deleted from `renderInvFancy` — still
+red, same number. The inventory chrome grew in the renderer-deletion lane; that lane owns the fix.
+(b521 below is the same situation for the prayer-ladder lane and is already logged.)
+
+**A naming trap this lane had to navigate, for whoever touches the bank next.** `bankCap()` /
+`bankUsed()` / `G._bankCap` / `player_state.bank_cap` are the **BAG's** stack ceiling, not the
+Depot's — they are what `hr_bank_move` checks on a WITHDRAW (`bag_full`). The Depot's own ceiling is
+`c_max_bank_stacks = 1000` in `2026-08-27-bank-store.sql`, a server constant that `hr_state_of` does
+**not** project. The panel prints the bag cap from the mirror, prints the Depot's stacks stored, and
+shows a Depot ceiling only after the server names one in a `bank_full` refusal. "Fixing" the panel to
+print `/ 1000` would put a client-held number in front of a server capability (§6 residue-ahead).
+
+## 2026-09-12 · SYSTEMS (lane: sell-lock + loot filter) → the PRAYER-LADDER lane · **b521 is RED on `next`**
+
+```
+✗ b521: Bury starts the SERVER-SETTLED altar bench — no client XP, no client debit
+      the refusal must say why, got: "Need Lv 40 prayer"
+```
+
+Reproduced in `worktree-agent-a327111f17afbc40c` immediately after merging `origin/next`
+(`node tests/run-smoke.mjs --only "lock"` → **302/303**, and it is green without the merge).
+The ladder moved `bury_bone_chips` to req 40, so the bench's refusal sentence changed and
+b521's assertion on that sentence no longer matches. My commit touches no prayer / recipe /
+bury file. §4: a red in-page test is a P1 and the GitHub `smoke` job fails on ANY ✗, so this
+has to be fixed at its source before the cut — not carried.
+
+## 2026-09-12 · SYSTEMS → whoever owns the BOUNTY BOARD · **`window.BOUNTY_BOARD_TIER_BY_LEVEL` is a COPY of the core value** (found in `lane/b544-prayer-ladder-item-gates`, NOT fixed there)
+
+Not a git conflict — a defect found while paying down the test-file ratchet, in a lane that had
+no business fixing it.
+
+**What.** The "Phase 0: the balance constants are ONE object" test pins core exports by IDENTITY
+from a hand-written LIST. Deriving that list from `Object.keys(HearthriseCore.bounty)` instead —
+which is strictly what the test claims to check — turns it RED on one row:
+
+    window.BOUNTY_BOARD_TIER_BY_LEVEL is a COPY of the core value, not the core value
+
+Every other `C.bounty.*` export shares identity with its `window.*` twin. This one does not, which
+is the data double-copy class CLAUDE.md §7 exists to stop: a retune in `src/core` would not reach
+the board, silently.
+
+**Why it was not fixed here.** This lane is Prayer rows + item gates. Widening the pin would have
+put an unrelated red in the in-page suite, and a red in-page test is a P1 that blocks every later
+build's CI gate. The list therefore STAYS a list, with the finding written above it in
+`src/features/smoke-test.js` so the next reader cannot mistake it for laziness.
+
+**What is needed.** Publish the core object rather than a copy (one line, wherever
+`BOUNTY_BOARD_TIER_BY_LEVEL` reaches `window`), then replace the list with the derivation so the
+pin covers every future export the day it is added. Exit-code proof: with the derivation in place
+`node tests/run-smoke.mjs --only "COPY of the core"` reports 1/2 and names the row.
+
+---
+
+## 2026-09-12 · SYSTEMS → GAME DESIGNER + ART DIRECTOR · **SEMANTIC: the Manual and Scavenger dungeon buttons now REST** (`lane/b540-dungeon-cooldown-client`)
+
+Not a git conflict — a change of MODEL on a surface two other roles reason about.
+
+**What changed semantically.** The dungeon card used to say, in code and in a comment, "Manual runs
+ignore the auto-run cooldown". With the server lane applied that is false: `hr_dungeon_cooldown_modes()`
+is `{auto:1, manual:1, scavenger:4}` — nothing is exempt — so the Manual/Scavenger button is now gated
+on ITS OWN window (a quarter of the dungeon's for scavenger, the full one for a phase run). A player who
+could previously grind a scavenger run back-to-back forever now waits 1h on the Crypt.
+
+**The Designer's to confirm or narrow.** The divisor table is the server's and is one line to retune
+(`2026-09-12-dungeon-cooldown.sql` §2). The client only READS it — I authored no number. What is the
+Designer's is whether a quarter window is the right price for a mini-game whose loot is mostly TRADEABLE.
+
+**The Art Director's.** A card can now render TWO disabled run buttons ("On cooldown — 4.0h remaining"
+plus "Scavenger · 1.0h remaining") where it used to render one. The manual label deliberately REPLACES
+the "On cooldown — " prefix rather than adding to it, so neither button is wider than the one that
+already ships, and a non-cooldown refusal (level, key) is still printed once. Not verified visually by
+me — the headless gate is the Coordinator's.
+
+**My brief and the staged migration DISAGREED, and the migration won.** The brief described a FLAT
+`dungeon_cooldowns = {id: ISO}` and "scavenger gets cooldown_s/4"; `96b60287` projects NESTED
+`{id: {mode: ISO}}` and refuses `bad_mode` off a new `hr_dungeons.scavenger_ok` catalogue column. I read
+the SQL and built to the SQL. If the server lane changes shape again, `reconcileDungeonCooldowns` in
+`src/net/accrue.js` is the ONE place the shape is parsed.
+
+**Not blocking.** Forward-compatible: with no `dungeon_cooldowns` in the envelope every dungeon surface
+behaves exactly as it does today (mirror absent → ready).
+
+---
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
+
+Not a git conflict — a change of MODEL on a surface two other roles reason about.
+
+**What changed semantically.** Home used to answer "what now?" in exactly one place: "Next up", one
+hero row chosen by closeness plus up to three dailies. There are now TWO answers while a first-day
+quest is open — a pinned "Your first day" chain above it — and they are explicitly de-duplicated:
+when the leading milestone is a row the card (or the daily list) already draws, the hero row is
+**suppressed**, and if that empties the section the section is **removed**. Anything that reasoned
+about Home as "milestone + dailies" is now wrong for a day-one account.
+
+**Why it needs the designer's eye, not just mine.** The launchpad ruling ("an open chain quest beats
+a zero-progress skill milestone") and the card together mean a brand-new player is **never** shown a
+skill milestone on Home while the chain is open — the ruling makes the chain quest win, and the card
+then suppresses it as a duplicate. That is a stronger outcome than the ruling asked for and I believe
+it is the right one (day one is the chain), but it is a design consequence and it is the designer's
+to confirm or narrow. Narrowing it is one line: drop the `inChain` clause and let the hero row repeat
+the card's current step.
+
+**Why the Art Director.** The card is a new top-level section on the game's first screen, and at
+922×423 I chose a density FLOOR (44px rows, gauge dropped on non-current rows) rather than a phone
+rhythm. See HANDOFFS.
+
+**Not blocking.** The lane is green and self-consistent either way; this is a ruling to record, not a
+gate to pass.
+
+## 2026-09-07 · SYSTEMS → COORDINATOR · **RESOLVED IN THE MERGE: b519's away-card holder and the restored receipt disagreed, and together they reopened b519's own bug** (`worktree-agent-aa4a6316109da010b` ← `main bdf4429f`)
+
+Not a git conflict — git merged both files clean. A **semantic** one, of exactly the b361 shape the
+visual gate exists for: two individually-correct branches, broken by their interaction.
+
+**The two models.** b519 (main) moved the Home "While you were away" card off
+`G.lastOfflineSummary` — every 90-second settle overwrites it — onto a module-scope holder in
+`accrue.js`, written in `applyEnvelope` when the receipt classifies away. Its header reasons the
+holder need not survive a reload because *"on reload the very next envelope re-states the absence
+anyway"*. **That premise is precisely what this branch measured false**: once a night has been
+paid, the next boot's hr-accrue answers `{accrued:false, reason:'idle'}`, `applyEnvelope` never
+runs, and nothing re-states anything. It is why `player_state.last_away_receipt` exists at all.
+
+**What the clean merge produced (measured on the assembled tree, not reasoned):** the restore
+seeded `G.lastOfflineSummary` only, the card drew at boot, and the FIRST 90-second sync evicted it
+— `card=DRAWS` at boot, `card=NONE` one sync later. b519's bug wearing this feature's clothes, for
+the one case the feature exists to serve.
+
+**Resolved here, in my own function, in one line** (`reconcileAwayReceipt`, `src/net/accrue.js`):
+the restore also seeds b519's holder, routed through `classifyReceipt` (one classifier — b361's
+property, never a local re-decision) and **hole-filling only** (a holder already populated belongs
+to an absence THIS session applied, which is the fresher statement). Nothing is credited by either
+write. Pinned by `F1b` in the in-page suite, driven through the real path and graded on the
+RENDERED band; mutation-proved (delete the line → red on the holder assert, then on "the restored
+night was evicted").
+
+**Nothing is left open.** Recorded because a one-line change that reconciles two agents' models
+should never land silently, and because the b519 comment's premise is still written in the file
+next to my correction — a future reader must find the correction, not just the premise.
+
+## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
+
+Not a git conflict — a change of MODEL, on a surface the Art Director owns the presentation of.
+
+**What changed semantically.** "A successful sign-up" used to be a *message* (`ui.say(...)`) on a
+form that stayed exactly as it was. It is now a **STAGE**: `buildGate()` has three
+(`form` / `sent` / `arriving`), the form's own nodes hide, and a panel with two controls takes
+their place. Anything that reasoned about the wall as "one form plus a note" is now wrong —
+including any future selector that assumes the first `.hr-gate-go` is the submit button (it was
+briefly the "I've confirmed" button; DOM order fixed and pinned by DOOR-3).
+
+**The copy I wrote is provisional and I am flagging it rather than defending it.** It is
+player-facing text on the highest-traffic screen in the product, written by the systems engineer
+who was fixing the plumbing. It lives in ONE pure place (`src/net/signup-door.js` —
+`signupSentCopy`, `arrivalErrorMessage`, `INVITE_REFUSAL`) precisely so it can be rewritten
+without touching the wall. Two constraints any rewrite must keep, both guarded:
+- it must NOT say "then sign in" or "sign in again" (that sentence IS the measured funnel bug);
+- it must NOT promise "you will land back here signed in" — that is only true if config gate 1 in
+  `docs/design/signup-door-config-gates.md` is closed, which this client cannot verify.
+
+**One vocabulary, two surfaces — resolved, not left open.** `src/settings-page.js`'s auth modal was
+rendering the server's raw prose for a refused invite while the front door rendered a classified
+sentence. Both now go through `classifyInviteRefusal()`. If you reword one, you reword both, which
+is the point.
+
+**Open question for the Art Director (mine to raise, not to decide):** the wall does not fit
+922x423 and did not before this build (CTA bottom y=524 pre-change, 553 post). Reachable by
+scrolling. Numbers and reasoning in HANDOFFS today.
+
+
+## 2026-08-31 · SYSTEMS → SECURITY · **REVIEW HEADER: the auto-eat completion build** (`fix/autoeat-fallback-and-arm`)
+
+Two behaviour changes ship together, both self-only, both under Designer rulings 2 and 2b
+(DECISIONS 2026-08-31). This is written FOR the reviewer: what moves, what cannot, and where to
+point a mutant.
+
+**⚠ EDGE REDEPLOY REQUIRED, AND FIRST.** Repo payload moves
+`c17cd6bd…` → **`00df251e…`** (it passed through `2efae5aa…` before ruling 2c landed on the same
+branch; ONE deploy, at ship). The suite's deployed-payload guard is RED until it lands (that is
+the guard working). Ordering is not cosmetic: with a NEW client against an OLD edge the two sides
+choose *different* foods for the same eat — the exact b499 NULL-food split, pointed the other
+way. Deploy the edge first, exactly as b499 did.
+
+**1 · WHAT THE CHOOSER CAN MOVE.** `src/core/auto-eat.js chooseFood` now picks, for an eat with
+no nominated food, the cheapest Provision that heals to full (processed before raw, then lowest
+`v`, then id) instead of the biggest healer. The ONLY thing it changes is **which item id gets
+`-1`** out of the player's own bag.
+- It does not change the QUANTITY (always exactly 1, unchanged).
+- It does not change the HP: every candidate in the covering set lands the player on `maxHp`, so
+  the post-eat value `min(maxHp, hp + heals)` is byte-identical. Proved over a full seeded night,
+  not argued: `cheapestSufficientGuard` in `tests/accrual-engine.mjs` runs 12 h twice, pre-ruling
+  chooser vs shipped, and asserts identical ticks / kills / crits / death / survivedMs / XP /
+  gold / loot / resulting HP while the bag bill drops 4.0x and 47.2x.
+- It does not touch gold, XP, drops, market, clan, leaderboard or any cross-player surface.
+- **Direction of the value change is DOWNWARD, always**: the server consumes strictly less book
+  value out of the player's own inventory. There is no input that makes it consume more.
+
+**2 · WHY A FORGED CLIENT VALUE CANNOT STEER IT.** The server runs the same chooser **on its own
+bag, with its own catalogue, against its own columns**:
+- the bag is `player_inventory` via `hr_state_of`, mutated only by the engine's own `addItem` /
+  `removeItem` during the span;
+- `items` (which carries `raw` and `v` — the two fields the new order reads) is a NAMED INPUT to
+  `computeAccrual` supplied by `supabase/functions/hr-accrue/catalogue.js`, which imports
+  `src/data/items.js` **at pack time**. It is not a request field and cannot be one — `requestGuard`
+  and `computeAccrualInputParity` already pin that, and `hostileGuard` proves unnamed request keys
+  are inert;
+- the only client-expressible auto-eat inputs remain the three `hr_set_auto_eat` columns, which are
+  entitlement-gated, clamped, journalled and rate-limited (30/h, rejections billed).
+- A forged `raw` or `v` therefore has nowhere to enter. There is no new client input in this build.
+
+**3 · THE ARMED TOGGLE (`SYNC_ENABLED_TOGGLE = true`).** No new RPC, no new column, **no SQL at
+all**: `hr_set_auto_eat` already refuses the entitlement gate only *on the way ON*
+(2026-08-29-auto-eat-tiers.sql: *"a player must always be able to switch it off"*), so the arm is
+a client line reaching an existing, already-reviewed verb.
+- The value direction is **strictly downward for the actor**: auto-eat only heals, so disabling it
+  can only shorten `survivedMs` and therefore the span that pays. It cannot raise any grant.
+- The counterpart is that the food stays in the bag — items the player already owned. Nothing is
+  minted and nothing crosses to another player.
+- The 0-heal outcome was ALREADY reachable before this build through the threshold dial's 0%,
+  which b499 shipped armed. This closes the gap between two equivalent controls; it does not open
+  a new one.
+
+**4 · THE RECEIPT'S NEW FIELDS.** `away.diedTo` (a monster id from the server's own catalogue) and
+`away.autoEat = {enabled, pct}` (stated by the engine off `eatCfg`, the object `fx.autoEat` was
+actually gated on). Both are **response-only**: they are not `delta` keys, so there is no
+unknown-delta-key surface (`shapeGuard` green), nothing reads them back into a grant, and they
+carry no other player's data. On the client they are **self-configuring**: absent → the receipt
+says nothing, never a guess.
+
+**6 · THE ZERO-DEFICIT REFUSAL (ruling 2c, E2).** `resolveAutoEat` refuses when `maxHp - hp <= 0`.
+It can only ever REMOVE a consumption of the actor's own item — it grants nothing, heals nothing
+(the eat it replaces restored 0 HP by definition), draws no RNG, and shortens no span. There is
+no input through which it can be made to fire on a real deficit: it reads `hp`/`maxHp`, which on
+the server are `player_state` columns the engine itself advances during the span.
+
+**7 · WHERE TO POINT A MUTANT** (all six already run and land on exactly their target):
+restore `bestHealingFood` as `chooseFood`'s default → `cheapestSufficientGuard` A+B go red;
+delete the processed-before-raw clause → the named raw expect goes red alone; disarm
+`SYNC_ENABLED_TOGGLE` → `AUTOEAT-SYNC-3` goes red; make `receiptDeathCause` read the LIVE toggle
+instead of the receipt → `RECEIPT-DEATHCAUSE-1`'s "different instant" assertion goes red alone;
+delete the zero-deficit guard → the full-bar expect goes red; write that guard on the SETTING
+(`threshold < 1`) instead of the STATE → the 1-HP-deficit CONTROL goes red, which is the pair
+that proves the class was killed and not the instance.
+
+---
+
+### ✅ RESOLVED 2026-08-31 (same day, same branch) — a 100% auto-eat dial ate one Provision per swing at FULL health
+
+**RULED as DECISIONS §2c, option (a): refuse. BUILT on `fix/autoeat-fallback-and-arm`.** Security
+conditioned this lane's ship on it (E2), and the ruling is right about why: landing the chooser
+alone would have made this bug **50x cheaper and therefore 50x harder to notice**, while it
+drained the bag all night just the same.
+
+`resolveAutoEat` now refuses on `deficit > 0` — beside the existing `hp <= 0` early return and
+**before `chooseFood`**, so a call that will not eat does not also pick a food. The guard is on
+the STATE, not the setting: `threshold < 1` would fix the 100% instance and leave the class, and
+any future regen, heal-over-time or maxHp change walks back into the same `<=` boundary. The
+dial's top end reads *"100% — eat the moment I take any damage"* through the single
+`_autoEatHint`, riding with the fix rather than instead of it.
+
+**HP-identity re-verified and BYTE-IDENTICAL to the pre-2c run** — 1429 meals · 1,286,100 g →
+322,634 g · 2415 kills · 18556 ticks, and 48 meals · 40,800 g → 864 g · 16005 kills. No fixture
+had a full-bar eat baked into its meal count, so nothing needed re-pinning. Two mutants, each
+landing on its own target: delete the guard → the full-bar case eats again; guard the SETTING
+(`threshold < 1`) instead of the STATE → the 1-HP-deficit CONTROL goes red.
+
+Payload moves again: `2efae5aa…` → **`00df251e…`**. One deploy, at ship, edge-first.
+
+_The original filing is kept below for its reasoning._
+
+---
+
+### _(superseded by the ruling above)_ OPEN 2026-08-31 — SYSTEMS → DESIGNER: a 100% auto-eat dial eats one Provision per swing at FULL health
+
+Found while building ruling 2; **not fixed, because it is not mine to rule**, and it is not made
+worse by this build.
+
+`resolveAutoEat` eats when `hp / maxHp <= threshold`. At the Auto-Eat II ceiling the effective
+threshold is **1.0**, so a character sitting at full health satisfies `1 <= 1` and eats — a whole
+Provision for **0 HP**, on every swing, for as long as the dial is at 100%. It is reachable today
+by any tier-II owner, live, through a synced key.
+
+The ruling **reduces the damage without removing it**: with a 0 deficit every food "covers", so
+cheapest-sufficient now burns the cheapest Provision in the bag rather than the biggest healer.
+Measured on the late-game fisher bag that is 18 g a swing instead of 900 g.
+
+The design question is whether an eat that restores nothing should happen at all — i.e. should
+`resolveAutoEat` refuse on a zero deficit? Refusing is one line and would be HP-identical (it
+heals nothing either way), but it silently redefines what the top of the dial means, and "the
+dial's ends belong to the player" is the position ruling 2b just took. **Designer's call.**
+
+---
+
+### ⚠ OPEN 2026-08-31 — SEMANTIC: two incompatible models of what armour sells (Designer ↔ Systems)
+
+Not a merge conflict. Two live parts of the codebase hold different beliefs about whether
+DEFENCE is a scarce stat, and they are both acting on it.
+
+**Model A — `src/data/gear-tiers.js` (b497 cloth header, shipped yesterday).** Prices armour on
+defence: *"at full weight cloth would cost MORE than leather for an item of identical book value
+while carrying 45% less defence, which would kill the line."* The half-weight plank exists
+because of that sentence.
+
+**Model B — measured 2026-08-31 (DISCOVERIES, same date).** Monster accuracy floors at
+`monsterMinAccuracy = 0.10`, reached by a plate wearer from **Steel** and by a leather wearer
+from **Mithril**. At **Dawnsteel all three lines take identical damage (4.4/swing)**. Above
+tier 3, "45% less defence" costs the player nothing against tier-matched content, so Model A's
+premise — and therefore its 0.5x discount — does not hold in the half of the ladder it was
+written for.
+
+**Why it matters beyond cloth:** the same premise is load-bearing for the whole triangle
+(gear-tiers.js `ARMOUR_LINES` header: "plate buys survival"), for the two standing Tyler
+rulings recorded there, and for any future defensive item — including the offhand.
+
+**RESOLUTION PATH (not resolved here, deliberately):** Model B is a measurement and Model A is
+a design intent; the correct outcome is to make the intent TRUE rather than to delete it —
+i.e. the monster-attack tier scale (the Wave 5b `ACC_DEF_MUL` mirror, routed to Systems). Until
+that lands, **neither model should be acted on again**: b497's cloth line stays exactly as
+shipped (Designer ruling, DECISIONS 2026-08-31 §4) and no new defence-selling item ships
+(§3). Re-open the cloth cost expression only in the same build as the combat fix, so the two
+are re-measured together.
+
+**Owners:** Systems Engineer (the combat scale), Game Designer (the armour identities that
+depend on it). **Evidence:** the saturation + triangle tables in DISCOVERIES 2026-08-31.
+
+### ⚠ OPEN 2026-09-04 — b497 goal-gold retune MOVES the recorded forgery bound (Systems → Security)
+
+Branch `data/goal-gold-retune`. The Designer's gold-per-effort-minute ruling re-prices two of the
+**four kill-graded terms** the b493 bound is arithmetic over: `daily_kill` 500 → **600** and
+`daily_kill_big` 900 → **1,400**. `kill_any` (200) and `kill_more` (600 + 1 gem) are untouched, and
+**no XP, gem or item value moves anywhere in this change**.
+
+| | recorded (b493) | after b497 |
+|---|---|---|
+| gold · character-day | 2,200 | **2,800** |
+| gold · account-day (6 slots) | 13,200 | **16,800** |
+| gems / bones / hitpoints XP | 1 / 5 / 400 | unchanged |
+| ISO week | 2,500 g + 3 gems + 1,000 XP | unchanged |
+
+**The SHAPE that earned the b493 acceptance is unchanged** — the amount is read from
+`hr_goal_rewards` / the RPC's own CASE catalogue, neither of which any client role may write, and the
+forgeable `v_have` still appears only in the journal and the receipt. A forged counter remains a
+**gate**, never a multiplier. What moved is the amount, by +600 g/character-day = **0.06%** of one
+character's measured honest ~1.05M g/day from the live accrual path, against a 25,000,000 g/day
+server-wide inflow budget.
+
+Not silently absorbed: K10(2) in `tests/kill-daily-credit.mjs` still pins both numbers **by value**
+(the pin moved with the review rather than being loosened), `docs/design/combat-authority.md`'s
+ceiling table is updated with the derivation, and `2026-09-04-goal-gold-retune.sql` carries the
+arithmetic in its own SECURITY header. **Security: ratify or re-rule the new figure before the
+migration is applied.** Owner: Systems Engineer + Security.
+
+### ⚠ OPEN 2026-09-04 — cloth armour has no tiered material, and the ruled fix borrows one (Systems → Game Designer)
+
+The Designer ruled: *"scale cloth inputs with tier consistent with how plate/leather recipe lines
+scale."* Measured, the reason cloth did not scale is **structural, not a bad number**: plate and
+leather cost `[a TIER-INDEXED material] × [the slot's weight]`, and **cloth has neither term** —
+`silk_thread 2+i` + `magic_essence 1..2`, both untiered and both blind to the slot. There is no
+seven-rung textile ladder in `ITEMS` to scale against, and no arrangement of the two untiered
+reagents can carry a 600× output curve (parity would need ~250 units at tier 7).
+
+**What I shipped, and the choice it embeds:** cloth now draws the tier's **plank** at
+`ceil(slot.bars / 2)`, keeping thread + essence on top. Half-weight, not full, so cloth stays the
+cheapest of the three archetypes to make (its design identity) rather than costing *more* than
+leather for an item of identical book value with 45% less defence. Tier 1 moves 160 g → 178-214 g;
+the tier-7 vendor faucet ratio falls **700× → 11.2×** (plate tops out at 6.9×, leather 7.5×).
+
+**The semantic flag:** a robe costing enchanted *planks* is a fiction borrowed from the magic-staff
+line (yew/runewood/duskwood are already the magic woods, and staves are planks + magic essence). It
+is defensible, not ideal. **The ideal fix is a bespoke cloth-bolt ladder** — seven items, seven
+sources, art, drop tables — which is a content program, crosses Designer + Asset, and would strand
+every player who can craft cloth today. Recorded here rather than silently chosen. Designer: if the
+bolt ladder is wanted, this line becomes a one-row change to `MATERIAL_TIERS` (a `cloth:` column) plus
+the content behind it. Owner: Game Designer (call), Systems (mechanism).
+
+### ✅ 2026-08-29 — b493 SHIP BLOCKER: kill-goal XP vs K10's forgery bound — **RESOLVED by SECURITY, 2026-08-29. Option 2, in the reviewer's own guard.**
+
+**RULING (Security, the owner of the recorded verdict).** The new bound is **ACCEPTED**; the
+designer's ruling stands; kill goals keep paying `xp:{hitpoints:100/300/1000}`. Option 1 (re-gate on
+`hr_kill_credit_log`) and Option 3 (revert to gold-only) are both **rejected as disproportionate** —
+they would spend real complexity to defend 400 XP/day against a lane that already, by my own GO,
+accepts 5,000,000 client-submitted combat XP/character-day into the *same seven skills*.
+
+The decisive property is not the magnitude, it is the SHAPE: **a forged kill counter is a GATE, never
+a MULTIPLIER.** `hr_claim_goal` pays `v_cat.gold`/`v_cat.gems`/`v_cat.xp` read from `hr_goal_rewards`
+(RLS on, no policy, every client grant revoked), and the forgeable number `v_have` appears only in the
+journal and the receipt — never in an arithmetic that scales a payout. Ten thousand fabricated kills
+pay exactly what thirty honest ones pay. The client's influence is on *whether* the gate opens, once
+per period; never on *how much* comes through it.
+
+**CORRECTED RECORDED BOUND** (replaces "gold only"), per CHARACTER:
+| | per UTC day | per ISO week |
+|---|---|---|
+| gold | 2,200 | 2,500 |
+| gems | 1 | 3 |
+| bones | 5 (transitive via `gold_500`) | — |
+| **hitpoints XP** | **400** | **1,000** |
+
+Currency multiplies by the account's 6 slots (13,200 g + 12 gems + 30 bones/account-day). **The XP
+line does not reach a ranking off slot 0** — `leaderboard_ranked` reads `player_skills where slot = 0`.
+
+**THE NEW K10(3) INVARIANT** — "a kill-goal claim mints no XP" was never a control, it was a *defect*
+(the phantom `combat` skill meant players had never received the XP half of any kill goal). It is
+replaced by the property that actually bounds the surface, pinning all three catalogue terms:
+
+> A kill-goal claim moves `player_skills` by **exactly the catalogued amount, on exactly the
+> catalogued skill, and nothing else** — `hitpoints`, 100 / 300 / 1,000, **once per period**, with the
+> once-guard row consumed before any credit and a second claim moving zero XP, zero gold, zero gems.
+> The catalogue is pinned by value; a re-price, a re-point to another skill, or a lost once-guard
+> fails the build **by name** and re-opens this verdict.
+
+Landed in `tests/kill-daily-credit.mjs` and proven non-decorative by four new mutations —
+`goal_xp_repriced` (300 → 300,000), `goal_xp_repointed` (hitpoints → prayer),
+`goal_claim_reclaimable` and its `_gate_blind` twin. **All 17 mutations caught; the guard is green.**
+Note `tests/modal-goal-claim.mjs` BIND-PAY catches only a *one-sided* client↔server drift — a
+coordinated retune of both sides passes it, and K10(3) is the only thing that catches that. Do not
+delete it as duplicate coverage.
+
+Prose corrected in the same pass, in all four places the bound was recorded: the guard header,
+`tests/schema-apply-order.json`, the `2026-09-01-kill-daily-credit.sql` header, and
+`docs/design/combat-authority.md`.
+
+**RESIDUAL RISKS ACCEPTED, STATED:** (a) this XP is deliberately outside the shared 40M/day inflow
+budget (`gold_in`/`xp_in` = 0 — the muster/raid-chest and b414 rule), so the catalogue and the
+once-guard are its *only* bound, which is exactly why K10(3) now pins both; (b) a forger can still
+self-inflate ≤3,800 hitpoints XP/ranked-character-week — bounded, journalled by name
+(`goal_claim:<period>:<goal_id>`, `meta.xp`) and reversible.
+
+_Original report below, kept because its diagnosis was correct and its two failing assertions are
+what forced the verdict to be re-taken inside one release rather than a year later._
+
+**P1. Semantic conflict between two branches that were each green in isolation. This is not the `?v=` bug, and fixing that did not fix this.**
+
+Two integrated branches hold incompatible models of the same surface:
+
+- **`2026-09-01-kill-goal-xp-hitpoints.sql`** (integrate `aca6088f`, designer-ruled) re-prices every
+  kill goal from `xp:{combat:N}` to `xp:{hitpoints:N}` — 100/300/1000.
+- **`2026-09-01-kill-daily-credit.sql` + `tests/kill-daily-credit.mjs` K10** (integrate `4fac7beb`,
+  security-reviewed) concluded the change was safe *because* a forged/inflated kill counter reached
+  **gold only**. That held only because `combat` is not a row in `hr_skills`, so `hr_claim_goal`
+  routed the reward to `skipped_xp` and no `player_skills` row moved.
+
+`hitpoints` **is** a row in `hr_skills`. So the reward is no longer skipped — it is minted:
+
+```
+✗ K10: a kill-goal claim moved player_skills by 300 XP.
+      The review concluded a forged kill counter reaches gold only; an XP path changes that.
+✗ K10: the kill-goal reward no longer reports combat XP in skipped_xp — either the reward was
+      re-priced or it is being minted somewhere: {}
+```
+
+Why it matters: hitpoints feeds **combat level and the leaderboards**, so an inflated kill counter
+now converts into a RANKED value instead of gold. The XP branch's own header anticipated the
+neighbouring risk ("folding an existing `G.skills.combat` into `player_skills.hitpoints` would mint
+RANKED XP") and correctly refused a backfill — but the *claim* path was not re-examined, and K10's
+first assertion (`'combat' is now a row in hr_skills`) does not fire because the reward moved to a
+different key rather than the key becoming a skill. K10's 2nd/3rd assertions caught it.
+
+**Not resolvable in the QA lane** — it is a design-vs-security decision, and both positions are
+defensible. Options for the owners, in the order I'd rank them:
+1. Gate the kill-goal XP on the SERVER's own kill evidence (`hr_kill_credit_log`) rather than the
+   client-influenced daily counter — keeps the designer's ruling and closes the bound.
+2. Clamp + journal the XP so the reachable amount is bounded and reversible, and re-take the verdict.
+3. Revert kill goals to gold-only (loses the designer's ruling; last resort).
+
+Whatever is chosen, K10's prose must be updated in the same commit — it currently describes a world
+where kill goals pay `xp:{combat:N}`.
+
+**Repro:** `node tests/run-smoke.mjs` on `main` @ b493 → "Kill → daily-goal credit guard — FAILED",
+two ✗ under K10. Present in the pre-fix baseline log too, so it is independent of the cache-buster fix.
+
+---
+
+### 2026-08-23 — OPEN BETA: the CLIENT is codeless-optional BEFORE the SERVER is (Systems → Coordinator)
+Branch `agent-a4b1b5fffc2a6ed2a`. **Semantic conflict, not a git one.**
+
+This branch makes the invite code OPTIONAL on both signup surfaces. The server's gate — the
+AFTER INSERT trigger + auth hook in `supabase/migrations/2026-08-23-beta-invite-gate.sql` — is
+UNCHANGED and still refuses a codeless signup. I did not touch `supabase/**` (out of my lane, and
+out of scope for the task as given).
+
+So between deploying this build and switching that gate off, **every codeless signup is refused.**
+That window is handled rather than ignored: `humaniseAuthError(err, creating, hadCode)` now says
+_"Sign-ups are still switching over to open beta. Try again in a minute — or add an invite code if
+you have one."_ instead of blaming a code the player never typed. Transitional copy, but correct
+either way, so nothing has to be un-shipped once the gate comes off.
+
+**Ordering that avoids the window entirely: switch the SERVER gate off FIRST, then ship this build.**
+The old client always sends a code, so it keeps working against a gate that no longer requires one.
+The reverse order is the one that costs signups.
+
+**What the server must accept** — exact shapes, read off the real submit handler under test:
+- with a code → `POST /auth/v1/signup {email, password, data:{invite_code:"ABC-123"}}`
+- without → `POST /auth/v1/signup {email, password}` — **no `data` key at all**, so
+  `raw_user_meta_data->>'invite_code'` is SQL **NULL**, never `''`. A gate that only special-cases
+  `''` will refuse the normal case.
+
+**`tests/beta-invite-gate.mjs` was AMENDED, not gutted.** Its server half is untouched and still
+asserts the gate is AFTER INSERT, exactly-once, and fails closed. Its client half now asserts
+"a code travels when given, and NOTHING travels when not" — the old "a code always travels"
+assertions had become the opposite of the product. **Do not delete the server half when the gate is
+switched off:** a dormant gate that can be switched back on is worth more than one nobody can prove
+still works.
+
+### 2026-08-17 - CROSS-VERB COUPLING - `equip` (changes weapon) must clear `enchant.weapon` on BOTH sides (Systems -> Server agent)
+**ELEMENTS v1.** `G.enchant.weapon` is bound to the WEAPON, not the player: whenever the item in the
+weapon slot changes, the enchant is void. The client already reflects this — `clearEnchantOnWeaponChange`
+is called from every path that writes `G.equipment.weapon` (`equipItem`, `unequip`, `unequipSlotInv`),
+and `equipmentStats` belt-and-braces refuses to stamp `eq.element` unless the weapon slot actually holds
+a `type:'weapon'` item. **The SERVER must do the same:** the `equip` verb, when it changes the weapon
+slot's item, must clear its own `state.enchant.weapon`, and the envelope it returns must carry the
+cleared `enchant` so the client applier (`applyEnvelopeState`, which now authors `G.enchant` from
+`state.enchant`) reflects it. A same-item re-equip is a no-op and must NOT clear the enchant.
+If the server does not clear on weapon-change, a player keeps a +15% element on a weapon that no longer
+carries the rune until the next real enchant — a small but real over-credit. Client guard makes it
+inert locally; the durable fix is server-side. **Owner: the Edge `enchant`/`equip` agent.**
+
+### 2026-08-17 - HANDOFF - the vendored core changed; hr-accrue must repack + redeploy (Systems -> Server agent)
+`src/core/combat.js` (the `weaknessInfo` element factor + `equipmentStats` 3rd arg) and the new
+`src/core/elements.js` are vendored into `supabase/functions/hr-accrue`. The smoke preflight
+`deployedPayloadGuard` now reports a payload-digest drift (informational, non-fatal — the suite is
+still 0 failures). When the server builds the `enchant` verb it must: (1) call
+`equipmentStats(equipment, items, enchant)` with the player's authored enchant at its two accrual
+sites (`accrual.js` weakness + rolls) so away combat pays the element — the signature is
+backward-compatible (a missing 3rd arg stamps no element); (2) author `state.enchant.weapon` from
+`runeElement(rune, ITEMS)` (element name only, never a magnitude); (3) repack with
+`node tools/pack-edge.mjs hr-accrue --out <dir>` and redeploy. Contract for the client intent is in
+`src/net/enchant.js`'s header (verb body `{verb:'enchant',slot,intentId,enchant:{slot:'weapon',rune}}`;
+refusal codes `insufficient_item`/`wrong_slot`/`unknown_item`/`rate_limited`; collectsFirst).
+
+### 2026-08-17 - SEMANTIC - The accrual envelope writes `playerHp`, which `events.js` declares NO_SYNC (Designer -> Systems)
+**This is a real disagreement between two modules about who owns HP, and it produced a shipped
+player-facing bug.** `src/net/events.js` has said since it was written that `playerHp` /
+`playerMaxHp` are `NO_SYNC` - *"in-flight combat - belongs to the device you are fighting on"*. The
+snapshot honours that. `applyEnvelopeState` in `src/net/accrue.js` never did: it wrote the server's
+hp unconditionally.
+
+**Measured consequence (LIVE-AUDIT-2026-08-17, FTUE run 2):** a brand-new player died to the first
+slime and respawned at **2/10 HP**, then re-entered combat and died again. Nothing in the combat
+rules produces a 2 - `resolveDeath` full-heals and always has. The client resolved the death and
+healed to 10/10; an envelope for a window that ended *before* that death then landed and wrote the
+server's mid-fight hp over the respawn.
+
+**What I did (b373, client-side floor only):** an envelope may RAISE hp freely, and may lower it
+only while a fight is actually in flight (`G.activeMonster`). With no active monster there is
+nothing hitting the player, and the server itself agrees - `accrual.js` sets the activity pointer to
+idle in the same delta as a death. No economy exposure: hp is not tradeable, rankable or
+contributable, away combat runs with `activeMonster` set (full server authority preserved), and the
+refusal is recorded as `written.hpRefused` so the drift counter still sees it.
+
+**What SYSTEMS owns, and why the floor is not the fix.** The envelope already computes
+`summary.died`. The correct end state is that it says so, and reports POST-RESPAWN hp, so the two
+sides never disagree in the first place. Please do not let the client guard become the reason that
+never happens - and if you would rather delete the guard once the envelope is honest, do; the b373
+test "an idle player cannot be wounded by a server envelope" documents the property either way.
+
+### 2026-08-17 - DEPLOY COUPLING - A UI feature cannot cheaply touch `src/core/combat-sim.js` (Designer -> Systems, FYI)
+While building the death sheet I added a single field (`monsterId`) to the info object
+`resolveDeath` hands `fx.onDeath`. It turned the suite's **Edge payload guard** red: that file is
+packed into hr-accrue, so one changed byte - including a comment - demands a coordinated Edge
+redeploy before the client can ship. I reverted it and read `state.activeMonster` from the client
+instead (legal: `onDeath` fires before the caller stops the fight; asserted by a b373 test).
+**Not a complaint about the guard - it is doing its job.** Flagging it because it is a
+non-obvious cost that will bite the next person who adds a "harmless" field to a core sim, and it is
+worth knowing that a purely presentational need can force a server deploy.
+
+
+### 2026-08-16 · CSS · The `#panel-market` theme sweep owns every colour on the market screen (Systems → Art Director)
+**Found while building the b361 trade-ledger panel, by measurement in a real browser rather than by
+reading the sheets.** `src/styles/art-direction.css` carries
+
+    body[data-theme="hearthlight"] #panel-market :not(.shops-tabs, .bb-board, .sc-scene, .sc-counter,
+      .iap-card, .hr-cs, .hr-room, …) { color: var(--ink); … }
+
+with **no escape hatch**. Its sibling rule (`body[data-theme="hearthlight"] .panel.active span:not(…)`)
+does ship four — `[class*="gold"|"pill"|"chip"|"badge"]` — but the `#panel-market` form does not, and
+an id beats anything `audit-overrides.css` can reasonably write. Measured consequence:
+
+- `.mk-qty` asks for `color: var(--gold-2)` and renders `var(--ink)` in Hearthlight. **Every gold badge
+  on the market screen has silently lost its gold** — the `×10` quantity pills, the ledger amounts, all
+  of them. This is pre-existing and predates b361.
+- I tried three ways to distinguish "money in" from "money out" on the ledger (colour, then background,
+  then border). **All three were overridden.** Verified by computed style, not assumed.
+
+**What I did, deliberately:** nothing. I did NOT win the specificity war. Escalating a component rule to
+out-rank a theme sweep is exactly how the cozy-light override stack got built and what the b214 audit is
+still paying down, and it would have left a rule that breaks the day the sweep is narrowed. The ledger
+carries direction in WORDS instead — an explicit `+`/`−` on the amount and "Sold"/"Bought" leading the
+meta line — which is legible in both themes, under the sweep, and to a player who cannot distinguish the
+two colours at all. The block therefore added **zero theme-fragile CSS**.
+
+**Art Director owns the ruling.** The cheap fix is to give the `#panel-market` form the same four
+`:not([class*=…])` opt-outs its `.panel.active span` sibling already has; that restores gold to every
+market badge in one line and I would then re-add the two-tone ledger amount. Not doing it unilaterally:
+it repaints a whole screen in one theme, which is your call and not mine.
+
+## Conflict types to watch
+- **Code:** two agents editing overlapping lines/files.
+- **Semantic (the dangerous kind — no git conflict):** two agents holding incompatible models of how a system should behave. Example: Game Designer says "cooking should improve combat effectiveness"; Systems says "cooking currently only modifies XP." No merge conflict, but a real design/system conflict. Flag it.
+- **Design:** competing player-experience goals.
+- **Asset:** style/consistency disagreements.
+- **Architecture:** competing structural approaches.
+- **Integration:** a change that breaks another verified change on merge.
+
+## Open
+
+### 2026-08-16 · events-donations spec · THREE ROUTED FLAGS (Game Designer → Systems/Backend), pre-build
+From `docs/design/events-donations-and-voting.md` (The Kindling/The Beacon — AWAITING TYLER'S REVIEW-BOOK APPROVAL; nothing builds until then). Whoever implements must honour:
+1. **Fuse re-split.** The `getBonus('allXP') ≤ 0.60` assertion was written against PERMANENT power; donation-boosted blessings can put 0.17 on one key and break it. Ruling: `BLESSING_KEY_CAP = 0.12` (UI-visible, never a silent clamp) and the assertion splits into `permanent ≤ 0.60` / `calendar ≤ 0.12`. First-99 floor holds (~55.7d vs ≥54 gate) even at ceiling.
+2. **Do NOT move `utcWeekKey`.** It is Thursday-aligned and consumed by raids/quests. The Beacon gets its own `beaconWeekKey` (Monday 03:00 UTC reset = Sunday night in all four US zones year-round).
+3. **Away rule.** The donation boost mutates the blessing's own bonus map — it must NEVER get its own channel, or it silently starts paying away (`AWAY_SCOPE.blessing=false` is the rule). Spec test #7 is the tripwire.
+Also: retiring the muster chest removes ~7,500g + 10 gems/player/day of faucet while adding a sink — Systems must check the gem side (cosmetic access rate) before launch; designer ruled measure-a-week-then-adjust rather than pre-compensate.
+
+### 2026-08-15 · b343 · SEMANTIC — away combat now pays a new character's first night (Systems → Game Designer)
+Tyler removed the away-combat gate ("get rid of the license shit it's way too confusing"). Design should hold the real numbers, not read them off a changelog. **Measured, 400 seeds, live engine**, a fresh character (10 HP, bronze sword, no Auto-Eat, empty food slot) left on Slime for eight hours:
+
+| | before b343 | after b343 |
+|---|---|---|
+| outcome | span not simulated | **dies 100% of the time**, after **59.4s** (median 57.6s) |
+| kills | 0 | **4.49** (median 4, range 1–9) |
+| XP | 0 | **84.1** total (style + Hitpoints) |
+| gold | 0 | **~10** (median) |
+
+84 XP against `pacing-overhaul.md`'s 13,034,431-XP first-99 is **0.00065%** — the pacing floor does not move. **Auto-Eat is still the real gate on AFK combat**: without the trait nobody eats while you are away, so the night is over in a minute. That was always true and the licence was a second lock on it.
+
+**Two authored payouts are now reachable during an absence** and were not before, because a declined span was never simulated: `first_blood` (Defeat 5 monsters → 150g + 5 turnip seeds) completes at ~46% of first nights, and `hundred_kills` (1,500 combat XP) can complete for a player parked at 95+ kills. Both are **one-time per character** and both are minutes of attended play away, so neither is a faucet — but they are new value entering during the server-authority rebuild and Design should say yes rather than have it assumed.
+
+### ✅ 2026-08-15 · BLOCKER — RESOLVED IN b347 (Systems). The gather/artisan replay has a timeline; the held branch is unblocked. Full record under Resolved. Original text kept below because the measurement in it is the before-half of the fix.
+
+### 2026-08-15 · BLOCKER (code + semantic) — the away buff rule is landed in CORE only; the gather/artisan replay in `legacy.js` must land before this ships (Systems → whoever holds `src/legacy.js`)
+
+Branch `agent-a06ecbcee310aa2c7`. `AWAY_SCOPE.buff` is now `true` (Tyler, 2026-08-14: personal buffs pay away, server-wide blessings do not). That flag is a property of the SCOPE TABLE, so it opens for every away caller at once — but only one of them can honour the other half of the rule.
+
+- **away COMBAT** — `src/core/combat-sim.js simulateSpan` owns a timeline (it already segments by UTC day for the Boss of the Day). It drives the buff clock per tick, so a buff expires at the right instant. **Correct, measured, tested (AWAY-5 / AWAY-15).**
+- **away GATHER / ARTISAN** — `legacy.js processOffline` computes `ticks = floor(spanMs / offlineIntervalMs())` and runs that many identical actions. A flat single-rate loop: the interval is derived ONCE before the first action and nothing advances a clock inside it. It therefore **pays a buff for the whole absence and drains none of it.**
+
+**Measured exposure** (shipped food catalogue — magnitudes 1–5, durations 2–20 min): a `gather_speed` buff eaten immediately before logging off applies its speed term to the entire night (max **+4%**, via the one-shot `activityIntervalMs()` read); an `all_xp` buff applies to every action of the night (max **+5%**). Bounded, deliberate to trigger, and still the b326 exploit in miniature.
+
+**Second, player-facing half of the same defect:** `legacy.js` line ~1399 computes `buffsPaused` for the non-combat branch as "did they hold a buff", and `src/features/home-dashboard.js:565` prints "your buffs were paused" off it. On a gather night that copy is now a lie in both directions — nothing was paused, and it paid all night.
+
+**The fix is in `legacy.js`, not in core:** split the gather/artisan replay at the buff-expiry boundary — run `min(buffRemainingMs, spanMs)` of ticks with the buff live, call `advanceBuffClock` for that slice, re-derive `offlineIntervalMs()`, then run the remainder. Same shape `simulateSpan` uses, one level up. Then drop `buffsPaused` from the non-combat summary. **Do NOT "fix" it by closing `AWAY_SCOPE.buff` again** — that reverts a stated design rule to work around a loop that should have had a timeline all along. The full note is at the foot of `src/core/away.js`.
+
+Also stale and now wrong in `legacy.js` (comments + one player-facing string, all untouched because another agent holds the file): the `getBuffBonuses` header (~14220), `advanceBuffClock`'s drain-rules comment (~14328), `buffFrozen()` and its copy *"freezes entirely while you are away"* (~14454–14490), and the `buffsPaused` doc block (~1390).
+
+### 2026-08-15 · FINDING (no change made) — the offline cap does NOT stop the character; it caps the payout and shifts the window to the END of the absence (Systems → Coordinator / whoever owns the cap)
+
+Tyler's rule: *"after that player's 'max offline time' is reached, their character stops all activity."* **Measured behaviour today is the other one.** Driving the real `processOffline()` with a stubbed cap and `document.hidden` forced false:
+
+| scenario | absence | cap | PAID | `capped` | activity still running on return | sim window |
+|---|---|---|---|---|---|---|
+| gathering | 3h | 1h | 1h | true | **yes** (`activeSkill: woodcutting`) | n/a |
+| combat | 3h | 1h | 1h | true | **yes** (`activeMonster: slime`) | now−1h → now |
+| combat | 18h | 12h | 12h | true | **yes** | now−12h → now |
+
+So today: **(a)** the payout is capped and the activity is still running when the player returns — not **(b)** the character stops at the cap and returns idle.
+
+There is a second, less obvious half nobody has stated: `simulateAwayCombat` sets `fromMs = now − paidMs`, so the credited window is the **LAST** `cap` hours before returning, not the **FIRST** `cap` hours after leaving. An 18-hour absence is simulated as "idle for 6 hours, then fought for 12". Under Tyler's rule it should be "fought for 12, then stopped". The amount paid is identical either way; **which UTC day's Boss of the Day is credited is not** — a long absence is currently credited against the wrong day's boss. It also decides which instant a held buff's remaining time maps onto.
+
+Reported, not changed — the cap is Tyler's call and it interacts with in-flight work elsewhere.
+
+### 2026-08-14 · b342 · SEMANTIC — every proc pet just got HALVED to its declared rate (Systems → Game Designer)
+Companion procs were applying **twice per trigger** — measured, in the real client: 2 applications, 2 toasts and 1.0 pet XP (a utility pet earns 0.5) on each of kill / combatHit / gather / cook. Two identical hook sets, one in `src/legacy.js` block 31 and one in `src/features/companions.js`, both wrapping `killMonster` / `combatTick` / `addItem`. The legacy copy is deleted (b228's fix, one layer up).
+
+**This is a correctness fix that lands as a live NERF**, and Design should know the numbers rather than read them off a changelog:
+- A Raccoon's advertised "20% on kill" was really **36%** (1 − 0.8²). Every proc pet was ~2× its declared rate. The power budget was never told, so the census figures for companions have been understating real pet value since the hooks were written.
+- Companion **XP** was also double: every pet levelled at 2× the intended rate, so live beta pets are roughly twice the level their playtime earns.
+- Companion **drop** rolls were double: Wolf Pup's 1% was really 1.99% per kill (2 independent rolls; the unlock itself was self-limiting).
+- `G.stats.cropsHarvested` moved **+2 per harvest**, so the Bunny quest ("harvest 100 crops") completed at **50** and the weekly `wk_harvest` ("Harvest 120 crops") at **60**. Both now cost what they say.
+- The pet-impact panel (`HearthrisePetSession`) only ever heard from the ESM copy, so it was reporting **exactly half** of what pets really paid. It is now accurate — which will read to players as pets "getting better at reporting" in the same build they get worse at paying.
+
+**No balance VALUE was changed** — `src/data/companions.js` is untouched. If Design wants the effective rates restored, that is a data edit to `proc.chance` and it should be made deliberately, with the budget re-run. **→ Game Designer to rule on whether the declared rates are the intended rates.**
+
+### 2026-08-11 · b330 · SERVER GAP — leadership has no read for its own outstanding invitations (Systems → whoever next owns the membership SQL)
+`2026-08-11-clan-membership-authority.sql` shipped `clan_invites_list()` for the **invitee** only, and `clan_invites` deliberately has **no client SELECT policy**. So a leader can send an invitation and revoke one, but the server offers no way to ask *"who have we invited?"* — which the panel needs before it can draw a Withdraw button beside a name.
+
+I did **not** invent a client-side list and I did **not** add a policy to `clan_invites` (a readable invite table is a readable list of who is being courted, and the migration is explicit that the RPCs are the only door). The panel derives the answer from **`clan_ledger`**, which is `for select using (true)` and which every membership RPC journals to (`invite` / `invite_revoke` / `join_invite` / `join` / `kick`): the newest row per user decides, and an `invite` row older than the server's 7-day TTL has lapsed. That is complete rather than a guess — but it is a **derivation of server state on the client**, which is the shape this project has decided against everywhere else.
+
+**The honest fix is a `clan_invites_outstanding()` RPC** (leadership-only, `hr_clan_may_admit`, rate bucket `clan_invites_list`, returning `{user_id, display_name, invited_by, created_at, expires_at}`). When it lands, delete `outstandingInvites()` in `src/features/clans.js` and call it instead — the panel consumes an array of the same shape, so it is a one-function swap. A stale derived entry costs nothing today: revoking it answers `revoked: 0`, which the transport already reports as *"There was no invitation left to withdraw."*
+
+**Also noted, not acted on:** the migration has no **decline** path. An invitee can accept or let it lapse. The inbox therefore draws Accept only and says what happens if you do nothing — a Decline button would be a control that cannot do what it says. If Design wants decline, it needs `clan_invite_decline(p_clan_id)` (sets `revoked_at`, journals `invite_decline`). **→ Game Designer to rule, Systems/SQL to build.**
+
+### 2026-08-09 · b228 rebase applied — three of the batch below are RESOLVED, two new items open (Systems)
+**Resolved by `agent-rebase` (b228):** items 1, 3, 4, 5 and most of 6 of the batch below. The fuse moved to `src/features/power-budget.js` as the final wrapper; `smoke-test.js`'s offline-latch test already asserted through `bonusFor` (pre-clamp) so it did NOT break structurally — it gained an explicit second assertion that the clamp is not what makes the two nights equal, so the latch keeps doing the latch's job; the `farmYield` flooring fix, the companion key-name fix and the ranged/magic `combatXP` fix all landed inside the rebase commit; `CASTLE_TOTAL_CAP` is deleted rather than enforced (a cap that a later wrapper escapes cannot be given a real job — the real job moved to power-budget.js). Item 7 was already shipped: Workshop and Shrine were at +2/4/6/8/10 when this branch read them.
+
+**Still open from that batch, unchanged: item 2** (Designer must point `homestead-deepening.md` §H2/H3/H4, `clan-overhaul.md` §8.1/8.2/8.4 and `pacing-overhaul.md` A.4 at `bonus-rebase.md`), and the **`hearthScale()` inertness** half of item 6 — `registerBuffScaler` still has no live caller, so the Tavern's +40% duration / +10% magnitude has still never applied. It is rebased and correct; it is not wired. **→ Systems, next pass.**
+
+**NEW · 1 · SUPERSEDED SPEC LINE (Designer ↔ Tyler).** `bonus-rebase.md` §4.3 lists the renown weights (`14 / 900 / 0.5`) as **unchanged — "pacing, not bonuses"**. Tyler's directive of the same day overrides it: *"It also seems to be going way too fast."* Every `W` weight came down (`totalLevel` 14→2, `kill` .5→.05, …); the twelve **thresholds are frozen** and now pinned by a test, because `min` is compared against the `renownHigh` ratchet — lowering a weight can never demote anyone, but raising a threshold demotes everybody at once. **→ Designer:** the pacing appendix and §4.3 need the amendment.
+
+**NEW · 2 · DEFERRED BY SYSTEMS, DELIBERATELY — the L5 batch-capacity rungs.** §5.3 converts the three Keystone L5 benches to "one action produces five". Systems did **not** build it, and the reason is not effort: batching converts an artisan skill's bottleneck from TIME to MATERIALS, which is roughly a **5× move on artisan XP/hour** and directly reverses §5.2's own stated consequence ("the artisan block collapses onto its no-perks column, ≈18–19 months"). That is a pacing decision with the product owner's name on it, not a magnitude Systems may pick while applying a magnitude spec — and §5.5 already schedules it for b229. The rungs are not dead in the meantime (they pay +10% speed and an 8% proc, honestly stated), but the Keystone price is still thin. **→ Game Designer:** name the batch size, and say whether the Shrine's specced bulk-bury of 10 is the same mechanic or a different one. Systems builds it once that number exists.
+
+### 2026-08-09 · Bonus-rebase batch (Game Designer — full detail in `docs/design/bonus-rebase.md` §6)
+1. **ARCHITECTURE · the fuse cannot police a chain it sits in the middle of.** `getBonus` is a base function plus **six additive wrappers**; the fuse lives at layer 4 (`clan-seat-ui.js:297`) and reduces only the castle's own contribution, so companions, food buffs, the muster aura and the whole blessing calendar are unpoliced. **Ruling: move the budget to a final `src/features/power-budget.js` wrapper installed last**, applying `permanent ≤ 0.20` / `temporary ≤ 0.15` / `total ≤ 0.30` per key. Needs permanent and temporary to be separately accumulable. **→ Systems, ruling required before b228 builds.**
+2. **SUPERSEDES · `homestead-deepening.md` §H2/§H3/§H4 and `clan-overhaul.md` §8.1/§8.2/§8.4 are replaced** by `bonus-rebase.md` §2.2/§3. The `allXP ≤ 0.60` fuse, the artisan `≤ 0.85` clamp, the `restedXp ≤ 0.50` clamp (item 2 of the homestead batch below) and the +52%/+25% ceilings are all retired. `pacing-overhaul.md` A.4's boost columns (+20/+33/+52%) no longer describe anything. **→ Designer, next touch of each doc.**
+3. **TEST BREAKS STRUCTURALLY:** `smoke-test.js:8746` forces a synthetic all-keys blessing of 0.50 and asserts `bonusFor('allXP') === 1.0`. A final clamp caps that at 0.30. The offline-replay latch it guards is load-bearing and must keep being guarded — assert pre-clamp, or bring the synthetic magnitudes into legal range. **→ Systems + QA.**
+4. **UNBUDGETED INCREASES that must land INSIDE the rebase commit, not after it:** (a) the `farmYield` flooring fix (`legacy.js:2390` floors the total, so Scarecrow 0.1, Bunny 0.10, Squirrel 0.15, Carrot Stew 0.15 and Roasted Pumpkin 0.05 have all paid **zero** since launch); (b) the companion key-name fix — `xpB`, `goldBonus`, `prayerXp` are misspellings of `allXP`, `goldFind`, `prayerSpeed`, so Fox, Lichling, Raccoon, Owl and Grave Wisp pay nothing. **→ Systems.**
+5. **P1 · LIVE:** `combatXP` is applied only to attack/strength/defense/hitpoints (`legacy.js:1508`) — the Trophy Room, the Watchtower, War Drums and Hunter's Moon pay **nothing** to ranged and magic. Pre-existing, orthogonal to the rebase. **→ Systems.**
+6. **INERT:** `hearthScale()` (`clan-seat.js:256`) advertises +40% buff duration / +20% magnitude at Tavern 10 but `registerBuffScaler` has no live caller — it has never applied. Also `CASTLE_TOTAL_CAP` (`clan-seat-ui.js:126`) is declared and enforced against nothing, and Frostfin Supper's `defense` buff is a silent no-op (`items.js:159` vs `BUFFS_DEF`). **→ Systems.**
+7. **P1 · IN FLIGHT:** the `agent-homestead` provisional retuned six rooms and missed two — **Workshop and Shrine are still at +10/25/50/50/60** while the Forge is at +2/4/6/8/10. Must land in the same commit. **→ homestead agent.**
+
+### 2026-08-08 · QA attack-pass routed findings (full repros in agents/qa-engineer.md — read them there)
+- **P2 → Systems:** welcome-back modal reports HALF the offline yield actually granted (display recomputes a stale 0.5x model; render `G.lastOfflineSummary` instead).
+- **P2 → Systems:** multi-tab = silent last-writer-wins save destruction (no lock, no storage listener).
+- **P3 → Systems:** `processOffline()` not idempotent (latent); naive lastSeen fix blanks the welcome-back modal — see the rested-XP watermark pattern.
+- **P3 → Systems:** one unknown `cropId` kills the whole Farm page (renderers unguarded; `isReady()` already defends it).
+- **P3 → Designer:** renaming leaves open market listings under the old seller name (re-render from identity vs immutable-ledger — a ruling).
+
+### 2026-08-08 · Homestead-deepening batch (Game Designer — details in `docs/design/homestead-deepening.md` §9)
+1. **P1 · LIVE DEAD CONTENT (independent of any spec):** `farm-progression.js TIERS` stops unlocking crops at Pumpkin, *including at MAX plot level*, but b215 added **Goldenroot (farming 62), Emberfruit (75), Moonbloom (88)** to `CROPS`. `canPlantCrop()` is a hard gate in `plantCrop`, the seed picker and auto-replant → **three crops, three seed items and two cooking recipes (Goldenroot Roast, Moonbloom Elixir) are unreachable at every plot level.** Farming's last 37 levels have nothing to plant. Five-line data fix; blocks the Garden ladder but should ship regardless. **Owner: whoever holds `farm-progression.js` next.**
+2. **SEMANTIC · `restedXp` is now claimed by BOTH pillars.** Homestead Library L4/L5 and castle Tavern Common Room both grant potency, and `getBonus` **sums**. Unclamped, a clanned player with a maxed Library reaches 100% potency = double XP on 80 banked charges. **Ruling: clamp `restedXp ≤ 0.50` aggregate — two roads, one ceiling.** Whichever pillar ships first lands the clamp.
+3. **CORRECTION · `clan-overhaul.md` §8.3's allXP arithmetic is four points low.** Stated post-re-scope ceiling +47%; actual is **+52%** (it omits the homestead property capstone, `getBonus` `isCastle() → +0.05`). The `≤0.60` fuse still holds but the headroom is 8 points, not 13. **No system in either pillar may add a new `allXP` source.**
+4. **DESIGN LAW (applies to the castle too):** extra-output perks (`yield_*`, `craftSave`) must fire only when `!ITEMS[recipe.output].type` — materials, never equipment. The vendor pays full item `v`, so a 20% extra-output roll on endgame armour prints six figures per craft.
+5. **BROKEN PERK:** the Scarecrow plot-building grants `farmYield: 0.1` and `harvestPlot` **floors** the total — it has contributed nothing since launch whenever the Garden's bonus is an integer. Same class as the Cellar's dead storage perk.
+6. **DEAD UI:** six ghost keys in the House bonus display (`legacy.js:5092`) — `noBurn`, `craftSave`, `kitDrop`, `farmYieldPct`, `hearthXP`, `storage`. The spec revives `craftSave` and deletes `storage`; the other four should be **removed from the display list**, not invented into mechanics.
+7. **ASSET DEPENDENCY:** 8 room illustrations (lit / ghosted / locked) + 3 Phase-3 rooms, in the same "Forge & Stone" language as the castle view. The two pillars' art must be produced together or the twins will not look like twins.
+
+### 2026-08-08 · Hunt ratification batch (Game Designer — rulings recorded in the specs)
+1. **SYSTEMIC ECONOMY (flagged, not fixed):** vendoring pays the full item `v` (`invSellOne`), so every high-tier craft is a gold faucet — Dawnsteel Platebody turns 21,000g of bars into 108,000g; the Hunt-forged one turns 34,800g into 270,000g. The Hunt is not the marginal offender (weekly-rate-limited inputs), but the craft-to-vendor margin should be priced deliberately rather than inherited from `tier.value`'s 2.77× step. **Owner: Systems.**
+2. **ECONOMY INTEGRITY (one question, not three patches):** a signed-out session derives its muster/raid windows from the **local clock**, so a clock-rolled guest can re-claim the solo floor band; the solo-raid claim flag has the same shape (P3). The real question is whether a locally-earned save is trusted when it first syncs on sign-in. **Owner: Systems.**
+3. **CADENCE:** the Hunt week rolls **Thursday 00:00 UTC** (epoch weekday) while castle upkeep rolls **Sunday 00:00 UTC**. Two reset clocks in one clan pillar. Target state is one clan week boundary; changing it now truncates a live raid week, so it is a follow-up, not a Wave-3b reversal.
+
+### 2026-08-08 · Clan-castle v2 batch (Game Designer, filed by Coordinator — details in clan-overhaul.md §15)
+1. **SEMANTIC:** clan `level` cannot gate the castle — `clan_contribute` is `10000 × 4^(level−1)` → level 10 = 655,360,000 gold. Progression moved to **Standing**; `level` demoted to cosmetic. `clans.js` L17-19 comment documents a third, also-wrong ladder.
+2. **SEMANTIC → taxonomy:** four new castle goods need a **"Castle Stores"** artisan lane (`ITEMS[out].tag === 'castle'`) or the uncategorized-is-empty regression test breaks on the commit that adds them. Land the lane WITH the items.
+3. **DEPENDENCY:** `goldFind` getBonus key is declared but never read — Treasury perk is a broken promise until Systems wires it (Wave 3).
+4. **DEPENDENCY:** Tavern Hearth needs a buff duration/magnitude multiplier seam in the engine.
+5. **DEPENDENCY:** Rested XP is a new engine seam — touches `processOffline`, the XP grant path, and the fragile `snapshotG` allowlist. Handle with care (offline double-pay history).
+6. **INTEGRATION:** Muster and castle Labour BOTH wrap `updateDaily` — each wrapper needs its own idempotency flag or double-count/double-wrap bugs follow.
+7. **DESIGN (recorded, deliberate):** Tavern-10 Feast at Last Call ≈ +65% allXP for 4h — the ceremony peak, inside the stated power budget.
+8. **LIMITATION (wording discipline):** `clan_deposit` cannot verify item possession. Castle economy is server-authoritative for currency/gates/rewards/rate, CLIENT-TRUSTED for possession (clamped + audited). Never describe it as fully server-authoritative.
+
+### 2026-08-08 · SEQUENCING · #14/#15 and #16 must ship together (Game Designer)
+`world-event-cadence.md` §7.2 moves the raid card out of `#panel-dungeons` into the new Events panel — if the Hunt (#16) lands in a different wave, its card sits in a panel with no nav entry (the exact bug #14 fixes). Wave planning constraint.
+
+### 2026-08-08 · DEPENDENCY · perk-stacking re-scope must land WITH Hunt chests (Game Designer)
+A simultaneous +57% allXP stack would invalidate Hunt reward tuning — land clan-perk re-scope + Hunt in the same wave.
+
+### 2026-08-08 · DEPENDENCY · six new boss signature materials need recipes at ship (Game Designer)
+Else they join the recipe-less vendor-trash list (items 26–31). Route into b215 armour tiers when #16 ships.
+
+### 2026-08-08 · DEPENDENCY · `serverSkewMs` (server-time offset) needed for topbar countdown (Game Designer → Systems)
+No current equivalent exists; without it a wrong device clock makes Join appear broken. Build with #15.
+
+### 2026-08-08 · SEMANTIC · Perk stacking power budget (Game Designer → Systems Engineer)
+Homestead + renown + clan-level + proposed clan-wings all funnel `getBonus`; `allXP` could stack to ~+57%. Designer recommends re-scoping clan auto-level `PERKS` to baseline-only + a per-key soft cap, landed **with** the wings (clan-overhaul §7). Systems must rule on the cap mechanism before Wave 3 builds the wings.
+
+### 2026-08-08 · DEPENDENCY · `raidPower` getBonus key (Game Designer → Systems Engineer)
+Clan-overhaul spec introduces a new `getBonus('raidPower')` that `src/features/raids.js simulateStrike` must consume (clan-overhaul §4.3). Wave 3.
+
+### 2026-08-08 · DEPENDENCY · `snapshot.renown` for leaderboards (Game Designer → Systems Engineer)
+Flagship Throne board needs `renown` written into the client save snapshot on save (leaderboards §3.2). Touches the fragile `snapshotG` allowlist — Systems change. Wave 3.
+
+
+### 2026-08-16 · DEPENDENCY · bane gear needs the monster `family` re-point (Systems → Monster workstream)
+`src/core/bane.js` normalises `monster.class || monster.family` against the eleven Library-1 classes and
+carries a `CLASS_ALIAS` for the legacy six (Beast→Mammal, Goblinoid→Humanoid, Arcane→Human).
+**`Mythic` is deliberately unmapped** — it covers both `lesser_demon` (→Demon) and `dragon` (→Dragon) in the
+live table, so any guess makes one of the two bane weapons fire at the wrong thing. Consequence today:
+**Dragonrib Bow (ITEM-NEW-03) is inert** until `dragon.family` becomes `'Dragon'`. The other four bane
+weapons work now. Nothing breaks either way — an unmapped family yields NO bane, which is the strict
+direction. Verified: `weaknessInfo(dragon@Mythic)` → 1.00; `weaknessInfo(dragon@Dragon)` → 1.68.
+Monster workstream: an explicit `class:` field wins over `family:` if you would rather not overload it.
+
+### 2026-08-16 · DEPENDENCY · the `pendingSkill` handshake (Systems → Skills workstream)
+34 ITEM-PLAN rows (7 bound runes · 7 whetstones · 3 stone raws + 3 blocks + 3 rune blanks · ashlar ·
+vaultstone · 9 phase-two elementals · 6 artisan tools) landed as ITEM ROWS ONLY, each carrying
+`pendingSkill: 'stonemason' | 'runecrafting' | 'fletching'`. **No recipe produces any of them** — those
+are yours. The b243 reachability guard exempts an item only while its `pendingSkill` is absent from
+`SKILLS_DEF`, and **B356-4 fails the build the moment you add the skill row** unless the item has a real
+faucet. That is the handshake: add the skill and the recipes in one commit and both guards go quiet.
+Ids/stats/values/levels are taken verbatim from `consumable-economy.md` §6.2/§6.3/§8.2/§9.5/§11.3 — do not
+re-derive them. One rename applied per the review book: `rune_of_blight` → `rune_of_poison`.
+
+### 2026-08-16 · SEMANTIC · two approved items shipped WITHOUT their signature mechanic (Systems → Designer)
+Everything whose effect has no engine landed unobtainable (see `src/data/item-effects.js`). **Two did not**,
+and the Designer should re-read the call at integration:
+- **Watchknight Shell** (ITEM-NEW-33) — ships as honest plate T5 with the derived set bonus; its
+  "damage taken while away" identity is declared `away_mitigation` and dormant. Held back it would strand
+  `deathsteel_bar`, which is the only thing closing the `death_steel` orphan (ITEM-NEW-43's whole purpose).
+- **Quiet Coat** (ITEM-NEW-34) — ships as honest cloth T6; `first_strike_deny` is dormant (there is no
+  first-strike model at all). Held back it strands `voidchitin_weave`, which is the only thing closing
+  `void_chitin` + `hell_ember` + `war_crown` (ITEM-NEW-44).
+Neither description promises the unshipped effect. If the Designer would rather they wait for their
+mechanic, remove the two recipes and the guard will re-classify them automatically.
+
+### 2026-08-16 · DEPENDENCY · hr-accrue REDEPLOY required (Systems → Coordinator)
+`src/core/combat.js` + `src/core/bane.js` + `src/data/*` are vendored into the Edge payload, so the payload
+guard is correctly RED: `the deployed hr-accrue reports payload 122e57cf… but this repo packs to 886e8268…`.
+Bane reads through `equipmentStats` → `weaknessInfo`, which accrual.js already calls at every site
+(accrual.js:686/1203/1479, :950), so away accrual gets it for free — **but only after the redeploy.**
+
+## Resolved
+
+### 2026-08-15 · BLOCKER · the away buff rule reached only one of three away callers — RESOLVED in b347 (Systems)
+**Was:** `AWAY_SCOPE.buff` opened for every away caller at once, but only `simulateSpan` owned a timeline. `processOffline`'s gather and artisan branches ran `ticks = floor(spanMs / offlineIntervalMs())` with the interval derived once — so a buff paid the whole absence and drained none of it.
+
+**Measured, real engine, 8h away on woodcutting Normal Tree, one 10-minute consumable eaten on the way out:**
+
+| | control (no buff) | `gather_speed +4%` | `all_xp +5%` |
+|---|---|---|---|
+| BEFORE — actions | 6,000 | **6,250 (+250)** | 6,000 |
+| BEFORE — woodcutting XP | 30,000 | 31,250 | **36,000 (+20.0%)** |
+| BEFORE — buff drained | — | **0 of 600,000 ms** | **0 of 600,000 ms** |
+| AFTER — actions | 6,000 | **6,005 (+5)** | 6,000 |
+| AFTER — woodcutting XP | 30,000 | 30,025 | **30,125 (+0.417%)** |
+| AFTER — buff drained | — | **600,000 ms, expired + pruned** | **600,000 ms, expired + pruned** |
+
+So the consumable bought **50× the actions** and **48× the XP** it had earned, and came back reading a full 10:00 — repeatable every night, forever. It now buys exactly the slice it was alive for and is spent.
+
+**Fix:** `replayAwaySpan` in `legacy.js` (beside `offlineIntervalMs`) — the span is split at buff-expiry boundaries, the interval is re-derived per slice, the sub-tick remainder carries across, and `advanceBuffClock` (the ONE clock) is called per slice. The boundary function is `nextBuffExpiryMs` in `src/core/buffs.js`, beside `activeBuffs` so it applies the same liveness rule. Same shape as `utcDaySegments`; NO second mechanism. `AWAY_SCOPE.buff` stayed `true`.
+**Also fixed:** the non-combat `buffsPaused` expression (was "did they hold a buff", a lie in both directions on a gather night) and four stale comment blocks + one player-facing string that described the freeze that no longer exists.
+**Guards:** `AWAY-16` (drives the real `processOffline`; 4 mutations RED) and `AWAY-17` (the boundary oracle; 3 mutations RED). In all seven, `AWAY-1 PARITY` and `AWAY-5` stayed GREEN — which is precisely why a combat test could never have caught this.
+
+### 2026-08-08 · SEMANTIC · Auto-eat vs foodClass split — RESOLVED in b220 (Game Designer)
+**Was:** cooking taxonomy adds `foodClass: 'healing' | 'buff'` and auto-eat must draw from `'healing'` only, but fish-line Provisions carry incidental combat buffs, so the line was unclear.
+**Ruling (taxonomy §5.4):** the fish line KEEPS its buffs — `foodClass` governs what the *engine* may spend, not what stats an item has. Stripping +12% damage from Cooked Shark would be a combat-balance change smuggled in under a UI task, and it isn't needed: `maybeAutoEat()` heals and decrements, it never calls `applyBuff()`, so auto-eating a Provision grants no hidden power. Buffs are applied only by the deliberate Eat action.
+**Evidence that settled it:** the real defect was auto-eat's *selection*, which preferred items with no `buff` field — and since every cooked food has one, that meant raw ingredients: it picked Raw Shrimp (3 HP) over Cooked Shark (42 HP), then fell through to a Void Banquet once raws ran out. Now the pool is exactly Provisions and the pick is the best heal. Verified in-browser: with only Feasts in the bag at 8/100 HP `maybeAutoEat()` returns false and consumes nothing; with Provisions present it eats Cooked Shark (HP 8→50) and leaves the Void Banquet stack at 3. Regression tests: `b168/b220: auto-eat draws from Provisions, preserves Feasts` and `b220: auto-eat never consumes buff food`.
+
+
+
+### 2026-08-16 - SEMANTIC - Monster portrait folder: `painted/` vs `hearthfire/` (Systems -> Art/Asset)
+**The disagreement, surfaced rather than silently resolved.** `docs/design/monster-art-prompts.md` §0
+states new portraits land in `assets/icons-bundle/painted/monsters/` and says "no new subfolders".
+The shipped art pilot (branch `worktree-agent-a4e0fed55ec269eca`, commit `04ba415`) put them in
+`assets/icons-bundle/hearthfire/`. Both are shipped folders, so neither is wrong - but the
+81-portrait batch cannot be generated against two answers.
+**What I did:** followed the pilot (`hearthfire/`), because that is what exists on disk and it keeps
+the retired-direction `painted/` set visibly separate while batch M0 regenerates it. The choice is
+ONE constant - `HEARTHFIRE_DIR` in `src/data/monster-art.js`. Changing it re-points all 81 and the
+preflight re-verifies. **Art Director owns the ruling; say the word and it is a one-line change.**
+
+### 2026-08-16 - CODE - Pilot art wiring overlaps branch `worktree-agent-a4e0fed55ec269eca`
+That branch adds `assets/icons-bundle/hearthfire/monsters/{barn_rat,elk_king,grim_reaper,hellhound,winter_wolf}.png`
+(processed to 256x256) and parks three of them on borrowed live ids - `hellhound -> lesser_demon`,
+`grim_reaper -> wraith`, `elk_king -> bear` - marked PILOT PREVIEW ONLY.
+**Those three ids now EXIST.** `src/data/monster-art.js` binds each portrait to the monster it
+actually depicts and gives `lesser_demon` / `wraith` / `bear` their own files back, so **the parks are
+gone by construction**. On merge: take that branch's PNG bytes (this branch carries only the
+unprocessed 1024px sources under `assets/art-pilot/`, which I deliberately did NOT ship - 1.2 MB
+each), then add those five ids to `SHIPPED` in `monster-art.js`. `monsterArtPreflight` in
+`tests/run-smoke.mjs` fails the build if that second step is forgotten, so the merge cannot half-land.
+
+---
+
+## [Systems Engineer → Art Director] companions.js proc/panel text below the 14.5px font floor (worker-settlement branch)
+
+While wiring the hired-worker client to the server RPCs I surfaced a latent font-floor
+violation in `src/features/companions.js` (Art-domain visual surface):
+
+- `showProc()` (~L280) rendered the proc toast at `font-size:13.5px` — below the project's
+  14.5px HARD floor. It slipped past the b227 document scan only because the toast is
+  short-lived; once my new async worker test shifted suite timing, b227 caught the toast
+  mid-life (`div @ 13.5px "🦊 __b420proc__"`) **deterministically**. I fixed THIS one line to
+  `calc(14.5px * var(--ui-scale, 1))` (the form the rest of the UI + workers.js use) to
+  unblock the suite — a clear floor violation, minimal + safe. Please confirm the visual is fine.
+- Still unfixed (I did NOT touch your panel markup): the Companion panel at L589–L590 also
+  uses `font-size:13.5px` (the XP line and the proc-description line). Same floor violation;
+  b227 doesn't catch them today only because the panel isn't open at scan time. Recommend the
+  same `calc(14.5px * var(--ui-scale,1))` conversion.
+- Also noted, NOT changed: the proc toast bg/ink are hardcoded colours (`rgba(127,154,79,.95)`
+  / `#0f1320`), not theme tokens — the color HARD RULE. Yours to convert when you next touch it.
+
+Separately: the toast relies on `setTimeout(()=>el.remove(),1700)`, which the headless page
+throttles so the toast can outlive its intended 1.7s. Not fixed here; a cheap hardening would
+be to also drive removal off the `animationend` event. Flagging, not acting.
+
+---
+
+## 2026-08-29 — SYSTEMS → BACKEND (combat-XP credit lane) · a SECOND faucet now writes `player_skills.hitpoints`
+
+Not a code conflict (no shared file — my touch is `hr_goal_rewards` rows + the goal RPC's gate), but a
+**semantic** one your faucet audit should know about, filed rather than assumed.
+
+b492 re-points the kill goals' XP from the phantom skill `'combat'` (never paid — not an `hr_skills`
+row, so `hr_claim_goal` dropped it into `skipped_xp`) to **`hitpoints`**, at the Designer's retune:
+kill_any **100**, kill_more **300**, wk_kills **1000**.
+
+**What that means for your lane:** `player_skills.hitpoints` now has two server-side writers —
+`hr_credit_combat_xp` (yours, elapsed-time-clamped by `hr_combat_xp_cap`) and `hr_claim_goal` (the
+period-reward path). They are independent and **additive by design**: a goal reward is a bonus on top
+of the XP the kills themselves already paid, and neither consumes the other's budget.
+
+- Your `hr_combat_xp_cap` is an **elapsed-time physical-max** on the credit you accept, so a goal
+  claim does not eat into it and it does not restrict the goal. I read it that way; **correct me if
+  the clamp is ever re-expressed as a cap on the skill TOTAL** — at that point the two channels would
+  start fighting and a legitimate goal claim could be clamped away as forged combat XP.
+- The new ceiling to carry in the faucet total: **400 hitpoints XP/day + 1,000/week**, structural
+  (server catalogue + `player_progress` once-guard), not budgeted.
+- **`hitpoints` is ranked** (it feeds combat level and the leaderboards), which is why I did NOT
+  migrate any legacy `G.skills.combat` value into it. That number was never server-authored;
+  converting it would have minted ranked XP from a client artefact. `2026-08-17-cutover-import.sql`
+  drops the key by name and `tests/cutover-import.mjs` C7/C8 assert it — **please keep it dropped.**
+
+Nothing of yours needs to change today. Flagging so the number appears in your audit rather than
+surprising it.
+
+---
+
+## 2026-08-30 · GAME DESIGNER → SYSTEMS · b495 balance audit — three semantic conflicts
+
+**1. `workers.js` / `accrual.js`: "efficiency" does not mean what both copies say it means.**
+`perTickMs = node.ms / eff(w)` uses the RAW node ms. The player runs the same node at
+`actionIntervalMs()` = `pacedActionMs(ms)` = `ms × PACE.actionMs` = **ms × 1.60**. So a worker
+described everywhere as "10% of your rate" produces **16%**, and a Lv10 crew of six is **1.65**
+active-equivalents against the number b389's own header states it nerfed them to (1.03). Both
+engines agree with each other and both disagree with the design. Ruling: anchor to
+`pacedActionMs(node.ms) / eff`, on both sides in one change, and say in the header that the anchor
+is the UNPERKED player (a perk-tracking anchor would make workers scale with investment, which is a
+different and larger design question I am not opening before the wave). Bound by
+`tests/worker-accrual.mjs`, which currently re-implements the defect faithfully — it will need the
+same edit, which is the point of it existing.
+
+**2. `hr_bounty_kill_range(p_tier)` cannot express the ruled difficulty.**
+`hr_accept_bounty` CLAMPS the client's `p_required` into a tier-only range. The ruling that
+difficulty must move the COUNT (`easy .90 / normal 1.00 / hard 1.20 / elite 1.50` on
+`BOUNTY_KILL_COUNTS`) therefore CANNOT be shipped client-side alone: an easy tier-1 cull would ask
+for 72 and be silently clamped up to 80, so the board would show a number the turn-in does not
+honour — which is the exact failure the first-contract bracket's own header warns about. The two
+halves ship together or not at all. `tests/bounty-drift.mjs` is the binding.
+
+**3. "The artisan skills are the gold path" (b226 / pacing-overhaul §6.1) is true in a way nobody
+priced.** The rule is right; the magnitude is not. `vendorPrice` pays FULL book value for anything
+not flagged `raw`, and no bench output is flagged: `smelt_mithril` is 112,500 gold/hr full-cycle
+against 23,412 for tier-matched tier-5 combat, and the generated gear ladders top out at
+`craft_voidweave_body` — 108 gold of inputs, 75,600 gold at the vendor. This is not a vendor-rate
+question (a uniform rate cannot fix a 700× input:output ratio); it is that generated gear values
+are `slot.vmul × mat.value × line.vmul` while cloth's recipe inputs are `silk_thread: 2+i,
+magic_essence: 1..2` at every tier. **The acute half is mine and is a data fix** (scale the cloth
+line's inputs with the material tier); **the structural half is a joint call** on whether item `v`
+for generated gear should be derived from recipe cost. Flagged now, not smuggled into the wave
+build. The 25M/day `hr_day_budget_check` ceiling is the only thing currently bounding it, and it is
+a security fuse, not a balance number.
+
+**4. `hr_start_kit.farm_plots = 4` against a Wanderer's Camp that has 2 plots.**
+`hr_create_character` (2026-08-14-character-bootstrap.sql §334) inserts
+`generate_series(0, farm_plots - 1)` = FOUR `player_farm_plots` rows, and its §477 self-check
+asserts exactly four. The client caps planting at `farmPlotCap()` → `HearthriseHomestead.maxPlots()`
+→ `TIERS[0].plots` = **2**, and `plantCrop` refuses `plotIdx >= farmPlotCap()`. So a new character is
+created with two plot rows they can never plant in, and `src/data/goal-catalogue.js`'s own comment
+("the starting Wanderer's Camp has 2 plots") already reads the client's number.
+
+**The client is right, and that is a design ruling rather than a preference:** 2 plots at the camp
+is what makes the Homestead (400 gold + 20 copper + 30 logs) a legible, cheap, wanted first upgrade
+— it doubles your farm. Creating 4 at the camp deletes the reason to buy the first rung of the
+property ladder.
+
+It is INERT today (the extra rows are invisible and unplantable), which is why I did not widen the
+b495 migration to touch a second table on a wave build. It stops being inert the moment any surface
+renders from the server's plot rows rather than from the cap. Ruling for whoever picks it up:
+`START_CURRENCY.farm_plots 4 → 2`, regenerate, and a forward migration on `hr_start_kit` alone —
+NEW characters only, no backfill (an existing character's rows are theirs).
+
+## 2026-08-30 · SYSTEMS → GAME DESIGNER + ECONOMY · worker output drops 37.5% live (b497 anchor fix)
+
+**Not a conflict — a NOTICE, filed because it moves a live economy number and another agent tuning
+gold faucets should not discover it by measurement.**
+
+`b389` ruled workers down to "6 x 0.172 = 1.03 active-player-equivalents", and
+`docs/design/bonus-rebase.md` §244 states the model outright: worker efficiency is "a *fraction* of
+[your rate], paid by a parallel producer. **It inherits `PACE` automatically** and cannot inflate."
+
+It did not inherit `PACE`. Both engines computed `perTickMs = node.ms / eff` while a player gathers
+at `pacedActionMs(node.ms)` (`PACE.actionMs` = 1.60), so the shipped crew was
+**6 x 0.172 x 1.60 = 1.65 equivalents** — b389 landed 60% short of its own stated target, in the
+direction of the faucet it was written to close. The guard that existed to prevent this
+(`smoke-test.js` "b389: worker rebalance") asserted `6 * eff <= 1.1` — one HALF of a ratio — and was
+green the whole time.
+
+**Consequence of the fix: every crew's output falls by 1/1.60 = 37.5%** the moment `hr-accrue` is
+redeployed. Hire costs, the efficiency curve and the 24h cap are UNCHANGED; no design value moved.
+Anyone modelling passive gold income should use the 1.03 figure from here on, not measured b496
+output.
+
+Two follow-ups that are NOT mine to rule:
+- **Is 1.03 still the intended crew size** now that it is actually 1.03? b389 chose it while
+  measuring 1.65, so the ruling was made against a number the game was not paying. Designer's call.
+- **`docs/design/bonus-rebase.md` §138** still describes worker efficiency as "25% → 52% of player
+  rate"; b389 replaced that with 10% → 17.2%. Stale design doc, Designer's file.
+---
+
+## 2026-08-30 · SYSTEMS → LANE A / SECURITY · b497 auto-eat: the staged premise is false, and acting on it is a DOUBLE DEBIT
+
+**Branch:** `fix/attended-eat-intent-gate` (off `cb97ae17`). **No behavioural change shipped — deliberately.**
+
+`supabase/migrations/2026-09-04-auto-eat-at-creation.sql` (header, §"WHAT THIS DOES **NOT** DO")
+states:
+
+> the server's sim only eats during AWAY accrual. An ATTENDED auto-eat would therefore be held for
+> `ENTRY_TTL_MS` (10 minutes) and then RESTOCKED by the next envelope. Free food, self-only, but real.
+
+…and proposes a one-line client fix: re-shape `noteItemConsumed`'s gate so an attended consumption
+always sends the `eat` intent, with `inOfflineReplay()` excluding away.
+
+**The premise is false and the proposed fix is item LOSS.** Three independent proofs:
+
+1. **Structural.** `computeAccrual` has no away input and no presence input. It prices
+   `[max(accrued_to, active_since), +grantMs]` — whatever elapsed — and `fx.autoEat()` is gated on
+   `autoEatEnabled` **alone**.
+2. **The settle loop is ATTENDED-ONLY.** `src/net/accrue.js decideSettle`:
+   `if (!st.visible) return { settle: false, reason: 'hidden' }`. The 90 s cadence
+   (`SETTLE_INTERVAL_MS`) runs *only while the tab is visible* and stops when it is hidden. So every
+   periodic settle prices an attended window; away time is settled on return, by a different trigger.
+3. **Measured.** New guard `attendedSettleAutoEatGuard` (`tests/accrual-engine.mjs`): a fresh
+   10-HP character fighting a goblin with `autoEatEnabled: true` eats **2 meals over 60 s and 3 over
+   90 s**, each with the matching negative `delta.items` figure. The same window with the flag false
+   pays **0 kills and dies** — which is the death loop the ruling exists to close, and is why the
+   server eating attended is the *mechanism* by which an attended window is paid at all.
+
+So with `auto_eat_enabled = true` universal, the settle already debits the attended meal. A client
+`eat` intent for the same meal debits it twice. The existing gate — "send only on a definite NO from
+the server" — is correct on **both** sides of the b497 flip, and retires itself with no flag to flip,
+exactly as `clientOwnsAutoEatDebit`'s own RETIREMENT note anticipated.
+
+Guarded on both ends now, so the premise cannot be re-asserted from either: `EAT-RESTOCK-6` block 2
+(client — the proposed fix turns it red) and `attendedSettleAutoEatGuard` (server engine — an
+"away-only" mutant turns it red while the pre-existing 12-hour parity fixtures stay green).
+
+### ⚠ THE REAL DEFECT b497 INTRODUCES, and it is a different one — SETTINGS ARE NEVER SYNCED
+
+Nothing on this client has ever called `hr_set_auto_eat` (grep: zero call sites in `src/`). It is the
+only writer of `auto_eat_enabled` / `auto_eat_pct` / `auto_eat_food`. After b497 every new character
+has the switch **on** server-side and:
+
+- **`auto_eat_food` is NULL**, so the engine falls back to `bestHealingFood` — the **biggest healer in
+  the bag** — while the client honours the player's `G.foodSlot` nomination. Unit *counts* still
+  converge (pending-consume drains on the server's own movement, so nothing is lost or duplicated),
+  but the two sides can drain **different stacks**, and the server's pick is the more valuable one.
+  Invisible on a fresh account (the start kit holds one food); it bites the first time a player banks
+  a Shark/Moonbloom stack and fights attended.
+- **The Settings toggle and threshold slider are client-only.** Turning Auto-Eat off does not stop
+  the server eating — and it *should not*, because with it off the server's sim dies and pays 0 kills
+  (measured above). So this is a genuine design question, not just a wiring gap.
+
+Recommendation: wire the client's auto-eat settings to `hr_set_auto_eat`, debounced — it bumps
+`version` and journals a `set_auto_eat` row, so a per-slider-drag call would invalidate in-flight
+accruals. **Not fixed by touching the debit gate**, and out of scope for a wave build. Systems owns
+the wiring; Designer owns "may a player turn off a mechanic their payout depends on?".
+
+---
+
+## 2026-08-31 · SYSTEMS → DESIGNER / ART · b499 auto-eat sync: the toggle is BUILT, DORMANT, and waiting on a ruling
+
+**Branch:** `fix/refused-hatch-and-autoeat-sync`. Resolves the wiring half of the 2026-08-30 entry
+above ("THE REAL DEFECT b497 INTRODUCES — SETTINGS ARE NEVER SYNCED"), and deliberately does NOT
+resolve the design half it names.
+
+**SHIPPED ARMED — food + threshold.** `src/features/auto-actions.js` now debounces the player's
+food nomination and HP threshold out to `hr_set_auto_eat`. Both only ever make the server honour a
+choice the UI already claims it honours: `auto_eat_food` stops being NULL, so the engine stops
+falling back to `bestHealingFood` (the biggest healer in the bag) while the client honours
+`autoActions.eat.foodId`. The threshold sent is the EFFECTIVE (tier-clamped) one, so both sides land
+on the same number.
+
+**SHIPPED DORMANT — the ON/OFF toggle.** `SYNC_ENABLED_TOGGLE = false`, one line, tested in both
+positions (AUTOEAT-SYNC-3 asserts the shipped position AND drives the armed one). Reason: with
+`auto_eat_enabled` false the accrual engine's `fx.autoEat()` never fires and a measured night pays
+**0 kills and dies at the first fight**. Pushing a client preference up therefore converts a toggle
+into a total loss of overnight progress. That is the question the entry above assigns to the
+Designer — *"may a player switch off a mechanic their payout depends on, and what should the game
+say when they do?"* — and Systems does not get to answer it by shipping.
+
+> ⚠ **THE RULING HAS TO COVER THE DIAL, NOT JUST THE SWITCH.** The threshold slider's minimum is 0%
+> ("never auto-eat"), step 0.05, and `pct` IS synced — so a player who drags to zero already
+> reproduces the same 0-kill night through a key that is live today. Arming the toggle without a
+> rule for the dial is half a decision; ruling on the dial may make the toggle moot.
+
+**ALSO FOR DESIGN — a live behaviour change lands with this build even at the dormant setting.**
+Once players start syncing a food, the server's overnight accrual stops eating the most valuable
+healer in the bag and starts eating what they nominated. Overnight *survival* can go DOWN for anyone
+who nominates a weak Provision while holding Sharks — the server used to quietly eat the Shark. That
+is correct (it is their choice, and the counts always converged), but it is a real change to what a
+night pays and it is not covered by any balance pass.
+
+**FOR ART / COPY — three player-facing strings are new or changed, all in the honest-refusal voice
+established by the renown rank claim (b494):**
+- `src/features/companions.js grantRefusalMessage()` — five sentences, one per refusal class, e.g.
+  *"The realm has no record of your Dragon Egg, so Whelp could not hatch. Nothing was consumed —
+  your Dragon Egg is still in your bag."*
+- `src/legacy.js onItemTap` — tapping a Provision in the bag now routes through `setAutoEatFood`, so
+  it says *"Auto-eat set to X."* (and an honest *"Auto-eat is locked — unlock it in the Store."* for
+  a non-owner) instead of the old `"Auto-eat: X"` toast, which wrote a field the engine does not
+  read and therefore promised something that never happened.
+- `src/features/pets.js tryUnlock` — the raw `d.icon` emoji is gone from the *"A wild friend!"* line
+  (Final Directive no-emoji-as-art, the same fix companions.js took in b465).
+
+---
+
+## 2026-08-31 · Systems Engineer — E1, the ammo spend (branch `fix/ammo-consumption`)
+
+Three things surfaced that are **not** the Systems Engineer's to rule on. All three are wired,
+measured and pinned by named tests; none of them is shipped as a behaviour change.
+
+### 1. SEMANTIC (Systems → Designer): `AMMO_STYLES` answered two questions with one table
+
+`src/core/ammo.js` shipped one frozen table, `AMMO_STYLES = {ranged:true, magic:true, sword:false,
+hammer:false, neutral:false}`, and `spendForSwings` gated the SPEND on it. That is R5's first half
+("melee's floor is free") applied to the wrong question, and the cost is measurable: a melee player
+could equip a Dawnsteel Whetstone (+18 strB, `v` 990, `ammoPerShot: 0.02`) and **wear it forever for
+nothing**, while §6.3 prices that stone at 240 a night / 15,840 g of input. The design's own words
+are "melee's FLOOR is free; melee's CEILING is paid" — two questions.
+
+**Resolved in the engine as two tables** (`AMMO_SPEND_STYLES` = who pays, `AMMO_STYLES` = who suffers).
+`styleNeedsAmmo` keeps its exact published meaning, so no existing consumer moves. This implements
+the ruling as written; it does not change a value. Flagged because if the Designer intended melee to
+be exempt from *spending* too, the whetstone ladder needs a different sink and §6.3's parity
+arithmetic is void.
+
+### 2. DESIGN + LEGIBILITY (Systems → Designer + Art Director): the mechanic is OPT-OUT today
+
+An ammo-hungry style with a **completely empty** ammo slot fights at **full strength**. `ammoDamageMult`
+cannot tell a loaded free tier-1 rung from an empty slot, so `perShot === 0` reads as "supplied".
+Measured on the real catalogue (`playerCombatRolls`, Ranged 99, Duskwood Bow):
+
+| loadout | maxHit |
+|---|---|
+| `dawnpoint_arrows`, supplied | 69 |
+| `dawnpoint_arrows`, run dry | **17** (x0.25, floored) |
+| **no ammo equipped at all** | **58** |
+
+**Not equipping is 3.4x better than running dry.** The dominant play is an empty quiver, which is the
+whole mechanic opted out of — and R2's own wording is the other way ("you can still train ranged or
+magic with NO arrows/runes, it is just very very weak").
+
+**NOT flipped in this commit, on purpose.** §14 hands the Art Director "the empty-quiver state must
+read on the equip doll and in the combat panel — a player fighting at x0.25 who cannot see why is a
+support ticket", and that indicator does not exist. Shipping the cliff before the sign turns a
+correct mechanic into a bug report. The engine is one frozen boolean from closing it:
+`AMMO_EMPTY_SLOT_IS_DRY` in `src/core/ammo.js`, pinned in both directions by `AMMO-E4`.
+
+**Owners:** Designer rules the position; Art Director owns the indicator; Systems flips the constant.
+They should land together — and now they MUST. Security (A1, 2026-08-31) made the coupling a build
+condition rather than an intention: `AMMO-E4` asserts `AMMO_EMPTY_SLOT_IS_DRY === true` implies the
+literal token **`hr-ammo-dry`** appears in a rendered surface under `src/` (outside `src/core`). The
+name is Systems' so the guard has an anchor; the MECHANISM is the Art Director's — a CSS class, a
+`data-` attribute, a glyph key, a render helper, anything that carries the token. It is an
+IMPLICATION, so the indicator may ship FIRST and alone; only penalty-without-sign goes red.
+
+### 3. DESIGN (Systems → Designer): an EMPTIED slot keeps its stats
+
+`equipmentStats` sums the ammo item's bonuses off the **equipment map**, and §2.2's slot is a POINTER
+that survives its stack reaching zero. So a burnt-out whetstone still pays +18 strB forever. For
+ranged/magic the x0.25 makes it irrelevant; for **melee**, which by R5 takes no depletion penalty,
+one stone buys a permanent bonus and the consumption is a rounding error on the way there.
+
+Not a regression (before E1 the stone was never consumed either), but it is the half of "melee's
+ceiling is paid" that consumption alone cannot close. Closing it means teaching the STAT layer about
+stock — threading inventory into `equipmentStats` / `playerCombatRolls`, the one function both
+engines share and every loadout's numbers run through. A deliberate change with a ruling attached,
+not a drive-by. `AMMO-E5` pins today's behaviour in both directions, so the fix arrives as two
+expected, named failures.
+
+---
+
+## SEMANTIC (Systems ↔ Systems): two lanes are fixing ONE class on two surfaces — `fix/gem-spend-server-backed` (2026-09-04)
+
+**The class:** *residue asserting ownership of a server-sold capability.* A sibling lane is fixing it
+in `src/net/property-record.js` (the residue-ahead property tier that refuses the Forge's
+`prereq_property_tier` and hides Farmstead). This lane fixes the SAME class for gem-bought unlocks —
+`ownedThemes` / `ownedCosmetics` / `G.bank.gemBuys` — and the resolution shape is deliberately the
+same one `multi-character.js ownsSlot()` established: **the server's projected set wins when there is
+one; the residue answers only while the server has not spoken.**
+
+**No code conflict.** This lane touches `src/legacy.js`, `src/render/shop.js`,
+`src/features/smoke-test.js`, `src/net/gem-sites.js` (new), `tests/gem-site-census.mjs` (new),
+`tests/gold-site-census.mjs` (one exclusion row) and `tests/run-smoke.mjs` (one guard registration).
+It does **not** touch `src/net/property-record.js` and, per the dispatch, it does **not** touch
+`tests/property-gate-census.mjs`.
+
+**The semantic question for the Coordinator to rule on:** the property lane and this one now each own
+a *"is this capability really mine?"* seam (`property-record.js` vs `ownsGemUnlock`). They should
+eventually be **one** rule — "a residue entry never confers a server-sold capability" — with one
+census behind it. Merging them now would couple two in-flight lanes; merging them never leaves the
+next surface (companions, traits, recipes) to rediscover it. Recommend: land both, then a follow-up
+that folds `ownsGemUnlock` into whatever `tests/property-gate-census.mjs` becomes. Flagged rather
+than resolved unilaterally.
+
+**HAZARD THE MIGRATION LANE MUST NOT MISS.** `ownsGemUnlock` prefers the server the *moment* a
+projection exists. The day an `hr_state_of` projection of gem unlocks ships, every theme and cosmetic
+not in the server's rows stops being owned — for everybody, instantly. The migration MUST seed the
+unlock rows from existing `client_state.ownedThemes` / `ownedCosmetics` before it starts projecting.
+Written up in full at the head of `src/net/gem-sites.js` (`GEM_GRANDFATHER_PRECONDITION`). The same
+hazard applies to the property lane's projection and is worth checking there too.
+
+---
+
+## 2026-09-06 — Systems Engineer · attended-death P0 (`worktree agent-a2d6d4904531de04a`)
+
+**What this lane changed.** An attended death no longer calls `stopCombat()` (which declares
+`idle`, and hr_apply stamps `accrued_to = now()` on any `activity` delta — so the window the death
+happened in was closed before anything simulated it). The client now PAUSES the swing, keeps the
+pointer, notes a settle event, and renders the server's answer. Files: `src/legacy.js` (death
+branch + tick gate + `hrKnockOut`/`hrCombatDown`/`hrStandUp`), `src/net/accrue.js` (fall-state
+machine + `accrued_to`/`deaths_today`/`deaths_lifetime` observers), `src/features/death-sheet.js`
+(renders the envelope, never a client guess), `src/features/smoke-test.js` (RECOVER-10),
+`tests/attended-fall.mjs` (new), `.github/workflows/smoke.yml` (one step).
+**No `supabase/**` change. No `src/core/**` change. The edge does NOT need redeploying for this lane.**
+
+**SEMANTIC OVERLAP with the `agent-a9c422306456b86bd` lane (cadence recovery floor /
+not-in-combat cap).** That lane's live evidence — `11:41:38 xp_credit, credit 40, elapsed_ms 52742,
+meta.active_kind "idle", kind_mismatch true` — is the DOWNSTREAM SYMPTOM of the bug this lane fixes:
+the death declared `idle` at 11:40:45, and the attended cadence RPC then billed 52 s of wall time
+against a pointer that said idle. The two changes are complementary and must both land:
+
+  * this lane removes the CAUSE (the pointer no longer moves on a death);
+  * that lane caps the EFFECT (a cadence RPC may not bill past the switch instant), which is still
+    needed for every other way a pointer can go idle, and for a forged client.
+
+**Check when integrating:** with this lane in, a knocked-out character's pointer stays `combat`, so
+the not-in-combat cap will NOT fire during a recovery — the RECOVERY FLOOR is what must refuse that
+window, and it does. If that lane ever makes `recovering_until` also idle the pointer, the two
+disagree and the run would stop again; it must not.
+
+**Standing P2 raised, not fixed here (needs Security, not me).** `collectCurrentWindow`
+(set-activity.js) refuses a window under `ACCRUE_MIN_MS` (60 s) with `below_min_span` and writes
+nothing — but the switch that follows stamps `accrued_to = now()` regardless (hr_apply S5). So ANY
+activity switch inside 60 s of the last watermark silently FORFEITS up to a minute of earnings, with
+no ledger row and no `forfeited` receipt (that receipt exists only on the C3 force-close path).
+Measured on the live gate: 19 s window, hp untouched, `accrued_to` advanced to the death instant.
+Off the death path now, but still true of every fast stop/start. Cheapest honest fix: journal it, by
+extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering the floor is
+Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).
+
+---
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER · b521 · **BURY IS NOW A SERVER BENCH — and it inherits a tier-4 gate** (`worktree-agent-a4bd50bfbdabbad36`)
+
+**What changed.** `buryBones()` (src/legacy.js) was `removeItem(id,n)` + `addXp('prayer', it.buryXp*n)`
+with no intent, no RPC and no settle — a client-authored XP grant AND a client-authored inventory
+debit (CLAUDE.md §1). paione, 2026-09-07: *"I got like 2k bones which I can bury a gazillion times
+and get the exp and keep the bones."* Server facts confirm it: prayer XP 47,802, bones 2,027, and
+**zero** bury intents or ledger rows in 7 days. The gesture now starts the existing server-settled
+`bury_bones` artisan run (`ARTISAN_SETTLEMENT.prayer === 'payable'`; the engine prices it —
+`tests/artisan-accrual.mjs` reports `bury_bones (prayer) · 22500 actions · {bones:-22500} ·
+{prayer:22500}`). Two inline client-authored fallbacks (inv-context-menu.js, item-ux.js) were
+deleted with it, and the dead `applyRichCatchup()` was collected.
+
+### ⚠ FOR THE GAME DESIGNER — a design consequence I did NOT decide (P1)
+
+Routing Bury onto the bench necessarily adopts **every gate the Prayer screen already enforces**,
+and one of them is expensive:
+
+| gate | source | effect |
+|---|---|---|
+| **Shrine workbench** | `WORKBENCH.prayer = 'shrine'` (src/features/homestead.js:84); the Shrine is in the **tier-4 `Ironvale Keep`** room list (40,000g + 50 maple planks + 35 steel bars + 20 big bones + 5 bear pelts + 12 ashlar) | a player below tier 4 **cannot bury at all** |
+| prayer level | catalogue rows: `bury_bones` req 1, `bury_big` req 15, `bury_dragon` req 35 | dragon bones now need Prayer 35; they needed nothing before |
+
+**This is not a capability I removed — it is a capability that was never real.** Below tier 4 the old
+button granted XP that evaporated on the next reload; the Prayer *skill screen* has always refused
+the same players with "Build the Shrine at your homestead first". The fix makes the two surfaces
+agree, and states the requirement on a **disabled** button before the click (the same shape as
+b224's "Already at full health") instead of a live button that refuses after it.
+
+**The open question is yours, not mine:** *should burying bones require a tier-4 property at all?*
+The measured argument that it should not: **the server does not enforce it.** The catalogue row is
+`('artisan','bury_bones','prayer',1,null,false)` — level only, no room — and `benchPayable('prayer')`
+is true, so a declared bury is settled whether or not a Shrine exists. The Shrine gate is a
+**client-only rule the realm does not share**: the mirror image of the residue-ahead class
+(CLAUDE.md §6). Cooking already has the precedent for relaxing exactly this (b225, the campfire
+ruling: `UNGATED = { cooking: true }` — "they can cook with the fire in the first tier camp").
+
+If you rule prayer ungated it is a one-word change — `var UNGATED = { cooking: true, prayer: true };`
+— **plus** the smoke assertion that currently pins it (src/features/smoke-test.js ~L2186:
+`['smithing','crafting','prayer'].forEach(s => assert(H.hasWorkbench(s).ok === false))` and
+`assert(!H.UNGATED.prayer)`). I did **not** touch either: that assertion says the gate is a decision
+somebody made on purpose, and a balance ruling is not a systems fix. Prayer XP rate and the Shrine's
+value proposition are yours.
+
+### Smaller flags
+
+* **Two numbers for one thing.** `ITEMS[id].buryXp` (4.5 / 15 / 72) and the recipe's `xp`
+  (4.5 / 15 / 72) agree today and nothing binds them. Every surface I touched now reads the
+  **recipe**, because that is what the server prices; `buryXp` survives only as the "is this a bone"
+  predicate (bag filters, glyph routing, the `bones` category). A guard binding the two is cheap if
+  you want it.
+* **`G.stats.buried` is deleted.** One writer (the mint), one reader (`wk_bury`, which carries
+  `blocked:` and is therefore never dealt). `BENCH_COUNTERS` (src/core/artisan.js) has no `prayer`
+  row and `tests/artisan-accrual.mjs` asserts the counter loop must not invent one, so nothing
+  stamps a burial count client- OR server-side. `wk_bury` stays blocked; unblocking it is lane C
+  (add the BENCH_COUNTERS row + catalogue the goal + delete `blocked`, one build).
+* **The gesture is a RUN, not a stack burn.** 2,027 bones is ~40 minutes of bench at 1.2 s/bone
+  (and it accrues while away). If you want burying to be faster than a smelt, the `ms` on the three
+  prayer rows is the dial — it is data, and it is yours.
+* **Not a rank exploit, and never was.** Leaderboards read server XP, which never moved.
+
+## 2026-09-07 — MERGE DEFECT found on the assembled tree (`21f3b5bf`): a bare `setActivityIcon`
+
+**Two individually-correct lanes, one broken screen.** The icon-extraction lane (slice 8b step 1)
+moved `setActivityIcon` out of `src/legacy.js` into `src/render/icons.js` and rewrote every call site
+it could see to `HearthriseIcons.setActivityIcon(...)`. The knocked-out P1 lane added a SIXTH call
+site — the `Knocked out — back on your feet in Nm` branch of the activity bar — after that census was
+taken, as a bare `setActivityIcon(...)`.
+
+On the merged tree that line throws `ReferenceError: setActivityIcon is not defined` on **every
+repaint of a knocked-out player's activity bar**: the countdown never renders and
+`refreshPanelProgress()` below it never runs. It is the exact surface the recovery lanes were built
+to give the player. `RECOVER-17` was RED on the assembled tree because of it.
+
+Fixed here (`src/legacy.js:12487`). Swept the whole namespace — `actIconHtml`, `paintSkillIcons`,
+`paintMonsterIcons`, `installIconLayer`, `setActivityIcon` — and this was the only survivor.
+
+**The class is open and belongs to whoever owns the next extraction slice.** A bare call to a name
+that has left `legacy.js` is invisible to every guard we have: `dead-exports` reads exports,
+`window-globals-exist` reads `window.Hearthrise*`, and a `ReferenceError` only fires on the code path
+a test happens to drive. Every remaining slice-8 extraction (inventory, combat, progress, refreshAll)
+can reintroduce it. **Wanted: a bare-identifier census over `src/legacy.js`** — every free identifier
+that is neither declared in its own top-level segment, nor a `window.*` publication, nor a browser
+global. Not built here; it is its own lane, not a line in a ratchet fix.
+
+## 2026-09-07 — CR-1 (comment-ratio ratchet) fought the cleanup program; re-specified
+
+Recorded because it is a DECISION about a standing guard, taken without the guard's author present.
+CR-1 shipped as a whole-file ratio ceiling (`comment/code <= comment/code at baseline`). That
+predicate goes red when CODE IS DELETED, which is what most of the CLEANUP_PROGRAM does. Two
+measurements on the tree it first gated:
+
+  * `src/settings-page.js` — a lane replaced 11 lines of rendering with 7 better ones. Comments
+    UNCHANGED at 371; code 986 -> 982; ratio 0.376268 -> 0.377800. **RED with nobody having written a
+    word of prose.**
+  * `src/legacy.js` — the icon extraction moved 1,044 lines out, which MONO-1/4/5 in the sibling
+    ratchet reward. The extracted unit was code-denser than the file average, so the remainder got
+    proportionally wordier: 0.703794 -> 0.710681. The extraction moved CR-1 the wrong way (+0.006887)
+    by MORE than the build's new prose did (+0.005269). **Two guards authored in one commit,
+    disagreeing about the same commit.**
+
+Re-specified to the marginal form — `comment_now <= comment_base + rate * max(0, dCode)` — which is
+arithmetically IDENTICAL to the old rule wherever code grew (asserted in `--selftest`) and differs
+only in the shrink case. Adding prose to a file you are shrinking is still red; so is leaving prose
+behind when its code is extracted. `--write` pins the rate only DOWNWARD so the change cannot
+compound. Nothing was re-baselined upward to get green: the actual prose debt in `accrue.js`,
+`record.js`, `home-dashboard.js`, `smoke-test.js` and `settings-page.js` was paid, not waived.
+
+## 2026-09-07 — TF-1/TF-2 (test-file ratchet): a corpus AVERAGE is not a ceiling
+
+Same species, stated for the record. A ceiling on the mean is unsatisfiable by any honest test above
+the mean: add one and the mean rises, so the only compliant test is a leaner-than-average one, and
+each such test drags the mean down so the next must be leaner still. It went red on its first real
+build — ten tests carrying the ATTENDED **and** AWAY arms CLAUDE.md §4 requires. Re-specified to CODE
+lines per test (comments stripped by the sibling ratchet's own `classify()`, imported so the two
+cannot disagree), an absolute +1% band, and `--write` pinning only downward so the band is spent once
+rather than renewed. TF-3 ("may not be satisfied by deleting tests") is unchanged and is now proven
+at the band's edge as well as at one test.
+
+## 2026-09-07 — the daily-task OFFER gate now diverges from the PERMISSION gate (semantic, deliberate)
+
+The game-designer ruled that smithing and crafting are not gated on the Forge/Workshop: a level
+grants permission, a room grants speed and quality. The client gate is gone — `UNGATED` covers all
+four benches, `hasWorkbench` answers ok for every skill, and the refusal branch, the tile lock chip,
+the "Gates: <Skill>" room fact and the "Required for Smithing/Crafting" copy are deleted rather than
+disabled.
+
+`DAILY_TASK_REQUIREMENTS` in `src/data/goal-catalogue.js` was left EXACTLY as it is by the same
+ruling, so `daily_smith` and `daily_craft` are still only OFFERED to an account that owns the room.
+That is an offer gate standing next to no permission gate, and the two now say different things
+about the same room. It is defensible — a 40-item daily with no speed rungs is a bad deal, not a
+padlock, and the recipes themselves are open either way — and it is NOT free to change: the twin
+lives in `2026-08-29-daily-task-eligibility.sql` and `tests/goal-catalogue-drift.mjs` binds all four
+copies, so relaxing it is a lane-C migration plus the client half. Recorded here so the next reader
+does not "fix" one side alone; the divergence is written into that table's own comment too.
+
+Also recorded, because it is not mine and it blocks the gate: `monolith-ratchet`,
+`comment-ratio-ratchet` and `test-file-ratchet` are ALREADY RED on `main` at `0d9f12ab` — measured on
+a pristine `git archive HEAD` tree, before this branch exists (legacy.js 21299 against a 21132
+ceiling; smoke-test.js 64 comment lines over allowance; corpus b-lines 4201 against 4174; seeds/test
+2.072 against a 2.060 band). The baselines were pinned at tree `762a1672` and `main` has moved past
+them twice since. This branch improves every one of those numbers and clears none of them.
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER (copy/ruling) + ART DIRECTOR (bar/sheet) · **SEMANTIC: after a reload, a RETREATED player is shown an ordinary knockout** (`worktree-agent-a4fe88a314834df6b`, RETREAT-A4)
+
+Not a git conflict. Two rendered surfaces now genuinely reach a state the ruling has not worded,
+and I have deliberately NOT decided it.
+
+**Background (mine, and it is fixed).** Measured 2026-09-07 against the real `hr_load` boot path:
+a retreated character reloading came up `fallState().phase 'up'`, `recoveringUntilMs() 0`,
+`G.consecFalls undefined`, bar reading "Idle — pick an activity", no sheet. Cause:
+`applyEnvelopeState` runs only on `accrued:true`, and a retreat ALWAYS leaves the pointer idle, so
+the boot is answered `{accrued:false, reason:'idle'}` and the whole fall observation was skipped —
+b510 through the idle-boot door, plus a durable retreat counter that a reload erased. Fixed by the
+shared-reconcile pattern (`reconcileFall` in `src/net/accrue.js`, called from `record.js` settle as
+`hydrationStep('fall')`), which is the fifth instance of the class record.js already names.
+
+**What is now OPEN, and it is the Designer's to rule on.** With the fix in, the reload raises the
+sheet — and the sheet says **"Knocked out / Back on your feet in 31:47"** with a row reading
+**"Your run picks up the moment you are up · automatic"**. On a RETREAT that row is false: the
+server idled the pointer and the run does not pick up. It is the same defect RETREAT-A6 exists for
+("the countdown must not un-say the retreat"), reached through the boot door instead of the tick.
+
+`src/features/death-sheet.js` `readMoment()` records a deliberate decision NOT to claim a retreat
+on a boot-raised sheet — "re-deriving it here from a count and a bag would be a second copy of the
+rule, and the second copy is the one that is wrong" — and I agree with the reasoning and did not
+overrule it. But there IS a server-stated way to tell the two apart without re-deriving anything:
+after a retreat the envelope carries `active_kind: 'idle'` **and** a running `recovering_until`,
+where an ordinary knockout still carries `active_kind: 'combat'`. That is an observation, not a
+second copy of the rule. Whether the boot-raised sheet should then read "You pulled back" is copy,
+and copy is the Designer's.
+
+**What I did do, and why it is the smaller half.** The activity bar's knocked-out readout lived
+inside `if(G.activeMonster)`, so a retreat (idle pointer) fell through to "Idle — pick an activity"
+— inviting a player who cannot act for 32 minutes to start something. I gave it its idle twin in
+`refreshActivityBar` (`src/legacy.js`) with a meta line that deliberately does NOT reuse the combat
+branch's "<foe> resumes automatically": **"Nothing earns while you recover · your run does not
+restart itself"**, which is the ruled retreat lead's own fact. That sentence is provisional and is
+flagged here rather than defended — it is one string in one branch and is free to be rewritten.
+
+**Second, smaller open item (Designer/Coordinator, not blocking).** `bootAccruedToAt` — the
+welcome-back card's statement of how long the player was away — is written by the FIRST
+`state.accrued_to` the session observes. I deliberately left `accrued_to` OUT of the shared
+`reconcileFall` so the boot `hr_load` body does not become that first observation, because it would
+change a player-visible number on a surface this change has no business touching. Arguably the boot
+body is the MORE correct source ("the last instant the server had priced before this boot" is
+literally what `player_state.accrued_to` is at boot). Someone should decide that on purpose; today
+it is unchanged by design.
+
+## 2026-09-08 · SYSTEMS → GAME DESIGNER (copy only) · **RESOLVED, one string left provisional** (`worktree-agent-a66d4bb2c074fad34`, RETREAT-A4b/c/d)
+
+The open item above ("after a reload, a RETREATED player is shown an ordinary knockout") is CLOSED.
+The Coordinator's 2026-09-08 brief ruled it: the boot-raised sheet reads exactly what the server
+says. `bootRetreat` in `src/features/death-sheet.js` takes the server's own `consec_falls`
+(hydrated by `reconcileFall`) to `src/core/away.js` `retreatAtFall` — the one definition both
+runtimes import — and asks which rung it is at; fed (6) is tested first because it is the weaker
+condition, so only a count that misses it can be the foodless rung's. No bag is read, nothing is
+counted, an absent key claims nothing (RETREAT-A4d), and a character still pointed at a fight is
+never a retreat whatever the count reads.
+
+**The one thing that is copy, and it is provisional.** The sheet's `resume` row read "Your run
+picks up against the <foe> the moment you are up · automatic" unconditionally — false on a retreat
+for the same reason RETREAT-A6 removed the promise from the lead. It now reads, on a retreat only,
+**"You pulled back — your run does not restart itself · ended"**. That is one string in one branch,
+written to state the ruled lead's own fact rather than to leave the slot silent (a sheet that goes
+quiet about the pointer lets the player assume the reassuring answer). Rewrite it freely; the row
+key `resume` and the suppression are the load-bearing parts.
+
+RETREAT-A4's own assertion moved with it: the boot sheet counts the same server instant down in the
+ruled sentence ("Still recovering — 32m to go") instead of "Back on your feet in 31:47".
+
+## 2026-09-12 · SYSTEMS → GAME DESIGNER + BACKEND (catalogue lane) · **DATA: 31 equippables are gated by the client and by nothing on the server** (`worktree-agent-a5150572edeb72e85`, lane/b538-wield-grandfather-server-truth)
+
+Found while deleting `G.wieldGrandfather` (the client-held wield exemption). Not a git conflict and
+not blocking that fix — the divergence is in the FAIL-SAFE direction — but it is one rule living in
+two places with two different answers, and only one of them is authority.
+
+**Measured.** 237 equippable items in `src/data/items.js`: 191 carry both `tier` and `reqLv`, 5 carry
+`reqLv` only, 10 carry neither, and **31 carry `tier` and no `reqLv`/`reqSkill`** (the classic
+hand-authored plate — `iron_helm`, `steel_helm`, `iron_platebody`, `steel_platebody`, `bronze_belt`,
+`leather_boots`, …). `gearWieldReq` (src/legacy.js) derives a requirement for those from the tier
+ladder `_TIER_WIELD_LV` (Bronze 1 → Dawnsteel 88) and a skill from the item type, while
+`tools/gen-catalogues.mjs` copies `it.reqLv` **verbatim** — so `hr_items.req_lv` is NULL for all 31
+and hr_apply §EQUIPMENT accepts them at any level. The client refuses what the realm permits.
+
+**Why it is not urgent, and not mine to close.** Nothing is minted and nothing is lit that the server
+refuses, so this is not the residue-ahead class — it is its mirror image, and it costs a player a
+piece of gear they could legally wear rather than a bounced press. Closing it means authoring
+`reqSkill`/`reqLv` on those 31 rows (the designer's values) plus a catalogue regeneration and apply
+(lane C, with a `live-hash-drift` re-measure). Two ways to land it: author the rows to match the tier
+ladder (the design as ruled at b246, and what the client does today), or drop the ladder fallback and
+let the catalogue be the whole answer — which makes those 31 wearable at level 1.
+
+**What the client does now, for the record.** `canWield` reads the requirement against the
+server-mirrored skill level and nothing else; the rationale, the refusal code and this divergence are
+documented at `src/net/equip.js` §THE GATE.
+
+### RESOLVED 2026-09-12 (`worktree-agent-a0f093d217a6b3589`, b542) — option 1, by game-designer ruling
+
+The designer took the **first** of the two ways: author the rows to the tier ladder. `reqLv` = the
+shipped rungs, tier 1..8 → **1/15/30/45/60/75/88/88** (tier 8 *shares* 88 — two live tier-8 rows
+already sit at 82/88 and opening a rung above would nerf gear somebody wears). `reqSkill` = the skill
+the item's power serves: armour and jewelry `defense`, a weapon its own style, an item whose only
+effect feeds one non-combat skill that skill (`bone_earrings` → `prayer`), and an item with no combat
+stat and no faucet `reqLv: 1` (`tally_ring`, `pathfinder_studs` — they sell *information*).
+Landed as **34 rows**, not 31: the census missed three riders with no `tier` at all (`iron_arrows` →
+ranged 1, `chief_blade` → attack 15, `captains_ribblade` → attack 30).
+
+**The census also under-stated the severity, and that correction matters.** It reads "not urgent,
+fail-safe direction". True for 25 of them. Not true for the six **tier-8** rows: `_TIER_WIELD_LV` is
+indexed 1..7, so `_TIER_WIELD_LV[8]` is `undefined`, `|| 0` makes it 0 and `gearWieldReq` returns
+`null` — `regent_helm`, `slagheart_platebody`, `abyssal_greaves`, `warden_girdle`,
+`choirbone_gauntlets`, `wyrmgilt_mantle` were ungated on **both** sides, and all six are **tradeable**.
+A level-1 account with gold could buy 120 defence off the market. That is a live P1 on a shared
+surface, not a tidy-up.
+
+**Root cause, fixed at the root.** The b215 backfill in `src/data/items.js` copies `tier`/`rarity`
+from the generated twin in `gear-tiers.js` and stopped there; 17 of the 34 have a twin whose fields
+already ARE the ladder, so the backfill now copies `reqSkill`/`reqLv` too (`== null` only — a
+hand-authored gate always wins). The remaining 17 are hand-authored beside their stats.
+
+**Landed:** data + the b215 backfill extension, the regenerated catalogue, `EQUIP-REQLV-1` in
+`src/features/smoke-test.js`, and `supabase/migrations/2026-09-12-equippable-req-lv.sql` (STAGED, NOT
+APPLIED — **needs a Security GO**; it changes what the realm refuses on a tradeable surface). No
+`canWield` edit and no `_TIER_WIELD_LV` change: the client already read an explicit `reqLv` in
+preference to the array, so the data alone converges both readers. The `src/net/equip.js` §THE GATE
+"ONE KNOWN DIVERGENCE" note is updated in the same commit — it was the record of this entry and would
+otherwise have outlived it.
+
+---
+
+## 2026-09-13 — consumable buffs step 2: three semantic notes, one of them a live gap
+
+**systems-engineer, branch `worktree-agent-a26409ea8bdf37b34`.** The eat path now emits
+`buff_apply` and the pill is the envelope. Three things cross another owner's line and are
+recorded rather than decided here.
+
+**1. AUTO-EAT DOES NOT BUFF, and that is a ruling I had to make to ship safely.** The brief said
+"when the eaten food has a buff, emit `buff_apply`". Taken literally that is a P0: fifteen
+`foodClass:'healing'` rows in `src/data/items.js` carry an incidental buff (Cooked Herring's +1%
+gather speed, Goldgill Steak's +2% drop rate) and the auto-eater eats *exactly that pool*, up to
+20 sends/min through legacy.js's paced FIFO. Every heal would buff, the 60-minute queue would cap
+inside ~90 s of a hard fight, and every auto-eat after that is refused `buff_at_max` — **a refusal
+that rolls the whole apply back, so the food is never debited and returns on the next envelope**:
+the b467-b479 "food I eat gets restocked" P0, reintroduced by a feature. So the `eat` intent now
+carries a boolean `auto` (`request.js readAuto`) and the server suppresses the buff for it, which
+is also exactly what the client paints either way — `maybeAutoEat` heals and never calls
+`applyBuff`. The flag can only make the answer *smaller*; a forged `auto:false` grants a buff the
+player could have had by clicking Eat on food they already own. **Game designer:** the live
+consequence is that a manual eat of those fifteen healing foods now pays a real (small) buff that
+has always been on the tooltip and has never been paid. If that is unwanted, the change is one
+line in `eatDelta` (gate on `foodClass === 'buff'`), not a sweep.
+
+**2. THE HOMESTEAD CELLAR'S `buffDuration` BONUS IS NOW INERT, and it was always inert where it
+counted.** `src/features/homestead.js` registers `homestead.cellar` with `registerBuffScaler`, which
+lengthens a buff at *application* time — on the client. The server stamps `until` from
+`hr_item_buffs` x `c_buff_scale` (= 1), so the envelope shortens the buff the Cellar lengthened,
+within the eat's own round trip. Nothing real was lost (every yield is server-computed; the longer
+client duration only ever moved a prediction), but a room the player paid for now visibly does
+nothing. **Backend + designer:** the fix is server-side — `c_buff_scale` is named in
+`2026-09-13-consumable-buffs.sql` as "the ONE place a future perk would lengthen a duration", and it
+needs the perk to reach `hr_apply`. Not attempted here (a migration + Security GO).
+
+**3. I fixed another lane's file.** `supabase/migrations/2026-09-13-consumable-buffs.sql` ended on a
+prose comment, which `tests/run-smoke.mjs migrationGuard` reads as a truncated file — **the whole
+suite was red on it** ("last line is not a SQL terminator"). The §5 note is moved into the header
+verbatim; the file now ends on `end $mig$;`. No SQL changed.
+
+---
+
+## 2026-09-13 — bestiary charms phase 2: the DROP half is armed, the DAMAGE half is not
+
+**systems-engineer, branch `worktree-agent-abe88c834e52d3cf6`.** `charmDropMultFor` is now read
+inside `weaknessInfo` — one expression, two callers (the live tick and the Edge replay) — so a
+studied class pays 1.01/1.02/1.03 on its drop ROLLS at 100/500/2000 class kills, awake and asleep
+alike. Two things cross another owner's line and are recorded rather than decided here.
+
+**1. I DID NOT ARM THE `dmg` COLUMN, and the reason is arithmetic, not caution.** The ladder authors
+`dmg` 1.01 at rank 3 and 1.03 at rank 4, but `playerCombatRolls` applies `weak.damageMult` through
+`Math.floor` on an ALREADY-INTEGER `maxHit`: `floor(25 x 1.01)` is 25. Arming it today would ship a
+stated effect that does nothing for most loadouts — the "no placeholders or fakes" line — and the
+data module's own header calls it phase 3 with its own review. **Game designer:** if the damage half
+is wanted, it needs either a bigger magnitude or a maxHit expression that does not truncate
+(carrying the fraction into the roll rather than the cap). The wiring is done: it is one factor in
+the `damageMult` product, under `MAX_TOTAL_DAMAGE_MULT`, and nothing else moves.
+
+**2. A DROP-RATE CHANGE IS AN ECONOMY CHANGE, at +3% on non-guaranteed rows at the ceiling.**
+`effectiveDropChance` still caps at 0.95 after every multiplier and still returns `ch >= 1`
+untouched, so a charm cannot turn one certain drop into two (asserted: A11 in
+tests/attended-loot-credit.mjs). The magnitudes are the Designer's own authored table and can be
+re-priced in `src/data/bestiary-charms.js` alone — no engine change, because the ceiling lives in
+the formula. **Security:** the rank is never a wire value. There is no request field for a rank or a
+kill count (`INTENT_KEYS`), the Edge folds `hr_bestiary_of`'s own rows inside the engine, and
+tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against the clean delta.
+
+---
+
+## 2026-09-14 — SEMANTIC CONFLICT: the START-KIT hint discard vs the deleted factory literal
+**Lanes:** `worktree-agent-a6a742b766b7e073e` (START-KIT sweep) and the inventory-flip staged-arm lane. Both are already merged into `next`; nothing is broken today, and this is a note for whoever owns the bag next, not a request.
+
+`reconcileInventory` gained a once-per-load rule that, on a COMPLETE envelope, discards a `START_INVENTORY` id whose local figure is still EXACTLY the hint. It was written against the fresh-`G` factory literal `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` — which the flip lane DELETED in the same day's set (`src/legacy.js`; the bag now starts `{}`). Its own tests stage `G.inventory` explicitly, so they still pass, and they do.
+
+**What changed underneath it.** With the literal gone, an exact-hint local figure can no longer be client-authored — it can only have come from the server (a new character whose `hr_start_kit` rows say exactly 5/3/10/20) or from real play landing on the same number. So the rule's remaining reachable effect is to DELETE-on-omission a stack that may be real, for four ids, once per load. It is bounded and small; it is also the never-delete rule being broken for a phantom that no longer exists.
+
+**Recommendation (not taken unilaterally, because the code is the other lane's):** retire the `START_INVENTORY` block in `reconcileInventory` and let the classification carry it — `turnip_seed`/`carrot_seed` are now OWNED (so a complete envelope's omission means zero once the flip arms), `shrimp` is owned and `cooked_shrimp` is server-consumed. Until then it is harmless-but-unsound, and it is the second rule in one function that may remove a key.
+
+**RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
+
+**Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.
+
+---
+
+## 2026-10-11 — SEMANTIC CONFLICT: the bag goes ABSOLUTE (b568, lane/b568-absolute-bag) — Security must see it before the cut
+**Lane:** systems-engineer, `lane/b568-absolute-bag` (on `lane/b568-intent-conflict-phantom`). CLAUDE.md §6 class-kill of the merge-upward bag.
+
+**What moved.** `INVENTORY_ARM_STAGE = 'on'`; `isInventoryAbsolute()` no longer reads the per-session equip ack; the ARMED branch of `reconcileInventory` is now "the bag IS the projection" (no completeness gate, no not-owned omitted-keep carve-out); the MERGE branch assigns every key it names (no `Math.max(have, q)`); named skill XP is assigned (no `Math.max(have, xp)` carve-out). Guard: `tests/no-upward-merge.mjs` (+ `--selftest`, five mutants).
+
+**Why it crosses Security's line.** The C2/C3 carve-outs and the completeness gate were reviewed as "never delete" rules. They are retired on the argument that `G.inventory` is never saved (no local blob, not residue) and hr_state_of projects the whole of `player_inventory` — so the replace can only correct a DISPLAY. The soak query (SELECT-only, 2026-10-11) read 72/102 `inv_flip_drift` sessions with destructive owned omissions; the lane reads those as the phantom being counted, not a hazard. The START-KIT hint block above is now reachable only on the merge path. **Security: confirm or veto before this rides a cut.** Fastest way back is unchanged: `hr_flags.inventory_absolute = false`.
+
+**CORRECTION + RESOLUTION (Security GO-WITH-CHANGES, same day).** The first version of this note said "no intent reads it". That was false. These size an intent or an action from the display bag: sell-one (`shop-counter.js:281` invSellOne), the context menu (`inv-context-menu.js:178` buildOptions), the quick-sell slider (`item-ux.js:487/620/636`), the seam-off market list (`market.js:377`) and `legacy.js hasItem` (vendor sell guard, loadout equip, food slot). **Closed:** `market.js` now reads `gateItemCount`, and falls back to the display bag only when no server market exists. **Left display-bounded, deliberately:** I routed sell-one, the context menu and the slider through `gateItemCount`, and the suite went red on design rulings — SELL-SRV-1 and SELL-SRV-5 ("vendor_sell collects first: a freshly gathered log the last bag does not show is real on the server and sells"), plus B354-6/b140 (`selectJunk` must quote *pending* on an unstated bag; it already prices from `serverQty`). So I reverted them. The worst case for each is a request the server refuses under its row lock (insufficient_item), and the receipt shows the server's answer. Reopening this is the Game Designer's call, not this lane's. **Follow-ups (not this lane):** the stale `hr_flags.note` wording on `inventory_absolute` (DB lane); widening `no-upward-merge` beyond `Math.max` in src/net (ternary and `if (q > have)` forms, legacy.js and features).
+
+**Designer, display-only ratchet left in place:** `src/core/goal-display.js` keeps the goal bar at its high-water (`Math.max(prevShown, confirmed, predicted)`); `canClaim` reads `confirmed` only, so nothing spends it, but the bar can sit above the server after a prediction overshoot until the period rolls. Not changed here — it is R5's stated "never a decrement" rule.
+---
+
+## 2026-10-10 — FLAG: the Discord gift's operator rotation writes production outside apply-migration
+**Lane:** `lane/b567-discord-join` (systems-engineer). Nothing is applied; this is a decision for the Coordinator, not a request to loosen §2.
+
+The brief asks for `tools/discord-gift-code.mjs`, an operator one-liner that rotates the active gift code through the management API. That is a production DATA write (`select public.hr_discord_code_rotate('<code>')`: one row retired, one inserted in `hr_discord_codes`) that does not go through `tools/apply-migration.mjs`, which CLAUDE.md §2 names as the only production write path. It moves no player value (the amount is a server constant; the table is operator config, RLS-forced, no client grant), the token is read as file bytes and never printed, and no agent has run it. **Ruling needed:** bless it as an operator verb (run after the migration applies; until a code exists the gift is OFF), or route each rotation through a one-statement migration file. **For the Game Designer:** the gift is proposed at 50 gems (one bank expansion on day one, a quarter of the first hero slot); a retune is one constant in §5 of `2026-10-18-discord-gift.sql`.
+
+**RESOLVED 2026-10-11 (Coordinator + Security GO-WITH-CHANGES; Game Designer):** no rotation writes at all. The repo is public, so neither a code nor its sha256 may ever be committed (31^6 cracks offline). The code is DERIVED server-side (HMAC of the Vault secret `hr_discord_gift_secret` over the ISO week; last week's honoured as grace); the code table and rotate function are deleted; `hr_discord_code_current()` is owner-only and `tools/discord-gift-code.mjs` only READS it. Amount: **25 gems** (Baron parity).
+
+---
+
+## 2026-10-10 — W0a vs w0e/w0f (Systems Engineer)
+
+**Semantic overlap, not a git conflict.** tests/catalogue-coherence.mjs holds a shrink-only PENDING list: w0f (boss materials void_essence/riftmaw_husk/elderscale_heart; trophies warboss_standard/lexarch_seal/voidwoven_sigil/dragon_relic) and w0e (Prayer has no consumer). When those lanes give each a use, they must delete the row in the same commit, or C2/C4 fails as stale. w0a also cut the six elemental arrows/whetstones and the fletching/mason tool ladders from library2-items.js SUPPLY_CHAINS — w0e (ammo/Runecrafting) should merge on top of that, not re-add them.
+
+---
+
+## 2026-10-11 — SEMANTIC CONFLICT RESOLVED: W0a's seal cut vs the account wallet's restatement of world_event_claim__ungated
+**Lanes:** `lane/w0a-cuts-and-copy` (2026-10-10-w0a-catalogue-cuts.sql §1c) and `lane/c-account-wallet` (2026-10-19-account-wallet.sql §4), met in `lane/b567-discord-join`. No git hunk; the chain stopped replaying.
+
+Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the wallet routes its gems through `hr_wallet_credit` and pinned its pre-image to the chain WITHOUT W0a, so with both present the wallet refused at §0 (md5 b2a71614). Neither order works alone: wallet-then-W0a would put a `player_state.gems` write back after the column is dropped. **Resolution (in the wallet file, flagged for Security re-review):** the wallet's restatement is rebased onto W0a's seal-less body (the seal declare, `v_seal := 1`, `hr_rally_chest(…, v_seal)` → `0`, and the `seals` ledger/answer keys removed — exactly W0a's diff), and its §0 pin is now pre = b2a71614 (W0a's body), post = dba6d501. Apply order: w0a-catalogue-cuts → name-moderation → account-wallet → discord-gift. Verified on the merged chain: tests/account-wallet.mjs + --mutate, tests/discord-gift.mjs + --mutate, schema-drift, catalogue-coherence.

@@ -144,7 +144,7 @@ export function incidentsQuery({ minN, days, limit } = {}) {
            (array_agg(intent order by last_at desc))[1]      as last_intent,
            (array_agg(last_detail order by last_at desc))[1] as last_detail
       from public.hr_rejections
-     where severity = 'incident'
+     where true
        and last_at > now() - interval '${d} days'
      group by code
     having sum(n) >= ${n}

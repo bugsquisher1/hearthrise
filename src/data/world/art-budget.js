@@ -45,6 +45,7 @@ export const CLASSES = Object.freeze({
   beast: row({ frame: [64, 64], anchor: [32, 56], body: [40, 48], measure: 'w', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   box: row({ body: [12, 20], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   clutter: row({ body: [12, 22], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  bed: row({ body: [40, 60], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   table: row({ body: [20, 24], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),

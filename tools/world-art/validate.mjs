@@ -130,7 +130,8 @@ export function validateSprite(sp) {
         if (iso.iso) out.push({ rule: 'iso-corner', id, detail: `${where}: the underside is a corner climbing ${iso.left} and ${iso.right} rows in straight stairs: drawn isometric, not top-down` });
       } else if (c === 'legged') {
         const ext = spans.length ? spans[spans.length - 1][1] - spans[0][0] + 1 : 0;
-        if (spans.length < 2 || ext < 0.6 * m.box.w) out.push({ rule: 'contact', id, detail: `${where}: ${spans.length} contact spans covering ${ext}/${m.box.w}px; legged furniture needs 2+ spans over 60%` });
+        // legs, or a base so close to the floor that the legs merge into one span
+        if (!(spans.length >= 2 && ext >= 0.6 * m.box.w) && covered < 0.6 * m.box.w) out.push({ rule: 'contact', id, detail: `${where}: ${spans.length} contact spans covering ${ext}/${m.box.w}px; legged furniture needs 2+ spans over 60%` });
       } else if (c === 'post') {
         const half = ((sp.footprint || [1, 1])[0] * T) / 2;
         const ok = spans.some(([s, e]) => e - s + 1 >= 2 && Math.abs((s + e) / 2 - ax) <= half);

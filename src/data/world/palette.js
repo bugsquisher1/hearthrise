@@ -32,12 +32,15 @@ export const RAMPS = Object.freeze({
 /** Every colour, in ramp order. */
 export const PALETTE = Object.freeze(Object.values(RAMPS).flat());
 
-// The one grade per material class: saturation multiplier, then value multiplier,
-// applied before the nearest-colour snap. A sidecar names its class; it never
-// carries its own numbers.
+// The one grade per material class: saturation multiplier (and an optional hue turn
+// in degrees), then value multiplier, applied before the nearest-colour snap. A
+// sidecar names its class; it never carries its own numbers.
 export const GRADE = Object.freeze({
   unit: Object.freeze({ sat: 0.85, dk: 1.0 }),
   monster: Object.freeze({ sat: 0.85, dk: 0.95 }),
+  // grey-pink generated fur snaps to stone grey and vanishes on flagstones; turned
+  // toward ochre and saturated it lands on the earth ramp
+  fur: Object.freeze({ sat: 1.5, dk: 0.95, hue: 22 }),
   wood: Object.freeze({ sat: 0.8, dk: 0.92 }),
   stone: Object.freeze({ sat: 0.7, dk: 0.92 }),
   foliage: Object.freeze({ sat: 0.75, dk: 0.85 }),

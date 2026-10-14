@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-cellar.png",
   "size": [1024,708],
-  "pixels": "e7ad341d437c30f5fc1d1810b85b73e3035a7f7776a9564e99161c160464af73",
+  "pixels": "3520775c4f58ae65c47b7a642e8586e5288a1bf22890d5268ab33c9c7eb236cc",
   "sprites": {
     "barrel": {
       "class": "barrel",
@@ -350,7 +350,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[294,682]]
+            "s": [[327,682]]
           }
         }
       }
@@ -371,7 +371,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[345,682]]
+            "s": [[378,682]]
           }
         }
       }
@@ -452,7 +452,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[901,649]]
+            "s": [[914,649]]
           }
         }
       }
@@ -500,7 +500,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[311,682]]
+            "s": [[344,682]]
           }
         }
       }
@@ -681,7 +681,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[845,649]]
+            "s": [[858,649]]
           }
         }
       }
@@ -707,6 +707,27 @@
         }
       }
     },
+    "pebbles": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [14,12],
+      "anchor": [7,9],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 6,
+      "contact": [1,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[393,682]]
+          }
+        }
+      }
+    },
     "puddle": {
       "class": "decal",
       "layer": "decal",
@@ -723,7 +744,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[328,682]]
+            "s": [[361,682]]
           }
         }
       }
@@ -825,7 +846,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[360,682]]
+            "s": [[408,682]]
           }
         }
       }
@@ -906,7 +927,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[812,649]]
+            "s": [[825,649]]
           }
         }
       }
@@ -933,7 +954,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[874,649]]
+            "s": [[887,649]]
           }
         }
       }
@@ -1061,6 +1082,48 @@
         }
       }
     },
+    "stone_cap_h": {
+      "class": "wallcap",
+      "layer": "wall",
+      "frame": [32,12],
+      "anchor": [16,11],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 12,
+      "contact": [0,31],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[294,682]]
+          }
+        }
+      }
+    },
+    "stone_cap_w": {
+      "class": "wallcap",
+      "layer": "wall",
+      "frame": [12,32],
+      "anchor": [6,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 32,
+      "contact": [0,11],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[812,649]]
+          }
+        }
+      }
+    },
     "stone_end": {
       "class": "wallend",
       "layer": "wall",
@@ -1102,7 +1165,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[928,649],[961,649],[0,682],[33,682]]
+            "s": [[941,649],[974,649],[0,682],[33,682]]
           }
         }
       }

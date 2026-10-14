@@ -41,19 +41,20 @@ export function nearest(r, g, b) {
   return best;
 }
 
-// HLS saturation scale, the same model the v3 mockups were graded in.
-function grade(r, g, b, sat, dk) {
-  if (sat !== 1) {
+// HLS saturation scale (and an optional hue turn, in degrees), the model the v3
+// mockups were graded in.
+function grade(r, g, b, sat, dk, hue = 0) {
+  if (sat !== 1 || hue) {
     const R = r / 255, G = g / 255, B = b / 255;
     const mx = Math.max(R, G, B), mn = Math.min(R, G, B), l = (mx + mn) / 2;
     if (mx !== mn) {
       const d = mx - mn;
       let s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
       let h = mx === R ? (G - B) / d + (G < B ? 6 : 0) : mx === G ? (B - R) / d + 2 : (R - G) / d + 4;
-      h /= 6; s = Math.min(1, s * sat);
+      h = (h / 6 + hue / 360 + 1) % 1; s = Math.min(1, s * sat);
       const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
-      const hue = (t) => { t = t < 0 ? t + 1 : t > 1 ? t - 1 : t; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
-      r = Math.round(hue(h + 1 / 3) * 255); g = Math.round(hue(h) * 255); b = Math.round(hue(h - 1 / 3) * 255);
+      const ch = (t) => { t = t < 0 ? t + 1 : t > 1 ? t - 1 : t; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+      r = Math.round(ch(h + 1 / 3) * 255); g = Math.round(ch(h) * 255); b = Math.round(ch(h - 1 / 3) * 255);
     }
   }
   return [Math.min(255, Math.floor(r * dk)), Math.min(255, Math.floor(g * dk)), Math.min(255, Math.floor(b * dk))];
@@ -70,7 +71,7 @@ export function lock(img, material) {
     const key = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
     let c = cache.get(key);
     if (c === undefined) {
-      const [r, g, b] = grade(img.data[i], img.data[i + 1], img.data[i + 2], gr.sat, gr.dk);
+      const [r, g, b] = grade(img.data[i], img.data[i + 1], img.data[i + 2], gr.sat, gr.dk, gr.hue || 0);
       c = PAL_RGB[nearest(r, g, b)];
       cache.set(key, c);
     }

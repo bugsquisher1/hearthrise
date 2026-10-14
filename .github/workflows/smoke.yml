@@ -4211,6 +4211,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/signposts.mjs
 
+      # World art (lane W2): every committed world atlas keeps one scale and stands
+      # on the floor - class body budget, locked palette, shared 64x64 character
+      # anchor, contact row, no baked shadow, no isometric corner, atlas <= 2048 -
+      # and equals a rebuild of art/world/** (tools/world-art/build.mjs). --selftest
+      # plants a floated chest, a 50 px hero, an off-palette pixel, a baked shadow,
+      # an iso-corner chest and a hand-edited atlas pixel into real sprites.
+      - name: World art - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-assets.mjs --selftest
+
+      - name: World art - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-assets.mjs
+
       # Settle-before-mutate, client half (SEC_SETTLE_BEFORE_MUTATE_F2F3 row 1b):
       # every client-direct sender of the twelve settle-gated RPCs goes through
       # src/net/settle-first.js, and every claim/shop surface carries the

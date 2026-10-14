@@ -37,12 +37,13 @@
 //
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodePNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
+import { tmpdir } from 'node:os';
+import { decodePNG, encodePNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
-import { ROOT, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
+import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, DIRS, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../src/data/world/palette.js';
 
@@ -181,13 +182,22 @@ function selftest(atlases) {
     if (rules.has(rule)) console.log(`  ✓ ${name}: caught by [${rule}]`);
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [${rule}] (rules hit: ${[...rules].join(', ') || 'none'})`); }
   }
-  // Drift: one edited atlas pixel must not match its manifest.
-  const { manifest: m, atlas } = atlases[0];
-  const edited = cloneImage(atlas);
-  const i = firstOpaque(edited);
-  edited.data[i] ^= 1;
-  if (pixelHash(edited) !== m.pixels) console.log(`  ✓ an edited atlas pixel: caught by [drift]`);
-  else { escaped++; console.log('  ✗ an edited atlas pixel: NOT caught by [drift]'); }
+  // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
+  // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
+  const tmp = mkdtempSync(join(tmpdir(), 'world-assets-'));
+  try {
+    cpSync(join(ROOT, ART_DIR), join(tmp, ART_DIR), { recursive: true });
+    cpSync(join(ROOT, OUT_DIR), join(tmp, OUT_DIR), { recursive: true });
+    const set = atlases[0].manifest.set, png = join(tmp, OUT_DIR, `atlas-${set}.png`);
+    const edited = decodePNG(readFileSync(png));
+    edited.data[firstOpaque(edited)] ^= 1;
+    writeFileSync(png, encodePNG(edited));
+    const clean = checkAll(tmp);
+    if (clean.drift.some((d) => d.startsWith(`${set}:`) && d.includes('pixels differ'))) console.log('  ✓ a hand-edited atlas pixel: caught by [drift]');
+    else { escaped++; console.log(`  ✗ a hand-edited atlas pixel: NOT caught by [drift] (${clean.drift.join('; ') || 'no drift'})`); }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
   console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all 6 planted defects caught; ${controls.length} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }

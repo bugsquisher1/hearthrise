@@ -1,7 +1,7 @@
 {
   "id": "rat",
   "class": "critter",
-  "material": "monster",
+  "material": "fur",
   "source": "rat.png",
   "anchor_px": [
     24,

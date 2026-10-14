@@ -740,7 +740,7 @@ function burnGuard() {
 
      If a future rung on either bench does need a destructive key, this
      assertion is what forces that to be a decision with a diff attached. */
-  for (const bench of ['runecrafting', 'stonemason']) {
+  for (const bench of ['runecrafting']) {   // Stonemason was cut (demolition, 2026-10-14)
     ok(benches.includes(bench),
       `T6a-2: ARTISAN_RECIPES has no '${bench}' lane — the b357 skill did not reach the engine, so `
       + 'every assertion about it below is vacuous');

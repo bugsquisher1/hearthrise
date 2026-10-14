@@ -933,7 +933,10 @@ const DB_ARMS = {
   }),
   END: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { minutesAgo: 10, hp: 2, inv: { cooked_shrimp: 3 }, bag: [{ item: 'cooked_shrimp', qty: 3 }] });
+    /* The bag's heal only: with lane D's default bar the shop would carry on
+       (and a purse of nothing would end it gold_out — BUY's subject). */
+    const { sid, from } = await hunter(db, M, { minutesAgo: 10, hp: 2, inv: { cooked_shrimp: 3 }, bag: [{ item: 'cooked_shrimp', qty: 3 }],
+      slots: BAG_ONLY });
     await settleTo(db, M, from + 5 * 60000);
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'heals_out') problems.push(`a dry bag ended the hunt '${s.session.end_reason}', not heals_out`);

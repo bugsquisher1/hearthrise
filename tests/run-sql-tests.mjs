@@ -1143,6 +1143,11 @@ const CLIENT_CALLABLE = new Map([
      with an OPEN hunt session: a hunter's XP is the session settle's alone.
      Rate-gated as before; the ACL is re-stated revoke-first. */
   ['hr_credit_combat_xp', ['authenticated']],
+  /* 2026-10-22-hunt-sessions-settle.sql §4d (lane C2, Tyler 2026-10-14):
+     an action set's target mode and pull count. Catalogue values only
+     (hr_hunt_target_modes, the pull limits rows), refused never clamped,
+     rate-gated ('hunt' bucket), idempotent, baselined in §4d. Writes no value. */
+  ['hr_action_set_mode', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

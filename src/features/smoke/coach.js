@@ -340,7 +340,8 @@ export default [
      character (reach 0: three hunts, "next at Combat 15") until the next full
      envelope. Both shapes are driven here; the level must hold.
      MUTATION: spine-reveal serverRecord back to recordValue-only → RED (shape 2);
-     record.js `last` rebuilt per fresh envelope → RED (shape 1, reveal and gate). */
+     record.js `last` rebuilt per fresh envelope → RED (shape 1b, reveal and gate);
+     record.js claims rebuilt per fresh envelope → RED (shape 1, the claim). */
   () => tryRunAsync('ADV-5 regression: a Combat-56 hero keeps Ridge Camp, the Boss card and the gate level while the skills record cannot vouch', async () => {
     const CS = window.HearthriseCombatScreens, R = window.HearthriseRecord, RV = window.HearthriseReveal, C = window.HearthriseCore;
     const G = window.G, snap = snapshotG(), rec0 = G._record;
@@ -382,10 +383,16 @@ export default [
         assert(after.dests === before.dests, shape + ': the destinations flipped from [' + before.dests + '] to [' + after.dests + ']');
         assert(after.gate === before.gate, shape + ': the attack gate level fell from ' + before.gate + ' to ' + after.gate + ' — a known level dropped to the fail-safe');
       };
-      /* SHAPE 1 — a fresh answer that does not restate the skills map. */
+      /* SHAPE 1 — a fresh answer that does not restate the skills map. Since
+         lane a-record-claims-hold the record HOLDS the claim it did not restate. */
       R.applyRecord(G, { ok: true, version: v0 + 2, now: new Date().toISOString(), state: { gold: 1001, gems: 0 } });
-      assert(!R.recordValue(G, 'skills').known, 'CONTROL: the skills-less answer left the record vouching for the map');
+      assert(R.recordValue(G, 'skills').known, 'a skills-less answer un-vouched the map: ' + R.recordValue(G, 'skills').source);
       same('a skills-less answer');
+      /* SHAPE 1b — …then a write between stamps: the record cannot vouch, and the
+         held readers fall to `last`, which must have survived that answer. */
+      G.skills = Object.assign({}, G.skills, { attack: Number(G.skills.attack) + 1 });
+      assert(R.recordValue(G, 'skills').source === 'client-overwrote', 'CONTROL: the write after the skills-less answer did not un-vouch the record');
+      same('a write after a skills-less answer');
       /* SHAPE 2 — a write between two stamps (the record reads client-overwrote). */
       R.applyRecord(G, full(v0 + 3));
       G.skills = Object.assign({}, G.skills, { attack: Number(G.skills.attack) + 1 });

@@ -861,16 +861,21 @@ export function forgetServerOfRecord(G) {
      the PREVIOUS character's balance and levels while the new one loads. The
      prediction scratch goes for the same reason — a predicted gather tick belongs
      to the character it was made about and to no other. */
-  if (G._record) G._record = { ...G._record, known: [], stamp: {}, last: {}, forgottenAt: Date.now() };
+  if (G._record) G._record = { ...G._record, known: [], stamp: {}, statedAt: {}, last: {}, forgottenAt: Date.now() };
   try { resetPredictions(G); } catch (e) {}
   return forgotten;
 }
 
 /* ── DECODING AN ENVELOPE ───────────────────────────────────────────────────
    PURE. Fail-closed at every step: a field that is absent, malformed or
-   undecodable is reported as MISSING, never defaulted. */
+   undecodable is reported as MISSING, never defaulted.
+   `unstated` is the subset of `missing` the answer did not MENTION (no value
+   at all — undefined, or the null a constructed envelope uses for "the body had
+   none"). applyRecord keeps the last server claim for those; a field the answer
+   DID mention in a shape this client cannot read is not in it, and loses its
+   claim (fail-closed, as before). */
 export function decodeRecord(res) {
-  const out = { ok: false, version: null, fields: {}, missing: [], reason: null };
+  const out = { ok: false, version: null, fields: {}, missing: [], unstated: [], reason: null };
   if (!res || typeof res !== 'object' || res.ok !== true) { out.reason = 'not_ok'; return out; }
   const st = res.state;
   if (!st || typeof st !== 'object') { out.reason = 'no_state'; return out; }
@@ -884,7 +889,11 @@ export function decodeRecord(res) {
       ? entry.pick(res)
       : (Object.prototype.hasOwnProperty.call(st, entry.from) ? st[entry.from] : undefined);
     const decoded = entry.decode(raw);
-    if (decoded === null) { out.missing.push(entry.field); continue; }
+    if (decoded === null) {
+      out.missing.push(entry.field);
+      if (raw === undefined || raw === null) out.unstated.push(entry.field);
+      continue;
+    }
     out.fields[entry.field] = decoded;
   }
   out.ok = true;
@@ -904,8 +913,15 @@ export function applyRecord(G, res) {
   }
   /* MONOTONIC. hr_load and hr-accrue race by design (one is a read, the other
      pays), both answer truthfully, and the slower answer is the OLDER one. */
-  const prev = G._record && Number(G._record.version);
+  const prevRec = G._record && typeof G._record === 'object' ? G._record : null;
+  const prev = prevRec && Number(prevRec.version);
   const stale = Number.isFinite(prev) && dec.version < prev;
+  /* A CLAIM BELONGS TO ONE CHARACTER. A slot change reloads the page and
+     loadLocal's forget clears the record, so this is the belt to that brace: an
+     answer that names a different slot than the record carries nothing over. */
+  const slot = slotOfAnswer(res);
+  const carryFrom = prevRec && !(Number.isInteger(prevRec.slot) && slot !== null && prevRec.slot !== slot)
+    ? prevRec : null;
 
   /* ── A GAP HAS NOTHING TO REWIND (b422) ──────────────────────────────────────
      The strict-version guard exists so a slow, OLDER envelope cannot put back a
@@ -932,10 +948,15 @@ export function applyRecord(G, res) {
      here means exactly what a reader would see as UNKNOWN — a stamped-but-
      client-overwritten field is NOT refilled from an older read. Fail-closed is
      preserved: the fill is still from a real server envelope (`dec.fields`),
-     never from raw G. */
+     never from raw G.
+     ⚠ AND A CLAIM OLDER THAN THIS ANSWER IS A GAP TOO (lane a-record-claims-hold).
+     A field a fresher answer did not restate keeps the claim of the answer that
+     DID state it (`statedAt`), so "known" no longer means "as new as the record's
+     version". An older answer that is still newer than that field's own claim is
+     not a rewind of it; refusing it would hold a staler value than the one in hand. */
   let candidates = Object.keys(dec.fields);
   if (stale) {
-    candidates = candidates.filter((f) => !recordValue(G, f).known);
+    candidates = candidates.filter((f) => !recordValue(G, f).known || statedBefore(carryFrom, f, dec.version));
     if (!candidates.length) {
       return { written: [], skipped: 'stale', version: dec.version, have: prev };
     }
@@ -973,15 +994,47 @@ export function applyRecord(G, res) {
      whatever is in G under the server's name, which is how a client write comes
      back labelled `source:'server'`.
      A STALE gap-fill MERGES onto the record a newer envelope already wrote — it
-     must never drop that envelope's known fields nor rewind its version — while a
-     fresh envelope REPLACES the record wholesale, exactly as before. */
-  const base = stale && G._record && typeof G._record === 'object' ? G._record : null;
-  const stamp = base && base.stamp && typeof base.stamp === 'object' ? { ...base.stamp } : {};
-  const known = base && Array.isArray(base.known) ? base.known.slice() : [];
+     must never drop that envelope's known fields nor rewind its version.
+
+     ── A FIELD THE ANSWER DOES NOT MENTION KEEPS ITS LAST SERVER CLAIM ─────────
+     (lane a-record-claims-hold; CLAUDE.md §6.) A fresh answer used to REPLACE the
+     record wholesale, so `known`/`stamp` were rebuilt from it alone and every
+     answer that did not restate a field UN-VOUCHED it: a pushed frame
+     ({state,skills,buffs,place}) dropped `equipment` and `rooms` on every tick,
+     and every intent answer (activity.js's constructed envelope has no
+     `progress`) dropped `rooms`. Between those and the next full read the worn
+     set read as the frozen empty map — the live tick fought naked — and every
+     room rung read 0. An answer that says nothing about a field has not said it
+     changed; the last thing the server DID say is still the last thing it said.
+
+     So a claim is carried — the claim, never a re-stamp. The carried stamp is the
+     fingerprint of what the SERVER sent, so a client write to `G[f]` in the
+     meantime still reads `client-overwrote` (fail-closed) and can never be
+     laundered into a claim by a later answer that happens not to mention `f`.
+     Only an answer that RESTATES the field replaces its claim; one that restates
+     it in a shape this client cannot read drops it (fail-closed, as before); a
+     disarmed field is client-owned again and carries nothing; a different slot
+     carries nothing; and a reload / slot change starts from forget's empty record. */
+  const active = serverOfRecordFields();
+  const prevKnown = carryFrom && Array.isArray(carryFrom.known) ? carryFrom.known : [];
+  const prevStamp = carryFrom && carryFrom.stamp && typeof carryFrom.stamp === 'object' ? carryFrom.stamp : {};
+  const prevAt = carryFrom && carryFrom.statedAt && typeof carryFrom.statedAt === 'object' ? carryFrom.statedAt : {};
+  const stamp = {};
+  const known = [];
+  const statedAt = {};
+  for (const f of prevKnown) {
+    if (active.indexOf(f) === -1 || known.indexOf(f) !== -1) continue;
+    if (!Object.prototype.hasOwnProperty.call(prevStamp, f)) continue;
+    if (!stale && dec.missing.indexOf(f) !== -1 && dec.unstated.indexOf(f) === -1) continue;   // restated unreadably
+    known.push(f);
+    stamp[f] = prevStamp[f];
+    if (Number.isFinite(prevAt[f])) statedAt[f] = prevAt[f];
+  }
   for (const f of written) {
     const e = recordEntry(f);
     stamp[f] = e && typeof e.fingerprint === 'function' ? e.fingerprint(G[f]) : null;
     if (known.indexOf(f) === -1) known.push(f);
+    statedAt[f] = dec.version;
   }
   const version = stale && Number.isFinite(prev) ? prev : dec.version;
   /* ── THE LAST-KNOWN-GOOD CACHE (b455) ─────────────────────────────────────
@@ -1001,25 +1054,28 @@ export function applyRecord(G, res) {
      Deep-copied for map fields, because `G[f]` is the very object a second writer
      mutates — keeping the reference would cache the corruption it exists to
      survive. Maps here are ~15 keys and this runs once per settle. */
-  /* ⚠ CARRIED ACROSS A FRESH REPLACE TOO (lane a-hunt-level-flicker). `known`
-     and `stamp` are rebuilt from a fresh envelope alone — right for authority —
-     but an envelope that does not restate a field says nothing about it, so the
-     last thing the server DID say is still the last thing it said. Rebuilding
-     `last` with them threw the Combat-56 hero's skills away on any skills-less
+  /* ⚠ CARRIED ACROSS A FRESH REPLACE TOO (lane a-hunt-level-flicker; the claims
+     above now follow the same rule). An envelope that does not restate a field
+     says nothing about it, so the last thing the server DID say is still the
+     last thing it said. Rebuilding
+     `last` per answer threw the Combat-56 hero's skills away on any skills-less
      answer, and every held reader (the reveal's level window, the gate level)
      fell to a fresh character until the next full envelope: the Adventures grid
      flipping between four hunts and three. A slot change reloads the page and
-     loadLocal's forget clears `last`, so this never carries across heroes. */
-  const prevLast = G._record && G._record.last && typeof G._record.last === 'object' ? G._record.last : null;
+     loadLocal's forget clears `last`, so this never carries across heroes (and
+     an answer naming another slot carries nothing — `carryFrom` above). */
+  const prevLast = carryFrom && carryFrom.last && typeof carryFrom.last === 'object' ? carryFrom.last : null;
   const lastBase = prevLast ? { ...prevLast } : {};
   for (const f of written) lastBase[f] = cloneRecordValue(G[f]);
   G._record = {
     version,
     at: Date.now(),
-    serverNow: (base && base.serverNow) || res.now || null,
+    serverNow: (stale && prevRec && prevRec.serverNow) || res.now || null,
+    slot: slot !== null ? slot : (carryFrom && Number.isInteger(carryFrom.slot) ? carryFrom.slot : null),
     known,
     missing: dec.missing.slice(),
     stamp,
+    statedAt,
     last: lastBase,
   };
   /* ── RETIRE THE PREDICTIONS THIS ENVELOPE HAS ALREADY INCORPORATED (b455) ──
@@ -1064,7 +1120,9 @@ export function applyRecord(G, res) {
     if (retired) { retired.coverage = cover; retired.credited = credited; }
   } catch (e) {}
   repaintHeader();
-  return { written, missing: dec.missing, version, filledStale: stale, retired };
+  /* `held`: the claims this answer did not restate and the record kept. */
+  return { written, missing: dec.missing, held: known.filter((f) => written.indexOf(f) === -1),
+    version, filledStale: stale, retired };
 }
 
 /* ── THE HEADER FOLLOWS THE RECORD (2026-09-23) ─────────────────────────────
@@ -1119,6 +1177,22 @@ export function armExpiryRepaint() {
 }
 /** When the armed repaint fires (client ms), or 0. For the suite. */
 export function armedAt() { return expiryArmedAt; }
+
+/** The character slot an answer names (`state.slot`, hr_state_of), or null when
+ *  it names none — a fixture or a lean answer cannot contradict the record. */
+function slotOfAnswer(res) {
+  const st = res && res.state;
+  const n = st && typeof st === 'object' ? st.slot : undefined;
+  return Number.isInteger(n) ? n : null;
+}
+
+/** Did the record's claim for `field` come from an answer OLDER than `version`?
+ *  False when the claim's age is unknown, so an undated claim is never replaced
+ *  by a stale answer (the gap-fill rule above, unchanged for it). */
+function statedBefore(rec, field, version) {
+  const at = rec && rec.statedAt && typeof rec.statedAt === 'object' ? Number(rec.statedAt[field]) : NaN;
+  return Number.isFinite(at) && at < version;
+}
 
 /** A defensive copy for the last-known-good cache. Scalars pass through; a map
  *  is shallow-copied one level (every record map in this game is `{key: number}`

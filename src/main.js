@@ -484,6 +484,7 @@ import './features/this-week.js?v=577';
 import { setupSmokeTestLoader } from './features/smoke-test-loader.js?v=577';
 import { setupCompanions } from './features/companions.js?v=577';
 import { setupCharacterPage } from './features/character-page.js?v=577';
+import { setupArenaVs } from './render/arena-vs.js?v=577';
 import { setupCombatRender } from './features/combat-render.js?v=577';
 import { setupCombatScreens } from './features/combat-screens.js?v=577';
 import { setupVigourMount } from './features/vigour-mount.js?v=577';
@@ -551,6 +552,9 @@ function tryBootFeatures() {
   boot('smoke-test-loader', setupSmokeTestLoader);
   boot('companions', setupCompanions);
   boot('character-page', setupCharacterPage);
+  /* The arena stage and the one swing observer (src/render/combat-observer.js) the
+     World pane's hunt also subscribes to; before combat-render, which paints its mounts. */
+  boot('arena-vs', setupArenaVs);
   boot('combat-render', setupCombatRender);
   /* AFTER combat-render, which installs HearthriseCombatHud — the Fight screen
      reads the HUD's forecast and hands it the two action mounts. */

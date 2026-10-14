@@ -51,5 +51,8 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 12, y: 3, to: 'town_common' }]),
   start: Object.freeze([10, 7]),
+  /* The room the camera shows whole when the stage is big enough (tiles x, y, w, h):
+     the floor from wall to wall, the north face's top and the south cap. */
+  frame: Object.freeze([3, 1, 20, 10]),
   maskHash: '4670cc34',
 });

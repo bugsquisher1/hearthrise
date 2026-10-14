@@ -574,6 +574,7 @@ function ensureStructure() {
       </div>
       <div class="fs-body">
         <aside class="fs-manage" id="fs-manage" aria-label="Loadout, provisions and drops">
+          <button type="button" class="btn fsm-world" id="fsm-world" data-cs-act="world" hidden>Watch in World</button>
           <section class="fsm-block">
             <div class="fsm-head"><span>Loadout</span><b id="fsm-totals"></b></div>
             <div class="fsm-doll" id="fsm-doll"></div>
@@ -760,7 +761,8 @@ function onPanelClick(e) {
       if (typeof window.stopCombat === 'function') window.stopCombat();
       previewId = null;
       setView('table');
-    } else if (act === 'history') { openHistory(); }
+    } else if (act === 'world') { if (typeof window.showTab === 'function') window.showTab('world'); }
+    else if (act === 'history') { openHistory(); }
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
     else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
     else if (act === 'wtab') { setTab(btn.dataset.wtab); }
@@ -1896,6 +1898,10 @@ function renderFight() {
   }
 
   if (!live) paintPreviewStage(id, m);
+  /* "Watch in World" (lane W3): a running fight, once the World pane is revealed. */
+  const watch = document.getElementById('fsm-world');
+  const R = window.HearthriseReveal;
+  if (watch) watch.hidden = !(live && (!R || R.shows('pane:world')));
   /* b368 — OUTSIDE the preview branch on purpose. The champion plate is the
      player's own face and it is wrong in exactly the same way mid-fight; a fix
      that only lands in preview would look fixed until they pressed Fight. */

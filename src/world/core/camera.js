@@ -26,6 +26,30 @@ export function zoomFor(innerHeight, dpr) {
   return Math.max(2, Math.round(((innerHeight || 0) * (dpr || 1)) / ART_ROWS));
 }
 
+/** A fitted frame must leave at least this many CSS px per art pixel, or the camera follows instead. */
+export const FIT_MIN_CSS = 2;
+
+/**
+ * THE WHOLE ROOM AT ONCE. The largest whole zoom at which a map's `frame`
+ * (tiles {x, y, w, h}) fits a W x H device-px stage, allowing at most half a
+ * tile to fall off each side (the outermost floor column, never a mob's lane).
+ * 0 when that zoom would draw an art pixel under FIT_MIN_CSS CSS px — a phone —
+ * so the caller follows the hero at zoomFor() instead.
+ */
+export function fitZoom(frame, W, H, dpr, T) {
+  if (!frame) return 0;
+  const fw = frame.w * T, fh = frame.h * T;
+  for (let z = 8; z >= 1; z--) {
+    if (fw * z <= W + T * z && fh * z <= H + T * z) return z / (dpr || 1) >= FIT_MIN_CSS ? z : 0;
+  }
+  return 0;
+}
+
+/** The tile a fitted camera centres on: the middle of the frame (frameView adds half a tile). */
+export function frameCentre(frame) {
+  return { x: frame.x + frame.w / 2 - 0.5, y: frame.y + frame.h / 2 - 0.5 };
+}
+
 /** Frames per second for the device class. */
 export function fpsFor(isMobile) {
   return isMobile ? 30 : 60;

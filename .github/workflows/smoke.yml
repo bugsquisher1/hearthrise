@@ -4237,6 +4237,29 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/settle-first-callers.mjs
 
+      # The World pane renders server state and writes nothing but G._world:
+      # no engine imports, no server calls, no simulate*, no Math.random /
+      # setInterval, no storage (AWAY-12's one-engine rule, extended to
+      # src/world). --selftest plants 24 violations + 5 negative controls.
+      - name: World no-authority - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-no-authority.mjs --selftest
+
+      - name: World no-authority - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-no-authority.mjs
+
+      # The renderer's pure rules on the real modules: y-sort, roofs, shadows,
+      # zoom/camera steps, map lint + mask hashes, A*, Wang, routing, art budget,
+      # layer order. --selftest plants 18 defects into a temp copy.
+      - name: World core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-core.mjs --selftest
+
+      - name: World core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-core.mjs
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs --selftest

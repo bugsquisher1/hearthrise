@@ -115,7 +115,7 @@ export const FULL = Object.freeze({
   skills: Object.freeze(Object.fromEntries(Object.keys(SKILLS_DEF).map((id) => [id, MAX_XP]))),
   property: 6, workers: 6, companions: 6,
   bag: Object.freeze(Object.fromEntries(DUNGEON_KEYS.map((k) => [k, 1]))),
-  products: Object.freeze({ clans: true }),
+  products: Object.freeze({ clans: true, world: true }),
   gold: 1e9, equipment: Object.freeze({ boots: 'leather_boots' }),
   claimed: Object.freeze(Object.fromEntries(Object.keys(QUEST_REWARDS).map((q) => [q, true]))),
 });
@@ -147,7 +147,11 @@ function serverGold() {
 /** Which unreleased features are live: shipping switches, not player state. */
 function liveProducts() {
   const C = typeof window !== 'undefined' ? window.HearthriseClans : null;
-  return { clans: !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()) };
+  const W = typeof window !== 'undefined' ? window.HearthriseWorld : null;
+  return {
+    clans: !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()),
+    world: !!(W && typeof W.launched === 'function' && W.launched()),
+  };
 }
 
 /** THE FACTS the reveal is decided from right now. */

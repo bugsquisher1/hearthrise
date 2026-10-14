@@ -27,7 +27,9 @@
   var PREMIUM_OPEN = false;
 
   var HUBS = [
-    { id: 'profile', panes: [{ tab: 'profile', label: 'Home', glyph: 'navProfile' }] },
+    { id: 'profile', panes: [
+      { tab: 'profile', label: 'Home', glyph: 'navProfile' },
+      { tab: 'world', label: 'World', glyph: 'uiMap' }] },
     { id: 'character', panes: [
       { tab: 'character', label: 'Character', glyph: 'navCharacter' },
       { tab: 'inventory', label: 'Bag', glyph: 'navInventory' },

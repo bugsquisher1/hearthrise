@@ -1,0 +1,42 @@
+// src/data/world/maps/mill_cellar.js — the first hunt: the cellar under the mill.
+// Row shape and lint: src/world/core/map-compile.js. Rebuild the hash with
+// `node tests/world-core.mjs --hashes` after changing what blocks a step.
+export default Object.freeze({
+  id: 'mill_cellar',
+  name: 'Mill Cellar',
+  kind: 'hunt',
+  hunts: Object.freeze(['mill_cellar']),
+  outdoor: false,
+  light: 'cellar',
+  legend: Object.freeze({ '#': 'rock', '.': 'floor_stone', ',': 'floor_dirt' }),
+  rows: Object.freeze([
+    '########################',
+    '########################',
+    '##....,,........,,....##',
+    '##....................##',
+    '##...,..............,.##',
+    '##.......######.......##',
+    '##.......######.......##',
+    '##.......######.......##',
+    '##.......######.......##',
+    '##....................##',
+    '##..,,..........,,....##',
+    '##....................##',
+    '########################',
+    '########################',
+  ]),
+  objects: Object.freeze([
+    { id: 'barrel', x: 2, y: 2 }, { id: 'barrel', x: 3, y: 2 },
+    { id: 'sacks', x: 21, y: 2 }, { id: 'crate', x: 21, y: 3 },
+    { id: 'torch', x: 8, y: 2 }, { id: 'torch', x: 15, y: 2 }, { id: 'torch', x: 11, y: 9 },
+    { id: 'hatch', x: 12, y: 2 },
+    { id: 'bones', x: 12, y: 11 }, { id: 'mushrooms', x: 3, y: 11 }, { id: 'mushrooms', x: 20, y: 11 },
+  ]),
+  buildings: Object.freeze([]),
+  path: Object.freeze([[5, 3], [18, 3], [18, 10], [5, 10]]),
+  spawns: Object.freeze([[8, 4], [15, 4], [20, 7], [3, 7], [10, 11], [14, 9]]),
+  stations: Object.freeze({}),
+  exits: Object.freeze([{ x: 12, y: 2, to: 'town_common' }]),
+  start: Object.freeze([5, 3]),
+  maskHash: '27cffbf5',
+});

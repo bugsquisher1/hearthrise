@@ -31,6 +31,7 @@ import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v
 import spineReveal from './smoke/spine-reveal.js?v=573';
 import spinePointer from './smoke/spine-pointer.js?v=573';
 import coach from './smoke/coach.js?v=573';
+import world from './smoke/world.js?v=573';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,
@@ -38,7 +39,7 @@ const TESTS = [].concat(
   farmAndProfile, musterNavAndIdentity, clanSeatAndFrontDoor,
   cookingCoreAndSave, bountyAndArtisan, questsChronicleAndBonus,
   awayTimeAndOffline, recordSeamAndHydration, marketNightAndPrices,
-  monstersInventoryAndBrand, spineReveal, spinePointer, coach,
+  monstersInventoryAndBrand, spineReveal, spinePointer, coach, world,
 );
 
 

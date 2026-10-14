@@ -663,3 +663,50 @@ body[data-theme="hearthlight"] {
   --gem-rim:      rgba(201,162,74,.62);   /* the gilt setting */
   --gem-face-ink: #f2f4ff;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5 · the World pane — the pixel-world canvas (src/world/**).
+   The canvas reads these through getComputedStyle; src/styles/world.css reads
+   them for the chrome. The scene is lit by the map, not by the UI theme, so
+   one ladder serves every theme. --world-stub-* paint the boxes a sprite is
+   drawn as until its atlas ships (src/world/stub-atlas.js); --world-light-*
+   are multiplied over the frame (ambient) or added (point lights).
+   ══════════════════════════════════════════════════════════════════════════ */
+:root,
+body[data-theme="hearthlight"] {
+  --world-void:          #0b0906;
+  --world-shadow:        #000000;
+  --world-shadow-alpha:  .38;
+  --world-vignette:      rgba(8, 6, 4, .55);
+  --world-light-cellar:  #6b6152;
+  --world-light-indoor:  #b8ab98;
+  --world-light-torch:   #c88a46;
+  --world-light-hero:    #8a7458;
+  --world-plate-bg:      rgba(14, 11, 8, .72);
+  --world-plate-ink:     #ecdcbc;
+
+  --world-stub-line:         rgba(0, 0, 0, .45);
+  --world-stub-hero:         #3f6d8c;
+  --world-stub-hero-face:    #d9b48c;
+  --world-stub-mob:          #8c3b2e;
+  --world-stub-wall-stone:   #6e655a;
+  --world-stub-wall-timber:  #7a5634;
+  --world-stub-door-stone:   #3d2c1b;
+  --world-stub-door-timber:  #4a3420;
+  --world-stub-wood:         #8a6238;
+  --world-stub-cloth:        #7d3a33;
+  --world-stub-stone:        #8b8478;
+  --world-stub-plant:        #3f6a34;
+  --world-stub-trunk:        #5a3e26;
+  --world-stub-light:        #e3a24f;
+  --world-stub-roof-thatch:  #a07a3c;
+  --world-stub-roof-slate:   #4c5560;
+  --world-stub-floor-stone:  #4a443c;
+  --world-stub-dirt:         #5e4630;
+  --world-stub-plank:        #6b4a2c;
+  --world-stub-grass:        #4d6b38;
+  --world-stub-cobble:       #77705f;
+  --world-stub-water:        #2f4f5c;
+  --world-stub-rock:         #2a2520;
+}

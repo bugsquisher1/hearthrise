@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/core-loop.mjs — THE LOOP GATE. Does the game still PLAY?
 //
-//   node tests/core-loop.mjs               both loops, one step table, exit 1 on any red step
+//   node tests/core-loop.mjs               four loops, one step table, exit 1 on any red step
 //   node tests/core-loop.mjs --list        the mutation catalogue
 //   node tests/core-loop.mjs --selftest    every planted dead end must turn its NAMED step red
 //   node tests/core-loop.mjs --mutate=<id> one planted dead end
@@ -128,7 +128,9 @@ const num = (v) => Number(v ?? 0);
    depth so relative imports resolve). `by` is the step that must go red FIRST:
    a mutation caught by some later, unrelated step is reported as caught by the
    wrong step, because a gate that names the wrong step sends a lane to the
-   wrong file. */
+   wrong file. The anchors below are declared for tools/guard-anchors.mjs, so a
+   lane that moves one re-proves this gate in lane-done instead of at night. */
+// mutant-anchors: supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/accrual.js supabase/functions/hr-accrue/vendor-sell.js supabase/functions/hr-accrue/catalogue.js supabase/functions/hr-accrue/equip.js
 const MUTATIONS = {
   hunt_unsettable: {
     file: 'set-activity.js', by: 'LOOP-1 step 5',

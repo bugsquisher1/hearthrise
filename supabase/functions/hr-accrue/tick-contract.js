@@ -15,8 +15,8 @@
 // rule is there with the measurement that motivated it.
 //
 // PURE ESM, Node + Deno. Lives IN the edge payload because the op:'tick' entry
-// runs it; `services/world-tick/contract.js` re-exports it so the offline guards
-// and the replay tool keep ONE copy (AWAY-12). No `?v=` (not under src/**).
+// runs it; the offline guards and the replay tool import it directly, so there
+// is ONE copy (AWAY-12). No `?v=` (not under src/**).
 // ============================================================================
 
 import { levelFromXp } from '../../../src/core/xp.js';

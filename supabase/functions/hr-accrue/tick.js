@@ -84,7 +84,7 @@ import { levelFromXp } from '../../../src/core/xp.js';
 /* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
 import { settleHunt, parseHunts } from './hunt-settle.js';
 /* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
-   (services/world-tick/contract.js re-exports the same module — AWAY-12).
+   (the offline guards import the same module — AWAY-12).
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */

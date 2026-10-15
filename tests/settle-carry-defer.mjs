@@ -92,15 +92,17 @@ const MAXED = 13034431;
 function baseChar(over) {
   return {
     userId: '00000000-0000-4000-8000-0000000000aa', slot: 0,
-    activeKind: 'combat', activeId: 'slime', capMs: 43200000,
+    /* A GATHERING base (closed rebuild, lane C2): a fight outside a hunt
+       session is never priced here — the hunt's own window chain is
+       tests/hunt-sessions-settle.mjs TICK-1 (split-settle parity). */
+    activeKind: 'gather', activeId: 'normal_tree', capMs: 43200000,
     hp: 99, maxHp: 99, gold: 0,
     skills: { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED,
               ranged: MAXED, magic: 1000, prayer: 1000,
               woodcutting: MAXED, mining: MAXED, fishing: MAXED },
-    inventory: { cooked_shark: 50000 },
-    equipment: { weapon: 'dragonfang_pike' },
-    fight: {}, consecFalls: 0, recoveringUntilMs: 0, bestiaryKills: {},
-    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'cooked_shark',
+    inventory: {},
+    equipment: {},
+    fight: {}, recoveringUntilMs: 0,
     ...over,
   };
 }
@@ -117,10 +119,8 @@ function call(char, fromMs, toMs, extra) {
                    'accrue:' + new Date(fromMs).toISOString()),
     hp: char.hp, maxHp: char.maxHp, gold: char.gold,
     skills: char.skills, inventory: char.inventory, equipment: char.equipment,
-    fight: char.fight, consecFalls: char.consecFalls,
-    recoveringUntilMs: char.recoveringUntilMs, bestiaryKills: char.bestiaryKills,
-    autoEatEnabled: char.autoEatEnabled, autoEatPct: char.autoEatPct,
-    autoEatFood: char.autoEatFood,
+    fight: char.fight,
+    recoveringUntilMs: char.recoveringUntilMs,
     ammoCarry: char.ammoCarry, toolCarry: char.toolCarry,
     items: ITEMS, monsters: MONSTERS,
     nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
@@ -210,11 +210,7 @@ function chain(char0, spanMs, cadenceMs, mutate) {
 console.log('settle-carry-defer — the watermark defers the sub-tick carry, it does not forfeit it');
 console.log('');
 const SPAN_MS = 4 * 3600000;
-const CASES = [
-  { name: 'combat, dragonfang pike (2328 ms)', over: {} },
-  { name: 'combat, bronze sword (2400 ms)', over: { equipment: { weapon: 'bronze_sword' }, activeId: 'goblin' } },
-  { name: 'combat, duskwood bow (2112 ms)', over: { equipment: { weapon: 'duskwood_bow' }, activeId: 'rat' } },
-];
+const CASES = [];
 /* The gather arm uses the WORST remainder in src/data/gathering.js rather than
    an invented number: the node whose interval divides 90 000 least evenly is
    where the defect was largest (settle-carry-loss's 6.66% row). Picked from the
@@ -290,7 +286,7 @@ console.log('D3..D6 — the four cases where the snap is refused BY DESIGN');
   /* D4c — THE TICK. The world tick is exempt from ACCRUE_MIN_MS like a collect
      but DEFERS like an accrue, because its next window starts at the watermark
      this one stamps. Borrowing 'collect' for it forfeits the remainder every
-     cadence (tests/world-tick-parity.mjs --mutate --callerTick measures it). */
+     cadence. */
   const tick = call(baseChar({}), T0, t, { caller: 'tick' });
   ok('D4c', tick.accrued && Date.parse(tick.delta.accrued_to) === Date.parse(acc.delta.accrued_to),
      `caller=tick defers identically to accrue (${tick.deferredMs} ms), it does NOT stamp now()`);

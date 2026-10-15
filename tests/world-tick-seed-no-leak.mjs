@@ -19,7 +19,7 @@
 //         whole row.
 //   SL-2  fixtures: no JSON under tests/ or services/ is a probe-row with a seed,
 //         and no NEW `seed` key appears in the world-tick fixtures (the six
-//         synthetic ones predate the column, 2026-09-16/18, and are pinned).
+//         synthetic gather ones predate the column, 2026-09-18, and are pinned).
 //   SL-3  provenance: no other file that can reach production (token or
 //         management endpoint) reads hr_tick_probe — the evaluator is the only
 //         reader, so no other test or tool can pick a seed up.
@@ -51,7 +51,6 @@ const PRINT_SCOPE = [EVALUATOR, 'services/world-tick/parity-bar.js'];
 /* The six synthetic fixture seeds that predate hr_tick_probe.seed (shadow
    fixtures, c1a72a5b 2026-09-16 / eeb331aa 2026-09-18). Pinned: a new one is red. */
 const FIXTURE_SEEDS = Object.freeze({
-  'services/world-tick/fixtures/characters.json': [1592269876, 305419896, 2596069104],
   'services/world-tick/fixtures/gather-sessions.json': [918273645, 55512345, 7654321],
 });
 const SEED_KEY = /^(seed|span_?seed|one_?span_?seed|probe_?seed)$/i;
@@ -303,8 +302,8 @@ const MUTANTS = [
     files: (m) => m.set('services/world-tick/fixtures/probe-dump.json', JSON.stringify(
       [{ id: 8, span_from: '2026-10-06T08:39:48+00:00', payload_open: H, seed: 123456789 }])) },
   { name: 'SL-M5 a new bare seed in a world-tick fixture', want: ['SL-2'],
-    files: (m) => m.set('services/world-tick/fixtures/characters.json',
-      m.get('services/world-tick/fixtures/characters.json').replace('"seed": 305419896', '"seed": 305419897')) },
+    files: (m) => m.set('services/world-tick/fixtures/gather-sessions.json',
+      m.get('services/world-tick/fixtures/gather-sessions.json').replace('"seed": 918273645', '"seed": 918273646')) },
   { name: 'SL-M6 CI runs the production read', want: ['SL-4'],
     files: (m) => m.set('.github/workflows/smoke.yml',
       `${m.get('.github/workflows/smoke.yml')}\n          node tools/world-tick-parity.mjs --days 4\n`) },

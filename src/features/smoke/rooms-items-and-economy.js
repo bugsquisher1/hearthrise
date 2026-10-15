@@ -1148,7 +1148,7 @@ export default [
         assert(d.id !== 'hearth_token', 'monster ' + id + ' must not drop hearth_token (premium currency is never a PvE drop)');
       });
     });
-    assert(!window.DUNGEONS, 'the demolished dungeon table is back');
+    assert(Object.keys(window.DUNGEONS || {}).length === 0, 'the demolished dungeon table has rows again');
   }),
 
   /* THE WAVE1 ARTISAN BENCH-LOCK TEST WAS RETIRED HERE, NOT SILENCED. Its

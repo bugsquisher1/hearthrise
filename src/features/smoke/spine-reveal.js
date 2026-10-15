@@ -106,7 +106,7 @@ export default [
       assert(s.lockedDoors.combat === 'Opens when you catch and cook five fish (Step 2).', 'Combat door reason: ' + s.lockedDoors.combat);
       assert(s.lockedDoors.homestead === 'Opens when you win five fights (Step 3).', 'Homestead door reason: ' + s.lockedDoors.homestead);
       assert(s.lockedDoors.social, 'a door is hidden instead of locked: ' + JSON.stringify(s.lockedDoors));
-      assert(s.lockedSkills.indexOf('Fishing: Opens when you chop fifteen logs (Step 1).') >= 0 && s.lockedSkills.length >= 8,
+      assert(s.lockedSkills.indexOf('Fishing: Opens when you chop fifteen logs (Step 1).') >= 0 && s.lockedSkills.length >= 7,   // 15 skills since stonemason and bountyHunter left
         'locked skills are missing or unexplained: ' + s.lockedSkills.join(' | '));
       assert(s.lockedStrip.indexOf('mining') >= 0 && s.lockedStrip.indexOf('woodcutting') < 0, 'the phone activity strip does not lock unreached skills: ' + s.lockedStrip);
       assert(s.lockedChar >= 15, 'the Character grid hides skills instead of locking them: ' + s.lockedChar);

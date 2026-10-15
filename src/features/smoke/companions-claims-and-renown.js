@@ -1548,7 +1548,6 @@ export default [
       assert(dropsOf(mid).indexOf(EXPECT[mid]) >= 0,
         mid + ' no longer drops ' + EXPECT[mid] + ' — the ESM merge ate it again');
     });
-    assert(dropsOf('ancient_bear').indexOf('alpha_pattern') >= 0, 'ancient_bear must also drop alpha_pattern');
     // No duplicates: if the legacy pushes are ever restored alongside the data,
     // every one of these would drop twice.
     Object.keys(EXPECT).forEach((mid) => {

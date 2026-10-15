@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
 import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=584';
 import { fitBar, xpChip } from '../../render/bar-fit.js?v=584';
 import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=584';
@@ -669,8 +669,8 @@ export default [
         window.setShopTab(tab);
         const counter = panel.querySelector('.sc-counter');
         const kids = Array.from(counter.children);
-        const sep = kids.find((c) => c.textContent === 'Under the counter');
-        assert(sep, tab + ': no "Under the counter" separator');
+        /* The separator heads what sits under the counter (the buy-back door);
+           with nothing there it is not drawn, and the 20 frames below are the subject. */
         const mo = new MutationObserver(() => {});
         mo.observe(panel, { subtree: true, childList: true, attributes: true, characterData: true });
         for (let i = 0; i < 20; i++) frame();
@@ -3481,8 +3481,8 @@ export default [
         /* THE STATUS-BAR FIXTURE (FIGHT-STATUS-VERB-1, BAR-FIT-1, BAR-FIT-2): a
            fight on the long-named foe carrying the UPPER BAND a late-game player
            does - 123,456 this fight, STR 98 with 1,228,825 to go (the widest
-           to-go there is, 98 -> 99, built by the real chip builder), a Lifetime
-           of 12,345,678, the away chip at a seven-digit rate -
+           to-go there is, 98 -> 99, built by the real chip builder) and a Lifetime
+           of 12,345,678 -
            visited in a phoneFrame at 922x423 and 1280x800, in the theme face and
            in Verdana/DejaVu (what a player with blocked webfonts and CI see).
            The foe is SET, never fought, so no swing can leave a death sheet. */
@@ -3502,9 +3502,9 @@ export default [
                   LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
                   G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 123456;
                   m.paint(); window.refreshActivityBar();
-                  const meta = document.getElementById('ab-meta'), away = meta.querySelector('.ab-away'), xp = meta.querySelector('.ab-xp');
-                  const awayChip = '<span class="ab-xph ab-away" title="Away rate"><b>1,234,567</b> away</span>';
-                  if (away) away.outerHTML = awayChip; else meta.insertAdjacentHTML('beforeend', awayChip);
+                  /* No away chip: the Night Plan chip that stood in that slot left in the
+                     2026-10-14 demolition, and the bar draws none while fighting. */
+                  const meta = document.getElementById('ab-meta'), xp = meta.querySelector('.ab-xp');
                   if (xp) xp.outerHTML = xp98();
                   return meta;
                 };
@@ -3677,7 +3677,7 @@ export default [
           // ── regression suite — FIGHT-PHONE-DENSITY (the visual gate) ───────────
           // Four defects of one class, all on the Fight screen, all from its
           // density on a landscape phone: (1) a stated Vigour meter HID the
-          // Lifetime chip everywhere and the away chip at 922; (2) at
+          // Lifetime chip everywhere (and the away chip, before the 2026-10-14 demolition retired it) at 922; (2) at
           // 922 the stage was clamped to the card, so its auto rows shrank and the
           // metrics strip and session tally printed over each other under Eat;
           // (3) four nowrap stance buttons in a 291px column ran their labels
@@ -3697,10 +3697,6 @@ export default [
                 await fight(meter, async (m) => {
                   m.paint();
                   window.refreshActivityBar();
-                  const away = document.querySelector('#ab-meta .ab-away');
-                  assert(away, 'the activity bar drew no away chip while fighting');
-                  away.outerHTML = '<span class="ab-xph ab-away" title="Away rate"><b>1,234,567</b> away</span>';
-                  assert(/1,234,567 away/.test(document.getElementById('ab-meta').textContent), 'the away chip is not at its widest figure');
                   assert(/1,284,905/.test(document.getElementById('ab-meta').textContent), 'the realm Lifetime is not on the bar');
                   const app = document.getElementById('app');
                   assert(app && document.querySelector('#panel-combat[data-combat-view="fight"]'), 'the Fight view is not up');
@@ -3716,7 +3712,7 @@ export default [
                       assert(bar && meta && stop, 'the frame lost the activity bar');
                       const b = R(bar), mr = R(meta), sr = R(stop);
                       // (1) EVERY CHIP, whole, inside the bar and not clipped by the meta.
-                      for (const sel of ['.ab-vigour', '.ab-kills', '.ab-xp', '.ab-tkills', '.ab-away']) {
+                      for (const sel of ['.ab-vigour', '.ab-kills', '.ab-xp', '.ab-tkills']) {
                         const e = q('#activity-bar ' + sel);
                         const r = e && R(e);
                         if (!r || r.width < 1 || r.height < 1) { bad.push(at + sel + ' is not drawn (' + (r ? Math.round(r.width) + 'x' + Math.round(r.height) : 'absent') + ')'); continue; }
@@ -3946,7 +3942,7 @@ export default [
             await statusBar(['stated', 'dry'], (doc, at, { meta0 }) => {
               if (meta0) {
                 const said = meta0.textContent.replace(/\s+/g, ' ');
-                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678', '1,234,567 away']) {
+                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678']) {
                   if (said.indexOf(want) < 0) bad.push(at + 'the fixture bar does not say "' + want + '": ' + said);
                 }
                 for (const [sel, title] of [['.ab-kills', 'Kills this fight: 123,456'], ['.ab-xp', 'Strength 98 · 1,228,825 XP to go'], ['.ab-tkills', 'Lifetime kills: 12,345,678']]) {
@@ -3965,7 +3961,7 @@ export default [
               const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
               if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
               const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
-              if (chips.length < 4) bad.push(at + 'the meta draws ' + chips.length + ' chips, want 4 (this fight, XP, Lifetime, away)');
+              if (chips.length < 3) bad.push(at + 'the meta draws ' + chips.length + ' chips, want 3 (this fight, XP, Lifetime)');
               const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
               chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
               // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
@@ -4033,7 +4029,7 @@ export default [
                 window.refreshActivityBar();
                 await tick(); await tick();
                 earned(bar, meta, 'live sparse full width: ');
-                for (const px of [760, 680, 620, 560]) {
+                for (const px of [760, 680, 620, 560, 480, 420, 360]) {
                   bar.style.maxWidth = px + 'px'; crowd();
                   await tick(); await tick(); // the observers' frame runs the fit
                   earned(bar, meta, 'live ' + px + 'px: ');

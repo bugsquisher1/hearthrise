@@ -3220,7 +3220,7 @@ export default [
          (the auto-eater heals), so the panel and every buff food's tooltip carry one
          published sentence. Asserted on the PANEL and on the TOOLTIP's own source. */
       const panel = document.getElementById('food-buffs-host').textContent;
-      assert(/eat it yourself/i.test(panel) && /auto-eating only heals/i.test(panel),
+      assert(/eat it yourself/i.test(panel) && !/auto-eat/i.test(panel),
         'the Active Effects panel must state that a buff needs a manual Eat: ' + panel);
       assert(typeof window.BUFF_GESTURE_NOTE === 'string'
         && window.foodUseInfo('fishers_pie').buffText !== '',

@@ -13,7 +13,8 @@ import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampB
    text of each row, not the markup, so an icon path or cache bump cannot move
    it). Goblin is a seeded-fixture monster and carries no salvage row, so a pack
    that touched it would show here first. */
-const GOBLIN_PANEL = 'Goblin Ear50% | BonesAlways | Bronze Sword3% | Goblin Totem1% | Goblin Seal2%';
+// The Goblin Seal (a dungeon key) left the goblin's drops in the 2026-10-14 demolition (ruling §2).
+const GOBLIN_PANEL = 'Goblin Ear50% | BonesAlways | Bronze Sword3% | Goblin Totem1%';
 
 export default [
 
@@ -2919,7 +2920,8 @@ export default [
 
     // (b) EVERY grant source is ruled ownable-or-excluded, including the
     //     non-engine ones the universe used to miss.
-    for (const fn of ['shopGrantIds', 'qmStockIds', 'goalRewardIds', 'raidRewardIds', 'seedIds']) {
+    // (qmStockIds left with the Quartermaster, 2026-10-14.)
+    for (const fn of ['shopGrantIds', 'goalRewardIds', 'raidRewardIds', 'seedIds']) {
       assert(typeof IA[fn] === 'function' && IA[fn]().size > 0,
         fn + ' must be published and non-empty, or the completeness check is walking an empty set');
     }
@@ -7336,20 +7338,20 @@ export default [
       assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
       G.inventory = {};
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: true });
-      window.addItem('goblin_seal', 1);                  // the attended kill's client-rolled drop
-      assert(G.inventory.goblin_seal === 1, 'CONTROL: the predicted drop does not display');
+      window.addItem('goblin_ear', 1);                   // the attended kill's client-rolled drop (goblin_seal left with the dungeon keys)
+      assert(G.inventory.goblin_ear === 1, 'CONTROL: the predicted drop does not display');
       const noGate = (when) => {
-        assert(A.gateItemCount(G, 'goblin_seal') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_seal'));
-        assert(window.sellableCount('goblin_seal') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_seal'));
+        assert(A.gateItemCount(G, 'goblin_ear') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_ear'));
+        assert(window.sellableCount('goblin_ear') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_ear'));
       };
       noGate('predicted');
       // a mid-window envelope (equip answer, window open) that has not settled the kill
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: false });
-      assert(!('goblin_seal' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
+      assert(!('goblin_ear' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
       noGate('wiped');
       // the settle credits the server's own roll
-      A.reconcileInventory(G, { inventory: { bones: 3, goblin_seal: 1 }, inventory_complete: true });
-      assert(G.inventory.goblin_seal === 1 && A.gateItemCount(G, 'goblin_seal') === 1, 'the credited drop did not land in both layers');
+      A.reconcileInventory(G, { inventory: { bones: 3, goblin_ear: 1 }, inventory_complete: true });
+      assert(G.inventory.goblin_ear === 1 && A.gateItemCount(G, 'goblin_ear') === 1, 'the credited drop did not land in both layers');
     } finally {
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);

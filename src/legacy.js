@@ -3129,7 +3129,7 @@ function buyBankSpaceGem(){
   var cost=BANK_SPACE.gem.cost;
   if(!balCanAfford(cost,'gems')){
     if(typeof notify==='function'){
-      notify(balKnown('gems') ? 'Not enough gems. Tap "Get Gems".' : balShortfall(cost,'gems'),'kill');
+      notify(balKnown('gems') ? 'Not enough gems.' : balShortfall(cost,'gems'),'kill');   /* the Get Gems store left with IAP (2026-10-14) */
     }
     return false;
   }
@@ -8570,7 +8570,8 @@ console.log('Activity bar: loaded');
          card used to tell, arriving before the player leaves instead of after. */
       return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall — '+
              'the first fall of the day is free, and every one after it costs longer ('+
-             recMin+' minutes, then double each time). Nothing is earned while you are down.';
+             recMin+' minutes, then double each time). Nothing is earned while you are down. '+
+             'Cooked food in your bag keeps the fight running instead.';
     }
     var capH = offlineCapHours(), capMs = capH==null ? Infinity : capH*3600000;
     var foodMs = est.survivalSeconds * 1000;

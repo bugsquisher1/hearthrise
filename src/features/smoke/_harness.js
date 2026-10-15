@@ -657,16 +657,17 @@ export const withClientOwnedSlots = (fn) => {
   const G = window.G;
   const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
   const prev = had ? G._heroSlots : undefined;
-  /* AND IT HAS TO SAY WHO OWNS THE GEMS, which is what "client-owned" means:
+  /* AND IT HAS TO SAY WHO OWNS THE PAYMENT, which is what "client-owned" means:
      residueCount() now fails safe to slot 0 unless `clientMayWriteRecordField
-     ('gems')` is TRUE, because "no projection AND the server owns the gems" is
+     ('gold')` is TRUE (hero slots are gold since 2026-10-14), because "no
+     projection AND the server owns the balance" is
      the boot state a stale residue was opening slots in — the defect itself, not
      a state to test in. Other fields pass through (a blanket `() => true` would
      hand four unrelated subsystems a client writer). */
   const origMay = window.clientMayWriteRecordField;
   try {
     if (G) delete G._heroSlots;
-    window.clientMayWriteRecordField = (f) => (f === 'gems' ? true
+    window.clientMayWriteRecordField = (f) => (f === 'gold' ? true
       : (typeof origMay === 'function' ? origMay(f) : true));
   } catch (e) {}
   try { return fn(); } finally {
@@ -1111,18 +1112,6 @@ export const withClaimServer = (answer, fn) => {
      is the whole idiom, and it is the same three placements hr_state_of uses. */
 const serverGrants = (state) => stampRecordLikeLoad(window.G, { state: state || {} });
 
-/* -- withCompanionRoster - THE ROSTER ARRIVES THE WAY THE SERVER SENDS IT ----
-   Under the capstone the starter fox is NOT seeded by the client: companions.js
-   `ensureState` fails CLOSED to an empty roster and `accrue.js
-   reconcileCompanions` rebuilds it from `res.companions` on every envelope
-   (seeding fox locally before that envelope lands would silently reset a player
-   who owns more). Six tests in this file were passing only because an EARLIER
-   test had left a fox in the ambient `G.companions` - order-dependent, and
-   invisible until the tests that seeded it were retired.
-
-   So the roster is installed the one honest way: through the real
-   `reconcileCompanions`, from an envelope shaped like the server's. Restored
-   afterwards, because `G.companions` is ambient state the next test inherits. */
 /* -- awaySpan - THE AWAY ENGINE, DRIVEN WHERE IT ACTUALLY LIVES (b515) ------
    THE PROBLEM. Thirty-one tests in this file measured "an absence pays" by
    calling `window.processOffline()` and reading `G`. b515 deleted the ~500-line
@@ -1332,23 +1321,6 @@ export const applyAwayEnvelope = (away, opts) => {
   return { toasts, last: toasts[toasts.length - 1] || '', rec: G.lastOfflineSummary, env };
 };
 
-export const withCompanionRoster = (owned, equipped, fn) => {
-  const G = window.G;
-  const A = window.HearthriseAccrual;
-  const prev = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
-  const xp = {};
-  const ids = [];
-  for (const e of (owned || [])) {
-    if (typeof e === 'string') ids.push(e);
-    else if (e && e.id) { ids.push(e.id); if (e.xp) xp[e.id] = e.xp; }
-  }
-  if (A && typeof A.reconcileCompanions === 'function') {
-    A.reconcileCompanions(G, { companions: { owned: ids, xp, equipped: equipped || null } });
-  }
-  try { return fn(); } finally {
-    if (prev === undefined) { try { delete G.companions; } catch (e) {} } else G.companions = prev;
-  }
-};
 
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
    From b369 the absolute envelope arms on ONE fact: the server acknowledged an

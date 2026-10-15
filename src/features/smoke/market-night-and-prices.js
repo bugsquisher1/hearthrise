@@ -410,8 +410,8 @@ export default [
       const awayTxt = awayLine.textContent.replace(/\s+/g, ' ');
       assert(/you fall/i.test(awayTxt),
         'the Away line does not say what ends the fight: ' + awayTxt);
-      assert(/Auto-Eat/i.test(awayTxt),
-        'the Away line names no way out — the fix is the trait, and it is buyable: ' + awayTxt);
+      assert(/food/i.test(awayTxt) && !/Auto-Eat/i.test(awayTxt),
+        'the Away line names no way out — the fix is food in the bag (the Auto-Eat trait left 2026-10-14): ' + awayTxt);
 
       /* The other side of the rule: a character who DOES survive the hour
          still gets the hourly rate. The fix must not have deleted it. */
@@ -3461,9 +3461,7 @@ export default [
       assert(goldOf('equip.' + s.id) === s.cost, 'equip.' + s.id + ' price disagrees with EQUIP_SHOP');
     }
 
-    /* The bank gem rung — the one non-gold player currency with a column. */
-    assert(anyOf('bank.gems', 'currency', 'gems') === window.BANK_SPACE.gem.cost,
-      'bank.gems price disagrees with BANK_SPACE');
+    // (The bank gem rung left the catalogue with the gems, ruling 2026-10-14 §4.)
 
     /* The catalogue must never be mistaken for complete. Four spend sites
        compute their price at call time and are deliberately absent; a server

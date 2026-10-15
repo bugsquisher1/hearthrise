@@ -73,10 +73,6 @@ export const CODEX_ENTRIES = f([
     'A hired hand works for you at a small share of your own pace, whether you are playing or away. Hands grow better with practice but never match you, and each one is hired with gold.',
     { tab: 'house' },
     [[0, 'workers'], [1, 'workers']]),
-  entry('companions', 'home', 'Companions',
-    'Each companion is found its own way, from a monster that drops it to a shop, a skill worked long enough or a boss. The one you bring along earns experience from the work that suits it, and a higher level makes its help stronger.',
-    { tab: 'stable' },
-    [[0, 'companions'], [1, 'companions']]),
 
   entry('collection-log', 'records', 'Collection Log',
     'Every item you have ever found and every monster you have ever slain is noted in your Journal, under Collection. Reaching a milestone pays a reward you claim.',

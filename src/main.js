@@ -139,6 +139,14 @@ Object.assign(window, {
   // b222 — the Building Materials predicate behind the artisan 'castle' lane
   // (designer ruling 2026-10-14 §3: castle goods stay).
   isCastleGood,
+  /* THE DUNGEON REGISTRY IS EMPTY, NOT ABSENT. The dungeons left in the
+     2026-10-14 demolition, but net/accrue.js (C2's file) still refuses to arm
+     inventory authority unless window.DUNGEONS is loaded, so that an id that is
+     both a combat drop and dungeon loot is folded into the EXCLUDED set first.
+     With no dungeons there is no dungeon loot and no overlap: the empty table is
+     the complete, true answer, and the absolute bag keeps arming. Delete this
+     line in the same commit as C2 deletes the gate (CONFLICTS.md 2026-10-14). */
+  DUNGEONS: Object.freeze({}),
   MATERIAL_TIERS,
 });
 

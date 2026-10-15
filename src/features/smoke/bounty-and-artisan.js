@@ -1460,11 +1460,9 @@ export default [
     const pick = (id) => { const r = R.find((x) => x.id === id); assert(r, 'smithing recipe ' + id + ' is gone — re-pick the fixture'); return r; };
     const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_rune'].map(pick);
     assert(Object.keys(row[4].inputs || {}).length >= 3, 'the long-input fixture must have three inputs');
-    /* …and one card that carries an extra line (the wear gate), so the row has
-       a genuinely taller card the grid must stretch the others to. */
-    const worn = R.find((r) => typeof window.hrWearLineHtml === 'function' && window.hrWearLineHtml(r.output));
-    assert(worn, 'no smithing recipe draws a wear line — re-pick the fixture');
-    row.push(worn);
+    /* The wear-line card (an armour output) left with the gear recipes on
+       2026-10-14; smelt_dawn and smelt_rune carry three inputs, which is the
+       genuinely taller card the grid must stretch the others to. */
     const G = window.G; const snap = snapshotG(); const realGate = window.hrGateLevel;
     const host = document.createElement('div');
     try {

@@ -254,14 +254,15 @@ export default [
       assert(document.getElementById('panel-farming').classList.contains('active'), 'harvest must land on the farm');
 
       // 3 — an artisan goal that implies a LANE arrives with the lane picked.
-      const d = QN.go({ type: 'smithed', label: 'Smith 8 platebodies' });
-      assert(d.skillId === 'smithing' && d.detail === 'armour',
-        'a goal naming armour should carry the armour lane, got ' + JSON.stringify([d.skillId, d.detail]));
-      assert(window._artisanCat.smithing === 'armour', 'the lane was not selected before arrival');
+      // (The armour lane left with the gear recipes, 2026-10-14; Tools is a live lane.)
+      const d = QN.go({ type: 'smithed', label: 'Smith 3 pickaxes' });
+      assert(d.skillId === 'smithing' && d.detail === 'tools',
+        'a goal naming a pickaxe should carry the tools lane, got ' + JSON.stringify([d.skillId, d.detail]));
+      assert(window._artisanCat.smithing === 'tools', 'the lane was not selected before arrival');
       window.renderSkillDetail('smithing');
       const chip = document.querySelector('#skill-detail .act-cats .chip.active');
-      assert(chip && chip.getAttribute('data-artcat') === 'armour',
-        'the armour lane is not the one on screen: ' + (chip && chip.getAttribute('data-artcat')));
+      assert(chip && chip.getAttribute('data-artcat') === 'tools',
+        'the tools lane is not the one on screen: ' + (chip && chip.getAttribute('data-artcat')));
 
       // 4 — a lane is only ever one that EXISTS. A goal naming a lane the
       // skill does not have must not persist a dead key.

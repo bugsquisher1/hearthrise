@@ -195,7 +195,7 @@ const MUTATIONS = {
   foeCoreImport: ['SIGN-7', (w) => { w.sources['src/data/zz-planted.js'] = "import { facts } from '../features/know-your-foe.js';\n"; }],
   axisUnlabelled: ['SIGN-9', (w) => { delete w.weaponTypes.hammer; }],
   firstRankHidden: ['SIGN-9', (w) => { w.firstRankReveals = false; }],
-  foeKeyNotLiteral: ['SIGN-9', (w) => { w.sources['src/features/know-your-foe.js'] = w.sources['src/features/know-your-foe.js'].split("'foe.elementHidden'").join("'foe.' + 'elementHidden'"); }],
+  foeKeyNotLiteral: ['SIGN-9', (w) => { w.sources['src/features/know-your-foe.js'] = w.sources['src/features/know-your-foe.js'].split("'foe.weakHeld'").join("'foe.' + 'weakHeld'"); }],
   nightKeyUnused: ['SIGN-1', (w) => { for (const p of Object.keys(w.sources)) w.sources[p] = w.sources[p].split("'night.statsFall'").join("'zz'"); }],
 };
 

@@ -86,6 +86,7 @@ export const ALLOW = {
   'supabase/functions/hr-accrue/party-fence.js': ['partyIntentFence'],
   'supabase/functions/hr-accrue/request.js': ['enchant', 'dungeon_settle', 'quartermaster_buy', 'claim_reward'],
   'supabase/functions/hr-accrue/envelope.js': ['enchant'],
+  'supabase/functions/hr-accrue/intents.js': ['enchant'],
   'supabase/functions/hr-accrue/enchant.js': ['enchant'],
   'supabase/functions/hr-accrue/dungeon-settle.js': ['dungeon_settle'],
   'supabase/functions/hr-accrue/quartermaster-buy.js': ['quartermaster_buy'],
@@ -97,7 +98,7 @@ export const ALLOW = {
   // D2 data: the raid-boss table item-authority still partitions on until M1/M2.
   'src/data/raid-bosses.js': ['RAID_BOSSES'],
 };
-export const ALLOW_MAX = 23;
+export const ALLOW_MAX = 24;
 
 /* ── Comments out, strings kept (a verb is a string) ──────────────────── */
 export function stripComments(t) {

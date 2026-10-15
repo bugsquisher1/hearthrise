@@ -269,11 +269,6 @@
         if (sg) railSet.innerHTML = sg;
       }
     });
-    var flame = document.querySelector('.streak-badge .flame');
-    if (flame && paths.uiFlame && !flame.querySelector('.hr-glyph')) {
-      var fg = glyph('uiFlame', 14, '--red');
-      if (fg) flame.innerHTML = fg;
-    }
   }
 
   // Last-resort sweep for legacy render sites not yet migrated to HR.icon().
@@ -282,7 +277,7 @@
   var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
   function stripChromeEmoji() {
     document.querySelectorAll(
-      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button, .card-title, #panel-bounty .si, #panel-bounty .price, #panel-bounty .ic'
+      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button, .card-title'
     ).forEach(function (el) {
       if (el.dataset.hrDeemoji) return;
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);

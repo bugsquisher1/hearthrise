@@ -13,7 +13,7 @@
 // action is an inline onclick that stays a GLOBAL handler (buyShopItem). This
 // module only PAINTS and delegates. The IAP store, Hearth Token redeem, gem
 // cosmetics, trait upgrades and shop companions left with their systems in the
-// 2026-10-14 demolition; #iap-panel is painted empty until its host goes.
+// 2026-10-14 demolition.
 //
 // Moved out of legacy.js, not redesigned. Since 2026-10-14 it writes through
 // HearthrisePaint (render/paint.js): the scene once, the counter as keyed rows,
@@ -223,8 +223,6 @@
     var canWield = window.canWield;
     var _gp = window._gp;
     var paint = window.HearthrisePaint;
-    var iap = document.getElementById('iap-panel');
-    if (iap) paint.html(iap, '');
 
 
     const el=document.getElementById('shop-panel');if(!el)return;

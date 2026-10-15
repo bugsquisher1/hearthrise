@@ -2341,9 +2341,6 @@ export const TYPE_FLOOR = 14.5;
    exemption that outlives its handoff is just a hole in the guard. */
 const TYPE_PENDING_HANDOFF = [
   { file: 'src/features/home-dashboard.js', region: '#panel-profile [class*="hd-"]' },
-  { file: 'src/features/world-events.js',   region: '#panel-events' },
-  { file: 'src/features/companions.js',     region: '#panel-stable' },
-  { file: 'src/styles/clan-seat.css',       region: '.clan-empty, .soc-signpost, .soc-signpost-txt' },
 ];
 export const typeHandoffOwner = (el) => {
   for (const h of TYPE_PENDING_HANDOFF) {

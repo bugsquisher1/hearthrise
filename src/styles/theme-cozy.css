@@ -74,18 +74,14 @@ body[data-theme="classic"] {
    rescoping accident as the #panel-profile one. The `html body[…]` selector
    below is the one that was always doing the work. */
 
-
 /* ─── Sidebar (carved-plaque treatment to match character-sheet body) ─── */
 
 /* Vertical decorative rule near the right edge of the sidebar */
 
-
 /* Brand block — full Hearthrise crest replaces the small emoji+text */
-
 
 /* Sidebar must scroll when nav exceeds viewport — was overflow:hidden,
    which clipped the bottom items behind the brand crest. */
-
 
 /* Hide the nav entries we're consolidating into other tabs:
    • Store → entry point inside Market panel
@@ -127,13 +123,6 @@ body[data-theme="classic"] {
   align-items: center;
   justify-content: center;
 }
-.streak-badge .flame.hr-icon-host {
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 .icon-btn .hr-icon-host {
   width: 18px;
   height: 18px;
@@ -149,25 +138,18 @@ body[data-theme="classic"] {
   filter: drop-shadow(0 0 2px rgba(255,247,224,.6));
 }
 
-
 /* Group labels (ADVENTURE / ECONOMY / HOMESTEAD) — Cinzel small caps,
    matching HEARTHRISE wordmark color + weight so they read clearly. */
 
-
 /* Nav buttons — parchment surface */
-
 
 /* ACTIVE nav button — wax-stamp red with cream text + gold trim */
 
-
 /* Sidebar foot (offline / online indicator) */
-
 
 /* Topbar */
 
-
 /* Bottom nav (mobile) */
-
 
 /* Cards — parchment fill with a darker "header band" up top, gold
    inner trim, and a warm drop-shadow so they read like book pages
@@ -179,8 +161,6 @@ body[data-theme="classic"] {
 /* Decorative gold underline on the band */
 
 /* Title in the band — Cinzel, with a small flourish character */
-
-
 
 /* b230: the Cozy Day rules for #hr-store-link are deleted with the element.
    It was the "Premium Store" pill injected into the Market panel corner —
@@ -306,7 +286,6 @@ body[data-theme="classic"] {
   .td-doll .td-slot.empty { padding: 4px; gap: 0; }
   .td-doll .td-slot.empty svg { width: 58%; height: 58%; }
   /* Inventory bag tile grid — let it use the full width too */
-
 
   /* b107 — Profile right-side bleed: the 2-column layout
    * (main content + Active Effects sidebar) doesn't stack on mobile,
@@ -528,12 +507,6 @@ body[data-theme="classic"] {
   .topbar .player .player-name { display: none !important; }
   .topbar .player .status-pill { display: none !important; }
   .topbar .player .row { margin: 0 !important; gap: 0 !important; min-width: 0 !important; }
-  .topbar .player .clan-tag {
-    max-width: 108px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
   /* Stats row — tighter so QUESTS / DUNGEONS don't overflow */
   .top-stats { gap: 2px !important; }
   .t-stat {
@@ -784,9 +757,7 @@ body[data-theme="classic"] {
   }
   /* Colour/background/border only — per-theme. */
 
-
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(17px * var(--ui-scale, 1)); }
-
 
   /* Show only the section matching the active inventory sub-tab.
    * The inventory layout has three logical zones: bag column,
@@ -850,9 +821,7 @@ body[data-theme="classic"] {
   }
   /* Colour/background/border only — per-theme. */
 
-
   .act-mob-strip .ams-btn .ams-ic { font-size:calc(19px * var(--ui-scale, 1)); }
-
 
   /* Hide the desktop-style skill list sidebar on mobile — the strip
    * replaces it. Show only the right-column detail. */
@@ -909,9 +878,7 @@ body[data-theme="classic"] {
   }
   /* Colour/background/border only — per-theme. */
 
-
   .cmb-mob-tabs .cmt-btn .cmt-ic { font-size:calc(17px * var(--ui-scale, 1)); }
-
 
   /* b362 — THE COMBAT SUB-TAB RULES ARE GONE. THE INVENTORY ONES ARE NOT.
      These three said "show only the section matching the active sub-tab", and
@@ -944,7 +911,6 @@ body[data-theme="classic"] {
     margin-top: 8px;
   }
 
-
   #panel-combat .monster-row > img,
   #panel-combat .monster-row > .icon-fallback {
     width: 38px !important;
@@ -958,19 +924,6 @@ body[data-theme="classic"] {
   }
 
   /* Hide bounty-style verbose chips on mobile bounty board too */
-  @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-    .bounty-option {
-      padding: 8px 10px !important;
-      min-height: 60px !important;
-    }
-    .bounty-option .bounty-meta,
-    .bounty-option .tiny.muted {
-      font-size:calc(14.5px * var(--ui-scale, 1)) !important;
-    }
-    .bounty-option .bounty-reward {
-      font-size:calc(14.5px * var(--ui-scale, 1)) !important;
-    }
-  }
 
   /* HIDE FLOATING CHAT PILL on mobile — chat is now reachable via
    * the bottom-nav More menu (added in b110). The pill was overlapping
@@ -1036,9 +989,8 @@ body[data-theme="classic"] {
     padding: 8px 8px calc(60px + var(--safe-b, 0px) + 8px) !important;
   }
   .card:not(:where(#panel-combat[data-combat-view="fight"] .combat-arena)),
-  .activity-card,
-  .skill-tile,
-  .iap-card {
+.activity-card,
+.skill-tile {
     margin-bottom: 8px !important;
     padding: 10px !important;
   }
@@ -1138,7 +1090,6 @@ body[data-theme="classic"] {
   /* Hide the "Suggested for your level" block — it's redundant once
    * the monster picker (with all tiers) is on the same screen. */
 
-
   /* PROFILE — ensure no overlap with the chat pill or bottom nav.
    * Final card needs bottom margin so it doesn't sit under the pill. */
   #panel-profile > *:last-child,
@@ -1213,10 +1164,20 @@ body[data-theme="classic"] {
 html {
   touch-action: manipulation;
 }
-button, a, [role="button"], .btn, .nav-btn, .bn-btn,
-.bounty-option, .skill-tile, .activity-card, .iap-card,
-.combat-style-buttons > *, .csb-btn, .shop-row,
-.monster-row, .invc-tile, .td-slot {
+button,
+a,
+[role="button"],
+.btn,
+.nav-btn,
+.bn-btn,
+.skill-tile,
+.activity-card,
+.combat-style-buttons > *,
+.csb-btn,
+.shop-row,
+.monster-row,
+.invc-tile,
+.td-slot {
   touch-action: manipulation;
   -webkit-tap-highlight-color: rgba(212, 74, 58, .25); /* wax-red flash */
 }
@@ -1256,18 +1217,13 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
     min-height: var(--tap) !important;
     padding: 6px 10px !important;
   }
-  /* Monster cards / bounty cards / shop rows */
-  .bounty-option,
   .monster-row,
-  .shop-row {
+.shop-row {
     min-height: 56px !important;
     padding: 10px 12px !important;
   }
-  /* Accept / Build / Buy buttons inside cards */
-  .bounty-option button,
   .shop-row button,
-  .iap-card button,
-  .btn-sm:not(:where(#panel-combat .fs-actionbar .btn-sm)) {
+.btn-sm:not(:where(#panel-combat .fs-actionbar .btn-sm)) {
     min-height: var(--tap) !important;
     padding: 8px 14px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
@@ -1302,10 +1258,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   }
   .card:not(:where(#panel-combat[data-combat-view="fight"] .combat-arena)) {
     margin-bottom: 12px !important;
-  }
-  /* Bestiary / Achievements / similar grid items */
-.iap-grid {
-    gap: 10px !important;
   }
 }
 
@@ -1343,20 +1295,15 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Standalone .card-title used outside .card-head still reads */
 
-
 /* Scrollbars on parchment — make the thumb actually visible */
-
 
 /* Status pill ('Offline · sign in to sync') */
 
-
 /* Quests + dock-line elements that span the topbar */
-
 
 /* Activity bar — overrides both legacy.css gradient AND
  * audit-overrides.css's `.activity-bar.v2 { background: ... !important }`
  * so we need !important too to win. */
-
 
 /* ============================================================
  * COZY LIGHT — text-color readability sweep
@@ -1366,39 +1313,29 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
  * ============================================================ */
 /* Sidebar group labels ("ADVENTURE", "ECONOMY", "HOMESTEAD") */
 
-
 /* Profile dashboard sub-titles + key headers */
-
 
 /* All "Live" / "Tier 1" / etc. badges in card heads */
 
-
 /* Stat-card values — dark for readability, gold only for the gold tile */
 
-
 /* Buttons (Achievements, Bestiary, LIFETIME STATS, Last Session) */
-
 
 /* Gold + gem stats in topbar (these SHOULD stay gold/gem-colored
    because they encode meaning, but use the deeper ramp shade for
    contrast on parchment) */
 
-
 /* Quests strip ("QUESTS · No active quests") + click-to-open hint */
 
-
 /* Companion name (e.g. "Fox (Lv 2)") on profile dashboard */
-
 
 /* General fallback: ANY element using var(--gold-2) for color
    that lands on parchment becomes hard to read. Replace top-level
    uses where they appear as TEXT (not borders/bg). The pattern
    we use for card headers, badges, etc. */
 
-
 /* Brand "HEARTHRISE / IDLE HOMESTEAD" in sidebar — keep gold but use
    the deeper warm gold so it doesn't hurt to read */
-
 
 /* ============================================================
  * PROFILE: CHARACTER SHEET REDESIGN
@@ -1418,26 +1355,20 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 /* Scope all panel-sheet styles to .active so we don't override
    legacy's `.panel { display: none }` for inactive tabs. */
 
-
 /* Mirror the SVG flourishes per corner using transforms on
    pseudo-elements. The bg-image approach above lays the same SVG
    four times; we overlay rotated copies via ::before/::after. */
-
 
 /* Bottom-right corner gets the wax seal instead of a flourish */
 
 /* Adjust ::before/::after to handle remaining corners */
 
-
 /* Suppress the card chrome on every dashboard child — the panel
    IS the card now. Children are sections of the sheet. */
 
-
 /* Grid placement of the dashboard children */
 
-
 /* Top section: name + portrait — make it the calligraphic title block */
-
 
 /* When the engine renders the user body, it normally shows
    "Adventurer / Offline play / Sign in / 4 stat tiles / companion".
@@ -1452,25 +1383,18 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Sign In button — wax-stamp style on the right */
 
-
 /* Title block ornamental rule beneath */
-
 
 /* ─── KPI row → ledger rows with leader dots ─── */
 
-
 /* SPAN (label) on the left, B (value) on the right */
-
 
 /* ─── Companion card → small inline tile, no progress bar ─── */
 
-
 /* Kill the full-width progress bar — Tyler's explicit ask */
-
 
 /* Buttons row at the bottom of profile (Achievements, Bestiary,
    LIFETIME STATS, Last Session Summary) — ribbon under the sheet */
-
 
 /* All four profile-bottom buttons (ACHIEVEMENTS / BESTIARY /
    LIFETIME STATS / LAST SESSION SUMMARY) — force EXACTLY the same
@@ -1478,28 +1402,19 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* The feat-buttons row gets consistent gap */
 
-
 /* Active Effects section — make it look like a sub-block, not a card */
 
-
 /* FOOD BUFFS / HOUSE BUFFS section headers — darker for readability */
-
 
 /* The "No food buffs active. Cook buff foods to add bonuses." paragraph
    below each section header — also too faded by default */
 
-
-
-
 /* Center any "Sign in" button inside the user header so it sits like a callout */
-
 
 /* Companion card inside profile — small inline strip rather than
    a full-width tile. */
 
-
 /* On smaller widths, collapse the grid */
-
 
 /* ============================================================
  * UNIVERSAL PANEL SHEET — all OTHER panels (combat, inventory,
@@ -1512,15 +1427,12 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Bottom-left flourish + bottom-right wax seal */
 
-
 /* Suppress the "PANEL" outer chrome on inner cards inside non-profile
    panels — let the cards themselves carry the smaller card-bands.
    Cards still keep their borders + shadows for separation, just
    styled cohesively. */
 
-
 /* Smaller padding for non-profile panels on narrower screens */
-
 
 /* ============================================================
  * Per-tab interior darkness overrides
@@ -1536,22 +1448,17 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
    Also nuke the ::before / ::after pseudo overlays which paint a
    dark image + dark gradient on top of the arena. */
 
-
 /* Combat style picker block at top — force parchment AND dark
    readable text on every descendant. */
 
-
 /* Combat style chips — wax red for active to match design language */
-
 
 /* "Suggested for your level" container + every monster row inside.
    Match #panel-combat specificity so we beat any internal styles. */
 /* b217: light-theme twin of the rule above — same catch-all, same problem.
    Retired with the markup it targeted. */
 
-
 /* Loadout slot labels (Hel/Nec/Cap/Bod/Amm/Bel/Pan/Rin etc) */
-
 
 /* ============================================================
  * READABILITY SLEDGEHAMMER
@@ -1570,14 +1477,11 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
    readable cocoa unless they're already on a colored bg (chips,
    active buttons, etc.) */
 
-
 /* All elements using --ink-3 (the muted hint color) inside panels
    get bumped up one shade so they're actually readable. The
    --ink-3 default is #a5896a which fades on parchment. */
 
-
 /* Headers / labels inside panels: deeper warm brown for clear hierarchy */
-
 
 /* Catch ANY element with a hardcoded dark navy/gray rgba background
    inside an active panel and force it to parchment. We can't detect
@@ -1586,32 +1490,23 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
    `style="background:rgba(0,0,0..."` we override via attribute
    selector. */
 
-
 /* Tables inside panels — readable rows */
 
-
 /* "+0%" / "+5% combat XP" / similar stat-line lozenges (House/Bonuses) */
-
 
 /* HERO panel + WEAPON STYLES + BONUSES + ACTIVE STYLE side blocks
    in inventory + character panels. Force their numbers readable. */
 
-
 /* Activity bar text / labels readable on parchment */
-
 
 /* "+5% combat XP" / "42 members" / clan/friend descriptions on Social */
 
-
 /* Mock-data and similar small sub-labels */
-
 
 /* House Bonuses "+0%" giant numbers — readable + dark not gold */
 
-
 /* Final fallback: any element in a panel that has color: var(--ink-3),
    var(--gold-2), var(--aqua-2) gets replaced by the readable cocoa */
-
 
 /* Hints + meta (.ss-hint, .ss-meta) — readable but slightly muted */
 #settings-body .ss-hint,
@@ -1621,7 +1516,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   font-style: normal !important;
 }
 
-
 #settings-body .ss-card {
   border: 1px solid var(--line-strong) !important;
   border-radius: 6px;
@@ -1629,12 +1523,10 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Toggle pills / range sliders */
 
-
 #settings-body .ss-toggle.on *,
 #settings-body .ss-toggle.active * {
   color: #fff8e2 !important;
 }
-
 
 #settings-body .btn.btn-danger * {
   color: #fff8e2 !important;
@@ -1645,7 +1537,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   border-color: #8a5e2a !important;
   font-weight: 700;
 }
-
 
 /* ============================================================
  * UNIVERSAL MODAL / OVERLAY READABILITY
@@ -1669,7 +1560,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Numbers / values inside modals — pop them */
 
-
 /* Modal close buttons */
 
 /* Backdrop / overlay outer (the dark transparent layer) */
@@ -1680,53 +1570,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 .ach-overlay,
 .acq-overlay {
   background: rgba(40,25,12,.55) !important;
-}
-
-/* ============================================================
- * UNTOUCHED TABS — Bounty Board, Stable, Skills detail, Market,
- * Dungeons, Shop. Apply same readability rules to ALL panels
- * (not just :active). Catches dynamically-loaded panel content.
- * ============================================================ */
-
-
-/* Skills detail panel inside Activities — skill tile rows */
-
-
-/* "List an item" form — was rendering with an olive-green default
-   background that broke the parchment look. Force parchment. */
-
-
-/* Shop / Premium store tab */
-/* b230: the Shops toggle is chrome that owns its own contrast (and its
-   Premium segment owns the sapphire real-money role), so it is carved out
-   of this blanket the same way the in-world surfaces are. */
-
-
-/* Activity bar items / quest strip — all readable */
-
-
-/* Item flyout / detail popovers */
-
-
-/* Bounty board monster icons — when the painted img is sized too
-   large it forces the monster name onto a second line. Constrain
-   to a small inline-block. */
-.bounty-option .row.between b img,
-.bounty-option b img,
-.bounty-card b img {
-  width: 24px !important;
-  height: 24px !important;
-  display: inline-block !important;
-  vertical-align: middle !important;
-  margin-right: 4px;
-}
-.bounty-option .row.between b,
-.bounty-option b,
-.bounty-card b {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: normal;
 }
 
 /* Activities skill tile icons — make the fallback glyphs prominent
@@ -1744,11 +1587,9 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   object-fit: contain;
 }
 
-
 /* Loadout / inventory paper-doll slot labels (those gray pills
    under each slot showing slot type abbreviations). Currently
    showing as empty/illegible. Force dark text + visible bg. */
-
 
 /* Skill detail panel skill icons in Activities — same broken-img
    issue. Force the inner image / fallback to fit the slot. */
@@ -1776,21 +1617,16 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* The big numbers (combat lv 5, total lv 39, HP 10/10) */
 
-
 /* Same treatment for character panel */
-
 
 /* Stat tiles in the top-right of Character / Profile (5/39/50.3K/7).
    They're rendered with var(--gold-2) on a dark bg. Force parchment. */
-
 
 /* Soften all rgba(0,0,0,.X) icon-cell + slot insets inside panels.
    These are tiny squares (item icons, skill icons, etc) that read
    as too-dark on the parchment. Convert them to a warm-tan fill. */
 
-
 /* Hero / weapon-styles / bonuses sidebar boxes (inventory + character) */
-
 
 /* ============================================================
  * COZY LIGHT — component fine-tuning
@@ -1814,42 +1650,29 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* Light theme: softer button hover */
 
-
 /* Topbar gets a parchment seal feel in light mode */
-
 
 /* Sidebar — slightly recessed parchment */
 
-
 /* Bottom nav (mobile) */
-
 
 /* Chips: pill shape with parchment fill */
 
-
 /* Skill bars — use the green ramp */
-
 
 /* HP bar — keep red */
 
-
 /* Modals — full parchment */
-
 
 /* Inputs */
 
-
 /* Status pill — make sure offline/online states are visible on parchment */
-
 
 /* Activity bar / topbar gold/gem stats — keep contrast */
 
-
 /* Notifications, dock, etc. */
 
-
 /* Bug-report + chat dock buttons read on parchment */
-
 
 /* ============================================================
  * Cozy Dark refinements (warm-dark only — rules above for
@@ -1969,7 +1792,6 @@ body[data-theme="classic"] .modal-card {
 
   /* Smaller corner flourishes too — they were 64px squares
      eating useful real estate on a 380px panel */
-
 
   /* --- Profile feat-buttons row → 2x2 grid on portrait,
          single horizontal scroll-row in landscape --- */
@@ -2093,7 +1915,6 @@ body[data-theme="classic"] .modal-card {
 
   /* Feat-buttons grid — themed selectors so specificity ties */
 
-
   /* Topbar inner stats container — kill the wrap */
 .topbar .top-stats,
 header.topbar .top-stats {
@@ -2117,16 +1938,11 @@ header.topbar .top-stats {
   .topbar .player-avatar { width: 28px !important; height: 28px !important; }
   .topbar .player-name { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }
 
-  /* b132: hide low-priority topbar widgets so the essentials
-     (avatar + Quests + CL + Gold + Gems) actually fit without
-     horizontal scroll. Save / Settings / Notifications all live
-     in the MORE menu on mobile already. */
   .topbar #status-pill,
-  .topbar .streak-badge,
-  .topbar #btn-notif,
-  .topbar #btn-save,
-  .topbar #btn-settings,
-  .topbar [title="Total level"] {
+.topbar #btn-notif,
+.topbar #btn-save,
+.topbar #btn-settings,
+.topbar [title="Total level"] {
     display: none !important;
   }
 
@@ -2167,7 +1983,6 @@ header.topbar .top-stats {
  * palette the rest of the UI uses.
  * ============================================================ */
 
-
 /* ============================================================
  * b132: Quests modal mobile layout
  *
@@ -2183,34 +1998,6 @@ header.topbar .top-stats {
  * Fix: collapse to single column, stack info + reward vertically
  * inside each quest card, hide the side QUEST INFO panel.
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .qm-body {
-    grid-template-columns: 1fr !important;
-    overflow: visible !important;
-  }
-  /* Hide the right sidebar (QUEST INFO summary) entirely on mobile.
-     Header counts already show daily/weekly badges. */
-  .qm-body > :nth-child(2) {
-    display: none !important;
-  }
-  .qm-quest {
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    padding: 10px 12px !important;
-  }
-  .qm-quest .qm-q-info { flex: 1 1 100% !important; min-width: 0 !important; }
-  .qm-quest .qm-q-name {
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
-  }
-  .qm-quest .qm-q-reward {
-    flex: 0 0 auto !important;
-    text-align: left !important;
-    margin-top: 4px !important;
-  }
-  .qm-quest .qm-q-claim { margin-left: auto !important; }
-}
 
 /* ============================================================
  * ─── Hearthlight (b150) — the revamp direction ───
@@ -2240,7 +2027,6 @@ body[data-theme="hearthlight"] {
    a dusk palette under a cream UI would read as a bug. Same scene, golden
    hour: pale sky, hazy blue-grey distance, warm mid-tones instead of black. */
 
-
 /* Body background is set via the --app-bg token for every theme (b151), so a
    new theme never falls back to the old cold-navy legacy default. */
 html body[data-theme="hearthlight"] {
@@ -2262,43 +2048,11 @@ body[data-theme="hearthlight"] .nav-foot { color: var(--ink-3) !important; }
 body[data-theme="hearthlight"] .brand-name,
 body[data-theme="hearthlight"] .brand-name small { color: var(--gold-2) !important; text-shadow: none !important; }
 
-/* ============================================================
- * Hearthlight content surfaces (b153) — dark cards / tiles / modals +
- * light text, so the whole screen matches the dark shell. Scoped to
- * Hearthlight only → Cozy Day is 100% untouched. Override-style (not
- * pure tokenization) because Cozy uses many one-off shades; converting
- * those to tokens without shifting Cozy is a later cleanup pass.
- * Verified live in-browser (Home/Profile) before commit.
- * ============================================================ */
-/* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
-
-/* main panel — drop the cream parchment-frame background image */
-/* b216: this used to be `background: none !important`, added back in b153 to
-   strip the cozy PARCHMENT sheet from the dark theme. That was the right call
-   then, but it also left every panel with no surface at all, so the backdrop
-   scene showed through the gaps between cards as a grey smudge. The dark panel
-   frame further down now supplies a proper surface — keep the colour, drop the
-   background kill. */
-
-
-/* b217: this block used to force `background: var(--bg-card) !important;
-   border: 1px solid var(--line) !important` onto every surface-ish class in
-   the game. It is the single rule most responsible for the wall-of-cards
-   read — and because it is !important on a theme-scoped selector, no amount
-   of later styling could undo it, which is why several passes at "make it
-   look less generated" never changed anything.
-
-   Surfaces are now owned by art-direction.css, which draws them by MEANING:
-   a section gets a heading and a rule, a pressable object gets a raised
-   face, a container of objects gets a recessed well. What survives here is
-   the text colour, which still has to outrank the unscoped light-theme
-   rules further down this file. */
 body[data-theme="hearthlight"] .card,
 body[data-theme="hearthlight"] .modal-card,
 body[data-theme="hearthlight"] .ss-card,
 body[data-theme="hearthlight"] .cr-card,
 body[data-theme="hearthlight"] .cr-hero,
-body[data-theme="hearthlight"] .bounty-card,
 body[data-theme="hearthlight"] .activity-card { color: var(--ink) !important; }
 
 /* Containment is kept only where the thing IS an object: a modal is a
@@ -2358,7 +2112,7 @@ body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !im
  *                 every sapphire value back to gilt ink.
  *   .hr-cs      — the Clan Seat: the hold band and everything the castle draws
  *                 around it (b223). Third in-world screen, same deal — see
- *                 src/styles/clan-seat.css, which contains no !important and no
+ *                 src/styles/room-modal.css, which contains no !important and no
  *                 stacked id precisely because of this entry.
  *   .hr-room    — the reusable room modal (b223, window.HearthriseRoomModal).
  *                 It mounts on <body> today, so no blanket reaches it anyway;
@@ -2380,10 +2134,62 @@ body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !im
 
 /* text — headers gold, body light, hints muted (accent colours untouched) */
 body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-title:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active .card-title:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
 body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
 /* b217: the gilt wash band + full-width underline made every card-head look
    like a table header, and there are ~30 of them across the game. A heading
@@ -2397,120 +2203,350 @@ body[data-theme="hearthlight"] .card-head {
 body[data-theme="hearthlight"] .card-head .card-title,
 body[data-theme="hearthlight"] .card-head .card-title::before,
 body[data-theme="hearthlight"] .card-head .card-sub { color: var(--gold-2) !important; }
-body[data-theme="hearthlight"] .panel.active b:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active strong:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active p:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active li:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active b:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active strong:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active p:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active li:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
 body[data-theme="hearthlight"] .panel.active td { color: var(--ink) !important; }
-body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-sub:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active .muted:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] .panel.active small:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink-3) !important; }
+body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]):not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *) { color: var(--ink); }
+body[data-theme="hearthlight"] .panel.active .card-sub:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active .muted:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] .panel.active small:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *) { color: var(--ink-3) !important; }
 
-/* ============================================================
- * HEARTHLIGHT — single-theme finalization (b174)
- * Hearthlight is now the ONLY theme. Several legacy readability rules hardcode
- * cocoa text + cream card backgrounds WITHOUT theme-scoping (e.g.
- * `#panel-bounty * {color:#3d2817!important}`), so they still force light colors
- * even here. This block makes every legacy panel dark-clean: light text on dark
- * surfaces, gold headers/values for hierarchy. Uses #panel ids to outrank those
- * `#panel-x *` rules. (Interim: screens get rebuilt as token components — combat
- * next — and the dead light-theme CSS gets deleted in a cleanup pass.)
- * ============================================================ */
+body[data-theme="hearthlight"] #panel-character *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-combat *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-skills *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-inventory *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-shop *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-farming *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-house *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-social *:not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *) { color: var(--ink) !important; }
 
-/* Panel text -> light (beats the unscoped `#panel-x *` cocoa)
- *
- * b222: `#panel-profile` is deliberately NOT in this list. Before b222 it was —
- * but the b216 rescoping pass had prefixed `body[data-theme="cozy-light"] ` onto
- * the comment directly above, and a CSS comment is whitespace to the tokenizer,
- * so the first selector in this list actually parsed as
- *   `body[data-theme="cozy-light"] body[data-theme="hearthlight"] #panel-profile *`
- * — two <body> elements in one descendant chain, which can never match. Home has
- * therefore rendered WITHOUT this blanket since b216, and it is the best-looking
- * screen in the game (b219 rebuilt it on tokens + its own --scene-* ink roles).
- * Repairing the selector would have clobbered the hearth band's scene ink, so
- * the dead fragment is deleted instead and Home stays out. Treat that as the
- * exit criterion: a screen leaves this list when it stops needing it.
- *
- * Every remaining entry carves out the in-world surfaces (see the b222 note
- * above the readability layer). */
-body[data-theme="hearthlight"] #panel-character *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-combat *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-bounty *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-skills *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-inventory *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-shop *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-dungeons *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-stable *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-farming *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-house *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-social *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink) !important; }
-
-/* Cream card / input surfaces -> dark */
-body[data-theme="hearthlight"] #panel-bounty [class*="bounty-card"],
-body[data-theme="hearthlight"] #panel-bounty [class*="bounty-row"],
-body[data-theme="hearthlight"] #panel-bounty [class*="bounty-shop"],
-body[data-theme="hearthlight"] #panel-bounty [class*="bounty-option"],
-body[data-theme="hearthlight"] #panel-bounty .row.between > button,
-body[data-theme="hearthlight"] #panel-stable [class*="companion"],
-body[data-theme="hearthlight"] #panel-stable [class*="comp-card"],
-/* b371 (F24): `:not(.iap-card)` excluded the CARD and nothing inside it, so this
-   blanket painted `--bg-2` onto `.iap-icon`, `.iap-foot` and `.iap-price` —
-   every product card on the real-money screen wore a 230x42px opaque slab of
-   dark brown behind its icon, which is the single ugliest object in the game
-   and was nobody's decision. The card's own styling lives in board-and-shop.css;
-   its descendants belong to it too. */
-body[data-theme="hearthlight"] #panel-shop [class*="card"]:not(.iap-card):not(.iap-card *),
-body[data-theme="hearthlight"] #panel-shop [class*="sku"]:not(.iap-card):not(.iap-card *),
-body[data-theme="hearthlight"] #panel-shop [class*="iap"]:not(.iap-card):not(.iap-card *),
 body[data-theme="hearthlight"] #panel-shop .row.between > button,
-body[data-theme="hearthlight"] #panel-dungeons [class*="card"],
-body[data-theme="hearthlight"] #panel-dungeons [class*="key-card"],
 body[data-theme="hearthlight"] #panel-skills .act-tile,
 body[data-theme="hearthlight"] #panel-skills .act-head {
   background: var(--bg-2) !important;
   border-color: var(--line) !important;
 }
 
-/* Gold headers/values for hierarchy (per-panel id beats the light blanket) */
 body[data-theme="hearthlight"] #panel-character [class*="-title"],
 body[data-theme="hearthlight"] #panel-character [class*="hero-stat"] b,
-body[data-theme="hearthlight"] #panel-bounty [class*="-title"],
-body[data-theme="hearthlight"] #panel-bounty [class*="kpi"] b,
 body[data-theme="hearthlight"] #panel-skills [class*="-title"],
 body[data-theme="hearthlight"] #panel-inventory [class*="hero-stat"] b,
 body[data-theme="hearthlight"] #panel-shop [class*="-title"] { color: var(--gold) !important; }
 
-/* Higher-specificity catch for detail sub-panels whose cocoa/cream rules use
-   two ids (e.g. `#panel-skills #skill-detail *`). The repeated-id selector
-   (#panel-x#panel-x) reaches (2,1,1) to outrank them. Interim until rebuild. */
-/* b216: these blankets must NOT capture filled controls. A gold ribbon or an
-   active moss chip is a light surface that owns its own contrast — forcing
-   parchment ink onto it produced light-on-light (store ribbons measured
-   1.9:1). Excluding them here fixes the whole class instead of adding yet
-   another higher-specificity patch per component. */
-body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
-body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink) !important; }
+body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *),
+body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,
+.bb-board,
+.sc-scene,
+.sc-counter,
+.hr-cs,
+.hr-room,
+.shops-tabs *,
+.bb-board *,
+.sc-scene *,
+.sc-counter *,
+.hr-cs *,
+.hr-room *,
+.mk-screen,
+.mk-screen *) { color: var(--ink) !important; }
 
-/* Stray light-face buttons/tiles -> dark surfaces (2-id to win) */
 body[data-theme="hearthlight"] #panel-skills#panel-skills .act-tile,
 body[data-theme="hearthlight"] #panel-skills#panel-skills .act-head,
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-option"],
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-shop"],
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty .row.between > button,
-body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"]:not(.iap-card):not(.iap-card *),
 body[data-theme="hearthlight"] #panel-shop#panel-shop .row.between > button,
 body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button {
   background: var(--bg-2) !important; border-color: var(--line) !important;
 }
 
-/* Keep gold values readable on the now-dark hero stats (2-id to win) */
 body[data-theme="hearthlight"] #panel-inventory#panel-inventory [class*="hero-stat"] b,
-body[data-theme="hearthlight"] #panel-skills#panel-skills [class*="-title"],
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="-title"],
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="kpi"] b { color: var(--gold) !important; }
+body[data-theme="hearthlight"] #panel-skills#panel-skills [class*="-title"] { color: var(--gold) !important; }
 
 /* ============================================================
  * COMBAT — dramatic monster presence (Phase 2, first pass, b177)
@@ -2676,37 +2712,6 @@ body[data-theme="hearthlight"] #settings-modal .ss-body .ss-meta,
 body[data-theme="hearthlight"] #settings-modal .ss-body .ss-card-meta,
 body[data-theme="hearthlight"] #settings-modal .ss-body .muted {
   color: var(--ink-3, #a5896a) !important;
-}
-
-/* b213 (phase 2): quest modal internals — rows + tab strip were still cream
-   inside the now-dark sheet. */
-body[data-theme="hearthlight"] .qm-quest {
-  background: rgba(255,255,255,.05) !important;
-  border: 1px solid var(--line-soft, rgba(122,94,58,.22)) !important;
-  color: var(--ink, #e9e2cf) !important;
-}
-body[data-theme="hearthlight"] .qm-quest *,
-body[data-theme="hearthlight"] .qm-q-info * {
-  color: var(--ink, #e9e2cf) !important;
-}
-body[data-theme="hearthlight"] .qm-quest [class*="reward"] {
-  color: var(--gold-2, #cda24a) !important;
-}
-body[data-theme="hearthlight"] .qm-tabs,
-body[data-theme="hearthlight"] .qm-tab {
-  background: rgba(255,255,255,.04) !important;
-  color: var(--ink-2, #cbbfa4) !important;
-  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
-}
-body[data-theme="hearthlight"] .qm-tab.active {
-  background: rgba(205,162,74,.15) !important;
-  color: var(--gold-2, #cda24a) !important;
-  border-bottom: 2px solid var(--red, #c0392b) !important;
-}
-body[data-theme="hearthlight"] .qm-quest .qm-q-name,
-body[data-theme="hearthlight"] .qm-modal .qm-q-name {
-  color: var(--ink, #e9e2cf) !important;
-  font-weight: 700;
 }
 
 /* b213 (phase 2): .btn-gold — on the dark theme the cozy cream wash made
@@ -3053,7 +3058,6 @@ body[data-theme="hearthlight"] .td-comp-stable {
   letter-spacing: .05em;
 }
 body[data-theme="hearthlight"] .td-comp-stable:hover { filter: brightness(1.1); }
-
 
 /* b402: .eqb-card/.eqb-head/.eqb-close removed with the retired openEquipmentBonuses
    modal (dead code). The shared .eqb-grid/.eqb-row/... below stay — the Stats pane renders them. */

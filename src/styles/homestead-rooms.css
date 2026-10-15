@@ -8,7 +8,7 @@
         prior art anywhere else in the game.
      2. The homestead's `[data-room-theme]` values on the SHARED room modal.
 
-   It does NOT restyle the modal itself. `src/styles/clan-seat.css` owns
+   It does NOT restyle the modal itself. `src/styles/room-modal.css` owns
    `.hr-room-*` and `.hr-cs-*` and is held by another agent; the room modal is
    a published seam and the entire point of consuming it unchanged is that the
    two pillars keep looking like one game. Everything below either targets a
@@ -120,7 +120,7 @@
      --ink-inv resolved light, AND theme-cozy's #panel-house color blanket
      (b222) forces var(--ink) !important — its carve-out list predates the
      homestead's .hh-* classes. Gilt fills take dark ink; !important is the
-     only way past the blanket, same as board-and-shop.css / clan-seat.css. */
+     only way past the blanket, same as board-and-shop.css / room-modal.css. */
   color: #241a06 !important;
   font-weight: 700;
   background: var(--gold-2);
@@ -192,7 +192,7 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
 .hh-room.is-max { border-color: var(--gold-2); }
 
 /* ── the room modal, homestead themes ─────────────────────────────────
-   clan-seat.css defines six castle themes on `.hr-room-wrap[data-room-theme]`;
+   room-modal.css defines six castle themes on `.hr-room-wrap[data-room-theme]`;
    these are the eight homestead ones. Only the interior LIGHT changes — the
    frame, the type and the ladder are the shared component's and stay untouched,
    because the moment a pillar restyles the shared modal there are two modals
@@ -379,7 +379,7 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
    requirement text must clear the floor there too. */
 #house-panel .shop-row .hh-cost { font-size: 14.5px; }
 
-/* The shared modal's ladder prices. clan-seat.css sets `.hr-cs-meta` and
+/* The shared modal's ladder prices. room-modal.css sets `.hr-cs-meta` and
    `.hr-cs-qty` at 13.5px, which is the OLD floor; this raises them to 14.5
    for homestead rooms only — the component keeps its own type everywhere
    else, because restyling the shared modal for one pillar is how two pillars

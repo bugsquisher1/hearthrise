@@ -1165,170 +1165,15 @@ body.in-combat #combat-area {
 .qs-summary .qs-sum-row b { color: var(--gold-2); }
 .qs-summary .qs-sum-row i { color: var(--ink-3); font-style: normal; font-size:calc(14.5px * var(--ui-scale, 1)); }
 
-/* ============================================================
-   Dungeons / Raids / World Bosses panel
-   ============================================================ */
-#panel-dungeons.active {
-  padding: 16px;
-  overflow-y: auto;
-}
-.dgn-section { margin-bottom: 24px; }
-.dgn-section h3 {
-  font-family: var(--f-display);
-  font-size:calc(17px * var(--ui-scale, 1)); font-weight: 800;
-  color: var(--gold-2);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  margin: 0 0 10px;
-}
-.dgn-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-}
-.dgn-card {
-  background: linear-gradient(180deg, rgba(15,19,32,.7), rgba(15,19,32,.4));
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.dgn-card.locked { opacity: .6; }
-.dgn-head { display: flex; align-items: center; gap: 12px; }
-.dgn-icon {
-  font-size:calc(33px * var(--ui-scale, 1));
-  width: 48px; height: 48px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.4);
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-.dgn-title { flex: 1; min-width: 0; }
-.dgn-name {
-  font-family: var(--f-display);
-  font-size:calc(18px * var(--ui-scale, 1)); font-weight: 800;
-  color: var(--ink);
-}
-.dgn-meta {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-3);
-  letter-spacing: .04em;
-}
-.dgn-desc {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-2);
-  line-height: 1.5;
-}
-.dgn-loot-row {
-  display: flex; flex-wrap: wrap; gap: 6px;
-}
-.dgn-loot {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  background: rgba(0,0,0,.3);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 4px;
-  padding: 3px 8px;
-  display: inline-flex; align-items: center; gap: 4px;
-  color: var(--ink-2);
-  font-family: monospace;
-}
 /* b278: armour archetype tag in the item tooltip (the combat triangle) */
 .ttl-archetype { font-size: calc(14.5px * var(--ui-scale, 1)); color: var(--gold-2); font-weight: 600; margin: 2px 0 6px; letter-spacing: .02em; }
-/* b281: Dungeon Scrip bar + Quartermaster shop */
-.dgn-scrip-bar { display:flex; align-items:center; justify-content:space-between; gap:10px;
-  margin:0 0 14px; padding:8px 12px; border:1px solid var(--gold-2); border-radius:var(--r-lg,5px);
-  background:rgba(201,162,74,.10); }
-.dgn-scrip-have { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
-.dgn-scrip-have b { color:var(--gold-2); font-variant-numeric:tabular-nums; }
 /* The Quartermaster sheet had no inner gutter (text 2px off the border); the
    same 18px inset the .ach-modal sheets use. */
 .qm-modal.quartermaster-modal { padding: 18px; }
-.qm-scrip-line { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink-2); margin:2px 0 12px; }
-.qm-scrip-line b { color:var(--gold-2); }
-.qm-group-label { font-family:var(--f-label,system-ui); font-size:calc(15px * var(--ui-scale,1)); color:var(--gold-2);
-  letter-spacing:.02em; margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--line-soft,rgba(255,255,255,.08)); }
-.qm-row { display:flex; align-items:center; gap:10px; padding:6px 0; }
-.qm-row .qm-icon { flex:0 0 auto; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
-.qm-row .qm-name { flex:1; font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
-.qm-row .qm-cost { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--gold-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
 /* Wave 5c: armour set-bonus line in the Equipment stats panel */
 .eqb-set { margin: 8px 0; padding: 7px 11px; border-radius: var(--r-lg,5px);
   background: rgba(201,162,74,.12); border: 1px solid var(--gold-2);
   color: var(--ink); font-size: calc(14.5px * var(--ui-scale, 1)); }
-.eqb-set b { color: var(--gold-2); }
-/* b268: named end-boss line on each dungeon card (the boss ecosystem) */
-.dgn-boss-line {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-2);
-  margin: 4px 0 6px;
-}
-/* pass 12 G2: one flowing sentence; breaks fall between phrases, never inside one */
-.dgn-boss-lead, .dgn-boss-line b, .dgn-boss-weak { white-space: nowrap; }
-.dgn-boss-skull svg { vertical-align: -2px; }
-.dgn-boss-line b { color: var(--gold-2); font-family: var(--f-display, Georgia, serif); letter-spacing: .01em; }
-.dgn-boss-skull { color: #c96; font-size: 1.05em; }
-/* b281: boss weakness tag + one-line mechanic from the data-driven registry */
-.dgn-boss-weak { font-size: calc(14.5px * var(--ui-scale,1)); color: #6fae7f; font-weight: 600; }
-.dgn-boss-mech { font-size: calc(14.5px * var(--ui-scale,1)); color: var(--ink-3); font-style: italic; margin: 2px 0 6px; }
-.dgn-bop {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  font-weight: 800;
-  color: var(--gold-2);
-  background: rgba(243,209,129,.15);
-  padding: 1px 4px;
-  border-radius: 3px;
-  letter-spacing: .04em;
-}
-.dgn-foot {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,.06);
-}
-.dgn-cost {
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-3);
-}
-.dgn-cost b { color: var(--gold-2); }
-/* "(have —)" is one phrase: the pending dash is an inline-block, so a space alone cannot hold it. */
-.dgn-key-stock { white-space: nowrap; }
-.dgn-run {
-  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
-  color: #fff;
-  border: 1px solid #e6cd93;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-family: var(--f-display);
-  font-weight: 800;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  letter-spacing: .04em;
-  cursor: pointer;
-}
-.dgn-run:hover { filter: brightness(1.12); }
-.dgn-run:disabled {
-  background: rgba(255,255,255,.06);
-  color: var(--ink-3);
-  border-color: rgba(255,255,255,.08);
-  cursor: not-allowed;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-}
-/* One-line run labels (visual pass 11): flex lines break on max-content, so the pair
-   drops under the entry line, then stacks, before any label would wrap. */
-.dgn-foot { flex-wrap: wrap; gap: 6px 8px; }
-.dgn-run-buttons { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 0 auto; }
-.dgn-run-buttons .dgn-run { flex: 1 1 auto; padding-inline: 8px; font-size: var(--t-micro); }
-.dgn-run.bal-pending { white-space: nowrap; }
-.dgn-foot-pending .dgn-run-buttons { flex-basis: 100%; }
-.dgn-run-manual {
-  background: linear-gradient(180deg, #f3d181, #c9a040);
-  color: #3a2a10;
-  border: 1px solid #c9a040;
-}
-.dgn-run-auto {
-  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
-  color: #fff;
-  border: 1px solid #e6cd93;
-}
 
 /* ============================================================
    Manual run modal — interactive 3-phase mini-game (zone-modal)
@@ -1350,246 +1195,13 @@ body.in-combat #combat-area {
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,.7);
 }
-.drm-close {
-  position: absolute; top: 14px; right: 14px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.12);
-  color: var(--ink-2);
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.drm-progress-dots {
-  display: flex; gap: 8px; justify-content: center;
-  margin-bottom: 14px;
-}
-.drm-dot {
-  width: 32px; height: 4px;
-  background: rgba(255,255,255,.15);
-  border-radius: 2px;
-}
-.drm-dot.active { background: var(--gold-2); }
-.drm-dot.done { background: #7f9a4f; }
-.drm-dot.failed { background: #e36161; }
-.drm-phase-head {
-  display: flex; align-items: center; gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  margin-bottom: 14px;
-}
-.drm-phase-icon { font-size:calc(33px * var(--ui-scale, 1)); }
-.drm-phase-title h3 {
-  margin: 0; font-family: var(--f-display);
-  font-size:calc(19px * var(--ui-scale, 1)); color: var(--ink); letter-spacing: .04em;
-}
-.drm-phase-desc { font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-3); margin-top: 2px; }
-.drm-progress { margin-top: 12px; }
-.drm-prog-bar {
-  height: 8px; background: rgba(0,0,0,.5);
-  border-radius: 4px; overflow: hidden;
-}
-.drm-prog-bar i {
-  display: block; height: 100%;
-  background: linear-gradient(90deg, #7f9a4f, #9ab77a);
-  transition: width .15s;
-}
-.drm-prog-text {
-  display: flex; justify-content: space-between;
-  font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-3);
-  font-family: monospace; margin-top: 6px;
-}
 
-/* Gather phase board */
-.drm-gather-board {
-  position: relative;
-  width: 100%; height: 300px;
-  background: radial-gradient(circle at center, rgba(127,154,79,.05), rgba(0,0,0,.3));
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  overflow: hidden;
-}
-.drm-gather-node {
-  position: absolute;
-  width: 48px; height: 48px;
-  background: linear-gradient(180deg, #f3d181, #c9a040);
-  border: 2px solid #c9a040;
-  border-radius: 50%;
-  font-size:calc(26px * var(--ui-scale, 1));
-  cursor: pointer;
-  animation: drm-node-pulse 1.8s ease-out forwards;
-  box-shadow: 0 0 16px rgba(243,209,129,.5);
-}
-.drm-gather-node:hover { filter: brightness(1.2); }
 @keyframes drm-node-pulse {
   0%   { transform: scale(.6); opacity: 0; }
   10%  { transform: scale(1.1); opacity: 1; }
   20%  { transform: scale(1);   opacity: 1; }
   85%  { transform: scale(1);   opacity: 1; }
   100% { transform: scale(.6);  opacity: 0; }
-}
-
-/* Fight phase */
-.drm-fight { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.drm-foe { font-size:calc(84px * var(--ui-scale, 1)); }
-.drm-foe-hp {
-  width: 100%; height: 14px;
-  background: rgba(0,0,0,.5);
-  border-radius: 7px; overflow: hidden;
-  border: 1px solid rgba(227,97,97,.4);
-}
-.drm-foe-hp i {
-  display: block; height: 100%;
-  background: linear-gradient(90deg, #e36161, #ff8c8c);
-  transition: width .2s;
-}
-.drm-foe-hp-text {
-  font-family: monospace; font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-2);
-}
-.drm-rhythm-track {
-  width: 100%; height: 36px;
-  background: rgba(0,0,0,.4);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 6px;
-  position: relative;
-  overflow: hidden;
-}
-.drm-rhythm-target {
-  position: absolute; left: 40%; top: 0;
-  width: 20%; height: 100%;
-  background: rgba(127,154,79,.18);
-  border-left: 2px dashed rgba(127,154,79,.45);
-  border-right: 2px dashed rgba(127,154,79,.45);
-}
-.drm-rhythm-marker {
-  position: absolute; top: 4px; left: 0%;
-  width: 28px; height: 28px;
-  background: var(--gold-2);
-  border-radius: 50%;
-  box-shadow: 0 0 12px rgba(243,209,129,.6);
-  transition: background .1s;
-}
-.drm-rhythm-marker.hit-perfect { background: #7f9a4f; box-shadow: 0 0 16px rgba(127,154,79,.7); }
-.drm-rhythm-marker.hit-good { background: var(--gold-2); }
-.drm-rhythm-marker.hit-bad { background: #e36161; }
-.drm-btn-attack {
-  background: linear-gradient(180deg, #e36161, #a83434);
-  color: #fff; border: 1px solid #a83434;
-  font-family: var(--f-display); font-weight: 800;
-  font-size:calc(19px * var(--ui-scale, 1)); letter-spacing: .04em;
-  padding: 12px 32px; border-radius: 8px;
-  cursor: pointer;
-}
-
-/* Dodge phase */
-.drm-dodge {
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
-  padding: 32px 0;
-}
-.drm-dodge-prompt {
-  font-family: var(--f-display); font-size:calc(30.5px * var(--ui-scale, 1));
-  font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  min-height: 36px;
-}
-.drm-dodge-prompt:has(+ button:not([disabled])) { color: #ffe28a; }
-.drm-btn-dodge {
-  background: linear-gradient(180deg, #8fa3ad, #6e808a);
-  color: #fff; border: 1px solid #6e808a;
-  font-family: var(--f-display); font-weight: 800;
-  font-size:calc(19px * var(--ui-scale, 1)); letter-spacing: .04em;
-  padding: 14px 40px; border-radius: 8px;
-  cursor: pointer;
-}
-.drm-btn-dodge:disabled {
-  background: rgba(255,255,255,.06);
-  color: var(--ink-3);
-  border-color: rgba(255,255,255,.08);
-  cursor: not-allowed;
-}
-
-/* Puzzle phase */
-.drm-puzzle { display: flex; flex-direction: column; gap: 16px; }
-.drm-puzzle-q {
-  font-size:calc(17px * var(--ui-scale, 1)); color: var(--ink);
-  text-align: center;
-  padding: 16px;
-  background: rgba(0,0,0,.3);
-  border-radius: 8px;
-}
-.drm-puzzle-opts {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-.drm-puzzle-opt {
-  background: rgba(0,0,0,.3);
-  border: 1px solid rgba(255,255,255,.1);
-  color: var(--ink);
-  font-size:calc(19px * var(--ui-scale, 1));
-  padding: 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .15s, border-color .15s;
-}
-.drm-puzzle-opt:hover { background: rgba(255,255,255,.08); }
-.drm-puzzle-opt.right { background: rgba(127,154,79,.18); border-color: #7f9a4f; }
-.drm-puzzle-opt.wrong { background: rgba(227,97,97,.18); border-color: #e36161; }
-
-/* Summary screen */
-.drm-title {
-  font-family: var(--f-display); font-size:calc(26px * var(--ui-scale, 1));
-  text-align: center; color: var(--gold-2);
-  margin: 0 0 16px;
-}
-.drm-summary {
-  text-align: center; margin-bottom: 18px;
-}
-.drm-score {
-  font-family: var(--f-display);
-  font-size:calc(29px * var(--ui-scale, 1)); font-weight: 900;
-  letter-spacing: .12em;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-.drm-score span { display: block; font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-3); margin-top: 4px; letter-spacing: 0; }
-.drm-score.perfect { color: #7f9a4f; background: rgba(127,154,79,.1); }
-.drm-score.partial { color: var(--gold-2); background: rgba(243,209,129,.1); }
-.drm-score.fail { color: #ff8c8c; background: rgba(227,97,97,.1); }
-.drm-mult {
-  font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink-2);
-}
-.drm-mult b { color: var(--gold-2); font-size:calc(19px * var(--ui-scale, 1)); }
-.drm-rewards {
-  background: rgba(0,0,0,.3);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px;
-  padding: 14px;
-  margin-bottom: 14px;
-}
-.drm-rewards h4 {
-  margin: 0 0 8px; font-family: var(--f-display);
-  color: var(--gold-2); font-size:calc(14.5px * var(--ui-scale, 1));
-  letter-spacing: .12em; text-transform: uppercase;
-}
-.drm-reward-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 0; font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink);
-}
-.drm-empty { color: var(--ink-3); font-style: italic; text-align: center; padding: 8px; }
-.drm-btn {
-  border: none; padding: 12px 24px;
-  border-radius: 8px;
-  font-family: var(--f-display); font-weight: 800;
-  font-size:calc(16px * var(--ui-scale, 1)); letter-spacing: .06em;
-  cursor: pointer; width: 100%;
-}
-.drm-btn-primary {
-  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
-  color: #fff;
 }
 
 /* ============================================================
@@ -2107,8 +1719,6 @@ body.in-combat #combat-area {
       "arena" !important;
   }
 
-  /* Dungeon cards: 2-up grid */
-  .dgn-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
 }
 
 /* ===== <= 540px : phone (most users) ===== */
@@ -2117,19 +1727,13 @@ body.in-combat #combat-area {
   .topbar { flex-wrap: wrap; row-gap: 6px; }
   .top-stats { flex-wrap: wrap; row-gap: 4px; max-width: 100%; }
 
-  /* Make all primary action buttons tap-friendly */
-  /* b283 (studio-review P1): theme-prefixed so this WINS over
-     `body[data-theme] .btn{min-height:32px}` (art-direction.css) on the live theme —
-     otherwise mobile tap targets silently shrank to 32px. */
   body[data-theme] .btn,
-  body[data-theme] .nav-btn,
-  body[data-theme] .chip,
-  body[data-theme] .icon-btn,
-  body[data-theme] .bn-btn,
-  body[data-theme] .dgn-run,
-  body[data-theme] .dgn-qm-btn,
-  body[data-theme] .mp-fight,
-  body[data-theme] .scv-finish {
+body[data-theme] .nav-btn,
+body[data-theme] .chip,
+body[data-theme] .icon-btn,
+body[data-theme] .bn-btn,
+body[data-theme] .mp-fight,
+body[data-theme] .scv-finish {
     min-height: var(--tap);
   }
   body[data-theme] .icon-btn { min-width: 44px; }
@@ -2162,11 +1766,6 @@ body.in-combat #combat-area {
   /* P3: qty quick-picks tappable */
   .qs-quick .qs-q, .qs-btn { min-height: 44px; }
 
-  /* Dungeon cards: single column on phone */
-  .dgn-grid { grid-template-columns: 1fr !important; }
-  .dgn-run-buttons { width: 100%; }
-  .dgn-run, .dgn-run-manual, .dgn-run-auto { flex: 1; padding: 10px 8px; font-size:calc(14.5px * var(--ui-scale, 1)); }
-
   /* Dungeon run modal — full-screen on phone, clear of the notch; the scrim
      already starts below the desktop-mode banner, so 100% is what is left. */
   .dgn-run-overlay, .scv-overlay {
@@ -2178,9 +1777,7 @@ body.in-combat #combat-area {
     padding: 18px 16px !important;
     height: 100%;
   }
-  .drm-foe { font-size:calc(56px * var(--ui-scale, 1)); }
-  .drm-gather-board { height: 220px; }
-  .drm-gather-node { width: 56px; height: 56px; font-size:calc(30.5px * var(--ui-scale, 1)); }   /* bigger tap target */
+   /* bigger tap target */
 
   /* P2: Scavenger run modal — full-screen on phone (24+26px padding wasted
      ~27% of a 375px viewport) */
@@ -2654,7 +2251,7 @@ body.in-combat #combat-area {
 .ss-row:first-child { border-top: 0; }
 .ss-row.danger { background: rgba(227,97,97,.06); border-radius: 4px; padding: 8px 10px; margin-top: 6px; }
 /* b372 (F7) — A SETTING THE CHARACTER DOES NOT OWN.
-   Dimmed AND labelled, never dimmed alone: the same rule clan-seat.css states
+   Dimmed AND labelled, never dimmed alone: the same rule room-modal.css states
    for its locked rungs ("a greyed row with no reason is a bug report"). The
    REASON and the price live in the `.ss-hint` underneath, so this pair only has
    to read as "not yours yet" rather than "broken". Tokens only — no new colour

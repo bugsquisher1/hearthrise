@@ -173,9 +173,13 @@
   <!-- b221: the shop as a physical place (shopfront counter). Loads last — see
        the file header for why the three-id selectors in it exist. -->
   <link rel="stylesheet" href="src/styles/board-and-shop.css?v=584">
+  <!-- The shared room modal (src/render/room-modal.js), in the cascade slot the
+       demolished clan-seat.css held. -->
+  <link rel="stylesheet" href="src/styles/room-modal.css?v=584">
   <!-- b227: the combat stage's own controls (Eat beside your champion, Loot /
-       Stats beside the foe) and the two modals they open, plus the shared room
-       modal (src/render/room-modal.js). See the file header. -->
+       Stats beside the foe) and the two modals they open. Loads after
+       room-modal.css, because it reconciles one class it reuses inside the
+       shared room modal. See the file header. -->
   <link rel="stylesheet" href="src/styles/combat-hud.css?v=584">
   <!-- b227: the House screen's room grid + the homestead's themes on the
        [data-room-theme] values that sheet's component reads; it deliberately
@@ -1003,7 +1007,7 @@
   <script src="src/render/objectives-popout.js?v=584"></script>
   <!-- Shop / IAP store controller — 9th render-layer extraction out of
        legacy.js (task #129 Phase 3.5). Re-exports window.renderShop; paints
-       #iap-panel + #shop-panel from G/catalogue data. Purchase handlers stay
+       #shop-panel from G/catalogue data. Purchase handlers stay
        global in legacy.js; shop tab-state is window.shopTab. -->
   <script src="src/render/shop.js?v=584"></script>
   <!-- Vendor Buy Back modal — 10th render-layer extraction out of legacy.js

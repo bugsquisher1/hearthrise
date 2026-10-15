@@ -13335,7 +13335,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       var btn = document.querySelector('button[onclick*="hearth_hall_premium"]');
       if(btn){
         btn.scrollIntoView({behavior:'smooth', block:'center'});
-        var card = btn.closest('.shop-card, .shop-row, .iap-card') || btn.parentElement;
+        var card = btn.closest('.shop-card, .shop-row') || btn.parentElement;
         if(card){
           card.style.transition = 'box-shadow .3s';
           card.style.boxShadow = '0 0 0 3px var(--gold-2), 0 0 30px rgba(243,209,129,.6)';

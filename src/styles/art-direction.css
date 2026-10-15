@@ -456,22 +456,6 @@ body[data-theme] .icon-btn:hover {
   background: color-mix(in srgb, var(--hl) 6%, transparent);
   border-color: var(--line-soft);
 }
-body[data-theme] .streak-badge {
-  background: none;
-  border: 0;
-  color: var(--ink-2);
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 0;
-}
-body[data-theme] .clan-tag {
-  background: rgba(201, 162, 74, .12);
-  color: var(--gold-2);
-  border: 1px solid rgba(201, 162, 74, .3);
-  border-radius: var(--r-sm);
-  font-family: var(--f-label);
-  letter-spacing: .02em;
-}
 
 /* ── 11. HEADINGS ────────────────────────────────────────────────────────
  * Cinzel is a titling face: it is drawn for caps at large sizes and gets muddy
@@ -1178,125 +1162,6 @@ body[data-theme] .invc-tile .invc-qty {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 16. STORE ───────────────────────────────────────────────────────────
- * Product cards carried system-font emoji as their art (two packs shared the
- * same 💎), a corner ribbon in a fourth accent colour, and a "Buy" button
- * quieter than the description text — on the one screen where looking
- * generated costs real money.
- * ---------------------------------------------------------------------- */
-body[data-theme] .iap-card {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 18px 16px 15px;
-  border-radius: var(--r);
-  border: 1px solid var(--line-soft);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 4.5%, transparent), rgba(0, 0, 0, .16));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hl) 7%, transparent);
-}
-body[data-theme] .iap-card.gold { border-color: rgba(201, 162, 74, .34); }
-/* b371 (F24) — THE PRODUCT MARK IS A STRUCK MEDALLION, not a floating line
- * icon. The glyphs themselves are correct (baked atlas, one per SKU since
- * b217); what was missing is a SETTING. A 34px monochrome outline sitting on
- * nothing, flush left, in a 230px-wide box, is why the audit read the store's
- * art as "generic line icons vs the painted item art everywhere else" — the
- * icon had no object-ness. It now sits in a recessed disc with a gilt keyline:
- * the same struck-metal idiom the sidebar, the bounty board and the shop
- * counter already use, so the storefront stops being the one screen built out
- * of a different vocabulary. */
-body[data-theme] .iap-card .iap-icon {
-  width: 54px;
-  height: 54px;
-  flex: 0 0 54px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--surf-sunken);
-  border: 1px solid var(--line-soft);
-  box-shadow: var(--surf-sunken-edge), 0 0 0 1px rgba(0, 0, 0, .35);
-  color: var(--gold-2);
-  margin-bottom: 12px;
-}
-body[data-theme] .iap-card.gem .iap-icon,
-body[data-theme] .iap-card.gold .iap-icon { border-color: rgba(201, 162, 74, .30); }
-/* The glyph carries its own inline `--gsz` (34px, written by HR.icon), which an
- * inline custom property means no stylesheet can override — so the disc is
- * sized around the glyph rather than the other way round: 34 in 54 is the same
- * mark-to-field ratio the sidebar medallions use. */
-body[data-theme] .iap-card .iap-icon .hr-glyph { display: grid; place-items: center; }
-body[data-theme] .iap-card h3 {
-  font-family: var(--f-display);
-  font-size:calc(20px * var(--ui-scale, 1));
-  font-weight: 600;
-  letter-spacing: .01em;
-  color: var(--ink);
-  margin: 0 0 5px;
-}
-body[data-theme] .iap-card .desc {
-  font-size: var(--t-small);
-  color: var(--ink-3);
-  line-height: 1.45;
-  margin-bottom: 14px;
-}
-/* Price + Buy were `.row.between`, which pushed a $49.99 to the far left and a
- * tiny outlined Buy to the far right with 300px of nothing between them. */
-body[data-theme] .iap-card .iap-foot {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-body[data-theme] .iap-card .iap-price {
-  font-family: var(--f-display);
-  font-size:calc(24.5px * var(--ui-scale, 1));
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-body[data-theme] .iap-card .iap-price small {
-  display: flex; gap: 10px;
-  font-family: var(--f-ui);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-  margin-top: 4px;
-}
-/* b371: the store's CTA was 34px and 18px of padding — the smallest button on
- * a screen whose cheapest action is $2.99. It is now the same weight as the
- * primary action anywhere else in the game. */
-body[data-theme] .iap-card .btn { min-height: 38px; padding: 0 24px; font-size: var(--t-small); letter-spacing: .03em; }
-/* Ribbons were four different pill colours in four corners. One treatment. */
-/* b371: the ribbon was 14.5px in a `--f-label` small-caps face inside a padded
- * box — on a 220px card that made "TRADABLE" the second-loudest thing after the
- * product name, competing with the price for the corner of the eye. A ribbon is
- * a marginal note. Micro type, tight box, and it recedes to where a "Popular"
- * flag belongs. */
-body[data-theme] .iap-card .ribbon {
-  font-family: var(--f-label);
-  font-size: var(--t-micro);
-  font-weight: 700;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  /* The type cannot get smaller — 14.5px is the b218 readability FLOOR and it
-   * is not negotiable for a ribbon. So the weight comes off the FILL instead:
-   * a hairline stamp rather than a filled tag. */
-  background: rgba(201, 162, 74, .07);
-  color: var(--gold-2);
-  border: 1px solid rgba(201, 162, 74, .28);
-  border-radius: var(--r-sm);
-  padding: 1px 7px;
-  line-height: 1.35;
-}
-
-/* b371 (F19) — the companion medallion wrapper. The ring stays gilt (medallion()
- * writes `--ring` inline, and gilt is the unifying accent every other medallion
- * in the game wears); the ROLE is carried by the silhouette inside it and by
- * the role line under the name. `data-role` is here as a hook for tests and for
- * the day real portraits land — it deliberately paints nothing. */
-body[data-theme] .comp-medallion { display: inline-flex; flex: 0 0 auto; line-height: 0; }
-
 /* Shop rows — one line per item: art, name, stock, price, action. */
 body[data-theme] .shop-row {
   background: none;
@@ -1326,25 +1191,11 @@ body[data-theme] .hr-blank-icon {
   border: 1px solid rgba(201, 162, 74, .28);
 }
 
-/* ── 17. SCROLL OWNERSHIP ────────────────────────────────────────────────
- * `.card-body` is `flex:1; overflow-y:auto`, so every section on a stacked
- * screen became its own scroll container. With the card boxes removed there is
- * nothing to mark where one region ends, so content simply vanished at an
- * invisible edge: the Store's second row of packs was cut through the middle
- * of the card titles, the seed list stopped mid-row, and the crop guide lost
- * its last three crops. Nothing indicated more existed.
- *
- * Screens that are a vertical stack of sections scroll AS A PAGE — one
- * scrollbar, at the panel. Screens that are a fixed multi-column workspace
- * (Combat, Inventory) keep their internal scrollers, because there the columns
- * are meant to stay put and scroll independently.
- * ---------------------------------------------------------------------- */
 body[data-theme] #panel-shop.active,
 body[data-theme] #panel-farming.active,
 body[data-theme] #panel-house.active,
 body[data-theme] #panel-social.active,
-body[data-theme] #panel-market.active,
-body[data-theme] #panel-bounty.active {
+body[data-theme] #panel-market.active {
   overflow-y: auto;
   overflow-x: hidden;
   align-content: start;
@@ -1360,12 +1211,10 @@ body[data-theme] #panel-shop.active .card-body,
 body[data-theme] #panel-farming.active .card-body,
 body[data-theme] #panel-house.active .card-body,
 body[data-theme] #panel-social.active .card-body,
-body[data-theme] #panel-bounty.active .card-body,
 body[data-theme] #panel-shop.active .card,
 body[data-theme] #panel-farming.active .card,
 body[data-theme] #panel-house.active .card,
-body[data-theme] #panel-social.active .card,
-body[data-theme] #panel-bounty.active .card {
+body[data-theme] #panel-social.active .card {
   overflow: visible;
   max-height: none;
   flex: 0 0 auto;
@@ -1644,81 +1493,13 @@ body[data-theme] .cr-hero-stat span {
   text-transform: none; font-weight: 700;
 }
 
-/* ── 21. BOUNTY BOARD ────────────────────────────────────────────────────
- * The board stacked three full-width gilt "Accept" slabs — the same maximum
- * emphasis three times, for three equivalent choices. Buttons are sized to
- * their job and sit at the end of the row they act on.
- * ---------------------------------------------------------------------- */
-body[data-theme] .bounty-option {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 3.5%, transparent), rgba(0, 0, 0, .12));
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r);
-  padding: 12px 14px;
-}
 body[data-theme] .bo-art { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; }
 body[data-theme] .bo-art img { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
-body[data-theme] .bounty-chip {
-  font-family: var(--f-label);
-  font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700; letter-spacing: .02em; text-transform: none;
-  padding: 2px 9px; border-radius: var(--r-sm);
-  background: color-mix(in srgb, var(--hl) 6%, transparent); color: var(--ink-3);
-  border: 1px solid var(--line-soft);
-}
-body[data-theme] .bounty-reward {
-  display: flex; align-items: center; gap: 14px;
-  font-size: var(--t-small); font-weight: 600; color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-body[data-theme] .bounty-marks {
-  font-family: var(--f-display); font-size:calc(27px * var(--ui-scale, 1)); font-weight: 600;
-  color: var(--gold-2); text-align: right;
-  display: flex; align-items: baseline; justify-content: flex-end; gap: 7px;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 10px;
-}
-body[data-theme] .bounty-marks em {
-  font-family: var(--f-label); font-style: normal; font-size:calc(14.5px * var(--ui-scale, 1));
-  font-weight: 700; color: var(--ink-3);
-}
-/* Unlock ladder — was ten inline-styled pills in a #3fb950 green that belongs
- * to no palette, each ending in a text "✓". */
-body[data-theme] .bh-unlocks-h {
-  font-family: var(--f-label); font-size: var(--t-h3); font-weight: 700;
-  letter-spacing: .02em; color: var(--gold-2);
-  text-transform: none; margin: 18px 0 8px;
-}
-body[data-theme] .bh-unlocks { display: flex; flex-wrap: wrap; gap: 4px; }
-body[data-theme] .bh-unlock {
-  display: inline-flex; align-items: baseline; gap: 6px;
-  font-size: var(--t-micro); font-weight: 600;
-  padding: 4px 10px; border-radius: var(--r-sm);
-  background: rgba(0, 0, 0, .26);
-  border: 1px solid var(--line-soft);
-  color: var(--ink-3);
-}
-body[data-theme] .bh-unlock em {
-  font-family: var(--f-label); font-style: normal; font-weight: 700;
-  color: var(--ink-3); opacity: .7;
-}
-body[data-theme] .bh-unlock.is-on {
-  background: linear-gradient(180deg, rgba(127, 154, 79, .16), rgba(127, 154, 79, .04));
-  border-color: rgba(127, 154, 79, .3);
-  color: #b9cf8e;
-}
-body[data-theme] .bh-unlock.is-on em { color: #9ab76a; opacity: 1; }
-/* Bounty shop rows */
-body[data-theme] .bounty-shop-row {
-  background: none; border: 0;
-  border-bottom: 1px solid var(--line-soft);
-  border-radius: 0; padding: 10px 4px; gap: 12px; align-items: center;
-}
-body[data-theme] .bounty-shop-row .si { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink-3); }
 
 /* ── 22. MARKET ──────────────────────────────────────────────────────────
  * Moved to src/styles/market.css, which draws the whole screen from
  * tokens and needs none of the overrides that used to live here.
  * ---------------------------------------------------------------------- */
-
 
 /* ── 23. PERSISTENT CHROME ───────────────────────────────────────────────
  * Two floating widgets sit over every screen. Both were shaped like the
@@ -1974,11 +1755,9 @@ body[data-theme="hearthlight"] .sidebar {
 /* Rows and objects on the panel now have a surface to sit on, so their lift
  * has somewhere to read from. */
 body[data-theme] .hr-box { background: color-mix(in srgb, var(--hl) 4.5%, transparent); }
-body[data-theme] .bounty-option,
 body[data-theme] .cr-card,
 body[data-theme] .cr-slots,
 body[data-theme] .act-tile,
-body[data-theme] .iap-card,
 body[data-theme] .act-head {
   background: linear-gradient(180deg, color-mix(in srgb, var(--hl) 7%, transparent), rgba(0, 0, 0, .10));
   border-color: var(--line-soft);
@@ -2091,31 +1870,15 @@ body[data-theme] .td-doll .td-slot.empty svg { opacity: .45; color: var(--ink-3)
  * reintroduce a background here. */
 body[data-theme] #panel-combat .combat-arena::after { background: none; }
 
-/* ── 26. INJECTED SHORTCUT PLACEMENT ─────────────────────────────────────
- * The "Back to Market" / "Premium Store" shortcuts are absolutely positioned
- * in each panel's top-right corner — the same spot the section heading's
- * `.card-sub` occupies. On Store they printed straight over each other
- * ("Real-money packs" through "← Back to Market"). The heading yields the
- * corner; the control keeps it.
- * ---------------------------------------------------------------------- */
-/* b230: the Store and Market halves of this rule are gone with the buttons
- * they made room for — the Shops destination's three toggles replaced both
- * injected shortcuts, so nothing is floating in either corner any more. */
-body[data-theme] #panel-dungeons.active .card-head .card-sub { padding-right: 150px; }
 body[data-theme] #hr-dungeons-back { top: 8px; right: 10px; }
 
-/* Floating utility buttons were overlapping the last row of any list that ran
- * to the bottom of the panel (the seed shop's Buy sat underneath the bug
- * reporter). Give scrolling panels room to end above them. */
 body[data-theme] #panel-shop.active,
 body[data-theme] #panel-farming.active,
 body[data-theme] #panel-house.active,
 body[data-theme] #panel-social.active,
-body[data-theme] #panel-bounty.active,
 body[data-theme] #panel-market.active { padding-bottom: 78px; }
 /* The Crops rows end left of the fixed FAB column (visual pass 10: Carrot's lock label). */
 body[data-theme] #panel-farming #crops-guide { padding-right: var(--hr-fab-col); }
-
 
 /* Mobile bottom-nav: the selected tab was a filled oxblood slab — the danger
  * colour, on the control the player touches most. Gilt, like every other
@@ -2203,7 +1966,6 @@ body[data-theme] .brand-word {
 /* Cozy-light (retired secondary theme): the gilt reads on parchment as-is;
    only the contact shadow has to change side — a black drop on cream is a
    smudge, a pale one is an emboss. */
-
 
 /* Icon-rail sidebar (<=1180px, --nav-w:64px): the crest alone, centred.
    It is the half of the lockup that survives being 36px wide. */
@@ -2580,8 +2342,6 @@ body[data-theme] #app .bal-pending.bal-pending,
 body[data-theme] #app .bal-pending.bal-pending * {
   color: var(--ink-3) !important;
 }
-/* A pending BUTTON keeps its own size (vg11: the dungeon pair inherited 17px and spilled). */
-body[data-theme] #app .bal-pending.bal-pending:not(:where(.dgn-run)),
 body[data-theme] #app .bal-pending.bal-pending * {
   font-size: inherit !important;
 }

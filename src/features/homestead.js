@@ -741,7 +741,7 @@
   // ── the room scenes ─────────────────────────────────────────────────
   /* Deliberately built from the SAME svg classes the castle interiors use
      (`hrcs-wall-2`, `hrcs-floor`, `hrcs-furn`, `hrcs-lit`, `hrcs-rim2`), which
-     are global and token-driven in clan-seat.css. Reusing them is not laziness:
+     are global and token-driven in room-modal.css. Reusing them is not laziness:
      it is the only way the two pillars stay visually identical as the theme
      tokens move, and it means zero new colours enter the game. Inside a room
      the WALL is the lighter surface catching the fire and the furniture is the

@@ -4037,15 +4037,20 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated') return;
               const meta = document.getElementById('ab-meta');
+              // The 100 ms repaint is held while the cases are measured (main 6562c420), as a clock is pinned.
+              const realRefresh = window.refreshActivityBar;
+              let held = true;
+              window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };
+              const paint = (fn) => { held = false; try { return fn(); } finally { held = true; } };
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 window.G.combatKillsThisFoe = 5;
-                window.refreshActivityBar(); fitBar(bar);
+                paint(() => window.refreshActivityBar()); fitBar(bar);
                 earned(bar, meta, 'live sparse full width: ');
                 // Crowd, fit and measure in ONE task so the game's repaint cannot land between (BAR-FIT-2 owns the observer).
                 for (const px of [760, 680, 620, 560, 480, 420, 360]) {
-                  bar.style.maxWidth = px + 'px'; crowd(); fitBar(bar);
+                  bar.style.maxWidth = px + 'px'; paint(crowd); fitBar(bar);
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
                 const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();

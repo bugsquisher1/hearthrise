@@ -169,6 +169,7 @@ Hearthrise must feel handcrafted and be recognisable from a screenshot without i
 - **Purpose test:** every system answers which player problem it solves, what decision it adds, and what it plugs into. If it fails, merge, simplify or cut it. More systems is not a better game.
 - **No mass generation:** a batch of more than 20 rows starts as a sample of about 5, played and reviewed, then expands in batches of 20 or fewer, audited for repetition.
 - **Pixel art:** integer scales only; no smooth scaling or blur; one grid, one palette, one perspective.
+- **Art provenance is kept (Tyler, 2026-10-15):** every asset records how it was made (full PixelLab request, seed, reference; or `made_by`), and `docs/HEARTHRISE_ART_BIBLE.md` is updated the same day a style rule, size class, palette or best reference changes. `tests/art-provenance.mjs` enforces it.
 - **UI is purpose-built:** no wall of identical cards, no borders on everything, no glow or gradient decoration, no random accents. An inventory looks like an inventory, a bestiary like an encyclopedia, a hunt like a living hunt.
 - **Evidence, not self-praise:** no balance number or quality score without evidence; done, verified and assumed are reported separately; a builder never scores their own work.
 - **Challenge Tyler:** call generic, redundant or over-complicated ideas what they are, with a better option. There is no approval wait: decide, build, validate, report.

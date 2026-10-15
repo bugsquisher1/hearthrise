@@ -27,7 +27,7 @@ Tyler's production directive (2026-10-15). PixelLab is the generator; our own pi
 3. **Same words.** Every facing of a clip uses the identical `action_description`, copied from the sidecar.
 4. **Fixed camera and outline.** `view: "high top-down"`, `outline: "single color black outline"`. Outline and shading are soft hints, so the gate measures, not trusts.
 5. **Palette.** Pass our palette where a tool takes one (`create_image_pro palette`, `reduce_colors palette_image_url`); the authority is still `tools/world-art/lock.mjs` → `hr-world-56-v2`, and `tests/world-assets.mjs` fails any off-palette pixel.
-6. **Seeds.** Record the seed of every accepted generation in the sidecar so a near-miss can be rerun.
+6. **Seeds.** Record the seed of every accepted generation in the sidecar (`pixellab.seed`; `null` + `seed_note` if the tool showed none) so a near-miss can be rerun. Enforced for new art by `tests/art-provenance.mjs`; the style record is `docs/HEARTHRISE_ART_BIBLE.md`.
 
 ## 3. The pipeline (every asset, no exceptions)
 1. **Spec** (Art Director): tool, parameters, reference inputs, expected size, accept criteria, generation estimate. Batches stay small (≤ 20 calls).

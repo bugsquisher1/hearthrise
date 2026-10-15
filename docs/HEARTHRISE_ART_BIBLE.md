@@ -330,3 +330,49 @@ Claude then runs the gates you can't: palette lock, `tests/world-assets.mjs`, `t
 - Concepts not meant to ship: prefix `concept_`.
 - Every file gets a `.txt` log with the same name.
 - Don't put files in `art/world/`, `assets/` or `art/reference/`.
+
+---
+
+## 9. Keeping this record current (Tyler, 2026-10-15)
+
+The style and how each asset was made are kept from now on. `node tests/art-provenance.mjs` (with `--selftest`) enforces it:
+- **Every world sidecar** has a `pixellab` block with its full `request`, or a hand-made note (`made_by`, or `pixellab.drawn` for a hand drawing).
+- **New art records its seed**: `pixellab.seed` in the sidecar (or `"seed": null` plus `"seed_note"` when the tool didn't show one, e.g. the website). It also records guidance and any reference image used. The 97 older sidecars and 506 older icons without seeds are a frozen, shrink-only baseline (`tests/art-provenance.baseline.json`).
+- **New item icons** get `art/items/<id>.json` with tool, prompt, reference, size and seed.
+- **Inbox drops** carry a `.txt` log next to every PNG.
+- **This bible** names the current palette id and every size class in `art-budget.js`. Adding a class (bosses, ore nodes) or changing the palette fails the guard until §10 and §1 are updated.
+- When an asset becomes a better example of its category, add its frame to `art/reference/` and update §1.2. When a style decision changes, change §1 the same day and date it.
+
+## 10. Size classes (mirror of `src/data/world/art-budget.js`; the guard keeps every class named here)
+
+Body = measured mass in art px (h height, w width, max/min the larger/smaller side). Classes without a fixed frame are cropped tight to the art; the anchor is the bottom centre contact point.
+
+| Class | Frame | Anchor | Body | Contact | Layer |
+|---|---|---|---|---|---|
+| `character` | 64×64 | 32,58 | 36–40 (h) | unit | unit |
+| `critter` | 48×48 | 24,40 | 12–20 (max) | unit | unit |
+| `flier` | 48×48 | 24,44 | 12–20 (min), hover 6–16 | flier | unit |
+| `beast` | 64×64 | 32,56 | 40–48 (w) | unit | unit |
+| `box` | fit to art | bottom-centre | 12–20 (h), max width 28 | solid | prop |
+| `clutter` | fit to art | bottom-centre | 12–22 (h), max width 28 | solid | prop |
+| `bed` | fit to art | bottom-centre | 40–60 (h) | legged | prop |
+| `table` | fit to art | bottom-centre | 20–24 (h) | legged | prop |
+| `station` | fit to art | bottom-centre | 22–32 (h) | legged | prop |
+| `bench` | fit to art | bottom-centre | 12–20 (h) | legged | prop |
+| `seat` | fit to art | bottom-centre | 24–28 (h) | legged | prop |
+| `bulky` | fit to art | bottom-centre | 20–32 (h), max width 40 | solid | prop |
+| `barrel` | fit to art | bottom-centre | 24–28 (h) | solid | prop |
+| `small` | fit to art | bottom-centre | 4–12 (max) | touch | prop |
+| `loot` | fit to art | bottom-centre | 8–14 (max) | touch | prop |
+| `bush` | fit to art | bottom-centre | 12–28 (h) | solid | prop |
+| `fixture` | fit to art | bottom-centre | 16–72 (h) | post | prop |
+| `tree` | fit to art | bottom-centre | 96–128 (h) | post | unit |
+| `sapling` | fit to art | bottom-centre | 60–100 (h) | post | unit |
+| `door` | fit to art | bottom-centre | 48–48 (h) | solid | wall |
+| `wall` | 32×60 | 16,59 | 56–60 (h) | wall | wall |
+| `wallend` | 12×60 | 6,59 | 56–60 (h) | wall | wall |
+| `stub` | 32×24 | 16,23 | 20–24 (h) | wall | wall |
+| `wallcap` | fit to art | bottom-centre | 8–32 (max) | raised | wall |
+| `roof` | fit to art | bottom-centre | 16–256 (h) | raised | roof |
+| `decal` | fit to art | bottom-centre | 2–64 (max) | flat | decal |
+| `hanging` | fit to art | bottom-centre | 6–40 (h) | raised | wall |

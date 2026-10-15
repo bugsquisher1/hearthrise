@@ -433,6 +433,8 @@
     "node tests/world-assets.mjs": "client-guards",
     "node tests/pixel-icons.mjs --selftest": "client-guards",
     "node tests/pixel-icons.mjs": "client-guards",
+    "node tests/art-provenance.mjs --selftest": "client-guards",
+    "node tests/art-provenance.mjs": "client-guards",
     "node tests/settle-first-callers.mjs --selftest": "client-guards",
     "node tests/settle-first-callers.mjs": "client-guards",
     "node tests/world-no-authority.mjs --selftest": "client-guards",

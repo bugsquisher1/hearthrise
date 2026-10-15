@@ -516,7 +516,7 @@ async function selftest() {
   }
 
   /* G — the migration scope, on the two shapes that missed on 2026-10-11: a charset
-     constraint on `clans` (tests/vigour.mjs seeds one) and an hr_state_of rewrite
+     constraint on `clans` (tests/clan-economy-sinks.mjs seeds one) and an hr_state_of rewrite
      (the projection's --execute pin). A comment naming an object is not DDL. */
   {
     const t = ddlTargets("-- alter table public.ghosts\nalter table if exists public.clans add constraint clans_name_charset check (name ~ '^[a-z]');\n"
@@ -530,8 +530,8 @@ async function selftest() {
         + 'create or replace function public.hr_state_of(p_slot int) returns jsonb language sql as $$ select 1 $$;']
       : []);
     const st = migrationSteps(ROOT, [fake], read);
-    ok(st.some((s) => s.guard === 'tests/vigour.mjs' && s.arm === null),
-      'G2 a migration that alters clans re-runs tests/vigour.mjs (plain)');
+    ok(st.some((s) => s.guard === 'tests/clan-economy-sinks.mjs' && s.arm === null),
+      'G2 a migration that alters clans re-runs tests/clan-economy-sinks.mjs (plain; it seeds clans — tests/vigour.mjs left with Vigour, lane C2)');
     ok(st.some((s) => s.guard === 'tests/no-client-copy-of-projection.mjs' && s.arm === '--execute'),
       'G3 a migration that rewrites hr_state_of runs no-client-copy-of-projection --execute');
     ok(!migrationSteps(ROOT, ['src/net/gold.js'], read).length, 'G4 no migration in the diff, no replay steps');

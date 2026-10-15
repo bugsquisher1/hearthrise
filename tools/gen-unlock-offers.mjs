@@ -205,6 +205,20 @@ for (const id of [...ALL_UNLOCK_OFFER_IDS].sort()) {
   });
 }
 
+/* ── DEMOLITION REGEN (2026-10-14): THIS FILE NOW LANDS AT THE CHAIN END ─────
+   so a family a LATER migration re-seeded under this generator's own `source`
+   must not be touched: 2026-09-05-companion-unlock-catalogue-reseed.sql made
+   the four shop companions sellable in place, and refilling them here would
+   put them back behind `namespace_unsupported`. The companion table is HELD
+   (its engine leaves with lane C2), so its rows are left exactly as they are:
+   not deleted, not re-inserted, not counted. */
+const FOREIGN_TABLES = Object.freeze(['companion']);
+{
+  const own = rows.filter((r) => !FOREIGN_TABLES.includes(r.table_name));
+  rows.length = 0; rows.push(...own);
+}
+const foreignSql = FOREIGN_TABLES.map((t) => `'${t}'`).join(', ');
+
 const sellableRows = rows.filter((r) => r.refusal === null);
 if (!sellableRows.length) die('no sellable unlock offer survived the predicate — the verb would ship inert');
 if (!sellableRows.some((r) => r.unlock_id === 'room:kitchen')) {
@@ -378,7 +392,8 @@ end $$;
 
 -- Refilled inside the migration's transaction, SCOPED TO THIS GENERATOR'S OWN
 -- ROWS. A family another migration owns is untouched — see the header.
-delete from public.hr_unlock_offers where source = 'gen-unlock-offers';
+delete from public.hr_unlock_offers where source = 'gen-unlock-offers'
+   and table_name <> all (array[${foreignSql}]::text[]);
 insert into public.hr_unlock_offers
   (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
@@ -390,12 +405,14 @@ declare v_n int; v_bad text;
 begin
   -- Scoped to THIS generator's rows: another migration's families live in the
   -- same table and are none of this count's business.
-  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers';
+  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers'
+     and table_name <> all (array[${foreignSql}]::text[]);
   if v_n <> ${rows.length} then
     raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected ${rows.length} — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers
-   where source = 'gen-unlock-offers' and refusal is null;
+   where source = 'gen-unlock-offers' and refusal is null
+     and table_name <> all (array[${foreignSql}]::text[]);
   if v_n <> ${sellableRows.length} then
     raise exception 'hr_unlock_offers holds % sellable gen-unlock-offers rows, expected ${sellableRows.length}', v_n;
   end if;

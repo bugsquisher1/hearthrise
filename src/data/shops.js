@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 6b6f8072e7e0c0aee89a0da6cb611994df28f360dd68aa45415d9d93543add96
-//   86 offers · 184 cost lines · 4 prices that are formulas, not data
+//   catalogue digest: 1c8480b84b4add54cdf01a8625a946889fff32dc1bd6a7a3a54148cfda48d77b
+//   90 offers · 188 cost lines · 4 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -27,6 +27,7 @@
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
 //   character_slot     4  src/multi-character.js
+//   companion          4  src/data/companions.js
 //
 // THE LINE SHAPE — both sides of every offer
 //   { kind, id, amount }
@@ -55,7 +56,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "6b6f8072e7e0c0aee89a0da6cb611994df28f360dd68aa45415d9d93543add96";
+export const SHOPS_DIGEST = "1c8480b84b4add54cdf01a8625a946889fff32dc1bd6a7a3a54148cfda48d77b";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -82,6 +83,32 @@ export const SHOP_OFFERS = [
     name: "Character slot 5",
     cost: [{ kind: "currency", id: "gold", amount: 750000 }],
     grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
+  },
+  {
+    id: "companion.honeybee", table: "companion",
+    name: "Honeybee",
+    cost: [{ kind: "currency", id: "gold", amount: 8000 }],
+    grant: [{ kind: "unlock", id: "companion:honeybee", amount: 1 }],
+    reqSkill: "cooking", reqLv: 25,
+  },
+  {
+    id: "companion.owl", table: "companion",
+    name: "Owl",
+    cost: [{ kind: "currency", id: "gold", amount: 8000 }],
+    grant: [{ kind: "unlock", id: "companion:owl", amount: 1 }],
+    reqSkill: "prayer", reqLv: 50,
+  },
+  {
+    id: "companion.raccoon", table: "companion",
+    name: "Raccoon",
+    cost: [{ kind: "currency", id: "gold", amount: 25000 }],
+    grant: [{ kind: "unlock", id: "companion:raccoon", amount: 1 }],
+  },
+  {
+    id: "companion.sparrow", table: "companion",
+    name: "Sparrow",
+    cost: [{ kind: "currency", id: "gold", amount: 5000 }],
+    grant: [{ kind: "unlock", id: "companion:sparrow", amount: 1 }],
   },
   {
     id: "equip.apprentice_staff", table: "equip",
@@ -682,6 +709,14 @@ export const SHOP_TABLES = [
     "origin": "src/multi-character.js",
     "anchor": "const SLOT_COSTS_GOLD = [",
     "spends_at": "multi-character.js unlockSlot()",
+    "count": 4
+  },
+  {
+    "table": "companion",
+    "origin": "src/data/companions.js",
+    "anchor": "source:'shop:…'",
+    "spends_at": "legacy.js _buyCompanion(id, price)",
+    "note": "price is embedded in a string, not a field",
     "count": 4
   }
 ];

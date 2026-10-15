@@ -297,6 +297,15 @@ const num = (n) => (n === null || n === undefined ? 'null' : String(n));
    farm_plot_tier, the held companions, entitlement:hearthHall, theme:*) are
    left untouched for M1/M2 to rule on. A retired id that is still derived
    fails generation. */
+/* The companion namespace is re-seeded by LATER migrations (2026-08-19
+   companion-unlocks, 2026-09-06 companion-grant-hardening) in its own shape, and
+   companions are HELD for lane C2 — so this file neither upserts nor retires a
+   companion row. */
+const FOREIGN_NAMESPACES = Object.freeze(['companion']);
+{
+  const own = rows.filter((r) => !FOREIGN_NAMESPACES.includes(r.namespace));
+  rows.length = 0; rows.push(...own);
+}
 const RETIRED_UNLOCKS = Object.freeze([
   'bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token',
   'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix',

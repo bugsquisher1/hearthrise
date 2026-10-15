@@ -137,7 +137,8 @@ end $$;
 
 -- Refilled inside the migration's transaction, SCOPED TO THIS GENERATOR'S OWN
 -- ROWS. A family another migration owns is untouched — see the header.
-delete from public.hr_unlock_offers where source = 'gen-unlock-offers';
+delete from public.hr_unlock_offers where source = 'gen-unlock-offers'
+   and table_name <> all (array['companion']::text[]);
 insert into public.hr_unlock_offers
   (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
@@ -207,12 +208,14 @@ declare v_n int; v_bad text;
 begin
   -- Scoped to THIS generator's rows: another migration's families live in the
   -- same table and are none of this count's business.
-  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers';
+  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers'
+     and table_name <> all (array['companion']::text[]);
   if v_n <> 59 then
     raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 59 — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers
-   where source = 'gen-unlock-offers' and refusal is null;
+   where source = 'gen-unlock-offers' and refusal is null
+     and table_name <> all (array['companion']::text[]);
   if v_n <> 45 then
     raise exception 'hr_unlock_offers holds % sellable gen-unlock-offers rows, expected 45', v_n;
   end if;

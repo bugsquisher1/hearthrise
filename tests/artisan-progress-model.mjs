@@ -216,8 +216,8 @@ async function run(patches) {
   // ── A0 · THE FIXTURES ARE REAL ────────────────────────────────────────
   // Everything below is derived from src/data; if a derivation came back
   // empty every later block would pass vacuously.
-  ok(GATED.length === 8,
-    `A0: ${GATED.length} gated recipes found in the data, expected 8. If the content grew, the `
+  ok(GATED.length === 3,   // 8 -> 3: the five gear-recipe scrolls left with crafted gear (2026-10-14)
+    `A0: ${GATED.length} gated recipes found in the data, expected 3. If the content grew, the `
     + 'catalogue and this expectation move together — a gate the catalogue does not know is a '
     + 'recipe that is permanently locked server-side.');
   ok(GATED_COOK.length > 0, 'A0: no gated COOKING recipe — the gate/burn intersection is untestable');

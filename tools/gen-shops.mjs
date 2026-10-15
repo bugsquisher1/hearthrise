@@ -32,8 +32,10 @@
 //   src/multi-character.js     SLOT_COSTS_GOLD
 //   src/screens/shop-counter.js  the vendor rates (DERIVED prices)
 //
+//   src/data/companions.js     'shop:<gold>[:<skill><lv>]' source strings (HELD)
+//
 //   Demolition (2026-10-14): the theme, cosmetic, IAP, bank-gem, bounty, trait,
-//   companion, farm-plot-deed and dungeon-entry tables were deleted with their
+//   farm-plot-deed and dungeon-entry tables were deleted with their
 //   systems, and character slots are priced in gold (designer ruling).
 //
 // HOW IT READS legacy.js
@@ -141,6 +143,7 @@ const line = (kind, id, amount) => ({ kind, id, amount });
 
 // ── 3. Extract ───────────────────────────────────────────────────────────
 const { ITEMS } = await imp('src/data/items.js');
+const { COMPANIONS } = await imp('src/data/companions.js');
 
 const legacy = await read('src/legacy.js');
 const homesteadSrc = await read('src/features/homestead.js');
@@ -314,6 +317,38 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   addTable({
     table: 'character_slot', origin: 'src/multi-character.js', anchor: 'const SLOT_COSTS_GOLD = [',
     spends_at: 'multi-character.js unlockSlot()',
+  }, offers);
+}
+
+/* The companion table stays while companions are HELD (their engine leaves with
+   lane C2): the edge companion catalogue still sells these four, and the unlock
+   offers derive from this file. */
+// ── COMPANIONS — the price is inside a colon-delimited SOURCE STRING,
+//    'shop:<gold>[:<skill><lv>]', parsed at render time by parseSource() and
+//    handed to _buyCompanion(id, price) through the DOM. ────────────────────
+{
+  const offers = [];
+  for (const id of Object.keys(COMPANIONS).sort()) {
+    const src = String(COMPANIONS[id].source || '');
+    if (!src.startsWith('shop:')) continue;
+    const parts = src.split(':');
+    const gold = Number.parseInt(parts[1], 10);
+    if (!Number.isFinite(gold)) die(`COMPANIONS.${id}.source = ${JSON.stringify(src)} has no parsable price`);
+    const req = parts[2] ? /^([a-z]+?)(\d+)$/.exec(parts[2]) : null;
+    if (parts[2] && !req) die(`COMPANIONS.${id}.source requirement ${JSON.stringify(parts[2])} does not parse`);
+    offers.push({
+      id: `companion.${id}`,
+      name: COMPANIONS[id].n,
+      cost: [line('currency', 'gold', gold)],
+      grant: [line('unlock', `companion:${id}`, 1)],
+      reqSkill: req ? req[1] : null,
+      reqLv: req ? Number(req[2]) : null,
+    });
+  }
+  addTable({
+    table: 'companion', origin: 'src/data/companions.js', anchor: "source:'shop:…'",
+    spends_at: 'legacy.js _buyCompanion(id, price)',
+    note: 'price is embedded in a string, not a field',
   }, offers);
 }
 

@@ -52,6 +52,9 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { COMBAT_XP_SETTLE_FIRST_MS } from '../src/core/combat-xp-cap.js';
+/* road_forge's reward is READ (it paid the iron pickaxe until the 2026-10-14
+   demolition re-rewarded it; 2026-10-23-demolition-road-rewards.sql). */
+import { QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
   from '../supabase/functions/hr-accrue/accrual.js';
 import { settleGatherSession, intentValue, atSpan, GATHER_CATALOGUES }
@@ -170,7 +173,8 @@ async function r5(db) {
   /* NOT VACUOUS: the same claim on the same character, once its window is paid. */
   await db.query("update player_state set accrued_to = now() - interval '60 seconds' where user_id = $1", [UID]);
   const paid = await client("select public.hr_claim_quest('road_forge', 0) r");
-  ok(paid && paid.ok === true && paid.items && paid.items[TOOL] === 1,
+  ok(paid && paid.ok === true && paid.credited === true
+      && JSON.stringify(paid.items) === JSON.stringify(QUEST_REWARDS.road_forge.items),
     `R5 the same claim on a settled row was not paid — got ${JSON.stringify(paid)}; the refusal above proves nothing`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");
 }

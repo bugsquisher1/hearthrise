@@ -5892,10 +5892,12 @@ function charmGuard() {
       'CHARM-W2: the charm changed the number of KILLS. It is a drop multiplier: it may not move the '
       + 'fight, and if it does, the rng stream has shifted and every parity claim below is untethered.');
     const got = (r) => Math.floor(Number((r.delta.items || {})[ROW.id]) || 0);
-    ok(got(charmed) > got(base),
-      `CHARM-W2: ${ROW.id} came to ${got(charmed)} with a rank-${TOP.rank} charm and ${got(base)} `
-      + `without, over ${base.summary.kills} kills at one seed. A multiplier that changes no outcome `
-      + 'is a multiplier nothing multiplies.');
+    /* 2026-10-14 demolition: charms are RETIRED in the engine (accrual.js
+       `const charms = null`), so a top-rung bestiary pays exactly the base drop. */
+    ok(got(charmed) === got(base),
+      `CHARM-W2: ${ROW.id} came to ${got(charmed)} with a rank-${TOP.rank} bestiary and ${got(base)} `
+      + `without, over ${base.summary.kills} kills at one seed. Charms are retired: the engine `
+      + 'must not pay a drop bonus for bestiary kills.');
   }
 
   // ── W3 — AWAY == ATTENDED AT THE SAME RANK (AWAY-1) ────────────────────────
@@ -5964,12 +5966,13 @@ function charmGuard() {
     const plain = night({});
     const withCharm = night({ bestiaryKills: counters(TOP.at) });
     if (plain.accrued && withCharm.accrued) {
-      ok(withCharm.summary.charmClass === CLS && withCharm.summary.charmRank === TOP.rank
-         && Math.abs(withCharm.summary.charmDropMult - TOP.drop) < 1e-9,
-        `CHARM-W5: a charmed night reported class ${JSON.stringify(withCharm.summary.charmClass)}, rank `
-        + `${withCharm.summary.charmRank}, x${withCharm.summary.charmDropMult}. The receipt must name the `
-        + 'class, the rung and the factor the night was PRICED with — stated by the simulation, never '
-        + 'guessed by a renderer from counters that have moved since.');
+      /* Charms retired (2026-10-14): a studied night is priced with NO charm, and
+         its receipt must say so rather than name a bonus nobody paid. */
+      ok(withCharm.summary.charmClass === null && withCharm.summary.charmRank === 0
+         && withCharm.summary.charmDropMult === 1,
+        `CHARM-W5: a top-rung bestiary night reported class ${JSON.stringify(withCharm.summary.charmClass)}, rank `
+        + `${withCharm.summary.charmRank}, x${withCharm.summary.charmDropMult}. Charms are retired; the `
+        + 'receipt must state the null/0/1 the night was PRICED with.');
       ok(plain.summary.charmClass === null && plain.summary.charmRank === 0
          && plain.summary.charmDropMult === 1,
         `CHARM-W5: an unstudied night reported ${JSON.stringify(plain.summary.charmClass)}/`

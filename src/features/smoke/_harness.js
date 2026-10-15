@@ -2608,13 +2608,9 @@ export async function hfPoll() {
   return out;
 }
 
-/* THE CHARM TESTS' ONE FIXTURE AND ONE DRIVER (CHARM-2, CHARM-3).
-   Written once, on the test-file ratchet's own terms: two tests that each rebuilt
-   the roster search and the envelope driver cost twice the scaffolding and gave
-   one of them a chance to drift into testing something subtly different.
-   `hrCharmDriver` answers the accrual
-   funnel with the idle envelope a reloading player actually gets, which is the
-   only response the charm mirror rides. */
+/* The bestiary tests' one envelope driver: answers the accrual funnel with the
+   idle envelope a reloading player actually gets (the only response the
+   bestiary/trophy mirror rides). */
 export function hrCharmDriver() {
   const A = window.HearthriseAccrual; const realFetch = window.fetch;
   return {

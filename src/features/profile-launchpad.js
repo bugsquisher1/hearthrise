@@ -90,7 +90,7 @@
       gathered:      stats.gathered | 0,
       /* Harvests read `stats.harvested`: the SERVER's ev:harvest, projected by
          accrue.js EVENT_COUNTER_PROJECTION. The client-written cropsHarvested
-         (b478) had one writer, companions.js's harvest hook, which left with the
+         had one writer, companions.js's harvest hook, which left with the
          companions in the 2026-10-14 demolition. */
       harvested:     stats.harvested | 0,
     };

@@ -45,32 +45,19 @@ import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUT
    tick (2026-09-22). ONE field list for a two-level projection; see
    ./envelope.js. A14 and PARITY expand this spread and still compare. */
 import { engineInputsFromEnvelope } from './envelope.js';
-/* THE COMPANION-XP ARM SWITCH (ARMED, b550) — mirrored from index.ts (A14): a
-   collect must price companion XP identically to an accrue over the same
-   window. */
-import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
-/* THE RECOVERY REFUSAL'S ONE DEFINITION (rev. 3, Designer ruling 2026-09-08).
-   Imported from the dual-runtime core rather than restated here, because the
-   BROWSER mirror of this same gate reads the same frozen array through
-   `HearthriseCore.away` — which is what makes the two sides the same answer
-   instead of two agreeing opinions (b519 was the day they disagreed). */
-import { recoveryRefuses, RECOVERY_REFUSED_KINDS } from '../../../src/core/away.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
 } from './intents.js';
+/* HUNT SESSIONS (lane C2): the one hunt settle, and the cheap "is a hunt
+   open?" read. A hunter's window is the SESSION's — a collect for a hunter is a
+   hunt settle, and a hunter may not switch (hr_hunt_leave moves the pointer). */
+import { settleHunt, huntOpenOf, HUNT_SETTLE_MIN_MS } from './hunt-settle.js';
 import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { huntFor } from '../../../src/core/hunt-spawn.js';
-/* THE HUNT'S TWO STANDING ORDERS (docs/design/HUNTS_AND_ANALYZER.md §6). The
-   stance catalogue and the stop bounds are src/core/hunt.js's and ONLY its:
-   this file asks, hr_apply re-asks against hr_hunt_stances / hr_hunt_stop_valid,
-   and the two can no more disagree than SETTABLE_KINDS can disagree with
-   PAYABLE_KINDS. A private copy of either here would be a second catalogue with
-   no test that compares them. */
-import { STANCES, validateStop } from '../../../src/core/hunt.js';
 
 /* ── THE INTENT'S ALLOWLIST — DERIVED FROM THE PAYER, NEVER RESTATED ────────
    `hr_activities` holds 344 rows across three kinds; this intent accepts the
@@ -83,20 +70,6 @@ import { STANCES, validateStop } from '../../../src/core/hunt.js';
    it, in one edit, with no second list to remember. */
 export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 
-/* ── §4 SELF-CHECK: THE RECOVERY REFUSAL IS A SUBSET OF WHAT IS PAYABLE ───
-   Asserted by EXECUTION at module load, in the same style the migrations use:
-   a property proven, not a marker claimed. §1b refuses a declared kind while
-   `recovering_until` is ahead; refusing a kind this intent cannot even SET
-   would be a gate on a door that does not exist, and a typo in
-   `RECOVERY_REFUSED_KINDS` (`'Combat'`, `'combat '`) would silently open the
-   fight door to a knocked-out character with nothing anywhere going red.
-   THROWS rather than warns: the Edge Function failing to boot is a visible,
-   revertible outage; a fight gate that quietly stopped gating is not. */
-for (const k of RECOVERY_REFUSED_KINDS) {
-  if (!SETTABLE_KINDS.includes(k)) {
-    throw new Error(`set-activity §1b: RECOVERY_REFUSED_KINDS names '${k}', which is not settable`);
-  }
-}
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
@@ -145,69 +118,7 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* ── THE HUNT'S TWO OPTIONAL FIELDS (2026-09-22) ───────────────────────
-     Validated HERE, on shape and against the catalogue, before any database
-     work — so a client looping on a forged stance cannot spend a real player's
-     rate budget. hr_apply re-checks both and is the authority; this is the
-     early answer that makes a typo cost a tap instead of a collect.
-
-     ⚠ PRESENCE, NOT TRUTHINESS, on both. An ABSENT field leaves the standing
-       order alone; an EXPLICIT null CLEARS it (back to steady / no rules).
-       request.js already made those two gestures distinguishable with
-       hasOwnProperty, and collapsing them here would take away a player's only
-       way to turn a rule off. `undefined` is request.js's UNREADABLE marker and
-       is the one value that is a refusal.
-
-     ⚠ THE FIELDS ARE INDEPENDENT OF `kind`, INCLUDING `idle`. A stance is a
-       standing order on the CHARACTER, not on the activity — a player fixing
-       their auto-eat threshold while stopped is doing something reasonable, and
-       hr_apply's UPDATE writes them the same way whatever the pointer does. */
-  const out = { ok: true, kind, id: kind === 'idle' ? null : id };
-
-  if (Object.prototype.hasOwnProperty.call(a, 'stance')) {
-    const st = a.stance;
-    if (typeof st === 'undefined') {
-      return { ok: false, error: INTENT_ERRORS.BAD_STANCE, detail: { why: 'unreadable stance' } };
-    }
-    if (st !== null) {
-      /* `hasOwnProperty`, NOT `STANCES[st]`. The id shape /^[a-z]{1,24}$/
-         matches `constructor`, which is truthy on any object literal — the same
-         trap `catalogueHas` exists for, one line of defence lower. */
-      if (!Object.prototype.hasOwnProperty.call(STANCES, st)) {
-        return {
-          ok: false,
-          error: INTENT_ERRORS.UNKNOWN_STANCE,
-          detail: { stance: st, stances: Object.keys(STANCES) },
-        };
-      }
-    }
-    out.stance = st;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(a, 'stop')) {
-    const sp = a.stop;
-    if (typeof sp === 'undefined') {
-      return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: 'unreadable stop object' } };
-    }
-    if (sp === null) {
-      out.stop = null;
-    } else {
-      /* ONE definition of the bounds, and it REFUSES rather than clamps — a
-         clamp lets a client discover a hidden maximum by pushing at one. The
-         FIELD is named in the refusal so a player told "8 is fine, 9,999 is
-         not" knows which rule to fix. */
-      const v = validateStop(sp);
-      if (!v.ok) {
-        return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: v.error, field: v.field } };
-      }
-      /* Re-serialised through the validator's own normalised object, so a
-         prototype-polluted or key-reordered body cannot reach hr_apply as
-         anything other than the five published rules. */
-      out.stop = { ...v.stop };
-    }
-  }
-
-  return out;
+  return { ok: true, kind, id: kind === 'idle' ? null : id };
 }
 
 /**
@@ -220,22 +131,12 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from, orders) {
-  /* THE TWO STANDING ORDERS RIDE THE SAME KEY, and are OMITTED unless the
-     caller actually named them. An `activity` key is a complete, re-validated
-     activity statement (hr_apply R11), so sending `stance: undefined` would be
-     a statement that the client did not make — and hr_apply reads PRESENCE, so
-     an unnamed field must be absent rather than null. */
-  const o = orders || {};
-  const hasStance = Object.prototype.hasOwnProperty.call(o, 'stance');
-  const hasStop = Object.prototype.hasOwnProperty.call(o, 'stop');
+export function activityDelta(kind, id, from) {
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
-      ...(hasStance ? { stance: o.stance } : {}),
-      ...(hasStop ? { stop: o.stop } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -289,70 +190,18 @@ export const READ_SQL = `
    forgetting does not fail, it just leaves one client path guessing, which is
    the one thing a client is never allowed to do. */
 
-/* ⚠ THE ATTENDED KILL LEDGER IS READ HERE TOO, AND THAT IS NOT OPTIONAL.
-   The MEASURED production window (docs/design/attended-loot-credit.md §0) was
-   settled by THIS verb, not by the accrue verb: `player_ledger` #13175 (the
-   accrue row) is timestamped 16:10:02.395 and the `set_activity:idle` that
-   produced it 16:10:02.789. A player who taps STOP is the ordinary end of an
-   attended fight, and a collect that skipped the top-up would advance
-   `accrued_to` past the credit rows and confiscate exactly the loot this change
-   exists to pay. Two callers of one engine is a drift generator (see the A14
-   note below); this is the field where drift would be silent AND total. */
-/* ⚠ $5 IS THE UPPER EDGE OF THE ATTENDED WINDOW (Security condition C6) and it
-   is the instant `accrued_to` will advance to — `new Date(nowMs).toISOString()`,
-   the same string the engine writes as the watermark, derived from THIS call's
-   READ_SQL `now()`. This statement runs after that read, so a window bounded
-   only below by `accrued_to` would project credit rows committed in the gap: paid
-   here, and projected again on the next settle. hr_attended_kills clamps it with
-   `least(p_upto, now())`, so a wrong value can only ever pay LESS.
-   ⚠ THIS CALLER IS `caller: 'collect'` (below), and that is what keeps the
-     sentence "it is the instant `accrued_to` will advance to" literally true
-     here after 2026-09-16. The accrue verb now defers an uncapped window's
-     sub-tick remainder (accrual.js `settledWatermarkMs`); a COLLECT has no next
-     call to defer into, so the engine refuses to move it and this collect still
-     settles to `nowMs` exactly. */
+/* THE SEED + PERK READ, and its one fallback for a database that predates
+   hr_perks_of (a missing FUNCTION is a hard 42883 that aborts the statement,
+   so the "safe in either order" property is restored by catching 42883 AND
+   ONLY 42883 and retrying without it). Mirrors index.ts. The attended-kill rung
+   is gone with the attended top-up (lane C2). */
 const SEED_SQL = `
-  select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
-         public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
-         public.hr_perks_of($1::uuid, $2::int)                              as perks,
-         public.hr_attended_kills($1::uuid, $2::int, $5::timestamptz)       as attended`;
-
-/* The same read WITHOUT the attended ledger, for a database that has not applied
-   2026-09-10-attended-loot-credit.sql, and then WITHOUT the perk channel too for
-   one that predates that. A missing COLUMN reads as null; a missing FUNCTION is
-   a hard 42883 that aborts the statement, so the "safe in either order" property
-   the tool_carry column has by construction has to be restored by hand here — by
-   catching 42883 AND ONLY 42883 and retrying. Mirrors index.ts.
-   THREE RUNGS, NOT TWO, because the two absences are INDEPENDENT: the ordinary
-   database on the day this ships HAS hr_perks_of and has NOT got the attended
-   read, and one combined fallback would silently drop the perk channel on every
-   one of them — under-paying every bonus in the game to fix an unrelated gap. */
-const SEED_SQL_NO_ATTENDED = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
          public.hr_perks_of($1::uuid, $2::int)                              as perks`;
 const SEED_SQL_NO_PERKS = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt`;
-
-/* ⚠ THE BESTIARY COUNTERS ARE READ IN THEIR OWN STATEMENT, NOT FOLDED INTO
-   SEED_SQL, AND THAT IS THE WHOLE POINT (charms phase 2).
-   The ladder above has THREE rungs for TWO independent absences already, and its
-   own comment says why a fourth capability there would need eight: a database
-   that has hr_perks_of and hr_attended_kills but not hr_bestiary_of would 42883
-   on the full rung and fall through to SEED_SQL_NO_ATTENDED — silently dropping
-   the attended loot top-up to price a 3% drop bonus. Under-paying a real feature
-   to arm a smaller one is never the trade. `exec` runs one statement in its own
-   transaction (index.ts), so a 42883 here aborts nothing else and costs one
-   pooled transaction on a verb that already takes three — and only on the path
-   that actually has a window to pay.
-   AGGREGATED IN SQL because hr_bestiary_of returns a SET and this seam hands
-   back rows, not a cursor; `coalesce` because jsonb_object_agg over zero rows is
-   NULL and the engine's "no counters" and "no such function" must stay
-   distinguishable. */
-export const BESTIARY_SQL = `
-  select coalesce(jsonb_object_agg(monster_id, kills), '{}'::jsonb) as kills
-    from public.hr_bestiary_of($1::uuid, $2::int)`;
 
 /* ⚠ `$5::text::jsonb`, NEVER `$5::jsonb`, BECAUSE THE DELTA IS PRE-STRINGIFIED.
    THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb makes
@@ -405,15 +254,11 @@ export async function runSetActivity(o) {
   }
   const decl = validateDeclaration(activity);
   if (!decl.ok) {
-    /* 409 for "real, and not what you think": an unsupported kind and an
-       unknown stance are both facts about a CATALOGUE. 400 for a malformed or
-       out-of-bounds field, which is a fact about the REQUEST. Same split the
-       three activity codes above already use, for the same reason: a player
-       told "bad request" when the truth is "there is no such stance" files a
-       bug against the wrong system. */
+    /* 409 for "real, and not what you think": an unsupported kind is a fact
+       about a CATALOGUE. 400 for a malformed field, which is a fact about the
+       REQUEST. */
     return {
-      status: (decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED
-               || decl.error === INTENT_ERRORS.UNKNOWN_STANCE) ? 409 : 400,
+      status: decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED ? 409 : 400,
       body: { ok: false, error: decl.error, ...(decl.detail || {}) },
     };
   }
@@ -433,6 +278,17 @@ export async function runSetActivity(o) {
     return {
       status: 409,
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
+    };
+  }
+  /* ── A FIGHT IS A HUNT (ruling HR-2026-10-14, lane C2) ───────────────────
+     There is no combat pointer outside a hunt session any more: hr_hunt_enter
+     opens one (bag, action bar, limits) and only the hunt settle prices it. A
+     `combat` declaration is therefore refused on SHAPE — before the rate gate,
+     before any database work, nothing written, nothing spent. */
+  if (decl.kind === 'combat') {
+    return {
+      status: 409,
+      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED, kind: decl.kind, id: decl.id },
     };
   }
   /* The same early answer for the other payable kind. Both catalogues, one
@@ -496,76 +352,32 @@ export async function runSetActivity(o) {
   }
   const st = env.state;
 
-  /* ── (1b) KNOCKED OUT? (First-Night Idle Rescue) ─────────────────────────
-     A character inside their recovery window may not START A FIGHT. The rule is
-     identical live and away because it is one fact about the CHARACTER, read
-     from the same absolute column `simulateSpan` reads — there is no second
-     code path to drift, which is what preserves AWAY-1 by construction.
-
-     ⚠ REFUSED HERE, BEFORE THE COLLECT, AND THAT PLACEMENT IS THE POINT. The
-       collect stamps `accrued_to`; refusing after it would close a window the
-       player was mid-way through for a switch that never happened. Nothing has
-       been written at this line, the watermark is intact, the idempotency key
-       is unspent, and the elapsed window is still there to be paid by the
-       `accrue` verb. This refusal costs a tap, never a night.
-
-     ⚠ COMBAT ONLY (rev. 3, 2026-09-08) — AND THE REASONING IS IN ONE PLACE.
-       Rev. 1 refused only a fight. Rev. 2 widened that to every payable kind on
-       the argument that a knockout is a property of the CHARACTER. Rev. 3
-       narrows it back to `combat`, because measured on live b524 rev. 2 left a
-       solvent, skilled, food-less character with NO LEGAL MOVE for 45 minutes:
-       it refused the very gathering that is the CURE the knockout exists to
-       teach. `RECOVERY_REFUSED_KINDS` in src/core/away.js carries the whole
-       ruling and is the ONLY definition — asked here through
-       `recoveryRefuses()`, and by the browser mirror through
-       `HearthriseCore.away`, so the two cannot drift.
-
-       ⚠ THE SUBSET RELATION IS ASSERTED, NOT ASSUMED. A refused kind that is
-         not payable would be a gate on something this intent never priced, and
-         a typo in the array would silently open the fight door. Checked once at
-         module load rather than per call: it is a property of two frozen
-         constants, so a request is the wrong place to discover it.
-
-       Everything else stays exactly as rev. 2 left it. `idle` is ALWAYS
-       allowed; gathering and the benches now pay at their normal rate while the
-       line runs; nothing non-payable was ever touched (building, shopping,
-       travelling, the market, the clan and the whole UI stay open).
-       `st.recovering_until` absent (the column does not exist) is
-       `Date.parse(undefined) = NaN`, and `NaN > nowMs` is false — the check
-       self-configures off exactly like every other reader of that column.
-
-     THE SERVER CLOCK, NEVER THE CLIENT'S. `read.now` is Postgres's `now()` from
-     the transaction that produced this envelope. */
-  if (recoveryRefuses(decl.kind)) {
-    const untilMs = Date.parse(st.recovering_until);
-    const nowMs_ = new Date(read.now).getTime();
-    if (untilMs > nowMs_) {
-      /* IT CARRIES STATE, because it is a REFUSAL AFTER A READ and the
-         published taxonomy (intents.js `refusalCarriesState`) says so: the
-         caller has already paid for an envelope, and one it cannot reconcile
-         from leaves the client guessing. `until` rides alongside so the
-         countdown does not have to be dug out of the state object. */
-      return {
-        status: 409,
-        body: await refusalBody({
-          exec, verb: VERB, user, slot, decorate: decorateActivity,
-          refusal: {
-            error: INTENT_ERRORS.RECOVERING,
-            kind: decl.kind,
-            id: decl.id,
-            /* THE ABSOLUTE INSTANT, so the client counts DOWN instead of
-               polling. Echoed from the row, the only place it can come from. */
-            until: st.recovering_until,
-            /* And the same fact as a duration, computed against the SERVER's
-               `now` in the same breath, so a client with a skewed clock renders
-               the right number rather than a negative one. */
-            remaining_ms: Math.max(0, untilMs - nowMs_),
-          },
-          fallback: env,
-        }),
-      };
-    }
+  /* ── (1a) ON A HUNT? (lane C2) ───────────────────────────────────────────
+     The pointer belongs to the session (C1's guard refuses any other writer
+     with `hunt_open`); leaving is hr_hunt_leave, changing hunt hr_hunt_change.
+     Answered here, after the read and BEFORE the collect, so nothing is
+     settled for a switch that cannot happen. */
+  if (st.active_kind === 'combat' && await huntOpenOf(exec, user, slot)) {
+    return {
+      status: 409,
+      body: await refusalBody({
+        exec, verb: VERB, user, slot, decorate: decorateActivity,
+        refusal: { error: INTENT_ERRORS.HUNT_OPEN },
+        fallback: env,
+      }),
+    };
   }
+
+  /* ── (1b) KNOCKED OUT? — RETIRED WITH THE COMBAT POINTER (lane C2) ───────
+     Rev. 3 (2026-09-08) refused exactly one declared kind while
+     `recovering_until` was ahead: `combat`. A fight is a HUNT now and a
+     `combat` declaration is answered `hunt_required` on shape, above, so the
+     branch could no longer be reached; it is deleted rather than left as a
+     gate on a door that does not exist. Gathering and the benches stay open
+     and paid through a knockout (tests/recovery-rest.mjs §10 (c)/(f)/(g)).
+     The knockout rule for a FIGHT is the one combat body's: a hunt window
+     inside `recovering_until` earns nothing (tests/hunt-sessions-settle.mjs
+     KNOCKOUT), whoever opened the session. */
 
   /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. Whether it
          applies is the registry's `collectsFirst`, read here and nowhere else;
@@ -635,7 +447,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl);
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 
@@ -702,15 +514,6 @@ function activityOf(env) {
   return {
     kind: st.active_kind ?? null,
     id: st.active_id ?? null,
-    /* READ OUT OF THE SERVER'S ROW, NEVER ECHOED FROM THE DECLARATION — the
-       same rule the block above `activityOf`'s caller states about `activity`
-       itself. A body that reported the CLIENT's stance beside a `state` that
-       said something else is the exact shape this whole programme removes.
-       `?? null` rather than omitted, because a database that predates the
-       columns projects no key and "no stance" must not read as "steady chosen".
-       Only present when the projection carries them. */
-    ...('hunt_stance' in st ? { stance: st.hunt_stance ?? null } : {}),
-    ...('hunt_stop' in st ? { stop: st.hunt_stop ?? null } : {}),
   };
 }
 
@@ -823,6 +626,31 @@ export async function collectCurrentWindow(o) {
   const { exec, user, slot, env, st, nowMs, capMs } = o;
   const pointerSurvives = o.pointerSurvives === true;
 
+  /* ── A HUNTER'S WINDOW IS THE SESSION'S (lane C2) ────────────────────────
+     Every settle-before-mutate verb and every switch's collect arrives here,
+     so this is the ONE place a hunter is routed: the open session is settled
+     through the ONE hunt settle (./hunt-settle.js, hr_hunt_apply) up to now, at
+     the state BEFORE the verb mutates anything — Security F1's rule, kept. A
+     purchase (the pointer survives) keeps the ACCRUE_MIN_MS floor; a switch
+     (equip / enchant) settles whatever is open. */
+  const huntSid = st.active_kind === 'combat' ? await huntOpenOf(exec, user, slot) : null;
+  if (huntSid) {
+    const v = await settleHunt({
+      exec, user, slot, mode: 'settle', bucket: null, session: huntSid,
+      minWindowMs: pointerSurvives ? HUNT_SETTLE_MIN_MS : 0, project: true,
+    });
+    if (v.outcome === 'paid') {
+      const b = v.body || {};
+      return { outcome: 'paid', version: b.version ?? env.version,
+        env: (b.state ? b : null), receipt: null };
+    }
+    if (v.outcome === 'nothing' || v.outcome === 'none') {
+      return { outcome: 'nothing', version: env.version, reason: v.reason || 'nothing_accrued' };
+    }
+    return { outcome: 'refused', version: null, error: v.reason || 'hunt_settle_refused',
+      detail: (v.body && v.body.detail) || null };
+  }
+
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
   /* ⚠ THE CHEAP EXIT IS GONE (b531), AND ITS REMOVAL IS THE FIX.
@@ -858,7 +686,7 @@ export async function collectCurrentWindow(o) {
      HERE because the settle keeps the floor: a window shorter than
      ACCRUE_MIN_MS from `accrued_to` is shorter than the grant the engine would
      price, so computeAccrual would answer TOO_SOON. Answering it without the
-     seed and bestiary reads keeps a shop tap during attended play at the cost
+     seed read keeps a shop tap during attended play at the cost
      it had before this ruling. Nothing is written; the window stays open. */
   if (pointerSurvives && nowMs - accruedToMs < ACCRUE_MIN_MS) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
@@ -867,52 +695,21 @@ export async function collectCurrentWindow(o) {
   const seedArgs = [
     user, slot, `accrue:${String(st.accrued_to)}`, `intent:accrue:${String(st.accrued_to)}`,
   ];
-  /* $5 for SEED_SQL only — the two fallbacks below take four. See SEED_SQL. */
-  const seedArgsUpto = [...seedArgs, new Date(nowMs).toISOString()];
   let seedRow;
   try {
-    [seedRow] = await exec(SEED_SQL, seedArgsUpto);
+    [seedRow] = await exec(SEED_SQL, seedArgs);
   } catch (e) {
     /* ONLY 42883 (undefined_function) degrades. Anything else propagates —
        a swallowed error is how a guard reports SKIPPED and gets read as a
-       pass. See SEED_SQL_NO_PERKS above. */
+       pass. */
     if (String((e && e.code) ?? '') !== '42883') throw e;
-    /* Drop the NEWER capability first, so the common case — perks present,
-       attended read not yet applied — keeps its perk channel. */
-    try {
-      [seedRow] = await exec(SEED_SQL_NO_ATTENDED, seedArgs);
-    } catch (e2) {
-      if (String((e2 && e2.code) ?? '') !== '42883') throw e2;
-      [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
-    }
+    [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
   }
   const salt = String((seedRow && seedRow.salt) ?? '');
   /* `ok !== true` covers "no character" and any future refusing shape. null →
      EMPTY_PERKS in the engine → 0 for every key → pre-b349 behaviour. */
   const perkEnv = seedRow && seedRow.perks;
   const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
-  /* THE ATTENDED KILL LEDGER. Same shape, same `ok !== true` rule, same null →
-     "propose nothing new". Every count in it was written by hr_credit_kills into
-     a table no client role may write. Nothing here is request-derived. */
-  const attendedEnv = seedRow && seedRow.attended;
-  const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
-
-  /* THE BESTIARY COUNTERS (charms phase 2). Same rule as every other optional
-     server read on this path: ONLY 42883 degrades, to null, which the engine
-     reads as "no charm" — and the collect then prices the window exactly as the
-     accrue verb would on the same database. A collect that skipped this would
-     pay a studied class LESS than an accrue over the identical window, silently,
-     which is the A14 drift class in the one direction a field-name guard cannot
-     see (both callers would still name the field). */
-  let bestiaryKills = null;
-  try {
-    const [bRow] = await exec(BESTIARY_SQL, [user, slot]);
-    const k = bRow && bRow.kills;
-    bestiaryKills = (k && typeof k === 'object' && !Array.isArray(k)) ? k : null;
-  } catch (e) {
-    if (String((e && e.code) ?? '') !== '42883') throw e;
-    bestiaryKills = null;
-  }
 
   /* The engine is called with a LITERAL, field by field, from named server
      values — no spread of anything request-derived, ever. `slot` is the only
@@ -925,9 +722,8 @@ export async function collectCurrentWindow(o) {
        input the other does not, the two verbs price the SAME window
        differently — a switch would pay less than a collect over the identical
        three hours, silently, with no error anywhere. That is not hypothetical:
-       the auto-eat workstream added `inventory` / `autoEatEnabled` /
-       `autoEatFood` / `autoEatPct` to the accrue literal, and a collect without
-       them heals nothing and dies early.
+       a workstream once added four inputs to the accrue literal only, and the
+       collect then priced the same window differently.
 
        tests/activity-intent.mjs A14 extracts the top-level FIELD NAMES from
        BOTH literals and fails the build if they differ. Adding a field here or
@@ -938,10 +734,9 @@ export async function collectCurrentWindow(o) {
     slot,
     nowMs,
     /* EVERY FIELD `hr_state_of` OWNS, IN ONE PLACE (2026-09-22): the pointer,
-       the two watermarks, hp/max_hp/gold, skills/inventory/equipment, enchant,
-       buffs, the auto-eat settings, tool_carry / ammo_carry / fight, the
-       recovery line, the retreat counter, the two death anchors,
-       hearthfind_ready and combat_style.
+       the two watermarks, hp/max_hp/gold, skills/inventory/equipment, buffs,
+       tool_carry / ammo_carry / fight, the recovery line, the two death
+       anchors, hearthfind_ready and combat_style.
 
        ⚠ THIS WAS THIRTY HAND-COPIED LINES AND A14 WAS ALL THAT HELD IT
          TOGETHER. It held it against THIS file and index.ts and against
@@ -957,24 +752,12 @@ export async function collectCurrentWindow(o) {
          expand the spread and still compare the two call sites field by field
          — do not "fix" a red one by relaxing it. */
     ...engineInputsFromEnvelope(env, nowMs),
-    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). A collect
-       run by a STOP gesture is the single most common end of an attended fight —
-       the measured production window was settled by this very call — so a
-       collect without it would advance `accrued_to` past the credit rows and
-       confiscate the loot the top-up exists to pay. There is no degrade ladder
-       on this verb, so no `attended: null` rung: a switch either tops up or the
-       function is absent. */
-    attended: attendedIn,
+    /* A HUNT IS OPEN — never true here (a hunter was routed to the hunt settle
+       above), and passed anyway so the engine itself refuses `hunt_open` if
+       that routing is ever bypassed. Mirrors index.ts field for field (A14). */
+    huntOpen: huntSid !== null,
     capMs,
     seed: Number(seedRow && seedRow.seed) || 0,
-    /* THE BESTIARY COUNTERS (charms phase 2). Read above in its own statement;
-       the ENGINE folds them to a charm rank. No client value, no delta key,
-       null ⇒ no charm. Mirrors index.ts field for field (A14). */
-    bestiaryKills,
-    /* THE COMPANION-XP ARM SWITCH (armed, b550) — the SAME defect class A14 exists
-       for: a collect and an accrue over the same window must credit the pet the
-       same, so the constant is threaded here too. Mirrors index.ts (A14). */
-    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     /* THE PERMANENT PERK STACK (b349). NOT an envelope field — `hr_perks_of` is
        its own read. A collect that priced a window at zero perks while an
        accrue over the same window priced it at the player's real Kitchen would
@@ -1103,17 +886,9 @@ export async function collectCurrentWindow(o) {
        (hr_apply answers a replay with the live state). */
     env: res.ok === true && res.state ? res : null,
     receipt: res.replayed === true ? null : {
-      ms: out.grantMs, capped: out.capped, kills: out.summary.kills,
+      ms: out.grantMs, capped: out.capped,
       gold: out.summary.gold, xp: out.summary.xp, items: out.summary.items,
-      levelUps: out.levelUps, died: out.summary.died,
-      /* Ruling 2b (2026-08-31): a collect-before-switch settles a real window
-         and that window can end in a death — so it states WHAT killed them and
-         the auto-eat state it ran with, exactly as the accrue verb does. One
-         receipt shape, or the two payment paths describe one death
-         differently. `paidMs` rides along because the client reads
-         `diedAfterMs` off it. */
-      diedTo: out.summary.diedTo ?? null,
-      autoEat: out.summary.autoEat,
+      levelUps: out.levelUps,
       paidMs: out.summary.paidMs,
       /* Ruling 2: WHICH hours the switch settled. A collect-before-switch pays
          the same window an accrue would, so it states it the same way. */

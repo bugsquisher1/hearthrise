@@ -574,11 +574,23 @@ async function runAll(db) {
   ok(acc && acc.ok === true, `the fixture accepted a bounty on ${quarry} (got ${JSON.stringify(acc && acc.error)})`);
   await db.exec(`update public.active_bounty set accepted_at = now() - interval '60 minutes'
                   where user_id = '${UID}' and slot = 0;`);
-  const cred = (await one(db,
-    `select public.hr_credit_kills__ungated(0, $1, 400, 'rpg-idem-1') as r`, [quarry])).r;
-  ok(cred && cred.ok === true, `the client kill credit was accepted (got ${JSON.stringify(cred && cred.error)})`);
-  ok(Number(cred && cred.credited) > 0,
-     `the credit applied ${cred && cred.credited} kills — a zero credit would make this check vacuous`);
+  /* SINCE LANE C2 THE CLIENT DOOR IS GONE (2026-10-22-hunt-sessions-drop-away.sql
+     drops hr_credit_kills and its __ungated body; a hunt's kills are the settle's
+     alone). What production still CARRIES is every credit that landed before the
+     drop: the five progress rows hr_credit_kills__ungated wrote per credit
+     (2026-10-17-bestiary-target.sql). They are written here exactly as it wrote
+     them, so the discount is still graded against real credited counters. (That
+     the door is gone is tests/hunt-sessions-db.mjs D1's; a mutant here replays a
+     chain that stops before the drop.) */
+  const cred = { credited: 40 };
+  await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+                 values ('${UID}', 0, 'stat', 'ev:kill_monster:${quarry}', ${cred.credited}, '', 'active'),
+                        ('${UID}', 0, 'stat', 'ev:kill_any', ${cred.credited}, '', 'active'),
+                        ('${UID}', 0, 'stat', 'ev:kill_credited:${quarry}', ${cred.credited}, '', 'active'),
+                        ('${UID}', 0, 'stat', 'ev:kill_credited_any', ${cred.credited}, '', 'active'),
+                        ('${UID}', 0, 'daily', 'ev:kill_any', ${cred.credited}, public.hr_utc_day_key(now()), 'active')
+                 on conflict (user_id, slot, kind, key, period_key)
+                   do update set value = public.player_progress.value + excluded.value;`);
   ok((await projected()) === proj1,
      `the credit alone did not move the projection (${await projected()} vs ${proj1})`);
   const r4 = await apply({});

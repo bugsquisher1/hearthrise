@@ -101,7 +101,7 @@ export const MAX_SLOT = 5;
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
 export const VERBS = Object.freeze(
-  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'claim_reward', 'unlock_buy',
+  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'unlock_buy',
     /* b355 — THE MARKET VERBS. Three, not one, and deliberately not collapsed
        into a single `market` verb with a `mode` field: the three do different
        things to different rows, and a dispatch table whose branch is a body
@@ -122,13 +122,6 @@ export const VERBS = Object.freeze(
        the value is a string or `null` — which is hr_apply's own vocabulary, not
        a mode flag invented at the wire. */
     'equip',
-    /* ELEMENTS/ENCHANTING v1 — a CLONE of `equip`, the second verb that must
-       collect before it acts. The wire carries a slot NAME and a rune item NAME
-       ({slot:'weapon', rune:'ember_rune'}); the server resolves the rune to an
-       ELEMENT (hr_runes), checks the weapon slot holds a weapon, debits the rune
-       and sets the server-owned enchant state. The client never sends an
-       element, a magnitude or a success bit. */
-    'enchant',
     /* MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0). The wire carries an
        `item` NAME (`{verb:'eat',item:'turnip'}`) — the SAME field vendor_sell
        reads — and NOTHING ELSE. No heal amount, no qty, no hp: eat.js reads
@@ -138,21 +131,6 @@ export const VERBS = Object.freeze(
        the absolute inventory reconcile RESTORED the eaten OWNABLE food on the
        next envelope — a free heal AND an effective dupe. See eat.js's header. */
     'eat',
-    /* THE DUNGEON SETTLE VERB (dungeon-settlement.md §2). The wire carries a
-       `dungeon` object {id, mode, quality} and NOTHING ELSE — no loot id, no
-       quantity, no scrip amount, no key. hr_dungeon_settle consumes the entry
-       key, rolls loot from the server catalogue with the seeded PRNG, and credits
-       scrip into player_state.dungeon_scrip; the client renders the returned
-       envelope. Before this verb, scrip + run loot were minted CLIENT-only and
-       BLOB_RETIRED wiped them on reload (the "dungeon scrip goes to 0" P1). */
-    'dungeon_settle',
-    /* THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3). The wire
-       carries an `offer` id (`qm.<item>`, the dotted <namespace>.<row> shape) and
-       NOTHING ELSE — no item, no qty, no price, no scrip amount. hr_quartermaster_buy
-       prices it from the client-unwritable hr_qm_offers, debits scrip and grants the
-       item in ONE transaction. Before this verb the Quartermaster was a client trade
-       the settle envelope half-undid (the b372 "get the scrip back" bug). */
-    'quartermaster_buy',
     /* THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). The wire
        carries `{trophy:{monster, stage}}` and NOTHING ELSE — no kill count, no
        multiplier, no "earned" bit. hr_trophy_claim re-reads the kill total from
@@ -172,7 +150,12 @@ export const VERBS = Object.freeze(
        a body field that changes WHAT the verb does is a typo away from a
        different intent. The wire carries `lines: [{item, qty}]` — NAMES and
        COUNTS, never a price (readLines). */
-    'vendor_sell_many']);
+    'vendor_sell_many',
+    /* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). `hunt_settle` carries the
+       slot and nothing else; `hunt_use` adds `bar_slot`, an action-bar INDEX
+       (readBarSlot) — never an item, a time, an HP or a count. Both run the ONE
+       hunt settle the world tick runs (./hunt-settle.js). */
+    'hunt_settle', 'hunt_use']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -212,18 +195,6 @@ export const OFFER_ID_RE = /^[a-z0-9_]{1,40}(?:\.[a-z0-9_]{1,40}){1,3}$/;
     nothing; that is measured, not assumed. */
 export const MAX_QTY = 1000;
 
-/** The `kind` column of `player_progress`, which is where a claim's bookkeeping
-    row lands. Deliberately the table's OWN CHECK list — a kind this parser
-    admitted but the table rejected would surface as an opaque 23514 from deep
-    inside hr_apply instead of as a named refusal one round trip earlier. */
-export const REWARD_KINDS = Object.freeze(['quest', 'daily', 'bounty', 'stat', 'collection', 'flag']);
-
-/** THE SAME REGEXP OBJECT as ACTIVITY_ID_RE, not a second literal that looks
-    like it. A reward key and an activity id are the same shape of thing — a
-    bounded lookup token — and two identical regexes in one file are two regexes
-    that can be edited apart. */
-export const REWARD_KEY_RE = ACTIVITY_ID_RE;
-
 /** Canonical uuid, lowercase, dashed. Postgres would accept `{...}` and the
     undashed form too and normalise them on cast — which is exactly why this is
     strict: two spellings that mean one key are two chances for a caller to
@@ -234,8 +205,11 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     A test that hard-codes the field list cannot notice a field being ADDED,
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
-  ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto', 'trophy', 'lines'],
+  ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
+    'listing', 'ask', 'equip', 'auto', 'trophy', 'lines',
+    /* lane C2: the action-bar INDEX a `hunt_use` presses (readBarSlot) — a
+       selector into the character's own preset, never a value. */
+    'barSlot'],
 );
 
 /** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
@@ -246,11 +220,6 @@ export const INTENT_KEYS = Object.freeze(
     rather than restating either — a parser that admitted stage 9 would turn a
     named refusal into an opaque one. */
 export const MAX_TROPHY_STAGE_WIRE = 4;
-
-/** The dungeon-run modes the settle RPC understands. Parse-level allowlist,
-    deliberately the SAME set hr_dungeon_settle enforces; an unknown mode is
-    null here and answered `bad_mode` by the intent layer. */
-export const DUNGEON_MODES = Object.freeze(['auto', 'manual', 'scavenger']);
 
 /** An equip-slot name. The SAME bounded shape as a catalogue id and
     deliberately NOT allowlisted here against EQUIP_SLOTS: `hr_equip_slots` is
@@ -310,16 +279,36 @@ export function parseIntent(body) {
   out.offer = readOffer(body);
   out.item = readItem(body);
   out.qty = readQty(body);
-  out.reward = readReward(body);
   out.listing = readListing(body);
   out.ask = readAsk(body);
   out.equip = readEquip(body);
-  out.enchant = readEnchant(body);
-  out.dungeon = readDungeon(body);
   out.auto = readAuto(body);
   out.trophy = readTrophy(body);
   out.lines = readLines(body);
+  out.barSlot = readBarSlot(body);
   return out;
+}
+
+/* The highest action-bar index (src/data/rule-subjects.js ACTION_SET_LIMITS.slots
+   is 10). A bound on a SELECTOR; the database re-validates the slot exists. */
+/* The last index of Huntera's bar: src/data/rule-subjects.js
+   ACTION_SET_LIMITS.slots - 1 (20 slots since 2026-10-14). This module imports
+   nothing, so the number is restated and tests/hunt-sessions-settle.mjs
+   ACTIONBAR-RULE pins it equal to the data. */
+export const MAX_BAR_SLOT = 19;
+
+/**
+ * The ACTION-BAR SLOT a `hunt_use` presses: an own property, a real JSON
+ * integer in [0, MAX_BAR_SLOT]. Anything else is `null`, which the verb refuses
+ * BY NAME as `bad_bar_slot`. It SELECTS a slot of the character's own preset;
+ * what the slot fires, and whether it may, is decided server-side.
+ */
+export function readBarSlot(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'bar_slot')) return null;
+  const v = body.bar_slot;
+  if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
+  return v >= 0 && v <= MAX_BAR_SLOT ? v : null;
 }
 
 /**
@@ -453,80 +442,6 @@ export function readAuto(body) {
 }
 
 /**
- * THE DUNGEON RUN DECLARATION. `{ id, mode, quality }`.
- *
- * `id` is a dungeon id (a NAME — the server looks its req level, cooldown, entry
- * key, scrip base and loot table up in the client-unwritable hr_dungeons). `mode`
- * is one of DUNGEON_MODES (auto|manual|scavenger). `quality` is the client's
- * reported clear fraction — the ONE client-authored number this verb carries, and
- * it is CLAMPED to [0,1] server-side and scales SELF-ONLY scrip, never loot. No
- * loot id, no quantity, no chance, no key and no scrip amount cross: those are all
- * server-owned (dungeon-settlement.md §2 anti-forgery).
- *
- * FIELD-WISE null, like readActivity: an unreadable field is null and the intent
- * layer names which one (`unknown_dungeon` / `bad_mode`) rather than collapsing
- * the whole gesture into "malformed request". `quality` is a REAL finite number
- * or null (a NaN/Infinity/string is null → the server coalesces null to a full
- * clear); the server clamps whatever survives to [0,1], so no bound is enforced
- * here beyond "it is a usable number".
- *
- * @returns a null-prototype `{ id, mode, quality }`, or null when the `dungeon`
- *          field was absent or not an object.
- */
-export function readDungeon(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  if (!Object.prototype.hasOwnProperty.call(body, 'dungeon')) return null;
-  const d = body.dungeon;
-  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
-
-  const idRaw = ownString(d, 'id');
-  const modeRaw = ownString(d, 'mode');
-  let quality = null;
-  if (Object.prototype.hasOwnProperty.call(d, 'quality')) {
-    const q = d.quality;
-    if (typeof q === 'number' && Number.isFinite(q)) quality = q;
-  }
-
-  const out = Object.create(null);
-  out.id = (idRaw !== null && CATALOGUE_ID_RE.test(idRaw)) ? idRaw : null;
-  out.mode = (modeRaw !== null && DUNGEON_MODES.includes(modeRaw)) ? modeRaw : null;
-  out.quality = quality;
-  return out;
-}
-
-/**
- * THE ENCHANT DECLARATION (ELEMENTS/ENCHANTING v1). `{ slot, rune }`.
- *
- * TWO strings, both bounded, and NOTHING ELSE — no element, no magnitude, no
- * success bit. `slot` is an equip-slot name; `rune` is an item id. The server
- * resolves the rune to its element from hr_runes and decides whether the slot
- * may be enchanted; there is nothing else a client could truthfully contribute.
- *
- * FIELD-WISE null, like `readActivity` and unlike `readEquip`: an enchant has
- * two independent facts and the intent layer must be able to answer
- * `wrong_slot` (bad slot) and `unknown_item` (bad rune) apart. An unreadable
- * field is null and the intent layer names which one, rather than collapsing the
- * whole gesture into "malformed request".
- *
- * @returns a null-prototype `{ slot: string|null, rune: string|null }`, or null
- *          when the `enchant` field was absent or not an object.
- */
-export function readEnchant(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  if (!Object.prototype.hasOwnProperty.call(body, 'enchant')) return null;
-  const e = body.enchant;
-  if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
-
-  const slotRaw = ownString(e, 'slot');
-  const runeRaw = ownString(e, 'rune');
-
-  const out = Object.create(null);
-  out.slot = (slotRaw !== null && EQUIP_SLOT_RE.test(slotRaw)) ? slotRaw : null;
-  out.rune = (runeRaw !== null && CATALOGUE_ID_RE.test(runeRaw)) ? runeRaw : null;
-  return out;
-}
-
-/**
  * THE EQUIP OPERATIONS. `{ "<equipSlot>": "<itemId>" | null }`.
  *
  * A string VALUE means "wear this"; `null` means "take off whatever is there".
@@ -646,22 +561,9 @@ export function readIntentId(body) {
   return UUID_RE.test(low) ? low : null;
 }
 
-/** The bounded shape of a stance id. The same reason ACTIVITY_ID_RE is bounded:
-    a lookup token that reaches a `::text` comparison must not be a free way to
-    make the server hash a megabyte. The ALLOWLIST is src/core/hunt.js STANCES
-    and the CATALOGUE is hr_hunt_stances — deliberately NOT checked here, so the
-    intent layer can answer `unknown_stance` BY NAME (the readActivity rule). */
-export const STANCE_ID_RE = /^[a-z]{1,24}$/;
-
-/** The largest stop object a body may carry. Five rules are published
-    (src/core/hunt.js STOP_FIELDS); the bound is a shape guard, not a rule, and
-    an over-long object is dropped to null rather than answered, because a
-    thousand-key object is not a declaration anyone made by tapping. */
-const MAX_STOP_KEYS = 16;
-
 /**
- * The activity DECLARATION. Two strings, both allowlisted, nothing else —
- * plus, since 2026-09-22, the hunt's two OPTIONAL standing orders.
+ * The activity DECLARATION. Two strings, both allowlisted, nothing else (the
+ * hunt's stance and stop orders left with the away model, lane C2).
  *
  * Returns null when the body did not carry a readable one. It deliberately does
  * NOT enforce the (kind ⇔ id) pairing rule or the "is this kind payable" rule:
@@ -669,16 +571,6 @@ const MAX_STOP_KEYS = 16;
  * that collapses them into `null` would turn "you cannot fish yet" into
  * "malformed request".
  *
- * ⚠ THE SAME RULE GOVERNS THE TWO NEW FIELDS, AND IT IS WHY THEY ARE READ AS
- *   SHAPE ONLY. A stance outside the catalogue must reach the intent layer to be
- *   answered `unknown_stance`; a stop rule outside its bounds must be answered
- *   `bad_stop` with the FIELD named. A parser that nulled either would report
- *   "malformed request" for "8 hours is fine, 9,999 is not".
- *
- * ⚠ `undefined` vs `null` IS LOAD-BEARING on both. An ABSENT field leaves the
- *   standing order alone; an EXPLICIT null CLEARS it (back to steady / no
- *   rules). `hasOwnProperty` is the only way to tell those two gestures apart,
- *   and hr_apply's UPDATE reads exactly the same distinction.
  */
 export function readActivity(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -693,34 +585,6 @@ export function readActivity(body) {
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
 
-  /* THE STANCE. Present only when the caller sent the key, so an ordinary
-     `{kind,id}` declaration is byte-for-byte the object it has always been and
-     every existing caller, test and guard sees no new field. */
-  if (Object.prototype.hasOwnProperty.call(a, 'stance')) {
-    const v = a.stance;
-    out.stance = (v === null) ? null
-      : (typeof v === 'string' && STANCE_ID_RE.test(v)) ? v : undefined;
-    /* `undefined` is the UNREADABLE case — not `null`, which MEANS something
-       here. The intent layer answers it `bad_stance`. */
-  }
-
-  /* THE STOP RULES. Copied key by key into a null-prototype object: the body is
-     attacker-controlled JSON and `__proto__` / `constructor` are own, truthy
-     keys on a plain object literal. Values are passed through UNVALIDATED —
-     bounds are the intent layer's answer, by name and by field. */
-  if (Object.prototype.hasOwnProperty.call(a, 'stop')) {
-    const v = a.stop;
-    if (v === null) {
-      out.stop = null;
-    } else if (!v || typeof v !== 'object' || Array.isArray(v)
-               || Object.keys(v).length > MAX_STOP_KEYS) {
-      out.stop = undefined;
-    } else {
-      const stop = Object.create(null);
-      for (const k of Object.keys(v)) stop[k] = v[k];
-      out.stop = stop;
-    }
-  }
   return out;
 }
 
@@ -768,32 +632,6 @@ export function readQty(body) {
   const v = body.qty;
   if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
   return v >= 1 && v <= MAX_QTY ? v : null;
-}
-
-/**
- * WHICH CLAIMABLE (b349). Two strings, both allowlisted, nothing else — and
- * conspicuously NO period and NO amount. See the header.
- *
- * Returns null when the body carried no readable one. Like `readActivity` it
- * deliberately does NOT answer "is this claimable known" or "can the server
- * pay it yet": those are answers the intent layer must give BY NAME
- * (`unknown_reward` / `reward_unavailable`), and a parser that collapsed them
- * into null would turn "the server does not track your Renown yet" into
- * "malformed request".
- */
-export function readReward(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  if (!Object.prototype.hasOwnProperty.call(body, 'reward')) return null;
-  const r = body.reward;
-  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
-
-  const kindRaw = ownString(r, 'kind');
-  const keyRaw = ownString(r, 'key');
-
-  const out = Object.create(null);
-  out.kind = (kindRaw !== null && REWARD_KINDS.includes(kindRaw)) ? kindRaw : null;
-  out.key = (keyRaw !== null && REWARD_KEY_RE.test(keyRaw)) ? keyRaw : null;
-  return out;
 }
 
 /**

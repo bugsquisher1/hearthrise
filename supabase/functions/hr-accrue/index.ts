@@ -70,34 +70,25 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY } from './accrual.js';
+import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
 import { engineInputsFromEnvelope } from './envelope.js';
-import { withAwayReceipt, receiptRescue } from './away-receipt.js';
-/* THE COMPANION-XP ARM SWITCH — ARMED (b550). Threaded into computeAccrual's
-   input as `companionXpBacked` (A14-mirrored in set-activity.js). TRUE → the
-   engine emits the companion_xp op and IS the only writer: the client half
-   returns on blobRetired(). While this was false NOTHING wrote companion XP and
-   every pet in the game sat at level 1 — the comment here said "the client keeps
-   awarding" long after that stopped being true, which is why it shipped. */
-import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
+/* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). The two hunt verbs, and the
+   cheap "is a hunt open?" read the accrue path makes so the old combat pricing
+   never runs for a hunter. */
+import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { frameSelfMarker } from './frame-self.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
-import { partyIntentFence } from './party-fence.js';
 import { runSetActivity } from './set-activity.js';
 import { runShopBuy } from './shop-buy.js';
 import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
-import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
-import { runDungeonSettle } from './dungeon-settle.js';
-import { runQuartermasterBuy } from './quartermaster-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
-import { runEnchant } from './enchant.js';
 import { runEat } from './eat.js';
 import { withCors } from './cors.js';
 /* THE WORLD TICK'S OWN ENTRY (WORLD_TICK_DESIGN.md §15c, milestone 1b). It is
@@ -106,17 +97,10 @@ import { withCors } from './cors.js';
    (tests/edge-tick-gate.mjs). Nothing else in this payload may import it. */
 import { tickGate, tickBodyAuthOk, runTick, readTickBytes, parseTickBytes } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
+import { closedAnswer } from './closed-gate.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-/* BESTIARY CHARMS, PHASE 1 — DISPLAY ONLY. `killsByClass` is the ONLY thing
-   imported: it folds hr_bestiary_of's per-monster counters into per-CLASS totals
-   through `classOfMonster`, so the client is handed eleven numbers instead of a
-   roster-sized map and the class taxonomy is resolved in the one place that
-   reconciles its spellings. The rank ladder and the two multiplier functions are
-   NOT imported here — nothing on the server prices a charm in this build, and an
-   unused import would be the first step toward one being read by accident. */
-import { killsByClass } from '../../../src/core/charms.js';
 
 /* ── The connection. MODULE SCOPE, so a warm invocation reuses it. ──────────
    Creating the pool per request would defeat the whole point of using the
@@ -386,29 +370,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         return await tx.unsafe(text, params as any[]);
       }) as unknown as Record<string, any>[];
 
-    /* ── INVARIANT 8, AT THE DOOR (M8 S2) ──────────────────────────────────
-       BEFORE THE DISPATCH AND BEFORE ANY KEY IS DERIVED (§18.3). For the life
-       of a party hunt the party watermark IS the member's watermark, and
-       `hr_party_tick_settle` is the only writer of either — so a partied
-       character's own `accrue` is refused `party_settle_required` and every
-       `collectsFirst` verb `party_hunt_running`. The quantity being fenced is
-       the INSTANT of an ordinary client intent, which would otherwise re-price
-       a window three other players are paid from: CLAUDE.md §1's target
-       property failing by timing rather than by number (§18.4 T-5b).
-
-       ONE call site, not eight — see supabase/functions/hr-accrue/party-fence
-       .js for why, and for why it fails closed. It costs a read only for a verb
-       it could actually refuse. */
-    /* A SETTLE-BEFORE-MUTATE verb on a partied character is not refused: it
-       proceeds WITHOUT its settle, because the party already prices that window
-       (party-fence.js, "the second class"). The flag is the fence's answer,
-       never a request field. */
-    let partyOwnsWindow = false;
-    {
-      const fence = await partyIntentFence({ exec, user, slot, verb: intent.verb });
-      if (fence && fence.partyOwnsWindow === true) partyOwnsWindow = true;
-      else if (fence) return json(fence.body, fence.status);
-    }
+    /* ── THE CLOSED-MODE ANSWER (Security, closed-mode review item 4) ────────
+       Every verb's answer leaves through here. A rate-gate refusal is asked
+       once more, in ./closed-gate.js, whether the account is admitted at all:
+       a non-admitted caller hears 403 `closed` (journalled server-side), never
+       429 `rate_limited`. Any other answer passes untouched, unpriced. */
+    const reply = async (body: unknown, status = 200): Promise<Response> => {
+      const out = await closedAnswer({ exec, user, slot, verb: intent.verb, status, body });
+      return json(out.body, out.status);
+    };
 
     /* ── VERB DISPATCH ─────────────────────────────────────────────────────
        Each intent is its own pure ESM module behind `exec`, so the bytes a Node
@@ -422,7 +392,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         activity: intent.activity,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE EQUIP VERB (b366) ─────────────────────────────────────────────
@@ -439,23 +409,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         equip: intent.equip,
       });
-      return json(out.body, out.status);
-    }
-
-    /* ── THE ENCHANT VERB (ELEMENTS v1) — a clone of equip ──────────────────
-       A SLOT NAME and a RUNE NAME, and nothing else. No element (it is
-       `hr_runes[rune]`, server-side), no magnitude, no success bit. If an
-       `element`, `power`, `magnitude` or `success` ever appears in this
-       argument list, the enchant is forgeable from devtools. */
-    if (intent.verb === 'enchant') {
-      const out = await runEnchant({
-        exec,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        enchant: intent.enchant,
-      });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ───────────────────
@@ -473,14 +427,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'eat') {
       const out = await runEat({
         exec,
-        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
         item: intent.item,
         auto: intent.auto,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE GOLD VERBS (b351) ─────────────────────────────────────────────
@@ -498,27 +451,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'shop_buy') {
       const out = await runShopBuy({
         exec,
-        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
         offer: intent.offer,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'vendor_sell') {
       const out = await runVendorSell({
         exec,
-        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
         item: intent.item,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* b564 — THE BULK SALE. `lines` is a list of NAMES and COUNTS built field
@@ -527,30 +478,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'vendor_sell_many') {
       const out = await runVendorSellMany({
         exec,
-        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
         lines: intent.lines,
       });
-      return json(out.body, out.status);
-    }
-
-    /* b349 — THE GRANT INTENT. Same shape as the lines above it and that is the
-       point: index.ts stays five things (prove who is asking, spend the budget,
-       read, compute, commit) and every intent is a pure ESM module a Node test
-       can drive. Note what is NOT forwarded — there is no period and no amount
-       to forward, because request.js has no reader for either. */
-    if (intent.verb === 'claim_reward') {
-      const out = await runClaimReward({
-        exec,
-        partyOwnsWindow,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        reward: intent.reward,
-      });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* b354 — THE UNLOCK PURCHASE. It forwards LESS than shop_buy does: no
@@ -562,52 +495,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'unlock_buy') {
       const out = await runUnlockBuy({
         exec,
-        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
         offer: intent.offer,
       });
-      return json(out.body, out.status);
-    }
-
-    /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2). Same three lines
-       the others get. It forwards a DUNGEON object {id, mode, quality} and
-       nothing else — no loot, no scrip, no key. hr_dungeon_settle reads the loot
-       table, the scrip base and the entry key from the client-unwritable
-       catalogue and the caller's own inventory; p_quality is clamped to [0,1] and
-       scales SELF-ONLY scrip. Like unlock_buy, its commit point is not hr_apply
-       (a dedicated RPC), because a scrip credit + loot roll + key debit is one
-       transaction with its own re-validation. */
-    if (intent.verb === 'dungeon_settle') {
-      const out = await runDungeonSettle({
-        exec,
-        partyOwnsWindow,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        dungeon: intent.dungeon,
-      });
-      return json(out.body, out.status);
-    }
-
-    /* ── THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3). Same
-       three lines. It forwards ONE offer id (`qm.<item>`) and nothing else — no
-       item, no price, no scrip amount. hr_quartermaster_buy reads the price + the
-       item from the client-unwritable hr_qm_offers, debits scrip and grants the
-       item in one transaction. Like unlock_buy / dungeon_settle its commit point is
-       a dedicated RPC, not hr_apply — a scrip debit + item grant is one atomic
-       trade with its own re-validation (the b372 half-undo, closed). */
-    if (intent.verb === 'quartermaster_buy') {
-      const out = await runQuartermasterBuy({
-        exec,
-        partyOwnsWindow,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        offer: intent.offer,
-      });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). Same three
@@ -630,7 +523,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         trophy: intent.trophy,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT CROSSES BETWEEN TWO
@@ -648,7 +541,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'market_list') {
       const out = await runMarketList({
         exec,
-        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -656,32 +548,49 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         qty: intent.qty,
         ask: intent.ask,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'market_cancel') {
       const out = await runMarketCancel({
         exec,
-        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
         listing: intent.listing,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'market_buy') {
       const out = await runMarketBuy({
         exec,
-        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
         listing: intent.listing,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
+    }
+
+    /* ── THE HUNT VERBS (lane C2) ───────────────────────────────────────────
+       `hunt_settle` ("bring my hunt up to date") and `hunt_use` (press an
+       action-bar slot). The request carries the slot and, for a press, a
+       BAR-SLOT INDEX — nothing else: no time, no HP, no count, no item. Both
+       run the ONE hunt settle (./hunt-settle.js) the world tick runs, through
+       hr_hunt_apply. */
+    if (intent.verb === 'hunt_settle' || intent.verb === 'hunt_use') {
+      const out = await runHuntVerb({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        verb: intent.verb,
+        bucket: rateBucketFor(intent.verb),
+        intentId: intent.intentId,
+        barSlot: intent.barSlot,
+      });
+      return await reply(out.body, out.status);
     }
 
     // ── READ. One transaction, engine role, rate gate FIRST. ───────────────
@@ -776,6 +685,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         trophyRows = null;
       }
+      /* IS A HUNT OPEN? (lane C2). Its own savepoint, the trophy read's rule:
+         a database without 2026-10-22-hunt-sessions-settle.sql answers 42883
+         and that reads as "no hunt", never as a failed accrual. The engine is
+         then told `huntOpen` and answers `hunt_open` — the session owns its
+         window and only the hunt settle prices it. */
+      let huntOpen = false;
+      try {
+        const h = await tx.savepoint((sp: typeof tx) => sp.unsafe(HUNT_OPEN_SQL, [user, slot])) as unknown as Row[];
+        huntOpen = typeof h?.[0]?.session === 'string';
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        huntOpen = false;
+      }
       /* THE SERVER'S COLLECTION COUNT (Ledger of Firsts, 2026-09-27). The
          number of DISTINCT combat drops hr_claim_milestone verifies the items
          rungs against — `count(*)` over hr_collection_of, the exact read that
@@ -799,37 +721,20 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         collectionFound = null;
       }
       return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows,
-        collection_found: collectionFound } as Row;
+        collection_found: collectionFound, hunt_open: huntOpen } as Row;
     });
 
-    if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
+    if (read?.limited) return await reply({ ok: false, error: 'rate_limited' }, 429);
 
     const env = read?.state as Record<string, any> | null;
     if (!env || env.ok !== true) {
       return json({ ok: false, error: (env && env.error) || 'no_character' }, 409);
     }
 
-    /* ── THE BESTIARY CHARM BLOCK (charms phase 1 — DISPLAY ONLY) ──────────
-       Per-monster counters in, per-CLASS totals out, folded by
-       src/core/charms.js `killsByClass` through `classOfMonster` — the one
-       function that reconciles the two live spellings of the eleventh class
-       (`extradimensional` on the roster row, `extra_dimensional` in the bane
-       taxonomy). The client is therefore handed at most ELEVEN numbers rather
-       than a roster-sized map, and it never has to know the taxonomy.
-
-       ⚠ IT SHIPS AS ITS OWN TOP-LEVEL BLOCK, NOT INSIDE `state`. `state` is
-         hr_state_of's projection and the client applies it as authority field
-         by field; this is a DERIVED read that rides along, exactly like
-         `away`. Putting it inside `state` would make it look like a column.
-
-       ⚠ NO RANK IS COMPUTED HERE, and none is stored anywhere. The rank is
-         derived from these counters on every read (src/core/charms.js
-         `charmIndex`), which is the Game Designer's 2026-09-13 ruling and the
-         reason this feature needs no migration and no save field.
-
-       `null` when the projection is absent (a database without
-       2026-08-20-bestiary.sql) — the key is then OMITTED from every response,
-       and the client's fail-safe is rank 0. Absence is never a claim. */
+    /* ── THE BESTIARY BLOCK (display): per-monster kill counters and the
+       CLAIMED trophy rows. The charm fold left with the charms (closed
+       rebuild); the counters no longer price anything. `null` when the
+       projection is absent — the key is then OMITTED. */
     const bestiaryRows = Array.isArray((read as Record<string, unknown>)?.bestiary_rows)
       ? (read as Record<string, unknown>).bestiary_rows as Row[]
       : null;
@@ -837,20 +742,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       ? (read as Record<string, unknown>).trophy_rows as Row[]
       : null;
     let bestiary: {
-      kills_by_class: Record<string, number>;
       kills_by_monster: Record<string, number>;
       /* OPTIONAL, and the `?` is the type-level half of Security F3: a required
          field is a field the emit site cannot leave out, and this one MUST be
          left out when hr_trophy_of did not answer. See the emit below. */
       trophies?: Array<{ monster: string; stage: number }>;
     } | null = null;
-    /* THE SAME ROWS, HANDED TO THE ENGINE RAW (charms phase 2). The engine does
-       its OWN fold (accrual.js `killsByClass` → `charmIndex`) rather than reading
-       `kills_by_class` back: that block is a display projection, and an engine
-       that priced a drop table off a presentation shape would make the wire
-       load-bearing. `null` when the projection is absent ⇒ no charm ⇒ the
-       pre-charm numbers. Nothing here is request-derived. */
-    let bestiaryKills: Record<string, number> | null = null;
     if (bestiaryRows) {
       const byId: Record<string, number> = {};
       for (const r of bestiaryRows) {
@@ -858,10 +755,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         const n = Number(r?.kills ?? 0);
         if (id && n > 0) byId[id] = n;
       }
-      /* Spread into a PLAIN object: killsByClass returns a null-prototype map
-         (its keys are data-derived lookup keys) and the wire wants an ordinary
-         JSON object. `{}` when nothing has been killed yet — a truthful empty
-         bestiary, distinct from the absent key above. */
       /* ⚠ `kills_by_monster` RIDES THE SAME BLOCK, AND IT IS NOT REDUNDANT WITH
          `kills_by_class`. The TROPHY ladder is per monster: its badge, and the
          "8,120 more to Slayer" line that is the whole retention affordance,
@@ -901,11 +794,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (mid && Number.isFinite(st) && st > 0) claimed.push({ monster: mid, stage: Math.floor(st) });
       }
       bestiary = {
-        kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) },
         kills_by_monster: { ...byId },
         ...(trophyRows ? { trophies: claimed } : {}),
       };
-      bestiaryKills = byId;
     }
 
     /* THE COLLECTION BLOCK — `{ found }`, the server's distinct combat-drop
@@ -947,77 +838,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     //   restores the "safe in either order" property the tool-carry column has
     //   by construction. Any other error still propagates: a swallowed error
     //   is how a guard reports SKIPPED and gets read as a pass.
-    /* ⚠ `hr_attended_kills` RIDES THIS TRANSACTION, NOT A THIRD ONE, and that is
-       the §2a-ii connection rule rather than a micro-optimisation: `max_connections`
-       is 60, an accrual already costs two pooled transactions, and a third would be
-       a 50% increase in the resource that fails TOTALLY (nobody connects, dashboard
-       included). It is also why it is here and not in the READ transaction above:
-       a missing FUNCTION is a hard 42883 that aborts its whole transaction, and
-       aborting the read would 500 every accrual on a database that has not applied
-       the migration. This transaction already owns that degrade.
-       THE LADDER IS THREE RUNGS, not two, because the two absences are
-       INDEPENDENT — a database can have `hr_perks_of` and not `hr_attended_kills`
-       (the ordinary case the day this ships), and collapsing them into one
-       fallback would silently drop the perk channel on every such database and
-       under-pay every bonus in the game. Each rung drops exactly one capability
-       and the previous rung's absence is remembered. */
-    /* ⚠ THE THREE QUERIES ARE WRITTEN OUT, NOT COMPOSED FROM A SHARED FRAGMENT.
-       `postgres`'s nested-fragment support would let the two seed columns be
-       factored out, but a fragment built by calling the tagged template eagerly
-       is a pending query object, and getting that subtlety wrong here does not
-       fail loudly — it fails as "every accrual 500s". Three literals cost eight
-       duplicated lines and cannot be wrong. */
-    /* SECURITY CONDITION C6 — THE UPPER EDGE OF THE ATTENDED WINDOW, AND IT IS
-       THE WATERMARK, TO THE MILLISECOND.
-       `hr_attended_kills` runs in the SEED transaction, which starts strictly
-       AFTER the state transaction whose `now()` this settle will advance
-       `accrued_to` to. A window bounded only below by `accrued_to` therefore
-       projects any credit row committed in that gap — the settle pays it, and
-       the next settle projects it AGAIN, because it is still newer than the
-       watermark. `(accrued_to, now]` is the ONLY double-pay guard this design
-       has, so the two ends must name the same instant.
-       ⚠ IT IS `new Date(nowMs).toISOString()`, NOT `read.now`, DELIBERATELY.
-         `read.now` carries Postgres's MICROSECONDS, so passing the raw value
-         would leave a sub-millisecond band above this bound that no window
-         covers. Deriving the bound from `nowMs` — the same integer the delta's
-         watermark is derived from — makes the two commensurable by construction
-         rather than by rounding luck.
-       ⚠ AND THE WATERMARK IS NO LONGER ALWAYS THIS INSTANT (2026-09-16). An
-         uncapped window now stamps `accrued_to` at `nowMs` MINUS the sub-tick
-         remainder the simulation did not spend, so the half-wound swing is
-         deferred instead of destroyed (accrual.js `settledWatermarkMs`). That
-         would re-open the band `(accrued_to, nowMs]` to a SECOND projection of
-         a row this settle already ate — so the same function FLOORS the
-         watermark at `attended.to`, the newest row it actually consumed. C6's
-         property is unchanged and is now stated where it can be executed: a
-         credit row is inside exactly one window. Rows stamped after this read
-         carry `created_at > nowMs` and are picked up by the next settle, which
-         is what they were always for.
-       ⚠ AND IT IS A SERVER VALUE. `nowMs` is `new Date(read.now).getTime()` —
-         Postgres's own clock, read in this call. Nothing in the request body
-         reaches it. The function clamps it with `least(p_upto, now())` anyway,
-         so the worst a wrong value could ever do is pay LESS. */
-    const attendedUpto = new Date(nowMs).toISOString();
-    const seedSql = (withPerks: boolean, withAttended: boolean) => sql.begin(async (tx) => {
+    /* THE TWO-RUNG LADDER: with the perk channel, then without it (a database
+       that predates hr_perks_of). The attended-kill rung is gone with the
+       attended top-up (lane C2). Only 42883 degrades; anything else propagates.
+       The two queries are written out, not composed from a shared fragment —
+       a fragment built by calling the tagged template eagerly is a pending
+       query object, and getting that wrong fails as "every accrual 500s". */
+    const seedSql = (withPerks: boolean) => sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
       await markSelf(tx);
-      const [r] = (withPerks && withAttended)
+      const [r] = withPerks
         ? await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
                               ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
-               public.hr_perks_of(${user}::uuid, ${slot}::int) as perks,
-               public.hr_attended_kills(${user}::uuid, ${slot}::int,
-                                        ${attendedUpto}::timestamptz) as attended`
-        : withPerks
-          ? await tx`
-        select (public.hr_seed(${user}::uuid, ${slot}::int,
-                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
-               public.hr_seed(${user}::uuid, ${slot}::int,
-                              ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
                public.hr_perks_of(${user}::uuid, ${slot}::int) as perks`
-          : await tx`
+        : await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
@@ -1026,39 +863,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     });
     let seedRow: Row;
     let perkChannel = 'live';
-    let attendedChannel = 'live';
     try {
-      seedRow = await seedSql(true, true) as Row;
+      seedRow = await seedSql(true) as Row;
     } catch (e) {
       if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
-      /* One of the two is absent. Try WITHOUT the newer one first, so the common
-         case — a database that has perks and not yet the attended read — keeps
-         its perk channel. Only if that ALSO 42883s is the perk channel absent. */
-      attendedChannel = 'absent';
-      try {
-        seedRow = await seedSql(true, false) as Row;
-      } catch (e2) {
-        if (String((e2 as { code?: string } | null)?.code ?? '') !== '42883') throw e2;
-        // This database predates the perk channel. Pay what yesterday paid.
-        perkChannel = 'absent';
-        seedRow = await seedSql(false, false) as Row;
-      }
+      // This database predates the perk channel. Pay what yesterday paid.
+      perkChannel = 'absent';
+      seedRow = await seedSql(false) as Row;
     }
     const salt = String(seedRow?.salt ?? '');
     /* `ok !== true` covers both "no character" and a future refusing shape.
        null → EMPTY_PERKS in the engine → 0 for every key → today's behaviour. */
     const perkEnv = seedRow?.perks as Record<string, unknown> | null;
     const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
-    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). Every value
-       in it was written by hr_credit_kills into hr_kill_credit_log — a table no
-       client role may write, holding counts that verb already clamped to a
-       physical maximum against the SERVER clock. `null` on `ok !== true` and on
-       an absent function, which the engine reads as "propose nothing new".
-       ⚠ NOTHING HERE COMES FROM THE REQUEST BODY. The request carries no kill
-         count, no monster and no window; `slot` is the only client-chosen value
-         in the whole call and it selects a row the caller already owns. */
-    const attendedEnv = seedRow?.attended as Record<string, unknown> | null;
-    const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     /* ⚠ THE ENVELOPE'S OWN FIELDS ARE NOT LISTED HERE ANY MORE (2026-09-22).
@@ -1082,16 +899,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        "a smaller proposal" means is a game rule and this file holds none (see
        the header). */
     const runAccrual = (step: {
-      capMs: number; actionBudget: number | null; attended: Record<string, unknown> | null;
+      capMs: number; actionBudget: number | null;
     }) => computeAccrual({
       userId: user,
       slot,
       nowMs,
       /* EVERY FIELD `hr_state_of` OWNS, IN ONE PLACE: the pointer, the two
-         watermarks, hp/max_hp/gold, skills/inventory/equipment, enchant, buffs,
-         the auto-eat settings, tool_carry / ammo_carry / fight, the recovery
-         line, the retreat counter, the two death anchors, hearthfind_ready and
-         combat_style. Not one of them is request-derived — the envelope is the
+         watermarks, hp/max_hp/gold, skills/inventory/equipment, buffs,
+         tool_carry / ammo_carry / fight, the recovery line, the two death
+         anchors, hearthfind_ready and combat_style. Not one of them is request-derived — the envelope is the
          projection the row hr_apply locks is read through. */
       ...engineInputsFromEnvelope(env, nowMs),
       capMs: step.capMs,
@@ -1129,25 +945,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          the two literals to carry the same field set, and a field present on
          only one side is exactly the drift A14 exists to catch. */
       callerAuthority: CALLER_AUTHORITY,
-      /* THE ATTENDED TOP-UP'S INPUT, AND IT COMES OFF `step`, NOT OFF THE CLOSURE.
-         `degradeStep` returns `attended: null` on every rung, so a degraded
-         attempt proposes strictly less. Reading `attendedIn` directly here would
-         INVERT the ladder: halving the span cuts `summary.kills`, which GROWS
-         `min(attended, cap) - summary.kills`, so the "smaller" proposal would be
-         bigger, earn the same rejection three times and forfeit the night. The
-         value flows through the same knob object every other ladder-varied input
-         does, for exactly that reason. */
-      attended: step.attended,
+      /* A HUNT IS OPEN (lane C2): the engine answers `hunt_open` and prices
+         nothing — the session owns this window. Read in the state transaction
+         above. Mirrors set-activity.js field for field (A14). */
+      huntOpen: (read as Record<string, unknown>)?.hunt_open === true,
       seed: Number(seedRow?.seed) || 0,
-      /* THE BESTIARY COUNTERS (charms phase 2). `hr_bestiary_of`'s rows, read in
-         the state transaction above behind its own savepoint, folded to a charm
-         rank BY THE ENGINE. No client value, no delta key, and null ⇒ no charm.
-         Mirrors set-activity.js field for field (A14). */
-      bestiaryKills,
-      /* THE COMPANION-XP ARM SWITCH (ARMED, b550). A deploy-time constant, NOT
-         a request value. True today → the engine writes the companion_xp op and
-         is its only writer. Mirrors set-activity.js field for field (A14). */
-      companionXpBacked: COMPANION_XP_SERVER_BACKED,
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
          rung, the plot buildings, the property tier. It does NOT come from the
          envelope: `hr_perks_of` is its own read, in the seed transaction.
@@ -1169,7 +971,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       recipes: ARTISAN_RECIPES_ALL,
     });
 
-    let out = runAccrual({ capMs, actionBudget: null, attended: attendedIn });
+    let out = runAccrual({ capMs, actionBudget: null });
 
     /* ── THE PARALLEL WORKER SETTLE (worker-settlement slice) ───────────────
        Hired-crew production is a CONTINUOUS activity that runs ALONGSIDE the
@@ -1276,6 +1078,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       mergeRested(mergeWorkers(delta));
 
     if (!out.accrued) {
+      /* ── A HUNTER'S ACCRUE (lane C2) ───────────────────────────────────────
+         The engine answered SKIP.HUNT_OPEN: the session owns the pointer's
+         window. The crew and rested settle below run EXACTLY as for any idle
+         pointer (their own watermarks, their own apply), and THEN the hunt is
+         settled through the one hunt settle (./hunt-settle.js, a fresh read,
+         so the version the aux apply moved is not stale). That is what keeps
+         the shipped client's `settle_first` recovery — "run accrue, retry" —
+         working for a hunter, and why a hunter's crew never stops banking. */
+      const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
+      const respond = async (auxOut: Record<string, any>): Promise<Response> => {
+        if (!huntOpenHere) return json(auxOut);
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true });
+        if (hv.status !== 200) {
+          return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
+        }
+        return json({ ...auxOut, ...hv.body, ok: true,
+          accrued: hv.outcome === 'paid' || auxOut.accrued === true,
+          reason: hv.outcome === 'paid' ? null : (hv.reason ?? auxOut.reason ?? null) });
+      };
       // The pointer owes nothing. If the CREW and/or the RESTED bank owe
       // something, settle whichever do in ONE hr_apply call — the watermarks that
       // advance are workers_accrued_to and/or rested_at, NEVER accrued_to (so the
@@ -1353,14 +1174,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
             windowTo: nowMs,
             tickMs: 0,
             perkChannel: 'n/a',
-            kills: 0,
-            crits: 0,
-            died: false,
             foodEaten: 0,
-            blessed: false,
-            buffsPaused: false,
-            featuredMs: 0,
-            featuredDropMult: 1,
             gold: 0,
             xp: {},
             items: wout.accrued ? wout.items : {},
@@ -1378,7 +1192,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
              (QA 0a47ba77, live). The crew haul is already surfaced on
              `away.items`; the summary is telemetry only, so it moves to a
              non-colliding key and the roster survives. */
-          return json({ ok: true, accrued: true, ...wr, away,
+          return await respond({ ok: true, accrued: true, ...wr, away,
             ...(bestiary ? { bestiary } : {}),
             ...(collection ? { collection } : {}),
             ...(wout.accrued ? { workerSummary: wout.summary } : {}),
@@ -1405,7 +1219,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          (applyEnvelopeState) never runs on it, so anything carried only by the
          accrued path would be invisible to exactly the player who opens the
          Bestiary after a reload. Nothing is minted here; it is a read. */
-      return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
+      return await respond({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
         ...(bestiary ? { bestiary } : {}),
         ...(collection ? { collection } : {}),
         ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
@@ -1452,61 +1266,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    /* ── THE CARD IS NEVER WORTH THE NIGHT (F2, security 2026-09-07) ─────────
-       `bad_receipt` is deliberately NOT in DEGRADABLE and that is right —
-       shortening a span cannot repair a malformed object. But it left the whole
-       absence hostage to the card: hr_apply refuses the DELTA, not the key, and
-       `bad_receipt` is not a clamp, so the degrade ladder is never entered. One
-       receipt the database disagrees with — a builder field `c_receipt_keys` has
-       not learnt yet, a bound the two sides read differently, an `at` outside the
-       clock slack — would 409 EVERY away settle for EVERY player until a
-       redeploy, watermark frozen and night unpaid, over a Home card.
+    const apply = (delta: unknown, attempt: number) => applyOnce(delta, attempt);
 
-       So a refusal of the receipt now costs the RECEIPT and nothing else: the
-       single writer retries the SAME delta once with the key DELETED. Placed
-       here rather than at the two call sites because this is the one function
-       that talks to hr_apply — a future apply site inherits the rescue instead
-       of re-learning this lesson.
-
-       ⚠ The retry carries its own `attempt` number, so `intentIdFor` derives a
-         DIFFERENT key: this is a fresh apply, never a replay of the rejected
-         one. `RECEIPT_RETRY_BASE` is past both the degrade rungs (1..MAX_DEGRADE)
-         and the forfeit (MAX_DEGRADE + 1), so no two paths can collide on a key.
-       ⚠ Retried ONCE, and only when the delta ACTUALLY CARRIED a receipt. A
-         `bad_receipt` on a delta with no receipt in it is a different defect and
-         must not be masked by a retry that changes nothing.
-       ⚠ hr_apply has already journalled the refusal (hr_record_rejection) and
-         `receiptRejected` puts it on the response, so "the card is missing" and
-         "the engine and the database disagree about the receipt shape" are never
-         the same observation from outside. Pay the player, then tell them. */
-    const RECEIPT_RETRY_BASE = MAX_DEGRADE + 2;
-    let receiptRejected: string | null = null;
-    const apply = async (delta: unknown, attempt: number) => {
-      const r = await applyOnce(delta, attempt);
-      const rescued = receiptRescue(r, delta);
-      if (!rescued) return r;
-      receiptRejected = String((r as Row).why ?? 'refused');
-      console.warn('[hr-accrue] hr_apply refused the away receipt (' + receiptRejected
-        + ') — retrying the same delta WITHOUT it so the night is still paid');
-      return await applyOnce(rescued, RECEIPT_RETRY_BASE + attempt);
-    };
-
-    /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ──────────────
-       A receipt the server PAID is progression, not preference. Built by
-       ./away-receipt.js — plain ESM so tests/away-receipt-journal.mjs grades THE
-       SHIPPED FUNCTION rather than a transcription of it, which is the only way
-       a guard on a Deno TypeScript shell can bite.
-
-       ⚠ RECOMPUTED ON EVERY DEGRADE ATTEMPT, never computed once. The clamp
-         ladder HALVES the span, and a halved span can fall under SYNC_MAX_MS —
-         at which point hr_apply would answer `bad_receipt` and 409 the WHOLE
-         absence over a card. Recomputed, the receipt is simply the first thing
-         dropped: pay the player, then tell them, in that order.
-
-       ⚠ Composed OUTSIDE mergeAux deliberately. mergeAux is the crew + rested
-         bank and also rides the POINTER-IDLE settle above, which has no span and
-         must never carry a receipt. */
-    let res = await apply(withAwayReceipt(mergeAux(out.delta), out), 0);
+    let res = await apply(mergeAux(out.delta), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1527,11 +1289,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       degraded = { from: String(res.error), ...step.report };
       const next = runAccrual(step);
       if (!next.accrued) break;
-      /* `degradeStep` drops the attended top-up on every rung (accrual.js states
-         why: keeping it would make each "smaller" proposal BIGGER). Say so on
-         the receipt, or "the loot did not top up" and "the migration is not
-         applied" become the same observation from outside. */
-      attendedChannel = 'degraded';
       /* THE RUNG MUST ACTUALLY BE SMALLER. A step that proposes the same work
          as the attempt that was just rejected would earn the same rejection and
          burn a rung for nothing — three of those and the night is forfeited.
@@ -1540,7 +1297,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(withAwayReceipt(mergeAux(out.delta), out), attempt);
+      res = await apply(mergeAux(out.delta), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {
@@ -1609,7 +1366,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       )),
       // The welcome-back payload, stated by the simulation so no renderer can
       // invent a bonus that was not applied (the away ruling's "player-facing
-      // honesty" clause). featuredDropMult included — b326.
+      // honesty" clause).
       away: {
         grantMs: out.grantMs,
         capped: out.capped,
@@ -1635,62 +1392,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            nothing because nothing is unlocked" from "deployed against a
            database with no perk channel" from the outside. */
         perkChannel,
-        /* The same question for the attended kill ledger, reported for the same
-           reason: 'live' when hr_attended_kills answered, 'absent' when this
-           database has not applied 2026-09-10-attended-loot-credit.sql,
-           'degraded' when the clamp ladder ran (which drops the top-up by
-           design — see degradeStep). Without it, "the
-           loot is still snapping down" and "the migration is not applied yet"
-           are indistinguishable from outside, which is exactly how the bounty
-           hang survived a verification pass. */
-        attendedChannel,
-        /* ⚠ `attendedKills` / `attendedTopUp` / `attendedCap` ARE DELIBERATELY
-           NOT HERE (Security condition C2 on the F1 sign-off, 2026-09-04). All
-           four numbers ARE journalled — `meta.att = {claimed, cap, sim, top}` —
-           and that is where the watches read them, on a table no client can
-           select. Putting them on the RECEIPT hands the forger the detector's
-           own calibration: `cap` is the exact threshold Watch B's
-           `rows_at_the_cap` keys on, `claimed`/`sim` is the ratio its
-           `median_claim_over_sim` line keys on, and a forger who can read its
-           own `cap` each settle can sit one unit under every per-settle line
-           forever. Nothing in src/ ever read them (grepped: zero consumers), so
-           this costs the client nothing.
-           `attendedChannel` STAYS: it is a deployment fact, not a calibration —
-           'live' / 'absent' / 'degraded' says whether the ledger answered, which
-           is the only way to tell "the loot is still snapping down" from "the
-           migration is not applied yet" from outside. It names no number.
-           DO NOT re-add the three "for the welcome-back card": the card states
-           what was PAID (gold, items, kills), and the top-up is already inside
-           those totals — that is the entire point of §3.5. */
-        /* ── DID THE STORED RECEIPT LAND? (F2) ───────────────────────────────
-           OMITTED ENTIRELY on the ordinary path, present with hr_apply's own
-           `why` when the receipt was REFUSED and the delta was re-applied
-           without it. It is a deployment fact of the same family as
-           `perkChannel` / `attendedChannel` and it names no number: without it,
-           "this night was paid but the Home card is empty after a reload" and
-           "the engine and the database disagree about the receipt shape" are
-           the same observation from outside, which is exactly how a
-           disagreement about a jsonb key would survive a verification pass. */
-        ...(receiptRejected ? { receiptRefused: receiptRejected } : {}),
-        kills: out.summary.kills,
-        crits: out.summary.crits,
-        died: out.summary.died,
-        /* WHAT KILLED THEM, and WHY NOTHING HEALED THEM. Both are the same
-           sentence on the return receipt — *"You died to Ancient Bear —
-           auto-eat was off, so nothing healed you"* — and neither may be
-           inferred (b341's standard, restated by ruling 2b, 2026-08-31).
-
-           `diedTo` was missing outright: the client's `summaryFromAway` had no
-           foe to name, so a server-stated death rendered "You died" with a
-           blank where the monster goes. `autoEat` is the state the ENGINE ran
-           this span with (accrual.js states it off `eatCfg`), not the client's
-           current toggle, which is a different instant.
-
-           Both are self-configuring on the way down: a client reading a
-           receipt from an older deployment finds them absent, says nothing,
-           and never guesses. */
-        diedTo: out.summary.diedTo ?? null,
-        autoEat: out.summary.autoEat,
         // How much food the night ate. The welcome-back card has to be able to
         // say it: a player who returns to an empty Cooked Shark stack and no
         // explanation files a bug, and the honest answer is "it kept you alive
@@ -1726,65 +1427,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         stoppedSkill: typeof out.summary.stoppedSkill === 'string' && out.summary.stoppedSkill
           ? out.summary.stoppedSkill : null,
         stoppedPerHour: Math.max(0, Math.floor(Number(out.summary.stoppedPerHour) || 0)),
-        /* ── THE RECOVERY ROWS (Recovery Rule rev.2) ────────────────────────
-           Stated by `src/core/combat-sim.js` (:723-:737) and read by
-           `summaryFromAway` since b341 — but never sent, so the headline
-           first-night mechanic rendered as "0 deaths" on every server-stated
-           receipt and a night that ended four falls in looked identical to one
-           that ran clean. `recoverLadder` is the ladder AS CHARGED, one entry
-           per fall, and is sent verbatim because a card that regenerated the
-           doubling from a count would be wrong (and harsher than the truth) on
-           every night that met the novice clamp or the 64-minute cap. It is
-           bounded by the same death cap the simulation is (~20 entries on the
-           worst night), so it cannot grow the receipt without bound. */
-        deaths: Math.max(0, Math.floor(Number(out.summary.deaths) || 0)),
-        recoverMs: Math.max(0, Math.floor(Number(out.summary.recoverMs) || 0)),
-        recoverRemainingMs: Math.max(0, Math.floor(Number(out.summary.recoverRemainingMs) || 0)),
-        recoverLadder: Array.isArray(out.summary.recoverLadder)
-          ? out.summary.recoverLadder.map((v: any) => Math.max(0, Math.floor(Number(v) || 0)))
-          : [],
-        /* ── THE RETREAT ROWS (Recovery Rule rev. 3) ────────────────────────
-           `stoppedBy` above already carries 'retreat' — these three are what
-           turn it into a sentence, and every one of them is STATED by
-           src/core/combat-sim.js rather than inferred here:
-             retreatMs        ms INTO the credited window at which the hero
-                              pulled back. `null` (never 0) when there was no
-                              retreat, because ZERO means "on the very first
-                              tick" and a renderer testing truthiness would
-                              report the worst possible night as a good one —
-                              the same trap `dryMs` carries.
-             retreatFoodless  was the bag empty AT THAT FALL? It decides WHICH
-                              of the two ruled sentences the player reads
-                              ("bring provisions" vs "out of your league"), and
-                              it is NOT `autoEat.hadFood`, which is a
-                              window-OPEN snapshot and belongs to a different
-                              sentence.
-             retreatFalls     the consecutive-fall count that tripped it, so the
-                              copy cannot promise a rung the table no longer
-                              charges.
-           `idleMs` rides with them: the slice of the credited window that paid
-           NOTHING because the hero had already gone home. Without it the card
-           has to subtract two numbers whose flooring it does not own, which is
-           exactly the inference b341 forbids. */
-        retreatMs: (out.summary.stoppedBy === 'retreat'
-                    && Number.isFinite(Number(out.summary.retreatMs)))
-          ? Math.max(0, Math.floor(Number(out.summary.retreatMs))) : null,
-        retreatFoodless: !!out.summary.retreatFoodless,
-        retreatFalls: Math.max(0, Math.floor(Number(out.summary.retreatFalls) || 0)),
-        idleMs: Math.max(0, Math.floor(Number(out.summary.idleMs) || 0)),
-        blessed: out.summary.blessed,
-        buffsPaused: out.summary.buffsPaused,
-        featuredMs: out.summary.featuredMs,
-        featuredDropMult: out.summary.featuredDropMult,
-        /* THE BESTIARY CHARM THIS NIGHT WAS PRICED WITH (phase 2). Stated by the
-           simulation, for the same reason `featuredDropMult` is: the card may
-           not imply a bonus that was not applied, and it may not leave one
-           unnamed either — a paid multiplier no receipt mentions is a number the
-           player has to take on trust (Security review 2026-09-13, item 6).
-           null / 1 on an unstudied class, which prints nothing. */
-        charmClass: out.summary.charmClass ?? null,
-        charmRank: Math.max(0, Math.floor(Number(out.summary.charmRank) || 0)),
-        charmDropMult: out.summary.charmDropMult ?? 1,
         gold: out.summary.gold,
         xp: out.summary.xp,
         items: out.summary.items,

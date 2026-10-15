@@ -1,0 +1,331 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   prototypes/world-shell/shell.css — the proposed shell (docs/design/WORLD_SHELL.md).
+   Tokens only (src/styles/tokens.css, hearthlight + Charcoal & Gold): not one
+   colour literal in this file. Radii are the --r ladder; type is the --t scale.
+   Phone = the canonical query (CLAUDE.md §7), treated as a scaled desktop with
+   one side sheet instead of docked windows.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html, body { margin: 0; height: 100%; background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-body); }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+.ws-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.ws-glyph { width: 22px; height: 22px; fill: currentColor; flex: none; }
+.ws-px { width: 64px; height: 64px; image-rendering: pixelated; display: block; }
+
+/* ── Frame: ONE strip over the World, which runs edge to edge (no side rail) ── */
+.ws {
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-rows: 40px 1fr;
+}
+
+.ws-strip {
+  position: relative; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 6px 0 16px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-soft);
+}
+.ws-who { display: flex; align-items: baseline; gap: 12px; }
+.ws-name { font-family: var(--f-display); font-weight: 700; font-size: var(--t-h3); letter-spacing: .04em; color: var(--ink); }
+.ws-level { font-size: var(--t-small); color: var(--ink-2); }
+.ws-right { display: flex; align-items: center; gap: 14px; height: 100%; }
+.ws-gold { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.ws-glyph.is-gold { width: 18px; height: 18px; color: var(--gold); }
+
+/* The launcher row: icons only; label + key in a tooltip on hover/focus; the open window's icon lit gold. */
+.ws-launchers { display: flex; align-items: stretch; height: 100%; padding-left: 10px; border-left: 1px solid var(--line-soft); }
+.ws-launch {
+  position: relative;
+  width: 40px; height: 100%; padding: 0;
+  display: grid; place-items: center;
+  border: 0; background: none; cursor: pointer;
+  color: var(--ink-3);
+}
+.ws-launch .ws-glyph { width: 22px; height: 22px; }
+.ws-launch:hover, .ws-launch:focus-visible { color: var(--ink); }
+.ws-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
+.ws-launch.is-open { color: var(--gold-2); }
+.ws-launch.is-open::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  background: var(--gold);
+}
+.ws-launch::before {
+  content: attr(data-tip) "  " attr(data-key);
+  position: absolute; top: calc(100% + 6px); right: 0;
+  padding: 3px 8px;
+  white-space: pre;
+  font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 700; color: var(--ink);
+  background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-radius: var(--r);
+  opacity: 0; pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+.ws-launch:hover::before, .ws-launch:focus-visible::before { opacity: 1; }
+
+
+/* ── The World fills the centre: no frame, no radius, no title (audit #15) ── */
+#panel-world.ws-world { position: relative; display: block; overflow: hidden; background: var(--world-void); gap: 0; }
+#panel-world .world-chrome { display: none; }
+#panel-world .world-stage { position: absolute; inset: 0; border: 0; border-radius: 0; }
+/* The shipped analyzer/Eat/Leave overlay is replaced by the shell's HUD below. */
+#panel-world .world-hud { display: none; }
+
+/* ── HUD widgets: placed by shell.js from the layout (anchor + offset) ──── */
+.ws-hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.ws-screen-hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+.ws-widget { position: absolute; pointer-events: auto; transition: opacity 120ms ease-out; }
+.ws-widget:hover { opacity: 1 !important; }
+.ws-widget.is-vitals { z-index: 1; }
+/* One widget surface: the HUD glass, a hairline, the --r-lg corner. */
+.ws-target, .ws-ground, .ws-log, .ws-analyzer, .ws-chat, .ws-abar {
+  border-radius: var(--r-lg); background: var(--world-hud-bg); border: 1px solid var(--line-soft);
+}
+.ws-widget h3 { margin: 0 0 4px; font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; color: var(--ink-3); letter-spacing: .04em; }
+
+.ws-launchers { display: flex; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
+
+.ws-vitals { display: flex; gap: 8px; width: 730px; }
+.ws-vital { position: relative; flex: 1; height: 20px; overflow: hidden; border-radius: var(--r-sm); background: var(--world-hud-bg); border: 1px solid var(--line-soft); }
+.ws-vital-fill { position: absolute; inset: 0 auto 0 0; }
+.ws-vital.is-hp .ws-vital-fill { background: var(--world-bar-hero); opacity: .78; }
+.ws-vital.is-mp .ws-vital-fill { background: var(--gem); opacity: .9; }
+.ws-vital-text { position: relative; display: block; text-align: center; font-size: var(--t-micro); line-height: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+.ws-abar { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.ws-arow { display: flex; gap: 4px; }
+.ws-aslot { position: relative; width: 68px; height: 68px; padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge); cursor: pointer; }
+.ws-aslot:hover { box-shadow: var(--surf-sunken-edge), inset 0 0 0 1px var(--line); }
+.ws-akey { position: absolute; left: 3px; top: 1px; font-size: var(--t-micro); line-height: 1; color: var(--ink-2); font-weight: 700; z-index: 1; text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow); }
+
+.ws-target { display: grid; grid-template-columns: auto auto; column-gap: 10px; row-gap: 4px; align-items: baseline; min-width: 220px; padding: 6px 12px 8px; }
+/* The frame names the foe exactly as its world plate does: same face, same case. */
+.ws-target-name { font-family: var(--f-ui); font-weight: 800; font-size: var(--t-body); color: var(--world-plate-foe); }
+.ws-target-lv { justify-self: end; font-size: var(--t-micro); color: var(--ink-3); }
+.ws-target-bar { grid-column: 1 / -1; height: 6px; background: var(--world-bar-back); border-radius: var(--r-sm); overflow: hidden; }
+.ws-target-bar > span { display: block; height: 100%; background: var(--world-bar-foe); }
+
+.ws-ground { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; }
+.ws-ground b { font-family: var(--f-display); font-size: var(--t-h3); color: var(--gold-2); }
+.ws-ground span { font-size: var(--t-micro); color: var(--ink-2); }
+
+.ws-analyzer { width: 230px; padding: 8px 12px; }
+.ws-analyzer h3 { display: flex; justify-content: space-between; }
+.ws-analyzer h3 span { font-family: var(--f-ui); font-weight: 400; color: var(--ink-3); }
+.ws-analyzer dl { margin: 0; }
+.ws-analyzer dl div { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; font-size: var(--t-micro); }
+.ws-analyzer dt { color: var(--ink-2); }
+.ws-analyzer dd { margin: 0; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ws-analyzer dd.is-cost { color: var(--red); }
+.ws-analyzer dd.is-gain { color: var(--green); }
+.ws-analyzer p { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+.ws-log, .ws-chat { width: 260px; padding: 8px 12px; }
+.ws-log ol { margin: 0; padding: 0; list-style: none; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); }
+.ws-log .is-kill { color: var(--ink); }
+.ws-log .is-loot { color: var(--gold-2); }
+.ws-log .is-hurt { color: var(--red); }
+.ws-chat p { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* ── Edit HUD mode: a soft grid over the World, every widget outlined and named ── */
+.ws-edit[hidden] { display: none; }
+.ws-edit-grid {
+  position: fixed; inset: 40px 0 0 0; z-index: 4; pointer-events: none;
+  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+body.is-editing .ws-widget { outline: 1px dashed var(--gold); outline-offset: 3px; cursor: move; opacity: 1; }
+body.is-editing .ws-widget * { cursor: move; }
+body.is-editing .ws-widget.is-dragging { outline-style: solid; }
+.ws-widget-tag {
+  position: absolute; left: 8px; top: 0; transform: translateY(-50%); z-index: 2;
+  padding: 0 6px; white-space: nowrap;
+  font-size: var(--t-micro); font-weight: 700; line-height: 20px;
+  color: var(--bg-0); background: var(--gold); border-radius: var(--r-sm);
+}
+.ws-widget.is-launchers .ws-widget-tag { top: 100%; }
+.ws-widget.is-vitals .ws-widget-tag { left: auto; right: 8px; }
+/* The editor docks right like a window; the HUD re-centres beside it. */
+.ws-edit-panel {
+  position: fixed; z-index: 7; right: 12px; top: 52px;
+  max-height: calc(100vh - 64px); overflow: auto;
+  width: 440px; padding: 14px 16px 0;
+  background: var(--modal-bg); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+.ws-edit-panel h2 { margin: 0; font-family: var(--f-display); font-size: var(--t-h3); letter-spacing: .06em; color: var(--ink); }
+.ws-edit-panel header p { margin: 4px 0 10px; font-size: var(--t-micro); color: var(--ink-3); }
+.ws-edit-panel ul { margin: 0; padding: 0; list-style: none; }
+.ws-edit-row { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }
+.ws-edit-show { flex: 1; font-size: var(--t-small); color: var(--ink); }
+.ws-edit-show small { font-size: var(--t-micro); color: var(--ink-3); }
+.ws-edit-show input, .ws-edit-row input[type="range"] { accent-color: var(--gold); }
+.ws-edit-row input[type="range"] { width: 110px; }
+.ws-edit-pct { width: 40px; text-align: right; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ws-edit-row select { font: inherit; font-size: var(--t-micro); color: var(--ink); background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--r); padding: 2px 4px; }
+.ws-edit-panel footer { position: sticky; bottom: 0; display: flex; justify-content: space-between; margin-top: 8px; padding: 8px 0 14px; background: var(--bg-1); border-top: 1px solid var(--line-soft); }
+.ws-quiet { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-soft); border-radius: var(--r); background: none; color: var(--ink-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); cursor: pointer; }
+.ws-quiet:hover { color: var(--ink); border-color: var(--line); }
+
+
+/* ── Windows over the World ─────────────────────────────────────────────── */
+.ws-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.ws-win {
+  position: absolute; top: 12px;
+  max-height: calc(100% - 24px);
+  display: flex; flex-direction: column;
+  pointer-events: auto;
+  background: var(--modal-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+/* Motion: a 120 ms slide + fade from the dock edge; no bounce; none when the player asks for none. */
+@keyframes ws-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes ws-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(16px); } }
+.ws-win.is-entering { animation: ws-in 120ms ease-out both; }
+.ws-win.is-leaving { animation: ws-out 120ms ease-in both; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .ws-win.is-entering, .ws-win.is-leaving { animation-duration: 1ms; } }
+.ws-win.is-floating { box-shadow: 0 14px 36px color-mix(in srgb, var(--world-shadow) 65%, transparent); }
+.ws-win-head {
+  display: flex; align-items: center; gap: 8px;
+  height: 44px; padding: 0 6px 0 14px; flex: none;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--gold);
+  cursor: grab; user-select: none; touch-action: none;
+}
+.ws-win-title { margin: 0; flex: 1; font-family: var(--f-display); font-weight: 700; font-size: var(--t-h3); letter-spacing: .06em; color: var(--ink); }
+.ws-key { font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-3); padding: 0 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); line-height: 20px; }
+.ws-close { width: 36px; height: 36px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); cursor: pointer; border-radius: var(--r); }
+.ws-close:hover { color: var(--ink); background: var(--surf-panel); }
+.ws-close .ws-glyph { width: 20px; height: 20px; }
+.ws-win-body { overflow: auto; padding: 12px 14px 14px; }
+.ws-stub { margin: 0; color: var(--ink-2); font-size: var(--t-small); line-height: 1.45; }
+.ws-focus { margin: 0 0 8px; color: var(--gold-2); font-size: var(--t-small); }
+
+/* THE SATCHEL: a leather mat with a stitched edge; pockets are sunk into it. */
+.ws-win.is-satchel { background: var(--sc-top-1); border-color: var(--sc-mat-2); }
+.ws-win.is-satchel .ws-win-body { margin: 6px; padding: 10px 10px 12px; border: 1px dashed var(--sc-stitch); border-radius: var(--r); }
+.ws-tabs { display: flex; align-items: center; gap: 2px; margin-bottom: 10px; }
+.ws-tab { border: 0; background: none; padding: 4px 10px; font-size: var(--t-small); color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
+.ws-tab:hover { color: var(--ink); }
+.ws-tab.is-on { color: var(--ink); border-bottom-color: var(--gold); }
+.ws-cap { display: flex; align-items: center; gap: 10px; margin: 0 2px 10px; }
+.ws-cap-bar { flex: 1; height: 4px; border-radius: var(--r-sm); background: var(--surf-sunken); overflow: hidden; }
+.ws-cap-bar > span { display: block; height: 100%; background: var(--gold-3); }
+.ws-cap-text { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ws-pockets { display: grid; gap: 4px; }
+.ws-pocket {
+  position: relative; width: 68px; height: 68px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--r-sm);
+  background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge);
+  cursor: pointer;
+}
+.ws-pocket.is-empty { cursor: default; opacity: .55; }
+.ws-pocket:not(.is-empty):hover { box-shadow: var(--surf-sunken-edge), inset 0 0 0 1px var(--line); }
+.ws-pocket.is-sel { box-shadow: var(--surf-sunken-edge), inset 0 0 0 2px var(--gold); }
+.ws-count {
+  position: absolute; right: 4px; bottom: 2px;
+  font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--ink); text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow);
+}
+.ws-pick { display: flex; align-items: center; gap: 10px; min-height: 64px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.ws-pick.is-hint { color: var(--ink-3); font-size: var(--t-small); }
+.ws-pick-name { flex: 1; display: flex; flex-direction: column; font-weight: 700; color: var(--ink); }
+.ws-pick-name small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
+.ws-primary {
+  min-height: 40px; padding: 0 20px;
+  border: 1px solid var(--gold-3); border-radius: var(--r);
+  background: var(--gold); color: var(--bg-0);
+  font-family: var(--f-label); font-weight: 700; font-size: var(--t-small);
+  cursor: pointer;
+}
+.ws-primary:hover { background: var(--gold-2); }
+
+/* THE EQUIPMENT: the hero's own sprite on a stone plinth, slots in body order. */
+.ws-doll {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  grid-template-rows: repeat(4, 76px) auto;
+  gap: 4px 8px;
+  align-items: start;
+}
+.ws-slot {
+  position: relative; width: 68px; height: 68px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--r-sm);
+  background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge);
+  cursor: pointer;
+}
+.ws-slot .ws-glyph.is-ghost { width: 30px; height: 30px; color: var(--ink-3); opacity: .35; }
+.ws-slot-label { position: absolute; left: 0; right: 0; bottom: -1px; text-align: center; font-size: var(--t-micro); line-height: 1; color: var(--ink-3); opacity: 0; transition: opacity .12s; }
+.ws-slot:hover .ws-slot-label, .ws-slot.is-empty .ws-slot-label { opacity: 1; }
+.ws-slot.is-empty .ws-slot-label { bottom: 4px; opacity: .8; }
+.ws-slot.is-empty .ws-glyph.is-ghost { margin-bottom: 12px; }
+.at-l1 { grid-area: 1 / 1; } .at-l2 { grid-area: 2 / 1; } .at-l3 { grid-area: 3 / 1; } .at-l4 { grid-area: 4 / 1; }
+.at-r1 { grid-area: 1 / 3; } .at-r2 { grid-area: 2 / 3; } .at-r3 { grid-area: 3 / 3; } .at-r4 { grid-area: 4 / 3; }
+.ws-doll .at-b1, .ws-doll .at-b2, .ws-doll .at-b3, .ws-doll .at-b4 { grid-row: 5; }
+.at-b1 { grid-column: 1; } .at-b4 { grid-column: 3; }
+.ws-doll .at-b2 { grid-column: 2; justify-self: start; margin-left: 8px; }
+.ws-doll .at-b3 { grid-column: 2; justify-self: end; margin-right: 8px; }
+.ws-plinth {
+  grid-area: 1 / 2 / 5 / 3;
+  align-self: stretch;
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--panel-floor-1);
+}
+/* The 64 px frame is mostly air around a 36 px body, so it may overhang the plinth sideways. */
+.ws-hero { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: block; image-rendering: pixelated; background-repeat: no-repeat; }
+.ws-stats { display: flex; justify-content: space-between; margin: 14px 2px 0; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.ws-stats div { display: flex; flex-direction: column; }
+.ws-stats dt { font-size: var(--t-micro); color: var(--ink-3); }
+.ws-stats dd { margin: 0; font-weight: 800; font-size: var(--t-lead); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ── Prototype-only scene switch (hidden with ?clean=1) ─────────────────── */
+.ws-proto { position: absolute; right: 12px; bottom: 12px; z-index: 1; display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: var(--r-lg); background: var(--world-hud-bg); font-size: var(--t-micro); color: var(--ink-3); }
+.ws-proto:empty { display: none; }
+.ws-proto button { border: 1px solid var(--line-soft); background: none; border-radius: var(--r); padding: 2px 8px; cursor: pointer; color: var(--ink-2); }
+.ws-proto button[aria-pressed="true"] { color: var(--gold-2); border-color: var(--line); }
+
+/* ── Phone, landscape: a scaled desktop; ONE side sheet at a time ───────── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .ws-strip { padding: 0 0 0 12px; }
+  .ws-right { gap: 10px; }
+  .ws-launchers { padding-left: 4px; }
+  .ws-launch { width: 44px; }
+  .ws-name { font-size: var(--t-small); }
+  .ws-level, .ws-gold { font-size: var(--t-micro); }
+
+  /* The vitals ride the bar's top edge. */
+  .ws-vital { height: 16px; }
+  .ws-vital-text { line-height: 14px; }
+  .ws-abar { padding: 6px 2px 2px; }
+  .ws-target { min-width: 180px; padding: 4px 10px 6px; }
+  .ws-ground { padding: 4px 10px; }
+  .ws-edit-panel { right: 0; top: 40px; bottom: 0; max-height: none; width: min(420px, 50vw); border-radius: 0; border-width: 0 0 0 1px; padding: 8px 12px 0; }
+  .ws-edit-panel header p { margin: 2px 0 6px; }
+  .ws-edit-row { min-height: 32px; gap: 6px; }
+  .ws-edit-show { font-size: var(--t-micro); }
+  .ws-edit-show small { display: none; }
+  .ws-edit-row input[type="range"] { width: 64px; }
+  .ws-edit-panel footer { padding: 6px 0 8px; }
+
+  .ws-win {
+    top: 0; bottom: 0; right: 0; left: auto;
+    width: min(400px, 48vw) !important;
+    max-height: none;
+    border-radius: 0; border-width: 0 0 0 1px;
+  }
+  .ws-win-head { height: 40px; cursor: default; }
+  .ws-win-body { padding: 8px 10px 10px; }
+  .ws-count { right: 2px; bottom: 1px; }
+  .ws-pick { min-height: 44px; margin-top: 8px; padding-top: 8px; }
+  .ws-slot-label { display: none; }
+  .ws-slot.is-empty .ws-glyph.is-ghost { margin: 0; width: 22px; height: 22px; }
+  .ws-hero { bottom: 0; }
+  .ws-stats { margin-top: 8px; padding-top: 6px; }
+  .ws-stats dd { font-size: var(--t-body); }
+  .ws-layer:not(:empty) ~ .ws-proto { display: none; }
+}

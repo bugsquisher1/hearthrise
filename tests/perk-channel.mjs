@@ -54,6 +54,11 @@ import {
 } from '../src/core/perks.js';
 import { burnChance, BURN_BASE } from '../src/core/artisan.js';
 import { zeroBonus, bonusFor, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { huntAccrualInput } from './hunt-fixture.mjs';
+/* Lane C2: combat accrues only on a hunt session (a pointer-only night answers
+   hunt_required), so every P9 night runs as a training hunt on its monster with
+   no respawn wait — the old pointer fight's kill rate, the same seed. */
+const huntNight = (inp) => computeAccrual(huntAccrualInput(inp, { seed: inp.seed, pull: { size: 1, respawnMs: 0 } }));
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { xpForLevel } from '../src/core/xp.js';
@@ -438,12 +443,12 @@ async function run(patch) {
     };
     ok(MONSTERS[base.activeId] && MONSTERS[base.activeId].hp > 12,
       `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
-    const none = computeAccrual({ ...base, perks: null });
+    const none = huntNight({ ...base, perks: null });
     /* MASTER DESIGN REFERENCE §9 (2026-10-14): a home never grants XP or a
        resource advantage. Every home source at its top — every room at rung 5,
        both Scarecrows, the Watchtower, the Castle — must pay this combat night
        EXACTLY what a bare character is paid: same XP, same items, same kills. */
-    const decked = computeAccrual({
+    const decked = huntNight({
       ...base,
       perks: {
         ok: true,
@@ -491,7 +496,7 @@ async function run(patch) {
        This is the degrade path measured on the real engine rather than on
        makeBonus alone — a database with the channel installed but no unlocks
        written must be indistinguishable from one without the channel. */
-    const emptyEnv = computeAccrual({
+    const emptyEnv = huntNight({
       ...base, perks: { ok: true, rooms: {}, plots: {}, propertyTier: 0 },
     });
     ok(JSON.stringify(emptyEnv.delta) === JSON.stringify(none.delta),

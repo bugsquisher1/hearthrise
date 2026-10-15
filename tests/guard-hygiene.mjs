@@ -7,6 +7,8 @@
 //   node tests/guard-hygiene.mjs --selftest  # every mutation must be CAUGHT
 //   node tests/guard-hygiene.mjs --json
 //
+// mutant-anchors: none — every --selftest mutation transforms an in-memory copy of the tree (readTree), never a file
+//
 // ── WHY THIS EXISTS ─────────────────────────────────────────────────────
 // Two failures, both silent, both measured in this repo on 2026-09-06.
 //

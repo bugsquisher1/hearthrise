@@ -34,8 +34,9 @@
 //           neither forfeited nor capped by the solo horizon
 //   H8  hr_accrue_cap_ms: hr_engine only (hr_tick refused); the stamp: no
 //           role; both tables: no privilege, RLS forced, no policy
-//   E1  ★ THE EDGE reads hr_accrue_cap_ms at all four accrue-cap sites
-//           (index.ts, set-activity.js, claim-reward.js, spend.js), never
+//   E1  ★ THE EDGE reads hr_accrue_cap_ms at all three accrue-cap sites
+//           (index.ts, set-activity.js, spend.js; claim-reward.js left with its
+//           verb, lane C2), never
 //           hr_offline_cap_ms there
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -48,7 +49,7 @@ import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const MIG = '2026-10-10-world-tick-presence-horizon.sql';
 const MIG_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
-const EDGE_FILES = ['index.ts', 'set-activity.js', 'claim-reward.js', 'spend.js'];
+const EDGE_FILES = ['index.ts', 'set-activity.js', 'spend.js'];
 const EDGE = Object.fromEntries(await Promise.all(EDGE_FILES.map(async (f) =>
   [f, (await readFile(join(ROOT, 'supabase', 'functions', 'hr-accrue', f), 'utf8')).replace(/\r\n/g, '\n')])));
 
@@ -270,7 +271,7 @@ async function arms(db, { log = true, edge = EDGE } = {}) {
   // ── E1 the edge half ────────────────────────────────────────────────────
   {
     const bad = edgeReads(edge);
-    ok('E1', bad.length === 0, 'the edge reads hr_accrue_cap_ms at all four accrue-cap sites', JSON.stringify(bad));
+    ok('E1', bad.length === 0, 'the edge reads hr_accrue_cap_ms at all three accrue-cap sites', JSON.stringify(bad));
   }
   await db.exec("update public.hr_tick_config set armed_channels = '{}' where id;");
   return red;

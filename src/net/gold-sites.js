@@ -296,6 +296,8 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'vendor', status: 'wired', verb: 'vendor_sell_many',
     site: 'src/features/inv-context-menu.js settleJunk() — the sell-junk sweep',
   },
+  /* 'seam:claim.daily_login' RETIRED (lane C2): the daily login and its
+     `claim_reward` verb were deleted outright; daily-reward.js claims nothing. */
 
   // ══ THE DISPLAY-PREDICTION LAYER (b455) ═══════════════════════════════════
   /* These three are the ONLY rows in this ledger that describe gold moving the

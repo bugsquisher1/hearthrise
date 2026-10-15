@@ -1,6 +1,6 @@
 # Hearthrise — Asset Manifest
 
-_Last updated: 2026-08-08 (asset-organization pass, build b216; asset
+_Last updated: 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
 promotion pass, build b224)._
 
 The single reference for how Hearthrise's shipped assets are organized, what the
@@ -11,6 +11,8 @@ since been executed.
 ---
 
 ## Art direction (what "fits Hearthrise")
+
+> **Superseded (2026-10-15).** This section records the August painted-icon direction. The current direction is pixel-world first: `docs/ART_DIRECTION.md` (the bible), `docs/ASSET_STANDARDS.md` and `docs/PIXELLAB_WORKFLOW.md`. Pixel art is the target language for items and monsters; painted art stays only where it has not been replaced yet. The text below is history.
 
 Hearthrise is **100% painted RPG icons** in the CraftPix house style, framed by a
 moody **"Forge & Stone"** dark UI (hearthlight theme: desaturated stone/iron
@@ -77,6 +79,151 @@ armour line), then snapped in Lab to the palette (metal tiers to their own ramp)
   one icon per ITEMS key, no orphans, 32x32, on-palette, no partial alpha.
 - Contact sheets (60 per sheet, read at x3): `docs/art-experiments/pixel-icons/`.
 - Out of scope: monster portraits, skill medallions, building art (unchanged).
+
+### World atlas registry (2026-10-15) — every world sprite and terrain, and what happens to it
+
+The registry Tyler's PixelLab directive asks for; there is no second registry. One row per sidecar in
+`art/world/<set>/*.json` (124 today), printed by `node tools/world-art/registry.mjs` from the sidecars
+and the built manifests, plus the Art Director's decision (the `D` table in that script). **retain** =
+ships as is; **edit** = keep the asset and change it, cheapest fix first (`docs/PIXELLAB_WORKFLOW.md`);
+**replace** = a new asset. **Approval:** every row was approved for the world when its atlas was built
+(W1–W3, the art pilot, the b585 town and home sets; Art Director). A row whose asset changes records its
+new approval in the decision cell (`approved: <role> <date>`) when the change lands. Facings `senw` =
+s, e, n, w; animation states are `clip frames@fps`; the PixelLab id is its first 8 characters, and the
+full id, request, animation group ids, seed and cost live in the sidecar's `pixellab` block. After a
+build, re-run the script and paste its output here; never hand-merge the table.
+
+Open edits from the 2026-10-15 audit (`docs/design/ART_AUDIT_2026-10-15.md`): the first production
+batch (R1 hero south walk, R2 hero diagonals, R3 rat and slime readability, R4 loot bag) is specified in
+`docs/PIXELLAB_WORKFLOW.md` §5; everything else waits for Tyler's first playable test. R1a, R3 and R4
+landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for the engine's 8 facings.
+
+| id | set | class | frame | animation states (frames@fps) | facings | decision | source (PixelLab tool, id) |
+|---|---|---|---|---|---|---|---|
+| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senw | **edit**: R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler | create_character `03dec2e0` |
+| peer_knight | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk to be a real peer | create_character `c95a6991` |
+| peer_mage | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `6112c21c` |
+| peer_ranger | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `f2a0b6c7` |
+| barrel | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| barrel_banded | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| barrel_broken | cellar | bulky | 28×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| barrel_lid | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| barrel_old | cellar | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| bone | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| bones | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| bottle | cellar | small | 16×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| brazier | cellar | fixture | 26×32 | idle 1 | s | **edit**: still flame; needs a 4-frame flicker | create_1_direction_object `b90e189e` |
+| candle | cellar | small | 10×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| cart_wheel | cellar | bulky | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| cellar_earth | cellar | terrain | 32×32 tiles | still |  | **retain** | hand / script |
+| cellar_floor | cellar | terrain | 32×32 tiles | still |  | **retain**: unused today: the hunt floor is the flat cellar_earth fill (the flagstone patch read as a raised slab) | create_topdown_tileset `d6b2cf79` |
+| chest | cellar | box | 24×22 | idle 1 | s | **retain** | create_object_pro_flash `7480726a` |
+| chopping_block | cellar | bulky | 28×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| coins | cellar | small | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| coins_scattered | cellar | small | 14×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| crate | cellar | box | 18×22 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| crate_stack | cellar | bulky | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| flour_sack | cellar | clutter | 26×26 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| grain_sack | cellar | clutter | 26×24 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| grain_spill | cellar | decal | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| hive_wasp | cellar | flier | 48×48 | idle 1, walk 4@12, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **retain**: body edge 4.67:1; idle is 1 still frame (add a wing-buzz idle later) | create_object_pro_flash `630c2cff` |
+| ladder | cellar | hanging | 18×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| lantern_post | cellar | fixture | 22×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| loot_bag | cellar | loot | 14×14 | idle 1 | s | **replace**: R4 done 2026-10-15: a 14×14 tied burlap sack drawn by hand in palette (0 gens), body edge 1.06 → 3.21:1, lands beside the corpse; approved: pending Tyler | hand-drawn in palette (free, no generation) |
+| millstone | cellar | bulky | 28×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| mushrooms | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| pebbles | cellar | decal | 14×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| puddle | cellar | decal | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| rat | cellar | critter | 48×48 | idle 1, walk 6@10, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.36 → 4.03:1 (min 3.76 over the 27 east frames), silhouette IoU ≥ 0.985, edit_image `4ef84f2b` + `f6a044fa`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `18ec0bfa` |
+| rat_skull | cellar | small | 12×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| sack_lying | cellar | clutter | 32×20 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| sack_pile | cellar | bulky | 32×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| sack_stack | cellar | bulky | 32×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| sack_tall | cellar | bulky | 26×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| skull | cellar | small | 14×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| slime | cellar | critter | 48×48 | idle 1, walk 6@8, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.59 → 4.33:1 (min 3.68 over the 27 east frames), silhouette IoU ≥ 0.978, edit_image `99916c7b` + `5436c660`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `4bef8259` |
+| stone_cap | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
+| stone_cap_h | cellar | wallcap | 32×12 | idle 1 | s | **retain** | hand / script |
+| stone_cap_w | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
+| stone_end | cellar | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
+| stone_stub | cellar | stub | 32×24 | face 4 | s | **retain** | hand / script |
+| stone_wall | cellar | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| stone_wall_arch | cellar | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| straw | cellar | decal | 16×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
+| support_post | cellar | fixture | 30×34 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| wall_torch | cellar | hanging | 16×32 | idle 1 | s | **edit**: still flame; needs a 4-frame flicker | create_1_direction_object `b90e189e` |
+| wasp_nest | cellar | hanging | 30×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| web | cellar | hanging | 34×34 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| anvil | town | bulky | 32×22 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| apple_crate | town | bulky | 28×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| barrel_planter | town | barrel | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| bench | town | bench | 50×16 | idle 1 | s | **retain** | create_map_object `2acdbc69` |
+| bush | town | bush | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| chimney | town | roof | 18×30 | idle 1 | s | **retain** | hand / script |
+| deadtree | town | tree | 78×112 | idle 1 | s | **retain** | create_map_object `2b56133f` |
+| door | town | door | 22×50 | idle 1 | s | **retain** | create_object_pro_flash `699000ad` |
+| firewood | town | bulky | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| flower_bed | town | clutter | 32×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| flower_box | town | hanging | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| hatch | town | decal | 24×28 | idle 1 | s | **retain** | create_map_object `c4645c68` |
+| hedge | town | bush | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| lamppost | town | fixture | 12×62 | idle 1 | s | **retain** | create_map_object `f1f557ff` |
+| mill_sign | town | hanging | 22×32 | idle 1 | s | **retain** | create_map_object `19a01b33` |
+| noticeboard | town | fixture | 34×42 | idle 1 | s | **retain** | create_map_object `970b0bf5` |
+| npc_crier | town | character | 64×64 | idle 1 | senw | **edit**: one still frame; needs a 4-frame idle (town life) | create_character `1356ca8d` |
+| npc_smith | town | character | 64×64 | idle 1 | senw | **edit**: one still frame; needs a hammer loop (town life) | create_character `33ea8f13` |
+| oak | town | tree | 88×114 | idle 1 | s | **retain** | create_map_object `7d86bc0a` |
+| pine | town | tree | 74×114 | idle 1 | s | **retain** | create_map_object `73c5a2ba` |
+| roof_slate | town | roof | 32×32 | slice 12 | s | **retain** | hand / script |
+| roof_wood | town | roof | 32×32 | slice 12 | s | **retain** | hand / script |
+| signpost | town | fixture | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| statue | town | fixture | 20×64 | idle 1 | s | **retain** | create_map_object `13598478` |
+| stone_house_end | town | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
+| stone_house_wall | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| stone_house_wall_door | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| stone_house_wall_window | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| timber_end | town | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
+| timber_wall | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| timber_wall_door | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| timber_wall_window | town | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| town_ground | town | terrain | 32×32 tiles | still |  | **edit**: one cobble fill with no wear, no edging and no square border: the "bland" town (after playable) | create_topdown_tileset `185818a3` |
+| waterwheel | town | fixture | 58×68 | idle 1 | s | **edit**: still; needs a turning loop (the town's one big motion) | create_map_object `23d8714a` |
+| well | town | fixture | 40×52 | idle 1 | s | **retain** | create_map_object `58e523ba` |
+| woodpile | town | fixture | 44×34 | idle 1 | s | **retain** | create_map_object `71b58870` |
+| young_oak | town | sapling | 46×90 | idle 1 | s | **retain** | create_map_object `74bbd1b0` |
+| altar | home | fixture | 32×40 | idle 1 | s | **retain** | create_map_object `ed166eb3` |
+| armour_stand | home | fixture | 24×34 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| banner | home | hanging | 28×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| basket | home | clutter | 28×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| bed | home | bed | 30×54 | idle 1 | s | **retain** | create_map_object `a049363d` |
+| bellows | home | clutter | 32×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| bookshelf | home | fixture | 26×54 | idle 1 | s | **retain** | create_map_object `c36e6293` |
+| candelabra | home | clutter | 24×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| chair | home | seat | 20×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| chair_side | home | seat | 18×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| chest_iron | home | box | 28×24 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| counter | home | station | 58×32 | idle 1 | s | **retain** | create_map_object `9c3ea5da` |
+| desk | home | station | 34×34 | idle 1 | s | **retain** | create_map_object `20eb5ea7` |
+| display_case | home | fixture | 26×32 | idle 1 | s | **retain** | create_map_object `59eb740f` |
+| dummy | home | fixture | 30×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| forge | home | fixture | 32×54 | idle 1 | s | **retain** | create_map_object `0de56b00` |
+| grindstone | home | station | 28×26 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
+| hearth | home | fixture | 60×64 | idle 1 | s | **retain** | create_map_object `db702bc0` |
+| herbs_hanging | home | hanging | 32×26 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| plank_cap | home | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
+| plank_end | home | wallend | 12×60 | idle 1 | s | **retain** | hand / script |
+| plank_floor | home | terrain | 32×32 tiles | still |  | **retain** | hand / script |
+| plank_stub | home | stub | 32×24 | face 4 | s | **retain** | hand / script |
+| plank_wall | home | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| plank_wall_door | home | wall | 32×60 | face 4 | s | **retain** | hand / script |
+| rug | home | decal | 68×40 | idle 1 | s | **retain** | hand / script |
+| shield_wall | home | hanging | 26×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| swords_wall | home | hanging | 30×30 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| table | home | table | 30×28 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| trophy_wolf | home | hanging | 26×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| wardrobe | home | fixture | 34×58 | idle 1 | s | **retain** | create_map_object `f7842a79` |
+| weapon_rack | home | fixture | 30×32 | idle 1 | s | **retain** | create_1_direction_object `8304f632` |
+| workbench | home | station | 32×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 
 ### b224 — Asset Director promotion pass
 

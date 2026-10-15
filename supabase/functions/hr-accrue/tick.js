@@ -81,27 +81,18 @@ import {
 } from './tick-gather.js';
 /* The level curve, for the fold's level-up stop (settleFolded). */
 import { levelFromXp } from '../../../src/core/xp.js';
-import {
-  CHANNEL as COMBAT_CHANNEL,
-  sessionFromRoster as combatSessionFromRoster, settleCombatSession,
-} from './tick-combat.js';
+/* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
+import { settleHunt, parseHunts } from './hunt-settle.js';
 /* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
-   (services/world-tick/contract.js re-exports the same module — AWAY-12).
+   (the offline guards import the same module — AWAY-12).
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */
 import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from './tick-contract.js';
-/* THE PARTY UNIT (M8 S2). A party is a ROSTER UNIT, not a new engine and not a
-   new channel: `settleParty` runs the SAME `settleCombatSession` this file runs
-   for a solo character, once per member, and emits ONE `hr_party_tick_settle`
-   call for the window. `AWAY-12` forbids a second combat path and there is not
-   one — see supabase/functions/hr-accrue/tick-party.js. */
-import { parseParties, settleParty } from './tick-party.js';
-/* THE PERK AND BESTIARY READS, ONE DEFINITION (steps (1b)/(4b)). The same two
-   functions tick-party.js calls once per member, so a partied character is
-   priced from exactly the inputs a solo one is (Security N4b). The bestiary
-   statement inside is set-activity.js's BESTIARY_SQL, the collect path's bytes. */
-import { readTickPerks, readTickBestiary } from './tick-reads.js';
+/* THE PERK READ, ONE DEFINITION (step (1b)) — the same function hunt-settle.js
+   calls (Security N4b). The bestiary read left this file with
+   the solo combat channel (lane C2; see (4b)). */
+import { readTickPerks } from './tick-reads.js';
 /* THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). One function, called
    after a shadow settle has returned; its only writer is hr_tick_probe_commit. */
 import { probeStep, MAX_PROBES_PER_FIRE } from './tick-probe.js';
@@ -135,11 +126,6 @@ export const CHANNELS = Object.freeze({
     sessionFromRoster: gatherSessionFromRoster,
     settle: settleGatherSession,
   }),
-  [COMBAT_CHANNEL]: Object.freeze({
-    channel: COMBAT_CHANNEL,
-    sessionFromRoster: combatSessionFromRoster,
-    settle: settleCombatSession,
-  }),
 });
 
 /* ── CHANNELS THE DATABASE ADMITS AND THIS FILE CANNOT SETTLE ────────────────
@@ -162,6 +148,16 @@ export const CHANNELS = Object.freeze({
 export const UNDRIVEN_CHANNELS = Object.freeze({
   artisan: 'no artisan settler exists; the channel is admitted by '
     + 'hr_tick_config_channels_ck but must never be armed until one ships',
+  /* THE SOLO COMBAT CHANNEL IS RETIRED (ruling HR-2026-10-14, lane C2). A solo
+     fight exists only inside a hunt session, and a session is settled by the
+     `hunts` cohort (hr_hunt_roster -> ./hunt-settle.js), never by the channel
+     roster: settling it here too would price one window twice (the database
+     refuses it anyway — hr_hunt_accrue_fence — but a skipped-by-name row is
+     the honest answer). A combat character the channel roster still hands out
+     is skipped `channel_not_driven`, pays nothing and journals nothing. The
+     party unit left with parties (closed rebuild, lane C2). */
+  combat: 'a fight is a hunt session, settled from the hunts cohort '
+    + '(hr_hunt_roster, ./hunt-settle.js)',
 });
 
 /* The header the tick bearer rides on. Lower-case because `Headers.get` is
@@ -558,19 +554,12 @@ export function parseTickBody(raw) {
      it; absent reads as 1, one settle per window. */
   out.foldWindows = Math.min(clampInt(b.fold_windows, 1, MAX_FOLD_WINDOWS, 1), out.catchupWindows);
   out.roster = parseSelectors(b.roster);
-  /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
-     authority. A unit names a party, a hunt, its monster and its members'
-     (user, slot) pairs — and NOTHING it carries about the watermark, the mode
-     or the shadow carrier is read, because `settleParty` re-derives all three
-     from the fence's own refusal under the party lock.
-
-     ⚠ NOTHING POSTS THIS YET. `hr_tick_cron_run` builds its POST from
-       `hr_tick_roster` alone; teaching it the party cohort — with its limit
-       counted in CHARACTERS (I-3) — is §18.5's S5 row. It is unreachable
-       before S4 in any case, because `hr_party_hunt_start` is S4's and there is
-       no live `party_hunt` for `hr_party_roster` to return. The key and the
-       unit shape are frozen HERE so that wiring is additive when it comes. */
-  out.parties = parseParties(b.parties);
+  /* THE HUNT COHORT (lane C2). Same rule as `roster`: SELECTORS,
+     never authority — (user, slot, session) and nothing else. hr_hunt_roster
+     leased them to this driver; ./hunt-settle.js re-reads every session and
+     character in this request and hr_hunt_apply decides whether anything
+     lands. */
+  out.hunts = parseHunts(b.hunts);
   return out;
 }
 
@@ -908,16 +897,11 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
     return { outcome: 'skipped', reason: 'below_flush' };
   }
 
-  /* (4b) THE BESTIARY COUNTERS — `hr_bestiary_of`, the read index.ts's accrue
-         path makes in its state transaction and set-activity.js's collect makes
-         as BESTIARY_SQL (imported, not retyped). Not an envelope field, so
-         until 2026-09-28 the tick priced every combat window with NO charm and
-         NO trophy: drops and damage under-paid against accrue (Security N4).
-         Made HERE, after the flush line, so only a window that will be priced
-         costs the statement — the collect path's rule. Same degrade rule as
-         (1b): ONLY 42883 reads as "no counters"; anything else propagates.
-         tests/world-tick-bestiary-parity.mjs. The read is ./tick-reads.js's. */
-  const bestiaryKills = await readTickBestiary(exec, sel.userId, sel.slot);
+  /* (4b) THE BESTIARY READ LEFT WITH THE SOLO COMBAT CHANNEL (lane C2). Only
+         combat prices charms and trophies, and a solo fight is a hunt session
+         now: ./hunt-settle.js makes the read (tests/hunt-sessions-settle.mjs
+         BESTIARY) and the party unit makes it per member (./tick-party.js).
+         Gather never read it, so a channel window no longer pays the statement. */
 
   /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
@@ -959,9 +943,6 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
     version: env.version,
     /* (1b)'s read. Both channels' `sessionFromRoster` take it off the row. */
     perks,
-    /* (4b)'s read. Combat's `sessionFromRoster` takes it; gather never reads
-       the bestiary. */
-    bestiary_kills: bestiaryKills,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
        engine answers `no_cap` and settles nothing, which is the safe direction
@@ -1138,15 +1119,15 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
        future engine adds: state the next fire would read has moved;
      (`xp_frac` IS modelled: advance() carries it per skill and foldDeltas folds
      it ABSOLUTE_MAP, last window per skill — 2026-10-09-xp-frac-carry.sql;
-     `companion_xp_frac` likewise, per companion — 2026-10-12-companion-xp-frac.sql);
+     the pet's remainder left with companion XP, closed rebuild lane C2);
      · levels any skill — hr_renown_of is a function of skill levels and
        hr_perks_of prices `renownAllXp` from it, so a level-up can move the
        perk stack the next window is priced with.
-   Perks (`hr_perks_of`), the offline cap and the bestiary are read ONCE per
+   Perks (`hr_perks_of`) and the offline cap are read ONCE per
    visit, exactly as a single window reads them once for its nine polls.
    tests/world-tick-scale.mjs F1 proves the fold equal to the single fires. */
 export const FOLD_CHAIN_KEYS = Object.freeze(
-  ['accrued_to', 'items', 'xp', 'xp_frac', 'companion_xp_frac', 'gold', 'progress', 'tool_carry', 'journal']);
+  ['accrued_to', 'items', 'xp', 'xp_frac', 'gold', 'progress', 'tool_carry', 'journal']);
 
 function levelledUp(before, after) {
   for (const k of Object.keys(after || {})) {
@@ -1240,18 +1221,6 @@ async function settleFolded(exec, holder, sel, body, driver, session0, probe, ma
   return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', windows: wins.length };
 }
 
-/* THE PARTY'S SEED LADDER, PER MEMBER. The same two functions the solo path
-   uses, handed the party's own window geometry — so a party member's window
-   draws the stream an accrue would have drawn, which is the whole of T-2. It is
-   passed to `settleParty` as a dependency rather than imported by it, because
-   `seedLadder` and `planSeedLabels` are this module's and a party is not a
-   reason to grow a second copy of either. */
-async function partySeedLadder(exec, member, session, fromMs, toMs, geom) {
-  const labels = planSeedLabels(settleCombatSession, session, fromMs, toMs,
-    Object.assign({}, geom, { markText: session.accruedToText }));
-  return seedLadder(exec, { userId: member.userId, slot: member.slot }, labels);
-}
-
 /* ── THE FIRE ───────────────────────────────────────────────────────────────
    `exec` is index.ts's one-statement seam; `now` is injectable so a test can
    measure `ms` without a clock. Returns the small JSON summary §15c asks for. */
@@ -1293,23 +1262,6 @@ export async function runTick(opts) {
      passes it. */
   body.probeBudget = opts.probe === false ? null : { left: MAX_PROBES_PER_FIRE };
   const probes = Object.create(null);
-
-  /* PARTIES FIRST, and the order is not a preference: invariant 7 excludes a
-     partied character from `body.roster` at the ROSTER, so the two cohorts are
-     disjoint by construction and cannot contend. Settling parties first means a
-     cohort that is disjoint anyway is also settled in the order the design
-     reads. */
-  for (const unit of body.parties) {
-    let v;
-    try {
-      v = await settleParty(exec, holder, unit, body, { seedLadder: partySeedLadder });
-    } catch (e) {
-      /* NO PARTY'S FAILURE COSTS ANOTHER ONE ITS WINDOW. */
-      v = { outcome: 'refused', reason: 'party_error:' + String((e && e.message) || e).slice(0, 56) };
-    }
-    counts[v.outcome] = (counts[v.outcome] || 0) + 1;
-    if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
-  }
 
   /* THE CATCH-UP LEDGER (S3), reported only when the dial is above 1 so a
      one-window fire's summary is byte-identical to before the dial existed. */
@@ -1365,9 +1317,33 @@ export async function runTick(opts) {
     }
   }
 
+  /* ── THE HUNTS (lane C2). Each one is ONE settle of one open session through
+     the one hunt settle, from its settled_to to the server's now; a session
+     further behind than HUNT_MAX_WINDOW_MS is caught up over successive fires.
+     NO SESSION'S FAILURE COSTS ANOTHER ONE ITS SETTLE. Reported under its own
+     key, present only on a fire that carried hunts, so every other fire's
+     summary is byte-identical. */
+  let hunts = null;
+  if (body.hunts.length) {
+    hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
+    for (const sel of body.hunts) {
+      let v;
+      try {
+        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session });
+      } catch (e) {
+        v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
+      }
+      const k = v.outcome === 'paid' ? 'settled' : (v.outcome in hunts ? v.outcome : 'refused');
+      hunts[k] += 1;
+      if (v.ended) hunts.ended += 1;
+      if (v.reason) hunts.reasons[v.reason] = (hunts.reasons[v.reason] || 0) + 1;
+    }
+  }
+
   /* `probes` is present only on a fire that met a probe boundary, so every
      other fire's summary is byte-identical to before this step existed. */
   const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
   if (catchup) extra.catchup = catchup;
+  if (hunts) extra.hunts = hunts;
   return { status: 200, body: summary(Object.assign({}, counts, extra)) };
 }

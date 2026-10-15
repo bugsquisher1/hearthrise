@@ -79,9 +79,14 @@ export async function rpcGateBucketGuard() {
     // `end case`), never the whole file — a bucket named in a comment or a
     // self-check do-block must NOT count as admitted (the first draft of this
     // guard made that mistake and its own negative proof caught it).
-    for (let at = sql.indexOf('create or replace function public.hr_rpc_gate');
+    /* CASE-INSENSITIVE: a body restated from pg_get_functiondef reads
+       `CREATE OR REPLACE FUNCTION` (2026-10-21-hunt-sessions.sql §6), and a
+       lowercase-only search read that restatement as no definition at all —
+       reporting its own three buckets as unadmitted. */
+    const lower = sql.toLowerCase();
+    for (let at = lower.indexOf('create or replace function public.hr_rpc_gate');
          at !== -1;
-         at = sql.indexOf('create or replace function public.hr_rpc_gate', at + 1)) {
+         at = lower.indexOf('create or replace function public.hr_rpc_gate', at + 1)) {
       const body = sql.slice(at);
       const caseAt = body.indexOf('case p_bucket');
       const caseEnd = body.indexOf('end case', caseAt);

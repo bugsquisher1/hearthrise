@@ -2305,20 +2305,19 @@ const run = async () => {
       console.log('\nCompanion perk guard — a seeded fight with a companion equipped is byte-identical '
         + 'away vs live; the passive bonus is server-owned and draw-free.');
     }
-    /* ── The companion XP writer guard (dormant server-of-record) ────────────
-       The WRITE half of the companion channel: the accrual engine credits the
-       equipped pet a `stat companion_xp:<id>` op for its role-matched actions
-       (per kill / per gather-yield / per produce — the companionActionXp basis),
-       draw-free so away == live, clamped to the L30 cap, and INERT while the arm
-       switch is dormant. The projection (hr_perks_of) already reads that row. */
+    /* ── The companion XP guard ──────────────────────────────────────────
+       The per-action rule (companionActionXp / companionSpanXp) stays pinned;
+       the ENGINE writer was deleted outright in lane C2, so the guard now
+       proves no hunt, gather or bench night (attended or away) emits a
+       companion_xp op or companion_xp_frac. */
     const companionXpProblems = companionXpGuard();
     if (companionXpProblems.length) {
-      console.log('\nCompanion XP writer guard — FAILED:');
+      console.log('\nCompanion XP guard — FAILED:');
       for (const p of companionXpProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nCompanion XP writer guard — the engine credits the equipped pet per role-matched '
-        + 'action (client parity), byte-identical away vs live, capped; dormant emits nothing.');
+      console.log('\nCompanion XP guard — the per-action rule is pinned; the engine writes no companion XP '
+        + '(deleted in lane C2) on a hunt, gather or bench night, attended or away.');
     }
     /* ── The artisan progress model guard (b352) ────────────────────────
        The two shapes that block a server-paid artisan night, end to end on a
@@ -2462,42 +2461,14 @@ const run = async () => {
       exitCode = 1;
     }
 
-    /* ── The combat-XP settle watermark-split guard (bug #5 root pt2) ────────
-       Proves the accrual engine credits combat XP only for the window at/after
-       combat_xp_accrued_to (so a live credit is not double-paid by the settle) AND
-       that with no watermark it is byte-identical to the pre-split behaviour (the
-       AWAY-1 parity property). */
-    try {
-      const { combatXpSettleSplitGuard } = await import('./combat-xp-settle-split.mjs');
-      const r = await combatXpSettleSplitGuard();
-      console.log(`\nCombat-XP settle-split guard — ${r.checks}`);
-    } catch (e) {
-      console.log('\nCombat-XP settle-split guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
-
-    /* ── The combat-XP SETTLE-FIRST guard (2026-09-09, Paione) ──────────────
-       The other side of the same watermark: a credit must not be able to stamp
-       combat_xp_accrued_to over an away window the settle has not paid yet. Live,
-       three boot-time credits worth 222 XP trimmed a 4h02m / 828-kill settle to
-       ZERO combat XP while it paid every coin and item. Proves the rule, the
-       settle's behaviour over Paione's own window, and the client ordering. */
-    try {
-      const { combatXpSettleFirstGuard } = await import('./combat-xp-settle-first.mjs');
-      const r = await combatXpSettleFirstGuard();
-      if (!r.ok) {
-        console.log('\nCombat-XP settle-first guard — FAILED:');
-        for (const p of r.problems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nCombat-XP settle-first guard — a credit cannot trim an unpaid away window (rule + settle + client ordering).');
-      }
-    } catch (e) {
-      console.log('\nCombat-XP settle-first guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
+    /* tests/combat-xp-settle-split.mjs and tests/combat-xp-settle-first.mjs
+       were RETIRED by lane C2 (closed rebuild, 2026-10-14): both graded the
+       combat_xp_accrued_to watermark between the client's ATTENDED combat-XP
+       credit (hr_credit_combat_xp) and the away span. A fight is now a hunt
+       session priced ONLY by hunt_settle / the world tick — there is no attended
+       credit and no away combat span, so there is no second payer to split
+       against. One payer is proven by tests/hunt-sessions-settle.mjs BOTH-PATH.
+       Deliberately unregistered, not forgotten. */
 
     /* ── The deferral's IDENTITY (QA-DEFER-ID, 2026-09-18) ──────────────────
        The other half of the same deferral: it may only ever be handed back to
@@ -3389,35 +3360,7 @@ const run = async () => {
         + 'the free-character mint closed.');
     }
 
-    /* ── b497 · AUTO-EAT I IS FREE AT CREATION (designer ruling) ───────────
-       The last new-player death loop: a 10-max-HP character takes 4.94 damage
-       per goblin kill, the death sheet teaches "unlock Auto-Eat", Auto-Eat is
-       priced in Marks, and the cheapest Mark is an 80-120 kill contract away.
-       The AWAY half was the P0 — simulateSpan BREAKS on the first death, so a
-       new player who left a fight running overnight was credited ~30 seconds of
-       a twelve-hour night. hr_create_character now writes the same
-       player_progress flag row hr_trait_buy writes and sets the switch with the
-       SAME clamp expression hr_set_auto_eat evaluates — but NOT through
-       hr_set_auto_eat, which bumps `version` and writes a ledger row that
-       2026-08-17-cutover-import.sql reads as "this character has already
-       played". The guard replays the chain into PGlite and drives a real
-       create: the trait lands in the shape hr_auto_eat_tier reads, the switch is
-       on at a DERIVED tier-I clamp, version stays 0 and the journal stays one
-       row so a cutover dry-run still imports, the shop refuses to re-sell it,
-       the PAID upgrade is unchanged, creation is still an ensure,
-       §grant-existing is gated + idempotent, and no ACL or policy moved.
-       `--selftest` plants seven real defects — five of which also blind the
-       migration's own self-check, so the guard alone must see them. */
-    const autoEatCreationProblems = await autoEatAtCreationGuard();
-    if (autoEatCreationProblems.length) {
-      console.log('\nAuto-Eat at creation — FAILED:');
-      for (const p of autoEatCreationProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nAuto-Eat at creation — the entry trait is granted in the shape the tier reader '
-        + 'expects, switched on at a DERIVED tier-I clamp, leaves version 0 + one ledger row so the '
-        + 'cutover still imports, unsellable twice, and the 100-Mark upgrade is untouched.');
-    }
+    /* (b497 Auto-Eat-at-creation guard retired by lane C2 — see the import note.) */
 
     /* ── THE COMBAT STYLE IS SERVER STATE (P0, live — Paione) ────────────
        "Strength/Defense/HP exp is not saving — only Attack saves." The accrual

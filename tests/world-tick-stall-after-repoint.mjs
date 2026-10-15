@@ -2,7 +2,7 @@
 // tests/world-tick-stall-after-repoint.mjs — REGRESSION (2026-09-28)
 //
 //   node tests/world-tick-stall-after-repoint.mjs            green = the tick resumes
-//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted: R-G-a/R-C-a must go red (exit 0 when they do)
+//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted: R-G-a must go red (exit 0 when it does; R-C retired, lane C2)
 //
 // THE PRODUCTION FINDING (read-only status pass, 2026-09-28 03:24Z). Two
 // rostered characters, the cron posting every 10 s with HTTP 200, and ZERO
@@ -145,23 +145,6 @@ async function seed(u, kind) {
                      'gather', 'normal_tree', now() - interval '2 hours')`);
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                    values ('${u}', 0, 'woodcutting', 302288)`);
-  } else {
-    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
-                     accrued_to, active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food,
-                     auto_eat_pct, consec_falls, combat_style, tool_carry, combat_xp_accrued_to,
-                     recovering_until, fight, buffs, enchant)
-                   values ('${u}', 0, 1234, 99, 99, 7, now() - interval '95 seconds',
-                     'combat', 'goblin', now() - interval '2 hours', true, 'cooked_trout', 70, 0,
-                     '{"sword":"aggressive"}'::jsonb, '{}'::jsonb, now() - interval '3 hours',
-                     now() - interval '3 hours', '{"id":"goblin","hp":11}'::jsonb, '[]'::jsonb,
-                     '{"weapon":"fire"}'::jsonb)`);
-    await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp) values
-                     ('${u}', 0, 'attack', 302288), ('${u}', 0, 'strength', 302288),
-                     ('${u}', 0, 'defence', 150000), ('${u}', 0, 'hitpoints', 302288)`);
-    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
-                   values ('${u}', 0, 'cooked_trout', 40)`);
-    await db.exec(`insert into public.player_equipment (user_id, slot, equip_slot, item_id)
-                   values ('${u}', 0, 'weapon', 'mithril_sword')`);
   }
   await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                  values ('${u}', 0, '${kind}', true, '${holder}', now() + interval '10 hours')`);
@@ -267,14 +250,17 @@ async function arm(id, u, kind, target, { microClock }) {
 const U = (n) => `00000000-0000-4000-8000-00000000d${String(n).padStart(3, '0')}`;
 await arm('R-G0', U(1), 'gather', 'oak_tree', { microClock: false });
 await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
-await arm('R-C0', U(3), 'combat', 'slime', { microClock: false });
-await arm('R-C', U(4), 'combat', 'slime', { microClock: true });
+/* R-C0 / R-C (the same re-point onto a combat target) retired in lane C2: a
+   `combat` declaration is `hunt_required` and the solo combat channel is
+   undriven, so there is no combat re-point and no combat tick window to stall.
+   The truncation this file guards lives in tick.js's fence binding, which the
+   gather arms drive unchanged. */
 
 /* --mutate is GREEN when the mutant is caught: the two production-clock arms
    must go red and nothing else may (the controls stay green, which is what
    names the sub-millisecond digits as the cause). */
 if (MUTATE) {
-  const want = ['R-G-a', 'R-C-a'];
+  const want = ['R-G-a'];
   const caught = want.every((id) => problems.includes(id))
     && problems.every((id) => want.includes(id));
   console.log(caught

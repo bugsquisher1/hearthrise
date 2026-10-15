@@ -32,14 +32,14 @@
 // other states through `__pin(facts | null)`.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SPINE_STEPS } from '../data/spine.js?v=584';
-import { REVEALS } from '../data/reveals.js?v=584';
-import { SKILLS_DEF } from '../data/skills.js?v=584';
-import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=584';
-import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=584';
-import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=584';
-import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=584';
-import { recordValue, recordLastKnown } from '../net/record.js?v=584';
+import { SPINE_STEPS } from '../data/spine.js?v=588';
+import { REVEALS } from '../data/reveals.js?v=588';
+import { SKILLS_DEF } from '../data/skills.js?v=588';
+import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=588';
+import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=588';
+import { reveal, warWindow, combatLevelOf, lockReasonOf } from '../core/spine-progress.js?v=588';
+import { pickPropertyTier, isCompleteProgressStatement } from '../net/property-record.js?v=588';
+import { recordValue, recordLastKnown } from '../net/record.js?v=588';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const CTX = Object.freeze({ startXp: START_SKILL_XP });

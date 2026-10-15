@@ -1,8 +1,7 @@
 {
   "rawReads": {
     "heroSlotsUnlocked": 0,
-    "unlockedRecipes": 0,
-    "autoActions": 5
+    "unlockedRecipes": 0
   },
   "projection": {
     "top": [
@@ -17,7 +16,6 @@
       "farm",
       "gem_unlocks",
       "hero_slots",
-      "hunt_analyzer",
       "inventory",
       "inventory_complete",
       "must_rename",
@@ -28,12 +26,12 @@
       "progress_truncated",
       "renown_high",
       "skills",
+      "stamina",
       "state",
       "total_level",
       "traits",
       "unlocked_recipes",
       "version",
-      "vigour",
       "workers"
     ],
     "state": [
@@ -41,14 +39,9 @@
       "active_id",
       "active_kind",
       "active_since",
-      "auto_eat_enabled",
-      "auto_eat_food",
-      "auto_eat_pct",
-      "auto_eat_touched",
       "bank_cap",
       "combat_style",
       "combat_xp_accrued_to",
-      "consec_falls",
       "deaths_lifetime",
       "deaths_today",
       "dungeon_scrip",
@@ -61,9 +54,6 @@
       "hearthfind_ready",
       "hearthfind_titles",
       "hp",
-      "hunt_stance",
-      "hunt_stop",
-      "last_away_receipt",
       "marks",
       "max_hp",
       "plot_level",

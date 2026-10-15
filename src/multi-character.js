@@ -992,6 +992,28 @@
          from the character they are playing. */
       return (typeof s === 'number' && s >= 0 && s < MAX_SLOTS) ? (s | 0) : 0;
     },
+    /* THE DEAD ADDRESS (2026-10-15, after the closed-rebuild wipe). The b371
+       rule above keeps a player on their slot when the ENTITLEMENT rewinds,
+       because a character may still live there. This is the one case where
+       nothing can: hr_create_character answered `slot_not_owned`, which it only
+       says AFTER its fast path found no character at that slot — the server
+       holds no row at this address and refuses to create one. Keeping it would
+       loop the ensure and refuse every write (`no_character`) forever; this
+       happened to every pre-wipe account whose device remembered a hero slot.
+       Re-address to slot 0 (free on every account) only when the dead slot IS
+       the active one and is above 0. Returns true when it re-addressed, so the
+       caller reloads onto the new address. */
+    readdressDeadSlot: function(deadSlot){
+      var p = this.profile || loadProfile();
+      var d = deadSlot | 0;
+      if(!p || d <= 0 || (p.activeSlot | 0) !== d) return false;
+      p.activeSlot = 0;
+      saveProfile(p);
+      if(this.profile) this.profile.activeSlot = 0;
+      console.warn('[multi-char] slot ' + d + ' has no character and is not owned on the server — '
+        + 're-addressed to slot 0');
+      return true;
+    },
     unlockedCount: unlockedCount,
     /* ── THE SERVER-ENTITLEMENT SEAM (2026-09-08-hero-slot-buy.sql) ────────
        `ownsSlot` is the honest membership question and the one every gate in

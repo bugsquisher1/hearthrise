@@ -3,7 +3,7 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-15",
   "pinnedCount": 16,
-  "bnumTotal": 3067,
+  "bnumTotal": 3049,
   "files": {
     "src/legacy.js": {
       "total": 13223,
@@ -13,25 +13,25 @@
       "bnum": 535
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 8790,
-      "comment": 2345,
-      "code": 5856,
+      "total": 8837,
+      "comment": 2352,
+      "code": 5895,
       "ratio": 0.3914019890920757,
       "bnum": 139
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 8614,
-      "comment": 2259,
-      "code": 5776,
+      "total": 8616,
+      "comment": 2260,
+      "code": 5777,
       "ratio": 0.3836180597925564,
       "bnum": 112
     },
     "src/net/accrue.js": {
-      "total": 7173,
-      "comment": 3814,
-      "code": 2845,
+      "total": 7126,
+      "comment": 3786,
+      "code": 2827,
       "ratio": 1.3387153387153388,
-      "bnum": 126
+      "bnum": 122
     },
     "src/features/smoke/away-time-and-offline.js": {
       "total": 5651,
@@ -48,10 +48,10 @@
       "bnum": 94
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 4239,
-      "comment": 875,
-      "code": 3171,
-      "ratio": 0.27576426095178064,
+      "total": 4258,
+      "comment": 877,
+      "code": 3187,
+      "ratio": 0.2751804204581111,
       "bnum": 56
     },
     "src/features/smoke/cooking-core-and-save.js": {
@@ -69,9 +69,9 @@
       "bnum": 116
     },
     "src/features/smoke/_harness.js": {
-      "total": 2657,
-      "comment": 1184,
-      "code": 1333,
+      "total": 2663,
+      "comment": 1188,
+      "code": 1335,
       "ratio": 0.8882220555138785,
       "bnum": 75
     },
@@ -83,11 +83,11 @@
       "bnum": 28
     },
     "src/net/record.js": {
-      "total": 2152,
-      "comment": 1232,
-      "code": 786,
+      "total": 2136,
+      "comment": 1224,
+      "code": 778,
       "ratio": 1.5674300254452926,
-      "bnum": 69
+      "bnum": 65
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
       "total": 2073,
@@ -111,10 +111,10 @@
       "bnum": 21
     },
     "src/features/combat-screens.js": {
-      "total": 1931,
+      "total": 1932,
       "comment": 531,
-      "code": 1275,
-      "ratio": 0.4164705882352941,
+      "code": 1276,
+      "ratio": 0.4161442006269592,
       "bnum": 33
     }
   }

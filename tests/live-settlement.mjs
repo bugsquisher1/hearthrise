@@ -48,6 +48,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { computeAccrual, normaliseFight } from '../supabase/functions/hr-accrue/accrual.js';
+import { onTrainingHunt, secretOf } from './hunt-fixture.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
@@ -66,15 +67,18 @@ const SLOW = {
   skills: { attack: 60000, strength: 60000, defence: 20000000, hitpoints: 40000000 },
 };
 
+/* Lane C2: combat accrues only on a hunt session, so every window is a
+   training hunt on its monster (no respawn wait) carrying the same `fight`
+   checkpoint input the pointer era did — the carry lives in accrueHunt now. */
 function mk(fromMs, toMs, seed, fight, over) {
-  return {
+  return onTrainingHunt({
     userId: '00000000-0000-4000-8000-000000000001', slot: 0,
     nowMs: toMs, accruedToMs: fromMs, activeSinceMs: NOW - HOUR,
     activeKind: 'combat', activeId: TARGET, capMs: 12 * HOUR,
     seed, gold: 0, equipment: {}, items: ITEMS, monsters: MONSTERS, inventory: {},
     autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
     ...SLOW, fight, ...(over || {}),
-  };
+  });
 }
 
 /* One hour, settled at `slice`, carrying the engine's own end-of-window
@@ -84,9 +88,22 @@ function mk(fromMs, toMs, seed, fight, over) {
    under the real seeding, not under a convenient one. */
 function settleHour(slice, fight0) {
   let kills = 0; let gold = 0; let fight = fight0;
+  /* THE SESSION'S SWING CLOCK CARRIES TOO, exactly as hr_hunt_apply stores
+     swing_index / next_swing_at: a window that restarted the swing index would
+     replay the first swings' keyed rolls and measure the fixture, not the carry. */
+  let swingIndex = 0; let nextSwingAtMs = null;
   for (let i = 0; i < HOUR / slice; i++) {
-    const r = computeAccrual(mk(NOW - HOUR + i * slice, NOW - HOUR + (i + 1) * slice, 43 + i, fight));
+    const inp = mk(NOW - HOUR + i * slice, NOW - HOUR + (i + 1) * slice, 43 + i, fight);
+    inp.huntSession.swingIndex = swingIndex;
+    /* ONE session, ONE secret (hr_seed('hunt:'||session) never changes inside
+       a session): with the index carried, every swing rolls exactly what it
+       rolls inside the one long window, so equality is exact, not statistical. */
+    inp.huntSecret = secretOf(42);
+    if (nextSwingAtMs !== null) inp.huntSession.nextSwingAtMs = nextSwingAtMs;
+    const r = computeAccrual(inp);
     if (!r.accrued) continue;
+    swingIndex = Number(r.hunt.swing_to);
+    nextSwingAtMs = Date.parse(r.hunt.next_swing_at);
     kills += r.summary.kills;
     gold += r.delta.gold || 0;
     if (fight0 !== null) fight = r.delta.fight;
@@ -639,8 +656,9 @@ const MUTANTS = [
     id: 'no-emit',
     what: 'the engine never writes a checkpoint back',
     file: 'supabase/functions/hr-accrue/accrual.js',
-    from: '  if (fight0) {\n    const alive',
-    to: '  if (false) {\n    const alive',
+    /* Re-anchored lane C2: the checkpoint is written once, by accrueHunt. */
+    from: '  if (fight0) {\n    const m = state.activeMonster && monsters[state.activeMonster];',
+    to: '  if (false) {\n    const m = state.activeMonster && monsters[state.activeMonster];',
   },
   {
     id: 'unconditional-carry',

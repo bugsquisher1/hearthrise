@@ -112,6 +112,8 @@ begin
   begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
+    -- closed mode (2026-10-21-closed-mode.sql): the probe is admitted for this rolled-back block only.
+    insert into public.hr_access_allowlist (user_id, note) values (v_uid, 'demolition §4 probe') on conflict (user_id) do nothing;
     v := public.hr_create_character(v_slot);
     if coalesce(v->>'ok', '') <> 'true' then
       raise exception 'VERIFY(b): hr_create_character refused the probe: %', v;

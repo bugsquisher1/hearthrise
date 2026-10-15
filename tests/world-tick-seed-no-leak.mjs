@@ -13,22 +13,24 @@
 // header is wrong; WORLD_TICK_DESIGN.md §20). It is secret-equivalent: never
 // printed, exported, written to a fixture, or sent to CI.
 //
-//   SL-1  the evaluator (tools/world-tick-parity.mjs) and the replay/bar modules
-//         it hands rows to: no console/stdout/stderr call names a seed outside
+//   SL-1  the evaluator (tools/world-tick-parity.mjs) and the bar module it
+//         hands rows to: no console/stdout/stderr call names a seed outside
 //         a string literal; the evaluator writes no file and never serialises a
 //         whole row.
 //   SL-2  fixtures: no JSON under tests/ or services/ is a probe-row with a seed,
 //         and no NEW `seed` key appears in the world-tick fixtures (the six
-//         synthetic ones predate the column, 2026-09-16/18, and are pinned).
+//         synthetic gather ones predate the column, 2026-09-18, and are pinned).
 //   SL-3  provenance: no other file that can reach production (token or
 //         management endpoint) reads hr_tick_probe — the evaluator is the only
 //         reader, so no other test or tool can pick a seed up.
 //   SL-4  CI: every workflow call of the evaluator is --selftest, and the
 //         evaluator itself refuses its production read under CI.
-//   SL-5  RUNTIME: twelve retained rows (stored input + stored seed; six that
-//         reproduce, six that do not, so the FAIL path's reasons print) through
-//         the evaluator's own productionReplayOf -> readVerdict -> printRead
-//         (verbose). No seed, in decimal, hex or signed form, appears in the
+//   SL-5  the evaluator never FETCHES a seed: since lane C2 (the solo combat
+//         channel and its seeded replay are deleted) its QUERY selects neither
+//         the probe's stored seed nor its stored input. And at RUNTIME, twelve
+//         planted rows that DO carry a seed (six clean, six a defect, so the
+//         FAIL path's reasons print) run through readVerdict -> printRead
+//         (verbose): no seed, in decimal, hex or signed form, appears in the
 //         captured output or in the serialised verdict.
 //
 // No network, no database, no credential. Exit: 0 green (or, under --mutate,
@@ -44,12 +46,11 @@ import { spawnSync } from 'node:child_process';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const EVALUATOR = 'tools/world-tick-parity.mjs';
-const PRINT_SCOPE = [EVALUATOR, 'services/world-tick/parity-replay.js', 'services/world-tick/parity-bar.js'];
+const PRINT_SCOPE = [EVALUATOR, 'services/world-tick/parity-bar.js'];
 
 /* The six synthetic fixture seeds that predate hr_tick_probe.seed (shadow
    fixtures, c1a72a5b 2026-09-16 / eeb331aa 2026-09-18). Pinned: a new one is red. */
 const FIXTURE_SEEDS = Object.freeze({
-  'services/world-tick/fixtures/characters.json': [1592269876, 305419896, 2596069104],
   'services/world-tick/fixtures/gather-sessions.json': [918273645, 55512345, 7654321],
 });
 const SEED_KEY = /^(seed|span_?seed|one_?span_?seed|probe_?seed)$/i;
@@ -200,35 +201,29 @@ function sl4(files, opts) {
 
 // ── SL-5: runtime ───────────────────────────────────────────────────────────
 const H = 'c'.repeat(64);
-let ROWS = null;
-async function retainedRows() {
-  if (ROWS) return ROWS;
-  const ev = await import(pathToFileURL(join(ROOT, EVALUATOR)).href);
-  const { oneSpan, probeResultOf, encodeProbeInput } =
-    await import(pathToFileURL(join(ROOT, 'supabase/functions/hr-accrue/tick-probe.js')).href);
-  const { offlineSeedFor } = await import(pathToFileURL(join(ROOT, 'services/world-tick/combat.js')).href);
+/* Twelve closed gather probes, each carrying a distinct planted seed; probes
+   6..11 are two ticks off their one-span answer (a defect), so the read FAILS
+   and prints its reasons. */
+function plantedRows() {
   const iso = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
   const seeds = [];
-  const rows = ev.selftestProbes().map((p, i) => {
-    const own = offlineSeedFor(p.input.userId, p.input.slot, p.input.accruedToText);
-    const result = probeResultOf(oneSpan('combat', p.input, p.fromMs, p.toMs, own));
-    /* Half store the probe's own seed (reproduces), half a different one (does
-       not), so both the PASS path and the FAIL path's printed reasons run. */
-    const seed = i < 6 ? own : ((own ^ 0x5a5a5a5a) >>> 0);
+  const rows = Array.from({ length: 12 }, (_, i) => {
+    const from = Date.UTC(2026, 9, 1) + i * 5 * 3600e3;
+    const to = from + 4 * 3600e3;
+    const seed = (0x6d2b79f5 + i * 0x9e3779b9) >>> 0;
     seeds.push(seed);
-    const xp = Object.values(result.xp || {}).reduce((a, v) => a + v, 0);
+    const off = i >= 6 ? 2 : 0;
     return {
-      id: 700 + i, user_id: 'u-seed-leak', slot: 0, channel: 'combat', status: 'closed', void_reason: null,
-      span_from: iso(p.fromMs), span_to: iso(p.toMs), base_version: 3, version_close: 3,
-      payload_open: H, payload_close: H, result, input: JSON.parse(JSON.stringify(encodeProbeInput(p.input))),
-      seed: String(seed), input_trimmed_at: null,
-      n: 160, first_from: iso(p.fromMs), last_to: iso(p.toMs), covered_s: (p.toMs - p.fromMs) / 1000,
-      breaks: 0, straddles: 0, off_version: 0, gold: result.gold, qty: 0, ticks: result.ticks, kills: result.kills,
-      ate: result.ate, deaths: result.deaths, recover_texts: null, xp: { attack: xp }, items: result.items, ledger_rows: 0,
+      id: 700 + i, user_id: 'u-seed-leak', slot: 0, channel: 'gather', status: 'closed', void_reason: null,
+      span_from: iso(from), span_to: iso(to), base_version: 3, version_close: 3,
+      payload_open: H, payload_close: H, seed: String(seed), input: { seed },
+      result: { accrued: true, ticks: 3000, qty: 3000, gold: 0, xp: { woodcutting: 15000 }, items: { logs: 3000 } },
+      n: 160, first_from: iso(from), last_to: iso(to), covered_s: (to - from) / 1000,
+      breaks: 0, straddles: 0, off_version: 0, gold: 0, qty: 3000 + off, ticks: 3000 + off, kills: 0,
+      ate: 0, deaths: 0, recover_texts: null, xp: { woodcutting: 15000 }, items: { logs: 3000 + off }, ledger_rows: 0,
     };
   });
-  ROWS = { rows, seeds };
-  return ROWS;
+  return { rows, seeds };
 }
 const forms = (s) => {
   const n = Number(s);
@@ -237,7 +232,10 @@ const forms = (s) => {
 async function sl5(evUrl) {
   const bad = [];
   const ev = await import(evUrl);
-  const { rows, seeds } = await retainedRows();
+  const sql = String(ev.QUERY(14)).replace(/--[^\n]*/g, '');
+  if (/\bseed\b/i.test(sql)) bad.push('the evaluator\'s QUERY selects a probe seed — it has no replay to need one');
+  if (/\bp\.input\b|\binput\s*,|,\s*input\b/i.test(sql)) bad.push('the evaluator\'s QUERY selects a probe\'s stored input');
+  const { rows, seeds } = plantedRows();
   const out = [];
   const keep = { log: console.log, error: console.error, warn: console.warn, info: console.info,
     o: process.stdout.write, e: process.stderr.write };
@@ -247,7 +245,7 @@ async function sl5(evUrl) {
   process.stderr.write = (c) => { out.push(String(c)); return true; };
   let v;
   try {
-    v = ev.readVerdict(rows.map((r) => JSON.parse(JSON.stringify(r))), H, { replayOf: ev.productionReplayOf(H, 2) });
+    v = ev.readVerdict(rows.map((r) => JSON.parse(JSON.stringify(r))), H);
     ev.printRead(v, H, { verbose: true });
   } finally {
     console.log = keep.log; console.error = keep.error; console.warn = keep.warn; console.info = keep.info;
@@ -255,13 +253,9 @@ async function sl5(evUrl) {
   }
   const printed = out.join('\n');
   const exported = JSON.stringify(v);
-  /* Non-vacuity: the seeds were USED (six reproduce, six do not) and the FAIL
-     path's reasons were printed. */
-  const reps = v.records.map((r) => r.replay && r.replay.reproduced);
-  const nTrue = reps.filter((x) => x === true).length;
-  const nFalse = reps.filter((x) => x === false).length;
-  if (nTrue !== 6 || nFalse !== 6) bad.push(`harness: expected 6 reproduced / 6 not, got ${nTrue} / ${nFalse}`);
-  if (!/does not reproduce/.test(printed)) bad.push('harness: the non-reproducing rows printed no reason — the FAIL path was not exercised');
+  /* Non-vacuity: all twelve rows were read and the FAIL path's reasons printed. */
+  if (!v || v.records.length !== 12) bad.push(`harness: expected 12 records read, got ${v ? v.records.length : 'none'}`);
+  if (!/Δticks/.test(printed)) bad.push('harness: the defective rows printed no reason — the FAIL path was not exercised');
   for (const s of seeds) {
     for (const f of forms(s)) {
       if (f.length >= 6 && printed.includes(f)) { bad.push(`a stored seed is PRINTED by the read (form ${f.length} chars)`); break; }
@@ -275,8 +269,8 @@ async function sl5(evUrl) {
 
 // ── mutants ─────────────────────────────────────────────────────────────────
 const EV_SRC = () => readFileSync(join(ROOT, EVALUATOR), 'utf8');
-const MARK_DECODE = '    const input = decodeProbeInput(row.input);';
-const MARK_RETURN = '    return Object.assign(r.stats, { reproduceDetail: r.reproduceDetail });';
+const MARK_REC = '  const rec = { user: row.user_id, slot: row.slot, channel: row.channel, id: row.id };';
+const MARK_SELECT = '         base_version, version_close, payload_open, payload_close, result\n';
 function editEv(edits) {
   let s = EV_SRC();
   for (const [a, b] of edits) {
@@ -289,25 +283,27 @@ function editEv(edits) {
 function evModule(src, tag) {
   const base = pathToFileURL(ROOT).href.replace(/\/$/, '');
   /* Every relative import made absolute: '../x' from the repo root, './x'
-     (pack-edge.mjs, world-tick-replay-pool.mjs) from tools/. */
+     from tools/. */
   const abs = src.split("'../").join(`'${base}/`).split("'./").join(`'${base}/tools/`);
   const p = join(tmpdir(), `hr-seed-leak-${process.pid}-${tag}.mjs`);
   writeFileSync(p, abs, 'utf8');
   return { url: pathToFileURL(p).href, done: () => { try { unlinkSync(p); } catch { /* gone */ } } };
 }
 const MUTANTS = [
-  { name: 'SL-M1 the replay prints the row\'s seed', want: ['SL-1', 'SL-5'],
-    ev: [[MARK_DECODE, `${MARK_DECODE}\n    console.log(\`  probe \${row.id} seed \${row.seed}\`);`]] },
-  { name: 'SL-M2 the replay record exports the seed (no print)', want: ['SL-5'],
-    ev: [[MARK_RETURN, '    return Object.assign(r.stats, { reproduceDetail: r.reproduceDetail, seed: seedOfRow(row) });']] },
+  { name: 'SL-M1 classify prints the row\'s seed', want: ['SL-1', 'SL-5'],
+    ev: [[MARK_REC, `${MARK_REC}\n  console.log(\`  probe \${row.id} seed \${row.seed}\`);`]] },
+  { name: 'SL-M2 the record exports the seed (no print)', want: ['SL-5'],
+    ev: [[MARK_REC, '  const rec = { user: row.user_id, slot: row.slot, channel: row.channel, id: row.id, s: row.seed };']] },
   { name: 'SL-M3 the evaluator dumps its rows to a file', want: ['SL-1'],
-    ev: [[MARK_DECODE, `${MARK_DECODE}\n    if (process.env.HR_DUMP) writeFileSync('probe-rows.json', JSON.stringify(row));`]] },
+    ev: [[MARK_REC, `${MARK_REC}\n  if (process.env.HR_DUMP) writeFileSync('probe-rows.json', JSON.stringify(row));`]] },
+  { name: 'SL-M8 the evaluator\'s QUERY fetches the seed again', want: ['SL-5'],
+    ev: [[MARK_SELECT, '         base_version, version_close, payload_open, payload_close, result, seed\n']] },
   { name: 'SL-M4 a probe row (with seed) saved as a fixture', want: ['SL-2'],
     files: (m) => m.set('services/world-tick/fixtures/probe-dump.json', JSON.stringify(
       [{ id: 8, span_from: '2026-10-06T08:39:48+00:00', payload_open: H, seed: 123456789 }])) },
   { name: 'SL-M5 a new bare seed in a world-tick fixture', want: ['SL-2'],
-    files: (m) => m.set('services/world-tick/fixtures/characters.json',
-      m.get('services/world-tick/fixtures/characters.json').replace('"seed": 305419896', '"seed": 305419897')) },
+    files: (m) => m.set('services/world-tick/fixtures/gather-sessions.json',
+      m.get('services/world-tick/fixtures/gather-sessions.json').replace('"seed": 918273645', '"seed": 918273646')) },
   { name: 'SL-M6 CI runs the production read', want: ['SL-4'],
     files: (m) => m.set('.github/workflows/smoke.yml',
       `${m.get('.github/workflows/smoke.yml')}\n          node tools/world-tick-parity.mjs --days 4\n`) },

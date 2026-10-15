@@ -75,15 +75,8 @@
 //       balanced parens, and requires `::text::jsonb` on its last argument. Its
 //       mutation PLANTS a new file rather than editing an old one, because a
 //       mutation that edits a file T1/T2 already read proves nothing about T6.
-//   T7  THE CLAIM VERB, END TO END — the same wire as T3, one verb over, and the
-//       first one that MOVES MONEY. It was written because claim-reward.js
-//       shipped with the pre-fix `$5::jsonb` shape: the verb was authored against
-//       a PGlite-`exec` suite (tests/claim-intent.mjs, the behavioural authority
-//       for it) which by construction cannot see the transport, so the P0 was
-//       reproduced in a new file within hours of being closed in the old two. T7
-//       asserts the MONEY, not the 200 — gold in player_state, version bumped,
-//       the progress row 'claimed' — and pins `granted`'s literal key set, which
-//       is a documented wire shape the client renders.
+//   T7  (retired with the claim_reward verb, closed rebuild lane C2: the verb
+//       and claim-reward.js were deleted outright.)
 //   T9  PRECONDITION — THE CHAIN MUST BE PROD-SHAPED FOR `SEED_SQL`, asserted
 //       before the socket server starts and with the function names READ OUT OF
 //       set-activity.js. It exists because over pglite-socket a SQL error closes
@@ -201,14 +194,6 @@ const MUTATIONS = {
     find: '${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res',
     repl: '${wIntentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res',
   },
-  bare_jsonb_claim_reward: {
-    file: FN('claim-reward.js'),
-    why: 'claim-reward.js binds the pre-stringified delta into a bare $5::jsonb — the shipped P0 on '
-       + 'the verb that MOVES MONEY. Every daily claim would 409 bad_delta and the player would be '
-       + 'told the reward was not claimable.',
-    find: '$4::uuid, $5::text::jsonb) as res',
-    repl: '$4::uuid, $5::jsonb) as res',
-  },
   third_apply_site: {
     /* How the P0 comes back: not by anyone un-fixing these two lines, but by the
        next verb copying the shape that predates the fix into a new file. */
@@ -233,17 +218,18 @@ const MUTATIONS = {
      transport at all — which is the point: T3/T7 and T1/T2/T6 all still pass
      under it. Only an INDEPENDENTLY transcribed expectation can see it. */
   /* ── T9's mutation. A FOURTH shape: it edits no file at all. It drops
-     `hr_attended_kills` from the booted database AFTER the chain has applied,
-     which is not a forgery — it is the CONFIGURATION production is in until
-     2026-09-10-attended-loot-credit.sql is applied, and the one
+     `hr_perks_of` from the booted database AFTER the chain has applied — a
+     database one migration behind the payload, the configuration
      `collectCurrentWindow`'s 42883 ladder was written for. Over pglite-socket
      that ladder cannot run (a SQL error closes the connection), so without T9
      this arm reproduces b532 verbatim: `harness/runtime failure: write
      CONNECTION_CLOSED`, naming no test, no function and no file. CAUGHT here
      means the guard now says which function is missing and which migration
-     defines it, before it opens the wire. */
-  chain_missing_attended_kills: {
-    dropFn: 'public.hr_attended_kills(uuid, int, timestamptz)',
+     defines it, before it opens the wire. (Until lane C2 the dropped function
+     was hr_attended_kills; the hunt sessions retired it and SEED_SQL's call to
+     it, so the mutant moved to the read SEED_SQL still makes.) */
+  chain_missing_perks_of: {
+    dropFn: 'public.hr_perks_of(uuid, int)',
     why: 'the booted chain lacks a function SEED_SQL calls — the b532 red, which over pglite-socket '
        + 'surfaces as CONNECTION_CLOSED instead of 42883 and names nothing.',
   },
@@ -312,7 +298,6 @@ async function loadSources(mutate) {
   const src = {
     index: (await readFile(FN('index.ts'), 'utf8')).replace(/\r\n/g, '\n'),
     setActivity: (await readFile(FN('set-activity.js'), 'utf8')).replace(/\r\n/g, '\n'),
-    claimReward: (await readFile(FN('claim-reward.js'), 'utf8')).replace(/\r\n/g, '\n'),
     applyEngine: (await readFile(MIG('2026-08-11-apply-engine.sql'), 'utf8')).replace(/\r\n/g, '\n'),
   };
   let importDir = FN('');
@@ -375,7 +360,6 @@ async function loadSources(mutate) {
     const FILE_KEYS = {
       [FN('index.ts')]: ['index', 'index.ts'],
       [FN('set-activity.js')]: ['setActivity', 'set-activity.js'],
-      [FN('claim-reward.js')]: ['claimReward', 'claim-reward.js'],
     };
     const entry = FILE_KEYS[m.file];
     if (!entry) {
@@ -557,13 +541,12 @@ async function run(mutate) {
   // ── T1/T2. The named call sites, from their bytes. ──────────────────────
   const idx = deltaCastOf(src.index, 'index.ts');
   const sa = deltaCastOf(src.setActivity, 'set-activity.js');
-  const cr = deltaCastOf(src.claimReward, 'claim-reward.js');
-  for (const r of [idx, sa, cr]) if (r.error) problems.push(r.error);
+  for (const r of [idx, sa]) if (r.error) problems.push(r.error);
   {
     /* Every named site must state the SAME shape. Two that disagree is how one
        of them rots unobserved — and with three verbs the odds of a copy from
        the wrong one go up, not down. */
-    const casts = [['index.ts', idx.cast], ['set-activity.js', sa.cast], ['claim-reward.js', cr.cast]]
+    const casts = [['index.ts', idx.cast], ['set-activity.js', sa.cast]]
       .filter(([, c]) => !!c);
     const distinct = [...new Set(casts.map(([, c]) => c))];
     note(distinct.length <= 1,
@@ -585,7 +568,6 @@ async function run(mutate) {
          census can never disagree with the assertions above it. */
       const text = rel === 'index.ts' ? src.index
                  : rel === 'set-activity.js' ? src.setActivity
-                 : rel === 'claim-reward.js' ? src.claimReward
                  : (await readFile(file, 'utf8')).replace(/\r\n/g, '\n');
       for (const { fn, args } of applyArgLists(text)) {
         if (args === null) {
@@ -612,7 +594,7 @@ async function run(mutate) {
     }
     note(seen.length >= 4 && seen.some((s) => s.endsWith(':hr_tick_settle')),
       `T6: the payload census found ${seen.length} delta-taking call site(s) [${seen.join(', ')}], `
-      + 'expected at least the four known ones (index.ts, set-activity.js, claim-reward.js on '
+      + 'expected at least four (index.ts, set-activity.js and the verb modules on '
       + 'hr_apply; tick.js on hr_tick_settle). Either the '
       + 'scanner stopped matching the real syntax or the apply '
       + 'sites moved out of the deployed directory — either way this assertion is now vacuous and '
@@ -663,9 +645,11 @@ async function run(mutate) {
         + 'the function names out of that literal, so it can no longer tell whether the chain '
         + 'booted below can answer the collect at all');
       const named = [...new Set([...seedSql.matchAll(/public\.(hr_\w+)\s*\(/g)].map((m) => m[1]))];
-      ok(named.length >= 3,
+      /* Exact, not a count: since lane C2 the literal makes two reads (the
+         attended-kill read went with the attended top-up), and both are named. */
+      ok(named.length >= 2 && named.includes('hr_seed') && named.includes('hr_perks_of'),
         `T9: SEED_SQL names ${named.length} server function(s) (${named.join(', ') || 'none'}), `
-        + 'expected at least three — the extractor has stopped matching the real syntax, so this '
+        + 'expected hr_seed and hr_perks_of — the extractor has stopped matching the real syntax, so this '
         + 'precondition is vacuous and the next missing function is a CONNECTION_CLOSED again');
       const missing = [];
       for (const fn of named) {
@@ -770,7 +754,10 @@ async function run(mutate) {
       const res = await runSetActivity({
         exec, user: UID, slot: 0,
         intentId: crypto.randomUUID(),
-        activity: { kind: 'combat', id: 'goblin' },
+        /* A GATHER declaration since lane C2: `combat` is answered
+           hunt_required on shape (a fight is a hunt session now) and would
+           never reach the wire this arm exists for. */
+        activity: { kind: 'gather', id: 'normal_tree' },
       });
 
       /* The refusal envelope carries a whole hr_state_of, so a raw dump buries
@@ -789,95 +776,12 @@ async function run(mutate) {
       const [st] = (await db.query(
         'select active_kind, active_id, version from public.player_state where user_id=$1 and slot=0',
         [UID])).rows;
-      ok(st && st.active_kind === 'combat' && st.active_id === 'goblin',
+      ok(st && st.active_kind === 'gather' && st.active_id === 'normal_tree',
         `T3: hr_apply reported success but the pointer is ${st && st.active_kind}/${st && st.active_id} `
         + '— the write did not land, so the 200 above is not evidence of anything');
       ok(Number(st.version) === 1,
         `T3: player_state.version is ${st.version} after exactly one apply from a fresh character `
         + '(expected 1) — the version did not advance, so nothing was committed');
-    }
-
-    /* ── T7. THE CLAIM VERB, END TO END, OVER THE REAL DRIVER. ──────────────
-       tests/claim-intent.mjs drives runClaimReward through a PGlite `exec` and
-       is the behavioural authority for this verb — 30+ mutations, the streak,
-       the double-claim lock, the replay. What it CANNOT see is the wire, which
-       is the exact blind spot that let the P0 ship: set-activity.js had a
-       27-mutation suite and had never once applied anything in production.
-       claim-reward.js was written after that fix and copied the pre-fix shape
-       anyway, which is the whole reason T6 exists.
-
-       This is the same seam as T3, one verb over: the real module off disk, the
-       real postgres driver, the real hr_apply. It is deliberately the MONEY
-       assertion — the gold has to be in player_state afterwards, because a
-       receipt without a balance change is what a re-encoded delta looks like
-       from the outside on the day someone "fixes" the 409 by ignoring it. */
-    {
-      const { runClaimReward } = await import(
-        pathToFileURL(join(importDir, 'claim-reward.js')).href + `?t=${Date.now()}${Math.random()}`);
-
-      const exec = async (text, params) => await sql.begin(async (tx) => {
-        await tx`set local role hr_engine`;
-        return await tx.unsafe(text, params);
-      });
-
-      const [before] = (await db.query(
-        'select gold, version from public.player_state where user_id=$1 and slot=0',
-        [UID])).rows;
-
-      const res = await runClaimReward({
-        exec, user: UID, slot: 0,
-        intentId: crypto.randomUUID(),
-        reward: { kind: 'daily', key: 'login' },
-      });
-
-      const verdict = res.body?.ok === true
-        ? 'ok'
-        : `error=${JSON.stringify(res.body?.error)} stage=${JSON.stringify(res.body?.stage)} `
-          + `detail=${JSON.stringify(res.body?.detail)}`;
-      ok(res.status === 200 && res.body?.ok === true,
-        `T7: the real claim_reward intent, over the real postgres driver, answered `
-        + `${res.status} ${verdict}. `
-        + "409/bad_delta at stage 'claim' is the verbatim production P0 on the verb that MOVES "
-        + 'MONEY: the delta reached hr_apply as a jsonb string scalar because postgres.js '
-        + 're-serialised a value that was already JSON.stringify-d. Cast the parameter '
-        + '::text::jsonb, exactly as index.ts and set-activity.js do.');
-
-      /* THE GRANT RECEIPT'S LITERAL KEY SET (Security G3). The header at the top
-         of claim-reward.js documents this object and the client renders it, so a
-         silent rename between the two is a receipt the client cannot read. The
-         set is asserted EXACTLY — a new key must move the header with it. */
-      const g = res.body?.granted;
-      ok(g && typeof g === 'object',
-        `T7: a non-replay claim returned granted=${JSON.stringify(g)} — the receipt is the half of `
-        + 'this response the client renders, and null here means the player is paid with no '
-        + 'explanation of what for');
-      {
-        const want = ['cycle_day', 'gems', 'gold', 'items', 'kind', 'key', 'mult', 'period', 'streak', 'weeks']
-          .sort().join(',');
-        const have = Object.keys(g).sort().join(',');
-        note(have === want,
-          `T7: granted's key set is [${have}] but the contract in claim-reward.js's header and in `
-          + `tests/claim-intent.mjs says [${want}]. The receipt is a documented wire shape: a key `
-          + 'renamed in the pricer\'s `meta` silently renames a field the client reads, and the '
-          + 'header stops being true. Change both, or neither.');
-      }
-
-      const [after] = (await db.query(
-        'select gold, version from public.player_state where user_id=$1 and slot=0',
-        [UID])).rows;
-      ok(Number(after.gold) === Number(before.gold) + Number(g.gold),
-        `T7: player_state.gold went ${before.gold} → ${after.gold}, but the receipt claims `
-        + `${g.gold} gold was granted. The 200 above is not evidence that any value moved.`);
-      ok(Number(after.version) === Number(before.version) + 1,
-        `T7: player_state.version is ${after.version} after the claim (was ${before.version}) — the `
-        + 'apply did not commit, so the receipt describes work that did not happen');
-
-      const [row] = (await db.query(
-        "select state, value from public.player_progress where user_id=$1 and slot=0 "
-        + "and kind='daily' and key='login'", [UID])).rows;
-      ok(row && row.state === 'claimed',
-        `T7: player_progress for daily:login is ${JSON.stringify(row)} — the claim block is the `
-        + "double-claim lock, and a row that is not 'claimed' means today can be claimed again");
     }
 
     /* ── T8. THE ACCRUE VERB, GATHERING, END TO END OVER THE REAL DRIVER. ────

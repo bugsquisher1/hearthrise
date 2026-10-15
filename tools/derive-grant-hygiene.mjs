@@ -330,6 +330,21 @@ export const LINKS = [
     target: '2026-10-10-world-tick-presence-horizon.sql',
     patchIds: ['presence_horizon'],
   },
+  /* Link 18 (ruling HR-2026-10-14, lane C2) — THE HUNT SETTLE.
+     2026-10-22-hunt-sessions-settle.sql grants hr_engine EXECUTE on the three
+     functions one hunt-session settle needs: hr_hunt_open_of (is a hunt open),
+     hr_hunt_engine_read (the session, bag, bar and the keyed-seed secret) and
+     hr_hunt_apply (hr_apply + hr_hunt_settle_session in one subtransaction).
+     Three entries at the HEAD of c_engine_allow, plus hr_engine_closed (the
+     edge's closed-mode answer, Security closed-mode review item 4), an
+     INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART
+     1f-ii is EMPTY. Its base is link 17's TARGET. The grants and this link
+     land in ONE file. It is the new last toucher. */
+  {
+    base: '2026-10-10-world-tick-presence-horizon.sql',
+    target: '2026-10-22-hunt-sessions-settle.sql',
+    patchIds: ['hunt_settle'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -363,6 +378,41 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'hunt_settle',
+    name: 'the c_engine_allow array head (link 18)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-10-22 — THE HUNT SETTLE (ruling HR-2026-10-14, lane C2) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Each claim re-derived:
+    --
+    -- read-only: the id of the character's OPEN session or null. Same target
+    -- argument as hr_state_of (p_user, p_slot), one indexed row.
+    'hr_hunt_open_of(uuid,integer)',
+    -- read-only (STABLE): one open session — clock, bag, action bar — and the
+    -- session secret hr_seed(user, slot, 'hunt:' || id), i.e. a value the
+    -- engine could already ask hr_seed for. Accepts no target the engine is
+    -- not already authorised for (the hr_apply/hr_state_of pair).
+    'hr_hunt_engine_read(uuid,integer)',
+    -- SELF-VALIDATING, the hr_apply claim: it CALLS hr_apply (which re-checks
+    -- every invariant of the value half under its own version CAS) and
+    -- hr_hunt_settle_session (swing CAS, window, bag, use caps, presses only
+    -- shrink, falls journalled, every end re-proved), in ONE subtransaction —
+    -- a refusal in either half rolls both back. Its own writes are the press
+    -- (validated as hr_hunt_use validates one) and a buff queue admitted only
+    -- when this window's bag uses paid for every new segment. It pays nothing
+    -- hr_apply would refuse.
+    'hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    -- NOT READ-ONLY, bounded: the CLOSED-MODE answer for a refused edge call
+    -- (Security, closed-mode review item 4). Asked only after hr_rate_gate
+    -- refused (p_user, p_slot) — the pair the engine already passes it. It
+    -- reads hr_admitted for that user and, when not admitted, writes ONE
+    -- hr_rejections aggregate upsert (code 'closed') for that user; it moves
+    -- no value and names no other target.
+    'hr_engine_closed(uuid,integer,text)',
+`,
+    where: 'after',
+  },
   {
     id: 'presence_horizon',
     name: 'the c_engine_allow array head (link 17)',

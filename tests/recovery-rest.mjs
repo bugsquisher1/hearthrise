@@ -23,9 +23,7 @@
 //      is NOT voided by an activity switch (exploit R2).
 //   7. hr_apply FANS OUT the death ledger: one `player_ledger` row per death,
 //      kind='combat' intent='death', value-free, and REFUSES an over-long array.
-//   8. hr_set_auto_eat STAMPS `auto_eat_set_at` on EVERY call — including the
-//      "Keep it off" call — and hr_state_of projects `auto_eat_touched`, so the
-//      one-time switch-on offer can never be made twice.
+//   8. (retired by lane C2 with Auto-Eat itself; see hunt-sessions-db D1.)
 //   9. THE RECOVERY WINDOW REFUSES COMBAT AND NOTHING ELSE (rev. 3) — and the
 //      engine PAYS the gather window it allows: (f) runs the real collect over
 //      five minutes inside a knockout and demands xp, items and an advanced
@@ -122,20 +120,8 @@ const MUTATIONS = {
     find: "    if p_delta ? 'deaths' then\n      for v_death in select value from jsonb_array_elements(p_delta->'deaths') loop\n        insert into public.player_ledger",
     repl: "    if false then\n      for v_death in select value from jsonb_array_elements(p_delta->'deaths') loop\n        insert into public.player_ledger",
   },
-  autoeat_stamp_off: {
-    file: FILE,
-    why: 'hr_set_auto_eat no longer stamps auto_eat_set_at, so `auto_eat_touched` never becomes true '
-       + 'and the one-time switch-on offer is made on every single boot, forever',
-    find: '         auto_eat_set_at  = now(),',
-    repl: '         auto_eat_pct     = v_pct,',
-  },
-  touched_not_projected: {
-    file: FILE,
-    why: 'hr_state_of stops projecting auto_eat_touched, so the client cannot tell a DECISION from a '
-       + 'default and re-prompts a player who said "Keep it off"',
-    find: "      'auto_eat_touched', (v_st.auto_eat_set_at is not null),",
-    repl: "      'auto_eat_touched_x', (v_st.auto_eat_set_at is not null),",
-  },
+  /* (autoeat_stamp_off / touched_not_projected retired with arm 8: lane C2
+     drops the Auto-Eat switch they planted into.) */
   recovery_floor_forfeits_gather: {
     js: 'supabase/functions/hr-accrue/accrual.js',
     why: 'the rev. 2 prefix subtraction is put back in the ENGINE - the declaration is accepted '
@@ -148,18 +134,20 @@ const MUTATIONS = {
   },
   recovery_refuses_gathering: {
     js: 'supabase/functions/hr-accrue/set-activity.js',
-    why: 'the recovery refusal widens back to every payable kind (rev. 2) — a knocked-out player is '
+    why: 'a knockout refusal comes back for every payable kind (rev. 2) — a knocked-out player is '
        + 'refused the fishing that is the CURE the knockout exists to teach, which is the 45-minute '
        + 'dead sit measured on live b524',
-    find: '  if (recoveryRefuses(decl.kind)) {',
-    repl: '  if (PAYABLE_KINDS.includes(decl.kind)) {',
+    find: '  /* (2) \u26a0 COLLECT BEFORE SWITCH.',
+    repl: "  if (Date.parse(st.recovering_until) > new Date(read.now).getTime()) {\n"
+        + "    return { status: 409, body: { ok: false, error: 'recovering', kind: decl.kind, id: decl.id } };\n"
+        + '  }\n  /* (2) \u26a0 COLLECT BEFORE SWITCH.',
   },
-  recovery_refuses_nothing: {
+  combat_pointer_returns: {
     js: 'supabase/functions/hr-accrue/set-activity.js',
-    why: 'the recovery refusal is disarmed entirely — a knocked-out character starts a FIGHT, which '
-       + 'is exploit R1: earning combat output while down, and the whole ladder deleted',
-    find: '  if (recoveryRefuses(decl.kind)) {',
-    repl: '  if (false) {',
+    why: 'a `combat` declaration reaches the database again — a fight outside a hunt session, and '
+       + 'with section 1b gone, a knocked-out character starts one: exploit R1',
+    find: "  if (decl.kind === 'combat') {\n    return {\n      status: 409,\n      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED,",
+    repl: "  if (false) {\n    return {\n      status: 409,\n      body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED,",
   },
   counters_not_projected: {
     file: FILE,
@@ -256,7 +244,7 @@ async function seed(db, uid, o = {}) {
 const rest = (db, uid, intent) => asPlayer(db, uid,
   'select public.hr_rest($1::int, $2::uuid) as r', [0, intent]).then((row) => row.r);
 const stateRow = async (db, uid) => (await db.query(
-  `select hp, max_hp, recovering_until, auto_eat_enabled, auto_eat_set_at, version
+  `select hp, max_hp, recovering_until, version
      from public.player_state where user_id=$1 and slot=0`, [uid])).rows[0];
 const invQty = async (db, uid, id) => {
   const r = await db.query(
@@ -424,7 +412,7 @@ async function runAll(db, mutate) {
       } finally { await db.exec('reset role'); }
     };
     const row = (n) => ({ monster: 'slime', recovery_ms: n * 120000, deaths_today: n,
-      deaths_lifetime: n + 10, resume_hp: 4, auto_eat_enabled: false, food_in_bag: false });
+      deaths_lifetime: n + 10, resume_hp: 4, food_in_bag: false });
     const r = await apply({ deaths: [row(1), row(2), row(3)],
       journal: { kind: 'combat', intent: 'accrue' } });
     ok(r && r.ok === true, `a delta with death rows was refused: ${JSON.stringify(r && r.error)}`);
@@ -455,45 +443,12 @@ async function runAll(db, mutate) {
     ok(Number(after) === 3, `the refused delta still wrote rows (${after} total, expected 3)`);
   }
 
-  // ── 8. THE AUTO-EAT TOUCH STAMP. ─────────────────────────────────────────
-  {
-    const I = uidFor('a9');
-    await seed(db, I, { hp: 5, maxHp: 10, until: null });
-    let st = await stateRow(db, I);
-    ok(st.auto_eat_set_at === null,
-      'a fresh character already carries a touch stamp — every one of them would be denied the '
-      + 'one-time switch-on offer');
-    let env = (await db.query(`select public.hr_state_of($1::uuid, 0) as e`, [I])).rows[0].e;
-    ok(env.state.auto_eat_touched === false,
-      `hr_state_of does not project auto_eat_touched:false for an untouched character `
-      + `(got ${JSON.stringify(env.state.auto_eat_touched)})`);
-
-    /* "KEEP IT OFF" — the answer that must ALSO silence the offer. It is the
-       call this stamp exists for: switching it ON obviously counts as a
-       decision, and a stamp that only fired on the way on would re-prompt the
-       one population that has already said no. */
-    const off = await asPlayer(db, I,
-      'select public.hr_set_auto_eat($1::int,$2::boolean,$3::text,$4::int,$5::boolean) as r',
-      [0, false, null, null, false]);
-    ok(off.r && off.r.ok === true, `hr_set_auto_eat(false) failed: ${JSON.stringify(off.r)}`);
-    st = await stateRow(db, I);
-    ok(st.auto_eat_set_at !== null,
-      'hr_set_auto_eat(false) did NOT stamp auto_eat_set_at — a player who chose "Keep it off" '
-      + 'would be re-prompted on every boot, forever');
-    ok(st.auto_eat_enabled === false, 'hr_set_auto_eat(false) turned it ON');
-    env = (await db.query(`select public.hr_state_of($1::uuid, 0) as e`, [I])).rows[0].e;
-    ok(env.state.auto_eat_touched === true,
-      'hr_state_of does not project the touch, so the client cannot tell a DECISION from a default');
-
-    /* AND THE MIGRATION DID NOT BULK-WRITE THE SWITCH. `auto_eat_enabled` has
-       exactly one writer; a row that is enabled with no stamp proves a second. */
-    const bad = (await db.query(
-      `select count(*)::int c from public.player_state where auto_eat_enabled and auto_eat_set_at is null`
-    )).rows[0].c;
-    ok(Number(bad) === 0,
-      `${bad} row(s) are auto_eat_enabled with no touch stamp — something other than hr_set_auto_eat `
-      + 'wrote the switch');
-  }
+  // ── 8. (RETIRED, lane C2) THE AUTO-EAT TOUCH STAMP. ──────────────────────
+  // Hunt sessions retire Auto-Eat (ruling HR-2026-10-14 §3): healing is the
+  // action bar's heal slot, priced by the hunt settle. hr_set_auto_eat, the
+  // five auto_eat columns and the auto_eat_touched projection are dropped by
+  // 2026-10-22-hunt-sessions-drop-away.sql; tests/hunt-sessions-db.mjs D1
+  // asserts they are gone and that a planted reader refuses the drop.
 
   // ── 9. THE LADDER'S COUNTERS ARE PROJECTED AS SCALARS. ───────────────────
   {
@@ -591,16 +546,17 @@ async function runAll(db, mutate) {
       ok(away.RECOVERY_REFUSED_KINDS.every((k) => sa.SETTABLE_KINDS.includes(k)),
         'a refused kind is not even SETTABLE — §1b is gating a door that does not exist');
 
-      // (b) KNOCKED OUT: the fight is refused, with the countdown on the refusal.
+      /* (b) KNOCKED OUT: no fight can be declared. Since lane C2 a `combat`
+         declaration is `hunt_required` for EVERY character (a fight is a hunt
+         session, entered through hr_hunt_enter), so exploit R1 — earning
+         combat output while down — has no set_activity door at all; the
+         refusal is pinned, and so is the pointer. */
       await knock(900);
       const fight = await call('combat', COMBAT.id);
-      ok(fight.status === 409 && fight.body && fight.body.error === 'recovering',
+      ok(fight.status === 409 && fight.body && fight.body.error === 'hunt_required',
         `a knocked-out character was allowed to declare COMBAT: ${fight.status} `
         + `${JSON.stringify(fight.body).slice(0, 200)}. That is exploit R1 — earning combat output `
         + 'while down — and it deletes the ladder the whole Recovery Rule is made of');
-      ok(Number(fight.body.remaining_ms) > 0 && !!fight.body.until,
-        `the refusal carried no countdown (${JSON.stringify(fight.body).slice(0, 160)}): a client `
-        + 'that cannot render the wait polls instead');
       const afterFight = (await db.query(
         'select active_kind, active_id from public.player_state where user_id=$1 and slot=0', [K])).rows[0];
       ok(afterFight.active_kind === 'idle' && afterFight.active_id === null,
@@ -736,20 +692,22 @@ async function runAll(db, mutate) {
                         set active_kind = 'gather', active_id = '${GATHER.id}'
                       where user_id = '${K}' and slot = 0;`);
 
-      // (d) THE LADDER DID NOT MOVE. The refusal narrowed; the price of falling did not.
-      ok(away.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 99 }) === 0
-        && away.recoveryFor({ deathsTodayBefore: 1, deathsLifetimeBefore: 99 }) === away.RECOVERY_BASE_MS
-        && away.recoveryFor({ deathsTodayBefore: 20, deathsLifetimeBefore: 99 }) === away.RECOVERY_CAP_MS,
-        'the recovery LADDER moved with the refusal narrowing. It prices FIGHTERS and its bands are '
-        + 'ratios of a foodless fighter to a fed one, both fighting — letting a downed character fish '
-        + 'changes no number in that table, so any change here is an unasked-for repricing');
+      // (d) THE FALL IS FLAT (closed rebuild, lane C2): the recovery ladder is
+      //     deleted; a fall in a hunt costs the one KNOCKOUT_MS, whatever the
+      //     day's count. The refusal narrowing above changes no price.
+      const { KNOCKOUT_MS } = await import('../src/data/hunt-sessions.js');
+      ok(typeof away.recoveryFor === 'undefined' && Number.isInteger(KNOCKOUT_MS) && KNOCKOUT_MS > 0,
+        'a fall-count ladder is back in src/core/away.js, or KNOCKOUT_MS is no longer one positive '
+        + 'flat wait — the closed rebuild prices every fall the same');
 
-      // (e) THE CONTROL. Stand them up and the fight goes through, or (b) proves nothing.
+      /* (e) THE CONTROL, after lane C2: a character who is UP is refused the
+         same way — the refusal in (b) is the hunt door, not a knockout rule
+         set_activity still carries (its §1b branch is deleted). */
       await knock(null);
       const up = await call('combat', COMBAT.id);
-      ok(up.status === 200 && up.body && up.body.ok === true,
-        `CONTROL: a character who is UP could not declare combat: ${up.status} `
-        + `${JSON.stringify(up.body).slice(0, 200)} — §1b is refusing more than the window`);
+      ok(up.status === 409 && up.body && up.body.error === 'hunt_required',
+        `CONTROL: a character who is UP declared combat as ${up.status} `
+        + `${JSON.stringify(up.body).slice(0, 200)} — a combat pointer outside a hunt session is back`);
     }
   }
 }
@@ -783,9 +741,8 @@ if (argv.includes('--selftest')) {
   console.log('recovery-rest: all assertions passed (hr_rest eats/heals/clears, all-or-nothing, '
     + 'replay-safe, not_hurt + not_recovering + collect_first fuses; hr_apply admits the 64-minute '
     + 'ladder cap, refuses a forgery, is not voided by an activity switch; the death ledger is one '
-    + 'value-free row per death and bounded; hr_set_auto_eat stamps the touch on every call and '
-    + 'hr_state_of projects it; the ladder counters survive a truncated progress array; and '
-    + 'set_activity §1b refuses COMBAT alone inside the window while gathering runs at full rate, '
+    + 'value-free row per death and bounded; the ladder counters survive a truncated progress array; and '
+    + 'set_activity refuses COMBAT (hunt_required) down or up while gathering runs at full rate, '
     + 'without clearing the line or moving the ladder — and the ENGINE pays that window through the '
     + 'real collect, so the xp and items land, accrued_to advances, and hr_rest is not jammed behind '
     + 'collect_first).');

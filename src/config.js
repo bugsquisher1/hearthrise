@@ -31,8 +31,9 @@ export const CHAT = {
 };
 
 export const COMBAT = {
-  /** Tick interval ms during live combat. Lower = faster, more CPU. */
-  TICK_MS: 2400,
+  /* No TICK_MS here: the basic-attack interval has ONE source,
+     COMBAT_BALANCE.tickMs in src/core/combat.js (this copy was dead, and 2.4 s
+     stale, when it was removed 2026-10-14). */
   /** Player damage variability around the computed max. */
   DAMAGE_RANGE_MIN: 0,
   DAMAGE_RANGE_MAX: 1,

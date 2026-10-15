@@ -136,7 +136,6 @@ export async function runVendorSell(o) {
      not have comes back `insufficient_item` with `have` and `need` attached. */
   const delta = sellDelta(resolved, qty);
   return runValueIntent({
-    partyOwnsWindow: o.partyOwnsWindow === true,
     exec, user, slot, verb: VERB, intentId,
     plan: {
       delta,
@@ -300,7 +299,6 @@ export async function runVendorSellMany(o) {
      `insufficient_item` and the WHOLE batch is refused under the lock. */
   const delta = sellManyDelta(resolved.sales);
   return runValueIntent({
-    partyOwnsWindow: o.partyOwnsWindow === true,
     exec, user, slot, verb: VERB_MANY, intentId,
     plan: {
       delta,

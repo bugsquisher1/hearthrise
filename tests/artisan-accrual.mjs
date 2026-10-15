@@ -1368,9 +1368,12 @@ export const MUTATIONS = [
   ], 'the other direction: 290 catalogue rows silently stop paying'],
   ['M6c the total branch is deleted (dispatch neutralised first)', [
     [ENGINE, '  t.gather = accrueGather;', '  t.gather = null;'],
-    [ENGINE, "  if (inp.activeKind !== 'combat') return { accrued: false, reason: SKIP.UNSUPPORTED };",
+    /* Re-anchored lane C2: there is no combat tail any more (a fight is a hunt
+       session); the refusal is the dispatcher's last line, and without it an
+       unsimulated kind answers undefined instead of a refusing reason. */
+    [ENGINE, '  return { accrued: false, reason: SKIP.UNSUPPORTED };',
       '  /* MUTATED */'],
-  ], 'an unsimulated kind falls into the combat tail and is priced against nothing'],
+  ], 'an unsimulated kind answers no refusal at all (no reason, no delta contract)'],
   ['M7  nothing-happened swallows a first-tick stop', [
     [ENGINE, '  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };',
       '  if (nothingHappened) return { accrued: false, reason: SKIP.NOTHING, summary };'],

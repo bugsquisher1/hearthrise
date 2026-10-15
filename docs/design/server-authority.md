@@ -1395,3 +1395,200 @@ header is the full contract); guard: `tests/account-wallet.mjs` (+ `--mutate`).
   → **wallet row (leaf)**. No helper takes a lock after the wallet row.
 * **Projection.** `hr_state_of` projects the wallet as `state.gems` / `state.hearth_tokens` on
   every slot; the client contract is unchanged and the client computes nothing.
+
+## 12. HUNT SESSIONS — the settle (lane C2, ruling HR-2026-10-14) — contract
+
+Hunt sessions replace away combat. C1 (`2026-10-21-hunt-sessions.sql`, APPLIED 2026-10-14) owns
+the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
+`supabase/migrations/2026-10-22-hunt-sessions-settle.sql` (header = full contract),
+`supabase/functions/hr-accrue/hunt-settle.js`, `hunt-seed.js`; guards `tests/hunt-sessions-settle.mjs`
+(+ `--mutate`), `tests/hunt-session-engine.mjs`, `tests/hunt-sessions-db.mjs`.
+
+* **One settle, three doors.** The world tick (`hr_hunt_roster` → `tick.js` `hunts`), the
+  player's `hunt_settle`, and `hunt_use` (a press, landing at the first swing boundary at or after
+  it) run the SAME `settleHunt`. A settle-before-mutate verb collects a hunter through it too.
+  Combat outside a session is not priced at all: a combat pointer with no session answers
+  `hunt_required` (a SAFE skip), the solo combat channel is out of the tick, and the
+  `hr_hunt_accrue_fence` trigger refuses ANY ledger row — every kind, not only combat accrue — for
+  a character with an open session unless it is written inside that session's own settle
+  (`hr.hunt_session`).
+* **Deleted outright (the game is closed and wiped; no swap, no hide-then-delete).**
+  `2026-10-22-hunt-sessions-delete-away.sql` restates `hr_apply`, `hr_state_of`,
+  `hr_create_character` and `hr_trait_buy__ungated` whole (md5-pinned pre-images) without: the away
+  receipt (`last_away_receipt` column, key, (4a-r), projection), Auto-Eat (four columns,
+  `hr_set_auto_eat`, the bootstrap switch-on and free trait), Vigour (`hr_vigour_*`, the envelope
+  block), stances / stop / the Retreat counter, the pointer-era `hr_hunt_analyzer`,
+  `hr_credit_kills(__ungated)` and `hr_attended_kills`. The edge lost the away combat span, the
+  receipt writer, `claim_reward`, enchant, dungeon settle, the Quartermaster and the party fence;
+  the engine pays no charm, trophy or Boss-of-the-Day multiplier (demolition safety review item
+  9: trophies stay as claims and display) and writes no companion XP. Its removed lines are
+  frozen and classified in `tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs`.
+* **The spawn cycle — a stateful kill cap (Security design items 1–2).** A ground shows `pull`
+  foes and a pull is back `respawn_ms` after it started; the pull a hunt runs is the server's
+  (`hr_hunt_pull_of`: the set's `pull_count` clamped to the ground and to `PULL_CAP` = 1), and
+  `pull_left` / `respawn_at` carry the cycle across windows, so every settle re-proves its kills
+  from its own stamped rows. A training hunt (activity = a monster id) is the same cycle on one
+  monster.
+* **Concurrency without a version CAS on the session (Security item 8).** `hr_hunt_apply` takes
+  hr_apply's per-character advisory lock and CASes the SESSION's swing clock (`session_moved`);
+  `hr_apply` keeps its own version CAS for the value half. Two settles of one session cannot both
+  land, and a replayed intent key answers `replayed` and writes nothing.
+* **One consumable cooldown lane (Combat Design Bible v1.4, designer review).** Heal, mana and buff
+  supplies share `cd_consumable_ms` (2 s): the engine fires at most one per lane per swing
+  (`COOLDOWN_LANES` / `LANE_OF_KIND`), and `hr_hunt_apply` (5b) caps heal + drink + bag uses
+  together at `window / cd_consumable_ms + 1`. The ability lanes are reserved, with no SQL rows.
+* **Hunt supplies: Mine or Store, End or Switch (Master Design Reference §4).** Each action set
+  stores `supply_source` ('mine' | 'store') and `on_empty` ('end' | 'switch'), default
+  'mine' + 'end', set only by `hr_action_set_options(..., p_supply_source, p_on_empty)` (refused
+  `bad_supply_source` / `bad_on_empty`). The engine reaches the store only through
+  `storeAllowed`: always under 'store', under 'mine' only with 'switch' once no carried line of
+  that kind has a use left — for the shop heal slot and the shop shot alike. `hr_hunt_apply` (5b)
+  refuses ANY shop buy (`store_off`) on a set that chose neither. Shop arrows hit for 0.75 of
+  their crafted partner's ammo bonus (`BASIC_EFFECT_SHARE`); there are no shop runes.
+* **Sell-to-cover is junk only.** `coverSellable` admits an item only when it carries
+  `junk: true` (never bones, gear, supplies or a supply's partner); none does today, so
+  `hr_hunt_cover_items` is empty and cover is inert until the loot-rules lane flags a row.
+* **One basic-attack interval (Tyler 2026-10-14).** `COMBAT_BALANCE.tickMs` = 2000 ms is the one
+  source (`tests/basic-attack-interval.mjs`), generated into `hr_hunt_limits.swing_interval_ms`.
+  Every hunt swing is exactly that interval (gear speed, the weapon family and a style's
+  `speedMod` no longer move a hunt), and `hr_hunt_apply` holds hunting time EXACT:
+  `paid_ms + down_ms = swings × swing_interval_ms` (`bad_clock`). The reserved (5c) step is the
+  one place a future preparation clock drains, by exactly that paid time.
+* **Extension seams (architecture contracts S1–S7).** The spawn cycle lives on `hunt_instances`
+  (solo: one instance per session, id = the session id; `hunt_sessions.instance_id`), so a party
+  can share one; seed labels carry a domain, `hunt:<instance>:<domain>:<i>` (`s` swing, `g`
+  gather, `c:<lane>` cast, `r` roll); the cooldown lanes are `hr_hunt_lanes` rows; the action
+  set's options are ONE jsonb, `hr_action_set_options(slot, preset, p_opts, idem)`, validated
+  against `hr_hunt_set_options`; the stamina splice into `hr_state_of` anchors on the
+  `'now', now()` line, which no demolition removes.
+* **Closed mode reaches every door.** The six RPCs that never called `hr_rpc_gate` (`hr_load`,
+  `hr_create_character`, `hr_clan_browser`, `hr_companion_equip`, `hr_companion_grant`,
+  `hr_rest`) call `hr_access_check()` first (`2026-10-22-closed-mode-ungated-rpcs.sql`); the edge
+  answers a non-admitted caller `403 {error:'closed'}` (`closed-gate.js`, read through the
+  hr_engine-only `hr_engine_closed`) instead of the gate's bare 429; `tools/vitals.mjs` alerts when
+  `pgrst.db_pre_request` stops naming `hr_access_check` on the authenticator role.
+* **Vigour plays no part in a hunt (2026-10-14 rulings).** `END_ORDER` is falls → heals_out →
+  ammo_out → gold_out → stamina → hours → left → changed → server. The forward generated catalogue
+  `2026-10-22-hunt-sessions-catalogue.generated.sql` removes `vigour` from `hr_hunt_end_reasons` and
+  regenerates `hunt_sessions.end_reason`'s CHECK from the same list. A session neither ends at
+  Vigour 0, nor pays the 0.25× tail, nor charges the meter, and `hr_hunt_enter` gates on stamina
+  (`no_stamina`), not Vigour. The `vigour_low` timeline event (C1) is the one leftover; the
+  designer owes a ruling on it (rename to a stamina warning, or drop).
+* **Stamina (Tyler 2026-10-14, "1:1 like Huntera"; 12 h).** `player_state.stamina_ms / stamina_at`
+  hold the pool AT an instant (null = full). The engine walks it per swing interval: hunting
+  drains 1:1 (floor 0), a knockout interval rests 1:1 (never past `STAMINA_MAX_MS`, never down to
+  it); every instant outside a hunting interval rests (`hr_stamina_of`). `hr_hunt_apply` (5a)
+  re-derives the start from the row, requires paid + down = the window, bounds knocked-out time
+  by the stored recovery line + the death rows' `recovery_ms`, bounds the end value, refuses an
+  unended window on an empty pool, writes it at `to`. At 0 the hunt ends `stamina`, re-proved from
+  the row. Projected as `stamina {ms, at, max_ms, hunting}` (client scratch `_stamina`). REFILL
+  HOOK (separate lane, never Crowns): add at `coalesce(open session's settled_to, now())`, never
+  move `stamina_at` past `settled_to` (`stamina_ahead`).
+* **Gold inside the settle: NPC basic supplies (Tyler 2026-10-14).** A supply priced per use
+  (`hr_hunt_supplies.npc_price` ← `supplies.js NPC_BASIC_PRICES`, empty until the designer prices
+  the basics) is bought when the bag holds none — per heal, per draught, per shot; crafted stock
+  first. The engine's purse = gold at the window start + kill coins; it proposes UNITS only
+  (`buys`). `hr_hunt_apply` (5b) prices them from the catalogue (`not_for_sale`), caps heal/drink
+  buys + bag uses by the one consumable lane and ammo buys by the swings walked, the same bounds per
+  UTC day (`too_many_buys`), refuses a debit the gold cannot cover (`gold_short`), debits, journals
+  ONE `kind 'hunt'` / `supply_buy` row (gold −cost, meta items {qty, price}), and credits the
+  tally (`bought`, `supply_gold` = Waste in the Analyzer). A buy the purse cannot cover ends the hunt
+  `gold_out` at the next boundary, proved as "gold below the dearest priced supply the bar or the
+  quiver could need".
+* **Back to work after an automatic end (Tyler 2026-10-14).** A BEFORE trigger notes every pointer
+  move onto a resumable kind (`hr_hunt_resumable_kinds`: gather, artisan; `training` reserved) in
+  `player_state.last_activity_*`. When a settle ends a hunt for a reason `hr_hunt_end_reasons.resumes`
+  admits (every automatic end; never leave / change), (7) points the character back at it from
+  `ended_at + the hunt's walk`, if its catalogue row and skill gate still admit it (else idle), journals
+  a `resume` row and states it on the `ended` event.
+* **Huntera's action bar.** 20 slots (`ACTION_SET_LIMITS`, the table walls regenerated from data),
+  a slot `kind` (`spell` reserved and refused), `self_mana_pct` (false without a mana pool), and per
+  action set `target_mode` / `pull_count` written only by `hr_action_set_mode` (refused out of
+  range, never clamped), read by the settle and clamped by the engine. The single-target engine
+  does not yet act on mode or pull (the combat redesign does).
+* **Edge proposes, Postgres disposes.** The edge reads (`hr_hunt_engine_read` + `hr_state_of` +
+  `now()`), computes `computeAccrual` with the session attached (the one combat body), and calls
+  `hr_hunt_apply(user, slot, session, version, intent, delta, hunt, buffs, press, project)`
+  (hr_engine only). It takes hr_apply's per-character lock, validates a press like `hr_hunt_use`,
+  then in ONE subtransaction: `hr_apply(delta)` under the session GUC (every ledger row stamped),
+  the press, `hr_hunt_buffs_put` (a new/longer buff segment only if this window's bag uses paid
+  for it), `hr_hunt_settle_session` (SECURITY DEFINER; swing CAS, window ≤ now()+skew, bag and
+  use caps, presses only shrink, falls = the stamped death rows, every end re-proved, tally folded
+  from the stamped ledger rows). Any HR000 rolls all of it back and is journalled
+  (`hr_record_rejection`, aggregated): value and session clock move together or not at all.
+* **Error taxonomy.** Pre-lock: `bad_arguments`, `no_hunt`, `bad_press`, `hunt_leaving`,
+  `bad_bar_slot`, `bag_empty`, `press_queued`. Value half: every hr_apply code, `stage:'apply'`.
+  Session half (`stage:'session'`): `session_moved`, `window_in_future`, `bad_window`,
+  `bad_presses`, the use-cap and end-proof codes of C1. Edge retries `session_moved` /
+  `version_conflict` once after a re-read; degradable clamps halve the WINDOW (≤ 3 times), never
+  a rate; everything else leaves the session owed for the next fire.
+* **Clock.** `settled_to` always lands on the session's next swing boundary, so session clock ==
+  watermark and paid + down == window. N tick windows == one span (TICK-1, measured through the
+  database with savepoint-compared runs), and a death with a client connected writes the same
+  rows as one with none (BOTH-PATH).
+* **Determinism.** Per-swing seed = first 4 bytes of HMAC-SHA256(key = the session's
+  `hr_seed(user, slot, 'hunt:'||id)` secret, msg = session id + swing index) — `hunt-seed.js`,
+  Security C1 item 3. A missing/malformed secret refuses the settle; the FNV mix is a planted
+  mutant that turns SEED red.
+* **Idempotency.** The tick's intent key is derived from (session, swing_from, version, secret);
+  a press carries the player's key. hr_apply's `player_intents` answers a replay `replayed` and
+  `hr_hunt_apply` then writes nothing else.
+* **Max HP is raise-only** inside a settle (a hitpoints level-up never lowers it).
+* **The price of a fall (Tyler 2026-10-14).** Each fall in a hunt costs every skill the style trains
+  `DEATH_XP_LOSS` (2%, `src/data/hunt-sessions.js`) of its current level's gap, from in-level
+  progress only — never a de-level, 0 at a floor or at 99. The engine debits it at the fall (so N
+  windows == one span) and proposes one `{skill: xp}` per death row (`death_xp`); `hr_hunt_apply`
+  strips it, refuses a missing / mismatched price (`bad_death_xp`), re-bounds each share by the gap of
+  the level the window ended at (limits row `death_xp_permille`) and the debit by the floor of the
+  level it started at (`death_xp_over`), debits, journals ONE `kind 'hunt'` / `death_xp` row per
+  costly settle, states each fall's `xp_lost` on its event and corrects a `level_up` a fall took
+  back. Identical watched or not (guard arms DEATHXP, BOTH-PATH).
+* **No blessing on a fight (Tyler 2026-10-14).** The combat settle (hunt or pointer) applies no
+  blessing / world-blessing multiplier and its receipt states `blessed: false`.
+* **The price-of-a-fall row is data.** `death_xp_permille` is generated into `hr_hunt_limits` from
+  `DEATH_XP_LOSS` (the generator refuses a fraction that is not a whole permille); the settle
+  file's §0 refuses to apply before the C2 catalogue.
+* **Knockouts.** set_activity no longer carries a knockout refusal (a `combat` declaration is
+  `hunt_required`, and its §1b branch is deleted). The combat body reads `recovering_until`: a hunt
+  window inside it earns nothing, whoever opened the session (guard arm KNOCKOUT).
+* **Cron to edge.** `hr_tick_cron_run` (3c) leases due sessions through `hr_hunt_roster` and posts
+  them as their own body (`roster: []`, `hunts: [{user_id, slot, session_id}]`) under shard 0's
+  holder; `runTick` settles each through `settleHunt` (guard arm TICK-0 drives the cron's queued body
+  through the shipped entry). The solo combat channel is undriven (`channel_not_driven`).
+* **Kill switch.** C1 seeds `hr_hunt_config.enabled = false`; `2026-10-22-hunt-sessions-arm.sql`
+  (applied right after the edge deploy) is the only writer that turns it on.
+* **Cost at 100× (~600 hunters).** One accrue row per settle (120/day away at fold 8, ≤ 960/day
+  online), one consumption row per settle that used anything, one `supply_buy` row per settle that
+  bought anything, one `death_xp` row per costly settle, one `resume` row per automatic end,
+  ladder-bounded death rows, ~5–30 events per session, one lease row per open session. No per-tick,
+  per-kill or per-purchase journal.
+
+## 13. CLOSED MODE and the clean-slate wipe (2026-10-21) — contract
+
+Tyler's ruling 2026-10-14/15: the game is closed to the public during a full rebuild, all
+progress is wiped, only allowlisted accounts get in. Files:
+`supabase/migrations/2026-10-21-closed-mode.sql`, `2026-10-21-closed-rebuild-wipe.sql`, and
+one `*-access-add|remove-*.sql` per later allowlist change (generated by
+`tools/access-allow.mjs`). Guard: `tests/closed-rebuild.mjs` (+ `--mutate`).
+
+* **The switch.** `hr_flags.closed_mode` (TRUE = closed; a missing row reads closed).
+  `hr_access_allowlist(user_id)` is written only by migrations. `hr_admitted(uid)` (INVOKER) =
+  open flag OR listed; a client sees only its own row, so it cannot probe who else is admitted.
+* **The refusal.** One code everywhere a client can arrive: HTTP 403
+  `{"code":"hr_closed"}` (`raise sqlstate 'PGRST'` in `hr_access_check()`); the client paints
+  `src/features/closed-screen.js` on it.
+* **Four layers, because `hr_rpc_gate` is not the only door** (7 approved RPCs never call it,
+  6 tables take client writes through RLS, the engine never passes PostgREST):
+  L1 `pgrst.db_pre_request = public.hr_access_check` (every Data-API request);
+  L2 `hr_rpc_gate` calls `hr_access_check` first; L3 `hr_rate_gate` refuses a non-admitted
+  `p_user` (the hr-accrue engine; the edge answers `rate_limited`, no edge change);
+  L4 restrictive `hr_closed_admit` RLS on the six client-writable tables (covers realtime chat).
+* **Anon passes.** Sign-in and sign-up must work for a friend to be added; anon holds no
+  player state and no write.
+* **The wipe** is one TRUNCATE (restrict, continue identity) of every player / old-world table,
+  `player_ledger` included (the economy it explains ends in the same transaction; the old
+  audit trail is the pre-wipe backup), profiles reset to signup shape, one `hr_wipe_log` row.
+  One-shot (a re-apply is a no-op), refuses while open, refuses on any unclassified table that
+  names a player.
+* **Replay guards** run the game OPEN: `tests/schema-replay.mjs` flips the flag after the chain
+  (`keepClosed: true` keeps it closed).

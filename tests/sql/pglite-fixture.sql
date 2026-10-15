@@ -53,6 +53,12 @@ end $$;
 
 -- ── auth ─────────────────────────────────────────────────────────────────
 create schema if not exists auth;
+-- Supabase grants the three request roles USAGE on `auth` (measured on
+-- production 2026-10-14: has_schema_privilege(anon|authenticated|service_role,
+-- 'auth', 'usage') = true), which is what lets an INVOKER-rights function or an
+-- RLS policy call auth.uid() as the caller. Without it the replay could not
+-- execute 2026-10-21-closed-mode.sql's pre-request hook as `authenticated`.
+grant usage on schema auth to anon, authenticated, service_role;
 
 create table if not exists auth.users (
   id    uuid primary key,

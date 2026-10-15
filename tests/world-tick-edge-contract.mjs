@@ -57,20 +57,22 @@
 // The arms marked (control) are the negatives: they pin the OLD spellings as
 // still wrong, so a revert is still caught.
 //
-// ── EC-4, THE COMBAT DRIVER (Security S-8, added 2026-09-23) ────────────────
-// Nothing in the edge settled combat until this build: `tick.js` imported one
+// ── EC-4, THE COMBAT DRIVER (Security S-8, added 2026-09-23; lane C2) ───────
+// Nothing in the edge settled combat until S-8: `tick.js` imported one
 // `CHANNEL` — gather's — and used it as the probe's `p_channel`, as the kind a
-// pointer had to equal, and as the settle's `p_channel`. `settleCombatSession`
-// had no production caller and `services/world-tick/combat.js` was not in the
-// payload. EC-4a drives the shipped `runTick` over a level-61 fighter and
-// requires a real `hr_tick_shadow` row with `would_kills`/`would_xp` > 0;
-// EC-4b requires gather to still settle through the same dispatch; EC-4c pins
-// the old spelling as still refused; EC-4d reads
-// `hr_tick_config_channels_ck` out of the catalogue and requires every channel
-// it admits to be DRIVEN or DECLARED-UNDRIVEN, so the roster can never lease
-// what the edge cannot settle; EC-4e requires the SECOND window — the one
-// whose shadow mark has displaced from `player_state.accrued_to` — to settle
-// too, which is the arm that needs `mark_text`.
+// pointer had to equal, and as the settle's `p_channel`. S-8 wired the solo
+// combat channel; LANE C2 (hunt sessions, ruling HR-2026-10-14) RETIRED it —
+// a solo fight is a hunt session, settled from the `hunts` cohort only.
+// EC-4a now drives the shipped `runTick` over a level-61 fighter on the combat
+// channel and requires it skipped `channel_not_driven` on two fires with no
+// shadow and no ledger row; EC-4b requires gather to still settle through the
+// same dispatch; EC-4c pins the old spelling as still refused by the fence;
+// EC-4d reads `hr_tick_config_channels_ck` out of the catalogue and requires
+// every channel it admits to be DRIVEN or DECLARED-UNDRIVEN (combat now the
+// latter), so the roster can never lease what the edge cannot settle. EC-4e
+// (the displaced second solo window) went with the channel. The hunt cohort
+// is driven through runTick on this transport by tests/hunt-sessions-settle.mjs
+// TICK-0. The 2026-09-23 proof below describes the S-8 arms as they stood.
 //
 // MUTATION PROOF for EC-4, run 2026-09-23 with each revert applied to the real
 // source and then restored (exit codes observed, not expected):
@@ -586,7 +588,7 @@ try {
   //
   // These arms drive the shipped `runTick` — not a re-implementation — against
   // the real fence, so reverting tick.js to the constant turns EC-4a red.
-  group('EC-4  the combat driver: a combat character settles, a gather one still does');
+  group('EC-4  the combat driver: a solo combat row is skipped by name (lane C2), a gather one still settles');
   {
     const FIGHT_MONSTER = 'goblin';
     const XP_AT_61 = 302288;
@@ -604,12 +606,11 @@ try {
       }
       await db.exec(`
         insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-          active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
+          active_kind, active_id, active_since,
           consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
           fight, buffs, enchant)
         values ('${u}', 0, 1234, 99, 99, 7, now() - interval '10 minutes',
           'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
-          true, 'cooked_trout', 70,
           0, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
           now() - interval '3 hours', now() - interval '3 hours',
           '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb)
@@ -663,25 +664,32 @@ try {
     const uc = U(10);
     await seedFighter(uc, 'combat');
     await db.exec(`delete from public.hr_tick_shadow where user_id = '${uc}';`);
+    const ledgerBefore = Number((await db.query(
+      `select count(*) as n from public.player_ledger where user_id = '${uc}'`)).rows[0].n);
     const combatFire = await fire(uc);
-    const row = (await db.query(
-      `select channel, would_kills, would_xp, would_gold, would_ate, delta
-         from public.hr_tick_shadow where user_id = '${uc}' order by window_to desc limit 1`)).rows[0];
-    const kills = row ? Number(row.would_kills) : 0;
-    const xpKeys = row && row.would_xp ? Object.keys(row.would_xp) : [];
-    const xpTotal = xpKeys.reduce((a, k) => a + Number(row.would_xp[k] || 0), 0);
+    const combatFire2 = await fire(uc);
+    const shadowRows = Number((await db.query(
+      `select count(*) as n from public.hr_tick_shadow where user_id = '${uc}'`)).rows[0].n);
+    const ledgerAfter = Number((await db.query(
+      `select count(*) as n from public.player_ledger where user_id = '${uc}'`)).rows[0].n);
+    const skippedByName = (f) => f && f.ok === true && f.skipped === 1 && f.shadowed === 0
+      && f.processed === 0 && f.reasons && f.reasons.channel_not_driven === 1;
 
-    judge('EC-4a', !!row && row.channel === 'combat' && kills > 0 && xpTotal > 0,
-      'a combat roster row reached settleCombatSession and journalled a SHADOW row: '
-      + `would_kills=${kills}, would_xp=${JSON.stringify(row && row.would_xp)}, `
-      + `would_gold=${row && row.would_gold}, would_ate=${row && row.would_ate} `
-      + `(fire: ${JSON.stringify({ shadowed: combatFire.shadowed, skipped: combatFire.skipped, refused: combatFire.refused, reasons: combatFire.reasons })})`,
-      'NOTHING IN THE EDGE SETTLED COMBAT (Security S-8). The fire answered '
-      + `${JSON.stringify(combatFire)} and hr_tick_shadow holds `
-      + `${row ? JSON.stringify({ kills, xp: row.would_xp }) : 'NO ROW'} for this character. `
-      + 'A `channel_moved` or `channel_not_driven` reason means tickOne never dispatched to '
-      + 'settleCombatSession; zero kills with a shadow row means the settler ran but the level-61 '
-      + 'fighter reached the engine at level 0 (that is S-7, not S-8).');
+    /* EC-4a, AFTER LANE C2 (ruling HR-2026-10-14). Until hunt sessions the edge
+       settled a SOLO combat roster row through settleCombatSession (Security
+       S-8 wired it). A solo fight is now a HUNT SESSION, settled only from the
+       `hunts` cohort (hr_hunt_roster -> ./hunt-settle.js; tests/hunt-sessions-
+       settle.mjs TICK-0 drives that cohort through runTick on this transport).
+       So the property flips and stays a property of the SHIPPED entry: a combat
+       row the channel roster still hands out is skipped BY NAME, twice in a
+       row, and writes nothing — no shadow row, no ledger row. */
+    judge('EC-4a', skippedByName(combatFire) && skippedByName(combatFire2)
+        && shadowRows === 0 && ledgerAfter === ledgerBefore,
+      'a SOLO combat roster row is skipped `channel_not_driven` on two fires and journals nothing '
+      + `(shadow rows ${shadowRows}, ledger rows ${ledgerBefore} -> ${ledgerAfter})`,
+      'the retired solo combat channel did something: '
+      + `${JSON.stringify(combatFire)} / ${JSON.stringify(combatFire2)}, ${shadowRows} shadow row(s), `
+      + `ledger ${ledgerBefore} -> ${ledgerAfter}. A solo fight is priced only by the hunt settle.`);
 
     /* THE GATHER PATH IS UNTOUCHED. The dispatch table is the change; the
        channel that already worked must still work, or S-8's fix has traded one
@@ -760,7 +768,7 @@ try {
       (c) => !driven.includes(c) && !declaredUndriven.includes(c));
     const undrivenNotAdmitted = declaredUndriven.filter((c) => !admitted.includes(c));
     judge('EC-4d', admitted.length > 0 && unaccounted.length === 0
-        && undrivenNotAdmitted.length === 0 && driven.includes('combat') && driven.includes('gather'),
+        && undrivenNotAdmitted.length === 0 && declaredUndriven.includes('combat') && driven.includes('gather'),
       `every channel the CHECK admits is accounted for — admitted [${admitted.join(', ')}], `
       + `driven [${driven.join(', ')}], declared undriven [${declaredUndriven.join(', ')}] `
       + '(an undriven channel is refused by name as `channel_not_driven`, never fenced under '
@@ -775,45 +783,9 @@ try {
             ? `; and [${undrivenNotAdmitted.join(', ')}] is declared undriven but the CHECK no `
               + 'longer admits it, so the declaration is stale' : ''));
 
-    /* ── EC-4e — THE DISPLACED SHADOW WINDOW (Security S-8, second half) ────
-       The FIRST combat window is easy: `player_state.accrued_to` still equals
-       the fence's mark, so combat's `rosterWatermarkText` finds a server
-       rendering of it on the envelope and the seed label can be spelled. From
-       the SECOND window on they diverge — in shadow the fence chains on
-       `hr_tick_ownership.shadow_accrued_to`, which has moved, while
-       `accrued_to` has not — and the ONLY server rendering of the fence's mark
-       is `probe.markText`. `tick.js` did not put it on the roster row, so
-       `rosterWatermarkText` would have thrown on every window after the first:
-       a combat cohort that settles exactly once and then goes silent, which
-       reads as "the tick stalled" and not as a missing field.
-
-       So: fire twice and require the SECOND window to journal too. This arm is
-       red without `mark_text: probe.markText` in the session build. */
-    const before = Number((await db.query(
-      `select count(*) as n from public.hr_tick_shadow
-        where user_id = '${uc}' and channel = 'combat'`)).rows[0].n);
-    const mark1 = (await db.query(
-      `select ps.accrued_to, o.shadow_accrued_to
-         from public.hr_tick_ownership o
-         join public.player_state ps using (user_id, slot)
-        where o.user_id = '${uc}' and o.channel = 'combat'`)).rows[0];
-    const fire2 = await fire(uc);
-    const after = Number((await db.query(
-      `select count(*) as n from public.hr_tick_shadow
-        where user_id = '${uc}' and channel = 'combat'`)).rows[0].n);
-    const displaced = mark1 && mark1.shadow_accrued_to != null
-      && String(mark1.shadow_accrued_to) !== String(mark1.accrued_to);
-    judge('EC-4e', displaced && after === before + 1 && fire2.shadowed === 1,
-      'the SECOND combat window settles too — the shadow mark has displaced from '
-      + `player_state.accrued_to (${mark1 && mark1.shadow_accrued_to} vs ${mark1 && mark1.accrued_to}) `
-      + `and the fence's own rendering still spells the seed label: ${before} -> ${after} shadow rows`,
-      !displaced
-        ? 'the shadow mark never displaced, so this arm did not exercise what it is for — the '
-          + `ownership row reads ${JSON.stringify(mark1)}`
-        : 'THE DISPLACED WINDOW WAS REFUSED. Without `mark_text: probe.markText` on the roster row '
-          + 'combat\'s rosterWatermarkText has no server rendering of the fence mark and throws, so '
-          + `a combat character settles once and then stalls: ${JSON.stringify(fire2)} `
-          + `(${before} -> ${after} shadow rows)`);
+    /* EC-4e (the displaced SECOND solo combat window) retired with the solo
+       channel in lane C2: there is no solo combat window to displace. EC-4a
+       fires twice and requires the second to be skipped by name too. */
 
     /* Leave the singleton as production holds it. A guard that arms a channel
        and walks away is a guard that changed the thing it measures. */

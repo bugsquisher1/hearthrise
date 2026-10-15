@@ -341,7 +341,7 @@ const PLOT_BUILDINGS={
       (tools/gen-shops.mjs keys them off the table name). Harmless, internal,
       and worth renaming the table to SUPPLY_SHOP when this data leaves
       legacy.js — the generator anchor and the SQL offer ids move together. */
-const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:60},{id:'coarse_whetstone',qty:10,cost:60},{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:18,cost:300},{id:'cooked_lobster',qty:5,cost:2000}];
+const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:60},{id:'coarse_whetstone',qty:10,cost:60},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:18,cost:300}];
 /* W0 (coherence audit, top-10 #2): the Local Shop sells STARTER gear only — no
    tier-2+ piece. Iron/Steel armour and weapons, the Longbow and the Oak Staff
    undercut Smithing and Crafting 15-35, so the first upgrade a player wears is
@@ -7988,7 +7988,7 @@ function _activityProgress(){
     /* Monster combat: tick is fixed (~2.4s). We can fake fluid progress
        by interpolating between combatLog entries — but cleaner: read
        G._combatTickStart if set, else just animate via timer. */
-    const tickMs = (typeof COMBAT_BALANCE === 'object' && COMBAT_BALANCE.tickMs) || 2400;
+    const tickMs = COMBAT_BALANCE.tickMs; /* the one basic-attack interval (tests/basic-attack-interval.mjs) */
     const last = G._combatTickStart || (G._combatTickStart = Date.now());
     const elapsed = Date.now() - last;
     return Math.min(1, elapsed / tickMs);
@@ -8364,7 +8364,7 @@ console.log('Activity bar: loaded');
        in at its rolled chance. */
     var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {};
     var pr = (typeof getPlayerCombatRolls === 'function') ? getPlayerCombatRolls(m, eq) : null;
-    var CB = (typeof window.COMBAT_BALANCE === 'object') ? window.COMBAT_BALANCE : {tickMs:2400, critMult:1.5};
+    var CB = COMBAT_BALANCE;
     var maxHit, accuracy, critChance, weaknessBonus;
     if(pr){
       maxHit = pr.maxHit; accuracy = pr.accuracy; critChance = pr.critChance || 0;
@@ -8378,7 +8378,7 @@ console.log('Activity bar: loaded');
     var meanHit = (1 + maxHit) / 2;                   // uniform mean
     var critMult = CB.critMult || 1.5;
     var avgDmg = accuracy * meanHit * (1 + critChance * (critMult - 1));
-    var tickMs = (typeof combatTickMs === 'function') ? combatTickMs() : (CB.tickMs || 2400);
+    var tickMs = (typeof combatTickMs === 'function') ? combatTickMs() : CB.tickMs;
     var dps = avgDmg * (1000 / tickMs);
     var killTimeS = m.hp / Math.max(0.01, dps);
     var killsHr = 3600 / killTimeS;
@@ -8649,7 +8649,7 @@ console.log('Activity bar: loaded');
 
       <div class="mp-info-row">
         <div><span class="mp-info-label">Weakness</span><span class="mp-info-val">${weaknessLabel} ${weaknessTag}</span></div>
-        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((typeof combatTickMs==='function'?combatTickMs():((window.COMBAT_BALANCE&&window.COMBAT_BALANCE.tickMs)||2400))/1000).toFixed(2)}s</span></div>
+        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((typeof combatTickMs==='function'?combatTickMs():COMBAT_BALANCE.tickMs)/1000).toFixed(2)}s</span></div>
       </div>
 
       <div class="mp-grid">
@@ -11007,7 +11007,7 @@ window._calcForSkill = function(skill){
     var avgDmg = (1 + maxHit)/2 * accuracy;
     if(avgDmg <= 0) return null;
     var ticksToKill = Math.ceil(m.hp / avgDmg);
-    var tickMs = 2400; /* default combat tick */
+    var tickMs = COMBAT_BALANCE.tickMs; /* the one basic-attack interval */
     var msPerKill = ticksToKill * tickMs;
     var killsHr = 3600000 / msPerKill;
     var killXp = skill === 'hitpoints' ? 0 : m.xp * ratio; // killXpRoute pays styled skills only

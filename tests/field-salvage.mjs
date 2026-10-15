@@ -18,18 +18,20 @@
 //        gp midpoint;
 //   (c2) the monster's TOTAL across every weapon/armor/jewelry row (salvage,
 //        lucky and pre-existing) <= 5% of the gp midpoint;
-//   (d)  hours MEASURED with the one engine (simulateSpan, lucky-finds
-//        LOADOUT, seed 20260926, Controlled, fed): base in [0.5, 10] h, and
-//        >= 0.25 h at the multiplier ceiling. Vigour-dry hours are reported;
+//   (d)  hours MEASURED with the one engine on a training HUNT SESSION
+//        (lucky-finds LOADOUT, seed 20260926, Controlled, fed from the bag, the
+//        real respawn): base in [0.5, 10] h, and >= 0.25 h at the multiplier
+//        ceiling (dropBonus x the best drop buff — the memory and BotD
+//        multipliers and Vigour were deleted with the closed rebuild, lane C2);
 //   (e)  the row is LAST, one per monster, items unique, never both salvage and
 //        lucky — and a salvage-SHAPED row (own-tier small-slot generated armour)
 //        never ships without the flag, because the flag is what stops the
 //        client's own dice showing it (src/features/lucky-finds.js);
 //
-// BOTH PATHS: AWAY — computeAccrual (the real server engine) mints the wild_boar
-// piece with its ev:loot op and {type:'rare_drop'} event, and an away:true
-// simulateSpan credits it through fx.addItem; ATTENDED — the live tick
-// (away:false) credits it on the same seed.
+// BOTH PATHS (lane C2: a hunt is one engine whether a client watches or not):
+// the hunt span credits the wild_boar piece through fx.addItem, and
+// computeAccrual on a hunt session (the world tick's and the hunt verbs' one
+// body) mints it with its ev:loot op and {type:'rare_drop'} event.
 //
 // Run GREEN:  node tests/field-salvage.mjs
 // Prove RED:  node tests/field-salvage.mjs --selftest   (clean control arm too)
@@ -45,13 +47,9 @@ import { pathFor } from '../src/data/item-art.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
-import { MAX_MEMORY_DROP_MULT } from '../src/data/bestiary.js';
-import { DAILY_POOL, WEEKLY_POOL, DAILY_BONUS, WEEKLY_BONUS } from '../src/core/botd.js';
-import { VIGOUR_DRY_MULT } from '../src/core/hunt.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
-import { createRng } from '../src/core/rng.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   swingIntervalMs, DEFAULT_PROFILE,
@@ -60,6 +58,7 @@ import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
 
 let fails = [];
 const ok = (cond, rule, msg) => { if (!cond) fails.push(`(${rule}) ${msg}`); };
@@ -96,8 +95,24 @@ function mentions(v, id) {
 const shopGranted = (id) => SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id));
 const gpMidOf = (m) => ((m.gp || [0, 0])[0] + (m.gp || [0, 0])[1]) / 2;
 
-/* One simulated span at the monster's tier loadout, through the one engine. */
-function fight(monsters, monsterId, { seed = SEED, hours = 1, away = true, fx = {} } = {}) {
+/* One simulated span at the monster's tier loadout, through the one engine:
+   a training hunt (one foe, the real respawn), fed from the bag. */
+const FIGHT_FOOD = 'cooked_moonfish';   // the best heal in the catalogue
+/* THE MEASUREMENT HOUR, SEEDS SEARCHED NOT PINNED (the artisan-progress A10
+   precedent). The hour must be fall-free to measure a kill RATE; a pinned seed
+   that started falling when the hunt seed labels took a domain (architecture
+   contracts S2) would make the rule measure luck. The search is a fixed,
+   ordered list, so it is deterministic; exhausting it is still a red. */
+function measureFight(monsters, monsterId) {
+  let got = null;
+  for (let k = 0; k < 8; k++) {
+    got = fight(monsters, monsterId, { seed: SEED + k });
+    if (got.deaths === 0) return got;
+  }
+  return got;
+}
+
+function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
   const m = monsters[monsterId];
   const tier = Math.min(6, Math.max(1, m.tier));
   const L = LOADOUT[tier].level;
@@ -110,18 +125,15 @@ function fight(monsters, monsterId, { seed = SEED, hours = 1, away = true, fx = 
   const state = { activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
     playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
   const ctx = {
-    away, fromMs: 0, toMs: hours * 3600000, tickMs: swingIntervalMs(eq, style),
-    rng: createRng(seed), monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
+    fromMs: 0, toMs: hours * 3600000, tickMs: swingIntervalMs(eq, style),
+    monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE, style }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
-    botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
-    fx: {
-      autoEat() { if (state.playerHp < state.playerMaxHp * 0.5) { state.playerHp = state.playerMaxHp; return true; } return false; },
-      ...fx,
-    },
+    fx: { ...fx },
   };
+  huntOn(state, ctx, { seed, fromMs: 0, food: FIGHT_FOOD, foodQty: 100000 });
   const out = simulateSpan(state, ctx);
   return { kills: out.kills, deaths: out.deaths };
 }
@@ -198,19 +210,17 @@ function check(monsters) {
       seenItems.set(d.id, mid);
       /* (d) the hours, measured */
       if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
-      const got = fight(monsters, mid);
+      const got = measureFight(monsters, mid);
       ok(got.deaths === 0, 'd', `${tag}: the measurement hour contained ${got.deaths} death(s)`);
       const base = effectiveDropChance(d, { dropMult: db });
       const hrs = got.kills > 0 ? 1 / (got.kills * base) : Infinity;
-      const botd = Math.max(1, WEEKLY_POOL.includes(mid) ? WEEKLY_BONUS.dropMult : 1,
-        DAILY_POOL.includes(mid) ? DAILY_BONUS.dropMult : 1);
-      const ceil = effectiveDropChance(d, { dropMult: db * MAX_MEMORY_DROP_MULT, dropBuff: MAX_DROP_BUFF_PCT / 100, featuredMult: botd });
+      const ceil = effectiveDropChance(d, { dropMult: db, dropBuff: MAX_DROP_BUFF_PCT / 100 });
       const ceilHrs = got.kills > 0 ? 1 / (got.kills * ceil) : Infinity;
       ok(hrs >= HOURS_MIN && hrs <= HOURS_MAX, 'd', `${tag}: ${hrs.toFixed(2)} expected hours, outside [${HOURS_MIN}, ${HOURS_MAX}]`);
       ok(ceilHrs >= CEILING_HOURS_MIN, 'd', `${tag}: ${ceilHrs.toFixed(2)} h at the multiplier ceiling, below ${CEILING_HOURS_MIN}`);
       lines.push(`  T${m.tier} ${mid.padEnd(16)} ${d.id.padEnd(18)} ${String(d.ch).padEnd(6)} `
         + `${(perKill / gpMid * 100).toFixed(2).padStart(5)}%  ${String(got.kills).padStart(4)}/h  ${hrs.toFixed(2).padStart(5)} h  `
-        + `ceiling ${ceilHrs.toFixed(2).padStart(5)} h  vigour-dry ${(hrs / VIGOUR_DRY_MULT).toFixed(1).padStart(5)} h`);
+        + `ceiling ${ceilHrs.toFixed(2).padStart(5)} h`);
     }
     /* (c2) the monster's whole gear faucet */
     const gearTotal = drops.reduce((s, x) => {
@@ -229,10 +239,10 @@ const PROBE_ITEM = 'leather_belt';
 function bothPaths() {
   fails = [];
   const notes = [];
-  const seen = (seed, away) => {
+  const seen = (seed) => {
     const credited = {};
     const events = [];
-    fight(MONSTERS, PROBE_MONSTER, { seed, hours: 1, away, fx: {
+    fight(MONSTERS, PROBE_MONSTER, { seed, hours: 1, fx: {
       addItem(id, n) { credited[id] = (credited[id] || 0) + n; },
       /* the server's onDrop, verbatim (hr-accrue/accrual.js) */
       onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
@@ -241,40 +251,36 @@ function bothPaths() {
   };
   /* Deterministic search: the first seed from a fixed start. */
   let seed = null;
-  for (let s = SEED; s < SEED + 400; s++) { if (seen(s, true).credited[PROBE_ITEM]) { seed = s; break; } }
-  ok(seed !== null, 'away', `no seed in [${SEED}, ${SEED + 400}) drops ${PROBE_ITEM} in a 1 h away span`);
+  for (let s = SEED; s < SEED + 400; s++) { if (seen(s).credited[PROBE_ITEM]) { seed = s; break; } }
+  ok(seed !== null, 'hunt', `no seed in [${SEED}, ${SEED + 400}) drops ${PROBE_ITEM} in a 1 h hunt`);
   if (seed !== null) {
-    const away = seen(seed, true);
-    ok(away.events.some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'away',
-      `seed ${seed}: the away span credited ${PROBE_ITEM} but emitted no {type:'rare_drop'} event`);
-    const live = seen(seed, false);
-    ok(!!live.credited[PROBE_ITEM], 'attended',
-      `seed ${seed}: the live tick (away:false) did not credit ${PROBE_ITEM} where the away span did`);
-    notes.push(`  simulateSpan seed ${seed}: away credits ${away.credited[PROBE_ITEM]}, attended credits ${live.credited[PROBE_ITEM] || 0}`);
+    const hunt = seen(seed);
+    ok(hunt.events.some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'hunt',
+      `seed ${seed}: the hunt span credited ${PROBE_ITEM} but emitted no {type:'rare_drop'} event`);
+    notes.push(`  simulateSpan (hunt) seed ${seed}: credits ${hunt.credited[PROBE_ITEM]}`);
   }
   const L = LOADOUT[1].level;
-  const run = (s) => computeAccrual({
+  const run = (s) => computeAccrual(huntAccrualInput({
     userId: '00000000-0000-4000-8000-000000000001', slot: 0,
     nowMs: 1760000000000 + 2 * 3600000, accruedToMs: 1760000000000, activeSinceMs: 1760000000000,
     activeKind: 'combat', activeId: PROBE_MONSTER, capMs: 12 * 3600000, seed: s,
     hp: 20, maxHp: 20, gold: 0,
     skills: { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L), hitpoints: xpForLevel(20) },
-    equipment: equipmentFor(1), inventory: { shrimp: 5000 },
-    autoEatEnabled: true, autoEatFood: 'shrimp', autoEatPct: 25,
+    equipment: equipmentFor(1), inventory: {},
     items: ITEMS, monsters: MONSTERS,
-  });
+  }, { seed: s, food: FIGHT_FOOD, foodQty: 5000 }));
   let hit = null;
   for (let s = SEED; s < SEED + 400 && !hit; s++) {
     const out = run(s);
     if (out && out.accrued && out.delta && out.delta.items && out.delta.items[PROBE_ITEM] > 0) hit = { s, out };
   }
-  ok(!!hit, 'away', `computeAccrual: no seed in [${SEED}, ${SEED + 400}) mints ${PROBE_ITEM} over a 2 h night`);
+  ok(!!hit, 'hunt', `computeAccrual: no seed in [${SEED}, ${SEED + 400}) mints ${PROBE_ITEM} over a 2 h night`);
   if (hit) {
     const { out } = hit;
     const ops = (out.delta.progress || []);
-    ok(ops.some((o) => o.key === lootKey(PROBE_ITEM) && o.add >= 1), 'away',
+    ok(ops.some((o) => o.key === lootKey(PROBE_ITEM) && o.add >= 1), 'hunt',
       `computeAccrual seed ${hit.s}: minted ${PROBE_ITEM} but wrote no ${lootKey(PROBE_ITEM)} collection op`);
-    ok((out.events || []).some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'away',
+    ok((out.events || []).some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'hunt',
       `computeAccrual seed ${hit.s}: minted ${PROBE_ITEM} but events[] carries no {type:'rare_drop'}`);
     notes.push(`  computeAccrual seed ${hit.s}: delta.items.${PROBE_ITEM}=${out.delta.items[PROBE_ITEM]}, `
       + `${lootKey(PROBE_ITEM)} op present, rare_drop event present`);
@@ -334,6 +340,6 @@ if (all.length) {
   process.exit(1);
 }
 console.log(`field-salvage: ${res.count} salvage rows keep every rule `
-  + `(simulateSpan 1 h, seed ${SEED}, Controlled, fed; ceiling = dropBonus x ${MAX_MEMORY_DROP_MULT} x `
-  + `${1 + MAX_DROP_BUFF_PCT / 100} x BotD)\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
+  + `(a 1 h training hunt, seed ${SEED}, Controlled, fed; ceiling = dropBonus x `
+  + `${1 + MAX_DROP_BUFF_PCT / 100})\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
 process.exit(0);

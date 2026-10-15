@@ -1,0 +1,64 @@
+<!doctype html>
+<!--
+  prototypes/world-shell — THE WORLD SHELL PROTOTYPE (design lane design/world-shell).
+  Spec: docs/design/WORLD_SHELL.md. NOT part of the game: index.html never links it,
+  nothing under src/ imports it, it signs nobody in and sends no intent. It boots the
+  REAL World runtime (src/world/world-boot.js) over fixture state, and wraps it in the
+  proposed shell: one strip (name, level, gold, launcher icons), hunt HUD, windows over the world.
+
+  Open: any static server at the repo root, then /prototypes/world-shell/
+    ?scene=town|home|hunt     which scene the World shows (default town)
+    ?open=bag,equip           windows open at load (bag, equip, skills, home, bestiary, market, chat, settings)
+    ?clean=1                  hide the prototype's own scene switch (for screenshots)
+    ?edit=1                   start in Edit HUD mode (also: U, or Settings > Edit HUD)
+  Launchers: the icon row at the top right of the strip. Keys: B bag, C gear, K skills, H homestead, L bestiary, M market,
+        Enter chat, Esc close the top window (or open Settings when none is open).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<!-- The World resolves its art against the document base, exactly as in the game: the repo root. -->
+<base href="../../">
+<title>Hearthrise: World Shell prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="src/styles/world.css">
+<link rel="stylesheet" href="prototypes/world-shell/shell.css">
+</head>
+<body data-theme="hearthlight">
+<div class="ws">
+  <header class="ws-strip">
+    <span class="ws-who"><b class="ws-name" data-strip="name"></b><span class="ws-level" data-strip="level"></span></span>
+    <span class="ws-right" data-strip="right">
+      <span class="ws-gold" data-strip="gold"></span>
+    </span>
+  </header>
+
+  <main class="ws-world active" id="panel-world">
+    <div class="world-chrome">
+      <span class="world-title"></span>
+      <span class="world-scenes">
+        <button type="button" class="world-scene" data-world-choice="town">Town</button>
+        <button type="button" class="world-scene" data-world-choice="home">Home</button>
+      </span>
+    </div>
+    <div class="world-stage"><p class="world-status">Loading the world…</p></div>
+
+    <div class="ws-hud" data-hud></div>
+    <div class="ws-layer" data-layer></div>
+    <div class="ws-proto" data-proto role="group" aria-label="Prototype scene"></div>
+  </main>
+  <!-- Widgets that may sit anywhere on the screen, the strip included (the launcher row). -->
+  <div class="ws-screen-hud" data-screen-hud></div>
+  <!-- Edit HUD mode: the soft grid and the widget list. -->
+  <div class="ws-edit" data-edit hidden></div>
+</div>
+
+<script src="src/data/glyphs.js"></script>
+<script type="module" src="prototypes/world-shell/shell.js"></script>
+</body>
+</html>

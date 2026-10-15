@@ -64,8 +64,6 @@ import { sessionFromRoster, settleGatherSession, GATHER_CATALOGUES }
   from '../supabase/functions/hr-accrue/tick-gather.js';
 import { engineInputsFromEnvelope, ENGINE_INPUT_KEYS }
   from '../supabase/functions/hr-accrue/envelope.js';
-import { sessionFromRoster as combatSessionFromRoster }
-  from '../services/world-tick/combat.js';
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -201,16 +199,14 @@ async function seedFighter(u) {
   await db.exec(`delete from public.player_progress  where user_id = '${u}';`);
   await db.exec(`
     insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-      active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
+      active_kind, active_id, active_since,
       consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
-      fight, buffs, enchant, hunt_stance, hunt_stop)
+      fight, buffs)
     values ('${u}', 0, 1234, 40, 99, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
-      true, 'cooked_trout', 70,
       2, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
       now() - interval '3 hours', now() - interval '10 minutes',
-      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb,
-      'careful', '{"hours":6,"food_floor":4,"bag_full":true}'::jsonb)
+      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb)
     on conflict (user_id, slot) do update set version = 7, hp = 40, max_hp = 99, gold = 1234,
       accrued_to = now() - interval '95 seconds',
       active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
@@ -394,7 +390,7 @@ try {
       accruedToMs: fromMs,
       capMs,
       actionBudget: null,
-      attended: null,
+      huntOpen: false,
       seed: SEED,
       bestiaryKills: null,
       perks: null,
@@ -592,15 +588,16 @@ try {
       fight: { from: 'fight', level: 'state' },
       toolCarry: { from: 'tool_carry', level: 'state' },
       recoveringUntilMs: { from: 'recovering_until', level: 'state' },
-      consecFalls: { from: 'consec_falls', level: 'state' },
-      autoEatEnabled: { from: 'auto_eat_enabled', level: 'state', combat: true },
-      autoEatFood: { from: 'auto_eat_food', level: 'state', combat: true },
-      autoEatPct: { from: 'auto_eat_pct', level: 'state', combat: true },
-      deathsTodayBefore: { from: 'deaths_today', level: 'state', combat: true },
-      deathsLifetimeBefore: { from: 'deaths_lifetime', level: 'state', combat: true },
-      combatXpAccruedToMs: { from: 'combat_xp_accrued_to', level: 'state', combat: true },
-      hearthfindReady: { from: 'hearthfind_ready', level: 'state', combat: true },
-      combatStyle: { from: 'combat_style', level: 'state', combat: true },
+      /* Lane C2 (closed rebuild) deleted the Auto-Eat trio, the fall streak,
+         the combat-XP watermark, the enchant, the pet's XP remainder, the
+         stance/stop pair, traits and Vigour as ENGINE inputs: a fight is a
+         hunt session and those systems left the engine. They are no longer
+         keys of ENGINE_INPUT_KEYS, so H5a's two-way count arm is what holds
+         them out: a key that came back unpinned goes red there. */
+      deathsTodayBefore: { from: 'deaths_today', level: 'state' },
+      deathsLifetimeBefore: { from: 'deaths_lifetime', level: 'state' },
+      hearthfindReady: { from: 'hearthfind_ready', level: 'state' },
+      combatStyle: { from: 'combat_style', level: 'state' },
       /* THE FIVE PROJECTIONS. `enchant` and `buffs` are player_state COLUMNS
          and are still projected at the TOP level — which is exactly why the
          level is not guessable from the name, and why S-7 read five of them
@@ -610,12 +607,8 @@ try {
          each skills cell as `frac`, so its source is the same top-level
          `skills` projection — moved to `state`, the map must lose it too. */
       xpFrac: { from: 'skills', level: 'top' },
-      /* THE PET'S CARRIED REMAINDER (2026-10-12-companion-xp-frac.sql) rides
-         inside the top-level `companions` projection as `frac`. */
-      companionXpFrac: { from: 'companions', level: 'top' },
       inventory: { from: 'inventory', level: 'top' },
       equipment: { from: 'equipment', level: 'top' },
-      enchant: { from: 'enchant', level: 'top', combat: true },
       buffs: { from: 'buffs', level: 'top' },
       /* DECLARED ABSENT, AND THAT IS THE DESIGN. `player_state.ammo_carry`
          does not exist on any database yet; the map answers `null`, the engine
@@ -623,23 +616,6 @@ try {
          409 on. It cannot carry a swap arm because absent and present are the
          same answer — named here rather than silently skipped. */
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
-      /* THE HUNT'S FOUR (2026-09-22, this lane). They are engine inputs like
-         any other, so H5a's own count arm demanded them the moment
-         `ENGINE_STATE_KEYS` grew — the two levels are NOT guessable from the
-         names and that is the whole point: `hunt_stance`/`hunt_stop` are
-         player_state COLUMNS and sit inside `state`, while `traits` and
-         `vigour` are built from other tables and sit at the TOP, one level up
-         from where a reader looking at the names would reach. They are
-         deliberately NOT marked `combat` — H5d's nine are the nine a combat
-         window is PRICED from (finding F4); these four reach the engine
-         through the same session and are covered by H5d's whole-key sweep.
-         The probe seeds a real `careful` stance and a real stop object
-         precisely so H5c's swap arm is not vacuous: a null-valued key reads
-         the same on both levels and would prove nothing. */
-      huntStance: { from: 'hunt_stance', level: 'state' },
-      huntStop: { from: 'hunt_stop', level: 'state' },
-      traits: { from: 'traits', level: 'top' },
-      vigour: { from: 'vigour', level: 'top' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -696,13 +672,8 @@ try {
       hp: env.state.hp, maxHp: env.state.max_hp, gold: env.state.gold,
       fight: env.state.fight, toolCarry: env.state.tool_carry,
       recoveringUntilMs: Date.parse(env.state.recovering_until),
-      consecFalls: env.state.consec_falls,
-      autoEatEnabled: env.state.auto_eat_enabled,
-      autoEatFood: env.state.auto_eat_food,
-      autoEatPct: env.state.auto_eat_pct,
       deathsTodayBefore: env.state.deaths_today,
       deathsLifetimeBefore: env.state.deaths_lifetime,
-      combatXpAccruedToMs: Date.parse(env.state.combat_xp_accrued_to),
       hearthfindReady: env.state.hearthfind_ready,
       combatStyle: env.state.combat_style,
       /* `skills` is the ONE key the map reshapes: `{skill_id:{xp,level}}` on
@@ -713,21 +684,15 @@ try {
         Object.keys(env.skills).map((k) => [k, Number(env.skills[k].xp) || 0])),
       xpFrac: Object.fromEntries(
         Object.keys(env.skills).map((k) => [k, Number(env.skills[k].frac) || 0])),
-      companionXpFrac: env.companions && typeof env.companions === 'object' && 'frac' in env.companions
-        ? Object.fromEntries(Object.keys(env.companions.frac || {})
-          .map((k) => [k, Number(env.companions.frac[k]) || 0]))
-        : null,
       inventory: env.inventory, equipment: env.equipment,
-      enchant: env.enchant, buffs: env.buffs,
+      buffs: env.buffs,
       ammoCarry: null,
-      huntStance: env.state.hunt_stance, huntStop: env.state.hunt_stop,
-      traits: env.traits, vigour: env.vigour,
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,
       `engineInputsFromEnvelope filled all ${Object.keys(EXPECT).length} inputs from the level `
       + `each one lives on — skills as raw xp (attack ${hy.skills && hy.skills.attack}), `
-      + `auto-eat ${hy.autoEatEnabled}/${hy.autoEatFood}/${hy.autoEatPct}, `
+      + `style ${JSON.stringify(hy.combatStyle)}, `
       + `deaths ${hy.deathsTodayBefore}/${hy.deathsLifetimeBefore}`,
       `read the WRONG value for: ${wrongValue.map((k) => `${k} (got `
         + `${JSON.stringify(hy[k])}, envelope says ${JSON.stringify(EXPECT[k])})`).join('; ')}`);
@@ -767,7 +732,7 @@ try {
       }
     }
     judge('H5c', swapped.length === 0,
-      `and every one of the ${Object.keys(SOURCES).length - 1} readable inputs LOSES its value `
+      `and every one of the ${Object.values(SOURCES).filter((d) => !d.notYetMigrated).length} readable inputs LOSES its value `
       + 'when its source is moved to the other level — the read is pinned, not accidentally right',
       `these survived their own level swap, so they are being read off both levels: `
       + `${swapped.join(', ')}`);
@@ -776,32 +741,6 @@ try {
       `the probe's value equals the ABSENT answer for ${vacuous.join(', ')}, so the swap arm `
       + 'proves nothing. Give the probe a distinguishable value.');
 
-    // ── H5d: THE NINE COMBAT INPUTS, THROUGH combat.js's OWN SESSION ─────────
-    /* F4. The nine a combat window is priced from — auto-eat's trio, the two
-       death anchors, `combatXpAccruedToMs`, `hearthfindReady`, `enchant`,
-       `combatStyle` — reach the engine through `sessionFromRoster`, which is
-       where S-7 lived. H5b proves the MAP; this proves the CALLER. */
-    const COMBAT_NINE = Object.entries(SOURCES)
-      .filter(([, d]) => d.combat).map(([k]) => k);
-    const markText = env.state.accrued_to;
-    const csession = combatSessionFromRoster({
-      user_id: u, slot: 0, shard: 0,
-      active_kind: 'combat', active_id: env.state.active_id,
-      active_since: env.state.active_since,
-      accrued_to: markText, mark_text: markText,
-      version: env.version, cap_ms: 43200000,
-    }, MUTATE ? env.state : env);
-    const lost = ENGINE_INPUT_KEYS.filter((k) => !same(csession[k], EXPECT[k])
-      && !['accruedToMs', 'activeSinceMs', 'activeKind', 'activeId'].includes(k));
-    judge('H5d', COMBAT_NINE.length === 9,
-      `the nine inputs a combat window is priced from are named: ${COMBAT_NINE.join(', ')}`,
-      `expected nine combat inputs, the table names ${COMBAT_NINE.length}: `
-      + COMBAT_NINE.join(', '));
-    judge('H5d', lost.length === 0,
-      'and combat.js\'s own session carries every one of them, at the value the envelope holds '
-      + '— the tick\'s combat session IS the accrue path\'s session (AWAY-12)',
-      `the combat session lost or changed: ${lost.map((k) => `${k} (session `
-        + `${JSON.stringify(csession[k])} vs envelope ${JSON.stringify(EXPECT[k])})`).join('; ')}`);
   }
 
 } finally {
@@ -815,13 +754,14 @@ if (MUTATE) {
      mutation is precisely the shipped defect, so the arms that must fail are
      the ones that measure what the engine was handed. If it passes, this file
      has stopped being a guard. */
-  /* H5b and H5d are the F3 half: the mutation is a level swap, so the arms
-     that pin every input to its level must be among the ones it turns red.
+  /* H5b is the F3 half: the mutation is a level swap, so the arm that pins
+     every input to its level must be among the ones it turns red (H5d, the
+     solo combat session's arm, left with the combat channel, lane C2).
      H5a and H5c are deliberately NOT here — they ask about the projection
      and about `engineInputsFromEnvelope` itself, which this mutation does
      not touch, and listing an arm that cannot go red would make this list
      the thing it is guarding against. */
-  const MUST_FAIL = ['H1b', 'H1c', 'H1d', 'H2c', 'H2d', 'H2e', 'H4a', 'H5b', 'H5d'];
+  const MUST_FAIL = ['H1b', 'H1c', 'H1d', 'H2c', 'H2d', 'H2e', 'H4a', 'H5b'];
   const missed = MUST_FAIL.filter((id) => !problems.includes(id));
   if (missed.length) {
     console.log(`world-tick-hydration --mutate: FAILED — env.state-only hydration did NOT turn `

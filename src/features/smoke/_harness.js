@@ -10,13 +10,13 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=584';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=584';
+import { on, snapshot } from '../../net/events.js?v=588';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=588';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=584';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=588';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1174,7 +1174,7 @@ export const awaySpan = (o) => {
   const out = C.combatSim.simulateSpan(state, Object.assign({
     away: opts.away !== false,
     fromMs, toMs: fromMs + spanMs,
-    tickMs: Number.isFinite(opts.tickMs) ? opts.tickMs : 2400,
+    tickMs: Number.isFinite(opts.tickMs) ? opts.tickMs : C.combat.COMBAT_BALANCE.tickMs,
     rng: C.rngMod.createRng(Number.isFinite(opts.seed) ? opts.seed : 0xC0FFEE),
     monsters: window.MONSTERS,
     playerRolls: () => ({ accuracy: 1e9, maxHit: 40, critChance: 0 }),
@@ -1883,9 +1883,15 @@ const firstRunAnswered = (name) => {
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
+  /* G.playerName goes back too: while the harness name stands, the name readers
+     (legacy.js's "reconcile the stale default up") copy it INTO G.playerName, and
+     that copy outlived the stub — every later test ran as "Wren" (2026-10-14: the World
+     pane then rightly left a peer called Wren out of the Common as "yourself"). */
+  const G = window.G, hadName = G && Object.prototype.hasOwnProperty.call(G, 'playerName'), oldName = G && G.playerName;
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
+    if (G && window.G === G) { if (hadName) G.playerName = oldName; else delete G.playerName; }
   };
 };
 

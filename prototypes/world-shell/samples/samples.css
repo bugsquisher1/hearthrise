@@ -1,0 +1,35 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   prototypes/world-shell/samples/samples.css — Art Director phase 2 samples
+   (docs/ART_DIRECTION.md §4, §8, §9, §11; docs/design/ART_ROADMAP.md §E). PROTOTYPE ONLY:
+   nothing in src/ reads this file, and it is deleted with the prototype.
+
+   One block below declares PROPOSED tokens that do not exist yet: the rarity
+   ladder (ART_DIRECTION §8). Their values are colours of the world palette
+   hr-world-56-v2 (art/world/palette.json), so a loot beam in the world and a
+   slot border in the bag are the same colour. Epic is the one new colour: the
+   palette has no violet, so it is a proposed two-colour "arcane" ramp (Asset
+   Director handoff). At the cutover these move into src/styles/tokens.css §5.
+   Every other colour here is an existing token.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --rar-common:    #aaa49a;   /* stone 5 */
+  --rar-uncommon:  #73944c;   /* leaf 6 */
+  --rar-rare:      #4fa8e8;   /* frost 1 */
+  --rar-epic:      #9b72d0;   /* PROPOSED arcane 1 (palette addition) */
+  --rar-legendary: #f2a03a;   /* torch 1 */
+  --rar-mythic:    #c23a2a;   /* blood 2 */
+  --rar-unique:    #e8c547;   /* gold */
+}
+
+html, body { margin: 0; background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
+* { box-sizing: border-box; }
+.sm { padding: 16px 16px 28px; }
+.sm h1 { margin: 0 0 4px; font-family: var(--f-label); font-size: var(--t-small); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+.sm h2 { margin: 18px 0 8px; font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+.sm p.lede { margin: 0 0 6px; max-width: 980px; color: var(--ink-2); font-size: var(--t-micro); }
+.sm .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.sm figure { margin: 0; }
+.sm figcaption { margin-top: 6px; max-width: 224px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
+.sm figcaption b { color: var(--ink); }
+.sm canvas { display: block; image-rendering: pixelated; background: var(--world-void); }
+.sm .tag { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: 0; }

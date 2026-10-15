@@ -18,10 +18,30 @@ export function walkable(mask, w, h, x, y) {
 }
 
 /** May a unit step from (x, y) by (dx, dy)? Diagonals need both orthogonal neighbours open. */
-function canStep(mask, w, h, x, y, dx, dy) {
+export function canStep(mask, w, h, x, y, dx, dy) {
   if (!walkable(mask, w, h, x + dx, y + dy)) return false;
   if (dx && dy) return walkable(mask, w, h, x + dx, y) && walkable(mask, w, h, x, y + dy);
   return true;
+}
+
+/**
+ * Every tile a walker standing on `from` can reach: 1 per reached cell. Four
+ * neighbours suffice — with no corner cutting, a diagonal step is only ever
+ * taken where the two straight steps it replaces are open too.
+ */
+export function reachFrom(mask, w, h, from) {
+  const seen = new Uint8Array(w * h);
+  if (!from || !walkable(mask, w, h, from[0], from[1])) return seen;
+  const todo = [from[1] * w + from[0]];
+  seen[todo[0]] = 1;
+  while (todo.length) {
+    const at = todo.pop(), x = at % w, y = (at - x) / w;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, n = ny * w + nx;
+      if (walkable(mask, w, h, nx, ny) && !seen[n]) { seen[n] = 1; todo.push(n); }
+    }
+  }
+  return seen;
 }
 
 function heuristic(ax, ay, bx, by) {

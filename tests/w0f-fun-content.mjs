@@ -41,6 +41,7 @@ import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { createRng } from '../src/core/rng.js';
+import { simulateSpan } from '../src/core/combat-sim.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   swingIntervalMs, DEFAULT_PROFILE,
@@ -48,6 +49,7 @@ import {
 import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { huntOn } from './hunt-fixture.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-10-16-w0f-fun-content.sql');
@@ -81,8 +83,9 @@ function equipmentFor(tier) {
   return { weapon: `${m}_sword`, helmet: `${m}_helm`, body: `${m}_platebody`, pants: `${m}_platelegs`,
     gloves: `${m}_gauntlets`, boots: `${m}_boots` };
 }
-/* One fed hour at the tier loadout, through the one engine (lucky-finds.mjs's
-   measurement, verbatim in shape). */
+/* One fed hour at the tier loadout, through the one engine: a training hunt
+   (one foe, the real respawn), fed from the bag (lucky-finds.mjs's
+   measurement, verbatim in shape; tests/hunt-fixture.mjs). */
 function fight(monsters, monsterId) {
   const m = monsters[monsterId];
   const L = LOADOUT[m.tier].level;
@@ -95,15 +98,14 @@ function fight(monsters, monsterId) {
   const state = { activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
     playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
   const ctx = {
-    away: true, fromMs: 0, toMs: 3600000, tickMs: swingIntervalMs(eq, style),
-    rng: createRng(SEED), monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
+    fromMs: 0, toMs: 3600000, tickMs: swingIntervalMs(eq, style),
+    monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE, style }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
-    botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
-    fx: { autoEat() { if (state.playerHp < state.playerMaxHp * 0.5) { state.playerHp = state.playerMaxHp; return true; } return false; } },
   };
+  huntOn(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000 });
   const out = simulateSpan(state, ctx);
   return { kills: out.kills, deaths: out.deaths };
 }

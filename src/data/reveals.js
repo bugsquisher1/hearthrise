@@ -25,7 +25,7 @@
 // PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { count, property, workers } from './spine.js?v=584';
+import { count, property, workers } from './spine.js?v=588';
 
 const skill = (id) => Object.freeze({ fact: 'skill', id });
 const row = (id, step, uses, product) => Object.freeze({ id, step, uses: Object.freeze(uses || []), product: product || null });

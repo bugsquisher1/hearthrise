@@ -40,7 +40,6 @@ import { createHash } from 'node:crypto';
 
 import { hydrate } from './tick-shadow.js';
 import { CHANNEL as GATHER_CHANNEL, gatherTick } from './tick-gather.js';
-import { CHANNEL as COMBAT_CHANNEL, combatTick } from './tick-combat.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 
 /* The probe span (ruling 1: "every 4 h"). The SQL side restates the floor and
@@ -70,8 +69,6 @@ export const MAX_PROBES_PER_FIRE = 4;
 const ONE_SPAN = Object.freeze({
   [GATHER_CHANNEL]: (char, fromMs, toMs, seed) =>
     gatherTick(char, fromMs, toMs, { seedOf: () => seed }),
-  [COMBAT_CHANNEL]: (char, fromMs, toMs, seed) =>
-    combatTick(char, fromMs, char.accruedToText, toMs, { seedOf: () => seed }),
 });
 export const PROBE_CHANNELS = Object.freeze(Object.keys(ONE_SPAN));
 

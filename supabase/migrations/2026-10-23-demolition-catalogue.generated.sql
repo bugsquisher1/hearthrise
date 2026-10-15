@@ -1426,13 +1426,18 @@ begin
   if v_n <> 0 then raise exception 'hr_runes has % rows, generator emitted 0', v_n; end if;
 
   -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A quest
-  -- reward, a dungeon loot row, a Quartermaster offer or a login-cycle day
-  -- naming an id hr_items no longer holds fails at claim time with
-  -- unknown_item; it is refused here instead. hr_unlock_offers is refilled
+  -- reward, a hunt kill bound's drop or vendor value (N3, refilled just before
+  -- this file by 2026-10-23-demolition-hunt-catalogue.generated.sql), a dungeon
+  -- loot row, a Quartermaster offer or a login-cycle day naming an id hr_items
+  -- no longer holds fails with unknown_item; it is refused here instead. hr_unlock_offers is refilled
   -- AFTER this file and asserts the same of its own rows in its own §4
   -- (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
     select k as id from public.hr_quest_rewards q, jsonb_object_keys(coalesce(q.items, '{}'::jsonb)) k
+    union all
+    select k from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
+    union all
+    select item_id from public.hr_hunt_vendor_value
     union all
     select item_id from public.hr_dungeon_loot
     union all

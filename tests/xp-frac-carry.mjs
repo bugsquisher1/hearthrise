@@ -24,27 +24,23 @@
 //       independently of grantXp.
 //   X2  +2% PAYS ON THE WEAKEST MONSTER. 100 kills of the slime (8 HP), a maxed
 //       hitter: a +2% combat_xp buff pays, per skill, at least floor(2% of the bare XP).
-//       (The source was the Trophy Room's rung 2 until a home stopped granting XP,
-//       Master Design Reference §9, 2026-10-14; the buff is the live +2% that is left.)
-//   X3  AWAY-1 PARITY, XP AND REMAINDER. The same seeded fight priced by the
-//       ATTENDED loop (simulateTick per swing, grantXp per grant, the remainder
-//       carried in the state by identity, the client's live-tick loop driven
-//       through the server's own grant), by AWAY
-//       (computeAccrual, one span) and by the WORLD TICK (tick-shadow shadowTick
-//       through the same engine, the delta folded as tick-contract folds it):
-//       identical XP and identical remainders. Then a CHAINED world tick against
-//       the accrue path chained through a simulated hr_apply + hr_state_of round
-//       trip, window by window: identical XP and remainders throughout.
+//       (The Trophy Room's rung 2 was the source until a home stopped granting XP,
+//       Master Design Reference §9, 2026-10-14.)
+//   X3  AWAY-1 PARITY, XP AND REMAINDER, on the GATHER pointer (lane C2: a fight
+//       is a hunt session, its split-settle parity is hunt-sessions-settle
+//       TICK-1). One span (computeAccrual) == the WORLD TICK (shadowTick, the
+//       delta folded as tick-contract folds it): identical XP and remainders.
+//       Then a CHAINED world tick against the accrue path chained through a
+//       simulated hr_apply + hr_state_of round trip, window by window.
 //   X4  DRAWS ARE UNCHANGED. The seeded hit/drop draw sequence of a fight is
 //       byte-identical whatever the XP sink does (carry, per-grant floor, none),
 //       AND equal to the digest measured on the pre-change engine (set/b565,
 //       3ea45544) — the carry consumes no draw.
 //   X7  THE NO-RESCALE RULING (c), 2026-10-08: constants 4 / 1.33 / 0.39 pinned;
 //       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
-//       (floor: 1000); 1 x N == N x 1; maxed goblin night 421,990 (old 361,187; re-pinned 2026-10-14 from 422,802 when
-//       the demolition removed the goblin seal drop row and moved the seeded RNG stream);
-//       L1 Controlled slime 8 x 1 h 1,024 (old 1,362, ratio 0.75, accepted).
-//   X8  a window the live credit already paid proposes no xp / xp_frac (Security #2).
+//       (floor: 1000); 1 x N == N x 1. (The night ratios (6)/(7) and X8, the
+//       live-credit window, measured the away combat path the closed rebuild
+//       deleted — lane C2.)
 //   X9  the world-tick S4 fold: xp_frac is a FOLD_CHAIN_KEY, folds per skill (last
 //       window wins) and equals the chain's carried remainder.
 //   X5  CLAMPED AND SERVER-ONLY. A projected remainder outside [0,1) is clamped
@@ -74,15 +70,19 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    (git archive of src/ + supabase/functions/hr-accrue). Pinned, never banded,
    like SEEDED_ORE in tests/accrual-engine.mjs: a content change that moves the
    slime fight re-measures it deliberately. */
-const PRE_CHANGE_DRAWS = { n: 3976, hash: '357d0542', kills: 588,
-  items: '{"bones":184,"slime_gel":542,"sticky_core":17}' };
+/* RE-MEASURED lane C2 for the one 2.0 s basic attack (Tyler 2026-10-14; was
+   2.4 s): the same span now holds 1.2x the swings, so 3976 -> 4765 draws and
+   588 -> 703 kills. The property this pins — the XP sink never moves a draw —
+   is the carry/floor/none equality just below, unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4765, hash: '29651c1', kills: 703,
+  items: '{"bones":216,"slime_gel":650,"sticky_core":17}' };
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2360, hash: '5d791d1f' };
+const PRE_CHANGE_DRAWS_L5 = { n: 2840, hash: '7a2d23c4' };   // re-measured 2026-10-15: §9 took the Trophy Room's +2% combat XP out of the fixture, so levels land on other swings (was 2846 / 81c8474)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',
@@ -100,11 +100,8 @@ const JS_MUTANTS = [
     edits: [['export const HIT_HP_XP_PER_DAMAGE = 1.33;', 'export const HIT_HP_XP_PER_DAMAGE = 1.15;']] },
   { name: 'hitpoints route floored again', arm: 'X7', file: 'src/core/styles.js',
     edits: [["  out.push({ skill: 'hitpoints', amount: dmg * HIT_HP_XP_PER_DAMAGE });", "  out.push({ skill: 'hitpoints', amount: Math.floor(dmg * HIT_HP_XP_PER_DAMAGE) });"]] },
-  /* Security 2026-10-08 #2: a grant the live credit already paid must not move the remainder. */
-  { name: 'paid grant moves the remainder', arm: 'X8', file: 'supabase/functions/hr-accrue/accrual.js',
-    edits: [['      if (curAtMs < xpEligibleFromMs && state.xpFrac) {\n', '      if (false) {\n']] },
   { name: 'the S4 fold stops at xp_frac', arm: 'X9', file: 'supabase/functions/hr-accrue/tick.js',
-    edits: [["'xp', 'xp_frac', 'companion_xp_frac', 'gold',", "'xp', 'companion_xp_frac', 'gold',"]] },
+    edits: [["'xp', 'xp_frac', 'gold',", "'xp', 'gold',"]] },
   { name: 'xp_frac folded whole-map last-wins', arm: 'X9', file: 'supabase/functions/hr-accrue/tick-contract.js',
     edits: [['      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }', '      if (ABSOLUTE_MAP.includes(k)) { out[k] = v; continue; }']] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',
@@ -140,10 +137,11 @@ async function load(base) {
   const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
+  const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
   return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, buffs, tick, tg, gatherFixture, residueSrc };
+    xp, styles, pacing, buffs, tick, tg, gatherFixture, residueSrc, GATHER_NODES: cat.GATHER_NODES };
 }
 
 async function mutantBase(m) {
@@ -179,12 +177,12 @@ function maxed(L) {
 
 /* The accrue-path input for a combat span — the shape engineInputsFromEnvelope
    produces, with the catalogues every call site names. */
-function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, boost, seed, monster }) {
+function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) {
   return {
     userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
     activeKind: 'combat', activeId: monster || 'slime', capMs: 12 * 3600000, seed: seed ?? SEED,
     hp: 990, maxHp: 990, gold: 0, skills: { ...skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
-    equipment: {}, inventory: {}, perks: perks || null, buffs: boost || null,
+    equipment: {}, inventory: {}, perks: perks || null,
     items: L.ITEMS, monsters: L.MONSTERS, nodes: {},
   };
 }
@@ -327,44 +325,33 @@ async function runArms(L) {
     ok('X2', tested >= 2, `only ${tested} skill(s) earned 50+ XP over 100 kills — the bound tests nothing`);
   }
 
-  // X3 ─ AWAY-1 parity, XP and remainder: attended == away == world tick.
+  // X3 ─ AWAY-1 parity, XP and remainder: one span == world tick == chained accrue.
+  //      On the GATHER pointer since lane C2 (closed rebuild): a fight is a hunt
+  //      session, and its split-settle parity — skills and xp_frac included — is
+  //      tests/hunt-sessions-settle.mjs TICK-1 against the real hr_hunt_apply.
   {
     const SPAN = 3600000;
-    const skills = maxed(L);
-    const away = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }));
-    ok('X3', away.accrued === true && !away.summary.died, `the away span did not run clean (${away.reason})`);
+    const g = L.gatherFixture;
+    const F0G = { [Object.keys(g.skills).find((k) => k !== 'hitpoints')]: 0.7, hitpoints: 0.3 };
+    const gatherInput = ({ fromMs, toMs, xpFrac, seed }) => ({
+      userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
+      activeKind: 'gather', activeId: g.activeId, capMs: 12 * 3600000, seed: seed ?? SEED,
+      hp: g.hp, maxHp: g.maxHp, gold: 0, skills: { ...g.skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
+      equipment: {}, inventory: {}, perks: null, toolCarry: null,
+      items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES,
+    });
+    const away = L.acc.computeAccrual(gatherInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }));
+    ok('X3', away.accrued === true && away.delta && away.delta.xp, `the gather span did not pay (${away.reason})`);
     const awayXp = (away.delta && away.delta.xp) || {};
-    const awayFrac = Object.assign({}, F0, (away.delta && away.delta.xp_frac) || {});
 
-    // ATTENDED: the live loop, grant by grant, remainder carried by identity.
-    const xs = { skills: { ...skills }, xpFrac: { ...F0 } };
-    const { ctx, tickMs } = attendedCtx(L, { skills, boost: BOOST, rng: L.rng.createRng(SEED), xpState: xs });
-    const st = { activeMonster: 'slime', monsterHp: 0, monsterMaxHp: 0, playerHp: 990, playerMaxHp: 990,
-      stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
-    st.monsterMaxHp = L.MONSTERS.slime.hp; st.monsterHp = st.monsterMaxHp;
-    let kills = 0;
-    for (let i = 0; i < Math.floor(SPAN / tickMs); i++) {
-      const r = L.sim.simulateTick(st, ctx);
-      if (r.outcome === 'kill') kills++;
-    }
-    const attXp = {};
-    for (const k of Object.keys(xs.skills)) { const g = xs.skills[k] - (skills[k] || 0); if (g > 0) attXp[k] = g; }
-    ok('X3', kills === away.summary.kills, `ATTENDED ran ${kills} kills, AWAY ${away.summary.kills} — not the same fight`);
-    ok('X3', JSON.stringify(sortKeys(attXp)) === JSON.stringify(sortKeys(awayXp)),
-      `ATTENDED XP ${JSON.stringify(sortKeys(attXp))} != AWAY ${JSON.stringify(sortKeys(awayXp))}`);
-    for (const k of Object.keys(F0)) {
-      ok('X3', units(xs.xpFrac[k]) === units(awayFrac[k]),
-        `${k}: ATTENDED remainder ${xs.xpFrac[k]} != AWAY ${awayFrac[k]}`);
-    }
-
-    // WORLD TICK, the same fight: one window through shadowTick, seed pinned to the span's.
-    const char = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }),
+    // WORLD TICK, the same span: one window through shadowTick, seed pinned to the span's.
+    const cats = { items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES };
+    const char = L.shadow.hydrate({ ...gatherInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }),
       items: undefined, monsters: undefined, nodes: undefined });
-    char.xpFrac = { ...F0 };
-    const cats = { items: L.ITEMS, monsters: L.MONSTERS, nodes: {} };
+    char.xpFrac = { ...F0G };
     const tick1 = L.shadow.shadowTick(char, FROM, FROM + SPAN, cats, { seedOf: () => SEED });
     ok('X3', tick1.accrued === true, `the world-tick window did not accrue (${tick1.reason})`);
-    const folded = L.contract.foldDeltas([tick1.delta]);
+    const folded = L.contract.foldDeltas([tick1.delta || {}]);
     ok('X3', JSON.stringify(sortKeys(folded.xp || {})) === JSON.stringify(sortKeys(awayXp)),
       `WORLD TICK XP ${JSON.stringify(sortKeys(folded.xp || {}))} != AWAY ${JSON.stringify(sortKeys(awayXp))}`);
     ok('X3', JSON.stringify(sortKeys(folded.xp_frac || {})) === JSON.stringify(sortKeys((away.delta && away.delta.xp_frac) || {})),
@@ -375,10 +362,10 @@ async function runArms(L) {
     // simulated with the column's own arithmetic (trunc to 6 places, numeric ->
     // JSON number). Same windows, same per-window seeds: identical throughout.
     const W = 10; const step = SPAN / W;
-    const tc = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + step, skills, xpFrac: F0, boost: BOOST }),
+    const tc = L.shadow.hydrate({ ...gatherInput({ fromMs: FROM, toMs: FROM + step, xpFrac: F0G }),
       items: undefined, monsters: undefined, nodes: undefined });
-    tc.xpFrac = { ...F0 };
-    const db = { skills: { ...skills }, frac: { ...F0 }, fight: null, hp: 990 };
+    tc.xpFrac = { ...F0G };
+    const db = { skills: { ...g.skills }, frac: { ...F0G } };
     const tickDeltas = [];
     let mark = FROM;
     for (let w = 0; w < W; w++) {
@@ -387,11 +374,10 @@ async function runArms(L) {
       const t = L.shadow.shadowTick(tc, mark, to, cats, { seedOf: () => seed });
       // the accrue path, re-hydrated from the "row" every window
       const env = { state: { accrued_to: new Date(mark).toISOString(), active_since: new Date(FROM).toISOString(),
-        active_kind: 'combat', active_id: 'slime', hp: db.hp, max_hp: 990, gold: 0, fight: db.fight },
-        skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 99, frac: db.frac[k] || 0 }])),
-        buffs: BOOST };
+        active_kind: 'gather', active_id: g.activeId, hp: g.hp, max_hp: g.maxHp, gold: 0 },
+        skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 1, frac: db.frac[k] || 0 }])) };
       const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: null,
-        items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, ...L.env.engineInputsFromEnvelope(env, to),
+        items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES, ...L.env.engineInputsFromEnvelope(env, to),
         accruedToMs: mark, activeSinceMs: FROM });
       ok('X3', t.accrued === true && a.accrued === true, `window ${w}: tick ${t.reason} / accrue ${a.reason}`);
       if (!t.accrued || !a.accrued) break;
@@ -405,13 +391,12 @@ async function runArms(L) {
       // hr_apply, for the keys this arm reads
       for (const k of Object.keys(a.delta.xp || {})) db.skills[k] = (db.skills[k] || 0) + a.delta.xp[k];
       for (const k of Object.keys(a.delta.xp_frac || {})) db.frac[k] = Number(JSON.parse(JSON.stringify(trunc6(a.delta.xp_frac[k]))));
-      if (typeof a.delta.hp === 'number') db.hp = a.delta.hp;
-      if ('fight' in a.delta) db.fight = a.delta.fight;
       mark = Date.parse(t.delta.accrued_to);
     }
     const fold = L.contract.foldDeltas(tickDeltas);
-    for (const k of Object.keys(F0)) {
-      const last = (fold.xp_frac && k in fold.xp_frac) ? fold.xp_frac[k] : F0[k];
+    ok('X3', tickDeltas.some((d) => d.xp_frac), 'CONTROL: no window moved a remainder — the chain arm proves nothing');
+    for (const k of Object.keys(F0G)) {
+      const last = (fold.xp_frac && k in fold.xp_frac) ? fold.xp_frac[k] : F0G[k];
       ok('X3', units(last) === units(db.frac[k]) && units(tc.xpFrac[k]) === units(db.frac[k]),
         `${k}: the folded tick remainder ${last} / carried ${tc.xpFrac[k]} != the accrue row's ${db.frac[k]}`);
     }
@@ -486,51 +471,8 @@ async function runArms(L) {
     ok('X7', one.skills.attack === s4.skills.attack && units(one.xpFrac.attack) === units(s4.xpFrac.attack),
       `(5) one grant of 1060 credited ${one.skills.attack} (${one.xpFrac.attack}), 100 of 10.6 credited `
       + `${s4.skills.attack} (${s4.xpFrac.attack}) — batching moved a unit`);
-    // (6) the seeded maxed goblin night (the P9 fixture), and new/old
-    const x99 = L.xp.xpForLevel(99);
-    const sumXp = (r) => Object.values((r.delta && r.delta.xp) || {}).reduce((a, b) => a + b, 0);
-    const night = sumXp(L.acc.computeAccrual({
-      userId: '00000000-0000-4000-8000-00000000b349', slot: 0,
-      nowMs: Date.UTC(2026, 2, 15, 12), accruedToMs: Date.UTC(2026, 2, 15), activeSinceMs: Date.UTC(2026, 2, 15),
-      activeKind: 'combat', activeId: 'goblin', capMs: 12 * 3600000, seed: 0x5eed1234,
-      hp: 990, maxHp: 990, gold: 0, skills: { attack: x99, strength: x99, defense: x99, hitpoints: x99 },
-      equipment: {}, inventory: {}, items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, xpFrac: {}, perks: null }));
-    const r6 = night / OLD_GOBLIN_NIGHT;
-    ok('X7', night === 421990 && r6 >= 1.15 && r6 <= 1.19,
-      `(6) the maxed goblin night paid ${night} XP (want 421,990), new/old ${r6.toFixed(4)} (want [1.15, 1.19])`);
-    // (7) a level-1 Controlled hero (bare hands -> sword default) vs the slime,
-    //     8 seeded 1 h spans: the carry pays LESS than max(1, ...) did, accepted.
-    let l1 = 0;
-    for (let s = 1; s <= 8; s++) {
-      l1 += sumXp(L.acc.computeAccrual({
-        userId: '00000000-0000-4000-8000-0000000f7ac2', slot: 0,
-        nowMs: Date.UTC(2026, 2, 15, 1), accruedToMs: Date.UTC(2026, 2, 15), activeSinceMs: Date.UTC(2026, 2, 15),
-        activeKind: 'combat', activeId: 'slime', capMs: 12 * 3600000, seed: 0x5eed1234 + s,
-        hp: 10, maxHp: 10, gold: 0, skills: {}, equipment: {}, inventory: {},
-        items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, xpFrac: {}, perks: null,
-        deathsTodayBefore: 0, deathsLifetimeBefore: 5 }));
-    }
-    const r7 = l1 / OLD_L1_SLIME;
-    ok('X7', l1 === 1024 && r7 >= 0.70 && r7 <= 0.82,
-      `(7) the level-1 Controlled slime hour paid ${l1} XP over 8 seeds (pinned 1,024), new/old ${r7.toFixed(4)} `
-      + '(want [0.70, 0.82], accepted: the old max(1, ...) overpaid 1-2 damage hits split three ways)');
-  }
-  // X8 ─ A WINDOW THE LIVE CREDIT ALREADY PAID WRITES NO REMAINDER (Security
-  //      2026-10-08 #2). hr_credit_combat_xp advanced combat_xp_accrued_to to the
-  //      window's end, so every grant in it is another channel's; the settle must
-  //      propose neither XP nor an xp_frac out of those fights.
-  {
-    const SPAN = 3600000;
-    const skills = maxed(L);
-    const paid = L.acc.computeAccrual({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }),
-      combatXpAccruedToMs: FROM + SPAN });
-    ok('X8', paid.accrued === true && paid.summary.kills > 0, `the paid window did not run a fight (${paid.reason})`);
-    ok('X8', !('xp_frac' in (paid.delta || {})) && !('xp' in (paid.delta || {})),
-      `a window fully paid by hr_credit_combat_xp proposed xp ${JSON.stringify(paid.delta && paid.delta.xp)} and `
-      + `xp_frac ${JSON.stringify(paid.delta && paid.delta.xp_frac)} — a remainder from fights another channel paid`);
-    const unpaid = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }));
-    ok('X8', unpaid.delta && unpaid.delta.xp_frac && Object.keys(unpaid.delta.xp_frac).length > 0,
-      'CONTROL: the same window unpaid proposes no xp_frac, so the arm above proves nothing');
+    // (6)/(7) measured the ruling's ratios on the AWAY combat night, which the
+    // closed rebuild deleted (lane C2); (1)-(5) above are the carry's arithmetic.
   }
   // X9 ─ THE SCALE FOLD (world-tick S4) CARRIES THE REMAINDER. Eight gather
   //      flush windows chained exactly as settleFolded chains them, then ONE
@@ -579,11 +521,6 @@ async function runArms(L) {
   return fails;
 }
 
-/* THE PRE-CHANGE ENGINE'S ANSWERS for X7 (6) and (7), measured on set/b565
-   3ea45544 with the identical fixtures (that engine ignores `xpFrac`). */
-const OLD_GOBLIN_NIGHT = 361187;
-const OLD_L1_SLIME = 1362;
-
 function sortKeys(m) { const o = {}; for (const k of Object.keys(m).sort()) o[k] = m[k]; return o; }
 
 /* The seeded draw log of a maxed hitter's 30-minute slime fight, under a chosen
@@ -602,7 +539,7 @@ function drawDigest(L, sink, level) {
   };
   const rng = L.rng.rngFrom(src);
   const xs = { skills: { ...skills }, xpFrac: {} };
-  const { ctx, tickMs } = attendedCtx(L, { skills, boost: BOOST, rng, xpState: xs });
+  const { ctx, tickMs } = attendedCtx(L, { skills, perks: null, rng, xpState: xs });
   if (sink !== 'carry') {
     ctx.fx.addXp = sink === 'none' ? () => {} : (sk, amt) => {
       xs.skills[sk] = (xs.skills[sk] || 0) + Math.floor(Number(amt) || 0);

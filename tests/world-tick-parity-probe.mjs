@@ -26,9 +26,9 @@
 //   PP-6  no function body outside the probe trio reads hr_tick_probe — rule 3
 //   PP-7  a database without the functions skips the step, never the fire
 //   PP-9  a CLOSED probe retains the input stored at open and the one-span
-//         seed (= hr_seed's span-start draw), and the evaluator's own SELECT +
-//         productionReplayOf replays every closed combat probe from them
-//         byte-identically (2026-10-07-probe-retain-input.sql)
+//         seed (= hr_seed's span-start draw) (2026-10-07-probe-retain-input.sql),
+//         no combat probe exists (the channel is retired, lane C2), and the
+//         evaluator's own SELECT reads neither the input nor the seed
 //
 // Writes NOTHING to production; synthetic uuids gen_random_uuid() cannot mint.
 // Exit: 0 green · 1 a red arm · 2 harness.
@@ -93,6 +93,10 @@ async function guard(db, opts) {
 
   const holder = (await q("select left('cron:' || coalesce(current_database(), 'db'), 64) as h"))[0].h;
   const ACT = (await q("select activity_id from public.hr_activities where kind = 'gather' order by req_lv, activity_id limit 1"))[0]?.activity_id;
+  /* The cohort's SECOND member gathers on another node (lane C2: the solo
+     combat channel is retired — a solo fight is a hunt session — so the
+     goblin fighter this cohort carried can no longer open a probe). */
+  const ACT2 = (await q("select activity_id from public.hr_activities where kind = 'gather' order by req_lv, activity_id offset 1 limit 1"))[0]?.activity_id;
   if (!ACT) throw Object.assign(new Error('no gather activity'), { harness: true });
   const T0 = (await q(`select date_trunc('minute', now() - ${BACK}) as t`))[0].t.toISOString();
 
@@ -134,43 +138,23 @@ async function guard(db, opts) {
       + `${eng.error ? 'refused' : 'ALLOWED'}, hr_engine call ${engCall.error || 'ok'}`);
   }
 
-  // ── THE COHORT: one gatherer, one fighter, chained from T0 ────────────────
+  // ── THE COHORT: two gatherers on two nodes, chained from T0 ──────────────
   const UG = U(1); const UC = U(2);
   /* Every channel SHADOW: since 2026-10-06-world-tick-channel-arm.sql the mode
      is per channel (armed_channels), and shadow is the empty arm set. */
   await db.exec("update public.hr_tick_config set enabled = true, armed_channels = '{}', "
     + "channels = array['combat','gather']::text[] where id;");
-  const seedChar = async (u, kind) => {
+  const seedChar = async (u, kind, act) => {
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
     for (const t of ['player_skills', 'player_inventory', 'player_equipment', 'player_progress']) {
       await db.exec(`delete from public.${t} where user_id = '${u}';`);
     }
-    if (kind === 'gather') {
-      await db.exec(`
-        insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-                                         active_kind, active_id, active_since)
-        values ('${u}', 0, 0, 10, 10, 1, '${T0}', 'gather', '${ACT}', '${T0}'::timestamptz - interval '1 hour')
-        on conflict (user_id, slot) do update set version = 1, gold = 0, accrued_to = '${T0}',
-          active_kind = 'gather', active_id = '${ACT}', active_since = '${T0}'::timestamptz - interval '1 hour';`);
-    } else {
-      await db.exec(`
-        insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-          active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
-          consec_falls, tool_carry, recovering_until)
-        values ('${u}', 0, 100, 61, 61, 7, '${T0}', 'combat', 'goblin',
-          '${T0}'::timestamptz - interval '1 hour', true, 'cooked_trout', 70, 0, '{}'::jsonb,
-          '${T0}'::timestamptz - interval '2 hours')
-        on conflict (user_id, slot) do update set version = 7, hp = 61, max_hp = 61, gold = 100,
-          accrued_to = '${T0}', active_kind = 'combat', active_id = 'goblin';`);
-      await db.exec(`
-        insert into public.player_skills (user_id, slot, skill_id, xp) values
-          ('${u}', 0, 'attack', 302288), ('${u}', 0, 'strength', 302288),
-          ('${u}', 0, 'defence', 150000), ('${u}', 0, 'hitpoints', 302288);`);
-      await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
-                     values ('${u}', 0, 'cooked_trout', 40);`);
-      await db.exec(`insert into public.player_equipment (user_id, slot, equip_slot, item_id)
-                     values ('${u}', 0, 'weapon', 'mithril_sword');`);
-    }
+    await db.exec(`
+      insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+                                       active_kind, active_id, active_since)
+      values ('${u}', 0, 0, 10, 10, 1, '${T0}', 'gather', '${act}', '${T0}'::timestamptz - interval '1 hour')
+      on conflict (user_id, slot) do update set version = 1, gold = 0, accrued_to = '${T0}',
+        active_kind = 'gather', active_id = '${act}', active_since = '${T0}'::timestamptz - interval '1 hour';`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
     await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                    values ('${u}', 0, '${kind}', true, '${holder}', now() + interval '30 minutes');`);
@@ -184,8 +168,8 @@ async function guard(db, opts) {
                      where user_id = '${u}';`);
     }
   };
-  await seedChar(UG, 'gather');
-  await seedChar(UC, 'combat');
+  await seedChar(UG, 'gather', ACT);
+  await seedChar(UC, 'gather', ACT2);
   await resetChain();
   const psHash = async () => canon(await q(
     `select user_id, md5(ps::text) as m from public.player_state ps where user_id in ($1::uuid, $2::uuid) order by 1`, [UG, UC]));
@@ -230,15 +214,19 @@ async function guard(db, opts) {
   judge('PP-2a', errs.length === 0 && shadowedAll && probeOutcomes.probe_closed >= 2,
     `${FIRES} fires, every one shadowed both characters; probe outcomes ${JSON.stringify(probeOutcomes)}`,
     `the fleet did not run clean: errors [${errs.slice(0, 3)}], shadowed-every-fire ${shadowedAll}, `
-    + `probe outcomes ${JSON.stringify(probeOutcomes)} (need ≥ 2 probe_closed — one per channel)`);
+    + `probe outcomes ${JSON.stringify(probeOutcomes)} (need ≥ 2 probe_closed — one per cohort member)`);
 
   const closed = await q(`select id, user_id, channel, to_jsonb(span_from) #>> '{}' as span_from,
                                  to_jsonb(span_to) #>> '{}' as span_to, base_version, version_close,
                                  payload_open, payload_close, result
                             from public.hr_tick_probe where status = 'closed' order by id`);
   const channelsClosed = new Set(closed.map((r) => r.channel));
-  judge('PP-2b', channelsClosed.has('gather') && channelsClosed.has('combat'),
-    `closed probes on both channels (${closed.length} rows)`, `closed probes only on [${[...channelsClosed]}]`);
+  /* Every DRIVEN channel (tick.js CHANNELS) closes a probe; since lane C2 that
+     is gather alone, and a combat probe cannot exist (PP-9 pins that). */
+  const driven = Object.keys(CHANNELS);
+  judge('PP-2b', driven.every((c) => channelsClosed.has(c)) && closed.length >= 2,
+    `closed probes on every driven channel [${driven}] (${closed.length} rows)`,
+    `closed probes only on [${[...channelsClosed]}] of driven [${driven}] (${closed.length} rows)`);
 
   for (const p of closed) {
     const ws = await q(`select to_jsonb(window_from) #>> '{}' as f, to_jsonb(window_to) #>> '{}' as t, version
@@ -327,9 +315,10 @@ async function guard(db, opts) {
 
   // ── PP-9 THE CLOSED PROBE KEEPS WHAT ITS REPLAY NEEDS ────────────────────
   //    The input at close is the input captured while open; the seed is the
-  //    span-start hr_seed draw the edge used; and the evaluator — its own
-  //    QUERY, its own productionReplayOf — reproduces each closed combat
-  //    probe's stored one-span result from the stored (input, seed).
+  //    span-start hr_seed draw the edge used. Since lane C2 no combat probe
+  //    can open (the solo combat channel is undriven) and the evaluator is a
+  //    gather read with no replay, so its own QUERY, executed here, must carry
+  //    neither the stored input nor the secret-equivalent seed.
   {
     const kept = await q(`select id, channel, input, seed, to_jsonb(span_from) #>> '{}' as span_from
                             from public.hr_tick_probe where status = 'closed' order by id`);
@@ -342,16 +331,15 @@ async function guard(db, opts) {
       if (!cap || canon(k.input) !== canon(cap.input)) bad.push(`#${k.id} ${k.channel} input not the open snapshot`);
       if (k.seed === null || String(k.seed) !== String(want)) bad.push(`#${k.id} ${k.channel} seed ${k.seed} != ${want}`);
     }
-    const { QUERY, productionReplayOf } = await import('../tools/world-tick-parity.mjs');
-    const rows = (await q(QUERY(14))).filter((r) => r.status === 'closed' && r.channel === 'combat');
-    const replay = productionReplayOf('unpacked', 2);
-    const outs = rows.map((r) => ({ id: r.id, rep: replay(r) }));
-    const notRepro = outs.filter((o) => !o.rep || o.rep.unavailable || o.rep.reproduced !== true);
-    judge('PP-9', kept.length >= 2 && bad.length === 0 && rows.length >= 1 && notRepro.length === 0,
-      `${kept.length} closed probes retain the open input + the span-start seed; the evaluator replays `
-      + `${rows.length} closed combat probe(s) from them byte-identically`,
-      `retention broken: [${bad.slice(0, 3).join('; ')}] closed ${kept.length}; combat replays `
-      + `${outs.map((o) => `#${o.id} ${o.rep && (o.rep.unavailable || o.rep.reproduceDetail)}`).join(', ').slice(0, 300)}`);
+    const { QUERY } = await import('../tools/world-tick-parity.mjs');
+    const read = await q(QUERY(14));
+    const rows = read.filter((r) => r.status === 'closed' && r.channel === 'combat');
+    const leaked = read.filter((r) => 'seed' in r || 'input' in r).map((r) => r.id);
+    judge('PP-9', kept.length >= 2 && bad.length === 0 && rows.length === 0 && leaked.length === 0 && read.length >= 2,
+      `${kept.length} closed probes retain the open input + the span-start seed; no combat probe opened `
+      + '(the solo combat channel is retired, lane C2)',
+      `retention broken: [${bad.slice(0, 3).join('; ')}] closed ${kept.length}; combat probes ${rows.length}; `
+      + `the evaluator read ${read.length} rows, ${leaked.length} carrying input or seed`);
   }
 
   // ── PP-3 THE CHAIN IS BYTE-IDENTICAL WITH AND WITHOUT THE PROBE ──────────

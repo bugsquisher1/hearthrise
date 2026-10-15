@@ -18,7 +18,7 @@
 //      road_forge (it grants the iron pickaxe) as `authenticated`. The answer is
 //      settle_first and the character — bag, gold, version, accrued_to, progress,
 //      ledger, intents — is byte-identical afterwards; the same holds for
-//      hr_set_auto_eat, hr_credit_kills and hr_claim_daily, and for hr_apply (as
+//      hr_claim_daily (hr_set_auto_eat / hr_credit_kills until lane C2 dropped them), and for hr_apply (as
 //      hr_engine) with a non-stamping items:+1 or a buff_apply. Once the row is
 //      settled the SAME claim pays, so the refusal is not vacuous.
 //      `--mutate=staleMs12h` raises the threshold to 12 h (§4 blinded) → RED.
@@ -104,7 +104,7 @@ async function asRole(db, role, sql, params) {
 async function snapshot(db) {
   const q = async (sql) => JSON.stringify((await db.query(sql, [UID])).rows);
   return {
-    state: await q(`select gold::text, version::text, accrued_to::text, auto_eat_enabled, active_kind
+    state: await q(`select gold::text, version::text, accrued_to::text, active_kind
                       from player_state where user_id = $1 and slot = 0`),
     inv: await q('select item_id, qty::text from player_inventory where user_id = $1 order by item_id'),
     progress: await q(`select kind, key, value::text from player_progress where user_id = $1
@@ -133,9 +133,9 @@ async function r5(db) {
   ok(claim && claim.ok === false && claim.error === 'settle_first',
     `R5 a 7.25 h-stale hr_claim_quest(road_forge) was not refused settle_first — got ${JSON.stringify(claim)}. `
     + 'The claim lands the iron pickaxe first and the settle then prices the whole night at it.');
+  /* (hr_set_auto_eat and hr_credit_kills were two more doors here; lane C2's
+     drop file removes both — the plain run is the whole chain.) */
   const others = [
-    ['hr_set_auto_eat', 'select public.hr_set_auto_eat(0, true, null, null, false) r'],
-    ['hr_credit_kills', `select public.hr_credit_kills(0, 'slime', 1, '${crypto.randomUUID()}') r`],
     ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
   ];
   for (const [fn, sql] of others) {
@@ -188,7 +188,6 @@ async function r6(db) {
   const before = await snapshot(db);
   const client = async (sql) => (await asRole(db, 'authenticated', sql))[0].r;
   for (const [fn, sql] of [
-    ['hr_set_auto_eat', 'select public.hr_set_auto_eat(0, false, null, null, false) r'],
     ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
   ]) {
     const r = await client(sql);
@@ -207,7 +206,7 @@ async function r6(db) {
     ok(before[k] === after[k], `R6 a refused partied call WROTE the character (${k}): ${before[k]} -> ${after[k]}`);
   }
   await db.query("update party_hunt set ended_at = now(), stopped_by = 'leader' where party_id = $1", [pid]);
-  const stopped = await client('select public.hr_set_auto_eat(0, false, null, null, false) r');
+  const stopped = await client("select public.hr_claim_daily('daily_kill', 0) r");
   ok(stopped && stopped.error === 'settle_first',
     `R6 once the hunt stops the stale row must answer settle_first (the settle clears it) — got ${JSON.stringify(stopped)}`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");

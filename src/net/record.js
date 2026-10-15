@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=584';
+import { resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=588';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=584';
+import { applyClientState } from './client-state.js?v=588';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=584';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=588';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=584';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=588';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1841,9 +1841,8 @@ function settle(verdict) {
     hydrationStep('hp', () => reconcileHp(G, verdict.body));
     /* ── REBUILD THE COMPANION ROSTER FROM THE SAME ENVELOPE (blob-retire) ───────
        Companions are SERVER-OWNED under arm — ownership rows, the equipped column,
-       and per-id XP — so the roster is rebuilt here from `res.companions`, exactly
-       as workers/bank rebuild in applyEnvelopeState. Arm-gated inside
-       reconcileCompanions: a pure no-op while dormant. */
+       and per-id XP — so the roster is rebuilt here from `res.companions`.
+       Absence-safe: no projection, no change. */
     hydrationStep('companions', () => reconcileCompanions(G, verdict.body));
     /* ── REBUILD THE FARM PLOTS FROM THE SAME ENVELOPE (blob-retire capstone) ────
        Under arm the client stops loading the save blob, so NOTHING else rebuilds
@@ -1961,8 +1960,7 @@ function settle(verdict) {
        reads "ready" all session and every Auto-Run comes back refused. Per dungeon
        AND per mode; fail-open on absence. See reconcileDungeonCooldowns' header. */
     hydrationStep('dungeon-cooldowns', () => reconcileDungeonCooldowns(G, verdict.body));
-    /* THE PLAY STREAK, same idle-boot hydration class: without it the flame sits all
-       session on the device residue (1) against a column holding 3. reconcilePlayStreak. */
+    /* THE PLAY STREAK, same idle-boot hydration class (absence-safe). */
     hydrationStep('play-streak', () => reconcilePlayStreak(G, verdict.body));
     /* THE FRACTIONAL TOOL CARRY: no longer residue, so an idle boot without this line starts every tool at zero. */
     hydrationStep('tool-carry', () => reconcileToolCarry(G, verdict.body));
@@ -1988,8 +1986,10 @@ function settle(verdict) {
        NOTHING — the seeded summary is marked `restored` and legacy.js's
        `creditServerAwayKills` refuses a restored receipt at source, so a boot
        seed can never feed the kill counters or the Muster's shared meter. */
-    /* The Vigour meter carries the away limit (grant_min); hydrated before the receipt that prints it. */
     hydrationStep('hunt', () => hydrateHunt(G, verdict.body));
+    /* Gathering / bench away receipts. Since lane C2 the server projects no
+       `last_away_receipt` (combat writes none; the column left with the
+       receipt), so this is a presence-gated no-op until its client half goes. */
     hydrationStep('away-receipt', () => reconcileAwayReceipt(G, verdict.body));
     /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
        THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
@@ -2011,22 +2011,6 @@ function settle(verdict) {
     hydrationStep('event-counters', () => reconcileEventCounters(G, verdict.body));
     hydrationStep('lifetime', () => { if (typeof window !== 'undefined' && window.HearthriseLifetime) window.HearthriseLifetime.noteEnvelope(verdict.body); });
     hydrationStep('reveal', () => { if (typeof window !== 'undefined' && window.HearthriseReveal) window.HearthriseReveal.noteEnvelope(verdict.body); });
-    /* b465 — the server's daily-login claim row closes the daily-reward sheet's
-       question at boot (the residue marker kept losing tab/save races and the
-       sheet re-opened on a paid reward). Guarded like its neighbours. */
-    hydrationStep('daily', () => {
-      if (window.HearthriseDaily && typeof window.HearthriseDaily.markServerClaim === 'function') {
-        window.HearthriseDaily.markServerClaim(verdict.body && verdict.body.progress);
-      }
-      /* b475/b498 — the same envelope again, this time so the sheet can derive
-         the day the server will PAY. It reads the daily/login rows and `now`;
-         ⚠ NOT `state.streak_days`, which is hr_apply's SETTLE streak (days
-           PLAYED). b475 rendered that as the login streak and the sheet
-           advertised Day 3 against a Day 1 payout (b497). */
-      if (window.HearthriseDaily && typeof window.HearthriseDaily.noteServerStreak === 'function') {
-        window.HearthriseDaily.noteServerStreak(verdict.body);
-      }
-    });
     /* The Ledger's claim rows, beside the residue (isClaimed is residue OR server);
        a truncated progress statement can only under-report, as an idle boot did. */
     hydrationStep('collection-claims', () => {

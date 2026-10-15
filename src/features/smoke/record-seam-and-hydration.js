@@ -3274,6 +3274,53 @@ export default [
     }
   }),
 
+  /* REGRESSION (2026-10-15, live after the closed-rebuild wipe): the QA device
+     remembered hero slot 2; the wipe left the account owning slot 0 only, so
+     hr_create_character answered slot_not_owned 31 times and every write
+     no_character 54 times — nobody whose device was on slot 1+ could play. A
+     slot_not_owned for the ACTIVE slot above 0 must move the device to slot 0
+     and reload onto it, and must never touch slot 0 or a slot that is not active. */
+  () => tryRunAsync('DEAD-SLOT-1: slot_not_owned on the active hero slot re-addresses the device to slot 0, once', async () => {
+    const C = window.HearthriseCharacter, P = window.HearthriseProfile;
+    assert(C && typeof C.__setCharacterReload === 'function' && P && typeof P.readdressDeadSlot === 'function',
+      'the dead-slot seam is missing');
+    const realFetch = window.fetch;
+    const rawProfile = window.localStorage.getItem('hearthrise:profile');
+    const prof = P.profile || null;
+    const active0 = prof ? prof.activeSlot : undefined;
+    let reloads = 0;
+    const prevReload = C.__setCharacterReload(() => { reloads++; });
+    try {
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      window.fetch = async () => ({ status: 200, ok: true,
+        json: async () => ({ ok: false, error: 'slot_not_owned', slot: 2 }) });
+      if (!P.profile) P.profile = { activeSlot: 2, slots: {} };
+      P.profile.activeSlot = 2;
+      C.resetCharacterIntent();
+      const v = await C.ensureCharacter({ slot: 2 });
+      assert(v.outcome === 'slot-not-owned' && v.present === false, 'not named: ' + JSON.stringify(v));
+      assert(P.activeSlot() === 0 && v.readdressed === 0, 'the device stayed on the dead slot ' + P.activeSlot());
+      assert(reloads === 1, 'expected one reload onto slot 0, saw ' + reloads);
+      // CONTROLS: a dead slot that is NOT the active one, and slot 0, never re-address.
+      P.profile.activeSlot = 1;
+      C.resetCharacterIntent();
+      await C.ensureCharacter({ slot: 2 });
+      assert(P.activeSlot() === 1 && reloads === 1, 'a slot that is not active moved the device');
+      P.profile.activeSlot = 0;
+      C.resetCharacterIntent();
+      await C.ensureCharacter({ slot: 0 });
+      assert(P.activeSlot() === 0 && reloads === 1, 'slot 0 reloaded');
+    } finally {
+      window.fetch = realFetch;
+      C.__setCharacterReload(prevReload);
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+      if (prof) prof.activeSlot = active0; else P.profile = null;
+      if (rawProfile === null) window.localStorage.removeItem('hearthrise:profile');
+      else window.localStorage.setItem('hearthrise:profile', rawProfile);
+    }
+  }),
+
   () => tryRunAsync('B338-5: the ensure is LATCHED — one round trip per session, and re-wiring clears it', async () => {
     const C = window.HearthriseCharacter;
     const realFetch = window.fetch;

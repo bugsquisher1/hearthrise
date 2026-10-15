@@ -97,10 +97,8 @@ export const ALLOW = {
   'src/features/combat-screens.js': ['HearthriseCharms'],
   'src/features/death-sheet.js': ['TRAITS'],
   'src/render/hunt-panel.js': ['HearthriseMuster'],
-  // D2 data: the raid-boss table item-authority still partitions on until M1/M2.
-  'src/data/raid-bosses.js': ['RAID_BOSSES'],
 };
-export const ALLOW_MAX = 25;
+export const ALLOW_MAX = 24;   // 25 -> 24: src/data/raid-bosses.js was deleted (D2)
 
 /* ── Comments out, strings kept (a verb is a string) ──────────────────── */
 export function stripComments(t) {

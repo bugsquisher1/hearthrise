@@ -104,8 +104,8 @@ end $$;
 -- a grant to PUBLIC is held by every role that exists.
 revoke all on public.hr_unlocks from public, anon, authenticated, service_role;
 
--- Refilled wholesale, inside the migration's transaction.
-delete from public.hr_unlocks;
+-- SCOPED (demolition 2026-10-14): upsert the derived rows, delete ONLY the
+-- retired ids. Other seeders' rows are never touched.
 insert into public.hr_unlocks
   (unlock_id, namespace, merge, progress_kind, max_value, rungs)
 values
@@ -133,15 +133,53 @@ values
   ('room:shrine', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
   ('room:trophy', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
   ('room:workshop', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
-  ('worker', 'worker', 'count', 'stat', 1, null);
+  ('worker', 'worker', 'count', 'stat', 1, null)
+on conflict (unlock_id) do update set
+  namespace = excluded.namespace, merge = excluded.merge,
+  progress_kind = excluded.progress_kind, max_value = excluded.max_value,
+  rungs = excluded.rungs;
+delete from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram']::text[]);
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$
 declare v_n int; v_bad text;
 begin
-  select count(*) into v_n from public.hr_unlocks;
+  select count(*) into v_n from public.hr_unlocks u
+   where (u.unlock_id, u.namespace, u.merge, coalesce(u.progress_kind, ''), coalesce(u.max_value, -1), coalesce(u.rungs, '{}'::int[]))
+      in (select x.unlock_id, x.namespace, x.merge, coalesce(x.progress_kind, ''), coalesce(x.max_value, -1), coalesce(x.rungs, '{}'::int[])
+            from (values
+  ('character_slot:1', 'character_slot', 'flag', 'flag', null, null),
+  ('character_slot:2', 'character_slot', 'flag', 'flag', null, null),
+  ('character_slot:3', 'character_slot', 'flag', 'flag', null, null),
+  ('character_slot:4', 'character_slot', 'flag', 'flag', null, null),
+  ('plot:farm_plot', 'plot', 'count', 'stat', 12, null),
+  ('plot:scarecrow', 'plot', 'count', 'stat', 2, null),
+  ('plot:toolshed', 'plot', 'count', 'stat', 1, null),
+  ('plot:watchtower', 'plot', 'count', 'stat', 1, null),
+  ('property:castle', 'property', 'max', 'unlock', 5, array[5]::int[]),
+  ('property:farmstead', 'property', 'max', 'unlock', 2, array[2]::int[]),
+  ('property:homestead', 'property', 'max', 'unlock', 1, array[1]::int[]),
+  ('property:keep', 'property', 'max', 'unlock', 4, array[4]::int[]),
+  ('property:manor', 'property', 'max', 'unlock', 3, array[3]::int[]),
+  ('recipe:field_cookbook', 'recipe', 'flag', 'flag', null, null),
+  ('recipe:marrow_cookbook', 'recipe', 'flag', 'flag', null, null),
+  ('recipe:soul_recipe', 'recipe', 'flag', 'flag', null, null),
+  ('room:cellar', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:forge', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:garden', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:kitchen', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:library', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:shrine', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:trophy', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('room:workshop', 'room', 'max', 'unlock', 5, array[1,2,3,4,5]::int[]),
+  ('worker', 'worker', 'count', 'stat', 1, null)
+            ) as x (unlock_id, namespace, merge, progress_kind, max_value, rungs));
   if v_n <> 25 then
-    raise exception 'hr_unlocks holds % rows, expected 25 — the insert was partial', v_n;
+    raise exception 'hr_unlocks holds % of the 25 derived rows exactly — the upsert was partial', v_n;
+  end if;
+  select count(*) into v_n from public.hr_unlocks where unlock_id = any (array['bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token', 'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix', 'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp', 'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer', 'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note', 'recipe:spellstone_diagram']::text[]);
+  if v_n <> 0 then
+    raise exception 'hr_unlocks still holds % retired id(s)', v_n;
   end if;
 
   -- Every level has a ladder, every ladder is inside its ceiling, and no ladder

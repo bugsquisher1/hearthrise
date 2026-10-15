@@ -73,12 +73,6 @@ export const ITEMS={
   bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
   steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
   rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
-  /* HELD (demolition 2026-10-14): dungeon keys are deleted, but the
-     Journeyman's Road still pays a Bone Key. It leaves with the re-reward
-     (designer ruling §6), a three-way change — goal-catalogue QUEST_REWARDS,
-     legacy.js QUEST_DEFS and the hr_quest_rewards seed (Security GO) — bound by
-     tests/quest-reward-parity.mjs. */
-  bone_key:{n:'Bone Key',icon:'🦴',v:0,bop:true,rarity:'uncommon',tag:'key',unlocks:'crypt_of_bones'},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},

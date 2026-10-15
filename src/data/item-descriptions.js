@@ -55,7 +55,6 @@ export const ITEM_DESC = {
   'boarhide_helmet': 'A boarhide coif, tough and bristled, a rugged ranger\'s steady ward',
   'boarhide_pants': 'Boarhide chaps, tough and broken-in, built for a ranger who never stops moving',
   'bone_chips': 'Splinters of shattered bone, ground into meal for crafting',
-  'bone_key': 'A key carved from bone that opens the Crypt of Bones',
   'bone_needle': 'A simple bone needle, a novice crafter\'s first honest stitch',
   'bones': 'Bare bones left by common beasts, buried to honour the dead and earn favour',
   'bronze_axe': 'Cast-bronze felling axe, a woodcutter\'s first honest tool',

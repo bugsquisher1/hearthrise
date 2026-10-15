@@ -287,6 +287,29 @@ const q = (s) => (s === null || s === undefined ? 'null' : `'${String(s).replace
 const arr = (a) => (a === null ? 'null' : `array[${a.join(',')}]::int[]`);
 const num = (n) => (n === null || n === undefined ? 'null' : String(n));
 
+/* ── THE DEMOLITION FILE IS SCOPED, NOT WHOLESALE (2026-10-14) ─────────────
+   This regen lands at the END of the chain, after the later seeders (companion
+   grants, bank/plot/worker_hire/farm_land rungs) have added their own rows, so
+   the historical UNSCOPED delete would take them (the b453 companion-loss
+   class, see the banner). It therefore UPSERTS every derived row and deletes
+   ONLY the ids the demolition retired, named here. Rows the shop no longer
+   sells but a kept system still reads (trait:auto_eat from the creation grant,
+   farm_plot_tier, the held companions, entitlement:hearthHall, theme:*) are
+   left untouched for M1/M2 to rule on. A retired id that is still derived
+   fails generation. */
+const RETIRED_UNLOCKS = Object.freeze([
+  'bounty:auto_bounty_1', 'bounty:cosmetic_cape', 'bounty:free_reroll_2', 'bounty:mark_pouch', 'bounty:reroll_token',
+  'cosmetic:avatar_dragon', 'cosmetic:emote_pack', 'cosmetic:name_gold', 'cosmetic:pet_phoenix',
+  'dungeon_run:ancient_wyrm', 'dungeon_run:crypt_of_bones', 'dungeon_run:goblin_warcamp',
+  'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer',
+  'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note',
+  'recipe:spellstone_diagram',
+]);
+for (const id of RETIRED_UNLOCKS) {
+  if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);
+}
+const retiredSql = RETIRED_UNLOCKS.map((id) => `'${id}'`).join(', ');
+
 const DIGEST = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
 
 const byNs = {};
@@ -375,20 +398,34 @@ end $$;
 -- a grant to PUBLIC is held by every role that exists.
 revoke all on public.hr_unlocks from public, anon, authenticated, service_role;
 
--- Refilled wholesale, inside the migration's transaction.
-delete from public.hr_unlocks;
+-- SCOPED (demolition 2026-10-14): upsert the derived rows, delete ONLY the
+-- retired ids. Other seeders' rows are never touched.
 insert into public.hr_unlocks
   (unlock_id, namespace, merge, progress_kind, max_value, rungs)
 values
-${valueLines};
+${valueLines}
+on conflict (unlock_id) do update set
+  namespace = excluded.namespace, merge = excluded.merge,
+  progress_kind = excluded.progress_kind, max_value = excluded.max_value,
+  rungs = excluded.rungs;
+delete from public.hr_unlocks where unlock_id = any (array[${retiredSql}]::text[]);
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$
 declare v_n int; v_bad text;
 begin
-  select count(*) into v_n from public.hr_unlocks;
+  select count(*) into v_n from public.hr_unlocks u
+   where (u.unlock_id, u.namespace, u.merge, coalesce(u.progress_kind, ''), coalesce(u.max_value, -1), coalesce(u.rungs, '{}'::int[]))
+      in (select x.unlock_id, x.namespace, x.merge, coalesce(x.progress_kind, ''), coalesce(x.max_value, -1), coalesce(x.rungs, '{}'::int[])
+            from (values
+${valueLines}
+            ) as x (unlock_id, namespace, merge, progress_kind, max_value, rungs));
   if v_n <> ${rows.length} then
-    raise exception 'hr_unlocks holds % rows, expected ${rows.length} — the insert was partial', v_n;
+    raise exception 'hr_unlocks holds % of the ${rows.length} derived rows exactly — the upsert was partial', v_n;
+  end if;
+  select count(*) into v_n from public.hr_unlocks where unlock_id = any (array[${retiredSql}]::text[]);
+  if v_n <> 0 then
+    raise exception 'hr_unlocks still holds % retired id(s)', v_n;
   end if;
 
   -- Every level has a ladder, every ladder is inside its ceiling, and no ladder

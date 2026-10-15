@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4
---   rows: 471 items (15 untradeable) ·
+--   catalogue digest: 2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159
+--   rows: 470 items (14 untradeable) ·
 --         268 item-slot pairs · 15 equip slots ·
 --         15 skills · 9 crops · 267 activities ·
 --         0 runes
@@ -222,7 +222,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('boarhide_helmet','Boarhide Coif',true,'armor',420,'defense',30,null,false),
   ('boarhide_pants','Boarhide Chaps',true,'armor',770,'defense',30,null,false),
   ('bone_chips','Bone Chips',true,null,10,null,null,null,false),
-  ('bone_key','Bone Key',false,null,0,null,null,null,false),
   ('bone_needle','Bone Needle',true,'tool',70,null,null,null,false),
   ('bones','Bones',true,null,1,null,null,null,false),
   ('bramble_blade','Bramble Blade',true,'weapon',130,'attack',15,null,false),
@@ -1261,7 +1260,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4', now())
+  values (true, '2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1289,10 +1288,10 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 471 then raise exception 'hr_items has % rows, generator emitted 471', v_n; end if;
+  if v_n <> 470 then raise exception 'hr_items has % rows, generator emitted 470', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
-  if v_n <> 15 then
-    raise exception 'untradeable count is %, generator emitted 15', v_n;
+  if v_n <> 14 then
+    raise exception 'untradeable count is %, generator emitted 14', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> 267 then raise exception 'hr_activities has % rows, expected 267', v_n; end if;
@@ -1426,7 +1425,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 0 then raise exception 'hr_runes has % rows, generator emitted 0', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

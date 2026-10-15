@@ -52,7 +52,6 @@ export const PENDING_USE = Object.freeze({
   lexarch_seal:     'w0f — boss trophies hang in the trophy room',
   voidwoven_sigil:  'w0f — boss trophies hang in the trophy room',
   dragon_relic:     'w0f — boss trophies hang in the trophy room',
-  bone_key:         'M2 — the road_hunt re-reward (designer ruling 2026-10-14 §6) retires it',
 });
 export const PENDING_CONSUMER = Object.freeze({
   prayer: 'w0e — Prayer does something in a fight (audit top-10 #8)',

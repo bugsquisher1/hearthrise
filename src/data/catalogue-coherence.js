@@ -88,6 +88,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    gains a source or leaves ITEMS, and an id may never be added — a new item
    with no source is a C1 failure, not a candidate for this list. */
 export const AWAITING_ROSTER = Object.freeze([
+  'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
   'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
   'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',

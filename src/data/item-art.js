@@ -153,7 +153,7 @@ export const SHIPPED = Object.freeze({
     'abyssal_greaves', 'abyssal_pearl', 'air_rune', 'alpha_cloak', 'alpha_fang',
     'ancient_claw', 'ancient_fragment', 'ancient_rune',
     'ashcrown_greatsword', 'banded_signet', 'bat_wing',
-    'bear_claw', 'bear_pelt', 'big_bones', 'blood_rune', 'bone_chips', 'bone_key', 'bones',
+    'bear_claw', 'bear_pelt', 'big_bones', 'blood_rune', 'bone_chips', 'bones',
     'bronze_bar', 'brute_plate', 'captain_medal', 'captains_ribblade', 'chaos_rune',
     'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets', 'coal', 'coarse_whetstone',
     'copper_ring', 'copper_studs', 'copper_whetstone', 'cracked_spellstone',

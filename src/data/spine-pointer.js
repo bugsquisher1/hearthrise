@@ -139,14 +139,14 @@ const DISPLAY = {
     opens: opens('The road to the Castle', 'Your next goals lead to the Manor, the Keep and the Castle.'),
   },
   road_forge: {
-    title: 'Smith 60 items', why: 'The reward is an iron pickaxe, and iron ore waits at Mining 15.',
+    title: 'Smith 60 items', why: 'The reward is three iron bars, enough for your first iron fitting.',
     parts: [part(count('ev:smithed', 60), 'smith', 'Items smithed')], quest: 'road_forge',
-    opens: opens('An iron pickaxe', 'Iron ore waits at Mining 15.'),
+    opens: opens('Three iron bars', 'Enough for your first iron fitting.'),
   },
   road_craft: {
-    title: 'Craft 60 items', why: 'The reward is an iron axe that cuts willow.',
+    title: 'Craft 60 items', why: 'The reward is five oak planks for your first timber beams.',
     parts: [part(count('ev:crafted', 60), 'craft', 'Items crafted')], quest: 'road_craft',
-    opens: opens('An iron axe', 'Your new axe cuts willow.'),
+    opens: opens('Five oak planks', 'Enough for your first timber beams.'),
   },
   building_stock: {
     title: 'Make 6 iron fittings and 6 timber beams', why: 'Stonecross Manor is framed in timber and bound in iron.',
@@ -165,9 +165,9 @@ const DISPLAY = {
     opens: opens('Stonecross Manor stands', 'Your rooms can climb higher now.'),
   },
   road_hunt: {
-    title: 'Defeat 500 monsters', why: 'The reward is the key to the Crypt of Bones.',
+    title: 'Defeat 500 monsters', why: 'The reward is two cooked lobsters for the climb to Combat 45.',
     parts: [part(count('ev:kill_any', 500), 'fight', 'Monsters defeated')], quest: 'road_hunt',
-    opens: opens('A key to the Crypt', 'The Crypt of Bones opens at combat level 25.'),
+    opens: opens('Two cooked lobsters', 'Food for the climb to Combat 45.'),
   },
   bear_hunt: {
     title: 'Bring home 5 bear pelts', why: 'Ironvale Keep needs bear pelts, and bears only face fighters of Combat 45.',
@@ -182,7 +182,7 @@ const DISPLAY = {
   road_cook: {
     title: 'Cook 60 dishes', why: 'A full larder keeps you fighting longer.',
     parts: [part(count('ev:cooked', 60), 'cook', 'Dishes cooked')], quest: 'road_cook',
-    opens: opens('A better rod', 'Your new rod brings in more fish for the pan.'),
+    opens: opens('Three raw lobsters', 'They cook at Cooking 30.'),
   },
   road_harvest: {
     title: 'Harvest 40 crops', why: 'The reward is potato seed, which grows at Farming 30.',

@@ -404,8 +404,8 @@ const MUTATIONS = [
   { name: 'catalogue qty drift against both other sides',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, first_cook: { ...cat.first_cook, items: { shrimp: 31 } } } }) },
   /* ── Journeyman's Road (content pack 7) — the road rows are bound the same way */
-  { name: 'road: legacy bone_key qty drift (road_hunt shows 2 keys, the server pays 1)',
-    apply: (s) => ({ legacy: s.legacy.replace("reward:{gold:1500,item:'bone_key',qty:1}", "reward:{gold:1500,item:'bone_key',qty:2}") }) },
+  { name: 'road: legacy cooked_lobster qty drift (road_hunt shows 3, the server pays 2)',
+    apply: (s) => ({ legacy: s.legacy.replace("reward:{gold:1500,item:'cooked_lobster',qty:2}", "reward:{gold:1500,item:'cooked_lobster',qty:3}") }) },
   { name: 'road: chain-end seed potato_seed drift (the number that actually gets credited)',
     apply: (s) => ({ sql: s.sql.replace("('road_harvest', '{\"potato_seed\": 10}')", "('road_harvest', '{\"potato_seed\": 1}')") }) },
   { name: 'road: catalogue iron_pickaxe qty drift against both other sides',
@@ -422,7 +422,7 @@ const MUTATIONS = [
   { name: 'xp: catalogue XP emptied (the client stops claiming hundred_kills)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, hundred_kills: { ...cat.hundred_kills, xp: {} } } }) },
   { name: 'road: chain-end seed row removed (road_cook pays gold only)',
-    apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"oak_rod\": 1}'),\n", '') }) },
+    apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"lobster\": 3}'),\n", '') }) },
 ];
 
 async function selftest() {

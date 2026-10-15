@@ -101,19 +101,20 @@ export const QUEST_REWARDS = Object.freeze({
   /* ── JOURNEYMAN'S ROAD (content pack 7; 2026-09-28-journeymans-road.sql) ──
      The day-2 chain, legacy.js QUEST_DEFS `chain:'road'`. Same two tests as
      every row above: a lifetime ev:<type> the server already keeps, and a fixed
-     gold amount. Each item is one tier ahead of the level-18 rung (the three
-     tools) or opens the next place to go (bone_key, potato_seed); road_gather
+     gold amount. Re-rewarded at the same value by the designer ruling of
+     2026-10-14 (tools and the bone key left): iron bars, oak planks, raw and
+     cooked lobsters, and potato seed; road_gather
      pays gold only. Per character, once ever: 6,000 gold + the five grants.
      Designer rulings 2026-09-26: B1 road_hunt 1,500 for 500 kills and B3
      road_gather 1,000 for 500 are CONFIRMED — these are one-off lifetime
      signposts that stack on the dailies/weeklies the same kills already pay,
      not a rate, and road_hunt above 2,000 reopens the accepted forge residual
      (see the migration header). */
-  road_forge:   { checkKey: 'ev:smithed',  goal: 60,  gold: 700,  items: Object.freeze({ iron_pickaxe: 1 }) },
-  road_craft:   { checkKey: 'ev:crafted',  goal: 60,  gold: 700,  items: Object.freeze({ iron_axe: 1 }) },
-  road_cook:    { checkKey: 'ev:cooked',   goal: 60,  gold: 600,  items: Object.freeze({ oak_rod: 1 }) },
+  road_forge:   { checkKey: 'ev:smithed',  goal: 60,  gold: 700,  items: Object.freeze({ iron_bar: 3 }) },
+  road_craft:   { checkKey: 'ev:crafted',  goal: 60,  gold: 700,  items: Object.freeze({ oak_plank: 5 }) },
+  road_cook:    { checkKey: 'ev:cooked',   goal: 60,  gold: 600,  items: Object.freeze({ lobster: 3 }) },
   road_gather:  { checkKey: 'ev:gather',   goal: 500, gold: 1000, items: Object.freeze({}) },
-  road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ bone_key: 1 }) },
+  road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ cooked_lobster: 2 }) },
   road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
   /* "Defeat 100 monsters" — XP only, credited by hr_claim_quest. */
   hundred_kills: { checkKey: 'ev:kill_any', goal: 100, gold: 0, items: Object.freeze({}),

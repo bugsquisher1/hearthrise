@@ -3534,11 +3534,11 @@ const QUEST_DEFS=[
    done:false},
   /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
      "your first" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
-  {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
-  {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
-  {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'oak_rod',qty:1},note:'Sixty meals cooked. A better rod means more fish for the pan.',done:false},
+  {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith your first 60 items',goal:60,progress:0,reward:{gold:700,item:'iron_bar',qty:3},note:'Sixty pieces off the anvil. Three iron bars, enough for your first iron fitting.',done:false},
+  {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft your first 60 items',goal:60,progress:0,reward:{gold:700,item:'oak_plank',qty:5},note:'Sixty things made by hand. Five oak planks for your first timber beams.',done:false},
+  {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'lobster',qty:3},note:'Sixty meals cooked. Three raw lobsters, which cook at Cooking 30.',done:false},
   {id:'road_gather',chain:'road',type:'gather',mirror:'stats.evGather',label:'Gather 500 resources',goal:500,progress:0,reward:{gold:1000},note:'Five hundred loads hauled. The homestead is built on this.',done:false},
-  {id:'road_hunt',chain:'road',type:'kill_any',mirror:'stats.evKillAny',label:'Defeat 500 monsters',goal:500,progress:0,reward:{gold:1500,item:'bone_key',qty:1},note:'Five hundred down. The Crypt of Bones opens at combat 25, and this key fits its door.',done:false},
+  {id:'road_hunt',chain:'road',type:'kill_any',mirror:'stats.evKillAny',label:'Defeat 500 monsters',goal:500,progress:0,reward:{gold:1500,item:'cooked_lobster',qty:2},note:'Five hundred down. Two cooked lobsters for the climb to Combat 45.',done:false},
   {id:'road_harvest',chain:'road',type:'harvest',mirror:'stats.harvested',label:'Harvest 40 crops',goal:40,progress:0,reward:{gold:1500,item:'potato_seed',qty:10},note:'Forty crops in. Potatoes grow at Farming 30.',done:false},
 ];
 window.QUEST_DEFS=QUEST_DEFS;

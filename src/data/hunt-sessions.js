@@ -63,6 +63,16 @@ export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['end', 'switch']),
      target  a solo mode of hr_hunt_target_modes
      limit   an integer inside the hr_hunt_limits `<limit>_min` / `_max` pair
      enum    one of `values` */
+/* THE VALUE BOUND'S HEADROOM (Security GO item 3, 2026-10-15). A settle's
+   gold, XP and drops are bounded server-side by K x the catalogue maximum per
+   kill (hr_hunt_kill_bounds, generated from src/data/monsters.js): gold by the
+   kill's top gp roll, XP by the most a kill can teach (every HP of damage at the
+   fallback route's rate, plus the kill XP), a drop by the rows that name it. A
+   BLAST RADIUS, not balance: it absorbs every multiplier (gold find, XP perks
+   and buffs, rested) so honest play never meets it, and stops a compromised or
+   buggy engine minting more than a few times what K kills can be worth. */
+export const VALUE_HEADROOM = 3;
+
 export const ACTION_SET_OPTIONS = Object.freeze({
   target_mode: Object.freeze({ kind: 'target' }),
   pull_count: Object.freeze({ kind: 'limit', limit: 'pull' }),

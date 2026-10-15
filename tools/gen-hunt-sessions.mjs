@@ -73,10 +73,11 @@ import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_LANES, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
   SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, PULL_CAP, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, DEFAULT_RESUME, EVENT_COPY,
+  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM, DEFAULT_RESUME, EVENT_COPY,
   coverSellable } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
+import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_NAME = '2026-10-22-hunt-sessions-catalogue.generated.sql';
@@ -93,7 +94,7 @@ export function catalogueRows(src = {}) {
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
     knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
-    swingIntervalMs: COMBAT_BALANCE.tickMs, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
+    swingIntervalMs: COMBAT_BALANCE.tickMs, valueHeadroom: VALUE_HEADROOM, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, pullCap: PULL_CAP, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
@@ -201,6 +202,8 @@ export function catalogueRows(src = {}) {
        can hold hunting time to the exact swing count. The cooldown LANES are
        their own table (hr_hunt_lanes), not limits rows. */
     swing_interval_ms: S.swingIntervalMs,
+    /* The value bound's blast-radius multiplier (VALUE_HEADROOM). */
+    value_headroom: S.valueHeadroom,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
     /* A knockout inside a hunt (flat, master plan row 16) and the gold floor's
        range and default (row 3). */
@@ -249,6 +252,24 @@ export function catalogueRows(src = {}) {
     }
   }
   if (!(S.cooldowns.consumable && S.cooldowns.consumable.active === true)) throw new Error('COOLDOWN_LANES has no active consumable lane');
+  if (!(Number.isInteger(lim.value_headroom) && lim.value_headroom >= 1 && lim.value_headroom <= 10)) {
+    throw new Error(`VALUE_HEADROOM ${S.valueHeadroom} is not a whole multiplier in [1, 10]`);
+  }
+  /* THE KILL BOUNDS (Security GO item 3): per combat monster, the most one kill
+     can pay — gold (the top gp roll), XP (every HP of damage at the fallback
+     route's attack + strength + hitpoints rate, plus the kill XP; overkill pays
+     nothing, so damage per kill <= hp) and each item (one unit per drop row
+     naming it). Derived, never typed. */
+  const xpPerHp = 2 * HIT_XP_PER_DAMAGE + HIT_HP_XP_PER_DAMAGE;
+  const killBounds = Object.keys(S.monsters).sort().map((id) => {
+    const m = S.monsters[id];
+    if (!ID.test(id)) throw new Error(`monster id ${id} is not [a-z0-9_]{1,64}`);
+    const drops = {};
+    for (const d of (m.drops || [])) if (d && d.id && ID.test(d.id)) drops[d.id] = (drops[d.id] || 0) + 1;
+    const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));
+    const xp = Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0));
+    return { id, gold, xp, drops };
+  });
   const lanes = Object.keys(S.cooldowns).sort().map((l) => ({ l, ms: S.cooldowns[l].ms, active: S.cooldowns[l].active === true }));
   if (!(Number.isInteger(lim.swing_interval_ms) && lim.swing_interval_ms >= 600)) {
     throw new Error(`the swing interval ${S.swingIntervalMs} is not a whole number of ms >= 600`);
@@ -322,7 +343,7 @@ export function catalogueRows(src = {}) {
   if (!onEmpty.modes.every((m) => ID.test(m)) || !onEmpty.modes.includes('end') || onEmpty.default !== 'end') {
     throw new Error(`ON_EMPTY ${JSON.stringify(S.onEmpty)} must offer 'end' and default to it (the store is never silent)`);
   }
-  return { supplySource, onEmpty, lanes, setOptions, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
+  return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
     cover, resume, eventTypes,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -336,6 +357,7 @@ export function render(src) {
   const coverValues = r.cover.map((c) => `  (${sq(c.id)}, ${c.unit})`).join(',\n');
   const eventList = r.eventTypes.map(sq).join(', ');
   const slotKindValues = r.slotKinds.map((x) => `  (${sq(x.k)}, ${x.active})`).join(',\n');
+  const boundValues = r.killBounds.map((b) => `  (${sq(b.id)}, ${b.gold}, ${b.xp}, ${sq(JSON.stringify(b.drops))}::jsonb)`).join(',\n');
   const laneValues = r.lanes.map((x) => `  (${sq(x.l)}, ${x.ms ?? 'null'}, ${x.active})`).join(',\n');
   const optionValues = r.setOptions.map((x) => `  (${sq(x.k)}, ${sq(x.kind)}, ${x.limit ? sq(x.limit) : 'null'}, `
     + `${x.values ? `array[${x.values.map(sq).join(', ')}]::text[]` : 'null'})`).join(',\n');
@@ -464,6 +486,14 @@ create table if not exists public.hr_hunt_lanes (
   active boolean not null,
   check (active = (ms is not null))
 );
+-- THE KILL BOUNDS (Security GO item 3): the most ONE kill of each monster can
+-- pay. Read by the value bound (2026-10-22-hunt-sessions-value-bound.sql).
+create table if not exists public.hr_hunt_kill_bounds (
+  monster_id text primary key check (monster_id ~ '^[a-z0-9_]{1,64}$'),
+  gold_max   bigint not null check (gold_max >= 0),
+  xp_max     bigint not null check (xp_max >= 1),
+  drops      jsonb  not null check (jsonb_typeof(drops) = 'object')
+);
 -- THE ACTION SET'S OPTIONS (hunt-sessions.js ACTION_SET_OPTIONS; contracts S4).
 create table if not exists public.hr_hunt_set_options (
   opt       text primary key check (opt ~ '^[a-z0-9_]{1,64}$'),
@@ -490,7 +520,8 @@ alter table public.hr_hunt_slot_targets   enable row level security;
 alter table public.hr_hunt_cover_items    enable row level security;
 alter table public.hr_hunt_lanes          enable row level security;
 alter table public.hr_hunt_set_options    enable row level security;
-revoke all on public.hr_hunt_lanes, public.hr_hunt_set_options from public, anon, authenticated, service_role;
+alter table public.hr_hunt_kill_bounds    enable row level security;
+revoke all on public.hr_hunt_lanes, public.hr_hunt_set_options, public.hr_hunt_kill_bounds from public, anon, authenticated, service_role;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
@@ -519,6 +550,9 @@ ${laneValues};
 delete from public.hr_hunt_set_options;
 insert into public.hr_hunt_set_options (opt, kind, limit_key, vals) values
 ${optionValues};
+delete from public.hr_hunt_kill_bounds;
+insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
+${boundValues};
 delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode, solo) values
 ${targetValues};
@@ -642,6 +676,7 @@ begin
      or (select count(*) from public.hr_hunt_resumable_kinds) <> ${r.resumable.length}
      or (select count(*) from public.hr_hunt_lanes) <> ${r.lanes.length}
      or (select count(*) from public.hr_hunt_set_options) <> ${r.setOptions.length}
+     or (select count(*) from public.hr_hunt_kill_bounds) <> ${r.killBounds.length}
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every supply and every vendor value is a catalogued item; every named hunt is
@@ -664,7 +699,7 @@ begin
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options'] loop
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -673,7 +708,7 @@ begin
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                  'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options')) then
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;
 `;

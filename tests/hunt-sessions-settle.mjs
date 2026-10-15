@@ -1403,6 +1403,34 @@ const DB_ARMS = {
     if (!env || !('stamina' in env)) problems.push('S7: the chain-end envelope projects no stamina');
     return problems;
   }),
+  /* VALUE — THE VALUE BOUND (Security GO item 3; 2026-10-22-hunt-sessions-
+     value-bound.sql). An honest settle lands; a window that claims more gold,
+     more XP or more of a drop than K kills of this hunt's spawns can pay — or an
+     item none of them drops — is refused value_over and moves nothing. */
+  VALUE: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { from } = await hunter(db, M, { minutesAgo: 10, slots: BAG_ONLY, hp: 99,
+      skillsXp: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 } });
+    const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const cases = [
+      ['a window paying a fortune in gold', (o) => { o.delta.gold = 1000000; }, 'gold'],
+      ['a window teaching a fortune in XP', (o) => { o.delta.xp = { ...(o.delta.xp || {}), attack: 5000000 }; }, 'xp'],
+      ['a window dropping a hundred bones per kill', (o) => { o.delta.items = { ...(o.delta.items || {}), bones: 100000 }; }, 'item'],
+      ['a window dropping an item no spawn drops', (o) => { o.delta.items = { ...(o.delta.items || {}), dragon_gem: 1 }; }, 'item'],
+    ];
+    for (const [label, tamper, what] of cases) {
+      const x = await settleTo(db, M, from + 120000, { tamper });
+      const ok = x.res && x.res.error === 'value_over' && x.res.detail && x.res.detail.what === what;
+      if (!ok) problems.push(`VALUE: ${label} answered ${JSON.stringify(x.res).slice(0, 220)}, want value_over/${what}`);
+      const g = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+      if (g !== g0) problems.push(`VALUE: ${label} moved gold ${g0} -> ${g}`);
+    }
+    const honest = await settleTo(db, M, from + 120000);
+    if (!honest.res || honest.res.ok !== true) problems.push(`VALUE: an honest settle answered ${JSON.stringify(honest.res).slice(0, 200)}`);
+    const rows = await one(db, `select count(*) from public.hr_hunt_kill_bounds`);
+    if (Number(rows) !== Object.keys(M.MONSTERS).length) problems.push(`VALUE: hr_hunt_kill_bounds has ${rows} rows for ${Object.keys(M.MONSTERS).length} monsters`);
+    return problems;
+  }),
   BESTIARY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
@@ -1540,6 +1568,11 @@ const MUTANTS = [
 /* DB mutants: planted in a LIVE function body of the booted chain (create or
    replace), the arm run, the body restored. */
 const DB_MUTANTS = [
+  { arm: 'VALUE', name: 'the gold bound is gone', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "       and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '       and false then' },
+  { arm: 'VALUE', name: 'an undroppable item passes the drop bound', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: '               select max(coalesce((b.drops->>e.key)::numeric, 0)) from public.hr_hunt_kill_bounds b',
+    replace: '               select 1000000 from public.hr_hunt_kill_bounds b' },
   { arm: 'SEAMS', name: 'hunting time is a bound again, not exact (X1)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
     find: '    if v_tick is null or v_tick <= 0 or v_paid + v_down <> v_nsw * v_tick then', replace: '    if false then' },
   { arm: 'SEAMS', name: 'a reserved lane takes a cooldown key (S3)', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
@@ -1601,7 +1634,8 @@ const SQL_MUTANTS = [
   { name: 'the value half is not stamped with the session (tally loses it)', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { name: 'a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
   { name: 'the kill cap does not hold the window to its spawn cycle', find: '       or v_kills <> v_ipl + v_psz * v_pn - v_pl1\n', replace: '' },
-  { name: 'the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },
+  { name: 'the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },
+  { name: 'the fence stops the hired hands too (design ruling 2026-10-15)', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.intent = 'accrue')" },
   { name: 'a player verb between the read and the apply refuses the settle (version CAS)', find: '    v_a := public.hr_apply(p_user, p_slot, v_ver, p_intent, p_delta);', replace: '    v_a := public.hr_apply(p_user, p_slot, p_version, p_intent, p_delta);' },
   { name: 'the fence trigger is not installed', find: 'create trigger hr_hunt_accrue_fence before insert on public.player_ledger', replace: 'create trigger hr_hunt_accrue_fence_off before update on public.player_ledger' },
 ];

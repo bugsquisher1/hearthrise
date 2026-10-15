@@ -544,7 +544,10 @@ async function c1(db) {
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  for (const f of [CAT_NOW, SETTLE, DROP, UNGATED]) {
+  /* The value bound splices hr_hunt_apply AFTER the settle file restates it, so
+     a second apply of the settle file is only byte-identical once the bound is
+     re-applied after it, exactly as the apply order runs them. */
+  for (const f of [CAT_NOW, SETTLE, DROP, UNGATED, '2026-10-22-hunt-sessions-value-bound.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }

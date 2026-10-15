@@ -69,6 +69,13 @@
 //   walks a different draw path again. Hours stay as ruled; one_in for elk_king
 //   moves 23000 -> 23250 and for dragon 14760 -> 14940 (regenerated catalogue).
 //
+//   RE-MEASURED 2026-10-15 (lane C2; was 92 / 111 / 82): a fight is a hunt
+//   session now, and every hunt swing is the ONE 2.0 s basic-attack interval
+//   (Tyler 2026-10-14; was 2,328 ms with this loadout's speed), measured on a
+//   training hunt with no respawn wait — 106 / 128 / 95 kills/h. Hours stay as
+//   ruled; one_in rises with the rate so the landmark keeps its 250 / 220 / 180
+//   hours (2026-10-22-hearthfind-catalogue.generated.sql carries the new odds).
+//
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
 //   of silently retuning the rarest event in the game.
@@ -163,9 +170,9 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 93 }),
-  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 111 }),
-  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 83 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 106 }),
+  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 128 }),
+  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 95 }),
 
   // ── Woodcutting. Door / gate / cap.
   Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),

@@ -2972,79 +2972,9 @@ export default [
       + '1/rate and 2/rate) rather than editing them to match');
   }),
 
-  () => tryRunAsync('B495-3: a fresh character survives a first away night instead of dying in seconds', async () => {
-    /* THE PROPERTY THE KIT EXISTS FOR, measured through the REAL engine rather
-       than argued from the item table. As shipped before b495, a fresh
-       character on a Goblin survived ~30 seconds of a twelve-hour night.
-       ⚠ `survivedMs` STILL MEANS "ms that earned", and that meaning is what
-         this test rests on — but since the Recovery ruling (2026-09-05) it is
-         no longer "ms before the first death". A death now interrupts the run
-         (src/core/away.js RECOVERY_MS), so the span continues and `survivedMs`
-         is the simulated part of it, with the knockouts in `recoverMs`. The
-         floors below are unchanged and remain cliff detectors: this test asks
-         whether the KIT keeps a new character fighting, and Recovery raising
-         the number is not a reason to stop asking. */
-    const CS = window.HearthriseCore && window.HearthriseCore.combatSim;
-    const C = window.HearthriseCore && window.HearthriseCore.combat;
-    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-    const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
-    const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=588');
-    if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
-
-    const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
-    const eq = C.equipmentStats(eqp, window.ITEMS);
-    const style = ST.resolveStyle(eq.weaponType, null);
-    const skills = Object.assign({}, KIT.START_SKILL_XP);
-    const maxHp = window.levelFromXp(skills.hitpoints || 0);
-    const state = {
-      skills, gold: 0, stats: {}, buffs: [],
-      inventory: Object.assign({}, KIT.START_INVENTORY),
-      activeMonster: 'goblin', playerHp: maxHp, playerMaxHp: maxHp,
-      monsterHp: window.MONSTERS.goblin.hp, monsterMaxHp: window.MONSTERS.goblin.hp,
-    };
-    const from = Date.UTC(2026, 8, 3, 2, 0, 0);
-    const bonus = () => 0;
-    const summary = CS.simulateSpan(state, {
-      away: true, rng: RNGM.createRng(0x5eed1234), bonus, style, monsters: window.MONSTERS,
-      fromMs: from, toMs: from + 12 * 3600000, tickMs: C.swingIntervalMs(eq, style),
-      playerRolls: (m) => C.playerCombatRolls(m, { equipment: eqp, items: window.ITEMS, skills, eq, style, bonus }),
-      monsterRolls: (m) => C.monsterCombatRolls(m, { eq, skills, bonus }),
-      weakness: (m) => C.weaknessInfo(m, eq),
-      fx: {
-        /* auto-eat OWNED, because the ruling is that the entry tier is the
-           baseline affordance. If the grant is ever taken away this test still
-           measures the kit; it is the kit that is on trial here. */
-        autoEat: () => {
-          const r = AE.resolveAutoEat({
-            enabled: true, owned: true, hp: state.playerHp, maxHp: state.playerMaxHp,
-            threshold: 0.25, foodId: window.__FRESH_START && window.__FRESH_START.foodSlot,
-            inventory: state.inventory, items: window.ITEMS,
-          });
-          if (!r) return false;
-          state.playerHp = r.hp;
-          state.inventory[r.foodId] -= 1;
-          return true;
-        },
-        onDeath: () => { state.activeMonster = null; },
-      },
-    });
-
-    const mins = summary.survivedMs / 60000;
-    /* The floor is 10 minutes, and it is deliberately far below the ~14 the kit
-       measures: this test is a CLIFF DETECTOR for the 0.5-minute regression, not
-       a pin on an RNG-sensitive figure. */
-    assert(mins >= 10,
-      'a fresh character with the starting kit survived only ' + mins.toFixed(1) + ' minutes of a '
-      + '12h away night (' + summary.kills + ' kills). The floor is 10. As shipped before b495 this '
-      + 'was 0.5 minutes — an overnight paid 23 XP and no gold, so the idle pillar was off by '
-      + 'default for every new account.');
-    assert(summary.kills >= 24,
-      'the starting kit banked only ' + summary.kills + ' away kills; the ruled floor is 24 (a '
-      + 'first-contract bounty is 15-25 kills and must be finishable while the player sleeps)');
-  }),
-
-
+  /* RETIRED (lane C2, the closed rebuild): "B495-3: a fresh character survives a first away night instead of dying in seconds" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('B338-2: the intent carries ONE integer to hr_create_character, and no way to name another player', () => {
     const C = window.HearthriseCharacter;
     assert(C, 'src/net/character.js did not publish — the b337 switch can never credit anybody');
@@ -7231,6 +7161,12 @@ export default [
      the balance actually did.
      ══════════════════════════════════════════════════════════════════════ */
 
+  /* RETIRED (lane C2, the closed rebuild): "B354-1/2/3/4: a claim with the switch ON moves gold by EXACTLY the server receipt, once" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "claim regression: the top bar follows the envelope, not the click" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('stale-gold regression: an expired kill prediction leaves the header on its own (attended)', async () => {
     const G = window.G;
     const R = window.HearthriseRecord;

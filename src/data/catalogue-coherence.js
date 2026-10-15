@@ -50,6 +50,10 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
+  /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
+     supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused).
+     hearth_token's row left with the client IAP code (the demolition); it waits
+     on AWAITING_ROSTER below. */
 });
 
 /* ── USES AN ENGINE HARD-CODES ──────────────────────────────────────────────
@@ -131,6 +135,7 @@ export const AWAITING_ROSTER = Object.freeze([
      account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
   'hearth_token',
 ]);
+
 
 const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });
 

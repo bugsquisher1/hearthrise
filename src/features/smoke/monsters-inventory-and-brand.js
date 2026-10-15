@@ -1013,84 +1013,9 @@ export default [
     }
   }),
 
-  () => tryRun('COMBAT-UI-24: a real AWAY replay declares nothing to the live rail', () => {
-    /* The away replay runs the SAME resolveKill through the SAME effect object
-       as live play, so the declaration that makes the rail work is exactly the
-       thing that would let a night's accrual be dumped into whatever fight the
-       player starts on return. simulateAwayCombat overrides the binding with a
-       silent one; this drives the real away path and proves it.
-       MUTATION PROVEN: delete the `addItem` override in simulateAwayCombat's
-       ctx.fx and this goes red with a night's drops declared. */
-    assert(typeof window.simulateAwayCombat === 'function', 'the away combat seam is missing');
-    const snap = snapshotG();
-    try {
-      /* b492 — STATE THE FIGHTER, do not inherit one. The vacuity check below
-         ("the away replay did no work") used to lean on the ambient boot state
-         happening to carry the fresh-G literal's starter sword and 1154 hitpoint
-         xp. That accident is gone — under the blob-retire capstone `loadLocal()`
-         now forgets every server-of-record field, so an un-hydrated harness
-         character is unarmed and level 1, and six hours of away combat against
-         it can legitimately produce nothing. A vacuity check that depends on
-         luck is the thing it was written to prevent. */
-      window.G.skills = Object.assign({}, window.G.skills,
-        { attack: 300000, strength: 300000, defense: 300000, hitpoints: 300000 });
-      window.G.equipment = Object.assign({}, window.G.equipment, { weapon: 'bronze_sword' });
-      window.G.playerMaxHp = window.levelFromXp(300000);
-      window.G.playerHp = window.G.playerMaxHp;
-      window.G.activeMonster = 'slime';
-      window.G.monsterHp = window.MONSTERS.slime.hp;
-      window.__hrCombatCredits = {};
-      const out = window.simulateAwayCombat(6, false, Date.now());
-      assert(out && out.kills > 0,
-        'the away replay did no work — the test proves nothing (kills=' + (out && out.kills) + ')');
-      assert(Object.keys(window.__hrCombatCredits).length === 0,
-        'an away replay declared drops to the live fight rail: '
-        + JSON.stringify(window.__hrCombatCredits));
-    } finally {
-      try { delete window.__hrCombatCredits; } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  /* -- regression suite -- AWAY-LATCH-1 (2026-10-14): every kill resolved by an away replay
-     rebuilds its ctx (COMBAT_FX.killMonster -> combatSimCtx), and `away` there is the offline
-     latch. simulateAwayCombat set `ctx.away` on its OWN ctx only, so a caller outside the
-     latch (COMBAT-UI-24) ran each kill of the night as WATCHED: a "Defeated" toast and a
-     topbar repaint per kill, thousands in one task (COMBAT-UI-24 66-98 s in the full suite
-     order). The span now holds the latch itself. Both paths: the away night raises no kill
-     toast; a watched kill still raises its own. */
-  () => tryRun('AWAY-LATCH-1: an away replay is away to every kill it resolves; a watched kill still says so', () => {
-    assert(typeof window.simulateAwayCombat === 'function' && typeof window.killMonster === 'function',
-      'the combat seams are missing');
-    const snap = snapshotG();
-    const realNotify = window.notify;
-    const said = [];
-    try {
-      window.G.skills = Object.assign({}, window.G.skills,
-        { attack: 300000, strength: 300000, defense: 300000, hitpoints: 300000 });
-      window.G.equipment = Object.assign({}, window.G.equipment, { weapon: 'bronze_sword' });
-      window.G.playerMaxHp = window.levelFromXp(300000);
-      window.G.playerHp = window.G.playerMaxHp;
-      window.G.activeMonster = 'slime';
-      window.G.monsterHp = window.MONSTERS.slime.hp;
-      window.notify = function (msg) { said.push(String(msg)); };
-      /* Called the way COMBAT-UI-24 calls it: NOT inside the harness's _withOfflineReplay. */
-      const out = window.simulateAwayCombat(1, Date.now(), false);
-      assert(out && out.kills > 0, 'the away replay did no work, so this proves nothing (kills=' + (out && out.kills) + ')');
-      const kills = said.filter((m) => /^Defeated /.test(m));
-      assert(kills.length === 0, 'an away replay of ' + out.kills + ' kills raised ' + kills.length
-        + ' "Defeated" toast(s): its kills ran as watched');
-      said.length = 0;
-      window.G.monsterHp = window.MONSTERS.slime.hp;
-      window.killMonster(window.MONSTERS.slime);
-      assert(said.indexOf('Defeated ' + window.MONSTERS.slime.name) !== -1,
-        'a watched kill no longer raises its toast: ' + JSON.stringify(said));
-    } finally {
-      window.notify = realNotify;
-      restoreG(snap);
-    }
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "COMBAT-UI-24: a real AWAY replay declares nothing to the live rail" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('COMBAT-UI-23: a REAL kill declares its drops end to end', () => {
     /* COMBAT-UI-22 drives the effect binding directly, which proves the filter
        but not the WIRING. This one runs a real kill through the real loop —
@@ -1388,139 +1313,6 @@ export default [
      asserting the recipe is in Runecrafting would still pass if a copy were
      also left in Crafting, and a duplicate recipe is precisely the failure this
      whole change exists to remove. */
-
-  () => tryRun('ELEM-2: a matched enchant pays x1.15 through weaknessInfo; immune/neutral pay x1.00 (mutation-proved by flipping elementWeak)', () => {
-    const C = window.HearthriseCore.combat;
-    const EL = window.HearthriseCore.elements;
-    const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
-    /* An ember-weak foe and an ember-immune foe. imp is a Demon (ember-immune);
-       plague_swarm/plant/mammal carry ember weakness — use one from the table. */
-    const emberWeak = Object.keys(MONSTERS).find((id) => MONSTERS[id].elementWeak === 'ember');
-    const emberImmune = Object.keys(MONSTERS).find((id) => (MONSTERS[id].elementImmune || []).indexOf('ember') >= 0);
-    assert(emberWeak && emberImmune, 'need an ember-weak and an ember-immune monster to test');
-    /* A weapon-slot enchant is stamped ONLY when the weapon slot holds a weapon. */
-    const eqOn = C.equipmentStats({ weapon: 'bronze_sword' }, ITEMS, { weapon: 'ember' });
-    assert(eqOn.element === 'ember', 'equipmentStats must stamp eq.element from the enchant on a real weapon');
-    const eqBare = C.equipmentStats({}, ITEMS, { weapon: 'ember' });
-    assert(eqBare.element === null, 'an enchant on an empty weapon slot must NOT stamp an element');
-
-    const infoWeak = C.weaknessInfo(MONSTERS[emberWeak], eqOn);
-    assert(Math.abs(infoWeak.elementMult - 1.15) < 1e-9 && infoWeak.elementMatched === true,
-      'ember enchant vs ember-weak must pay x1.15, got ' + infoWeak.elementMult);
-    const infoImmune = C.weaknessInfo(MONSTERS[emberImmune], eqOn);
-    assert(infoImmune.elementMult === 1 && infoImmune.elementMatched === false,
-      'ember enchant vs ember-immune must pay x1.00 (pure upside), got ' + infoImmune.elementMult);
-    /* MUTATION PROOF: elementMultFor keys on elementWeak. A monster with NO
-       enchant earns nothing regardless of its weakness. */
-    const infoNoEnchant = C.weaknessInfo(MONSTERS[emberWeak], C.equipmentStats({ weapon: 'bronze_sword' }, ITEMS));
-    assert(infoNoEnchant.elementMult === 1, 'no enchant must never pay an element bonus');
-    assert(EL.elementMultFor(MONSTERS[emberWeak], 'frost') === 1,
-      'the WRONG element must pay nothing even against an element-weak foe');
-  }),
-
-  () => tryRun('ELEM-3: weapon-weakness x bane x element clamps to MAX_TOTAL_DAMAGE_MULT (1.90)', () => {
-    const C = window.HearthriseCore.combat;
-    const EL = window.HearthriseCore.elements;
-    const B = window.HearthriseCore.bane;
-    const MONSTERS = window.MONSTERS;
-    assert(EL.MAX_TOTAL_DAMAGE_MULT === 1.90, 'the stated ceiling is 1.90');
-    const classOf = (m) => B.normalizeClass(m.class) || B.normalizeClass(m.family);
-    /* A hammer-weak Undead that is ALSO ember-weak, with a forged oversized bane
-       + an ember enchant: 1.20 (weapon) x 1.40 (bane, clamped) x 1.15 (element)
-       = 1.932, and the formula must clamp it to 1.90 — the ceiling is the
-       expression's, not any table's. */
-    const target = Object.keys(MONSTERS).find((id) =>
-      classOf(MONSTERS[id]) === 'undead' && MONSTERS[id].weaponWeak === 'hammer' && MONSTERS[id].elementWeak === 'ember');
-    assert(target, 'need a hammer-weak, ember-weak Undead to test the triple ceiling');
-    const forged = Object.assign({}, window.ITEMS);
-    forged.__qa_el__ = { n: 'QA', type: 'weapon', weaponType: 'hammer', bane: [{ class: 'undead', mult: 1e9 }] };
-    const eq = C.equipmentStats({ weapon: '__qa_el__' }, forged, { weapon: 'ember' });
-    const info = C.weaknessInfo(MONSTERS[target], eq);
-    assert(Math.abs(info.damageMult - 1.90) < 1e-9,
-      'weapon x bane x element must clamp to 1.90, got ' + info.damageMult);
-  }),
-
-  () => tryRun('ELEM-5b: the envelope\'s TOP-LEVEL enchant is adopted (regression: state.enchant was never there)', () => {
-    const A = window.HearthriseAccrual;
-    assert(A && typeof A.applyEnvelopeState === 'function', 'the envelope seam is missing');
-    const G = window.G; const snap = snapshotG();
-    try {
-      G.enchant = {};
-      A.applyEnvelopeState(G, { ok: true, version: 2, enchant: { weapon: 'frost' }, state: { slot: 0 } });
-      assert(G.enchant && G.enchant.weapon === 'frost',
-        'a top-level `enchant` on the envelope must be adopted, got ' + JSON.stringify(G.enchant));
-      /* The server clearing it (an equip changed the weapon) must clear the client. */
-      A.applyEnvelopeState(G, { ok: true, version: 3, enchant: {}, state: { slot: 0 } });
-      assert(!(G.enchant && G.enchant.weapon), 'an empty server enchant must clear the client copy, got ' + JSON.stringify(G.enchant));
-      /* ABSENCE IS NOT A CLAIM — an envelope with no enchant key leaves it alone. */
-      G.enchant = { weapon: 'ember' };
-      A.applyEnvelopeState(G, { ok: true, version: 4, state: { slot: 0 } });
-      assert(G.enchant.weapon === 'ember', 'an envelope carrying no enchant key must not clear it');
-    } finally { restoreG(snap); }
-  }),
-
-
-  () => tryRun('ELEM-6: the enchant persists (in the snapshot, absent from NO_SYNC) and the applier authors it', () => {
-    const Ev = window.HearthriseEvents; const A = window.HearthriseAccrual;
-    const G = window.G; const snap = snapshotG();
-    try {
-      G.enchant = { weapon: 'poison' };
-      const s = Ev.snapshot(G);
-      assert(s.enchant && s.enchant.weapon === 'poison', 'the enchant MUST be in the cloud snapshot (it is progress)');
-      const rt = JSON.parse(JSON.stringify(s));
-      assert(rt.enchant.weapon === 'poison', 'the enchant must round-trip through JSON');
-      /* The server is the author: an envelope sets it, a bogus element clears it,
-         and an omitted enchant is left alone. */
-      A.applyEnvelopeState(G, { state: { enchant: { weapon: 'frost' } } });
-      assert(G.enchant.weapon === 'frost', 'the applier must author a valid server enchant');
-      A.applyEnvelopeState(G, { state: { enchant: { weapon: 'not_an_element' } } });
-      assert(!G.enchant.weapon, 'the applier must clear an invalid element');
-      G.enchant = { weapon: 'ember' };
-      A.applyEnvelopeState(G, { state: { gold: 5 } });
-      assert(G.enchant.weapon === 'ember', 'an envelope that omits enchant must leave it alone (absence is not a claim)');
-    } finally { restoreG(snap); }
-  }),
-
-
-
-
-
-
-
-  () => tryRun('ELEM-AWAY: a seeded fight with an enchanted weapon pays identically live vs away, and the enchant is engaged', () => {
-    const G = window.G; const C = window.HearthriseCore; const P = window.HearthrisePresence;
-    const snap = snapshotG(); const origBonus = window.getBonus;
-    try {
-      window.getBonus = () => 0; G.buffs = [];
-      /* goblin is Humanoid → element-weak to poison. A poison enchant must be
-         ENGAGED (proving the seam is live) and must pay identically both ways. */
-      const engaged = C.combat.weaknessInfo(window.MONSTERS.goblin,
-        C.combat.equipmentStats({ weapon: 'bronze_sword' }, window.ITEMS, { weapon: 'poison' }));
-      assert(engaged.elementMatched === true, 'the test rig must actually engage the enchant, or it proves nothing');
-      const run = (away) => {
-        G.enchant = { weapon: 'poison' };
-        G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
-        G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000, hitpoints: 15000, defense: 15000 });
-        G.activeMonster = 'goblin';
-        const m = window.MONSTERS.goblin; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        G.playerMaxHp = 60; G.playerHp = 60; G.gold = 0; G.inventory = {};
-        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 }); G.quests = [];
-        predZero();
-        const before = xpMap();
-        C.reseed(0xC0FFEE);
-        const body = () => { const ctx = window.HearthriseCombatSim.ctx(); for (let i = 0; i < 240; i++) { if (!G.activeMonster) break; C.combatSim.simulateTick(G, ctx); } };
-        if (away) P._withOfflineReplay(body); else body();
-        const nowMap = xpMap();
-        const xp = {}; Object.keys(nowMap).forEach((k) => { const d = (nowMap[k] || 0) - (before[k] || 0); if (d) xp[k] = d; });
-        return { gold: G.gold, kills: G.stats.kills, xp, inv: Object.assign({}, G.inventory) };
-      };
-      const live = run(false); const away = run(true);
-      assert(live.kills > 0, 'the enchanted rig produced no kills — the parity assertion would be vacuous');
-      assert(JSON.stringify(live.xp) === JSON.stringify(away.xp), 'enchanted XP diverged live vs away');
-      assert(live.gold === away.gold && live.kills === away.kills, 'enchanted gold/kills diverged live vs away');
-      assert(JSON.stringify(live.inv) === JSON.stringify(away.inv), 'enchanted drops diverged live vs away');
-    } finally { window.getBonus = origBonus; C.randomSeed(); restoreG(snap); }
-  }),
 
   () => tryRun('MON-ART-1: every wired portrait points at a real monster in a shipped folder', () => {
     const mi = window._monsterIcon || {};
@@ -3614,7 +3406,7 @@ export default [
     }
   }),
 
-  () => tryRun('AUTO-ARM-3: enabled but a guard unmet (no baseline signal / no DUNGEONS) never arms and never throws', () => {
+  () => tryRun('AUTO-ARM-3: enabled but a guard unmet (no baseline signal) never arms and never throws', () => {
     const A = window.HearthriseAccrual;
     const IA = window.HearthriseItemAuthority;
     IA.rebuildItemAuthority();
@@ -3633,12 +3425,9 @@ export default [
       assert(threw === false, 'maybeAutoArm must never throw with an unobserved baseline signal');
       assert(armed === false && A.isInventoryAuthorityLive() === false, 'no baseline signal → no arm');
 
-      /* GUARD (a) unmet: DUNGEONS absent (overlap-id safety). */
-      A.noteBaselineComplete({ inventory_complete: true });
-      globalThis.DUNGEONS = undefined;
-      try { armed = A.maybeAutoArm(); } catch (e) { threw = true; }
-      assert(threw === false, 'maybeAutoArm must never throw with DUNGEONS absent');
-      assert(armed === false && A.isInventoryAuthorityLive() === false, 'no DUNGEONS → no arm');
+      /* GUARD (a), DUNGEONS loaded, is RETIRED with the dungeons (lane C2): the
+         remaining guards are what hold the line (INVENTORY-BASELINE-4 proves a
+         missing DUNGEONS no longer blocks a legitimate arm). */
 
       /* And an envelope arriving in that guard-unmet state must not arm or throw. */
       const G = { gold: 0, skills: {}, equipment: {}, inventory: {} };
@@ -5944,47 +5733,9 @@ export default [
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
   }),
 
-  () => tryRun('b526: an empty bag can be answered with gold — the counter sells a meal', () => {
-    /* THE PLAYED MOMENT (live, QA account, 2026-09-09 01:30 UTC): Combat
-       14, 10,290 gold, empty food bag, knocked out 45 minutes. Recovery
-       refuses every payable kind, so fishing and the fire were both shut; the
-       Market was empty and the Premium Store sells no food. The player's only
-       legal move was to wait. Two halves close it and both are asserted here:
-       the Supplies counter STOCKS a meal at a price that is not a gold loop,
-       and the sheet that names the empty bag now carries the door to it. */
-    const seed = window.SEED_SHOP;
-    assert(Array.isArray(seed), 'SEED_SHOP is not published');
-    const shrimp = seed.find(r => r.id === 'cooked_shrimp');
-    const trout  = seed.find(r => r.id === 'cooked_trout');
-    const lobster = seed.find(r => r.id === 'cooked_lobster');
-    assert(shrimp && trout, 'the Supplies counter stocks no cooked food');
-    assert(lobster, 'the Supplies counter stocks no mid-tier meal (pack 9)');
-
-    /* NO GOLD LOOP, IN EITHER DIRECTION. Cooked food is not `raw`, so the
-       vendor pays the FULL `v` — the buyback is the number this price has to
-       beat, and beating it by a hair is not enough to survive a rounding
-       change. Asserted as a RULE (price > buyback), not as 150 and 450. */
-    for (const row of [shrimp, trout, lobster]) {
-      const buyback = (window.ITEMS[row.id] || {}).v * row.qty;
-      assert(row.cost > buyback,
-        row.id + ' sells back for ' + buyback + ' and costs ' + row.cost
-        + ' — that is an infinite gold faucet, not a shop row');
-    }
-
-    /* The server prices it, or the button is decoration. `resolvePurchase` is
-       the same resolver the live gesture runs; a row the catalogue cannot
-       name comes back `no_offer` and the purchase is never sent. */
-    const Gold = window.HearthriseGold;
-    assert(Gold && typeof Gold.resolvePurchase === 'function',
-      'the gold module does not publish the offer resolver');
-    const r = Gold.resolvePurchase('cooked_shrimp', shrimp.qty, shrimp.cost);
-    assert(!r.error && r.offer === 'seed.cooked_shrimp' && r.count === 1,
-      'the server cannot price the shop row a player is about to tap: ' + JSON.stringify(r));
-    /* And it still refuses a price the shop did not show. */
-    const bad = Gold.resolvePurchase('cooked_shrimp', shrimp.qty, 1);
-    assert(bad.error === 'price_mismatch', 'a forged price resolved: ' + JSON.stringify(bad));
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "b526: an empty bag can be answered with gold — the counter sells a meal" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b526: the empty-bag death sheet carries the door to the counter', () => {
     /* THE DOOR. Both empty-bag tips carry it; the two tips that are NOT about
        an empty bag must not, or the affordance stops meaning anything. */
@@ -6170,60 +5921,9 @@ export default [
     assert(killed && killed.v === '', 'the unknown killer carried a kills figure: ' + JSON.stringify(killed));
   }),
 
-  () => tryRun('b373/rev.2: RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer', () => {
-    const C = window.HearthriseCore;
-    assert(C && C.combatSim && typeof C.combatSim.resolveDeath === 'function', 'combat-sim is not published');
-    /* ══ SUPERSEDES "RESPAWN IS A FULL HEAL" ══════════════════════════════
-       b373's audited symptom was a fresh player respawning at 2/10 and dying
-       again immediately, and the fix was a full heal. The Recovery Rule (rev. 2)
-       replaces the mechanism and KEEPS THE PROPERTY: a death still costs no
-       progress — no gold, no items, no XP, no levels — but it no longer hands
-       back a free full health bar, because that made dying the cheapest top-up
-       in the game. The character stands up on 40% (`resumeHpFor`), which sits
-       deliberately just above Auto-Eat I's 25% trigger: a fed character is
-       topped up by their own provisions on the next swing, a foodless one is
-       not. Food is the way off the floor; the timer only stops the bleeding.
-       ⚠ 40% IS NOT RESTATED AS A LITERAL HERE. It is read from `resumeHpFor`,
-         the one definition both runtimes import — a hardcoded 4 would pass on
-         the day somebody retunes the fraction and the server disagrees. */
-    const A = C.away;
-    assert(A && typeof A.resumeHpFor === 'function', 'away.js does not publish resumeHpFor');
-    const state = { playerHp: 0, playerMaxHp: 10, monsterHp: 4, activeMonster: 'slime',
-      inventory: { cooked_shrimp: 3 }, gold: 500, skills: { attack: 1234 }, stats: {} };
-    let sawMonster = null;
-    const info = C.combatSim.resolveDeath(state, {
-      away: true,
-      /* THE CONTRACT THE DEATH SHEET DEPENDS ON: onDeath fires while the fight
-         is still standing, so a handler can still read what killed the player.
-         Move `state.activeMonster = null` above the fx call and the sheet
-         silently loses its first line — this is what notices. */
-      fx: { onDeath: () => { sawMonster = state.activeMonster; } },
-    });
-    const want = A.resumeHpFor(10);
-    assert(want > 0 && want < 10, 'resumeHpFor no longer returns a FRACTION of max: ' + want);
-    assert(state.playerHp === want,
-      'the sim did not stand the character up on the ruled fraction: '
-      + state.playerHp + '/10, expected ' + want);
-    /* AND NOTHING ELSE WAS TAKEN. The half of b373 that rev. 2 did not touch,
-       asserted explicitly now that the health half has moved — otherwise the
-       next author reads "40%" and concludes a death is allowed to cost things. */
-    assert(state.gold === 500 && state.inventory.cooked_shrimp === 3 && state.skills.attack === 1234,
-      'a death took progression with it: ' + JSON.stringify({ gold: state.gold,
-        inv: state.inventory, skills: state.skills }));
-    assert(state.stats.deaths === 1, 'the deaths stat did not increment');
-    /* THE FALL, AS DATA. The death sheet renders every one of these without
-       re-deriving a number, so the sim stating them IS the contract. The day's
-       first fall is free and the next one is the ladder's first rung. */
-    assert(info.recoverMs === 0, 'the first fall of the day was charged: ' + info.recoverMs);
-    assert(info.nextRecoverMs > 0, 'the sim cannot say what the next fall costs: ' + info.nextRecoverMs);
-    assert(info.deathsToday === 1 && info.deathsLifetime === 1,
-      'the fall was not counted on either ladder: ' + JSON.stringify(info));
-    assert(info.resumeHp === want,
-      'the payload disagrees with the state the sim just wrote: ' + info.resumeHp + ' vs ' + state.playerHp);
-    assert(sawMonster === 'slime',
-      'onDeath fired after the target was cleared, so nothing can say what killed you: ' + sawMonster);
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "b373/rev.2: RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('b373/b511: an IDLE player takes the server\'s hp, and only a live fight is client-owned', async () => {
     /* b373 ASSERTED THE OPPOSITE HERE, AND b511 SUPERSEDED IT. b373's rule was
        "an idle player cannot be wounded by an envelope": the client full-healed
@@ -7994,41 +7694,6 @@ export default [
      the tour is the FIRST place a player hears either rule. This guard pins the
      retired sentences out and binds the replacement to the constants it quotes,
      so the copy cannot drift away from the engine again in silence. */
-  () => tryRun('FIRST-LIGHT-4: First Steps teaches the LIVE death rule and hands off to the pointer bar', () => {
-    const F = window.HearthriseCoach;
-    assert(F && Array.isArray(F.steps), 'the First Steps rows are not published; this would pass vacuously');
-    const steps = F.steps;
-    assert(steps.length > 0, 'CONTROL: no guide steps were read');
-    const all = steps.map((s) => String(s.body || '')).join(' | ');
-
-    // THE DEAD RULES stay out.
-    assert(!/nobody does it for you/i.test(all),
-      'the guide says nobody feeds you: Auto-Eat exists (src/core/auto-eat.js AUTO_EAT_TIERS)');
-    assert(!/fight ends when you fall/i.test(all),
-      'the guide says a fall ENDS the fight; Recovery Rule rev.2 knocks you out and RESUMES the same run');
-    assert(!/only until you fall/i.test(all),
-      'the guide gates away combat on the first fall; src/core/away.js resumes it after recoveryFor()');
-
-    // THE LIVE RULE, in the fight step, bound to the engine behind it.
-    const fight = steps.find((s) => s.id === 'fight');
-    assert(fight && /get back up and keep going/i.test(String(fight.body || '')),
-      'the fight step must state the LIVE rule: you get back up and the same run goes on');
-    const AW = window.HearthriseCore && window.HearthriseCore.away;
-    assert(AW && typeof AW.recoveryFor === 'function' && AW.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 0 }) === 0,
-      'the first fall of the day must cost no time, or "keep going" oversells it');
-    // And the guide ends on the surface this build gave it: the pointer bar.
-    const last = steps[steps.length - 1];
-    assert(last.kind === 'info' && /This bar always shows your next goal/.test(String(last.body || ''))
-      && /#hr-spine-bar/.test(last.path[0].sel),
-      'the closing step must point at the pointer bar: ' + JSON.stringify(last));
-  }),
-
-  /* ── FIRST-LIGHT-5 — the away card and the cooking arm, bound ────────────
-     FEATURE_SLATE fix #3. The empty-night note said "fighting, gathering and crafting bank"
-     while cooking was unpayable, and left a note saying to restore cooking when
-     it paid. The arm landed; nobody came back. That is a copy/flag pair with no
-     test between them, which is exactly how it survived a hundred builds — so
-     the pair, not the sentence, is what this asserts. */
   () => tryRun('FIRST-LIGHT-5: the empty-night note names every channel that actually banks — bound to the cooking arm', () => {
     const H = window.HearthriseHome;
     const AS = window.HearthriseCore && window.HearthriseCore.artisanSim;

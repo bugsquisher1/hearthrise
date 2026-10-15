@@ -96,7 +96,12 @@ const argv = process.argv.slice(2);
 // Owner columns: the columns that identify WHOSE row this is. `id` is in the
 // list because a block that captured the id of a row it just inserted is scoped
 // by construction — that is how 2026-08-11-player-state.sql's own probes work.
-const OWNER = '(?:user_id|clan_id|owner_id|character_id|listing_id|offer_id|seller_id|buyer_id|id)';
+// `session_id` (hunt sessions, 2026-10-21/22): hunt_bag, hunt_session_tally and
+// hunt_session_events are keyed by their SESSION, and a self-check that bound
+// it to the id of the session it just opened (v_sid) is scoped by the same
+// construction as `id`. The binding must still be REAL (below): session_id
+// bound to another column, or to nothing the block declared, stays a finding.
+const OWNER = '(?:user_id|clan_id|owner_id|character_id|listing_id|offer_id|seller_id|buyer_id|session_id|id)';
 
 // The vocabulary the right-hand side of a binding may use WITHOUT being a
 // reference to another column: cast targets, the array spellings, the literals.
@@ -608,6 +613,12 @@ function* upserts(body, playerTables) {
     const oc = stmt.search(/\bon\s+conflict\b/i);
     if (oc < 0 || !/\bdo\s+update\b/i.test(stmt.slice(oc))) continue;
     if (!/\bselect\b/i.test(stmt.slice(0, oc))) continue;
+    /* A VALUES list that merely carries a scalar sub-select in one of its
+       cells (`values (v_s.id, …, (select essential from <catalogue> …))`,
+       hr_hunt_restock) is still a values list: one row, the caller's. Only a
+       SELECT that is the row SOURCE reaches rows the body was not given. */
+    const head = /^insert\s+into\s+(?:only\s+)?\S+(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*(?:\([^()]*\))?\s*(values|select|with)\b/i.exec(stmt);
+    if (head && head[1].toLowerCase() === 'values') continue;
     yield { table, stmt };
   }
 }
@@ -946,6 +957,49 @@ const PLANTS = [
     what: 'a self-check zeroing an inventory column across every character',
     by: 'open', match: /update player_inventory/,
     patch: (s) => s.replace(IN_BLOCK, `    update public.player_inventory set qty = 0;\n${IN_BLOCK}`),
+  },
+  {
+    name: 'session_id_bound_to_nothing_declared',
+    what: 'session_id is an owner column (hunt rows), but a self-check that binds it to ANOTHER '
+        + 'column rather than to the session it opened reaches every hunter\'s bag',
+    by: 'open', match: /update hunt_bag/,
+    patch: (s) => s.replace(IN_BLOCK, `    update public.hunt_bag set qty_left = 0 where session_id = session_id;\n${IN_BLOCK}`),
+  },
+  {
+    name: 'select_sourced_upsert_still_global',
+    what: 'the values-list exemption must not cover an upsert whose ROW SOURCE is a select: a '
+        + 'function doing insert into hunt_bag … select … on conflict do update, called from a self-check',
+    by: 'open', match: /hr_selftest_bag_upsert/,
+    patch: (s) => `create or replace function public.hr_selftest_bag_upsert() returns void language plpgsql as $f$
+`
+      + `begin
+  insert into public.hunt_bag (session_id, user_id, slot, item_id, qty_loaded, qty_left)
+`
+      + `    select session_id, user_id, slot, item_id, 0, 0 from public.hunt_bag
+`
+      + `    on conflict (session_id, item_id) do update set qty_left = 0;
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_bag_upsert();
+${IN_BLOCK}`),
+  },
+  {
+    name: 'values_upsert_with_subselect',
+    control: true,
+    what: 'the hr_hunt_restock shape: an upsert whose row is a VALUES list carrying a scalar '
+        + 'sub-select in one cell reaches one row, the caller one — not a finding',
+    patch: (s) => `create or replace function public.hr_selftest_bag_values() returns void language plpgsql as $f$
+`
+      + `begin
+  insert into public.hunt_bag as b (session_id, user_id, slot, item_id, qty_loaded, qty_left)
+`
+      + `    values (gen_random_uuid(), gen_random_uuid(), 0, 'x', 1, (select 1))
+`
+      + `    on conflict (session_id, item_id) do update set qty_left = b.qty_left + 1;
+end $f$;
+`
+      + s.replace(IN_BLOCK, `    perform public.hr_selftest_bag_values();
+${IN_BLOCK}`),
   },
   {
     name: 'truncate_a_journal',

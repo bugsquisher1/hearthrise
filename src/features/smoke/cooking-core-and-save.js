@@ -2523,46 +2523,9 @@ export default [
      guarded nothing. The rig is AWAY-1b's: the SHIPPED combat ctx (whose
      `fx.autoEat` is the real `resolveAutoEat` decision) inside `_withOfflineReplay`.
      THE SAME SEEDED SPAN RUNS TWICE, bag and empty: the empty run MUST fall. */
-  () => tryRun('b267: auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (Tyler asked to verify)', () => {
-    const C = window.HearthriseCore, P = window.HearthrisePresence, A = window.HearthriseAuto, S = window.HearthriseCombatSim;
-    assert(C && C.combatSim && S && typeof S.ctx === 'function' && P && typeof P._withOfflineReplay === 'function' && A && typeof A.setEat === 'function',
-      'the engine, the away-replay seam and the eat setting must all be reachable');
-    const snap = snapshotG(), origBonus = window.getBonus, beforeEat = A.getEat();
-    let wasParked = false;
-    try {
-      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
-      window.getBonus = () => 0;
-      const G = window.G, FOOD = 'cooked_shrimp', STOCK = 500, m = window.MONSTERS.wolf;
-      const arm = () => { G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp; };
-      const run = (stock) => {
-        G.buffs = []; G.quests = []; G.recoveringUntilMs = 0; G.playerMaxHp = 40; G.playerHp = 40;
-        G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
-        G.inventory = Object.assign({}, G.inventory, { [FOOD]: stock });
-        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
-        A.setEat({ foodId: FOOD, enabled: true, threshold: 0.6 });
-        arm(); C.reseed(0x267AEA7);
-        /* Re-arm the foe each fall: a dead wolf stops swinging. */
-        P._withOfflineReplay(() => { const ctx = S.ctx();
-          for (let i = 0; i < 600 && G.playerHp > 0; i++) { if (!G.activeMonster) arm(); C.combatSim.simulateTick(G, ctx); } });
-        return { died: G.stats.deaths > 0 || G.playerHp <= 0, ate: stock - (Number(G.inventory[FOOD]) || 0), hp: G.playerHp };
-      };
-      const starved = run(0), fed = run(STOCK);
-      assert(starved.died, 'the rig is not lethal, so surviving proves nothing: ' + JSON.stringify(starved));
-      assert(fed.ate > 0, 'auto-eat must fire on the away path, ate=' + fed.ate);
-      assert(!fed.died, 'with food set the away fighter must survive, ' + JSON.stringify(fed));
-    } finally {
-      window.getBonus = origBonus;
-      try { A.setEat(beforeEat); } catch (e) {}
-      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
-      restoreG(snap);
-    }
-  }),
-
-  // b297: a killing blow must be VISIBLE on the stage. killMonster() respawns
-  // the foe to full HP in the same tick, so the HP-diff that pops damage numbers
-  // saw "full→full" on a one-shot and drew nothing — you only got a corner toast.
-  // The wrapper now detects a kill via the kills counter and plays a death FX.
+  /* RETIRED (lane C2, the closed rebuild): "b267: auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b297: a kill triggers the arena death FX (foe-dying / Defeated stamp)', () => {
     if(typeof window.combatTick !== 'function' || !window.HearthriseArenaStage){ skip('no combat engine'); return; }
     const snap = snapshotG();

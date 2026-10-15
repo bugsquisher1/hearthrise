@@ -46,6 +46,7 @@ import {
 } from '../src/data/hearthfind.js';
 import { indexHearthfind, rollHearthfind, deriveOneIn } from '../src/core/hearthfind.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
+import { huntOn } from './hunt-fixture.mjs';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -99,6 +100,9 @@ function span({ seed, away, monsterId, table }) {
       onHearthfind(f) { finds.push({ ...f, tick, kill: state.stats.kills || 0 }); },
     },
   };
+  /* Lane C2: a fight is a hunt session (training hunt, no respawn wait); its
+     swings draw from the keyed per-swing seeder of the SAME seed. */
+  huntOn(state, ctx, { seed, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
   const summary = simulateSpan(state, ctx);
   return { finds, summary, draws: ctx.rng.draws, kills: state.stats.kills || 0 };
 }
@@ -240,6 +244,14 @@ async function runAll(mut) {
     ok(!!unnamed, 'SETUP: every monster is a hearthfind source, so this assertion is vacuous');
     const withTable = span({ seed: 7, away: true, monsterId: unnamed, table: V.table });
     const without = span({ seed: 7, away: true, monsterId: unnamed, table: [] });
+    /* A hunt draws from a keyed per-swing seeder, not ctx.rng, so the counted
+       stream above stays at zero on both runs (lane C2). The observable that a
+       shifted draw WOULD move is the span itself: every kill, coin and drop of
+       the same swing stream must be identical with and without the table. */
+    const outcome = (x) => JSON.stringify({ kills: x.kills, gold: x.summary.gold, items: x.summary.items, xp: x.summary.xp });
+    ok(withTable.kills > 0 && outcome(withTable) === outcome(without),
+      `a monster with no table row fought a different span with the table (${outcome(withTable)}) `
+      + `than without it (${outcome(without)}) — the feature shifted the seeded swing stream`);
     ok(withTable.draws === without.draws,
       `a monster with no table row consumed ${withTable.draws} draws with the table and `
       + `${without.draws} without it — adding the feature shifted the RNG stream of every existing `
@@ -279,7 +291,7 @@ async function runAll(mut) {
       playerHp: 100000, playerMaxHp: 100000, gold: 0, skills: {}, stats: {}, inventory: {},
     };
     let tick = 0; const finds = [];
-    simulateSpan(state, {
+    const boostedCtx = {
       away: true, fromMs: 0, toMs: 24 * 3600000, tickMs: 2000,
       rng: countingRng(31337), monsters: MONSTERS, items: ITEMS,
       bonus: (k) => (k === 'dropRate' ? 5 : 0),
@@ -291,7 +303,9 @@ async function runAll(mut) {
       botdFor: () => ({ killBonuses: () => ({ dropMult: 2, xpMult: 1 }) }),
       fx: { mark() { tick++; }, addItem() {}, addXp() {},
             onHearthfind(f) { finds.push({ ...f, tick, kill: state.stats.kills || 0 }); } },
-    });
+    };
+    huntOn(state, boostedCtx, { seed: 31337, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
+    simulateSpan(state, boostedCtx);
     ok(JSON.stringify(plain.finds) === JSON.stringify(finds),
       `a x3 weakness + a 500% dropRate buff + a x2 featured boss changed the hearthfind stream `
       + `(${JSON.stringify(plain.finds)} vs ${JSON.stringify(finds)}). A hearthfind must never be `

@@ -1605,89 +1605,9 @@ export default [
     }
   }),
 
-  () => tryRun('RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and '
-    + 'runs no local fight — the knocked-out sheet is the only surface', () => {
-    /* MEASURED LIVE — QA account, 2026-09-08 23:30 UTC. Knocked out,
-       `recovering_until` ~31 minutes ahead ("Knocked out — back on your feet in
-       31m · Goblin resumes automatically"), a PLAIN RELOAD put the pre-fight
-       food warning over the knocked-out sheet: no tap, and no fight can start
-       for half an hour. ROOT CAUSE: the advisory gate lives inside
-       `startCombat`, whose header assumes "every production caller is a player
-       GESTURE". `reconcileActivityPointer` is not one — it is the envelope
-       naming the fight the SERVER owns, at boot, inside `activityQuietly` (the
-       escape hatch `hrRefuseWhileRecovering` honours). Cost: a modal nobody asked
-       for; the once-per-foe latch spent so the real tap goes unwarned; and an
-       ASYNCHRONOUS `startCombat` leaving ③'s pointer unwritten.
-       MUTATION: remove BOTH halves (`{confirmed:true}` in legacy.js's resume, the
-       `hrCombatDownPeek` line in hrFightGate) — today's code — and ② goes RED with
-       the live sentence. Either alone covers this boot; both ship because a tap reaches the gate from the death sheet too. */
-    const G = window.G, A = window.HearthriseAccrual;
-    const D = window.HearthriseDialog, DS = window.HearthriseDeathSheet;
-    const FOE = (window.MONSTERS || {}).goblin ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
-    if (!A || typeof A.applyEnvelopeState !== 'function' || !DS || typeof DS.__resetForTest !== 'function' || !D || typeof D.isOpen !== 'function' || !FOE || typeof window.__hrFightGate !== 'function' || typeof window.reconcileActivityPointer !== 'function') { skip('the recovery / fight-warning seam is not wired'); return; }
-    const snap = snapshotG(), wasOn = A.isServerAccrualEnabled(), savedInv = G.inventory;
-    const hadFlag = window.__HR_TEST_HARNESS__;
-    const overlay = () => document.getElementById('hr-confirm-overlay');
-    const envelope = (until) => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(), recovering_until: until ? new Date(until).toISOString() : null } });
-    try {
-      /* Empty bag, 13 max HP — the population. The harness flag is OFF for
-         RETREAT-A5's reason: under it no dialog is raised at all. */
-      A.setServerAccrualEnabled(true); DS.__resetForTest(); window.__HR_TEST_HARNESS__ = false;
-      try { window.stopCombat(); } catch (e) {}
-      G.inventory = {}; G.playerMaxHp = 13; G.playerHp = 13; window.__hrClearFightWarnings();
-      /* ① THE FIXTURE BITES: on their feet, this state warns. */
-      assert(!!window.__hrFightGate(FOE), 'the fixture (empty bag, 13 max HP, ' + FOE + ') produced no warning at all, so this test could not observe the boot warning it forbids');
-      /* ② THE BOOT: the knockout, then the fight the server still owns. */
-      window.__hrClearFightWarnings(); envelope(Date.now() + 31 * 60000);
-      const hpBefore = G.playerHp;
-      assert(A.isKnockedOut(), 'no knockout: ' + JSON.stringify(A.fallState()));
-      window.reconcileActivityPointer({ kind: 'combat', id: FOE });
-      assert(!overlay() && !D.isOpen(), 'a plain reload raised the pre-fight warning over the knocked-out sheet: no tap was made, no fight can start for half an hour, and the once-per-foe latch is spent so the tap that IS a gesture goes unwarned');
-      assert(G.activeMonster === FOE, 'the resume did not mirror the server pointer (' + G.activeMonster + '): a warning makes startCombat asynchronous, so the reconcile reports a fight that has not started');
-      const mBefore = G.monsterHp;
-      try { window.combatTick(); window.combatTick(); } catch (e) {}
-      assert(G.playerHp === hpBefore && G.monsterHp === mBefore, 'a knocked-out resume SWUNG (hp ' + hpBefore + '→' + G.playerHp + ', foe ' + mBefore + '→' + G.monsterHp + '): the server refuses COMBAT for the whole window (rev. 3), so every point of it is gone on reload');
-      DS.__resetForTest(); envelope(null);   /* ⑤ CONTROL: the latch is intact */
-      try { window.stopCombat(); } catch (e) {}
-      assert(!A.isKnockedOut(), 'the control could not stand up: ' + JSON.stringify(A.fallState()));
-      assert(!!window.__hrFightGate(FOE), 'CONTROL: the boot spent the once-per-foe latch, so the tap the player makes when they are back up is never warned');
-    } finally {
-      try { const _ov = overlay(); if (_ov) _ov.remove(); if (D.isOpen()) D.close(); } catch (e) {}
-      try { window.stopCombat(); window.__hrClearFightWarnings(); DS.__resetForTest(); } catch (e) {}
-      window.__HR_TEST_HARNESS__ = hadFlag; G.inventory = savedInv;
-      A.setServerAccrualEnabled(!!wasOn); restoreG(snap);
-    }
-  }),
-
-
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     RECOVER-17 / RECOVER-18 — THE RELOAD THAT STOOD A KNOCKED-OUT HERO UP.
-
-     ROOT CAUSE — THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (inventory, crew,
-     hero slots, bank rungs, hp, now recovery). The whole recovery mirror —
-     `recovering_until`, `accrued_to`, `deaths_today`, `deaths_lifetime` — lived
-     ONLY inside `applyEnvelopeState`, which runs ONLY on an ACCRUED envelope.
-     An idle hero boots through record.js's hr_load hydration and hr-accrue
-     answers {accrued:false, reason:'idle'}, so nothing ever read the line. None
-     of the four is residue or server-of-record: there was no other source, and
-     a reloaded hero with 11 minutes still to serve came up reading `up`.
-
-     WHAT IT COST THE PLAYER. `hrRefuseWhileRecovering` mirrors the server's gate
-     by asking `hrCombatDownPeek()` — which was blind. So the tap started a local
-     run, declared it, was refused 409 `recovering` by set-activity.js §(1b), and
-     was stopped by the reconcile with the generic "the hearth did not take that"
-     line instead of the knocked-out sheet.
-
-     THESE TWO TESTS DRIVE THE REAL BOOT PATH — a stubbed `hr_load` through
-     `HearthriseRecord.requestRecord()`, not a hand-called `applyEnvelopeState`
-     — because that hand-call is exactly what kept RECOVER-11 green through this
-     bug for a whole build.
-
-     MUTATION PROOF: delete `hydrationStep('fall', …)` from src/net/record.js
-     → both RED at their first assertion (`isKnockedOut()` false, phase 'up').
-     ══════════════════════════════════════════════════════════════════════════ */
-
+  /* RETIRED (lane C2, the closed rebuild): "RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and runs no local fight — the k" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('RECOVER-17 (b520): an IDLE BOOT hydrates the recovery line — the reload no longer '
     + 'stands a knocked-out hero up', async () => {
     const G = window.G;
@@ -2131,174 +2051,21 @@ export default [
      fall. ROOT CAUSE: the sheet read the event from client scratch and state as
      it is NOW, and was announced partway through the apply on both doors.
      Mutations proven in the commit messages (M1-M9). */
-  () => tryRunAsync('KO-RELOAD-1 (attended): the sheet reads the same before and after a reload', async () => {
-    const F = koFix();
-    try {
-      Object.assign(F.G, { activeMonster: 'slime', combatKillsThisFoe: 3, inventory: { cooked_shrimp: 5 },
-        combatLog: ['Auto-ate Cooked Shrimp (+8)', 'You eat Cooked Shrimp.'] });
-      F.A.noteFall(Date.now());
-      F.D.show({}, { streakBroken: false, recoverMs: F.RUNG, resumeHp: 8, deathsToday: 3, retreat: false });
-      F.door2(F.state(), { cooked_shrimp: 5 });
-      const a = F.sheet();
-      F.reload({ cooked_shrimp: 5 });
-      await F.door1(F.state(), { cooked_shrimp: 5 });
-      const b = F.sheet();
-      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
-        'the reload rewrote the sheet:\n  before ' + JSON.stringify(a) + '\n  after  ' + JSON.stringify(b));
-      assert(F.row(b, 'killed-by').t === 'Slain by Slime', 'the killer is not the record\'s: ' + JSON.stringify(b.rows[0]));
-      assert(!b.rows.some((r) => /kill/.test(r.v)), 'a kill count nobody stated: ' + JSON.stringify(b.rows));
-      assert(b.tipKey === 'outmatched' && !/carrying \d+ x/.test(b.tip || ''), 'tip ' + b.tipKey + ': ' + b.tip);
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('KO-RELOAD-1 (away): the envelope-raised sheet equals the reloaded one, Rest priced', async () => {
-    const F = koFix();
-    try {
-      F.door2(F.state(), { cooked_shrimp: 5 });
-      const a = F.sheet();
-      F.reload({ cooked_shrimp: 5 });
-      await F.door1(F.state(), { cooked_shrimp: 5 });
-      const b = F.sheet();
-      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
-        'the two doors disagree:\n  door 2 ' + JSON.stringify(a) + '\n  door 1 ' + JSON.stringify(b));
-      assert(b.acts.some((x) => x[0] === 'Rest at the Hearth — eat 12 health' && !x[1]),
-        'Rest is not offered for the 12 missing health: ' + JSON.stringify(b.acts));
-    } finally { F.done(); }
-  }),
-
-  () => tryRun('KO-DOOR-ORDER-1: the accrue door raises the sheet AFTER hp and the bag land', () => {
-    const F = koFix();
-    let a = null;
-    /* THE SHEET AS FIRST RAISED, not after a later redraw repaired it: the
-       sheet's own listener runs first, so this reads what the player saw. */
-    const first = () => { if (!a) a = F.sheet(); };
-    window.addEventListener('hearthrise:fall', first);
-    try {
-      F.door2(F.state(), { cooked_shrimp: 5 });
-      assert(a && a.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]),
-        'the raised sheet offers no enabled Rest with 5 shrimp and 12 health missing: ' + JSON.stringify(a && a.acts));
-      assert(!/no cooked food left/.test(a.note || ''), 'the sheet says the bag is empty: ' + a.note);
-    } finally { window.removeEventListener('hearthrise:fall', first); F.done(); }
-  }),
-
-  () => tryRunAsync('KO-FOOD-AT-FALL-1: the tip is the bag AT the fall; Rest follows the bag NOW', async () => {
-    const F = koFix();
-    try {
-      /* (i) the engine ate nothing from an EMPTY bag, then the player buys food. */
-      const st = F.state({ last_away_receipt: F.receipt({ foodEaten: 0, autoEat: { enabled: true, pct: 25, hadFood: false } }) });
-      await F.door1(st, {});
-      const a = F.sheet();
-      assert(a && a.tipKey === 'auto-eat-idle' && a.acts.some((x) => /No food to rest with/.test(x[0]) && x[1]),
-        '(i) the empty-bag boot: ' + JSON.stringify(a));
-      F.door2(st, { cooked_shrimp: 5 });
-      const b = F.sheet();
-      assert(b.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]) && !F.row(b, 'no-food'),
-        '(i) the purchase landed and the sheet did not redraw: ' + JSON.stringify(b));
-      assert(b.tipKey === 'auto-eat-idle' && !/carrying \d+ x/.test(b.tip || ''), '(i) tip moved: ' + b.tipKey + ' ' + b.tip);
-      F.reload({ cooked_shrimp: 5 });
-      await F.door1(st, { cooked_shrimp: 5 });
-      assert(JSON.stringify(F.sheet()) === JSON.stringify(b), '(i) the reload rewrote it: ' + JSON.stringify(F.sheet()));
-      /* (ii) food held, nothing auto-eaten: a manual Eat is not counted, so no tip. */
-      const st2 = F.state({ last_away_receipt: F.receipt({ foodEaten: 0 }) });
-      F.reload({ cooked_shrimp: 5 });
-      await F.door1(st2, { cooked_shrimp: 5 });
-      const c = F.sheet();
-      F.reload({});
-      await F.door1(st2, {});
-      const d = F.sheet();
-      assert(c.tipKey === d.tipKey && !/carrying \d+ x/.test((c.tip || '') + (d.tip || '')),
-        '(ii) the tip followed the bag: ' + c.tipKey + ' → ' + d.tipKey + ' ' + c.tip);
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('KO-FED-3-BOOT: a fed third fall the engine did not end is not a retreat', async () => {
-    const F = koFix();
-    try {
-      await F.door1(F.state({ consec_falls: 3 }), { cooked_shrimp: 5 });
-      const a = F.sheet();
-      assert(a && !/You pulled back|empty bag/.test(JSON.stringify(a)), 'a fed run was retreated: ' + JSON.stringify(a));
-      assert(F.row(a, 'resume').v === 'automatic', 'the resume row: ' + JSON.stringify(F.row(a, 'resume')));
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('KO-FED-3-GATHER: fishing while knocked out is not a retreat, record or no record', async () => {
-    const F = koFix();
-    try {
-      await F.door1(F.state({ consec_falls: 3, active_kind: 'gather', active_id: 'shrimp_s', last_away_receipt: null }),
-        { cooked_shrimp: 5 });
-      const a = F.sheet();
-      assert(F.G.activeSkill, 'the boot did not resume the gather run, so this proves nothing');
-      assert(a && !/You pulled back/.test(JSON.stringify(a)), 'a live gather run read as a retreat: ' + JSON.stringify(a));
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('RETREAT-PAIRED: a record that says the engine retreated is still believed', async () => {
-    const F = koFix();
-    try {
-      await F.door1(F.state({ consec_falls: 3, active_kind: 'idle', active_id: null,
-        last_away_receipt: F.receipt({ stoppedBy: 'retreat' }) }), { cooked_shrimp: 5 });
-      assert(/You pulled back/.test(JSON.stringify(F.sheet())), 'the retreat was dropped: ' + JSON.stringify(F.sheet()));
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('KO-MIDNIGHT: a knockout across 00:00 UTC keeps the cost it was charged', async () => {
-    const F = koFix();
-    try {
-      await F.door1(F.state({ deaths_today: 0 }), { cooked_shrimp: 5 });
-      const want = 'Knocked out for ' + Math.round(F.RUNG / 60000) + 'm — nothing earns while you recover';
-      const r = F.row(F.sheet(), 'run-stopped');
-      assert(r && r.t === want, 'paired: ' + JSON.stringify(r) + ' — wanted "' + want + '"');
-      F.reload({ cooked_shrimp: 5 });
-      await F.door1(F.state({ deaths_today: 0, last_away_receipt: null }), { cooked_shrimp: 5 });
-      assert(!/First fall of the day/.test(JSON.stringify(F.sheet())),
-        'unpaired: "First fall of the day" under a running countdown: ' + JSON.stringify(F.sheet()));
-    } finally { F.done(); }
-  }),
-
-  () => tryRun('KO-ANSWERTAP-1: a refused tap keeps the open sheet\'s own engine facts', () => {
-    const F = koFix();
-    try {
-      F.A.noteFall(Date.now());
-      F.D.show({}, { streakBroken: true, recoverMs: 0, resumeHp: 8 });
-      assert(F.row(F.sheet(), 'streak'), 'the fixture sheet has no streak row');
-      F.D.answerTap('Knocked out');
-      assert(F.row(F.sheet(), 'streak'), 'the tap redrew the sheet without its engine info: ' + JSON.stringify(F.sheet()));
-    } finally { F.done(); }
-  }),
-
-  () => tryRunAsync('KO-REST-INFLIGHT: an envelope during a Rest does not re-arm the button', async () => {
-    const F = koFix();
-    try {
-      await F.door1(F.state(), { cooked_shrimp: 5 });
-      window.HearthriseGoalClaim = Object.assign({}, window.HearthriseGoalClaim, { rest: () => new Promise(() => {}) });
-      document.querySelector('#hr-death-scrim [data-act="rest"]').click();
-      F.door2(F.state({ hp: 10 }), {});
-      const b = document.querySelector('#hr-death-scrim [data-act="rest"]');
-      assert(b && b.disabled && b.textContent === 'Resting…', 'the redraw re-armed Rest: ' + (b && b.outerHTML));
-    } finally { F.done(); }
-  }),
-
-
-  () => tryRun('HOME-KO-CLOCK-1: the Home card\'s recovery clock is the live server line', () => {
-    const F = koFix();
-    const H = window.HearthriseHome;
-    try {
-      const rec = { hrs: 1, awayMs: 3600000, at: Date.now(), died: true, diedTo: 'slime', deaths: 1,
-        recoverMs: 12 * 60000, recoverRemainingMs: 12 * 60000, recoverLadder: [12 * 60000], stoppedBy: null };
-      F.A.applyEnvelopeState(F.G, { state: { recovering_until: null } });
-      assert(!/Still recovering/.test(H.__awayCardHtml(rec)), 'a Rest cleared the line and the card still counts it down');
-      F.door2(F.state(), {});
-      const restored = Object.assign({}, rec, { restored: true });
-      delete restored.recoverRemainingMs;
-      assert(/Still recovering/.test(H.__awayCardHtml(restored)), 'the server line runs and the card says nothing');
-    } finally { F.done(); }
-  }),
-
-
-
-
-
-
+  /* RETIRED (lane C2, the closed rebuild): "KO-RELOAD-1 (attended): the sheet reads the same before and after a reload" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "KO-RELOAD-1 (away): the envelope-raised sheet equals the reloaded one, Rest priced" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "RETREAT-PAIRED: a record that says the engine retreated is still believed" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "WELCOME-AE-OFF-1: the auto-eat-off line never quotes today's bag as the night's" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "HOME-KO-CLOCK-1:…" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
+     Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('FOE-A: the weak line is the engine match, over a KNOWN record, never bare hands', () => {
     const F = window.HearthriseFoe;
     const f = (eq, known) => F.facts('goblin', { eq, known, charms: null });

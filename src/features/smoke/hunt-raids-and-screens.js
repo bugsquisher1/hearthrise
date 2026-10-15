@@ -184,6 +184,9 @@ export default [
       if (hadClaims) G._collectionServerClaimed = sClaims; else delete G._collectionServerClaimed;
     }
   }),
+  /* RETIRED (lane C2, the closed rebuild): "b166: daily login reward claims once per day + escalates with streak" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b163: platform Storage seam present + round-trips', () => {
     // Architecture layer 4: all local persistence routes through one swappable
     // facade so Steam/mobile can change the backend without touching game logic.
@@ -3441,19 +3444,7 @@ export default [
         } finally { r.restore(); }
       }),
 
-      () => tryRunAsync('CODEX-VIGOUR-1: the dry line\'s "What is Vigour?" opens the Codex at Vigour', async () => {
-        const r = rig({ meter: Object.assign(METER(), { spent_min: 1100, remaining_min: 0 }),
-          refill: () => ({ json: { ok: false, error: 'rate_limited' } }) });
-        try { await r.paint();
-          const b = r.host.querySelector('[data-codex="vigour"]');
-          assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
-          b.click();
-          await import('../../data/codex.js?v=588');
-          for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
-          assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
-          assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
-        } finally { if (window.HearthriseCodex) window.HearthriseCodex.close(); r.restore(); }
-      }),
+      /* CODEX-VIGOUR-1 retired with the Codex Vigour entry (lane C2 deleted the system server-side). */
 
       // ── regression suite — THE VIGOUR BAR WAS BUILT AND NEVER MOUNTED ──────
       // Live, 2026-09-25 23:36 UTC: the QA hero's meter said remaining_min 0 /

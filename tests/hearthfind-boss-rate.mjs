@@ -50,13 +50,14 @@
 import { HEARTHFIND_TABLE, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX } from '../src/data/hearthfind.js';
 import { deriveOneIn, derivedHours, actionsPerHour } from '../src/core/hearthfind.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
+import { huntOn } from './hunt-fixture.mjs';
 import { createRng } from '../src/core/rng.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
-  swingIntervalMs, DEFAULT_PROFILE,
+  COMBAT_BALANCE, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
 import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
@@ -84,7 +85,9 @@ function measure(monsterId) {
   };
   const eq = equipmentStats(EQUIPMENT, ITEMS);
   const style = COMBAT_STYLES.controlled || Object.values(COMBAT_STYLES)[0];
-  const tickMs = swingIntervalMs(eq, style);
+  /* The hunt engine's ONE interval (accrual.js accrueHunt): gear and style no
+     longer move a hunt's swing (Tyler 2026-10-14, MDR §2). */
+  const tickMs = COMBAT_BALANCE.tickMs;
   const state = {
     activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
     playerHp: 990, playerMaxHp: 990,
@@ -110,6 +113,10 @@ function measure(monsterId) {
       },
     },
   };
+  /* Lane C2: a fight is a hunt session — a training hunt on the one monster,
+     no respawn wait (the fight-to-fight rate the pointer engine measured), a
+     deep bag behind the default heal slot. */
+  huntOn(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000, pull: { size: 1, respawnMs: 0 } });
   const out = simulateSpan(state, ctx);
   return { kills: out.kills, deaths: out.deaths, tickMs, hp: m.hp, boss: !!m.boss };
 }

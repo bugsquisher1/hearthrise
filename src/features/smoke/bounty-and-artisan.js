@@ -86,31 +86,26 @@ export default [
     } finally { style.remove(); restoreG(snap); try { render(); } catch(e){} }
   }),
 
-  () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {
-    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
+  /* The Wave 3 RECIPES (and the orphan-drop routing they did) left with crafted
+     gear in the 2026-10-14 demolition. The 14 items stay in the catalogue until
+     the roster (catalogue-coherence AWAITING_ROSTER), so what is still true of
+     them is checked: a real slot, a wield gate, a flavour line. */
+  () => tryRun('b247: Wave 3 uniques — the 14 curated items are well-formed catalogue rows', () => {
+    const ITEMS = window.ITEMS;
     const VALID_SLOTS = new Set(['helmet','necklace','earrings','cape','weapon','ammo','ring','body','gloves','belt','pants','boots','companion']);
     const WAVE3 = ['dragonrend_greatblade','crown_of_the_fallen_king','emberfang_blade','demoncaller_staff',
       'panthers_eye_pendant','wraithsilk_shroud','widows_fang','plaguewarden_greaves','hollow_sigil_ring',
       'fangdart_recurve','alphaheart_longbow','nightstalker_pelt','warband_bulwark','chitinweave_cloak'];
-    const allRecipes = [...(R.smithing||[]), ...(R.crafting||[])];
     WAVE3.forEach((id) => {
       const it = ITEMS[id];
       assert(it, 'Wave 3 item must exist: ' + id);
       assert(VALID_SLOTS.has(it.slot), id + ' must sit in a real equip slot, got ' + it.slot);
-      // Every unique is obtainable: exactly one recipe outputs it, and every input is a known item.
-      const rec = allRecipes.find((r) => r.output === id);
-      assert(rec, id + ' must have a craft recipe (no dead boss loot)');
-      Object.keys(rec.inputs || {}).forEach((k) => assert(ITEMS[k], id + ' recipe references a real item: ' + k));
       // Endgame gear carries a real wield gate.
       const req = window.gearWieldReq(it);
       assert(req && req.lv > 0, id + ' must be level-gated to wield');
       // Flavour line surfaces in the tooltip index.
       assert(typeof window.itemDesc === 'function' && window.itemDesc(id), id + ' must have a description');
     });
-    // The marquee orphans are actually consumed by these recipes (routing, not just new content).
-    const consumed = new Set(allRecipes.filter((r) => WAVE3.includes(r.output)).flatMap((r) => Object.keys(r.inputs || {})));
-    ['war_crown','void_chitin','ancient_claw','hell_ember','wraith_veil','alpha_fang','dark_sigil','plague_ichor']
-      .forEach((orphan) => assert(consumed.has(orphan), 'orphan drop must be routed into a unique: ' + orphan));
   }),
 
   () => tryRun('b245: attack speed is a real lever — spdB shortens the swing, capped at 20%', () => {
@@ -1012,9 +1007,6 @@ export default [
     Object.values(M || {}).forEach((m) => (m.drops || []).forEach((d) => add(d.id)));
     (window.SEED_SHOP || []).forEach((s) => add(s.id));
     (window.EQUIP_SHOP || []).forEach((s) => add(s.id || s));
-    Object.values(window.DUNGEONS || {}).forEach((d) => (d.loot || []).forEach((l) => add(l.id)));
-    // The clan Hunt's signature materials (raids.js) — obtainable via the weekly boss.
-    ['slagheart_core', 'abyssal_pearl', 'choirbone', 'warden_seal', 'wyrm_gilding', 'hollow_sigil', 'wyrm_scale', 'void_core'].forEach(add);
     /* HEARTHFIND — the fifth source class (Feature Slate §2). The four
        trophies are rolled by the ONE engine off src/data/hearthfind.js, which
        no drop table mentions, so before this block they read as four dead
@@ -1041,8 +1033,8 @@ export default [
       'hearthfind rows whose source no longer exists — the trophy is unobtainable and the roll is dead '
       + 'code: ' + hfBroken.join(', '));
 
-    // Coded drops the engine grants outside the drop tables.
-    ['farm_deed', 'hearth_token', 'dungeon_scrip'].forEach(add);  // b281: scrip awarded on dungeon clears
+    // Coded grants the engine makes outside the drop tables.
+    ['hearth_token'].forEach(add);
 
     const inputsOf = (r) => { if (r.inputs) return r.inputs; const i = {}; if (r.input) i[r.input] = r.inputQty || 1; if (r.secondary) Object.entries(r.secondary).forEach(([k, v]) => { i[k] = v; }); return i; };
     const reach = new Set(base);
@@ -1061,12 +1053,17 @@ export default [
     }
     // Exempt: currencies, companions, blueprints/keys (they drop), recipe scrolls,
     // and a few deliberately-spent-elsewhere odds. Everything else MUST be reachable.
-    const EXEMPT = new Set(['hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
+    const EXEMPT = new Set(['hearth_token', 'burnt_food']);
+    /* DEMOLITION (2026-10-14): crafted gear, the dungeons and the clan Hunt left;
+       their outputs stay in the catalogue, sourceless, until the roster — the ONE
+       shrink-only list of them is catalogue-coherence AWAITING_ROSTER. */
+    const AWAITING = new Set(((window.HearthriseCatalogue || {}).AWAITING_ROSTER) || []);
+    assert(AWAITING.size > 0, 'HearthriseCatalogue.AWAITING_ROSTER must be published — without it this guard cannot tell a held row from a dead one');
     /* W0 (2026-10-10): the self-closing 'dormant' hatches (pendingSystem, non-live
        effect kinds) are GONE with the 40 rows they exempted — nothing in the
        catalogue may be unobtainable any more. tests/catalogue-coherence.mjs is the
        standing source-and-use guard for the whole catalogue in Node. */
-    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
+    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || AWAITING.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
     const dead = Object.keys(ITEMS).filter((id) => !reach.has(id) && !isExempt(id));
     assert(dead.length === 0, 'UNREACHABLE items (no obtainable source or broken recipe chain): ' + dead.join(', '));
   }),

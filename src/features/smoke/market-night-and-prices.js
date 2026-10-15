@@ -4332,12 +4332,15 @@ export default [
        false for EVERY equippable, and it is dropped. The surfaces below are still
        read against the AUTHORITY, never the raw field, so one that re-derives its
        own number still fails here. */
-    const probe = 'steel_platebody';
+    /* DEMOLITION (2026-10-14): the smithed armour left with its recipes, so the
+       probe is the smithed Steel Whetstone — an ammo-slot item worn on an ATTACK
+       gate, made at the Whetstones lane. Same four surfaces, same authority. */
+    const probe = 'steel_whetstone';
     const it = window.ITEMS[probe];
     assert(it, 'the probe item must exist');
     const req = window.gearWieldReq(it);
-    assert(req && req.skill === 'defense' && req.lv > 0,
-      'the authority must derive a defence gate for ' + probe + ', got ' + JSON.stringify(req));
+    assert(req && req.skill === 'attack' && req.lv > 0,
+      'the authority must derive an attack gate for ' + probe + ', got ' + JSON.stringify(req));
 
     const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
     const prevTab = window.activeTab;
@@ -4356,7 +4359,7 @@ export default [
         await new Promise((r) => setTimeout(r, 60));
         const reqEl = tipHost.querySelector('.ttl-req');
         assert(reqEl, 'the hover tooltip states no wear requirement for ' + probe);
-        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /defen/i.test(reqEl.textContent),
+        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /attack/i.test(reqEl.textContent),
           'the tooltip requirement must name the skill and the level, got "' + reqEl.textContent + '"');
       } finally { tile.remove(); }
 
@@ -4387,11 +4390,11 @@ export default [
       window.showTab('skills');
       window.openSkillDetail('smithing');
       await new Promise((r) => setTimeout(r, 80));
-      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'armour');
+      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'whetstones');
       await new Promise((r) => setTimeout(r, 80));
       const plate = [...document.querySelectorAll('#skill-detail .act-tile')]
         .find((t) => t.getAttribute('data-prod') === probe);
-      assert(plate, 'the ' + probe + ' recipe tile did not render on the Armour lane');
+      assert(plate, 'the ' + probe + ' recipe tile did not render on the Whetstones lane');
       const wearEl = plate.querySelector('.at-wear');
       assert(wearEl && wearEl.textContent.indexOf('' + req.lv) >= 0,
         'the crafting tile does not say what you need to WEAR the output — "' + plate.innerText.replace(/\s+/g, ' ') + '"');

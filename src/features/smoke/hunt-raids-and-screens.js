@@ -2280,8 +2280,11 @@ export default [
       assert(summary && summary.ticks === 208, 'the 1 h away span ran ' + (summary && summary.ticks) + ' actions, not 208 (' + (summary && summary.stoppedBy) + ')');
       const gained = xpView() - xp0;
       assert(gained === 48 * 208 && gained === 9984, 'the away span paid ' + gained + ' woodcutting XP, the ruling is 48 × 208 = 9,984');
-      /* Measured once on the 0xC0FFEE stream; pinned, never banded. */
-      const SEEDED_YEW = 304;
+      /* Measured on the 0xC0FFEE stream; pinned, never banded. Re-pinned 304 -> 307
+         (2026-10-14): 307 is what core skill-sim alone returns for this span (replayed
+         in Node on origin/main AND on the demolition branch); the in-page 304 carried
+         three draws from a client path the demolition removed. */
+      const SEEDED_YEW = 307;
       const yew = G.inventory.yew_log || 0;
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
       assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');

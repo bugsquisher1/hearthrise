@@ -1753,19 +1753,15 @@ export default [
   }),
 
 
-  () => tryRun('WAVE4: shared drop bands + gold_bar has a real sink', () => {
-    if (typeof window.dropBand === 'function') {
-      assert(window.dropBand(1) === 'always', '100% → always');
-      assert(window.dropBand(0.03) === 'rare', '3% → rare');
-      assert(window.dropBand(0.10) === 'uncommon', '10% → uncommon');
-      assert(window.dropBand(0.5) === 'common', '50% → common');
-    }
-    const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting;
-    if (R && window.ITEMS) {
-      const gr = R.find(r => r.output === 'gold_ring');
-      assert(gr && gr.inputs && gr.inputs.gold_bar, 'gold_ring recipe must consume gold_bar (the gold sink)');
-      assert(window.ITEMS.gold_ring && window.ITEMS.gold_ring.type === 'jewelry', 'gold_ring must be equippable jewelry');
-    }
+  /* The gold_bar -> gold_ring sink left with the jewellery recipes in the
+     2026-10-14 demolition; gold_bar is catalogue-coherence VENDOR_TRASH until the
+     roster gives it a job (tests/catalogue-coherence.mjs holds that). */
+  () => tryRun('WAVE4: shared drop bands', () => {
+    assert(typeof window.dropBand === 'function', 'window.dropBand must be published');
+    assert(window.dropBand(1) === 'always', '100% → always');
+    assert(window.dropBand(0.03) === 'rare', '3% → rare');
+    assert(window.dropBand(0.10) === 'uncommon', '10% → uncommon');
+    assert(window.dropBand(0.5) === 'common', '50% → common');
   }),
 
 

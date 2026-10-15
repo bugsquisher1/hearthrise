@@ -41,7 +41,7 @@ import { MATERIAL_TIERS } from './data/gear-tiers.js?v=584';
 import { BOSSES } from './data/bosses.js?v=584';
 /* W0 — where every item comes from and who uses it (the Collection Log's
    denominator, and the vendor-trash list the drop-sink smoke guard reads). */
-import { obtainableItemIds, VENDOR_TRASH } from './data/catalogue-coherence.js?v=584';
+import { obtainableItemIds, VENDOR_TRASH, AWAITING_ROSTER } from './data/catalogue-coherence.js?v=584';
 import { cheapestShopUnitPrice } from './core/shop-buyback.js?v=584';
 import { SHOP_OFFERS } from './data/shops.js?v=584';
 
@@ -101,7 +101,7 @@ window.HearthriseBossTrophies = Object.freeze({ list: BOSS_TROPHIES, held: bossT
    pure derivation the edge's vendorPriceOf imports. shop-counter.js
    vendorPrice() reads it at call time and bids nothing until it exists. */
 window.SHOP_UNIT_PRICE = cheapestShopUnitPrice(SHOP_OFFERS);
-window.HearthriseCatalogue = Object.freeze({ obtainable: obtainableItemIds(), VENDOR_TRASH });
+window.HearthriseCatalogue = Object.freeze({ obtainable: obtainableItemIds(), VENDOR_TRASH, AWAITING_ROSTER });
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.

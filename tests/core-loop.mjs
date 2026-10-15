@@ -745,7 +745,7 @@ async function loop2(S, M, tag, rows) {
     t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
     /* …and chooses "Use Store Supplies" (Master Design Reference §4): the store
        is never used without the player's choice. */
-    const pick = await S.rpc(p.uid, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, $1::uuid, 'store', null) r", [uuid()]);
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store"}'::jsonb, $1::uuid) r`, [uuid()]);
     t.ok(pick && pick.ok === true && pick.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
@@ -839,7 +839,7 @@ async function loop3(S, M, tag, rows) {
     const put = await S.rpc(p.uid, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid) r', ['bag then shop', JSON.stringify(bar), uuid()]);
     t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
     /* "Use My Supplies, Switch to Store Supplies when they run out" (MDR §4). */
-    const pick = await S.rpc(p.uid, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, $1::uuid, 'mine', 'switch') r", [uuid()]);
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch"}'::jsonb, $1::uuid) r`, [uuid()]);
     t.ok(pick && pick.ok === true && pick.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
     const packed = inv(p.env, 'cooked_shrimp');
     await p.enter(t, 'goblin_warren', { cooked_shrimp: packed });

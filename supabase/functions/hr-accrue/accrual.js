@@ -84,7 +84,7 @@
 // ============================================================================
 
 import {
-  DEFAULT_PROFILE, swingIntervalMs,
+  DEFAULT_PROFILE, swingIntervalMs, COMBAT_BALANCE,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
 /* `resolveKill` is imported ALONGSIDE `simulateSpan`, not instead of it, and it
@@ -1344,7 +1344,7 @@ function accrueHunt(inp, span, hunt) {
   const monsters = inp.monsters || {};
   /* THE SESSION'S KEYED SEEDER. Built once per settle; throws on a missing or
      malformed secret — an unseeded hunt swing is a predictable one. */
-  const huntSeeder = swingSeederFor(String(inp.huntSecret ?? ''), hs0.id);
+  const huntSeeder = swingSeederFor(String(inp.huntSecret ?? ''), hs0.instanceId || hs0.id);
   const huntSwingFrom = hs0.swingIndex;
   /* THE PURSE an NPC basic supply is paid from (Tyler 2026-10-14): the
      character's gold as the server projected it at the window start; kill
@@ -1486,7 +1486,13 @@ function accrueHunt(inp, span, hunt) {
 
   // ── (3) The ctx. CONSTRUCTED FIELD BY FIELD — no caller object is spread
   //     into it, so `minTickMs` can never ride in and defeat the tick clamp. ──
-  const tickMs = deriveTickMs(equipment, items, style);
+  /* ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14; Master Design Reference §2,
+     no speed stat; architecture contracts S3/X1): every swing of a hunt is
+     COMBAT_BALANCE.tickMs, the same constant the catalogue's
+     hr_hunt_limits.swing_interval_ms is generated from, so hr_hunt_apply can
+     hold paid + down to swings x interval exactly. Gear speed, the weapon
+     family and a style's speedMod do not move a hunt's swing. */
+  const tickMs = COMBAT_BALANCE.tickMs;
   /* A Feast the bar fires is scaled by the same [1, 2] clamp hr_apply applies. */
   const huntBuffScale = Math.min(2, Math.max(1, 1 + (Number(bonus('buffDuration')) || 0)));
   /* THE WINDOW END. A press settle runs through the first boundary at or after

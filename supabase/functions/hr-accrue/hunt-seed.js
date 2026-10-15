@@ -29,7 +29,7 @@
 // ============================================================================
 
 import { createHmac } from 'node:crypto';
-import { swingSeedLabel } from '../../../src/core/action-rules.js';
+import { seedLabel } from '../../../src/core/action-rules.js';
 
 /** The algorithm name, journalled with a settle so a replay knows what it ran. */
 export const SWING_SEED_ALG = 'hmac-sha256/v1';
@@ -44,22 +44,29 @@ export function sessionSecretOk(secret) {
 }
 
 /**
- * The seeder of one session: swing index -> unsigned 32-bit seed.
- * @param secret     hr_seed(user, slot, 'hunt:' || session_id) as decimal text
- * @param sessionId  the session uuid (part of the label, verbatim)
+ * The seeder of one INSTANCE: (domain, index) -> unsigned 32-bit seed
+ * (architecture contracts S2; action-rules.js seedLabel).
+ * @param secret      hr_seed(user, slot, 'hunt:' || session_id) as decimal text
+ * @param instanceId  the instance uuid (part of the label, verbatim; solo = the session id)
  */
-export function swingSeederFor(secret, sessionId) {
+export function seederFor(secret, instanceId) {
   if (!sessionSecretOk(secret)) {
-    throw new Error('swingSeederFor: the session secret is not hr_seed text — refusing to seed a hunt from anything else');
+    throw new Error('seederFor: the session secret is not hr_seed text — refusing to seed a hunt from anything else');
   }
-  if (typeof sessionId !== 'string' || sessionId.length === 0) {
-    throw new Error('swingSeederFor: no session id');
+  if (typeof instanceId !== 'string' || instanceId.length === 0) {
+    throw new Error('seederFor: no instance id');
   }
   const key = KEY_PREFIX + secret;
-  return (swingIndex) => {
-    const i = Math.floor(Number(swingIndex));
-    if (!Number.isFinite(i) || i < 0) throw new Error('swingSeederFor: bad swing index ' + String(swingIndex));
-    const d = createHmac('sha256', key).update(swingSeedLabel(sessionId, i), 'utf8').digest();
+  return (domain, index) => {
+    const i = Math.floor(Number(index));
+    if (!Number.isFinite(i) || i < 0) throw new Error('seederFor: bad index ' + String(index));
+    const d = createHmac('sha256', key).update(seedLabel(instanceId, domain, i), 'utf8').digest();
     return ((d[0] << 24) | (d[1] << 16) | (d[2] << 8) | d[3]) >>> 0;
   };
+}
+
+/** The swing seeder of one instance: swing index -> seed, the `s` domain. */
+export function swingSeederFor(secret, instanceId) {
+  const seed = seederFor(secret, instanceId);
+  return (swingIndex) => seed('s', swingIndex);
 }

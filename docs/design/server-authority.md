@@ -1449,8 +1449,18 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   `junk: true` (never bones, gear, supplies or a supply's partner); none does today, so
   `hr_hunt_cover_items` is empty and cover is inert until the loot-rules lane flags a row.
 * **One basic-attack interval (Tyler 2026-10-14).** `COMBAT_BALANCE.tickMs` = 2000 ms is the one
-  source (`tests/basic-attack-interval.mjs`). Gear speed, the weapon family and a style's
-  `speedMod` still scale it — removing them is a balance pass, not done here.
+  source (`tests/basic-attack-interval.mjs`), generated into `hr_hunt_limits.swing_interval_ms`.
+  Every hunt swing is exactly that interval (gear speed, the weapon family and a style's
+  `speedMod` no longer move a hunt), and `hr_hunt_apply` holds hunting time EXACT:
+  `paid_ms + down_ms = swings × swing_interval_ms` (`bad_clock`). The reserved (5c) step is the
+  one place a future preparation clock drains, by exactly that paid time.
+* **Extension seams (architecture contracts S1–S7).** The spawn cycle lives on `hunt_instances`
+  (solo: one instance per session, id = the session id; `hunt_sessions.instance_id`), so a party
+  can share one; seed labels carry a domain, `hunt:<instance>:<domain>:<i>` (`s` swing, `g`
+  gather, `c:<lane>` cast, `r` roll); the cooldown lanes are `hr_hunt_lanes` rows; the action
+  set's options are ONE jsonb, `hr_action_set_options(slot, preset, p_opts, idem)`, validated
+  against `hr_hunt_set_options`; the stamina splice into `hr_state_of` anchors on the
+  `'now', now()` line, which no demolition removes.
 * **Closed mode reaches every door.** The six RPCs that never called `hr_rpc_gate` (`hr_load`,
   `hr_create_character`, `hr_clan_browser`, `hr_companion_equip`, `hr_companion_grant`,
   `hr_rest`) call `hr_access_check()` first (`2026-10-22-closed-mode-ungated-rpcs.sql`); the edge

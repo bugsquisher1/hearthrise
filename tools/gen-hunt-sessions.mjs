@@ -73,9 +73,10 @@ import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_LANES, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
   SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, PULL_CAP, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, DEFAULT_RESUME, EVENT_COPY,
+  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, DEFAULT_RESUME, EVENT_COPY,
   coverSellable } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { COMBAT_BALANCE } from '../src/core/combat.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_NAME = '2026-10-22-hunt-sessions-catalogue.generated.sql';
@@ -91,7 +92,8 @@ export function catalogueRows(src = {}) {
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_LANES, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
-    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
+    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
+    swingIntervalMs: COMBAT_BALANCE.tickMs, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, pullCap: PULL_CAP, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
@@ -194,10 +196,11 @@ export function catalogueRows(src = {}) {
     bag_lines: S.sessionLimits.bagLines,
     falls_min: S.sessionLimits.falls.min, falls_max: S.sessionLimits.falls.max, falls_default: S.sessionLimits.falls.default,
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
-    /* ONE consumable lane (Combat Design Bible v1.4): food, drink and buff food
-       share it. The reserved lanes (offense, heal_spell) carry no row until the
-       ability lane ships. */
-    cd_consumable_ms: S.cooldowns.consumable.ms,
+    /* THE ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14; architecture contracts
+       S3/X1): COMBAT_BALANCE.tickMs, the engine's own constant, so the settle
+       can hold hunting time to the exact swing count. The cooldown LANES are
+       their own table (hr_hunt_lanes), not limits rows. */
+    swing_interval_ms: S.swingIntervalMs,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
     /* A knockout inside a hunt (flat, master plan row 16) and the gold floor's
        range and default (row 3). */
@@ -246,6 +249,24 @@ export function catalogueRows(src = {}) {
     }
   }
   if (!(S.cooldowns.consumable && S.cooldowns.consumable.active === true)) throw new Error('COOLDOWN_LANES has no active consumable lane');
+  const lanes = Object.keys(S.cooldowns).sort().map((l) => ({ l, ms: S.cooldowns[l].ms, active: S.cooldowns[l].active === true }));
+  if (!(Number.isInteger(lim.swing_interval_ms) && lim.swing_interval_ms >= 600)) {
+    throw new Error(`the swing interval ${S.swingIntervalMs} is not a whole number of ms >= 600`);
+  }
+  const setOptions = Object.keys(S.setOptions).sort().map((k) => {
+    const o = S.setOptions[k];
+    if (!ID.test(k)) throw new Error(`action-set option ${k} is not [a-z0-9_]{1,64}`);
+    if (o.kind === 'enum') {
+      if (!Array.isArray(o.values) || !o.values.length || !o.values.every((v) => ID.test(v))) throw new Error(`option ${k}: an enum needs [a-z0-9_] values`);
+      return { k, kind: 'enum', limit: null, values: [...o.values] };
+    }
+    if (o.kind === 'limit') {
+      if (!own(lim, `${o.limit}_min`) || !own(lim, `${o.limit}_max`)) throw new Error(`option ${k}: no ${o.limit}_min / _max limits row`);
+      return { k, kind: 'limit', limit: o.limit, values: null };
+    }
+    if (o.kind === 'target') return { k, kind: 'target', limit: null, values: null };
+    throw new Error(`option ${k}: unknown kind ${o.kind}`);
+  });
   const slotKinds = Object.keys(S.slotKinds).sort().map((k) => {
     if (!ID.test(k)) throw new Error(`slot kind ${k} is not [a-z0-9_]{1,64}`);
     return { k, active: S.slotKinds[k].active === true };
@@ -301,7 +322,7 @@ export function catalogueRows(src = {}) {
   if (!onEmpty.modes.every((m) => ID.test(m)) || !onEmpty.modes.includes('end') || onEmpty.default !== 'end') {
     throw new Error(`ON_EMPTY ${JSON.stringify(S.onEmpty)} must offer 'end' and default to it (the store is never silent)`);
   }
-  return { supplySource, onEmpty, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
+  return { supplySource, onEmpty, lanes, setOptions, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
     cover, resume, eventTypes,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -315,6 +336,9 @@ export function render(src) {
   const coverValues = r.cover.map((c) => `  (${sq(c.id)}, ${c.unit})`).join(',\n');
   const eventList = r.eventTypes.map(sq).join(', ');
   const slotKindValues = r.slotKinds.map((x) => `  (${sq(x.k)}, ${x.active})`).join(',\n');
+  const laneValues = r.lanes.map((x) => `  (${sq(x.l)}, ${x.ms ?? 'null'}, ${x.active})`).join(',\n');
+  const optionValues = r.setOptions.map((x) => `  (${sq(x.k)}, ${sq(x.kind)}, ${x.limit ? sq(x.limit) : 'null'}, `
+    + `${x.values ? `array[${x.values.map(sq).join(', ')}]::text[]` : 'null'})`).join(',\n');
   const targetValues = r.targets.map((x) => `  (${sq(x.m)}, ${x.solo})`).join(',\n');
   const targetList = r.targets.map((x) => sq(x.m)).join(', ');
   const resumeList = r.resumable.map(sq).join(', ');
@@ -431,6 +455,24 @@ create table if not exists public.hr_hunt_target_modes (
 create table if not exists public.hr_hunt_resumable_kinds (
   kind text primary key check (kind ~ '^[a-z0-9_]{1,64}$')
 );
+-- THE COOLDOWN LANES (rule-subjects.js COOLDOWN_LANES; architecture contracts
+-- S3): an active lane has a cooldown, a reserved one none. The settle reads its
+-- cooldown keys and caps from HERE, never from a literal.
+create table if not exists public.hr_hunt_lanes (
+  lane   text primary key check (lane ~ '^[a-z0-9_]{1,64}$'),
+  ms     int check (ms is null or ms > 0),
+  active boolean not null,
+  check (active = (ms is not null))
+);
+-- THE ACTION SET'S OPTIONS (hunt-sessions.js ACTION_SET_OPTIONS; contracts S4).
+create table if not exists public.hr_hunt_set_options (
+  opt       text primary key check (opt ~ '^[a-z0-9_]{1,64}$'),
+  kind      text not null check (kind in ('target', 'limit', 'enum')),
+  limit_key text check (limit_key is null or limit_key ~ '^[a-z0-9_]{1,64}$'),
+  vals      text[],
+  check ((kind = 'limit') = (limit_key is not null)),
+  check ((kind = 'enum') = (vals is not null))
+);
 alter table public.hr_hunt_end_reasons add column if not exists resumes boolean not null default false;
 alter table public.hr_hunt_supplies       enable row level security;
 alter table public.hr_hunt_travel         enable row level security;
@@ -446,6 +488,9 @@ alter table public.hr_hunt_resumable_kinds enable row level security;
 alter table public.hr_hunt_basic_supplies enable row level security;
 alter table public.hr_hunt_slot_targets   enable row level security;
 alter table public.hr_hunt_cover_items    enable row level security;
+alter table public.hr_hunt_lanes          enable row level security;
+alter table public.hr_hunt_set_options    enable row level security;
+revoke all on public.hr_hunt_lanes, public.hr_hunt_set_options from public, anon, authenticated, service_role;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
@@ -468,6 +513,12 @@ ${coverValues};` : '-- (no item is flagged junk: sell-to-cover is inert until on
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
 ${slotKindValues};
+delete from public.hr_hunt_lanes;
+insert into public.hr_hunt_lanes (lane, ms, active) values
+${laneValues};
+delete from public.hr_hunt_set_options;
+insert into public.hr_hunt_set_options (opt, kind, limit_key, vals) values
+${optionValues};
 delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode, solo) values
 ${targetValues};
@@ -589,6 +640,8 @@ begin
      or (select count(*) from public.hr_hunt_slot_kinds) <> ${r.slotKinds.length}
      or (select count(*) from public.hr_hunt_target_modes) <> ${r.targets.length}
      or (select count(*) from public.hr_hunt_resumable_kinds) <> ${r.resumable.length}
+     or (select count(*) from public.hr_hunt_lanes) <> ${r.lanes.length}
+     or (select count(*) from public.hr_hunt_set_options) <> ${r.setOptions.length}
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every supply and every vendor value is a catalogued item; every named hunt is
@@ -611,7 +664,7 @@ begin
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items'] loop
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -620,7 +673,7 @@ begin
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                  'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items')) then
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;
 `;

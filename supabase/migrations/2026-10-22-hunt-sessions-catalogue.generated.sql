@@ -6,7 +6,7 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 37a0078be1cbf55aad136a41e05cdcd8562c6f766844a8a7fa77f52e61b5cc39
+--   digest: c1ac95c9b5c2d5034ea0f133a8f1473fec8eac7b282048c8d1584c12f11818e4
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
 --   7 combat buff types, 22 limits, 9 end reasons, 484 vendor values,
 --   17 shop supplies paid per use, 4 slot targets, 2 slot kinds,
@@ -100,6 +100,24 @@ create table if not exists public.hr_hunt_target_modes (
 create table if not exists public.hr_hunt_resumable_kinds (
   kind text primary key check (kind ~ '^[a-z0-9_]{1,64}$')
 );
+-- THE COOLDOWN LANES (rule-subjects.js COOLDOWN_LANES; architecture contracts
+-- S3): an active lane has a cooldown, a reserved one none. The settle reads its
+-- cooldown keys and caps from HERE, never from a literal.
+create table if not exists public.hr_hunt_lanes (
+  lane   text primary key check (lane ~ '^[a-z0-9_]{1,64}$'),
+  ms     int check (ms is null or ms > 0),
+  active boolean not null,
+  check (active = (ms is not null))
+);
+-- THE ACTION SET'S OPTIONS (hunt-sessions.js ACTION_SET_OPTIONS; contracts S4).
+create table if not exists public.hr_hunt_set_options (
+  opt       text primary key check (opt ~ '^[a-z0-9_]{1,64}$'),
+  kind      text not null check (kind in ('target', 'limit', 'enum')),
+  limit_key text check (limit_key is null or limit_key ~ '^[a-z0-9_]{1,64}$'),
+  vals      text[],
+  check ((kind = 'limit') = (limit_key is not null)),
+  check ((kind = 'enum') = (vals is not null))
+);
 alter table public.hr_hunt_end_reasons add column if not exists resumes boolean not null default false;
 alter table public.hr_hunt_supplies       enable row level security;
 alter table public.hr_hunt_travel         enable row level security;
@@ -115,6 +133,9 @@ alter table public.hr_hunt_resumable_kinds enable row level security;
 alter table public.hr_hunt_basic_supplies enable row level security;
 alter table public.hr_hunt_slot_targets   enable row level security;
 alter table public.hr_hunt_cover_items    enable row level security;
+alter table public.hr_hunt_lanes          enable row level security;
+alter table public.hr_hunt_set_options    enable row level security;
+revoke all on public.hr_hunt_lanes, public.hr_hunt_set_options from public, anon, authenticated, service_role;
 revoke all on public.hr_hunt_supplies, public.hr_hunt_travel, public.hr_hunt_rule_subjects,
               public.hr_hunt_buff_types, public.hr_hunt_limits, public.hr_hunt_end_reasons,
               public.hr_hunt_default_preset, public.hr_hunt_vendor_value,
@@ -207,6 +228,18 @@ delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
   ('spell', false),
   ('supply', true);
+delete from public.hr_hunt_lanes;
+insert into public.hr_hunt_lanes (lane, ms, active) values
+  ('consumable', 2000, true),
+  ('heal_spell', null, false),
+  ('offense', null, false);
+delete from public.hr_hunt_set_options;
+insert into public.hr_hunt_set_options (opt, kind, limit_key, vals) values
+  ('gold_floor', 'limit', 'gold_floor', null),
+  ('on_empty', 'enum', null, array['end', 'switch']::text[]),
+  ('pull_count', 'limit', 'pull', null),
+  ('supply_source', 'enum', null, array['mine', 'store']::text[]),
+  ('target_mode', 'target', null, null);
 delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode, solo) values
   ('follow', false),
@@ -333,7 +366,6 @@ insert into public.hr_hunt_buff_types (buff_type) values
 delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
   ('bag_lines', 10),
-  ('cd_consumable_ms', 2000),
   ('conditions', 3),
   ('death_xp_permille', 20),
   ('falls_default', 3),
@@ -353,7 +385,8 @@ insert into public.hr_hunt_limits (key, value) values
   ('sessions_kept', 20),
   ('slots', 20),
   ('stamina_low_min', 60),
-  ('stamina_max_min', 720);
+  ('stamina_max_min', 720),
+  ('swing_interval_ms', 2000);
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('falls', 1, true),
@@ -953,6 +986,8 @@ begin
      or (select count(*) from public.hr_hunt_slot_kinds) <> 2
      or (select count(*) from public.hr_hunt_target_modes) <> 4
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
+     or (select count(*) from public.hr_hunt_lanes) <> 3
+     or (select count(*) from public.hr_hunt_set_options) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every supply and every vendor value is a catalogued item; every named hunt is
@@ -975,7 +1010,7 @@ begin
     foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items'] loop
+                               'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
@@ -984,6 +1019,6 @@ begin
                and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_rule_subjects', 'hr_hunt_buff_types',
                                  'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_default_preset', 'hr_hunt_vendor_value',
                                  'hr_hunt_slot_kinds', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds',
-                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items')) then
+                                 'hr_hunt_basic_supplies', 'hr_hunt_slot_targets', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

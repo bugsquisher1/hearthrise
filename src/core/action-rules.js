@@ -26,9 +26,19 @@ import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=586';
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
-/** The seed label of one swing, verbatim from the ruling: `hunt:<session>:<swing_index>`. */
-export function swingSeedLabel(sessionId, swingIndex) {
-  return 'hunt:' + String(sessionId) + ':' + int(swingIndex, 0);
+/* THE SEED LABEL HAS A DOMAIN (architecture contracts S2): `hunt:<instance>:
+   <domain>:<i>`, so a swing, a gather roll, a cast on a lane and a party roll
+   on the SAME instance and index draw from separate streams, and adding one
+   never re-keys another. Domains: `s` swing, `g` gather, `c:<lane>` cast,
+   `r` roll. A solo instance's id is its session id (hunt_instances). */
+export const SEED_DOMAIN = /^(s|g|r|c:[a-z0-9_]{1,32})$/;
+export function seedLabel(instanceId, domain, index) {
+  if (!SEED_DOMAIN.test(String(domain))) throw new Error('seedLabel: unknown seed domain ' + String(domain));
+  return 'hunt:' + String(instanceId) + ':' + String(domain) + ':' + int(index, 0);
+}
+/** The seed label of one swing: the `s` domain. */
+export function swingSeedLabel(instanceId, swingIndex) {
+  return seedLabel(instanceId, 's', swingIndex);
 }
 
 /* THE PER-SWING SEED is NOT derived in this file (Security, C1 review item 3).
@@ -538,6 +548,9 @@ export function newHuntSession(o) {
   const lim = SESSION_LIMITS.falls;
   return {
     id: String(s.id || ''),
+    /* THE INSTANCE the session hunts in (hunt_instances; solo: the session's
+       own id). Seeds are labelled by it, never by the session. */
+    instanceId: String(s.instanceId || s.id || ''),
     huntFromMs: from,
     nextSwingAtMs: Math.max(from, int(s.nextSwingAtMs, from)),
     swingIndex: Math.max(0, int(s.swingIndex, 0)),

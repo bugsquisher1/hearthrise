@@ -19,10 +19,10 @@
 //   node tests/basic-attack-interval.mjs            run
 //   node tests/basic-attack-interval.mjs --mutate   prove each arm bites
 //
-// Known and reported, not hidden: gear speed (spdB), the weapon-family mod and
-// a style's speedMod still scale swingIntervalMs off this base. The Bible's
-// "no attack-speed stat" removes them; that is a balance pass for the Game
-// Designer, not a constant change, so I2 measures the bare hero.
+// A HUNT swings at exactly this constant (accrual.js accrueHunt; the settle
+// holds paid + down = swings x interval). swingIntervalMs — the client's
+// display and the non-hunt readers — still scales it by gear speed, the weapon
+// family and a style's speedMod; I2 measures the bare hero, where they agree.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';

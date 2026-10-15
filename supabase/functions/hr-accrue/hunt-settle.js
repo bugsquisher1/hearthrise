@@ -116,6 +116,7 @@ export function huntSessionFromRead(h) {
   const num = (v) => (v === null || v === undefined || v === '') ? null : Number(v);
   return newHuntSession({
     id: String(h.id),
+    instanceId: String(h.instance || h.id),
     huntFromMs: num(h.hunt_from_ms),
     nextSwingAtMs: num(h.next_swing_at_ms),
     swingIndex: num(h.swing_index),

@@ -155,7 +155,7 @@
 --   clamped to the ground's pull and to hr_hunt_limit('pull_cap') (rule-
 --   subjects.js PULL_CAP, the ONE place the player-dial ruling lands), with
 --   the respawn scaled to it — so the dial moves the rhythm, never the kills
---   an hour. hunt_sessions.pull_left / respawn_at carry the cycle window to
+--   an hour. hunt_instances.pull_left / respawn_at (S1) carry the cycle window to
 --   window (respawn_at null = the arrival). Every settle re-proves, with K the
 --   kills its own stamped ledger rows journal:
 --     K = pull_left_old + P x n - pull_left_new        (exact; no "+1")
@@ -303,23 +303,53 @@ begin
   end if;
 end $mig$;
 
--- THE SPAWN CYCLE'S STATE (Security design review 2026-10-14 item 1): foes of
--- the current pull still standing, and when the next pull is due (null = the
--- arrival, hunt_from). Written only by hr_hunt_apply, forward only.
-alter table public.hunt_sessions add column if not exists pull_left int not null default 0;
-alter table public.hunt_sessions add column if not exists respawn_at timestamptz;
-do $mig$
+-- THE HUNT INSTANCE (architecture contracts S1). The spawn cycle's state —
+-- foes of the current pull still standing, and when the next pull is due
+-- (null = the arrival, the session's hunt_from) — lives on an INSTANCE row,
+-- never on hunt_sessions: a party will share ONE instance across several
+-- sessions, which the one-open-session-per-character index cannot hold. A solo
+-- session gets its own instance, created with it, whose id IS the session id —
+-- so a solo hunt's seed labels (`hunt:<instance>:…`) and every solo replay keep
+-- one identity. Written only by hr_hunt_apply, forward only; RLS on, no policy,
+-- no client grant.
+create table if not exists public.hunt_instances (
+  id         uuid primary key,
+  hunt_id    text not null check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  kind       text not null default 'solo' check (kind in ('solo', 'party')),
+  pull_left  int  not null default 0 check (pull_left between 0 and 64),
+  respawn_at timestamptz,
+  version    bigint not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.hunt_instances enable row level security;
+revoke all on public.hunt_instances from public, anon, authenticated, service_role;
+alter table public.hunt_sessions add column if not exists instance_id uuid references public.hunt_instances (id);
+-- Every session that exists before this file gets its solo instance (the wipe
+-- leaves none on production; a rebuilt chain has none either).
+insert into public.hunt_instances (id, hunt_id, kind)
+  select h.id, h.hunt_id, 'solo' from public.hunt_sessions h
+   where h.instance_id is null
+  on conflict (id) do nothing;
+update public.hunt_sessions set instance_id = id where instance_id is null;
+alter table public.hunt_sessions alter column instance_id set not null;
+create index if not exists hunt_sessions_instance_idx on public.hunt_sessions (instance_id);
+create or replace function public.hr_hunt_instance_solo()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'hunt_sessions_pull_ck'
-                   and conrelid = 'public.hunt_sessions'::regclass) then
-    alter table public.hunt_sessions add constraint hunt_sessions_pull_ck check (pull_left between 0 and 64);
+  if new.instance_id is null then
+    insert into public.hunt_instances (id, hunt_id, kind) values (new.id, new.hunt_id, 'solo')
+      on conflict (id) do nothing;
+    new.instance_id := new.id;
   end if;
-end $mig$;
-comment on column public.hunt_sessions.pull_left is
-  '2026-10-22 (hunt sessions C2, Security design review item 1). Foes of the current pull still standing. '
-  'Written only by hr_hunt_apply, which re-proves every window''s kills against it.';
-comment on column public.hunt_sessions.respawn_at is
-  '2026-10-22 (hunt sessions C2). When the next pull is due; null = the arrival (hunt_from). Forward only.';
+  return new;
+end $$;
+revoke execute on function public.hr_hunt_instance_solo() from public, anon, authenticated, service_role;
+drop trigger if exists hr_hunt_instance_solo on public.hunt_sessions;
+create trigger hr_hunt_instance_solo before insert on public.hunt_sessions
+  for each row execute function public.hr_hunt_instance_solo();
+comment on table public.hunt_instances is
+  '2026-10-22 (hunt sessions C2, architecture contracts S1). The shared state of one hunting ground instance '
+  '(the spawn cycle). Solo: 1:1 with its session, id = session id. Written only by hr_hunt_apply.';
 
 -- THE PULL A HUNT RUNS: the action set's pull count, clamped to the ground's
 -- pull and to the ONE cap row (pull_cap; 0 = none), and the ground's respawn
@@ -471,9 +501,12 @@ begin
                            public.hr_hunt_limit('pull_default')),
     -- THE SPAWN CYCLE: the pull the server runs and the row's cycle state
     -- (respawn_at null = the arrival), in engine milliseconds.
-    'pull', public.hr_hunt_pull_of(p_user, p_slot, v_s.id) || jsonb_build_object(
-              'left', v_s.pull_left,
-              'respawn_at_ms', ceil(extract(epoch from coalesce(v_s.respawn_at, v_s.hunt_from)) * 1000)::bigint),
+    'pull', public.hr_hunt_pull_of(p_user, p_slot, v_s.id) || (select jsonb_build_object(
+              'left', i.pull_left,
+              'respawn_at_ms', ceil(extract(epoch from coalesce(i.respawn_at, v_s.hunt_from)) * 1000)::bigint)
+              from public.hunt_instances i where i.id = v_s.instance_id),
+    -- THE INSTANCE the seeds are labelled by (`hunt:<instance>:<domain>:<i>`).
+    'instance', v_s.instance_id,
     -- THE GOLD FLOOR, and what sell-to-cover may sell: every cover item's vendor
     -- price, with what THIS session looted of it, not yet sold, still in the bag.
     'gold_floor', coalesce((select a.gold_floor from public.player_action_sets a
@@ -695,19 +728,19 @@ declare
   c_old1 constant text := $a$  v_cd_heal int := public.hr_hunt_limit('cd_heal_ms');
   v_cd_buff int := public.hr_hunt_limit('cd_buff_ms');
 $a$;
-  c_new1 constant text := $a$  v_cd_cons int := public.hr_hunt_limit('cd_consumable_ms');
+  c_new1 constant text := $a$  v_cd_cons int := (select l.ms from public.hr_hunt_lanes l where l.lane = 'consumable' and l.active);
 $a$;
   c_old2 constant text := $a$    if v_heals > v_win / v_cd_heal + 1 or v_buffs > v_win / v_cd_buff + 1 then$a$;
   c_new2 constant text := $a$    if v_heals + v_buffs > v_win / v_cd_cons + 1 then$a$;
   c_old3 constant text := $a$c.key not in ('heal', 'buff')$a$;
-  c_new3 constant text := $a$c.key not in ('consumable')$a$;
+  c_new3 constant text := $a$not exists (select 1 from public.hr_hunt_lanes l where l.lane = c.key and l.active)$a$;
   c_old4 constant text := $a$+ case c.key when 'heal' then v_cd_heal else v_cd_buff end$a$;
   c_new4 constant text := $a$+ v_cd_cons$a$;
   c_old5 constant text := $a$  if v_cd_heal is null or v_cd_buff is null then$a$;
   c_new5 constant text := $a$  if v_cd_cons is null then$a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, 'cd_consumable_ms') > 0 then
+  if strpos(v_def, 'hr_hunt_lanes') > 0 then
     raise notice 'hr_hunt_settle_session already reads the one consumable lane — edit skipped'; return; end if;
   foreach v_n in array array[1, 2, 3, 4, 5] loop
     if (length(v_def) - length(replace(v_def, case v_n when 1 then c_old1 when 2 then c_old2 when 3 then c_old3 when 4 then c_old4 else c_old5 end, '')))
@@ -809,18 +842,21 @@ end $mig$;
 do $mig$
 declare
   v_def text; v_n int;
-  c_old constant text := $a$    'dungeon_cooldowns', public.hr_dungeon_cooldowns(p_user, v_st.slot),
+  -- ANCHORED ON THE SERVER CLOCK LINE, which every envelope keeps (architecture
+  -- contracts S7): the first anchor, `dungeon_cooldowns`, leaves with the
+  -- demolition, and the next edit would have found nothing to splice after.
+  c_old constant text := $a$    'now', now(),
 $a$;
-  c_new constant text := $a$    -- ── stamina — THE HUNT POOL (ms / at / max_ms / hunting) ──
+  c_new constant text := $a$    'now', now(),
+    -- ── stamina — THE HUNT POOL (ms / at / max_ms / hunting) ──
     --    introduced by 2026-10-22-hunt-sessions-settle.sql §4c
     'stamina', public.hr_stamina_view(p_user, v_st.slot),
-    'dungeon_cooldowns', public.hr_dungeon_cooldowns(p_user, v_st.slot),
 $a$;
 begin
   v_def := replace(pg_get_functiondef('public.hr_state_of(uuid,integer)'::regprocedure), chr(13), '');
   if strpos(v_def, c_new) > 0 then raise notice 'hr_state_of already projects stamina — edit skipped'; return; end if;
   v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
-  if v_n <> 1 then raise exception 'hr_state_of: the dungeon_cooldowns anchor matched % times (need 1) — the body moved', v_n; end if;
+  if v_n <> 1 then raise exception 'hr_state_of: the server-clock (''now'') anchor matched % times (need 1) — the body moved', v_n; end if;
   execute replace(v_def, c_old, c_new);
 end $mig$;
 revoke execute on function public.hr_hunt_enter(int, text, jsonb, int, int, int, uuid) from public;
@@ -842,21 +878,23 @@ revoke execute on function public.hr_state_of(uuid, int) from public;
 revoke execute on function public.hr_state_of(uuid, int) from anon, authenticated, service_role;
 grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
--- ── §4d hr_action_set_options — an action set's TARGET MODE, PULL COUNT and
---     GOLD FLOOR ─────────────────────────────────────────────────────────────
--- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor; the DRY-LINE
--- HUNT SUPPLIES choice, Master Design Reference §4 — p_supply_source 'mine' |
--- 'store' and p_on_empty 'end' | 'switch', null = unchanged.)
--- The client sends up to four values; a mode outside hr_hunt_target_modes, a party-only mode on
--- a solo set, a pull or a floor outside the limits rows is REFUSED, never
--- clamped. Mode and pull are stored and INERT until U2 (row 18). Preset 0 with no saved row
--- is saved from the catalogue default bar first. Edits to the running set wait
--- for its settle, like hr_action_set_put. C1's verb shape: identity -> slot ->
--- idempotency replay -> rate gate -> input -> lock -> state -> write -> stored result.
+-- ── §4d hr_action_set_options — an action set's OPTIONS, one jsonb ─────────
+-- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor; Master
+-- Design Reference §4, the hunt-supplies choice; architecture contracts S4.)
+-- p_opts is an object of options; every key must name a generated
+-- hr_hunt_set_options row (hunt-sessions.js ACTION_SET_OPTIONS) and every value
+-- pass that row's domain — a target mode of hr_hunt_target_modes (solo sets
+-- only), an integer inside its limits pair, or one of its enum values. Refused,
+-- never clamped; an absent key is unchanged. A new option is a data row and a
+-- column, never a new signature or client-baseline row. Mode and pull are
+-- INERT until U2 (row 18). Preset 0 with no saved row is saved from the
+-- catalogue default bar first. Edits to the running set wait for its settle,
+-- like hr_action_set_put. C1's verb shape: identity -> slot -> idempotency
+-- replay -> rate gate -> input -> lock -> state -> write -> stored result.
 drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid);
 drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid, text);
-create or replace function public.hr_action_set_options(p_slot int, p_preset int, p_target text, p_pull int,
-  p_floor bigint, p_idem uuid, p_supply_source text default null, p_on_empty text default null)
+drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text);
+create or replace function public.hr_action_set_options(p_slot int, p_preset int, p_opts jsonb, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   c_verb constant text := 'action_set_options';
@@ -864,6 +902,9 @@ declare
   v_uid  uuid := auth.uid();
   v_r    jsonb;
   v_s    public.hunt_sessions%rowtype;
+  v_k    text;
+  v_v    jsonb;
+  v_o    public.hr_hunt_set_options%rowtype;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then
@@ -874,20 +915,31 @@ begin
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   if p_preset is null or p_preset < 0 or p_preset >= public.hr_hunt_limit('presets') then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_preset')); end if;
-  if p_target is null or not exists (select 1 from public.hr_hunt_target_modes m where m.mode = p_target) then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_target_mode')); end if;
-  if not (select m.solo from public.hr_hunt_target_modes m where m.mode = p_target) then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'target_mode_party_only')); end if;
-  if p_pull is null or p_pull < public.hr_hunt_limit('pull_min') or p_pull > public.hr_hunt_limit('pull_max') then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_pull_count',
-      'min', public.hr_hunt_limit('pull_min'), 'max', public.hr_hunt_limit('pull_max'))); end if;
-  if p_floor is null or p_floor < public.hr_hunt_limit('gold_floor_min') or p_floor > public.hr_hunt_limit('gold_floor_max') then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_gold_floor',
-      'min', public.hr_hunt_limit('gold_floor_min'), 'max', public.hr_hunt_limit('gold_floor_max'))); end if;
-  if p_supply_source is not null and p_supply_source not in ('mine', 'store') then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_supply_source')); end if;
-  if p_on_empty is not null and p_on_empty not in ('end', 'switch') then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_on_empty')); end if;
+  if p_opts is null or jsonb_typeof(p_opts) <> 'object' or p_opts = '{}'::jsonb then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_options')); end if;
+  for v_k in select jsonb_object_keys(p_opts) loop
+    select * into v_o from public.hr_hunt_set_options o where o.opt = v_k;
+    if not found then
+      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_option',
+        'option', left(v_k, 64))); end if;
+    v_v := p_opts->v_k;
+    if v_o.kind = 'target' then
+      if jsonb_typeof(v_v) <> 'string' or not exists (select 1 from public.hr_hunt_target_modes m where m.mode = v_v #>> '{}') then
+        return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_target_mode')); end if;
+      if not (select m.solo from public.hr_hunt_target_modes m where m.mode = v_v #>> '{}') then
+        return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'target_mode_party_only')); end if;
+    elsif v_o.kind = 'limit' then
+      if jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}')::numeric <> trunc((v_v #>> '{}')::numeric)
+         or (v_v #>> '{}')::numeric < public.hr_hunt_limit(v_o.limit_key || '_min')
+         or (v_v #>> '{}')::numeric > public.hr_hunt_limit(v_o.limit_key || '_max') then
+        return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_' || v_k,
+          'min', public.hr_hunt_limit(v_o.limit_key || '_min'), 'max', public.hr_hunt_limit(v_o.limit_key || '_max'))); end if;
+    else
+      if jsonb_typeof(v_v) <> 'string' or not ((v_v #>> '{}') = any (v_o.vals)) then
+        return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_' || v_k,
+          'allowed', to_jsonb(v_o.vals))); end if;
+    end if;
+  end loop;
 
   v_s := public.hr_hunt_lock(v_uid, p_slot);
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
@@ -902,16 +954,16 @@ begin
       select v_uid, p_slot, 0, d.name, d.slots, now() from public.hr_hunt_default_preset d where d.id;
   end if;
   update public.player_action_sets
-     set target_mode = p_target, pull_count = p_pull, gold_floor = p_floor,
-         supply_source = coalesce(p_supply_source, supply_source),
-         on_empty = coalesce(p_on_empty, on_empty), updated_at = now()
+     set target_mode   = coalesce(p_opts->>'target_mode', target_mode),
+         pull_count    = coalesce((p_opts->>'pull_count')::int, pull_count),
+         gold_floor    = coalesce((p_opts->>'gold_floor')::bigint, gold_floor),
+         supply_source = coalesce(p_opts->>'supply_source', supply_source),
+         on_empty      = coalesce(p_opts->>'on_empty', on_empty),
+         updated_at    = now()
    where user_id = v_uid and slot = p_slot and preset = p_preset;
-  v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', p_target, 'pull_count', p_pull,
-                            'gold_floor', p_floor,
-                            'supply_source', (select a.supply_source from public.player_action_sets a
-                                               where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset),
-                            'on_empty', (select a.on_empty from public.player_action_sets a
-                                          where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset));
+  select jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', a.target_mode, 'pull_count', a.pull_count,
+                            'gold_floor', a.gold_floor, 'supply_source', a.supply_source, 'on_empty', a.on_empty)
+    into v_r from public.player_action_sets a where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset;
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
@@ -919,9 +971,9 @@ end $$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
    and proname in ('hr_action_set_mode', 'hr_action_set_options', 'hr_vigour_refill');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid, p_supply_source text, p_on_empty text',
+  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_opts jsonb, p_idem uuid',
    'authenticated',
-   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3 + Combat Design Bible v1.4): an action set''s target mode, pull count, gold floor and hunt-supplies choice (supply_source mine | store, on_empty end | switch); catalogue / limits values only, refused not clamped');
+   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3 + Combat Design Bible v1.4): an action set''s target mode, pull count, gold floor and hunt-supplies choice (supply_source mine | store, on_empty end | switch) as ONE jsonb validated against hr_hunt_set_options; catalogue / limits values only, refused not clamped');
 -- (master plan row 20) hr_vigour_refill leaves the client surface: hunts no
 -- longer spend Vigour, so a gold-for-Vigour verb buys nothing a hunter needs.
 -- (2026-10-22-hunt-sessions-delete-away.sql drops it outright; guarded so this
@@ -1016,6 +1068,8 @@ declare
   v_pl1       bigint;
   v_r0ms      bigint;
   v_r1ms      bigint;
+  v_ipl       bigint;
+  v_ira       timestamptz;
   v_tomms     bigint;
   v_pmax      bigint;
   v_kills     bigint;
@@ -1197,7 +1251,12 @@ begin
   exception when others then
     return jsonb_build_object('ok', false, 'error', 'bad_pull');
   end;
-  v_r0ms := ceil(extract(epoch from coalesce(v_s.respawn_at, v_s.hunt_from)) * 1000)::bigint;
+  -- The instance row is LOCKED with the session: its cycle state is read here
+  -- and written once below (a party's members will settle it in a fixed order).
+  select i.pull_left, i.respawn_at into v_ipl, v_ira
+    from public.hunt_instances i where i.id = v_s.instance_id for update;
+  if not found then return jsonb_build_object('ok', false, 'error', 'no_instance'); end if;
+  v_r0ms := ceil(extract(epoch from coalesce(v_ira, v_s.hunt_from)) * 1000)::bigint;
   -- The skills as this window found them (the level a fall may never go below),
   -- and the newest event, so this settle's own fall / level_up rows are known.
   select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_xp0
@@ -1246,20 +1305,21 @@ begin
     if v_pn > v_pmax then
       perform public.hr_reject('pull_over', jsonb_build_object('pulls', v_pn, 'max', v_pmax));
     end if;
-    v_lmax := v_s.pull_left;
+    v_lmax := v_ipl;
     if v_pn > 0 then v_lmax := v_psz; end if;
     if v_pl1 > v_lmax
-       or v_kills <> v_s.pull_left + v_psz * v_pn - v_pl1
+       or v_kills <> v_ipl + v_psz * v_pn - v_pl1
        or (v_pn = 0 and v_r1ms <> v_r0ms)
        or (v_pn > 0 and (v_r1ms < v_r0ms + v_pn * v_prs or v_r1ms >= v_tomms + v_prs)) then
-      perform public.hr_reject('pull_over', jsonb_build_object('kills', v_kills, 'left_old', v_s.pull_left,
+      perform public.hr_reject('pull_over', jsonb_build_object('kills', v_kills, 'left_old', v_ipl,
         'pulls', v_pn, 'left', v_pl1, 'size', v_psz, 'respawn_at_old_ms', v_r0ms, 'respawn_at_ms', v_r1ms));
     end if;
-    update public.hunt_sessions
+    update public.hunt_instances
        set pull_left = v_pl1,
            respawn_at = case when v_pn = 0 then respawn_at
-                             else 'epoch'::timestamptz + make_interval(secs => v_r1ms / 1000.0) end
-     where id = p_session;
+                             else 'epoch'::timestamptz + make_interval(secs => v_r1ms / 1000.0) end,
+           version = version + 1
+     where id = v_s.instance_id;
     -- (5a) THE STAMINA POOL, RE-BOUNDED AND WRITTEN (before the session half,
     --      whose `stamina` end proof reads this row). Every swing interval of
     --      the window is either PAID (hunting: drains 1:1) or KNOCKED OUT
@@ -1290,7 +1350,16 @@ begin
       perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'window', 'window_ms', v_win,
         'paid_ms', v_paid, 'down_ms', v_down));
     end if;
-    v_tick := case when v_nsw > 0 then ceil(v_win::numeric / v_nsw)::bigint else 0 end;
+    -- HUNTING TIME IS EXACT (architecture contracts X1/S3): every swing the
+    -- window walked is ONE catalogue interval (hr_hunt_limits.swing_interval_ms
+    -- = the engine's COMBAT_BALANCE.tickMs), either paid or knocked out — so
+    -- P + D is the swing count times the interval, to the millisecond. Stamina
+    -- and every future preparation clock (5c) drain from this figure.
+    v_tick := public.hr_hunt_limit('swing_interval_ms');
+    if v_tick is null or v_tick <= 0 or v_paid + v_down <> v_nsw * v_tick then
+      perform public.hr_reject('bad_clock', jsonb_build_object('paid_ms', v_paid, 'down_ms', v_down,
+        'swings', v_nsw, 'interval_ms', v_tick));
+    end if;
     v_dmax := case when v_rec0 is not null and v_rec0 > v_s.settled_to
                    then floor(extract(epoch from (v_rec0 - v_s.settled_to)) * 1000)::bigint + v_tick else 0 end
             + coalesce((select sum(greatest(0, coalesce((d.value->>'recovery_ms')::bigint, 0)) + v_tick)
@@ -1310,6 +1379,12 @@ begin
     update public.player_state set stamina_ms = v_e, stamina_at = v_to
      where user_id = p_user and slot = p_slot;
 
+    -- (5c) THE HUNTING CLOCKS (architecture contracts S6/X1), RESERVED. The one
+    --      place a hunting-time debit will run — preparations (honing stones,
+    --      imbuements, charms) drain by exactly v_paid, the window's checked
+    --      hunting ms above, and by nothing else (never cron, never wall time).
+    --      Empty until the preparation lane ships; deliberately placed after the
+    --      stamina pool (5a) and before the shop (5b).
     -- (5b) THE SHOP: PRICED BY THE CATALOGUE, CAPPED, DEBITED, JOURNALLED.
     --      Uses only crossed the wire; the price is hr_hunt_basic_supplies.price.
     --      Caps (blast radius of a compromised engine, never balance):
@@ -1368,7 +1443,7 @@ begin
       if v_buys = '{}'::jsonb then perform public.hr_reject('cover_unspent'); end if;
     end if;
     if v_buys <> '{}'::jsonb then
-      v_cdh := public.hr_hunt_limit('cd_consumable_ms');
+      v_cdh := (select l.ms from public.hr_hunt_lanes l where l.lane = 'consumable' and l.active);
       if v_cdh is null then perform public.hr_reject('catalogue_missing'); end if;
       for v_k, v_v in select key, value from jsonb_each(v_buys) order by key loop
         v_n := (v_v #>> '{}')::bigint;
@@ -2107,9 +2182,9 @@ revoke execute on function public.hr_stamina_view(uuid, int) from public;
 revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_last_activity_note() from public;
 revoke execute on function public.hr_last_activity_note() from anon, authenticated, service_role, hr_engine, hr_tick;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) from public;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) from anon, service_role, hr_engine, hr_tick;
-grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) to authenticated;
+revoke execute on function public.hr_action_set_options(int, int, jsonb, uuid) from public;
+revoke execute on function public.hr_action_set_options(int, int, jsonb, uuid) from anon, service_role, hr_engine, hr_tick;
+grant  execute on function public.hr_action_set_options(int, int, jsonb, uuid) to authenticated;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
@@ -2926,6 +3001,11 @@ declare
   v_act  text;
   v_pz   jsonb;
 begin
+  -- The fixtures below write whole swings of the catalogue interval (2 s, Tyler
+  -- 2026-10-14). A different interval must re-derive them, not drift past them.
+  if public.hr_hunt_limit('swing_interval_ms') is distinct from 2000 then
+    raise exception 'SELF-CHECK: the fixtures assume a 2000 ms swing; the catalogue says % — re-derive them', public.hr_hunt_limit('swing_interval_ms');
+  end if;
   -- (a) PRIVILEGES. Engine functions: hr_engine only. The roster: hr_tick only.
   --     The buff writer and the fence: nobody. The lease table: no grant.
   foreach v_f in array array['public.hr_hunt_open_of(uuid,integer)', 'public.hr_hunt_engine_read(uuid,integer)',
@@ -2977,12 +3057,16 @@ begin
     v_sid := (v_r->'session'->>'id')::uuid;
     -- (m) AN ACTION SET'S TARGET MODE AND PULL COUNT: catalogue values only,
     --     refused not clamped, stored, and read back by the engine read.
-    v_r := public.hr_action_set_options(0, 0, 'follow', 3, 300, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, '{"target_mode":"follow","pull_count":3}'::jsonb, gen_random_uuid());
     if v_r->>'error' is distinct from 'target_mode_party_only' then
       raise exception 'GATE(m): a party-only target mode on a solo set answered %', v_r; end if;
-    v_r := public.hr_action_set_options(0, 0, 'weakest', 9, 300, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, '{"target_mode":"weakest","pull_count":9}'::jsonb, gen_random_uuid());
     if v_r->>'error' is distinct from 'bad_pull_count' then raise exception 'GATE(m): a pull of 9 answered %', v_r; end if;
-    v_r := public.hr_action_set_options(0, 0, 'weakest', 3, 0, gen_random_uuid());
+    v_r := public.hr_action_set_options(0, 0, '{"surprise":1}'::jsonb, gen_random_uuid());
+    if v_r->>'error' is distinct from 'bad_option' then raise exception 'GATE(m): an unknown option answered %', v_r; end if;
+    v_r := public.hr_action_set_options(0, 0, '{"supply_source":"anywhere"}'::jsonb, gen_random_uuid());
+    if v_r->>'error' is distinct from 'bad_supply_source' then raise exception 'GATE(m): a supply source off its domain answered %', v_r; end if;
+    v_r := public.hr_action_set_options(0, 0, '{"target_mode":"weakest","pull_count":3,"gold_floor":0}'::jsonb, gen_random_uuid());
     if coalesce(v_r->>'ok', 'false') <> 'true' then raise exception 'GATE(m): an honest mode answered %', v_r; end if;
     v_r := public.hr_action_set_put(0, 1, 'spells', '[{"kind":"spell","item":"cooked_shrimp","on":true,"conditions":[]}]'::jsonb,
                                     gen_random_uuid());
@@ -3006,7 +3090,7 @@ begin
                                     settled_to = now() - interval '9 minutes', next_swing_at = now() - interval '9 minutes'
      where id = v_sid;
     select settled_to into v_from from public.hunt_sessions where id = v_sid;
-    v_to := v_from + interval '24 seconds';
+    v_to := v_from + interval '20 seconds';
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
     perform set_config('request.jwt.claim.sub', '', true);
 
@@ -3022,14 +3106,14 @@ begin
     v_delta := jsonb_build_object('gold', 10, 'xp', jsonb_build_object('attack', 5),
       'accrued_to', to_jsonb(v_to),
       'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
-        'meta', jsonb_build_object('ms', 24000, 'ticks', 10, 'kills', 1, 'mon', 'mill_cellar')));
+        'meta', jsonb_build_object('ms', 20000, 'ticks', 10, 'kills', 1, 'mon', 'mill_cellar')));
     v_hunt := jsonb_build_object('swing_from', 0, 'swing_to', 10, 'to', to_jsonb(v_to), 'next_swing_at', to_jsonb(v_to),
-      'uses', jsonb_build_object('cooked_shrimp', 2), 'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 24000,
-      'stamina', v_cap - 24000);
+      'uses', jsonb_build_object('cooked_shrimp', 2), 'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 20000,
+      'stamina', v_cap - 20000);
     -- THE SPAWN CYCLE of the kill: one pull of the server's size at the arrival
     -- (v_from), the next due one respawn later; the rest left standing.
     v_pz := public.hr_hunt_pull_of(v_uid, 0, v_sid);
-    if (v_pz->>'respawn_ms')::bigint <= 24000 then
+    if (v_pz->>'respawn_ms')::bigint <= 20000 then
       raise exception 'GATE(b): the probe needs a respawn longer than its 24 s window (Mill Cellar %)', v_pz; end if;
     v_hunt := v_hunt || jsonb_build_object('pull', v_pz || jsonb_build_object('left', (v_pz->>'size')::int - 1, 'pulls', 1,
       'respawn_at', to_jsonb(v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000))));
@@ -3053,7 +3137,7 @@ begin
     set local role hr_engine;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object('xp', jsonb_build_object('mining', 5),
              'accrued_to', to_jsonb(v_to), 'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue',
-               'meta', jsonb_build_object('ms', 24000))));
+               'meta', jsonb_build_object('ms', 20000))));
     reset role;
     if v_r->>'error' is distinct from 'hunt_open' then
       raise exception 'GATE(c2): a bare gather accrue for a hunter answered %', v_r; end if;
@@ -3106,7 +3190,7 @@ begin
     -- (s1b) KNOCKED-OUT TIME NO RECOVERY BACKS (no fall, no stored line) is refused.
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
-             v_hunt || jsonb_build_object('paid_ms', 0, 'down_ms', 24000, 'stamina', v_cap));
+             v_hunt || jsonb_build_object('paid_ms', 0, 'down_ms', 20000, 'stamina', v_cap));
     reset role;
     if v_r->>'error' is distinct from 'bad_stamina'
        or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
@@ -3149,10 +3233,10 @@ begin
        or jsonb_array_length((select presses from public.hunt_sessions where id = v_sid)) <> 1
        or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'combat' and intent = 'accrue'
                                                      and session_id = v_sid) <> 1
-       or (select stamina_ms from public.player_state where user_id = v_uid and slot = 0) <> v_cap - 24000
+       or (select stamina_ms from public.player_state where user_id = v_uid and slot = 0) <> v_cap - 20000
        or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) <> v_to
-       or (select pull_left from public.hunt_sessions where id = v_sid) <> (v_pz->>'size')::int - 1
-       or (select respawn_at from public.hunt_sessions where id = v_sid)
+       or (select i.pull_left from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid) <> (v_pz->>'size')::int - 1
+       or (select i.respawn_at from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid)
           <> v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000) then
       raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina / pull together'; end if;
     -- (f2) IDEMPOTENT: the same key replays and moves nothing more.
@@ -3204,7 +3288,7 @@ begin
     reset role;
     if v_r->>'error' is distinct from 'stamina_ahead' then
       raise exception 'GATE(s3b): a pool written past the window start answered %', v_r; end if;
-    update public.player_state set stamina_ms = v_cap - 24000, stamina_at = v_to where user_id = v_uid and slot = 0;
+    update public.player_state set stamina_ms = v_cap - 20000, stamina_at = v_to where user_id = v_uid and slot = 0;
 
     -- (g) THE ROSTER offers a due session once, leased; a second driver skips it.
     update public.hunt_sessions set entered_at = now() - interval '30 minutes', hunt_from = now() - interval '25 minutes',
@@ -3241,15 +3325,15 @@ begin
     -- (the roster gate moved the session clock: the window starts at its settled_to,
     --  and the pool is pinned there so (5a) prices it from a known start)
     select settled_to into v_from from public.hunt_sessions where id = v_sid;
-    update public.player_state set stamina_ms = v_cap - 24000, stamina_at = v_from where user_id = v_uid and slot = 0;
-    v_to2 := v_from + interval '2.4 seconds';
+    update public.player_state set stamina_ms = v_cap - 20000, stamina_at = v_from where user_id = v_uid and slot = 0;
+    v_to2 := v_from + interval '2 seconds';
     v_delta := jsonb_build_object('gold', 1, 'accrued_to', to_jsonb(v_to2),
       'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
-        'meta', jsonb_build_object('ms', 2400, 'ticks', 1, 'kills', 0, 'mon', 'mill_cellar')));
+        'meta', jsonb_build_object('ms', 2000, 'ticks', 1, 'kills', 0, 'mon', 'mill_cellar')));
     v_hunt := jsonb_build_object('swing_from', 10, 'swing_to', 11, 'to', to_jsonb(v_to2), 'next_swing_at', to_jsonb(v_to2),
-      'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 2400, 'stamina', v_cap - 26400,
-      'pull', v_pz || jsonb_build_object('pulls', 0, 'left', (select pull_left from public.hunt_sessions where id = v_sid),
-        'respawn_at', to_jsonb((select respawn_at from public.hunt_sessions where id = v_sid))));
+      'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 2000, 'stamina', v_cap - 22000,
+      'pull', v_pz || jsonb_build_object('pulls', 0, 'left', (select i.pull_left from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid),
+        'respawn_at', to_jsonb((select i.respawn_at from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid))));
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
     -- The store is used only on the player's choice (Master Design Reference
     -- §4): a new set reads mine + end, so a shop heal on the bar is refused
@@ -3270,7 +3354,7 @@ begin
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
              v_hunt || jsonb_build_object('buys', jsonb_build_object('salted_shrimp', 3)));
     reset role;
-    if v_r->>'error' is distinct from 'too_many_buys' then raise exception 'GATE(n): 3 heals in 2.4 s answered %', v_r; end if;
+    if v_r->>'error' is distinct from 'too_many_buys' then raise exception 'GATE(n): 3 heals in 2 s answered %', v_r; end if;
     update public.player_state set gold = 0 where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
@@ -3305,7 +3389,7 @@ begin
                  'meta', jsonb_build_object('ms', 0, 'ticks', 0, 'kills', 0, 'mon', 'mill_cellar'))),
              jsonb_build_object('swing_from', 11, 'swing_to', 11, 'to', to_jsonb(v_to2 + interval '1 millisecond'),
                'next_swing_at', to_jsonb(v_to2 + interval '1 millisecond'), 'falls', 0, 'down', false,
-               'down_ms', 0, 'paid_ms', 0, 'stamina', v_cap - 26400, 'pull', v_hunt->'pull',
+               'down_ms', 0, 'paid_ms', 0, 'stamina', v_cap - 22000, 'pull', v_hunt->'pull',
                'ended', jsonb_build_object('reason', 'server', 'at', to_jsonb(v_to2))));
     reset role;
     update public.hr_hunt_config set enabled = true where id;

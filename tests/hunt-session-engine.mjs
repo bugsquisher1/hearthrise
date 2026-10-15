@@ -95,7 +95,9 @@ function melee(M, seed) {
   const ctx = { tickMs: M.C.COMBAT_BALANCE.tickMs, swingSeed: seederOf(seed, hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     playerRolls: () => ({ accuracy: 0.55, maxHit: 3, critChance: 0.05 }),
-    monsterRolls: () => ({ accuracy: 0.7, maxHit: 7 }) };
+    monsterRolls: () => ({ accuracy: 0.75, maxHit: 8 }) };
+    /* (0.7 / 7 until the seed labels took a domain, architecture contracts S2:
+       the re-keyed stream no longer felled the hero, and TICK-1 needs a fall.) */
   return { state, ctx, spanMs: 2 * 3600000 };
 }
 

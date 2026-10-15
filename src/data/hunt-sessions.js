@@ -56,6 +56,21 @@ export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
 export const SUPPLY_SOURCE = Object.freeze({ modes: Object.freeze(['mine', 'store']), default: 'mine' });
 export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['end', 'switch']), default: 'end' });
 
+/* THE ACTION SET'S OPTIONS, ONE JSON OBJECT (architecture contracts S4):
+   hr_action_set_options(slot, preset, p_opts jsonb, idem) validates every key
+   against the generated hr_hunt_set_options row it names, so a new option is a
+   data row here — never a new RPC signature or client-baseline row.
+     target  a solo mode of hr_hunt_target_modes
+     limit   an integer inside the hr_hunt_limits `<limit>_min` / `_max` pair
+     enum    one of `values` */
+export const ACTION_SET_OPTIONS = Object.freeze({
+  target_mode: Object.freeze({ kind: 'target' }),
+  pull_count: Object.freeze({ kind: 'limit', limit: 'pull' }),
+  gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
+  supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes }),
+  on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes }),
+});
+
 /* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
    (master plan row 25): fishing the Shrimp Spot. A new character's
    `last_activity_*` starts here (the generated column default). */

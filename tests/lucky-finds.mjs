@@ -96,6 +96,20 @@ const shopGranted = (id) => SHOP_OFFERS.some((o) => (o.grant || []).some((g) => 
 /* One simulated hour at the monster's tier loadout, through the one engine:
    a training hunt (one foe, the real respawn), fed from the bag. */
 const FIGHT_FOOD = 'cooked_shark';
+/* THE MEASUREMENT HOUR, SEEDS SEARCHED NOT PINNED (the artisan-progress A10
+   precedent). The hour must be fall-free to measure a kill RATE; a pinned seed
+   that started falling when the hunt seed labels took a domain (architecture
+   contracts S2) would make the rule measure luck. The search is a fixed,
+   ordered list, so it is deterministic; exhausting it is still a red. */
+function measureFight(monsters, monsterId) {
+  let got = null;
+  for (let k = 0; k < 8; k++) {
+    got = fight(monsters, monsterId, { seed: SEED + k });
+    if (got.deaths === 0) return got;
+  }
+  return got;
+}
+
 function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
   const m = monsters[monsterId];
   const tier = Math.min(6, Math.max(1, m.tier));
@@ -185,7 +199,7 @@ function check(monsters) {
       `${tag}: the lucky row changes the bounty proof item`);
     /* (d) the hours, measured */
     if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
-    const got = fight(monsters, mid);
+    const got = measureFight(monsters, mid);
     ok(got.deaths === 0, 'd', `${tag}: the measurement hour contained ${got.deaths} death(s)`);
     const base = effectiveDropChance(d, { dropMult: db });
     const hrs = got.kills > 0 ? 1 / (got.kills * base) : Infinity;

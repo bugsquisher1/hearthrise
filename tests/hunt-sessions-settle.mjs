@@ -129,6 +129,7 @@ async function loadEdge(root) {
     AR: await import(u('src/core/action-rules.js')),
     XP: await import(u('src/core/xp.js')),
     RS: await import(u('src/data/rule-subjects.js')),
+    C: await import(u('src/core/combat.js')),
     MONSTERS: (await import(u('src/data/monsters.js'))).MONSTERS,
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
     root,
@@ -231,12 +232,22 @@ const ENGINE_ARMS = {
     const problems = [];
     const f = M.SEED.swingSeederFor(SECRET, SID);
     const ref = (secret, sid, i) => {
-      const d = createHmac('sha256', 'hearthrise:hunt-swing:v1:' + secret).update(`hunt:${sid}:${i}`, 'utf8').digest();
+      /* architecture contracts S2: the label carries a DOMAIN — `s` for a swing. */
+      const d = createHmac('sha256', 'hearthrise:hunt-swing:v1:' + secret).update(`hunt:${sid}:s:${i}`, 'utf8').digest();
       return d.readUInt32BE(0);
     };
     for (const i of [0, 1, 2, 77, 123456]) {
-      if (f(i) !== ref(SECRET, SID, i)) problems.push(`swing ${i}: the seeder is not HMAC-SHA256(secret, 'hunt:<session>:<i>')`);
+      if (f(i) !== ref(SECRET, SID, i)) problems.push(`swing ${i}: the seeder is not HMAC-SHA256(secret, 'hunt:<instance>:s:<i>')`);
     }
+    /* THE DOMAINS ARE SEPARATE STREAMS: the same instance and index in another
+       domain (gather `g`, a cast lane `c:<lane>`, a roll `r`) is another seed, and
+       a domain outside the vocabulary is refused rather than hashed. */
+    const all = M.SEED.seederFor(SECRET, SID);
+    if (all('s', 7) !== f(7)) problems.push('the swing seeder is not the `s` domain of the instance seeder');
+    const per = new Set(['s', 'g', 'r', 'c:offense', 'c:heal_spell'].map((d) => all(d, 7)));
+    if (per.size !== 5) problems.push(`five domains at index 7 gave only ${per.size} distinct seeds`);
+    let domainRefused = false; try { all('swing', 1); } catch { domainRefused = true; }
+    if (!domainRefused) problems.push("an unknown seed domain ('swing') was hashed instead of refused");
     if (f(5) !== M.SEED.swingSeederFor(SECRET, SID)(5)) problems.push('the seeder is not deterministic');
     const seen = new Set(Array.from({ length: 256 }, (_, i) => f(i)));
     if (seen.size < 250) problems.push(`256 swings produced only ${seen.size} distinct seeds`);
@@ -582,13 +593,15 @@ async function hunter(db, M, o) {
   /* HUNT SUPPLIES (Master Design Reference §4): a fixture that buys from the
      store must have CHOSEN it, through the player's own RPC. */
   if (o.supply) {
-    const r = await one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, $1::uuid, $2, $3)",
-      [idem(), o.supply.source ?? null, o.supply.empty ?? null]);
+    const opts = {};
+    if (o.supply.source) opts.supply_source = o.supply.source;
+    if (o.supply.empty) opts.on_empty = o.supply.empty;
+    const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(opts), idem()]);
     if (!r || r.ok !== true) throw new Error('supplies choice refused: ' + JSON.stringify(r));
   }
   if (o.mode) {
-    const r = await one(db, 'select public.hr_action_set_options(0, 0, $1, $2, $3, $4::uuid)',
-      [o.mode.target, o.mode.pull, o.mode.floor ?? 300, idem()]);
+    const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)',
+      [JSON.stringify({ target_mode: o.mode.target, pull_count: o.mode.pull, gold_floor: o.mode.floor ?? 300 }), idem()]);
     if (!r || r.ok !== true) throw new Error('action set mode refused: ' + JSON.stringify(r));
   }
   /* Fixture rows on a rolled-back probe: the gold the purse starts with, and
@@ -662,8 +675,9 @@ async function snapshot(db, sid) {
                  where user_id = $1 and slot = 0 and kind <> 'daily'),
       'session', (select jsonb_build_object('swing', swing_index, 'next', next_swing_at, 'settled_to', settled_to,
                     'falls', falls, 'down', down, 'cooldowns', cooldowns, 'ended_at', ended_at, 'end_reason', end_reason,
-                    'pull_left', pull_left, 'respawn_at', respawn_at)
-                    from public.hunt_sessions where id = $2),
+                    'pull_left', (select i.pull_left from public.hunt_instances i where i.id = h.instance_id),
+                    'respawn_at', (select i.respawn_at from public.hunt_instances i where i.id = h.instance_id))
+                    from public.hunt_sessions h where h.id = $2),
       'bag', (select jsonb_object_agg(item_id, jsonb_build_array(qty_loaded, qty_left)) from public.hunt_bag where session_id = $2),
       'tally', (select to_jsonb(t) - 'updated_at' - 'ledger_hwm' - 'raw_xp' from public.hunt_session_tally t where session_id = $2),
       'deaths', (select jsonb_agg(jsonb_build_array(meta->>'monster', meta->>'recovery_ms', meta->>'deaths_today',
@@ -993,11 +1007,11 @@ const DB_ARMS = {
       await db.query(`update public.player_action_sets set slots = slots - (jsonb_array_length(slots) - 1) where user_id = $1 and slot = 0`, [UID]);
       await settleTo(db, M, from + SPAN_MS + 1000);
       await asUser(db, UID);
-      const pick = async (src, emp) => one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, gen_random_uuid(), $1, $2)", [src, emp]);
-      const badSrc = await pick('auto', null);
-      const badEmp = await pick(null, 'store');
-      const good = await pick('store', 'switch');
-      const keep = await one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, gen_random_uuid())");
+      const pick = async (opts) => one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, gen_random_uuid())', [JSON.stringify(opts)]);
+      const badSrc = await pick({ supply_source: 'auto' });
+      const badEmp = await pick({ on_empty: 'store' });
+      const good = await pick({ supply_source: 'store', on_empty: 'switch' });
+      const keep = await pick({ target_mode: 'nearest' });
       if (!badSrc || badSrc.error !== 'bad_supply_source') problems.push(`supply_source 'auto' answered ${JSON.stringify(badSrc)}`);
       if (!badEmp || badEmp.error !== 'bad_on_empty') problems.push(`on_empty 'store' answered ${JSON.stringify(badEmp)}`);
       if (!good || good.supply_source !== 'store' || good.on_empty !== 'switch') problems.push(`store+switch answered ${JSON.stringify(good)}`);
@@ -1077,8 +1091,16 @@ const DB_ARMS = {
     if (!shot || shot.ok !== true) problems.push(`a shop SHOT on the bar answered ${JSON.stringify(shot)}`);
     const sp = await put([{ kind: 'spell', item: 'cooked_shrimp', on: true, conditions: [] }]);
     if (!sp || sp.why !== 'kind_reserved') problems.push(`a spell slot answered ${JSON.stringify(sp)}`);
-    const mode = (t, p, f = 300, preset = 1) => one(db, 'select public.hr_action_set_options(0, $1, $2, $3, $4, $5::uuid)',
-      [preset, t, p, f, idem()]);
+    const mode = (t, p, f = 300, preset = 1) => one(db, 'select public.hr_action_set_options(0, $1, $2::jsonb, $3::uuid)',
+      [preset, JSON.stringify({ target_mode: t, pull_count: p, gold_floor: f }), idem()]);
+    /* ONE jsonb of options (architecture contracts S4): an unknown key, a non-object
+       and a value of the wrong type are refused by name; nothing is stored. */
+    for (const [opts, want] of [[{ bones: 'keep' }, 'bad_option'], [[1, 2], 'bad_options'], [{}, 'bad_options'],
+                                [{ pull_count: '3' }, 'bad_pull_count'], [{ pull_count: 2.5 }, 'bad_pull_count'],
+                                [{ supply_source: 7 }, 'bad_supply_source']]) {
+      const x = await one(db, 'select public.hr_action_set_options(0, 1, $1::jsonb, $2::uuid)', [JSON.stringify(opts), idem()]);
+      if (!x || x.error !== want) problems.push(`options ${JSON.stringify(opts)} answered ${JSON.stringify(x)}, want ${want}`);
+    }
     for (const [t, p, f, want] of [['follow', 2, 300, 'target_mode_party_only'], ['sideways', 2, 300, 'bad_target_mode'],
                                    ['weakest', 0, 300, 'bad_pull_count'], ['weakest', 9, 300, 'bad_pull_count'],
                                    ['weakest', 2, -1, 'bad_gold_floor'], ['weakest', 2, 100001, 'bad_gold_floor']]) {
@@ -1176,7 +1198,9 @@ const DB_ARMS = {
        (and a purse of nothing would end it gold_out — BUY's subject). */
     const { sid, from } = await hunter(db, M, { minutesAgo: 10, hp: 2, inv: { cooked_shrimp: 3 }, bag: [{ item: 'cooked_shrimp', qty: 3 }],
       slots: BAG_ONLY });
-    await settleTo(db, M, from + 5 * 60000);
+    /* A long enough window that 3 shrimp run out on any seed stream (S2 re-keyed
+       the swing labels; 5 minutes no longer emptied the bag). */
+    await settleTo(db, M, from + 9 * 60000);
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'heals_out') problems.push(`a dry bag ended the hunt '${s.session.end_reason}', not heals_out`);
     /* heals_out is automatic: the character walks home and resumes its last
@@ -1185,7 +1209,7 @@ const DB_ARMS = {
     if (s.active !== resume) problems.push(`the pointer is ${s.active} after an automatic end, not ${resume}`);
     if (!(s.events || []).some((e) => e[0] === 'ended')) problems.push('no `ended` event was journalled');
     const endedMs = new Date(s.session.ended_at).getTime();
-    if (!(endedMs > from && endedMs < from + 5 * 60000)) problems.push('ended_at is not inside the settled window');
+    if (!(endedMs > from && endedMs < from + 9 * 60000)) problems.push('ended_at is not inside the settled window');
     return problems;
   }),
   /* DEATHXP — THE PRICE OF A FALL, end to end (Tyler 2026-10-14). The weak
@@ -1316,6 +1340,53 @@ const DB_ARMS = {
      instant (one transaction), settled once with no counters and once with
      20,000 server-counted kills of every monster the hunt spawns: the value it
      pays must be IDENTICAL. */
+  /* SEAMS — the extension seams C2 leaves now (architecture contracts S1-S7),
+     each proven on the real chain. */
+  SEAMS: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { sid, from } = await hunter(db, M, { minutesAgo: 10, slots: BAG_ONLY, hp: 99, skillsXp: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 } });
+    /* S1 — the spawn cycle lives on an INSTANCE row (solo: id = the session id),
+       never on hunt_sessions; a settle moves the instance, not the session. */
+    const inst = await one(db, `select jsonb_build_object('id', i.id, 'kind', i.kind, 'v', i.version) from public.hunt_sessions h
+                                 join public.hunt_instances i on i.id = h.instance_id where h.id = $1`, [sid]);
+    if (!inst || inst.id !== sid || inst.kind !== 'solo') problems.push(`S1: the session's instance is ${JSON.stringify(inst)} — want a solo instance with the session's id`);
+    const cols = await one(db, `select coalesce(jsonb_agg(column_name), '[]'::jsonb) from information_schema.columns
+                                 where table_schema = 'public' and table_name = 'hunt_sessions' and column_name in ('pull_left', 'respawn_at')`);
+    if ((cols || []).length) problems.push(`S1: hunt_sessions still carries ${JSON.stringify(cols)} — the cycle state belongs to the instance`);
+    const ok = await settleTo(db, M, from + 120000);
+    if (!ok.res || ok.res.ok !== true) problems.push(`S1: an honest settle answered ${JSON.stringify(ok.res).slice(0, 200)}`);
+    const v1 = await one(db, `select i.version from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id where h.id = $1`, [sid]);
+    if (!(Number(v1) > Number(inst && inst.v))) problems.push(`S1: the settle did not move the instance (version ${inst && inst.v} -> ${v1})`);
+    const read = await one(db, `select public.hr_hunt_engine_read($1::uuid, 0)`, [UID]).catch(() => null);
+    if (read && read.instance !== undefined && read.instance !== sid) problems.push(`S1: the engine read names instance ${read.instance}`);
+    /* S3 — the lanes and the interval are catalogue rows equal to the data. */
+    const lanes = await one(db, `select jsonb_object_agg(lane, jsonb_build_object('ms', ms, 'active', active)) from public.hr_hunt_lanes`);
+    for (const [l, x] of Object.entries(M.RS.COOLDOWN_LANES)) {
+      if (!lanes || !lanes[l] || lanes[l].ms !== x.ms || lanes[l].active !== x.active) problems.push(`S3: hr_hunt_lanes.${l} is ${JSON.stringify(lanes && lanes[l])}, the data says ${JSON.stringify(x)}`);
+    }
+    const iv = await one(db, `select public.hr_hunt_limit('swing_interval_ms')`);
+    if (Number(iv) !== M.C.COMBAT_BALANCE.tickMs) problems.push(`S3: swing_interval_ms is ${iv}, COMBAT_BALANCE.tickMs ${M.C.COMBAT_BALANCE.tickMs}`);
+    /* X1 — hunting time is EXACT: a window that claims one swing more than its
+       time holds (paid + down still = the window) is refused bad_clock. */
+    const clock = await settleTo(db, M, from + 240000, { tamper: (o) => { o.hunt.swing_to += 1; } });
+    if (!clock.res || clock.res.error !== 'bad_clock') problems.push(`X1: one swing more than the window holds answered ${JSON.stringify(clock.res).slice(0, 200)}, want bad_clock`);
+    /* S3 — a cooldown on a RESERVED lane is not a key the session may store. */
+    const lane = await settleTo(db, M, from + 240000, { tamper: (o) => { o.hunt.cooldowns = { ...(o.hunt.cooldowns || {}), offense: from + 1000 }; } });
+    if (!lane.res || lane.res.error !== 'bad_cooldowns') problems.push(`S3: a cooldown on the reserved offense lane answered ${JSON.stringify(lane.res).slice(0, 200)}, want bad_cooldowns`);
+    /* S6 — the hunting-clock step is reserved in hr_hunt_apply, between stamina and the shop. */
+    const src = String(await one(db, `select prosrc from pg_proc where oid = 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)'::regprocedure`));
+    const a5 = src.indexOf('(5a) THE STAMINA POOL'); const c5 = src.indexOf('(5c) THE HUNTING CLOCKS'); const b5 = src.indexOf('(5b) ');
+    if (!(a5 >= 0 && c5 > a5 && b5 > c5)) problems.push(`S6: the (5c) hunting-clock step is not reserved between (5a) and (5b) (${a5}/${c5}/${b5})`);
+    /* S7 — the stamina splice anchors on the server-clock line, which stays. */
+    const settleText = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-10-22-hunt-sessions-settle.sql'), 'utf8');
+    const splice = settleText.slice(settleText.indexOf("'stamina', public.hr_stamina_view") - 600, settleText.indexOf("'stamina', public.hr_stamina_view"));
+    if (/c_old constant text := \$a\$\s+'dungeon_cooldowns'/.test(splice) || !/c_old constant text := \$a\$\s+'now', now\(\),/.test(splice)) {
+      problems.push("S7: the stamina splice does not anchor on the `'now', now(),` line");
+    }
+    const env = await one(db, `select public.hr_state_of($1::uuid, 0)`, [UID]);
+    if (!env || !('stamina' in env)) problems.push('S7: the chain-end envelope projects no stamina');
+    return problems;
+  }),
   BESTIARY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
@@ -1374,8 +1445,8 @@ const MUTANTS = [
   { arm: 'TICK-2', name: 'a session window starts at the absence watermark', file: join(FN, 'accrual.js'),
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'SEED', name: 'the per-swing seed is the 32-bit FNV text mix again', file: join(FN, 'hunt-seed.js'),
-    from: "const d = createHmac('sha256', key).update(swingSeedLabel(sessionId, i), 'utf8').digest();",
-    to: "const s = secret + ' ' + swingSeedLabel(sessionId, i); let x = 0x811c9dc5; for (let k = 0; k < s.length; k++) { x ^= s.charCodeAt(k); x = Math.imul(x, 0x01000193); } const d = [x >>> 24 & 255, x >>> 16 & 255, x >>> 8 & 255, x & 255];" },
+    from: "const d = createHmac('sha256', key).update(seedLabel(instanceId, domain, i), 'utf8').digest();",
+    to: "const s = secret + ' ' + seedLabel(instanceId, domain, i); let x = 0x811c9dc5; for (let k = 0; k < s.length; k++) { x ^= s.charCodeAt(k); x = Math.imul(x, 0x01000193); } const d = [x >>> 24 & 255, x >>> 16 & 255, x >>> 8 & 255, x & 255];" },
   { arm: 'MAXHP', name: 'a hitpoints level-up sets max HP to the level', file: join(FN, 'accrual.js'),
     from: "ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;", to: "ev.skill === 'hitpoints') state.playerMaxHp = ev.to;" },
   { arm: 'FENCE', name: 'the engine prices a hunter on the old path', file: join(FN, 'accrual.js'),
@@ -1453,6 +1524,12 @@ const MUTANTS = [
 /* DB mutants: planted in a LIVE function body of the booted chain (create or
    replace), the arm run, the body restored. */
 const DB_MUTANTS = [
+  { arm: 'SEAMS', name: 'hunting time is a bound again, not exact (X1)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: '    if v_tick is null or v_tick <= 0 or v_paid + v_down <> v_nsw * v_tick then', replace: '    if false then' },
+  { arm: 'SEAMS', name: 'a reserved lane takes a cooldown key (S3)', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+    find: 'not exists (select 1 from public.hr_hunt_lanes l where l.lane = c.key and l.active)', replace: 'false' },
+  { arm: 'SEAMS', name: 'the settle leaves the instance unmoved (S1)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: '           version = version + 1\n     where id = v_s.instance_id;', replace: '           version = version\n     where id = v_s.instance_id;' },
   { arm: 'BUY', name: 'a store buy lands on a set that chose mine + end (the silent store)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
     find: "                          and (a.supply_source = 'store' or a.on_empty = 'switch')) then", replace: "                          and (true or a.on_empty = 'switch')) then" },
   { arm: 'BUY', name: 'the buy cap admits two lanes\' worth', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
@@ -1495,8 +1572,8 @@ const DB_MUTANTS = [
   { arm: 'ACTIONBAR', name: 'a spell slot is saved', fn: 'public.hr_hunt_slots_check(jsonb)',
     find: "    if v_s ? 'kind' and not (select sk.active from public.hr_hunt_slot_kinds sk where sk.kind = v_s->>'kind') then",
     replace: "    if false then" },
-  { arm: 'ACTIONBAR', name: 'a party-only target mode is stored on a solo set', fn: 'public.hr_action_set_options(integer,integer,text,integer,bigint,uuid,text,text)',
-    find: "  if not (select m.solo from public.hr_hunt_target_modes m where m.mode = p_target) then", replace: "  if false then" },
+  { arm: 'ACTIONBAR', name: 'a party-only target mode is stored on a solo set', fn: 'public.hr_action_set_options(integer,integer,jsonb,uuid)',
+    find: "      if not (select m.solo from public.hr_hunt_target_modes m where m.mode = v_v #>> '{}') then", replace: "      if false then" },
   { arm: 'FRESH', name: 'Mill Cellar respawns six times sooner', fn: 'public.hr_hunt_pull_of(uuid,integer,uuid)',
     find: "ceil(t.respawn_ms::numeric * z.size / t.pull_size)::bigint", replace: "ceil(t.respawn_ms::numeric * z.size / t.pull_size / 6)::bigint" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
@@ -1507,7 +1584,7 @@ const DB_MUTANTS = [
 const SQL_MUTANTS = [
   { name: 'the value half is not stamped with the session (tally loses it)', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { name: 'a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
-  { name: 'the kill cap does not hold the window to its spawn cycle', find: '       or v_kills <> v_s.pull_left + v_psz * v_pn - v_pl1\n', replace: '' },
+  { name: 'the kill cap does not hold the window to its spawn cycle', find: '       or v_kills <> v_ipl + v_psz * v_pn - v_pl1\n', replace: '' },
   { name: 'the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },
   { name: 'a player verb between the read and the apply refuses the settle (version CAS)', find: '    v_a := public.hr_apply(p_user, p_slot, v_ver, p_intent, p_delta);', replace: '    v_a := public.hr_apply(p_user, p_slot, p_version, p_intent, p_delta);' },
   { name: 'the fence trigger is not installed', find: 'create trigger hr_hunt_accrue_fence before insert on public.player_ledger', replace: 'create trigger hr_hunt_accrue_fence_off before update on public.player_ledger' },

@@ -105,7 +105,7 @@ begin
   end if;
   for r in select * from (values
       ('public.hr_apply(uuid,integer,bigint,uuid,jsonb)', '7bd1cf1f26e11caf442f12c03cc73f1f'),
-      ('public.hr_state_of(uuid,integer)', 'aa837b6702ec7c9325681c862530474b'),
+      ('public.hr_state_of(uuid,integer)', 'a7d1d823b83a37489261e6ec33289751'),
       ('public.hr_create_character(integer)', 'a36f64ba8c03f782c8fe552e92be8614'),
       ('public.hr_trait_buy__ungated(text,integer,uuid)', '5e943cfb5afbd3627cfeeef411b73e0d')) v(sig, pin) loop
     select md5(replace(p.prosrc, chr(13), '')),

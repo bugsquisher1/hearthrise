@@ -5,6 +5,8 @@
 //   node tests/copy-lint.mjs             gate: no copy slip in any src string
 //   node tests/copy-lint.mjs --report    gate + every finding listed
 //   node tests/copy-lint.mjs --selftest  mutation proof (one planted slip per rule)
+//   node tests/copy-lint.mjs --prune-names  drop baseline rows whose name was fixed
+//                                           (never adds a row: the ratchet only shrinks)
 //
 // WHY. Tyler, 2026-10-11, after playing: "craft 60 items in all — what? sounds
 // like broken english". The slips are a CLASS, not a line: a quantity padded
@@ -26,6 +28,16 @@
 //   spelling      "Defence" — the skill catalogue says "Defense"
 // plus a RUNTIME check on the one article helper (src/render/article.js):
 // withArticle(<every plural item name>) must not answer "a …"/"an …".
+//
+// plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
+// §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
+// in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
+// Prose fields ("it's dark") are not names and are not read. Today's hits are
+// pinned in tests/copy-lint-names.baseline.json as "<file>#<name>" → word(s);
+// they are renamed as each area is reworked.
+//   filler-name   a name not in the baseline (or a new word on a pinned name)
+//   stale-name    a pinned name that no longer exists — drop its row
+//                 (--prune-names), so the baseline can never grow back
 //
 // Exit: 0 green · 1 a slip found · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
@@ -212,10 +224,76 @@ export async function scan(root, opts = {}) {
   return { files: files.length, plurals: plurals.length, findings };
 }
 
+/* ── Filler words in names (shrink-only ratchet) ─────────────────────── */
+export const FILLER_RE = /\b(shadow|void|ancient|eternal|dark|forgotten)\b/gi;
+const NAME_KEY_RE = /(?:^|[{,\s])["']?(?:name|label|title|n)["']?\s*:\s*$/;
+export const NAMES_BASELINE = join(HERE_ROOT, 'tests', 'copy-lint-names.baseline.json');
+
+export function fillerWords(text) {
+  const w = [...String(text).matchAll(FILLER_RE)].map((m) => m[1][0].toUpperCase() + m[1].slice(1).toLowerCase());
+  return [...new Set(w)].sort().join(',');
+}
+
+/* Every name-field literal in the given files that carries a filler word:
+   Map("<rel file>#<name>" → { words: "Word[,Word]", line }). Keyed by the name
+   text, not the line, so moving a row never reads as new or stale. */
+export function fillerNames(root, files) {
+  const hits = new Map();
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    const rel = relative(root, f).split(sep).join('/');
+    for (const { text, at } of stringLiterals(src)) {
+      if (!NAME_KEY_RE.test(src.slice(Math.max(0, at - 40), at))) continue;
+      const words = fillerWords(text);
+      if (!words) continue;
+      const id = `${rel}#${text}`;
+      if (!hits.has(id)) hits.set(id, { words, line: src.slice(0, at).split('\n').length });
+    }
+  }
+  return hits;
+}
+
+export function readNamesBaseline(path = NAMES_BASELINE) {
+  return JSON.parse(readFileSync(path, 'utf8')).hits || {};
+}
+
+/* New hits fail; a pinned row that no longer matches fails as stale. */
+export function nameFindings(hits, baseline, checkStale = true) {
+  const out = [];
+  for (const [id, { words, line }] of hits) {
+    if (baseline[id] === words) continue;
+    const file = id.slice(0, id.indexOf('#'));
+    out.push({ file, line, rule: 'filler-name', text: `${id.slice(file.length + 1)} (${words}) — pick a concrete name (DESIGN_STANDARDS §2)` });
+  }
+  if (checkStale) for (const [id, words] of Object.entries(baseline)) {
+    if (hits.has(id) && hits.get(id).words === words) continue;
+    const file = id.slice(0, id.indexOf('#'));
+    out.push({ file, line: 0, rule: 'stale-name', text: `${id.slice(file.length + 1)} (${words}) — renamed: drop the row (--prune-names)` });
+  }
+  return out;
+}
+
+function dataNames(root) { return fillerNames(root, walk(join(root, 'src', 'data'))); }
+
+/* Drops fixed rows only; a row is never added here, so the baseline can only shrink. */
+function pruneNames(root) {
+  const doc = JSON.parse(readFileSync(NAMES_BASELINE, 'utf8'));
+  const hits = dataNames(root);
+  const kept = {};
+  for (const [id, words] of Object.entries(doc.hits)) if (hits.has(id) && hits.get(id).words === words) kept[id] = words;
+  const dropped = Object.keys(doc.hits).length - Object.keys(kept).length;
+  doc.hits = kept;
+  writeFileSync(NAMES_BASELINE, JSON.stringify(doc, null, 2) + '\n');
+  console.log(`copy-lint --prune-names: dropped ${dropped} row(s), ${Object.keys(kept).length} pinned`);
+  return 0;
+}
+
 async function gate(root, report) {
   const { files, plurals, findings } = await scan(root);
+  const baseline = readNamesBaseline();
+  findings.push(...nameFindings(dataNames(root), baseline));
   if (report || findings.length) for (const f of findings) console.log(`  ${f.rule.padEnd(12)} ${f.file}:${f.line}  ${f.text}`);
-  console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${findings.length} slip(s)`);
+  console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
 }
 
@@ -228,6 +306,7 @@ async function selftest() {
   let bad = 0;
   try {
     const clean = await scan(HERE_ROOT);
+    clean.findings.push(...nameFindings(dataNames(HERE_ROOT), readNamesBaseline()));
     if (clean.findings.length) { console.log(`  selftest: the real tree is not green (${clean.findings.length})`); bad++; }
     const plant = join(tmp, '__copy_lint_plant.js');
     const cases = [
@@ -251,6 +330,21 @@ async function selftest() {
     const leaked = c.findings.some((f) => f.file.endsWith('__copy_lint_plant.js'));
     console.log(`  ${leaked ? 'FALSE-POSITIVE' : 'ignored'}  comment`);
     if (leaked) bad++;
+    // Filler names: a new filler name goes red; the same words in a prose
+    // field stay silent; a stale baseline row goes red.
+    writeFileSync(plant, "export const M = { wolf: { name: 'Eternal Shadow Wolf', desc: 'It hunts where it is dark and forgotten.' } };\n");
+    const nh = fillerNames(HERE_ROOT, [plant]);
+    const newHit = nameFindings(nh, readNamesBaseline(), false)
+      .some((f) => f.rule === 'filler-name' && f.text.startsWith('Eternal Shadow Wolf (Eternal,Shadow)'));
+    console.log(`  ${newHit ? 'caught' : 'MISSED'}  filler-name (new name)`);
+    if (!newHit) bad++;
+    const prosy = nh.size !== 1;
+    console.log(`  ${prosy ? 'FALSE-POSITIVE' : 'ignored'}  filler word in a prose field`);
+    if (prosy) bad++;
+    const stale = nameFindings(dataNames(HERE_ROOT), { ...readNamesBaseline(), 'src/data/monsters.js#Forgotten Ghoul': 'Forgotten' });
+    const staleHit = stale.some((f) => f.rule === 'stale-name' && f.text.startsWith('Forgotten Ghoul'));
+    console.log(`  ${staleHit ? 'caught' : 'MISSED'}  stale-name (baseline row with no name behind it)`);
+    if (!staleHit) bad++;
     // The runtime article rule: the vowel-only helper this build replaced.
     const art = join(tmp, 'article-mutant.mjs');
     writeFileSync(art, "export function withArticle(name){ const s=String(name||'').trim(); return (/^[aeiou]/i.test(s)?'an ':'a ')+s; }\n");
@@ -265,6 +359,8 @@ async function selftest() {
 
 if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
   try {
-    process.exit(argv.includes('--selftest') ? await selftest() : await gate(HERE_ROOT, argv.includes('--report')));
+    process.exit(argv.includes('--selftest') ? await selftest()
+      : argv.includes('--prune-names') ? pruneNames(HERE_ROOT)
+      : await gate(HERE_ROOT, argv.includes('--report')));
   } catch (e) { console.error('copy-lint harness error:', e); process.exit(2); }
 }

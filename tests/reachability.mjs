@@ -146,13 +146,6 @@ export const CTAS = [
     sel: '#char-skills > *:last-child',
   },
   {
-    id: 'bounty/LAST-ACCEPT',
-    why: 'the bottom notice on the board; a board whose last bounty cannot be accepted is half a board',
-    open: ['tab:bounty'],
-    sel: '#panel-bounty .bb-foot .btn',
-    last: true,   // the BOTTOM one — the first is never the one that falls off
-  },
-  {
     id: 'market/LIST',
     why: 'the only way to put an item on the market — the economy surface\'s primary control',
     open: ['tab:market'],
@@ -235,19 +228,6 @@ export const MODALS = [
     primary: '.hr-confirm [data-hrc=yes]',
     closed: 'return !document.querySelector(".hr-confirm");',
     cleanup: 'const no = document.querySelector(".hr-confirm [data-hrc=no]"); if (no) no.click();',
-  },
-  {
-    id: 'modal/spoils',
-    why: 'the Auto clear\'s spoils — Done is its only way back to the Dungeons tab',
-    open: 'document.querySelectorAll(".ftue-root").forEach((e) => e.remove());'
-      + ' const items = {}; Object.keys(window.ITEMS).slice(0, 60).forEach((id) => { items[id] = 1; });'
-      + ' window.HearthriseSpoils.open({ outcome: "settled", body: { settled: { dungeon: "ancient_wyrm", mode: "auto",'
-      + ' scrip: 40, items, key_spent: "dragonsbane_key" }, state: { dungeon_scrip: 120 }, inventory: {} } });',
-    sheet: '.spoils-sheet',
-    head: '#spoils-title',
-    primary: '.spoils-sheet [data-hr-dismiss]',
-    closed: 'return !document.querySelector(".spoils-scrim");',
-    cleanup: 'document.querySelectorAll(".spoils-scrim").forEach((e) => e.remove());',
   },
 ];
 

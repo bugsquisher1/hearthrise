@@ -79,15 +79,23 @@ const SCREENS = ['clan', 'party', 'events', 'dungeons', 'bounty', 'stable'];
 
 /* ── DA-5: what C2 / B1 still carry, by file and name. May only SHRINK. ── */
 export const ALLOW = {
-  'src/core/combat-sim.js': ['TRAITS'],
-  'src/net/accrue.js': ['HearthriseDaily', 'HearthriseRenown', 'enchant', 'claim_reward'],
+  // C2 (net/accrue, net/record, the hr-accrue edge): the engine/edge follow-on, plan §2 Phase 2.
+  'src/net/accrue.js': ['HearthriseDaily', 'HearthriseRenown', 'enchant'],
   'src/net/record.js': ['HearthriseDaily'],
+  'supabase/functions/hr-accrue/index.ts': ['partyIntentFence', 'enchant', 'dungeon_settle', 'quartermaster_buy', 'claim_reward'],
+  'supabase/functions/hr-accrue/party-fence.js': ['partyIntentFence'],
+  'supabase/functions/hr-accrue/request.js': ['enchant', 'dungeon_settle', 'quartermaster_buy', 'claim_reward'],
+  'supabase/functions/hr-accrue/envelope.js': ['enchant'],
+  'supabase/functions/hr-accrue/enchant.js': ['enchant'],
+  'supabase/functions/hr-accrue/dungeon-settle.js': ['dungeon_settle'],
+  'supabase/functions/hr-accrue/quartermaster-buy.js': ['quartermaster_buy'],
+  'supabase/functions/hr-accrue/claim-reward.js': ['claim_reward'],
+  // B1 (combat screens, death sheet, hunt panel): the hunt-screen rebuild.
   'src/features/combat-screens.js': ['HearthriseCharms'],
   'src/features/death-sheet.js': ['TRAITS'],
   'src/render/hunt-panel.js': ['HearthriseMuster'],
-  'supabase/functions/hr-accrue/index.ts': ['partyIntentFence', 'enchant', 'dungeon_settle', 'quartermaster_buy', 'claim_reward'],
-  'supabase/functions/hr-accrue/party-fence.js': ['partyIntentFence'],
-  'supabase/functions/hr-accrue/intents.js': ['enchant', 'dungeon_settle', 'quartermaster_buy', 'claim_reward'],
+  // D2 data: the raid-boss table item-authority still partitions on until M1/M2.
+  'src/data/raid-bosses.js': ['RAID_BOSSES'],
 };
 export const ALLOW_MAX = 23;
 

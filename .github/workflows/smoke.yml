@@ -2528,23 +2528,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/renown-kill-faucet.mjs --selftest
 
-      # THE BOUNTY-HUNTER XP MUTATION HARNESS — same lesson as the step above,
-      # applied on the way IN rather than after the fact. The guard itself runs
-      # inside run-smoke; this is the half that proves it can fail.
-      #
-      # It matters more here than usual because of WHAT the guard is watching.
-      # Bounty-Hunter XP was never credited by any server code for the whole
-      # life of the beta (production 2026-09-05: 36 characters, max(xp) = 0), so
-      # every board tier above 1 was unreachable for every player — and nothing
-      # in the repo noticed, because no test had ever driven the credit at all.
-      # The regression that would bring it back is a LATER migration restating
-      # hr_claim_bounty__ungated from a stale template, at which point the
-      # migration's own §2 gate never runs and only this guard is left standing.
-      # SEVEN of the fifteen mutations are therefore repeated with that gate
-      # short-circuited, so the ✓ is the guard's and not the migration's.
-      # 15 mutations, ~2.5 minutes of real PostgreSQL.
-      - name: Bounty-Hunter XP — every mutation caught, gate-blind twins included
-        if: ${{ !cancelled() }}
       # ⬇ THE FLOOR UNDER EVERY MUTATION PROOF (2026-09-12, tests/guard-hygiene.mjs
       # RULE 5). Each of the 22 steps below used to register ONLY the --selftest arm.
       # A security review planted `where kind = NOSUCHCOLUMN_XYZ` in a guard's OWN SQL:
@@ -2555,9 +2538,6 @@ jobs:
       # locally: ~110 s total for all 22. tests/snapshot-allowlist-guard.mjs is the
       # standing proof the plain arm carries information the proof arm does not — its
       # plain run is red on today's tree with its --selftest green beside it.
-        run: |
-          node tests/bounty-hunter-xp.mjs
-          node tests/bounty-hunter-xp.mjs --selftest
 
       # b567 (P1 class-kill, CLAUDE.md §1): the rally chest priced up to 3,000 XP
       # and BOTH claim RPCs returned it without writing player_skills; the browser

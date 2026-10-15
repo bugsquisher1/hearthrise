@@ -17,7 +17,6 @@
     "test:market-intent": "node tests/market-intent.mjs --selftest",
     "test:lb-lockdown": "node tests/leaderboard-lockdown-guard.mjs",
     "test:raid-band": "node tests/raid-band-denial.mjs --selftest",
-    "test:raid-card": "node tests/raid-card-copy.mjs",
     "test:clan-journal": "node tests/clan-journal-guard.mjs --selftest",
     "test:anon-rate": "node tests/anon-rate-gate.mjs --selftest",
     "test:activity-intent:selftest": "node tests/activity-intent.mjs --selftest",

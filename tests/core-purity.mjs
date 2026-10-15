@@ -518,9 +518,9 @@ export async function hashIntegrityGuard() {
     }
   }
   /* If every copy disappears, the guard is silently guarding nothing — say so
-     rather than pass. There are 5 known FNV sites in src/** (the sixth, world-events.js,
-     left with the world events on 2026-10-14). */
-  if (sites < 5) problems.push(`only ${sites} FNV-1a prime site(s) found in src/ — expected at least 5; the guard may be scanning the wrong tree`);
+     rather than pass. There are 4 known FNV sites in src/** (world-events.js, muster.js and
+     legacy.js dailySeed left with their systems on 2026-10-14). */
+  if (sites < 4) problems.push(`only ${sites} FNV-1a prime site(s) found in src/ — expected at least 4; the guard may be scanning the wrong tree`);
 
   /* And the reference itself must still be the reference. */
   try {

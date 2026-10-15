@@ -2522,22 +2522,6 @@ const run = async () => {
       exitCode = 1;
     }
 
-    /* ── The Bounty-Marks record guard (server-of-record slice) ─────────────
-       Proves the CLIENT half of 2026-08-26-marks-record.sql: arm OFF is a no-op
-       (marksOf reads G.bountyHunter.marks); arm ON reads the server's record and
-       FAIL-CLOSES to UNKNOWN before an envelope, refuses over-spend, and never
-       lets a forged local marks value be vouched for. The server half is proven
-       by the migration's own §5 self-check on apply. */
-    const { marksRecordGuard } = await import('./marks-record.mjs');
-    const marksProblems = await marksRecordGuard();
-    if (marksProblems.length) {
-      console.log('\nBounty-Marks record guard — FAILED:');
-      for (const p of marksProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nBounty-Marks record guard — dormant no-regression + armed server-read/fail-closed/over-spend-refused.');
-    }
-
     /* ── The Rested record guard (server-of-record slice, b437) ─────────────
        Proves the CLIENT half of 2026-08-22-rested-record.sql: arm OFF is a no-op
        (restedOf reads G.restedXp/G.restedAt); arm ON reads the server's record,
@@ -2657,26 +2641,6 @@ const run = async () => {
       console.log('\nBank item-store guard — dormant leaves G.bank untouched; absolute owns server truth, keeps excluded, preserves space counters.');
     }
 
-    /* ── The companion-roster reconstruction guard (blob-retire blocker) ─────
-       Proves the CLIENT half of 2026-08-22-companion-record.sql: under the
-       blob-retire arm accrue.js reconcileCompanions rebuilds G.companions.
-       {ownedIds,xp,equipped} from the envelope's `companions` projection (owned ∪
-       fox, per-id xp, equipped-safety) instead of ensureCompanionState defaulting
-       every player to the starter fox with 0 XP. DORMANT it is a pure no-op (the
-       client keeps authoring the roster); ARMED-BEFORE-THE-ENVELOPE is fail-closed
-       (empty roster, never a fox-reset that could persist); awardCompanionXp is
-       gated off under arm (the server owns companion XP). The server half — the
-       full roster projection — is proven by the migration's own §2 self-check. */
-    const { companionsRecordGuard } = await import('./companions-record.mjs');
-    const compProblems = await companionsRecordGuard();
-    if (compProblems.length) {
-      console.log('\nCompanion-record guard — FAILED:');
-      for (const p of compProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion-record guard — dormant no-op; armed rebuild from envelope (not fox-reset); fail-closed pre-envelope; xp-award gated off under arm.');
-    }
-
     /* ── The arm-homing guard (strand-audit mechanical net) ──────────────────
        BLOB_RETIRED is the union of every arm: any persisted field homed by no
        mechanism is stranded under arm (crash / data reset). This fails the build
@@ -2705,25 +2669,6 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nInventory-mint census — OK: every mint site classified; arm-gate fail-closed while un-backed lanes (raid, workers) exist.');
-    }
-
-    /* ── The dungeon key-drop fold guard (settlement increment 1) ────────────
-       Proves the BoP dungeon keys are FOLDED into MONSTERS[*].drops at the frozen
-       former-KEY_DROPS rates, that the client-side killMonster key wrapper stays
-       deleted (a re-introduction double-drops live + diverges from away — an
-       AWAY-1 break), that all six keys classify serverOwnedItem (so the accrual
-       engine settles them and the inventory flip preserves them), and — on a
-       seed where the key actually drops — that resolveKill is byte-identical live
-       vs away for the key. Mutation-proven: remove a key / drift a rate / re-add
-       the wrapper / add a stray key each turns it red (tests/dungeon-key-drops.mjs). */
-    const { dungeonKeyDropsGuard } = await import('./dungeon-key-drops.mjs');
-    const keyDropProblems = await dungeonKeyDropsGuard();
-    if (keyDropProblems.length) {
-      console.log('\nDungeon key-drop fold — FAILED:');
-      for (const p of keyDropProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nDungeon key-drop fold — OK: keys settle server-side via monsters.js drops; no client mint; AWAY-1 parity holds.');
     }
 
     /* ── The farm-record guard (blob-retire capstone, CRITICAL blocker) ──────

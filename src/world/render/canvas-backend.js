@@ -20,10 +20,10 @@
 //      resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=587';
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=587';
-import { composeFrame, groundTiles } from '../core/compose.js?v=587';
-import { paintStub } from '../stub-atlas.js?v=587';
+import { T } from '../core/grid.js?v=588';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=588';
+import { composeFrame, groundTiles } from '../core/compose.js?v=588';
+import { paintStub } from '../stub-atlas.js?v=588';
 
 const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush

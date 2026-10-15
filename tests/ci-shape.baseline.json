@@ -161,6 +161,8 @@
     "node tests/party-hunt-select-lockdown.mjs --mutate": "db-replay-6",
     "node tests/discord-gift.mjs": "db-replay-6",
     "node tests/discord-gift.mjs --mutate": "db-replay-6",
+    "node tests/closed-rebuild.mjs": "db-replay-6",
+    "node tests/closed-rebuild.mjs --mutate": "db-replay-6",
     "node tests/absence-claim-wallet.mjs": "db-replay-6",
     "node tests/absence-claim-wallet.mjs --mutate": "db-replay-6",
     "node tests/frame-self-echo.mjs": "db-replay-6",

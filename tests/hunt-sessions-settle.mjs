@@ -1359,6 +1359,22 @@ const DB_ARMS = {
     if (!(Number(v1) > Number(inst && inst.v))) problems.push(`S1: the settle did not move the instance (version ${inst && inst.v} -> ${v1})`);
     const read = await one(db, `select public.hr_hunt_engine_read($1::uuid, 0)`, [UID]).catch(() => null);
     if (read && read.instance !== undefined && read.instance !== sid) problems.push(`S1: the engine read names instance ${read.instance}`);
+    /* THE FENCE SPARES THE HIRED HANDS (design ruling 2026-10-15): while this
+       hunter's session is open, a worker accrue row lands and a gather accrue
+       row is refused hunt_open — at the trigger itself. */
+    const ledger = async (kind) => {
+      try {
+        await db.query('savepoint fence_probe');
+        await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, meta)
+                        values ($1, 0, $2, 'accrue', 0, '{}'::jsonb)`, [UID, kind]);
+        await db.query('release savepoint fence_probe');
+        return 'landed';
+      } catch (e) { await db.query('rollback to savepoint fence_probe'); return String(e.message || e); }
+    };
+    const w = await ledger('worker');
+    const g = await ledger('gather');
+    if (w !== 'landed') problems.push(`FENCE: a worker accrue during the hunt was refused (${w}) — hired hands keep banking`);
+    if (!/hunt_open/.test(g)) problems.push(`FENCE: a gather accrue during the hunt answered ${g} — the hero is still fenced`);
     /* S3 — the lanes and the interval are catalogue rows equal to the data. */
     const lanes = await one(db, `select jsonb_object_agg(lane, jsonb_build_object('ms', ms, 'active', active)) from public.hr_hunt_lanes`);
     for (const [l, x] of Object.entries(M.RS.COOLDOWN_LANES)) {

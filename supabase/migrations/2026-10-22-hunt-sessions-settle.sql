@@ -1666,8 +1666,11 @@ begin
 end $$;
 revoke execute on function public.hr_hunt_accrue_fence() from public, anon, authenticated, service_role;
 drop trigger if exists hr_hunt_accrue_fence on public.player_ledger;
+-- HIRED HANDS ARE NOT THE HERO (design ruling, Coordinator 2026-10-15): a
+-- worker crew works independently of the hero's hunt and KEEPS BANKING during
+-- it, so a `kind 'worker'` accrue row passes; every other accrue kind is fenced.
 create trigger hr_hunt_accrue_fence before insert on public.player_ledger
-  for each row when (new.intent = 'accrue')
+  for each row when (new.intent = 'accrue' and new.kind <> 'worker')
   execute function public.hr_hunt_accrue_fence();
 
 -- ── §6b THE TWO CLIENT CREDIT DOORS ARE SHUT FOR A HUNTER ───────────────────
@@ -3141,6 +3144,21 @@ begin
     reset role;
     if v_r->>'error' is distinct from 'hunt_open' then
       raise exception 'GATE(c2): a bare gather accrue for a hunter answered %', v_r; end if;
+
+    -- (c3) HIRED HANDS KEEP BANKING DURING A HUNT (design ruling 2026-10-15): a
+    --      worker accrue for the same hunter LANDS. Probed in a subtransaction
+    --      and rolled back, so the version the steps below read is untouched.
+    begin
+      set local role hr_engine;
+      v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object('gold', 1,
+               'journal', jsonb_build_object('kind', 'worker', 'intent', 'accrue', 'meta', jsonb_build_object('c3', true))));
+      reset role;
+      if coalesce(v_r->>'ok', 'false') <> 'true' then
+        raise exception 'GATE(c3): a worker accrue during the hunt answered %', v_r; end if;
+      raise exception 'HRC3OK';
+    exception when others then
+      if sqlerrm <> 'HRC3OK' then raise; end if;
+    end;
 
     -- (p) THE SPAWN CYCLE IS A STATEFUL CAP: a third kill the cycle cannot
     --     explain, a pull more than the respawns admit, a respawn moved back,

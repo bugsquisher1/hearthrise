@@ -85,7 +85,7 @@
   color: var(--ink-3);
 }
 
-#panel-world .world-scene.is-soon { opacity: .55; cursor: default; }
+#panel-world .world-stage.is-hot { cursor: pointer; }
 
 /* ── The hunt overlay (src/world/hunt-chrome.js): the settled Analyzer top-left,
    the knockout line, and Eat / Leave Hunt along the bottom. ── */
@@ -177,36 +177,50 @@
 #panel-world .whud-btn:hover { color: var(--gold-2); }
 #panel-world .whud-btn.is-leave { border-color: var(--red); }
 
-/* A non-hunt scene while Town and Home are not open yet. */
-#panel-world .world-idle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--world-hud-bg); }
-#panel-world .world-idle[hidden] { display: none; }
-#panel-world .world-idle-card {
-  max-width: 420px;
-  padding: 18px 22px;
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  background: var(--world-hud-bg);
-  text-align: center;
-  color: var(--ink-2);
-}
-#panel-world .world-idle-head { margin: 0 0 6px; font-family: var(--f-display); font-size: calc(17px * var(--ui-scale, 1)); color: var(--gold-2); }
-#panel-world .world-idle-body { margin: 0 0 14px; }
-#panel-world .world-idle-go {
-  min-height: 38px;
-  padding: 6px 18px;
+/* A fight the World has no map for: one slim line along the foot of the town or
+   home, clear of the plaza, the crier and the names along the top. */
+#panel-world .world-idle {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 20px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 6px 5px 16px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 99px;
+  background: var(--world-hud-bg);
+  color: var(--ink-2);
+  font-family: var(--f-ui);
+  font-size: calc(13.5px * var(--ui-scale, 1));
+}
+#panel-world .world-idle[hidden] { display: none; }
+#panel-world .world-idle-line { margin: 0; }
+#panel-world .world-idle-line b { color: var(--ink); }
+#panel-world .world-idle-go {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
   background: var(--gold-bg);
   color: var(--ink);
+  font-family: var(--f-ui);
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
 }
+#panel-world .world-idle-go:hover { color: var(--gold-2); }
 
 /* The landscape phone: a thumb-sized pick, and the stage takes the rest; the
    Analyzer folds to its numbers and the actions shrink to fit the short stage. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   #panel-world.active { gap: 4px; }
   #panel-world .world-scene { min-height: var(--tap); min-width: 64px; padding: 2px 10px; }
+  #panel-world .world-idle { bottom: 4px; gap: 8px; padding: 2px 4px 2px 10px; font-size: 11px; }
+  #panel-world .world-idle-go { min-height: var(--tap); padding: 2px 10px; font-size: 11px; }
   #panel-world .whud-analyzer { top: 4px; left: 4px; min-width: 0; padding: 4px 8px; font-size: 11px; }
   #panel-world .whud-title { display: none; }
   #panel-world .whud-row { gap: 10px; padding: 0; }

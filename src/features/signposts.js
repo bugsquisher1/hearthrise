@@ -6,9 +6,9 @@
 // DOM access. Every fact a line names is read from its owner at call time:
 // item sources from the item index.
 
-import { SIGNPOSTS } from '../data/signposts.js?v=584';
-import { ITEMS } from '../data/items.js?v=584';
-import { SKILLS_DEF } from '../data/skills.js?v=584';
+import { SIGNPOSTS } from '../data/signposts.js?v=588';
+import { ITEMS } from '../data/items.js?v=588';
+import { SKILLS_DEF } from '../data/skills.js?v=588';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

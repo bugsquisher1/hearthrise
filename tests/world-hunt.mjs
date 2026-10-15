@@ -24,13 +24,16 @@
 //      no dropped item's name is anywhere in the scene or the overlay
 //   H5 ANALYZER: the overlay's numbers are the settled Analyzer's, printed as
 //      sent, labelled "settled N s ago"; nothing settled is em-dashes, not 0
-//   H6 CAMERA: the whole cellar room at 1440x900 and 1920x1080 at a whole zoom;
-//      a phone (922x423 @3) follows the hero instead of shrinking the room
+//   H6 CAMERA: the cellar at the one density (x2, never a fitted zoom); on each
+//      axis the room is centred with darkness around it when it fits and the
+//      camera follows the hero inside the room when it does not
 //   H7 ONE ENGINE (AWAY-12, extended): the observer and the hunt modules name
 //      no engine entry point; the observer only diffs the tick it wraps
 //   H8 FACING: every monster (bystander, foe, leaving, fallen; standing or
 //      walking) faces east or west, never the camera (a rat's head-on frame
 //      reads as a spider at 48 px)
+//   H9 BAG BESIDE: a kill's loot bag lands on a tile next to the new body,
+//      never on a body's tile (ART_DIRECTION §11)
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
@@ -183,6 +186,31 @@ function check(M) {
     ok('H4', !leak.length, 'an item was named before its settled receipt: ' + leak.join(', '));
   }
 
+  // H9 — the loot bag lands beside the body, never on it (a bag on a corpse vanishes into it).
+  for (const tickMs of [900, 2400]) {
+    const f = fight(M, { foe: 'rat', tickMs, seed: 'bag' + tickMs, hunt: { spawns: huntRow.spawns } });
+    const sc = newScene();
+    let t = 1000, kills = 0, bad = null;
+    for (let i = 0; i < 80 && !bad; i++) {
+      const b = f.tick();
+      if (!b) { t += tickMs; continue; }
+      b.at = t; sc.beat(b);
+      if (b.killed) {
+        kills++;
+        const st = sc.state(snapOf(M, f.G, tickMs), t + 20, 'Tyler');
+        const tile = (u) => Math.round(u.x) + ',' + Math.round(u.y);
+        const bodies = st.units.filter((u) => u.anim === 'death' || u.anim === 'corpse');
+        const bags = st.units.filter((u) => u.id === 'loot_bag');
+        const fresh = bodies.find((u) => u.anim === 'death' && u.age <= 20);
+        if (bags.some((g) => bodies.some((c) => tile(c) === tile(g)))) bad = 'kill ' + kills + ': a bag lies on a body at ' + bags.map(tile).join(' ');
+        else if (!fresh || !bags.some((g) => near(g, { x: Math.round(fresh.x), y: Math.round(fresh.y) }))) bad = 'kill ' + kills + ': no bag on a tile beside the new body';
+      }
+      t += tickMs;
+    }
+    ok('H9', !bad, 'tickMs ' + tickMs + ': ' + bad);
+    ok('H9', kills >= 5, 'tickMs ' + tickMs + ': the bag fixture killed only ' + kills + ' times');
+  }
+
   // H5 — the overlay prints the settled Analyzer, never its own count.
   {
     const now = Date.parse('2026-10-14T12:00:00Z');
@@ -194,18 +222,25 @@ function check(M) {
     ok('H5', e.analyzer.rows.every(([, v]) => v === '—') && e.analyzer.honesty === 'nothing settled yet', 'nothing settled is em-dashes, never zeroes: ' + JSON.stringify(e.analyzer));
   }
 
-  // H6 — the camera frames the room on a desktop, follows on a phone.
+  // H6 — the cellar at the one density: centred when it fits, followed when it does not.
   {
     const C = M.camera, T = 32, fr = M.map.frame;
     ok('H6', !!fr, 'the cellar row must declare its room frame');
-    for (const [label, W, H, dpr, want] of [['1440x900', 1240, 693, 1, 2], ['1920x1080', 1680, 873, 1, 2], ['1440x900@2', 2480, 1386, 2, 4], ['922x423@3', 2502, 855, 3, 0]]) {
-      const z = fr ? C.fitZoom(fr, W, H, dpr, T) : -1;
-      ok('H6', z === want, label + ': fit zoom ' + z + ', want ' + want);
-      if (z > 0) {
-        const fv = C.frameView(C.frameCentre(fr), W / z, H / z, M.map, z, T);
-        const left = fv.cam.x, right = fv.cam.x + W / z, top = fv.cam.y, bottom = fv.cam.y + H / z;
-        ok('H6', left <= fr.x * T + T / 2 && right >= (fr.x + fr.w) * T - T / 2 && top <= fr.y * T + T / 2 && bottom >= (fr.y + fr.h) * T - T / 2,
-          label + ': the room is not on screen whole (view ' + [left, top, right, bottom].map(Math.round).join(',') + ')');
+    /* [label, window CSS width, stage device px W x H, dpr] */
+    for (const [label, iw, W, H, dpr] of [['1440x900', 1440, 1240, 693, 1], ['1920x1080', 1920, 1680, 873, 1], ['1440x900@2', 1440, 2480, 1386, 2], ['922x423@3', 922, 2502, 855, 3]]) {
+      const z = C.zoomFor(iw, dpr);
+      ok('H6', z === 2 * dpr, label + ': the cellar must draw at the one density (x2 = ' + 2 * dpr + ' device px), got ' + z);
+      if (!fr) continue;
+      const vw = W / z, vh = H / z;
+      for (const hero of [{ x: fr.x + 1, y: fr.y + 1 }, { x: fr.x + fr.w - 2, y: fr.y + fr.h - 2 }]) {
+        const fv = C.frameView(hero, vw, vh, M.map, z, T, { keep: hero });
+        const hx = (hero.x + 0.5) * T, hy = (hero.y + 0.5) * T;
+        ok('H6', hx >= fv.cam.x && hx <= fv.cam.x + vw && hy >= fv.cam.y && hy <= fv.cam.y + vh, label + ': the hero at ' + hero.x + ',' + hero.y + ' is off screen');
+        for (const [ax, at, span, v] of [['x', fv.cam.x, [fr.x * T, (fr.x + fr.w) * T], vw], ['y', fv.cam.y, [fr.y * T, (fr.y + fr.h) * T], vh]]) {
+          const room = span[1] - span[0];
+          if (room <= v) ok('H6', Math.abs(at + v / 2 - (span[0] + span[1]) / 2) <= 0.5, label + ': the room fits on ' + ax + ' and must be centred with darkness around it (camera ' + at + ')');
+          else ok('H6', at >= span[0] - 0.5 && at + v <= span[1] + 0.5, label + ': the room is bigger on ' + ax + ' and the camera must scroll inside it (camera ' + at + ')');
+        }
       }
     }
   }
@@ -252,8 +287,10 @@ const MUTANTS = [
   ['H3', 'a swap kills the shown foe', 'src/world/choreo.js', [['else if (foe.id !== f.foe) { breakOff(t);', 'else if (foe.id !== f.foe) { kill({ tickMs: 0, next: null }, t);']]],
   ['H3', 'kills read off the G.stats residue', 'src/render/combat-observer.js', [['kills: n(g.combatKillsThisFoe),', 'kills: n(g.stats && g.stats.kills),']]],
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
+  ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H5', 'nothing settled reads as zero', 'src/world/hunt-chrome.js', [['const num = (v) => (v != null && Number.isFinite(Number(v))', 'const num = (v) => (Number.isFinite(Number(v))']]],
-  ['H6', 'a phone shrinks the room to fit', 'src/world/core/camera.js', [['return z / (dpr || 1) >= FIT_MIN_CSS ? z : 0;', 'return z;']]],
+  ['H6', 'a room that fits is pinned to its corner, not centred', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo;']]],
+  ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    c = Math.min(hi - u, Math.max(lo, c));\n', '']]],
   ['H8', 'a standing bystander faces the camera', 'src/world/choreo.js', [["const rest = (a) => (hash32('f' + a.slot) & 1 ? 'e' : 'w');", "const rest = () => 's';"]]],
   ['H8', 'a monster turns to the camera on a vertical step', 'src/world/choreo.js', [["const sideOf = (dx, keep) => (dx > 0 ? 'e' : dx < 0 ? 'w' : keep);", "const sideOf = (dx, keep) => (dx > 0 ? 'e' : dx < 0 ? 'w' : 's');"]]],
   ['H7', 'the scene rolls its own swing', 'src/world/hunt-scene.js', [['    beat(b) { ch.beat(b, b.at); },', '    beat(b) { ch.beat(b, b.at); },\n    roll(r) { return rollAttack(r, 1, 2); },']]],
@@ -307,5 +344,5 @@ else {
   const fails = check(await load(ROOT));
   for (const f of fails) console.log('  ✗ ' + f.id + '  ' + f.msg);
   if (fails.length) { console.log('world-hunt: ' + fails.length + ' failure(s)'); process.exit(1); }
-  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine, side-on monsters');
+  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine, side-on monsters, bags beside the body');
 }

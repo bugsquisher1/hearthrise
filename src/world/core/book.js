@@ -11,9 +11,13 @@
 //                               '' marks a stub (the backend paints a box)
 //   frames(id, anim, dir)       how many frames that clip has
 //   tile(terrainId, key, n)     a terrain tile's { set, sx, sy } (key NWNESWSE)
-// A frame falls back to dir 's', then to the sprite's first clip.
+//   facing(id, anim, dir, diag) the facing to draw: the diagonal when the clip
+//                               has it, else the cardinal (core/facing.js)
+// A frame falls back to the nearest cardinal of a missing diagonal, then to
+// dir 's', then to the clip's first facing; a missing clip to the first clip.
 // PURE: no DOM, no window, no G — the node tests read the same book.
 // ════════════════════════════════════════════════════════════════════════
+import { pickFacing } from './facing.js?v=588';
 
 /** The record a sprite id with no art gets: a small solid box on one tile. */
 export const STUB_SPRITE = Object.freeze({
@@ -29,13 +33,13 @@ export function createBook(manifests) {
     for (const [id, t] of Object.entries(m.terrain || {})) terrains[id] = Object.assign({ set }, t);
   }
   const sprite = (id) => sprites[id] || STUB_SPRITE;
-  function clip(s, anim, dir) {
-    const a = (anim && s.anims[anim]) || s.anims[Object.keys(s.anims)[0]];
-    return a.dirs[dir] || a.dirs.s || a.dirs[Object.keys(a.dirs)[0]];
-  }
+  const anim0 = (s, anim) => (anim && s.anims[anim]) || s.anims[Object.keys(s.anims)[0]];
+  const clip = (s, anim, dir) => { const a = anim0(s, anim); return a.dirs[pickFacing(a.dirs, dir, null)]; };
   return {
     sprites, terrains, sprite,
     has: (id) => !!sprites[id],
+    /** The facing a unit facing `dir` (cardinal) on a step `diag` (diagonal or null) is drawn in (core/facing.js). */
+    facing(id, anim, dir, diag) { const s = sprites[id]; return s ? pickFacing(anim0(s, anim).dirs, dir || 's', diag) : dir || 's'; },
     frames(id, anim, dir) { const s = sprites[id]; return s ? clip(s, anim, dir || 's').length : 1; },
     frame(id, anim, dir, i) {
       const s = sprites[id];

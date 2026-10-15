@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-hero.png",
   "size": [1024,520],
-  "pixels": "0bb6868fd89d755aeed17c233472cdfb40e60688e3c2f9137958f4e96927b91b",
+  "pixels": "ead38e01831d2a0696f4a276fe7aed87c577cba1d9e1997b1d0acc062b50a7f6",
   "sprites": {
     "hero": {
       "class": "character",

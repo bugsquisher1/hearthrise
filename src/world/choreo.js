@@ -19,11 +19,12 @@
 //   · a foe the server swaps BREAKS OFF — it walks away and fades. Never a
 //     death, never a corpse: only a kill the engine reported leaves one;
 //   · a kill leaves a generic loot bag — no item, no rarity (that is the
-//     settled receipt's to say);
+//     settled receipt's to say) — on a tile beside the body, never on it;
 //   · knocked out, the hero lies down and no floats are drawn.
 // PURE: no DOM, no window, no G, no randomness but its own seeded draw.
 // ════════════════════════════════════════════════════════════════════════
-import { walkable } from './core/path.js?v=584';
+import { walkable } from './core/path.js?v=588';
+import { diagonalOf } from './core/facing.js?v=588';
 
 export const WINDUP_MS = 400;
 export const FAST_TICK_MS = 1200;
@@ -160,10 +161,25 @@ export function createChoreo(map, o) {
     foe = null;
   }
 
+  /**
+   * Where a kill's bag lands: BESIDE the body, never on it (ART_DIRECTION §11: a bag on the corpse
+   * vanishes into it). An open neighbour of the corpse that is not the hero's tile (now or next
+   * step), another body or another bag, preferring the side away from the hero; on the body only if nothing is free.
+   */
+  function bagSpot(at) {
+    const c = at.map(Math.round), H = hero.mv.to, next = path.length > 1 ? path[(idx + 1) % path.length] : H;
+    const away = Math.sign(c[0] - H[0]) || 1;
+    const taken = (p) => same(p, H) || same(p, next) || corpses.some((k) => same(k.at.map(Math.round), p)) || bags.some((g) => same(g.at, p));
+    const order = [[away, 0], [0, 1], [0, -1], [-away, 0]];
+    for (const [dx, dy] of order) { const p = [c[0] + dx, c[1] + dy]; if (open(p) && !taken(p)) return p; }
+    return c;
+  }
+
   function kill(b, t) {
     const at = posAt(foe.mv, t);
+    const spot = bagSpot(at);
     corpses.push({ id: foe.id, at, t0: t, dir: sideOf(hero.mv.to[0] - at[0], 'w') });
-    bags.push({ at, t0: t });
+    bags.push({ at: spot, t0: t });
     while (bags.length > BAGS_MAX) bags.shift();
     release(foe.slot, t);
     foe = null;
@@ -210,8 +226,9 @@ export function createChoreo(map, o) {
       while (leaving.length && t > leaving[0].mv.t1) leaving.shift();
       const hAt = posAt(hero.mv, t), fAt = foe ? posAt(foe.mv, t) : null;
       const pose = (u, moving) => (moving ? { anim: 'walk', age: t } : u.act && t - u.act.t0 < ACT_MS ? { anim: u.act.name, age: t - u.act.t0 } : { anim: 'idle', age: t });
-      const hDir = fAt ? dirOf(fAt[0] - hAt[0], fAt[1] - hAt[1]) : dirOf(hero.mv.to[0] - hero.mv.from[0], hero.mv.to[1] - hero.mv.from[1]);
-      const heroOut = Object.assign({ x: hAt[0], y: hAt[1], dir: hDir },
+      const head = fAt ? [fAt[0] - hAt[0], fAt[1] - hAt[1]] : [hero.mv.to[0] - hero.mv.from[0], hero.mv.to[1] - hero.mv.from[1]];
+      /* the hero (only: monsters face east or west) also carries the diagonal, drawn when its art has it */
+      const heroOut = Object.assign({ x: hAt[0], y: hAt[1], dir: dirOf(head[0], head[1]), diag: diagonalOf(head[0], head[1]) },
         down ? { anim: 'down', age: t - downSince } : pose(hero, t < hero.mv.t1));
       return {
         down,

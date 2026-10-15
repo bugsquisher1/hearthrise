@@ -8,17 +8,11 @@
 // changes. The spawn weights the bystanders are drawn from come from the same
 // hunt row.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../data/hunts.js?v=584';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=584';
-import { huntMapIndex } from './core/scene-route.js?v=584';
+import { HUNT_INDEX } from '../data/hunts.js?v=588';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=588';
+import { huntMapIndex } from './core/scene-route.js?v=588';
 
 export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);
-
-/** The map id for what the server says the hero is doing ({kind:'combat', id}), or null. */
-export function mapForActivity(activity) {
-  const id = activity && activity.kind === 'combat' ? activity.id : null;
-  return (id && HUNT_MAP_INDEX[id]) || null;
-}
 
 /** The hunt a map renders first: { id, name, spawns } or null. */
 export function huntOfMap(map) {

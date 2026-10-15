@@ -255,7 +255,7 @@ export function replayScopeError({ patches, upTo, fullChain } = {}) {
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
 export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, fullChain,
-                                   sessionTimeZone = 'UTC' } = {}) {
+                                   sessionTimeZone = 'UTC', keepClosed = false } = {}) {
   const scopeErr = replayScopeError({ patches, upTo, fullChain });
   if (scopeErr) { const e = new Error(scopeErr); e.harness = true; e.replayScope = true; throw e; }
   let PGlite;
@@ -465,6 +465,10 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
         + `${boot.cacheHit ? 'RESTORED' : 'built'} in ${boot.buildMs}ms`);
     }
     if (cut >= files.length || (upTo !== undefined && files[cut - 1][0] === upTo)) {
+      // BEFORE endCapture: a timer PGlite starts during this statement must be
+      // unref'd with the rest of the boot's, or it outlives the guard and
+      // Windows libuv asserts at process.exit (measured 2026-10-14).
+      if (!keepClosed) await openTheGame(db);
       endCapture();
       return { db, applied, failures };
     }
@@ -498,8 +502,28 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     }
     if (name === upTo) break;   // validate the state AS OF this migration
   }
+  if (!keepClosed) await openTheGame(db);   // before endCapture — see the prefix return above
   endCapture();
   return { db, applied, failures };
+}
+
+/* CLOSED MODE (supabase/migrations/2026-10-21-closed-mode.sql) lands the game
+   CLOSED: only allowlisted accounts pass hr_rpc_gate / hr_rate_gate / the RLS
+   restrictive policies. Every replay guard plays the GAME with fixture accounts
+   that are on no allowlist, so after the chain the harness runs the one UPDATE
+   an operator runs to open the game. It changes no schema object (the inventory
+   and the fingerprint are names) and no row count. Closed mode itself is proven
+   by tests/closed-rebuild.mjs, which boots upTo the file BEFORE it and applies
+   it itself, so it never passes through this switch; a guard that needs the
+   closed state passes keepClosed: true. Measured 2026-10-14: without this,
+   market-intent (every guard driving the engine as a fixture player) read
+   rate_limited from hr_rate_gate on its first call. */
+async function openTheGame(db) {
+  await db.exec(`do $open$ begin
+    if to_regclass('public.hr_flags') is not null then
+      update public.hr_flags set enabled = false where key = 'closed_mode' and enabled;
+    end if;
+  end $open$;`);
 }
 
 // ── The inventory: what a rebuilt database actually contains ───────────────

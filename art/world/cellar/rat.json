@@ -127,7 +127,23 @@
         "frame_count": 6,
         "group": "fedeacc5-ad42-48fa-96f6-5ed57b3efeed"
       }
+    },
+    "edit": {
+      "batch": "R3 (docs/PIXELLAB_WORKFLOW.md §5)",
+      "date": "2026-10-15",
+      "tool": "edit_image",
+      "description": "lighten the fur to a mid warm grey-brown with a pale sandy belly and a pale pink tail, catch light along the top of the back and head from the upper left; keep the pose, the silhouette, the size and the dark outline exactly",
+      "jobs": [
+        "4ef84f2b-2988-48d6-95ee-bd46a1b10bc9",
+        "f6a044fa-582f-4283-a6bb-453925d1ff66"
+      ],
+      "frames": "the 27 east frames (idle 1, walk 6, attack 7, hit 5, death 7, corpse 1) in two calls of 16 and 1+11 (the idle frame repeated as a consistency anchor)",
+      "post": "each edited frame re-aligned to the shipped silhouette by its best whole-pixel shift (the edit drifted 0-6 px), then non-outline pixels value-lifted x1.12 before the palette lock; west = the edited east, mirrored",
+      "cost": 20,
+      "body_edge": "2.36:1 -> 4.03:1 idle (min 3.76:1 over all 27 east frames)",
+      "silhouette_iou": "0.985-1.000 (min 0.985)",
+      "approval": "pending Tyler"
     }
   },
-  "notes": "Pro Flash object (true facings, strong outline) replaced the standard-mode quadruped, which read as a brown blob at x3. Every frame is seated on its own feet row. Death/corpse use the east clip, mirrored for n/w; corpse = the last death frame. The tail lying behind is declared as 6 px overhang."
+  "notes": "Pro Flash object (true facings, strong outline) replaced the standard-mode quadruped, which read as a brown blob at x3. Every frame is seated on its own feet row. Death/corpse use the east clip, mirrored for n/w; corpse = the last death frame. The tail lying behind is declared as 6 px overhang. 2026-10-15 R3: recoloured for readability on the cellar floor (pixellab.edit); w now mirrors e in every clip."
 }

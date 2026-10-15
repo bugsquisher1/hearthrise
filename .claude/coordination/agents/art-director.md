@@ -2888,3 +2888,37 @@ focus ring) lost its khaki; the PWA splash/status colour follows. Left warm on p
 highlight, the bounty board and shopfront (wooden objects), farm soil, painted scene art. PALETTE-1 guards
 the ladder AND the painted chrome (a brown panel-floor literal fails it). Lesson: a sweep that recolours
 "the light" must stop at the gold — a highlight ON gold metal is the metal's, not the UI's.
+
+### 2026-10-14 · design/world-shell: the shell spec and a clickable prototype
+Spec docs/design/WORLD_SHELL.md: an 88 px rail (today 180), a 40 px name/level/gold strip, the World edge to
+edge at a whole zoom, a hunt HUD (vitals + 2×10 bar, target, ground chip, log), and windows docked right
+(up to 3, drag to float, Esc). The phone gets one side sheet. The migration is ONE cutover (Tyler overruled
+the gradual swap): old screens and the tab rail are deleted in the same change. I recommended adding the
+hunt-ground card and the away ledger to the cutover set, because without them you can't start a hunt or claim.
+The prototype (prototypes/world-shell/) boots the real World with fixtures. Its interactions were checked headless.
+Lesson: the prototype's first screenshot answered a question the spec had not asked: a window over a
+live world hides exactly what you opened it beside (the hero, the target). The fix is a camera inset in
+the engine, not a smaller window. Lesson 2: shoot with a local node server and Playwright at DPR 1. The
+pane's screenshots are downscaled JPEGs, too soft to judge pixel scale.
+Iteration (same day, after the Coordinator's independent review and three of Tyler's notes): the side rail is gone and the
+launchers are an icon row at the top right of the strip; the World runs edge to edge. Everything on screen
+is now a HUD widget with a contract (anchor, offset, min, opacity, visible); the cutover ships show/hide,
+opacity and reset, and drag (Edit HUD) is v1.1. The camera inset is faked in the prototype by widening the stage.
+The bag shows its used pockets plus a capacity bar. The action bar's second row appears only when bound. The
+phone's bottom HUD is 62 px (14.7%). 24 of 24 headless interaction checks pass.
+Lesson: the "nameplate rat vs frame Rat" defect was mine. The prototype never published window.MONSTERS,
+so the engine fell back to the id. Check a harness against what the game provides before blaming the art.
+
+### 2026-10-15 · design/art-phase2: audit, bible, roadmap, samples, PixelLab workflow
+Docs: docs/design/ART_AUDIT_2026-10-15.md (53 lines), ART_DIRECTION.md extended into the bible (§1–§13),
+docs/ASSET_STANDARDS.md, docs/PIXELLAB_WORKFLOW.md (with the first batch R0–R4), docs/design/ART_ROADMAP.md,
+and the World atlas registry in ASSET_MANIFEST.md (124 rows, printed by tools/world-art/registry.mjs).
+Samples in prototypes/world-shell/samples/ (combat, slots, analyzer, readability, chrome A/B); shots in
+prototypes/world-shell/shots/phase2/. Decided: pixel 9-slice chrome with the analyzer's type (Pixelify rejected),
+8 hero facings, the 3:1 body-edge rule, the rarity ladder from world colours, the combat fatigue budget.
+Lessons: (1) measure readability INSIDE the outline; a sprite's mean luminance lies (outline + shadow pull it
+down) and its outline vanishes on a dark floor. (2) The prototype drifted from its own spec (phone HUD 90 px vs
+the 68 px ruling, Cinzel in the strip): audit the prototype against the latest ruling, not the other way round.
+(3) Drawing a sample from the shipped atlases on a canvas (combat.js) is cheap and honest: "before" is the
+engine's own overlay rules, so the comparison is fair. (4) A sample can show a bug the engine hides: the loot
+bag lands on the corpse (choreo.js) and disappears.

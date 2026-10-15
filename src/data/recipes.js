@@ -16,9 +16,9 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=584';
-import { ITEMS, foodClassOf } from './items.js?v=584';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=584';
+import { SLOT_RECIPES } from './slot-ladders.js?v=588';
+import { ITEMS, foodClassOf } from './items.js?v=588';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=588';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain

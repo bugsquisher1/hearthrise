@@ -76,7 +76,7 @@
 // a test's override is the transport, the same rule accrue.js follows.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=584';
+import { resolveActiveSlot } from './accrue.js?v=588';
 
 /* THE SAME SWITCH AS b337 — retired in b515, so this is a constant. There is no
    longer a state where the client creates characters it will never accrue
@@ -205,6 +205,7 @@ export const CHARACTER_OUTCOMES = [
   'existed',        // there was already one; the ensure is a no-op
   'rate-limited',   // ok:false rate_limited — try later, nothing is wrong
   'bad-slot',       // ok:false bad_slot — a client bug, not a server one
+  'slot-not-owned', // ok:false slot_not_owned — no character there, not owned: re-address to 0
   'not-signed-in',  // ok:false not_signed_in, or HTTP 401/403
   'not-deployed',   // HTTP 404 — the RPC is not in this database
   'unavailable',    // HTTP 5xx, or ok:false no_start_kit (catalogue missing)
@@ -264,6 +265,10 @@ export function classifyCreateResponse(status, body) {
     /* The catalogue was not applied. The server is up and refusing correctly;
        nothing the player can do, and nothing this device may substitute. */
     case 'no_start_kit':  return { outcome: 'unavailable', body: b, reason: 'no_start_kit' };
+    /* The server found no character at this slot AND the account does not own
+       it (hr_create_character's fast path runs first, so this is never said
+       about a slot that holds a character). See ensureCharacter's re-address. */
+    case 'slot_not_owned': return { outcome: 'slot-not-owned', body: b, reason: 'slot_not_owned' };
     default:              return { outcome: 'refused', body: b, reason: b.error || 'unknown' };
   }
 }
@@ -337,7 +342,22 @@ export async function ensureCharacter(opts) {
     done();
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
-    return settle({ ...classifyCreateResponse(res.status, body), status: res.status }, slot);
+    const verdict = settle({ ...classifyCreateResponse(res.status, body), status: res.status }, slot);
+    /* A DEAD ADDRESS (2026-10-15): the device remembers a hero slot the server
+       neither holds nor sells this account — after the closed-rebuild wipe,
+       every account whose device was on slot 1+. Every later write would be
+       `no_character`. Move the device to slot 0 (free, always owned) and reload
+       onto it; slot 0 can never answer slot_not_owned, so this cannot loop. */
+    if (verdict.outcome === 'slot-not-owned' && slot > 0) {
+      try {
+        const P = (typeof window !== 'undefined') && window.HearthriseProfile;
+        if (P && typeof P.readdressDeadSlot === 'function' && P.readdressDeadSlot(slot)) {
+          verdict.readdressed = 0;
+          reloadPage();
+        }
+      } catch (e) { /* the refusal is still reported; nothing is invented */ }
+    }
+    return verdict;
   })();
 
   /* ⚠ THE LATCH IS RELEASED BY THE PROMISE, NOT BY THIS FRAME. `try { return
@@ -350,6 +370,15 @@ export async function ensureCharacter(opts) {
   const release = () => { if (inFlight === mine) inFlight = null; };
   mine.then(release, release);
   return await mine;
+}
+
+/* The reload after a dead-slot re-address. A seam so the in-page suite can
+   prove the path without leaving the page. */
+let reloadPage = () => { try { location.reload(); } catch (e) {} };
+export function __setCharacterReload(fn) {
+  const prev = reloadPage;
+  reloadPage = (typeof fn === 'function') ? fn : (() => { try { location.reload(); } catch (e) {} });
+  return prev;
 }
 
 /** The ONE place an outcome becomes state — and the only state is the latch. */
@@ -410,6 +439,6 @@ if (typeof window !== 'undefined') {
     isCharacterIntentEnabled, configureCharacter, getCharacterConfig,
     characterEndpoint, latchKey, buildCreateCharacterRequest, classifyCreateResponse,
     isCharacterConfirmation, isCharacterPresent, isCharacterConfirmed,
-    ensureCharacter, ensureThenAccrue, resetCharacterIntent,
+    ensureCharacter, ensureThenAccrue, resetCharacterIntent, __setCharacterReload,
   };
 }

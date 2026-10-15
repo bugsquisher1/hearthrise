@@ -1,0 +1,44 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   prototypes/world-shell/samples/chrome-ab.css — SAMPLE 4: the deferred "feels off"
+   A/B (docs/ART_DIRECTION.md §9). PROTOTYPE ONLY. Loaded by shell.js only when the
+   page is opened with ?chrome=nine or ?chrome=pixel; without it the prototype is
+   unchanged (variant A, today's flat HUD glass).
+     B  ?chrome=nine   pixel 9-slice chrome: an iron frame drawn in world-palette
+                       colours, 4 art px per edge at the one density (8 px at x2)
+     C  ?chrome=pixel  a pixel HUD font: Pixelify Sans (SIL Open Font License 1.1,
+                       Google Fonts), on the HUD, the windows and the canvas plates
+   ══════════════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;700&display=swap');
+
+/* ── B: pixel 9-slice ─────────────────────────────────────────────────────── */
+/* Windows and dialogs: the 4-art-px frame with rivets (8 px at x2). */
+html[data-chrome="nine"] .ws-win {
+  border: 8px solid transparent;
+  border-image: url('frame-iron.png') 4 / 8px stretch;
+  border-radius: 0;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+}
+html[data-chrome="nine"] .ws-win-head { border-bottom-color: var(--line); }
+/* HUD widgets: the 2-art-px frame (4 px at x2): an outline and a lit/dark bevel, so the phone pays 8 px, not 16. */
+html[data-chrome="nine"] .ws-target,
+html[data-chrome="nine"] .ws-ground,
+html[data-chrome="nine"] .ws-log,
+html[data-chrome="nine"] .ws-analyzer,
+html[data-chrome="nine"] .ws-abar {
+  border: 4px solid transparent;
+  border-image: url('frame-iron-thin.png') 2 / 4px stretch;
+  border-radius: 0;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+}
+/* Bars and slots are sunk INTO a frame, never framed themselves. */
+html[data-chrome="nine"] .ws-vital { border-radius: 0; border-color: var(--world-void); }
+
+/* ── C: a pixel HUD font (the canvas reads --f-ui for plates and floats) ─── */
+html[data-chrome="pixel"],
+html[data-chrome="pixel"] body {
+  --f-ui: 'Pixelify Sans', 'Alegreya Sans', system-ui, sans-serif;
+  --f-label: 'Pixelify Sans', 'Alegreya Sans SC', system-ui, sans-serif;
+  --f-display: 'Pixelify Sans', 'Cinzel', serif;
+}

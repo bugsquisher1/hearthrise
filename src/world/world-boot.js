@@ -18,23 +18,63 @@
 // beat as it happens, so swings taken while the pane was hidden are not lost —
 // and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
 // Leave Hunt over the stage.
+//
+// THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
+// draws them from what the client holds from the server, read here into one
+// `env` per frame. A tap walks the local hero (display only: G._world.pos) or
+// opens an existing screen; no tap sends an intent (steer-local.js runAction).
+// On a desktop WASD / the arrows walk the same feet (8 ways, stop on key-up);
+// never while a field has focus or a dialog is open, and never sent either.
+// A fight on a hunt no map renders shows the viewer's town or home with a slim
+// banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=584';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=584';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=584';
-import { HUNT_INDEX } from '../data/hunts.js?v=584';
-import { compileMap } from './core/map-compile.js?v=584';
-import { STUB_SPRITE } from './core/book.js?v=584';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=584';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=584';
-import { readScene, setChoice, activityOf } from './store.js?v=584';
-import { loadAtlases } from './atlas.js?v=584';
-import { createCanvasBackend } from './render/canvas-backend.js?v=584';
-import { huntOfMap, mapForActivity } from './hunt-maps.js?v=584';
-import { createHuntScene } from './hunt-scene.js?v=584';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=584';
+import { BUILD } from '../build-info.js?v=588';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=588';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=588';
+import { HUNT_INDEX } from '../data/hunts.js?v=588';
+import { compileMap } from './core/map-compile.js?v=588';
+import { STUB_SPRITE } from './core/book.js?v=588';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=588';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=588';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=588';
+import { loadAtlases } from './atlas.js?v=588';
+import { createCanvasBackend } from './render/canvas-backend.js?v=588';
+import { huntOfMap } from './hunt-maps.js?v=588';
+import { createHuntScene } from './hunt-scene.js?v=588';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=588';
+import { createWalkScene } from './walk-scene.js?v=588';
+import { homeMapFor } from './home-scene.js?v=588';
+import { runAction } from './steer-local.js?v=588';
+
+/* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
+   non-QWERTY layout walks with the same hand). Two held at once walk the
+   diagonal. They drive the same feet a tap does (walk-scene drive). */
+const WALK_KEYS = Object.freeze({
+  KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
+  KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
+});
+/* Keys belong to whatever is typed into or open on top: never walk while a field has focus or a dialog shows. */
+const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
+const ON_TOP = '.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]';
+
+/**
+ * Is this dialog OPEN, not merely in the DOM? A closed sheet is often kept and
+ * hidden by its scrim's opacity 0 and pointer-events none (the item detail and
+ * enchant sheets, .inv-detail without .show): it still has layout boxes, so a
+ * box test alone counted it as open and left the keys dead for good after the
+ * player's first item detail. Open = laid out, not see-through or hidden, and
+ * taking the pointer.
+ */
+function isOpen(el) {
+  if (!el.getClientRects().length) return false;
+  if (typeof el.checkVisibility === 'function'
+    && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true, checkOpacity: true, checkVisibilityCSS: true })) return false;
+  const cs = el.ownerDocument.defaultView.getComputedStyle(el);
+  return cs.pointerEvents !== 'none' && cs.visibility !== 'hidden';
+}
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
+const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;
 
 /** The fight as the client holds it, when the observer is not installed (a bare harness). */
@@ -44,49 +84,77 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
+const fn = (o, k) => (o && typeof o[k] === 'function' ? o[k] : null);
+
 /** The hunt the World can show today — the first hunt map's — named from the data. */
 const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 
 /**
- * THE CARD FOR "NOTHING HERE TO WATCH", in plain words — or null when the scene
- * speaks for itself. A fight on a hunt or monster no map renders ALWAYS gets it,
- * knocked out or not, naming where the hero is; anything else (idle, gathering,
- * crafting) gets it while Town and Home are not open yet. The button only
- * navigates: Adventures, with the open hunt picked.
+ * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on
+ * screen as the viewer picked, and one slim line over it names where the hero
+ * really is and offers the hunt that IS in the World. Null when the scene
+ * speaks for itself. Its button only navigates (Adventures, the hunt picked).
  * @param {object} G  read only
- * @param {boolean} ready  are Town and Home open?
+ * @param {{kind: string}} sc  the scene showing
  * @param {(id: string) => string} monsterName
  */
-function idleCard(G, ready, monsterName) {
-  const fighting = !!G.activeMonster;
-  if (fighting ? mapForActivity(activityOf(G)) : ready) return null;
-  const place = OPEN_HUNT ? OPEN_HUNT.name : 'first hunt';
+function unmappedBanner(G, sc, monsterName) {
+  if (!G.activeMonster || sc.kind === 'hunt' || !OPEN_HUNT) return null;
   const hunt = G._huntId && HUNT_INDEX[G._huntId];
-  const head = !fighting ? 'Town and Home are coming soon.'
-    : (hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster)) + ' isn’t in the World yet.';
-  const body = fighting ? 'The ' + place + ' is.' + (ready ? '' : ' Town and Home are coming soon.')
-    : 'The ' + place + ' is open now: start a hunt there and watch your hero fight.';
-  return '<div class="world-idle-card"><p class="world-idle-head">' + esc(head) + '</p>'
-    + '<p class="world-idle-body">' + esc(body) + '</p>'
-    + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + place) + '</button></div>';
+  const where = hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster);
+  return '<p class="world-idle-line"><b>' + esc(where) + '</b> isn’t in the World yet. The ' + esc(OPEN_HUNT.name) + ' is.</p>'
+    + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + OPEN_HUNT.name) + '</button>';
+}
+
+/**
+ * What the town or home reads this frame, from the client's copies of server
+ * state (each through the module that owns it). Every reader fails safe: an
+ * unknown property rung is the first template, unknown rooms are none, an
+ * unknown trophy set hangs nothing, an absent town view shows nobody. The
+ * claimed-trophy wall is re-read only when the trophy mirror is replaced.
+ */
+function createEnvReader(win) {
+  let wallOf = null, wall = null;
+  return function readEnv(G, kind) {
+    const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
+    const I = win.HearthriseIdentity;
+    const env = { kind: (pointer && pointer.kind) || 'idle', you: (fn(I, 'displayName') && I.displayName()) || G.playerName || null,
+      canon: fn(I, 'canon') ? (n) => I.canon(String(n)) : null };
+    if (kind === 'home') {
+      const Rooms = win.HearthriseRooms, Tr = win.HearthriseTrophies;
+      env.rooms = fn(Rooms, 'roomsMap') ? Rooms.roomsMap(G) : {};
+      const known = !!fn(Tr, 'claimsKnown') && Tr.claimsKnown() === true && !!fn(Tr, 'wallRows');
+      if (!known) { wallOf = null; wall = null; } else if (wallOf !== G._bestiaryTrophies) { wallOf = G._bestiaryTrophies; wall = Tr.wallRows({ known: true, cap: 1000 }); }
+      env.trophies = wall;
+      env.roomName = (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id;
+    } else {
+      const Town = win.HearthriseTown, TP = win.HearthriseTownPanel;
+      env.town = fn(Town, 'readTown') ? Town.readTown() : null;
+      env.pollMs = (Town && Town.TOWN_POLL_MS) || 25000;
+      env.band = fn(TP, 'bandText');
+      env.crierLine = fn(TP, 'crierLine');
+    }
+    return env;
+  };
 }
 
 /**
  * Load the art, then mount the world into `panel` (#panel-world). Resolves to the runtime:
  *   sync()     start or stop the loop to match the panel and the page
- *   stats()    { running, frames, scene, hunt, ...backend.snapshot() } for tests
+ *   step()     paint one frame now
+ *   stats()    { running, frames, scene, kind, hunt, walk, ...backend.snapshot() } for tests
+ *   screenOf(x, y)  the client point over tile (x, y) of the scene showing, for a test's tap
+ *   setInset({left, right, top, bottom})  CSS px of the stage a docked window covers
  *   destroy()
  * @param {HTMLElement} panel
- * @param {{scenesReady?: () => boolean}} [opts]  are Town and Home open to walk in?
  */
-export async function bootWorld(panel, opts = {}) {
+export async function bootWorld(panel) {
   const win = window, doc = document;
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
   const css = (name) => styles.getPropertyValue(name).trim();
-  const scenesReady = () => (typeof opts.scenesReady === 'function' ? !!opts.scenesReady() : true);
   const { book, images } = await loadAtlases({ doc, version: BUILD.cache });
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
@@ -104,6 +172,7 @@ export async function bootWorld(panel, opts = {}) {
   } });
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
+  idle.setAttribute('role', 'status');
   idle.hidden = true;
   stage.appendChild(idle);
 
@@ -114,15 +183,16 @@ export async function bootWorld(panel, opts = {}) {
   };
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
+  let walk = null, lastWalk = null;
+  const readEnv = createEnvReader(win);
 
   function paintChrome(sc) {
-    const ready = scenesReady();
+    stage.classList.remove('is-hot');
+    const title = chrome.querySelector('.world-title');
+    if (title) title.textContent = ROWS.get(sc.map).name;
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {
-      const on = ready && b.getAttribute('data-world-choice') === sc.kind;
+      const on = b.getAttribute('data-world-choice') === sc.kind;
       b.classList.toggle('active', on);
-      b.classList.toggle('is-soon', !ready);
-      b.disabled = !ready;
-      b.title = ready ? '' : 'Coming soon';
       b.setAttribute('aria-pressed', String(on));
       b.hidden = sc.kind === 'hunt';
     });
@@ -148,30 +218,45 @@ export async function bootWorld(panel, opts = {}) {
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
 
-  /* ROUTE: which scene, and the HTML around it (title, picks, idle card, overlay).
-     NOT a side effect of the frame loop (live 2026-10-14: a pane opened with no frame
-     ever running — a background tab — kept a 300x150 canvas and a hidden card).
-     sync() routes on every open, tab switch and visibility change; every frame
-     routes again, so the card follows the activity as it changes. */
-  let lastCard = null;
+  function walkState(G, map, now) {
+    if (!walk || walk.map !== map) {
+      walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF });
+      if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
+    }
+    const f = walk.frame(readEnv(G, map.kind), now);
+    notePos(G, map.id, f.hero.x, f.hero.y);
+    lastWalk = f;
+    return f;
+  }
+
+  /** The last walk frame, as a test reads it. */
+  function walkStats() {
+    const f = lastWalk;
+    return f && { hero: f.hero, cell: walk.cell(), mark: f.mark, bubbles: f.bubbles.map((b) => b.text), stations: walk.map.stations,
+      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
+      props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
+  }
+
+  /* ROUTE: which scene, and the HTML around it (title, picks, the unmapped-fight
+     banner). NOT a side effect of the frame loop (live 2026-10-14: a pane opened
+     with no frame ever running — a background tab — kept a 300x150 canvas and no
+     word on screen): sync() steps once on every open, tab switch and visibility
+     change, and every frame routes again, so the banner follows the activity. */
+  let lastBanner = null;
   const monsterName = (id) => (win.MONSTERS && win.MONSTERS[id] && win.MONSTERS[id].name) || id;
   function route() {
     const G = win.G || {};
-    const sc = readScene(G);
+    const P = win.HearthriseProperty;
+    const sc = readScene(G, homeMapFor(P && typeof P.serverPropertyTier === 'function' ? P.serverPropertyTier() : null));
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
       scene = sc;
       paintChrome(sc);
       hudAt = 0;
     }
-    if (sc.kind !== 'hunt') { hunt = null; huntMap = null; lastHunt = null; hud.paint(null); }
-    const card = sc.kind === 'hunt' ? null : idleCard(G, scenesReady(), monsterName);
-    if (card !== lastCard) { lastCard = card; idle.innerHTML = card || ''; }
-    idle.hidden = !card;
-    /* A "coming soon" place behind the card is not where the hero is: no title claims it. */
-    const title = chrome.querySelector('.world-title');
-    const want = card && !scenesReady() ? 'World' : ROWS.get(sc.map).name;
-    if (title && title.textContent !== want) title.textContent = want;
+    const banner = unmappedBanner(G, sc, monsterName);
+    if (banner !== lastBanner) { lastBanner = banner; idle.innerHTML = banner || ''; }
+    idle.hidden = !banner;
     return sc;
   }
 
@@ -182,12 +267,88 @@ export async function bootWorld(panel, opts = {}) {
     const I = win.HearthriseIdentity;
     const name = (I && typeof I.displayName === 'function' && I.displayName()) || G.playerName || null;
     const now = Date.now();
-    const cast = sc.kind === 'hunt' ? huntState(G, sc, map, name, now) : { hero: { x: map.start[0], y: map.start[1] } };
+    let cast;
+    if (sc.kind === 'hunt') {
+      cast = huntState(G, sc, map, name, now);
+      walk = null; lastWalk = null; keys.clear();
+    } else {
+      hunt = null; huntMap = null; lastHunt = null;
+      hud.paint(null);
+      cast = walkState(G, map, now);
+    }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
     frames++;
   }
+
+  /* NAVIGATION ONLY: Adventures, on the War Table's Hunts with hunt `id` picked. */
+  function openHunt(id) {
+    if (typeof win.showTab !== 'function') return false;
+    win.showTab('combat');
+    const CS = win.HearthriseCombatScreens;
+    return !!(CS && typeof CS.showHunt === 'function' && CS.showHunt(id));
+  }
+
+  /* Where a tap goes. Every way out is a screen the game already has. */
+  const nav = {
+    walk: () => true,
+    hunt: (id) => openHunt(id),
+    skill(id) {
+      if (typeof win.showTab !== 'function') return false;
+      win.showTab('skills');
+      if (typeof win.openSkillDetail === 'function') win.openSkillDetail(id);
+      return true;
+    },
+    room(id) {
+      const H = win.HearthriseHomestead;
+      return !!(H && typeof H.openRoom === 'function' && H.openRoom(id));
+    },
+    house() {
+      if (typeof win.showTab !== 'function') return false;
+      win.showTab('house');
+      return true;
+    },
+    scene(choice) { setChoice(win.G || {}, choice); if (running) step(0); return true; },
+  };
+
+  function onTap(e) {
+    if (!walk || !scene || scene.kind === 'hunt') return;
+    if (e.target && e.target.closest && e.target.closest('.world-idle')) return;   // the banner's own button
+    const pick = backend.pick(e.clientX, e.clientY);
+    if (!pick) return;
+    runAction(walk.tap(pick, Date.now()), nav);
+  }
+  function onHover(e) {
+    if (!walk || !scene || scene.kind === 'hunt' || e.pointerType === 'touch') return;
+    const pick = backend.pick(e.clientX, e.clientY);
+    const act = pick && walk.peek(pick);
+    stage.classList.toggle('is-hot', !!act && act.kind !== 'walk');
+  }
+
+  /* Held walk keys (e.code), and the direction they add up to. */
+  const keys = new Set();
+  function keyVector() {
+    let x = 0, y = 0;
+    for (const k of keys) { x += WALK_KEYS[k][0]; y += WALK_KEYS[k][1]; }
+    return [Math.sign(x), Math.sign(y)];
+  }
+  function steerKeys() { if (walk) walk.drive(keyVector(), Date.now()); }
+  /** Let go of every walk key (focus left, the pane closed, a field or dialog took the keys). */
+  function letGo() { if (!keys.size) return; keys.clear(); steerKeys(); }
+  const onTop = () => Array.from(doc.querySelectorAll(ON_TOP)).some(isOpen);
+  function onKeyDown(e) {
+    if (!WALK_KEYS[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!live() || !walk || !scene || scene.kind === 'hunt') return;
+    const t = e.target;
+    if ((t && t.closest && t.closest(TYPING)) || onTop()) { letGo(); return; }
+    e.preventDefault();   // the arrows would scroll the page
+    if (keys.has(e.code)) return;   // auto-repeat
+    keys.add(e.code);
+    steerKeys();
+  }
+  function onKeyUp(e) { if (keys.delete(e.code)) steerKeys(); }
+  function onFocusIn(e) { if (e.target && e.target.closest && e.target.closest(TYPING)) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
   function frame(t) {
@@ -212,38 +373,53 @@ export async function bootWorld(panel, opts = {}) {
     } else {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
+      letGo();
     }
+  }
+  function onGo(e) {
+    if (e.target && e.target.closest && e.target.closest('[data-world-go]') && OPEN_HUNT) openHunt(OPEN_HUNT.id);
   }
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');
-    if (!b || b.disabled) return;
+    if (!b) return;
     setChoice(win.G || {}, b.getAttribute('data-world-choice'));
     if (running) step(0);
   }
-  function onGo(e) {
-    const b = e.target && e.target.closest && e.target.closest('[data-world-go]');
-    if (!b) return;
-    /* Navigation only: Adventures, the War Table's Hunts, the open hunt picked. */
-    if (typeof win.showTab === 'function') win.showTab('combat');
-    const C = win.HearthriseCombatScreens;
-    if (OPEN_HUNT && C && typeof C.showHunt === 'function') C.showHunt(OPEN_HUNT.id);
-  }
   chrome.addEventListener('click', onChoice);
+  stage.addEventListener('click', onTap);
+  stage.addEventListener('pointermove', onHover);
   idle.addEventListener('click', onGo);
   doc.addEventListener('visibilitychange', sync);
+  doc.addEventListener('keydown', onKeyDown);
+  doc.addEventListener('keyup', onKeyUp);
+  doc.addEventListener('focusin', onFocusIn);
+  win.addEventListener('blur', letGo);   // a key let go in another window never sends its keyup here
 
   return {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
+    screenOf: (x, y) => backend.screenOf(x, y),
+    /**
+     * The shell's docked windows: the strips of the stage they cover, in CSS px
+     * ({left, right, top, bottom}; null when none). The camera frames the rest
+     * from the next frame on, so a window never covers the hero.
+     */
+    setInset(o) { backend.setInset(o); if (panel.classList.contains('active')) step(0); },
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
       chrome.removeEventListener('click', onChoice);
+      stage.removeEventListener('click', onTap);
+      stage.removeEventListener('pointermove', onHover);
       idle.removeEventListener('click', onGo);
       doc.removeEventListener('visibilitychange', sync);
+      doc.removeEventListener('keydown', onKeyDown);
+      doc.removeEventListener('keyup', onKeyUp);
+      doc.removeEventListener('focusin', onFocusIn);
+      win.removeEventListener('blur', letGo);
       hud.destroy();
       idle.remove();
       backend.destroy();

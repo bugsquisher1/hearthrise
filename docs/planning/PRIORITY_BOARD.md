@@ -22,6 +22,29 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | 067e29aa Merge remote-tracking branch 'origin/main' into set/b570-bundle<br>64e66f26 merge: lane/b569-guard-selftest-scope (diff-scoped selftests + replay guards in lane-done; 4 stale proof arms fixed and registered)<br>77957232 Merge remote-tracking branch 'origin/lane/b569-spine-pointer' into set/b570-bundle<br>eb79f8bf Merge remote-tracking branch 'origin/lane/b569-copy-edge' into set/b570-bundle<br>1e39493c Merge remote-tracking branch 'origin/lane/b568-progress-coalesce' into set/b570-bundle |
 <!-- END GENERATED -->
 
+## 2026-10-14 — CREATIVE STANDARDS: screen audit backlog (Art Director audit on b584; standards in docs/DESIGN_STANDARDS.md, ART_DIRECTION.md, QUALITY_CHECKLIST.md)
+Scores are 0–10 per screen (consistency / originality / readability / feel / polish): World 8/7/7/7/6 is the bar the game already reaches; Bag 3/4/6/4/3, Bestiary 5/3/4/3/4, Farm 4/3/6/3/4, Character 6/3/6/3/5, Market 6/3/6/3/5 are the gap. Ordered by impact ÷ (effort + regression risk); refine what exists before anything new.
+
+| # | Item | Impact | Effort | Risk | Pri |
+|---|---|---|---|---|---|
+| 1 | Bag lists its 11 categories twice (`.invc-lootfilter` + `.invc-cat-strip`) — keep one | H | S | L | P1 |
+| 2 | Pixel icons at whole-number scale only (32→32/64; today ×1.78/1.53/1.06/0.63) + a guard | H | S | L | P1 |
+| 3 | House art upscaled 256→792 px blurry (`.hh-room-img`) — cap at source size; locked rooms not greyscale crops | H | S | L | P1 |
+| 4 | Phone: Bestiary shows no monster above the fold; Dungeons tab clipped to "Dui" | H | S | L | P1 |
+| 5 | One primary action per view — gold gradient `.btn-primary` ×8 on Combat → one primary, rest quiet | M | S | M | P2 |
+| 6 | `.hr-primer` banner on every tab (86 px, 20% of phone height) → collapse after first read | M | S | L | P2 |
+| 7 | Filler names: copy-lint ratchet for Shadow/Void/Ancient/Eternal/Dark/Forgotten (58 hits) + rename as each area is reworked | M | S | L | P2 |
+| 8 | Remove the Inter font import (`legacy.css:21`) and the 27 monospace uses | L | S | L | P2 |
+| 9 | Bestiary → encyclopedia: region chapters, a plate per creature, readable silhouettes (art shown at 36 px dimmed today) | H | M | M | P2 |
+| 10 | Bag paper doll with a body silhouette; doll slots, bag and drops in one icon language | H | M | M | P2 |
+| 11 | Hunt board instead of 6+4 equal card tiles (`.wt-pane`); the live hunt visible on it | H | M | M | P2 |
+| 12 | Farm plots drawn from the world's soil tiles, not stripe-gradient boxes | M | M | L | P3 |
+| 13 | Skills: 17+7 identical tiles → a skill ledger | M | M | L | P3 |
+| 14 | Radius/glow/gradient ratchets (6/8 px literals, 81 glows, 328 gradients) — pay down per screen touched | M | M | M | P3 |
+| 15 | World polish: outlined nameplates, cobble decals/wear, drop the 10 px rounded frame and pill scene buttons | M | S | L | P3 |
+| 16 | EA content template: one region done properly (≈6 grounds, 3 families, ≈30 creatures) from today's 113 monsters / 4 hunts — designer lane, sample first | H | L | M | P2 |
+| 17 | Audio: one sample set (impact, crit, kill, loot, rare, ambience) — after the visuals; no paid assets without approval | M | M | L | P3 |
+
 ## 2026-10-14 — GEM CONVERSION: gems are bought, never earned (Game Designer ruling, final design authority)
 
 Tyler, 2026-10-13: gems enter the game ONLY through a real-money purchase and move between players for gold (Tibia-coin style); the Discord join gift becomes a cosmetic; full wipe at Early Access, so no balance is carried. **How I found the sources:** a grep census of `src/data`, `src/core`, `supabase/functions` and every `hr_wallet_credit` caller in `supabase/migrations`, read against the apply order (`tests/schema-apply-order.json`: every wallet-era file APPLIED 2026-10-12) and cross-checked with the client census `src/net/gem-sites.js` and the wallet migration's own list. Nothing was played: this is a ruling over data, and no player-visible surface changed. **The rule behind every row:** no replacement is priced at a gold-per-gem rate. A server-set rate would publish a gem price the player market then has to fight; each replacement is chosen for the moment it rewards, not for gem-equivalence. Before this ruling an account could earn about 990 gems once (ranks 925, collection 40, Discord 25) plus up to ~500 a month (muster up to 8 a day, clan hunt 12–60 a week, login 2 a week). Every free account, alts included, got that drip.

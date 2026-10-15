@@ -5,6 +5,7 @@ The golden rule (from `CLAUDE.md`): **grow by adding *data*, not code.** Items,
 recipes, gear, drops, nodes, mobs and skills are all declarative data that
 existing engines consume. Most "new content" is a new row in `src/data/*.js` —
 no new system required. Write new code only for a genuinely new *mechanic*.
+Whether a system or content row *should* exist is `docs/DESIGN_STANDARDS.md` (the purpose test, and sample before expanding).
 
 ---
 

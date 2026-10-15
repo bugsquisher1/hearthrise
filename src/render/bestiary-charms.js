@@ -39,11 +39,11 @@
 // src/styles/legacy.css.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=584';
+import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=585';
 import {
   charmIndex, charmRankAt, nextCharmAt, charmRevealsAt, charmRowOfRank,
-} from '../core/charms.js?v=584';
-import { CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=584';
+} from '../core/charms.js?v=585';
+import { CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=585';
 
 const CLASS_SET = new Set(MONSTER_CLASSES);
 

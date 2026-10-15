@@ -4367,6 +4367,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-hunt.mjs
 
+      # The town and the home (lane W4): only the local hero's building lifts its
+      # roof; walking moves only G._world.pos and RESIDUE_FIELDS holds no world
+      # field; peers stand at their activity's station by sorted name, an empty
+      # plaza prints no count; furniture is REPLACED per envelope (kitchen
+      # 2 -> 3 -> {}); the mill hatch only navigates; steering + the 3 s walk
+      # home to the station; peers stand only on tiles no prop, tree, wall or
+      # roof shares (read off the drawn frame). --selftest plants 16 defects.
+      - name: World town and home - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-town-home.mjs --selftest
+
+      - name: World town and home - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-town-home.mjs
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs --selftest

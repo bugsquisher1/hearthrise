@@ -129,6 +129,12 @@ const CONSUMERS = new Map([
     why: 'the launchpad property card — tier name, next rung, plots/workers figures. '
        + 'Renders only; the Upgrade action is HH.upgradeProperty().',
   }],
+  ['src/world/world-boot.js', {
+    kind: 'DISPLAY',
+    why: 'the World pane\'s home: tapping a room piece calls HH.openRoom, the existing room '
+       + 'modal (whose Build/Upgrade is upgradeRoom, gated there); the house template is drawn '
+       + 'from HearthriseProperty.serverPropertyTier(). Navigates and renders; permits nothing.',
+  }],
   ['src/render/haul-unlocks.js', {
     kind: 'DISPLAY',
     why: '"what your haul unlocks": names the next tier (HH.nextTier, only once '

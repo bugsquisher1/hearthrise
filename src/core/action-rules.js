@@ -16,12 +16,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=584';
+import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=585';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT,
-  SLOT_TARGETS } from '../data/rule-subjects.js?v=584';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR } from '../data/hunt-sessions.js?v=584';
-import { applyBuffSegment } from './buffs.js?v=584';
-import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=584';
+  SLOT_TARGETS } from '../data/rule-subjects.js?v=585';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR } from '../data/hunt-sessions.js?v=585';
+import { applyBuffSegment } from './buffs.js?v=585';
+import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=585';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };

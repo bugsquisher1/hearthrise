@@ -68,12 +68,12 @@ Every lane:
 
 ### 3.3a Release mechanics
 - Ready branches assemble on `set/b<NNN>` (never local `main`), pushed to `next` as it grows. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout.
-- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/b<NNN>` → GitHub green → push `main`. The play gate and the Discord note happen once a day, not per release.
+- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/b<NNN>` → GitHub green → push `main`.
 - Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day.
 
 ### 3.3b Cadence: ship continuously while nobody plays (Tyler, 2026-10-10)
 "Keep building the game as if no one is playing it." Until Tyler says players are back (beta-3 keys or the Steam EA wipe):
-- **Each lane ships as soon as ITS gates pass.** No fixed daily cut, no batching behind an unrelated red. ONE Discord note per day summarises what shipped.
+- **Each lane ships as soon as ITS gates pass.** No fixed daily cut, no batching behind an unrelated red.
 - **No player-protection staging:** no cohort percentages or soaks. Arm channels for everyone after the Security GO; prove scale with synthetic load tests. Old content may be cut freely.
 - **Still held:** combat-engine changes are batched and spaced by the world-tick parity rule; Security keeps its veto.
 
@@ -134,12 +134,12 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 ## 7. Code & content rules
 
 - `src/legacy.js` (~19k lines) is mostly UI glue; data lives in `src/data/*`, pure logic in `src/core/*` (dual-runtime, imported by the edge). Extract render helpers to `src/render/*` first, then screen controllers.
-- **No hardcoded colours.** Every colour is a token from `theme-cozy.css`; convert as you touch each component.
+- **No hardcoded colours.** Every colour is a token from `src/styles/tokens.css` (the single source); convert as you touch each component.
 - Three stylesheets fight on specificity (`legacy.css`, `audit-overrides.css`, `theme-cozy.css`); mobile rules often need theme-prefixed selectors.
 - **Mobile query:** `@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px)` (`tests/breakpoint-guard.mjs` freezes the set). Phones are landscape-only and get the scaled-desktop rail layout, never the bottom-nav. `.prof-toolbar` stays hidden on mobile; `.feat-buttons` replaces it.
 - **Assets:** new icons go in `assets/icons-bundle/` (`buildings/ monsters/ resources/ medieval/`), wired via the `LOCAL_*_ICON` maps in `applyLocalIcons()`. Never reference `icons3/`, `assets/raw-bundle/` or `.legacy/snapshots/`.
 - **Supabase wiring:** `src/net/` — `supabase-bootstrap.js` (anon key only), `auth.js`, `sync.js`, `accrue.js`, `activity.js`, `record.js`, `client-state.js`. Bug reports: `src/bug-report.js`.
-- **Docs:** no new `.md`/`.docx`/`.pdf` unless Tyler asks. Maintain the CHANGELOG and `docs/planning/PRIORITY_BOARD.md`.
+- **Docs:** no new `.md`/`.docx`/`.pdf` unless Tyler asks. Maintain the CHANGELOG, `docs/planning/PRIORITY_BOARD.md` and the three §10 standards docs.
 
 ---
 
@@ -156,3 +156,19 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 - Trust but verify: after a fix lands, check it on the live deploy and report green/red.
 - If the bash mount disagrees with `Read`, trust `Read`/`Edit`/`Write`.
 - Chrome QA tabs freeze after idle; open a fresh tab and close the old one so it cannot reclaim the single session.
+
+## 10. Creative standards (Tyler, 2026-10-14)
+
+Hearthrise must feel handcrafted and be recognisable from a screenshot without its logo. It must never read as a generated dashboard or a pile of easy-to-build systems. Quality over quantity; player experience over feature count. These rules rank below §1–§4.
+
+- **Read the matching doc only when the task needs it.** Never preload all three; briefs name the one that applies.
+  - `docs/DESIGN_STANDARDS.md`: designing or changing a system, a creature or hunting ground, an item, progression or economy numbers, or player-facing text and names.
+  - `docs/ART_DIRECTION.md`: any sprite, icon, tile, effect, CSS or screen layout. The pixel-world specs it points to (`src/data/world/art-budget.js`, `palette.js`, `tests/world-assets.mjs`) are law.
+  - `docs/QUALITY_CHECKLIST.md`: before reporting a feature, content batch or UI change as done.
+- **Identity:** Tibia and Huntera inspire mechanics only, never names, sprites, maps, UI or text. No filler names (Shadow, Void, Ancient, Eternal, Dark, Forgotten). Creatures, places, items and lore connect to each other.
+- **Purpose test:** every system answers which player problem it solves, what decision it adds, and what it plugs into. If it fails, merge, simplify or cut it. More systems is not a better game.
+- **No mass generation:** a batch of more than 20 rows starts as a sample of about 5, played and reviewed, then expands in batches of 20 or fewer, audited for repetition.
+- **Pixel art:** integer scales only; no smooth scaling or blur; one grid, one palette, one perspective.
+- **UI is purpose-built:** no wall of identical cards, no borders on everything, no glow or gradient decoration, no random accents. An inventory looks like an inventory, a bestiary like an encyclopedia, a hunt like a living hunt.
+- **Evidence, not self-praise:** no balance number or quality score without evidence; done, verified and assumed are reported separately; a builder never scores their own work.
+- **Challenge Tyler:** call generic, redundant or over-complicated ideas what they are, with a better option. There is no approval wait: decide, build, validate, report.

@@ -118,7 +118,7 @@ export function rateMult(ctx) {
 export {
   RECOVERY_BASE_MS, RECOVERY_CAP_MS, NOVICE_GRACE_DEATHS, NOVICE_GRACE_MS, recoveryFor,
   RECOVERY_REFUSED_KINDS, recoveryRefuses, RESUME_HP_FRACTION, resumeHpFor,
-} from './recovery.js?v=584';
+} from './recovery.js?v=585';
 
 export const DAY_MS = 86400000;
 

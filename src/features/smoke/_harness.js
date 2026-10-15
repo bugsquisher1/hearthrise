@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=584';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=584';
+import { on, snapshot } from '../../net/events.js?v=585';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=585';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=584';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=585';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=584';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=585';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2010,9 +2010,15 @@ export const firstRunAnswered = (name) => {
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
+  /* G.playerName goes back too: while the harness name stands, the name readers
+     (legacy.js's "reconcile the stale default up") copy it INTO G.playerName, and
+     that copy outlived the stub — every later test ran as "Wren" (2026-10-14: the World
+     pane then rightly left a peer called Wren out of the Common as "yourself"). */
+  const G = window.G, hadName = G && Object.prototype.hasOwnProperty.call(G, 'playerName'), oldName = G && G.playerName;
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
+    if (G && window.G === G) { if (hadName) G.playerName = oldName; else delete G.playerName; }
   };
 };
 

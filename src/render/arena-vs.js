@@ -11,7 +11,7 @@
 // Damage pops and the death throe are a SUBSCRIBER of the one swing observer
 // (src/render/combat-observer.js): the stage no longer wraps combatTick itself.
 // ════════════════════════════════════════════════════════════════════════
-import { installCombatObserver } from './combat-observer.js?v=584';
+import { installCombatObserver } from './combat-observer.js?v=585';
 
 const glyph = (key, px) => (window.HR && window.HR.icon ? window.HR.icon(key, px, 'currentColor') || '' : '');
 

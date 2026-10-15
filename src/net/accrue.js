@@ -2647,7 +2647,7 @@ export function inventoryFlipReadiness() {
        arm gate enforces is satisfied AND the soak is clean. NOT an auto-arm: it
        reports readiness; a human still throws the switch. `minSoakMs`/`minSamples`
        are the caller's policy (default: any observed clean window). */
-    ready: !!(D && typeof D === 'object') && baselineCompleteSeen && envelopeDrift.destructive === 0,
+    ready: baselineCompleteSeen && envelopeDrift.destructive === 0,
   };
 }
 

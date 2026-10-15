@@ -2520,42 +2520,14 @@ const run = async () => {
       exitCode = 1;
     }
 
-    /* ── The combat-XP settle watermark-split guard (bug #5 root pt2) ────────
-       Proves the accrual engine credits combat XP only for the window at/after
-       combat_xp_accrued_to (so a live credit is not double-paid by the settle) AND
-       that with no watermark it is byte-identical to the pre-split behaviour (the
-       AWAY-1 parity property). */
-    try {
-      const { combatXpSettleSplitGuard } = await import('./combat-xp-settle-split.mjs');
-      const r = await combatXpSettleSplitGuard();
-      console.log(`\nCombat-XP settle-split guard — ${r.checks}`);
-    } catch (e) {
-      console.log('\nCombat-XP settle-split guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
-
-    /* ── The combat-XP SETTLE-FIRST guard (2026-09-09, Paione) ──────────────
-       The other side of the same watermark: a credit must not be able to stamp
-       combat_xp_accrued_to over an away window the settle has not paid yet. Live,
-       three boot-time credits worth 222 XP trimmed a 4h02m / 828-kill settle to
-       ZERO combat XP while it paid every coin and item. Proves the rule, the
-       settle's behaviour over Paione's own window, and the client ordering. */
-    try {
-      const { combatXpSettleFirstGuard } = await import('./combat-xp-settle-first.mjs');
-      const r = await combatXpSettleFirstGuard();
-      if (!r.ok) {
-        console.log('\nCombat-XP settle-first guard — FAILED:');
-        for (const p of r.problems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nCombat-XP settle-first guard — a credit cannot trim an unpaid away window (rule + settle + client ordering).');
-      }
-    } catch (e) {
-      console.log('\nCombat-XP settle-first guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
+    /* tests/combat-xp-settle-split.mjs and tests/combat-xp-settle-first.mjs
+       were RETIRED by lane C2 (closed rebuild, 2026-10-14): both graded the
+       combat_xp_accrued_to watermark between the client's ATTENDED combat-XP
+       credit (hr_credit_combat_xp) and the away span. A fight is now a hunt
+       session priced ONLY by hunt_settle / the world tick — there is no attended
+       credit and no away combat span, so there is no second payer to split
+       against. One payer is proven by tests/hunt-sessions-settle.mjs BOTH-PATH.
+       Deliberately unregistered, not forgotten. */
 
     /* ── The deferral's IDENTITY (QA-DEFER-ID, 2026-09-18) ──────────────────
        The other half of the same deferral: it may only ever be handed back to

@@ -4021,17 +4021,19 @@ export default [
             }, async ({ state, bar, crowd }) => {
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated') return;
-              const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+              const meta = document.getElementById('ab-meta');
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 window.G.combatKillsThisFoe = 5;
-                window.refreshActivityBar();
-                await tick(); await tick();
+                window.refreshActivityBar(); fitBar(bar);
                 earned(bar, meta, 'live sparse full width: ');
+                /* crowd(), the fit and the measurement run in ONE task: the live game's own
+                   repaint (a timer) cannot land between the fit and the read, which is how a
+                   frame-deferred observer fit read as 'unearned' one run in two. The observer
+                   path itself is BAR-FIT-2's subject. */
                 for (const px of [760, 680, 620, 560, 480, 420, 360]) {
-                  bar.style.maxWidth = px + 'px'; crowd();
-                  await tick(); await tick(); // the observers' frame runs the fit
+                  bar.style.maxWidth = px + 'px'; crowd(); fitBar(bar);
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
               } finally { bar.style.maxWidth = ''; }

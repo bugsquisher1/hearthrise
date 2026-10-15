@@ -1078,17 +1078,19 @@ export default [
     // Both sides of the coin, deterministically — no flaking on a real draw.
     assert(window.rollFlatBonus(2.4, () => 0.39) === 3, 'a fraction that hits pays the extra unit');
     assert(window.rollFlatBonus(2.4, () => 0.41) === 2, 'a fraction that misses pays only the whole part');
-    assert(window.rollFlatBonus(0.1, () => 0.05) === 1, 'the Scarecrow can finally pay');
+    assert(window.rollFlatBonus(0.1, () => 0.05) === 1, 'a +0.1 grant can finally pay');
     // And the expectation is the bonus itself, which is the whole point.
     let total = 0;
     for (let i = 0; i < 1000; i++) total += window.rollFlatBonus(0.25, () => i / 1000);
     assert(total === 250, 'the expected value must equal the bonus, got ' + (total / 1000));
-    // The producers really are non-fractional or rollable now.
+    // §9 (2026-10-14): a Scarecrow is a building, and a building grants no yield.
     const snap = snapshotG();
     try {
-      window.G.rooms = {}; window.G.plotBuildings = [{ id: 'scarecrow' }];
+      window.G.rooms = {}; window.G.plotBuildings = [];
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      assert(window.getBonus('farmYield') >= 1, 'the Scarecrow must grant a whole crop, got ' + window.getBonus('farmYield'));
+      const bare = window.getBonus('farmYield');
+      window.G.plotBuildings = [{ id: 'scarecrow' }, { id: 'scarecrow' }];
+      assert(window.getBonus('farmYield') === bare, 'two Scarecrows grant ' + (window.getBonus('farmYield') - bare) + ' farmYield');
     } finally { restoreG(snap); }
   }),
 

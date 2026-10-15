@@ -4454,8 +4454,8 @@ export default [
       assert(Math.abs((window.getBonus('cookSpeed') - base) - 0.10) < 1e-9,
         'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
         + 'half is not reaching getBonus');
-      assert(Math.abs((window.getBonus('yield_cooking') - baseY) - 0.08) < 1e-9,
-        'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ', expected +0.08');
+      assert(Math.abs(window.getBonus('yield_cooking') - baseY) < 1e-9,
+        'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ' — a home grants no yield (§9)');
     } finally {
       restoreG(snap);
     }

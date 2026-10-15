@@ -1435,13 +1435,12 @@ export default [
       forge:    ['smithSpeed', [.02, .04, .06, .08, .10]],
       workshop: ['craftSpeed', [.02, .04, .06, .08, .10]],
       shrine:   ['prayerSpeed', [.02, .04, .06, .08, .10]],
-      library:  ['allXP', [.01, .02, .03, .04, .05]],
-      trophy:   ['combatXP', [.01, .02, .03, .04, .05]],
       // Duration is EXEMPT from the small-percent grammar (bonus-rebase.md):
       // it is not throughput power, so it keeps the generous curve.
       cellar:   ['buffDuration', [.20, .40, .60, .80, 1.0]],
-      garden:   ['farmYield', [1, 2, 4, 6, 8]],   // units, not a percentage
     };
+    ['library', 'trophy', 'garden'].forEach((id) => window.ROOMS[id].levels.forEach((rung, i) =>
+      assert(!rung.bk && !rung.bx, id + ' L' + (i + 1) + ' sells ' + rung.bk + ' — a home grants no XP or yield (§9)')));
     Object.keys(MAG).forEach((id) => {
       const [key, vals] = MAG[id];
       vals.forEach((v, i) => {
@@ -1482,19 +1481,12 @@ export default [
     // QUANTUM per banked charge (capacity, outside the percent grammar) instead
     // of the percentage potency that was provably worth nothing, and L5 also
     // deepens the bank. What must never come back is a `restedXp` PERCENTAGE.
-    assert(window.ROOMS.library.levels[3].rested === 800, 'Library L4 must pay 800 XP per rested charge');
-    assert(window.ROOMS.library.levels[4].rested === 1600, 'Library L5 must pay 1,600 XP per rested charge');
-    assert(window.ROOMS.library.levels[4].restedCap === 120, 'the Great Library must deepen the bank to 120 charges');
-    [3, 4].forEach((i) => {
-      const rung = window.ROOMS.library.levels[i];
-      assert(!rung.resv, 'Library L' + (i + 1) + ' must no longer say "reserved" — the payload shipped');
-      assert(/[Rr]ested/.test(rung.bonus || ''), 'Library L' + (i + 1) + ' must SAY it pays Rested XP');
-    });
     let restedProducers = 0;
     Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r) => {
-      if (r.bk === 'restedXp' || (r.bx && r.bx.restedXp != null)) restedProducers++;
+      if (r.rested || r.restedCap || r.bk === 'restedXp' || (r.bx && r.bx.restedXp != null)) restedProducers++;
+      assert(!/[Rr]ested/.test(r.bonus || ''), id + ' still promises Rested XP');
     }));
-    assert(restedProducers === 0, 'no homestead rung may promise Rested XP as a PERCENTAGE — it is a flat quantum now');
+    assert(restedProducers === 0, 'no homestead rung may pay Rested XP (§9)');
 
     // COSTS AND LEVELS ARE UNTOUCHED. This is the half of the corollary that
     // still stands, so it is frozen literally.
@@ -1595,9 +1587,8 @@ export default [
        may grant, so the homestead's own tables are what it is checked against. */
     const CEIL = {
       // Post-retune (Tyler, binding): small increments across the board.
-      allXP: 0.05,
-      combatXP: 0.05, cookSpeed: 0.10, smithSpeed: 0.10, craftSpeed: 0.10, prayerSpeed: 0.10,
-      farmYield: 8, craftSave: 0.08, yield_cooking: 0.08, yield_smithing: 0.08,
+      allXP: 0, combatXP: 0, farmYield: 0, yield_cooking: 0, yield_smithing: 0,   // §9
+      cookSpeed: 0.10, smithSpeed: 0.10, craftSpeed: 0.10, prayerSpeed: 0.10, craftSave: 0.08,
       buffDuration: 1.0,    // exempt from the % grammar — not throughput power
       noBurn: 0.25,         // the Kitchen cancels the whole open-fire burn, never more
       restedXp: 0,          // reserved for the b228 rested rework — promised by nothing
@@ -1620,10 +1611,7 @@ export default [
     // Treasury's, so the two pillars do not duplicate.
     assert(peak.goldFind == null, 'the homestead must contribute no goldFind');
 
-    // allXP is the game's tightest budget (the fuse is 0.60 across every
-    // system). Post-retune the homestead's whole contribution is 5 points,
-    // which is the headroom problem solved rather than merely managed.
-    assert(peak.allXP <= 0.05 + 1e-9, 'the homestead may not contribute more than +5% allXP');
+    assert(!peak.allXP && !peak.combatXP, 'the homestead may not contribute any XP (§9)');
   }),
 
   () => tryRun('b227: the fuses live where the number is SPENT, so no wrapper can escape them', () => {
@@ -1826,7 +1814,7 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b521: the Forge and Workshop rung-1 CARD names the proc it pays', () => {
+  () => tryRun('b521: the Workshop rung-1 CARD names the proc it pays; the Forge promises none', () => {
     /* Designer ruling 1b. With the permission gate gone, the first rung has to
        SELL the room, and a player reads the ladder line before they ever feel a
        proc. So the copy and the payload are asserted together: the line the card
@@ -1837,7 +1825,6 @@ export default [
     const H = window.HearthriseHomestead;
     assert(H && typeof H.roomDescriptor === 'function', 'roomDescriptor is not published');
     const CASES = [
-      ['forge',    'yield_smithing', /extra bar/i,           'Extra bar'],
       ['workshop', 'craftSave',      /crafts cost nothing/i, 'Free crafts'],
     ];
     const snap = snapshotG();
@@ -1867,6 +1854,8 @@ export default [
         });
         assert(pcts.join(',') === '1,2,4,6,8', id + ' proc copy ladders ' + pcts.join('/') + ', expected 1/2/4/6/8');
       });
+      window.ROOMS.forge.levels.forEach((r, i) => assert(!/extra bar/i.test(r.bonus || '') && !(r.bx || {}).yield_smithing,
+        'Forge L' + (i + 1) + ' still promises an extra bar (§9)'));
     } finally { restoreG(snap); }
   }),
 

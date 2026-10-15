@@ -3,7 +3,7 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-15",
   "pinnedCount": 16,
-  "bnumTotal": 3070,
+  "bnumTotal": 3067,
   "files": {
     "src/legacy.js": {
       "total": 13223,
@@ -20,9 +20,9 @@
       "bnum": 139
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 8611,
-      "comment": 2260,
-      "code": 5772,
+      "total": 8614,
+      "comment": 2259,
+      "code": 5776,
       "ratio": 0.3836180597925564,
       "bnum": 112
     },
@@ -41,16 +41,16 @@
       "bnum": 94
     },
     "src/features/smoke/market-night-and-prices.js": {
-      "total": 4599,
-      "comment": 1445,
-      "code": 2862,
+      "total": 4587,
+      "comment": 1442,
+      "code": 2854,
       "ratio": 0.47591163162097416,
-      "bnum": 95
+      "bnum": 94
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 4241,
+      "total": 4239,
       "comment": 875,
-      "code": 3173,
+      "code": 3171,
       "ratio": 0.27576426095178064,
       "bnum": 56
     },
@@ -89,13 +89,6 @@
       "ratio": 1.5674300254452926,
       "bnum": 69
     },
-    "src/features/smoke/rooms-items-and-economy.js": {
-      "total": 2079,
-      "comment": 496,
-      "code": 1473,
-      "ratio": 0.31541450777202074,
-      "bnum": 41
-    },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
       "total": 2073,
       "comment": 368,
@@ -103,10 +96,17 @@
       "ratio": 0.23439490445859873,
       "bnum": 19
     },
+    "src/features/smoke/rooms-items-and-economy.js": {
+      "total": 2072,
+      "comment": 496,
+      "code": 1466,
+      "ratio": 0.31541450777202074,
+      "bnum": 41
+    },
     "src/features/smoke/companions-claims-and-renown.js": {
-      "total": 2056,
-      "comment": 465,
-      "code": 1467,
+      "total": 2042,
+      "comment": 462,
+      "code": 1456,
       "ratio": 0.2605128205128205,
       "bnum": 21
     },

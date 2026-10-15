@@ -5552,7 +5552,7 @@ export default [
     const copy = HH.TIERS.map((t) => t.desc);
     copy.forEach((s) => assert(!/\d+\s*h(our)?s?\s*(offline|away)|offline progress/i.test(s), 'a ladder line promises away hours: ' + s));
     const castle = HH.TIERS[HH.TIERS.length - 1].desc;
-    assert(/\+2% all XP/.test(castle), 'the Castle must state what CAPSTONE_PERKS pays (+2%): ' + castle);
+    assert(!/XP|yield/i.test(castle), 'the Castle promises XP or yield, and a home grants neither (§9): ' + castle);
   })),
 
   () => tryRun('OFFLINE-CAP-1d: the receipt prints the cap only when the credited span IS the cap, and sells no upgrade', () => {

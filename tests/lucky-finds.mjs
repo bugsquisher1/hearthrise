@@ -17,7 +17,6 @@
 //       buff x Boss-of-the-Day). Vigour-dry hours are reported, not gated;
 //   (e) >= 4 lucky rows per tier T1-T6, unique items, lucky row LAST;
 //   (f) item.tier is the monster's tier or one above it;
-//   (g) pickProofItem (bounty proof) is unchanged by the lucky row.
 //
 // BOTH PATHS: the AWAY half runs the real server engine (computeAccrual) and a
 // raw away simulateSpan; the ATTENDED half runs the live tick (away:false) on
@@ -40,7 +39,6 @@ import { MAX_MEMORY_DROP_MULT } from '../src/data/bestiary.js';
 import { DAILY_POOL, WEEKLY_POOL, DAILY_BONUS, WEEKLY_BONUS } from '../src/core/botd.js';
 import { VIGOUR_DRY_MULT } from '../src/core/hunt.js';
 import { effectiveDropChance } from '../src/core/drops.js';
-import { pickProofItem } from '../src/core/bounty.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { createRng } from '../src/core/rng.js';
@@ -177,10 +175,6 @@ function check(monsters) {
     perTier[m.tier] = (perTier[m.tier] || 0) + 1;
     /* (f) the tier rule */
     ok(it.tier === m.tier || it.tier === m.tier + 1, 'f', `${tag}: item tier ${it.tier} is not T${m.tier} or T${m.tier + 1}`);
-    /* (g) the bounty proof item */
-    const stripped = { ...monsters, [mid]: { ...m, drops: m.drops.filter((x) => !x.lucky) } };
-    ok(pickProofItem(mid, monsters, ITEMS) === pickProofItem(mid, stripped, ITEMS), 'g',
-      `${tag}: the lucky row changes the bounty proof item`);
     /* (d) the hours, measured */
     if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
     const got = fight(monsters, mid);

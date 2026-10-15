@@ -161,7 +161,6 @@ async function loadReal() {
   const legacyText = read('src/legacy.js').split('\n');
   const lines = (needle) => legacyText.filter((l) => l.includes(needle));
   const vocab = [...new Set([
-    ...labelValues(read('src/render/companion-lines.js'), 'export const COMPANION_LABELS = {'),
     ...labelValues(read('src/features/homestead.js'), 'var KEY_LABEL = {'),
     ...EXTRA_VOCAB,
   ].map((w) => w.toLowerCase()))];

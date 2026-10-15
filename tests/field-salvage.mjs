@@ -25,7 +25,6 @@
 //        lucky — and a salvage-SHAPED row (own-tier small-slot generated armour)
 //        never ships without the flag, because the flag is what stops the
 //        client's own dice showing it (src/features/lucky-finds.js);
-//   (f)  pickProofItem (bounty proof) is unchanged by the salvage row.
 //
 // BOTH PATHS: AWAY — computeAccrual (the real server engine) mints the wild_boar
 // piece with its ev:loot op and {type:'rare_drop'} event, and an away:true
@@ -50,7 +49,6 @@ import { MAX_MEMORY_DROP_MULT } from '../src/data/bestiary.js';
 import { DAILY_POOL, WEEKLY_POOL, DAILY_BONUS, WEEKLY_BONUS } from '../src/core/botd.js';
 import { VIGOUR_DRY_MULT } from '../src/core/hunt.js';
 import { effectiveDropChance } from '../src/core/drops.js';
-import { pickProofItem } from '../src/core/bounty.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { createRng } from '../src/core/rng.js';
@@ -198,10 +196,6 @@ function check(monsters) {
       ok(!d.lucky, 'e', `${tag}: a row is both salvage and lucky`);
       ok(!seenItems.has(d.id), 'e', `${tag}: item already used by the salvage row on ${seenItems.get(d.id)}`);
       seenItems.set(d.id, mid);
-      /* (f) the bounty proof item */
-      const stripped = { ...monsters, [mid]: { ...m, drops: drops.filter((x) => !x.salvage) } };
-      ok(pickProofItem(mid, monsters, ITEMS) === pickProofItem(mid, stripped, ITEMS), 'f',
-        `${tag}: the salvage row changes the bounty proof item`);
       /* (d) the hours, measured */
       if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
       const got = fight(monsters, mid);

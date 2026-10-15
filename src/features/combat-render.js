@@ -293,19 +293,7 @@ const HUD = (() => {
   function paintPlayer(mount) {
     const s = eatState();
     if (!s) { mount.innerHTML = ''; mount.dataset.sig = ''; return; }
-    /* b267 (paione, Android landscape): the auto-eat FOOD PICKER lived only in the
-       scrolling combat area, which is below the fold on a short landscape screen —
-       "on landscape I don't have the option to select food". Surface it here in
-       the always-visible HUD, beside the Eat button, when the player owns the
-       Auto-Eat trait. */
-    const hasAuto = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
-    /* THE CHIP PRINTS THE SERVER'S CONFIG (autoEatLabel): Off / the food / "best
-       in bag" for a null `auto_eat_food`, pending until the server states it. */
-    const A_ = window.HearthriseAuto;
-    const lab = (hasAuto && A_ && typeof A_.autoEatLabel === 'function') ? A_.autoEatLabel() : null;
-    const autoName = hasAuto ? (lab ? lab.text : 'Off') : '';
-    const autoPend = !!(lab && lab.pending);
-    const sig = [s.key, s.label, s.meta, autoName, autoPend].join('|');
+    const sig = [s.key, s.label, s.meta].join('|');
     if (mount.dataset.sig === sig) return;
     mount.dataset.sig = sig;
     const on = s.key === 'eat';
@@ -316,11 +304,6 @@ const HUD = (() => {
       /* Each ' · ' clause is one unbreakable run, so a narrow bar breaks the
          line between facts, never inside a food name (combat-screens.css VG5). */
       `<span class="ae-meta">${String(s.meta).split(' · ').map((c) => `<span>${esc(c)}</span>`).join(' · ')}</span></button>`;
-    if (hasAuto) {
-      html +=
-        `<button type="button" class="btn btn-sm arena-autoeat" data-arena-act="autoeat" ` +
-        `title="Choose which food Auto-Eat uses"><span class="aa-lbl">Auto-Eat:</span> <span class="aa-food${autoPend ? ' bal-pending' : ''}"${autoPend ? ' role="status"' : ''}>${esc(autoName)} ▾</span></button>`;
-    }
     mount.innerHTML = html;
   }
 
@@ -345,7 +328,6 @@ const HUD = (() => {
       refresh();
     } else if (act === 'loot') { openLoot(); }
     else if (act === 'stats') { openStats(); }
-    else if (act === 'autoeat') { if (typeof window.openAutoEatPicker === 'function') window.openAutoEatPicker(); }
   }
 
   // ── The Loot modal ──────────────────────────────────────────────────────

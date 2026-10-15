@@ -10,7 +10,7 @@
 //   RM-2  every section kind the homestead descriptor uses renders to markup
 //         through the module's own helpers (note, meter, rows, ladder, actions)
 //   RM-3  the file names no clan system (no HearthriseClan*, no clan_ RPC)
-//   RM-4  it is loaded: an ESM on the boot path side-effect-imports it
+//   RM-4  it is loaded: index.html carries its classic <script> tag before homestead.js
 //
 //   node tests/room-modal.mjs             the contract
 //   node tests/room-modal.mjs --selftest  mutation proof: drop a helper, add a
@@ -53,21 +53,23 @@ function check(src, loader) {
   } else p.push('RM-2 the _section seam is missing');
   ok(!/Hearthrise(Clan|Clans|ClanSeat|Raids|Muster)\b|['"]clan_[a-z_]+['"]/.test(src),
     'RM-3 the room modal reads a clan system');
-  ok(/import '\.\.\/render\/room-modal\.js\?v=\d+';/.test(loader),
-    'RM-4 nothing on the boot path imports src/render/room-modal.js');
+  const tag = /<script src="src\/render\/room-modal\.js\?v=\d+"><\/script>/.exec(loader);
+  const home = loader.indexOf('<script src="src/features/homestead.js');
+  ok(tag && home > tag.index,
+    'RM-4 index.html does not load src/render/room-modal.js before src/features/homestead.js');
   return p;
 }
 
 export function roomModalGuard() {
-  return check(read('src/render/room-modal.js'), read('src/features/character-page.js'));
+  return check(read('src/render/room-modal.js'), read('index.html'));
 }
 
 function selftest() {
-  const src = read('src/render/room-modal.js'), loader = read('src/features/character-page.js');
+  const src = read('src/render/room-modal.js'), loader = read('index.html');
   const mutants = [
     ['a helper left behind in the clan seat', src.replace(/  function nfmt\(v\)[^\n]*\n/, ''), loader],
     ['a clan read added', src + '\nwindow.HearthriseClanSeat;\n', loader],
-    ['the boot import dropped', src, loader.replace(/import '\.\.\/render\/room-modal\.js\?v=\d+';/, '')],
+    ['the script tag dropped', src, loader.replace(/<script src="src\/render\/room-modal\.js\?v=\d+"><\/script>/, '')],
   ];
   let escaped = 0;
   for (const [name, s, l] of mutants) {

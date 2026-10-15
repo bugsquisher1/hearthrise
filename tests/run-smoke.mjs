@@ -55,7 +55,6 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
 import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
-import { bountyDriftGuard } from './bounty-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
@@ -106,7 +105,6 @@ import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
 /* The catalogue-refill ownership interlock that stops a regen wiping another
    migration's offers. Replays the real migration chain into PGlite and drives
    real RPCs. */
-import { traitBuyGuard } from './trait-buy.mjs';
 /* The HERO-SLOT purchase — the same shape as trait-buy and for the same reason:
    a premium-currency spend whose only working path is a server verb, plus the
    entitlement gate that stops hr_create_character minting the slots for free. */
@@ -116,7 +114,6 @@ import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
    client/server CONTRACTS: the board DRAWS a kill count the accept CLAMPS, and
    the entry trait is granted by the same RPC that mints the starting kit. */
 import { autoEatAtCreationGuard } from './auto-eat-at-creation.mjs';
-import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
@@ -1405,7 +1402,7 @@ async function saveSlotGuard(browser, url) {
 // vertical scroll is legitimate, a horizontal one is a broken layout.
 async function landscapeGuard(browser, url) {
   const TABS = ['home','profile','character','combat','skills','farming','house',
-    'social','clan','shop','market','bounty','stable','events','dungeons','inventory'];
+    'social','shop','market','inventory'];
   const ctx = await browser.newContext({
     viewport: { width: 820, height: 360 },
     hasTouch: true, isMobile: true,
@@ -1803,19 +1800,6 @@ async function catalogueDriftPreflight() {
   return 1;
 }
 
-// The bounty monster→tier catalogue is generated from src/data/monsters.js. A
-// stale one credits a bounty at the wrong tier's reward, so --check gates it.
-async function bountyMonsterPreflight() {
-  const gen = join(ROOT, 'tools', 'gen-bounty-monsters.mjs');
-  try { await stat(gen); } catch { return 0; }
-  const { spawnSync } = await import('node:child_process');
-  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
-  const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  if (r.status === 0) { console.log(`Bounty catalogue preflight: ${out || 'in sync'}`); return 0; }
-  console.error(`\nBounty catalogue preflight FAILED — src/data/monsters.js no longer matches the generated SQL.\n${out}\n`);
-  return 1;
-}
-
 // The farm-gate catalogues (hr_crops.regrow_limit, hr_crop_plot_tier,
 // hr_plot_tier, hr_farm_yield_perk) are generated from src/core/farm.js +
 // src/data/gathering.js + perks + companions. A stale one lets the server gate
@@ -1829,22 +1813,6 @@ async function farmCataloguePreflight() {
   const out = ((r.stdout || '') + (r.stderr || '')).trim();
   if (r.status === 0) { console.log(`Farm catalogue preflight: ${out || 'in sync'}`); return 0; }
   console.error(`\nFarm catalogue preflight FAILED — src/core/farm.js / gathering.js no longer matches the generated SQL.\n${out}\n`);
-  return 1;
-}
-
-// The raid-chest reward catalogue (hr_hunt_boss_reward) is generated from
-// src/data/raid-bosses.js. It is what raid_claim reads to mint the Hunt chest
-// materials + signature into player_inventory. A stale one mints the wrong
-// materials (real player item gain/loss under the inventory flip), so --check
-// gates it exactly like the farm catalogues.
-async function raidBossRewardPreflight() {
-  const gen = join(ROOT, 'tools', 'gen-raid-boss-rewards.mjs');
-  try { await stat(gen); } catch { return 0; }
-  const { spawnSync } = await import('node:child_process');
-  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
-  const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  if (r.status === 0) { console.log(`Raid boss-reward preflight: ${out || 'in sync'}`); return 0; }
-  console.error(`\nRaid boss-reward preflight FAILED — src/data/raid-bosses.js no longer matches the generated SQL.\n${out}\n`);
   return 1;
 }
 
@@ -2198,9 +2166,7 @@ const run = async () => {
   if (await artPalettePreflight()) process.exit(1);
   if (await backgroundWavePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
-  if (await bountyMonsterPreflight()) process.exit(1);
   if (await farmCataloguePreflight()) process.exit(1);
-  if (await raidBossRewardPreflight()) process.exit(1);
   if (await betaInviteGatePreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
@@ -2463,45 +2429,6 @@ const run = async () => {
         + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
     }
 
-    /* ── The bounty economy drift guard (server-owned bounty turn-in) ─────
-       The kill-driven bounty (type 'cull') turn-in now credits server-owned
-       gold + Bounty Marks (hr_accept_bounty / hr_claim_bounty). This binds the
-       reward, required-kill range and tier-unlock ladder in src/core/bounty.js
-       to the CASE constants the migration credits from, so a player can never be
-       shown one bounty reward and paid another. The monster→tier catalogue is
-       bound separately by the generator's --check below. */
-    const bntProblems = await bountyDriftGuard();
-    if (bntProblems.length) {
-      console.log('\nBounty drift guard — FAILED:');
-      for (const p of bntProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nBounty drift guard — bounty.js reward/range/tier tables and the credit RPC SQL agree.');
-    }
-
-    /* ── b497 · THE DIFFICULTY SCALES THE KILL COUNT (designer ruling) ─────
-       The b489 inversion: bountyCount read (type, tier) only, so the board's
-       EASY and NORMAL slots drew from the same range while the reward table
-       already paid easy 0.85x — Easy was strictly the best-paying contract on
-       the board. The ruling scales the COUNT (0.90/1.00/1.20/1.50) so
-       gold-per-kill rises with commitment. The guard above binds the tables
-       statically; this one asks the DATABASE, because both sides of a static
-       comparison are JavaScript and a Postgres/JS rounding disagreement would
-       be invisible to it. It replays the chain into PGlite and drives a real
-       signed-in accept at every difficulty: the range round-trips, an
-       out-of-range request clamps to the SCALED bounds, 'elite' is still
-       refused (Security 2026-08-23), and gold-per-kill is monotonic at all six
-       tiers. `--selftest` plants six real defects; every one must read RED. */
-    const bntCountProblems = await bountyDifficultyCountGuard();
-    if (bntCountProblems.length) {
-      console.log('\nBounty difficulty count — FAILED:');
-      for (const p of bntCountProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nBounty difficulty count — Postgres and bounty.js agree on all 24 scaled ranges '
-        + 'and the first-contract bracket; the accept clamps to the scaled bounds, elite stays '
-        + 'refused, and gold-per-kill rises with difficulty at every tier.');
-    }
 
     /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
        hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
@@ -3479,29 +3406,6 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
-    /* ── The permanent-TRAIT purchase guard (b46x) ───────────────────────
-       Under the live marks arm legacy.js buyTrait() failed closed with no
-       server verb behind it, so AUTO-EAT — the purchase the death sheet
-       teaches on a player's FIRST death — could not be bought at all. The
-       guard drives a real player through the real rate-gated hr_trait_buy on
-       a fully replayed PGlite chain: unknown trait, prerequisite, short
-       marks (and that the refusal is NOT cached under its key), the debit,
-       the ownership row hr_auto_eat_tier reads, auto-eat switched on through
-       its single writer at the tier-clamped threshold, the idempotent replay,
-       already_owned, one ledger row per purchase and the envelope projection.
-       It also BINDS legacy.js TRAITS to public.hr_traits in both directions,
-       so a price that differs by one Mark fails the build by name.
-       `--selftest` plants ten real defects; every one must read RED. */
-    const traitBuyProblems = await traitBuyGuard();
-    if (traitBuyProblems.length) {
-      console.log('\nPermanent-trait purchase — FAILED:');
-      for (const p of traitBuyProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
-        + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
-        + 'through its single writer, ownership projected on the envelope.');
-    }
 
     /* ── The HERO-SLOT purchase guard (2026-09-08) ───────────────────────
        Three live defects in one surface. The Buy button was LIT AND DEAD:

@@ -14,7 +14,7 @@
 //     to slider; players can still get to the slider via "Sell N…")
 //   • Menu options are item-type-aware:
 //       - Equippable      → Equip / Unequip / Inspect / Sell 1 / Sell N…
-//       - Food (heals)    → Eat / Set auto-eat / Inspect / Sell 1 / Sell N…
+//       - Food (heals)    → Eat / Inspect / Sell 1 / Sell N…
 //       - Bones (buryXp)  → Bury / Inspect / Sell 1 / Sell N…
 //       - Stackable other → Inspect / Sell 1 / Sell N…
 //       - Single junk     → Inspect / Sell 1
@@ -181,7 +181,7 @@
 
     /* NO ICONS IN THIS MENU, and that is a decision rather than a deletion.
        Six of the ~ten entries carried an emoji (↩️ ℹ️ ⚔️ 🦴 🪙 📊) and the rest —
-       Eat, Lock, Set as auto-eat — never had one, because there is no honest
+       Eat, Lock — never had one, because there is no honest
        glyph for them. A list where half the rows are indented behind a picture
        and half are not reads worse than a list with none, and a right-click
        menu is a TEXT surface in every game this one is aiming at. Words only. */
@@ -207,8 +207,7 @@
 
     // Food — b224: the verb and the effect come from foodUseInfo() so this
     // menu, the item flyout and the combat row cannot describe one item three
-    // ways. "Set as auto-eat food" is offered only where it is true: a
-    // Provision, and only once the player owns the Auto-Eat trait.
+    // ways.
     var food = (typeof window.foodUseInfo === 'function') ? window.foodUseInfo(id) : null;
     if(food){
       var effect = food.kind === 'provision'
@@ -218,12 +217,6 @@
         if(typeof window.eatFromInventory === 'function') window.eatFromInventory(id);
         else if(typeof window.eatFood === 'function') window.eatFood(id);
       }});
-      var owns = (typeof window.hasTrait === 'function') ? window.hasTrait('auto_eat') : false;
-      if(food.autoEatable && owns){
-        opts.push({ label: 'Set as Auto-Eat food', action: function(){
-          if(typeof window.setAutoEatFood === 'function') window.setAutoEatFood(id);
-        }});
-      }
     } else if(def.heals && def.heals > 0){
       // Defensive: an item that heals but that foodUseInfo() could not classify
       // (foodUseInfo is unavailable pre-boot). Still let the player eat it.

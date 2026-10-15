@@ -7151,7 +7151,7 @@ function _itemTier(id){
 function saveLoadout(idx){
   const l = G.loadouts[idx]; if(!l) return;
   l.equipment = {...equipmentMapG()};
-  l.tools = {...(G.tools||{})};
+
   l.foodSlot = G.foodSlot || null;
   l.set = true;
   saveLocal();
@@ -7189,22 +7189,11 @@ function applyLoadout(idx){
   });
   G.equipment = newEq;
   /* Tools: held tools, not in inventory — just copy refs that exist in ITEMS */
-  if(G.tools && l.tools){
-    Object.keys(G.tools).forEach(slot=>{
-      const target = l.tools[slot];
-      if(target && ITEMS[target]) G.tools[slot] = target;
-    });
-  }
-  /* Food slot. b499: a PLAYER GESTURE choosing food goes through HearthriseAuto.setEat,
-     the one writer the engine and the server's accrual read (G.foodSlot alone only
-     changed the food SHOWN). The auto-eat toggle is deliberately NOT touched. */
-  var _loadoutFood;
-  if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
-  else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
+  /* Food slot: the food the screens show (Auto-Eat's food choice left the client
+     with its toggle, 2026-10-14). */
+  if(l.foodSlot && hasItem(l.foodSlot, 1)) G.foodSlot = l.foodSlot;
+  else if(!l.foodSlot) G.foodSlot = null;
   else _skipped.push(_LV.skipWhy(l.foodSlot, null));
-  if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
-    window.HearthriseAuto.setEat({ foodId: _loadoutFood });
-  }
   window._activeLoadout = idx;
   saveLocal();
   refreshAll();
@@ -7237,7 +7226,7 @@ function clearLoadout(idx){
   }).then(function(ok){
     if(!ok) return;
     const cur = G.loadouts[idx]; if(!cur) return;
-    cur.equipment = {}; cur.tools = {}; cur.foodSlot = null; cur.set = false;
+    cur.equipment = {}; cur.foodSlot = null; cur.set = false;
     saveLocal(); renderInvNew();
   });
 }

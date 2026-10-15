@@ -60,22 +60,6 @@ export const SENDERS = {
       ['no gated verb is sent through callOnce directly', (c) => !/callOnce\('/.test(c)],
     ],
   },
-  'src/features/muster.js': {
-    literals: { world_event_claim: 3 },
-    wire: [
-      ['the claim is sent from `send`', (c) => /var send = function \(\) \{ return rpc\('world_event_claim', claimBody\); \};/.test(c)],
-      ['`send` goes through the handler', (c) => /SF\.withSettleFirstRetry\(send\)/.test(c)],
-      ['no other world_event_claim send', (c) => count(c, "rpc('world_event_claim'") === 1],
-    ],
-  },
-  'src/features/raids.js': {
-    literals: { raid_claim: 3 },
-    wire: [
-      ['the claim is sent from `send`', (c) => /var send = function \(\) \{ return rpc\('raid_claim', claimBody\); \};/.test(c)],
-      ['`send` goes through the handler', (c) => /SF\.withSettleFirstRetry\(send\)/.test(c)],
-      ['no other raid_claim send', (c) => count(c, "rpc('raid_claim'") === 1],
-    ],
-  },
   'src/net/farm-sync.js': {
     literals: { hr_farm_harvest: 1 },
     wire: [
@@ -90,24 +74,12 @@ export const SENDERS = {
       ['postBankMove is reached only from the handler', (c) => count(c, 'postBankMove(') === 2],
     ],
   },
-  'src/net/gold.js': {
-    literals: { hr_trait_buy: 1 },
-    wire: [
-      ['buyTrait goes through the handler', (c) => /withSettleFirstRetry\(\(\) => buyTraitOnce\(traitId, key\)\)/.test(c)],
-      ['buyTraitOnce is reached only from the handler', (c) => count(c, 'buyTraitOnce(') === 2],
-    ],
-  },
 };
 
 export const LATCH_SURFACES = [
-  'src/features/daily-quests.js',   // the one daily list's claim (w0c retired the legacy goals board)
   'src/features/collection-log.js', // milestone claim
-  'src/features/renown.js',         // rank claim
   'src/render/bank-panel.js',       // bank move
   'src/screens/farm.js',            // harvest
-  'src/settings-page.js',           // auto-eat toggle
-  'src/features/muster.js',         // rally chest
-  'src/features/raids.js',          // raid chest
 ];
 
 /* Comments out, strings kept: a name in prose is not a sender. Quote-aware, so a
@@ -194,11 +166,8 @@ const PLANTS = [
   ['SF-3', 'goal-claim drops a verb from SETTLE_GATED', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace(/hr_claim_milestone: 1,\s*hr_credit_kills/, 'hr_credit_kills'); }],
   ['SF-3', 'goal-claim sends a gated verb unwrapped', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace("return call('hr_claim_quest'", "return callOnce('hr_claim_quest'"); }],
   ['SF-3', 'bank-sync calls the primitive directly', (t) => { t['src/net/bank-sync.js'] = t['src/net/bank-sync.js'].replace('withSettleFirstRetry(() => postBankMove(f, cfg, body))', 'postBankMove(f, cfg, body)'); }],
-  ['SF-3', 'gold.js buyTrait bypasses the handler', (t) => { t['src/net/gold.js'] = t['src/net/gold.js'].replace('withSettleFirstRetry(() => buyTraitOnce(traitId, key))', 'buyTraitOnce(traitId, key)'); }],
   ['SF-3', 'farm harvest sent bare', (t) => { t['src/net/farm-sync.js'] = t['src/net/farm-sync.js'].replace("withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o))", "callFarmRpc('hr_farm_harvest', body, o)"); }],
-  ['SF-3', 'muster sends the claim without the handler', (t) => { t['src/features/muster.js'] = t['src/features/muster.js'].replace('SF.withSettleFirstRetry(send)', 'send()'); }],
-  ['SF-3', 'raids sends the claim without the handler', (t) => { t['src/features/raids.js'] = t['src/features/raids.js'].replace('SF.withSettleFirstRetry(send)', 'send()'); }],
-  ['SF-4', 'the auto-eat toggle loses its latch', (t) => { t['src/settings-page.js'] = t['src/settings-page.js'].split('data-hr-settle-latch').join(''); }],
+  ['SF-4', 'the Depot move loses its latch', (t) => { t['src/render/bank-panel.js'] = t['src/render/bank-panel.js'].split('data-hr-settle-latch').join(''); }],
 ];
 const CONTROLS = [
   ['a comment-only mention', (t) => { t['src/features/new-thing.js'] = "// hr_bank_move is the Depot verb\n/* 'hr_claim_rank' */\n"; }],

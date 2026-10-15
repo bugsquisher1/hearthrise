@@ -114,11 +114,6 @@ const CONSUMERS = new Map([
        + 'Reads HH.workerSlots(), which is tierDef().workers floored by the PAID worker_hire '
        + 'rung (property-record effectiveWorkerSlots), never the residue.',
   }],
-  ['src/features/clan-seat-ui.js', {
-    kind: 'CAPABILITY',
-    why: 'HH.isCastle() adds a clan-seat bonus — a payout modifier, so it is a capability '
-       + 'read, not decoration. Routed through getTier().',
-  }],
   ['src/features/chronicle.js', {
     kind: 'DISPLAY',
     why: 'names the current property rung in the chronicle and logs a tier CHANGE '

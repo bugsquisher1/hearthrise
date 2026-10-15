@@ -7,7 +7,7 @@
 // Categories:
 //   • Audio          — master / music / sfx volumes, mute on blur
 //   • Display        — UI scale, theme, reduce motion, damage numbers
-//   • Gameplay       — left-hand, auto-eat threshold, food slot
+//   • Gameplay       — left-hand, replay guide
 //   • Chat & Privacy — profanity filter, timestamps, mention sound,
 //                      whisper permission, block list
 //   • Account        — display name, sign in/out, cloud sync
@@ -175,15 +175,6 @@
     if('scale' in d) delete d.scale;
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
-    /* b326: the slider must SHOW what the engine will DO. The engine's number
-       is HearthriseAuto.eatThreshold() — the server's own `auto_eat_pct`.
-       Re-derived on every open (not just when missing) so the panel can never
-       display a stale threshold after the food picker or a cloud restore. */
-    if(window.HearthriseAuto && typeof window.HearthriseAuto.eatThreshold === 'function'){
-      d.autoEatPct = window.HearthriseAuto.eatThreshold();
-    } else if(typeof d.autoEatPct !== 'number'){
-      d.autoEatPct = 0.5;   /* no client-held copy to fall back to any more */
-    }
   }
 
   function esc(s){
@@ -451,163 +442,11 @@
       + row('Show damage numbers', toggle('showDamage', d.showDamage));
   }
 
-  /* ── AUTO-EAT, AND WHY THIS IS THREE ROWS INSTEAD OF ONE SLIDER ──────────
-     b372 (F7, live audit 2026-08-17). Tyler sat at 3/10 HP for dozens of swings
-     with edible food in the bag and died twice, having read "Auto-eat HP
-     threshold — 50%" on this very screen. Nothing was broken downstream: the
-     engine gate in features/auto-actions.js `maybeAutoEat()` is
-     `enabled && owned`, and BOTH were false. The screen was the defect. It
-     rendered a live, draggable, persisted control for a feature the character
-     did not own (Auto-Eat is 100 Bounty Marks, TRAITS.auto_eat) and for a
-     switch that has no other UI anywhere in the game — so the threshold read as
-     a promise of healing that could never be kept.
-
-     Two failures, so two fixes, and they are separate rows on purpose:
-
-       • UNOWNED → no operative control at all. A locked row that names the
-         price and the shop, plus the honest alternative (press Eat). Same
-         pattern the b361 combat screen already uses — `renderCombat()`'s
-         `_foodNote` says exactly this — so the two surfaces now agree instead
-         of one contradicting the other.
-
-       • OWNED → the ON/OFF switch is SHOWN. `autoActions.eat.enabled` was
-         reachable from precisely two places (buying the trait, and picking a
-         food), so a player who turned it off from the combat picker, or a
-         pre-b217 save grandfathered by migration v5→v6 with `enabled:false`,
-         had a threshold slider governing a switch they could not see and could
-         not turn back on. The switch is the feature; the threshold is a detail
-         of it.
-
-     The toggle carries `data-autoeat` rather than `data-set` because it is NOT
-     a `G.settings` key — `HearthriseAuto.setEat()` is the one authoritative
-     writer (b326/b329), and routing it through the generic settings binder
-     would create the second writer that whole comment block exists to prevent. */
-  /* b45x — ANY tier unlocks the row. Asking about a specific trait id would
-     lock the slider for a character who somehow held only Auto-Eat II, which is
-     exactly the "gate reads an id instead of a capability" bug the server's
-     entitlement gate was widened to avoid. */
-  function ownsAutoEat(){
-    try {
-      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-      return !!(AE && typeof AE.autoEatTier === 'function'
-        && AE.autoEatTier((window.G && window.G.traits) || {}) > 0);
-    }
-    catch(e){ return false; }
-  }
-  /* ── THE HINT UNDER THE DIAL — ONE SOURCE, THREE STATES ──────────────────
-     It used to be written out TWICE (here and again in the `data-autoeat`
-     change handler, which repaints it rather than re-rendering the panel), so
-     the two copies could disagree — and the moment the ruling below added a
-     third state they would have.
-
-     ⚠ THE WARNING IS A BINDING CONDITION OF ARMING THE SYNC, not decoration.
-       Designer ruling 2b (2026-08-31): the auto-eat ON/OFF toggle now reaches
-       the server, so switching it off really does mean nothing heals you while
-       you are away — the accrual engine's `fx.autoEat()` is gated on that exact
-       column and a measured 12-hour night with it off pays 0 kills and dies at
-       the first fight. The ruling's answer to "they might not have understood"
-       is never a guardrail; it is making the consequence legible, AT the
-       control, before the night rather than after it.
-
-       BOTH ENDS, because they are one outcome. The dial's 0% minimum
-       reproduces the same no-heal night through a different key
-       (`clampThreshold`'s b326 note keeps a deliberate zero meaning "manual
-       healing only" — that stays), so a warning on the switch alone would be
-       half the rule. Same sentence, so the two controls cannot be read as two
-       different severities.
-
-     The copy is the Designer's, verbatim. Do not reword it here without them —
-     the death receipt (src/net/accrue.js `receiptDeathCause`) is the other half
-     of the same promise and the two are meant to rhyme. */
-  var AUTO_EAT_AWAY_WARNING =
-    'You will not heal while away. A fight that outlasts your health ends the night early.';
-  function autoEatHint(on, threshold){
-    if(!on){
-      return 'Auto-Eat is switched off, so this threshold does nothing until you turn it on above. '
-        + AUTO_EAT_AWAY_WARNING;
-    }
-    if(!(Number(threshold) > 0)){
-      return 'At 0% auto-eat never fires — healing in combat is manual. ' + AUTO_EAT_AWAY_WARNING;
-    }
-    /* THE TOP END, LABELLED HONESTLY (Designer ruling 2c, 2026-08-31). This
-       rides WITH the engine fix and is not a substitute for it — copy at this
-       end was explicitly rejected as the answer. `resolveAutoEat` now refuses a
-       zero-deficit eat, so 100% has stopped meaning "burn a Provision every
-       swing at full health" and started meaning the max-safety setting a
-       tier-II owner paid 100 Marks for. The label says that in the player's own
-       words instead of leaving them to infer it from a percentage that reads
-       like a paradox. Deliberately NOT a warning: the 0% end warns because
-       there is a real consequence to inform; here there is none left. */
-    if(Number(threshold) >= 1){
-      return '100% — eat the moment I take any damage. '
-        + 'Feasts & Draughts are never auto-eaten.';
-    }
-    return 'Eat one Provision automatically on each swing your HP is below this percentage. '
-      + 'Feasts & Draughts are never auto-eaten.';
-  }
-
-  /* Re-say the hint from the LIVE control values. Both writers (the switch and
-     the dial) call this, so neither can leave the other's sentence stale — and
-     it reads the DOM rather than being handed a value, because the two handlers
-     fire on different elements and a parameter would be a third statement of
-     the same state. */
-  function repaintAutoEatHint(root){
-    if(!root) return;
-    var slider = root.querySelector('[data-set="autoEatPct"]');
-    var toggle = root.querySelector('[data-autoeat="enabled"]');
-    if(!slider || !toggle) return;
-    var row = slider.closest ? slider.closest('.ss-row') : null;
-    var hint = row ? row.nextElementSibling : null;
-    if(!hint || !hint.classList || !hint.classList.contains('ss-hint')) return;
-    hint.textContent = autoEatHint(!!toggle.checked, parseFloat(slider.value));
-  }
-
-  function autoEatHtml(){
-    var d = window.G.settings;
-    if(!ownsAutoEat()){
-      return '<div class="ss-row is-locked"><div class="ss-label">Auto-Eat health threshold</div>'
-        +      '<span class="ss-locked-tag">Locked</span></div>'
-        +    '<div class="ss-hint">Auto-Eat is not unlocked on this character. Healing in combat is manual: '
-        +      'press <b>Eat</b> beside your champion on the Combat screen.</div>';
-    }
-    var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
-      ? window.HearthriseAuto.getEat() : null;
-    /* THE SWITCH THE ENGINE OBEYS (`auto_eat_enabled`), not the local gesture. */
-    var on = (window.HearthriseAuto && typeof window.HearthriseAuto.eatEnabled === 'function')
-      ? window.HearthriseAuto.eatEnabled() : !!(eat && eat.enabled);
-    /* THE TIER CEILING IS THE SLIDER'S MAX, not a footnote under it: Auto-Eat I
-       entitles up to 25% and hr_set_auto_eat clamps the stored value the same way,
-       so a slider a tier-I owner could drag to 50% shows a number the fight does
-       not honour. It also may not HIDE what the server already does — an enabled
-       row predating the 2026-08-29 backfill still carries the column default of 50,
-       read directly by the accrual engine, so clamping `val` would paint 25% over
-       a night that eats at 50%. The ceiling governs SETTABLE; `val` is TRUE. */
-    var maxT = 1;
-    var tier = 1;
-    try {
-      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-      if (AE && typeof AE.autoEatTier === 'function') {
-        tier = AE.autoEatTier(window.G.traits || {});
-        maxT = AE.maxPctForTier(tier) / 100;
-      }
-    } catch(e){}
-    var val = Math.max(0, Math.min(1, Number(d.autoEatPct) || 0));
-    if(val > maxT) maxT = val;
-    return '<div class="ss-row"><div class="ss-label">Auto-Eat</div>'
-      +      '<label class="ss-toggle"><input type="checkbox" data-hr-settle-latch data-autoeat="enabled"'
-      +        (on ? ' checked' : '') + ' />'
-      +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
-      +    '</div>'
-      + sliderRow('Auto-Eat health threshold', 'autoEatPct', val,
-          0, maxT, 0.05, pct(val), autoEatHint(on, val));
-  }
-
   // ── Gameplay ───────────────────────────────────────────────
   function gameplayHtml(){
     var d = window.G.settings;
     return ''
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
-      + autoEatHtml()
       + '<div class="ss-row"><div class="ss-label">Replay guide</div>'
       +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>'
       + '<div class="ss-row"><div class="ss-label">Show screen tips again</div>'
@@ -839,51 +678,12 @@
           else document.body.removeAttribute('data-theme');
           store().set('hb-theme', v === 'dark' ? 'dark' : 'cozy');
         }
-        if(key === 'autoEatPct'){
-          /* b326 (Xarn, live b324): this slider used to write ONLY
-             `G.settings.autoEatPct` + `G.autoEatPct` — neither of which the
-             engine reads. `HearthriseAuto.maybeAutoEat()` triggers on
-             `G.autoActions.eat.threshold`, and `ensureShape()` seeds that from
-             `G.autoEatPct` exactly ONCE (when the branch is first created), so
-             every later move of this slider was inert and auto-eat kept firing
-             at the 50% default no matter what the UI said. Route through the
-             one authoritative writer (debounced out to hr_set_auto_eat), and NOWHERE ELSE: the `G.autoEatPct` mirror is deleted. */
-          if(window.HearthriseAuto && typeof window.HearthriseAuto.setEat === 'function'){
-            window.HearthriseAuto.setEat({ threshold: v });
-          }
-          /* THE DIAL REPAINTS ITS OWN HINT NOW. It never did — so dragging to
-             0% left "Eat one Provision automatically…" sitting under a control
-             that had just been set to never fire, which is the b326 class of
-             lie in the surface rather than the engine. It is a binding
-             condition of the 2b arm that the 0% end carries the away warning,
-             and a warning that only appears on the next panel open is not at
-             the control. */
-          repaintAutoEatHint(root);
-        }
         if(typeof window.saveLocal === 'function') window.saveLocal();
         // Update visible slider value
         if(el.type === 'range'){
           var disp = el.parentElement.querySelector('.ss-slider-value');
           if(disp) disp.textContent = pct(v);
         }
-      });
-    });
-    /* b372 (F7): the auto-eat ON/OFF switch. Deliberately NOT a `data-set` key —
-       `autoActions.eat.enabled` lives in HearthriseAuto, whose `setEat()` is the
-       one writer, and it persists itself (debounced saveLocal). Re-rendering the
-       panel is what repaints the threshold hint underneath, which otherwise
-       still claims the slider is live after the switch goes off. */
-    root.querySelectorAll('[data-autoeat]').forEach(function(el){
-      el.addEventListener('change', function(){
-        if(window.HearthriseAuto && typeof window.HearthriseAuto.setEat === 'function'){
-          window.HearthriseAuto.setEat({ enabled: !!el.checked });
-        }
-        if(typeof window.saveLocal === 'function') window.saveLocal();
-        /* Repaint the ONE thing that changed rather than the whole panel: a
-           re-render would collapse every section the player had opened and
-           throw away their scroll position, which is a worse bug than the
-           stale sentence. */
-        repaintAutoEatHint(root);
       });
     });
     // Chat settings controls
@@ -1175,15 +975,6 @@
   var prev = window.openSettings;
   window.openSettings = openSettings;
   window._legacyOpenSettings = prev || null;
-
-  /* The one pure rule in this file, published so the suite can assert it
-     without opening a modal and walking 900 lines of generated HTML. The
-     away warning on the toggle's OFF state and the dial's 0% end is a BINDING
-     condition of arming the auto-eat ON/OFF sync (Designer ruling 2b,
-     2026-08-31), so it needs a test that fails when the copy is dropped —
-     SETTINGS-AUTOEAT-1. Nothing else here is worth a seam; the rest is
-     rendering. */
-  window.HearthriseSettingsPage = { _autoEatHint: autoEatHint };
 
   console.log('[settings] page rebuilt — 5 sections active');
 })();

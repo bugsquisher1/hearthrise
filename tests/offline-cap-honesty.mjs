@@ -12,8 +12,11 @@
 //
 //   OCH-1  the chain-end hr_offline_cap_ms parses: a base and its `v_hours +` terms.
 //   OCH-2  every `offlineHours` value under src/** (smoke excluded) equals a server
-//          term of its source (clans.js clan, renown.js RANKS, homestead.js TIERS),
-//          both ways; no other file may carry the key.
+//          term of its source (homestead.js TIERS), both ways; no other file may
+//          carry the key. The clan term (clans.js) left the client with the clans
+//          (2026-10-14 demolition) and M1 restates hr_offline_cap_ms without it;
+//          until then the server's clan term is NOT a client promise (no client
+//          surface can name it), so it is excluded from the both-ways compare.
 //   OCH-3  on CODE lines (classify() from comment-ratio-ratchet.mjs), no string
 //          literal puts a number of hours or a percentage next to offline/away, or
 //          raise/extend next to "away limit"/"offline cap", outside the allowlist.
@@ -77,7 +80,6 @@ const sourceOf = (cond) => (/clan/i.test(cond) ? 'clan' : /renown/i.test(cond) ?
 
 /* OCH-3's allowlist: file → literal text that is true (the server pays it). */
 const ALLOW = [
-  ['src/features/clans.js', /^\+1h offline cap$/], ['src/features/clans.js', /^\+2h offline cap$/],
   ['src/features/workers.js', /up to 24h/],
 ];
 const PROMISE = [
@@ -105,13 +107,7 @@ export function check(w) {
 
   // ── OCH-2 ──
   const want = (src) => terms.filter((x) => x.src === src).map((x) => x.at + ':' + x.h).sort().join(',');
-  const client = { clan: [], renown: [], property: [] };
-  const clans = w.files['src/features/clans.js'] || '';
-  for (const m of clans.matchAll(/\{\s*offlineHours:\s*(\d+),\s*label:\s*'\+(\d+)h offline cap'\s*\},\s*\/\/\s*Lv(\d+)/g)) {
-    if (m[1] !== m[2]) fail('OCH-2', 'clans.js Lv' + m[3] + ' label says +' + m[2] + 'h but pays ' + m[1]);
-    client.clan.push(m[3] + ':' + m[1]);
-  }
-  for (const m of (w.files['src/features/renown.js'] || '').matchAll(/min:\s*(\d+),[^\n]*perk:\s*\{[^}\n]*offlineHours:\s*(\d+)/g)) client.renown.push(m[1] + ':' + m[2]);
+  const client = { renown: [], property: [] };
   const hs = w.files['src/features/homestead.js'] || '';
   const tiers = hs.slice(hs.indexOf('var TIERS = ['), hs.indexOf('];', hs.indexOf('var TIERS = [')));
   let ti = -1;
@@ -125,7 +121,7 @@ export function check(w) {
     if (got !== want(src)) fail('OCH-2', src + ' offline hours client [' + got + '] != server [' + want(src) + ']');
   }
   for (const [p, text] of Object.entries(w.files)) {
-    if (p === 'index.html' || /features\/(clans|renown|homestead)\.js$/.test(p)) continue;
+    if (p === 'index.html' || /features\/homestead\.js$/.test(p)) continue;
     if (/offlineHours\s*:\s*[1-9]/.test(text)) fail('OCH-2', p + ' carries an offlineHours value no server term backs');
   }
 
@@ -174,15 +170,14 @@ const edit = (w, where, key, from, to) => {
 const capFile = (w) => chainEndBody(w.order, w.sql, 'hr_offline_cap_ms').file;
 const vigFile = (w) => chainEndBody(w.order, w.sql, 'hr_vigour_of').file;
 const RENOWN_TERM = "  if coalesce(v_renown_high, 0) >= 400 then v_hours := v_hours + 1; end if;\n";
-const SERF = "perk: null,                            unlock: 'The Serf title";
+
 
 function selftest(w) {
   const MUT = [
     ['M1 offlineHours:1 back on farmstead', 'OCH-2', (x) => edit(x, 'files', 'src/features/homestead.js', "plots: 6,  workers: 2,", "plots: 6,  workers: 2, offlineHours: 1,")],
     ['M2 "+2h offline cap" back into a desc', 'OCH-3', (x) => edit(x, 'files', 'src/features/homestead.js', "Unlocks the Library and a third worker.", "Unlocks the Library, a third worker, +2h offline cap.")],
-    ['M3 clan Lv7 label and value to 3', 'OCH-2', (x) => edit(x, 'files', 'src/features/clans.js', "{ offlineHours: 2, label: '+2h offline cap' }", "{ offlineHours: 3, label: '+3h offline cap' }")],
-    ['M4a renown term in SQL, RANKS mismatched (none)', 'OCH-2', (x) => edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4')],
-    ['M4b renown term in SQL, RANKS says +2', 'OCH-2', (x) => edit(edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4'), 'files', 'src/features/renown.js', SERF, "perk: { offlineHours: 2 }, unlock: 'The Serf title")],
+    ['M3 an offlineHours value in a file no server term backs', 'OCH-2', (x) => { const c = clone(x); c.files['src/features/workers.js'] += '\nvar __probe = { offlineHours: 2 };\n'; return c; }],
+    ['M4a renown term in SQL, no client source pays it', 'OCH-2', (x) => edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4')],
     ['M5 HearthriseRenown read back in offlineCapHours', 'OCH-4', (x) => edit(x, 'files', 'src/legacy.js', 'var A=window.HearthriseAccrual;', 'var A=window.HearthriseAccrual; var R=window.HearthriseRenown;')],
     ['M6 c_floor_min 600', 'OCH-4', (x) => edit(x, 'sql', vigFile(x), 'c_floor_min   constant int := 720;', 'c_floor_min   constant int := 600;')],
     ['M7 vigour anchor text removed', 'OCH-4', (x) => { const c = clone(x); c.sql[VIGOUR_PATCH] = c.sql[VIGOUR_PATCH].split(VIGOUR_ANCHOR).join("'vigour_x', public.hr_vigour_of"); return c; }],
@@ -197,10 +192,10 @@ function selftest(w) {
     console.log((ok ? '  ✓ caught ' : '  ✗ MISSED ') + name + (ok ? ' (' + id + ')' : ' — got: ' + JSON.stringify(r)));
     if (ok) caught++;
   }
-  /* M4's accepting half: the exactly matching RANKS value must pass OCH-2. */
-  const match = check(edit(edit(w, 'sql', capFile(w), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4'), 'files', 'src/features/renown.js', SERF, "perk: { offlineHours: 1 }, unlock: 'The Serf title"));
-  const accepted = !match.some((m) => m.startsWith('OCH-2:'));
-  console.log((accepted ? '  ✓ accepted ' : '  ✗ REFUSED ') + 'M4c renown term matched exactly by RANKS' + (accepted ? '' : ' — ' + JSON.stringify(match)));
+  /* The accepting half: the server's clan term, which no client surface can name
+     any more, must not turn the clean tree red (it leaves with M1). */
+  const accepted = !check(w).some((m) => m.startsWith('OCH-2:'));
+  console.log((accepted ? '  ✓ accepted ' : '  ✗ REFUSED ') + 'the server clan term with no client clan surface');
   console.log((caught === MUT.length && accepted ? '✓' : '✗') + ' offline-cap-honesty selftest: ' + caught + '/' + MUT.length + ' mutations caught');
   return caught === MUT.length && accepted ? 0 : 1;
 }

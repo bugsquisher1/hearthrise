@@ -31,3 +31,6 @@ These are Tyler's own decisions from 2026-10-15, consolidated here so they stop 
 
 ## THE REAL TEST (Tyler, 2026-10-15)
 Design the art around **four adventurers fighting monsters**, not a medieval village. Every style must be proven in a BUSY COMBAT scene in a hunting ground: a party of 4 (knight, archer, healer, sorcerer), a swarm of about 6 monsters, HP bars, damage/crit/heal numbers, an AoE effect, projectiles, loot and a target ring, plus the HUD. The criterion is READABILITY UNDER CHAOS: party vs monsters instantly distinguishable, units pop from the ground, and effects are legible. Busy ground that looks great empty but turns to mush in a fight FAILS.
+
+## CHOSEN STYLE (Tyler, 2026-10-15): STYLE 1, CLASSIC MMORPG READABILITY
+The reference is `refs/CHOSEN-style1-classic-combat-2026-10-15.png`. Tibia-like clarity with modern pixel quality: a straight top-down camera, calm bright ground, crisp readable sprites. Tyler loves the character shapes and sizes. Combat rules: effects sit under the HP bars and numbers; big bursts are semi-transparent; monster colours are kept away from ground colours. Change it with small tweaks along the way, not re-explorations.

@@ -57,6 +57,22 @@ const WALK_KEYS = Object.freeze({
 const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
 const ON_TOP = '.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]';
 
+/**
+ * Is this dialog OPEN, not merely in the DOM? A closed sheet is often kept and
+ * hidden by its scrim's opacity 0 and pointer-events none (the item detail and
+ * enchant sheets, .inv-detail without .show): it still has layout boxes, so a
+ * box test alone counted it as open and left the keys dead for good after the
+ * player's first item detail. Open = laid out, not see-through or hidden, and
+ * taking the pointer.
+ */
+function isOpen(el) {
+  if (!el.getClientRects().length) return false;
+  if (typeof el.checkVisibility === 'function'
+    && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true, checkOpacity: true, checkVisibilityCSS: true })) return false;
+  const cs = el.ownerDocument.defaultView.getComputedStyle(el);
+  return cs.pointerEvents !== 'none' && cs.visibility !== 'hidden';
+}
+
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
 const HUD_EVERY_MS = 250;
@@ -319,7 +335,7 @@ export async function bootWorld(panel) {
   function steerKeys() { if (walk) walk.drive(keyVector(), Date.now()); }
   /** Let go of every walk key (focus left, the pane closed, a field or dialog took the keys). */
   function letGo() { if (!keys.size) return; keys.clear(); steerKeys(); }
-  const onTop = () => Array.from(doc.querySelectorAll(ON_TOP)).some((el) => el.getClientRects().length > 0);
+  const onTop = () => Array.from(doc.querySelectorAll(ON_TOP)).some(isOpen);
   function onKeyDown(e) {
     if (!WALK_KEYS[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!live() || !walk || !scene || scene.kind === 'hunt') return;

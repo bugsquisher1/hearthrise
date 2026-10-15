@@ -332,11 +332,33 @@ export default [
     const walkOf = (rt) => rt.stats().walk;
     const field = document.createElement('input');
     const dialog = document.createElement('div');
+    /* A CLOSED item-detail sheet, kept in the DOM the way legacy.js keeps one:
+       laid out, see-through, not taking the pointer. In full-suite order the
+       inventory tests leave two of these; the keys must walk past them. */
+    const closed = document.createElement('div');
+    closed.className = 'inv-detail hr-scrim';
+    closed.innerHTML = '<div class="inv-detail-card hr-sheet">a closed item detail</div>';
+    const describe = (el) => el.tagName + '.' + String(el.className).replace(/\s+/g, '.') + ' "' + (el.textContent || '').trim().slice(0, 40) + '"';
+    /* Open the way a player sees it: laid out, not see-through, taking the pointer. */
+    const openOnes = () => Array.from(document.querySelectorAll('.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]'))
+      .filter((el) => el.getClientRects().length && Number(getComputedStyle(el).opacity) > 0 && getComputedStyle(el).pointerEvents !== 'none'
+        && !(el.closest('.inv-detail') && !el.closest('.inv-detail.show')))
+      .map(describe);
     try {
       if (typeof window.stopCombat === 'function') window.stopCombat();
+      /* PRECONDITIONS, set and asserted: no field focused, no dialog open, the World in front and booted on the Common. */
+      if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
+      if (typeof window.closeAllModals === 'function') window.closeAllModals();
+      for (let i = 0; i < 8 && window.HearthriseSheet && window.HearthriseSheet.closeTop(); i++);
+      document.body.appendChild(closed);
+      assert(!document.activeElement || document.activeElement === document.body, 'precondition: a field still has focus: ' + describe(document.activeElement));
+      assert(openOnes().length === 0, 'precondition: a dialog is still open: ' + JSON.stringify(openOnes()));
+      assert(closed.firstChild.getClientRects().length > 0, 'the closed-sheet fixture must still have layout boxes, as the real one does');
       const rt = await openWorld();
       document.querySelector('#panel-world [data-world-choice="town"]').click();
       assert(await until(() => rt.stats().scene === 'town_common', 2000), 'tapping Town did not show the Common');
+      assert(document.getElementById('panel-world').classList.contains('active') && !document.hidden && rt.stats().running,
+        'precondition: the World pane must be in front, visible and running: ' + JSON.stringify({ hidden: document.hidden, running: rt.stats().running }));
       const settle = async (cell) => {
         tapTile(rt, cell[0], cell[1]);
         assert(await until(() => walkOf(rt).cell.join() === cell.join() && walkOf(rt).hero.anim === 'idle', 6000), 'the hero never stood on ' + cell.join() + ': ' + JSON.stringify(walkOf(rt)));
@@ -350,7 +372,7 @@ export default [
 
       await settle([11, 9]);
       const down = key('keydown', 'KeyD');
-      assert(down.defaultPrevented, 'a walk key on the World must be taken by it (default prevented)');
+      assert(down.defaultPrevented, 'a walk key on the World must be taken by it (default prevented), with a CLOSED item sheet in the DOM; open dialogs: ' + JSON.stringify(openOnes()));
       assert(await until(() => walkOf(rt).cell[0] >= 13, 2500), 'holding D must walk the hero east along row 9: ' + JSON.stringify(walkOf(rt)));
       assert(walkOf(rt).cell[1] === 9 && walkOf(rt).hero.dir === 'e', 'D walks east, facing east: ' + JSON.stringify(walkOf(rt)));
       key('keyup', 'KeyD');
@@ -387,6 +409,7 @@ export default [
       for (const c of ['KeyD', 'KeyW', 'ArrowDown', 'ArrowRight']) key('keyup', c);
       field.remove();
       dialog.remove();
+      closed.remove();
       window.showTab('profile');
       if (!hadWorld) delete G._world;
     }

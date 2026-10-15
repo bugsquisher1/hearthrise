@@ -2806,7 +2806,7 @@ export default [
       await C.open('knocked-out');
       assert(document.querySelector('#codex-modal.show'), 'open() did not show #codex-modal');
       const d = document.getElementById('cx-knocked-out');
-      assert(d && d.open && /first fall of each day/.test(d.textContent), 'open(id) did not open that entry');
+      assert(d && d.open && /the same short while for every fall/.test(d.textContent), 'open(id) did not open that entry');
       assert(d.querySelector('button.codex-door'), 'the entry has no door');
     } finally { C.close(); }
     assert(!document.querySelector('#codex-modal.show'), 'close() left the Codex up');

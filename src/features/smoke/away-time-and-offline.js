@@ -69,224 +69,15 @@ export default [
      card's whole computation (src/features/home-dashboard.js:1041 renders
      'Daily reward · Day ' + DL.cycleDay(G) and DL.rewardFor(G)); the modal is
      asserted through the rendered DOM. */
-  () => tryRun('DAILY-SHEET-3 (b475, re-ruled b498): the sheet displays the server\'s CLAIM streak, not the residue', () => {
-    /* LIVE-PROVEN (b475): the residue said 1 while the server would pay Day 3,
-       so the sheet showed "Day 1 · 500 gold" and the claim credited Day 3 (+5
-       gems) — an under-promise, but the same seam as b497's over-promise.
-
-       ⚠ THE MECHANISM CHANGED IN b498 AND THAT IS THE POINT. b475 read
-         `state.streak_days`, which is hr_apply's SETTLE streak ("days played"),
-         not the CLAIM streak the payout is a function of. The sheet now runs the
-         server's own `deriveLoginStreak` over the server's own claim rows, so
-         this test drives the mechanism the server actually prices with.
-       RED before b475: cycleDay read the residue and rendered Day 1. */
-    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
-    const B = window.HearthriseCore && window.HearthriseCore.botd;
-    assert(D && typeof D.noteServerStreak === 'function', 'noteServerStreak must be exported');
-    assert(R && typeof R.priceDailyLogin === 'function', 'HearthriseRewards must be present');
-    assert(R && typeof R.deriveLoginStreak === 'function',
-      'HearthriseRewards.deriveLoginStreak is missing — the sheet and the server\'s pricer must be '
-      + 'ONE function (src/data/rewards.js), or the day the sheet shows is a second rule again');
-    assert(B && typeof B.utcDayKey === 'function' && typeof B.utcDayNumber === 'function',
-      'HearthriseCore.botd.utcDayKey/utcDayNumber missing — the only JS spelling of hr_utc_day_key');
-    const snap = snapshotG();
-    const sStreak = G.streak, sDR = G.dailyReward;
-    try {
-      const now = Date.now();
-      const dayN = B.utcDayNumber(now);
-      const yKey = B.utcDayKey((dayN - 1) * 86400000);       // the SERVER's spelling
-      const yLocal = (d => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
-
-      D.noteServerStreak(null);                 // start clean
-      seedPlayStreak(1);                        // the realm has counted ONE day
-      G.dailyReward = { lastClaimDay: yLocal }; // claimed yesterday, claimable today
-      /* The envelope: yesterday's login row is CLAIMED and its `value` is the
-         streak length ON that day, so today is value + 1 = 3.
-         ⚠ streak_days: 5 is a CONTROL. It is the SETTLE streak — a real field on
-           a real envelope, and the wrong quantity. If anything ever reads it
-           again this test goes red on Day 5 rather than passing by luck. */
-      D.noteServerStreak({
-        now: new Date(now).toISOString(),
-        state: { streak_days: 5 },
-        progress: [
-          { kind: 'daily', key: 'login', period: yKey, value: 2, state: 'claimed' },
-          { kind: 'quest', key: 'weekly', period: yKey, value: 9, state: 'claimed' },
-        ],
-      });
-
-      // cycleDay() is the sheet's AND the Home card's day source.
-      assert(D.cycleDay(G) === 3, 'cycleDay must follow the server claim streak (3), got ' + D.cycleDay(G));
-      // The reward preview must be the Day-3 reward the server will pay.
-      const want = R.priceDailyLogin(3), rw = D.rewardFor(G);
-      assert(!!(want.gems) === !!(rw.gems) && (rw.gems || 0) === (want.gems || 0),
-        'rewardFor must preview the Day-3 gems, got ' + JSON.stringify(rw));
-      assert((rw.gold || 0) === (want.gold || 0), 'rewardFor must preview the Day-3 gold');
-
-      // And the rendered sheet must say so.
-      const existing = document.getElementById('hr-dl-modal'); if (existing) existing.remove();
-      D.open();
-      const modal = document.getElementById('hr-dl-modal');
-      assert(!!modal, 'the sheet must open');
-      /* b499: the eyebrow states the CYCLE POSITION, never a "streak" — see
-         DAILY-SHEET-5 for why the word may not appear on this sheet at all. */
-      assert(/Day 3 of 7/.test(modal.textContent), 'eyebrow must read "Day 3 of 7", got: ' + modal.textContent.slice(0, 80));
-      assert(/Claim Day 3/.test(modal.textContent), 'claim button must read "Claim Day 3", got: ' + modal.textContent.slice(0, 120));
-      const today = modal.querySelector('.hr-dl-day.today');
-      assert(today && /^D3/.test(today.textContent), 'the highlighted tile must be D3, got: ' + (today && today.textContent));
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      D.noteServerStreak(null);                 // do not leak the captured streak
-      /* ⚠ snapshotG() does NOT carry G.streak or G.dailyReward, so restoreG
-         alone leaked this test's fixtures into the live save (pre-existing —
-         DAILY-SHEET-2 has the same hole). Restored by hand, b166's pattern. */
-      restoreG(snap);
-      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
-      seedPlayStreak(null);
-      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
-    }
-  }),
-
-  () => tryRun('DAILY-SHEET-4 (W0): a MISSED day steps the advertised day back ONE, never to Day 1 — and the sheet never promises a day the server will not pay', () => {
-    /* The server prices a claim from the LAST claimed row and its gap
-       (2026-10-16-login-reward.sql, hr_login_streak; src/data/rewards.js
-       deriveLoginStreak): last + 1 − missed days. The sheet runs the same
-       function over the same rows off the envelope, so this drives the
-       envelope door with a missed day, a claimed day, an unclaimed row and a
-       stale capture, and the residue door before any envelope. Each case is
-       paired with a control that fails if the rule degenerated into a constant. */
-    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
-    const B = window.HearthriseCore && window.HearthriseCore.botd;
-    assert(D && R && B, 'HearthriseDaily / HearthriseRewards / HearthriseCore.botd must be present');
-    const snap = snapshotG();
-    const sStreak = G.streak, sDR = G.dailyReward;
-    const dayLocal = (ms) => { const d = new Date(ms); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
-    const key = (n) => B.utcDayKey(n * 86400000);
-    const openSheet = () => {
-      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
-      D.open();
-      return document.getElementById('hr-dl-modal');
-    };
-    try {
-      const now = Date.now();
-      const dayN = B.utcDayNumber(now);
-      const y2Local = dayLocal(now - 2 * 86400000);
-      const yLocal = dayLocal(now - 86400000);
-      const day3 = R.priceDailyLogin(3), day4 = R.priceDailyLogin(4), day1 = R.priceDailyLogin(1);
-      assert(day3.gold !== day4.gold && day3.gold !== day1.gold,
-        'CONTROL: Days 1, 3 and 4 pay the same gold, so every assertion below is vacuous');
-      const env = (rows, atMs) => D.noteServerStreak({
-        now: new Date(atMs == null ? now : atMs).toISOString(),
-        state: { streak_days: 9 },            // the SETTLE streak: the wrong quantity, a control
-        progress: rows,
-      });
-
-      // ── (A) Day 3 claimed two days ago, yesterday missed → Day 3 again. ────
-      seedPlayStreak(3);
-      G.dailyReward = { lastClaimDay: y2Local };
-      env([{ kind: 'daily', key: 'login', period: key(dayN - 2), value: 3, state: 'claimed' }]);
-      assert(D.cycleDay(G) === 3,
-        'a missed day must cost ONE step (Day 3 again), got Day ' + D.cycleDay(G)
-        + (D.cycleDay(G) === 1 ? ' — the old reset-to-Day-1 rule' : ''));
-      assert((D.rewardFor(G).gold || 0) === day3.gold,
-        'the advertised gold is ' + D.rewardFor(G).gold + ', the server will pay ' + day3.gold);
-      const mA = openSheet();
-      assert(!!mA && /Day 3 of 7/.test(mA.textContent) && /Claim Day 3/.test(mA.textContent),
-        'the sheet must read "Day 3 of 7" / "Claim Day 3", got: ' + (mA && mA.textContent.slice(0, 140)));
-      assert(/step back one day/.test(mA.textContent),
-        'the sheet must say what a missed day costs, got: ' + mA.textContent.slice(0, 200));
-      const tileA = mA.querySelector('.hr-dl-day.today');
-      assert(tileA && /^D3/.test(tileA.textContent), 'the highlighted tile must be D3, got: ' + (tileA && tileA.textContent));
-      mA.remove();
-
-      // ── (B) CONTROL: claimed yesterday → the day advances to 4. ───────────
-      env([{ kind: 'daily', key: 'login', period: key(dayN - 1), value: 3, state: 'claimed' }]);
-      assert(D.cycleDay(G) === 4, 'CONTROL: an unbroken streak must advance to Day 4, got Day ' + D.cycleDay(G));
-
-      // ── (C) Three missed days from Day 5 → Day 3; only the LAST claim counts.
-      env([
-        { kind: 'daily', key: 'login', period: key(dayN - 9), value: 20, state: 'claimed' },
-        { kind: 'daily', key: 'login', period: key(dayN - 4), value: 5, state: 'claimed' },
-      ]);
-      assert(D.cycleDay(G) === 3, 'Day 5 four days ago (three missed) must be Day 3, got Day ' + D.cycleDay(G));
-
-      // ── (D) An unclaimed row is not a claim. ──────────────────────────────
-      env([
-        { kind: 'daily', key: 'login', period: key(dayN - 2), value: 3, state: 'claimed' },
-        { kind: 'daily', key: 'login', period: key(dayN - 1), value: 9, state: 'done' },
-      ]);
-      assert(D.cycleDay(G) === 3, 'a "done" row yesterday must not continue the streak, got Day ' + D.cycleDay(G));
-      env([{ kind: 'daily', key: 'login', period: key(dayN - 1), value: 9, state: 'done' }]);
-      assert(D.cycleDay(G) === 1, 'with no claimed row the server prices Day 1, got Day ' + D.cycleDay(G));
-
-      // ── (E) THE PRE-ENVELOPE FALLBACK may only UNDER-state. ───────────────
-      /* With no envelope the sheet holds only lastClaimDay and the play streak,
-         neither of which is the claim history, so after any gap it answers
-         Day 1 — below or equal to anything the server can pay, never above. */
-      D.noteServerStreak(null);
-      seedPlayStreak(3);
-      G.dailyReward = { lastClaimDay: y2Local };
-      assert(D.cycleDay(G) === 1, 'pre-envelope, a gap must answer Day 1 (an understatement), got Day ' + D.cycleDay(G));
-      G.dailyReward = { lastClaimDay: yLocal };
-      assert(D.cycleDay(G) === 3, 'CONTROL: claimed yesterday must still advertise the residue Day 3, got Day ' + D.cycleDay(G));
-      G.dailyReward = { lastClaimDay: 0 };
-      assert(D.cycleDay(G) === 3, 'CONTROL: an empty claim history is not a gap, got Day ' + D.cycleDay(G));
-
-      // ── (F) A STALE CAPTURE MUST NOT ANSWER FOR TODAY. ────────────────────
-      G.dailyReward = { lastClaimDay: y2Local };
-      env([{ kind: 'daily', key: 'login', period: key(dayN - 4), value: 6, state: 'claimed' }], now - 3 * 86400000);
-      assert(D.cycleDay(G) === 1,
-        'a three-day-old envelope must not price today — the local rule must answer, got Day ' + D.cycleDay(G));
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      D.noteServerStreak(null);
-      restoreG(snap);
-      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
-      seedPlayStreak(null);
-      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
-    }
-  }),
-
-  () => tryRun('DAILY-SHEET-6 (W0): the sheet names the SUPPLIES the server will pay, by item name, and predicts only gold and gems', () => {
-    /* The W0 cycle pays food, seeds and a Bone Key beside modest gold. The sheet
-       previews the server's own price (one function, src/data/rewards.js), so
-       day 7 must read the key by its ITEMS name on the claim button. The local prediction stays currency-only: items arrive with the
-       envelope, so a forged preview can never put a key in the bag. */
-    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
-    const B = window.HearthriseCore && window.HearthriseCore.botd;
-    assert(D && R && B && window.ITEMS, 'HearthriseDaily / HearthriseRewards / botd / ITEMS must be present');
-    const snap = snapshotG();
-    const sDR = G.dailyReward;
-    try {
-      const now = Date.now();
-      const dayN = B.utcDayNumber(now);
-      const yLocal = ((d) => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
-      G.dailyReward = { lastClaimDay: yLocal };
-      D.noteServerStreak({ now: new Date(now).toISOString(), state: {},
-        progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 1) * 86400000), value: 6, state: 'claimed' }] });
-      const want = R.priceDailyLogin(7, { bonus: true }), rw = D.rewardFor(G);
-      assert(D.cycleDay(G) === 7, 'claimed day 6 yesterday must preview day 7, got ' + D.cycleDay(G));
-      assert(JSON.stringify(rw.items || {}) === JSON.stringify(want.items) && want.items.bone_key === 1,
-        'day 7 must preview the server\'s supplies ' + JSON.stringify(want.items) + ', got ' + JSON.stringify(rw.items));
-      assert(rw.gold === want.gold && rw.gems === want.gems, 'the currency preview is not the server\'s price');
-      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
-      D.open();
-      const btn = document.querySelector('#hr-dl-modal .hr-dl-claim');
-      const keyName = window.ITEMS.bone_key.n || window.ITEMS.bone_key.name;
-      assert(btn && btn.textContent.includes(keyName) && !/bone_key/.test(btn.textContent),
-        'the claim button must name the ' + keyName + ', never its id: ' + (btn && btn.textContent));
-      document.getElementById('hr-dl-modal').remove();
-      /* The prediction: the claim seam is handed gold and gems, never items. */
-      const src = String(window.HearthriseDaily.claim);
-      assert(/goldSettleCurrency\(\{ gold: rw\.gold \|\| 0, gems: rw\.gems \|\| 0 \}/.test(src),
-        'the claim must predict exactly gold + gems through goldSettleCurrency');
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      D.noteServerStreak(null);
-      restoreG(snap);
-      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
-    }
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-3 (b475, re-ruled b498): the sheet displays the server's CLAIM streak, not the residue" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-4 (W0): a MISSED day steps the advertised day back ONE, never to Day 1 — and the sheet never promi" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-6 (W0): the sheet names the SUPPLIES the server will pay, by item name, and predicts only gold and" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('DAILY-SHEET-5 (b499): TWO true streaks may not share one word — the reward sheet owns "Day", the play streak owns "running"', () => {
     /* THE DEFECT THIS PINS, MEASURED on b498 in a headless boot of the real
        client (play streak 3, last claim two days ago, i.e. a missed day):
@@ -813,56 +604,9 @@ export default [
     }
   }),
 
-  () => tryRunAsync('DAILY-SHEET-1 (b462): the daily-reward "shown today" marker rides the residue, and a server refusal never toasts a payout', async () => {
-    /* Beta morning: "every refresh i get a new daily reward". G.dailyReward.lastClaimDay
-       lived only in the retired blob, so every reload forgot it and re-opened the
-       sheet; the server refused the second pay (not_claimable) but the client still
-       toasted "Daily reward: 500 gold". Two halves: (1) the four shown-today markers
-       are RESIDUE fields (persisted in client_state under arm); (2) a `refused`
-       verdict re-marks the day and says so, instead of claiming a payout. */
-    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
-    assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
-    /* ⚠ `streak` LEFT THIS LIST on 2026-09-14: the play streak is the server's
-       `streak_days` (reconcilePlayStreak → playStreakDays), and a device-clock
-       copy in the bag is what painted 1 over the realm's 3. dailyReward is a
-       genuine shown-today marker with no projection behind it. */
-    ['dailyReward'].forEach((f) =>
-      assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
-    /* W0: the goals board is cut, so its two slates and its gold watermark are
-       gone from the bag, not merely unread. */
-    ['dailyGoals', 'weeklyGoals', 'dailyGoldStart'].forEach((f) =>
-      assert(!RF.includes(f), f + ' is still on RESIDUE_FIELDS — the goals board it served is retired'));
-    assert(!RF.includes('streak'),
-      'the play-streak residue is back — the day the sheet shows must come from the server, not a device clock');
-    const G = window.G;
-    const snap = snapshotG();
-    const origGold = window.HearthriseGold, origNotify = window.notify, origMay = window.clientMayWriteRecordField;
-    const toasts = [];
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold';
-      window.notify = (m) => { toasts.push(String(m)); };
-      G.dailyReward = { lastClaimDay: 0 };
-      const patch = window.HearthriseCapstone.buildResiduePatch(G);
-      assert(patch && patch.dailyReward && patch.dailyReward.lastClaimDay === 0,
-        'buildResiduePatch must carry dailyReward so the marker reaches client_state');
-      // server says: already claimed today (another device / a reload race)
-      window.HearthriseGold = Object.assign({}, origGold, {
-        claimReward: () => Promise.resolve({ outcome: 'refused', reason: 'not_claimable' }),
-      });
-      const D = window.HearthriseDaily;
-      assert(D && D.isClaimable(G) === true, 'fixture: the day must read claimable before the claim');
-      const rw = D.claim(G);
-      assert(rw, 'claim() still returns the authored reward as the PREDICTION receipt');
-      await new Promise((r) => setTimeout(r, 0));
-      assert(D.isClaimable(G) === false, 'after a refusal the day must read claimed (no second sheet)');
-      assert(toasts.some((t) => /already claimed/i.test(t)), 'a refusal must be surfaced honestly');
-      assert(!toasts.some((t) => /^Daily reward:/.test(t)), 'a refusal must NOT toast a payout');
-    } finally {
-      window.HearthriseGold = origGold; window.notify = origNotify; window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-1 (b462): the daily-reward "shown today" marker rides the residue, and a server refusal never toas" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withClientOwnedSlots(() => withLocalBlob(() => {
     /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
        NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
@@ -2007,18 +1751,9 @@ export default [
         for (let i = 0; i < 200 && state.activeMonster; i++) C.combatSim.simulateTick(state, ctx);
         check(swings, 'ATTENDED');
       }),
-      () => tryRun('XP-DEALT-2 (away): the same clamp holds through simulateSpan away:true', () => {
-        const C = window.HearthriseCore;
-        const { ctx, state, swings } = rig();
-        const from = Date.UTC(2026, 0, 15, 6, 0, 0);
-        Object.assign(ctx, { away: true, fromMs: from, toMs: from + 600000, tickMs: 2400 });
-        const out = C.combatSim.simulateSpan(state, ctx);
-        assert(out && out.kills > 0, 'AWAY: the span landed no kills — ' + JSON.stringify(out && { ticks: out.ticks, kills: out.kills }));
-        check(swings, 'AWAY');
-      }),
-      /* The XP/hr estimate must price the same rule, or the Character screen
-         promises overkill XP the engine never pays: a kill is worth m.hp of
-         damage, and hitpoints gets no kill XP (killXpRoute is styled-only). */
+      /* RETIRED (lane C2, the closed rebuild): "XP-DEALT-2 (away):…" — it covered a system C2 deleted
+         outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
+         Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
       () => tryRun('XP-DEALT-3 (display): the XP/hr estimate prices hit XP on the foe\'s HP, not the raw average swing', () => {
         const G = window.G;
         const snap = snapshotG();
@@ -2030,7 +1765,7 @@ export default [
           window.getActiveCombatStyle = () => ({ xp: { attack: 1 } });
           G.activeMonster = 'slime';
           const m = window.MONSTERS.slime;
-          const killsHr = 3600000 / (Math.ceil(m.hp / 20.5) * 2400);
+          const killsHr = 3600000 / (Math.ceil(m.hp / 20.5) * window.HearthriseCore.combat.COMBAT_BALANCE.tickMs);
           const atk = window._calcForSkill('attack');
           assert(atk && atk.xpHr === Math.floor(killsHr * (m.xp + 4 * m.hp)),
             'attack XP/hr ' + (atk && atk.xpHr) + ', expected ' + Math.floor(killsHr * (m.xp + 4 * m.hp)) + ' (kill XP + 4 x foe HP per kill)');
@@ -2061,112 +1796,9 @@ export default [
      ladder covers it — the cheap branch would never fire and this arm would be
      AWAY-1 again with extra steps. The server-side twin of this assertion is
      `AUTO-EAT MIXED-BAG PARITY` in tests/accrual-engine.mjs. */
-  () => tryRun('AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const P = window.HearthrisePresence;
-    const A = window.HearthriseAuto;
-    if (!A || typeof A.getEat !== 'function') return;
-    const snap = snapshotG();
-    const origBonus = window.getBonus;
-    const beforeEat = A.getEat();
-    let wasParked = false;
-    try {
-      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
-      window.getBonus = () => 0;
-      G.buffs = [];
-      /* Real catalogue rows, chosen so the ladder has rungs: a 900 g Cooked
-         Shark (the biggest healer, and what the PRE-ruling rule ate every
-         time), a 240 g Lobster, a 55 g Trout, an 18 g Shrimp. */
-      const BAG = { cooked_shark: 400, cooked_lobster: 400, cooked_trout: 400, cooked_shrimp: 400 };
-      const run = (away) => {
-        G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000, hitpoints: 15000, defense: 15000 });
-        G.activeMonster = 'goblin';
-        const m = window.MONSTERS.goblin;
-        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        G.playerMaxHp = 60; G.playerHp = 60;
-        G.gold = 0;
-        G.inventory = Object.assign({}, BAG);
-        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
-        G.quests = [];
-        A.setEat({ enabled: true, threshold: 0.95, foodId: null });
-        /* b515 — MEASURE ONE THING, NOT TWO. This read `xpMap()` (the DISPLAY
-           ladder: the server's map plus this session's predictions) as `before`
-           and raw `G.skills` as `after`. That was harmless while the suite ran
-           client-authoritative — `addXp` wrote `G.skills` and no prediction
-           existed — and it inverted the moment the b353 kill switch was retired:
-           `skills` is SERVER-OF-RECORD and ARMED, so a kill's XP is a PREDICTION
-           and never a write to `G.skills`. The LIVE run left its predictions on
-           the books, the AWAY run's `before` read them and its `after` did not,
-           and the contract assertion reported the away path short by exactly the
-           live run's payout — a false red accusing the away path of the one
-           crime this test exists to detect.
-           Both ends now read the DISPLAY, which is what the client actually
-           produces under the arm and what the player is shown, and the ledger is
-           zeroed at the top of each run so the two runs cannot contaminate each
-           other. `goldOf()` is the same fix for gold, for the same reason. */
-        predZero();
-        const xpBefore = xpMap();
-        const goldBefore = goldOf();
-        C.reseed(0xC0FFEE);
-        const body = () => {
-          const ctx = window.HearthriseCombatSim.ctx();
-          for (let i = 0; i < 240; i++) {
-            if (!G.activeMonster) break;
-            C.combatSim.simulateTick(G, ctx);
-          }
-        };
-        if (away) P._withOfflineReplay(body); else body();
-        const xpAfter = xpMap();
-        const xp = {};
-        Object.keys(xpAfter).forEach((k) => { const d = (xpAfter[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
-        const ate = {};
-        Object.keys(BAG).forEach((id) => {
-          const gone = BAG[id] - (Number(G.inventory[id]) || 0);
-          if (gone > 0) ate[id] = gone;
-        });
-        return { gold: goldOf() - goldBefore, kills: G.stats.kills, crits: G.stats.crits, xp, ate };
-      };
-
-      const live = run(false);
-      const away = run(true);
-
-      assert(live.kills > 0, 'the rig produced no kills — the parity assertion would be vacuous');
-      const mealCount = Object.values(live.ate).reduce((s, n) => s + n, 0);
-      assert(mealCount > 0,
-        'auto-eat never fired, so this arm is AWAY-1 with a fuller bag: ' + JSON.stringify(live.ate));
-      assert(JSON.stringify(live.ate) === JSON.stringify(away.ate),
-        'the SAME seeded fight drained different stacks live vs away — the chooser is not one rule.\n'
-        + '  live: ' + JSON.stringify(live.ate) + '\n  away: ' + JSON.stringify(away.ate));
-      assert(JSON.stringify(live.xp) === JSON.stringify(away.xp),
-        'XP DIVERGED with auto-eat on.\n  live: ' + JSON.stringify(live.xp) + '\n  away: ' + JSON.stringify(away.xp));
-      assert(live.gold === away.gold, 'gold diverged: live ' + live.gold + ' vs away ' + away.gold);
-      assert(live.kills === away.kills, 'kills diverged: live ' + live.kills + ' vs away ' + away.kills);
-      assert(live.crits === away.crits, 'crits diverged: live ' + live.crits + ' vs away ' + away.crits);
-      /* AND THE RULING ACTUALLY BIT. Without this the two runs could agree by
-         both eating the Cooked Shark every time, which is the behaviour the
-         ruling replaced. */
-      assert(!live.ate.cooked_shark || Object.keys(live.ate).length > 1,
-        'every meal was the biggest healer in the bag (' + JSON.stringify(live.ate) + ') — the '
-        + 'cheapest-sufficient branch is not reading the deficit');
-    } finally {
-      window.getBonus = origBonus;
-      C.randomSeed();
-      A.setEat(beforeEat);
-      if (typeof A._resetEatSync === 'function') A._resetEatSync();
-      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
-      restoreG(snap);
-    }
-  }),
-
-  /* ── AUTOEAT-FOOD-1: THE ORDER, THROUGH THE LIVE CLIENT ───────────────────
-     The rule is unit-tested against the real catalogue in
-     tests/accrual-engine.mjs. What THAT cannot see is the client ADAPTER:
-     `maybeAutoEat()` has to hand `resolveAutoEat` the hp/maxHp pair the deficit
-     is computed from, and an adapter that passed a stale or absent maxHp would
-     silently drop the whole cheap branch while every unit assertion stayed
-     green. So this drives the shipped path on a live `G` and reads the bag. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AUTOEAT-FOOD-1: with no food nominated, the client eats the CHEAPEST food that heals to full — not the biggest', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
@@ -2421,105 +2053,9 @@ export default [
     }
   }),
 
-  () => tryRun('AWAY-5: a timed buff PAYS away and DRAINS away — 5 minutes of Feast covers 5 minutes of an hour, then stops', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const P = window.HearthrisePresence;
-    const snap = snapshotG();
-    try {
-      /* ── THE RULE THIS ASSERTS, AND WHY IT REPLACED THE OLD ONE ───────────
-         b326 FROZE a buff for the whole absence: it neither paid nor drained,
-         and this test asserted exactly that. The line it drew was timed vs
-         permanent. The real line is SERVER-WIDE vs PERSONAL (Tyler,
-         2026-08-14: "should not gain the server wide blessing/buffs but they
-         should still get their personal / clan buffs"), and a Feast the player
-         ate is personal, so it pays.
-
-         Which makes the DRAIN load-bearing rather than tidy. "Pays away"
-         without "spends away" is a strictly worse exploit than the one b326
-         closed — ten minutes of consumable would cover a twelve-hour night. So
-         this test measures both halves on a real timeline, and it measures
-         WHERE the buff ran out: not at the start (a nerf), not at the end (a
-         mint), but at the five-minute mark. Coverage is the assertion. */
-      const m = window.MONSTERS.goblin;
-      const setup = () => {
-        G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
-        G.activeMonster = 'goblin';
-        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        G.playerMaxHp = 5000; G.playerHp = 5000;
-      };
-      const foodId = 'cooked_shrimp';
-      G.inventory = Object.assign({}, G.inventory); G.inventory[foodId] = 5;
-      const tickMs = window.combatTickMs();
-
-      /* (a) IT PAYS, and it pays the SAME away as live. Measured against the
-         player's own base so a drop-rate perk cannot make this vacuous. */
-      G.buffs = [];
-      const baseDrop = window.getBonus('dropRate');
-      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 300000, addedAt: Date.now() }];
-      const liveDrop = window.getBonus('dropRate');
-      assert(liveDrop >= baseDrop + 1, 'a +100% drop_rate buff must pay while playing, got ' + liveDrop + ' over a base of ' + baseDrop);
-      let awayDrop = null;
-      P._withOfflineReplay(() => { awayDrop = window.getBonus('dropRate'); });
-      assert(awayDrop === liveDrop,
-        'a PERSONAL buff must pay the same away as live (live ' + liveDrop + ', away ' + awayDrop + ')');
-
-      /* (b) …AND ONE HOUR OF ABSENCE SPENDS EXACTLY THE FIVE MINUTES IT HAD. */
-      setup();
-      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 300000, addedAt: Date.now() }];
-      let s = null;
-      P._withOfflineReplay(() => { s = window.simulateAwayCombat(1, Date.now(), false); });
-      assert(s && s.ticks > 0, 'the rig produced no ticks — every assertion below would be vacuous');
-      assert(s.died === false, 'the rig died mid-span; the coverage measurement below would be measuring the death, not the buff');
-      assert(Math.abs(s.buffPaidMs - 300000) <= tickMs,
-        'a 5-minute buff must pay 5 minutes of a 1-hour absence, got ' + s.buffPaidMs + 'ms (one tick = ' + tickMs + 'ms)');
-      assert(s.buffPaidMs < 3600000,
-        'THE MINT: the buff paid ' + s.buffPaidMs + 'ms of a 3600000ms absence — a 5-minute consumable must not cover an hour');
-      assert(s.buffsExpired.indexOf('drop_rate') >= 0,
-        'the summary must name the buff that ran out mid-absence, got ' + JSON.stringify(s.buffsExpired));
-      assert(G.buffs.length === 0,
-        'the expired buff must be pruned — tickBuffs skips an already-dead entry, so nothing else would ever clear the "0s" row');
-      assert(window.getBonus('dropRate') === baseDrop,
-        'a spent buff must pay nothing afterwards, got ' + window.getBonus('dropRate') + ' against a base of ' + baseDrop);
-      assert(G.inventory[foodId] === 5, 'an away buff must not consume extra food, found ' + G.inventory[foodId]);
-
-      /* (c) THE OTHER HALF: a buff LONGER than the absence survives it, minus
-         exactly the time that passed. Frozen and drained-to-zero are both
-         wrong, and only measuring the expiry case would miss either. */
-      setup();
-      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 3600000, addedAt: Date.now() }];
-      P._withOfflineReplay(() => { window.simulateAwayCombat(0.25, Date.now(), false); });
-      assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
-      const spent = 3600000 - G.buffs[0].remainingMs;
-      assert(Math.abs(spent - 900000) <= tickMs,
-        'a 15-minute absence must spend 15 minutes of a 60-minute buff, spent ' + spent + 'ms');
-      assert(window.getBonus('dropRate') >= baseDrop + 1,
-        'and the remainder must still be paying when the player gets back');
-
-      /* (d) THE LAST FREEZE IS GONE (wall-clock ruling, 2026-09-13). This arm
-         asserted the opposite until today. The authority is an ABSOLUTE `until` the
-         server keeps expiring whether the player fights, idles or sleeps, and the
-         freeze was CLIENT-ONLY (every engine caller passes `active: true`) — a
-         promise only the pill made, and the server was already breaking it. */
-      G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
-      const before = G.buffs[0].remainingMs;
-      window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before - 60000,
-        'an IDLE minute must drain the buff by a minute — the clock is wall-clock against the server\'s '
-        + 'absolute `until`, found ' + G.buffs[0].remainingMs + ' vs ' + (before - 60000));
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before - 120000,
-        'and a WORKING minute costs the same minute — one rule, not two: '
-        + G.buffs[0].remainingMs + ' vs ' + (before - 120000));
-    } finally { C.randomSeed(); restoreG(snap); }
-  }),
-
-  /* AWAY-5b — THE FIXTURE'S CEILING, AND THE REAL BUG BEHIND IT. AWAY-5 stands a 5,000 HP rig up
-     for an hour and asserts `died === false`; a hitpoints level-up in the span ran a bare
-     `G.playerMaxHp = ev.to`, cut the ceiling to 35, and killed it at tick 991 of 1000. playerMaxHp
-     is projected from player_state.max_hp and may sit above the bare level — hrSyncMaxHp is
-     raise-only for that reason, and lowering it is the client rolling a server value back. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-5: a timed buff PAYS away and DRAINS away — 5 minutes of Feast covers 5 minutes of an hour, then stops" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-5b: a hitpoints level-up RAISES max HP and never lowers it — the client cannot roll back a server-projected ceiling', () => {
     const G = window.G;
     const snap = snapshotG();
@@ -2718,308 +2254,18 @@ export default [
 
      Both drive the REAL `window.processOffline()`, because the anchor lives in
      the caller and a core-level test cannot see a caller. ══════════════════ */
-  () => tryRun('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
-    /* THE EXPLOIT, restated because it is the reason this test is not just
-       about tidiness: `simulateSpan` resolves the Boss of the Day per UTC-day
-       SEGMENT of the credited window. Anchor that window to the RETURN instant
-       and an 18h absence begun at 22:00 UTC can be made to land wholly on the
-       next day's boss (x1.5 drops, x1.25 combat XP) by choosing when to open
-       the tab — a free, self-selected multiplier on a tradeable-item faucet.
-
-       b515 — DRIVEN ON THE TWO FUNCTIONS THAT DECIDE IT, not through
-       `window.processOffline()`, whose local away engine is deleted. That is
-       the same pair the Edge engine uses and in the same order: `creditWindow`
-       chooses the hours, `utcDaySegments` cuts them into boss days, and
-       `simulateSpan` is handed the result. Nothing here restates the
-       arithmetic, so the assertion cannot agree with itself.
-       MUTATION: restore `fromMs = toMs - spanMs` (or `now - grantMs` on the
-       server) and windowFrom lands 6h later, on the return side of the
-       absence — red on the second assertion and on every segment below it. */
-    const C = window.HearthriseCore;
-    const A = C.away;
-    const CAP_MS = 12 * 3600000;
-    const AWAY_MS = 18 * 3600000;
-    /* 22:00 UTC on purpose: the departure and the return fall on DIFFERENT UTC
-       days, so an anchor bug changes which boss pays and not merely a label. */
-    const left = Date.UTC(2026, 0, 15, 22, 0, 0);
-    const now = left + AWAY_MS;
-
-    const w = A.creditWindow({ nowMs: now, watermarkMs: left, capMs: CAP_MS });
-    assert(w.paidMs === CAP_MS,
-      'an 18h absence at a 12h cap must still CREDIT 12h, got ' + (w.paidMs / 3600000).toFixed(2) + 'h');
-    assert(w.fromMs === left,
-      'the credited window must OPEN where the absence did (' + new Date(left).toISOString()
-      + '), got ' + new Date(w.fromMs).toISOString());
-    assert(w.toMs === left + CAP_MS, 'and close one cap later, got ' + new Date(w.toMs).toISOString());
-    assert(w.unpaidMs === AWAY_MS - CAP_MS,
-      'the forfeited tail must be the 6h the cap refused, got ' + (w.unpaidMs / 3600000).toFixed(2) + 'h');
-    assert(w.capped === true, 'an 18h absence at a 12h cap must report itself capped');
-
-    /* THE PART THAT IS AN EXPLOIT AND NOT A COSMETIC: the UTC-day segments the
-       Boss of the Day is resolved against are cut from THIS window. Asserted
-       twice — on `utcDaySegments` directly, and on the segments `simulateSpan`
-       actually reports for the same window, because a span that cut its own
-       days would satisfy the first and still ship the bug. */
-    const dayOf = (ms) => Math.floor(ms / 86400000);
-    const segs = A.utcDaySegments(w.fromMs, w.toMs);
-    assert(segs.length >= 2,
-      'the fixture must straddle UTC midnight or the exploit is not staged, got ' + segs.length + ' segment(s)');
-    assert(segs[0].fromMs === left,
-      'the first boss segment must begin when the player left, got ' + new Date(segs[0].fromMs).toISOString());
-    assert(segs[segs.length - 1].toMs === w.toMs, 'and the last must end at the close of the credited window');
-    const expected = [];
-    for (let d = dayOf(w.fromMs); d <= dayOf(w.toMs - 1); d++) expected.push(d);
-    assert(JSON.stringify(segs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
-      'the credited window must be segmented over the UTC days it actually spans — expected '
-      + JSON.stringify(expected) + ', got ' + JSON.stringify(segs.map((x) => dayOf(x.fromMs)))
-      + '. A window anchored to the RETURN instant names later days, which lets return timing '
-      + 'pick the Boss of the Day.');
-    /* …and a window anchored to the return instant WOULD name different days.
-       Without this the assertion above could be satisfied by any two adjacent
-       days and the test would not be about the anchor at all. */
-    const wrong = A.utcDaySegments(now - CAP_MS, now);
-    assert(JSON.stringify(wrong.map((x) => dayOf(x.fromMs))) !== JSON.stringify(expected),
-      'CONTROL: the return-anchored window names the same boss days as the departure-anchored one, so '
-      + 'this fixture cannot tell the two apart');
-
-    const r = awaySpan({ fromMs: w.fromMs, spanMs: w.paidMs });
-    assert(r.out.ticks > 0, 'the span simulated nothing — the segment assertions below would be vacuous');
-    const runSegs = r.out.segments || [];
-    assert(JSON.stringify(runSegs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
-      'simulateSpan cut its own day segments instead of the credited window\'s: '
-      + JSON.stringify(runSegs.map((x) => dayOf(x.fromMs))) + ' vs ' + JSON.stringify(expected));
-  }),
-
-  () => tryRun('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
-    /* WHY THE TAIL MATTERS, and why this is a payout bug rather than a
-       bookkeeping one: a timed buff eaten on the way out is alive for the FIRST
-       minutes of the absence. Credit the LAST twelve hours of an eighteen-hour
-       absence and those minutes fall outside the credited window entirely — the
-       player pays for a consumable that buys nothing (measured: 10 minutes of
-       coverage becomes 0).
-
-       b515 — the fixture drove `window.processOffline()`; that engine is
-       deleted, so it drives the pair that decides it, exactly as AWAY-22 does:
-       `creditWindow` picks the hours and `simulateSpan` runs the buff clock
-       over them. The buff queue lives on the plain state, so nothing here can
-       be satisfied by an ambient `G.buffs` an earlier test left behind — which
-       the old fixture could not say. */
-    const A = window.HearthriseCore.away;
-    const CAP_MS = 12 * 3600000;
-    const AWAY_MS = 18 * 3600000;
-    const BUFF_MS = 600000;
-    const TICK = 2400;
-    const left = Date.UTC(2026, 0, 15, 22, 0, 0);
-    const now = left + AWAY_MS;
-    const w = A.creditWindow({ nowMs: now, watermarkMs: left, capMs: CAP_MS });
-    assert(w.paidMs === CAP_MS && w.fromMs === left, 'the fixture window is wrong: ' + JSON.stringify(w));
-
-    const night = (buffs) => awaySpan({
-      fromMs: w.fromMs, spanMs: w.paidMs, tickMs: TICK,
-      state: { buffs: buffs.map((b) => Object.assign({ addedAt: left }, b)) },
-    });
-
-    /* THE CONTROL: with no buff held the payload must report zero coverage, so
-       the measurement below is a measurement and not a default. */
-    const ctrl = night([]);
-    assert(ctrl.out.ticks > 0, 'the fixture simulated nothing');
-    assert(ctrl.out.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
-
-    const r = night([{ type: 'drop_rate', magnitude: 100, remainingMs: BUFF_MS }]);
-    assert(Math.abs(r.out.buffPaidMs - BUFF_MS) <= TICK,
-      'a 10-minute buff eaten at logoff must cover the first 10 minutes of the CREDITED window, got '
-      + r.out.buffPaidMs + 'ms (one tick = ' + TICK + 'ms). 0 means the window was anchored to the '
-      + 'return instant and the buff was spent on forfeited time.');
-    assert(r.out.buffPaidMs < CAP_MS,
-      'THE MINT: the buff paid ' + r.out.buffPaidMs + 'ms of a ' + CAP_MS + 'ms window');
-    assert(r.state.buffs.length === 0,
-      'the buff must be spent by the time the player is back, found ' + JSON.stringify(r.state.buffs));
-
-    /* AND THE FORFEITED TAIL IS SPENT, NOT FROZEN — the half a "never drain
-       past the cap" fix would break. The cap stops the PAYOUT; the character
-       kept standing there, so the clock kept running. This is the one piece the
-       simulation cannot do on its own (it only ever runs the credited window),
-       so it is asserted where the caller does it: `tickBuffs` over the unpaid
-       tail, which is the same primitive the span uses per tick.
-       MUTATION: drop the unpaid-tail drain from the accrual caller and a
-       12h30m buff comes back with 30 minutes still on it. */
-    const B = window.HearthriseCore.buffs;
-    assert(typeof B.tickBuffs === 'function', 'core/buffs.js must export tickBuffs — the tail drain uses it');
-    const longBuff = night([{ type: 'drop_rate', magnitude: 100, remainingMs: CAP_MS + 1800000 }]);
-    assert(longBuff.state.buffs.length === 1 && longBuff.state.buffs[0].remainingMs === 1800000,
-      'the credited window must spend exactly its own 12h off the buff, leaving 30m for the tail — found '
-      + JSON.stringify(longBuff.state.buffs));
-    B.tickBuffs(longBuff.state.buffs, w.unpaidMs, { away: true, active: true });
-    longBuff.state.buffs = B.pruneBuffs(longBuff.state.buffs);
-    assert((longBuff.state.buffs || []).length === 0,
-      'a 12h30m buff survived an 18h absence because the last 6h paid nothing — found '
-      + JSON.stringify(longBuff.state.buffs) + '. The timers the player sees would disagree with the wall '
-      + 'clock, which is the b326 mint in slow motion.');
-
-    /* …and the drain is the WALL CLOCK, not "everything": a buff longer than
-       the whole absence comes back with exactly the remainder. */
-    const survives = night([{ type: 'drop_rate', magnitude: 100, remainingMs: AWAY_MS + 3600000 }]);
-    B.tickBuffs(survives.state.buffs, w.unpaidMs, { away: true, active: true });
-    survives.state.buffs = B.pruneBuffs(survives.state.buffs);
-    assert(survives.state.buffs.length === 1, 'a buff longer than the absence must survive it');
-    const leftMs = survives.state.buffs[0].remainingMs;
-    assert(Math.abs(leftMs - 3600000) <= TICK,
-      'an 18h absence must spend exactly 18h of a 19h buff, leaving 1h — found ' + leftMs + 'ms');
-  }),
-
-  () => tryRun('AWAY-24: the blessing channel is decided by AWAY_SCOPE ALONE — no simulation and no receipt restates it', () => {
-    const C = window.HearthriseCore;
-    const A = C.away;
-    /* ══════════════════════════════════════════════════════════════════════
-       DESIGN RULING 3.5 (binding, 2026-08-15).
-
-       `blessed` was a handwritten `false` in FOUR places — combat-sim's span
-       payload, skill-sim's `emptySummary`, artisan-sim's `emptySummary`, and
-       processOffline's own `lastOfflineSummary` — each carrying its own
-       comment restating "blessings are presence-gated (b227)". Those four
-       agreed with `AWAY_SCOPE.blessing` by coincidence of authorship, not by
-       construction. AWAY-6 pins that blessings pay NOTHING away; this pins
-       something different and, for the next feature, more important: WHO
-       DECIDES. The first world-boss blessing that is made to pay away flips
-       one line of the table and, before this, would have left every
-       welcome-back receipt in the game still stating that no blessing touched
-       the night — and the receipt is the only thing a renderer is permitted
-       to read, so the stale copy is the player-facing lie, not a tidiness
-       problem.
-
-       IT ASSERTS THE PROPERTY, NOT TODAY'S VALUE. It must stay green when
-       `AWAY_SCOPE.blessing` becomes true; the value is AWAY-6's subject.
-
-       MUTATION PROVEN RED, each independently, each after a green control:
-         (i)   restore `blessed: false` in src/core/combat-sim.js   -> (b)
-         (ii)  restore `blessed: false` in src/core/skill-sim.js    -> (b)
-         (iii) restore `blessed: false` in src/core/artisan-sim.js  -> (b)
-         (iv)  restore `blessed: false` in legacy's lastOfflineSummary -> (d)
-
-       KNOWN LIMITATION, stated rather than hidden: (b) discriminates by
-       running each span in BOTH contexts, so it can only see a constant that
-       disagrees with the oracle in at least one of them. Today's regression
-       shape (`false`) is caught in both regimes — under the current table it
-       fails the live context, and under a flipped table it fails both. A
-       hardcoded `true` would escape only in the flipped regime; (d)'s source
-       guard is what covers that class for the client receipt.
-       ══════════════════════════════════════════════════════════════════════ */
-
-    /* (a) THE ORACLE, AND THAT IT CANNOT BE EDITED AT RUNTIME. A rule that a
-       renderer or a restored save could flip is not an authority. */
-    assert(A && typeof A.channelApplies === 'function' && A.CHANNEL && A.CHANNEL.BLESSING,
-      'src/core/away.js must export channelApplies + CHANNEL — they are the single authority this test is about');
-    assert(Object.isFrozen(A.AWAY_SCOPE),
-      'AWAY_SCOPE must stay frozen: one writeable authority is still one authority, but only until something writes it');
-    const oracle = (away) => A.channelApplies(A.CHANNEL.BLESSING, { away: away });
-
-    /* (b) THE THREE SIMULATIONS REPORT THE ORACLE, in both contexts. Each is
-       run over a ZERO-LENGTH span with an idle state, so this measures the
-       payload and mutates nothing — no items, no XP, no buff clock. */
-    const spans = [
-      ['combatSim.simulateSpan', (ctx) => C.combatSim.simulateSpan({}, ctx)],
-      ['skillSim.simulateSkillSpan', (ctx) => C.skillSim.simulateSkillSpan({}, ctx)],
-      ['artisanSim.simulateArtisanSpan', (ctx) => C.artisanSim.simulateArtisanSpan({}, ctx)],
-    ];
-    const at = Date.now();
-    spans.forEach(([name, run]) => {
-      [true, false].forEach((away) => {
-        const out = run({ away: away, fromMs: at, toMs: at, tickMs: 2400 });
-        assert(out && typeof out.blessed === 'boolean',
-          name + ' must STATE blessed on its payload (a renderer may not infer it), got ' + JSON.stringify(out && out.blessed));
-        assert(out.blessed === oracle(away),
-          name + ' answered blessed=' + out.blessed + ' for away=' + away + ', but AWAY_SCOPE says '
-          + oracle(away) + '. The simulation is restating the rule instead of reading it.');
-      });
-    });
-
-    /* (c) …AND THEY AGREE WITH EACH OTHER, which is the failure mode that
-       actually shipped: three copies drifting is only visible when they are
-       compared. Cheap, and it names the disagreement rather than leaving it
-       to be inferred from two separate reds. */
-    const awayVals = spans.map(([name, run]) => [name, run({ away: true, fromMs: at, toMs: at, tickMs: 2400 }).blessed]);
-    assert(new Set(awayVals.map((p) => p[1])).size === 1,
-      'the three away simulations disagree about blessings: ' + JSON.stringify(awayVals));
-
-    /* (d) THE CLIENT RECEIPT DOES NOT CARRY A FIFTH COPY.
-       b515 — THE FOURTH COPY MOVED HOUSE, and this is the half of the ruling
-       that has to move with it. It used to live in `processOffline`'s own
-       `lastOfflineSummary` literal, and this assertion read that function's
-       source for a hardcoded `blessed:`. processOffline no longer writes a
-       receipt at all: the local away engine is deleted and
-       `accrue.js summaryFromAway` is now the ONE translator from the server's
-       away payload to the welcome-back card.
-
-       So the same discriminator is applied to the same class of defect at its
-       new address, and behaviourally rather than by source text — which is
-       strictly better, because a source check cannot tell a constant from a
-       constant that happens to be right today. The receipt must REPORT what the
-       payload said in both directions; a hardcoded literal can only match one.
-       MUTATION: replace `blessed: !!a.blessed` in summaryFromAway with either
-       literal → red on one of the two assertions below. */
-    const AC = window.HearthriseAccrual;
-    assert(AC && typeof AC.summaryFromAway === 'function',
-      'accrue.js must export summaryFromAway — it is the only path from the server payload to the card');
-    [true, false].forEach((v) => {
-      const rec = AC.summaryFromAway({ grantMs: 3600000, kills: 1, blessed: v }, { version: 1 });
-      assert(rec.blessed === v,
-        'the welcome-back receipt reported blessed=' + rec.blessed + ' for a payload that said ' + v
-        + ' — that is the fifth copy of a rule that has exactly one home (AWAY_SCOPE). A stale copy is '
-        + 'the player-facing lie, because the receipt is the only thing a renderer may read.');
-    });
-    /* AND NOTHING RECONSTRUCTS IT FROM THE LIVE PAGE. An absent payload field
-       must read false — "the server said nothing" — never "ask the table for
-       what would be true right now", which is a different instant. */
-    assert(AC.summaryFromAway({ grantMs: 3600000 }, { version: 1 }).blessed === false,
-      'an away payload that states no blessing produced a receipt that claims one — the receipt is '
-      + 'inferring, and b341\'s rule for exactly this row is STATED, NOT INFERRED');
-  }),
-
-  () => tryRun('AWAY-9: the summary carries the honesty payload the welcome-back renderer needs', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const P = window.HearthrisePresence;
-    const snap = snapshotG();
-    try {
-      const m = window.MONSTERS.goblin;
-      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
-      G.activeMonster = 'goblin';
-      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = 200; G.playerHp = 200;
-      G.buffs = [{ type: 'all_xp', magnitude: 10, remainingMs: 600000, addedAt: Date.now() }];
-      let s = null;
-      P._withOfflineReplay(() => { s = window.simulateAwayCombat(1, Date.now(), false); });
-      assert(s, 'simulateAwayCombat must return a summary');
-      assert(s.blessed === false, 'the summary must state blessings were NOT applied');
-      /* `buffsPaused` used to be the interesting field and is now always false:
-         nothing is paused away, so a card that printed "your buffs were
-         paused" off a held buff would be quoting a rule that no longer exists.
-         What replaced it is COVERAGE — how much of the absence a buff actually
-         paid for, and which ones ran out. Stated, never inferred. */
-      assert(s.buffsPaused === false, 'no buff is paused away any more — the summary must not claim one was');
-      assert(typeof s.buffPaidMs === 'number' && s.buffPaidMs > 0,
-        'a held buff must report the span it actually paid, got ' + s.buffPaidMs);
-      assert(s.buffPaidMs <= 600000 + 5000,
-        'a 10-minute buff cannot have paid ' + s.buffPaidMs + 'ms of the absence');
-      assert(Array.isArray(s.buffsExpired), 'the summary must carry the list of buffs that ran out mid-absence');
-      assert(typeof s.crits === 'number', 'the summary must report away crits so "142 kills · 21 crits" is sayable');
-      assert(typeof s.featuredMs === 'number', 'the summary must report time on the featured boss');
-      assert(s.capped === false, 'the summary must report whether the absence hit the cap');
-      assert(s.rateMult === 1.00, 'the summary must state the away rate actually applied');
-      assert(Array.isArray(s.segments) && s.segments.length >= 1, 'the summary must describe its UTC-day segments');
-      /* With no buffs held, the coverage must be exactly zero — not "unknown"
-         and not a default. A renderer that saw a positive number here would
-         quote a buff the player never had. */
-      G.buffs = [];
-      G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = 200;
-      let s2 = null;
-      P._withOfflineReplay(() => { s2 = window.simulateAwayCombat(1, Date.now(), false); });
-      assert(s2.buffsPaused === false, 'buffsPaused must be false when the player held no buffs');
-      assert(s2.buffPaidMs === 0, 'a player who held no buffs must report 0ms of buffed absence, got ' + s2.buffPaidMs);
-      assert(s2.buffsExpired.length === 0, 'and no buff can have expired, got ' + JSON.stringify(s2.buffsExpired));
-    } finally { C.randomSeed(); restoreG(snap); }
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, " — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeit" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-24: the blessing channel is decided by AWAY_SCOPE ALONE — no simulation and no receipt restates it" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-9: the summary carries the honesty payload the welcome-back renderer needs" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-10 (balance risk, flagged by design): the 0.95 drop cap applies AFTER dropMult x featuredMult, and guaranteed drops stay unscaled', () => {
     const D = window.HearthriseCore.drops;
     /* A weekly BotD (x2.0) on a tier-6 boss with a high-value tradeable is a
@@ -3102,76 +2348,9 @@ export default [
       'away combat must use the same swing interval live play uses (gear speed + weapon family), not the flat tickMs constant');
   }),
 
-  () => tryRun('AWAY-12b: weapon speed reaches away accrual NUMERICALLY — a hammer swings 1.35x slower over the same span', () => {
-    /* AWAY-12 above greps `simulateAwayCombat` for the string `combatTickMs()`.
-       That is a cheap canary and it is kept, but it only catches a literal
-       revert: it still passes if someone wraps the call, clamps the result, or
-       hands the interval the wrong equipment. THIS is the test that holds the
-       ruling — it measures the tick budget a real span actually produces with
-       real gear equipped, and reads the expected ratio off WEAPON_SPEED_MOD
-       rather than a pinned number that would rot at the next re-tune. */
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    try {
-      const SPAN_MS = 3600000;
-      /* Mid-day UTC so the span cannot straddle midnight — segment splitting is
-         AWAY-4's subject, not this test's. */
-      const FROM = Date.UTC(2026, 0, 15, 6, 0, 0);
-      /* A rig that never lands a hit: `chance:()=>false` makes every rollAttack
-         a miss, so nothing dies on either side and `ticks` is the pure tick
-         BUDGET. No fx, so no side effects on the real game. */
-      const ticksFor = (tickMs) => C.combatSim.simulateSpan({
-        activeMonster: 'goblin', monsterHp: 1e6, monsterMaxHp: 1e6,
-        playerHp: 1e6, playerMaxHp: 1e6, stats: {},
-      }, {
-        tickMs,
-        rng: { next: () => 0.5, int: (a) => a, chance: () => false },
-        monsters: window.MONSTERS,
-        playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
-        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
-        weakness: () => ({ dropMult: 1 }),
-        bonus: () => 0,
-        fromMs: FROM, toMs: FROM + SPAN_MS,
-      }).ticks;
-
-      const MOD = C.combat.WEAPON_SPEED_MOD;
-      const measure = (itemId) => {
-        assert(window.ITEMS[itemId], 'the rig needs ' + itemId + ' in the catalogue; without it this test is vacuous');
-        G.equipment = { weapon: itemId };
-        /* b456: the worn weapon has to arrive on the RECORD — combatTickMs reads
-           the set through equipmentMap, so an unstamped write is UNKNOWN → naked →
-           both weapons measure the same unarmed 2400ms and the ratio assertion
-           compares a number with itself. */
-        stampRecordLikeLoad(G);
-        const ms = window.combatTickMs();
-        return { ms, ticks: ticksFor(ms) };
-      };
-
-      const sword = measure('rune_sword');
-      assert(sword.ticks > 100, 'the rig produced ' + sword.ticks + ' ticks — the ratio assertion would be meaningless');
-
-      /* hammer 1.35 — the exact case the old away loop got wrong (it swung a
-         hammer 26% MORE often asleep than awake). */
-      const hammer = measure('rune_warhammer');
-      const wantHammer = sword.ticks / MOD.hammer;
-      assert(Math.abs(hammer.ticks - wantHammer) <= 1,
-        'a hammer must swing ' + MOD.hammer + 'x slower AWAY too: expected ~' + wantHammer.toFixed(1)
-        + ' ticks, got ' + hammer.ticks + ' (sword ' + sword.ticks + ' @' + sword.ms + 'ms, hammer @' + hammer.ms + 'ms)');
-
-      /* bow 0.88 — the other direction, so a fix that merely slowed everything
-         down uniformly cannot pass. */
-      const bow = measure('yew_bow');
-      const wantBow = sword.ticks / MOD.ranged;
-      assert(Math.abs(bow.ticks - wantBow) <= 1,
-        'a bow must swing ' + MOD.ranged + 'x faster AWAY too: expected ~' + wantBow.toFixed(1)
-        + ' ticks, got ' + bow.ticks + ' (bow @' + bow.ms + 'ms)');
-      assert(bow.ticks > sword.ticks && sword.ticks > hammer.ticks,
-        'the three families must order bow > sword > hammer in swings per hour, got '
-        + bow.ticks + ' / ' + sword.ticks + ' / ' + hammer.ticks);
-    } finally { restoreG(snap); }
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-12b: weapon speed reaches away accrual NUMERICALLY — a hammer swings 1.35x slower over the same span" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-12c: a hostile ctx.tickMs cannot inflate the away tick budget', () => {
     /* The latent exploit in the accrual primitive. `simulateSpan` divides
        elapsed time by ctx.tickMs, so tickMs is the single largest lever on the
@@ -3229,182 +2408,9 @@ export default [
     assert(C.combatSim.resolveTickMs({ tickMs: 50, minTickMs: 0 }) === CB.minTickMs, 'a zero opt-in must not disable the floor');
   }),
 
-  () => tryRun('AWAY-15: the away buff clock is a TIMELINE — coverage is min(buff, span), it survives UTC midnight, and it is driven in PURE core', () => {
-    /* AWAY-5 measures this through the browser: G.buffs, the wrapped getBonus
-       chain, simulateAwayCombat. THIS one measures the same rule with none of
-       that — a bare `simulateSpan` on a plain object, which is the exact shape
-       the accrual Edge Function runs in Deno. If the clock ever gets wired to
-       something browser-only, this is the test that notices.
-
-       The rig never lands a hit (`chance: () => false`), so nothing dies and
-       `ticks` is the pure tick BUDGET — the same rig AWAY-12b uses, for the
-       same reason: a death mid-span would make every number below a
-       measurement of the death instead of the buff. */
-    const C = window.HearthriseCore;
-    const B = C.buffs;
-
-    /* (a) THE ALLOCATION-FREE PREDICATE MUST NOT DRIFT FROM THE ARRAY.
-       `simulateSpan` asks `hasActiveBuff` ~18,000 times per absence and its
-       whole reason to exist is skipping the allocation `activeBuffs` does. Two
-       functions answering one question is how the away/live split rotted the
-       first time, so the equivalence is asserted rather than assumed. */
-    const shapes = [
-      null, undefined, [], 'nonsense',
-      [{ type: 'drop_rate', magnitude: 1, remainingMs: 0 }],
-      [{ type: 'drop_rate', magnitude: 1, remainingMs: -5 }],
-      [{ type: 'drop_rate', magnitude: 1, remainingMs: 1 }],
-      [{ type: 'a_type_that_does_not_exist', magnitude: 1, remainingMs: 9e9 }],
-      [{ type: 'a_type_that_does_not_exist', magnitude: 1, remainingMs: 9e9 }, { type: 'all_xp', magnitude: 2, remainingMs: 5 }],
-      [null, { type: 'all_xp', magnitude: 2, remainingMs: 5 }],
-    ];
-    for (const q of shapes) {
-      assert(B.hasActiveBuff(q) === (B.activeBuffs(q).length > 0),
-        'hasActiveBuff disagreed with activeBuffs for ' + JSON.stringify(q));
-    }
-
-    const TICK = 2400;
-    const run = (remainingMs, fromMs, spanMs) => {
-      const state = {
-        activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
-        playerHp: 1e9, playerMaxHp: 1e9, stats: {},
-        buffs: remainingMs > 0 ? [{ type: 'drop_rate', magnitude: 100, remainingMs, addedAt: 0 }] : [],
-      };
-      const out = C.combatSim.simulateSpan(state, {
-        away: true, fromMs, toMs: fromMs + spanMs, tickMs: TICK,
-        rng: { next: () => 0.5, int: (a) => a, chance: () => false },
-        monsters: window.MONSTERS,
-        playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
-        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
-        weakness: () => ({ dropMult: 1 }),
-        bonus: () => 0,
-      });
-      return { out, state };
-    };
-
-    const MIDDAY = Date.UTC(2026, 0, 15, 6, 0, 0);
-    const HOUR = 3600000;
-
-    /* (b) COVERAGE IS min(buff, span) — the whole rule, in one line, at both
-       ends and in the middle. TICK divides all three exactly, so these are
-       equalities and not tolerances: an off-by-one drain would fail. */
-    const short = run(300000, MIDDAY, HOUR);          // 5-min buff, 1h absence
-    assert(short.out.ticks === HOUR / TICK, 'the rig must budget the full hour, got ' + short.out.ticks + ' ticks');
-    assert(short.out.buffPaidMs === 300000,
-      'a 5-minute buff must cover exactly 5 minutes of an hour, got ' + short.out.buffPaidMs + 'ms');
-    assert(short.state.buffs.length === 0, 'and it must be gone from the queue afterwards');
-    assert(short.out.buffsExpired.length === 1 && short.out.buffsExpired[0] === 'drop_rate',
-      'the expiry must be reported by type, got ' + JSON.stringify(short.out.buffsExpired));
-
-    const long = run(2 * HOUR, MIDDAY, HOUR);         // 2h buff, 1h absence
-    assert(long.out.buffPaidMs === HOUR,
-      'a buff longer than the absence must cover ALL of it, got ' + long.out.buffPaidMs + 'ms of ' + HOUR);
-    assert(long.state.buffs.length === 1 && long.state.buffs[0].remainingMs === HOUR,
-      'and must have exactly the absence spent off it, found ' + JSON.stringify(long.state.buffs));
-    assert(long.out.buffsExpired.length === 0, 'a surviving buff must not be reported as expired');
-
-    const none = run(0, MIDDAY, HOUR);
-    assert(none.out.buffPaidMs === 0, 'no buff held must report exactly 0ms covered, got ' + none.out.buffPaidMs);
-
-    /* (c) THE MINT, STATED AS AN INEQUALITY. This is the assertion that would
-       fail if the clock were ever removed while the payout stayed: a buff can
-       never cover more of an absence than it had life. */
-    for (const [buffMs, spanMs] of [[60000, 12 * HOUR], [300000, 8 * HOUR], [20 * 60000, 12 * HOUR]]) {
-      const r = run(buffMs, MIDDAY, spanMs);
-      assert(r.out.buffPaidMs <= buffMs,
-        'a ' + buffMs + 'ms buff covered ' + r.out.buffPaidMs + 'ms of a ' + spanMs + 'ms absence — that is a mint');
-      assert(r.out.buffPaidMs === Math.min(buffMs, spanMs),
-        'coverage must be exactly min(buff, span): expected ' + Math.min(buffMs, spanMs) + ', got ' + r.out.buffPaidMs);
-    }
-
-    /* (d) IT SURVIVES UTC MIDNIGHT. The absence is split into day segments for
-       the Boss of the Day, and each segment rebuilds its ctx — so a clock kept
-       per segment instead of per span would silently restore the buff at
-       midnight and pay it twice. 23:30 -> 00:30 with a 45-minute buff must pay
-       45 minutes across the boundary, not 30 + 45. */
-    const NIGHT = Date.UTC(2026, 0, 15, 23, 30, 0);
-    const cross = run(45 * 60000, NIGHT, HOUR);
-    assert(cross.out.segments.length === 2, 'the rig must actually straddle midnight, got ' + cross.out.segments.length + ' segment(s)');
-    assert(cross.out.buffPaidMs === 45 * 60000,
-      'a 45-minute buff across UTC midnight must cover 45 minutes, got ' + (cross.out.buffPaidMs / 60000).toFixed(2) + ' minutes');
-    assert(cross.state.buffs.length === 0, 'and must still be spent by the end of the night');
-
-    /* (e) A SERVER STATE HAS NO BUFF QUEUE, and must not grow one. hr-accrue
-       builds `state` from DB rows; every line of the clock has to be an inert
-       no-op there or the Edge Function throws on a field it never had. */
-    const server = {
-      activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
-      playerHp: 1e9, playerMaxHp: 1e9, stats: {},
-    };
-    const sOut = C.combatSim.simulateSpan(server, {
-      away: true, fromMs: MIDDAY, toMs: MIDDAY + HOUR, tickMs: TICK,
-      rng: { next: () => 0.5, int: (a) => a, chance: () => false },
-      monsters: window.MONSTERS,
-      playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
-      monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
-      weakness: () => ({ dropMult: 1 }), bonus: () => 0, activeBuffCount: 0,
-    });
-    assert(server.buffs === undefined, 'the clock must not invent a buff queue on a state that has none');
-    assert(sOut.buffPaidMs === 0 && sOut.buffsExpired.length === 0,
-      'a buffless state must report zero coverage, got ' + sOut.buffPaidMs);
-    assert(sOut.ticks === HOUR / TICK, 'and must still simulate its full span');
-
-    /* (f) THE QUEUE IS READ FRESH, NOT CAPTURED — pinned by the one case that
-       can actually tell the two apart.
-       Note what does NOT distinguish them, because the obvious test is a
-       vacuous one: `window.pruneBuffs()` reassigns `G.buffs` to a
-       `filter()`ed array whose ELEMENTS are the same objects, so draining
-       through a stale reference still mutates the very buffs the getBonus
-       chain reads. (Measured: capturing the array once passes a
-       reassignment test unchanged.)
-       What does distinguish them is a buff APPEARING in a queue that was
-       empty when the span began — a clock that captured `null` at the top
-       would never drain it, so it would pay for the whole rest of the
-       absence and come back reading full. That is the mint, and it is the
-       assertion below. */
-    const grew = {
-      activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
-      playerHp: 1e9, playerMaxHp: 1e9, stats: {}, buffs: [],
-    };
-    let swings = 0;
-    const HALF = (HOUR / TICK) / 2;
-    const gOut = C.combatSim.simulateSpan(grew, {
-      away: true, fromMs: MIDDAY, toMs: MIDDAY + HOUR, tickMs: TICK,
-      rng: { next: () => 0.5, int: (a) => a, chance: () => false },
-      monsters: window.MONSTERS,
-      playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
-      monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
-      weakness: () => ({ dropMult: 1 }), bonus: () => 0,
-      fx: {
-        onSwing() {
-          if (++swings === HALF) grew.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 10 * 60000, addedAt: 0 }];
-        },
-      },
-    });
-    assert(swings > HALF, 'the rig never reached its insertion point — the assertions below would be vacuous');
-    assert(gOut.buffPaidMs === 10 * 60000,
-      'a buff that appears mid-span must be clocked from that moment: expected 600000ms covered, got ' + gOut.buffPaidMs);
-    assert(grew.buffs.length === 0,
-      'and it must be spent and pruned by the end of the absence, found ' + JSON.stringify(grew.buffs));
-  }),
-
-  /* ═══════════════════════════════════════════════════════════════════════
-     AWAY-16 — THE GATHER SPAN IS ONE LOOP TOO.
-
-     `src/core/skill-sim.js simulateSkillSpan` is what legacy.js's away gather
-     branch (`replayAwaySpan` + `doSkillAction(true)`) becomes, and what the
-     accrual Edge Function already runs — 23 of the 344 catalogue activities
-     that used to accrue NOTHING server-side.
-
-     This is the AWAY-1 assertion for gathering, in the browser, on the real
-     `G`: N live actions and one core span of exactly N actions' worth of time
-     must produce the same bag, the same XP, the same counters and the same
-     fractional tool carry. It is the client switch-over's precondition — if
-     these two columns match, replacing the legacy branch with a call to core
-     is a delegation and not a balance change.
-
-     The fx map below IS the adapter the switch-over needs. It is written out
-     here rather than described, so "what does the client have to pass?" has an
-     executable answer. */
+  /* RETIRED (lane C2, the closed rebuild): "AWAY-15: the away buff clock is a TIMELINE — coverage is min(buff, span), it survives UTC midnight, and it is " — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-16 PARITY: N live gather actions == one core span of N actions (bag, XP, counters, tool carry)', () => {
     const G = window.G;
     const C = window.HearthriseCore;
@@ -4120,23 +3126,9 @@ export default [
     }
   }),
 
-  () => tryRun('b326-2: the simulation reports the drop multiplier featured time actually paid', () => {
-    const C = window.HearthriseCore;
-    const S = C.combatSim;
-    assert(typeof S.simulateSpan === 'function', 'simulateSpan must exist');
-    /* Read from the SIMULATION, because a renderer that has to guess which
-       boss it was will eventually quote the wrong lift. Asserted structurally:
-       a span with no featured segment reports the neutral 1. */
-    const state = { activeMonster: null, stats: {}, skills: {}, gold: 0 };
-    const out = S.simulateSpan(state, {
-      fromMs: 0, toMs: 3600000, away: true, tickMs: 2400,
-      rng: C.rngMod.createRng(1), bonus: () => 0,
-    });
-    assert(typeof out.featuredDropMult === 'number',
-      'the honesty payload must carry featuredDropMult so the welcome-back line can quote a real number');
-    assert(out.featuredDropMult === 1, 'a span with no featured time must report the neutral multiplier, not a default lift');
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "b326-2: the simulation reports the drop multiplier featured time actually paid" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('buffs step 2: the server owns the clock — the pill is the envelope, it never pauses, '
     + 'and it shows the segment running NOW', () => {
     /* WHAT THIS REPLACED, AND WHY THAT IS NOT A DELETED TEST. This slot held
@@ -5219,58 +4211,9 @@ export default [
   /* THE AWAY HALF (§4 both-path). The night runs the SAME resolveAutoEat through
      the same maybeAutoEat, so the food it eats must be the server's too — the
      away rig, one seeded span, with the two nominations disagreeing. */
-  () => tryRun('b547: the AWAY replay eats the server\'s provision too (both-path with the attended tick)', () => {
-    const C = window.HearthriseCore, P = window.HearthrisePresence;
-    const A = window.HearthriseAuto, S = window.HearthriseCombatSim, AC = window.HearthriseAccrual;
-    if (!(C && C.combatSim && S && typeof S.ctx === 'function' && P && typeof P._withOfflineReplay === 'function'
-          && A && typeof A.setEat === 'function' && autoEatMirrorReady())) { skip('no away rig'); return; }
-    const snap = snapshotG(), origBonus = window.getBonus, beforeEat = A.getEat();
-    const sObs = AC.serverAutoEatSettings();
-    let wasParked = false, wasSync = false;
-    try {
-      wasSync = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
-      wasParked = A._parkAutoEatMirror(false);
-      window.getBonus = () => 0;
-      const G = window.G, m = window.MONSTERS.wolf;
-      G.buffs = []; G.quests = []; G.recoveringUntilMs = 0; G.playerMaxHp = 40; G.playerHp = 40;
-      G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500, turnip: 500 });
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
-      A.setEat({ foodId: 'cooked_shrimp', enabled: true, threshold: 0.6 });
-      AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 60, auto_eat_food: 'turnip' } });
-      const shrimp0 = G.inventory.cooked_shrimp, turnip0 = G.inventory.turnip;
-      G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      C.reseed(0x547AEA7);
-      P._withOfflineReplay(() => {
-        const ctx = S.ctx();
-        for (let i = 0; i < 600 && G.playerHp > 0; i++) {
-          if (!G.activeMonster) { G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp; }
-          C.combatSim.simulateTick(G, ctx);
-        }
-      });
-      const ateTurnip = turnip0 - (Number(G.inventory.turnip) || 0);
-      const ateShrimp = shrimp0 - (Number(G.inventory.cooked_shrimp) || 0);
-      assert(ateTurnip > 0, 'the away replay must auto-eat at all (ate ' + ateTurnip + ' turnip)');
-      assert(ateShrimp === 0, 'THE BUG: the away path ate the LOCAL nomination — ' + ateShrimp + ' cooked_shrimp');
-    } finally {
-      window.getBonus = origBonus;
-      try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
-      try { A.setEat(beforeEat); } catch (e) {}
-      try { A._parkAutoEatMirror(wasParked); } catch (e) {}
-      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasSync);
-      restoreG(snap);
-    }
-  }),
-
-  /* ── regression: THE PLAY STREAK LIED (live P3) ──────────────────────
-     MEASURED on the same account the same hour: the topbar flame read 1 while
-     `player_state.streak_days` held 3. `G.streak` is a per-DEVICE residue
-     legacy.js advances from the local clock, so a second machine or a cleared
-     profile restarts it at 1 while the server keeps counting from `accrued_to`
-     (2026-08-21-streak-state.sql §4c). The number is spendable — renown scores
-     `streakBest` ×5 off that exact column server-side — so two counters under
-     one word is §6 verbatim. */
+  /* RETIRED (lane C2, the closed rebuild): "b547: the AWAY replay eats the server…" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
+     Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b547: the play streak shown is the server\'s streak_days, not the per-device residue', () => {
     const AC = window.HearthriseAccrual;
     if (!(AC && typeof AC.reconcilePlayStreak === 'function' && typeof AC.playStreakDays === 'function')) {

@@ -2423,43 +2423,9 @@ export default [
     }
   }),
 
-  () => tryRun('DAILY-SHEET-2 (b465): the SERVER\'s login-claim row closes the sheet — the marker that survives tab/save races', () => {
-    /* Second costume of the every-refresh bug: the residue marker lost a
-       tab/save race and the sheet re-opened on a reward the server had paid.
-       Every envelope carries the progress rows; both appliers hand them to
-       markServerClaim, which closes the question locally for TODAY only. */
-    const D = window.HearthriseDaily, G = window.G;
-    assert(D && typeof D.markServerClaim === 'function', 'markServerClaim must be exported');
-    const snap = snapshotG();
-    try {
-      const d = new Date();
-      const today = d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
-      G.dailyReward = { lastClaimDay: 0 };
-      // yesterday's claim row must NOT close today
-      assert(D.markServerClaim([{ kind: 'daily', key: 'login', state: 'claimed', period: '2020-1-1' }]) === false,
-        'an old claim row must not mark today claimed');
-      assert(D.isClaimable(G) === true, 'still claimable after an old row');
-      // an open sheet + today's claimed row → marked + folded away
-      const fake = document.createElement('div'); fake.id = 'hr-dl-modal'; document.body.appendChild(fake);
-      assert(D.markServerClaim([{ kind: 'daily', key: 'login', state: 'claimed', period: today }]) === true,
-        'THE BUG: today\'s server claim row must close the local question');
-      assert(D.isClaimable(G) === false, 'the sheet must read claimed after the server row');
-      assert(!document.getElementById('hr-dl-modal'), 'an open sheet on a paid reward must fold away');
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      restoreG(snap);
-    }
-  }),
-
-  /* ══ FIELDNOTES-1..3 — the bestiary hunter's notes (content pack 5) ═══════
-     108 lines in src/data/monster-notes.js, one per MONSTERS id. FIELDNOTES-1
-     is the data contract: every id covered exactly once, charset-clean,
-     unique, and mechanically silent about the monster's own elementWeak (the
-     Bestiary Charms rank-1 reward) and about any item it does not drop.
-     FIELDNOTES-2/3 play the two surfaces that actually render a name: the
-     Collection Log's ATTENDED/residue detail and the Bestiary modal's
-     AWAY/server list — TROPHY-1's own reviewer finding was that only the
-     second reads the server's kill count, so both get their own test. */
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-2 (b465):…" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
+     Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('FIELDNOTES-1: every MONSTERS id has exactly one hunter\'s note, charset-clean, unique, and silent about its own weakness and undropped items', () => {
     const NOTES = window.HearthriseMonsterNotes;
     const MON = window.MONSTERS || {};

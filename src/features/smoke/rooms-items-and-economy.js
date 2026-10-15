@@ -4037,26 +4037,9 @@ export default [
       try { const p = R.render(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     }
   }),
-  () => tryRun('PROVISION-1: the counter sells lobster by the five and no longer sells one arrow for 150', () => {
-    /* Pack 9. Iron Arrows were an EQUIP_SHOP row at 150 g for ONE arrow that
-       a ranger burns one per shot — a trap, so the row is retired. Lobster is
-       the Supplies meal one band above trout for a knocked-out fighter with
-       gold. Pure resolver only: the edge half is tests/gold-intents.mjs G-PROV. */
-    const Gold = window.HearthriseGold;
-    assert(Gold && typeof Gold.resolvePurchase === 'function' && typeof Gold.shopOfferIndex === 'function',
-      'the gold module does not publish the offer resolver');
-    const r = Gold.resolvePurchase('cooked_lobster', 5, 2000);
-    assert(JSON.stringify(r) === JSON.stringify({ offer: 'seed.cooked_lobster', count: 1 }),
-      'the server cannot price the lobster bundle: ' + JSON.stringify(r));
-    const bad = Gold.resolvePurchase('cooked_lobster', 5, 1);
-    assert(bad.error === 'price_mismatch', 'a forged lobster price resolved: ' + JSON.stringify(bad));
-    const idx = Gold.shopOfferIndex();
-    assert(!Object.values(idx).some(e => e && e.offer === 'equip.iron_arrows'),
-      'equip.iron_arrows is still a gold offer — the one-arrow-for-150 trap is back');
-    assert(Array.isArray(window.EQUIP_SHOP) && !window.EQUIP_SHOP.some(row => row.id === 'iron_arrows'),
-      'EQUIP_SHOP still lists iron_arrows');
-  }),
-
+  /* RETIRED (lane C2, the closed rebuild): "PROVISION-1: the counter sells lobster by the five and no longer sells one arrow for 150" — it covered a system C2 deleted
+     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
+     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('PROVISION-2: no gold offer sells for less than the vendor pays back', () => {
     /* THE NO-PROFIT RULE, for EVERY item-granting gold offer that ships, at the
        strict margin: the vendor pays at most HALF the shop price (SHOP_BUYBACK_RATE). */
@@ -4084,7 +4067,8 @@ export default [
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
-      cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
+      /* master plan row 2 (lane C2): the Counter no longer sells cooked food, so no cap applies */
+      cooked_lobster: 240, cooked_trout: 55, cooked_shrimp: 18,
     };
     const wrong = Object.keys(EXPECT).filter((id) => window.vendorPrice(id) !== EXPECT[id])
       .map((id) => id + ' shows ' + window.vendorPrice(id) + ', server pays ' + EXPECT[id]);
@@ -4114,9 +4098,9 @@ export default [
     if (typeof window.buyShopItem !== 'function' || typeof window.renderShop !== 'function') return;
     const snap = snapshotG();
     const rows = window.SEED_SHOP || [];
-    const shrimp = rows.find((r) => r.id === 'cooked_shrimp');
+    const shrimp = rows.reduce((a, r) => (r.cost < a.cost ? r : a), rows[0])   /* the cheapest row (lane C2: the Counter sells no cooked food) */;
     const top = rows.reduce((a, r) => (r.cost > a.cost ? r : a), rows[0]);
-    assert(shrimp && top && top.cost > 3 * shrimp.cost, 'fixture: needs the shrimp row and a dearer row');
+    assert(shrimp && top && top.cost > 3 * shrimp.cost, 'fixture: needs a cheap row and a dearer row');
     const buttons = () => Array.from(document.querySelectorAll('#shop-panel .shop-row button'))
       .filter((b) => /buyShopItem\(/.test(b.getAttribute('onclick') || ''));
     const btnFor = (id) => buttons().find((b) => (b.getAttribute('onclick') || '').indexOf("'" + id + "'") !== -1);

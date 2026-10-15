@@ -16,7 +16,7 @@ Art Director, 2026-10-14. This is Tyler's call after playing the town and cottag
   - Icons are one 32-px art tile: 64 px pockets, slots and bar cells. The gear figure is ×2. If that looks small, the window gets smaller; the sprite never gets bigger.
   - **How the bar fits (Coordinator ruling, 10-14):**
     - **Desktop:** the 10-slot bar is 730 px wide at ×2. When docked windows would cover it, it shifts left inside the uncovered World (the same inset rule the camera uses). It never runs under a window, and centred widgets step clear of edge-anchored ones.
-    - **Phone:** the bar shows **6 slots plus a page toggle** (slots 7–10 on page 2), and the bottom HUD budget stays at about 15%. Measured caveat: a 64 px icon cell cannot fit under 62 px, so the floor at ×2 is about 68 px (16%). That floor means the vitals move up beside the ground chip and the bar loses its padding. The Coordinator decides whether 16% is accepted.
+    - **Phone:** the bar shows **6 slots plus a page toggle** (slots 7–10 on page 2),. **Decided (Coordinator, 10-14): the phone bottom HUD is 68 px (16%). The vitals move to the top left beside the ground chip and the bar loses its padding. One density wins over the 15% budget**, because a 64 px icon cell can't fit under 62 px.
     - The prototype pins ×2 by answering the engine's `innerHeight` read; `src/world` is untouched.
 - The strip carries no bells, timers or currencies other than gold. Event and muster notices become in-world (the crier) or a toast.
 - The launcher row lists only windows that exist. A launcher never opens a "coming soon".
@@ -28,7 +28,7 @@ Every widget is one row of data, and B1 builds its hunt widgets to this contract
 | id | default anchor (desktop / phone) | min | notes |
 |---|---|---|---|
 | `launchers` | tr 0,0 in the strip / same | 320×40 | **cannot be hidden** (Esc always reaches Settings as well) |
-| `vitals` | bc 0,100 / bc 0,74 | 300×16 | HP over MP. On the phone it rides the action bar's top edge |
+| `vitals` | bc 0,100 / tl 6,62 | 300×16 | HP over MP. On the phone it rides the action bar's top edge |
 | `actionbar` | bc 0,12 / bc 0,4 | 730×82 at ×2 (phone: 6 slots + page toggle, about 430×68) | **one row of ten** (keys 1–0); on the phone, 6 slots and a page toggle for 7–10. It shifts left inside the uncovered World and never sits under a docked window. Row 2 (Shift+1–0) appears only once something is bound to it. Slot 1 is the bound food. Leave Hunt goes here as a bar control |
 | `target` | tc 0,12 / tr 6,6 | 180×48 | the foe's name in the **same face and case as its world plate** (Alegreya, not Cinzel), its level, and an HP bar (`--world-bar-foe`) |
 | `ground` | tl 12,12 / tl 6,6 | 140×48 | the ground's name and **floor N of M**. A tap opens the route minimap (§3) |
@@ -39,7 +39,7 @@ Every widget is one row of data, and B1 builds its hunt widgets to this contract
 - **At the cutover:** show/hide per widget, opacity per widget (40–100%; hovering brings it to 100%), and **Reset layout**. These live in Settings → HUD layout (shortcut U).
 - **v1.1, right after Tyler's first playable test, is Edit HUD mode.** It's toggled from Settings or U. On desktop you drag widgets: on drop, the nearest anchor is picked by thirds of the screen, the offsets land on an 8 px soft grid, and anything within 24 px of an edge snaps to the 12 px margin. The phone gets no free drag, only six snap positions per widget. While editing, widgets are outlined and named and clicks on them do nothing. The contract above already carries `anchor`/`dx`/`dy`, so v1.1 adds the interaction and nothing else. The prototype shows it, marked v1.1 (`shots/*-edit-hud.png`).
 - **Storage:** the layout is a client-only DISPLAY preference (CLAUDE.md §6 residue allowlist). Nothing reads it to gate an action or spend anything. It's stored per size class (`hud.desktop`, `hud.phone`), so a phone layout never breaks the desktop one.
-- **Phone budget:** at or under 15%, about 62 px (ruling). At ×2 the reachable floor is about 68 px (16%) with the vitals moved to the top-left; see §1.
+- **Phone budget (decided 10-14):** the bottom HUD is 68 px (16%) with the vitals at the top left (`vitals` phone anchor tl 6,62). One density wins over the old 15% budget; see §1.
 
 ## 3. Dynamic hunting: what the map data must carry (spec only; Tyler 10-14)
 The hero walks to monsters, monsters walk to the hero, and a ground is an authored **route through real space across floors** (Huntera's Asura Palace is the reference). The cellar stays one room. The server owns the path the engine plays; the client only stages it. A hunt map row in `src/data/world/maps/*` adds:

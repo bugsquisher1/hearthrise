@@ -4339,4 +4339,52 @@ export default [
       const s = document.getElementById('hr-dc-sheet'); if (s) s.remove();
     }
   }),
+
+  /* CLOSED MODE (2026-10-21-closed-mode.sql) — the server refuses a signed-in
+     account that is not on the allowlist with HTTP 403 {code:'hr_closed'} on
+     every Data-API request. The client's only job is to SAY so: the notice
+     appears on exactly that refusal, on any /rest/v1/ request, and on nothing
+     else. The server half (refused vs admitted) is tests/closed-rebuild.mjs. */
+  () => tryRunAsync('CLOSED-1: the server\'s hr_closed refusal shows the closed screen; no other answer does', async () => {
+    const C = window.HearthriseClosed;
+    assert(C && C.CODE === 'hr_closed' && C.STATUS === 403, 'closed-screen.js is not loaded');
+    /* The PAGE's fetch chain reaches the watcher: later scripts wrap fetch
+       around it, so the proof is a real request counted on the way back. */
+    const seen0 = C.observed();
+    await window.fetch('index.html?closed-probe=1', { cache: 'no-store' }).catch(() => null);
+    assert(C.observed() > seen0, 'a page request never reached the closed-screen watcher');
+    const base = 'https://nezapsylztqbbwuwembx.supabase.co';
+    const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    const answers = {
+      [base + '/rest/v1/rpc/hr_load']: () => json(403, { code: 'hr_closed', message: 'Hearthrise is closed while we rebuild it.', details: null, hint: null }),
+      [base + '/rest/v1/rpc/hr_heartbeat']: () => json(403, { code: '42501', message: 'permission denied' }),
+      [base + '/rest/v1/rpc/hr_server_now']: () => json(200, { code: 'hr_closed' }),
+      [base + '/functions/v1/hr-accrue']: () => json(403, { code: 'hr_closed' }),
+    };
+    const f = C.wrap((url) => Promise.resolve(answers[url]()));
+    const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); };
+    C.resetForTest();
+    try {
+      for (const u of [base + '/rest/v1/rpc/hr_heartbeat', base + '/rest/v1/rpc/hr_server_now', base + '/functions/v1/hr-accrue']) {
+        await f(u); await settle();
+        assert(!C.isShown() && !document.getElementById('hr-closed-screen'), 'the closed screen showed for ' + u);
+      }
+      const res = await f(base + '/rest/v1/rpc/hr_load');
+      const body = await res.json();
+      assert(body.code === 'hr_closed', 'the caller lost the response body to the watcher');
+      await settle();
+      const root = document.getElementById('hr-closed-screen');
+      assert(C.isShown() && root, 'the hr_closed refusal did not show the closed screen');
+      const text = root.textContent;
+      assert(/closed/i.test(text) && /rebuild/i.test(text) && /early access/i.test(text), 'the copy does not say why: ' + text);
+      const dc = root.querySelector('a[data-hr-closed-discord]');
+      assert(dc && dc.href === window.HearthriseDiscord.INVITE && dc.rel === 'noopener', 'the Discord link is missing or wrong');
+      assert(root.querySelector('button[data-hr-closed-signout]'), 'there is no way to sign out');
+      assert(document.documentElement.hasAttribute('data-hr-closed'), 'the game behind the notice is still reachable');
+    } finally {
+      C.resetForTest();
+    }
+    assert(!document.getElementById('hr-closed-screen') && !document.documentElement.hasAttribute('data-hr-closed'),
+      'the test left the closed screen up');
+  }),
 ];

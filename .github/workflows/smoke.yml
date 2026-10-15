@@ -2150,6 +2150,18 @@ jobs:
           node tests/discord-gift.mjs
           node tests/discord-gift.mjs --mutate
 
+      # Closed rebuild (2026-10-21-closed-mode.sql + 2026-10-21-closed-rebuild-wipe.sql):
+      # a non-allowlisted account is refused hr_closed by the pre-request hook,
+      # hr_rpc_gate, hr_rate_gate and RLS; the allowlisted one plays; the wipe
+      # empties every player table once and keeps accounts and catalogues; the
+      # generated allowlist files admit and remove; anon reads no player-written
+      # table while closed. --mutate: 20 SQL/tool + 2 client mutants.
+      - name: Closed rebuild — only the allowlist gets in; the wipe is one clean slate
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/closed-rebuild.mjs
+          node tests/closed-rebuild.mjs --mutate
+
       # Absence claim -> the account wallet (2026-10-19-absence-claim-wallet.sql,
       # Security F1): an attended claim pays gold on the pledge's character and
       # its gem into the wallet once per account per day; replay refused.

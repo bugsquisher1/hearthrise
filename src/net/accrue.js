@@ -4210,16 +4210,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   /* …and re-ask the SERVER whether the bag may be absolute at all, throttled.
      Same cadence as the thing that would do the deleting. */
   try { maybeRereadArmFlag(); } catch (e) {}
-  /* b465 — hand the envelope's progress rows to the daily-reward sheet: the
-     server's daily/login claim row is the marker that survives tab/save races
-     (the residue copy kept losing them and the sheet re-opened on a paid
-     reward). Guarded — a marker must never throw into an envelope apply. */
-  try {
-    const w = (typeof window !== 'undefined') ? window : null;
-    if (w && w.HearthriseDaily && typeof w.HearthriseDaily.markServerClaim === 'function') {
-      w.HearthriseDaily.markServerClaim(res && res.progress);
-    }
-  } catch (e) { /* a marker must never break an envelope */ }
   /* Ledger of Firsts — the server's kind='collection' claim rows mark the
      Collection-log rungs claimed, whatever the residue thought. Own try. */
   try {
@@ -4229,15 +4219,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   } catch (e) { /* a marker must never break an envelope */ }
   try {
     const w = (typeof window !== 'undefined') ? window : null;
-    /* b475/b498 — feed the WHOLE envelope so the daily-reward sheet can derive
-       the day the server will pay from the server's own daily/login claim rows
-       (`progress`) against the server's own clock (`now`).
-       ⚠ NOT `state.streak_days`. That is hr_apply's SETTLE streak — days
-         PLAYED, not days CLAIMED — and b475 rendering it as the login streak is
-         what made the sheet advertise Day 3 against a Day 1 payout (b497). */
-    if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
-      w.HearthriseDaily.noteServerStreak(res);
-    }
     /* THE HEARTHFIND (slate §2) — the WHOLE envelope to the reveal, from the one funnel
        every envelope passes (settle AND switch). It reads `res.hearthfind` (hr_apply's
        receipt, present only on the ORIGINAL response) and falls back to
@@ -4284,36 +4265,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
-  /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope
-     carries an `enchant` object, it is the truth: the server sets
-     `enchant.weapon` on a successful `enchant` verb and clears it whenever an
-     `equip` changes the weapon. Applied absolutely whenever present (element
-     name only — never a magnitude), and left ALONE when omitted (a server build
-     that predates the verb sends no `enchant`, and absence is not a claim, the
-     same rule skills follow above). Placed before both return paths so the
-     absolute-inventory branch does not skip it.
-
-     ⚠ IT IS A TOP-LEVEL KEY, NOT `state.enchant`, AND THIS READ WAS WRONG FROM
-       THE DAY IT SHIPPED (found 2026-09-14 by tests/no-client-copy-of-projection.mjs,
-       which asks the REPLAYED hr_state_of instead of trusting a comment).
-       2026-08-18-enchant.sql builds `'enchant', coalesce(v_st.enchant,'{}')` as a
-       SIBLING of `'state'`, and hr_apply returns hr_state_of's envelope verbatim —
-       so `st.enchant` was `undefined` on every envelope the game has ever applied
-       and this block never ran. `G.enchant` is not in RESIDUE_FIELDS either, so the
-       enchant a player paid for vanished from the browser on the next reload while
-       the server went on computing away combat with it: the ✦ badge disappeared and
-       equipmentStats() predicted damage the realm did not agree with (§6).
-       Both shapes are accepted (the src/render/bounty-progress.js precedent): the
-       key's PRESENCE is what is read, wherever the envelope carries it. */
-  const encSrc = (res && typeof res === 'object'
-                  && Object.prototype.hasOwnProperty.call(res, 'enchant')) ? res
-    : ((st && Object.prototype.hasOwnProperty.call(st, 'enchant')) ? st : null);
-  if (encSrc && encSrc.enchant && typeof encSrc.enchant === 'object' && !Array.isArray(encSrc.enchant)) {
-    const el = encSrc.enchant.weapon;
-    const ok = el === 'ember' || el === 'frost' || el === 'poison';
-    G.enchant = ok ? { weapon: el } : {};
-    written.enchant = G.enchant.weapon || null;
-  }
   /* HP + MAX HP ARE THE SERVER'S. One implementation, shared with the BOOT
      hr_load path (record.js) — see reconcileHp below for the full narrative. */
   Object.assign(written, reconcileHp(G, res) || {});
@@ -4459,14 +4410,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      before the inventory branch splits, so it rides EVERY envelope (away,
      activity-switch, gold) regardless of which return path the bag takes. */
   written.workers = reconcileWorkers(G, res);
-
-  /* THE COMPANION ROSTER IS THE SERVER'S UNDER ARM (blob-retire). Reconciled
-     here, alongside the crew, so it rides EVERY envelope (away, activity-switch,
-     gold) regardless of which return path the bag takes. Arm-gated inside — a
-     pure no-op while dormant, so today's path is byte-for-byte unchanged. The
-     boot hr_load path reconstructs through record.js's settle() (the always-full
-     envelope), which calls this same function. */
-  written.companions = reconcileCompanions(G, res);
 
   /* THE OWNED TRAIT SET IS THE SERVER'S (hr_trait_buy). Reconciled here so it
      rides EVERY envelope, and as a MIRROR: a trait the projection does not name

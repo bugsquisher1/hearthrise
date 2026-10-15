@@ -6,7 +6,7 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 656694ecbf5489717a64f632bbaaee96ac4f653c63c092f032f9fd01d612dc69
+--   digest: e084beb3e48e3e585a2df825278dc4e6cdb2086942617e50078edbb7823aadd7
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
 --   7 combat buff types, 24 limits, 9 end reasons, 484 vendor values,
 --   23 shop supplies paid per use, 4 slot targets, 2 slot kinds,
@@ -612,15 +612,15 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cooked_frostfin', 1300),
   ('cooked_goldgill', 180),
   ('cooked_herring', 40),
-  ('cooked_lobster', 200),
+  ('cooked_lobster', 240),
   ('cooked_moonfish', 2100),
   ('cooked_panther_meat', 22),
   ('cooked_pikeperch', 75),
   ('cooked_shark', 900),
-  ('cooked_shrimp', 15),
+  ('cooked_shrimp', 18),
   ('cooked_silverfin', 135),
   ('cooked_swordfish', 560),
-  ('cooked_trout', 45),
+  ('cooked_trout', 55),
   ('cooked_wolf_meat', 12),
   ('copper_bar', 35),
   ('copper_crab', 7),

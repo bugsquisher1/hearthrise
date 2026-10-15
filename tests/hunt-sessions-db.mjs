@@ -30,10 +30,10 @@
 //       are capped by the cooldown with or without presses queued
 //   T1  TALLY = Σ LEDGER over two settles: coins, xp, loot, supplies, kills and
 //       deaths equal the session's stamped ledger rows, each row folded once
-//   D1  THE DROP on the chain: the combat away columns and functions are
-//       gone, last_away_receipt and hr_offline_cap_ms stay (gathering keeps
-//       both until lane G — swap then delete), the grant is the flat 720, and
-//       a planted reader makes a second apply of the drop file refuse
+//   D1  THE AWAY MODEL, DELETED OUTRIGHT on the chain (closed rebuild): the
+//       Auto-Eat / receipt / Vigour / stance / attended-credit objects are
+//       gone, consec_falls and hr_offline_cap_ms stay for their later owners,
+//       and a planted reader makes a second apply of the delete file refuse
 //   C1  a SECOND apply of the hunt-session files, in chain order (C1's
 //       catalogue, C1's file, the C2 forward catalogue that supersedes C1's
 //       rows, and C2's settle file, which edits four C1 bodies), is
@@ -336,46 +336,45 @@ const ARMS = {
   },
 };
 
-/* D1 — THE DROP, PLACED BY LANE C2 (2026-10-22-hunt-sessions-away-readers.sql
-   removed the last readers; the drop file sits in the replay order right after
-   it). On the chain every dropped object is GONE, hr_offline_cap_ms is KEPT
-   (gather and artisan keep their horizon until lane G), the away receipt is
-   KEPT (gathering still returns through the "while you were away" card until
-   lane G — the designer loop check's swap THEN delete), and the restated
-   hr_vigour_of grants a clanless character the flat 720. AND THE FENCE STILL
-   BITES: with a body that reads a dropped name planted on the chain, a second
-   apply of the drop file REFUSES ("still read by"). Rolled back. */
-const DROP = '2026-10-22-hunt-sessions-drop-away.sql';
+/* D1 — THE AWAY MODEL, DELETED OUTRIGHT (2026-10-22-hunt-sessions-delete-away.sql,
+   lane C2, the closed rebuild). On the chain every deleted object is GONE —
+   Auto-Eat, the away receipt, Vigour, the stance/stop columns, the attended
+   credit — what this file deliberately LEAVES is still there (consec_falls and
+   the stance catalogue for the party settle, hr_offline_cap_ms for gather), and
+   the envelope projects none of it. AND THE FENCE STILL BITES: with a body that
+   reads a dropped name planted on the chain, a second apply of the file REFUSES
+   ("still read by"). Rolled back. */
+const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
 const DROP_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', DROP), 'utf8').replace(/\r\n/g, '\n');
 async function d1(db, text = DROP_TEXT) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
-      and table_name = 'player_state' and column_name in ('auto_eat_enabled', 'auto_eat_food',
-                                                          'auto_eat_pct', 'auto_eat_set_at')`);
-  if (cols !== 0) red.push(`D1: ${cols} away column(s) survived the drop on the chain`);
-  const receipt = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
-      and table_name = 'player_state' and column_name = 'last_away_receipt'`);
-  if (receipt !== 1) red.push('D1: player_state.last_away_receipt was dropped; gathering still returns through it until lane G');
+      and table_name = 'player_state' and column_name in ('auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct',
+                                                          'auto_eat_set_at', 'last_away_receipt', 'hunt_stance', 'hunt_stop')`);
+  if (cols !== 0) red.push(`D1: ${cols} away column(s) survived the delete on the chain`);
+  const kept = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
+      and table_name = 'player_state' and column_name = 'consec_falls'`);
+  if (kept !== 1) red.push('D1: player_state.consec_falls was dropped; the party settle still reads it until demolition M2');
   const projected = await one(db, `select position('last_away_receipt' in
-      pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure)) > 0`);
-  if (!projected) red.push('D1: hr_state_of no longer projects last_away_receipt; the gathering card renders nothing after a reload');
+      regexp_replace(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure), '--[^\n]*', '', 'g')) > 0`);
+  if (projected) red.push('D1: hr_state_of still projects last_away_receipt');
   const fns = await one(db, `select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname = 'public' and p.proname in ('hr_set_auto_eat', 'hr_credit_kills', 'hr_credit_kills__ungated',
-                                                   'hr_attended_kills')`);
-  if (fns !== 0) red.push(`D1: ${fns} away function(s) survived the drop on the chain`);
+      where n.nspname = 'public' and p.proname in ('hr_set_auto_eat', 'hr_auto_eat_tier', 'hr_auto_eat_max_pct',
+        'hr_credit_kills', 'hr_credit_kills__ungated', 'hr_attended_kills', 'hr_vigour_of', 'hr_vigour_refill',
+        'hr_vigour_refill__ungated', 'hr_vigour_refill_price')`);
+  if (fns !== 0) red.push(`D1: ${fns} away function(s) survived the delete on the chain`);
+  if (await one(db, `select to_regclass('public.hr_vigour_price_rule') is not null`)) red.push('D1: hr_vigour_price_rule survived');
   if (!(await one(db, `select to_regprocedure('public.hr_offline_cap_ms(uuid,integer)') is not null`))) {
     red.push('D1: hr_offline_cap_ms was dropped; gather and artisan still read it until lane G');
   }
-  const grant = await one(db, `select (public.hr_vigour_of(gen_random_uuid(), 0)->>'grant_min')::int`);
-  if (grant !== 720) red.push(`D1: a clanless character's daily Vigour grant is ${grant}, not the flat 720`);
   await db.query('begin');
   try {
-    await db.exec(`create function public.hr__d1_reader() returns void language plpgsql as $f$
-                   begin perform public.hr_set_auto_eat(0, true, null, null, false); end $f$`);
+    await db.exec(`create function public.hr__d1_reader() returns jsonb language plpgsql as $f$
+                   begin return public.hr_vigour_of(gen_random_uuid(), 0); end $f$`);
     let refused = null;
     try { await db.exec(text); } catch (e) { refused = String(e.message); }
     if (!refused || !/still read by/.test(refused)) {
-      red.push(`D1: the drop file applied over a planted reader (${refused ? refused.slice(0, 120) : 'it applied'})`);
+      red.push(`D1: the delete file applied over a planted reader (${refused ? refused.slice(0, 120) : 'it applied'})`);
     }
   } finally { await db.query('rollback'); }
   return red;
@@ -426,7 +425,10 @@ async function g1(db) {
   return red;
 }
 
-/* C1 — a second apply of both files is byte-identical. */
+/* C1 — a second apply of the STAGED files (the C2 forward catalogue, the
+   settle and the delete) is byte-identical. The applied C1 files are history:
+   their §0 preconditions name objects the delete file removes (hr_vigour_of),
+   so re-running them after it is not a property any database will exercise. */
 async function c1(db) {
   const red = [];
   const { inventory } = await import('./schema-replay.mjs');
@@ -439,7 +441,7 @@ async function c1(db) {
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  for (const f of [CAT, MIG, CAT_NOW, SETTLE]) {
+  for (const f of [CAT_NOW, SETTLE, DROP]) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }

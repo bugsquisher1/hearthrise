@@ -67,16 +67,6 @@
         "selftest": true
       }
     },
-    "enchant-intent.mjs": {
-      "reason": "family pglite-chain-replay: the enchant intent against real PostgreSQL.",
-      "family": "pglite-chain-replay",
-      "owner": "backend-architect",
-      "disposition": "adopt-via-shared-db",
-      "verified": {
-        "asserts": true,
-        "selftest": false
-      }
-    },
     "gold-intents.mjs": {
       "reason": "family pglite-chain-replay: shop_buy and vendor_sell at the catalogue price/bid. Overlaps the registered conservation-fuzz step, which fuzzes the same value-movement invariants.",
       "family": "pglite-chain-replay",

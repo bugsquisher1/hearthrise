@@ -62,7 +62,7 @@ class Harness extends Error {}
 // this is a HARNESS failure (exit 2) and never a silent pass: a guard that
 // quietly extracts nothing is the assertion-that-asserts-nothing family.
 const OPEN = '      const claimed: Array<{ monster: string; stage: number }> = [];';
-const CLOSE = '      bestiaryKills = byId;';
+const CLOSE = '\n    }\n\n    /* THE COLLECTION BLOCK';
 
 /** The shipped emit, as an executable function. `src` lets --selftest mutate it. */
 function liftEmit(src) {

@@ -29,12 +29,12 @@ const CONFIG = {
   },
   // the route, pocket by pocket; spawn tiles come from the PixelLab map placements
   pockets: [
-    { name: 'NW room',      room: [3, 2, 12, 9],   spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
+    { name: 'NW room',      room: [3, 2, 12, 10],  spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
     { name: 'SW room',      room: [2, 27, 13, 34], spawns: [['slime', 6, 31], ['slime', 7, 30], ['slime', 8, 31]] },
-    { name: 'Channel west', room: [29, 25, 37, 34], spawns: [['bat', 30, 27], ['bat', 31, 29]] },
+    { name: 'Channel west', room: [26, 24, 37, 34], spawns: [['bat', 30, 27], ['bat', 31, 29]] },
     { name: 'NE room',      room: [38, 2, 48, 12], spawns: [['spider', 41, 5], ['spider', 43, 5], ['spider', 40, 6], ['bat', 42, 4], ['bat', 44, 6]] },
-    { name: 'SE room',      room: [40, 30, 47, 34], spawns: [['kobold', 43, 32], ['kobold', 44, 31], ['kobold', 45, 32]] },
-    { name: 'Rat King',     room: [51, 17, 55, 29], spawns: [['ratking', 53, 23], ['rat', 52, 21], ['rat', 52, 25]] },
+    { name: 'SE room',      room: [40, 30, 47, 37], spawns: [['kobold', 43, 35], ['kobold', 44, 34], ['kobold', 45, 35]] },
+    { name: 'Rat King',     room: [51, 17, 57, 29], spawns: [['ratking', 55, 23], ['rat', 54, 21], ['rat', 54, 25]] },
   ],
   start: [[0, 21], [0, 20], [0, 22], [1, 21]],
 };

@@ -17,9 +17,9 @@
 // ============================================================
 
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=585';
-import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
+import { RULE_SUBJECTS, COOLDOWN_LANES, LANE_OF_KIND, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
   SLOT_TARGETS } from '../data/rule-subjects.js?v=585';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR } from '../data/hunt-sessions.js?v=585';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, ON_DRY } from '../data/hunt-sessions.js?v=585';
 import { applyBuffSegment } from './buffs.js?v=585';
 import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=585';
 
@@ -71,9 +71,12 @@ export function basicOf(hs, id) {
   return b && Number.isInteger(b.price) && b.price > 0 ? b : null;
 }
 /** The shop shot an empty quiver line of `ammoId` falls back to, or null —
-    only when the bar NAMES that shot in a slot that is on: gold moves only
-    through a slot that shows its price (master plan row 1). */
+    only when the player CHOSE the store for a dry line (the action set's
+    `onDry` is 'store'; Combat Design Bible v1.4, never silently) AND the bar
+    NAMES that shot in a slot that is on: gold moves only through a slot that
+    shows its price (master plan row 1). */
 export function shopShotFor(hs, ammoId) {
+  if (!hs || hs.onDry !== 'store') return null;
   const named = new Set((Array.isArray(hs && hs.slots) ? hs.slots : []).filter((sl) => sl && sl.on).map((sl) => sl.item));
   for (const id of Object.keys((hs && hs.basics) || {}).sort()) {
     const b = basicOf(hs, id);
@@ -238,14 +241,14 @@ function resolveSlot(slot, v) {
     if (b.kind !== 'heal') return { why: 'not_fireable' };     // shots are spent by the quiver, not fired
     if (!(v.maxHp - v.hp > 0)) return { why: 'full_hp' };
     return canAfford(v.hs, b.price)
-      ? { id: shopId, group: 'heal', buy: true } : { why: 'gold_short', item: shopId, group: 'heal' };
+      ? { id: shopId, kind: 'heal', buy: true } : { why: 'gold_short', item: shopId, kind: 'heal' };
   }
   if (Object.prototype.hasOwnProperty.call(SLOT_TARGETS, want) && SLOT_TARGETS[want].kind === 'mana') {
     return { why: 'no_mana' };                                  // the bag drink: inert until mana
   }
   if (want === HEAL_ANY) {
     const id = pickHeal(v.hs, v.maxHp - v.hp);
-    return id ? { id, group: 'heal' } : { why: v.hp >= v.maxHp ? 'full_hp' : 'bag_empty' };
+    return id ? { id, kind: 'heal' } : { why: v.hp >= v.maxHp ? 'full_hp' : 'bag_empty' };
   }
   const kind = kindOf(want);
   if (kind !== 'heal' && kind !== 'buff') return { why: 'not_fireable' };
@@ -256,7 +259,7 @@ function resolveSlot(slot, v) {
     const r = applyBuffSegment(trial, SUPPLIES[want].buff, { atMs: v.atMs, scale: v.buffScale });
     if (!r.ok) return { why: r.why };
   }
-  return { id: want, group: kind };
+  return { id: want, kind };
 }
 
 /* A queued press, as stored (`{slot, at}`, hunt_sessions.presses, at = the
@@ -278,8 +281,8 @@ function pressOf(e) {
  * the first swing boundary at or after the moment it was made — never earlier,
  * so a press cannot reach back into a window it did not see). A press not yet
  * due keeps its place in the queue.
- * At most ONE use per cooldown group per swing, and none while the group's
- * cooldown runs. A press skips its slot's conditions — that is what pressing
+ * At most ONE use per cooldown LANE per swing (rule-subjects.js COOLDOWN_LANES:
+ * every supply is a `consumable`), and none while the lane's cooldown runs. A press skips its slot's conditions — that is what pressing
  * means — and nothing else: it waits out a cooldown like a rule would, so a
  * press can re-order uses the rules already allow but never add one. A press
  * whose item cannot be used at all (bag empty, nothing to heal, buff refused)
@@ -289,7 +292,7 @@ function pressOf(e) {
  * reported in `short`: the purse ran dry, and the hunt ends `gold_out`.
  *
  * @param v { hs, hp, maxHp, mana, maxMana, buffs, atMs, buffScale }
- * @returns { uses: [{slot, id, group, manual, buy}], keep: [press…] (as queued), dropped: [{slot, why}], short }
+ * @returns { uses: [{slot, id, kind, lane, manual, buy}], keep: [press…] (as queued), dropped: [{slot, why}], short }
  */
 export function fireRules(v) {
   const hs = v.hs;
@@ -297,17 +300,18 @@ export function fireRules(v) {
   const cd = hs.cooldowns || {};
   const used = new Set();
   const out = { uses: [], keep: [], dropped: [], short: false };
-  const ready = (g) => !used.has(g) && !(Number(cd[g]) > v.atMs);
+  const laneOf = (r) => LANE_OF_KIND[r.kind] || null;
+  const ready = (r) => { const l = laneOf(r); return !!l && !used.has(l) && !(Number(cd[l]) > v.atMs); };
   for (const entry of Array.isArray(hs.presses) ? hs.presses : []) {
     const p = pressOf(entry);
     const idx = p.slot;
     if (p.at > v.atMs) { out.keep.push(entry); continue; }
     const r = resolveSlot(slots[idx], v);
-    if (r.why === 'gold_short' && ready(r.group)) out.short = true;
+    if (r.why === 'gold_short' && ready(r)) out.short = true;
     if (!r.id) { out.dropped.push({ slot: idx, why: r.why }); continue; }
-    if (!ready(r.group)) { out.keep.push(entry); continue; }
-    used.add(r.group);
-    out.uses.push({ slot: idx, id: r.id, group: r.group, manual: true, buy: r.buy === true });
+    if (!ready(r)) { out.keep.push(entry); continue; }
+    used.add(laneOf(r));
+    out.uses.push({ slot: idx, id: r.id, kind: r.kind, lane: laneOf(r), manual: true, buy: r.buy === true });
   }
   for (let i = 0; i < slots.length; i++) {
     const s = slots[i];
@@ -315,11 +319,11 @@ export function fireRules(v) {
     const conds = Array.isArray(s.conditions) ? s.conditions : [];
     if (!conds.every((c) => conditionHolds(c, v))) continue;
     const r = resolveSlot(s, v);
-    /* A rule that would have fired (its group ready) but cannot pay: the purse ran dry. */
-    if (r.why === 'gold_short' && ready(r.group)) out.short = true;
-    if (!r.id || !ready(r.group)) continue;
-    used.add(r.group);
-    out.uses.push({ slot: i, id: r.id, group: r.group, manual: false, buy: r.buy === true });
+    /* A rule that would have fired (its lane ready) but cannot pay: the purse ran dry. */
+    if (r.why === 'gold_short' && ready(r)) out.short = true;
+    if (!r.id || !ready(r)) continue;
+    used.add(laneOf(r));
+    out.uses.push({ slot: i, id: r.id, kind: r.kind, lane: laneOf(r), manual: false, buy: r.buy === true });
   }
   return out;
 }
@@ -365,7 +369,7 @@ export function runActionBar(state, ctx) {
     /* A shop use is paid BEFORE it works; fireRules already checked the purse,
        so a refusal here is a defect, and it simply does not fire. */
     if (u.buy && buyFromShop(hs, u.id, 1) !== 1) continue;
-    if (u.group === 'heal') {
+    if (u.kind === 'heal') {
       const heals = u.buy ? basicOf(hs, u.id).heals : SUPPLIES[u.id].heals;
       state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heals);
       ate = true;
@@ -373,7 +377,7 @@ export function runActionBar(state, ctx) {
       applyBuffSegment(state.buffs, SUPPLIES[u.id].buff, { atMs, scale: ctx.buffScale });
     }
     if (!u.buy) spendFromBag(hs, u.id, 1, atMs);
-    hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS[u.group].ms;
+    hs.cooldowns[u.lane] = atMs + COOLDOWN_LANES[u.lane].ms;
   }
   return ate;
 }
@@ -529,7 +533,7 @@ export function newHuntSession(o) {
     bag,
     slots: Array.isArray(s.slots) ? s.slots : [],
     presses: Array.isArray(s.presses) ? s.presses.slice() : [],
-    cooldowns: Object.assign({ heal: 0, buff: 0 }, s.cooldowns || {}),
+    cooldowns: Object.assign({ consumable: 0 }, s.cooldowns || {}),
     falls: Math.max(0, int(s.falls, 0)),
     fallsLimit: Math.min(lim.max, Math.max(lim.min, int(s.fallsLimit, lim.default))),
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
@@ -555,6 +559,8 @@ export function newHuntSession(o) {
     pull: pullState(s.pull, from),
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
     goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
+    /* End or Switch-to-Store when a carried line runs dry (ON_DRY; unknown = the default, 'end'). */
+    onDry: ON_DRY.modes.includes(s.onDry) ? s.onDry : ON_DRY.default,
     cover: coverTable(s.cover),
     /* The stamina pool at `nextSwingAtMs`, from the server's read (null = no
        read: the session then never ends on stamina and proposes none, and the

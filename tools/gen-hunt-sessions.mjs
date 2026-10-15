@@ -23,7 +23,7 @@
 //                          non-boss, non-champion monster (travelS)
 //   hr_hunt_rule_subjects  src/data/rule-subjects.js RULE_SUBJECTS
 //   hr_hunt_buff_types     src/data/supplies.js COMBAT_BUFF_TYPES (a `buff` param)
-//   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + COOLDOWN_GROUPS,
+//   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + COOLDOWN_LANES (the active lanes' ms),
 //                          hunt-sessions.js SESSION_LIMITS + STAMINA_LOW_MIN + SESSIONS_KEPT
 //                          + KNOCKOUT_MS + GOLD_FLOOR (lane C2, master plan rows 3/4/16)
 //   hr_hunt_cover_items    hunt-sessions.js coverSellable over every common monster drop
@@ -70,10 +70,10 @@ import { ITEMS } from '../src/data/items.js';
 import { SUPPLIES, COMBAT_BUFF_TYPES, BAG_GUIDE_BY_HUNT } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
-import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
+import { RULE_SUBJECTS, COOLDOWN_LANES, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
   SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, PULL_CAP, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, DEFAULT_RESUME, EVENT_COPY,
+  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, ON_DRY, DEFAULT_RESUME, EVENT_COPY,
   coverSellable } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
@@ -88,10 +88,10 @@ const sq = (s) => `'${String(s).replace(/'/g, "''")}'`;
 export function catalogueRows(src = {}) {
   const S = {
     hunts: HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
-    subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_GROUPS, setLimits: ACTION_SET_LIMITS,
+    subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_LANES, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
-    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
+    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, onDry: ON_DRY, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, pullCap: PULL_CAP, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
@@ -194,7 +194,10 @@ export function catalogueRows(src = {}) {
     bag_lines: S.sessionLimits.bagLines,
     falls_min: S.sessionLimits.falls.min, falls_max: S.sessionLimits.falls.max, falls_default: S.sessionLimits.falls.default,
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
-    cd_heal_ms: S.cooldowns.heal.ms, cd_buff_ms: S.cooldowns.buff.ms, cd_mana_ms: S.cooldowns.mana.ms,
+    /* ONE consumable lane (Combat Design Bible v1.4): food, drink and buff food
+       share it. The reserved lanes (offense, heal_spell) carry no row until the
+       ability lane ships. */
+    cd_consumable_ms: S.cooldowns.consumable.ms,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
     /* A knockout inside a hunt (flat, master plan row 16) and the gold floor's
        range and default (row 3). */
@@ -236,6 +239,13 @@ export function catalogueRows(src = {}) {
   if (!(lim.pull_min >= 1 && lim.pull_min <= lim.pull_default && lim.pull_default <= lim.pull_max)) {
     throw new Error(`PULL_COUNT ${JSON.stringify(S.pull)} is not 1 <= min <= default <= max`);
   }
+  for (const [l, x] of Object.entries(S.cooldowns)) {
+    if (!ID.test(l)) throw new Error(`cooldown lane ${l} is not [a-z0-9_]{1,64}`);
+    if (x.active === true ? !(Number.isInteger(x.ms) && x.ms > 0) : x.ms !== null) {
+      throw new Error(`cooldown lane ${l}: an active lane needs a positive ms, a reserved one none (${JSON.stringify(x)})`);
+    }
+  }
+  if (!(S.cooldowns.consumable && S.cooldowns.consumable.active === true)) throw new Error('COOLDOWN_LANES has no active consumable lane');
   const slotKinds = Object.keys(S.slotKinds).sort().map((k) => {
     if (!ID.test(k)) throw new Error(`slot kind ${k} is not [a-z0-9_]{1,64}`);
     return { k, active: S.slotKinds[k].active === true };
@@ -282,7 +292,11 @@ export function catalogueRows(src = {}) {
   for (const r of vendor) {
     if (!ID.test(r.id) || !Number.isInteger(r.unit)) throw new Error(`vendor value ${r.id} = ${r.unit}`);
   }
-  return { supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
+  const onDry = { modes: [...S.onDry.modes], default: S.onDry.default };
+  if (!onDry.modes.every((m) => ID.test(m)) || !onDry.modes.includes('end') || !onDry.modes.includes(onDry.default)) {
+    throw new Error(`ON_DRY ${JSON.stringify(S.onDry)} must offer 'end' and name a default among its modes`);
+  }
+  return { onDry, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
     cover, resume, eventTypes,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -499,6 +513,16 @@ alter table public.player_action_sets alter column gold_floor set not null;
 alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
 alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
   check (gold_floor between ${r.lim.gold_floor_min} and ${r.lim.gold_floor_max});
+-- Each action set's DRY-LINE CHOICE (hunt-sessions.js ON_DRY, Combat Design
+-- Bible v1.4): 'end' ends the hunt on a dry carried line; 'store' buys the
+-- line's shop basic per unit. Default 'end' — the store is never silent.
+alter table public.player_action_sets add column if not exists on_dry text;
+update public.player_action_sets set on_dry = ${sq(r.onDry.default)} where on_dry is null;
+alter table public.player_action_sets alter column on_dry set default ${sq(r.onDry.default)};
+alter table public.player_action_sets alter column on_dry set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_on_dry_ck;
+alter table public.player_action_sets add constraint player_action_sets_on_dry_ck
+  check (on_dry in (${r.onDry.modes.map(sq).join(', ')}));
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -618,8 +642,12 @@ function selftest() {
     'two shop heals for one tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
     'a shop shot whose partner is no ammo': () => ({ basics: BASIC_SUPPLIES.map((b) => (b.kind === 'ammo' ? { ...b, partner: 'cooked_shrimp' } : b)) }),
     'a named hunt with no tier': () => ({ huntTiers: {} }),
+    'a dry-line default that is not a mode': () => ({ onDry: { modes: ['end', 'store'], default: 'auto' } }),
+    'a dry-line choice with no end': () => ({ onDry: { modes: ['store'], default: 'store' } }),
     'a gold floor default above its max': () => ({ floor: { min: 0, max: 100, default: 300 } }),
     'a default resume that is a hunt': () => ({ defaultResume: { kind: 'combat', id: 'rat' } }),
+    'no active consumable lane': () => ({ cooldowns: { consumable: { ms: 2000, active: false }, offense: { ms: null, active: false } } }),
+    'a reserved lane with a cooldown': () => ({ cooldowns: { consumable: { ms: 2000, active: true }, offense: { ms: 500, active: false } } }),
     'no active supply slot kind': () => ({ slotKinds: { supply: { active: false }, spell: { active: false } } }),
     'a default target mode that is party-only': () => ({ defaultTarget: 'follow' }),
     'a pull default outside its range': () => ({ pull: { min: 1, max: 8, default: 9 } }),

@@ -309,9 +309,12 @@ export function weaknessInfo(monster, eq) {
 
 /**
  * @param monster the MONSTERS row
- * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus }
+ * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus, ammoShare }
  *        `setBonus` may be omitted — it is then derived from equipment+items.
  *        `bonus` may be omitted — it then contributes 0 (the inert case).
+ *        `ammoShare` (0..1, default 1): the share of the equipped AMMO's typed
+ *        bonuses this swing gets — a shop shot fires at supply-basics.js
+ *        BASIC_EFFECT_SHARE of its crafted partner.
  */
 export function playerCombatRolls(monster, ctx) {
   const c = ctx || {};
@@ -326,11 +329,13 @@ export function playerCombatRolls(monster, ctx) {
   /* Sum typed bonuses from equipment (the profile decides WHICH fields —
      a staff reads magic bonuses, a bow reads ranged). */
   let accBonus = 0; let strBonus = 0;
-  Object.values(c.equipment || {}).forEach((id) => {
+  const ammoShare = Number.isFinite(c.ammoShare) ? Math.max(0, Math.min(1, c.ammoShare)) : 1;
+  Object.entries(c.equipment || {}).forEach(([slot, id]) => {
     const it = items[id];
     if (!it) return;
-    accBonus += (it[profile.accuracyBonusField] || 0);
-    strBonus += (it[profile.strengthBonusField] || 0);
+    const share = slot === 'ammo' ? ammoShare : 1;
+    accBonus += (it[profile.accuracyBonusField] || 0) * share;
+    strBonus += (it[profile.strengthBonusField] || 0) * share;
   });
   const accLvl = levelOf(skills, profile.accuracySkill);
   const dmgLvl = levelOf(skills, profile.damageSkill);

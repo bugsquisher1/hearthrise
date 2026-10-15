@@ -60,6 +60,8 @@ async function load(root) {
     RS: await import(u('src/data/rule-subjects.js')),
     HSD: await import(u('src/data/hunt-sessions.js')),
     SUPPLIES: (await import(u('src/data/supplies.js'))).SUPPLIES,
+    C: await import(u('src/core/combat.js')),
+    SB: await import(u('src/data/supply-basics.js')),
   };
 }
 
@@ -302,10 +304,84 @@ const ARMS = {
   },
 };
 
+/* ── THE THREE COMBAT-BIBLE ARMS (designer review 2026-10-15 §2, K3 / K8 / K9) ── */
+/* A ranged fight whose carried arrow line is EMPTY and whose bar names the shop
+   shot: the dry-line choice decides whether the store takes over. */
+function dryFixture(M, onDry) {
+  const SHOT = 'plain_barbed_arrows';
+  const hs = M.AR.newHuntSession({
+    id: 'sess-dry', huntFromMs: T0, bag: { barbed_arrows: { loaded: 0, essential: true }, cooked_trout: { loaded: 30 } },
+    slots: [M.RS.DEFAULT_PRESET.slots[0], { item: SHOT, on: true, conditions: [] }],
+    basics: { [SHOT]: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: 'barbed_arrows' } },
+    purse: 100000, onDry,
+  });
+  const equipment = { weapon: 'shortbow', ammo: 'barbed_arrows' };
+  const eq = M.C.equipmentStats(equipment, M.ITEMS);
+  const profile = { type: 'ranged', accuracySkill: 'ranged', damageSkill: 'ranged', accuracyBonusField: 'rangeAtkB', strengthBonusField: 'rangeStrB' };
+  const skills = { ranged: 50000, hitpoints: 50000, defense: 50000 };
+  const shares = [];
+  const state = { activeMonster: 'rat', playerHp: 300, playerMaxHp: 300, huntSession: hs, stats: {}, inventory: {},
+    equipment, ammoCarry: {}, skills };
+  const ctx = { tickMs: 2400, swingSeed: seederOf('0x5eed', hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+    weaponType: 'ranged', bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+    playerRolls: (m, o) => { shares.push(o && o.ammoShare); return M.C.playerCombatRolls(m, { eq, equipment, items: M.ITEMS, skills, profile, ammoShare: o && o.ammoShare }); },
+    monsterRolls: () => ({ accuracy: 0, maxHit: 0 }), fromMs: T0, toMs: T0 + 600000 };
+  const r = M.cs.simulateSpan(state, ctx);
+  return { r, hs, shares };
+}
+
+const BIBLE_ARMS = {
+  /* K3: ONE consumable lane. A heal and a buff food both want to fire on the
+     same boundary; one lane admits ONE of them. */
+  LANE: (M) => {
+    const hs = M.AR.newHuntSession({ id: 'sess-lane', huntFromMs: T0,
+      bag: { cooked_shrimp: { loaded: 5 }, hunters_feast: { loaded: 2 } },
+      slots: [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 99 }] },
+        { item: 'hunters_feast', on: true, conditions: [{ subject: 'buff_missing:drop_rate', op: '<=', value: 0 }] }] });
+    const d = M.AR.fireRules({ hs, hp: 5, maxHp: 10, mana: 0, maxMana: 0, buffs: [], atMs: T0 });
+    if (d.uses.length !== 1 || d.uses[0].lane !== 'consumable') return `a heal and a buff food fired ${JSON.stringify(d.uses)} on one boundary — not ONE consumable lane`;
+    if (JSON.stringify(Object.keys(hs.cooldowns)) !== '["consumable"]') return `the session keeps cooldown keys ${JSON.stringify(Object.keys(hs.cooldowns))}`;
+    return null;
+  },
+  /* K8: the store takes over a dry carried line ONLY on the player's choice. */
+  DRY: (M) => {
+    const end = dryFixture(M, 'end');
+    const store = dryFixture(M, 'store');
+    const deflt = dryFixture(M, undefined);
+    if (end.hs.endedReason !== 'ammo_out' || Object.keys(end.hs.tally.bought || {}).length) {
+      return `onDry 'end': the dry arrow line ended '${end.hs.endedReason}' and bought ${JSON.stringify(end.hs.tally.bought)} — the store took over silently`;
+    }
+    if (deflt.hs.onDry !== 'end' || deflt.hs.endedReason !== 'ammo_out') return `no choice reads '${deflt.hs.onDry}' and ended '${deflt.hs.endedReason}' — the default must be 'end'`;
+    if (!((store.hs.tally.bought || {}).plain_barbed_arrows > 0) || store.hs.endedReason === 'ammo_out') {
+      return `onDry 'store': bought ${JSON.stringify(store.hs.tally.bought)}, ended '${store.hs.endedReason}' — the chosen store did not take over`;
+    }
+    return null;
+  },
+  /* K9: a shop shot fires at BASIC_EFFECT_SHARE of its crafted partner. */
+  SHOPSHOT: (M) => {
+    const store = dryFixture(M, 'store');
+    const share = M.SB.BASIC_EFFECT_SHARE;
+    if (!(share === 0.75)) return `BASIC_EFFECT_SHARE is ${share}, not the ruled 0.75`;
+    if (!store.shares.length || !store.shares.every((x) => x === share)) return `shop swings handed the rolls ammoShare ${JSON.stringify([...new Set(store.shares)])}, want ${share} on every one`;
+    const m = M.MONSTERS.rat;
+    /* The strongest arrow, so three quarters of its bonus is a whole-hit step. */
+    const arrow = Object.keys(M.ITEMS).filter((id) => M.ITEMS[id].slot === 'ammo' && M.ITEMS[id].rangeStrB)
+      .sort((x, y) => M.ITEMS[y].rangeStrB - M.ITEMS[x].rangeStrB)[0];
+    const equipment = { weapon: 'shortbow', ammo: arrow };
+    const profile = { type: 'ranged', accuracySkill: 'ranged', damageSkill: 'ranged', accuracyBonusField: 'rangeAtkB', strengthBonusField: 'rangeStrB' };
+    const skills = { ranged: 0 };
+    const full = M.C.playerCombatRolls(m, { equipment, items: M.ITEMS, skills, profile });
+    const shop = M.C.playerCombatRolls(m, { equipment, items: M.ITEMS, skills, profile, ammoShare: share });
+    const none = M.C.playerCombatRolls(m, { equipment: { weapon: 'shortbow' }, items: M.ITEMS, skills, profile });
+    if (!(shop.maxHit < full.maxHit && shop.maxHit > none.maxHit)) return `a shop ${arrow} max hit ${shop.maxHit} is not between no ammo ${none.maxHit} and the crafted arrow ${full.maxHit}`;
+    return null;
+  },
+};
+
 async function runArms(root) {
   const M = await load(root);
   const out = {};
-  for (const [name, arm] of Object.entries(ARMS)) {
+  for (const [name, arm] of Object.entries({ ...ARMS, ...BIBLE_ARMS })) {
     try { out[name] = arm(M); } catch (e) { out[name] = 'threw: ' + (e && e.stack || e); }
   }
   return out;
@@ -316,13 +392,13 @@ const MUTANTS = [
   { arm: 'TICK-1', name: 'the swing seed is indexed per window', file: 'src/core/combat-sim.js',
     from: 'createRng(swingSeedOf(ctx, swing))', to: 'createRng(swingSeedOf(ctx, ticks))' },
   { arm: 'TICK-1', name: 'the cooldown is stamped from the window start', file: 'src/core/action-rules.js',
-    from: 'hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS', to: 'hs.cooldowns[u.group] = (Number(ctx.fromMs) || 0) + COOLDOWN_GROUPS' },
+    from: 'hs.cooldowns[u.lane] = atMs + COOLDOWN_LANES', to: 'hs.cooldowns[u.lane] = (Number(ctx.fromMs) || 0) + COOLDOWN_LANES' },
   { arm: 'BOTH-PATH', name: 'the knock-out clock is not carried across a settle', file: 'src/core/combat-sim.js',
     from: 'state.recoveringUntilMs = (!hs.endedReason && recoverUntilMs > toMs) ? recoverUntilMs : 0;', to: 'state.recoveringUntilMs = 0;' },
   { arm: 'TICK-MANUAL', name: 'a press skips the cooldown', file: 'src/core/action-rules.js',
-    from: 'if (!ready(r.group)) { out.keep.push(entry); continue; }', to: 'if (used.has(r.group)) { out.keep.push(entry); continue; }' },
+    from: 'if (!ready(r)) { out.keep.push(entry); continue; }', to: 'if (used.has(laneOf(r))) { out.keep.push(entry); continue; }' },
   { arm: 'BAG', name: 'a heal is eaten without leaving the bag', file: 'src/core/action-rules.js',
-    from: '    if (!u.buy) spendFromBag(hs, u.id, 1, atMs);', to: "    if (!u.buy && u.group !== 'heal') spendFromBag(hs, u.id, 1, atMs);" },
+    from: '    if (!u.buy) spendFromBag(hs, u.id, 1, atMs);', to: "    if (!u.buy && u.kind !== 'heal') spendFromBag(hs, u.id, 1, atMs);" },
   { arm: 'HEAL', name: '*heal is plain cheapest-first', file: 'src/core/action-rules.js',
     from: 'if (heals >= need && rank < coverRank)', to: 'if (rank < coverRank)' },
   { arm: 'END', name: 'the end checks run in reverse', file: 'src/core/action-rules.js',
@@ -332,6 +408,12 @@ const MUTANTS = [
   { arm: 'PULL', name: 'a respawn is timed from the kill, not the pull', file: 'src/core/combat-sim.js',
     from: '    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; pl.left--; }',
     to: '    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; pl.left--; if (pl.left <= 0) { pl.respawnAtMs = atMs + pl.respawnMs + 1; pl.pulls++; pl.left = pl.size; } }' },
+  { arm: 'LANE', name: 'a heal and a buff food each keep their own lane', file: 'src/core/action-rules.js',
+    from: '    if (!r.id || !ready(r)) continue;\n    used.add(laneOf(r));', to: '    if (!r.id || !ready(r)) continue;\n    used.add(r.kind);' },
+  { arm: 'DRY', name: 'the store takes over a dry line whatever the player chose', file: 'src/core/action-rules.js',
+    from: "  if (!hs || hs.onDry !== 'store') return null;\n", to: '  if (!hs) return null;\n' },
+  { arm: 'SHOPSHOT', name: 'a shop shot hits like its crafted partner', file: 'src/core/combat-sim.js',
+    from: 'supply && supply.shop ? { ammoShare: BASIC_EFFECT_SHARE } : undefined', to: 'undefined' },
   { arm: 'BUFF', name: 'a weaker buff is never dropped', file: 'src/core/buffs.js',
     from: '(Number(s.magnitude) < mag && s.remainingMs <= end)', to: 'false' },
 ];

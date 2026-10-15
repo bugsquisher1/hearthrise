@@ -153,6 +153,8 @@ export function huntSessionFromRead(h) {
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (hr_hunt_cover_items
        x this session's own loot still in the bag) — server rows. */
     goldFloor: num(h.gold_floor),
+    /* End or Switch-to-Store on a dry line — the stored choice (player_action_sets.on_dry). */
+    onDry: typeof h.on_dry === 'string' ? h.on_dry : null,
     cover: (h.cover && typeof h.cover === 'object') ? h.cover : {},
   });
 }

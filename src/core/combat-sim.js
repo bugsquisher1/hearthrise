@@ -67,6 +67,7 @@ import { resumeHpFor } from './recovery.js?v=585';
 import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop,
   floorOf, coverValue } from './action-rules.js?v=585';
 import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=585';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=585';
 import { createRng } from './rng.js?v=585';
 import { pickSpawn } from './hunt-spawn.js?v=585';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=585';
@@ -236,8 +237,10 @@ export function resolveDeath(state, ctx) {
    carry object is the state's own, so the fractional carry survives swings. */
 /* THE SHOP SHOT (Tyler 2026-10-14; supply-basics.js): when the equipped arrow
    or rune has a shop shot behind it (same partner), the quiver is the bag line
-   FIRST and then whatever the purse can buy, shot by shot — a shop shot hits
-   exactly like its crafted partner (action-rules.js buyFromShop). A style that
+   FIRST and then whatever the purse can buy, shot by shot — only on the
+   player's own "Switch to Store" choice (shopShotFor reads the set's onDry) —
+   and a shop shot fires at BASIC_EFFECT_SHARE of its crafted partner's ammo
+   bonus (`shop` on the answer; action-rules.js buyFromShop). A style that
    needs its ammo and can neither draw nor buy a shot marks the session goldOut
    — the hunt ends `gold_out` at the next boundary. */
 function spendFromQuiver(state, hunt, ctx) {
@@ -261,7 +264,11 @@ function spendFromQuiver(state, hunt, ctx) {
     const info = readAmmo(view, opts);
     if (info.needed && info.spends && info.perShot > 0) hunt.goldOut = true;
   }
-  return spendForSwings(view, 1, opts);
+  const out = spendForSwings(view, 1, opts);
+  /* A swing loosed with the carried line empty and the store behind it is a
+     SHOP SHOT (decided before the draw, so every cut of the window agrees). */
+  out.shop = !!shot && bagLeft <= 0 && buyable > 0;
+  return out;
 }
 
 export function simulateTick(state, ctx) {
@@ -291,7 +298,7 @@ export function simulateTick(state, ctx) {
   const hunt = state.huntSession || null;
   const supply = hunt ? spendFromQuiver(state, hunt, ctx) : spendForSwings(state, 1, ctx);
 
-  const roll = ctx.playerRolls(m);
+  const roll = ctx.playerRolls(m, supply && supply.shop ? { ammoShare: BASIC_EFFECT_SHARE } : undefined);
   let pDmg = rollAttack(ctx.rng, roll.accuracy, applyAmmoMult(roll.maxHit, supply.startMult));
 
   /* CRITS APPLY AWAY (the ruling reverses the old behaviour). Crit is gear —

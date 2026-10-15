@@ -20,10 +20,14 @@
 //      a flavour line, and a batch that never vends for more than 5x its crop
 //   K1 heal, mana and ammo each have a shop supply paid per use
 //   B1 every shop supply is not an item, names a crafted partner of its kind,
-//      gives 3/4 of the partner's heal or mana (ammo: the same shot), and costs
-//      more per point or per shot than the partner's book value
-//   B2 every crafted arrow and rune from tier 2 up has a shop version, and
-//      every monster tier has exactly one shop heal and one shop drink
+//      gives 3/4 of the partner's heal or mana (an arrow: 3/4 of its ammo bonus,
+//      applied per shot by the engine), and costs more per point or per shot
+//      than the partner's book value
+//   B2 every crafted ARROW from tier 2 up has a shop version, NO rune has one
+//      (the rune system is being replaced — designer review K10, 2026-10-15),
+//      and every monster tier has exactly one shop heal and one shop drink
+//   L1 ONE consumable cooldown lane (Combat Design Bible v1.4); the ability
+//      lanes are reserved, with no cooldown until they ship
 //   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
 //      for less gold per point than the shop's per-use basic of that tier
 //      (master plan row 2: the Counter's seed.cooked_* sold food ~4x cheaper
@@ -51,7 +55,7 @@ import {
 import { BASIC_SUPPLIES, BASIC_INDEX, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, basicFor } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import {
-  RULE_SUBJECTS, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, SLOT_TARGETS, DEFAULT_PRESET, parseSubject,
+  RULE_SUBJECTS, RULE_OPERATORS, COOLDOWN_LANES, LANE_OF_KIND, ACTION_SET_LIMITS, HEAL_ANY, SLOT_TARGETS, DEFAULT_PRESET, parseSubject,
 } from '../src/data/rule-subjects.js';
 import {
   SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
@@ -187,7 +191,7 @@ function checkBasics(d, f) {
       if (b[key] !== Math.floor(p[key] * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {
-      if (!(p.tier >= 2) || !AMMO_FAMILY[p.reqSkill]) f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow or rune`);
+      if (!(p.tier >= 2) || p.reqSkill !== 'ranged') f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow`);
       if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
     }
   }
@@ -196,7 +200,8 @@ function checkBasics(d, f) {
   const partnered = new Set(d.basics.map((b) => b.partner));
   for (const [kind, id] of d.rows) {
     const it = d.items[id] || {};
-    if (kind === 'ammo' && AMMO_FAMILY[it.reqSkill] && it.tier >= 2 && !partnered.has(id)) f('B2', `crafted ammo '${id}' (tier ${it.tier}) has no shop version`);
+    if (kind === 'ammo' && it.reqSkill === 'ranged' && it.tier >= 2 && !partnered.has(id)) f('B2', `crafted arrow '${id}' (tier ${it.tier}) has no shop version`);
+    if (kind === 'ammo' && it.reqSkill === 'magic' && partnered.has(id)) f('B2', `rune '${id}' has a shop version — the rune ladder is being replaced, none ships`);
   }
   const tiers = [...new Set(Object.values(MONSTERS).map((m) => m.tier).filter(Boolean))];
   for (const k of ['heal', 'mana']) {
@@ -238,8 +243,11 @@ function checkBasics(d, f) {
 function checkRules(d, f) {
   if (JSON.stringify(Object.keys(d.subjects)) !== JSON.stringify(RULING_SUBJECTS)) f('R1', `subjects ${Object.keys(d.subjects).join(',')} are not the rulings' ${RULING_SUBJECTS.join(',')}`);
   if (JSON.stringify(Object.keys(RULE_OPERATORS)) !== '["<=",">="]') f('R1', 'operators are not exactly <= and >=');
-  if (COOLDOWN_GROUPS.heal.ms !== 2000 || COOLDOWN_GROUPS.mana.ms !== 2000 || COOLDOWN_GROUPS.buff.ms !== 1000 || Object.keys(COOLDOWN_GROUPS).length !== 3) f('R1', 'cooldowns are not heal 2 s, mana 2 s, buff 1 s');
-  for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, SLOT_TARGETS, DEFAULT_PRESET: d.preset })) {
+  if (JSON.stringify(Object.keys(COOLDOWN_LANES)) !== '["consumable","offense","heal_spell"]'
+    || COOLDOWN_LANES.consumable.ms !== 2000 || COOLDOWN_LANES.consumable.active !== true
+    || COOLDOWN_LANES.offense.active !== false || COOLDOWN_LANES.heal_spell.active !== false) f('L1', 'the cooldown lanes are not one consumable lane at 2 s plus the reserved offense and heal_spell');
+  if (['heal', 'mana', 'buff'].some((k) => LANE_OF_KIND[k] !== 'consumable')) f('L1', 'a heal, a drink or a buff food fires on a lane other than the consumable one');
+  for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_LANES, ACTION_SET_LIMITS, SLOT_TARGETS, DEFAULT_PRESET: d.preset })) {
     if (!deepFrozen(o)) f('R1', `${name} is not frozen all the way down`);
   }
   /* 20 slots: Huntera's bar, two rows of ten (Tyler 2026-10-14). */
@@ -355,8 +363,9 @@ function selftest() {
     ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 100 }); }],
     ['B1', 'a shop heal as big as the cooked one', (d) => { withBasic(d, 'salted_trout', { heals: 14 }); }],
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
-    ['B1', 'a shop rune under twice the crafted rune per shot', (d) => { withBasic(d, 'plain_fire_rune', { price: 4 }); }],
-    ['B2', 'a crafted rune with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_blood_rune'); }],
+    ['B1', 'a shop arrow under twice the crafted arrow per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 4 }); }],
+    ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
+    ['B2', 'a shop rune ships again', (d) => { d.basics = d.basics.concat([{ id: 'plain_fire_rune', kind: 'ammo', n: 'Plain Fire Rune', partner: 'fire_rune', price: 24, tiers: [] }]); }],
     ['B2', 'a monster tier with no shop drink', (d) => { d.basics = d.basics.filter((b) => b.id !== 'thin_emberfruit_cordial'); }],
     ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 150 g for 5)', (d) => {
       d.offers = [...d.offers, { id: 'seed.cooked_shrimp', table: 'seed',

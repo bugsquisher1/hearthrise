@@ -123,6 +123,7 @@ import { huntFor, huntSpawns, pickSpawn } from '../../../src/core/hunt-spawn.js'
    mix (./hunt-seed.js) — one seeder, injected into the one engine. */
 import { newHuntSession } from '../../../src/core/action-rules.js';
 import { SUPPLIES } from '../../../src/data/supplies.js';
+import { COOLDOWN_LANES } from '../../../src/data/rule-subjects.js';
 import { swingSeederFor } from './hunt-seed.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
@@ -1507,8 +1508,10 @@ function accrueHunt(inp, span, hunt) {
     bonus,
     style,
     activeBuffCount: activeBuffs(state.buffs).length,
-    playerRolls(m) {
-      return playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile, style });
+    /* \`o.ammoShare\`: a shop shot's share of its partner's ammo bonus (combat-sim spendFromQuiver). */
+    playerRolls(m, o) {
+      return playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile, style,
+        ammoShare: o && o.ammoShare });
     },
     monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: state.skills, bonus }); },
     weakness(m) { return weaknessInfo(m, eq); },
@@ -1711,7 +1714,7 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     }
   }
   const cooldowns = {};
-  for (const g of ['heal', 'buff']) {
+  for (const g of Object.keys(COOLDOWN_LANES).filter((l) => COOLDOWN_LANES[l].active)) {
     const v = Math.floor(Number((hs.cooldowns || {})[g]) || 0);
     if (v > 0) cooldowns[g] = v;
   }

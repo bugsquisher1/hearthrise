@@ -73,14 +73,24 @@ export const RULE_OPERATORS = Object.freeze({
   '>=': Object.freeze({ label: '≥' }),
 });
 
-/* One use per group per swing, then the group waits. Eating and drinking are
-   separate groups, so a mage can do both in one swing. Ammo has no group: it
-   is spent by every swing, not fired by a rule. */
-export const COOLDOWN_GROUPS = Object.freeze({
-  heal: Object.freeze({ ms: 2000 }),
-  mana: Object.freeze({ ms: 2000 }),
-  buff: Object.freeze({ ms: 1000 }),
+/* THE COOLDOWN LANES (Combat Design Bible v1.4, CONFIRMED: activated
+   abilities, healing spells and consumables run on three INDEPENDENT lanes;
+   food and drink share ONE). One use per lane per swing boundary, then the lane
+   waits its own ms. Every supply the bar fires today — a heal, a drink, a buff
+   food — is a CONSUMABLE. `offense` (abilities) and `heal_spell` are RESERVED:
+   named so the settle, the session row and the server catalogue already have
+   room for them, refused until the ability lane ships (`active: false`). Ammo
+   has no lane: it is spent by every swing, not fired by a rule.
+   (Was three groups — heal 2 s, mana 2 s, buff 1 s — until 2026-10-15; the one
+   lane keeps the heal's 2 s.) */
+export const COOLDOWN_LANES = Object.freeze({
+  consumable: Object.freeze({ ms: 2000, active: true }),
+  offense: Object.freeze({ ms: null, active: false }),
+  heal_spell: Object.freeze({ ms: null, active: false }),
 });
+
+/* Which lane a supply KIND fires on. One table; a kind missing here never fires. */
+export const LANE_OF_KIND = Object.freeze({ heal: 'consumable', mana: 'consumable', buff: 'consumable' });
 
 export const ACTION_SET_LIMITS = Object.freeze({ presets: 5, slots: 20, conditions: 3 });
 

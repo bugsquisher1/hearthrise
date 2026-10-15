@@ -479,6 +479,10 @@ begin
     'gold_floor', coalesce((select a.gold_floor from public.player_action_sets a
                              where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
                            public.hr_hunt_limit('gold_floor_default')),
+    -- END or SWITCH TO STORE when a carried line runs dry (Combat Design Bible
+    -- v1.4): no stored set reads 'end' — the store is never silent.
+    'on_dry', coalesce((select a.on_dry from public.player_action_sets a
+                         where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end'),
     'cover', coalesce((select jsonb_object_agg(c.item_id, jsonb_build_object('unit', c.unit,
                  'avail', greatest(0, least(
                    coalesce((select pi.qty from public.player_inventory pi
@@ -676,6 +680,40 @@ begin
   if v_n <> 1 then raise exception 'hr_hunt_settle_session: the vigour_low block matched % times (need 1) — the body moved', v_n; end if;
   execute replace(replace(v_def, c_old, c_new), c_old2, '');
 end $mig$;
+-- hr_hunt_settle_session: ONE CONSUMABLE COOLDOWN LANE (Combat Design Bible
+-- v1.4: food and drink share a lane; abilities and healing spells get their own
+-- later). The use cap reads the one lane's cooldown for heals and buffs
+-- TOGETHER, and the stored cooldowns hold only that lane's key. The reserved
+-- lanes (offense, heal_spell; rule-subjects.js COOLDOWN_LANES) carry no key
+-- until the ability lane ships.
+do $mig$
+declare
+  v_def text; v_n int;
+  c_old1 constant text := $a$  v_cd_heal int := public.hr_hunt_limit('cd_heal_ms');
+  v_cd_buff int := public.hr_hunt_limit('cd_buff_ms');
+$a$;
+  c_new1 constant text := $a$  v_cd_cons int := public.hr_hunt_limit('cd_consumable_ms');
+$a$;
+  c_old2 constant text := $a$    if v_heals > v_win / v_cd_heal + 1 or v_buffs > v_win / v_cd_buff + 1 then$a$;
+  c_new2 constant text := $a$    if v_heals + v_buffs > v_win / v_cd_cons + 1 then$a$;
+  c_old3 constant text := $a$c.key not in ('heal', 'buff')$a$;
+  c_new3 constant text := $a$c.key not in ('consumable')$a$;
+  c_old4 constant text := $a$+ case c.key when 'heal' then v_cd_heal else v_cd_buff end$a$;
+  c_new4 constant text := $a$+ v_cd_cons$a$;
+  c_old5 constant text := $a$  if v_cd_heal is null or v_cd_buff is null then$a$;
+  c_new5 constant text := $a$  if v_cd_cons is null then$a$;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
+  if strpos(v_def, 'cd_consumable_ms') > 0 then
+    raise notice 'hr_hunt_settle_session already reads the one consumable lane — edit skipped'; return; end if;
+  foreach v_n in array array[1, 2, 3, 4, 5] loop
+    if (length(v_def) - length(replace(v_def, case v_n when 1 then c_old1 when 2 then c_old2 when 3 then c_old3 when 4 then c_old4 else c_old5 end, '')))
+       / length(case v_n when 1 then c_old1 when 2 then c_old2 when 3 then c_old3 when 4 then c_old4 else c_old5 end) <> 1 then
+      raise exception 'hr_hunt_settle_session: cooldown-lane anchor % did not match exactly once — the body moved', v_n;
+    end if;
+  end loop;
+  execute replace(replace(replace(replace(replace(v_def, c_old1, c_new1), c_old2, c_new2), c_old3, c_new3), c_old4, c_new4), c_old5, c_new5);
+end $mig$;
 -- hr_hunt_slots_check: a slot may say what it HOLDS (`kind`, SLOT_KINDS); a
 -- reserved kind (`spell`, until the combat redesign) is refused by name; and its
 -- item may be a slot target (SLOT_TARGETS: *heal, *heal_shop, *mana, *mana_shop)
@@ -803,15 +841,17 @@ grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
 -- ── §4d hr_action_set_options — an action set's TARGET MODE, PULL COUNT and
 --     GOLD FLOOR ─────────────────────────────────────────────────────────────
--- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor.) The client
--- sends three values; a mode outside hr_hunt_target_modes, a party-only mode on
+-- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor; the DRY-LINE
+-- choice, Combat Design Bible v1.4 — p_on_dry 'end' | 'store', null = unchanged.)
+-- The client sends up to four values; a mode outside hr_hunt_target_modes, a party-only mode on
 -- a solo set, a pull or a floor outside the limits rows is REFUSED, never
 -- clamped. Mode and pull are stored and INERT until U2 (row 18). Preset 0 with no saved row
 -- is saved from the catalogue default bar first. Edits to the running set wait
 -- for its settle, like hr_action_set_put. C1's verb shape: identity -> slot ->
 -- idempotency replay -> rate gate -> input -> lock -> state -> write -> stored result.
+drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid);
 create or replace function public.hr_action_set_options(p_slot int, p_preset int, p_target text, p_pull int,
-  p_floor bigint, p_idem uuid)
+  p_floor bigint, p_idem uuid, p_on_dry text default null)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   c_verb constant text := 'action_set_options';
@@ -839,6 +879,8 @@ begin
   if p_floor is null or p_floor < public.hr_hunt_limit('gold_floor_min') or p_floor > public.hr_hunt_limit('gold_floor_max') then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_gold_floor',
       'min', public.hr_hunt_limit('gold_floor_min'), 'max', public.hr_hunt_limit('gold_floor_max'))); end if;
+  if p_on_dry is not null and p_on_dry not in ('end', 'store') then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_on_dry')); end if;
 
   v_s := public.hr_hunt_lock(v_uid, p_slot);
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
@@ -853,10 +895,13 @@ begin
       select v_uid, p_slot, 0, d.name, d.slots, now() from public.hr_hunt_default_preset d where d.id;
   end if;
   update public.player_action_sets
-     set target_mode = p_target, pull_count = p_pull, gold_floor = p_floor, updated_at = now()
+     set target_mode = p_target, pull_count = p_pull, gold_floor = p_floor,
+         on_dry = coalesce(p_on_dry, on_dry), updated_at = now()
    where user_id = v_uid and slot = p_slot and preset = p_preset;
   v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', p_target, 'pull_count', p_pull,
-                            'gold_floor', p_floor);
+                            'gold_floor', p_floor,
+                            'on_dry', (select a.on_dry from public.player_action_sets a
+                                        where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset));
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
@@ -864,9 +909,9 @@ end $$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
    and proname in ('hr_action_set_mode', 'hr_action_set_options', 'hr_vigour_refill');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid',
+  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid, p_on_dry text',
    'authenticated',
-   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3): an action set''s target mode, pull count and gold floor; catalogue / limits values only, refused not clamped');
+   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3 + Combat Design Bible v1.4): an action set''s target mode, pull count, gold floor and dry-line choice (end | store); catalogue / limits values only, refused not clamped');
 -- (master plan row 20) hr_vigour_refill leaves the client surface: hunts no
 -- longer spend Vigour, so a gold-for-Vigour verb buys nothing a hunter needs.
 -- (2026-10-22-hunt-sessions-delete-away.sql drops it outright; guarded so this
@@ -943,7 +988,6 @@ declare
   v_day       jsonb := '{}'::jsonb;    -- units bought per supply kind, earlier today
   v_ukind     jsonb := '{}'::jsonb;    -- bag uses per supply kind, this settle
   v_cdh       int;
-  v_cdb       int;
   v_gold_now  bigint;
   v_cover     jsonb;
   v_cgold     bigint := 0;
@@ -1259,9 +1303,10 @@ begin
     -- (5b) THE SHOP: PRICED BY THE CATALOGUE, CAPPED, DEBITED, JOURNALLED.
     --      Uses only crossed the wire; the price is hr_hunt_basic_supplies.price.
     --      Caps (blast radius of a compromised engine, never balance):
-    --        per window — heal buys + heal bag uses ≤ W / heal cooldown + 1,
-    --        drinks ≤ W / mana cooldown + 1, shots ≤ the swings walked + 1;
-    --        per UTC day — each kind's buys today ≤ the same bound over 24 h.
+    --        per window — heal + drink buys + heal / buff bag uses ≤ W / the
+    --        consumable lane's cooldown + 1 (ONE lane, Combat Design Bible
+    --        v1.4), shots ≤ the swings walked + 1;
+    --        per UTC day — the lane's buys today, and the shots, ≤ the same bound over 24 h.
     --      The gold must cover the cost after hr_apply credited the window's
     --      coins (`gold_short` otherwise); ONE `supply_buy` row per settle.
     v_floor := coalesce((select a.gold_floor from public.player_action_sets a
@@ -1313,8 +1358,8 @@ begin
       if v_buys = '{}'::jsonb then perform public.hr_reject('cover_unspent'); end if;
     end if;
     if v_buys <> '{}'::jsonb then
-      v_cdh := public.hr_hunt_limit('cd_heal_ms'); v_cdb := public.hr_hunt_limit('cd_mana_ms');
-      if v_cdh is null or v_cdb is null then perform public.hr_reject('catalogue_missing'); end if;
+      v_cdh := public.hr_hunt_limit('cd_consumable_ms');
+      if v_cdh is null then perform public.hr_reject('catalogue_missing'); end if;
       for v_k, v_v in select key, value from jsonb_each(v_buys) order by key loop
         v_n := (v_v #>> '{}')::bigint;
         continue when v_n = 0;
@@ -1322,6 +1367,11 @@ begin
         if v_price is null then perform public.hr_reject('not_for_sale', jsonb_build_object('item', v_k)); end if;
         -- No kind is sold without a cap row (master plan row 18): drinks wait for mana.
         if v_kind not in ('heal', 'ammo') then perform public.hr_reject('kind_not_sold', jsonb_build_object('item', v_k, 'kind', v_kind)); end if;
+        -- A SHOT IS BOUGHT ONLY ON THE PLAYER'S "SWITCH TO STORE" (Combat Design
+        -- Bible v1.4): the running set's on_dry must read 'store'.
+        if v_kind = 'ammo' and coalesce((select a.on_dry from public.player_action_sets a
+                                          where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' then
+          perform public.hr_reject('store_off', jsonb_build_object('item', v_k)); end if;
         -- GOLD MOVES ONLY THROUGH A SLOT THAT SHOWS ITS PRICE (master plan row 1):
         -- the running bar names this shop use in a slot that is on (a shop heal
         -- may be named by `*heal_shop` at this hunt's tier).
@@ -1352,13 +1402,13 @@ begin
           join public.hr_hunt_basic_supplies q on q.basic_id = x.key
          where l.user_id = p_user and l.slot = p_slot and l.kind = 'hunt' and l.intent = 'supply_buy'
            and l.at >= public.hr_utc_day_start(now()) group by q.kind) a;
-      if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_ukind->>'heal')::bigint, 0) > v_win / v_cdh + 1
-         or coalesce((v_bk->>'mana')::bigint, 0) > v_win / v_cdb + 1
+      if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_bk->>'mana')::bigint, 0)
+           + coalesce((v_ukind->>'heal')::bigint, 0) + coalesce((v_ukind->>'buff')::bigint, 0) > v_win / v_cdh + 1
          or coalesce((v_bk->>'ammo')::bigint, 0) > v_nsw + 1 then
         perform public.hr_reject('too_many_buys', jsonb_build_object('bought', v_bk, 'used', v_ukind, 'window_ms', v_win));
       end if;
-      if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_day->>'heal')::bigint, 0) > c_day_ms / v_cdh + 1
-         or coalesce((v_bk->>'mana')::bigint, 0) + coalesce((v_day->>'mana')::bigint, 0) > c_day_ms / v_cdb + 1
+      if coalesce((v_bk->>'heal')::bigint, 0) + coalesce((v_day->>'heal')::bigint, 0)
+           + coalesce((v_bk->>'mana')::bigint, 0) + coalesce((v_day->>'mana')::bigint, 0) > c_day_ms / v_cdh + 1
          or coalesce((v_bk->>'ammo')::bigint, 0) + coalesce((v_day->>'ammo')::bigint, 0) > c_day_ms / c_min_swing + 1 then
         perform public.hr_reject('too_many_buys', jsonb_build_object('why', 'day', 'bought', v_bk, 'today', v_day));
       end if;
@@ -2043,9 +2093,9 @@ revoke execute on function public.hr_stamina_view(uuid, int) from public;
 revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_last_activity_note() from public;
 revoke execute on function public.hr_last_activity_note() from anon, authenticated, service_role, hr_engine, hr_tick;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) from public;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) from anon, service_role, hr_engine, hr_tick;
-grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid) to authenticated;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) from public;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) from anon, service_role, hr_engine, hr_tick;
+grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) to authenticated;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;

@@ -13,8 +13,13 @@
 // and it is better: it heals or restores more per use (a basic gives three
 // quarters), and it costs far less per point at book value, because the
 // player spent time raising Cooking, Farming, Crafting or Runecrafting.
-// Ammo: a basic arrow or rune hits exactly like its crafted partner and costs
-// at least twice its partner's book value per shot. The free tier-1 rungs
+// Ammo: a basic ARROW gives BASIC_EFFECT_SHARE (three quarters) of its crafted
+// partner's ammo bonus (Combat Design Bible v1.4: "Runecrafting = a better
+// rune", basic strength below crafted; applied per shot in combat.js
+// playerCombatRolls `ammoShare`) and costs at least twice its partner's book
+// value per shot. There are no basic RUNES: the per-swing rune ladder is being
+// replaced by element families consumed by abilities (designer review K10,
+// 2026-10-15), so nothing ships only to be deleted. The free tier-1 rungs
 // (Bronze Arrows, Air Rune, Coarse Whetstone) stay ordinary packed items.
 //
 // PRICES (MEASURED, the table in src/data/supplies.js): a basic heal costs 15 g
@@ -30,7 +35,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* A basic heal or drink gives this share of its crafted partner (floored). */
+/* A basic heal or drink gives this share of its crafted partner (floored); a
+   basic arrow gives this share of its partner's ammo bonus. */
 export const BASIC_EFFECT_SHARE = 0.75;
 
 /* A basic shot costs at least this many times its partner's book value. */
@@ -60,12 +66,6 @@ export const BASIC_SUPPLIES = Object.freeze([
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),
   shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 18),
   shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 24),
-  shot('plain_earth_rune', 'Plain Earth Rune', 'earth_rune', 2),
-  shot('plain_water_rune', 'Plain Water Rune', 'water_rune', 4),
-  shot('plain_fire_rune', 'Plain Fire Rune', 'fire_rune', 8),
-  shot('plain_chaos_rune', 'Plain Chaos Rune', 'chaos_rune', 12),
-  shot('plain_death_rune', 'Plain Death Rune', 'death_rune', 18),
-  shot('plain_blood_rune', 'Plain Blood Rune', 'blood_rune', 24),
 ]);
 
 /** Null-prototype index by id. */

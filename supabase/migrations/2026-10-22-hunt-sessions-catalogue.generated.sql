@@ -6,10 +6,10 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: e084beb3e48e3e585a2df825278dc4e6cdb2086942617e50078edbb7823aadd7
+--   digest: f98c0b0c76c35d3749079abb455ba2fb58dd6331f8cb2bce58ff73392f33b8c0
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
---   7 combat buff types, 24 limits, 9 end reasons, 484 vendor values,
---   23 shop supplies paid per use, 4 slot targets, 2 slot kinds,
+--   7 combat buff types, 22 limits, 9 end reasons, 484 vendor values,
+--   17 shop supplies paid per use, 4 slot targets, 2 slot kinds,
 --   4 target modes
 --
 -- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
@@ -179,17 +179,11 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
 delete from public.hr_hunt_basic_supplies;
 insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values
   ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2, '{}'::int[]),
-  ('plain_blood_rune', 'ammo', 'blood_rune', 0, 0, 24, '{}'::int[]),
-  ('plain_chaos_rune', 'ammo', 'chaos_rune', 0, 0, 12, '{}'::int[]),
   ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24, '{}'::int[]),
-  ('plain_death_rune', 'ammo', 'death_rune', 0, 0, 18, '{}'::int[]),
-  ('plain_earth_rune', 'ammo', 'earth_rune', 0, 0, 2, '{}'::int[]),
   ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18, '{}'::int[]),
-  ('plain_fire_rune', 'ammo', 'fire_rune', 0, 0, 8, '{}'::int[]),
   ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8, '{}'::int[]),
   ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12, '{}'::int[]),
   ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4, '{}'::int[]),
-  ('plain_water_rune', 'ammo', 'water_rune', 0, 0, 4, '{}'::int[]),
   ('salted_lobster', 'heal', 'cooked_lobster', 18, 0, 325, '{3}'::int[]),
   ('salted_shark', 'heal', 'cooked_shark', 33, 0, 790, '{6}'::int[]),
   ('salted_shrimp', 'heal', 'cooked_shrimp', 6, 0, 90, '{1}'::int[]),
@@ -425,9 +419,7 @@ insert into public.hr_hunt_buff_types (buff_type) values
 delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
   ('bag_lines', 10),
-  ('cd_buff_ms', 1000),
-  ('cd_heal_ms', 2000),
-  ('cd_mana_ms', 2000),
+  ('cd_consumable_ms', 2000),
   ('conditions', 3),
   ('death_xp_permille', 20),
   ('falls_default', 3),
@@ -493,6 +485,16 @@ alter table public.player_action_sets alter column gold_floor set not null;
 alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
 alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
   check (gold_floor between 0 and 100000);
+-- Each action set's DRY-LINE CHOICE (hunt-sessions.js ON_DRY, Combat Design
+-- Bible v1.4): 'end' ends the hunt on a dry carried line; 'store' buys the
+-- line's shop basic per unit. Default 'end' — the store is never silent.
+alter table public.player_action_sets add column if not exists on_dry text;
+update public.player_action_sets set on_dry = 'end' where on_dry is null;
+alter table public.player_action_sets alter column on_dry set default 'end';
+alter table public.player_action_sets alter column on_dry set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_on_dry_ck;
+alter table public.player_action_sets add constraint player_action_sets_on_dry_ck
+  check (on_dry in ('end', 'store'));
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -1017,11 +1019,11 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 98
      or (select count(*) from public.hr_hunt_rule_subjects) <> 6
      or (select count(*) from public.hr_hunt_buff_types) <> 7
-     or (select count(*) from public.hr_hunt_limits) <> 24
+     or (select count(*) from public.hr_hunt_limits) <> 22
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_default_preset) <> 1
      or (select count(*) from public.hr_hunt_vendor_value) <> 484
-     or (select count(*) from public.hr_hunt_basic_supplies) <> 23
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 17
      or (select count(*) from public.hr_hunt_slot_targets) <> 4
      or (select count(*) from public.hr_hunt_cover_items) <> 86
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0

@@ -42,6 +42,14 @@ export const KNOCKOUT_MS = 60000;
    whole gold in the range. */
 export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
 
+/* WHAT A HUNT DOES WHEN A CARRIED SUPPLY LINE RUNS DRY (Combat Design Bible
+   v1.4: supplies come from carried inventory OR "Store Supplies" — the store
+   only on the player's own choice, never silently). `end` (the default): the
+   line is out and the hunt ends `<line>_out`. `store`: the shop basic of
+   the line takes over, paid per unit inside the settle. Per action set
+   (player_action_sets.on_dry), set with hr_action_set_options. */
+export const ON_DRY = Object.freeze({ modes: Object.freeze(['end', 'store']), default: 'end' });
+
 /* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
    (master plan row 25): fishing the Shrimp Spot. A new character's
    `last_activity_*` starts here (the generated column default). */

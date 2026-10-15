@@ -121,11 +121,11 @@
     body.className = 'hr-sheet-body';
     var h = document.createElement('h1');
     h.id = ROOT_ID + '-title';
-    h.textContent = 'Hearthrise is closed for now';
+    h.textContent = 'Hearthrise is getting a major overhaul';
     var p1 = document.createElement('p');
-    p1.textContent = 'We are rebuilding the game from the ground up, so it is closed while we work on it.';
+    p1.textContent = 'We are rebuilding the game from the ground up: a living world you walk around, new hunts, and new combat. The game is closed while we work, and every character starts fresh when it reopens.';
     var p2 = document.createElement('p');
-    p2.textContent = 'Come back for Early Access. Join our Discord to hear the moment it opens.';
+    p2.textContent = 'We will be back soon. The Discord gets the date first.';
     var actions = document.createElement('div');
     actions.className = 'hr-sheet-foot hr-closed-actions';
     var url = discordUrl();

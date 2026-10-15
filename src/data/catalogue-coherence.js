@@ -51,7 +51,8 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
-  dungeon_scrip: Object.freeze({ label: 'dungeon clears (hr_dungeon_settle)', file: 'supabase/functions/hr-accrue/dungeon-settle.js', needle: 'scrip' }),
+  /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
+     supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused). */
   hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/legacy.js', needle: "addItem('hearth_token'" }),
 });
 
@@ -68,6 +69,17 @@ export const CODED_USES = Object.freeze({
    dead end fails the guard instead of quietly joining it. Was legacy.js
    window.__DROP_SINK_EXEMPT; this is now its only home. */
 export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_totem', 'burnt_food']);
+
+/* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
+   (The same shrink-only list lane D1 introduces for the demolition; its
+   integration replaces this one.) Each id below has NO source today: lane C2
+   deleted the dungeon settle that paid dungeon_scrip, and the ITEMS row goes
+   with the dungeon data in D1. The Collection Log's denominator
+   (obtainableItemIds) leaves them out, so 100% is still reachable.
+   SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that gains a source or
+   leaves ITEMS, and an id may never be added — a new item with no source is a
+   C1 failure, not a candidate for this list. */
+export const AWAITING_ROSTER = Object.freeze(['dungeon_scrip']);
 
 const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });
 

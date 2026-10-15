@@ -31,6 +31,8 @@
 //   H8 FACING: every monster (bystander, foe, leaving, fallen; standing or
 //      walking) faces east or west, never the camera (a rat's head-on frame
 //      reads as a spider at 48 px)
+//   H9 BAG BESIDE: a kill's loot bag lands on a tile next to the new body,
+//      never on a body's tile (ART_DIRECTION §11)
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
@@ -183,6 +185,31 @@ function check(M) {
     ok('H4', !leak.length, 'an item was named before its settled receipt: ' + leak.join(', '));
   }
 
+  // H9 — the loot bag lands beside the body, never on it (a bag on a corpse vanishes into it).
+  for (const tickMs of [900, 2400]) {
+    const f = fight(M, { foe: 'rat', tickMs, seed: 'bag' + tickMs, hunt: { spawns: huntRow.spawns } });
+    const sc = newScene();
+    let t = 1000, kills = 0, bad = null;
+    for (let i = 0; i < 80 && !bad; i++) {
+      const b = f.tick();
+      if (!b) { t += tickMs; continue; }
+      b.at = t; sc.beat(b);
+      if (b.killed) {
+        kills++;
+        const st = sc.state(snapOf(M, f.G, tickMs), t + 20, 'Tyler');
+        const tile = (u) => Math.round(u.x) + ',' + Math.round(u.y);
+        const bodies = st.units.filter((u) => u.anim === 'death' || u.anim === 'corpse');
+        const bags = st.units.filter((u) => u.id === 'loot_bag');
+        const fresh = bodies.find((u) => u.anim === 'death' && u.age <= 20);
+        if (bags.some((g) => bodies.some((c) => tile(c) === tile(g)))) bad = 'kill ' + kills + ': a bag lies on a body at ' + bags.map(tile).join(' ');
+        else if (!fresh || !bags.some((g) => near(g, { x: Math.round(fresh.x), y: Math.round(fresh.y) }))) bad = 'kill ' + kills + ': no bag on a tile beside the new body';
+      }
+      t += tickMs;
+    }
+    ok('H9', !bad, 'tickMs ' + tickMs + ': ' + bad);
+    ok('H9', kills >= 5, 'tickMs ' + tickMs + ': the bag fixture killed only ' + kills + ' times');
+  }
+
   // H5 — the overlay prints the settled Analyzer, never its own count.
   {
     const now = Date.parse('2026-10-14T12:00:00Z');
@@ -252,6 +279,7 @@ const MUTANTS = [
   ['H3', 'a swap kills the shown foe', 'src/world/choreo.js', [['else if (foe.id !== f.foe) { breakOff(t);', 'else if (foe.id !== f.foe) { kill({ tickMs: 0, next: null }, t);']]],
   ['H3', 'kills read off the G.stats residue', 'src/render/combat-observer.js', [['kills: n(g.combatKillsThisFoe),', 'kills: n(g.stats && g.stats.kills),']]],
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
+  ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H5', 'nothing settled reads as zero', 'src/world/hunt-chrome.js', [['const num = (v) => (v != null && Number.isFinite(Number(v))', 'const num = (v) => (Number.isFinite(Number(v))']]],
   ['H6', 'a phone shrinks the room to fit', 'src/world/core/camera.js', [['return z / (dpr || 1) >= FIT_MIN_CSS ? z : 0;', 'return z;']]],
   ['H8', 'a standing bystander faces the camera', 'src/world/choreo.js', [["const rest = (a) => (hash32('f' + a.slot) & 1 ? 'e' : 'w');", "const rest = () => 's';"]]],
@@ -307,5 +335,5 @@ else {
   const fails = check(await load(ROOT));
   for (const f of fails) console.log('  ✗ ' + f.id + '  ' + f.msg);
   if (fails.length) { console.log('world-hunt: ' + fails.length + ' failure(s)'); process.exit(1); }
-  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine, side-on monsters');
+  console.log('world-hunt: green — attended adjacency at tickMs 600..3600, knockout, foe swap, no item names, settled Analyzer, room camera, one engine, side-on monsters, bags beside the body');
 }

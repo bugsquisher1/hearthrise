@@ -1,0 +1,74 @@
+<!doctype html>
+<!--
+  prototypes/world-shell/samples/slots.html — SAMPLE 2: the inventory slot system.
+  PROTOTYPE ONLY (docs/design/ART_ROADMAP.md §E2; rules in docs/ART_DIRECTION.md §8).
+  Item names, kinds, rarities and stats come from the shipped catalogue (src/data/items.js);
+  the icons are the shipped 32 px pixel items drawn at x2. Counts are fixtures.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<base href="../../../">
+<title>Sample 2: inventory slots</title>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="prototypes/world-shell/samples/samples.css">
+<style>
+  .mat { display: inline-flex; flex-direction: column; gap: 4px; padding: 14px; background: var(--sc-top-1); border: 1px dashed var(--sc-stitch); border-radius: var(--r); }
+  .cells { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 76px; font-size: var(--t-micro); color: var(--ink-2); text-align: center; line-height: 1.2; }
+  /* THE SLOT: 68 px = one 32 px icon at x2 + a 2 px frame (1 art px). */
+  .slot { position: relative; width: 68px; height: 68px; display: grid; place-items: center; border-radius: var(--r-sm);
+          background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge); }
+  .slot img { width: 64px; height: 64px; image-rendering: pixelated; }
+  .slot .n { position: absolute; right: 4px; bottom: 2px; font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink);
+             text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow); }
+  /* Equipment: a 2 px border and a faint back in the rarity colour, plus rank pips (0-5) so colour is never the only cue. */
+  .slot.is-gear { box-shadow: var(--surf-sunken-edge), inset 0 0 0 2px var(--rc); background: color-mix(in srgb, var(--rc) 12%, var(--surf-sunken)); }
+  .slot .pips { position: absolute; left: 4px; top: 4px; display: flex; gap: 2px; }
+  .slot .pips i { width: 4px; height: 4px; background: var(--rc); }
+  .slot.is-mythic { box-shadow: var(--surf-sunken-edge), inset 0 0 0 2px var(--rc), inset 0 0 0 4px var(--world-void), inset 0 0 0 6px var(--rc); }
+  /* Consumable: plain pocket, its count, and its bar key when bound. */
+  .slot .key { position: absolute; left: 4px; top: 2px; font-size: var(--t-micro); font-weight: 800; color: var(--ink-3); line-height: 1; }
+  /* Quest and key items: a parchment back and a wax-seal pip; never a sell price. */
+  .slot.is-quest { background: color-mix(in srgb, var(--gold) 16%, var(--surf-sunken)); }
+  .slot .seal { position: absolute; right: 4px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--rar-mythic); box-shadow: 0 0 0 1px var(--world-void); }
+  /* States. */
+  .slot.is-hover { box-shadow: var(--surf-sunken-edge), inset 0 0 0 2px var(--rc, var(--ink-3)); filter: brightness(1.12); }
+  .slot.is-sel { outline: 2px solid var(--ink); outline-offset: 2px; }   /* neutral: gold is the primary action, and legendary is orange */
+  .slot .worn { position: absolute; left: 3px; bottom: 2px; padding: 0 3px; font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; line-height: 1.1; color: var(--bg-0); background: var(--gold-2); border-radius: var(--r-sm); }
+  .slot.is-empty { opacity: .55; }
+  .slot.is-locked { opacity: .55; background: repeating-linear-gradient(135deg, var(--surf-sunken) 0 6px, var(--world-void) 6px 8px); }
+  /* THE TOOLTIP: the analyzer's type (heading in --f-label, body in --f-ui), the HUD glass, one hairline. */
+  .tips { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .tip { width: 260px; padding: 10px 12px; background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-radius: var(--r-lg); font-size: var(--t-micro); color: var(--ink-2); }
+  .tip header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .tip header img { width: 64px; height: 64px; image-rendering: pixelated; }
+  .tip header b { display: block; font-size: var(--t-small); color: var(--rc, var(--ink)); }
+  .tip header small { display: block; font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+  .tip dl { margin: 0; }
+  .tip dl div { display: flex; justify-content: space-between; padding: 1px 0; }
+  .tip dd { margin: 0; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tip dd.is-gain { color: var(--green); }
+  .tip dd.is-cost { color: var(--red); }
+  .tip footer { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); color: var(--ink-3); }
+  .tip footer .gp { font-weight: 700; color: var(--gold-2); }
+</style>
+</head>
+<body data-theme="hearthlight">
+<main class="sm">
+  <h1>Sample 2 · The inventory slot system</h1>
+  <p class="lede">One 32 px icon at x2 in a 68 px pocket. Rarity is a border, a faint back and rank pips, so colour is never the only cue. The kind of item is read from the pocket itself: equipment is framed, consumables carry their count and bar key, quest items sit on parchment with a seal, materials are plain.</p>
+  <h2>Rarity ladder (equipment)</h2>
+  <div class="mat"><div class="cells" data-ladder></div></div>
+  <h2>Four kinds of item</h2>
+  <div class="mat"><div class="cells" data-kinds></div></div>
+  <h2>States</h2>
+  <div class="mat"><div class="cells" data-states></div></div>
+  <h2>Tooltips <span class="tag">hover on desktop, a long press on the phone; never covers the slot it describes</span></h2>
+  <div class="tips" data-tips></div>
+</main>
+<script type="module" src="prototypes/world-shell/samples/slots.js"></script>
+</body>
+</html>

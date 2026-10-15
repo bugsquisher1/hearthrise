@@ -13,15 +13,28 @@
 // A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=585';
-import { createSteer, tapAction } from './steer-local.js?v=585';
-import { townState, stationOf } from './town-scene.js?v=585';
-import { furnish, maskWith } from './home-scene.js?v=585';
+import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=586';
+import { createSteer, tapAction } from './steer-local.js?v=586';
+import { townState, stationOf } from './town-scene.js?v=586';
+import { furnish, maskWith } from './home-scene.js?v=586';
+import { T } from './core/grid.js?v=586';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
    in view while it idles at the edge. */
 const CAMERA_LEAN = 0.5;
+
+/* ONE WALK CYCLE PER TILE. The hero's walk clip is played by DISTANCE, not by
+   the clock: its frame comes from the tiles walked since it last stood still,
+   so every walk starts on the clip's first frame and the feet keep pace with
+   the ground. Measured on atlas-hero walk e/w (2026-10-14): a planted foot
+   travels about 11-12 art px per step, ~24 per two-step cycle, so one cycle per
+   tile (32 px) slides the feet a little; the clip's authored 10 fps at
+   WALK_TILES_PER_S slid them 82 px per cycle, over three times the stride. */
+const WALK_CYCLE_TILES = 1;
+
+/** A tile coordinate on the whole art pixel the draw snaps it to. */
+const onPixel = (v) => Math.round(v * T) / T;
 
 /**
  * @param {object} map  compileMap() output (kind 'town' or 'home')
@@ -70,9 +83,19 @@ export function createWalkScene(map, o) {
       const at = steer.step(now);
       const goal = steer.goal();
       const f = map.focus;
+      /* The hero is drawn on whole art pixels and the camera is led by THAT
+         pixel, not by the fraction, so the hero and the ground under it move
+         in the same frames. Led by the fraction, the camera crept a device
+         pixel at a time while the hero jumped a whole art pixel (z device px):
+         on screen the hero stepped 0, 1, 3, 4 px on alternate frames. */
+      const hx = onPixel(at.x), hy = onPixel(at.y);
+      const clip = o.sprites.hero && o.sprites.hero.anims && o.sprites.hero.anims.walk;
+      const fps = (clip && clip.fps) || 10, n = (clip && clip.dirs && clip.dirs[at.dir] && clip.dirs[at.dir].length) || 1;
+      /* walking: the age at which the clip shows the frame for the distance covered; standing: time since it stopped */
+      const age = at.moving ? ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps : steer.restMs(now);
       return {
-        hero: { x: at.x, y: at.y, dir: at.dir, anim: at.moving ? 'walk' : 'idle' },
-        camera: f ? { x: at.x + (f[0] - at.x) * CAMERA_LEAN, y: at.y + (f[1] - at.y) * CAMERA_LEAN } : null,
+        hero: { x: hx, y: hy, dir: at.dir, anim: at.moving ? 'walk' : 'idle', age },
+        camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
         units: cast.units, bubbles: cast.bubbles, props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,
       };
@@ -83,6 +106,11 @@ export function createWalkScene(map, o) {
       if (act.kind === 'walk') { sentTo = null; steer.walkTo(act.to, now, true); }
       return act;
     },
+    /**
+     * The keys: hold direction v ([dx, dy], each -1..1; null lets go). The same
+     * feet as a tap (steer-local.js drive), so nothing a key does is sent either.
+     */
+    drive(v, now) { sentTo = null; steer.drive(v, now); },
     /** What a tap here would do, without doing it (the pointer's hover cue). */
     peek: (pick) => tapAction(map, pick, { opens: TAP_OPENS, maps: o.maps }),
     /** Where the hero stands (or is stepping onto). */

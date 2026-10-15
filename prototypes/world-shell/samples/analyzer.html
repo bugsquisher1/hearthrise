@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  prototypes/world-shell/samples/analyzer.html — SAMPLE 3: the Hunt Analyzer v2.
+  PROTOTYPE ONLY (docs/design/ART_ROADMAP.md §E3). Every number is a FIXTURE; in the game the
+  rows read G._huntAnalyzer, which the server settles. No formula is touched or implied here:
+  the layout only decides where a number sits and how loud it is.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<base href="../../../">
+<title>Sample 3: Hunt Analyzer v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="prototypes/world-shell/shell.css">
+<link rel="stylesheet" href="prototypes/world-shell/samples/samples.css">
+<style>
+  html, body { height: auto; }
+  .stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; padding: 16px; background: var(--world-void); border-radius: var(--r-lg); }
+  .stage figure { display: flex; flex-direction: column; gap: 6px; }
+  /* v2: one widget, the analyzer type, three densities. */
+  .az { width: 236px; padding: 8px 12px 8px; background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-radius: var(--r-lg); font-size: var(--t-micro); color: var(--ink-2); }
+  .az.is-wide { width: 300px; }
+  .az h3 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; font-family: var(--f-label); font-size: var(--t-micro); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+  .az h3 span { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  /* The two numbers a hunter checks first, one size up; everything else at the floor size. */
+  .az .lead { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .az .lead div { display: flex; flex-direction: column; }
+  .az .lead dt { color: var(--ink-3); }
+  .az .lead dd { margin: 0; font-size: var(--t-lead); line-height: 1.15; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .az .lead dd.is-gain { color: var(--green); }
+  .az dl { margin: 0; }
+  .az .rows div { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 1px 0; }
+  .az.is-compare .rows div { grid-template-columns: 1fr auto 52px; }
+  .az .rows dd { margin: 0; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+  .az .rows dd.is-cost { color: var(--red); }
+  .az .rows dd.is-gain { color: var(--green); }
+  .az .rows dd.is-delta { font-weight: 400; color: var(--ink-3); }
+  .az .sec { margin: 6px 0 2px; padding-top: 5px; border-top: 1px solid var(--line-soft); font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+  .az .slot { margin: 6px 0 0; padding: 4px 6px; border: 1px dashed var(--line); border-radius: var(--r-sm); color: var(--ink-3); }
+  .az footer { display: flex; justify-content: space-between; margin-top: 6px; color: var(--ink-3); }
+  .az footer b { font-weight: 400; color: var(--ink-2); }
+</style>
+</head>
+<body data-theme="hearthlight">
+<main class="sm">
+  <h1>Sample 3 · Hunt Analyzer v2 <span class="tag">numbers are fixtures</span></h1>
+  <p class="lede">Before: the prototype's analyzer, five equal rows. After: the two numbers a hunter reads first lead one size up, the rest sit at the floor size, and the header names the ground. v2 adds two RESERVED slots, compare and gathering, drawn dashed here so B1 can build the frame now and fill them later.</p>
+  <div class="stage">
+    <figure>
+      <section class="ws-widget ws-analyzer" style="position: static"><h3>Hunt analyzer<span>42 min</span></h3><dl>
+        <div><dt>Kills</dt><dd>118</dd></div><div><dt>XP / hour</dt><dd>14,200</dd></div><div><dt>Loot</dt><dd>3,940 gp</dd></div>
+        <div><dt>Supplies</dt><dd class="is-cost">−610 gp</dd></div><div><dt>Profit / hour</dt><dd class="is-gain">+4,770 gp</dd></div></dl><p>Settled 12 s ago</p></section>
+      <figcaption><b>Before</b> (prototype, b585 rows). Every row is the same weight; profit, the reason to hunt, is the last line.</figcaption>
+    </figure>
+    <figure>
+      <section class="az" aria-label="Hunt analyzer, compact">
+        <h3>Mill Cellar<span>42:10</span></h3>
+        <dl class="lead"><div><dt>XP / hour</dt><dd>14,200</dd></div><div><dt>Profit / hour</dt><dd class="is-gain">+4,770 gp</dd></div></dl>
+        <footer><span>118 kills</span><b>settled 12 s ago</b></footer>
+      </section>
+      <figcaption><b>After · compact</b> (the phone default, and a desktop choice). 236 × 92 px.</figcaption>
+    </figure>
+    <figure>
+      <section class="az" aria-label="Hunt analyzer">
+        <h3>Mill Cellar<span>42:10</span></h3>
+        <dl class="lead"><div><dt>XP / hour</dt><dd>14,200</dd></div><div><dt>Profit / hour</dt><dd class="is-gain">+4,770 gp</dd></div></dl>
+        <dl class="rows">
+          <div><dt>Kills</dt><dd>118 · 168/h</dd></div>
+          <div><dt>Loot</dt><dd>3,940 gp</dd></div>
+          <div><dt>Supplies</dt><dd class="is-cost">−610 gp</dd></div>
+          <div><dt>Best drop</dt><dd>Ruby</dd></div>
+        </dl>
+        <footer><span>Floor 1 of 1</span><b>settled 12 s ago</b></footer>
+      </section>
+      <figcaption><b>After · full</b> (the desktop default). Best drop names the rarest item of the session.</figcaption>
+    </figure>
+    <figure>
+      <section class="az is-wide is-compare" aria-label="Hunt analyzer, future slots">
+        <h3>Mill Cellar<span>42:10</span></h3>
+        <dl class="lead"><div><dt>XP / hour</dt><dd>14,200</dd></div><div><dt>Profit / hour</dt><dd class="is-gain">+4,770 gp</dd></div></dl>
+        <dl class="rows">
+          <div><dt>Kills</dt><dd>118 · 168/h</dd><dd class="is-delta">+6%</dd></div>
+          <div><dt>Loot</dt><dd>3,940 gp</dd><dd class="is-delta">−2%</dd></div>
+          <div><dt>Supplies</dt><dd class="is-cost">−610 gp</dd><dd class="is-delta">+11%</dd></div>
+        </dl>
+        <p class="slot">Slot · compare: the last column is this hunt against your last one here. Filled after B1.</p>
+        <p class="sec">Gathering</p>
+        <dl class="rows">
+          <div><dt>Woodcutting XP / hour</dt><dd>—</dd><dd class="is-delta"></dd></div>
+        </dl>
+        <p class="slot">Slot · gathering: the same frame reads a gathering session (XP/h, logs/h, value/h).</p>
+        <footer><span>Floor 1 of 1</span><b>settled 12 s ago</b></footer>
+      </section>
+      <figcaption><b>After · with the reserved slots</b> (300 px wide only when compare is on).</figcaption>
+    </figure>
+  </div>
+</main>
+</body>
+</html>

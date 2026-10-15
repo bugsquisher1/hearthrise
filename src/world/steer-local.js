@@ -11,6 +11,10 @@
 // map's collision mask and plays them at WALK_TILES_PER_S. A tap on a blocked
 // tile walks to the nearest reachable open tile. Time is passed in, so a pane
 // that was hidden for a minute simply finds the hero at the end of its walk.
+// HELD KEYS (drive) are the same feet: one tile leg at a time, by the same
+// no-corner-cutting rule (core/path.js canStep), at the same speed, written to
+// the same display scratch — there is no second movement model, and nothing a
+// key does is sent either.
 //
 // tapAction turns a tap (the tile plus the drawn things under it, top-most
 // first) into ONE action; runAction hands it to the caller's navigation. Every
@@ -18,7 +22,7 @@
 // sends an intent, which is what "the mill hatch only navigates" means.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { findPath, walkable, reachFrom } from './core/path.js?v=585';
+import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=586';
 
 export const WALK_TILES_PER_S = 3.2;
 
@@ -37,7 +41,26 @@ function nearestReachable(mask, w, h, from, to) {
   return best;
 }
 
-const facing = (dx, dy, was) => (dx || dy ? (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'e' : 'w') : (dy > 0 ? 's' : 'n')) : was);
+const SIDE = (dx) => (dx > 0 ? 'e' : 'w');
+const UPDOWN = (dy) => (dy > 0 ? 's' : 'n');
+
+/**
+ * The facing for a step (dx, dy) of a walk heading `trip` overall. A straight
+ * step faces its way. The art has four facings, so a DIAGONAL step faces the
+ * trip's dominant axis (a walk mostly south keeps facing the camera through its
+ * diagonal steps, instead of flipping to a side view and back), or,
+ * on an exact diagonal, keeps the facing it had when that is one of its two
+ * components, else shows the side.
+ */
+export function facingFor(dx, dy, trip, was) {
+  if (!dx && !dy) return was;
+  if (!dx) return UPDOWN(dy);
+  if (!dy) return SIDE(dx);
+  const ax = Math.abs(trip ? trip[0] : 0), ay = Math.abs(trip ? trip[1] : 0);
+  if (ax > ay) return SIDE(dx);
+  if (ay > ax) return UPDOWN(dy);
+  return was === SIDE(dx) || was === UPDOWN(dy) ? was : SIDE(dx);
+}
 
 /**
  * @param {{mask: Uint8Array, w: number, h: number}} map
@@ -50,6 +73,10 @@ export function createSteer(map, at) {
   /* restSince starts at the first moment anyone asks: a hero that has just
      arrived on the map has been standing for no time at all. */
   let legs = [], leg = null, restSince = null, goal = null, tapped = false;
+  /* held: the direction the keys hold ([dx, dy], each -1..1) or null. trip: the
+     whole walk's heading, for facing. walked: tiles covered since the hero last
+     stood still (the walk cycle's phase is read off it). */
+  let held = null, trip = null, walked = 0;
 
   /** Plan on a mask where the hero's own tile is open (furniture may appear under it). */
   function plan(from, to) {
@@ -57,13 +84,60 @@ export function createSteer(map, at) {
     const end = nearestReachable(m, w, h, from, to);
     return end ? findPath(m, w, h, from, end) : null;
   }
+  /**
+   * The next tile the held keys step onto, by the planner's own rule (canStep:
+   * no corner cutting). A blocked diagonal slides along whichever of its two
+   * straight steps is open, so holding down-right against a wall walks along it.
+   */
+  function heldStep(fx, fy) {
+    if (!held) return null;
+    const m = mask[fy * w + fx] ? Uint8Array.from(mask, (v, i) => (i === fy * w + fx ? 0 : v)) : mask;
+    const [dx, dy] = held;
+    for (const [sx, sy] of dx && dy ? [[dx, dy], [dx, 0], [0, dy]] : [[dx, dy]]) {
+      if (canStep(m, w, h, fx, fy, sx, sy)) return [fx + sx, fy + sy];
+    }
+    return null;
+  }
   function startLeg(now) {
-    const next = legs.shift();
-    if (!next) { leg = null; return; }
     const fx = Math.round(x), fy = Math.round(y);
+    const next = legs.shift() || heldStep(fx, fy);
+    if (!next) { leg = null; return; }
     const dist = next[0] !== fx && next[1] !== fy ? Math.SQRT2 : 1;
-    leg = { fx, fy, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S };
-    dir = facing(next[0] - fx, next[1] - fy, dir);
+    leg = { ox: fx, oy: fy, fx, fy, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
+    dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);
+  }
+  function rest(at) { leg = null; goal = null; restSince = at; walked = 0; }
+  /** Play the legs up to `now`; returns how far into its step the hero is (0..1). */
+  function advance(now) {
+    while (leg && now >= leg.t0 + leg.ms) {
+      const end = leg.t0 + leg.ms;
+      x = leg.tx; y = leg.ty;
+      walked += leg.dist;
+      startLeg(end);
+      if (!leg) rest(end);
+    }
+    const k = leg ? Math.max(0, (now - leg.t0) / leg.ms) : 0;
+    if (leg) {
+      x = leg.fx + (leg.tx - leg.fx) * k;
+      y = leg.fy + (leg.ty - leg.fy) * k;
+    }
+    return k;
+  }
+  /**
+   * The keys changed in the first half of a step: aim that step, from where the
+   * hero is now, at the tile the new keys pick from the tile it set out from (S
+   * then D a moment later walks the diagonal, not a straight step and then one).
+   * Past halfway the step finishes and the next one follows the keys.
+   */
+  function reAim(now) {
+    const k = advance(now);
+    if (!leg || k >= 0.5) return;
+    const next = heldStep(leg.ox, leg.oy);
+    if (!next || (next[0] === leg.tx && next[1] === leg.ty)) return;
+    walked += leg.dist * k;
+    const dist = Math.hypot(next[0] - x, next[1] - y);
+    leg = { ox: leg.ox, oy: leg.oy, fx: x, fy: y, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
+    dir = facingFor(next[0] - leg.ox, next[1] - leg.oy, trip, dir);
   }
 
   return {
@@ -72,38 +146,52 @@ export function createSteer(map, at) {
     /**
      * Walk to `to` ([x, y]). Mid-step, the step finishes first. `byTap` marks a
      * walk the player asked for (the walk mark is drawn for it). False when no
-     * open tile near `to` can be reached.
+     * open tile near `to` can be reached. A walk ends any held-key stepping.
      */
     walkTo(to, now, byTap) {
       const from = leg ? [leg.tx, leg.ty] : [Math.round(x), Math.round(y)];
       const path = plan(from, to);
       if (!path) return false;
+      held = null;
       legs = path.slice(1);
       goal = path[path.length - 1];
+      trip = [goal[0] - from[0], goal[1] - from[1]];
       tapped = !!byTap;
       if (!leg) startLeg(now);
-      if (!leg) { goal = null; restSince = now; }
+      if (!leg) rest(now);
       return true;
     },
-    /** Advance to `now`: { x, y, dir, moving } in tile coords (fractional mid-step). */
-    step(now) {
-      while (leg && now >= leg.t0 + leg.ms) {
-        const end = leg.t0 + leg.ms;
-        x = leg.tx; y = leg.ty;
-        startLeg(end);
-        if (!leg) { goal = null; restSince = end; }
+    /**
+     * THE KEYS. Hold direction `v` ([dx, dy], each -1, 0 or 1; null or [0, 0]
+     * lets go). Held, the hero steps tile by tile that way on the same legs a
+     * tap's path plays, and any tap path is dropped; let go, the step in
+     * progress finishes and nothing follows it (a change of keys early in a
+     * step re-aims that step: reAim). Pressed against a wall, the
+     * hero turns to face it.
+     */
+    drive(v, now) {
+      const dx = v ? Math.sign(v[0]) : 0, dy = v ? Math.sign(v[1]) : 0;
+      legs = [];
+      if (!dx && !dy) { held = null; return; }
+      held = [dx, dy]; trip = held; goal = null; tapped = false;
+      if (leg) reAim(now);
+      else {
+        startLeg(now);
+        if (!leg) { dir = facingFor(dx, dy, trip, dir); restSince = now; }
       }
-      if (leg) {
-        const k = Math.max(0, (now - leg.t0) / leg.ms);
-        x = leg.fx + (leg.tx - leg.fx) * k;
-        y = leg.fy + (leg.ty - leg.fy) * k;
-      }
-      return { x, y, dir, moving: !!leg };
     },
-    /** How long the hero has stood still (0 while walking). */
+    /**
+     * Advance to `now`: { x, y, dir, moving, walked } in tile coords (fractional
+     * mid-step); walked = tiles covered since the hero last stood still.
+     */
+    step(now) {
+      const k = advance(now);
+      return { x, y, dir, moving: !!leg, walked: walked + (leg ? leg.dist * k : 0) };
+    },
+    /** How long the hero has stood still (0 while walking, and while keys are held). */
     restMs(now) {
       if (restSince === null) restSince = now;
-      return leg ? 0 : Math.max(0, now - restSince);
+      return leg || held ? 0 : Math.max(0, now - restSince);
     },
     /** The tile the hero is walking to, and whether a tap sent it there; null when standing. */
     goal() { return goal ? { x: goal[0], y: goal[1], byTap: tapped } : null; },

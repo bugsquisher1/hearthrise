@@ -18,7 +18,7 @@ export function walkable(mask, w, h, x, y) {
 }
 
 /** May a unit step from (x, y) by (dx, dy)? Diagonals need both orthogonal neighbours open. */
-function canStep(mask, w, h, x, y, dx, dy) {
+export function canStep(mask, w, h, x, y, dx, dy) {
   if (!walkable(mask, w, h, x + dx, y + dy)) return false;
   if (dx && dy) return walkable(mask, w, h, x + dx, y) && walkable(mask, w, h, x, y + dy);
   return true;

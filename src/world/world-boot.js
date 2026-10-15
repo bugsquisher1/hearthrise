@@ -23,26 +23,55 @@
 // draws them from what the client holds from the server, read here into one
 // `env` per frame. A tap walks the local hero (display only: G._world.pos) or
 // opens an existing screen; no tap sends an intent (steer-local.js runAction).
+// On a desktop WASD / the arrows walk the same feet (8 ways, stop on key-up);
+// never while a field has focus or a dialog is open, and never sent either.
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=585';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=585';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=585';
-import { HUNT_INDEX } from '../data/hunts.js?v=585';
-import { compileMap } from './core/map-compile.js?v=585';
-import { STUB_SPRITE } from './core/book.js?v=585';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=585';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=585';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=585';
-import { loadAtlases } from './atlas.js?v=585';
-import { createCanvasBackend } from './render/canvas-backend.js?v=585';
-import { huntOfMap } from './hunt-maps.js?v=585';
-import { createHuntScene } from './hunt-scene.js?v=585';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=585';
-import { createWalkScene } from './walk-scene.js?v=585';
-import { homeMapFor } from './home-scene.js?v=585';
-import { runAction } from './steer-local.js?v=585';
+import { BUILD } from '../build-info.js?v=586';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=586';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=586';
+import { HUNT_INDEX } from '../data/hunts.js?v=586';
+import { compileMap } from './core/map-compile.js?v=586';
+import { STUB_SPRITE } from './core/book.js?v=586';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=586';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=586';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=586';
+import { loadAtlases } from './atlas.js?v=586';
+import { createCanvasBackend } from './render/canvas-backend.js?v=586';
+import { huntOfMap } from './hunt-maps.js?v=586';
+import { createHuntScene } from './hunt-scene.js?v=586';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=586';
+import { createWalkScene } from './walk-scene.js?v=586';
+import { homeMapFor } from './home-scene.js?v=586';
+import { runAction } from './steer-local.js?v=586';
+
+/* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
+   non-QWERTY layout walks with the same hand). Two held at once walk the
+   diagonal. They drive the same feet a tap does (walk-scene drive). */
+const WALK_KEYS = Object.freeze({
+  KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
+  KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
+});
+/* Keys belong to whatever is typed into or open on top: never walk while a field has focus or a dialog shows. */
+const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
+const ON_TOP = '.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]';
+
+/**
+ * Is this dialog OPEN, not merely in the DOM? A closed sheet is often kept and
+ * hidden by its scrim's opacity 0 and pointer-events none (the item detail and
+ * enchant sheets, .inv-detail without .show): it still has layout boxes, so a
+ * box test alone counted it as open and left the keys dead for good after the
+ * player's first item detail. Open = laid out, not see-through or hidden, and
+ * taking the pointer.
+ */
+function isOpen(el) {
+  if (!el.getClientRects().length) return false;
+  if (typeof el.checkVisibility === 'function'
+    && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true, checkOpacity: true, checkVisibilityCSS: true })) return false;
+  const cs = el.ownerDocument.defaultView.getComputedStyle(el);
+  return cs.pointerEvents !== 'none' && cs.visibility !== 'hidden';
+}
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
@@ -191,6 +220,7 @@ export async function bootWorld(panel) {
   function walkState(G, map, now) {
     if (!walk || walk.map !== map) {
       walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF });
+      if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     const f = walk.frame(readEnv(G, map.kind), now);
     notePos(G, map.id, f.hero.x, f.hero.y);
@@ -239,7 +269,7 @@ export async function bootWorld(panel) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      walk = null; lastWalk = null;
+      walk = null; lastWalk = null; keys.clear();
     } else {
       hunt = null; huntMap = null; lastHunt = null;
       hud.paint(null);
@@ -295,6 +325,30 @@ export async function bootWorld(panel) {
     stage.classList.toggle('is-hot', !!act && act.kind !== 'walk');
   }
 
+  /* Held walk keys (e.code), and the direction they add up to. */
+  const keys = new Set();
+  function keyVector() {
+    let x = 0, y = 0;
+    for (const k of keys) { x += WALK_KEYS[k][0]; y += WALK_KEYS[k][1]; }
+    return [Math.sign(x), Math.sign(y)];
+  }
+  function steerKeys() { if (walk) walk.drive(keyVector(), Date.now()); }
+  /** Let go of every walk key (focus left, the pane closed, a field or dialog took the keys). */
+  function letGo() { if (!keys.size) return; keys.clear(); steerKeys(); }
+  const onTop = () => Array.from(doc.querySelectorAll(ON_TOP)).some(isOpen);
+  function onKeyDown(e) {
+    if (!WALK_KEYS[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!live() || !walk || !scene || scene.kind === 'hunt') return;
+    const t = e.target;
+    if ((t && t.closest && t.closest(TYPING)) || onTop()) { letGo(); return; }
+    e.preventDefault();   // the arrows would scroll the page
+    if (keys.has(e.code)) return;   // auto-repeat
+    keys.add(e.code);
+    steerKeys();
+  }
+  function onKeyUp(e) { if (keys.delete(e.code)) steerKeys(); }
+  function onFocusIn(e) { if (e.target && e.target.closest && e.target.closest(TYPING)) letGo(); }
+
   const live = () => panel.classList.contains('active') && !doc.hidden;
   function frame(t) {
     raf = 0;
@@ -318,6 +372,7 @@ export async function bootWorld(panel) {
     } else {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
+      letGo();
     }
   }
   function onGo(e) {
@@ -334,6 +389,10 @@ export async function bootWorld(panel) {
   stage.addEventListener('pointermove', onHover);
   idle.addEventListener('click', onGo);
   doc.addEventListener('visibilitychange', sync);
+  doc.addEventListener('keydown', onKeyDown);
+  doc.addEventListener('keyup', onKeyUp);
+  doc.addEventListener('focusin', onFocusIn);
+  win.addEventListener('blur', letGo);   // a key let go in another window never sends its keyup here
 
   return {
     sync,
@@ -350,6 +409,10 @@ export async function bootWorld(panel) {
       stage.removeEventListener('pointermove', onHover);
       idle.removeEventListener('click', onGo);
       doc.removeEventListener('visibilitychange', sync);
+      doc.removeEventListener('keydown', onKeyDown);
+      doc.removeEventListener('keyup', onKeyUp);
+      doc.removeEventListener('focusin', onFocusIn);
+      win.removeEventListener('blur', letGo);
       hud.destroy();
       idle.remove();
       backend.destroy();

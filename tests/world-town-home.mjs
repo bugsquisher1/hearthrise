@@ -37,6 +37,13 @@
 //   S STEERING: no corner cutting, a tap on a blocked tile walks to the nearest
 //     reachable one, and a hero left IDLE_TO_STATION_MS walks to its activity's
 //     station once — and nothing else does
+//   K THE KEYS: held WASD/arrows walk the same tile legs at the same speed by
+//     the same no-corner-cutting rule, eight ways; let go and the step ends on
+//     a tile; a key takes over from a tap walk (live b585: "WASD doesn't work")
+//   M SMOOTH WALKING: a mostly-south walk faces the camera through its diagonal
+//     steps; at 60 fps and zoom 3 the hero moves 1..3 device px every frame (the
+//     camera is led by the drawn pixel); the walk clip starts on its first frame
+//     and runs by distance (live b585: walking toward the camera looked janky)
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
@@ -50,10 +57,10 @@ const V = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(ROOT, 'src/build-info
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
-  const [walk, town, home, steer, store, mapc, nullb, bookm, maps, terrain, sets, stations, layouts, perks] = await Promise.all([
+  const [walk, town, home, steer, store, mapc, nullb, bookm, maps, terrain, sets, stations, layouts, perks, camera] = await Promise.all([
     'src/world/walk-scene.js', 'src/world/town-scene.js', 'src/world/home-scene.js', 'src/world/steer-local.js', 'src/world/store.js',
     'src/world/core/map-compile.js', 'src/world/render/null-backend.js', 'src/world/core/book.js', 'src/data/world/maps/index.js',
-    'src/data/world/terrain.js', 'src/data/world/atlas-sets.js', 'src/data/world/stations.js', 'src/data/world/house-layouts.js', 'src/data/perks.js',
+    'src/data/world/terrain.js', 'src/data/world/atlas-sets.js', 'src/data/world/stations.js', 'src/data/world/house-layouts.js', 'src/data/perks.js', 'src/world/core/camera.js',
   ].map(imp));
   const manifests = {};
   for (const set of sets.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
@@ -61,7 +68,7 @@ async function load(base) {
   const tables = { materials: terrain.MATERIALS, sprites: book.sprites, openClasses: terrain.OPEN_CLASSES, treeClasses: terrain.TREE_CLASSES,
     lights: terrain.LIGHTS, terrains: book.terrains };
   const rows = Object.fromEntries(maps.WORLD_MAPS.map((m) => [m.id, m]));
-  return { walk, town, home, steer, store, mapc, nullb, book, tables, rows, maps, terrain, stations, layouts, perks,
+  return { walk, town, home, steer, store, mapc, nullb, book, tables, rows, maps, terrain, stations, layouts, perks, camera,
     residueSrc: readFileSync(join(base, 'src/net/client-state.js'), 'utf8'),
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
 }
@@ -283,6 +290,81 @@ function check(M) {
     const lean = f.camera;
     ok('S', lean && town.focus && Math.abs(lean.x - (station[0] + town.focus[0]) / 2) < 1e-9, 'the camera leans halfway to the town\'s focus');
   });
+
+  /* K — THE KEYS (live b585: "WASD doesn't work"). Held keys walk the same feet
+     a tap does: tile legs at the tap's speed, the planner's no-corner-cutting
+     rule, eight ways; let go and the step in progress ends on a whole tile. */
+  fam('K', () => {
+    const open5 = { mask: new Uint8Array(25), w: 5, h: 5 };
+    const legMs = 1000 / M.steer.WALK_TILES_PER_S;
+    const s = M.steer.createSteer(open5, [2, 0]);
+    s.drive([0, 1], 0);
+    const mid = s.step(legMs / 2);
+    ok('K', mid.moving && mid.dir === 's' && mid.x === 2 && Math.abs(mid.y - 0.5) < 1e-9, 'holding S must walk south at the tap\'s speed: ' + JSON.stringify(mid));
+    const on = s.step(2.5 * legMs);
+    ok('K', on.moving && s.cell().join() === '2,3', 'a held key keeps stepping tile after tile, at ' + s.cell().join());
+    s.drive(null, 2.5 * legMs);
+    const stop = s.step(10 * legMs);
+    ok('K', !stop.moving && stop.x === 2 && stop.y === 3, 'let go mid-step, the hero finishes that step and stops on the tile: ' + JSON.stringify(stop));
+    const d = M.steer.createSteer(open5, [0, 0]);
+    d.drive([1, 1], 0);
+    d.step(Math.SQRT2 * legMs + 1);
+    ok('K', d.cell().join() === '2,2', 'S+D held walks the diagonal, one diagonal tile per sqrt2 legs: at ' + d.cell().join());
+    const late = M.steer.createSteer(open5, [2, 0]);
+    late.drive([0, 1], 0);
+    late.drive([1, 1], 40);   // the second key lands a frame or two after the first
+    ok('K', late.cell().join() === '3,1', 'S then D a moment later must walk the diagonal, not a straight step first: stepping onto ' + late.cell().join());
+    const walled = M.steer.createSteer({ mask: Uint8Array.from([0, 1, 0, 0, 0, 0, 0, 0, 0]), w: 3, h: 3 }, [0, 0]);
+    walled.drive([1, 1], 0);
+    walled.step(legMs - 1);
+    ok('K', walled.cell().join() === '0,1', 'a held diagonal past a wall corner must not cut it; it slides along the open side, went ' + walled.cell().join());
+    const wall = M.steer.createSteer(open5, [0, 0]);
+    wall.drive([-1, 0], 0);
+    const faced = wall.step(1000);
+    ok('K', !faced.moving && faced.x === 0 && faced.dir === 'w' && wall.restMs(5e4) === 0, 'held against the map edge the hero turns to face it, stays put and never counts as idle: ' + JSON.stringify(faced));
+    const ws = M.walk.createWalkScene(town, { at: [11, 9], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    ws.tap({ tile: [11, 4], hits: [] }, 0);
+    ws.frame(ENV(), 100);
+    ws.drive([1, 0], 100);
+    let f = null;
+    for (let t = 100; t <= 100 + 3 * legMs; t += 16) f = ws.frame(ENV(), t);
+    /* the tap's first step north had barely begun, so the key re-aims it: the hero turns east on row 9 */
+    ok('K', f.mark === null && f.hero.dir === 'e' && f.hero.y === 9 && f.hero.x > 12, 'a key takes over from a tap walk: the tap path and its mark are dropped, got ' + JSON.stringify([f.mark, f.hero]));
+  });
+
+  /* M — A WALK THAT MOVES SMOOTHLY (live b585: walking toward the camera looked janky).
+     Read off the frames the pane paints: the facing through a mostly-south walk,
+     the hero's screen step per 60 fps frame at zoom 3, and the walk clip's phase. */
+  fam('M', () => {
+    const z = 3, W = 1600, H = 900;
+    const ws = M.walk.createWalkScene(town, { at: [10, 3], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    let t = 1.7e12;
+    ws.frame(ENV(), t);
+    ws.tap({ tile: [12, 9], hits: [] }, t);
+    const dirs = new Set(), steps = [], phases = [];
+    let prev = null, first = null, last = null, idleAge = null;
+    for (let k = 0; k < 200; k++) {
+      t += 1000 / 60;
+      const f = ws.frame(ENV(), t);
+      if (f.hero.anim !== 'walk') { idleAge = f.hero.age; break; }
+      if (!first) first = f.hero;
+      last = f.hero;
+      dirs.add(f.hero.dir);
+      const fv = M.camera.frameView(f.camera, W / z, H / z, town, z, T);
+      const sy = Math.round(f.hero.y * T) * z - Math.round(fv.cam.y * z);
+      const camFree = fv.cam.y > 0 && fv.cam.y < town.h * T - H / z;
+      if (prev !== null && camFree) steps.push(sy - prev);
+      prev = sy;
+      phases.push(f.hero.age);
+    }
+    ok('M', dirs.size === 1 && dirs.has('s'), 'a walk mostly south must face the camera all the way, through its diagonal steps; faced ' + [...dirs].join(','));
+    ok('M', steps.length > 20 && steps.every((d) => d >= 1 && d <= z), 'at 60 fps the hero must move 1..' + z + ' device px down the screen every frame (never stall, never jump): ' + steps.join(' '));
+    const clip = M.book.sprite('hero').anims.walk;
+    const frameAt = (age) => Math.floor((age * clip.fps) / 1000) % clip.dirs.s.length;
+    ok('M', first && first.age != null && frameAt(first.age) === 0, 'a walk must start on its clip\'s first frame, started on ' + (first && first.age != null ? frameAt(first.age) : 'a wall-clock frame'));
+    ok('M', last && last.age != null && phases.every((a, i) => !i || a >= phases[i - 1]), 'the walk clip must advance with the distance walked');
+    ok('M', idleAge != null && idleAge < 1000 / 60 + 1, 'standing again, the idle clip starts from its first frame (age ' + idleAge + ')');
+  });
   return fails;
 }
 
@@ -325,6 +407,13 @@ const MUTANTS = [
   ['S', 'a corner-cutting walk', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['S', 'the hero never goes back to its station', 'src/world/walk-scene.js', [['if (sentTo !== key) { sentTo = key; steer.walkTo(station, now, false); }', 'void key;']]],
   ['S', 'a hero just arrived counts as long idle', 'src/world/steer-local.js', [['let legs = [], leg = null, restSince = null,', 'let legs = [], leg = null, restSince = 0,']]],
+  ['K', 'a held key takes one step and stops', 'src/world/steer-local.js', [['const next = legs.shift() || heldStep(fx, fy);', 'const next = legs.shift() || (leg ? null : heldStep(fx, fy));']]],
+  ['K', 'a held diagonal cuts the wall corner', 'src/world/steer-local.js', [['if (canStep(m, w, h, fx, fy, sx, sy)) return', 'if (walkable(m, w, h, fx + sx, fy + sy)) return']]],
+  ['K', 'a second key pressed a moment late is ignored until the next tile', 'src/world/steer-local.js', [['if (leg) reAim(now);', 'if (leg) void now;']]],
+  ['K', 'letting go does not stop the hero', 'src/world/steer-local.js', [['if (!dx && !dy) { held = null; return; }', 'if (!dx && !dy) return;']]],
+  ['M', 'a diagonal step faces by its own sign (b585)', 'src/world/steer-local.js', [['dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);', "dir = Math.abs(next[0] - fx) >= Math.abs(next[1] - fy) ? (next[0] > fx ? 'e' : 'w') : (next[1] > fy ? 's' : 'n');"]]],
+  ['M', 'the camera led by the fractional position (b585)', 'src/world/walk-scene.js', [['const hx = onPixel(at.x), hy = onPixel(at.y);', 'const hx = at.x, hy = at.y;']]],
+  ['M', 'the walk clip played by the wall clock (b585)', 'src/world/walk-scene.js', [["anim: at.moving ? 'walk' : 'idle', age },", "anim: at.moving ? 'walk' : 'idle' },"]]],
 ];
 
 async function selftest() {
@@ -358,5 +447,5 @@ else {
     console.error('world-town-home: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-town-home: green — roofs, nothing saved, peers at their stations, furniture replaced, the hatch only navigates, steering');
+  console.log('world-town-home: green — roofs, nothing saved, peers at their stations, furniture replaced, the hatch only navigates, steering, the keys, smooth walking');
 }

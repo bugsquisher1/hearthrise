@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  prototypes/world-shell/samples/combat.html — SAMPLE 1: the combat-feedback sequence.
+  PROTOTYPE ONLY (docs/design/ART_ROADMAP.md §E1). Six stills of one fight, drawn from the
+  shipped atlases (assets/world/atlas-hero, atlas-cellar) at the one density, x2. Row 1
+  follows today's overlay rules (src/world/render/canvas-backend.js); row 2 follows the
+  proposed combat-feedback system (docs/ART_DIRECTION.md §11). Nothing here is wired to
+  the engine; the numbers are fixtures.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<base href="../../../">
+<title>Sample 1: combat feedback</title>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="prototypes/world-shell/samples/samples.css">
+<style>
+  .toast { display: flex; gap: 10px; align-items: center; width: 260px; padding: 8px 12px 8px 8px; background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-left: 2px solid var(--rar-rare); border-radius: var(--r-lg); }
+  .toast img { width: 64px; height: 64px; image-rendering: pixelated; }
+  .toast small { display: block; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+  .toast b { display: block; font-size: var(--t-small); color: var(--rar-rare); }
+  .toast span { display: block; font-size: var(--t-micro); color: var(--ink-2); }
+</style>
+</head>
+<body data-theme="hearthlight">
+<main class="sm">
+  <h1>Sample 1 · Combat feedback: swing, hit, crit, death, loot pop, rare drop</h1>
+  <p class="lede">Six stills of one fight with a Giant Rat in the Mill Cellar, drawn from the shipped atlases at x2. Row 1 uses today's overlay rules; row 2 uses the proposed system in ART_DIRECTION §11. The lighting is simplified (ambient only).</p>
+  <h2>Before: today's rules (b585)</h2>
+  <div class="row" data-row="before"></div>
+  <h2>After: the proposed combat-feedback system</h2>
+  <div class="row" data-row="after"></div>
+  <h2>The rare drop's HUD half <span class="tag">a toast, 4 s, top centre; never modal</span></h2>
+  <div class="toast"><img src="assets/icons-bundle/pixel/items/ruby.png" alt=""><div><small>Rare drop</small><b>Ruby</b><span>from a Giant Rat</span></div></div>
+</main>
+<script type="module" src="prototypes/world-shell/samples/combat.js"></script>
+</body>
+</html>

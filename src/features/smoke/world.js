@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=585';
-import { buildResiduePatch } from '../../net/capstone.js?v=585';
+import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=586';
+import { buildResiduePatch } from '../../net/capstone.js?v=586';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {
@@ -315,6 +315,101 @@ export default [
       if (H && openRoom) H.openRoom = openRoom;
       if (M && M.isOpen()) M.close();
       restoreGAndRecord(snap);
+      window.showTab('profile');
+      if (!hadWorld) delete G._world;
+    }
+  }),
+
+  /* Tyler, 2026-10-14: "WASD doesn't work" — the World only had click-to-walk. */
+  () => tryRunAsync('WORLD-8: WASD and the arrows walk the hero in the Common, 8 ways, and stop on key-up; never while a field has focus or a dialog is open', async () => {
+    const G = window.G;
+    const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world');
+    const key = (type, code, target) => {
+      const e = new KeyboardEvent(type, { code, key: code.replace(/^Key/, '').toLowerCase(), bubbles: true, cancelable: true });
+      (target || document.body).dispatchEvent(e);
+      return e;
+    };
+    const walkOf = (rt) => rt.stats().walk;
+    const field = document.createElement('input');
+    const dialog = document.createElement('div');
+    /* A CLOSED item-detail sheet, kept in the DOM the way legacy.js keeps one:
+       laid out, see-through, not taking the pointer. In full-suite order the
+       inventory tests leave two of these; the keys must walk past them. */
+    const closed = document.createElement('div');
+    closed.className = 'inv-detail hr-scrim';
+    closed.innerHTML = '<div class="inv-detail-card hr-sheet">a closed item detail</div>';
+    const describe = (el) => el.tagName + '.' + String(el.className).replace(/\s+/g, '.') + ' "' + (el.textContent || '').trim().slice(0, 40) + '"';
+    /* Open the way a player sees it: laid out, not see-through, taking the pointer. */
+    const openOnes = () => Array.from(document.querySelectorAll('.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]'))
+      .filter((el) => el.getClientRects().length && Number(getComputedStyle(el).opacity) > 0 && getComputedStyle(el).pointerEvents !== 'none'
+        && !(el.closest('.inv-detail') && !el.closest('.inv-detail.show')))
+      .map(describe);
+    try {
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      /* PRECONDITIONS, set and asserted: no field focused, no dialog open, the World in front and booted on the Common. */
+      if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
+      if (typeof window.closeAllModals === 'function') window.closeAllModals();
+      for (let i = 0; i < 8 && window.HearthriseSheet && window.HearthriseSheet.closeTop(); i++);
+      document.body.appendChild(closed);
+      assert(!document.activeElement || document.activeElement === document.body, 'precondition: a field still has focus: ' + describe(document.activeElement));
+      assert(openOnes().length === 0, 'precondition: a dialog is still open: ' + JSON.stringify(openOnes()));
+      assert(closed.firstChild.getClientRects().length > 0, 'the closed-sheet fixture must still have layout boxes, as the real one does');
+      const rt = await openWorld();
+      document.querySelector('#panel-world [data-world-choice="town"]').click();
+      assert(await until(() => rt.stats().scene === 'town_common', 2000), 'tapping Town did not show the Common');
+      assert(document.getElementById('panel-world').classList.contains('active') && !document.hidden && rt.stats().running,
+        'precondition: the World pane must be in front, visible and running: ' + JSON.stringify({ hidden: document.hidden, running: rt.stats().running }));
+      const settle = async (cell) => {
+        tapTile(rt, cell[0], cell[1]);
+        assert(await until(() => walkOf(rt).cell.join() === cell.join() && walkOf(rt).hero.anim === 'idle', 6000), 'the hero never stood on ' + cell.join() + ': ' + JSON.stringify(walkOf(rt)));
+      };
+      const stops = async (what) => {
+        assert(await until(() => walkOf(rt).hero.anim === 'idle', 1500), what + ': the hero kept walking after key-up: ' + JSON.stringify(walkOf(rt).hero));
+        const c = walkOf(rt).cell.join();
+        await sleep(450);
+        assert(walkOf(rt).cell.join() === c && walkOf(rt).hero.anim === 'idle', what + ': the hero moved on after it stopped');
+      };
+
+      await settle([11, 9]);
+      const down = key('keydown', 'KeyD');
+      assert(down.defaultPrevented, 'a walk key on the World must be taken by it (default prevented), with a CLOSED item sheet in the DOM; open dialogs: ' + JSON.stringify(openOnes()));
+      assert(await until(() => walkOf(rt).cell[0] >= 13, 2500), 'holding D must walk the hero east along row 9: ' + JSON.stringify(walkOf(rt)));
+      assert(walkOf(rt).cell[1] === 9 && walkOf(rt).hero.dir === 'e', 'D walks east, facing east: ' + JSON.stringify(walkOf(rt)));
+      key('keyup', 'KeyD');
+      await stops('D');
+      const pos = G._world && G._world.pos;
+      assert(pos && pos.map === 'town_common' && Math.round(pos.x) === walkOf(rt).cell[0], 'a keyed walk is held in G._world.pos like a tapped one: ' + JSON.stringify(G._world));
+
+      await settle([11, 9]);
+      key('keydown', 'ArrowDown');
+      key('keydown', 'ArrowRight');
+      assert(await until(() => walkOf(rt).cell.join() === '12,10', 2000), 'Down+Right held must step the diagonal onto 12,10: ' + JSON.stringify(walkOf(rt)));
+      key('keyup', 'ArrowDown');
+      key('keyup', 'ArrowRight');
+      await stops('Down+Right');
+
+      await settle([11, 9]);
+      document.body.appendChild(field);
+      field.focus();
+      const typed = key('keydown', 'KeyW', field);
+      await sleep(500);
+      key('keyup', 'KeyW', field);
+      assert(!typed.defaultPrevented && walkOf(rt).cell.join() === '11,9' && walkOf(rt).hero.anim === 'idle', 'typing W into a field must not walk the hero: ' + JSON.stringify(walkOf(rt)));
+      field.blur();
+      field.remove();
+
+      dialog.setAttribute('role', 'dialog');
+      dialog.textContent = 'a dialog';
+      document.body.appendChild(dialog);
+      key('keydown', 'KeyW');
+      await sleep(500);
+      key('keyup', 'KeyW');
+      assert(walkOf(rt).cell.join() === '11,9', 'a key must not walk the hero while a dialog is open: ' + JSON.stringify(walkOf(rt)));
+    } finally {
+      for (const c of ['KeyD', 'KeyW', 'ArrowDown', 'ArrowRight']) key('keyup', c);
+      field.remove();
+      dialog.remove();
+      closed.remove();
       window.showTab('profile');
       if (!hadWorld) delete G._world;
     }

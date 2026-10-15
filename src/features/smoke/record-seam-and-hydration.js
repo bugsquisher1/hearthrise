@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=586';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=587';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=586');
+    const KIT = await import('../../data/start-kit.js?v=587');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=586');
+    const KIT = await import('../../data/start-kit.js?v=587');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=586');
+    const KIT = await import('../../data/start-kit.js?v=587');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -3271,6 +3271,53 @@ export default [
       C.configureCharacter(null);
       Object.assign(G, save);
       G.lastOfflineSummary = save.los;
+    }
+  }),
+
+  /* REGRESSION (2026-10-15, live after the closed-rebuild wipe): the QA device
+     remembered hero slot 2; the wipe left the account owning slot 0 only, so
+     hr_create_character answered slot_not_owned 31 times and every write
+     no_character 54 times — nobody whose device was on slot 1+ could play. A
+     slot_not_owned for the ACTIVE slot above 0 must move the device to slot 0
+     and reload onto it, and must never touch slot 0 or a slot that is not active. */
+  () => tryRunAsync('DEAD-SLOT-1: slot_not_owned on the active hero slot re-addresses the device to slot 0, once', async () => {
+    const C = window.HearthriseCharacter, P = window.HearthriseProfile;
+    assert(C && typeof C.__setCharacterReload === 'function' && P && typeof P.readdressDeadSlot === 'function',
+      'the dead-slot seam is missing');
+    const realFetch = window.fetch;
+    const rawProfile = window.localStorage.getItem('hearthrise:profile');
+    const prof = P.profile || null;
+    const active0 = prof ? prof.activeSlot : undefined;
+    let reloads = 0;
+    const prevReload = C.__setCharacterReload(() => { reloads++; });
+    try {
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      window.fetch = async () => ({ status: 200, ok: true,
+        json: async () => ({ ok: false, error: 'slot_not_owned', slot: 2 }) });
+      if (!P.profile) P.profile = { activeSlot: 2, slots: {} };
+      P.profile.activeSlot = 2;
+      C.resetCharacterIntent();
+      const v = await C.ensureCharacter({ slot: 2 });
+      assert(v.outcome === 'slot-not-owned' && v.present === false, 'not named: ' + JSON.stringify(v));
+      assert(P.activeSlot() === 0 && v.readdressed === 0, 'the device stayed on the dead slot ' + P.activeSlot());
+      assert(reloads === 1, 'expected one reload onto slot 0, saw ' + reloads);
+      // CONTROLS: a dead slot that is NOT the active one, and slot 0, never re-address.
+      P.profile.activeSlot = 1;
+      C.resetCharacterIntent();
+      await C.ensureCharacter({ slot: 2 });
+      assert(P.activeSlot() === 1 && reloads === 1, 'a slot that is not active moved the device');
+      P.profile.activeSlot = 0;
+      C.resetCharacterIntent();
+      await C.ensureCharacter({ slot: 0 });
+      assert(P.activeSlot() === 0 && reloads === 1, 'slot 0 reloaded');
+    } finally {
+      window.fetch = realFetch;
+      C.__setCharacterReload(prevReload);
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+      if (prof) prof.activeSlot = active0; else P.profile = null;
+      if (rawProfile === null) window.localStorage.removeItem('hearthrise:profile');
+      else window.localStorage.setItem('hearthrise:profile', rawProfile);
     }
   }),
 
@@ -5175,7 +5222,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=586')).text();
+    const src = await (await fetch('src/legacy.js?v=587')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the

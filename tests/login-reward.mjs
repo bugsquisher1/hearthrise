@@ -70,8 +70,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const OWN_SQL = '2026-10-16-login-reward.sql';
-/* The chain-end catalogue: the demolition re-rewarded day 7's Bone Key (ruling
-   2026-10-14 §6), so L1 and L6 bind the file that now owns hr_login_catalogue(). */
+/* The catalogue literal's chain-end home: 2026-10-23-demolition-login-catalogue.sql
+   restates hr_login_catalogue() without the Bone Key (Security R2, 2026-10-15). */
 const CAT_SQL = '2026-10-23-demolition-login-catalogue.sql';
 const UID = '00000000-0000-4000-c000-0000010a1d77';
 
@@ -160,9 +160,6 @@ async function runArms(db, mods) {
   const fails = [];
   const fail = (arm, msg) => fails.push(`${arm}: ${msg}`);
   const one = async (sql, params) => (await db.query(sql, params)).rows[0];
-  /* The weekly bonus item, READ from the catalogue (never retyped). */
-  const KEY = Object.keys(rw.DAILY_LOGIN_CYCLE[6].keys || {})[0];
-  const KEY_META = JSON.stringify({ delta: { g: 270, m: 2, i: { [KEY]: 1 } } });
 
   // L1 — the generated literal is rewards.js, byte for byte, and pays real items.
   {
@@ -179,6 +176,7 @@ async function runArms(db, mods) {
       for (const id of Object.keys({ ...(d.items || {}), ...(d.keys || {}) })) {
         if (!ITEMS[id]) fail('L1', `the cycle pays '${id}', which is not an ITEMS row`);
       }
+      if (d.keys && Object.keys(d.keys).length) fail('L1', `a cycle day pays keys ${JSON.stringify(d.keys)}; the dungeons were cut`);
     }
   }
 
@@ -333,7 +331,7 @@ async function runArms(db, mods) {
     const uncapped = Math.round(rw.DAILY_LOGIN_CYCLE[4].gold * (1 + 14 * rw.DAILY_LOGIN_WEEK_BONUS));
     await forge('an uncapped week-15 price', uncapped, rw.priceDailyLogin(5).items, 5);
     const p5 = rw.priceDailyLogin(5);
-    await forge('an extra bonus item on the honest price', p5.gold, { ...p5.items, [KEY]: 1 }, 5);
+    await forge('an extra seed stack on the honest price', p5.gold, { ...p5.items, turnip_seed: 10 }, 5);
     await forge('two forged gems on the honest price', p5.gold, p5.items, 5, 2);
     // CONTROL: the honest price for the same state is paid.
     const before = await wallet();
@@ -348,7 +346,7 @@ async function runArms(db, mods) {
     /* The server, simulated: the streak from the last claim, and bonus_ready
        from what was PAID in the six days before (the ledger read). */
     const sim = (claims) => {
-      let last = null, keys = 0, gems = 0, close = 0;
+      let last = null, gems = 0, close = 0;
       const paidOn = [];
       for (let d = 1; d <= 28; d++) {
         if (!claims(d)) continue;
@@ -356,17 +354,17 @@ async function runArms(db, mods) {
         const lookup = { last: last ? { value: last.v, state: 'claimed', gap: d - last.d } : null, bonus_ready: ready };
         const st = rw.deriveLoginStreak(lookup);
         const p = rw.priceDailyLogin(st, { bonus: rw.loginBonusDue(lookup) });
-        if ((p.items[KEY] || 0) > 0 || p.gems > 0) {
+        if (p.gems > 0) {
           if (paidOn.length && d - paidOn[paidOn.length - 1] < 7) close++;
           paidOn.push(d);
         }
-        keys += (p.items[KEY] || 0) > 0 ? 1 : 0; gems += p.gems;   // bonus PAYOUTS, not units
+        gems += p.gems;
         last = { v: st, d };
       }
-      return { keys, gems, close };
+      return { gems, close };
     };
     const daily = sim(() => true);
-    if (daily.keys !== 4 || daily.gems !== 8) fail('L7', `CONTROL: a daily player over 28 days earns ${JSON.stringify(daily)}, expected 4 keys / 8 gems`);
+    if (daily.gems !== 8) fail('L7', `CONTROL: a daily player over 28 days earns ${JSON.stringify(daily)}, expected 8 gems`);
     const patterns = [
       ['every other day', (d) => d % 2 === 1],
       /* Security's pattern: a straight week to the key, then skip two (back
@@ -381,9 +379,9 @@ async function runArms(db, mods) {
     }
     for (const [name, claims] of patterns) {
       const r = sim(claims);
-      if (r.keys > daily.keys || r.gems > daily.gems || r.close > 0) {
+      if (r.gems > daily.gems || r.close > 0) {
         fail('L7', `${name} earns ${JSON.stringify(r)} against a daily player's ${JSON.stringify(daily)} — `
-          + 'keys and gems must pay at most once per 7 server days');
+          + 'the gems must pay at most once per 7 server days');
         break;
       }
     }
@@ -394,7 +392,7 @@ async function runArms(db, mods) {
     const got = paid(before, await wallet());
     const want = rw.priceDailyLogin(7, { bonus: false });
     if (!(r.body && r.body.ok === true && r.body.granted.streak === 7)) fail('L7', `the step-back day 7 claim was refused: ${JSON.stringify(r.body).slice(0, 200)}`);
-    else if (got.gold !== want.gold || got.gems !== 0 || got.items[KEY]) {
+    else if (got.gold !== want.gold || got.gems !== 0 || got.items.bone_key) {
       fail('L7', `a day 7 reached by skipping paid ${JSON.stringify(got)} — keys and gems are for a straight arrival only`);
     }
     /* SKIP TWO, THEN STRAIGHT, in the database: the key was paid four days ago
@@ -407,9 +405,9 @@ async function runArms(db, mods) {
     const keyPaid = (daysAgo, slot = 0) => db.query(
       `insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
        values ($1, $3, 'quest', 'claim_reward:daily:login:l7-probe', 270, 270, 0, 1, 0,
-               $4::jsonb, now() - make_interval(days => $2::int)),
+               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - make_interval(days => $2::int)),
               ($1, $3, 'wallet', 'apply:claim_reward:daily:login:l7-probe', 0, 0, 0, 0, 2,
-               '{"gems":2}'::jsonb, now() - make_interval(days => $2::int))`, [UID, daysAgo, slot, KEY_META]);
+               '{"gems":2}'::jsonb, now() - make_interval(days => $2::int))`, [UID, daysAgo, slot]);
     /* player_ledger is append-only, so the cases run in this order: the seven-
        days-ago key first, then the four-days-ago one (which then blocks). Every
        other login row this test journalled is today's, outside the window. */
@@ -422,8 +420,8 @@ async function runArms(db, mods) {
       const w = rw.priceDailyLogin(7, { bonus: due });
       if (!(rr.body && rr.body.ok === true && rr.body.granted.streak === 7)) {
         fail('L7', `the straight day 7 with a key ${daysAgo} days ago was refused: ${JSON.stringify(rr.body).slice(0, 200)}`);
-      } else if (g.gold !== w.gold || g.gems !== w.gems || (g.items[KEY] || 0) !== (w.items[KEY] || 0)) {
-        fail('L7', `a straight day 7 with a key ${daysAgo} days ago paid ${JSON.stringify(g)}, expected ${JSON.stringify({ gold: w.gold, gems: w.gems, key: w.items[KEY] || 0 })}`);
+      } else if (g.gold !== w.gold || g.gems !== w.gems || (g.items.bone_key || 0) !== (w.items.bone_key || 0)) {
+        fail('L7', `a straight day 7 with a key ${daysAgo} days ago paid ${JSON.stringify(g)}, expected ${JSON.stringify({ gold: w.gold, gems: w.gems, key: w.items.bone_key || 0 })}`);
       }
     }
   }
@@ -434,7 +432,9 @@ async function runArms(db, mods) {
   // no key and no gems.
   {
     await db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [UID]);
-    await db.query("select public.hr_wallet_credit($1, 0, 200, 'l8:probe:slot-gems', null)", [UID]);
+    /* Hero slots cost GOLD (2026-10-23-demolition-hero-slots-gold.sql); price read, not typed. */
+    await db.query(`update public.player_state set gold = gold + (select cost_gold from public.hr_hero_slots where slot_id = 1)
+                     where user_id = $1 and slot = 0`, [UID]);
     const bought = (await one('select public.hr_buy_hero_slot__ungated(1, 0, gen_random_uuid()) as r')).r;
     const made = (await one('select public.hr_create_character(1) as r')).r;
     if (!(bought && bought.ok === true && made && made.ok === true)) {
@@ -445,9 +445,9 @@ async function runArms(db, mods) {
     await db.query(
       `insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
        values ($1, 0, 'quest', 'claim_reward:daily:login:l8-probe', 270, 270, 0, 1, 0,
-               $2::jsonb, now() - interval '1 day'),
+               '{"delta":{"g":270,"m":2,"i":{"bone_key":1}}}'::jsonb, now() - interval '1 day'),
               ($1, 0, 'wallet', 'apply:claim_reward:daily:login:l8-probe', 0, 0, 0, 0, 2,
-               '{"gems":2}'::jsonb, now() - interval '1 day')`, [UID, KEY_META]);
+               '{"gems":2}'::jsonb, now() - interval '1 day')`, [UID]);
     await db.query(
       `insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
        values ($1, 1, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed')`, [UID]);
@@ -457,7 +457,7 @@ async function runArms(db, mods) {
     const w = rw.priceDailyLogin(7, { bonus: false });
     if (!(rr.body && rr.body.ok === true && rr.body.granted.streak === 7)) {
       fail('L8', `hero B's straight day 7 was refused: ${JSON.stringify(rr.body).slice(0, 200)}`);
-    } else if (g.gold !== w.gold || g.gems !== 0 || (g.items[KEY] || 0) !== 0 || rr.body.granted.gems !== 0) {
+    } else if (g.gold !== w.gold || g.gems !== 0 || (g.items.bone_key || 0) !== 0 || rr.body.granted.gems !== 0) {
       fail('L8', `hero B, a day after hero A took the account's day-7 bonus, was paid ${JSON.stringify(g)} (receipt ${JSON.stringify(rr.body.granted)}) — gold only expected`);
     }
   }
@@ -469,8 +469,16 @@ async function runArms(db, mods) {
        where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_claim_lookup', 'hr_rpc_gate', 'hr_tally_state',
          'hr_login_catalogue', 'hr_login_price', 'hr_claim_last', 'hr_login_streak', 'hr_login_claim_verify')`)).rows[0].s;
     const before = await snap();
-    for (const file of [CAT_SQL, '2026-10-16-goal-board-retire.sql']) {
-      const sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
+    /* OWN_SQL's §5 executes a Bone Key day 7 and a GEM-priced hero slot, state two
+       later demolition files retire on purpose, so its bodies re-apply without it;
+       CAT_SQL (whose own §4 runs) then restores the chain-end catalogue. */
+    const SELF_CHECK = '-- ── 5. SELF-CHECK (§4)';
+    for (const file of [OWN_SQL, '2026-10-16-goal-board-retire.sql', CAT_SQL]) {
+      let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
+      if (file === OWN_SQL) {
+        if (sql.indexOf(SELF_CHECK) < 0) { fail('L6', `${OWN_SQL} lost its "${SELF_CHECK}" marker`); continue; }
+        sql = sql.slice(0, sql.indexOf(SELF_CHECK));
+      }
       try { await db.exec(sql); } catch (e) { fail('L6', `a second apply of ${file} RAISED: ${String(e.message).split('\n')[0]}`); }
     }
     const after = await snap();

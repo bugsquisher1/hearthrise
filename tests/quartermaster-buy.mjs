@@ -97,11 +97,17 @@ const MUTATIONS = {
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
+/* The Quartermaster was cut (2026-10-14) and 2026-10-23-demolition-retired-catalogues.sql
+   empties hr_qm_offers; the RPC stays until C2 retires it. Its mechanics are graded
+   on the chain up to the file before that retirement, and arm Z proves the chain
+   end sells nothing. */
+const RETIRED = '2026-10-23-demolition-retired-catalogues.sql';
+const BEFORE_RETIRED = '2026-10-23-demolition-login-catalogue.sql';
 async function boot(mutate) {
   const patches = mutate
     ? new Map([[MUTATIONS[mutate].file, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : { upTo: BEFORE_RETIRED });
   return db;
 }
 
@@ -225,6 +231,17 @@ if (argv.includes('--selftest')) {
 } else {
   const db = await boot(null);
   await runAll(db);
+  // Z — the chain end: the stock is retired, so the RPC fails closed and moves nothing.
+  {
+    const { db: end } = await bootReplay();
+    const uid = uidFor('e1');
+    await seed(end, uid, 1000);
+    const r = await buy(end, uid, { version: 1, intent: uuid() });
+    ok(r && r.ok === false && r.error === 'unknown_offer', `Z: the chain-end Quartermaster sold ${OFFER}: ${JSON.stringify(r)}`);
+    ok(await scripRow(end, uid) === 1000 && await invQty(end, uid, ITEM) === 0, 'Z: a refused chain-end buy moved scrip or items');
+    ok(Number((await end.query('select count(*) n from public.hr_qm_offers')).rows[0].n) === 0,
+      `Z: hr_qm_offers still holds rows after ${RETIRED}`);
+  }
   if (failed) { console.error(`\nquartermaster-buy: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('quartermaster-buy: all assertions passed (server-priced debit, item granted, replay-safe '
     + 'debit-once, insufficient_scrip, unknown_offer, version_conflict, negative qm_buy ledger row, daily_cap).');

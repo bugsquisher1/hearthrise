@@ -130,6 +130,15 @@ begin
                     '— hr_apply would clamp it and the shop line would be a lie', v_top;
   end if;
 
+  -- A HOME NEVER GRANTS XP OR A RESOURCE ADVANTAGE (Master Design Reference §9,
+  -- 2026-10-14; Security C3): no rung may carry an XP, yield or Rested key.
+  select count(*) into v_bad from public.hr_room_perks
+   where perks ?| array['allXP','combatXP','farmYield','restedXp','rested','restedCap']
+      or exists (select 1 from jsonb_object_keys(perks) k where k like 'yield\_%');
+  if v_bad > 0 then
+    raise exception '% room rung(s) grant XP, yield or Rested — a home never does (§9)', v_bad;
+  end if;
+
   -- No client write policy, and no client write grant.
   select count(*) into v_bad from pg_policies
    where schemaname = 'public' and tablename = 'hr_room_perks'

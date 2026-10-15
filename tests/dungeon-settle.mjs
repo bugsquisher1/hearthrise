@@ -155,7 +155,10 @@ async function boot(mutate) {
   const patches = mutate
     ? new Map([[MUTATIONS[mutate].file, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
+  /* The dungeons were cut (2026-10-14); 2026-10-23-demolition-retired-catalogues.sql
+     empties hr_dungeon_loot and the RPC stays until C2 retires it. The mechanics are
+     graded up to the file before that retirement; arm Z grades the chain end. */
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : { upTo: '2026-10-23-demolition-login-catalogue.sql' });
   return db;
 }
 
@@ -317,6 +320,16 @@ if (argv.includes('--selftest')) {
 } else {
   const db = await boot(null);
   await runAll(db);
+  // Z — the chain end: the loot table is retired, so a settle credits no loot item.
+  {
+    const { db: end } = await bootReplay();
+    const Z = uidFor('e1');
+    await seed(end, Z);
+    await settle(end, Z, { version: await versionOf(end, Z), intent: uuid(), mode: 'auto', quality: 1 });
+    ok(Number((await end.query('select count(*) n from public.hr_dungeon_loot')).rows[0].n) === 0,
+      'Z: hr_dungeon_loot still holds rows at the chain end');
+    ok(await invQty(end, Z, 'big_bones') === 0, `Z: a chain-end settle credited ${await invQty(end, Z, 'big_bones')} big_bones loot`);
+  }
   if (failed) { console.error(`\ndungeon-settle: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('dungeon-settle: all assertions passed (scrip credited + projected + survives, '
     + 'idempotent replay, version_conflict, forged-quality clamp, level_locked, scrip+count daily_cap, '

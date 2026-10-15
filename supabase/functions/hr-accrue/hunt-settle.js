@@ -23,8 +23,8 @@
 //   (1) READ, in one statement: the rate gate (player doors), the session
 //       (hr_hunt_engine_read: clock, bag, bar, presses, the keyed-seed secret),
 //       the character (hr_state_of), the server clock.
-//   (2) the perk stack and the bestiary counters (./tick-reads.js — the same
-//       two reads every other settle makes, one definition).
+//   (2) the perk stack (./tick-reads.js — the read every other settle makes,
+//       one definition).
 //   (3) COMPUTE: computeAccrual with the session attached — the SAME combat
 //       body every fight is priced by, the span walking the session's
 //       absolute swing clock with one HMAC-keyed seed per swing (./hunt-seed.js).
@@ -51,13 +51,12 @@
 import { computeAccrual } from './accrual.js';
 import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
-import { readTickPerks, readTickBestiary } from './tick-reads.js';
+import { readTickPerks } from './tick-reads.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { newHuntSession } from '../../../src/core/action-rules.js';
 import { ACTION_SET_LIMITS } from '../../../src/data/rule-subjects.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
    collect): a settle asked for inside this of the last one prices nothing and
@@ -242,14 +241,13 @@ async function settleOnce(o, mode) {
   }
 
   const perks = await readTickPerks(exec, user, slot);
-  const bestiaryKills = await readTickBestiary(exec, user, slot);
   const salt = String(h.secret || '');
 
   let toMs = nowMs;
   let degraded = 0;
   for (;;) {
     const out = computeAccrual(huntEngineInputs({
-      user, slot, env, hs, nowMs, fromMs, toMs, perks, bestiaryKills,
+      user, slot, env, hs, nowMs, fromMs, toMs, perks,
       secret: salt, pressAtMs: press ? press.at : null,
     }));
     if (!out.accrued) {
@@ -311,8 +309,6 @@ export function huntEngineInputs(o) {
     seed: 0,
     perks: o.perks ?? null,
     unlockedRecipes: (o.perks && o.perks.unlockedRecipes) ?? null,
-    bestiaryKills: o.bestiaryKills ?? null,
-    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     items: ITEMS,
     monsters: MONSTERS,
     nodes: GATHER_NODES,

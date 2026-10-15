@@ -17,9 +17,8 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows, countersFromProgress, chainSpentMin, raiseMaxHpToLevel } from './tick-contract.js';
+import { planWindows, countersFromProgress, raiseMaxHpToLevel } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
-import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
    Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
@@ -76,8 +75,8 @@ export function advance(char, res) {
      (which forwards exactly ENGINE_STATE_KEYS) can never hand it to the
      engine as an input. */
   const ch = char._chain || (char._chain = {
-    gold: 0, xp: {}, xpFrac: {}, companionXpFrac: {}, items: {}, bestiaryKills: {},
-    deathsToday: 0, deathsLifetime: 0, vigourMin: 0, vigourRemMs: 0, activity: null,
+    gold: 0, xp: {}, xpFrac: {}, items: {},
+    deathsToday: 0, deathsLifetime: 0, activity: null,
   });
   if (typeof d.gold === 'number') {
     char.gold = Math.max(0, Math.floor((char.gold || 0) + d.gold));
@@ -95,14 +94,6 @@ export function advance(char, res) {
     char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);
     ch.xpFrac = Object.assign(ch.xpFrac || {}, d.xp_frac);
   }
-  /* THE PET'S REMAINDER, the same checkpoint per companion
-     (2026-10-12-companion-xp-frac.sql): without it every 10 s window would
-     restart the Fox's half-XP at the row's value and a chain would pay a
-     utility pet nothing for one-swing windows. */
-  if (d.companion_xp_frac && typeof d.companion_xp_frac === 'object') {
-    char.companionXpFrac = Object.assign({}, char.companionXpFrac, d.companion_xp_frac);
-    ch.companionXpFrac = Object.assign(ch.companionXpFrac || {}, d.companion_xp_frac);
-  }
   /* A Hitpoints level-up raises the ceiling the next window fights at, as the
      max_hp trigger does on the armed write (tick-contract.js raiseMaxHpToLevel).
      Raise-only; `hp` is the delta's, assigned below — never a heal. */
@@ -116,7 +107,6 @@ export function advance(char, res) {
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
   if (typeof d.ammo_carry !== 'undefined') char.ammoCarry = d.ammo_carry;
   if (typeof d.tool_carry !== 'undefined') char.toolCarry = d.tool_carry;
-  if (typeof d.consec_falls !== 'undefined') char.consecFalls = d.consec_falls;
   if (typeof d.recovering_until !== 'undefined') {
     char.recoveringUntilMs = d.recovering_until ? Date.parse(d.recovering_until) : 0;
   }
@@ -125,53 +115,12 @@ export function advance(char, res) {
     ch.activity = { kind: d.activity.kind, id: d.activity.id ?? null };
   }
   if (d.accrued_to) char.accruedToMs = Date.parse(d.accrued_to);
-  /* ── THE COMPANION'S XP, FOR THE NEXT WINDOW'S CAP CLAMP (2026-10-08) ────
-     `companionSpanXp` clamps each grant to COMPANION_XP_CAP − `perks.companion.xp`.
-     hr_apply adds the engine's own `stat companion_xp:<id>` op to the row
-     `hr_perks_of` reads back, so an accrue span sees ONE clamp over the whole
-     window; a chain must see the xp each earlier window already credited or
-     its windows would each clamp against the stale starting value and pay
-     past the cap. An assignment of the engine's own op, never a rule. A new
-     object, because `perks` is the visit's shared `hr_perks_of` answer. */
-  const comp = char.perks && char.perks.companion;
-  if (comp && typeof comp.id === 'string' && Array.isArray(d.progress)) {
-    let add = 0;
-    for (const op of d.progress) {
-      if (op && op.kind === 'stat' && op.key === 'companion_xp:' + comp.id) add += Number(op.add) || 0;
-    }
-    if (add > 0) {
-      char.perks = Object.assign({}, char.perks,
-        { companion: Object.assign({}, comp, { xp: (Number(comp.xp) || 0) + add }) });
-    }
-  }
-  /* The bestiary counters the charm index reads. Server-owned rows in
-     production (`hr_bestiary_of`); here, the kills the window just proposed. */
-  if (res.summary && res.summary.kills > 0 && char.activeKind === 'combat' && char.activeId) {
-    char.bestiaryKills = char.bestiaryKills || {};
-    /* A NAMED HUNT kills several monsters; its pointer is an area, not a
-       bestiary row. `huntKills` is the engine's own per-monster count. */
-    const by = res.huntKills || { [char.activeId]: res.summary.kills };
-    for (const id of Object.keys(by)) {
-      char.bestiaryKills[id] = (char.bestiaryKills[id] || 0) + by[id];
-      ch.bestiaryKills[id] = (ch.bestiaryKills[id] || 0) + by[id];
-    }
-  }
-  /* ── THE THREE COUNTERS hr_apply WOULD HAVE WRITTEN (2026-09-23) ─────────
+  /* ── THE TWO COUNTERS hr_apply WOULD HAVE WRITTEN (2026-09-23) ───────────
      NOT an arithmetic of our own and NOT a rule: `countersFromProgress` sums
      the `progress` ops THE ENGINE ITSELF FILED on this delta — `stat:deaths`
-     under period '' and under today's UTC day, and `daily:ev:vigour_min`.
-     hr_apply applies each as `progress = progress + add` against those exact
-     rows, and `hr_state_of` projects them back as `deaths_lifetime`,
-     `deaths_today` and the vigour block, which is where the engine reads them
-     from on the next window.
-
-     THEY WERE MISSING FROM THIS FUNCTION AND BOTH RUN IN THE PAYING
-     DIRECTION. `recoveryFor()` prices a fall from the two death counters, so
-     a chain that never advances them hands the character the first-death
-     novice grace on every window of the night — the `noDeathCounters` mutant
-     of tests/world-tick-combat-parity.mjs, permanently on. `vigourMult`
-     decays against `spent_min`, so a budget that refills itself every window
-     never decays at all. */
+     under period '' and under today's UTC day. hr_apply applies each as
+     `progress = progress + add`, and `hr_state_of` projects them back as
+     `deaths_lifetime` / `deaths_today`, which the death rows state. */
   const counters = countersFromProgress(d.progress);
   if (counters.deathsLifetime) {
     char.deathsLifetimeBefore = (Number(char.deathsLifetimeBefore) || 0) + counters.deathsLifetime;
@@ -180,21 +129,6 @@ export function advance(char, res) {
   if (counters.deathsToday) {
     char.deathsTodayBefore = (Number(char.deathsTodayBefore) || 0) + counters.deathsToday;
     ch.deathsToday += counters.deathsToday;
-  }
-  /* VIGOUR: BOTH ROWS, ONE DIVISION (2026-10-05). The charge is a quotient AND
-     a remainder, and a 10 s window files ONLY the remainder — so adding just
-     the minutes left the budget unspent for a whole chain and a character
-     crossing the line mid-chain kept paying full rate. `spent_min` is re-derived
-     from the chain's cumulative charge exactly as `hr_vigour_of` derives it,
-     over the `spent_min` the chain started from (`_vigourBaseMin`, scratch). */
-  if ((counters.vigourMin || counters.vigourRemMs) && char.vigour && typeof char.vigour === 'object') {
-    if (!Number.isFinite(char._vigourBaseMin)) {
-      char._vigourBaseMin = Math.max(0, Math.floor(Number(char.vigour.spent_min) || 0));
-    }
-    ch.vigourMin += counters.vigourMin;
-    ch.vigourRemMs = (Number(ch.vigourRemMs) || 0) + counters.vigourRemMs;
-    char.vigour = Object.assign({}, char.vigour,
-      { spent_min: chainSpentMin(char._vigourBaseMin, ch.vigourMin, ch.vigourRemMs) });
   }
   return char;
 }
@@ -234,19 +168,12 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        `engineStateOf` forwards exactly `ENGINE_STATE_KEYS` from ./envelope.js —
        the SAME list `engineInputsFromEnvelope` fills from `hr_state_of`, so a
        field that reaches the accrue path reaches a tick window too. It used to
-       be thirteen names written out here, and the four that were missing
-       (`enchant`, `combatStyle`, the auto-eat trio, `hearthfindReady`) were
+       be thirteen names written out here, and the ones that were missing were
        inputs the engine reads and a tick silently priced without. Only keys the
        character actually HOLDS are forwarded: several of these are
        presence-of-key switches, so an offline fixture that never had the column
        must keep reading as "no column". */
     ...engineStateOf(char),
-    /* NOT from the envelope: `hr_bestiary_of`, read by the party unit per
-       member (tick-party.js) and carried on the session; a fixture's pinned
-       value offline. (tick.js (4b) read it for the solo channel until lane C2.)
-       Absent ⇒ no charm, no trophy — the under-paying direction. SHADOW still
-       pays nothing: this only prices the proposal the fence journals. */
-    bestiaryKills: char.bestiaryKills,
     items: catalogues.items,
     monsters: catalogues.monsters,
     /* THE GATHER CHANNEL'S INPUTS (2026-09-18, step-2 prep). `nodes` is the
@@ -271,64 +198,10 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        it and it silently does nothing. Found by the M3 key-set parity arm
        (tests/world-tick-combat-parity.mjs C1), which compares this object
        against index.ts's own source in BOTH directions for exactly that reason. */
-    /* ══ THE COMBAT CHANNEL'S INPUTS ═══════════════════════════════════════
-       ELEVEN KEYS A GATHER WINDOW DOES NOT NEED AND A COMBAT WINDOW CANNOT BE
-       CORRECT WITHOUT — the auto-eat trio, the two death counters,
-       `combatXpAccruedToMs`, `hearthfindReady`, `enchant`, `combatStyle`,
-       `buffs` and `ammoCarry`. They ARE NOT LISTED HERE ANY MORE: every one of
-       them is in `ENGINE_STATE_KEYS` and arrives through the
-       `...engineStateOf(char)` spread above (M1f, 2026-09-22). Listing them a
-       second time here is not redundant, it is WRONG — the explicit key would
-       sit after the spread and overwrite a present value with `char.X`, and for
-       the presence-of-key switches (`buffs`, `ammoCarry`) it would turn an
-       ABSENT key into an explicit `undefined`, which is the "this database has
-       no column" signal spelled as a value. One list, in envelope.js, read by
-       the accrue path and by a tick window alike (AWAY-12).
-
-       ⚠ THIS BLOCK WAS THE MILESTONE and the two measurements that bought it
-         stand, on the SAME character, window and seed over ten minutes:
-
-         · auto-eat absent  ->  48 kills / 276 gold / 2,464 xp / 5 deaths,
-           against 139 / 788 / 6,568 / 0 with it. -65.0% gold, -62.5% xp.
-           That is `src/core/auto-eat.js`'s own -63%..-99% band, reproduced by
-           the CALLER instead of by a missing handler.
-         · the death counters absent -> `recoveryFor()` prices every fall from
-           zero, so a character with six deaths today is handed the FIRST-DEATH
-           novice grace (0 ms, then 120,000 ms) where the accrue path charges
-           3,840,000 ms — and the ledger row it writes says `deaths_today: 1`.
-           Recovery is the COST of dying, so this one runs in the PAYING
-           direction. A mint, and a silent one.
-
-       WHY NO GUARD SAW IT: tests/world-tick-parity.mjs `accrualOnReturn` DOES
-       pass the auto-eat keys and this object did not, and P1 compares the two
-       for byte-identity — green, because the only auto-eat fixture is a maxed
-       character at 99 HP fighting a slime who never reaches the 50% threshold.
-       The guard was blind, not wrong. tests/world-tick-combat-parity.mjs C1
-       closes the class STRUCTURALLY: it derives the accrue path's key set from
-       `hr-accrue/index.ts`'s own source and requires this object to match it,
-       so a key added there and not here is red on that commit. */
-    /* THE COMPANION-XP ARM SWITCH — the SAME deploy-time constant index.ts and
-       set-activity.js thread (A14), NOT a character field.
-
-       ⚠ THIS WAS `char.companionXpBacked` AND NOTHING EVER SET IT (fixed
-         2026-10-08, Security-confirmed underpay). The comment above it claimed
-         an `hr_companion_xp_of` read that has never existed; no session builder
-         (tick-gather / tick-combat sessionFromRoster) wrote the field, so every
-         tick window handed the engine `undefined`, `companionXpOps` returned
-         [], and the watermark advanced past the actions anyway — the pet's XP
-         for that span was gone for good. C1 stayed green because it compares
-         key NAMES, and the name was there. tests/world-tick-companion-xp.mjs
-         pins the value (tick chain == one accrue span) and its --mutate puts
-         `char.companionXpBacked` back and must go red by name. */
-    companionXpBacked: COMPANION_XP_SERVER_BACKED,
-    /* ── NO ATTENDED KEY, AND NO HUNTER (lane C2) ────────────────────────────
-       The attended top-up is gone from the engine (hunt sessions price every
-       fight through one settle), so there is no `attended` input to null; and
-       `settleCombatSession` still THROWS on a caller that supplies one
-       (WORLD_TICK_DESIGN.md 16.6, guard C10). `huntOpen` is the accrue path's
-       key (index.ts reads hr_hunt_open_of): a tick session is never a hunter's —
-       the solo combat channel is undriven and a partied member's combat accrue
-       row is refused by hr_hunt_accrue_fence if it ever were — so it is false. */
+    /* ── NO HUNTER (lane C2). `huntOpen` is the accrue path's key (index.ts
+       reads hr_hunt_open_of): a tick session is a gather session, never a
+       hunter's — a fight is a hunt session, settled by ./hunt-settle.js — so it
+       is false, and hr_hunt_accrue_fence refuses the row if it ever were. */
     huntOpen: false,
     /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
        2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —

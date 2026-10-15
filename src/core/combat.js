@@ -22,28 +22,10 @@ import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=585';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=585';
-import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=585';
-/* BESTIARY CHARMS, PHASE 2 — the DROP multiplier only. Imported here, and
-   nowhere else in the engine, for the reason src/core/charms.js's header states:
-   the Edge accrual does not run the client's `getBonus` wrapper chain, so a
-   charm expressed as a bonus key would pay awake and read ZERO asleep. Inside
-   `weaknessInfo` it is one expression with two callers, exactly like bane and
-   element. `charmDamageMultFor` is deliberately NOT imported — see the note on
-   `charmDropMult` in `weaknessInfo`. */
-import { charmDropMultFor, charmRankFor } from './charms.js?v=585';
-/* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder, the
-   same treatment for the same reason. Per-MONSTER where the charm is per-CLASS,
-   read inside the one `weaknessInfo` expression and never as a `getBonus` key.
-   `memoryDropMult` is imported WITH them because the two remembered-kills
-   ladders multiply against the same monster, and their PRODUCT is what
-   MAX_MEMORY_DROP_MULT clamps — in one place, in src/core/trophies.js, rather
-   than at each ladder's own ceiling where nobody owns the product (§2.3).
-   `trophyDamageMultFor` IS imported, unlike `charmDamageMultFor`, because it
-   carries its own arm flag and returns 1 while that flag is off — see below. */
-import {
-  trophyDropMultFor, trophyDamageMultFor, trophyStageFor, memoryDropMult,
-  TROPHY_DAMAGE_ARM_ENABLED,
-} from './trophies.js?v=585';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=585';
+/* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
+   demolition safety review item 9: trophies stay as claims and display; the
+   ladders no longer price a fight). A monster's drops are its own row's. */
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */
@@ -160,17 +142,11 @@ export const STYLE_SPEED_MAX = 2.00;
 /**
  * @param equipment { slot: itemId | null }
  * @param items     the ITEMS catalogue
- * @param enchant   OPTIONAL `{ weapon: '<element>' }` (client: G.enchant; the
- *                  server passes its own authored enchant). Stamps `eq.element`
- *                  — the element the weapon-slot enchant binds — EXACTLY
- *                  parallel to `eq.bane`, and read the same way by both engines
- *                  inside `weaknessInfo`. See src/core/elements.js for why this
- *                  is a factor here and never a `getBonus` key. A missing/blank
- *                  enchant, an invalid element, or a weapon slot that does not
- *                  actually hold a weapon all leave `eq.element` null — the safe
- *                  direction (no bonus, never a forged one).
+ *
+ * Enchant v1 is gone (closed rebuild): no third argument stamps an element,
+ * so `eq.element` stays null until the imbue design binds one.
  */
-export function equipmentStats(equipment, items, enchant) {
+export function equipmentStats(equipment, items) {
   const s = {
     atkB: 0, strB: 0, defB: 0, critB: 0, xpB: 0, spdB: 0, weaponType: 'neutral',
     /* class → best bane multiplier, or null when no bane gear is worn. Derived
@@ -191,17 +167,6 @@ export function equipmentStats(equipment, items, enchant) {
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
   s.bane = baneIndex(equipment, items);
-  /* ⚠ THE ENCHANT ONLY BINDS A REAL WEAPON. An enchant persists on the save
-     independently of gear (G.enchant survives an unequip), so without this
-     guard an empty or non-weapon weapon slot would still pay the element. Both
-     the client (on equip-swap) and the server clear the enchant when the weapon
-     changes, but this is the belt-and-braces that makes a stale enchant inert
-     rather than a free +15% on bare fists. */
-  if (enchant && isElement(enchant.weapon)) {
-    const wid = equipment.weapon;
-    const wit = wid && items ? items[wid] : null;
-    if (wit && wit.type === 'weapon') s.element = enchant.weapon;
-  }
   return s;
 }
 
@@ -293,16 +258,8 @@ export function armorSetBonus(equipment, items) {
  * `baneMult`/`baneClass` are returned so the away card and the monster panel
  * can SAY why a night went the way it did without recomputing anything.
  *
- * @param charms OPTIONAL `{class: rank}` — the BESTIARY CHARM index (phase 2).
- *   It is an INPUT because the rank is DERIVED FROM WHOEVER OWNS THE COUNTERS:
- *   the Edge engine folds `hr_bestiary_of`'s rows itself (authority), the client
- *   folds the `bestiary.kills_by_class` block the server projected (display
- *   prediction only, reconciled by the next envelope). Nothing here reads a
- *   client-sent rank, because there is no wire field a client could send one on.
- *   Absent/null ⇒ every multiplier is 1, which is the pre-charm behaviour byte
- *   for byte and the safe direction for a state that has not hydrated yet.
  */
-export function weaknessInfo(monster, eq, charms, trophies, monsterId) {
+export function weaknessInfo(monster, eq) {
   const weak = (monster && monster.weaponWeak) || null;
   const matched = !!(weak && eq && eq.weaponType === weak);
   const weaponMult = matched ? WEAKNESS_BONUS.damage : 1;
@@ -321,71 +278,12 @@ export function weaknessInfo(monster, eq, charms, trophies, monsterId) {
   const elementMult = elementMultFor(monster, element);
   const elementMatched = elementMult > 1;
 
-  /* ── THE TROPHY (BESTIARY_LADDER.md) — per MONSTER, beside the charm ──────
-     ⚠ WHY THE ID IS A PARAMETER AND NOT `monster.id`. The charm resolves its
-       CLASS off the roster row, because `cls`/`family` are ON the row. A trophy
-       needs the row's IDENTITY, and the roster is keyed BY id — not one of the
-       108 rows carries an `id` field (measured). So the id travels with the row
-       from the one place that has both: `ctx.weakness(m, id)` in
-       src/core/combat-sim.js, which holds `id` at the kill and
-       `state.activeMonster` at the span summary. `monster.id` is still honoured
-       as a fallback for a caller holding a stamped row.
 
-     It is a CATALOGUE KEY, never a request field: both callers look the row up
-     in the sealed catalogue by that same id, so there is no wire field carrying
-     a monster here and none to forge. An unknown or absent id resolves to stage
-     0 ⇒ both factors are exactly 1 ⇒ the pre-trophy numbers, byte for byte,
-     which is the fail-safe direction. */
-  const trophyId = (typeof monsterId === 'string' && monsterId)
-    ? monsterId
-    : ((monster && typeof monster.id === 'string') ? monster.id : null);
-  const trophyStage = trophyStageFor(trophyId, trophies);
-  const trophyDropMult = trophyDropMultFor(trophyId, trophies);
-  /* ⚠ DORMANT: `trophyDamageMultFor` returns 1 for every input while
-     TROPHY_DAMAGE_ARM_ENABLED is off (src/core/trophies.js), so this factor is
-     inert today. It is written into the expression ANYWAY, rather than left to
-     be added later, because §3 of the design says the trophy's damage goes into
-     THIS one expression and nowhere else — and a factor that has to be
-     retro-fitted to an expression is a factor somebody adds to the wrong one.
-     Arming it is a one-line flip in trophies.js plus the charm's damage half,
-     under one review, exactly as BESTIARY_LADDER.md §3.1 rules. */
-  const trophyDamageMult = trophyDamageMultFor(trophyId, trophies);
+  /* THE CEILING IS THE FORMULA'S. weapon × bane × element, clamped to
+     MAX_TOTAL_DAMAGE_MULT so a later factor cannot quietly stack past the
+     stated ceiling — the same invariant bane.js states for its pair. */
+  const damageMult = Math.min(weaponMult * baneMult * elementMult, MAX_TOTAL_DAMAGE_MULT);
 
-  /* THE CEILING IS THE FORMULA'S. weapon × bane × element × trophy, clamped to
-     MAX_TOTAL_DAMAGE_MULT so a future fifth factor cannot quietly stack past
-     the stated ceiling — the same invariant bane.js states for its pair. */
-  const damageMult = Math.min(
-    weaponMult * baneMult * elementMult * trophyDamageMult, MAX_TOTAL_DAMAGE_MULT);
-
-  /* ── THE CHARM (phase 2): a DROP multiplier, and only a drop multiplier ────
-     `charmDropMultFor` is clamped to MAX_CHARM_DROP_MULT inside src/core/charms.js
-     — 1.00 / 1.01 / 1.02 / 1.03 at 25 / 100 / 500 / 2000 class kills, the
-     Designer's authored ladder — so the ceiling is a property of the FORMULA and
-     not of the data table. It multiplies the monster's own `dropBonus`, and
-     `effectiveDropChance` (src/core/drops.js) then applies the 0.95 cap AFTER
-     every multiplier and leaves a guaranteed drop (ch >= 1) untouched: a charm
-     can never turn one certain drop into two. Worst case at the ceiling is
-     1.15 (`NEUTRAL_DROP_BONUS`) x 1.03 = 1.1845 on a non-guaranteed row.
-
-     ⚠ THE DAMAGE HALF IS *NOT* ARMED HERE, AND THE OMISSION IS DELIBERATE.
-       The ladder authors `dmg` 1.01 at rank 3 and 1.03 at rank 4, but maxHit is
-       an INTEGER and `playerCombatRolls` applies `weak.damageMult` through
-       `Math.floor` — floor(25 x 1.01) is 25. So arming it today would ship a
-       stated effect that does nothing for most loadouts, which is the "no
-       placeholders or fakes" line, and it is the Designer's phase 3 with its own
-       review (src/data/bestiary-charms.js). When it lands it multiplies into
-       `damageMult` right above, under MAX_TOTAL_DAMAGE_MULT, and nowhere else.
-       No `charmDamageMult` readout is returned meanwhile: a field naming a
-       damage bonus the engine does not apply is a renderer's next lie. */
-  const charmClass = baneClass;
-  const charmRank = charmRankFor(charmClass, charms);
-  const charmDropMult = charmDropMultFor(charmClass, charms);
-
-  /* THE PRODUCT OF THE TWO REMEMBERED-KILLS LADDERS, formed and clamped in ONE
-     place (src/core/trophies.js `memoryDropMult`, ceiling MAX_MEMORY_DROP_MULT).
-     Multiplying them here instead would put the product's ceiling in a renderer's
-     reach and leave it owned by nobody — BESTIARY_LADDER.md §2.3. */
-  const memoryDrop = memoryDropMult(charmDropMult, trophyDropMult);
 
   const bonus = Number(monster && monster.dropBonus);
   const monsterDrop = Number.isFinite(bonus) && bonus > 0 ? bonus : 1;
@@ -394,36 +292,7 @@ export function weaknessInfo(monster, eq, charms, trophies, monsterId) {
     matched,
     damageMult,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
-    dropMult: monsterDrop * memoryDrop,
-    /* Charm readout — the class, the RANK the night was priced with and the
-       factor it paid, so the away card and the loot modal can SAY a charm paid
-       without recomputing it. Read (not re-derived) for the same reason the bane
-       readout is: a card that recomputed from counters that have since moved
-       would describe a different character than the one that fought.
-       null/0/1 when the class is unstudied. */
-    charmClass: charmRank > 0 ? charmClass : null,
-    charmRank,
-    charmDropMult,
-    /* Trophy readout — the monster, the STAGE the night was priced with and the
-       factor it paid, so the away card and the monster panel can SAY a trophy
-       paid without recomputing it. Read (not re-derived) for the charm's reason:
-       the counters have moved on since the window closed, and the card must
-       describe the character that fought. null/0/1 below the first rung, and 1
-       AT the first rung too — `quarry` pays no power on purpose (§2).
-
-       ⚠ NO `trophyDamageMult` IS RETURNED while TROPHY_DAMAGE_ARM_ENABLED is
-         off. The factor is in `damageMult` above and is exactly 1; a readout
-         naming a damage bonus the engine does not apply is a renderer's next
-         lie, which is the same call `charmDamageMult` made. The flag itself is
-         re-exported so a surface can say "pending" without importing the
-         trophies module and guessing. */
-    trophyMonster: trophyStage > 0 ? trophyId : null,
-    trophyStage,
-    trophyDropMult,
-    trophyDamageArmed: TROPHY_DAMAGE_ARM_ENABLED,
-    /* The clamped PRODUCT that actually priced the roll — the one number a
-       reviewer approved, stated so a receipt never has to re-multiply. */
-    memoryDropMult: memoryDrop,
+    dropMult: monsterDrop,
     /* Bane readout — 1 and null when no bane gear applies. */
     baneClass: baneMult > 1 ? baneClass : null,
     baneMult,
@@ -440,20 +309,9 @@ export function weaknessInfo(monster, eq, charms, trophies, monsterId) {
 
 /**
  * @param monster the MONSTERS row
- * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus,
- *              charms, trophies, monsterId }
+ * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus }
  *        `setBonus` may be omitted — it is then derived from equipment+items.
  *        `bonus` may be omitted — it then contributes 0 (the inert case).
- *        `charms` may be omitted — the charm ladder then pays nothing. It is
- *        threaded through so `playerCombatRolls(...).weak` and a direct
- *        `weaknessInfo(m, eq, charms)` cannot answer two different drop rates
- *        for one fight; the loot preview reads the first and `resolveKill` the
- *        second, and two spellings of one number is how they drift.
- *        `trophies` + `monsterId` are the SAME pair, for the long ladder, and
- *        travel together for a reason: the index is keyed by monster id and no
- *        roster row carries one, so an index without an id pays nothing at all.
- *        Both omitted ⇒ the pre-trophy numbers, which is the fail-safe
- *        direction and every caller written before this shipped.
  */
 export function playerCombatRolls(monster, ctx) {
   const c = ctx || {};
@@ -463,7 +321,7 @@ export function playerCombatRolls(monster, ctx) {
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const profile = c.profile || DEFAULT_PROFILE;
   const style = c.style || DEFAULT_STYLE;
-  const weak = weaknessInfo(monster, eq, c.charms, c.trophies, c.monsterId);
+  const weak = weaknessInfo(monster, eq);
 
   /* Sum typed bonuses from equipment (the profile decides WHICH fields —
      a staff reads magic bonuses, a bow reads ranged). */

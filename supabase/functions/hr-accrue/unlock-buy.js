@@ -174,7 +174,6 @@ export async function runUnlockBuy(o) {
          measures accrued_to across a real purchase and fails if it moved. */
   const settled = await settleBeforeMutate({
     exec, user, slot, verb: VERB, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
-    partyOwnsWindow: o.partyOwnsWindow === true,
   });
   if (!settled.proceed) return settled.refusal;
   const collected = settled.collected;

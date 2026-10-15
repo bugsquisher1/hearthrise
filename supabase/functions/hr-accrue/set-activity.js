@@ -45,10 +45,6 @@ import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUT
    tick (2026-09-22). ONE field list for a two-level projection; see
    ./envelope.js. A14 and PARITY expand this spread and still compare. */
 import { engineInputsFromEnvelope } from './envelope.js';
-/* THE COMPANION-XP ARM SWITCH (ARMED, b550) — mirrored from index.ts (A14): a
-   collect must price companion XP identically to an accrue over the same
-   window. */
-import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
@@ -62,13 +58,6 @@ import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './ca
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { huntFor } from '../../../src/core/hunt-spawn.js';
-/* THE HUNT'S TWO STANDING ORDERS (docs/design/HUNTS_AND_ANALYZER.md §6). The
-   stance catalogue and the stop bounds are src/core/hunt.js's and ONLY its:
-   this file asks, hr_apply re-asks against hr_hunt_stances / hr_hunt_stop_valid,
-   and the two can no more disagree than SETTABLE_KINDS can disagree with
-   PAYABLE_KINDS. A private copy of either here would be a second catalogue with
-   no test that compares them. */
-import { STANCES, validateStop } from '../../../src/core/hunt.js';
 
 /* ── THE INTENT'S ALLOWLIST — DERIVED FROM THE PAYER, NEVER RESTATED ────────
    `hr_activities` holds 344 rows across three kinds; this intent accepts the
@@ -129,69 +118,7 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* ── THE HUNT'S TWO OPTIONAL FIELDS (2026-09-22) ───────────────────────
-     Validated HERE, on shape and against the catalogue, before any database
-     work — so a client looping on a forged stance cannot spend a real player's
-     rate budget. hr_apply re-checks both and is the authority; this is the
-     early answer that makes a typo cost a tap instead of a collect.
-
-     ⚠ PRESENCE, NOT TRUTHINESS, on both. An ABSENT field leaves the standing
-       order alone; an EXPLICIT null CLEARS it (back to steady / no rules).
-       request.js already made those two gestures distinguishable with
-       hasOwnProperty, and collapsing them here would take away a player's only
-       way to turn a rule off. `undefined` is request.js's UNREADABLE marker and
-       is the one value that is a refusal.
-
-     ⚠ THE FIELDS ARE INDEPENDENT OF `kind`, INCLUDING `idle`. A stance is a
-       standing order on the CHARACTER, not on the activity — a player fixing
-       their auto-eat threshold while stopped is doing something reasonable, and
-       hr_apply's UPDATE writes them the same way whatever the pointer does. */
-  const out = { ok: true, kind, id: kind === 'idle' ? null : id };
-
-  if (Object.prototype.hasOwnProperty.call(a, 'stance')) {
-    const st = a.stance;
-    if (typeof st === 'undefined') {
-      return { ok: false, error: INTENT_ERRORS.BAD_STANCE, detail: { why: 'unreadable stance' } };
-    }
-    if (st !== null) {
-      /* `hasOwnProperty`, NOT `STANCES[st]`. The id shape /^[a-z]{1,24}$/
-         matches `constructor`, which is truthy on any object literal — the same
-         trap `catalogueHas` exists for, one line of defence lower. */
-      if (!Object.prototype.hasOwnProperty.call(STANCES, st)) {
-        return {
-          ok: false,
-          error: INTENT_ERRORS.UNKNOWN_STANCE,
-          detail: { stance: st, stances: Object.keys(STANCES) },
-        };
-      }
-    }
-    out.stance = st;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(a, 'stop')) {
-    const sp = a.stop;
-    if (typeof sp === 'undefined') {
-      return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: 'unreadable stop object' } };
-    }
-    if (sp === null) {
-      out.stop = null;
-    } else {
-      /* ONE definition of the bounds, and it REFUSES rather than clamps — a
-         clamp lets a client discover a hidden maximum by pushing at one. The
-         FIELD is named in the refusal so a player told "8 is fine, 9,999 is
-         not" knows which rule to fix. */
-      const v = validateStop(sp);
-      if (!v.ok) {
-        return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: v.error, field: v.field } };
-      }
-      /* Re-serialised through the validator's own normalised object, so a
-         prototype-polluted or key-reordered body cannot reach hr_apply as
-         anything other than the five published rules. */
-      out.stop = { ...v.stop };
-    }
-  }
-
-  return out;
+  return { ok: true, kind, id: kind === 'idle' ? null : id };
 }
 
 /**
@@ -204,22 +131,12 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from, orders) {
-  /* THE TWO STANDING ORDERS RIDE THE SAME KEY, and are OMITTED unless the
-     caller actually named them. An `activity` key is a complete, re-validated
-     activity statement (hr_apply R11), so sending `stance: undefined` would be
-     a statement that the client did not make — and hr_apply reads PRESENCE, so
-     an unnamed field must be absent rather than null. */
-  const o = orders || {};
-  const hasStance = Object.prototype.hasOwnProperty.call(o, 'stance');
-  const hasStop = Object.prototype.hasOwnProperty.call(o, 'stop');
+export function activityDelta(kind, id, from) {
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
-      ...(hasStance ? { stance: o.stance } : {}),
-      ...(hasStop ? { stop: o.stop } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -286,23 +203,6 @@ const SEED_SQL_NO_PERKS = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt`;
 
-/* ⚠ THE BESTIARY COUNTERS ARE READ IN THEIR OWN STATEMENT, NOT FOLDED INTO
-   SEED_SQL, AND THAT IS THE WHOLE POINT (charms phase 2).
-   Folded into the ladder above, a database that has hr_perks_of but not
-   hr_bestiary_of would 42883 on the full rung and fall through to the no-perks
-   rung — silently dropping every perk to price a 3% drop bonus. Under-paying a
-   real feature to arm a smaller one is never the trade. `exec` runs one statement in its own
-   transaction (index.ts), so a 42883 here aborts nothing else and costs one
-   pooled transaction on a verb that already takes three — and only on the path
-   that actually has a window to pay.
-   AGGREGATED IN SQL because hr_bestiary_of returns a SET and this seam hands
-   back rows, not a cursor; `coalesce` because jsonb_object_agg over zero rows is
-   NULL and the engine's "no counters" and "no such function" must stay
-   distinguishable. */
-export const BESTIARY_SQL = `
-  select coalesce(jsonb_object_agg(monster_id, kills), '{}'::jsonb) as kills
-    from public.hr_bestiary_of($1::uuid, $2::int)`;
-
 /* ⚠ `$5::text::jsonb`, NEVER `$5::jsonb`, BECAUSE THE DELTA IS PRE-STRINGIFIED.
    THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb makes
    postgres.js re-serialize the bound value with JSON.stringify. The engine
@@ -354,15 +254,11 @@ export async function runSetActivity(o) {
   }
   const decl = validateDeclaration(activity);
   if (!decl.ok) {
-    /* 409 for "real, and not what you think": an unsupported kind and an
-       unknown stance are both facts about a CATALOGUE. 400 for a malformed or
-       out-of-bounds field, which is a fact about the REQUEST. Same split the
-       three activity codes above already use, for the same reason: a player
-       told "bad request" when the truth is "there is no such stance" files a
-       bug against the wrong system. */
+    /* 409 for "real, and not what you think": an unsupported kind is a fact
+       about a CATALOGUE. 400 for a malformed field, which is a fact about the
+       REQUEST. */
     return {
-      status: (decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED
-               || decl.error === INTENT_ERRORS.UNKNOWN_STANCE) ? 409 : 400,
+      status: decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED ? 409 : 400,
       body: { ok: false, error: decl.error, ...(decl.detail || {}) },
     };
   }
@@ -551,7 +447,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl);
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 
@@ -618,15 +514,6 @@ function activityOf(env) {
   return {
     kind: st.active_kind ?? null,
     id: st.active_id ?? null,
-    /* READ OUT OF THE SERVER'S ROW, NEVER ECHOED FROM THE DECLARATION — the
-       same rule the block above `activityOf`'s caller states about `activity`
-       itself. A body that reported the CLIENT's stance beside a `state` that
-       said something else is the exact shape this whole programme removes.
-       `?? null` rather than omitted, because a database that predates the
-       columns projects no key and "no stance" must not read as "steady chosen".
-       Only present when the projection carries them. */
-    ...('hunt_stance' in st ? { stance: st.hunt_stance ?? null } : {}),
-    ...('hunt_stop' in st ? { stop: st.hunt_stop ?? null } : {}),
   };
 }
 
@@ -799,7 +686,7 @@ export async function collectCurrentWindow(o) {
      HERE because the settle keeps the floor: a window shorter than
      ACCRUE_MIN_MS from `accrued_to` is shorter than the grant the engine would
      price, so computeAccrual would answer TOO_SOON. Answering it without the
-     seed and bestiary reads keeps a shop tap during attended play at the cost
+     seed read keeps a shop tap during attended play at the cost
      it had before this ruling. Nothing is written; the window stays open. */
   if (pointerSurvives && nowMs - accruedToMs < ACCRUE_MIN_MS) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
@@ -824,23 +711,6 @@ export async function collectCurrentWindow(o) {
   const perkEnv = seedRow && seedRow.perks;
   const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
 
-  /* THE BESTIARY COUNTERS (charms phase 2). Same rule as every other optional
-     server read on this path: ONLY 42883 degrades, to null, which the engine
-     reads as "no charm" — and the collect then prices the window exactly as the
-     accrue verb would on the same database. A collect that skipped this would
-     pay a studied class LESS than an accrue over the identical window, silently,
-     which is the A14 drift class in the one direction a field-name guard cannot
-     see (both callers would still name the field). */
-  let bestiaryKills = null;
-  try {
-    const [bRow] = await exec(BESTIARY_SQL, [user, slot]);
-    const k = bRow && bRow.kills;
-    bestiaryKills = (k && typeof k === 'object' && !Array.isArray(k)) ? k : null;
-  } catch (e) {
-    if (String((e && e.code) ?? '') !== '42883') throw e;
-    bestiaryKills = null;
-  }
-
   /* The engine is called with a LITERAL, field by field, from named server
      values — no spread of anything request-derived, ever. `slot` is the only
      field whose value came from the request and it selects a row the caller
@@ -852,9 +722,8 @@ export async function collectCurrentWindow(o) {
        input the other does not, the two verbs price the SAME window
        differently — a switch would pay less than a collect over the identical
        three hours, silently, with no error anywhere. That is not hypothetical:
-       the auto-eat workstream added `inventory` / `autoEatEnabled` /
-       `autoEatFood` / `autoEatPct` to the accrue literal, and a collect without
-       them heals nothing and dies early.
+       a workstream once added four inputs to the accrue literal only, and the
+       collect then priced the same window differently.
 
        tests/activity-intent.mjs A14 extracts the top-level FIELD NAMES from
        BOTH literals and fails the build if they differ. Adding a field here or
@@ -865,10 +734,9 @@ export async function collectCurrentWindow(o) {
     slot,
     nowMs,
     /* EVERY FIELD `hr_state_of` OWNS, IN ONE PLACE (2026-09-22): the pointer,
-       the two watermarks, hp/max_hp/gold, skills/inventory/equipment, enchant,
-       buffs, the auto-eat settings, tool_carry / ammo_carry / fight, the
-       recovery line, the retreat counter, the two death anchors,
-       hearthfind_ready and combat_style.
+       the two watermarks, hp/max_hp/gold, skills/inventory/equipment, buffs,
+       tool_carry / ammo_carry / fight, the recovery line, the two death
+       anchors, hearthfind_ready and combat_style.
 
        ⚠ THIS WAS THIRTY HAND-COPIED LINES AND A14 WAS ALL THAT HELD IT
          TOGETHER. It held it against THIS file and index.ts and against
@@ -890,14 +758,6 @@ export async function collectCurrentWindow(o) {
     huntOpen: huntSid !== null,
     capMs,
     seed: Number(seedRow && seedRow.seed) || 0,
-    /* THE BESTIARY COUNTERS (charms phase 2). Read above in its own statement;
-       the ENGINE folds them to a charm rank. No client value, no delta key,
-       null ⇒ no charm. Mirrors index.ts field for field (A14). */
-    bestiaryKills,
-    /* THE COMPANION-XP ARM SWITCH (armed, b550) — the SAME defect class A14 exists
-       for: a collect and an accrue over the same window must credit the pet the
-       same, so the constant is threaded here too. Mirrors index.ts (A14). */
-    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     /* THE PERMANENT PERK STACK (b349). NOT an envelope field — `hr_perks_of` is
        its own read. A collect that priced a window at zero perks while an
        accrue over the same window priced it at the player's real Kitchen would
@@ -1026,17 +886,9 @@ export async function collectCurrentWindow(o) {
        (hr_apply answers a replay with the live state). */
     env: res.ok === true && res.state ? res : null,
     receipt: res.replayed === true ? null : {
-      ms: out.grantMs, capped: out.capped, kills: out.summary.kills,
+      ms: out.grantMs, capped: out.capped,
       gold: out.summary.gold, xp: out.summary.xp, items: out.summary.items,
-      levelUps: out.levelUps, died: out.summary.died,
-      /* Ruling 2b (2026-08-31): a collect-before-switch settles a real window
-         and that window can end in a death — so it states WHAT killed them and
-         the auto-eat state it ran with, exactly as the accrue verb does. One
-         receipt shape, or the two payment paths describe one death
-         differently. `paidMs` rides along because the client reads
-         `diedAfterMs` off it. */
-      diedTo: out.summary.diedTo ?? null,
-      autoEat: out.summary.autoEat,
+      levelUps: out.levelUps,
       paidMs: out.summary.paidMs,
       /* Ruling 2: WHICH hours the switch settled. A collect-before-switch pays
          the same window an accrue would, so it states it the same way. */

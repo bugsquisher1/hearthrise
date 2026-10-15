@@ -122,19 +122,12 @@ export { refusalCarriesState, STATELESS_REFUSALS };
    `hearthfindReady`, `enchant` and `combatStyle` invisible to a tick window. */
 export const ENGINE_STATE_KEYS = Object.freeze([
   'hp', 'maxHp', 'gold',
-  'skills', 'xpFrac', 'companionXpFrac', 'inventory', 'equipment',
-  'enchant', 'buffs', 'combatStyle',
-  'autoEatEnabled', 'autoEatFood', 'autoEatPct',
+  'skills', 'xpFrac', 'inventory', 'equipment',
+  'buffs', 'combatStyle',
   'toolCarry', 'ammoCarry', 'fight',
-  'recoveringUntilMs', 'consecFalls',
+  'recoveringUntilMs',
   'deathsTodayBefore', 'deathsLifetimeBefore',
-  'hearthfindReady', 'combatXpAccruedToMs',
-  /* THE HUNT'S FOUR (2026-09-22). They belong on THIS list and not in a field
-     list at each call site for the reason the whole module exists: the accrue
-     path, the collect and the world tick must price a hunt the same way, and
-     `vigour` missing from one of the three is a daily limiter that one caller
-     does not have. Named here, they reach all three in one commit. */
-  'huntStance', 'huntStop', 'traits', 'vigour',
+  'hearthfindReady',
 ]);
 
 /* THE POINTER KEYS: the activity and the two watermarks. A chained caller
@@ -152,7 +145,7 @@ export const ENGINE_INPUT_KEYS = Object.freeze(
  * Map an `hr_state_of` envelope to the engine inputs it OWNS.
  *
  * It answers for the envelope and for nothing else: `seed`, `perks`,
- * `unlockedRecipes`, `attended`, `bestiaryKills`, `capMs`, `nowMs`, the
+ * `unlockedRecipes`, `capMs`, `nowMs`, the
  * catalogues, `caller` and `callerAuthority` all come from other reads or are
  * server literals, and each call site still names them itself.
  *
@@ -183,20 +176,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
     const cell = e.skills[k];
     if (cell && typeof cell === 'object' && 'frac' in cell) (xpFrac || (xpFrac = {}))[k] = Number(cell.frac) || 0;
   }
-  /* THE PET'S CARRIED REMAINDER (2026-10-12-companion-xp-frac.sql):
-     `companions.frac`, `{ <companion_id>: [0,1) }`, beside `companions.xp`.
-     PRESENCE OF KEY, as above: a database without the column projects no
-     `frac`, this is null, and the engine proposes no `companion_xp_frac` key.
-     Envelope-only; no request body carries it. */
-  const comps = e.companions;
-  let companionXpFrac = null;
-  if (comps && typeof comps === 'object' && 'frac' in comps) {
-    companionXpFrac = {};
-    const f = comps.frac;
-    if (f && typeof f === 'object' && !Array.isArray(f)) {
-      for (const k of Object.keys(f)) companionXpFrac[k] = Number(f[k]) || 0;
-    }
-  }
 
   return {
     /* ── THE POINTER AND THE TWO WATERMARKS ──────────────────────────────── */
@@ -209,13 +188,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,
-    /* THE COMBAT-XP WATERMARK (2026-08-31-combat-xp-credit.sql). Advanced ONLY
-       by hr_credit_combat_xp; the settle reads it here and credits combat XP
-       only for the window at/after it (accrual.js xpEligibleFromMs), so it
-       never re-mints XP a live credit already applied. Absent column ⇒ 0 ⇒ the
-       split is inert and the settle pays the whole window exactly as before. */
-    combatXpAccruedToMs: st.combat_xp_accrued_to
-      ? new Date(st.combat_xp_accrued_to).getTime() : 0,
 
     /* ── THE COLUMNS ON THE ROW `hr_apply` LOCKS ─────────────────────────── */
     hp: Number(st.hp) || 0,
@@ -225,18 +197,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
     /* ── THE PROJECTIONS, WHICH LIVE AT THE ENVELOPE TOP LEVEL ───────────── */
     skills,
     xpFrac,
-    companionXpFrac,
     equipment: e.equipment || {},
-    /* `inventory` is the first input the engine SPENDS rather than only reads —
-       auto-eat consumes food — which is why the returned delta's `items` map is
-       signed. */
+    /* `inventory` is an input the engine SPENDS (ammo) as well as reads, which
+       is why the returned delta's `items` map is signed. */
     inventory: e.inventory || {},
-    /* THE WEAPON ENCHANT (ELEMENTS v1). `{ <equip_slot>: <element> }`, or `{}`
-       when the column is absent. A READ-ONLY input to
-       `equipmentStats(equipment, items, enchant)` — no delta key is derived
-       from it — so `|| {}` is safe. It is what makes an AWAY fight see the
-       element (accrual.js `weakness`). */
-    enchant: e.enchant || {},
     /* THE CONSUMABLE BUFF QUEUE (2026-09-13). player_state.buffs, written only
        by hr_apply's buff_apply block from hr_item_buffs + now(). PRESENCE OF
        KEY, not `|| []`: an ABSENT key means this database has no buff column
@@ -245,13 +209,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
     buffs: ('buffs' in e) ? e.buffs : null,
 
     /* ── THE SELF-CONFIGURING SWITCHES ───────────────────────────────────── */
-    /* AUTO-EAT. The three settings are what let the server heal exactly as the
-       client does; without them it never heals and an unattended night ends at
-       the first death (measured: -63% to -99% of the night). `auto_eat_enabled`
-       is also the purchased-trait receipt, so nothing here defaults to true. */
-    autoEatEnabled: st.auto_eat_enabled === true,
-    autoEatFood: st.auto_eat_food ?? null,
-    autoEatPct: Number(st.auto_eat_pct),
     /* THE GATHER CARRY. `?? null` and NOT `?? {}`: null means the column does
        not exist on this database, and the engine reads that as "do not write a
        tool_carry key", because hr_apply refuses an unknown delta key and that
@@ -272,11 +229,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
        column. The distinction is the KEY'S PRESENCE in the envelope. */
     recoveringUntilMs: ('recovering_until' in st)
       ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
-    /* THE RETREAT COUNTER (Recovery rev. 3). Written ONLY by hr_apply from the
-       engine's own proposal. Presence-of-key, not `?? null`, so all four
-       self-configuring inputs read with one idiom rather than two. */
-    consecFalls: ('consec_falls' in st) ? (Number(st.consec_falls) || 0) : null,
-    /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). Read by hr_state_of
+    /* THE TWO DEATH ANCHORS the death rows state. Read by hr_state_of
        as its OWN scalars and NOT dug out of the `progress` array, which is
        `limit 1000` with a `progress_truncated` flag: a survival mechanic must
        never answer "you have never died" because a character owns a lot of
@@ -298,29 +251,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
        pre-migration behaviour. */
     combatStyle: st.combat_style ?? null,
 
-    /* ── THE HUNT (2026-09-22) — FOUR INPUTS, ALL SELF-CONFIGURING ─────────
-       Every one is ABSENT-SAFE, so an edge carrying them is byte-identical
-       until the lane-C migrations are applied:
-         huntStance  `?? null`  -> stanceOf reads null as `steady`, which IS
-                     today's behaviour. A database without the column projects
-                     no key and the engine changes not one draw.
-         huntStop    `?? null`  -> no rules, so the stop predicate never fires.
-         traits      the envelope's trait id ARRAY, at the TOP level and not on
-                     `state`. It is what clamps a stance's auto-eat threshold to
-                     the tier the character actually PAID for; absent reads as
-                     tier 0, whose ceiling is the LOWER one, so a caller that
-                     forgets it gets the safe answer rather than the generous
-                     one.
-         vigour      hr_vigour_of's whole block, including the SERVER's
-                     `budget_min` and its `day_key`, also at the TOP level.
-                     Absent -> the engine proposes no charge and pays no dry
-                     multiplier. The day key travels from the database because a
-                     daily boundary is a database spelling, and two spellings of
-                     "today" is how a daily gets charged twice. */
-    huntStance: st.hunt_stance ?? null,
-    huntStop: st.hunt_stop ?? null,
-    traits: e.traits ?? null,
-    vigour: e.vigour ?? null,
   };
 }
 
@@ -330,7 +260,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
  *
  * A key the character does not hold stays ABSENT rather than becoming
  * `undefined`, because several of these inputs are presence-of-key switches
- * (`recoveringUntilMs`, `consecFalls`, `buffs`) and an offline fixture that
+ * (`recoveringUntilMs`, `buffs`) and an offline fixture that
  * never had the column must keep reading as "no column".
  */
 export function engineStateOf(char) {

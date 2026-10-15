@@ -258,7 +258,6 @@ export async function runEat(o) {
      auto-eat heals are in it, and a pre-settle hp would overwrite them. */
   const settled = await settleBeforeMutate({
     exec, user, slot, verb: VERB, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
-    partyOwnsWindow: o.partyOwnsWindow === true,
   });
   if (!settled.proceed) return settled.refusal;
   const env = settled.env;

@@ -96,9 +96,9 @@
 //              over the real driver — one stamped accrue row, the clock
 //              advanced, a malformed selector dropped, a selector naming
 //              another session skipped by name.
-//   BESTIARY   the hunt settle prices hr_bestiary_of: 20,000 counted kills of
-//              every spawn pay differently from none (the read is not dropped
-//              or mis-folded).
+//   BESTIARY   NO LADDER PRICES A FIGHT (closed rebuild, lane C2: the charm and
+//              trophy combat multipliers are deleted): 20,000 counted kills of
+//              every spawn pay EXACTLY what none do.
 // ════════════════════════════════════════════════════════════════════════
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -176,17 +176,21 @@ const ENGINE_ARMS = {
     const problems = [];
     // (a) THE SOURCE.
     const dir = join(M.root, FN);
-    /* The attended kill credit is deleted everywhere (ruling §3). The away
-       RECEIPT is not: gathering and the benches still return through it until
-       lane G (swap THEN delete, designer loop check 2026-10-14) — so it is
-       forbidden only on the HUNT's own path (hunt-settle.js, hunt-seed.js and
-       the combat body below), and away-receipt.js itself refuses a combat
-       settle (tests/away-receipt-journal.mjs AWAY-RECEIPT-C2a). */
-    const gone = /hr_attended_kills|hr_credit_kills|ATTENDED_MAX_FIDELITY|normaliseAttended|attendedKillCap/;
+    /* DELETED OUTRIGHT (closed rebuild, lane C2; ruling §3): the attended
+       kill credit, the away receipt, Vigour, Auto-Eat, stances and the Retreat,
+       the charm / trophy / Boss-of-the-Day multipliers, companion XP, the party
+       fence and tick, and the claim_reward / enchant / dungeon_settle /
+       quartermaster_buy verbs. No edge file may name one in CODE again. */
+    const gone = new RegExp(['hr_attended_kills', 'hr_credit_kills', 'ATTENDED_MAX_FIDELITY', 'attendedKillCap',
+      'away-receipt', 'withAwayReceipt', 'receiptRescue', 'last_away_receipt', 'hr_vigour_of', 'vigourCharge',
+      'VIGOUR_', 'autoEatEnabled', 'resolveAutoEat', 'auto_eat_', 'huntStance', 'hunt_stance', 'evaluateStop',
+      'consec_falls', 'retreatAtFall', 'killBonusesFor', 'charmIndex', 'killsByClass', 'trophyIndex',
+      'readTickBestiary', 'companionXpBacked', 'COMPANION_XP_SERVER_BACKED', 'partyIntentFence', 'tick-party',
+      'tick-combat', 'claim-reward', 'dungeon-settle', 'quartermaster-buy', 'runEnchant'].join('|'));
     for (const f of readdirSync(dir).filter((n) => /\.(js|ts)$/.test(n))) {
       const code = stripComments(readFileSync(join(dir, f), 'utf8'));
       const m = code.match(gone);
-      if (m) problems.push(`${f} still names \`${m[0]}\` in code (the attended credit is deleted, ruling §3)`);
+      if (m) problems.push(`${f} still names \`${m[0]}\` in code (deleted outright with the closed rebuild)`);
     }
     const receipt = /away-receipt|withAwayReceipt|receiptRescue|awayReceiptFor|last_away_receipt/;
     const presence = /\baway\b|presence|last_seen|capMs|cap_ms|hr_accrue_cap_ms|hr_offline_cap_ms|return_anchor|horizon/;
@@ -196,20 +200,17 @@ const ENGINE_ARMS = {
       if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap, ctx.away or the away receipt (TICK-2)`);
     }
     const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8'));
-    const i = acc.indexOf('function accrueCombat(');
+    const i = acc.indexOf('function accrueHunt(');
     const j = acc.indexOf('\nfunction ', i + 10);
     const body = i >= 0 ? acc.slice(i, j > i ? j : undefined) : '';
-    if (!body) problems.push('accrual.js has no accrueCombat — the combat body moved; re-point TICK-2');
+    if (!body) problems.push('accrual.js has no accrueHunt — the hunt body moved; re-point TICK-2');
     for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /inp\.capMs/, /presence|last_seen|horizon|return_anchor/, receipt]) {
       const m = body.match(re);
-      if (m) problems.push(`accrueCombat (the combat body) contains \`${m[0]}\` — combat reads no ctx.away and no presence (TICK-2)`);
+      if (m) problems.push(`accrueHunt (the hunt body) contains \`${m[0]}\` — a hunt reads no ctx.away and no presence (TICK-2)`);
     }
     // (b) THE BEHAVIOUR: presence / away-era inputs are inert for a session.
     const base = M.AC.computeAccrual(huntInput(M));
     if (!base.accrued || !base.hunt) problems.push(`the reference hunt window did not settle (${base.reason})`);
-    /* NO BLESSING ON A HUNT (Tyler 2026-10-14): no blessing multiplier is paid,
-       watched or not, and the receipt says so. */
-    if (!base.summary || base.summary.blessed !== false) problems.push(`a hunt window reports blessed=${base.summary && base.summary.blessed}`);
     const variants = {
       accruedToMs: T0 - 7200000, activeSinceMs: T0 - 86400000, capMs: 1, combatXpAccruedToMs: T0 + 600000,
       autoEatEnabled: true, autoEatPct: 90, autoEatFood: 'cooked_shrimp', huntStance: 'careful',
@@ -590,9 +591,8 @@ async function settleTo(db, M, toMs, o = {}) {
   let press = null;
   if (o.pressAtMs != null) { press = { slot: o.pressSlot ?? 0, at: o.pressAtMs }; hs.presses = [...hs.presses, press]; }
   const perks = await M.TR.readTickPerks(exec, UID, 0);
-  const bestiaryKills = await M.TR.readTickBestiary(exec, UID, 0);
   const engIn = M.HS.huntEngineInputs({ user: UID, slot: 0, env, hs,
-    nowMs: new Date(read.now).getTime(), fromMs: Number(h.settled_to_ms), toMs, perks, bestiaryKills,
+    nowMs: new Date(read.now).getTime(), fromMs: Number(h.settled_to_ms), toMs, perks,
     secret: h.secret, pressAtMs: press ? press.at : null });
   const out = M.AC.computeAccrual(engIn);
   if (!out.accrued) return { skipped: out.reason };
@@ -1221,13 +1221,12 @@ const DB_ARMS = {
     if (f.processed !== 0 || f.shadowed !== 0) problems.push(`an empty roster processed rows: ${JSON.stringify(f)}`);
     return problems;
   }),
-  /* BESTIARY — THE HUNT SETTLE PRICES THE CHARM AND THE TROPHY. hr_bestiary_of
-     is not an envelope field; settleHunt reads it (./tick-reads.js) and hands
-     it to the engine. The same session, the same instant (one transaction),
-     settled once with no counters and once with 20,000 server-counted kills of
-     every monster the hunt spawns: the value it pays must differ. A dropped or
-     mis-folded read prices both alike. (Until lane C2 this was
-     tests/world-tick-bestiary-parity.mjs, on the retired solo combat tick.) */
+  /* BESTIARY — NO LADDER PRICES A FIGHT. The charm and trophy combat
+     multipliers were deleted with the closed rebuild (demolition safety review
+     item 9: trophies stay as claims and display). The same session, the same
+     instant (one transaction), settled once with no counters and once with
+     20,000 server-counted kills of every monster the hunt spawns: the value it
+     pays must be IDENTICAL. */
   BESTIARY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
@@ -1255,8 +1254,8 @@ const DB_ARMS = {
     const vCharmed = await value();
     if (bare.outcome !== 'paid' || charmed.outcome !== 'paid') {
       problems.push(`CONTROL: a settle did not pay (${bare.outcome}/${bare.reason}, ${charmed.outcome}/${charmed.reason})`);
-    } else if (vBare === vCharmed) {
-      problems.push('20,000 kills of every spawn priced the hunt exactly as none — the settle dropped or mis-folded the bestiary read');
+    } else if (vBare !== vCharmed) {
+      problems.push(`20,000 kills of every spawn priced the hunt differently from none — a bestiary ladder prices a fight again ${firstDiff(vBare, vCharmed)}`);
     }
     return problems;
   }),
@@ -1304,13 +1303,15 @@ const MUTANTS = [
     from: '  heals_out: (hs) => essentialOut(hs, \'heal\'),', to: '  heals_out: () => false,' },
   { arm: 'KNOCKOUT', name: 'the combat body ignores the recovery line', file: join(FN, 'accrual.js'),
     from: '  state.recoveringUntilMs = recoverCol ? nat(inp.recoveringUntilMs, 0) : 0;', to: '  state.recoveringUntilMs = 0;' },
-  { arm: 'TICK-2', name: 'a hunt window states a blessing', file: join(FN, 'accrual.js'),
-    from: '  summary.blessed = false;', to: '' },
   { arm: 'TICK-2', name: 'the hunt settle writes an away receipt', file: join(FN, 'hunt-settle.js'),
     from: "import { computeAccrual } from './accrual.js';",
-    to: "import { computeAccrual } from './accrual.js';\nimport { withAwayReceipt } from './away-receipt.js';" },
+    to: "import { computeAccrual } from './accrual.js';\nexport const RECEIPT_KEY = { last_away_receipt: null };" },
+  { arm: 'TICK-2', name: 'a charm multiplier prices a hunt again', file: join(FN, 'accrual.js'),
+    from: "    weakness(m) { return weaknessInfo(m, eq); },",
+    to: "    weakness(m) { const charmIndex = () => 1; return weaknessInfo(m, eq, charmIndex()); }," },
   { arm: 'VIGOUR', name: 'a hunt pays the 0.25x tired tail again', file: join(FN, 'accrual.js'),
-    from: '  const vigSplit = (hs0 || vigBudgetMin === null) ? null', to: '  const vigSplit = (vigBudgetMin === null) ? null' },
+    from: '  const goldDelta = Math.floor(state.gold || 0);',
+    to: '  const goldDelta = Math.floor((state.gold || 0) * (inp.vigour && inp.vigour.spent_min >= 720 ? 0.25 : 1));' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/combat-sim.js',
     from: '    if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, true);\n', to: '' },
   { arm: 'STAMINA-RULE', name: 'an empty pool ends nothing', file: 'src/core/action-rules.js',
@@ -1354,10 +1355,6 @@ const MUTANTS = [
     from: '      const xpLost = deathXpLoss(state.skills, ctx.style);', to: '      const xpLost = {};' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
-  { arm: 'BESTIARY', name: 'the hunt settle drops the bestiary read', file: join(FN, 'hunt-settle.js'),
-    from: '  const bestiaryKills = await readTickBestiary(exec, user, slot);', to: '  const bestiaryKills = null;' },
-  { arm: 'BESTIARY', name: 'the bestiary read counts rows instead of summing kills', file: join(FN, 'set-activity.js'),
-    from: 'jsonb_object_agg(monster_id, kills)', to: 'jsonb_object_agg(monster_id, 1)' },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain (create or

@@ -147,7 +147,6 @@ export async function runShopBuy(o) {
   /* (1)-(4) are identical for every value intent and live in ./spend.js. */
   const delta = buyDelta(offer, qty);
   return runValueIntent({
-    partyOwnsWindow: o.partyOwnsWindow === true,
     exec, user, slot, verb: VERB, intentId,
     plan: {
       delta,

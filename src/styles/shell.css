@@ -9,11 +9,14 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 .hs-shell { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
+/* A window's `width` is its whole box, frame included: the dock and the inset add the same numbers. */
+.hs-shell *, .hs-shell *::before, .hs-shell *::after { box-sizing: border-box; }
 .hs-glyph { width: 22px; height: 22px; fill: currentColor; flex: none; }
 
 /* ── Layers: world widgets (shifted clear of the dock), screen widgets, windows ── */
 .hs-hud { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 2; }
-.hs-hud.is-screen { z-index: 4; }
+.hs-screen { z-index: 6; }
+.hs-launchers:empty { display: none; }
 .hs-layer { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 3; }
 
 /* ── Widgets: placed by src/shell/hud.js; faded per the layout, full on hover ── */

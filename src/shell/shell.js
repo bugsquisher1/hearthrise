@@ -31,6 +31,7 @@ import { escapeHtml as esc } from '../utils/dom.js?v=586';
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it
  * @param {object} [o]
+ * @param {HTMLElement} [o.screen]    the whole-screen box (strip included) for screen widgets; default body
  * @param {() => boolean} [o.inHunt]   true while a hunt runs ('hunt' widgets)
  * @param {Window} [o.host]            defaults to window
  */
@@ -45,10 +46,15 @@ export function mountShell(root, o) {
   const shell = doc.createElement('div');
   shell.className = 'hs-shell';
   shell.setAttribute('data-hs-shell', '');
-  shell.innerHTML = '<div class="hs-hud" data-hs-hud="world"></div><div class="hs-hud is-screen" data-hs-hud="screen"></div><div class="hs-layer" data-hs-layer></div>';
+  shell.innerHTML = '<div class="hs-hud" data-hs-hud="world"></div><div class="hs-layer" data-hs-layer></div>';
   root.appendChild(shell);
+  /* Screen widgets (the launcher row lives in the strip) cover the whole screen box, not the World. */
+  const screen = doc.createElement('div');
+  screen.className = 'hs-shell hs-screen';
+  screen.innerHTML = '<div class="hs-hud is-screen" data-hs-hud="screen"></div>';
+  (opts.screen || doc.body).appendChild(screen);
   const worldHud = shell.querySelector('[data-hs-hud="world"]');
-  const screenHud = shell.querySelector('[data-hs-hud="screen"]');
+  const screenHud = screen.querySelector('[data-hs-hud="screen"]');
   const layer = shell.querySelector('[data-hs-layer]');
 
   const wm = createWindowManager({
@@ -194,6 +200,7 @@ export function mountShell(root, o) {
   function onResize() { paintWidgets(); }
 
   shell.addEventListener('click', onClick);
+  screen.addEventListener('click', onClick);
   shell.addEventListener('input', onInput);
   shell.addEventListener('change', onInput);
   layer.addEventListener('pointerdown', onPointerDown);
@@ -218,6 +225,7 @@ export function mountShell(root, o) {
       phoneMq.removeEventListener('change', onSizeClass);
       host.removeEventListener('resize', onResize);
       shell.remove();
+      screen.remove();
     },
   };
 }

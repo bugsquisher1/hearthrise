@@ -23,8 +23,8 @@ export const DOCK_MAX = 0.6;
 export const DOCK_GAP = 8;
 export const DOCK_EDGE = 12;
 export const MOTION_MS = 120;
-export const SHEET_MAX = 400;
-export const SHEET_VW = 0.48;
+const SHEET_MAX = 400;
+const SHEET_VW = 0.48;
 
 const KEY_RE = /^([a-z]|enter|escape)$/;
 
@@ -49,7 +49,7 @@ export function validateWindowRows(rows) {
 }
 
 /** True when a key event must not reach the shell: typing, IME, or a modifier chord. */
-export function isTypingEvent(ev) {
+function isTypingEvent(ev) {
   if (!ev || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return true;
   const t = ev.target;
   if (!t) return false;

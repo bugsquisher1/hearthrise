@@ -48,7 +48,10 @@ import { COMPANIONS } from '../src/data/companions.js';
 import { CROPS } from '../src/data/gathering.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-22-farm-catalogues.generated.sql');
+/* DEMOLITION REGEN (2026-10-14, Master Design Reference §9): the farm-yield perk
+   table is re-emitted into a NEW, LAST-registered file (the Garden and Scarecrow
+   farmYield left); 2026-08-22-farm-catalogues.generated.sql stays in the chain. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-farm-catalogues.generated.sql');
 
 // ── 0. crop → finite regrow limit (0 for a non-regrow crop) ─────────────
 // A regrowing crop MUST carry a finite (>0) limit; the assertion below and the

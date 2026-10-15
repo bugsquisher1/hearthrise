@@ -28,3 +28,6 @@ These are Tyler's own decisions from 2026-10-15, consolidated here so they stop 
 - Show Tyler ONLY complete in-game-looking scenes (building + street + grass + props + hero facing the camera + creatures), at in-game zoom.
 - One sheet, at most 3 options. Don't change instructions mid-run.
 - Every world asset goes through `tools/world-art`, with the live atlases as the bar until the new style is approved.
+
+## THE REAL TEST (Tyler, 2026-10-15)
+Design the art around **four adventurers fighting monsters**, not a medieval village. Every style must be proven in a BUSY COMBAT scene in a hunting ground: a party of 4 (knight, archer, healer, sorcerer), a swarm of about 6 monsters, HP bars, damage/crit/heal numbers, an AoE effect, projectiles, loot and a target ring, plus the HUD. The criterion is READABILITY UNDER CHAOS: party vs monsters instantly distinguishable, units pop from the ground, and effects are legible. Busy ground that looks great empty but turns to mush in a fight FAILS.

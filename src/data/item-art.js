@@ -303,18 +303,6 @@ export const UNRESOLVED_FILES = Object.freeze([
   'armour/watchknight_greaves', 'armour/watchknight_helm', 'armour/watchknight_sabatons',
     'items/rune_of_blight',
   'weapons/deathsteel_ingot',     'weapons/void_chitin_weave',
-  /* DEMOLITION (2026-10-14): delivered art whose ITEM was deleted (dungeon keys
-     and blueprints, scrip, the farmer's deed, the enchant runes, the gear recipe
-     scrolls, quarried stone and ashlar). The files stay on disk for the Asset
-     Director to retire; nothing ships them. */
-  'items/alpha_pattern', 'items/arcane_tome', 'items/ashlar', 'items/basalt', 'items/basalt_block',
-  'items/bone_key', 'items/captain_recipe', 'items/dragonsbane_key', 'items/dressed_block',
-  'items/dungeon_scrip', 'items/ember_rune', 'items/farm_deed', 'items/forge_blueprint_t2',
-  'items/forge_blueprint_t3', 'items/frost_rune', 'items/gemcutter_note', 'items/goblin_seal',
-  'items/granite', 'items/granite_block', 'items/kitchen_blueprint_t2', 'items/kitchen_blueprint_t3',
-  'items/library_blueprint_t2', 'items/library_blueprint_t3', 'items/obsidian_sigil', 'items/rubble',
-  'items/spellstone_diagram', 'items/trophy_blueprint_t2', 'items/trophy_blueprint_t3',
-  'items/void_fragment', 'weapons/chief_blade_recipe',
 ]);
 
 /** The full path for an id, or '' if this id has no hearthfire art. */

@@ -346,7 +346,7 @@ export async function sweep(sources) {
   const byName = new Map();
   /** @param {boolean} [touches] does this file RESTATE the body (see ATTRIBUTION
    *  above)? A read-only pin still TRACKS the name; it never claims the install. */
-  const note = (name, rule, file, touches = true) => {
+  const note = (name, rule, file, touches = true, build = true) => {
     if (!byName.has(name)) byName.set(name, { rules: new Set(), files: new Set() });
     const e = byName.get(name);
     e.rules.add(rule);
@@ -356,7 +356,15 @@ export async function sweep(sources) {
     // a build keeps a name TRACKED past a drop it evidently survived, which is
     // the fail-closed direction — the drop decision may keep measuring a body
     // that is gone, never stop measuring one that is there.
-    if (file && rule === 'pin') addTo(builtIn, name, file);
+    //
+    // EXCEPT an OVER-COLLECTED literal (`build` false): a loop-driven reader
+    // takes every signature literal in its file, and a file that DROPS a body
+    // lists it there too ("these must be gone"). Such a literal proves only that
+    // the file NAMES the body, not that the body exists — so it tracks the name
+    // without counting as a build. The drop is still believed only as far as it
+    // is MEASURED: a body either side still carries is reported (classifyLive /
+    // classifyReplay, selftest cases drop_did_not_take_* / dropped_but_live_*).
+    if (file && rule === 'pin' && build) addTo(builtIn, name, file);
   };
   const restated = new Map();
   const shapeless = [];
@@ -413,7 +421,7 @@ export async function sweep(sources) {
              safe direction. */
           let loopHits = 0;
           for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
-            if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); loopHits += 1; }
+            if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); loopHits += 1; }
           }
           prosrcHits += loopHits;
           continue;
@@ -472,7 +480,7 @@ export async function sweep(sources) {
            direction: an extra tracked body costs one baseline row, a missing one
            costs the whole point of the guard. */
         for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
-          if (SIGLIT.test(m[1])) { sig(m[1]); found += 1; }
+          if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); hits += 1; found += 1; }
         }
       }
       if (!found) shapeless.push(`${f}: pg_get_functiondef(${v}::regprocedure) — cannot resolve the signature`);
@@ -1245,6 +1253,30 @@ async function selftest() {
       files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP], ['9000-03-make.sql', MAKE]],
       want: (t) => t.get(V) && !t.get(V).dropped,
       why: 'expected the name to stay TRACKED (no .dropped mark) because a later file re-creates it',
+    },
+    dropping_file_lists_the_gone_body: {
+      what: 'the 2026-10-22 delete-away shape: the dropping file also runs a LOOP-driven prosrc '
+          + 'reader whose values list names the dropped body ("these must be gone"). An '
+          + 'over-collected literal is a mention, not a build, so the drop is believed — and still '
+          + 'measured on both sides (drop_did_not_take_replay / dropped_but_live_still_has_it)',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', `${DROP}
+`
+        + "do $$ declare r record; v text; begin for r in select * from (values ('public.other_fn(integer)'), "
+        + `('public.${V}(p_slot integer)')) t(sig) loop select prosrc into v from pg_proc p where p.oid = to_regprocedure(r.sig); `
+        + 'end loop; end $$;']],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected the drop to be believed when the only later mention is an over-collected literal',
+    },
+    later_loop_mention_is_not_a_rebuild: {
+      what: 'a LATER file loop-driven reader over-collects the dropped name from a precondition '
+          + '("hr_set_auto_eat must be gone", 2026-10-22-closed-mode-ungated-rpcs.sql). That is not '
+          + 'a re-creation; the name stays dropped (and measured)',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP], ['9000-03-later.sql',
+        "do $$ declare f text; v text; begin foreach f in array array['public.other_fn(integer)'] loop "
+        + 'select prosrc into v from pg_proc p where p.oid = f::regprocedure; end loop; '
+        + `if to_regprocedure('public.${V}(p_slot integer)') is not null then raise exception 'still here'; end if; end $$;`]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected a later over-collected mention not to count as a re-creation',
     },
     drop_then_recreate_same_file: {
       what: 'the market_v2 idiom: one file drops a signature and re-creates it a few lines later. '

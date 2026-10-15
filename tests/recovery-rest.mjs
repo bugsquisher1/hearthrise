@@ -692,13 +692,13 @@ async function runAll(db, mutate) {
                         set active_kind = 'gather', active_id = '${GATHER.id}'
                       where user_id = '${K}' and slot = 0;`);
 
-      // (d) THE LADDER DID NOT MOVE. The refusal narrowed; the price of falling did not.
-      ok(away.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 99 }) === 0
-        && away.recoveryFor({ deathsTodayBefore: 1, deathsLifetimeBefore: 99 }) === away.RECOVERY_BASE_MS
-        && away.recoveryFor({ deathsTodayBefore: 20, deathsLifetimeBefore: 99 }) === away.RECOVERY_CAP_MS,
-        'the recovery LADDER moved with the refusal narrowing. It prices FIGHTERS and its bands are '
-        + 'ratios of a foodless fighter to a fed one, both fighting — letting a downed character fish '
-        + 'changes no number in that table, so any change here is an unasked-for repricing');
+      // (d) THE FALL IS FLAT (closed rebuild, lane C2): the recovery ladder is
+      //     deleted; a fall in a hunt costs the one KNOCKOUT_MS, whatever the
+      //     day's count. The refusal narrowing above changes no price.
+      const { KNOCKOUT_MS } = await import('../src/data/hunt-sessions.js');
+      ok(typeof away.recoveryFor === 'undefined' && Number.isInteger(KNOCKOUT_MS) && KNOCKOUT_MS > 0,
+        'a fall-count ladder is back in src/core/away.js, or KNOCKOUT_MS is no longer one positive '
+        + 'flat wait — the closed rebuild prices every fall the same');
 
       /* (e) THE CONTROL, after lane C2: a character who is UP is refused the
          same way — the refusal in (b) is the hunt door, not a knockout rule

@@ -15,7 +15,7 @@
 // +13.5 % ore over a 7.25 h mithril night mined at 12.80 s without it.
 //
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────────
-// The REAL edge modules (market.js, eat.js, claim-reward.js, set-activity.js)
+// The REAL edge modules (market.js, eat.js, set-activity.js)
 // behind the same one-statement `exec` seam index.ts hands them, as `hr_engine`,
 // against the REAL migration chain in PGlite.
 //
@@ -45,14 +45,12 @@
 //        ore, mining XP. CONTROL: a character who held the pickaxe all night is
 //        paid MORE, so equality is not vacuous.
 //        (The literal production path — `road_forge` → iron_pickaxe — is the
-//        client-direct hr_claim_quest RPC: F2's, see R5. The edge claim_reward
-//        verb prices `daily:login` only, gold and gems, so R1c proves the
-//        claim verb SETTLES FIRST rather than a pricing delta.)
-//   R1c  claim_reward daily:login at return settles the window first: the
-//        body carries `collected`, the ore it reports is byte-identical to
-//        R1's accrue-first night, and the watermark has moved.
-//   R2   eat hunters_feast then settle a combat night == settle then eat
-//        (drops, gold, XP, kills), and the live buff keeps its full duration.
+//        client-direct hr_claim_quest RPC: F2's, see R5. R1c, the edge
+//        claim_reward verb, was deleted with the verb, lane C2.)
+//   R2   eat a gather-speed roast then settle a mining night == settle then eat
+//        (ore, XP), and the live buff keeps its full duration. (A combat night
+//        outside a hunt session no longer exists, lane C2: the hunt prices its
+//        own buffs from each segment's `from`, tests/buff-queue.mjs R6.)
 //        THE CLOCK RULE: each order runs in ONE transaction, so now() is one
 //        instant and the time between the eat and the settle is pinned to ZERO
 //        in both orders. A sub-minute settle→eat gap (a boot settle, then a tap
@@ -73,8 +71,6 @@
 //   S3   the receipt reaches the client: `collected` on the body equals what
 //        the database moved, the envelope is the post-settle+commit state, and
 //        a commit refused AFTER a paid settle still carries `collected`.
-//   S4   a partied character's settle verbs proceed WITHOUT a settle; its
-//        switch verbs are still refused (party-fence second class).
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
@@ -90,20 +86,13 @@ const ROW = (verb, bucket, v) =>
 /* R2's equality failure opens with this text. A mutation with `by` counts as
    CAUGHT only when a failure starting with `by` is in the run, so the claim it
    was planted against has to be the one that bites. */
-const R2_EQ = 'R2: a Hunter\'s Feast eaten at return re-priced the two-hour fight before it';
+const R2_EQ = 'R2: a roast eaten at return re-priced the mining night before it';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
    Each entry plants a REAL defect in the edge half. `--mutate` demands every
    one turns the run RED; an anchor that does not match exactly once is a
    HARNESS failure, never a pass. */
 const MUTATIONS = {
-  flipCollect: {
-    file: FN('intents.js'),
-    why: 'claim_reward goes back to collectsFirst:false — a claim at return no longer settles '
-       + 'the night first (R1c)',
-    find: ROW('claim_reward', 'claim', 'true'),
-    repl: ROW('claim_reward', 'claim', 'false'),
-  },
   flipCollectMarket: {
     file: FN('intents.js'),
     why: 'market_buy goes back to collectsFirst:false — a pickaxe bought at return prices the '
@@ -140,20 +129,6 @@ const MUTATIONS = {
     find: '    callerAuthority: pointerSurvives ? null : CALLER_AUTHORITY,',
     repl: '    callerAuthority: CALLER_AUTHORITY,',
   },
-  partyOwnsWhileShadow: {
-    file: FN('party-fence.js'),
-    why: 'the fence skips a partied settle verb\'s settle while the party channel is SHADOW — '
-       + 'nothing prices the hunt window per window, so a feast eaten mid-hunt is paid over the '
-       + 'whole hunt by the post-stop settle (S4b)',
-    find: 'export const PARTY_CHANNEL_PAYS = false;',
-    repl: 'export const PARTY_CHANNEL_PAYS = true;',
-  },
-  partySettles: {
-    file: FN('settle-first.js'),
-    why: 'a partied character settles anyway — the settle moves a watermark the party owns (S4)',
-    find: "  if (o.partyOwnsWindow === true) return unchanged('party_owns_window');",
-    repl: '',
-  },
 };
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -169,7 +144,7 @@ const HOURS = 7.25;
 const NODE = 'mithril_rock';
 const ORE = 'mithril_ore';
 const TOOL = 'iron_pickaxe';
-const FEAST = 'hunters_feast';
+const FEAST = 'goldenroot_roast';   // gather_speed, 6 min
 
 const U = {
   seller: '00000000-0000-4000-bf1a-000000000001',
@@ -177,11 +152,9 @@ const U = {
   b: '00000000-0000-4000-bf1a-00000000000b',      // R1 order B: accrue, then buy
   t: '00000000-0000-4000-bf1a-00000000001f',      // R1 CONTROL: held the tool all night
   c: '00000000-0000-4000-bf1a-00000000000c',      // R3: the self-market loop (slots 0 and 1)
-  d: '00000000-0000-4000-bf1a-00000000000d',      // R1c: claim at return
   e: '00000000-0000-4000-bf1a-00000000000e',      // R2 order A: eat, then settle
   f: '00000000-0000-4000-bf1a-00000000000f',      // R2 order B: settle, then eat
   s: '00000000-0000-4000-bf1a-000000000051',      // S1: sub-minute window
-  p: '00000000-0000-4000-bf1a-000000000071',      // S4: partied
   g: '00000000-0000-4000-bf1a-000000000052',      // S2: the deferred remainder
 };
 
@@ -216,14 +189,12 @@ async function loadModules(mutate) {
     sa: await imp('set-activity.js'),
     mk: await imp('market.js'),
     eat: await imp('eat.js'),
-    cr: await imp('claim-reward.js'),
     sb: await imp('shop-buy.js'),
     it: await imp('intents.js'),
   };
   /* The helper this lane adds. Absent on the base build — the arms that need
      it then report RED rather than the harness crashing. */
   try { mods.sf = await imp('settle-first.js'); } catch { mods.sf = null; }
-  try { mods.pf = await imp('party-fence.js'); } catch { mods.pf = null; }
   return mods;
 }
 
@@ -244,7 +215,7 @@ async function run(mutate) {
   const notes = [];
   const ok = (c, m) => { if (!c) fails.push(m); return !!c; };
   const mods = await loadModules(mutate);
-  const { sa, mk, eat, cr, it } = mods;
+  const { sa, mk, eat, it } = mods;
 
   let db;
   try { ({ db } = await bootReplay()); } catch (e) {
@@ -413,29 +384,6 @@ async function run(mutate) {
         + 'paid — the body has to be able to say so (set_activity\'s C5).');
     }
 
-    // ══ R1c — claim_reward SETTLES FIRST ═════════════════════════════════
-    {
-      await miner(U.d);
-      const ore0 = await qty(U.d, ORE);
-      await clearGate();
-      const r = await cr.runClaimReward({
-        exec, user: U.d, slot: 0, intentId: uuid(), reward: { kind: 'daily', key: 'login' },
-      });
-      ok(r.status === 200 && r.body.ok === true,
-        `R1c-CONTROL: the daily login claim refused ${JSON.stringify(r.body).slice(0, 240)}`);
-      const moved = (await qty(U.d, ORE)) - ore0;
-      const st = await row(U.d);
-      ok(r.body.collected && Number(r.body.collected.items && r.body.collected.items[ORE]) === moved,
-        `R1c: a claim at return reported collected=${JSON.stringify(r.body.collected)} (ore moved `
-        + `${moved}). The claim must SETTLE the open night before it grants.`);
-      ok(moved === oreB,
-        `R1c: the claim's settle paid ${moved} ${ORE}; the accrue-first night paid ${oreB}. The same `
-        + 'window at the same state must pay byte-identically.');
-      ok(Number(st.now_ms) - Number(st.at_ms) < 12800,
-        'R1c: the watermark did not move across the claim — the night is still open, priced later '
-        + 'at whatever the claim granted');
-    }
-
     // ══ R3 — THE SELF-MARKET LOOP, CROSS-SLOT ════════════════════════════
     {
       await clearGate();
@@ -456,16 +404,12 @@ async function run(mutate) {
 
     // ══ R2 — A FEAST EATEN AT RETURN ═════════════════════════════════════
     {
-      /* combat_xp_accrued_to is combat XP's own watermark. Left at creation, the
-         XP leg prices only the wall time since setup (usually under one kill, so
-         XP compared {} to {}); a night away has it at the window's start. */
+      /* A miner on a two-hour night with a gather-speed roast in the bag. */
       const fighter = async (uid) => {
+        await miner(uid);
         await give(uid, FEAST, 1);
         await q(`update public.player_state
-                    set max_hp = 900, hp = 900, buffs = '[]'::jsonb,
-                        active_kind = 'combat', active_id = 'goblin',
-                        active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours',
-                        combat_xp_accrued_to = now() - interval '2 hours'
+                    set active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours'
                   where user_id=$1 and slot=0`, [uid]);
       };
       const snap = async (uid) => {
@@ -530,19 +474,19 @@ async function run(mutate) {
       notes.push(`R2: eat→settle ${JSON.stringify(dE)}`);
       notes.push(`R2: settle→eat ${JSON.stringify(dF)}`);
       ok(Object.keys(dF).length > 2 && (dF['inv.' + FEAST] === -1),
-        `R2-CONTROL: the settle-first night moved ${JSON.stringify(dF)} — no fight happened, or the `
+        `R2-CONTROL: the settle-first night moved ${JSON.stringify(dF)} — no ore was mined, or the `
         + 'feast was not eaten, so an equality would be vacuous');
       const differ = [...new Set([...Object.keys(dE), ...Object.keys(dF)])]
         .filter((k) => dE[k] !== dF[k]).map((k) => `${k} ${dE[k] ?? 0} vs ${dF[k] ?? 0}`).join(', ');
       ok(JSON.stringify(Object.entries(dE).sort()) === JSON.stringify(Object.entries(dF).sort()),
         `${R2_EQ} — eat→settle vs settle→eat differ on ${differ}. eat→settle `
-        + `moved ${JSON.stringify(dE)}, settle→eat moved ${JSON.stringify(dF)}. A 15-minute food `
-        + 'must never buy a night of +5 % drops.');
+        + `moved ${JSON.stringify(dE)}, settle→eat moved ${JSON.stringify(dF)}. A six-minute food `
+        + 'must never buy a night of faster mining.');
       const buffs = (await row(U.e)).buffs || [];
-      const drop = buffs.find((b) => b && b.type === 'drop_rate');
+      const drop = buffs.find((b) => b && b.type === 'gather_speed');
       const left = drop ? Date.parse(drop.until) - eatAt : -1;
-      ok(drop && left >= 900000 - 5000,
-        `R2: after eat→settle the drop_rate buff has ${left} ms left of its 900,000 — the live `
+      ok(drop && left >= 360000 - 5000,
+        `R2: after eat→settle the gather_speed buff has ${left} ms left of its 360,000 — the live `
         + `buff must keep its full duration (${JSON.stringify(buffs)})`);
     }
 
@@ -570,47 +514,9 @@ async function run(mutate) {
       ok(r.body.collected === null, `S1: collected=${JSON.stringify(r.body.collected)} for a window that paid nothing`);
     }
 
-    // ══ S4 — THE PARTY FENCE'S SECOND CLASS ══════════════════════════════
-    {
-      ok(!!mods.sf && !!mods.pf && typeof mods.pf.partyRefusalFor === 'function',
-        'S4: settle-first.js is missing — there is no settle-before-mutate implementation');
-      if (mods.sf && mods.pf) {
-        ok(mods.pf.partyRefusalFor('equip') === 'party_hunt_running'
-           && mods.pf.partyRefusalFor('market_buy') === 'party_owns_window'
-           && mods.pf.partyRefusalFor('eat') === 'party_owns_window'
-           && mods.pf.partyRefusalFor('trophy_claim') === null,
-          'S4: the fence does not split SWITCH (refused) from SETTLE (proceeds without its settle)');
-        /* S4b — WHILE THE PARTY CHANNEL IS SHADOW the skip is refused. Nothing
-           moves a member watermark in SHADOW, so the hunt window is paid after
-           the stop by the member's own settle, at the state that exists then —
-           a skipped settle here is F1's mint over the whole hunt. A PIN, not a
-           read of PARTY_CHANNEL_PAYS: arming it is S5's decision and updates
-           this line in the same commit as the channel arm. */
-        const partiedExec = async () => [{ partied: true }];
-        for (const v of ['eat', 'market_buy', 'claim_reward', 'unlock_buy']) {
-          const f = await mods.pf.partyIntentFence({ exec: partiedExec, user: U.p, slot: 0, verb: v });
-          ok(!!f && f.status === 409 && f.body?.error === 'party_hunt_running' && f.partyOwnsWindow !== true,
-            `S4b: a partied ${v} answered ${JSON.stringify(f)} while the party channel is SHADOW — `
-            + 'it must be refused party_hunt_running; skipping its settle prices the whole hunt at '
-            + 'the post-mutate state');
-        }
-        await miner(U.p);
-        const before = await row(U.p);
-        const [read] = await exec(sa.READ_SQL, [U.p, 0, 'shop']);
-        const s = await mods.sf.settleBeforeMutate({
-          exec, user: U.p, slot: 0, verb: 'market_buy', env: read.state,
-          nowMs: new Date(read.now).getTime(), capMs: Number(read.cap_ms) || 0, partyOwnsWindow: true,
-        });
-        const after = await row(U.p);
-        ok(s.proceed === true && s.collected === null && after.v === before.v && after.at_ms === before.at_ms,
-          'S4: a partied character\'s settle verb moved its watermark — hr_party_tick_settle owns '
-          + `that window (§18.4 T-5b). version ${before.v}→${after.v}`);
-      }
-    }
-
     // ══ R5 — NOT THIS LANE ═══════════════════════════════════════════════
     notes.push('R5: client-direct RPCs on a stale row (hr_claim_quest/goal/daily/milestone/rank, '
-      + 'hr_set_auto_eat, hr_credit_kills) are F2 (lane C, hr_require_settled). The literal '
+      + 'and the rest) are F2 (lane C, hr_require_settled). The literal '
       + 'production path — road_forge claimed via hr_claim_quest — stays open until F2 applies.');
   } catch (e) {
     if (e && e.harness) throw e;

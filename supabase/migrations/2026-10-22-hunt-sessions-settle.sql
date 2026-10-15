@@ -1367,11 +1367,6 @@ begin
         if v_price is null then perform public.hr_reject('not_for_sale', jsonb_build_object('item', v_k)); end if;
         -- No kind is sold without a cap row (master plan row 18): drinks wait for mana.
         if v_kind not in ('heal', 'ammo') then perform public.hr_reject('kind_not_sold', jsonb_build_object('item', v_k, 'kind', v_kind)); end if;
-        -- A SHOT IS BOUGHT ONLY ON THE PLAYER'S "SWITCH TO STORE" (Combat Design
-        -- Bible v1.4): the running set's on_dry must read 'store'.
-        if v_kind = 'ammo' and coalesce((select a.on_dry from public.player_action_sets a
-                                          where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' then
-          perform public.hr_reject('store_off', jsonb_build_object('item', v_k)); end if;
         -- GOLD MOVES ONLY THROUGH A SLOT THAT SHOWS ITS PRICE (master plan row 1):
         -- the running bar names this shop use in a slot that is on (a shop heal
         -- may be named by `*heal_shop` at this hunt's tier).
@@ -1385,6 +1380,11 @@ begin
                                                   and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))) then
           perform public.hr_reject('not_on_bar', jsonb_build_object('item', v_k));
         end if;
+        -- A SHOT IS BOUGHT ONLY ON THE PLAYER'S "SWITCH TO STORE" (Combat Design
+        -- Bible v1.4): the running set's on_dry must read 'store'.
+        if v_kind = 'ammo' and coalesce((select a.on_dry from public.player_action_sets a
+                                          where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' then
+          perform public.hr_reject('store_off', jsonb_build_object('item', v_k)); end if;
         v_bk := v_bk || jsonb_build_object(v_kind, coalesce((v_bk->>v_kind)::bigint, 0) + v_n);
         v_items := v_items || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'price', v_price));
         v_cost := v_cost + v_n * v_price;

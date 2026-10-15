@@ -285,7 +285,8 @@ const ARMS = {
 
   async P1(db, red) {
     await probe(db);
-    const e = await enter(db, [{ item: 'cooked_shrimp', qty: 15 }]);
+    await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'hunters_feast', 3)`, [UID]);
+    const e = await enter(db, [{ item: 'cooked_shrimp', qty: 15 }, { item: 'hunters_feast', qty: 3 }]);
     const sid = e.session.id;
     const before = await one(db, `select count(*)::int from public.player_ledger where user_id = $1`, [UID]);
     const p = await call(db, 'hr_hunt_use', [0, 0, idem()]);
@@ -302,6 +303,12 @@ const ARMS = {
     const ok = await settle(db, sid, { swing_from: 0, swing_to: 4, to: at(from, 10), next_swing_at: at(from, 11),
       uses: { cooked_shrimp: 6 }, presses_left: [] });
     if (ok?.ok !== true) red.push(`P1: 6 heals in 10 s answered ${JSON.stringify(ok)}`);
+    /* ONE CONSUMABLE LANE (Combat Design Bible v1.4): heals and buff foods share
+       the 2 s lane, so 4 heals + 3 feasts in 10 s (7 > 6) is over the cap that
+       two separate lanes would each have admitted. */
+    const both = await settle(db, sid, { swing_from: 4, swing_to: 8, to: at(from, 20), next_swing_at: at(from, 21),
+      uses: { cooked_shrimp: 4, hunters_feast: 3 }, presses_left: [] });
+    if (both?.error !== 'too_many_uses') red.push(`P1: 4 heals + 3 buff foods in 10 s answered ${JSON.stringify(both)} — not ONE consumable lane`);
     const left = await one(db, `select jsonb_array_length(presses) from public.hunt_sessions where id = $1`, [sid]);
     if (left !== 0) red.push(`P1: the consumed press is still queued (${left})`);
   },
@@ -583,7 +590,9 @@ const BODY_MUTANTS = [
     from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'hunts_paused')); end if;\n  if p_hunt is null",
     to: "  if p_hunt is null" },
   { name: 'settle ignores the cooldown cap', arm: 'P1', fn: 'hr_hunt_settle_session',
-    from: '    if v_heals > v_win / v_cd_heal + 1 or v_buffs > v_win / v_cd_buff + 1 then', to: '    if false then' },
+    from: '    if v_heals + v_buffs > v_win / v_cd_cons + 1 then', to: '    if false then' },
+  { name: 'settle caps heals and buffs as two lanes', arm: 'P1', fn: 'hr_hunt_settle_session',
+    from: '    if v_heals + v_buffs > v_win / v_cd_cons + 1 then', to: '    if v_heals > v_win / v_cd_cons + 1 or v_buffs > v_win / v_cd_cons + 1 then' },
   { name: 'settle accepts invented presses', arm: 'P1', fn: 'hr_hunt_settle_session',
     from: "      if v_j >= jsonb_array_length(v_stored) then perform public.hr_reject('bad_presses'); end if;\n      v_keep := v_keep || jsonb_build_array(v_stored->v_j);",
     to: "      v_keep := v_keep || jsonb_build_array(jsonb_build_object('slot', (p_delta->'presses_left'->>v_i)::int));" },
@@ -634,7 +643,9 @@ if (!MUTATE) {
     await db.query('begin');
     let red;
     try {
-      await db.exec(plant(m.fn, m.from, m.to));
+      const live = String(await one(db, `select pg_get_functiondef(p.oid) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = $1`, [m.fn])).split(String.fromCharCode(13)).join('');
+      if (live.split(m.from).length !== 2) throw new Error(`mutant anchor moved in the live ${m.fn}: ${m.from.slice(0, 60)}`);
+      await db.exec(live.replace(m.from, () => m.to));
       red = [];
       try { await ARMS[m.arm](db, red); } catch (err) { red.push(`${m.arm}: threw ${String(err.message).split('\n')[0]}`); }
     } finally { await db.query('rollback'); }

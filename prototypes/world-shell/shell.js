@@ -22,7 +22,7 @@
 //              outside so src/world is untouched.
 // ════════════════════════════════════════════════════════════════════════
 import { bootWorld } from '../../src/world/world-boot.js';
-import { MOBILE_QUERY } from '../../src/world/core/camera.js';
+import { MOBILE_QUERY, ART_ROWS } from '../../src/world/core/camera.js';
 import { ITEMS } from '../../src/data/items.js';
 import { MONSTERS } from '../../src/data/monsters.js';
 import { PIXEL_DIR, fileFor } from '../../src/data/item-art.js';
@@ -37,6 +37,8 @@ const num = (n) => Number(n).toLocaleString('en-US');
 const MOTION_MS = 120;
 const DOCK_MAX = 0.6;
 const DOCK_GAP = 8, DOCK_EDGE = 12;
+/** Device px per art px for this screen class: x2 up to ~2400 px wide, x3 above. World, icons and the gear figure all use it. */
+const DENSITY = window.innerWidth * (window.devicePixelRatio || 1) > 2400 ? 3 : 2;
 
 /* ── Fixtures (labelled as such in the spec) ───────────────────────────── */
 const HERO = { name: 'Aldric', level: 34, gold: 12480, hp: 84, hpMax: 120, mp: 31, mpMax: 60 };
@@ -68,7 +70,7 @@ const kindOf = (id) => { const it = item(id) || {}; if (it.slot) return 'gear'; 
 /* ── The window catalogue: one row per window; the launcher row is drawn from it. ── */
 const WINDOWS = [
   { id: 'bag', label: 'Bag', key: 'b', glyph: 'navInventory', w: 400, render: renderBag, object: 'satchel' },
-  { id: 'equip', label: 'Gear', key: 'c', glyph: 'navCharacter', w: 400, render: renderEquip, object: 'doll' },
+  { id: 'equip', label: 'Gear', key: 'c', glyph: 'navCharacter', w: 340, render: renderEquip, object: 'doll' },
   { id: 'skills', label: 'Skills', key: 'k', glyph: 'navSkills', w: 400, render: stub('A skill ledger: one ruled line per skill, its level, its next unlock, and the bench or spot that trains it.'), object: 'ledger' },
   { id: 'home', label: 'Homestead', key: 'h', glyph: 'navHouse', w: 400, render: stub('The deed and plan of your homestead: rooms, plots and workers, drawn from the cottage map.'), object: 'deed' },
   { id: 'bestiary', label: 'Bestiary', key: 'l', glyph: 'uiBook', w: 440, render: stub('An encyclopedia: region chapters, one plate per creature. Returns after the cutover (spec §5).'), object: 'book' },
@@ -104,7 +106,7 @@ const launchersHtml = () => '<nav class="ws-launchers" aria-label="Windows">' + 
    CLAUDE.md §6): nothing reads it to gate or spend. Stored per size class. */
 const WIDGETS = [
   { id: 'launchers', label: 'Menu icons', layer: 'screen', anchor: 'tr', dx: 0, dy: 0, phone: { dy: 0 }, min: [320, 40], removable: false, when: 'always', render: launchersHtml },
-  { id: 'vitals', label: 'Health and mana', layer: 'world', anchor: 'bc', dx: 0, dy: 72, phone: { dy: 46 }, min: [300, 16], when: 'always', render: vitalsHtml },
+  { id: 'vitals', label: 'Health and mana', layer: 'world', anchor: 'bc', dx: 0, dy: 100, phone: { dy: 74 }, min: [300, 16], when: 'always', render: vitalsHtml },
   { id: 'actionbar', label: 'Action bar', layer: 'world', anchor: 'bc', dx: 0, dy: 12, phone: { dy: 4 }, min: [420, 44], when: 'always', render: actionbarHtml },
   { id: 'target', label: 'Target', layer: 'world', anchor: 'tc', dx: 0, dy: 12, phone: { anchor: 'tr', dx: 6, dy: 6 }, min: [180, 48], when: 'hunt', render: targetHtml },
   { id: 'ground', label: 'Floor and route', layer: 'world', anchor: 'tl', dx: 12, dy: 12, phone: { dx: 6, dy: 6 }, min: [140, 48], when: 'hunt', render: groundHtml },
@@ -230,7 +232,7 @@ document.addEventListener('click', (e) => { if (e.target.closest && e.target.clo
 function renderBag() {
   const tabs = [['all', 'All'], ['gear', 'Gear'], ['materials', 'Materials'], ['food', 'Food']];
   const shown = BAG.filter(([id]) => state.bagTab === 'all' || kindOf(id) === state.bagTab);
-  const cols = isPhone() ? 8 : 5;
+  const cols = 5;   // one density: a pocket is one 32 px icon at DENSITY on every screen
   const cells = shown.map(([id, n]) => '<button type="button" class="ws-pocket' + (state.bagSel === id ? ' is-sel' : '') + '" data-pick="' + id + '" title="' + esc(nameOf(id)) + '">'
     + '<img class="ws-px" src="' + iconOf(id) + '" alt="' + esc(nameOf(id)) + '">' + (n > 1 ? '<span class="ws-count">' + num(n) + '</span>' : '') + '</button>');
   while (cells.length % cols) cells.push('<span class="ws-pocket is-empty"></span>');
@@ -296,7 +298,8 @@ function place(el, L) {
   const v = L.anchor[0], hz = L.anchor[1];
   const x = hz === 'l' ? L.dx : hz === 'r' ? box.width - w - L.dx : (box.width - w) / 2 + L.dx;
   const y = v === 't' ? L.dy : v === 'b' ? box.height - h - L.dy : (box.height - h) / 2 + L.dy;
-  el.style.left = Math.round(x) + 'px';
+  /* Never off the World: a widget wider than the space left beside the dock pins to the left edge. */
+  el.style.left = Math.round(Math.max(0, Math.min(x, box.width - w))) + 'px';
   el.style.top = Math.round(y) + 'px';
 }
 /* Drop: the nearest anchor by thirds, offsets on the soft grid, and a snap to the edge margin. */
@@ -330,6 +333,17 @@ function paintHud() {
     el.style.opacity = String(L.opacity);
     el.style.minWidth = w.min[0] + 'px';
     place(el, L);
+  }
+  /* Widgets never overlap: a centred widget that lands on an edge-anchored one
+     (the bar on the hunt log when the dock narrows the World) steps clear of it. */
+  for (const host of [hud, screenHud]) {
+    const els = [...host.querySelectorAll('[data-widget]')];
+    const edge = els.filter((e) => layout[e.getAttribute('data-widget')].anchor[1] !== 'c').map((e) => e.getBoundingClientRect());
+    for (const e of els.filter((x) => layout[x.getAttribute('data-widget')].anchor[1] === 'c')) {
+      const r = e.getBoundingClientRect(), box = host.getBoundingClientRect();
+      const hit = edge.find((q) => r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top);
+      if (hit && hit.right + DOCK_EDGE + r.width <= box.right) e.style.left = Math.round(hit.right - box.left + DOCK_EDGE) + 'px';
+    }
   }
   /* Gold sits beside the launcher row while the row is home in the strip. */
   const L = layout.launchers, home = L.anchor === 'tr' && L.dx === 0 && L.dy === 0;
@@ -407,7 +421,7 @@ async function animateHero() {
   heroAnim = setInterval(() => {
     const el = layer.querySelector('[data-hero]');
     if (!el) return;
-    const z = isPhone() ? 3 : 4;
+    const z = DENSITY;   // the gear figure is drawn at the screen's one pixel density
     const [x, y] = frames[i++ % frames.length];
     el.style.backgroundImage = 'url(assets/world/' + man.image + ')';
     el.style.backgroundSize = (man.size[0] * z) + 'px ' + (man.size[1] * z) + 'px';
@@ -481,6 +495,10 @@ if (!Q.get('clean')) {
 }
 /* The game publishes the monster catalogue on window; the World names plates from it. */
 window.MONSTERS = MONSTERS;
+/* ONE PIXEL DENSITY (spec §1): the World's zoom is pinned to DENSITY in every scene.
+   The engine derives it from innerHeight (camera.js zoomFor); the prototype pins it
+   by answering that read, so src/world stays untouched. */
+Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => (DENSITY * ART_ROWS) / (window.devicePixelRatio || 1) });
 window.G = { playerName: HERO.name };
 loadLayout();
 world = await bootWorld(panel);

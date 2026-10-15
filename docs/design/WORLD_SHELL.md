@@ -8,11 +8,19 @@ Art Director, 2026-10-14. This is Tyler's call after playing the town and cottag
 | Strip (top, 40 px) | Left: the name (Cinzel) and level. Right: gold, then the **launcher row**. Nothing else | the same; launchers 44 px wide |
 | Launcher row | 8 icons, 40 px each: Bag, Gear, Skills, Home, Bestiary, Market, Chat, Settings. Icons only; hovering or focusing shows a tooltip with the label and the shortcut letter; the open window's icon is lit gold with an underline | the same row: the phone has width to spare and no height to spare |
 | World | **edge to edge** under the strip. There is no side rail, frame, title or radius (audit #15) | the same |
-| Zoom | a whole number taken from the window size (`camera.js zoomFor`). Measured: ×3 in town, ×2 in the fitted cellar | ×2 measured |
+| Pixel density | **×2**: every art pixel is 2×2 device px in town, cottage and cellar, and for icons and the gear figure (measured, `shots/uniform-*.png`). That shows 22.5×13.4 tiles | **×2**, 14.4×6 tiles |
 
+- **ONE PIXEL DENSITY PER SCREEN CLASS (law, Tyler 10-14: "the scaling seems off").** Every art pixel is the same size on screen across the world, item icons, the gear figure, pixel frames and the cursor. The density is **×2** on desktop and on the phone, and **×3 only above about 2400 device px wide**.
+  - It is chosen once per screen class, never per scene: `zoomFor` becomes this table, and **`fitZoom` is removed**. b585 mixed ×3 town, ×2 fitted cellar, ×2 icons, ×1 phone icons and a ×4 figure, and that mix is what read as "off".
+  - A room smaller than the view is centred with darkness around it. A bigger room scrolls with camera follow. Zoom never changes between town, cottage and cellar.
+  - Icons are one 32-px art tile: 64 px pockets, slots and bar cells. The gear figure is ×2. If that looks small, the window gets smaller; the sprite never gets bigger.
+  - **What it costs:**
+    - The 10-slot bar is 730 px wide. With Bag and Gear both docked at 1440 it runs under the Gear window. Centred widgets now step clear of edge widgets: the bar moves right of the hunt log.
+    - The phone's bottom HUD is **90 px = 21%** (it was 62 px). The phone either shows six bar slots, or the 15% budget gives way to the rule.
+    - The prototype pins ×2 by answering the engine's `innerHeight` read; `src/world` is untouched.
 - The strip carries no bells, timers or currencies other than gold. Event and muster notices become in-world (the crier) or a toast.
 - The launcher row lists only windows that exist. A launcher never opens a "coming soon".
-- **Camera inset (P1, engine, before the cutover).** A docked window must never cover the hero or the target. The shell passes the covered rect to the World (`setInset({right})`). `frameView` then centres the camera inside the uncovered part, and `fitZoom` fits the room inside it. The art still draws under the window. The prototype FAKES this from outside by widening the stage leftward by the covered width. That keeps the hero and the target in view (checked: hero x 284 with 620 px of World left uncovered). It can't refit a hunt room, though, so the cellar's left wall clips at 1440 with the bag open. The engine fix is a handoff to the Systems Engineer.
+- **Camera inset (P1, engine, before the cutover).** A docked window must never cover the hero or the target. The shell passes the covered rect to the World (`setInset({right})`). `frameView` then centres the camera inside the uncovered part. The art still draws under the window. The prototype FAKES this from outside by widening the stage leftward by the covered width. That keeps the hero and the target in view (checked: hero x 284 with 620 px of World left uncovered). A small room is centred in the widened stage, so with the bag open the cellar sits left of centre and parts of it fall under the dock. The engine fix is a handoff to the Systems Engineer.
 
 ## 2. HUD widgets: everything that sits on screen
 Every widget is one row of data, and B1 builds its hunt widgets to this contract. Fields: `id`, `label`, `layer` (`world` widgets move with the dock inset; `screen` widgets can sit anywhere, the strip included), `anchor` (`t|m|b` + `l|c|r`), and `dx`/`dy` (px from that anchor's edges). Then `min [w, h]`, `opacity` (0.4–1, and hovering always shows 1), `visible`, `removable`, and `when` (`always` or `hunt`). Phone overrides go in their own `phone {…}` block.
@@ -20,8 +28,8 @@ Every widget is one row of data, and B1 builds its hunt widgets to this contract
 | id | default anchor (desktop / phone) | min | notes |
 |---|---|---|---|
 | `launchers` | tr 0,0 in the strip / same | 320×40 | **cannot be hidden** (Esc always reaches Settings as well) |
-| `vitals` | bc 0,72 / bc 0,46 | 300×16 | HP over MP. On the phone it rides the action bar's top edge |
-| `actionbar` | bc 0,12 / bc 0,4 | 420×44 | **one row of ten** (keys 1–0). Row 2 (Shift+1–0) appears only once something is bound to it. Slot 1 is the bound food. Leave Hunt goes here as a bar control |
+| `vitals` | bc 0,100 / bc 0,74 | 300×16 | HP over MP. On the phone it rides the action bar's top edge |
+| `actionbar` | bc 0,12 / bc 0,4 | 730×82 at ×2 | **one row of ten** (keys 1–0). Row 2 (Shift+1–0) appears only once something is bound to it. Slot 1 is the bound food. Leave Hunt goes here as a bar control |
 | `target` | tc 0,12 / tr 6,6 | 180×48 | the foe's name in the **same face and case as its world plate** (Alegreya, not Cinzel), its level, and an HP bar (`--world-bar-foe`) |
 | `ground` | tl 12,12 / tl 6,6 | 140×48 | the ground's name and **floor N of M**. A tap opens the route minimap (§3) |
 | `analyzer` | tl 12,84 / hidden | 220×160 | Huntera-style: session time, kills, XP/h, loot, supplies (`--red`), profit/h (`--green`), and "settled N s ago". Read from `G._huntAnalyzer` |
@@ -31,7 +39,7 @@ Every widget is one row of data, and B1 builds its hunt widgets to this contract
 - **At the cutover:** show/hide per widget, opacity per widget (40–100%; hovering brings it to 100%), and **Reset layout**. These live in Settings → HUD layout (shortcut U).
 - **v1.1, right after Tyler's first playable test, is Edit HUD mode.** It's toggled from Settings or U. On desktop you drag widgets: on drop, the nearest anchor is picked by thirds of the screen, the offsets land on an 8 px soft grid, and anything within 24 px of an edge snaps to the 12 px margin. The phone gets no free drag, only six snap positions per widget. While editing, widgets are outlined and named and clicks on them do nothing. The contract above already carries `anchor`/`dx`/`dy`, so v1.1 adds the interaction and nothing else. The prototype shows it, marked v1.1 (`shots/*-edit-hud.png`).
 - **Storage:** the layout is a client-only DISPLAY preference (CLAUDE.md §6 residue allowlist). Nothing reads it to gate an action or spend anything. It's stored per size class (`hud.desktop`, `hud.phone`), so a phone layout never breaks the desktop one.
-- **Phone budget:** the bottom HUD measures **62 px = 14.7%** of 423, under the 15% target.
+- **Phone budget:** the bottom HUD was 62 px (14.7%) at mixed density. At one density it is 90 px (21%); see §1.
 
 ## 3. Dynamic hunting: what the map data must carry (spec only; Tyler 10-14)
 The hero walks to monsters, monsters walk to the hero, and a ground is an authored **route through real space across floors** (Huntera's Asura Palace is the reference). The cellar stays one room. The server owns the path the engine plays; the client only stages it. A hunt map row in `src/data/world/maps/*` adds:
@@ -45,7 +53,7 @@ The hero walks to monsters, monsters walk to the hero, and a ground is an author
 | Window | Key | Opens from the world | The object it is (ART §6) |
 |---|---|---|---|
 | Bag | B | the cottage chest opens **Bank** (a tab of the same satchel) | **a satchel**: dark leather (`--sc-top-1`) with a stitched edge (`--sc-stitch`) and sunk pockets. Capacity is a thin bar plus "24 of 40 spaces used"; it shows only the pockets in use (the last row padded), never 16 empty squares. One category row. The selected item's line carries the one primary action |
-| Gear | C | (none) | **a paper doll**: the hero's own world sprite at ×4 (×3 on the phone) on a plinth. The slots go in body order: the left column runs head to legs, the right ears to feet, and the hands sit below |
+| Gear | C | (none) | **a paper doll**: the hero's own world sprite at the one density (×2) on a plinth. The slots go in body order: the left column runs head to legs, the right ears to feet, and the hands sit below |
 | Skills | K | the anvil opens Smithing and the woodpile Woodcutting (`TAP_OPENS`); the well opens Farming | **a ledger**: one ruled line per skill showing its level, its next unlock, and where it's trained |
 | Homestead | H | the cottage door and its rooms (`openRoom`) | **a deed and plan** drawn from the cottage map's tiles |
 | Settings | Esc with nothing open | (none) | plain (chrome has no object). Its primary is HUD layout |
@@ -58,7 +66,7 @@ The hero walks to monsters, monsters walk to the hero, and a ground is an author
 - **The World never pauses:** 38 frames in 0.6 s were measured with a window open. Windows are not modal and have no backdrop.
 - **Motion:** a 120 ms slide and fade in from the dock edge, and 120 ms back out. No bounce. Reduced motion turns it off.
 - **One frame for every window:** a 44 px head (gold glyph, Cinzel title, key chip, close), `--modal-bg`, a `--line` border, the `--r-lg` radius, and one overlay shadow. One primary per window, and no cards inside.
-- **Icons:** pixel items are drawn at ×2 (64 px) on desktop and ×1 (32 px) on the phone, nothing in between. The doll's belt is now `iron_belt`. `leather_belt` reads as a ring, which is an Asset Director handoff.
+- **Icons:** pixel items are drawn at the screen's one density (§1), so ×2 = 64 px everywhere. The doll's belt is now `iron_belt`. `leather_belt` reads as a ring, which is an Asset Director handoff.
 
 ## 5. Rules check (ART_DIRECTION §4–6, DESIGN_STANDARDS), measured on the prototype
 Radius tokens only (`--r-sm/--r/--r-lg`, plus 0 on the phone sheets): pass. No glow; the only shadows are on windows and the editor (overlays): pass. No gradients on controls (the only one is the v1.1 edit grid): pass. One primary per view: pass. Borders only on boxes that mean something (windows, widgets, pockets, slots): pass. Whole-number pixel scales: pass. Colour literals: 0. Windows as objects: **partial**, since Bag and Gear are objects but Skills, Homestead and the rest are one-line stubs.

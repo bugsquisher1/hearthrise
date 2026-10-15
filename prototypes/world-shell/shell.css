@@ -76,6 +76,7 @@ button { font: inherit; color: inherit; }
 .ws-screen-hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
 .ws-widget { position: absolute; pointer-events: auto; transition: opacity 120ms ease-out; }
 .ws-widget:hover { opacity: 1 !important; }
+.ws-widget.is-vitals { z-index: 1; }
 /* One widget surface: the HUD glass, a hairline, the --r-lg corner. */
 .ws-target, .ws-ground, .ws-log, .ws-analyzer, .ws-chat, .ws-abar {
   border-radius: var(--r-lg); background: var(--world-hud-bg); border: 1px solid var(--line-soft);
@@ -84,7 +85,7 @@ button { font: inherit; color: inherit; }
 
 .ws-launchers { display: flex; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
 
-.ws-vitals { display: flex; gap: 8px; width: 450px; }
+.ws-vitals { display: flex; gap: 8px; width: 730px; }
 .ws-vital { position: relative; flex: 1; height: 20px; overflow: hidden; border-radius: var(--r-sm); background: var(--world-hud-bg); border: 1px solid var(--line-soft); }
 .ws-vital-fill { position: absolute; inset: 0 auto 0 0; }
 .ws-vital.is-hp .ws-vital-fill { background: var(--world-bar-hero); opacity: .78; }
@@ -93,8 +94,7 @@ button { font: inherit; color: inherit; }
 
 .ws-abar { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
 .ws-arow { display: flex; gap: 4px; }
-.ws-aslot { position: relative; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge); cursor: pointer; }
-.ws-aslot .ws-px { width: 32px; height: 32px; }
+.ws-aslot { position: relative; width: 68px; height: 68px; padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge); cursor: pointer; }
 .ws-aslot:hover { box-shadow: var(--surf-sunken-edge), inset 0 0 0 1px var(--line); }
 .ws-akey { position: absolute; left: 3px; top: 1px; font-size: var(--t-micro); line-height: 1; color: var(--ink-2); font-weight: 700; z-index: 1; text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow); }
 
@@ -232,7 +232,6 @@ body.is-editing .ws-widget.is-dragging { outline-style: solid; }
 }
 .ws-pick { display: flex; align-items: center; gap: 10px; min-height: 64px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .ws-pick.is-hint { color: var(--ink-3); font-size: var(--t-small); }
-.ws-pick .ws-px { width: 32px; height: 32px; }
 .ws-pick-name { flex: 1; display: flex; flex-direction: column; font-weight: 700; color: var(--ink); }
 .ws-pick-name small { font-weight: 400; font-size: var(--t-micro); color: var(--ink-3); }
 .ws-primary {
@@ -299,12 +298,10 @@ body.is-editing .ws-widget.is-dragging { outline-style: solid; }
   .ws-name { font-size: var(--t-small); }
   .ws-level, .ws-gold { font-size: var(--t-micro); }
 
-  /* Under 15% of the height: the vitals ride the bar's top edge. */
-  .ws-vitals { width: 442px; padding: 0 8px; gap: 6px; }
+  /* The vitals ride the bar's top edge. */
   .ws-vital { height: 16px; }
   .ws-vital-text { line-height: 14px; }
   .ws-abar { padding: 6px 2px 2px; }
-  .ws-aslot { width: 40px; height: 36px; }
   .ws-target { min-width: 180px; padding: 4px 10px 6px; }
   .ws-ground { padding: 4px 10px; }
   .ws-edit-panel { right: 0; top: 40px; bottom: 0; max-height: none; width: min(420px, 50vw); border-radius: 0; border-width: 0 0 0 1px; padding: 8px 12px 0; }
@@ -323,13 +320,8 @@ body.is-editing .ws-widget.is-dragging { outline-style: solid; }
   }
   .ws-win-head { height: 40px; cursor: default; }
   .ws-win-body { padding: 8px 10px 10px; }
-  .ws-px { width: 32px; height: 32px; }
-  .ws-pocket { width: 40px; height: 40px; }
   .ws-count { right: 2px; bottom: 1px; }
   .ws-pick { min-height: 44px; margin-top: 8px; padding-top: 8px; }
-  .ws-doll { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-rows: repeat(4, 48px) auto; gap: 4px 6px; }
-  .ws-slot { width: 44px; height: 44px; }
-  .ws-slot .ws-px { width: 32px; height: 32px; }
   .ws-slot-label { display: none; }
   .ws-slot.is-empty .ws-glyph.is-ghost { margin: 0; width: 22px; height: 22px; }
   .ws-hero { bottom: 0; }

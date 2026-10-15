@@ -10,7 +10,7 @@
 //       mapped so the room can sell SPEED and QUALITY. Permission is the
 //       skill LEVEL and only the skill level. See UNGATED below.
 //   • worker slots (see features/workers.js — idle resource production)
-//   • castle capstone: +2% all XP (wired into getBonus)
+//   • castle capstone: none since 2026-10-14 (a home grants no XP, Master Design Reference §9)
 //
 // ensureState() infers a tier from OWNED rooms and plots once the server has stated a rung; XP infers nothing.
 //
@@ -54,7 +54,7 @@
       cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5, iron_fitting: 12, timber_beam: 12 },
       rooms: ['shrine', 'trophy'] },
     { id: 'castle',    name: 'Hearthrise Castle',    glyph: 'uiCrown', plots: 12, workers: 6,
-      desc: 'The banner over the valley. Six workers, and the pride of the realm: +2% all XP.',
+      desc: 'The banner over the valley. Six workers, and the pride of the realm.',
       cost: { gold: 150000, yew_plank: 70, mithril_bar: 40, rune_bar: 8, dragon_scale: 4, keystone: 6 },
       rooms: [] }
   ];
@@ -533,7 +533,6 @@
         '<div class="hh-stats">' +
           '<div class="hh-stat"><b>' + maxPlots() + '</b><span>Plots</span></div>' +
           '<div class="hh-stat"><b>' + workerSlots() + '</b><span>Workers</span></div>' +
-          (isCastle() ? '<div class="hh-stat"><b>+2%</b><span>All XP</span></div>' : '') +
         '</div>' +
         (nxt
           ? '<div style="border-top:1px solid var(--line-soft);padding-top:8px">' +

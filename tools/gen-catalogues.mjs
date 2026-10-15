@@ -53,8 +53,11 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
    operational reason as OUT_ITEM_BUFFS for being its own LAST-registered file
    rather than folded into OUT (which is already applied and is the chain's
    fourth file). Covered by the same `--check`. */
+/* DEMOLITION REGEN (2026-10-14, Master Design Reference §9): the room-perk
+   catalogue is re-emitted into a NEW, LAST-registered file; the 2026-09-13 file
+   stays in the chain. */
 const OUT_ROOM_PERKS = join(ROOT, 'supabase', 'migrations',
-  '2026-09-13-room-perks-catalogue.generated.sql');
+  '2026-10-23-demolition-room-perks.generated.sql');
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 

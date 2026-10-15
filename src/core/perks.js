@@ -73,16 +73,20 @@ export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
    under-pay of exactly the kind this file exists to end. */
 export const PLOT_PERKS = Object.freeze({
   toolshed: Object.freeze({ gatherSpeed: 0.02 }),
-  scarecrow: Object.freeze({ farmYield: 1 }),
-  watchtower: Object.freeze({ combatXP: 0.02 }),
+  /* Master Design Reference §9 (2026-10-14): a home never grants XP or a
+     resource advantage — the Scarecrow's farmYield and the Watchtower's
+     combatXP left the channel. The buildings stay as places. */
+  scarecrow: Object.freeze({}),
+  watchtower: Object.freeze({}),
   /* farm_plot pays no bonus — it grants a PLOT, which is capacity. Listed so
      a reader can see it was considered rather than missed. */
   farm_plot: Object.freeze({}),
 });
 
-/* The property capstone: owning the Hearthrise Castle, the last tier.
-   b228 brought it to +2% on the wide-key half-step (bonus-rebase.md §3.1). */
-export const CAPSTONE_PERKS = Object.freeze({ allXP: 0.02 });
+/* The property capstone: owning the Hearthrise Castle, the last tier. It paid
+   +2% allXP until Master Design Reference §9 (2026-10-14): a home never grants
+   XP. It pays nothing; the seam stays so a ruled non-XP capstone has a home. */
+export const CAPSTONE_PERKS = Object.freeze({});
 
 /* Tier index of the Hearthrise Castle in src/features/homestead.js TIERS
    (camp 0 · homestead 1 · farmstead 2 · manor 3 · keep 4 · CASTLE 5), and the

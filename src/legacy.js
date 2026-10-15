@@ -199,18 +199,18 @@ const ROOMS={
     {nm:'Hearthstone',      cost:{gold:500,normal_log:20},                            bonus:'Cook +2% · burn −13%',       bk:'cookSpeed',bv:.02,bx:{noBurn:.13}},
     {nm:'Iron Stove',       cost:{gold:2000,normal_log:50},                           bonus:'Cook +4% · burn −19%',       bk:'cookSpeed',bv:.04,bx:{noBurn:.19}},
     {nm:'Cast-Iron Range',  cost:{gold:8000,oak_log:30},                              bonus:'Cook +6% · never burns',     bk:'cookSpeed',bv:.06,bx:{noBurn:.25}},
-    {nm:'Twin Range',       cost:{gold:45000,timber_beam:12,willow_log:40,field_ration:25},   tier:3, bonus:'Cook +8% · 4% extra portion',  bk:'cookSpeed',bv:.08,bx:{noBurn:.25,yield_cooking:.04}},
-    {nm:'The Great Hearth', cost:{gold:250000,keystone:2,duskwood_plank:30,dragon_scale:8},   tier:5, bonus:'Cook +10% · 8% extra portion', bk:'cookSpeed',bv:.10,bx:{noBurn:.25,yield_cooking:.08}}]},
-  forge:{name:'Forge',icon:'🔥',desc:'Smith faster, and the forge gives you the odd extra bar.',levels:[
-    {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2% · 1% extra bar',   bk:'smithSpeed',bv:.02,bx:{yield_smithing:.01}},
-    {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4% · 2% extra bar',   bk:'smithSpeed',bv:.04,bx:{yield_smithing:.02}},
-    {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6% · 4% extra bar',   bk:'smithSpeed',bv:.06,bx:{yield_smithing:.04}},
-    {nm:'The Great Bellows',cost:{gold:55000,iron_fitting:15,steel_bar:60,coal:20},          tier:3, bonus:'Smith +8% · 6% extra bar',   bk:'smithSpeed',bv:.08,bx:{yield_smithing:.06}},
-    {nm:'The Deep Forge',   cost:{gold:280000,keystone:2,mithril_bar:20,dragon_scale:6},     tier:4, bonus:'Smith +10% · 8% extra bar',  bk:'smithSpeed',bv:.10,bx:{yield_smithing:.08}}]},
-  library:{name:'Library',icon:'📚',desc:'+XP for all skills — and it pays you for the hours you were away.',levels:[
-    {nm:'Shelf',            cost:{gold:1000,normal_log:50},                           bonus:'All XP +1%',                 bk:'allXP',bv:.01},
-    {nm:'Reading Room',     cost:{gold:4000,oak_log:50},                              bonus:'All XP +2%',                 bk:'allXP',bv:.02},
-    {nm:'The Library',      cost:{gold:15000,maple_log:30},                           bonus:'All XP +3%',                 bk:'allXP',bv:.03},
+    {nm:'Twin Range',       cost:{gold:45000,timber_beam:12,willow_log:40,field_ration:25},   tier:3, bonus:'Cook +8% · never burns',     bk:'cookSpeed',bv:.08,bx:{noBurn:.25}},
+    {nm:'The Great Hearth', cost:{gold:250000,keystone:2,duskwood_plank:30,dragon_scale:8},   tier:5, bonus:'Cook +10% · never burns',    bk:'cookSpeed',bv:.10,bx:{noBurn:.25}}]},
+  forge:{name:'Forge',icon:'🔥',desc:'Smith faster.',levels:[
+    {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2%',   bk:'smithSpeed',bv:.02},
+    {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4%',   bk:'smithSpeed',bv:.04},
+    {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6%',   bk:'smithSpeed',bv:.06},
+    {nm:'The Great Bellows',cost:{gold:55000,iron_fitting:15,steel_bar:60,coal:20},          tier:3, bonus:'Smith +8%',   bk:'smithSpeed',bv:.08},
+    {nm:'The Deep Forge',   cost:{gold:280000,keystone:2,mithril_bar:20,dragon_scale:6},     tier:4, bonus:'Smith +10%',  bk:'smithSpeed',bv:.10}]},
+  library:{name:'Library',icon:'📚',desc:'A room of your home, to furnish as you climb.',levels:[
+    {nm:'Shelf',            cost:{gold:1000,normal_log:50},                           bonus:'Furnished'},
+    {nm:'Reading Room',     cost:{gold:4000,oak_log:50},                              bonus:'Furnished'},
+    {nm:'The Library',      cost:{gold:15000,maple_log:30},                           bonus:'Furnished'},
     /* b228 — THE RESERVED PAYLOAD IS PAID. These two rungs were specced to pay
        Rested XP POTENCY and b227 shipped them without it, because a percentage
        potency is dead on arrival at the retuned scale (a few percent of one XP
@@ -220,20 +220,20 @@ const ROOMS={
        `restedCap` is the size of the bank. Capacity, not throughput — outside
        the power budget by §2.5, and the honest way to justify a 300,000-gold
        Keystone rung without inflating a percentage. */
-    {nm:'The Scriptorium',  cost:{gold:65000,timber_beam:12,silk_thread:25,magic_essence:10},tier:3, bonus:'All XP +4% · Rested 800 XP per charge',  bk:'allXP',bv:.04, rested:800},
-    {nm:'The Great Library',cost:{gold:300000,keystone:2,duskwood_plank:30,ancient_rune:12}, tier:5, bonus:'All XP +5% · Rested 1,600 XP per charge · bank 120', bk:'allXP',bv:.05, rested:1600, restedCap:120}]},
-  garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[
-    {nm:'Kitchen Garden',   cost:{gold:600,wheat:20},                                 bonus:'Yield +1',                   bk:'farmYield',bv:1},
-    {nm:'Walled Garden',    cost:{gold:2500,wheat:60},                                bonus:'Yield +2',                   bk:'farmYield',bv:2},
-    {nm:'The Beds',         cost:{gold:9000,pumpkin:5},                               bonus:'Yield +4',                   bk:'farmYield',bv:4},
-    {nm:'The Glasshouse',   cost:{gold:60000,timber_beam:10,silk_thread:20,goldenroot:15},   tier:3, bonus:'Yield +6',    bk:'farmYield',bv:6},
-    {nm:'The Orchard',      cost:{gold:300000,keystone:2,duskwood_plank:40,moonbloom:12},    tier:4, bonus:'Yield +8',    bk:'farmYield',bv:8}]},
-  trophy:{name:'Trophy Room',icon:'🏆',desc:'+Combat XP.',levels:[
-    {nm:'Trophy Wall',      cost:{gold:2000,wolf_pelt:5},                             bonus:'Combat XP +1%',              bk:'combatXP',bv:.01},
-    {nm:'The Hall',         cost:{gold:8000,troll_hide:3},                            bonus:'Combat XP +2%',              bk:'combatXP',bv:.02},
-    {nm:'Hall of Heads',    cost:{gold:25000,dragon_scale:2},                         bonus:'Combat XP +3%',              bk:'combatXP',bv:.03},
-    {nm:'Hall of Banners',  cost:{gold:60000,iron_fitting:12,bear_pelt:6,ancient_claw:3},    tier:3, bonus:'Combat XP +4%',  bk:'combatXP',bv:.04},
-    {nm:'The Long Gallery', cost:{gold:290000,keystone:2,dragon_scale:6,dragon_gem:1},       tier:4, bonus:'Combat XP +5%',  bk:'combatXP',bv:.05}]},
+    {nm:'The Scriptorium',  cost:{gold:65000,timber_beam:12,silk_thread:25,magic_essence:10},tier:3, bonus:'Furnished'},
+    {nm:'The Great Library',cost:{gold:300000,keystone:2,duskwood_plank:30,ancient_rune:12}, tier:5, bonus:'Furnished'}]},
+  garden:{name:'Garden',icon:'🌻',desc:'A room of your home, to furnish as you climb.',levels:[
+    {nm:'Kitchen Garden',   cost:{gold:600,wheat:20},                                 bonus:'Furnished'},
+    {nm:'Walled Garden',    cost:{gold:2500,wheat:60},                                bonus:'Furnished'},
+    {nm:'The Beds',         cost:{gold:9000,pumpkin:5},                               bonus:'Furnished'},
+    {nm:'The Glasshouse',   cost:{gold:60000,timber_beam:10,silk_thread:20,goldenroot:15},   tier:3, bonus:'Furnished'},
+    {nm:'The Orchard',      cost:{gold:300000,keystone:2,duskwood_plank:40,moonbloom:12},    tier:4, bonus:'Furnished'}]},
+  trophy:{name:'Trophy Room',icon:'🏆',desc:'Hang the trophies you have earned.',levels:[
+    {nm:'Trophy Wall',      cost:{gold:2000,wolf_pelt:5},                             bonus:'Furnished'},
+    {nm:'The Hall',         cost:{gold:8000,troll_hide:3},                            bonus:'Furnished'},
+    {nm:'Hall of Heads',    cost:{gold:25000,dragon_scale:2},                         bonus:'Furnished'},
+    {nm:'Hall of Banners',  cost:{gold:60000,iron_fitting:12,bear_pelt:6,ancient_claw:3},    tier:3, bonus:'Furnished'},
+    {nm:'The Long Gallery', cost:{gold:290000,keystone:2,dragon_scale:6,dragon_gem:1},       tier:4, bonus:'Furnished'}]},
   /* b227 — THE CELLAR RULING (homestead-deepening.md §3.4, Designer, binding).
 
      The Cellar's three rungs bought `storage`, and `getBonus('storage')` has

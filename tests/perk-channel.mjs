@@ -280,9 +280,10 @@ async function run(patch) {
     { name: 'empty', G: { rooms: {}, plotBuildings: [], homestead: { tier: 0 } } },
     { name: 'kitchen-3 + toolshed',
       G: { rooms: { kitchen: 3 }, plotBuildings: [{ id: 'toolshed' }], homestead: { tier: 2 } } },
-    // TWO Scarecrows. `{scarecrow:true}` pays +1; the truth is +2.
-    { name: 'two scarecrows',
-      G: { rooms: {}, plotBuildings: [{ id: 'scarecrow' }, { id: 'scarecrow' }],
+    // TWO Toolsheds. `{toolshed:true}` pays one; the truth is two. (The Scarecrow
+    // was the probe until its farmYield left, Master Design Reference §9.)
+    { name: 'two toolsheds',
+      G: { rooms: {}, plotBuildings: [{ id: 'toolshed' }, { id: 'toolshed' }],
            homestead: { tier: 1 } } },
     // The capstone, at exactly the tier that grants it.
     { name: 'castle capstone',
@@ -376,15 +377,13 @@ async function run(patch) {
     ok(grants.rows[0].n === 0, `P7: hr_engine holds ${grants.rows[0].n} table grants`);
   }
 
-  // ── P8 · THE LIBRARY'S RESTED PAYLOAD SURVIVES THE LADDER SCAN ────────
-  // L5 carries both fields, L4 only `rested`. A forward scan would leave an
-  // L5 player without `restedCap`.
+  // ── P8 · NO ROOM PAYS RESTED XP (Master Design Reference §9, 2026-10-14) ─
+  // The Library's Rested quantum left with every other home-granted XP.
   {
-    ok(restedPayload({ rooms: { library: 3 } }).rested === 0, 'P8: L3 pays a Rested quantum');
-    ok(restedPayload({ rooms: { library: 4 } }).rested === 800, 'P8: L4 Rested quantum wrong');
-    const l5 = restedPayload({ rooms: { library: 5 } });
-    ok(l5.rested === 1600 && l5.restedCap === 120,
-      `P8: L5 reads ${JSON.stringify(l5)} — expected 1600 / 120`);
+    for (let lv = 0; lv <= 6; lv++) {
+      const p = restedPayload({ rooms: { library: lv } });
+      ok(p.rested === 0 && p.restedCap === 0, `P8: Library rung ${lv} still pays Rested ${JSON.stringify(p)}`);
+    }
   }
 
   // ── P9 · THE UNDER-PAY IS ACTUALLY CLOSED, MEASURED ───────────────────
@@ -440,96 +439,52 @@ async function run(patch) {
     ok(MONSTERS[base.activeId] && MONSTERS[base.activeId].hp > 12,
       `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
     const none = computeAccrual({ ...base, perks: null });
-    /* Trophy Room L5 (+5% combatXP) + a Watchtower (+2%) = +7% combat XP.
-       Library L5 (+5% allXP) + the capstone (+2%) = +7% on everything. */
+    /* MASTER DESIGN REFERENCE §9 (2026-10-14): a home never grants XP or a
+       resource advantage. Every home source at its top — every room at rung 5,
+       both Scarecrows, the Watchtower, the Castle — must pay this combat night
+       EXACTLY what a bare character is paid: same XP, same items, same kills. */
     const decked = computeAccrual({
       ...base,
       perks: {
         ok: true,
-        rooms: { trophy: 5, library: 5 },
-        plots: { watchtower: 1 },
+        rooms: Object.fromEntries(Object.keys(ROOM_PERKS).map((id) => [id, ROOM_PERKS[id].length])),
+        plots: { watchtower: 1, scarecrow: 2, toolshed: 2, farm_plot: 3 },
         propertyTier: CASTLE_TIER,
       },
     });
     ok(none.accrued === true && decked.accrued === true,
       `P9: a fixture did not accrue (${none.reason} / ${decked.reason}) — the block asserts nothing`);
     ok(none.summary && none.summary.died === false,
-      'P9: the bare fixture DIED, so the night is truncated and no rate bonus is measurable here');
+      'P9: the bare fixture DIED, so the night is truncated and nothing is measured here');
     if (none.accrued && decked.accrued) {
-      const sum = (x) => Object.values(x.delta.xp || {}).reduce((a, b) => a + b, 0);
-      const a = sum(none);
-      const b = sum(decked);
-      ok(b > a,
-        `P9: a decorated character was paid ${b} XP against a bare one's ${a} — the perk state reaches `
-        + 'the bonus function and the engine does not spend it');
-      /* MEASURED 2026-10-07 (goblin, carried remainder): 422,802 -> 481,995 XP, +14.0%;
-         2026-10-07 (goblin, per-grant floor): 361,187 -> 414,453 XP, +14.7%;
-         2026-08-15 (slime, overkill XP): 651,398 -> 758,572, +16.45%. Same seed, same equipment, varying only the perk state.
-         The naive expectation is +14% (Trophy L5 + Watchtower = +7% combatXP,
-         Library L5 + capstone = +7% allXP, both applying to combat skills).
-         Under the per-grant floor it measured HIGHER (floor(1.95) is 1 and
-         floor(1.95 x 1.14) is 2); with the remainder carried it measures the
-         headline +14.0%, which is the point of the ruling. The band is set
-         from the measurement with room for the fight to diverge. */
-      const lift = a > 0 ? (b - a) / a : 0;
-      ok(lift > 0.10 && lift < 0.25,
-        `P9: the perk lift is ${(lift * 100).toFixed(1)}% (${a} -> ${b} XP). Trophy L5 + Watchtower `
-        + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +14.0% on this fixture.');
-      /* SHAPE, immune to the flooring: a bigger grant must pay more than a
-         smaller one. If the channel were paying a constant, both would match. */
-      const only = (p) => sum(computeAccrual({ ...base, perks: { ok: true, plots: {}, propertyTier: 0, ...p } }));
-      const big = only({ rooms: { trophy: 5 } });        // +5% combatXP
-      const small = only({ rooms: { trophy: 2 } });      // +2% combatXP
-      ok(big > small && small > a,
-        `P9: rung 5 paid ${big}, rung 2 paid ${small}, none paid ${a} — the ladder is not monotone, `
-        + 'so the channel is forwarding a constant rather than the rung');
-      console.log(`  perk lift on a 12h ${base.activeId} night: ${a} -> ${b} XP `
-        + `(+${(lift * 100).toFixed(1)}%), ${none.summary.kills} -> ${decked.summary.kills} kills; `
-        + `Trophy rung 2 ${small} < rung 5 ${big}`);
+      ok(JSON.stringify(decked.delta.xp) === JSON.stringify(none.delta.xp)
+         && JSON.stringify(decked.delta.items || {}) === JSON.stringify(none.delta.items || {}),
+        `P9: a fully housed character was paid ${JSON.stringify(decked.delta.xp)} against a bare `
+        + `${JSON.stringify(none.delta.xp)} — a home is granting XP or loot (Master Design Reference §9)`);
     }
-    /* ── P9-W · THE WEAKEST MONSTER, BACK (fractional-XP ruling, 2026-10-07) ──
-       The goblin above was a WORKAROUND: on dealt-damage XP every monster up
-       to 12 HP paid Trophy rung 2 exactly what no perk paid, because grantXp
-       floored each ~10 XP grant (floor(10.6 x 1.02) = 10). grantXp now carries
-       the remainder, so the rung must pay on the weakest monster too — and not
-       merely "more": per skill, at least floor(2% of what the bare night paid),
-       which is the arithmetic floor(1.02 S) - floor(S) >= floor(0.02 floor(S)).
-       THE SLIME (8 HP, 5 XP — the lowest XP per kill of the 8-HP pair, so the
-       hardest case for a percentage), pinned by id AND asserted to be at the
-       catalogue's minimum HP, so a rename is a loud red rather than a silent
-       `unknown_monster` skip and a re-balance that lifts it out of the band
-       is a red too. */
+    /* P9-S · THE ENGINE STILL SPENDS THE CHANNEL. The proof used to be the
+       Trophy Room's combat XP; with no home XP left it is a KEPT rate perk, the
+       Toolshed's gatherSpeed, on a gathering night: two sheds must out-chop one,
+       and one must out-chop none, or the perk state reaches the bonus function
+       and the engine drops it. */
     {
-      const weakest = 'slime';
-      const minHp = Math.min(...Object.keys(MONSTERS).map((k) => MONSTERS[k].hp || Infinity));
-      ok(MONSTERS[weakest] && MONSTERS[weakest].hp === minHp && minHp <= 12,
-        `P9-W: ${weakest} is missing or not at the catalogue's minimum HP (${minHp}) — this block exists `
-        + 'for the weakest monster, in the <= 12 HP band the per-grant floor used to swallow');
-      const wBase = { ...base, activeId: weakest };
-      const wNone = computeAccrual({ ...wBase, perks: null });
-      const wRung2 = computeAccrual({ ...wBase, perks: { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } } });
-      ok(wNone.accrued === true && wRung2.accrued === true && wNone.summary.died === false,
-        `P9-W: the ${weakest} fixture did not run a full night (${wNone.reason} / ${wRung2.reason})`);
-      if (wNone.accrued && wRung2.accrued) {
-        ok(wNone.summary.kills >= 100,
-          `P9-W: only ${wNone.summary.kills} kills — the +2% claim is pinned over at least 100`);
-        ok(wRung2.summary.kills === wNone.summary.kills,
-          `P9-W: the rung changed the kill count (${wNone.summary.kills} -> ${wRung2.summary.kills}) — XP must not move a single draw`);
-        const xa = wNone.delta.xp || {};
-        const xb = wRung2.delta.xp || {};
-        let any = false;
-        for (const k of Object.keys(xa)) {
-          const need = Math.floor(0.02 * xa[k]);
-          any = any || need > 0;
-          ok((xb[k] || 0) - xa[k] >= need,
-            `P9-W: Trophy rung 2 paid ${weakest} ${k} ${xb[k] || 0} against a bare ${xa[k]} — +${(xb[k] || 0) - xa[k]}, `
-            + `under floor(2% of ${xa[k]}) = ${need}. The +2% is being floored away per grant again.`);
-        }
-        ok(any, `P9-W: the bare ${weakest} night paid no skill 50+ XP, so the +2% bound tests nothing`);
-        const sa = Object.values(xa).reduce((p, q) => p + q, 0);
-        const sb = Object.values(xb).reduce((p, q) => p + q, 0);
-        console.log(`  weakest-monster rung 2 on a 12h ${weakest} night: ${sa} -> ${sb} XP `
-          + `(+${(((sb - sa) / Math.max(1, sa)) * 100).toFixed(2)}%), ${wNone.summary.kills} kills`);
+      const { TREES } = await import('../src/data/gathering.js');
+      const { indexGatherNodes } = await import('../src/core/skill-sim.js');
+      const nodes = indexGatherNodes({ woodcutting: TREES, mining: [], fishing: [] });
+      const tree = TREES.find((t) => t.req === 1);
+      const g = {
+        ...base, activeKind: 'gather', activeId: tree.id, nodes,
+        skills: { ...base.skills, woodcutting: xpForLevel(99) },
+      };
+      const sumXp = (x) => Object.values((x.delta && x.delta.xp) || {}).reduce((p, q) => p + q, 0);
+      const shed = (n) => computeAccrual({ ...g, perks: { ok: true, rooms: {}, propertyTier: 0, plots: { toolshed: n } } });
+      const s0 = computeAccrual({ ...g, perks: null }), s1 = shed(1), s2 = shed(2);
+      ok(s0.accrued && s1.accrued && s2.accrued,
+        `P9-S: a gather fixture did not accrue (${s0.reason} / ${s1.reason} / ${s2.reason})`);
+      if (s0.accrued && s1.accrued && s2.accrued) {
+        ok(sumXp(s2) > sumXp(s1) && sumXp(s1) > sumXp(s0),
+          `P9-S: 0/1/2 Toolsheds paid ${sumXp(s0)} / ${sumXp(s1)} / ${sumXp(s2)} XP — the gatherSpeed perk is not spent`);
+        console.log(`  toolshed lift on a 12h ${tree.id} night: ${sumXp(s0)} -> ${sumXp(s1)} -> ${sumXp(s2)} XP`);
       }
     }
     /* CONTROL: an EMPTY perk envelope pays exactly what `perks: null` pays.
@@ -548,8 +503,13 @@ async function run(patch) {
   // ── P10 · THE DEMOLITION MOVED NO KEPT NUMBER (2026-10-14) ────────────
   // renownAllXp / clanPerks / castle left the channel with their systems.
   // Every room, plot and property input must price byte-for-byte as it did
-  // before: the hash below was computed from origin/main 6ee379c8 perks.js
-  // over this exact grid. A deleted source smuggled back in (CONTROL) must
+  // before: the hash was computed from origin/main 6ee379c8 perks.js over this
+  // exact grid. RE-PINNED 2026-10-14 (936651e0 -> e99d9eac) for Master Design
+  // Reference §9 ONLY: a home never grants XP or a resource advantage, so the
+  // rooms' allXP/combatXP/farmYield/yield_* rungs, the Scarecrow and Watchtower
+  // and the Castle capstone now read 0; every speed, noBurn, craftSave and
+  // buffDuration number is unchanged (P9 measures the first half, P9-S the
+  // channel still spending a kept perk). A deleted source smuggled back in (CONTROL) must
   // move nothing either.
   {
     const KEYS = [...new Set([...ALL_KEYS.filter((k) => k !== 'raidPower'),
@@ -571,7 +531,7 @@ async function run(patch) {
       return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.plots, n.propertyTier];
     });
     const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
-    ok(hash === '936651e0905070d031453ee2d1c30520da311d2c7d31405bf39b1d2fbc548b1b',
+    ok(hash === 'e99d9eac57562088c724ee1e8367090c8b8530c2d0adaa484045a96d50b57bd5',
       `P10: makeBonus over ${states.length} kept inputs x ${KEYS.length} keys hashed ${hash} — `
       + 'a kept perk number moved');
     const base = { rooms: maxRooms, propertyTier: 5 };

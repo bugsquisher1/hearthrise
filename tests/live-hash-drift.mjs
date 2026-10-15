@@ -400,9 +400,24 @@ export async function sweep(sources) {
        pg_get_functiondef gate: such a file may mention pg_get_functiondef only
        inside a raise-message string, which codeOnly() keeps. */
     {
-      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,160}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|[a-z_][a-z0-9_]*)/gi)];
+      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,240}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|to_regprocedure\(\s*([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*\)|([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*::\s*regprocedure|[a-z_][a-z0-9_]*)/gi)];
       let prosrcHits = 0;
       for (const r of oidReads) {
+        if (r[3] || r[4]) {
+          /* LOOP-DRIVEN (2026-10-22-hunt-sessions-delete-away.sql pins four bodies
+             from a `values` table; 2026-10-22-closed-mode-ungated-rpcs.sql reads
+             six from a `foreach` array): `oid = to_regprocedure(r.sig)` or
+             `oid = f::regprocedure`. The loop variable cannot be resolved
+             statically, so — exactly as the pg_get_functiondef loop rule below —
+             every signature literal in the file is taken. Over-collection is the
+             safe direction. */
+          let loopHits = 0;
+          for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
+            if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); loopHits += 1; }
+          }
+          prosrcHits += loopHits;
+          continue;
+        }
         if (r[2]) {
           // inline form: `where oid = to_regprocedure('public.name(args)')`
           if (SIGLIT.test(r[2])) { const n = r[2].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }

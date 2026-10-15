@@ -370,11 +370,17 @@ async function probe(db, plant) {
   // A synthetic 24h-old sample: the database was 1 byte and the largest table
   // was empty, so today's real numbers are the delta. Nothing else can produce
   // a rate in a harness that runs in nine seconds.
+  // THE TABLE IS hr_items (2026-10-21), not player_ledger: it is a seeded
+  // catalogue, so a replay always holds ~500 rows of it and it is always among
+  // the largest relations the sample names. player_ledger qualified only by
+  // accident — three self-check residue rows — and the clean-slate wipe at the
+  // end of the chain (2026-10-21-closed-rebuild-wipe.sql) empties it, so it fell
+  // out of the sample and H4 had no shared table to measure.
   await clear();
   await q('delete from public.hr_db_samples');
   await q(`insert into public.hr_db_samples (at, db_bytes, max_conns, used_conns, tables, jobs)
            values (now() - interval '25 hours', 1, 60, 1,
-                   jsonb_build_object('player_ledger', jsonb_build_object('b', 0, 'r', 0)),
+                   jsonb_build_object('hr_items', jsonb_build_object('b', 0, 'r', 0)),
                    '{}'::jsonb)`);
   // A planted HARNESS defect, if one was asked for: from here the SECOND sample
   // fails in one of the ways it fails for real. (--plant, exercised by --selftest.)

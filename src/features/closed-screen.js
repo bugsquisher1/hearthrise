@@ -79,9 +79,12 @@
     s.textContent = [
       'html[data-hr-closed] body{overflow:hidden}',
       'html[data-hr-closed] body > *:not(#' + ROOT_ID + '){visibility:hidden !important}',
-      '#' + ROOT_ID + '{position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;',
-      '  justify-content:center;padding:24px 20px;overflow:auto;background:var(--scene-sky-0);',
-      '  font-family:var(--f-ui);color:var(--scene-ink)}',
+      /* The layer is the .hr-scrim primitive (src/styles/art-direction.css):
+         it supplies position, inset and the safe-area padding; this adds only
+         the paint, the stacking and the centring. No [data-hr-dismiss]: Escape
+         is consumed and the notice stays (src/render/modal-sheet.js). */
+      '#' + ROOT_ID + '{z-index:2147483600;display:flex;align-items:center;justify-content:center;',
+      '  background:var(--scene-sky-0);font-family:var(--f-ui);color:var(--scene-ink)}',
       '#' + ROOT_ID + ' .hr-closed-card{max-width:420px;width:100%;padding:28px 24px;text-align:center;',
       '  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--scene-scrim-2)}',
       '#' + ROOT_ID + ' h1{margin:0 0 12px;font-size:1.5rem;color:var(--gold)}',
@@ -106,11 +109,16 @@
     ensureStyle();
     var root = document.createElement('div');
     root.id = ROOT_ID;
+    root.className = 'hr-scrim';
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
     root.setAttribute('aria-labelledby', ROOT_ID + '-title');
     var card = document.createElement('div');
-    card.className = 'hr-closed-card';
+    card.className = 'hr-sheet hr-closed-card';
+    var head = document.createElement('div');
+    head.className = 'hr-sheet-head';
+    var body = document.createElement('div');
+    body.className = 'hr-sheet-body';
     var h = document.createElement('h1');
     h.id = ROOT_ID + '-title';
     h.textContent = 'Hearthrise is closed for now';
@@ -119,7 +127,7 @@
     var p2 = document.createElement('p');
     p2.textContent = 'Come back for Early Access. Join our Discord to hear the moment it opens.';
     var actions = document.createElement('div');
-    actions.className = 'hr-closed-actions';
+    actions.className = 'hr-sheet-foot hr-closed-actions';
     var url = discordUrl();
     if (url) {
       var a = document.createElement('a');
@@ -141,9 +149,11 @@
       else done();
     });
     actions.appendChild(out);
-    card.appendChild(h);
-    card.appendChild(p1);
-    card.appendChild(p2);
+    head.appendChild(h);
+    body.appendChild(p1);
+    body.appendChild(p2);
+    card.appendChild(head);
+    card.appendChild(body);
     card.appendChild(actions);
     root.appendChild(card);
     document.body.appendChild(root);

@@ -465,8 +465,11 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
         + `${boot.cacheHit ? 'RESTORED' : 'built'} in ${boot.buildMs}ms`);
     }
     if (cut >= files.length || (upTo !== undefined && files[cut - 1][0] === upTo)) {
-      endCapture();
+      // BEFORE endCapture: a timer PGlite starts during this statement must be
+      // unref'd with the rest of the boot's, or it outlives the guard and
+      // Windows libuv asserts at process.exit (measured 2026-10-14).
       if (!keepClosed) await openTheGame(db);
+      endCapture();
       return { db, applied, failures };
     }
   } else {
@@ -499,8 +502,8 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     }
     if (name === upTo) break;   // validate the state AS OF this migration
   }
+  if (!keepClosed) await openTheGame(db);   // before endCapture — see the prefix return above
   endCapture();
-  if (!keepClosed) await openTheGame(db);
   return { db, applied, failures };
 }
 

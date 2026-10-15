@@ -49,11 +49,15 @@
 --    re-opens a closed one. Public-read like every flag. To open the game for
 --    Early Access: `update public.hr_flags set enabled = false where key =
 --    'closed_mode';` A MISSING row reads as CLOSED (fail closed).
--- §3 public.hr_admitted(p_user uuid) -> boolean, STABLE, SECURITY INVOKER.
+-- §3 public.hr_admitted(p_user uuid) -> boolean, VOLATILE, SECURITY INVOKER.
 --      p_user is not null AND (the flag reads open OR p_user is allowlisted).
 --    Invoker rights are the point: called by the owner (inside the definer
 --    gates) it sees every allowlist row; called by a client it sees only the
 --    caller's own row, so it cannot be used to probe who else is admitted.
+--    VOLATILE although it only reads: the house invariant (2026-09-26-party-
+--    view-volatile.sql GATE(e)) is that NO client-executable function is
+--    STABLE/IMMUTABLE. The policies wrap it in (select …), so it is still
+--    evaluated once per statement, not once per row. Same for §4.
 -- §4 public.hr_access_check() -> void, SECURITY INVOKER — the pre-request hook
 --    and L2's first line. No user (anon, service_role, cron, the engine) →
 --    returns. Admitted → returns. Otherwise:
@@ -196,7 +200,7 @@ on conflict (key) do nothing;
 create or replace function public.hr_admitted(p_user uuid)
  returns boolean
  language sql
- stable
+ volatile
  security invoker
  set search_path to 'public', 'pg_catalog'
 as $fn$
@@ -209,7 +213,7 @@ $fn$;
 create or replace function public.hr_access_check()
  returns void
  language plpgsql
- stable
+ volatile
  security invoker
  set search_path to 'public', 'pg_catalog'
 as $fn$
@@ -435,8 +439,9 @@ begin
     raise exception 'closed-mode §10 k3: hr_admitted / hr_access_check grants are not exact'; end if;
   if exists (select 1 from pg_proc where oid in ('public.hr_admitted(uuid)'::regprocedure,
                                                   'public.hr_access_check()'::regprocedure)
-                                     and (prosecdef or proacl is null or proacl::text ~ '(\{|,)=[a-zA-Z*]*X')) then
-    raise exception 'closed-mode §10 k3: hr_admitted / hr_access_check is SECURITY DEFINER or PUBLIC-executable'; end if;
+                                     and (prosecdef or provolatile <> 'v' or proacl is null
+                                          or proacl::text ~ '(\{|,)=[a-zA-Z*]*X')) then
+    raise exception 'closed-mode §10 k3: hr_admitted / hr_access_check is SECURITY DEFINER, not VOLATILE, or PUBLIC-executable'; end if;
   if has_function_privilege('authenticated', 'public.hr_rpc_gate(text)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_rate_gate(uuid,integer,text)', 'execute') then
     raise exception 'closed-mode §10 k3: a gate became client-executable'; end if;

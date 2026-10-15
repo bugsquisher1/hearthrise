@@ -58,7 +58,7 @@ const SNAP = `
     from pg_proc p where p.oid in ('public.hr_rpc_gate(text)'::regprocedure, 'public.hr_rate_gate(uuid,integer,text)'::regprocedure,
                                    'public.hr_admitted(uuid)'::regprocedure, 'public.hr_access_check()'::regprocedure)
   union all select 'pol', tablename || '.' || policyname, permissive || cmd || coalesce(qual, '') || coalesce(with_check, '')
-    from pg_policies where policyname in ('hr_closed_admit', 'hr_access_allowlist_own')
+    from pg_policies where policyname in ('hr_closed_admit', 'hr_closed_anon', 'hr_access_allowlist_own')
   union all select 'flag', key, enabled::text || coalesce(note, '') from public.hr_flags where key = 'closed_mode'
   union all select 'allow', user_id::text, note from public.hr_access_allowlist
   union all select 'base', proname || '/' || grantee, coalesce(note, '') from public.hr_client_rpc_baseline
@@ -157,6 +157,11 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
     if (r.err || r.rows[0].n !== 0) return `C-REFUSE L4: a non-allowlisted caller can read chat (${JSON.stringify(r)})`;
     r = await as('authenticated', B, 'select count(*)::int as n from public.hr_access_allowlist');
     if (r.err || r.rows[0].n !== 0) return `C-REFUSE: a non-allowlisted caller reads allowlist rows (${JSON.stringify(r)})`;
+    // R1: anon passes the hook (sign-in must work) but reads nothing players wrote.
+    for (const t of ['chat_messages', 'display_names', 'clans', 'clan_members']) {
+      r = await as('anon', null, `select count(*)::int as n from public.${t}`);
+      if (r.err || r.rows[0].n !== 0) return `C-REFUSE anon: anon reads ${t} while closed (${JSON.stringify(r)})`;
+    }
     r = await as('authenticated', B, `insert into storage.objects (bucket_id, name) values ('avatars', '${B}/a.webp')`);
     if (!(r.err && r.err.code === '42501')) return `C-REFUSE L4 storage: a non-allowlisted caller uploaded an avatar (${JSON.stringify(r)})`;
 
@@ -180,6 +185,8 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
     await db.exec(`update public.hr_flags set enabled = false where key = 'closed_mode';`);
     r = await as('authenticated', B, 'select public.hr_access_check()');
     if (r.err) return `C-ADMIT open: an OPEN game still refused an account (${r.err.message})`;
+    r = await as('anon', null, 'select count(*)::int as n from public.chat_messages');
+    if (r.err || !(r.rows[0].n > 0)) return `C-ADMIT open: anon cannot read public chat in an OPEN game (${JSON.stringify(r)})`;
     await db.exec(`delete from public.hr_flags where key = 'closed_mode';`);
     r = await as('authenticated', B, 'select public.hr_access_check()');
     if (!closedErr(r)) return 'C-REFUSE missing-flag: a missing closed_mode row reads as OPEN';
@@ -277,6 +284,7 @@ if (!MUTATE) {
     process.exit(/^HARNESS/.test(bad || '') ? 2 : 1);
   }
   console.log('  ✓ C-REFUSE  a non-allowlisted account is refused hr_closed at L1/L2, its character at L3, its chat at L4');
+  console.log('  ✓ C-REFUSE  anon reads no player-written table (chat, names, clans) while closed');
   console.log('  ✓ C-ADMIT   the allowlisted account and anon pass; an open flag admits all; a missing flag is closed');
   console.log('  ✓ C-HOOK    PostgREST pre-request = public.hr_access_check');
   console.log('  ✓ C-IDEM    a second apply of closed mode is byte-identical');
@@ -303,6 +311,12 @@ const MUTANTS = [
     edits: [C('  if not public.hr_admitted(p_user) then return false; end if;\n\n', '\n')] },
   { name: 'policyPermissive', why: 'hr_closed_admit is PERMISSIVE (ORed away by the existing policies)', expect: /k5|C-REFUSE L4/,
     edits: [C('as restrictive for all to authenticated', 'as permissive for all to authenticated')] },
+  { name: 'anonReadsOpen', why: 'the anon read policy passes whatever the flag says', expect: /k7f|C-REFUSE anon/,
+    edits: [C("'using (coalesce((select not f.enabled from public.hr_flags f where f.key = ''closed_mode''), false))', t);",
+              "'using (true)', t);")] },
+  { name: 'anonPolicyPermissive', why: 'hr_closed_anon is PERMISSIVE (ORed away by the public read policies)', expect: /k5|C-REFUSE anon/,
+    edits: [C("'create policy hr_closed_anon on public.%I as restrictive for select to anon '",
+              "'create policy hr_closed_anon on public.%I as permissive for select to anon '")] },
   { name: 'storageOpen', why: 'avatar uploads are not closed', expect: /k5|C-REFUSE L4 storage/,
     edits: [C("'create policy hr_closed_admit_insert on storage.objects as restrictive for insert to authenticated '",
               "'create policy hr_closed_admit_insert on storage.objects as permissive for insert to authenticated '")] },

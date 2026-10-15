@@ -75,7 +75,10 @@
 -- §7 L4: policy hr_closed_admit, AS RESTRICTIVE, FOR ALL TO authenticated,
 --    using/with check (select hr_admitted((select auth.uid()))), on the six
 --    client-writable tables; §7b the same for INSERT/UPDATE on storage.objects
---    (the avatars bucket is written through the Storage API, not PostgREST).
+--    (the avatars bucket is written through the Storage API, not PostgREST);
+--    §7c (Security R1) a restrictive anon SELECT policy hr_closed_anon on the
+--    18 player-written tables anon could read (chat, names, market, clans,
+--    raids, world events): it passes only while the flag reads OPEN.
 -- §8 L1: alter role authenticator set pgrst.db_pre_request; notify pgrst.
 --    Refuses to replace a different pre-request somebody else installed.
 -- §9 grants (revoke first) + hr_client_rpc_baseline rows for the two new
@@ -355,6 +358,26 @@ begin
           'with check ((select public.hr_admitted((select auth.uid()))))';
 end $mig$;
 
+-- ── §7c L4 FOR ANON READS (Security R1, 2026-10-14): anon passes L1 so sign-in
+--    and sign-up work, but it must not read what PLAYERS wrote while the game is
+--    closed — chat (also on realtime), names, the market, clans, raids, world
+--    events. A restrictive anon SELECT policy passes only when the flag reads
+--    OPEN (a missing row reads closed). Tables absent here are skipped.
+do $mig$
+declare t text;
+begin
+  foreach t in array array['chat_messages', 'display_names', 'market_listings', 'market_buy_offers',
+                           'clans', 'clan_board', 'clan_ledger', 'clan_members', 'clan_raids',
+                           'clan_stores', 'clan_tavern', 'clan_withdrawals', 'clan_work_labour',
+                           'clan_work_orders', 'raid_claims', 'raid_contributions',
+                           'world_event_pledges', 'world_event_totals'] loop
+    if to_regclass('public.' || t) is null then continue; end if;
+    execute format('drop policy if exists hr_closed_anon on public.%I', t);
+    execute format('create policy hr_closed_anon on public.%I as restrictive for select to anon '
+                   'using (coalesce((select not f.enabled from public.hr_flags f where f.key = ''closed_mode''), false))', t);
+  end loop;
+end $mig$;
+
 -- ── §8 L1: THE PRE-REQUEST HOOK ─────────────────────────────────────────────
 do $mig$
 declare v_cur text;
@@ -463,6 +486,17 @@ begin
       raise exception 'closed-mode §10 k5: % lacks the restrictive hr_closed_admit policy', t; end if;
   end loop;
 
+  foreach t in array array['chat_messages', 'display_names', 'market_listings', 'market_buy_offers',
+                           'clans', 'clan_board', 'clan_ledger', 'clan_members', 'clan_raids',
+                           'clan_stores', 'clan_tavern', 'clan_withdrawals', 'clan_work_labour',
+                           'clan_work_orders', 'raid_claims', 'raid_contributions',
+                           'world_event_pledges', 'world_event_totals'] loop
+    if to_regclass('public.' || t) is not null
+       and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t
+                        and policyname = 'hr_closed_anon' and permissive = 'RESTRICTIVE'
+                        and cmd = 'SELECT' and roles = '{anon}') then
+      raise exception 'closed-mode §10 k5: % lacks the restrictive anon hr_closed_anon read policy', t; end if;
+  end loop;
   -- (nested, not `is not null AND …::regclass`: the cast would be evaluated
   --  on a database without storage and raise there)
   if to_regclass('storage.objects') is not null then
@@ -509,6 +543,21 @@ begin
     set local role anon;
     perform public.hr_access_check();
     reset role;
+
+    -- L4 anon reads (R1): a player's global chat line is invisible to anon while
+    -- closed, and visible once open (the control: the policy, not an empty table).
+    insert into public.chat_messages (channel, from_id, from_name, body)
+    values ('global', v_in, 'selfcheck', 'closed-mode self-check');
+    set local role anon;
+    select count(*) into v_n from public.chat_messages where from_id = v_in;
+    reset role;
+    if v_n <> 0 then raise exception 'closed-mode §10 k7f: anon read % chat row(s) while closed', v_n; end if;
+    update public.hr_flags set enabled = false where key = 'closed_mode';
+    set local role anon;
+    select count(*) into v_n from public.chat_messages where from_id = v_in;
+    reset role;
+    update public.hr_flags set enabled = true where key = 'closed_mode';
+    if v_n <> 1 then raise exception 'closed-mode §10 k7f: anon read % chat row(s) while OPEN, expected 1 (control)', v_n; end if;
 
     perform set_config('request.jwt.claim.sub', v_in::text, true);
     perform set_config('request.jwt.claims', json_build_object('sub', v_in, 'role', 'authenticated')::text, true);

@@ -6,8 +6,9 @@
 -- Security R2 (2026-10-15): the live hr_login_catalogue() day 7 pays bone_key,
 -- and 2026-10-23-demolition-catalogue.generated.sql deletes bone_key from
 -- hr_items, so every straight day-7 claim would fail with unknown_item. Day 7
--- keeps its 270 gold and 2 gems and pays no key: the Bone Key was worth 0 and
--- bound on pickup, so nothing of value replaces it.
+-- pays 300 gold and no key and no gems: the Bone Key was worth 0 and bound on
+-- pickup, and gems are out of the game (account_wallet.gems drops in M2), so the
+-- 270 gold + 2 gems day is restated as 300 gold.
 --
 -- OWNERSHIP: the body of hr_login_catalogue() only, restated from
 -- 2026-10-16-login-reward.sql with the GENERATED literal re-emitted from
@@ -38,7 +39,7 @@ create or replace function public.hr_login_catalogue()
 returns jsonb language sql immutable set search_path = pg_catalog as $fn$
   select
   -- BEGIN GENERATED login-catalogue (src/data/rewards.js; tests/login-reward.mjs)
-  '{"cycle":[{"gold":60,"items":{"cooked_shrimp":10}},{"gold":80,"items":{"turnip_seed":10}},{"gold":100,"items":{"cooked_shrimp":15}},{"gold":130,"items":{"carrot_seed":10}},{"gold":160,"items":{"cooked_herring":10}},{"gold":200,"items":{"turnip_seed":15}},{"gold":270,"gems":2}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
+  '{"cycle":[{"gold":60,"items":{"cooked_shrimp":10}},{"gold":80,"items":{"turnip_seed":10}},{"gold":100,"items":{"cooked_shrimp":15}},{"gold":130,"items":{"carrot_seed":10}},{"gold":160,"items":{"cooked_herring":10}},{"gold":200,"items":{"turnip_seed":15}},{"gold":300}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
   -- END GENERATED login-catalogue
   ::jsonb
 $fn$;
@@ -57,17 +58,21 @@ begin
   if exists (select 1 from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
               where d.r ? 'keys') then
     raise exception 'demolition-login-catalogue self-check (a): a cycle day still pays a key'; end if;
-  -- (b) the priced day 7, straight and capped: 810 gold, 2 gems, no item.
+  -- (a2) no day pays gems: gems are out of the game.
+  if exists (select 1 from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
+              where coalesce((d.r->>'gems')::bigint, 0) <> 0) then
+    raise exception 'demolition-login-catalogue self-check (a2): a cycle day still pays gems'; end if;
+  -- (b) the priced day 7, straight and capped: 900 gold, no gems, no item.
   v_q := public.hr_login_price(35, true);
-  if (v_q->>'gold')::bigint <> 810 or (v_q->>'gems')::int <> 2 or v_q->'items' <> '{}'::jsonb then
+  if (v_q->>'gold')::bigint <> 900 or (v_q->>'gems')::int <> 0 or v_q->'items' <> '{}'::jsonb then
     raise exception 'demolition-login-catalogue self-check (b): a capped straight day 7 prices %', v_q; end if;
   -- (c) a step-back day 7 pays gold only.
   v_q := public.hr_login_price(7, false);
-  if (v_q->>'gold')::bigint <> 270 or (v_q->>'gems')::int <> 0 or v_q->'items' <> '{}'::jsonb then
+  if (v_q->>'gold')::bigint <> 300 or (v_q->>'gems')::int <> 0 or v_q->'items' <> '{}'::jsonb then
     raise exception 'demolition-login-catalogue self-check (c): a step-back day 7 prices %', v_q; end if;
   -- (d) no client may execute the catalogue.
   if has_function_privilege('authenticated', 'public.hr_login_catalogue()', 'execute')
      or has_function_privilege('anon', 'public.hr_login_catalogue()', 'execute') then
     raise exception 'demolition-login-catalogue self-check (d): hr_login_catalogue is client-executable'; end if;
-  raise notice 'demolition-login-catalogue: day 7 pays 270 gold and 2 gems, every cycle id is an hr_items row, no key - all green';
+  raise notice 'demolition-login-catalogue: day 7 pays 300 gold and no gems, every cycle id is an hr_items row, no key - all green';
 end $$;

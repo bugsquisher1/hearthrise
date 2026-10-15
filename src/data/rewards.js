@@ -34,7 +34,7 @@
 
    THE NUMBERS, MEASURED ON PRODUCTION (Security review, 2026-10-10): the
    median first week earns about 950 gold from play and 450 from the daily
-   quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 270), so
+   quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 300), so
    logging in never out-earns playing, plus 25 cooked shrimp and 10 cooked
    herring for Auto-Eat, 25 turnip and 10 carrot seeds for the plots (turnip is
    farming 1, carrot farming 10) and 2 gems.
@@ -60,7 +60,7 @@ export const DAILY_LOGIN_CYCLE = Object.freeze([
   Object.freeze({ gold: 130, items: Object.freeze({ carrot_seed: 10 }) }),
   Object.freeze({ gold: 160, items: Object.freeze({ cooked_herring: 10 }) }),
   Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 15 }) }),
-  Object.freeze({ gold: 270, gems: 2 }),   // Day 7
+  Object.freeze({ gold: 300 }),   // Day 7: gold only, gems are out of the game (2026-10-15)
 ]);
 
 /** Each COMPLETED week scales gold and supplies by this much again... */
@@ -68,7 +68,7 @@ export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
 /* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
    x26, a fuse rather than a dial; this one is the dial. At the cap the richest
-   claim is day 7: 810 gold and 2 gems; a capped week pays 3,000
+   claim is day 7: 900 gold; a capped week pays 3,000
    gold. The SERVER re-derives this price and refuses any other
    (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
    are bound by tests/login-reward.mjs, which runs both over every streak. */

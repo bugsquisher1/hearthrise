@@ -715,6 +715,29 @@ function simulateHuntSpan(state, ctx) {
     }
     if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, true);
     if (downed) { downed = false; recoverUntilMs = 0; standUp(state, ctx); }
+    /* THE SPAWN CYCLE (Security design review 2026-10-14 item 1). A pull that
+       is cleared is back `respawnMs` after it STARTED: until then the hero is
+       out on the ground with nothing to fight — hunting (stamina drains, the
+       interval is paid) but swinging at nothing. The pull comes back on the
+       first boundary at or after `respawnAtMs`, and the next one is due one
+       respawn after that. Draws nothing, so the dice of every swing are the
+       same however the windows were cut (TICK-1); the state is the session
+       row's (pull_left / respawn_at), carried window to window. */
+    const pl = hs.pull;
+    if (pl.left <= 0) {
+      if (atMs < pl.respawnAtMs) {
+        /* Between pulls the bar still works (a heal at <= 50% eats now, a
+           press lands now) — the same rules, no dice. */
+        if (runActionBar(state, Object.assign({}, ctx, { atMs, fx }))) foodEaten++;
+        drain();
+        hs.tally.paidMs += tickMs;
+        hs.tally.waitMs = (Number(hs.tally.waitMs) || 0) + tickMs;
+        continue;
+      }
+      pl.left = pl.size;
+      pl.respawnAtMs = atMs + pl.respawnMs;
+      pl.pulls++;
+    }
     if (typeof fx.mark === 'function') fx.mark(atMs);
     const facing = state.activeMonster;
     const botd = dayCtx(atMs);
@@ -738,7 +761,7 @@ function simulateHuntSpan(state, ctx) {
     }
     if (r.crit) crits++;
     if (r.ate) foodEaten++;
-    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; }
+    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; pl.left--; }
     if (r.outcome === OUTCOME.DEATH) {
       deaths++;
       hs.falls = (Math.floor(Number(hs.falls)) || 0) + 1;

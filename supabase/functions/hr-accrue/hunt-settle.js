@@ -143,7 +143,14 @@ export function huntSessionFromRead(h) {
     basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},
     shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
     targetMode: typeof h.target_mode === 'string' ? h.target_mode : null,
-    pullCount: num(h.pull_count),
+    /* THE SPAWN CYCLE (Security design review 2026-10-14 items 1-2): the pull
+       the SERVER computed (hr_hunt_pull_of) and the session row's cycle state.
+       hr_hunt_apply recomputes the pull under the lock and re-proves the
+       window's kills against it. */
+    pull: (h.pull && typeof h.pull === 'object') ? {
+      size: num(h.pull.size), respawnMs: num(h.pull.respawn_ms),
+      left: num(h.pull.left), respawnAtMs: num(h.pull.respawn_at_ms),
+    } : null,
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (hr_hunt_cover_items
        x this session's own loot still in the bag) — server rows. */
     goldFloor: num(h.gold_floor),

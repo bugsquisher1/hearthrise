@@ -56,6 +56,17 @@ export const DEFAULT_TARGET_MODE = 'nearest';
    single-target engine fights one at a time until the combat redesign. */
 export const PULL_COUNT = Object.freeze({ min: 1, max: 8, default: 1 });
 
+/* THE PULL A HUNT ACTUALLY RUNS (Security design review 2026-10-14, item 2): the
+   action set's pull count, clamped to the ground's own pull size (hunts.js
+   `pull`) and to this cap. THE ONE PLACE the player-dial ruling lands: master
+   plan row 18 holds it at 1 (the single-target engine) until Tyler rules on the
+   dial; 0 = no cap beyond the ground's. Generated into hr_hunt_limits
+   ('pull_cap'); the SERVER computes the pull (hr_hunt_pull_of) and the engine
+   uses the server's number, never its own. A smaller pull respawns sooner in
+   proportion (respawn = ground respawnMs × pull / ground pull), so the dial moves
+   the rhythm of a hunt, never its kills an hour. */
+export const PULL_CAP = 1;
+
 /* The two comparisons. Stored as ASCII; drawn as ≤ and ≥. */
 export const RULE_OPERATORS = Object.freeze({
   '<=': Object.freeze({ label: '≤' }),

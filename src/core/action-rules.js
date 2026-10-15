@@ -17,7 +17,7 @@
 // ============================================================
 
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=585';
-import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT,
+import { RULE_SUBJECTS, COOLDOWN_GROUPS, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
   SLOT_TARGETS } from '../data/rule-subjects.js?v=585';
 import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR } from '../data/hunt-sessions.js?v=585';
 import { applyBuffSegment } from './buffs.js?v=585';
@@ -499,6 +499,19 @@ function shopTable(t) {
  * then owns `nextSwingAtMs`, `swingIndex`, `cooldowns`, `presses`, `falls`,
  * `down`, `tally`, the bag's `left` and the end stamp.
  */
+function pullState(p, fromMs) {
+  const x = p || {};
+  const size = Math.max(1, int(x.size, 1));
+  return {
+    size,
+    respawnMs: Math.max(0, int(x.respawnMs, 0)),
+    /* A pull a smaller action-set count left standing keeps its foes. */
+    left: Math.max(0, int(x.left, 0)),
+    respawnAtMs: int(x.respawnAtMs, fromMs),
+    pulls: 0,
+  };
+}
+
 export function newHuntSession(o) {
   const s = o || {};
   const from = int(s.huntFromMs, 0);
@@ -532,9 +545,14 @@ export function newHuntSession(o) {
        one foe at a time until the combat redesign gives them a fight to shape. */
     targetMode: (typeof s.targetMode === 'string' && Object.prototype.hasOwnProperty.call(TARGET_MODES, s.targetMode)
       && TARGET_MODES[s.targetMode].solo) ? s.targetMode : DEFAULT_TARGET_MODE,
-    /* THE ENGINE IS SINGLE-TARGET UNTIL U2 (master plan row 18): whatever the
-       action set stores (1-8), a pull is one foe. */
-    pullCount: Math.min(1, Math.max(PULL_COUNT.min, int(s.pullCount, PULL_COUNT.default))),
+    /* THE SPAWN CYCLE (Security design review 2026-10-14 items 1-2). `size` and
+       `respawnMs` are the SERVER's (hr_hunt_pull_of: the action set's pull count
+       clamped to the ground and to rule-subjects.js PULL_CAP, and the ground's
+       respawn scaled to it) — the engine never clamps a pull of its own. `left`
+       foes of the current pull are still standing; the next pull comes back at
+       `respawnAtMs` (absolute ms; the first is the arrival). `pulls` counts the
+       pulls this WINDOW started, which hr_hunt_apply re-proves. */
+    pull: pullState(s.pull, from),
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
     goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
     cover: coverTable(s.cover),

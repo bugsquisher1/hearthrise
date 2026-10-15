@@ -27,6 +27,12 @@
 //   END          the end checks run in END_ORDER and `endedAtMs` is the boundary.
 //   BUFF         the engine's buff segment rule reproduces the SQL's worked
 //                examples (2026-09-13-buff-segments.sql).
+//   PULL         the spawn cycle (Security design review 2026-10-14 item 1):
+//                every 10 s window's kills are EXACTLY pull_left_old + P x the
+//                pulls it started - pull_left_new, those pulls fit the respawns
+//                the window admits after respawn_at_old (no "+1"), and the
+//                stored pair only moves forward — the identity
+//                hr_hunt_apply re-proves; the fixture must wait on a respawn.
 // ════════════════════════════════════════════════════════════════════════
 
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -78,6 +84,9 @@ function melee(M, seed) {
     id: 'sess-melee', huntFromMs: T0 + 20000,
     bag: { cooked_shrimp: { loaded: 40 }, cooked_trout: { loaded: 6 } },
     slots: M.RS.DEFAULT_PRESET.slots, fallsLimit: 6,
+    /* A two-foe pull that is back 5 s after it started: a fed hero clears it
+       sooner, so the fixture waits on respawns across window cuts. */
+    pull: { size: 2, respawnMs: 5000, left: 0, respawnAtMs: T0 + 20000 },
   });
   const state = { activeMonster: 'rat', playerHp: 12, playerMaxHp: 12, huntSession: hs, stats: {},
     deathsTodayBefore: 1, deathsLifetimeBefore: 9, inventory: {} };
@@ -252,6 +261,30 @@ const ARMS = {
     if (hs.nextSwingAtMs !== hs.endedAtMs) return 'a swing ran after the hunt ended';
     return null;
   },
+  PULL: (M) => {
+    const f = melee(M, '0x9011');
+    /* A strong hero: two rats fall well inside the 5 s respawn, so it waits. */
+    f.ctx.playerRolls = () => ({ accuracy: 0.95, maxHit: 12, critChance: 0.05 });
+    const hs = f.state.huntSession;
+    const P = hs.pull.size; const R = hs.pull.respawnMs;
+    let waited = 0; let pulls = 0;
+    for (let at = T0; at < T0 + f.spanMs; at += WIN) {
+      const left0 = hs.pull.left; const r0 = hs.pull.respawnAtMs; const n0 = hs.pull.pulls;
+      const r = M.cs.simulateSpan(f.state, Object.assign({}, f.ctx, { fromMs: at, toMs: at + WIN }));
+      const n = hs.pull.pulls - n0; const left1 = hs.pull.left; const r1 = hs.pull.respawnAtMs;
+      const to = at + WIN;
+      const nmax = r0 < to ? Math.floor((to - 1 - r0) / R) + 1 : 0;
+      if (r.kills !== left0 + n * P - left1) return `window at +${at - T0} ms: ${r.kills} kills, the cycle says ${left0} + ${n} x ${P} - ${left1}`;
+      if (n > nmax) return `window at +${at - T0} ms started ${n} pulls, the respawn admits ${nmax}`;
+      if (left1 < 0 || left1 > (n > 0 ? P : left0)) return `window at +${at - T0} ms left ${left1} standing`;
+      if (n === 0 ? r1 !== r0 : (r1 < r0 + n * R || r1 >= to + R)) return `window at +${at - T0} ms moved respawn_at ${r0} -> ${r1} on ${n} pulls`;
+      pulls += n;
+      if (hs.endedReason) break;
+    }
+    waited = Number(hs.tally.waitMs) || 0;
+    if (!(waited > 0 && pulls > 2)) return `the fixture never waited on a respawn (wait ${waited} ms, ${pulls} pulls)`;
+    return null;
+  },
   BUFF: (M) => {
     const q = [];
     const ap = (type, magnitude, mins, atMs = 0) => M.BF.applyBuffSegment(q, { type, magnitude, durationMs: mins * 60000 }, { atMs });
@@ -285,15 +318,20 @@ const MUTANTS = [
   { arm: 'TICK-1', name: 'the cooldown is stamped from the window start', file: 'src/core/action-rules.js',
     from: 'hs.cooldowns[u.group] = atMs + COOLDOWN_GROUPS', to: 'hs.cooldowns[u.group] = (Number(ctx.fromMs) || 0) + COOLDOWN_GROUPS' },
   { arm: 'BOTH-PATH', name: 'the knock-out clock is not carried across a settle', file: 'src/core/combat-sim.js',
-    from: 'state.recoveringUntilMs = recoverUntilMs > toMs ? recoverUntilMs : 0;', to: 'state.recoveringUntilMs = 0;' },
+    from: 'state.recoveringUntilMs = (!hs.endedReason && recoverUntilMs > toMs) ? recoverUntilMs : 0;', to: 'state.recoveringUntilMs = 0;' },
   { arm: 'TICK-MANUAL', name: 'a press skips the cooldown', file: 'src/core/action-rules.js',
     from: 'if (!ready(r.group)) { out.keep.push(entry); continue; }', to: 'if (used.has(r.group)) { out.keep.push(entry); continue; }' },
   { arm: 'BAG', name: 'a heal is eaten without leaving the bag', file: 'src/core/action-rules.js',
-    from: '    spendFromBag(hs, u.id, 1, atMs);', to: '    if (u.group !== \'heal\') spendFromBag(hs, u.id, 1, atMs);' },
+    from: '    if (!u.buy) spendFromBag(hs, u.id, 1, atMs);', to: "    if (!u.buy && u.group !== 'heal') spendFromBag(hs, u.id, 1, atMs);" },
   { arm: 'HEAL', name: '*heal is plain cheapest-first', file: 'src/core/action-rules.js',
     from: 'if (heals >= need && rank < coverRank)', to: 'if (rank < coverRank)' },
   { arm: 'END', name: 'the end checks run in reverse', file: 'src/core/action-rules.js',
     from: 'for (const k of END_ORDER) if (END_CHECKS[k](hs, atMs)) return k;', to: 'for (const k of END_ORDER.slice().reverse()) if (END_CHECKS[k](hs, atMs)) return k;' },
+  { arm: 'PULL', name: 'a cleared pull is back at once', file: 'src/core/combat-sim.js',
+    from: '      if (atMs < pl.respawnAtMs) {', to: '      if (false) {' },
+  { arm: 'PULL', name: 'a respawn is timed from the kill, not the pull', file: 'src/core/combat-sim.js',
+    from: '    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; pl.left--; }',
+    to: '    if (r.outcome === OUTCOME.KILL) { kills++; hs.tally.kills++; pl.left--; if (pl.left <= 0) { pl.respawnAtMs = atMs + pl.respawnMs + 1; pl.pulls++; pl.left = pl.size; } }' },
   { arm: 'BUFF', name: 'a weaker buff is never dropped', file: 'src/core/buffs.js',
     from: '(Number(s.magnitude) < mag && s.remainingMs <= end)', to: 'false' },
 ];

@@ -69,6 +69,14 @@
 //              data file; an over-charge / below-start / missing price is refused.
 //   FENCE      a hunter is never priced by the old path: the engine answers
 //              hunt_open; the database refuses a bare combat accrue row.
+//   FRESH      the balance floor (gather review finding 5, master plan M3 "a
+//              fresh hero is fighting by 0:02"): a character straight from
+//              hr_create_character — the real START_KIT, its default bar, the
+//              kit's cooked shrimp in the bag — hunts Mill Cellar for an hour
+//              through the real settle (flat knockout, 40% resume, the spawn
+//              cycle) and falls fewer than FRESH_MAX_FALLS_PER_H times an hour
+//              of hunting and the kit carries the hunt at least FRESH_MIN_MINUTES
+//              before any automatic end, on every seed. The numbers are printed.
 //   TICK-1     N world-tick windows (90 s) == ONE span, through the database:
 //              tally, bag, the character (gold, xp, inventory, hp, max hp,
 //              buffs, recovery, fight), the session clock — with heals and a
@@ -447,11 +455,13 @@ const ENGINE_ARMS = {
       slots: [{ kind: 'spell', item: 'cooked_shrimp', on: true, conditions: [] }] });
     const d = M.AR.fireRules({ hs, hp: 1, maxHp: 10, buffs: [], atMs: 0 });
     if (d.uses.length) problems.push('a spell slot fired a supply');
-    const cl = (o) => { const x = M.AR.newHuntSession(Object.assign({ id: 'c' }, o)); return `${x.targetMode}/${x.pullCount}`; };
-    /* Single-target until U2 (master plan row 18): any stored pull is one foe. */
-    if (cl({ targetMode: 'follow', pullCount: 9 }) !== 'nearest/1' || cl({ targetMode: 'weakest', pullCount: 0 }) !== 'weakest/1'
+    const cl = (o) => { const x = M.AR.newHuntSession(Object.assign({ id: 'c' }, o)); return `${x.targetMode}/${x.pull.size}`; };
+    /* The target mode is clamped to the solo vocabulary; the PULL is the
+       server's (hr_hunt_pull_of clamps it — Security design review item 2), so
+       the engine runs the size it is handed and never clamps one of its own. */
+    if (cl({ targetMode: 'follow', pull: { size: 3 } }) !== 'nearest/3' || cl({ targetMode: 'weakest', pull: { size: 0 } }) !== 'weakest/1'
         || cl({}) !== `${RS.DEFAULT_TARGET_MODE}/1`) {
-      problems.push(`the session does not clamp target mode / pull count: ${cl({ targetMode: 'follow', pullCount: 9 })}, ${cl({ targetMode: 'weakest', pullCount: 0 })}`);
+      problems.push(`the session does not clamp target mode / take the server's pull: ${cl({ targetMode: 'follow', pull: { size: 3 } })}, ${cl({ targetMode: 'weakest', pull: { size: 0 } })}`);
     }
     return problems;
   },
@@ -520,7 +530,8 @@ async function hunter(db, M, o) {
   await asUser(db, UID);
   const c = await one(db, 'select public.hr_create_character(0)');
   if (!c || c.created !== true) throw new Error('probe character refused: ' + JSON.stringify(c));
-  await db.query('delete from public.player_inventory where user_id = $1 and slot = 0', [UID]);
+  /* A FRESH hero keeps the real start kit (FRESH); every other fixture names its own. */
+  if (!o.keepKit) await db.query('delete from public.player_inventory where user_id = $1 and slot = 0', [UID]);
   for (const [item, qty] of Object.entries(o.inv || {})) {
     await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)', [UID, item, qty]);
   }
@@ -612,7 +623,8 @@ async function snapshot(db, sid) {
       'stats', (select jsonb_object_agg(kind || ':' || key || ':' || period_key, value) from public.player_progress
                  where user_id = $1 and slot = 0 and kind <> 'daily'),
       'session', (select jsonb_build_object('swing', swing_index, 'next', next_swing_at, 'settled_to', settled_to,
-                    'falls', falls, 'down', down, 'cooldowns', cooldowns, 'ended_at', ended_at, 'end_reason', end_reason)
+                    'falls', falls, 'down', down, 'cooldowns', cooldowns, 'ended_at', ended_at, 'end_reason', end_reason,
+                    'pull_left', pull_left, 'respawn_at', respawn_at)
                     from public.hunt_sessions where id = $2),
       'bag', (select jsonb_object_agg(item_id, jsonb_build_array(qty_loaded, qty_left)) from public.hunt_bag where session_id = $2),
       'tally', (select to_jsonb(t) - 'updated_at' - 'ledger_hwm' - 'raw_xp' from public.hunt_session_tally t where session_id = $2),
@@ -663,9 +675,11 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 }
 
 const STRONG = {
-  minutesAgo: 45, skillsLevel: 25, inv: { cooked_shrimp: 30, hunters_feast: 3 },
+  minutesAgo: 45, skillsLevel: 25, hunt: 'goblin_warren', inv: { cooked_shrimp: 30, hunters_feast: 3 },
   bag: [{ item: 'cooked_shrimp', qty: 25 }, { item: 'hunters_feast', qty: 3 }],
-  slots: [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
+  /* Eats at <= 90%: a level-25 hero on a spawn-limited ground is rarely below
+     half, and the arm needs heals inside the windows it cuts. */
+  slots: [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 90 }] },
     { item: 'hunters_feast', on: true, conditions: [{ subject: 'buff_missing:drop_rate' }] }],
 };
 /* WEAK falls — and carries XP INSIDE its levels, so each fall has a price to
@@ -687,7 +701,55 @@ const WEAK = { minutesAgo: 30, inv: {}, bag: [], hunt: 'goblin_warren', slots: B
 const SPAN_MS = 30 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 
+/* THE BALANCE FLOOR (gather review finding 5): a fresh kit hero falls fewer
+   than this many times an hour of hunting in Mill Cellar. */
+const FRESH_MAX_FALLS_PER_H = 2;
+/* ...and the kit carries the hunt at least this long before any automatic end
+   (heals_out ends a hunt BEFORE it can fall, so a fall rate alone would pass a
+   kit that lasts ten minutes). */
+const FRESH_MIN_MINUTES = 25;
+const FRESH_RUNS = 4;
+
 const DB_ARMS = {
+  FRESH: async (db, M) => {
+    const problems = [];
+    const kit = await import(pathToFileURL(join(ROOT, 'src', 'data', 'start-kit.js')).href);
+    const shrimp = Number(kit.START_INVENTORY.cooked_shrimp) || 0;
+    if (!(shrimp > 0)) return ['CONTROL: the start kit carries no cooked shrimp to pack'];
+    const lines = [];
+    let worst = 0;
+    for (let run = 0; run < FRESH_RUNS; run++) {
+      const r = await inTx(db, async () => {
+        /* The falls limit at its maximum, so the hour MEASURES the fall rate
+           instead of stopping at the third (which would hide a worse one). */
+        const { sid, from } = await hunter(db, M, { keepKit: true, minutesAgo: 60, hunt: 'mill_cellar',
+          bag: [{ item: 'cooked_shrimp', qty: shrimp }], falls: M.HSD.SESSION_LIMITS.falls.max });
+        for (const t of ticksOf(300000, 3600000)(from)) {
+          const x = await settleTo(db, M, t);
+          if (x.skipped === 'closed') break;
+        }
+        return one(db, `select jsonb_build_object('falls', (select count(*) from public.player_ledger
+                            where session_id = $1 and kind = 'combat' and intent = 'death'),
+                          'kills', t.kills, 'paid', t.paid_ms, 'down', t.down_ms, 'ate', t.supplies->'cooked_shrimp',
+                          'end', h.end_reason, 'xp', t.xp)
+                          from public.hunt_session_tally t join public.hunt_sessions h on h.id = t.session_id
+                         where t.session_id = $1`, [sid]);
+      });
+      const hours = (Number(r.paid) + Number(r.down)) / 3600000;
+      const rate = hours > 0 ? Number(r.falls) / hours : Infinity;
+      worst = Math.max(worst, rate);
+      if (r.end && hours * 60 < FRESH_MIN_MINUTES) {
+        problems.push(`run ${run}: the kit hunt ended ${r.end} after ${(hours * 60).toFixed(1)} min (floor ${FRESH_MIN_MINUTES} min)`);
+      }
+      lines.push(`run ${run}: ${r.falls} falls in ${(hours * 60).toFixed(1)} min (${rate.toFixed(2)}/h), ${r.kills} kills, `
+        + `${r.ate || 0} shrimp, end ${r.end || 'none'}, xp ${JSON.stringify(r.xp)}`);
+      if (!(Number(r.kills) > 0)) problems.push(`CONTROL: run ${run} killed nothing — a fresh hero must be fighting`);
+    }
+    console.log('  FRESH forecast (Mill Cellar, real START_KIT, real settle):\n    ' + lines.join('\n    '));
+    if (worst >= FRESH_MAX_FALLS_PER_H) problems.push(`a fresh kit hero falls ${worst.toFixed(2)} times an hour in Mill Cellar (floor < ${FRESH_MAX_FALLS_PER_H})`);
+    return problems;
+  },
+
   'TICK-1': async (db, M) => {
     const r = await compareRuns(db, M, STRONG, ticksOf(90000, SPAN_MS), (from) => [from + SPAN_MS]);
     const a = canon(r.a); const b = canon(r.b);
@@ -1170,8 +1232,8 @@ const DB_ARMS = {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
     const exec = makeExec(db);
-    const spawns = (M.HUNTS.HUNT_INDEX.mill_cellar || {}).spawns || [];
-    if (spawns.length < 2) problems.push('CONTROL: mill_cellar spawns fewer than two monsters');
+    const spawns = (M.HUNTS.HUNT_INDEX[STRONG.hunt] || {}).spawns || [];
+    if (spawns.length < 2) problems.push(`CONTROL: ${STRONG.hunt} spawns fewer than two monsters`);
     const value = async () => canon(await one(db, `select jsonb_build_object(
         'gold', ps.gold, 'hp', ps.hp,
         'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
@@ -1340,6 +1402,8 @@ const DB_MUTANTS = [
     replace: "    if false then" },
   { arm: 'ACTIONBAR', name: 'a party-only target mode is stored on a solo set', fn: 'public.hr_action_set_options(integer,integer,text,integer,bigint,uuid)',
     find: "  if not (select m.solo from public.hr_hunt_target_modes m where m.mode = p_target) then", replace: "  if false then" },
+  { arm: 'FRESH', name: 'Mill Cellar respawns six times sooner', fn: 'public.hr_hunt_pull_of(uuid,integer,uuid)',
+    find: "ceil(t.respawn_ms::numeric * z.size / t.pull_size)::bigint", replace: "ceil(t.respawn_ms::numeric * z.size / t.pull_size / 6)::bigint" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];
@@ -1348,6 +1412,9 @@ const DB_MUTANTS = [
 const SQL_MUTANTS = [
   { name: 'the value half is not stamped with the session (tally loses it)', find: "    perform set_config('hr.hunt_session', p_session::text, true);\n    v_a := public.hr_apply(", replace: '    v_a := public.hr_apply(' },
   { name: 'a refused session half leaves the value half written', find: "  exception when sqlstate 'HR000' then\n    get stacked diagnostics", replace: "  exception when sqlstate 'XX999' then\n    get stacked diagnostics" },
+  { name: 'the kill cap does not hold the window to its spawn cycle', find: '       or v_kills <> v_s.pull_left + v_psz * v_pn - v_pl1\n', replace: '' },
+  { name: 'the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },
+  { name: 'a player verb between the read and the apply refuses the settle (version CAS)', find: '    v_a := public.hr_apply(p_user, p_slot, v_ver, p_intent, p_delta);', replace: '    v_a := public.hr_apply(p_user, p_slot, p_version, p_intent, p_delta);' },
   { name: 'the fence trigger is not installed', find: 'create trigger hr_hunt_accrue_fence before insert on public.player_ledger', replace: 'create trigger hr_hunt_accrue_fence_off before update on public.player_ledger' },
 ];
 

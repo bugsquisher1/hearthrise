@@ -131,14 +131,41 @@
 --   empty roster) to the same edge, under shard 0's holder. A session whose
 --   settle is refused stays due and is offered again: owed, never lost.
 --
--- ── IDEMPOTENCY AND CONCURRENCY ─────────────────────────────────────────────
+-- ── IDEMPOTENCY AND CONCURRENCY (Security design review 2026-10-14 item 8) ──
 --   Every settle carries an intent key: the tick derives it from
 --   (session, swing_from, version, the session secret); a press carries the
 --   player's own key. hr_apply's player_intents makes a replay answer
 --   `replayed` and the wrapper then writes NOTHING else. Two settlers racing
---   one session serialise on the character lock; the loser is refused by the
---   swing CAS (`session_moved`) or the version CAS (`version_conflict`) and
---   re-reads. The lease only spares the duplicate engine work.
+--   one session serialise on hr_hunt_lock (hr_apply's per-character key + the
+--   session row FOR UPDATE); the loser is refused by the STORED INDEX check —
+--   swing_from must equal the row's swing_index (`session_moved`), asked
+--   under the lock before anything is written — and re-reads. There is NO CAS
+--   on player_state.version: hr_hunt_apply hands hr_apply the version it reads
+--   under the lock, so a player verb that bumps the version between the read
+--   and the apply (a market listing, a bank move) can never starve the tick's
+--   settle. Every input of the window the engine read and a verb could move is
+--   either settle-first gated (C1's 20 s slack), on the session row (whose
+--   swing_index any other settle moves), or re-proved here (the pull, the pool,
+--   the gold). The lease only spares the duplicate engine work.
+--
+-- ── THE SPAWN CYCLE: A STATEFUL KILL CAP (Security design review items 1-2) ─
+--   A ground shows `pull` foes at once and a pull is back `respawn_ms` after it
+--   STARTED (src/data/hunts.js, generated into hr_hunt_travel). The pull a hunt
+--   runs is the SERVER's: hr_hunt_pull_of = the action set's pull_count
+--   clamped to the ground's pull and to hr_hunt_limit('pull_cap') (rule-
+--   subjects.js PULL_CAP, the ONE place the player-dial ruling lands), with
+--   the respawn scaled to it — so the dial moves the rhythm, never the kills
+--   an hour. hunt_sessions.pull_left / respawn_at carry the cycle window to
+--   window (respawn_at null = the arrival). Every settle re-proves, with K the
+--   kills its own stamped ledger rows journal:
+--     K = pull_left_old + P x n - pull_left_new        (exact; no "+1")
+--     n <= respawns the window admits after respawn_at_old
+--     0 <= pull_left_new <= (n > 0 ? P : pull_left_old)
+--     n = 0: respawn_at unchanged; else respawn_at_old + n x respawn
+--            <= respawn_at_new < to + respawn       (forward only)
+--   and refuses (`pull_over`, `bad_pull`; `session_moved` when the pull the
+--   engine ran is not the one the row gives now). Kills/h is bounded by the
+--   ground however the windows are cut — never by a per-settle rate.
 --
 -- ── SCALE (100x: ~600 hunters) ──────────────────────────────────────────────
 --   rows/day per hunting character: accrue 120 (away) – 960 (online all day),
@@ -271,6 +298,42 @@ begin
   end if;
 end $mig$;
 
+-- THE SPAWN CYCLE'S STATE (Security design review 2026-10-14 item 1): foes of
+-- the current pull still standing, and when the next pull is due (null = the
+-- arrival, hunt_from). Written only by hr_hunt_apply, forward only.
+alter table public.hunt_sessions add column if not exists pull_left int not null default 0;
+alter table public.hunt_sessions add column if not exists respawn_at timestamptz;
+do $mig$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hunt_sessions_pull_ck'
+                   and conrelid = 'public.hunt_sessions'::regclass) then
+    alter table public.hunt_sessions add constraint hunt_sessions_pull_ck check (pull_left between 0 and 64);
+  end if;
+end $mig$;
+comment on column public.hunt_sessions.pull_left is
+  '2026-10-22 (hunt sessions C2, Security design review item 1). Foes of the current pull still standing. '
+  'Written only by hr_hunt_apply, which re-proves every window''s kills against it.';
+comment on column public.hunt_sessions.respawn_at is
+  '2026-10-22 (hunt sessions C2). When the next pull is due; null = the arrival (hunt_from). Forward only.';
+
+-- THE PULL A HUNT RUNS: the action set's pull count, clamped to the ground's
+-- pull and to the ONE cap row (pull_cap; 0 = none), and the ground's respawn
+-- scaled to it. Null when the catalogue row is missing (callers refuse).
+create or replace function public.hr_hunt_pull_of(p_user uuid, p_slot int, p_session uuid)
+returns jsonb language sql stable set search_path = public, pg_catalog as $$
+  select jsonb_build_object('size', z.size,
+           'respawn_ms', ceil(t.respawn_ms::numeric * z.size / t.pull_size)::bigint)
+    from public.hunt_sessions h
+    join public.hr_hunt_travel t on t.hunt_id = h.hunt_id
+    cross join lateral (select greatest(1, least(t.pull_size,
+             coalesce((select a.pull_count from public.player_action_sets a
+                        where a.user_id = h.user_id and a.slot = h.slot and a.preset = h.preset),
+                      public.hr_hunt_limit('pull_default'), 1),
+             coalesce(nullif(public.hr_hunt_limit('pull_cap'), 0), t.pull_size))) as size) z
+   where h.id = p_session and h.user_id = p_user and h.slot = p_slot
+     and t.pull_size is not null and t.respawn_ms is not null
+$$;
+
 -- THE LAST NON-HUNT ACTIVITY (Tyler 2026-10-14). Every pointer move onto a
 -- resumable kind (hr_hunt_resumable_kinds: gather, artisan; `training` reserved)
 -- is remembered, whichever writer made it — so an automatic hunt end can send
@@ -401,6 +464,11 @@ begin
     'pull_count', coalesce((select a.pull_count from public.player_action_sets a
                              where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
                            public.hr_hunt_limit('pull_default')),
+    -- THE SPAWN CYCLE: the pull the server runs and the row's cycle state
+    -- (respawn_at null = the arrival), in engine milliseconds.
+    'pull', public.hr_hunt_pull_of(p_user, p_slot, v_s.id) || jsonb_build_object(
+              'left', v_s.pull_left,
+              'respawn_at_ms', ceil(extract(epoch from coalesce(v_s.respawn_at, v_s.hunt_from)) * 1000)::bigint),
     -- THE GOLD FLOOR, and what sell-to-cover may sell: every cover item's vendor
     -- price, with what THIS session looted of it, not yet sold, still in the bag.
     'gold_floor', coalesce((select a.gold_floor from public.player_action_sets a
@@ -873,6 +941,20 @@ declare
   v_avail     bigint;
   v_floor     bigint;
   v_ko        int;
+  -- THE SPAWN CYCLE (Security design review 2026-10-14 items 1-2)
+  v_pull      jsonb;
+  v_psrv      jsonb;
+  v_psz       bigint;
+  v_prs       bigint;
+  v_pn        bigint;
+  v_pl1       bigint;
+  v_r0ms      bigint;
+  v_r1ms      bigint;
+  v_tomms     bigint;
+  v_pmax      bigint;
+  v_kills     bigint;
+  v_ver       bigint;
+  v_lmax      bigint;
   -- THE RESUME (Tyler 2026-10-14)
   v_end       text;
   v_lk        text;
@@ -928,6 +1010,24 @@ begin
                                ceil(extract(epoch from v_s.settled_to) * 1000)::bigint),
                       floor(extract(epoch from now()) * 1000)::bigint);
   end if;
+
+  -- (2a) THE STORED INDEX, under the lock (Security design review item 8): the
+  --      window starts where the row stands or another settle won — before any
+  --      write. NO CAS on player_state.version: hr_apply gets the version read
+  --      here, so a player verb between the engine's read and this apply never
+  --      starves the settle (p_version is the engine's read, kept for the
+  --      intent key's derivation only).
+  if jsonb_typeof(p_hunt->'swing_from') is distinct from 'number' or (p_hunt->>'swing_from') !~ '^[0-9]{1,15}$' then
+    return jsonb_build_object('ok', false, 'error', 'bad_swing');
+  end if;
+  -- (A key that already landed falls through: hr_apply answers it `replayed`
+  -- and nothing else moves.)
+  if (p_hunt->>'swing_from')::bigint <> v_s.swing_index
+     and not exists (select 1 from public.player_intents i where i.user_id = p_user and i.intent_id = p_intent) then
+    return jsonb_build_object('ok', false, 'error', 'session_moved', 'swing_index', v_s.swing_index);
+  end if;
+  select version into v_ver from public.player_state where user_id = p_user and slot = p_slot;
+  if v_ver is null then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
 
   -- (2b) THE PRICE OF EACH FALL, shape only (no writes). `death_xp` is ONE
   --      `{skill: xp}` per death row in p_delta, in that order; it is taken off
@@ -1006,6 +1106,32 @@ begin
                     or (x.value #>> '{}') !~ '^[0-9]{1,9}$') then
     return jsonb_build_object('ok', false, 'error', 'bad_cover');
   end if;
+  -- (2e) THE SPAWN CYCLE, shape only: the pull the engine ran must be the one
+  --      the row gives NOW (a pull-count edit since the engine's read means the
+  --      window was priced on a stale pull: re-read), taken off the proposal and
+  --      re-proved against the stamped kills after hr_apply, below.
+  v_pull := v_hunt->'pull';
+  v_hunt := v_hunt - 'pull';
+  if v_pull is null or jsonb_typeof(v_pull) <> 'object'
+     or exists (select 1 from jsonb_object_keys(v_pull) k where k not in ('size', 'respawn_ms', 'left', 'respawn_at', 'pulls'))
+     or coalesce(v_pull->>'size', '') !~ '^[0-9]{1,2}$' or coalesce(v_pull->>'respawn_ms', '') !~ '^[0-9]{1,9}$'
+     or coalesce(v_pull->>'left', '') !~ '^[0-9]{1,2}$' or coalesce(v_pull->>'pulls', '') !~ '^[0-9]{1,9}$'
+     or jsonb_typeof(v_pull->'respawn_at') is distinct from 'string' then
+    return jsonb_build_object('ok', false, 'error', 'bad_pull');
+  end if;
+  v_psrv := public.hr_hunt_pull_of(p_user, p_slot, p_session);
+  if v_psrv is null then return jsonb_build_object('ok', false, 'error', 'catalogue_missing'); end if;
+  if (v_pull->>'size')::bigint <> (v_psrv->>'size')::bigint or (v_pull->>'respawn_ms')::bigint <> (v_psrv->>'respawn_ms')::bigint then
+    return jsonb_build_object('ok', false, 'error', 'session_moved', 'why', 'pull', 'pull', v_psrv);
+  end if;
+  v_psz := (v_psrv->>'size')::bigint; v_prs := (v_psrv->>'respawn_ms')::bigint;
+  v_pn := (v_pull->>'pulls')::bigint; v_pl1 := (v_pull->>'left')::bigint;
+  begin
+    v_r1ms := ceil(extract(epoch from (v_pull->>'respawn_at')::timestamptz) * 1000)::bigint;
+  exception when others then
+    return jsonb_build_object('ok', false, 'error', 'bad_pull');
+  end;
+  v_r0ms := ceil(extract(epoch from coalesce(v_s.respawn_at, v_s.hunt_from)) * 1000)::bigint;
   -- The skills as this window found them (the level a fall may never go below),
   -- and the newest event, so this settle's own fall / level_up rows are known.
   select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_xp0
@@ -1015,7 +1141,7 @@ begin
   -- (3)–(5) ONE SUBTRANSACTION: a refusal anywhere in it un-writes all of it.
   begin
     perform set_config('hr.hunt_session', p_session::text, true);
-    v_a := public.hr_apply(p_user, p_slot, p_version, p_intent, p_delta);
+    v_a := public.hr_apply(p_user, p_slot, v_ver, p_intent, p_delta);
     perform set_config('hr.hunt_session', '', true);
     if coalesce(v_a->>'ok', 'false') <> 'true' then
       -- hr_apply wrote nothing but its own rejection record; answer as-is.
@@ -1036,6 +1162,38 @@ begin
       exception when others then perform public.hr_reject('bad_window'); end;
       perform public.hr_hunt_buffs_put(p_user, p_slot, v_s.settled_to, v_to, p_hunt->'uses', p_buffs);
     end if;
+    -- (4b) THE SPAWN CYCLE, RE-PROVED (Security design review items 1-2). K =
+    --      the kills THIS settle's stamped rows journal (they are the only rows
+    --      above the tally's high-water mark; hr_hunt_settle_session folds them
+    --      below). Exact, no "+1": K = left_old + P x n - left_new; n within
+    --      the respawns (respawn_at_old, to] admits; the pair forward only.
+    begin v_to := (p_hunt->>'to')::timestamptz;
+    exception when others then perform public.hr_reject('bad_window'); end;
+    v_tomms := ceil(extract(epoch from v_to) * 1000)::bigint;
+    select coalesce(sum(case when jsonb_typeof(l.meta->'kills') = 'number' then (l.meta->>'kills')::numeric else 0 end), 0)::bigint
+      into v_kills
+      from public.player_ledger l
+     where l.session_id = p_session and l.kind <> 'hunt'
+       and l.id > coalesce((select t.ledger_hwm from public.hunt_session_tally t where t.session_id = p_session), 0)
+       and l.at >= now() - interval '25 hours';
+    v_pmax := case when v_r0ms < v_tomms then (v_tomms - 1 - v_r0ms) / v_prs + 1 else 0 end;
+    if v_pn > v_pmax then
+      perform public.hr_reject('pull_over', jsonb_build_object('pulls', v_pn, 'max', v_pmax));
+    end if;
+    v_lmax := v_s.pull_left;
+    if v_pn > 0 then v_lmax := v_psz; end if;
+    if v_pl1 > v_lmax
+       or v_kills <> v_s.pull_left + v_psz * v_pn - v_pl1
+       or (v_pn = 0 and v_r1ms <> v_r0ms)
+       or (v_pn > 0 and (v_r1ms < v_r0ms + v_pn * v_prs or v_r1ms >= v_tomms + v_prs)) then
+      perform public.hr_reject('pull_over', jsonb_build_object('kills', v_kills, 'left_old', v_s.pull_left,
+        'pulls', v_pn, 'left', v_pl1, 'size', v_psz, 'respawn_at_old_ms', v_r0ms, 'respawn_at_ms', v_r1ms));
+    end if;
+    update public.hunt_sessions
+       set pull_left = v_pl1,
+           respawn_at = case when v_pn = 0 then respawn_at
+                             else 'epoch'::timestamptz + make_interval(secs => v_r1ms / 1000.0) end
+     where id = p_session;
     -- (5a) THE STAMINA POOL, RE-BOUNDED AND WRITTEN (before the session half,
     --      whose `stamina` end proof reads this row). Every swing interval of
     --      the window is either PAID (hunting: drains 1:1) or KNOCKED OUT
@@ -1340,7 +1498,10 @@ begin
                                      'session', public.hr_hunt_view(p_session));
 end $$;
 
--- ── §6 THE FENCE: no combat accrue row for a hunter outside its own settle ─
+-- ── §6 THE FENCE: no accrue row OF ANY KIND for a hunter outside its own
+--    settle (Security design review 2026-10-14 item 11: combat, gather,
+--    artisan, party — whatever the journal names, a hunter is paid by the
+--    hunt settle or not at all) ─────────────────────────────────────────────
 create or replace function public.hr_hunt_accrue_fence()
 returns trigger language plpgsql set search_path = public, pg_catalog as $$
 declare v_s uuid; v_g text := coalesce(current_setting('hr.hunt_session', true), '');
@@ -1355,7 +1516,7 @@ end $$;
 revoke execute on function public.hr_hunt_accrue_fence() from public, anon, authenticated, service_role;
 drop trigger if exists hr_hunt_accrue_fence on public.player_ledger;
 create trigger hr_hunt_accrue_fence before insert on public.player_ledger
-  for each row when (new.kind = 'combat' and new.intent = 'accrue')
+  for each row when (new.intent = 'accrue')
   execute function public.hr_hunt_accrue_fence();
 
 -- ── §6b THE TWO CLIENT CREDIT DOORS ARE SHUT FOR A HUNTER ───────────────────
@@ -1864,6 +2025,8 @@ revoke execute on function public.hr_tick_cron_run() from public;
 revoke execute on function public.hr_tick_cron_run() from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_stamina_of(uuid, int, timestamptz) from public;
 revoke execute on function public.hr_stamina_of(uuid, int, timestamptz) from anon, authenticated, service_role, hr_engine, hr_tick;
+revoke execute on function public.hr_hunt_pull_of(uuid, int, uuid) from public;
+revoke execute on function public.hr_hunt_pull_of(uuid, int, uuid) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_stamina_view(uuid, int) from public;
 revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_last_activity_note() from public;
@@ -2656,6 +2819,7 @@ declare
   v_cap  bigint := public.hr_hunt_limit('stamina_max_min')::bigint * 60000;
   v_to2  timestamptz;
   v_act  text;
+  v_pz   jsonb;
 begin
   -- (a) PRIVILEGES. Engine functions: hr_engine only. The roster: hr_tick only.
   --     The buff writer and the fence: nobody. The lease table: no grant.
@@ -2719,6 +2883,14 @@ begin
     reset role;
     if v_h->>'target_mode' is distinct from 'weakest' or (v_h->>'pull_count')::int is distinct from 3 then
       raise exception 'GATE(m): the engine read answered target % pull %', v_h->>'target_mode', v_h->>'pull_count'; end if;
+    -- (m2) THE PULL A HUNT RUNS is the server's: the stored 3 clamped to the
+    --      ground's pull and to pull_cap, the respawn scaled to it; a fresh
+    --      session's pull is empty and due at the arrival.
+    if (v_h->'pull'->>'size')::int is distinct from (select least(t.pull_size, 3,
+             coalesce(nullif(public.hr_hunt_limit('pull_cap'), 0), t.pull_size)) from public.hr_hunt_travel t where t.hunt_id = 'mill_cellar')
+       or (v_h->'pull'->>'left')::int is distinct from 0
+       or (v_h->'pull'->>'respawn_at_ms')::bigint is distinct from (v_h->>'hunt_from_ms')::bigint then
+      raise exception 'GATE(m2): the engine read answered pull %', v_h->'pull'; end if;
 
     update public.hunt_sessions set entered_at = now() - interval '10 minutes', hunt_from = now() - interval '9 minutes',
                                     settled_to = now() - interval '9 minutes', next_swing_at = now() - interval '9 minutes'
@@ -2740,10 +2912,17 @@ begin
     v_delta := jsonb_build_object('gold', 10, 'xp', jsonb_build_object('attack', 5),
       'accrued_to', to_jsonb(v_to),
       'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
-        'meta', jsonb_build_object('ms', 24000, 'ticks', 10, 'kills', 2, 'mon', 'mill_cellar')));
+        'meta', jsonb_build_object('ms', 24000, 'ticks', 10, 'kills', 1, 'mon', 'mill_cellar')));
     v_hunt := jsonb_build_object('swing_from', 0, 'swing_to', 10, 'to', to_jsonb(v_to), 'next_swing_at', to_jsonb(v_to),
       'uses', jsonb_build_object('cooked_shrimp', 2), 'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 24000,
       'stamina', v_cap - 24000);
+    -- THE SPAWN CYCLE of the kill: one pull of the server's size at the arrival
+    -- (v_from), the next due one respawn later; the rest left standing.
+    v_pz := public.hr_hunt_pull_of(v_uid, 0, v_sid);
+    if (v_pz->>'respawn_ms')::bigint <= 24000 then
+      raise exception 'GATE(b): the probe needs a respawn longer than its 24 s window (Mill Cellar %)', v_pz; end if;
+    v_hunt := v_hunt || jsonb_build_object('pull', v_pz || jsonb_build_object('left', (v_pz->>'size')::int - 1, 'pulls', 1,
+      'respawn_at', to_jsonb(v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000))));
 
     -- (s0) THE ENVELOPE PROJECTS THE POOL: a character that never hunted is
     --      full, and a hunting session reads it at its settled_to.
@@ -2759,6 +2938,37 @@ begin
     if v_r->>'error' is distinct from 'hunt_open'
        or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
       raise exception 'GATE(c): a bare combat accrue for a hunter answered % (and must move nothing)', v_r; end if;
+
+    -- (c2) THE FENCE HOLDS FOR EVERY ACCRUE KIND (Security design review item 11).
+    set local role hr_engine;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object('xp', jsonb_build_object('mining', 5),
+             'accrued_to', to_jsonb(v_to), 'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue',
+               'meta', jsonb_build_object('ms', 24000))));
+    reset role;
+    if v_r->>'error' is distinct from 'hunt_open' then
+      raise exception 'GATE(c2): a bare gather accrue for a hunter answered %', v_r; end if;
+
+    -- (p) THE SPAWN CYCLE IS A STATEFUL CAP: a third kill the cycle cannot
+    --     explain, a pull more than the respawns admit, a respawn moved back,
+    --     and a pull the row no longer gives are each refused and move nothing.
+    foreach v_f in array array['kills', 'pulls', 'back', 'size'] loop
+      set local role hr_engine;
+      v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(),
+               case when v_f = 'kills' then jsonb_set(v_delta, '{journal,meta,kills}', '2') else v_delta end,
+               case v_f
+                 when 'kills' then v_hunt
+                 when 'pulls' then jsonb_set(jsonb_set(v_hunt, '{pull,pulls}', '9'), '{pull,left}',
+                                     to_jsonb(9 * (v_pz->>'size')::int - 1))
+                 when 'back'  then jsonb_set(v_hunt, '{pull,respawn_at}', to_jsonb(v_from))
+                 else jsonb_set(v_hunt, '{pull,size}', to_jsonb((v_pz->>'size')::int + 1)) end);
+      reset role;
+      v_act := 'pull_over';
+      if v_f = 'size' then v_act := 'session_moved'; end if;
+      if v_r->>'error' is distinct from v_act
+         or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold
+         or (select swing_index from public.hunt_sessions where id = v_sid) <> 0 then
+        raise exception 'GATE(p): a % the cycle cannot explain answered %', v_f, v_r; end if;
+    end loop;
 
     -- (d) A REFUSED SESSION HALF UN-WRITES THE VALUE HALF (stale swing).
     select count(*) into v_n from public.player_ledger where user_id = v_uid;
@@ -2812,6 +3022,9 @@ begin
       raise exception 'GATE(e): an unpaid buff segment answered % or moved gold', v_r; end if;
 
     -- (f) THE HONEST SETTLE, with a press that stays queued: value + session move together.
+    --     NO VERSION CAS (Security design review item 8): a player verb bumped
+    --     the version after the engine read it, and the settle still lands.
+    update public.player_state set version = version + 3 where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, '00000000-0000-4000-8000-0000000c2bf1', v_delta,
              v_hunt || jsonb_build_object('presses_left', jsonb_build_array(0)), null,
@@ -2822,13 +3035,16 @@ begin
        or (select swing_index from public.hunt_sessions where id = v_sid) <> 10
        or (select qty_left from public.hunt_bag where session_id = v_sid and item_id = 'cooked_shrimp') <> 10
        or (select coins from public.hunt_session_tally where session_id = v_sid) <> 10
-       or (select kills from public.hunt_session_tally where session_id = v_sid) <> 2
+       or (select kills from public.hunt_session_tally where session_id = v_sid) <> 1
        or jsonb_array_length((select presses from public.hunt_sessions where id = v_sid)) <> 1
        or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'combat' and intent = 'accrue'
                                                      and session_id = v_sid) <> 1
        or (select stamina_ms from public.player_state where user_id = v_uid and slot = 0) <> v_cap - 24000
-       or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) <> v_to then
-      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina together'; end if;
+       or (select stamina_at from public.player_state where user_id = v_uid and slot = 0) <> v_to
+       or (select pull_left from public.hunt_sessions where id = v_sid) <> (v_pz->>'size')::int - 1
+       or (select respawn_at from public.hunt_sessions where id = v_sid)
+          <> v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000) then
+      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina / pull together'; end if;
     -- (f2) IDEMPOTENT: the same key replays and moves nothing more.
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, '00000000-0000-4000-8000-0000000c2bf1', v_delta, v_hunt);
@@ -2921,7 +3137,9 @@ begin
       'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
         'meta', jsonb_build_object('ms', 2400, 'ticks', 1, 'kills', 0, 'mon', 'mill_cellar')));
     v_hunt := jsonb_build_object('swing_from', 10, 'swing_to', 11, 'to', to_jsonb(v_to2), 'next_swing_at', to_jsonb(v_to2),
-      'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 2400, 'stamina', v_cap - 26400);
+      'falls', 0, 'down', false, 'down_ms', 0, 'paid_ms', 2400, 'stamina', v_cap - 26400,
+      'pull', v_pz || jsonb_build_object('pulls', 0, 'left', (select pull_left from public.hunt_sessions where id = v_sid),
+        'respawn_at', to_jsonb((select respawn_at from public.hunt_sessions where id = v_sid))));
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
@@ -2967,7 +3185,7 @@ begin
                  'meta', jsonb_build_object('ms', 0, 'ticks', 0, 'kills', 0, 'mon', 'mill_cellar'))),
              jsonb_build_object('swing_from', 11, 'swing_to', 11, 'to', to_jsonb(v_to2 + interval '1 millisecond'),
                'next_swing_at', to_jsonb(v_to2 + interval '1 millisecond'), 'falls', 0, 'down', false,
-               'down_ms', 0, 'paid_ms', 0, 'stamina', v_cap - 26400,
+               'down_ms', 0, 'paid_ms', 0, 'stamina', v_cap - 26400, 'pull', v_hunt->'pull',
                'ended', jsonb_build_object('reason', 'server', 'at', to_jsonb(v_to2))));
     reset role;
     update public.hr_hunt_config set enabled = true where id;

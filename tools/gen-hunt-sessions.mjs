@@ -71,7 +71,7 @@ import { SUPPLIES, COMBAT_BUFF_TYPES, BAG_GUIDE_BY_HUNT } from '../src/data/supp
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_GROUPS, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
-  SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, SLOT_TARGETS } from '../src/data/rule-subjects.js';
+  SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, PULL_CAP, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, DEFAULT_RESUME, EVENT_COPY,
   coverSellable } from '../src/data/hunt-sessions.js';
@@ -94,7 +94,7 @@ export function catalogueRows(src = {}) {
     knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
-    pull: PULL_COUNT, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
+    pull: PULL_COUNT, pullCap: PULL_CAP, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
   };
   /* THE SHOP (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
@@ -160,7 +160,13 @@ export function catalogueRows(src = {}) {
       throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 10..300`);
     }
     if (!(Number.isInteger(h.tier) && h.tier >= 1 && h.tier <= 99)) throw new Error(`hunt ${h.id} has no tier (${h.tier})`);
-    travel.push({ id: h.id, s: h.travelS, training, tier: h.tier });
+    /* THE SPAWN CYCLE (Security design review 2026-10-14 item 1): a ground's pull
+       size and the time a pull takes to come back. Data, never a literal in SQL. */
+    if (!(Number.isInteger(h.pull) && h.pull >= 1 && h.pull <= 8)) throw new Error(`hunt ${h.id} pull ${h.pull} is not a whole 1..8`);
+    if (!(Number.isInteger(h.respawnMs) && h.respawnMs >= 1000 * h.pull && h.respawnMs <= 600000)) {
+      throw new Error(`hunt ${h.id} respawnMs ${h.respawnMs} is not a whole 1 s per foe .. 10 min`);
+    }
+    travel.push({ id: h.id, s: h.travelS, training, tier: h.tier, pull: h.pull, respawn: h.respawnMs });
   };
   /* The TIER a shop slot resolves by: a named hunt's own (its bag guide), a
      training fight's monster's. */
@@ -203,6 +209,9 @@ export function catalogueRows(src = {}) {
     stamina_max_min: Number(S.staminaMaxMs) / 60000,
     /* The pull count an action set may store (Huntera's 1-8; default 1). */
     pull_min: S.pull.min, pull_max: S.pull.max, pull_default: S.pull.default,
+    /* The ONE clamp on the pull a hunt runs (rule-subjects.js PULL_CAP; 0 = the
+       ground's own), read by hr_hunt_pull_of. */
+    pull_cap: S.pullCap,
   };
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
@@ -291,7 +300,7 @@ export function render(src) {
   const targetList = r.targets.map((x) => sq(x.m)).join(', ');
   const resumeList = r.resumable.map(sq).join(', ');
 
-  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training}, ${t.tier})`).join(',\n');
+  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training}, ${t.tier}, ${t.pull}, ${t.respawn})`).join(',\n');
   const subjectValues = r.subjects.map((s) => `  (${sq(s.k)}, ${s.param ? sq(s.param) : 'null'}, ${s.lo ?? 'null'}, ${s.hi ?? 'null'})`).join(',\n');
   const buffValues = r.buffTypes.map((t) => `  (${sq(t)})`).join(',\n');
   const limValues = Object.entries(r.lim).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `  (${sq(k)}, ${v})`).join(',\n');
@@ -388,6 +397,10 @@ create table if not exists public.hr_hunt_slot_targets (
 -- The tier a shop slot resolves by (a named hunt's bag guide; a training
 -- fight's monster).
 alter table public.hr_hunt_travel add column if not exists tier int;
+-- THE SPAWN CYCLE (Security design review 2026-10-14 item 1): the ground's pull
+-- size and the time a pull takes to come back (src/data/hunts.js pull / respawnMs).
+alter table public.hr_hunt_travel add column if not exists pull_size int;
+alter table public.hr_hunt_travel add column if not exists respawn_ms int;
 create table if not exists public.hr_hunt_slot_kinds (
   kind   text primary key check (kind ~ '^[a-z0-9_]{1,64}$'),
   active boolean not null
@@ -440,7 +453,7 @@ delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode, solo) values
 ${targetValues};
 delete from public.hr_hunt_travel;
-insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
+insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier, pull_size, respawn_ms) values
 ${travelValues};
 delete from public.hr_hunt_rule_subjects;
 insert into public.hr_hunt_rule_subjects (subject, param, lo, hi) values
@@ -535,6 +548,8 @@ begin
      or (select count(*) from public.hr_hunt_slot_targets) <> ${r.slotTargets.length}
      or (select count(*) from public.hr_hunt_cover_items) <> ${r.cover.length}
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
+     or (select count(*) from public.hr_hunt_travel where pull_size is null or pull_size not between 1 and 8
+            or respawn_ms is null or respawn_ms < 1000 * pull_size) <> 0
      or (select count(*) from public.hr_hunt_slot_kinds) <> ${r.slotKinds.length}
      or (select count(*) from public.hr_hunt_target_modes) <> ${r.targets.length}
      or (select count(*) from public.hr_hunt_resumable_kinds) <> ${r.resumable.length}
@@ -587,6 +602,8 @@ function selftest() {
     'buff with an idle type': () => ({ supplies: { ...S.supplies, tomato_soup: { ...S.supplies.tomato_soup, buff: { type: 'gather_speed' } } } }),
     'travel not a multiple of 10': () => ({ hunts: S.hunts.map((h, i) => (i ? h : { ...h, travelS: 25 })) }),
     'travel too long': () => ({ hunts: S.hunts.map((h, i) => (i ? h : { ...h, travelS: 310 })) }),
+    'a ground with no pull': () => ({ hunts: S.hunts.map((h, i) => (i ? h : { ...h, pull: 0 })) }),
+    'a respawn under a second a foe': () => ({ hunts: S.hunts.map((h, i) => (i ? h : { ...h, pull: 3, respawnMs: 2999 })) }),
     'training id collides': () => ({ hunts: [...S.hunts, { ...S.hunts[0], id: 'rat' }] }),
     'inverted subject range': () => ({ subjects: { ...S.subjects, self_hp_pct: { ...S.subjects.self_hp_pct, range: [99, 1] } } }),
     'unknown subject param': () => ({ subjects: { ...S.subjects, self_hp_pct: { ...S.subjects.self_hp_pct, param: 'monster' } } }),

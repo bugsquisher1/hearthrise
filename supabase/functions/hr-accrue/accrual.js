@@ -3200,6 +3200,14 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
        rows' recovery, and writes it at `to` (§5a). Null only when the read had
        none, which the database refuses. */
     stamina: hs.staminaMs === null || hs.staminaMs === undefined ? null : Math.max(0, Math.floor(Number(hs.staminaMs))),
+    /* THE SPAWN CYCLE AT `to` (Security design review 2026-10-14 items 1-2):
+       the pull the engine ran (the server's), the foes of the current pull
+       still standing, when the next pull is due, and how many pulls this
+       window started. hr_hunt_apply takes it off the proposal, recomputes the
+       pull under the lock and requires kills == left_old + size x pulls - left,
+       pulls within the respawns the window admits, the pair moving forward. */
+    pull: { size: hs.pull.size, respawn_ms: hs.pull.respawnMs, left: hs.pull.left,
+      respawn_at: huntIso(hs.pull.respawnAtMs), pulls: hs.pull.pulls },
     /* THE PRICE OF EACH FALL (Tyler 2026-10-14), one `{skill: xp}` per death
        row this window proposes, in the same order and the same slice as
        `delta.deaths` — hr_hunt_apply takes it off the proposal before

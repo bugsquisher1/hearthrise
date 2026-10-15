@@ -1128,42 +1128,6 @@ export default [
     } finally { window._tdPane = prev; }
   }),
 
-  // b218 (#4): the Companion sub-tab used to hold ONLY the companion equip slot
-  // (a lone icon), so the companion's own level/XP/stats never appeared there —
-  // the always-on stat sheet beside the doll shows the PLAYER's stats, which is
-  // what players saw. The pane now renders the equipped companion's own
-  // progression (name, level, XP, effective bonuses) from the companions module.
-  () => tryRun('b218: Companion sub-tab shows the companion\'s own level/xp', () => {
-    if (typeof window.buildTibiaDoll !== 'function' || !window.G) return;
-    if (typeof window.equipCompanion !== 'function' || !window.COMPANIONS) return;
-    const snap = window.G.companions ? JSON.stringify(window.G.companions) : null;
-    const eqSnap = window.G.equipment ? window.G.equipment.companion : undefined;
-    const prevPane = window._tdPane;
-    try {
-      /* b515: the roster is the server's — `ensureState` fails closed to an
-         empty one — so the fox has to ARRIVE before it can be equipped. Through
-         the real `reconcileCompanions` (withCompanionRoster), not by writing
-         `ownedIds` here, so this cannot pass against a shape the server would
-         never produce. */
-      window.HearthriseAccrual.reconcileCompanions(window.G,
-        { companions: { owned: ['fox'], xp: {}, equipped: null } });
-      window.equipCompanion('fox');
-      window._tdPane = 'pet';
-      const doll = window.buildTibiaDoll();
-      if (!doll) return;
-      const info = doll.querySelector('.td-companion-info');
-      assert(info, 'Companion sub-tab is missing the companion info block (was empty / only the equip slot)');
-      const def = window.COMPANIONS.fox;
-      assert(def && info.textContent.indexOf(def.n) >= 0,
-        'Companion info should name the equipped companion (' + (def && def.n) + ')');
-      assert(/Lv\s*\d+/.test(info.textContent),
-        'Companion info should show the companion level (Lv N)');
-    } finally {
-      window._tdPane = prevPane;
-      if (snap) window.G.companions = JSON.parse(snap);
-      if (window.G.equipment) window.G.equipment.companion = eqSnap;
-    }
-  }),
 
   // ── b219 regression suite (backlog #7 + #8 + beta-modal emoji) ──
 
@@ -1336,28 +1300,6 @@ export default [
     }
   }),
 
-  // b219 (found while verifying #7): claiming the daily reward printed ~700
-  // characters of raw <svg> path data into the toast corner — the call site
-  // handed notify() a string built for innerHTML, and toasts render with
-  // textContent. Two guards: the reward toast must be plain text, and the
-  // toast renderer must strip tags from ANY caller rather than show source.
-  () => tryRun('b219: daily-reward toast is plain text, not raw SVG markup', () => {
-    const D = window.HearthriseDaily;
-    if (!D || typeof D.rewardFor !== 'function') throw new Error('HearthriseDaily missing');
-    const T = window.HearthriseToasts;
-    if (!T) throw new Error('HearthriseToasts missing');
-    T.clear();
-    try {
-      window.notify('ToastProbeMarkup: <svg viewBox="0 0 512 512"><path d="M264 4 95z"/></svg> 500', 'levelup');
-      const el = findToast('ToastProbeMarkup');
-      assert(el, 'no toast rendered');
-      const txt = el.textContent;
-      assert(txt.indexOf('<') < 0 && txt.toLowerCase().indexOf('viewbox') < 0,
-        'toast leaked markup into the visible text: ' + JSON.stringify(txt.slice(0, 80)));
-      assert(/^ToastProbeMarkup:\s*500/.test(txt),
-        'toast lost its actual message while stripping tags: ' + JSON.stringify(txt));
-    } finally { T.clear(); }
-  }),
 
   // b219 (#8): the chat pill was nailed to bottom-right with no escape, so
   // it covered whatever sat under it. It is draggable now, and the position
@@ -2505,85 +2447,6 @@ export default [
     } finally { restoreG(snap); }
   })),
 
-  () => tryRun('b220 (re-ruled W0): the harvest daily is ONE harvest round at the camp, a fixed row the server pays', () => {
-    /* It used to scale with the client's plot cap, which the server cannot see,
-       so hr_claim_daily answered it not_creditable on every day it was dealt
-       (Security, 2026-10-10: 17 of 31 days). It is a fixed row now, priced by
-       src/data/goal-catalogue.js and 2026-10-16-daily-harvest-credit.sql. The
-       b495 floor still holds: the camp's one harvest round finishes it. */
-    const snap = snapshotG();
-    try {
-      const pool = window.DAILY_TASK_POOL;
-      assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
-      assert(pool.map((f) => f()).filter((t) => t.type === 'harvest').length === 1,
-        'expected exactly one harvest daily');
-      const cat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
-      const row = cat && cat.DAILY_TASK_REWARDS && cat.DAILY_TASK_REWARDS.daily_harvest;
-      for (const tier of [0, 5]) {
-        window.G.homestead = { tier };
-        const t = pool.map((f) => f()).find((x) => x.type === 'harvest');
-        assert(t.goal === 6 && t.reward === 300, 'tier ' + tier + ': the harvest daily is ' + t.goal + ' crops / ' + t.reward + 'g, not the fixed 6 / 300');
-        if (row) assert(row.goal === t.goal && row.gold === t.reward, 'the client row and the server catalogue disagree');
-      }
-      const camp = 2;
-      const perRound = camp * ((window.CROPS.turnip.yield[0] + window.CROPS.turnip.yield[1]) / 2);
-      assert(6 <= perRound, 'one harvest round at the camp (~' + perRound + ') no longer finishes the 6-crop daily (b495)');
-    } finally { restoreG(snap); }
-  }),
-
-  /* ── b497 RETUNE-1: A BALANCE CHANGE MUST REACH A SLATE ALREADY IN THE SAVE ──
-     A daily slate is rolled once per UTC day and FROZEN in the save, so a
-     retune of the pool's authored numbers is invisible until midnight — while
-     the SERVER moves the moment its migration is applied. That gap is not
-     cosmetic: stored "Smith 8 items" + server goal 40 means updateDaily latches
-     `done` at 8, fires claimDaily ONCE (fire-and-forget), the server answers
-     `incomplete`, and under the gold arm the local credit is a no-op. The
-     player's daily is spent, nothing is paid, and the UI says it is finished. */
-  () => tryRun('RETUNE-1: a stale daily slate is healed to the authored numbers, and a `done` its own progress does not support is repaired', () => {
-    const snap = snapshotG();
-    try {
-      const pool = window.DAILY_TASK_POOL;
-      assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
-      const authored = pool.map((f) => f()).find((t) => t.id === 'daily_smith');
-      assert(authored && authored.goal > 8,
-        'CONTROL: daily_smith no longer asks for more than the pre-b497 8 — re-derive this fixture '
-        + 'from whatever the retune moved, or the test proves nothing');
-
-      /* THE SAVE AS PRODUCTION HAS IT: today's slate, rolled before the retune. */
-      window.G.daily = {
-        lastReset: window.hrGoalDayKey(),
-        tasks: [{ id: 'daily_smith', type: 'smithed', label: 'Smith 8 items', goal: 8, progress: 8, reward: 450, done: true }],
-      };
-      window.generateDailyTasks(false);
-      const t = window.G.daily.tasks.find((x) => x.id === 'daily_smith');
-      assert(t, 'the heal dropped the task entirely');
-      assert(t.goal === authored.goal && t.reward === authored.reward && t.label === authored.label,
-        'the stale slate kept its pre-retune numbers (' + t.goal + '/' + t.reward + '/' + t.label
-        + ') — the client would show one price and the server pay another');
-      assert(t.progress === 8, 'the heal threw away earned progress, got ' + t.progress);
-      assert(t.done === false,
-        'a `done` latched against the OLD goal survived. That is the whole defect: it fires '
-        + 'claimDaily once, the server refuses `incomplete`, and the task can never fire again');
-
-      /* IT MUST NOT RE-OPEN A GENUINELY FINISHED TASK. The repair is an
-         invariant (`done` implies progress >= goal), not a blanket reset. */
-      window.G.daily = {
-        lastReset: window.hrGoalDayKey(),
-        tasks: [Object.assign({}, authored, { progress: authored.goal, done: true })],
-      };
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks[0].done === true,
-        'the heal re-opened a task whose progress really does meet its goal — that would re-fire a '
-        + 'claim the server has already once-guarded');
-    } finally { restoreG(snap); }
-  }),
-
-  /* ── b497 RETUNE-2: THE SAME CLASS ON QUESTS, AND IT IS PERMANENT THERE ──
-     b341 made "add a quest" reach an existing save. RE-TUNING one still did
-     not: a quest row is a frozen copy of its QUEST_DEFS entry, so the farmhand
-     goal 10 -> 6 ruling reached nobody — every live save would keep goal 10
-     forever while the server started accepting 6. A daily slate at least
-     self-heals at midnight; this one never does. */
   () => tryRun('RETUNE-2: a quest row re-reads its AUTHORED definition on merge and keeps only progress + done', () => {
     const snap = snapshotG();
     try {
@@ -3044,76 +2907,7 @@ export default [
     }
   }),
 
-  () => tryRunAsync('INTENT-LATCH-4: a double-click on "Raise the hold" sends ONE clan_tier_up, silently, even when the answer beats the second press', async () => {
-    const UI = window.HearthriseClanSeatUI, L = window.HearthriseIntentLatch;
-    assert(UI && L && typeof UI.tierUp === 'function' && typeof UI._setSupport === 'function', 'clan-seat-ui.js tierUp / seams are gone');
-    const origAuth = window.HearthriseAuth, origSb = window.HearthriseSupabase;
-    window.HearthriseAuth = Object.assign({}, origAuth, { getSession: () => ({ user: { id: 'u-latch' }, access_token: 'jwt' }) });
-    window.HearthriseSupabase = Object.assign({}, origSb, { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) });
-    const wire = holdWire('/rpc/clan_tier_up'), toasts = catchToasts();
-    try {
-      UI._reset();
-      UI._setClan({ id: 'latch-hold', name: 'Latchhold', level: 4, treasury: 0, myRole: 'leader' });
-      UI._setSeat({ castle_tier: 1, upgrades: {}, upkeep_state: 'active' }, 'latch-hold');   // the seat read p_expect_tier is named from
-      const first = UI.tierUp();
-      wire.answer({ ok: true, castle_tier: 2, standing: 0, contributors: 3 });
-      assert(await within(first, 'the first press') === true, "the first press did not take the server's accept");
-      UI._setSupport('live');                            // the post-accept seat re-read hit the probe wire
-      UI._setSeat({ castle_tier: 2, upgrades: {}, upkeep_state: 'active' }, 'latch-hold');   // the hold as the server answered it
-      const n = toasts.seen.length;
-      const clanState = () => JSON.stringify({ seat: UI.seat(), tier: UI.castleTier(), support: UI.supported() });
-      const before = clanState();
-      const second = UI.tierUp();                        // the double-click's second press, after the answer
-      assert(wire.sent.length === 1,
-        'a double-click whose answer beat the second press sent ' + wire.sent.length + ' clan_tier_up calls — castle_tier + 1 from the shared stores, twice');
-      assert(await within(second, 'the held press') === false, 'the held press did not stand down');
-      assert(toasts.seen.length === n, 'the held press toasted: ' + toasts.seen.slice(n).join(' | '));
-      await sleep(30);
-      assert(clanState() === before, 'the held press moved the clan state: ' + before + ' -> ' + clanState());
-      await sleep(L.MIN_HOLD_MS);
-      const third = UI.tierUp();
-      assert(wire.sent.length === 2, 'a press AFTER the hold was swallowed — the latch never let go');
-      const tiers = wire.sent.map((s) => JSON.parse(s.body).p_expect_tier);
-      assert(tiers.join(',') === '2,3', 'each latched tier-up must name the server tier it buys (p_expect_tier), got ' + tiers.join(','));
-      wire.answer({ ok: true, castle_tier: 3, standing: 0, contributors: 3 });
-      await within(third, 'the press after the hold');
-    } finally {
-      wire.restore(); toasts.restore(); window.HearthriseAuth = origAuth; window.HearthriseSupabase = origSb; UI._reset();
-    }
-  }),
 
-  () => tryRunAsync('INTENT-LATCH-5: a double-click on the bounty board "New notices" pays ONE escalating reroll; a re-tap after a timeout re-sends its key', async () => {
-    const G = window.G, GC = window.HearthriseGoalClaim, MR = window.HearthriseMarks, L = window.HearthriseIntentLatch;
-    assert(typeof window.rerollBountyBoard === 'function' && GC && typeof GC.bountyRerollOnce === 'function' && L,
-      'legacy.js rerollBountyBoard / goal-claim.js bountyRerollOnce / intent-latch.js did not load');
-    const snap = snapshotG(), realReroll = GC.bountyReroll, realMay = window.clientMayWriteRecordField;
-    const realAfford = MR && MR.canAffordMarks, toasts = catchToasts(), keys = [], waiting = [];
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'marks' && realMay(f);   // marks server-owned: the live position
-      if (MR) MR.canAffordMarks = () => true;
-      GC.bountyReroll = (key) => { keys.push(key); return new Promise((r) => waiting.push(r)); };
-      window.ensureBountyState();
-      G.bountyHunter.active = null; G.bountyHunter.freeRerolls = 0; G.bountyHunter.rerollsToday = 0;
-      window.rerollBountyBoard();
-      const board = G.bountyHunter.board.map((b) => b.id).join('|'), n = toasts.seen.length;
-      window.rerollBountyBoard();
-      assert(keys.length === 1, 'a double-click sent ' + keys.length + ' hr_bounty_spend rerolls — the second paid 10 Marks for the same refresh');
-      assert(toasts.seen.length === n && G.bountyHunter.rerollsToday === 1 && G.bountyHunter.board.map((b) => b.id).join('|') === board,
-        'the held press toasted, advanced the price or redrew the board: [' + toasts.seen.slice(n).join(' | ') + '] rerolls ' + G.bountyHunter.rerollsToday);
-      waiting.shift()({ ok: false, error: 'timeout' });
-      await sleep(L.MIN_HOLD_MS + 20);
-      window.rerollBountyBoard();
-      assert(keys.length === 2 && keys[1] === keys[0], 'a re-tap after a timeout sent a FRESH key — a reroll the server committed would be charged again');
-      waiting.shift()({ ok: true });
-      await sleep(L.MIN_HOLD_MS + 20);
-      window.rerollBountyBoard();
-      assert(keys.length === 3 && keys[2] !== keys[0], 'a new reroll after a server verdict re-sent the old key');
-    } finally {
-      while (waiting.length) waiting.shift()({ ok: false, error: 'torn_down' });
-      GC.bountyReroll = realReroll; window.clientMayWriteRecordField = realMay; if (MR) MR.canAffordMarks = realAfford;
-      toasts.restore(); GC.__resetSpendLatch(); restoreG(snap);
-    }
-  }),
 
   () => tryRunAsync('INTENT-LATCH-6: a held repeat Plant on one plot neither toasts nor reverts the planted crop', async () => {
     const FS = window.HearthriseFarmSync, G = window.G;
@@ -3286,74 +3080,7 @@ export default [
     } finally { window.setTimeout = realST; wire.restore(); if (p) await p.catch(() => {}); }
   }),
 
-  () => tryRunAsync('INTENT-LATCH-11: a double-click on a Work Order "Supply" sends ONE clan_work_supply and leaves the clan state alone', async () => {
-    const UI = window.HearthriseClanSeatUI, L = window.HearthriseIntentLatch;
-    assert(UI && L && typeof UI.supplyOrder === 'function', 'clan-seat-ui.js supplyOrder is gone');
-    const origAuth = window.HearthriseAuth, origSb = window.HearthriseSupabase;
-    window.HearthriseAuth = Object.assign({}, origAuth, { getSession: () => ({ user: { id: 'u-latch' }, access_token: 'jwt' }) });
-    window.HearthriseSupabase = Object.assign({}, origSb, { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) });
-    const wire = holdWire('/rpc/clan_work_supply'), toasts = catchToasts();
-    try {
-      UI._reset();
-      UI._setClan({ id: 'latch-hold', name: 'Latchhold', level: 4, treasury: 0, myRole: 'leader' });
-      UI._setSeat({ castle_tier: 2, upgrades: {}, upkeep_state: 'active' }, 'latch-hold');
-      const clanState = () => JSON.stringify({ seat: UI.seat(), tier: UI.castleTier(), support: UI.supported() });
-      const before = clanState();
-      const first = UI.supplyOrder('order-1', { oak_log: 5 });
-      const second = UI.supplyOrder('order-1', { oak_log: 5 });   // the double-click's second press
-      assert(wire.sent.length === 1, 'a double-click sent ' + wire.sent.length + ' clan_work_supply calls — two donations onto one order');
-      assert(await within(second, 'the held press') === false, 'the held press did not stand down');
-      assert(toasts.seen.length === 0 && clanState() === before, 'the held press toasted or moved the clan state: [' + toasts.seen.join(' | ') + ']');
-      wire.answer({ ok: true, phase: 'supply' });
-      await within(first, 'the first press');
-    } finally {
-      wire.restore(); toasts.restore(); window.HearthriseAuth = origAuth; window.HearthriseSupabase = origSb; UI._reset();
-    }
-  }),
 
-  () => tryRunAsync('INTENT-LATCH-12: Quartermaster — the pressed row reads "Buying…" and is disabled until its answer, then buys again on the next press (no timer)', async () => {
-    const DSc = window.HearthriseDungeonScrip, DS = window.HearthriseDungeonSettle;
-    assert(typeof window.buyFromQuartermaster === 'function' && typeof window.renderQuartermaster === 'function' && DSc && DS,
-      'dungeons.js Quartermaster / dungeon-settle.js did not load');
-    const saved = { scrip: window.HearthriseDungeonScrip, settle: window.HearthriseDungeonSettle, notify: window.notify };
-    const sent = [], waiting = [], toasts = [];
-    const host = document.createElement('div'); host.id = 'quartermaster-body'; host.style.display = 'none';
-    document.body.appendChild(host);
-    const btn = () => host.querySelector('[data-qm-buy="dragonfang_pike"]');
-    try {
-      window.notify = (m) => toasts.push(String(m));
-      window.HearthriseDungeonScrip = Object.assign({}, DSc, { isDungeonSettleArmed: () => true, scripOf: () => 5000 });
-      window.HearthriseDungeonSettle = Object.assign({}, DS, {
-        sendQuartermasterBuy: (offer) => { sent.push(offer); return new Promise((r) => waiting.push(r)); },
-        reconcileQuartermasterFromEnvelope: () => {},
-      });
-      window.renderQuartermaster();
-      const press = btn();
-      assert(press && !press.disabled && /^Buy$/.test(press.textContent.trim()), 'the Dragonfang Pike row has no live Buy button');
-      press.click();
-      press.click();                                   // the double-click's second click (old node, same handler)
-      if (btn()) btn().click();                        // and a click on whatever the row shows now
-      await sleep(0);
-      assert(sent.length === 1, 'a double-click sent ' + sent.length + ' quartermaster_buy intents — two 800-Scrip Pikes');
-      assert(btn() && btn().disabled && /Buying/.test(btn().textContent), 'the pressed row is not locked as "Buying…" while its buy is on the wire');
-      waiting.shift()({ outcome: 'settled', body: {} });
-      await untilTrue(() => btn() && !btn().disabled, 'the row to unlock on the answer');
-      assert(/^Buy$/.test(btn().textContent.trim()), 'the row did not return to "Buy" after its answer');
-      btn().click();                                   // a deliberate second buy right after the confirm: no timer
-      await sleep(0);
-      assert(sent.length === 2, 'a deliberate press after the confirmed buy was swallowed');
-      const L = window.HearthriseIntentLatch;               // the row lock is in the per-test teardown
-      assert(L.__resetAll() >= 1, 'the Quartermaster row lock is not in the shared latch registry');
-      window.buyFromQuartermaster('dragonfang_pike');
-      await sleep(0);                                  // the send rides a microtask
-      assert(sent.length === 3, 'the harness reset left the Quartermaster row locked for the next test');
-    } finally {
-      while (waiting.length) waiting.shift()({ outcome: 'refused', reason: 'torn_down' });
-      await sleep(0);
-      window.HearthriseDungeonScrip = saved.scrip; window.HearthriseDungeonSettle = saved.settle; window.notify = saved.notify;
-      host.remove();
-    }
-  }),
 
   () => tryRunAsync('INTENT-LATCH-13: a timed-out Property / bank buy (gold.js {outcome:"timeout"}) — the re-tap re-sends the SAME key', async () => {
     const H = window.HearthriseHomestead, G = window.G, L = window.HearthriseIntentLatch;

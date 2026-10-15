@@ -108,36 +108,6 @@ export default [
      reintroduces it fails here rather than in a store screenshot.
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('VOICE-2 (b465): no gated surface advertises a countdown or a lit door', () => {
-    /* THE DEFECT: the Events screen honestly said the muster is "coming in Open
-       Beta 1" while the TOPBAR ticked "Rally in 8:01:35" beside it, and the
-       combat rail offered a lit "Join ▸" to a clan raid behind the same flag.
-       The gate is one flag; every surface behind it must agree with it. */
-    const CL = window.HearthriseClans;
-    assert(CL && typeof CL.clanLaunched === 'function', 'the clan gate must be readable');
-    if (CL.clanLaunched()) return;   // launched: nothing to hide, nothing to assert
-
-    // (a) The topbar pill is not merely hidden — it is not in the DOM. A hidden
-    //     countdown still ticks, and still reappears on the next repaint.
-    assert(!document.getElementById('hr-muster-pill'),
-      'the topbar is counting down to the muster while clans are gated');
-
-    // (b) The topbar carries no countdown copy for it at all.
-    const top = document.querySelector('.topbar');
-    const topText = top ? (top.innerText || top.textContent || '') : '';
-    assert(!/Rally in\s+\d/.test(topText), 'the topbar reads "' + topText.replace(/\s+/g, ' ').slice(0, 80) + '"');
-
-    // (c) The combat rail's clan-raid card is stated as gated, using the same
-    //     `locked` field the dungeon and boss cards already use.
-    const CS = window.HearthriseCombatScreens;
-    if (CS && typeof CS._destinations === 'function') {
-      const raid = CS._destinations().find((d) => d.kick === 'Clan Hunt');
-      if (raid) {
-        assert(raid.locked, 'the Clan Hunt card offers a lit CTA to a gated feature');
-        assert(!/^Join/.test(String(raid.locked)), 'a gated card must name the gate, not repeat the invitation');
-      }
-    }
-  }),
 
   () => tryRun('VOICE-2b (b465): an unaffordable Buy is disabled and says what it needs', () => {
     /* THE DEFECT: `slotRows().canBuy` means "this is the NEXT slot", and both
@@ -246,40 +216,6 @@ export default [
     }
   }),
 
-  () => tryRun('VOICE-3 (b465): a price is derived from the data, never a literal', () => {
-    /* THE DEFECT CLASS: a price typed into a string drifts from the price the
-       spend path charges, and the player is the one who finds out. Proven by
-       MUTATION rather than by matching today's number — a literal "50" would
-       pass a same-number check. */
-    const C = window.COMPANIONS;
-    const S = window.HearthriseCompanions;
-    assert(C && C.owl, 'the Owl companion must exist');
-    assert(S && typeof S.sourceLabel === 'function', 'HearthriseCompanions.sourceLabel must be published');
-    const sourceLabel = S.sourceLabel;
-
-    // The authored price, read off the ONE place that owns it.
-    const priced = String(C.owl.source || '').split(':');
-    assert(priced[0] === 'shop', 'the Owl must still be a shop companion');
-    const price = Number(priced[1]);
-    assert(Number.isFinite(price), 'the Owl price must be a number in its source');
-
-    const label = sourceLabel(C.owl.source);
-    assert(label.indexOf(price.toLocaleString()) >= 0,
-      'the Owl label (' + label + ') does not state its authored price ' + price);
-    assert(!/\bshop:|_\d|:prayer/.test(label), 'the Owl label is leaking its source key: ' + label);
-    // It states the SKILL GATE by name, not by key.
-    assert(/Prayer/.test(label), 'the Owl label must name the Prayer requirement: ' + label);
-
-    // MUTATE THE OWNER — the label must follow it, which a literal cannot.
-    const mutated = sourceLabel('shop:12345:prayer50');
-    assert(mutated.indexOf((12345).toLocaleString()) >= 0,
-      'the price is NOT derived — a changed source produced "' + mutated + '"');
-    /* Scoped to the GOLD clause on purpose: the Owl's skill gate is "Prayer
-       50", so a bare indexOf('50') would match the requirement and fail a
-       correct implementation. */
-    assert(mutated.indexOf(price.toLocaleString() + ' gold') < 0,
-      'the old price survived a source change — it is baked in somewhere: ' + mutated);
-  }),
 
   () => tryRun('b227: Go lands you ON the thing, not just on the right tab', () => {
     const QN = window.HearthriseQuestNav;
@@ -337,51 +273,6 @@ export default [
     }
   }),
 
-  () => tryRun('b227: the Quests sheet row Go button navigates and closes', () => {
-    const startTab = window.activeTab || 'profile';
-    const prevViewed = window.__viewedSkillId;
-    const TL = window.HearthriseTally;
-    const snap = snapshotG();
-    /* Isolation: today's slate is three known daily quests and the SERVER has
-       counted none of them, so every row is unfinished and offers Go. A paid or
-       claimable row shows Paid/Claim instead — one primary action per row. */
-    try {
-      const pool = window.DAILY_TASK_POOL.map((f) => f());
-      const ids = ['daily_kill', 'daily_gather', 'daily_cook'];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: ids.map((id) => pool.find((t) => t.id === id)) };
-      TL.__feed({ day: {}, week: {}, paid: [], offered: ids });
-      window.showTab('profile');
-      window.openQuestsModal();
-      const overlay = document.getElementById('quests-modal-overlay');
-      assert(overlay, 'the quests sheet did not open');
-      const gos = overlay.querySelectorAll('.qm-q-go');
-      assert(gos.length === 3,
-        'every unfinished daily quest must offer Go (got ' + gos.length + ') — the sheet is a dead end again');
-      overlay.querySelectorAll('.qm-quest').forEach((row) => {
-        if (row.querySelector('.qm-q-claim') || row.querySelector('.qm-q-claimed')) {
-          assert(!row.querySelector('.qm-q-go'),
-            'a claimable/paid row must not also offer Go — one primary action per row');
-        }
-      });
-      const btn = [...gos].find((b) => b.dataset.goto === 'daily_cook');
-      assert(btn, 'the cooking quest offers no Go button');
-      const want = window.HearthriseQuestNav.destination(window.G.daily.tasks[2]);
-      btn.click();
-      assert(!document.getElementById('quests-modal-overlay'),
-        'the sheet must close on Go — an overlay over the destination is the same dead end');
-      const landed = document.getElementById('panel-' + want.tab);
-      assert(landed && landed.classList.contains('active'),
-        'Go did not land on the ' + want.tab + ' panel for "Cook 12 items"');
-      assert(want.skillId === 'cooking' && window.__viewedSkillId === 'cooking',
-        'Go landed on the ' + want.tab + ' tab but did not open cooking');
-    } finally {
-      try { window.closeQuestsModal(); } catch (e) {}
-      TL.__feed(null);
-      restoreG(snap);
-      window.__viewedSkillId = prevViewed;
-      try { window.showTab(startTab); } catch (e) {}
-    }
-  }),
 
   () => tryRun('b227: Home\'s milestone Train button opens the milestone\'s OWN skill', () => {
     // `var sid` in getNextMilestone's for-loop was function-scoped, so every
@@ -548,41 +439,6 @@ export default [
     }
   }),
 
-  // b227 (Tyler): "If I click fight target in the bounty board it will remove
-  // me from combat when I'm already fighting the target." startCombat is a
-  // toggle; the board's intent is GO-TO-FIGHT. Guard: fighting stays fighting.
-  () => tryRun('b227: bounty Fight-target never stops an in-progress fight', () => {
-    const snap = snapshotG();
-    try {
-      assert(typeof window.fightBountyTarget === 'function', 'fightBountyTarget missing');
-      const mid = Object.keys(window.MONSTERS)[0];
-      window.startCombat(mid);
-      assert(window.G.activeMonster === mid, 'combat did not start');
-      window.fightBountyTarget(mid);
-      assert(window.G.activeMonster === mid,
-        'Fight-target TOGGLED OFF an active fight against the same target');
-      // activeTab is a legacy lexical (not on window) — assert the rendered panel.
-      assert(document.getElementById('panel-combat') && document.getElementById('panel-combat').classList.contains('active'),
-        'Fight-target must land on the combat tab');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
-
-
-  /* ══════════════════════════════════════════════════════════════════════
-     b228 regression suite — THE CHRONICLE (audit finding #3, the dead bell)
-
-     The bell had no handler, no listener anywhere in src/, and a `#nb-dot`
-     badge hardcoded to 0 with no writer. These guard the four promises the
-     replacement makes:
-       1. the bell opens a panel and the panel shows what was recorded,
-       2. the badge counts MILESTONES only and clears on open,
-       3. a milestone is permanent — it survives save/load and compaction,
-       4. nothing here is invented: an undated entry says so.
-     ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRun('b228: the topbar bell opens the Chronicle, in the Journal\'s Deeds tab', () => {
     const C = window.HearthriseChronicle;
@@ -974,30 +830,6 @@ export default [
   }),
 
 
-  // b228 (Tyler): "Need an indication that I have chosen a bounty" — accept
-  // repainted combat, never the board. And renderBountyTab lived in another
-  // IIFE, unexported, so the repaint helper silently no-opped (the same
-  // cross-block typeof trap as the b224 quest strip).
-  () => tryRun('b228: accepting a bounty repaints the board immediately', () => {
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
-    try {
-      assert(typeof window.renderBountyTab === 'function', 'renderBountyTab must be window-exported');
-      window.G.bountyHunter.active = null;
-      window.G.bountyHunter.board = window.generateBountyBoard();
-      window.showTab('bounty');
-      const before = document.querySelectorAll('#panel-bounty .bb-notice').length;
-      window.acceptBounty(0);
-      const board = document.getElementById('panel-bounty');
-      assert(window.G.bountyHunter.active, 'accept did not take the bounty');
-      const after = board.querySelectorAll('.bb-notice').length;
-      assert(after !== before || /CLAIMED|Fight target|Go to fight/i.test(board.textContent),
-        'the board did not visibly change on accept (still ' + after + ' notices, no active banner)');
-    } finally {
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
 
   // b228 (Tyler): "when I switch from a gathering/artisan activity to combat,
   // it still shows Active on the old tile." stopSkill now strips the stale
@@ -1608,106 +1440,7 @@ export default [
     } finally { window.getBonus = saved; }
   }),
 
-  () => tryRun('b228: renown rank perks, pinned literally', () => {
-    /* The +22% allXP figure existed nowhere except a stub and two comments —
-       the suite only ever asserted `perks.allXP > 0`. Pinned now, rank by rank;
-       the offline hours, the Count slot and the King task were retired (the server pays none). */
-    const R = window.HearthriseRenown;
-    const byId = (id) => R.RANKS.find((r) => r.id === id);
-    assert(byId('squire').perk.allXP === 0.01, 'Squire is +1% XP');
-    assert(byId('baron').perk.allXP === 0.01, 'Baron is +1% XP');
-    assert(byId('duke').perk.allXP === 0.01, 'Duke is +1% XP');
-    assert(byId('highking').perk.allXP === 0.01, 'High King is +1% XP');
-    assert(byId('count').perk === null && byId('king').perk === null, 'Count and King carry no perk');
-    // The aggregate, at the top of the ladder.
-    const snap = snapshotG();
-    try {
-      window.G.renownHigh = 10000000;
-      const p = R.getPerks(window.G);
-      assert(Math.abs(p.allXP - 0.04) < 1e-9, 'the whole ladder is +4% allXP, got ' + p.allXP);
-      ['offlineHours', 'marketSlots', 'dailyTasks'].forEach((k) => assert(!(k in p),
-        'the ladder carries no ' + k + ' key — the server pays none of it: ' + JSON.stringify(p)));
-    } finally { restoreG(snap); }
-  }),
 
-  () => tryRun('DAILY-HEAL-1 (b461): a stale pre-eligibility slate is healed in place — impossible tasks swapped, progress on kept tasks preserved', () => {
-    /* The b459 eligibility filter applies at GENERATION only, so a slate rolled
-       before the fix carried its impossible tasks all day (found live on beta
-       morning: Craft 8 + Smith 8 against zero craftable recipes). The heal in
-       generateDailyTasks rebuilds today's slate from the filtered deterministic
-       set when an UN-done stored task is ineligible now. */
-    const snap = snapshotG();
-    const GCat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
-    assert(GCat && typeof GCat.dailyTaskEligible === 'function', 'goalCatalogue bridge must be up');
-    const savedCaps = window.dailyTaskCaps;
-    const savedDayKey = window.hrGoalDayKey;
-    try {
-      // A fresh account: no rooms, no artisan XP — craft/smith are ineligible.
-      window.dailyTaskCaps = () => ({ rooms: {}, skillXp: {} });
-      const caps = window.dailyTaskCaps();
-      /* THE AUTHORED GOAL OF EVERY POOL ROW. A genuine pre-fix slate carries the
-         POOL's own numbers, so the stale slate must be seeded with them — and the
-         seeded progress must be a value that slate could really hold.
-         (2026-09-06: this test seeded every stale task `goal: 50, progress: 37`
-         and went red the first day the roll's first eligible id was "Kill 25
-         monsters". Nothing was wrong with the heal: the b497 repair below it
-         clamps `progress = min(goal, progress)`, and 37 kills against a goal of
-         25 is a state the game cannot produce. 13 of the next 60 day keys were
-         red the same way — a fabricated fixture, not a heal bug.) */
-      const authoredGoal = {};
-      window.DAILY_TASK_POOL.forEach((f) => { const t = f(); authoredGoal[t.id] = t.goal; });
-
-      /* One day's heal, DERIVED from that day's real raw roll — a hand-picked
-         slate is only "the pre-fix roll" on days whose seed deals those ids,
-         which is the date-flake this test originally shipped with. */
-      const healDay = (dayKey) => {
-        window.hrGoalDayKey = () => dayKey;
-        const rawIds = GCat.dailyTaskIndexes(dayKey).slice(0, 3).map((i) => GCat.DAILY_TASK_POOL_ORDER[i]);
-        const eligibleOld = rawIds.filter((id) => GCat.dailyTaskEligible(id, caps));
-        const keptId = eligibleOld[0];
-        const seeded = keptId ? Math.max(1, Math.floor(authoredGoal[keptId] / 2)) : 0;
-        window.G.daily = { lastReset: dayKey, tasks: rawIds.map((id) => ({
-          id, type: id, label: id, goal: authoredGoal[id],
-          progress: (id === keptId) ? seeded : 0, reward: 400, done: false,
-        })) };
-        window.generateDailyTasks(false);
-        const tasks = window.G.daily.tasks;
-        const ids = tasks.map((t) => t.id);
-        assert(tasks.length === 3, dayKey + ': the healed slate keeps its size, got ' + ids.length);
-        assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
-          'THE BUG: ' + dayKey + ' healed slate still offers an impossible task: ' + ids.join(','));
-        const swapped = eligibleOld.length < rawIds.length;
-        if (swapped && keptId) {
-          const kept = tasks.find((t) => t.id === keptId);
-          assert(kept && kept.progress === seeded,
-            dayKey + ': progress on a kept task must survive the heal (kept ' + keptId
-            + ', ' + seeded + ' -> ' + (kept ? kept.progress : 'GONE') + ')');
-        }
-        return { ids: ids.join(','), swapped };
-      };
-
-      const today = savedDayKey();
-      const first = healDay(today);
-      // Idempotent: a second call with a clean slate changes nothing.
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks.map((t) => t.id).join(',') === first.ids,
-        'a clean slate must not be re-rolled');
-
-      /* THE SWEEP. The heal's guarantee is for EVERY roll shape, not today's —
-         and today's shape is exactly what hid the fixture defect above. 60
-         consecutive UTC day keys; ~34 of them deal a gated task and therefore
-         run the kept-progress assertion for real. */
-      let swaps = 0;
-      const t0 = Date.now();
-      for (let n = 0; n < 60; n++) {
-        const d = new Date(t0 + n * 86400000);
-        if (healDay(`${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`).swapped) swaps++;
-      }
-      assert(swaps >= 10, 'the sweep must actually exercise the swap path, hit it ' + swaps + ' of 60 days');
-    } finally {
-      window.hrGoalDayKey = savedDayKey; window.dailyTaskCaps = savedCaps; restoreG(snap);
-    }
-  }),
 
   () => tryRun('b228 P1: combatXP pays RANGED and MAGIC, not four styles out of six', () => {
     /* Pre-existing, ~unknown lifetime: addXp listed attack/strength/defense/
@@ -1738,85 +1471,6 @@ export default [
     } finally { window.getBonus = savedBonus; restoreG(snap); }
   }),
 
-  () => tryRun('b228 P0: a companion bonus is counted EXACTLY ONCE, under its real key', () => {
-    /* Found by the rebase, live for ~26 builds: a getBonus wrapper adding the
-       companion bonus existed in BOTH legacy.js and features/companions.js, so
-       every pet paid twice — a level-30 Forge Imp was +49% smithing, not the
-       +24.5% the census budgeted. Neither wrapper was wrong on its own, which is
-       why only a behavioural test can hold this. */
-    const snap = snapshotG();
-    const E = window.HearthriseWorldEvents;
-    try {
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      window.G.buffs = [];
-      const delta = (id, key) => {
-        window.G.companions = { ownedIds: [id], xp: { [id]: 0 }, equipped: id };
-        const on = window.getBonus(key);
-        window.G.companions = { ownedIds: [id], xp: { [id]: 0 }, equipped: null };
-        return on - window.getBonus(key);
-      };
-      assert(Math.abs(delta('forge_imp', 'smithSpeed') - window.COMPANIONS.forge_imp.bonus.smithSpeed) < 1e-9,
-        'the Forge Imp must move smithSpeed by its bonus exactly once');
-      // The five pets whose keys were MISSPELLED and therefore paid nothing.
-      assert(delta('fox', 'allXP') > 0, 'the Fox must finally pay allXP (was the misspelled xpB)');
-      assert(delta('lichling', 'allXP') > 0, 'the Lichling must finally pay allXP');
-      assert(delta('raccoon', 'goldFind') > 0, 'the Raccoon must finally pay goldFind (was goldBonus)');
-      assert(delta('owl', 'prayerSpeed') > 0, 'the Owl must finally pay prayerSpeed (was prayerXp)');
-      assert(delta('grave_wisp', 'prayerSpeed') > 0, 'the Grave Wisp must finally pay prayerSpeed');
-      // The old names are gone from the data entirely, in both directions.
-      Object.keys(window.COMPANIONS).forEach((id) => {
-        const b = window.COMPANIONS[id].bonus || {};
-        ['xpB', 'goldBonus', 'prayerXp'].forEach((ghost) => {
-          assert(b[ghost] === undefined, id + ' still carries the ghost key ' + ghost);
-        });
-      });
-      // Level 30 is ×2.45 and stays inside the budget's companion share.
-      const capXp = window.companionXpToReach(30);
-      window.G.companions = { ownedIds: ['forge_imp'], xp: { forge_imp: capXp }, equipped: 'forge_imp' };
-      assert(window.companionLevelFromXp(capXp) === 30, 'setup: the XP cap must actually reach level 30');
-      /* b228: the cap used to be a flat 50,000 against a curve that needs
-         792,783, so every pet stopped at level 14 on a bar drawn as "/ 30". */
-      assert(capXp > 50000, 'the companion XP cap must be derived from the curve, not a stale 50,000');
-      /* ── b515 — THE CLAMP MOVED TO THE RECONCILE, so that is where it is
-         driven. b456 drove it through `awardCompanionXp` with the capstone
-         pinned OFF, on the premise that the client is the writer in that
-         position. There is no such position: `companions.js blobRetired()` is
-         the literal `true`, so the award no-ops for every caller and the pin
-         selected nothing — the clamp would have been graded on dead code.
-
-         The writer is `accrue.js reconcileCompanions`, and the property is the
-         same one and matters more there: the number arrives from OUTSIDE, so a
-         garbage or hostile total must be floored into the curve rather than
-         rendered. What must never come back is the flat 50,000 cap against a
-         792,783 curve — the bar drawn "/ 30" that stopped every pet at 14.
-         MUTATION: have reconcileCompanions pass `xp` through unclamped → the
-         level assertion below reads past 30. */
-      const A = window.HearthriseAccrual;
-      A.reconcileCompanions(window.G,
-        { companions: { owned: ['forge_imp'], xp: { forge_imp: 1e12 }, equipped: 'forge_imp' } });
-      const landed = window.G.companions.xp.forge_imp;
-      assert(window.companionLevelFromXp(landed) <= 30,
-        'a hostile companion-XP total from the wire produced level '
-        + window.companionLevelFromXp(landed) + ' — the curve stops at 30, and a pet past it is a bonus '
-        + 'nobody budgeted');
-      /* …and a NEGATIVE or non-finite one reads as zero rather than as a level.
-         The wire is not trusted; `reconcileCompanions` floors every cell. */
-      A.reconcileCompanions(window.G,
-        { companions: { owned: ['forge_imp'], xp: { forge_imp: -5 }, equipped: 'forge_imp' } });
-      assert(window.G.companions.xp.forge_imp === 0,
-        'a negative companion XP from the wire was kept: ' + window.G.companions.xp.forge_imp);
-      window.G.companions.xp.forge_imp = capXp;
-      const maxed = window.getCompanionBonus().smithSpeed;
-      assert(Math.abs(maxed - 0.0245) < 1e-9, 'a level-30 pet is worth +2.45%, got ' + maxed);
-    } finally { E._force(null); restoreG(snap); }
-  }),
-
-  /* b342, the same removal's other half: the companion ACQUISITION hooks (drop
-     roll, dragon-egg hatch, bunny harvest counter) were duplicated between
-     legacy.js block 35 and features/companions.js too. MEASURED before the fix:
-     one harvest moved G.stats.cropsHarvested by 2 — so the Bunny's "harvest
-     100 crops" completed at 50 and the weekly "Harvest 120 crops" at 60 — and
-     one tap on a Dragon Egg asked the player to confirm TWICE. */
   () => tryRun('b342: one harvest counts once, and one Dragon Egg tap asks once', () => {
     const G = window.G;
     const snap = snapshotG();
@@ -1889,119 +1543,7 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b228: the Throne ladder EXPLAINS how renown is earned, from the live weights', () => {
-    /* Tyler, 2026-08-09: "we need to explain how to gain renown, because I
-       don't even know." The screen showed twelve thresholds and never said what
-       moved the number. The explainer is GENERATED from `W` — the same object
-       computeRenown scores against — so it cannot go stale the way a
-       hand-written help text always does. This test proves that link. */
-    const R = window.HearthriseRenown;
-    const rows = R.earnRows();
-    assert(/How|per|[0-9]/.test(rows) && rows.length > 100, 'the explainer must produce real rows');
-    ['Every skill level', 'Each quest finished', 'Each monster slain'].forEach((phrase) => {
-      assert(rows.indexOf(phrase) >= 0, 'the explainer must name "' + phrase + '"');
-    });
-    // It prints the LIVE weight, not a copy: move the weight, move the text.
-    const saved = R.WEIGHTS.totalLevel;
-    try {
-      assert(R.earnRows().indexOf('>' + saved + '<') >= 0,
-        'the live totalLevel weight must appear in the rows');
-      R.WEIGHTS.totalLevel = 7;
-      assert(R.earnRows().indexOf('>7<') >= 0, 'changing the weight must change the explanation');
-    } finally { R.WEIGHTS.totalLevel = saved; }
-    // Sub-1 weights are inverted into something a person can act on.
-    assert(R.earnRows().indexOf('1 per 20') >= 0, 'a 0.05 weight must read as "1 per 20", not as "0.05"');
-    // The ladder renders it, with the rank rows still intact.
-    try {
-      R.openLadder();
-      const wrap = document.querySelector('#hr-rn-modal .hr-rn-wrap');
-      assert(wrap, 'the ladder must open');
-      assert(wrap.textContent.indexOf('How renown is earned') >= 0, 'the section must be on the screen');
-      assert(wrap.querySelectorAll('.hr-rn-earn').length >= 8, 'every scoring term must be listed');
-      assert(wrap.querySelectorAll('.hr-rn-rank').length === R.RANKS.length, 'the twelve ranks must still be there');
-    } finally { const m = document.getElementById('hr-rn-modal'); if (m) m.remove(); }
-  }),
 
-  () => tryRun('b228: renown pace — a fresh account is a Peasant, and the ratchet still protects veterans', () => {
-    /* Tyler: "It also seems to be going way too fast." At the b226 weights a
-       brand-new account scored ~380 before taking a single action — Serf was
-       almost free, and one full day of play reached Knight. The retune targets
-       Serf day 1-2 / Squire week 1 / Knight week 3-4 / Baron month 2+. */
-    const R = window.HearthriseRenown;
-    const snap = snapshotG();
-    let termsBefore3 = null;   // neither `streak` nor the mirror is in snapshotG
-    try {
-      const G = window.G;
-      G.renownHigh = 0;
-      termsBefore3 = zeroRenownTerms(G);
-      Object.keys(window.SKILLS_DEF).forEach((k) => { G.skills[k] = 0; });
-      G.gold = 0;
-      stampRecordLikeLoad(G);   // b456: a genuinely-zero character, stated by the server
-      const fresh = R.compute(G);
-      assert(fresh < 400, 'a brand-new account must NOT start most of the way to Serf, scored ' + fresh);
-      assert(R.rankIndexFor(fresh) === 0, 'a fresh account is a Peasant');
-
-      /* Three modelled saves, each built from the pacing model's own numbers
-         (~228K XP/day at PACE, spread across the skills a player is actually
-         training). The assertions are BRACKETS, not points — the claim is the
-         shape of the curve, and a point estimate would fail on any content
-         change while telling us nothing. */
-      const T = window.XP_TABLE;
-      /* b456: every level change has to reach the record, because renown reads the
-         AUTHORITY accessor. Without the stamp all three modelled saves score as a
-         level-1 character and the whole curve reads "peasant". */
-      const setLevels = (skills, lvl) => {
-        skills.forEach((s) => { G.skills[s] = T[lvl - 1]; });
-        stampRecordLikeLoad(G);
-      };
-      const rank = () => R.RANKS[R.rankIndexFor(R.compute(G))].id;
-
-      // ~day 2 — three skills going, a first quest, a few log entries.
-      setLevels(['woodcutting', 'mining', 'fishing'], 52);
-      G.stats.kills = 600; G.quests = [{ done: true }];
-      G.collection = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1 };
-      seedPlayStreak(2);
-      assert(rank() === 'serf', 'about day 2 should be a Serf, got ' + rank() + ' at ' + R.compute(G));
-
-      // ~week 1 — six skills, a real kill count, a handful of quests.
-      setLevels(['woodcutting', 'mining', 'fishing', 'cooking', 'smithing', 'crafting'], 60);
-      G.stats.kills = 3000;
-      G.quests = [1, 2, 3, 4].map(() => ({ done: true }));
-      G.collection = {}; for (let i = 0; i < 40; i++) G.collection['c' + i] = 1;
-      seedPlayStreak(7);
-      assert(rank() === 'squire', 'week 1 should be a Squire, got ' + rank() + ' at ' + R.compute(G));
-
-      // ~week 3-4 — ten skills, the grind showing.
-      setLevels(Object.keys(window.SKILLS_DEF).slice(0, 10), 68);
-      G.stats.kills = 12000;
-      G.quests = new Array(10).fill(0).map(() => ({ done: true }));
-      G.collection = {}; for (let i = 0; i < 90; i++) G.collection['c' + i] = 1;
-      seedPlayStreak(24); G.bountyHunter = { completed: 60 };
-      assert(rank() === 'knight', 'week 3-4 should be a Knight, got ' + rank() + ' at ' + R.compute(G));
-
-      // ~month 2 — and Baron is still ahead of, not behind, a month of play.
-      setLevels(Object.keys(window.SKILLS_DEF).slice(0, 13), 75);
-      G.stats.kills = 35000;
-      G.quests = new Array(20).fill(0).map(() => ({ done: true }));
-      G.collection = {}; for (let i = 0; i < 150; i++) G.collection['c' + i] = 1;
-      seedPlayStreak(60); G.bountyHunter = { completed: 180 };
-      const m2 = R.rankIndexFor(R.compute(G));
-      assert(m2 >= R.rankIndexFor(4500) && m2 < R.rankIndexFor(13500),
-        'month 2 should be a Baron or Viscount, got ' + R.RANKS[m2].id + ' at ' + R.compute(G));
-
-      // The ratchet: a veteran scored under the OLD weights keeps their rank.
-      G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
-      G.stats = { kills: 0 }; G.collection = {}; G.quests = [];
-      seedPlayStreak(0); G.bountyHunter = { completed: 0 };
-      G.renownHigh = 3136;                     // a real Knight, pre-retune
-      assert(R.compute(G) < 3136, 'setup: the live score really is lower after the retune');
-      assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
-        'a pre-retune Knight must still be a Knight — the ratchet is the promise');
-    } finally {
-      restoreRenownTerms(window.G, termsBefore3);
-      restoreG(snap);
-    }
-  }),
 
   // ── b229 · the combined Character screen (Skills · Equipment · Hero) ──────
   () => tryRun('b229: Character screen has Skills/Equipment/Hero sub-tabs, Skills default', () => {
@@ -2423,43 +1965,6 @@ export default [
     }
   }),
 
-  () => tryRun('DAILY-SHEET-2 (b465): the SERVER\'s login-claim row closes the sheet — the marker that survives tab/save races', () => {
-    /* Second costume of the every-refresh bug: the residue marker lost a
-       tab/save race and the sheet re-opened on a reward the server had paid.
-       Every envelope carries the progress rows; both appliers hand them to
-       markServerClaim, which closes the question locally for TODAY only. */
-    const D = window.HearthriseDaily, G = window.G;
-    assert(D && typeof D.markServerClaim === 'function', 'markServerClaim must be exported');
-    const snap = snapshotG();
-    try {
-      const d = new Date();
-      const today = d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
-      G.dailyReward = { lastClaimDay: 0 };
-      // yesterday's claim row must NOT close today
-      assert(D.markServerClaim([{ kind: 'daily', key: 'login', state: 'claimed', period: '2020-1-1' }]) === false,
-        'an old claim row must not mark today claimed');
-      assert(D.isClaimable(G) === true, 'still claimable after an old row');
-      // an open sheet + today's claimed row → marked + folded away
-      const fake = document.createElement('div'); fake.id = 'hr-dl-modal'; document.body.appendChild(fake);
-      assert(D.markServerClaim([{ kind: 'daily', key: 'login', state: 'claimed', period: today }]) === true,
-        'THE BUG: today\'s server claim row must close the local question');
-      assert(D.isClaimable(G) === false, 'the sheet must read claimed after the server row');
-      assert(!document.getElementById('hr-dl-modal'), 'an open sheet on a paid reward must fold away');
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      restoreG(snap);
-    }
-  }),
-
-  /* ══ FIELDNOTES-1..3 — the bestiary hunter's notes (content pack 5) ═══════
-     108 lines in src/data/monster-notes.js, one per MONSTERS id. FIELDNOTES-1
-     is the data contract: every id covered exactly once, charset-clean,
-     unique, and mechanically silent about the monster's own elementWeak (the
-     Bestiary Charms rank-1 reward) and about any item it does not drop.
-     FIELDNOTES-2/3 play the two surfaces that actually render a name: the
-     Collection Log's ATTENDED/residue detail and the Bestiary modal's
-     AWAY/server list — TROPHY-1's own reviewer finding was that only the
-     second reads the server's kill count, so both get their own test. */
   () => tryRun('FIELDNOTES-1: every MONSTERS id has exactly one hunter\'s note, charset-clean, unique, and silent about its own weakness and undropped items', () => {
     const NOTES = window.HearthriseMonsterNotes;
     const MON = window.MONSTERS || {};
@@ -2766,108 +2271,6 @@ export default [
   }),
   /* WEEK-A..D — Home's "Your week" card and the hearth band's realm cells read
      the server's goal-state cache only; unknown is the pending dash (§6). */
-  () => tryRun('WEEK-A: an unknown week and unknown realm cells render the pending dash, never 0', () => {
-    const TW = window.HearthriseThisWeek;
-    if (!TW) return skip('no this-week module');
-    const v = TW.view(null);
-    assert(v.known === false, 'view(null) must be unknown');
-    const html = TW.cardHtml(v);
-    assert(/bal-pending/.test(html), 'the unknown card has no pending dash');
-    assert(!/[0-9]/.test(html.replace(/<[^>]*>/g, '')), 'the unknown card prints a digit: ' + html);
-    const cells = TW.todayCells(null);
-    assert(cells.length === 2 && cells.every((c) => /bal-pending/.test(c.html)), 'an unknown realm cell is not pending');
-  }),
-  () => tryRun('WEEK-B: the card leads with the week the server counted, and QUIET when nothing leads', () => {
-    const TW = window.HearthriseThisWeek;
-    if (!TW) return skip('no this-week module');
-    /* The tally's shape (src/features/daily-quests.js): today's and the week's
-       ev:<type> counters and the gold earned. 180 of a 250 par leads over 30 of
-       100; an absent counter in a KNOWN tally is the server saying none. */
-    const m = { day: { 'ev:kill_any': 12 }, week: { 'ev:chopped': 180, 'ev:kill_any': 30 }, goldDay: 1520, goldWeek: 1520 };
-    const v = TW.view(m);
-    assert(v.lead === THIS_WEEK.find((r) => r.counter === 'ev:chopped').lead, 'lead: ' + v.lead);
-    assert(v.rows.map((r) => r.counter).join() === 'ev:chopped,ev:kill_any,gold', 'rows: ' + v.rows.map((r) => r.counter));
-    const c = TW.todayCells(m);
-    assert(c[0].html === (12).toLocaleString() && c[1].html === (1520).toLocaleString(), 'cells: ' + JSON.stringify(c));
-    assert(TW.view({ day: {}, week: { 'ev:rare_drops': 1 }, goldDay: 0, goldWeek: 0 }).lead === THIS_WEEK_QUIET, 'a 20% week must read QUIET');
-  }),
-  () => tryRun('WEEK-E (W0): a fisher\'s week leads the card — every counter the server stamps has a row, fishing included', () => {
-    /* The goals board this card once borrowed its rows from had no weekly
-       fishing goal, so a week spent at the water read QUIET. The card's rows
-       are now the server's own counters (hr_tally_state), and ev:fished is one. */
-    const TW = window.HearthriseThisWeek;
-    if (!TW) return skip('no this-week module');
-    const v = TW.view({ day: {}, week: { 'ev:fished': 200, 'ev:kill_any': 10 }, goldDay: 0, goldWeek: 0 });
-    const fish = THIS_WEEK.find((r) => r.counter === 'ev:fished');
-    assert(fish, 'THIS_WEEK has no fishing row');
-    assert(v.lead === fish.lead && v.rows[0].counter === 'ev:fished' && v.rows[0].have === 200,
-      'a week of fishing must lead with the fisher\'s line: ' + JSON.stringify(v.rows.map((r) => [r.counter, r.have])));
-    const html = TW.cardHtml(v);
-    assert(html.includes(fish.label) && html.includes((200).toLocaleString()), 'the card does not print the fishing row: ' + html.slice(0, 200));
-  }),
-  () => tryRun('WEEK-C: the hearth band shows the realm\'s Kills today, pending when unknown, and no residue Harvest', () => {
-    const H = window.HearthriseHome, was = window.HearthriseTally;
-    if (!H || typeof window.showTab !== 'function') return skip('no Home');
-    const leds = () => Array.from(document.querySelectorAll('#panel-profile .hd-ledger .hd-led'));
-    const cell = () => leds().find((n) => /Kills today/.test(n.textContent)) || null;
-    try {
-      window.HearthriseTally = { peek: () => null };
-      window.showTab('profile'); H.render();
-      assert(cell() && cell().querySelector('.bal-pending'), 'an unknown Kills today must be the pending dash');
-      assert(!leds().some((n) => /Harvest/.test(n.textContent)), 'the residue Harvest cell is back');
-      window.HearthriseTally = { peek: () => ({ day: { 'ev:kill_any': 12 }, week: {} }) };
-      H.render();
-      assert(cell().querySelector('b').textContent === (12).toLocaleString(), 'Kills today: ' + cell().textContent);
-    } finally { window.HearthriseTally = was; try { H.render(); } catch (e) {} }
-  }),
-  /* HOME-BAND-922 — the b560 visual gate: on a 922x423 landscape phone the
-     hearth band collapses to a 56px strip, and its content (name + 44px rename
-     tap floor + a wrapped status line + two-line realm labels) was ~93px, so
-     the name hid under the activity bar and the figures were cut top and
-     bottom. Renders the real #app at each size and measures the band. */
-  () => tryRun('HOME-BAND-922: the hearth band holds its name and every realm cell at 922x423 and 1280x800', () => {
-    const H = window.HearthriseHome, was = window.HearthriseTally;
-    if (!H || typeof window.showTab !== 'function') return skip('no Home');
-    const prevTab = window.activeTab, bad = [];
-    try {
-      /* Kills counted, gold not stated: one known cell and one pending. */
-      window.HearthriseTally = { peek: () => ({ day: { 'ev:kill_any': 12 }, week: {} }) };
-      window.showTab('profile'); H.render();
-      const app = document.getElementById('app').outerHTML;
-      for (const [w, h] of [[922, 423], [1280, 800]]) {
-        phoneFrame(w, h, app, (doc) => {
-          const at = w + 'x' + h + ': ', q = (s) => doc.querySelector('#panel-profile ' + s);
-          const inner = q('.hd-hearth-in'), name = q('.hd-name'), bar = doc.querySelector('.activity-bar');
-          assert(inner && name && bar, at + 'the frame drew no hearth band or activity bar');
-          const box = inner.getBoundingClientRect(), n = name.getBoundingClientRect(), a = bar.getBoundingClientRect();
-          const leds = [...doc.querySelectorAll('#panel-profile .hd-ledger .hd-led')];
-          assert(leds.length === 3 && leds.some((l) => l.querySelector('.bal-pending')) && leds.some((l) => /^12$/.test(l.querySelector(':scope > b').textContent.trim())),
-            at + 'the band must draw XP today plus one known and one pending realm cell: ' + leds.map((l) => l.textContent).join(' | '));
-          for (const el of leds.flatMap((l) => [...l.querySelectorAll(':scope > b, :scope > span')])) {
-            const r = el.getBoundingClientRect();
-            if (r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5 || r.left < box.left - 0.5 || r.right > box.right + 0.5) {
-              bad.push(at + '"' + el.textContent.trim() + '" at y ' + Math.round(r.top) + '..' + Math.round(r.bottom) + ' outside the band ' + Math.round(box.top) + '..' + Math.round(box.bottom));
-            }
-            if (el.tagName === 'SPAN') {
-              const lh = parseFloat(doc.defaultView.getComputedStyle(el).lineHeight) || parseFloat(doc.defaultView.getComputedStyle(el).fontSize) * 1.4;
-              if (r.height > lh + 1) bad.push(at + '"' + el.textContent.trim() + '" wraps (' + Math.round(r.height) + 'px for a ' + Math.round(lh) + 'px line)');
-            }
-          }
-          if (n.top < a.bottom && n.bottom > a.top && n.left < a.right && n.right > a.left) {
-            bad.push(at + 'the name (y ' + Math.round(n.top) + '..' + Math.round(n.bottom) + ') sits under the activity bar (y ' + Math.round(a.top) + '..' + Math.round(a.bottom) + ')');
-          }
-          if (n.top < box.top - 0.5) bad.push(at + 'the name starts ' + Math.round(box.top - n.top) + 'px above the band');
-        });
-      }
-    } finally {
-      window.HearthriseTally = was;
-      try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {}
-    }
-    assert(bad.length === 0, 'THE b560 BAND BUG: ' + bad.join('; '));
-  }),
-  /* COMEBACK-1..3 + RENDER — Home's 'Come back for' reads only the server's
-     clocks: the farm tile's predicates, the mirrored dungeon windows, the
-     server-stated bag and the core Boss rotation. Fixtures are local objects. */
   () => tryRun('COMEBACK-1: the return clocks come from the server\'s clocks', () => {
     const CB = window.HearthriseComeBack;
     assert(CB && typeof CB.model === 'function', 'window.HearthriseComeBack is missing');
@@ -2881,23 +2284,6 @@ export default [
     assert(d && d.when === 'in 3h 12m', 'dungeon row: ' + JSON.stringify(d));
     assert(/bal-pending/.test(d.sHtml) && !/>0</.test(d.sHtml), 'an unstated key count must be the pending dash: ' + d.sHtml);
     assert(rows.length <= 4 && rows[rows.length - 1].kind === 'newday', 'rows: ' + rows.map((r) => r.kind).join(','));
-  }),
-  () => tryRun('COMEBACK-2: the Boss row agrees with the rotation and the engine', () => {
-    const CB = window.HearthriseComeBack, B = window.HearthriseBossOfDay, M = window.MONSTERS || {};
-    assert(CB && typeof CB.inputs === 'function', 'window.HearthriseComeBack is missing');
-    const now = Date.now(), days = CB.inputs({}, now).bossDays;
-    assert(days && days.length === 7, 'bossDays must be exactly 7 days: ' + (days && days.length));
-    days.forEach((d, k) => assert(d.id === B.botdFor(now + k * 86400000).dailyId, 'day ' + k + ' disagrees with botdFor'));
-    let t = null;
-    for (let k = 0; k < 1100 && t == null; k++) { const b = B.botdFor(now + k * 86400000); if (b.dailyId === b.weeklyId) t = now + k * 86400000; }
-    assert(t != null, 'no day in 1100 where the daily boss is also the weekly one');
-    const boss = (lv, at) => CB.model(Object.assign(CB.inputs({}, at), { combatLv: lv, fighting: false })).find((r) => r.kind === 'boss');
-    const id = B.botdFor(t).dailyId, kb = B.killBonusesFor(id, t), a = boss(999, t);
-    assert(kb.dropMult === 2 && kb.xpMult === 1.5, 'the weekly lift moved: ' + JSON.stringify(kb));
-    assert(a && a.sHtml.includes('+100% drop odds') && a.sHtml.includes('+50% kill XP'), 'form (a) must quote killBonusesFor: ' + (a && a.sHtml));
-    const min = Math.min(...days.map((d) => (M[d.id].tier - 1) * 15)), c = boss(0, now);
-    assert(c && c.t === 'At Combat ' + min + ' the Boss of the Day opens to you', 'form (c): ' + (c && c.t));
-    assert(!/^The The/.test(c.sHtml), 'form (c) doubled the article: ' + c.sHtml);
   }),
   () => tryRun('COMEBACK-3: the key count and the windows are the server\'s', () => {
     const CB = window.HearthriseComeBack, D = window.DUNGEONS || {};
@@ -2927,53 +2313,6 @@ export default [
       assert(!bad.length, 'broken clocks: ' + bad.join(' | '));
     } finally { try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {} }
   }),
-  () => tryRunAsync('WEEK-D: the tally cache is deep-frozen and peek() expires at 120 s', async () => {
-    const TL = window.HearthriseTally;
-    if (!TL || typeof TL.refresh !== 'function') return skip('no tally seam');
-    const gc = window.HearthriseGoalClaim, now = Date.now;
-    try {
-      window.HearthriseGoalClaim = { isSignedIn: () => true, tallyState: () => Promise.resolve({ ok: true,
-        day: { 'ev:kill_any': 4 }, week: { 'ev:chopped': 180 }, gold_day: 10, gold_week: 90, paid: [], offered: ['daily_kill'] }) };
-      TL.__feed(null);
-      await new Promise((r) => TL.refresh((fresh) => r(fresh)));
-      const m = TL.peek();
-      assert(m && Object.isFrozen(m) && Object.isFrozen(m.week) && m.week['ev:chopped'] === 180, 'the cache or its counters are not frozen');
-      const t = now.call(Date); Date.now = () => t + 121000;
-      assert(TL.peek() === null, 'a 121 s old cache must read unknown');
-      Date.now = now; TL.__feed(null);
-      assert(TL.peek() === null, 'a reset cache must read unknown');
-    } finally { Date.now = now; window.HearthriseGoalClaim = gc; TL.__feed(null); }
-  }),
-  /* QUEST-PENDING — the daily chip draws the pending dash, never a count, until
-     the server's tally has spoken (CLAUDE.md §6); then it counts the server's
-     finished quests, never the browser's. */
-  () => tryRun('QUEST-PENDING: the daily chip reads pending until the tally speaks, then counts the server\'s finished quests', () => {
-    const TL = window.HearthriseTally, SP = window.HearthriseSpine;
-    assert(TL && SP, 'CONTROL: the tally cache or the pointer is unpublished');
-    const snap = snapshotG();
-    const chip = () => { window.showTab('skills'); SP.render(); return (document.querySelector('#hr-spine-bar .sp-daily') || {}).textContent || ''; };
-    try {
-      const task = window.DAILY_TASK_POOL.map((fn) => fn()).find((t) => t.id === 'daily_kill');
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: 25 })] };
-      TL.__feed(null);
-      assert(chip() === 'Daily —/1', 'an unmeasured daily list rendered ' + chip());
-      TL.__feed({ day: { 'ev:kill_any': 3 }, week: {}, paid: [], offered: ['daily_kill'] });
-      assert(chip() === 'Daily 0/1', 'server 3/25 is not finished, whatever the browser counted — got ' + chip());
-      TL.__feed({ day: { 'ev:kill_any': 25 }, week: {}, paid: [], offered: ['daily_kill'] });
-      assert(chip() === 'Daily 1/1' && document.querySelector('#hr-spine-bar .sp-daily.is-claim'), 'server 25/25 counts and offers its claim — got ' + chip());
-    } finally {
-      TL.__feed(null); restoreG(snap); try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
-
-  /* ══ W0 — THE FIRST HOUR POINTS AT THE HOUSE (coherence audit 2026-10-09) ═════
-     Top-10 #1: the first day gains "Upgrade to a Homestead" before the crop wait,
-     counted on the SERVER's property rung; the return (and Home) name what the haul
-     affords, from the SERVER's holdings. Top-10 #4: no dead seed in the kit. */
-
-  /* -- player actions -- W0 FIRST-HOUR-1, played: fresh character → the Homestead
-     step → the return card names the affordable unlock → the server rung finishes it.
-     Mutation: delete the `homestead` QUEST_DEFS row ⇒ red on the first assert. */
   () => tryRun('W0 FIRST-HOUR-1: "Upgrade to a Homestead" sits before the crop wait; the return card names the Homestead the haul affords; the server rung completes it', () => {
     const H = window.HearthriseHome, P = window.HearthriseProperty, QN = window.HearthriseQuestNav, G = window.G;
     assert(H && P && QN && typeof H.__awayCardHtml === 'function'

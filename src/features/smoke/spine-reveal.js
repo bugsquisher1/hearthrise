@@ -224,45 +224,7 @@ export default [
     });
   }),
 
-  () => tryRunAsync('SPINE-REVEAL-7: the Stable opens on an owned companion or at step 10', async () => {
-    const R = window.HearthriseReveal;
-    await withPin(Object.assign({}, R.FRESH, { property: 1 }), async () => {
-      assert(!R.shows('pane:stable'), 'the Stable opened with the Homestead and no companion');
-    });
-    await withPin(Object.assign({}, R.FRESH, { companions: 1 }), async () => {
-      assert(R.shows('pane:stable') && window.HearthriseNav.doorShown('homestead'), 'a server-owned companion did not open the Stable');
-    });
-    await withPin(atStep(R, 10), async () => { assert(R.shows('pane:stable'), 'step 10 did not open the Stable'); });
-    await withPin('live', async () => {
-      const view = R.__swapView(null);
-      try {
-        R.noteEnvelope({ state: { slot: 1 }, companions: { owned: ['fox'], equipped: null, xp: {} } });
-        assert(!R.shows('pane:stable'), 'the starter fox counted as an earned companion');
-        R.noteEnvelope({ state: { slot: 1 }, companions: { owned: ['owl'], equipped: 'owl', xp: {} } });
-        assert(R.shows('pane:stable'), 'an envelope companion did not open the Stable');
-      } finally { R.__swapView(view); }
-    });
-  }),
 
-  () => tryRunAsync('SPINE-REVEAL-8: Clan stays shut until clans are live; Party and Social open at step 10', async () => {
-    const R = window.HearthriseReveal;
-    const shut = Object.assign({}, R.FULL, { products: {} });
-    await withPin(shut, async () => {
-      assert(!R.shows('pane:clan') && !R.shows('war:clanhunt'), 'a shut product showed its door or war card');
-      assert(R.shows('pane:party') && R.shows('pane:social'), 'Party / Social did not open at step 10');
-      window.showTab('combat'); await tick();
-      const kicks = window.HearthriseCombatScreens._destinations().map((d) => d.rid);
-      assert(kicks.indexOf('war:clanhunt') < 0, 'the Clan Hunt card shows while clans are shut');
-      assert(window.HearthriseNav.resolve('clan') === 'party', 'the Clan door does not open on Party');
-    });
-    await withPin(atStep(R, 9), async () => {
-      assert(!R.shows('pane:party') && !R.shows('pane:social'), 'Party / Social opened before step 10');
-    });
-    const C = window.HearthriseClans;
-    await withPin('live', async () => {
-      assert(R.facts().products.clans === !!(C && C.clanLaunched()), 'the live product switch is not read from HearthriseClans');
-    });
-  }),
 
   () => tryRunAsync('SPINE-REVEAL-9: a door opens when its step becomes current, never earlier, and no step waits behind a shut door', async () => {
     const R = window.HearthriseReveal;

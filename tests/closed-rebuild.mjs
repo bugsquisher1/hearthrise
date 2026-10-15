@@ -102,6 +102,16 @@ const count = async (t) => Number((await one(`select count(*)::int as n from pub
 async function scenario(closedSql, wipeSql, tool = allowSql) {
   await db.exec('begin;');
   try {
+    /* A minimal Supabase Storage shape (the replay has none): the avatars
+       bucket's own-folder insert policy, as 2026-08-08-unique-names.sql writes
+       it, so §7b's restrictive policy is exercised, not only asserted. */
+    await db.exec(`create schema if not exists storage;
+      create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+      alter table storage.objects enable row level security;
+      grant usage on schema storage to authenticated;
+      grant select, insert, update on storage.objects to authenticated;
+      create policy "hr avatars owner insert" on storage.objects for insert to authenticated
+        with check (bucket_id = 'avatars' and split_part(name, '/', 1) = auth.uid()::text);`);
     try { await db.exec(closedSql); } catch (e) { return `APPLY-CLOSED: ${String(e.message).split('\n')[0]}`; }
     // C-IDEM: a second apply of closed mode is byte-identical (objects, bodies, ACLs, seed rows).
     const state = async () => JSON.stringify([await inventory(db), (await db.query(SNAP)).rows]);
@@ -147,6 +157,8 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
     if (r.err || r.rows[0].n !== 0) return `C-REFUSE L4: a non-allowlisted caller can read chat (${JSON.stringify(r)})`;
     r = await as('authenticated', B, 'select count(*)::int as n from public.hr_access_allowlist');
     if (r.err || r.rows[0].n !== 0) return `C-REFUSE: a non-allowlisted caller reads allowlist rows (${JSON.stringify(r)})`;
+    r = await as('authenticated', B, `insert into storage.objects (bucket_id, name) values ('avatars', '${B}/a.webp')`);
+    if (!(r.err && r.err.code === '42501')) return `C-REFUSE L4 storage: a non-allowlisted caller uploaded an avatar (${JSON.stringify(r)})`;
 
     // ── C-ADMIT ──────────────────────────────────────────────────────────────
     r = await as('authenticated', A, 'select public.hr_access_check()');
@@ -161,6 +173,8 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
     r = await as('authenticated', A,
       `insert into public.chat_messages (channel, from_id, from_name, body) values ('global', '${A}', 'Alphaone', 'still here')`);
     if (r.err) return `C-ADMIT L4: RLS refused the allowlisted caller's chat (${r.err.message})`;
+    r = await as('authenticated', A, `insert into storage.objects (bucket_id, name) values ('avatars', '${A}/a.webp')`);
+    if (r.err) return `C-ADMIT L4 storage: the allowlisted caller cannot upload an avatar (${r.err.message})`;
     r = await as('authenticated', A, 'select count(*)::int as n from public.hr_access_allowlist');
     if (r.err || r.rows[0].n !== 1) return `C-ADMIT: the allowlisted caller should read exactly its own row (${JSON.stringify(r)})`;
     await db.exec(`update public.hr_flags set enabled = false where key = 'closed_mode';`);
@@ -289,6 +303,9 @@ const MUTANTS = [
     edits: [C('  if not public.hr_admitted(p_user) then return false; end if;\n\n', '\n')] },
   { name: 'policyPermissive', why: 'hr_closed_admit is PERMISSIVE (ORed away by the existing policies)', expect: /k5|C-REFUSE L4/,
     edits: [C('as restrictive for all to authenticated', 'as permissive for all to authenticated')] },
+  { name: 'storageOpen', why: 'avatar uploads are not closed', expect: /k5|C-REFUSE L4 storage/,
+    edits: [C("'create policy hr_closed_admit_insert on storage.objects as restrictive for insert to authenticated '",
+              "'create policy hr_closed_admit_insert on storage.objects as permissive for insert to authenticated '")] },
   { name: 'hookNotRegistered', why: 'the pre-request hook is never set', expect: /k6|C-HOOK/,
     edits: [C("  execute 'alter role authenticator set pgrst.db_pre_request = ''public.hr_access_check''';\n", '')] },
   { name: 'allowlistReadable', why: 'every client reads the whole allowlist', expect: /k7c|C-REFUSE:/,

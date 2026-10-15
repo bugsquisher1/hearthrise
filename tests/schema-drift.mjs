@@ -427,6 +427,18 @@ const MUTATIONS = {
   -- (z) THE LEAK CHECK - the fixture is gone, so every gate above ran inside the`,
     ]]]],
   },
+  wipe_keeps_ledger: {
+    what: 'the declared clean-slate wipe moves player_ledger from its WIPE list to its KEEP list — it applies, its own self-check has nothing to say about a kept table, and a money journal survives the clean slate',
+    // The second half of the bystander property past the wipe (assertBystanders):
+    // the rows were present immediately before the wipe and must be gone after.
+    expect: 'bystander',
+    patches: [['2026-10-21-closed-rebuild-wipe.sql', [
+      ["'player_farm', 'player_intents', 'player_inventory', 'player_ledger',",
+       "'player_farm', 'player_intents', 'player_inventory',"],
+      ["'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'profiles',",
+       "'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'profiles', 'player_ledger',"],
+    ]]],
+  },
   selfcheck_global_prune_fn: {
     what: 'a self-check calls the real retention prune — global by construction — without narrowing its reach to the probe first',
     // Caught by that file's own bystander canary (e10b), which is the layer

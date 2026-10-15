@@ -30,9 +30,10 @@
 --     L3 hr_rate_gate refuses a non-admitted p_user — the hr-accrue edge, which
 --        reaches the database through the pooler as hr_engine and never touches
 --        PostgREST, cannot move a non-admitted character.
---     L4 a RESTRICTIVE policy on the six client-writable tables — realtime
---        (chat postgres_changes) is not PostgREST, and a write that slips L1
---        still meets RLS.
+--     L4 a RESTRICTIVE policy on the six client-writable tables and on
+--        storage.objects writes — realtime (chat postgres_changes) and the
+--        Storage API (avatar uploads) are not PostgREST, and a write that slips
+--        L1 still meets RLS.
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 -- §1 public.hr_access_allowlist(user_id pk → auth.users on delete cascade, note,
@@ -69,7 +70,8 @@
 --    production carries, measured 2026-10-14) with one new line.
 -- §7 L4: policy hr_closed_admit, AS RESTRICTIVE, FOR ALL TO authenticated,
 --    using/with check (select hr_admitted((select auth.uid()))), on the six
---    client-writable tables.
+--    client-writable tables; §7b the same for INSERT/UPDATE on storage.objects
+--    (the avatars bucket is written through the Storage API, not PostgREST).
 -- §8 L1: alter role authenticator set pgrst.db_pre_request; notify pgrst.
 --    Refuses to replace a different pre-request somebody else installed.
 -- §9 grants (revoke first) + hr_client_rpc_baseline rows for the two new
@@ -331,6 +333,24 @@ begin
   end loop;
 end $mig$;
 
+-- ── §7b L4 FOR STORAGE: the avatars bucket takes client uploads through the
+--    Storage API, which is not PostgREST (no L1). A restrictive policy keeps a
+--    non-admitted account from writing any object. Skipped where there is no
+--    storage schema (the repo replay); the self-check asserts it where there is.
+do $mig$
+begin
+  if to_regclass('storage.objects') is null then
+    raise notice 'no storage.objects — storage closed-mode policies skipped'; return;
+  end if;
+  execute 'drop policy if exists hr_closed_admit_insert on storage.objects';
+  execute 'create policy hr_closed_admit_insert on storage.objects as restrictive for insert to authenticated '
+          'with check ((select public.hr_admitted((select auth.uid()))))';
+  execute 'drop policy if exists hr_closed_admit_update on storage.objects';
+  execute 'create policy hr_closed_admit_update on storage.objects as restrictive for update to authenticated '
+          'using ((select public.hr_admitted((select auth.uid())))) '
+          'with check ((select public.hr_admitted((select auth.uid()))))';
+end $mig$;
+
 -- ── §8 L1: THE PRE-REQUEST HOOK ─────────────────────────────────────────────
 do $mig$
 declare v_cur text;
@@ -437,6 +457,15 @@ begin
                     and cmd = 'ALL' and roles = '{authenticated}') then
       raise exception 'closed-mode §10 k5: % lacks the restrictive hr_closed_admit policy', t; end if;
   end loop;
+
+  -- (nested, not `is not null AND …::regclass`: the cast would be evaluated
+  --  on a database without storage and raise there)
+  if to_regclass('storage.objects') is not null then
+    if (select count(*) from pg_policy
+         where polrelid = to_regclass('storage.objects') and not polpermissive
+           and polname in ('hr_closed_admit_insert', 'hr_closed_admit_update')) <> 2 then
+      raise exception 'closed-mode §10 k5: storage.objects lacks the restrictive closed-mode write policies'; end if;
+  end if;
 
   -- k6 L1 is configured wherever PostgREST exists.
   if exists (select 1 from pg_roles where rolname = 'authenticator')

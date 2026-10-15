@@ -86,3 +86,8 @@ Radius tokens only (`--r-sm/--r/--r-lg`, plus 0 on the phone sheets): pass. No g
 
 ## 8. Prototype
 `prototypes/world-shell/index.html` is a standalone page. The game never links to it and `src/` never imports it. It boots the **real** World (`bootWorld`) over a fixture `G`, with the real item and monster catalogues and the real pixel icons. I chose a page over a dev flag because a flag would put shell code into every player's boot path before approval; this page can't reach a player and is deleted at the cutover. To open it, serve the repo root and visit `/prototypes/world-shell/?scene=town|home|hunt&open=bag,equip`. Add `&clean=1` to hide the scene switch and `&edit=1` to start in the v1.1 editor. Limits: the inset is faked (§1); the hunt is a staged fight with no server; Skills, Home, Bestiary, Market and Chat are one-line stubs.
+
+## 9. Master Design Reference alignment (Coordinator, 2026-10-15)
+- **Vitals widget shows STAMINA** next to HP/MP. Stamina is a 12 h pool: hunting spends it and time away from hunting refills it, at 1 min per min (MDR §8).
+- **Hunt-ground card** includes the supply choice with Tyler's exact copy (MDR §4): "Store Supplies: Basic supplies are always available. Pay gold automatically when they're used." / "Your Supplies: Use supplies you brought with you. When they run out, end the hunt or switch to basic Store Supplies." Never say "loaned".
+- **End card** shows why the hunt ended (stopped, stamina, supplies, falls), the stamina used, and the supplies split (Store Supplies gold vs own supplies used), matching the analyzer.

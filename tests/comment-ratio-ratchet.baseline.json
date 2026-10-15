@@ -3,7 +3,7 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-15",
   "pinnedCount": 16,
-  "bnumTotal": 3049,
+  "bnumTotal": 3027,
   "files": {
     "src/legacy.js": {
       "total": 13223,
@@ -13,18 +13,18 @@
       "bnum": 535
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 8837,
-      "comment": 2352,
-      "code": 5895,
+      "total": 8773,
+      "comment": 2344,
+      "code": 5843,
       "ratio": 0.3914019890920757,
-      "bnum": 139
+      "bnum": 138
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 8616,
-      "comment": 2260,
-      "code": 5777,
+      "total": 8281,
+      "comment": 2186,
+      "code": 5538,
       "ratio": 0.3836180597925564,
-      "bnum": 112
+      "bnum": 111
     },
     "src/net/accrue.js": {
       "total": 7126,
@@ -34,32 +34,32 @@
       "bnum": 122
     },
     "src/features/smoke/away-time-and-offline.js": {
-      "total": 5651,
-      "comment": 1506,
-      "code": 3777,
-      "ratio": 0.3950937375349023,
-      "bnum": 94
-    },
-    "src/features/smoke/market-night-and-prices.js": {
-      "total": 4587,
-      "comment": 1442,
-      "code": 2854,
-      "ratio": 0.47591163162097416,
-      "bnum": 94
+      "total": 4833,
+      "comment": 1263,
+      "code": 3258,
+      "ratio": 0.3876611418047882,
+      "bnum": 87
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
-      "total": 4258,
-      "comment": 877,
-      "code": 3187,
+      "total": 4249,
+      "comment": 881,
+      "code": 3174,
       "ratio": 0.2751804204581111,
-      "bnum": 56
+      "bnum": 57
     },
     "src/features/smoke/cooking-core-and-save.js": {
-      "total": 4054,
-      "comment": 1149,
-      "code": 2656,
+      "total": 4017,
+      "comment": 1147,
+      "code": 2622,
       "ratio": 0.432605421686747,
       "bnum": 85
+    },
+    "src/features/smoke/market-night-and-prices.js": {
+      "total": 3162,
+      "comment": 1037,
+      "code": 1912,
+      "ratio": 0.47591163162097416,
+      "bnum": 79
     },
     "src/features/smoke/farm-and-profile.js": {
       "total": 3070,
@@ -75,19 +75,19 @@
       "ratio": 0.8882220555138785,
       "bnum": 75
     },
-    "src/features/smoke/recovery-and-auto-eat.js": {
-      "total": 2340,
-      "comment": 541,
-      "code": 1621,
-      "ratio": 0.3033501606241395,
-      "bnum": 28
-    },
     "src/net/record.js": {
       "total": 2136,
       "comment": 1224,
       "code": 778,
       "ratio": 1.5674300254452926,
       "bnum": 65
+    },
+    "src/features/smoke/recovery-and-auto-eat.js": {
+      "total": 2107,
+      "comment": 515,
+      "code": 1439,
+      "ratio": 0.3033501606241395,
+      "bnum": 29
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
       "total": 2073,
@@ -97,9 +97,9 @@
       "bnum": 19
     },
     "src/features/smoke/rooms-items-and-economy.js": {
-      "total": 2072,
-      "comment": 496,
-      "code": 1466,
+      "total": 2053,
+      "comment": 493,
+      "code": 1451,
       "ratio": 0.31541450777202074,
       "bnum": 41
     },

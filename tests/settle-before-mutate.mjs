@@ -170,7 +170,9 @@ async function r5(db) {
   /* NOT VACUOUS: the same claim on the same character, once its window is paid. */
   await db.query("update player_state set accrued_to = now() - interval '60 seconds' where user_id = $1", [UID]);
   const paid = await client("select public.hr_claim_quest('road_forge', 0) r");
-  ok(paid && paid.ok === true && paid.items && paid.items[TOOL] === 1,
+  /* road_forge's items are read from the server's own row (the demolition re-rewarded it). */
+  const want = (await db.query("select items from public.hr_quest_rewards where quest_id = 'road_forge'")).rows[0].items;
+  ok(paid && paid.ok === true && JSON.stringify(paid.items) === JSON.stringify(want),
     `R5 the same claim on a settled row was not paid — got ${JSON.stringify(paid)}; the refusal above proves nothing`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");
 }

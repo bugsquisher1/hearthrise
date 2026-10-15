@@ -880,11 +880,8 @@ jobs:
       # negative control.
       #
       # No credentials; production untouched. Base AND selftest, per C4.
-      - name: Renown projection — the counted score reaches the headline
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/renown-projection.mjs
-          node tests/renown-projection.mjs --selftest
+      # (Renown projection retired 2026-10-15: src/features/renown.js left with
+      #  the demolition, and tests/renown-projection.mjs with it.)
 
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
@@ -2606,11 +2603,8 @@ jobs:
       # offered; plantable seeds + a plot -> offered; SQL and JS rules agree over
       # every input; the client slate equals the server's on a played character.
       # --mutate: two JS and four SQL defects.
-      - name: Harvest daily — offered only with plantable seeds and a plot (base + mutate)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/daily-harvest-eligibility.mjs
-          node tests/daily-harvest-eligibility.mjs --mutate
+      # (Harvest daily retired 2026-10-15: the daily tasks left with the
+      #  demolition, and tests/daily-harvest-eligibility.mjs with them.)
 
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven

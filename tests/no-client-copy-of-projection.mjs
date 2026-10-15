@@ -489,9 +489,9 @@ function selftest() {
        stopped being a client field that day (the counter was DELETED, not preferred
        second), so the mutation stopped being a violation and the arm stopped
        proving anything. RE-TARGETED AGAIN 2026-10-14 (lane C2): `autoActions` left the
-       ratchet with the auto_eat_* projections; `renownHigh` is still mapped and pinned. */
-    ['a render site reading the raw copy (`G.renownHigh` added to src/render/achievements.js)', 'RAW-READ-ROSE',
-      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.renownHigh;\n'); return i; }],
+       ratchet with the auto_eat_* projections; `heroSlotsUnlocked` is mapped and pinned (renown left with the demolition). */
+    ['a render site reading the raw copy (`G.heroSlotsUnlocked` added to src/render/achievements.js)', 'RAW-READ-ROSE',
+      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.heroSlotsUnlocked;\n'); return i; }],
     ['a projected key dropped from the mapping (state.streak_days unmapped)', 'PROJ-UNMAPPED',
       () => clone(), (b) => ({ ...b, projection: { top: b.projection.top, state: [...b.projection.state, 'streak_days_v2'] } })],
     ['a reader that does not exist (playStreakDays removed from src/net/accrue.js)', 'READER-MISSING',

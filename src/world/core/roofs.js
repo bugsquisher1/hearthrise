@@ -9,7 +9,7 @@
 // roof. Roofs fade over ROOF_FADE_MS rather than popping.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { inRect } from './grid.js?v=586';
+import { inRect } from './grid.js?v=587';
 
 export const ROOF_FADE_MS = 150;
 

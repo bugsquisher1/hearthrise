@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 587 — 2026-10-15 (Back to your hero)
+
+**No more endless "Still connecting".** If your device remembered a hero slot that no longer exists after the reset, the game now takes you straight to your main hero instead of waiting forever.
+
 ## v0.9.2-beta build 586 — 2026-10-15 (A major overhaul begins)
 
 **Hearthrise is closed for a major overhaul.** We are rebuilding the game from the ground up, and every character starts fresh when it reopens. The Discord gets the date first.

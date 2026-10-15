@@ -89,15 +89,12 @@ export async function loadWorld() {
   return {
     away: { ...(await imp('src/core/away.js')) },
     hunt: { ...(await imp('src/core/hunt.js')) },
-    botd: { ...(await imp('src/core/botd.js')) },
     xp: { ...(await imp('src/core/xp.js')) },
     combat: { ...(await imp('src/core/combat.js')) },
     bounty: { ...(await imp('src/core/bounty.js')) },
     workers: { ...(await imp('src/core/workers.js')) },
     farm: { ...(await imp('src/core/farm.js')) },
-    autoEat: { ...(await imp('src/core/auto-eat.js')) },
-    compXp: { ...(await imp('src/core/companion-xp.js')) },
-    compPerk: { ...(await imp('src/core/companion-perk.js')) },
+    huntSessions: { ...(await imp('src/data/hunt-sessions.js')) },
     rewards: { ...(await imp('src/data/rewards.js')) },
     ranks: { ...(await imp('src/data/renown-ranks.js')) },
     charms: { ...(await imp('src/data/bestiary-charms.js')) },
@@ -115,6 +112,7 @@ export async function loadWorld() {
     packNames: packed.files.map((x) => x.name),
     accrualJs: read('supabase/functions/hr-accrue/accrual.js'),
     combatSimJs: read('src/core/combat-sim.js'),
+    combatJs: read('src/core/combat.js'),
     clientStateJs: read('src/net/client-state.js'),
     indexHtml: read('index.html'),
     src,
@@ -218,26 +216,17 @@ export const BINDS = {
       need(M.some((m) => m.hiddenElement), 'no monster hides its element any more'),
       need(w.charms.CHARM_RANKS[0].reveal === true, 'charm rank 1 no longer reveals the hidden element'));
   },
+  /* Closed rebuild (lane C2): the recovery ladder, the free first fall and
+     the Retreat are deleted. A fall in a hunt is the FLAT KNOCKOUT_MS, then a
+     resume on RESUME_HP_FRACTION: one rule, watched or away. */
   falls: (w) => {
-    const A = w.away;
-    const rf = (t, l) => A.recoveryFor({ deathsTodayBefore: t, deathsLifetimeBefore: l });
+    const A = w.away, K = w.huntSessions.KNOCKOUT_MS;
+    const sim = stripJs(w.combatSimJs);
     return all(
-      need(rf(0, 100) === 0, 'the first fall of the day now costs time'),
-      need(rf(3, 100) > rf(1, 100), 'later falls no longer keep you down longer'),
-      need(A.RESUME_HP_FRACTION > 0 && A.RESUME_HP_FRACTION < 1, 'a fall no longer resumes on part of your health'),
-      need(A.retreatAtFall({ consecFalls: A.RETREAT_ANY_FALLS, foodless: false }) === true, 'a hero who keeps falling no longer pulls back'),
-      need(/export function resolveKill[\s\S]{0,4000}?state\.consecFalls\s*=\s*0/.test(w.combatSimJs), 'a win no longer resets the fall counter'));
-  },
-  autoEat: (w) => {
-    const f = '2026-09-04-auto-eat-at-creation.sql';
-    let grant = ''; try { grant = w.mig(f); } catch (e) { /* absent → red below */ }
-    const T = w.autoEat.AUTO_EAT_TIERS;
-    return all(
-      need(grant.includes("'trait:auto_eat'") && w.order.includes(f), 'the creation grant of Auto-Eat is gone from the apply order'),
-      need(w.mig('2026-09-08-hero-slot-buy.sql').includes("'''trait:auto_eat'''"), 'hero-slot-buy no longer requires the Auto-Eat creation grant'),
-      need(w.away.AWAY_SCOPE.heal === true, 'Auto-Eat no longer eats on a night away'),
-      need(T[2].maxPct > T[1].maxPct, 'Auto-Eat II no longer lets you choose a higher threshold'),
-      need(/\('auto_eat_2',\s*'Auto-Eat II',\s*'marks'/.test(w.mig('2026-08-23-trait-buy.sql')), 'Auto-Eat II is no longer bought with Marks'));
+      need(K > 0, 'KNOCKOUT_MS is no longer a positive wait'),
+      need((sim.match(/recoverMs: KNOCKOUT_MS/g) || []).length === 1 && !/recoveryFor\(/.test(sim), 'a fall no longer costs the one flat knockout, or a ladder prices it again'),
+      need(typeof A.recoveryFor !== 'function' && typeof A.retreatAtFall !== 'function', 'the fall ladder or the Retreat is back in the engine'),
+      need(A.RESUME_HP_FRACTION > 0 && A.RESUME_HP_FRACTION < 1, 'a fall no longer resumes on part of your health'));
   },
   bounty: (w) => {
     const B = w.bounty;
@@ -288,15 +277,9 @@ export const BINDS = {
   companions: (w) => {
     const C = Object.values(w.companions);
     const kinds = new Set(C.map((c) => String(c.source || '').split(':')[0]));
-    const X = w.compXp, P = w.compPerk;
-    const lo = P.companionKeyBonus('allXP', { id: 'fox', xp: 0 });
-    const hi = P.companionKeyBonus('allXP', { id: 'fox', xp: P.companionXpToReach(P.COMPANION_MAX_LEVEL) });
     return all(
       need(C.every((c) => typeof c.source === 'string' && c.source), 'a companion has no source'),
-      need(['drop', 'shop', 'skill', 'boss'].every((k) => kinds.has(k)), 'a named companion source kind is gone'),
-      need(X.companionActionXp('combat', 'combat-kill') > 0 && X.companionActionXp('combat', 'gather') === 0, 'companion experience no longer follows the work that suits it'),
-      need(w.packNames.includes('vendor/core/companion-xp.js') && X.COMPANION_XP_SERVER_BACKED === true, 'the server no longer credits companion experience'),
-      need(hi > lo && lo > 0, 'a higher companion level no longer makes its help stronger'));
+      need(['drop', 'shop', 'skill', 'boss'].every((k) => kinds.has(k)), 'a named companion source kind is gone'));
   },
   gems: (w) => {
     const ok = /^(character_slot|theme|cosmetic):/;
@@ -327,72 +310,22 @@ export const BINDS = {
       need(M.some((m) => m.gems > 0) && M.some((m) => !m.gems), 'the "some of them pay gems" split no longer holds'),
       need(w.order.includes('2026-08-22-collection-claim.sql') && /hr_collection_of/.test(t) && /hr_bestiary_of/.test(t), 'the milestone claim is no longer server-verified'));
   },
+  /* Closed rebuild (lane C2, demolition safety review item 9): charms and
+     trophies are KEPT as records, but neither prices a fight any more: the
+     one fight expression (src/core/combat.js) and the settle read neither. */
   charms: (w) => {
     const R = w.charms.CHARM_RANKS;
+    const c = stripJs(w.combatJs), a = stripJs(w.accrualJs);
     return all(
-      need(R[0].drop === 1 && R[0].reveal === true, 'charm rank 1 now pays loot or no longer reveals'),
-      need(R.slice(1).every((r, i) => r.drop > 1 && r.drop > R[i].drop), 'later charm ranks no longer raise loot step by step'),
-      need(w.packNames.includes('vendor/core/charms.js'), 'charms left the server engine'));
+      need(R.length > 0 && R[0].reveal === true, 'charm rank 1 no longer reveals'),
+      need(!/charm/i.test(c) && !/charm/i.test(a), 'a fight reads a charm again: a rank now changes drops or damage'));
   },
   trophies: (w) => {
     const S = w.bestiary.TROPHY_STAGES;
+    const c = stripJs(w.combatJs), a = stripJs(w.accrualJs);
     return all(
       need(S.length > 1 && S[0].at > 0 && S[0].trophy === true, 'the first trophy stage no longer awards a trophy'),
-      need(S[0].drop === 1 && S.slice(1).every((r, i) => r.drop > 1 && r.drop > S[i].drop), 'later trophy stages no longer raise loot step by step'),
-      need(w.packNames.includes('vendor/core/trophies.js'), 'trophies left the server engine — no longer "watching or away"'));
-  },
-  vigourBudget: (w) => {
-    const v = w.fnBody('hr_vigour_of'), k = w.fnBody('hr_utc_day_key');
-    if (!v || !k) return 'hr_vigour_of or hr_utc_day_key has no definition in the apply order';
-    const c = sqlCode(v.text);
-    return all(
-      need(w.hunt.VIGOUR_FLOOR_MIN > 0, 'VIGOUR_FLOOR_MIN is no longer positive — there is no daily allowance'),
-      need(c.includes('v_day text := public.hr_utc_day_key(now())') && c.includes('period_key = v_day'),
-        'hr_vigour_of (' + v.file + ') no longer keys the day on hr_utc_day_key(now())'),
-      need(sqlCode(k.text).toLowerCase().includes("at time zone 'utc'"), 'hr_utc_day_key no longer turns at midnight UTC'));
-  },
-  /* W0 ruling (game-designer, 2026-10-10): Vigour and the away limit STAY two
-     clocks — the away limit bounds one ABSENCE for every activity, Vigour
-     bounds a DAY of hunting, watched or away (the only bound on attended
-     combat) — and the Codex teaches them as one number because the free grant
-     IS the away limit, floored. This holds the sentence that says so. */
-  vigourMatchesAwayCap: (w) => {
-    const H = w.hunt, base = 12 * 3600000;
-    return all(
-      need(H.vigourGrantMin(base) === base / 60000, 'the free Vigour grant is no longer the base away limit'),
-      need(H.vigourGrantMin(base * 1.5) === (base * 1.5) / 60000, 'a longer away limit no longer lengthens the Vigour grant'),
-      need(H.vigourGrantMin(0) === H.VIGOUR_FLOOR_MIN && H.VIGOUR_FLOOR_MIN === base / 60000,
-        'the Vigour floor is no longer the base away limit'));
-  },
-  vigourDryAway: (w) => {
-    const H = w.hunt, a = stripJs(w.accrualJs);
-    const sp = H.vigourSplit({ spentMin: 60, budgetMin: 60, windowMs: 3600000 });
-    return all(
-      need(H.VIGOUR_DRY_MULT > 0 && H.VIGOUR_DRY_MULT < 1, 'VIGOUR_DRY_MULT is ' + H.VIGOUR_DRY_MULT + ' — not "a small share"'),
-      need(sp.dryMs === 3600000 && sp.fullMs === 0, 'past the budget a window is no longer all dry'),
-      /* Experience and gold are scaled through hunt.js vigourScale (the
-         dithered floor that conserves under subdivision, 2026-10-05) — the
-         claim is that vigMult still reaches both, not how they round. Since
-         2026-10-06 only the part earned past the Vigour line is scaled
-         (`vigMultAt`, tests/world-tick-vigour-line.mjs), so the gold call
-         scales the dry remainder rather than the whole of `state.gold`. */
-      need(a.includes('dropMult: (w.dropMult || 1) * vigMult') && a.includes('vigourScale(raw, vigMult, vigRng)')
-        && a.includes('vigourScale(goldAll - goldFull, vigMult, vigRng)')
-        && a.includes('const vigMult = VIGOUR_DRY_MULT;'),
-        'the away settle no longer folds vigMult into drop chance, experience and gold'));
-  },
-  vigourScope: (w) => {
-    const a = stripJs(w.accrualJs);
-    const at = a.indexOf('const accruer = KIND_ACCRUERS[inp.activeKind];');
-    const uses = [...a.matchAll(/vigMult|vigourMult\(|vigourCharge\(/g)].map((m) => m.index);
-    const body = (name) => { const i = a.indexOf('function ' + name + '('); const j = a.indexOf('\nfunction ', i + 1); return i < 0 ? null : a.slice(i, j < 0 ? undefined : j); };
-    const g = body('accrueGather'), r = body('accrueArtisan');
-    const refill = w.fnBody('hr_vigour_refill__ungated');
-    return all(
-      need(at > 0 && uses.length > 0 && uses.every((i) => i > at), 'Vigour is read outside the combat branch of the settle'),
-      need(g && r && !/vig/i.test(g) && !/vig/i.test(r), 'gathering or artisan accrual now reads Vigour'),
-      need(refill && sqlCode(refill.text).includes('insufficient_gold'), 'the refill is no longer paid in gold'),
-      need(/getElementById\('fs-manage'\)/.test(w.src['src/features/vigour-mount.js'] || ''), 'the refill is no longer mounted on the Fight screen'));
+      need(!/troph/i.test(c) && !/troph/i.test(a), 'a trophy prices a fight again: it now changes what a monster drops'));
   },
   dungeonKeys: (w) => {
     const D = Object.values(w.dungeons.DUNGEONS);
@@ -433,31 +366,6 @@ export const BINDS = {
       need(cd.length > 0 && cd.every((s) => s > 0), 'a dungeon no longer rests after a run'),
       need(w.order.includes('2026-09-12-dungeon-cooldown.sql'), 'the dungeon cooldown left the apply order'),
       need(['auto', 'manual', 'scavenger'].every((k) => div(k) > 0), 'a run mode no longer rests the dungeon'));
-  },
-  botdPools: (w) => {
-    const B = w.botd, M = w.monsters;
-    const t0 = Date.UTC(2026, 8, 27);
-    const days = Array.from({ length: 14 }, (_, i) => B.botdFor(t0 + i * 86400000, M));
-    return all(
-      need(B.DAILY_POOL.every((id) => id in M) && B.WEEKLY_POOL.every((id) => id in M), 'a Boss of the Day pool names a monster that does not exist'),
-      need(w.packNames.includes('vendor/core/botd.js'), 'the Boss of the Day left the server engine'),
-      need(days.every((f) => f.dailyId && f.weeklyId), 'a day in the next fortnight has no daily or no weekly boss'));
-  },
-  botdBonus: (w) => {
-    const { DAILY_BONUS: D, WEEKLY_BONUS: W } = w.botd;
-    return all(
-      need(D.dropMult > 1 && D.xpMult > 1 && W.dropMult > D.dropMult && W.xpMult > D.xpMult, 'the featured bonuses no longer lift drops and kill XP, weekly most'),
-      need(w.away.AWAY_SCOPE.botd === true, 'the featured bonus no longer pays away'),
-      need(w.combatSimJs.includes('killXpRoute(ctx.style, m.xp, feat.xpMult)') && w.combatSimJs.includes('hitXpRoute(ctx.style, xpDmg)'),
-        'the featured XP bonus no longer scales kill XP alone — "for each kill" is wrong'),
-      /* "watching or away": since lane C2 a fight is priced by ONE path whether
-         a client is connected or not (the hunt settle — the attended top-up and
-         its own `lootCtx.botd` are gone), so the claim is that path's binding:
-         the featured bonus resolved per segment from the server instant. */
-      need(w.accrualJs.includes('botdFor(atMs) {\n      return { killBonuses(id) { return killBonusesFor(id, atMs, monsters); } };')
-        && !/attended/i.test(w.accrualJs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')),
-        'the one combat settle no longer applies the featured bonus per segment (or a second, attended path is back)'),
-      need(/import\s*\{[^}]*\bWEEKLY_BONUS\b[^}]*\}\s*from\s*'\.\/botd\.js/.test(w.src['src/core/combat-xp-cap.js'] || ''), 'the live XP credit no longer allows the weekly bonus'));
   },
   luckyRows: (w) => {
     const rows = [];
@@ -628,7 +536,7 @@ async function run() {
 
 async function selftest() {
   const base = await loadWorld();
-  const clone = () => ({ ...base, away: { ...base.away }, hunt: { ...base.hunt }, botd: { ...base.botd }, src: { ...base.src },
+  const clone = () => ({ ...base, away: { ...base.away }, hunt: { ...base.hunt }, src: { ...base.src },
     entries: base.entries.map((e) => ({ ...e, claims: e.claims.map((c) => ({ ...c })) })) });
   const byId = (w, id) => w.entries.find((e) => e.id === id);
   let bad = 0;
@@ -647,16 +555,15 @@ async function selftest() {
     ['M6 a static import of data/codex.js', 'CODEX-9', (w) => { w.src['src/main.js'] = "import { CODEX_ENTRIES } from './data/codex.js" + '?' + "v=555';\n" + w.src['src/main.js']; }],
     ['M7 a fake opener', 'CODEX-5', (w) => { byId(w, 'charms').door = { opener: 'HearthriseNoSuchThing.open' }; }],
     ['M8 a luckyRowsExist bind (no predicate ships)', 'CODEX-6', (w) => { byId(w, 'renown').claims.push({ s: 0, bind: 'luckyRowsExist' }); }],
-    ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'charms'); e.text = e.text.replace('a little more often', 'double as often'); }],
+    ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'charms'); e.text = e.text.replace('no rank changes', 'no double rank changes'); }],
     ['M10 codex feature reads G', 'CODEX-10', (w) => { w.src['src/features/codex.js'] += '\nconst x = G.gold;'; }],
-    ['M11 VIGOUR_DRY_MULT = 1', 'CODEX-6', (w) => { w.hunt.VIGOUR_DRY_MULT = 1; }, 'vigourDryAway'],
+    ['M11 a fall ladder comes back', 'CODEX-6', (w) => { w.away.recoveryFor = () => 0; }, 'falls'],
+    ['M13 a trophy prices the fight again', 'CODEX-6', (w) => { w.combatJs += '\nconst m = trophyDropMultFor(id, t);'; }, 'trophies'],
+    ['M17 a charm prices the settle again', 'CODEX-6', (w) => { w.accrualJs += '\nconst k = charmRankAt(n);'; }, 'charms'],
     ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
-    ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, xpDmg * feat.xpMult)'); }, 'botdBonus'],
     ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
     ['M15 the Party screen grows a Rejoin hunt button', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nvar x = '<button data-party-act=\"hunt-rejoin\">Rejoin hunt</button>';"; }, 'partyCampRejoinsOnReturn'],
     ['M16 the Party screen loses the solo stance picker', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] = w.src['src/render/party-panel.js'].split('huntStanceButtonsHtml').join('ownStanceButtons'); }, 'partyHuntLeaderStarts'],
-    ['M17 the Vigour grant drifts from the away limit', 'CODEX-6', (w) => { w.hunt.vigourGrantMin = () => 60; }, 'vigourMatchesAwayCap'],
-    ['M18 the one combat settle drops the featured bonus', 'CODEX-6', (w) => { w.accrualJs = w.accrualJs.replace('return killBonusesFor(id, atMs, monsters);', 'return { dropMult: 1, xpMult: 1 };'); }, 'botdBonus'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

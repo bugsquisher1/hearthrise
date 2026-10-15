@@ -1212,10 +1212,11 @@ const MUTATIONS = [
        pre-b371 44px rhythm only shrinks the spacer (to 126px) and Settings stays
        at y=756 — the mutant ESCAPED on origin/main and nothing ran it. The
        defect class is unchanged (a rail rhythm that pushes the last destination
-       below the fold); the plant is sized to TODAY's slack: 72px rows put
-       Settings at y=910 on a 768px screen. */
+       below the fold); the plant is sized to TODAY's slack. RE-SIZED 2026-10-14:
+       the demolition took the rail from nine destinations to seven, so 72px rows
+       left Settings above the fold again; 104px rows push it past 768. */
     name: 'M2 — re-inflate the nav rail past its slack (Settings below the fold at 768)',
-    css: '.sidebar{gap:4px !important}.nav-btn{min-height:72px !important;padding:8px 10px !important}'
+    css: '.sidebar{gap:4px !important}.nav-btn{min-height:104px !important;padding:8px 10px !important}'
        + '.nav-group-label{padding:9px 12px 3px !important;margin-top:3px !important;padding-top:8px !important}'
        + '.brand{padding:8px 10px 10px !important;margin-bottom:6px !important}',
     viewports: [{ w: 1366, h: 768 }],

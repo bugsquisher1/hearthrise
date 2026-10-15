@@ -50,13 +50,12 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
-  hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/legacy.js', needle: "addItem('hearth_token'" }),
 });
 
 /* ── USES AN ENGINE HARD-CODES ──────────────────────────────────────────────
    Same contract as CODED_SOURCES. */
 export const CODED_USES = Object.freeze({
-  hearth_token: Object.freeze({ label: 'redeemed for gems or traded on the Market', file: 'src/legacy.js', needle: 'hearth_token' }),
+  /* (hearth_token's redeem and IAP grant left with the IAP store, 2026-10-14.) */
 });
 
 /* ── VENDOR TRASH — the one use that is selling ──────────────────────────────
@@ -126,6 +125,10 @@ export const AWAITING_ROSTER = Object.freeze([
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
   'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
   'wyvernhide_body', 'wyvernhide_helmet', 'wyvernhide_pants', 'yew_rod',
+  /* The Hearth Token (IAP bond): its redeem, IAP grant and store left with the
+     client in the same demolition; the row stays because hr_items and
+     account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
+  'hearth_token',
 ]);
 
 const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });

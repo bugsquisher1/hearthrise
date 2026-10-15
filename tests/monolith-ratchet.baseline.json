@@ -11,6 +11,6 @@
   "render": {
     "dir": "src/render + src/screens",
     "files": 37,
-    "lines": 8600
+    "lines": 8592
   }
 }

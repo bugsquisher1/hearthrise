@@ -3502,8 +3502,7 @@ export default [
                   LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
                   G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 123456;
                   m.paint(); window.refreshActivityBar();
-                  /* No away chip: the Night Plan chip that stood in that slot left in the
-                     2026-10-14 demolition, and the bar draws none while fighting. */
+                  // No away chip: the Night Plan chip that stood in that slot left on 2026-10-14.
                   const meta = document.getElementById('ab-meta'), xp = meta.querySelector('.ab-xp');
                   if (xp) xp.outerHTML = xp98();
                   return meta;
@@ -4028,10 +4027,7 @@ export default [
                 window.G.combatKillsThisFoe = 5;
                 window.refreshActivityBar(); fitBar(bar);
                 earned(bar, meta, 'live sparse full width: ');
-                /* crowd(), the fit and the measurement run in ONE task: the live game's own
-                   repaint (a timer) cannot land between the fit and the read, which is how a
-                   frame-deferred observer fit read as 'unearned' one run in two. The observer
-                   path itself is BAR-FIT-2's subject. */
+                // Crowd, fit and measure in ONE task so the game's repaint cannot land between (BAR-FIT-2 owns the observer).
                 for (const px of [760, 680, 620, 560, 480, 420, 360]) {
                   bar.style.maxWidth = px + 'px'; crowd(); fitBar(bar);
                   earned(bar, meta, 'live ' + px + 'px: ');
@@ -4055,7 +4051,6 @@ export default [
             const bad = [], G = window.G, LT = window.HearthriseLifetime;
             await statusBar(['stated'], null, async ({ bar, steps, settle, crowd }) => {
               try {
-                // 420px: without the bounty and away chips (2026-10-14) 560px no longer crowds the bar.
                 bar.style.maxWidth = '420px';
                 crowd();
                 await settle(() => steps() > 0);

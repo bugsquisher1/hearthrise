@@ -85,7 +85,7 @@
 //
 // ── WHAT IT DRIVES ─────────────────────────────────────────────────────────
 // The REAL edge verbs (set-activity.js, shop-buy.js, vendor-sell.js, equip.js,
-// party-fence.js, hunt-settle.js), each fed by request.js parseIntent from a RAW
+// hunt-settle.js), each fed by request.js parseIntent from a RAW
 // body exactly as index.ts composes them, and the hunt RPCs (hr_hunt_enter /
 // hr_hunt_leave) as the signed-in player calls them, against the REAL migration
 // chain replayed into PGlite (tests/schema-replay.mjs). Every assertion reads the
@@ -215,7 +215,6 @@ async function loadModules(mutate) {
     sb: await imp('shop-buy.js'),
     vs: await imp('vendor-sell.js'),
     eq: await imp('equip.js'),
-    pf: await imp('party-fence.js'),
     cat: await imp('catalogue.js'),
     hs: await imp('hunt-settle.js'),
   };
@@ -285,20 +284,17 @@ async function makeServer(db, M) {
                          left join public.hunt_session_tally t on t.session_id = h.id
                         where h.user_id = $1 and h.slot = 0 order by h.entered_at desc limit 1`, [uid]))[0] || null;
     },
-    /** A raw body through parseIntent and the party fence into the verb, the
-        way index.ts composes it. Returns `{ status, body }`. */
+    /** A raw body through parseIntent into the verb, the way index.ts
+        composes it. Returns `{ status, body }`. */
     async send(uid, raw) {
       await clearGate();
       const it = M.req.parseIntent({ slot: 0, intentId: uuid(), ...raw });
-      const fence = await M.pf.partyIntentFence({ exec, user: uid, slot: 0, verb: it.verb });
-      const partyOwnsWindow = !!(fence && fence.partyOwnsWindow === true);
-      if (fence && !partyOwnsWindow) return fence;
       const base = { exec, user: uid, slot: 0, intentId: it.intentId };
       if (it.verb === 'set_activity') return M.sa.runSetActivity({ ...base, activity: it.activity });
       if (it.verb === 'equip') return M.eq.runEquip({ ...base, equip: it.equip });
-      if (it.verb === 'shop_buy') return M.sb.runShopBuy({ ...base, partyOwnsWindow, offer: it.offer, qty: it.qty });
+      if (it.verb === 'shop_buy') return M.sb.runShopBuy({ ...base, offer: it.offer, qty: it.qty });
       if (it.verb === 'vendor_sell_many') {
-        return M.vs.runVendorSellMany({ ...base, partyOwnsWindow, lines: it.lines });
+        return M.vs.runVendorSellMany({ ...base, lines: it.lines });
       }
       throw Object.assign(new Error(`the harness does not route verb ${it.verb}`), { harness: true });
     },

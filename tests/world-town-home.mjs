@@ -378,13 +378,18 @@ function check(M) {
   /* D — EIGHT FACINGS (ART_ROADMAP NOW-3). A diagonal step carries its diagonal;
      an atlas that has that facing draws it, one that has four draws exactly the
      cardinal facingFor/dirOf chose, as before. "eight" is the shipped hero with
-     diagonal clips planted (marked frames), the way PixelLab batch R2 will add them. */
+     diagonal clips planted (marked frames); "four" is the shipped hero with every
+     diagonal REMOVED (the control for an atlas without them, whatever ships). The
+     shipped atlas itself has the hero's diagonal idle and walk since PixelLab R2. */
   fam('D', () => {
     const MARK = 100000, DIAG = ['se', 'sw', 'ne', 'nw'];
     const man = JSON.parse(JSON.stringify(M.manifests));
     const heroSet = Object.keys(man).find((k) => man[k].sprites && man[k].sprites.hero);
     for (const a of Object.values(man[heroSet].sprites.hero.anims)) DIAG.forEach((d, k) => { a.dirs[d] = a.dirs.s.map(([sx, sy]) => [sx, sy + (k + 1) * MARK]); });
     const eight = M.bookm.createBook(man);
+    const man4 = JSON.parse(JSON.stringify(M.manifests));
+    for (const a of Object.values(man4[heroSet].sprites.hero.anims)) DIAG.forEach((d) => { delete a.dirs[d]; });
+    const four = M.bookm.createBook(man4);
     /* the facing the hero is DRAWN in, read back off the compose list by its frame */
     const drawn = (book, hero) => {
       const b = M.nullb.createNullBackend({ book, tables: M.tables, view: { w: 60 * T, h: 40 * T } });
@@ -395,9 +400,11 @@ function check(M) {
     ok('D', M.facing.diagonalOf(1, 1) === 'se' && M.facing.diagonalOf(-1, -1) === 'nw' && M.facing.diagonalOf(2, -1) === 'ne' && M.facing.diagonalOf(3, 1) === null && M.facing.diagonalOf(0, 1) === null,
       'diagonalOf must name the diagonal of a diagonal heading and nothing for one nearer an axis');
     ok('D', drawn(eight, { dir: 's', diag: 'se' }) === 'se' && drawn(eight, { dir: 'w', diag: 'nw' }) === 'nw', 'with diagonal art, a diagonal step must DRAW its diagonal: ' + drawn(eight, { dir: 's', diag: 'se' }));
-    ok('D', drawn(M.book, { dir: 's', diag: 'se' }) === 's' && drawn(M.book, { dir: 'e', diag: 'ne' }) === 'e',
-      'with four facings, a diagonal step must draw the cardinal facingFor chose (s, e), got ' + drawn(M.book, { dir: 's', diag: 'se' }) + ', ' + drawn(M.book, { dir: 'e', diag: 'ne' }));
-    ok('D', drawn(M.book, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(M.book, { dir: 'nw' }));
+    ok('D', drawn(four, { dir: 's', diag: 'se' }) === 's' && drawn(four, { dir: 'e', diag: 'ne' }) === 'e',
+      'with four facings, a diagonal step must draw the cardinal facingFor chose (s, e), got ' + drawn(four, { dir: 's', diag: 'se' }) + ', ' + drawn(four, { dir: 'e', diag: 'ne' }));
+    ok('D', drawn(four, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(four, { dir: 'nw' }));
+    ok('D', DIAG.every((d) => drawn(M.book, { dir: d[0], diag: d }) === d),
+      'the shipped hero atlas has the diagonal walk (PixelLab R2): each diagonal step must draw it, got ' + DIAG.map((d) => drawn(M.book, { dir: d[0], diag: d })).join(','));
     /* the feet: a held diagonal steps with its diagonal; a straight step clears it */
     const st = M.steer.createSteer(town, [11, 9]);
     let t = 1e12;
@@ -413,7 +420,8 @@ function check(M) {
     ws.drive([1, 1], t);
     const f = ws.frame(ENV(), t + 60);
     ok('D', f.hero.diag === 'se' && drawn(eight, f.hero) === 'se', 'a walk scene must hand the diagonal to the draw: ' + JSON.stringify(f.hero));
-    ok('D', drawn(M.book, f.hero) === f.hero.dir, 'the same frame over the shipped four-facing art must draw ' + f.hero.dir);
+    ok('D', drawn(four, f.hero) === f.hero.dir, 'the same frame over four-facing art must draw ' + f.hero.dir);
+    ok('D', drawn(M.book, f.hero) === 'se', 'the same frame over the shipped (eight-facing) hero must draw se, got ' + drawn(M.book, f.hero));
     /* the hunt: the hero facing its foe on a diagonal carries that diagonal (monsters stay east/west: H8) */
     const cellar = M.mapc.compileMap(M.rows.mill_cellar, M.tables);
     let diagonals = 0;

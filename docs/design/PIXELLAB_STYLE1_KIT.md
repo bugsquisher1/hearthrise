@@ -6,20 +6,32 @@ All assets are in Tyler's PixelLab account. Names start with `S1`.
 
 ## 1. Sewer map (the real one)
 
-**Map Workshop**: https://www.pixellab.ai/maps → **"Hearthrise — Sewer (style 1)"**, id `c8ed5928-aef3-409f-a712-c0ce2e73d46b`, 48×36 cells of 32 px, 46 objects placed.
-(Ignore the older map with the same name, `b473b67e-…`. It was a first pass whose saturated-blue tileset drifted from the reference. Delete it in the web app.)
+**Map Workshop**: https://www.pixellab.ai/maps → **"Hearthrise — Sewer (style 1)"**, id `c8ed5928-aef3-409f-a712-c0ce2e73d46b`, about 57×36 cells of 32 px, 51 objects. Reworked on 2026-10-15 to remove the boxy, mirror-symmetric first layout.
+(Ignore the older map with the same name, `b473b67e-…`. It was a drifted first pass; delete it in the web app.)
 
-Layout (x,y cells): entrance corridor on the west (x0–7, y17–19, 3 wide) → **west junction hall** (x8–17, y12–23) → 2-wide doors → **channel hall** (x20–28, y2–33, sewage x23–25 with a floor rim at both ends; iron grate bridge at y18) → **east junction hall** (x31–38, y13–22) → 3×2 door → **Rat King room** (x42–46, y12–23). Four **medium spawn rooms** (10×7) hang off the halls through 2-wide corridors:
+Layout (x,y cells):
+- West entrance corridor (x0–5, y20–22).
+- **West junction hall**, an L-shape with a notched corner (x6–15, y13–25).
+- A 1-wide squeeze north (x9, y7–12) into the **NW room**, an L-shape.
+- A 2-wide link south into the **SW room**, two offset blobs.
+- A 3-wide stretch east (x15–19, y20–22), then a dogleg up to the **channel hall**.
+- The **channel is off-centre and bent**: water runs x26–28 down to y15, east along y13–15, then down x32–34 to y31. A floor rim separates it from the walls everywhere.
+- The **long iron bridge** crosses the lower channel at y24.
+- A 3-wide corridor leads to the asymmetric **east junction hall** (x40–47, y17–28, notched).
+- North of the hall, a 2-wide dogleg runs to the irregular **NE room**.
+- South, a short link runs to the **SE room**.
+- A 2-wide corridor (x48–50, y22–23) leads to the **Rat King room** at the far east end (x51–55, y18–29).
 
-| Pocket | Room | Pack (grouped around the pull point) | Props |
-|---|---|---|---|
-| NW | x5–14 y2–8 | 4 giant rats around (10,5) | rat nest, crates, 2 torches |
-| SW | x5–14 y27–33 | 3 slimes around (10,30) | rat nest, barrels, torch |
-| NE | x31–40 y2–8 | **mid-fight pocket**: 3 venom spiders + 2 bats pulled tight onto the EK at (35,5) | bones, 2 torches |
-| SE | x31–40 y27–33 | 3 kobolds around (36,30) | rat nest, crates, torch |
-| Boss | x42–46 y12–23 | Rat King (44,17) + 2 rats | brazier, nest, bones, torch |
+| Pocket | Pack (grouped round the pull point) | Props |
+|---|---|---|
+| NW | 4 giant rats round (8,4) | rat nest, 2 torches, moss |
+| SW | 3 slimes round (7,31) | rat nest, torch, moss |
+| NE | **mid-fight**: EK (42,6) holding 3 spiders + 2 bats; RP (43,9), ED (45,11), MS (44,14) in the corridor | bones, 2 torches |
+| SE | 3 kobolds round (44,32) | rat nest, torch |
+| Boss | Rat King (53,23) + 2 rats | brazier, nest, bones, torch, moss |
 
-Preview renders (scratchpad, `…/scratchpad/k/`): `map_half.png` (full map at half scale), `sewer_fight_preview_2x.png` (NE pocket at 2x with the effects overlay drawn in).
+Floor variation comes from clustered moss-and-puddle decals (object `3ae7a8a6-ced2-4efc-9864-03fbce3fd00c`) placed by walls and water. The moss-floor Wang tileset I tried (`6cee696e-…`) rendered as pale smears, so I painted it back out.
+Previews (`…/scratchpad/k/`): `map_half.png` (whole map at half scale), `sewer_fight_preview_2x.png` (fight pocket from the first layout), `lineup.png` (character approval sheet: 4 heroes and 6 monsters, south-facing, 2× on sewer floor).
 
 ## 2. Asset ids by use
 
@@ -39,11 +51,16 @@ Missing pair: water ↔ wall top. Don't let water touch wall. Leave a 1-cell flo
 |---|---|
 | wall torch 32×48 | `55753820-4968-44d1-a5f7-c75da45bb5ff` |
 | brazier | `919538c5-164c-4320-8187-c740af7297c6` |
-| crates | `862bbc25-0d61-45be-a55f-0a2853b3dbe4` |
-| barrels | `bc948c13-0667-4e26-9795-54a141316515` |
+| crates (stacked; unused) | `862bbc25-0d61-45be-a55f-0a2853b3dbe4` |
+| barrels (stacked; unused) | `bc948c13-0667-4e26-9795-54a141316515` |
 | rat nest 48 | `bde80354-9814-4d4e-886c-7aa81b2b0153` |
 | bones | `2e4f8622-9db6-43fa-9633-a3296e847d71` |
-| iron grate bridge, horizontal (used) | `b815f910-45f2-4148-b15d-649c49b658bd` |
+| iron grate bridge, long horizontal (used, spans 3 water) | `61da1673-b961-4746-861c-04a56bca0077` |
+| iron grate bridge, short horizontal | `b815f910-45f2-4148-b15d-649c49b658bd` |
+| barrels pair, single layer (used) | `5e8f62c3-8d7d-43fc-b573-c39b1512c53e` |
+| moss + puddle decal (used) | `3ae7a8a6-ced2-4efc-9864-03fbce3fd00c` |
+| moss strip (reads as a ledge; unused) | `f85cd9ee-de82-4776-9116-cee542205dc1` |
+| crates pair (came out grey; unused) | `c04c9c61-1cde-4bba-92b2-ae1deeae7e80` |
 | iron grate bridge, vertical | `a2a59aec-71c0-4e31-b29a-4a78190d5791` |
 
 ### Monsters (Pro Flash, 8 directions, 48 canvas ≈ 36 px body)

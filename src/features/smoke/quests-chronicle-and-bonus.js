@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=588';
-import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=588';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=589';
+import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=589';
 
 export default [
 
@@ -3148,7 +3148,7 @@ export default [
      carrot seeds (Farming 10 + a plot upgrade) and farmhand paid wheat (Farming 20).
      Mutation: put `carrot_seed: 3` back in START_INVENTORY ⇒ red. */
   () => tryRunAsync('W0 KIT-1: every seed in the starting kit plants at Farming 1, and the first harvest pays carrot seeds', async () => {
-    const KIT = await import('../../data/start-kit.js?v=588');
+    const KIT = await import('../../data/start-kit.js?v=589');
     const CROPS = window.CROPS || {};
     const bySeed = {};
     Object.keys(CROPS).forEach((k) => { if (CROPS[k] && CROPS[k].seed) bySeed[CROPS[k].seed] = CROPS[k]; });

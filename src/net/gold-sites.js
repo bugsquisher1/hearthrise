@@ -342,15 +342,8 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'vendor', status: 'wired', verb: 'vendor_sell_many',
     site: 'src/features/inv-context-menu.js settleJunk() — the sell-junk sweep',
   },
-  'seam:claim.daily_login': {
-    kind: 'grant', status: 'wired', verb: 'claim_reward',
-    site: 'src/features/daily-reward.js claim() — the daily login reward',
-    note: 'THE double-pay surface Security flagged. The local payment is a PREDICTION; the '
-      + 'server\'s envelope is applied ABSOLUTELY and `granted` is rendered, never added. '
-      + '`s.lastClaimDay` stays a local "have I shown the sheet" cache and stops being the '
-      + 'eligibility test — eligibility is the server\'s `not_claimable`, the only answer that '
-      + 'survives a second device.',
-  },
+  /* 'seam:claim.daily_login' RETIRED (lane C2): the daily login and its
+     `claim_reward` verb were deleted outright; daily-reward.js claims nothing. */
 
   // ══ THE DISPLAY-PREDICTION LAYER (b455) ═══════════════════════════════════
   /* These three are the ONLY rows in this ledger that describe gold moving the

@@ -2298,16 +2298,16 @@ export function __resetBaselineComplete() {
 
 /** Declare that the SERVER owns the full inventory bag on this client. THE MANUAL
  *  ARM STEP — nothing auto-calls this; it is taken deliberately, once, after the
- *  restore drill + wipe. Arming (v !== false) enforces two guards and THROWS if
- *  either fails, because a silent-inert arm is exactly the failure mode this
+ *  restore drill + wipe. Arming (v !== false) enforces its guards and THROWS if
+ *  one fails, because a silent-inert arm is exactly the failure mode this
  *  program has been burned by:
  *
- *   (a) DUNGEONS MUST BE LOADED. `serverOwnedItem` classifies an id that is BOTH a
- *       combat drop and dungeon loot (e.g. `magic_essence`) — an OVERLAP id — as
- *       EXCLUDED only once window.DUNGEONS is present; before boot it is
- *       classified OWNABLE, and an armed absolute envelope would DELETE a legit
- *       dungeon copy. So arming asserts DUNGEONS is present and rebuilds the
- *       partition against it (folding the loot tables into the excluded set).
+ *   (a) RETIRED with dungeons (lane C2, 2026-10-14). It asserted window.DUNGEONS
+ *       was loaded so overlap ids (dungeon loot that was also a combat drop)
+ *       were folded into the excluded set before an absolute envelope could
+ *       delete a dungeon copy. Dungeons are deleted for the wipe, so there is no
+ *       client-held dungeon copy left to protect; arming rebuilds the partition
+ *       against whatever item-authority reads, and nothing gates on DUNGEONS.
  *   (b) THE BASELINE-COMPLETE SIGNAL MUST HAVE BEEN OBSERVED. If armed while the
  *       server does not stamp `inventory_complete`, an empty-{} envelope would be
  *       indistinguishable from a complete-but-empty baseline and could WIPE the
@@ -2333,13 +2333,7 @@ export function markInventoryAuthorityLive(v) {
         + blockers.length + ' un-backed OWNABLE mint lane(s) remain — an absolute envelope would '
         + 'DELETE items a client path still mints without a server write. ' + blockers.join(' | '));
     }
-    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
-    if (!D || typeof D !== 'object') {
-      throw new Error('[accrue] refusing to arm inventory authority: window.DUNGEONS is not loaded. '
-        + 'Overlap ids (dungeon loot that is also a combat drop) classify OWNABLE before boot, so an '
-        + 'absolute envelope could delete a legit dungeon copy. Arm only after the game has booted.');
-    }
-    rebuildItemAuthority({ dungeons: D });   // fold loot tables into the excluded set
+    rebuildItemAuthority();
     if (!baselineCompleteSeen) {
       throw new Error('[accrue] refusing to arm inventory authority: no baseline-complete envelope has '
         + 'been observed (server is not stamping inventory_complete). An incomplete baseline could not '
@@ -2377,9 +2371,9 @@ export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
    enable flag alone this refuses.
 
    PROPERTIES THE SECURITY REVIEW MUST BE ABLE TO TRUST:
-     · IMPOSSIBLE TO ARM ACCIDENTALLY — five independent conditions must ALL hold
-       (enable flag, baseline signal observed, DUNGEONS loaded, no un-backed mint
-       lane, not already armed, not disarmed this session). Any one false ⇒ no-op.
+     · IMPOSSIBLE TO ARM ACCIDENTALLY — independent conditions must ALL hold
+       (enable flag, staged, an observed server grant, baseline signal observed,
+       no un-backed mint lane, not already armed, not disarmed this session). Any one false ⇒ no-op.
      · NEVER THROWS INTO THE ENVELOPE PATH — the whole body is wrapped; a refusal
        or an arm-gate throw is caught, logged, and retried on the NEXT envelope.
        A boot envelope can never crash the accrual apply because of this.
@@ -2436,8 +2430,6 @@ export function maybeAutoArm() {
     if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
     if (!isServerArmObserved()) return false;   // (3c) no OBSERVED server grant this session
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
-    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
-    if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
     if (flipArmBlockers().length) return false;      // (6) an un-backed OWNABLE mint lane remains
     /* Every precondition holds — throw the switch. markInventoryAuthorityLive
        re-checks the same guards and only throws if one regressed between here and
@@ -2632,16 +2624,14 @@ export function resetEnvelopeDrift() {
    ~658), so `envelopeDrift.destructive` IS the destructive-owned-omission count
    over the soak window. This accessor exposes it, plus the two arm preconditions,
    as one queryable object so the eventual arm gate (and a status readout / bug
-   report) can require: DUNGEONS loaded, the server stamping complete envelopes,
+   report) can require: the server stamping complete envelopes,
    and destructive === 0 for a sustained window BEFORE anyone calls
    markInventoryAuthorityLive(true). Pure read — no side effects. */
 export function inventoryFlipReadiness() {
-  const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
   const soakMs = envelopeDrift.since ? Math.max(0, nowMs() - envelopeDrift.since) : 0;
   return {
     armed: inventoryAuthorityLive,
     absolute: isInventoryAbsolute(),
-    dungeonsLoaded: !!(D && typeof D === 'object'),
     stage: INVENTORY_ARM_STAGE,
     staged: inventoryArmStagedNow,
     baselineCompleteSeen,
@@ -2657,7 +2647,7 @@ export function inventoryFlipReadiness() {
        arm gate enforces is satisfied AND the soak is clean. NOT an auto-arm: it
        reports readiness; a human still throws the switch. `minSoakMs`/`minSamples`
        are the caller's policy (default: any observed clean window). */
-    ready: !!(D && typeof D === 'object') && baselineCompleteSeen && envelopeDrift.destructive === 0,
+    ready: baselineCompleteSeen && envelopeDrift.destructive === 0,
   };
 }
 
@@ -2697,7 +2687,6 @@ export function flipDriftSummary() {
     /* WHICH BUILD SAID SO. A +24 h soak spans a release, and a destructive
        omission is only interpretable against the code that produced it. */
     build: (BUILD && BUILD.cache) || null,
-    dungeonsLoaded: !!r.dungeonsLoaded,
     baselineCompleteSeen: !!r.baselineCompleteSeen,
   };
 }
@@ -2713,7 +2702,7 @@ let _flipDriftTimer = null;
    per session instead of one per cadence tick. */
 function _flipDriftDedupeKey(s) {
   return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
-    s.lastLossMag, s.ready, s.armed, s.staged, s.build, s.dungeonsLoaded,
+    s.lastLossMag, s.ready, s.armed, s.staged, s.build,
     s.baselineCompleteSeen, s.transition || ''].join('|');
 }
 
@@ -2796,14 +2785,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=588';
+import * as itemLedger from './item-ledger.js?v=589';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=588';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=589';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2812,15 +2801,15 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=588';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=589';
 /* THE START KIT — the fresh-G bag hint the first envelope discards (see the
    START_INVENTORY block in reconcileInventory). The SAME frozen source the
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
-import { START_INVENTORY } from '../data/start-kit.js?v=588';
+import { START_INVENTORY } from '../data/start-kit.js?v=589';
 /* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
    spans a release). A frozen constant leaf — no cycle, no DOM. */
-import { BUILD } from '../build-info.js?v=588';
+import { BUILD } from '../build-info.js?v=589';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2838,25 +2827,25 @@ import { BUILD } from '../build-info.js?v=588';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=588';
+import * as pendingConsume from './pending-consume.js?v=589';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=588';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=589';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=588';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=589';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=588';
-import { capHoursFromVigour } from './offline-cap.js?v=588';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=589';
+import { capHoursFromVigour } from './offline-cap.js?v=589';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -3495,6 +3484,27 @@ export function hydrateHunt(G, res) {
       ? { ...a, at: Date.now() }
       : null;
     out.mode = 'server';
+  }
+
+  /* THE STAMINA POOL (Tyler 2026-10-14; 2026-10-22-hunt-sessions-settle.sql §4c)
+     — the hunt's one meter. The server's `stamina` projection {ms, at, max_ms,
+     hunting} lands in the `_stamina` scratch as {ms, atMs, maxMs, hunting},
+     REPLACED by every envelope that carries the key and never merged, predicted
+     or persisted (CLAUDE.md §6). A renderer may count from `atMs` for display
+     between envelopes; nothing gates on it — hr_hunt_enter refuses `no_stamina`
+     itself. Present-but-garbage → null ("unknown"), never a guess; absent →
+     untouched. */
+  if (res && typeof res === 'object' && Object.prototype.hasOwnProperty.call(res, 'stamina')) {
+    const s = res.stamina;
+    const n = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+    const at = s && typeof s === 'object' ? Date.parse(s.at) : NaN;
+    if (!s || typeof s !== 'object' || !Number.isFinite(n(s.ms)) || !Number.isFinite(n(s.max_ms)) || !Number.isFinite(at)) {
+      G._stamina = null;
+    } else {
+      G._stamina = { ms: Math.max(0, Math.floor(n(s.ms))), atMs: at, maxMs: Math.max(0, Math.floor(n(s.max_ms))),
+        hunting: s.hunting === true };
+      out.mode = 'server';
+    }
   }
   return out;
 }
@@ -4187,16 +4197,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   /* …and re-ask the SERVER whether the bag may be absolute at all, throttled.
      Same cadence as the thing that would do the deleting. */
   try { maybeRereadArmFlag(); } catch (e) {}
-  /* b465 — hand the envelope's progress rows to the daily-reward sheet: the
-     server's daily/login claim row is the marker that survives tab/save races
-     (the residue copy kept losing them and the sheet re-opened on a paid
-     reward). Guarded — a marker must never throw into an envelope apply. */
-  try {
-    const w = (typeof window !== 'undefined') ? window : null;
-    if (w && w.HearthriseDaily && typeof w.HearthriseDaily.markServerClaim === 'function') {
-      w.HearthriseDaily.markServerClaim(res && res.progress);
-    }
-  } catch (e) { /* a marker must never break an envelope */ }
   /* Ledger of Firsts — the server's kind='collection' claim rows mark the
      Collection-log rungs claimed, whatever the residue thought. Own try. */
   try {
@@ -4206,15 +4206,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   } catch (e) { /* a marker must never break an envelope */ }
   try {
     const w = (typeof window !== 'undefined') ? window : null;
-    /* b475/b498 — feed the WHOLE envelope so the daily-reward sheet can derive
-       the day the server will pay from the server's own daily/login claim rows
-       (`progress`) against the server's own clock (`now`).
-       ⚠ NOT `state.streak_days`. That is hr_apply's SETTLE streak — days
-         PLAYED, not days CLAIMED — and b475 rendering it as the login streak is
-         what made the sheet advertise Day 3 against a Day 1 payout (b497). */
-    if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
-      w.HearthriseDaily.noteServerStreak(res);
-    }
     /* THE HEARTHFIND (slate §2) — the WHOLE envelope to the reveal, from the one funnel
        every envelope passes (settle AND switch). It reads `res.hearthfind` (hr_apply's
        receipt, present only on the ORIGINAL response) and falls back to
@@ -4261,36 +4252,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
-  /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope
-     carries an `enchant` object, it is the truth: the server sets
-     `enchant.weapon` on a successful `enchant` verb and clears it whenever an
-     `equip` changes the weapon. Applied absolutely whenever present (element
-     name only — never a magnitude), and left ALONE when omitted (a server build
-     that predates the verb sends no `enchant`, and absence is not a claim, the
-     same rule skills follow above). Placed before both return paths so the
-     absolute-inventory branch does not skip it.
-
-     ⚠ IT IS A TOP-LEVEL KEY, NOT `state.enchant`, AND THIS READ WAS WRONG FROM
-       THE DAY IT SHIPPED (found 2026-09-14 by tests/no-client-copy-of-projection.mjs,
-       which asks the REPLAYED hr_state_of instead of trusting a comment).
-       2026-08-18-enchant.sql builds `'enchant', coalesce(v_st.enchant,'{}')` as a
-       SIBLING of `'state'`, and hr_apply returns hr_state_of's envelope verbatim —
-       so `st.enchant` was `undefined` on every envelope the game has ever applied
-       and this block never ran. `G.enchant` is not in RESIDUE_FIELDS either, so the
-       enchant a player paid for vanished from the browser on the next reload while
-       the server went on computing away combat with it: the ✦ badge disappeared and
-       equipmentStats() predicted damage the realm did not agree with (§6).
-       Both shapes are accepted (the src/render/bounty-progress.js precedent): the
-       key's PRESENCE is what is read, wherever the envelope carries it. */
-  const encSrc = (res && typeof res === 'object'
-                  && Object.prototype.hasOwnProperty.call(res, 'enchant')) ? res
-    : ((st && Object.prototype.hasOwnProperty.call(st, 'enchant')) ? st : null);
-  if (encSrc && encSrc.enchant && typeof encSrc.enchant === 'object' && !Array.isArray(encSrc.enchant)) {
-    const el = encSrc.enchant.weapon;
-    const ok = el === 'ember' || el === 'frost' || el === 'poison';
-    G.enchant = ok ? { weapon: el } : {};
-    written.enchant = G.enchant.weapon || null;
-  }
   /* HP + MAX HP ARE THE SERVER'S. One implementation, shared with the BOOT
      hr_load path (record.js) — see reconcileHp below for the full narrative. */
   Object.assign(written, reconcileHp(G, res) || {});
@@ -4436,14 +4397,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      before the inventory branch splits, so it rides EVERY envelope (away,
      activity-switch, gold) regardless of which return path the bag takes. */
   written.workers = reconcileWorkers(G, res);
-
-  /* THE COMPANION ROSTER IS THE SERVER'S UNDER ARM (blob-retire). Reconciled
-     here, alongside the crew, so it rides EVERY envelope (away, activity-switch,
-     gold) regardless of which return path the bag takes. Arm-gated inside — a
-     pure no-op while dormant, so today's path is byte-for-byte unchanged. The
-     boot hr_load path reconstructs through record.js's settle() (the always-full
-     envelope), which calls this same function. */
-  written.companions = reconcileCompanions(G, res);
 
   /* THE OWNED TRAIT SET IS THE SERVER'S (hr_trait_buy). Reconciled here so it
      rides EVERY envelope, and as a MIRROR: a trait the projection does not name

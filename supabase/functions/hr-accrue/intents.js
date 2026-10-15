@@ -438,15 +438,6 @@ export const INTENT_REGISTRY = Object.freeze({
      rate-limit its own next purchase. Batch the sell; do not widen the gate. */
   shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  /* b349 — THE FIRST GRANT INTENT. `collectsFirst: TRUE` since 2026-09-28
-     (SETTLE-BEFORE-MUTATE above). The b349 derivation — a claim's delta stamps
-     nothing, so nothing is confiscated — still holds and is still checked at
-     runtime (`deltaClosesWindow` / `guardStampKeys`). It is no longer the whole
-     question: a claim GRANTS, and today's only priced claimable (daily:login,
-     gold + gems) is not a priceable input, but the quest/goal claims waiting in
-     the registry grant tools (road_forge → iron_pickaxe, the production case).
-     The row is set for the verb, not for today's catalogue. */
-  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),
   /* b354 — THE UNLOCK PURCHASE. The `shop` bucket, with shop_buy and
      vendor_sell, because it is the same surface: a player spamming the shop
      should exhaust ONE budget, not three. A new bucket would also need a new
@@ -520,20 +511,6 @@ export const INTENT_REGISTRY = Object.freeze({
      map, and `MAX_EQUIP_OPS` is exactly the slot count for that reason); do not
      widen the gate. */
   equip: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
-  /* ── ELEMENTS/ENCHANTING v1 — A CLONE OF equip ───────────────────────────
-     `collectsFirst: TRUE`, for the IDENTICAL reason equip is: hr_apply stamps
-     `accrued_to = now()` on an `enchant` delta (it is added to §S5's stamping
-     condition alongside `equip`/`activity`), so an enchant that did not collect
-     first would discard every unpaid second since the last settle. The ORDER —
-     collect, then enchant — is what closes the "fight cheap all night, apply a
-     rune, settle the whole window at the enchanted element" class, exactly as
-     equip closes the naked→BiS one. `guardStampKeys` re-checks it against the
-     delta this verb builds (STAMP_KEYS carries 'enchant'), so a row flipped to
-     `false` produces `would_confiscate` rather than a silent confiscation.
-
-     `bucket: 'activity'`, shared with set_activity and equip — one surface (the
-     character's own loadout/pointer), one budget. */
-  enchant: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
   /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ──────────────────────
      `collectsFirst: TRUE` since 2026-09-28, and this row is the verdict's
      headline: a buff eaten at return was paid over the WHOLE absence (the
@@ -553,33 +530,6 @@ export const INTENT_REGISTRY = Object.freeze({
      froze — so a registry row naming an unknown bucket is a verb that 429s
      forever, not a wider budget. Reuse, do not widen. */
   eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
-  /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2) ───────────────────
-     `bucket: 'claim'`, and it is a RULING with a cost, argued like the market's:
-     a dungeon run's rewards are a REWARD CLAIM, and hr_rate_gate's bucket list is
-     a `case` in SQL whose last toucher (2026-08-16-claim-reward.sql) is FROZEN —
-     a fifth arm would need a `create or replace` of that gate and a new chain
-     link for a verb a player fires a few times a run. So it rides the `claim`
-     allowance, shared with claim_reward. THE COST, stated: a player spamming
-     claims + dungeon settles shares one budget. That is TIGHTER than the fuse the
-     RPC spends for itself (hr_rate_ok 'apply', 240/min), so the Edge gate is the
-     binding one and this adds no reachable write rate. Reuse, do not widen.
-
-     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): a run
-     grants loot into the bag, and loot includes tools and food. hr_dungeon_settle
-     still touches accrued_to nowhere (dungeon-settlement.md §2). */
-  dungeon_settle: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),
-  /* ── THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3) ─────
-     `bucket: 'shop'`, shared with unlock_buy: it IS a shop purchase (scrip out,
-     an item in), and hr_rate_gate already has a `shop` arm — so this reuses an
-     existing allowance rather than growing the frozen gate `case`. THE COST: it
-     shares the shop budget with unlock_buy; that is TIGHTER than the RPC's own
-     hr_rate_ok('apply', 240/min) fuse, so the Edge gate is the binding one and
-     this adds no reachable write rate. Reuse, do not widen.
-
-     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): it
-     credits an item into the bag. hr_quartermaster_buy still touches accrued_to
-     nowhere, so the settle is its own apply first. */
-  quartermaster_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ─────────────
      `bucket: 'claim'`, shared with claim_reward and dungeon_settle, and it is
      the same RULING those two made for the same reason: hr_rate_gate's bucket
@@ -618,6 +568,20 @@ export const INTENT_REGISTRY = Object.freeze({
      The delta carries `gold` and `items` only; guardStampKeys re-checks that on
      the delta actually built. */
   vendor_sell_many: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ─────────────────────────
+     `hunt_settle` — "bring my hunt up to date". The `accrue` bucket, because it
+     IS the accrue verb's job for a hunter (the accrue verb answers `hunt_open`
+     for one), and the same floor: a settle asked for inside ACCRUE_MIN_MS of
+     the last one writes nothing unless a leave/change is pending. No key: the
+     settle derives its own (session, swing, version, secret), so two racing
+     settles of one window land once.
+     `hunt_use` — a manual action-bar press, settled AT ONCE through the first
+     swing boundary at or after it. The `activity` bucket (the character's own
+     state is one surface — eat, equip, enchant); the player's key, because a
+     retried press must not fire twice.
+     `collectsFirst: false` for both: they ARE the settle. */
+  hunt_settle: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
+  hunt_use: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -661,13 +625,9 @@ export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === 
        because the pointer survives and the next window exists.
      · guardStampKeys — only a switch may propose a stamping delta. A settle verb
        that stamped would confiscate the remainder its settle just deferred.
-     · party-fence.js — a partied SWITCH is refused `party_hunt_running`; a
-       partied settle verb proceeds WITHOUT its settle once the party channel
-       pays (hr_party_tick_settle then prices it window by window); in SHADOW
-       it is refused like a switch (party-fence.js PARTY_CHANNEL_PAYS).
    A list and not a fourth registry column, so the mutation anchors every
    verb's guard pins on its registry row stay one row each. */
-export const SWITCH_VERBS = Object.freeze(['set_activity', 'equip', 'enchant']);
+export const SWITCH_VERBS = Object.freeze(['set_activity', 'equip']);
 
 /** Does this verb's own commit close the accrual window? */
 export function closesWindow(verb) {
@@ -711,25 +671,12 @@ export const INTENT_ERRORS = Object.freeze({
   BAD_ACTIVITY: 'bad_activity',                 // 400 — the declaration is malformed
   ACTIVITY_UNSUPPORTED: 'activity_unsupported', // 409 — a real kind the server cannot pay YET
   UNKNOWN_ACTIVITY: 'unknown_activity',         // 409 — not in the authored data
-  /* THE HUNT'S TWO STANDING ORDERS (2026-09-22, docs/design/HUNTS_AND_ANALYZER
-     .md §6). `set_activity` grows two OPTIONAL fields and NO new verb, so these
-     are activity-shape codes and they sit with their three neighbours above.
-     Each is answered from src/core/hunt.js — in process, before the rate gate
-     and before any database work — which is why all three are STATELESS below.
-       BAD_STANCE     400 — not a readable stance id at all
-       UNKNOWN_STANCE 409 — a real-looking id that is not in the catalogue. The
-                            same split as bad_activity vs unknown_activity, and
-                            for the same reason: "malformed request" files a bug
-                            against the wrong system.
-       BAD_STOP       400 — a stop object that is malformed, carries an unknown
-                            rule, or names a value OUTSIDE its published bounds.
-                            REFUSED, never clamped: a clamp lets a client
-                            discover a hidden maximum by pushing at one. */
-  BAD_STANCE: 'bad_stance',                     // 400 — unreadable stance field
-  UNKNOWN_STANCE: 'unknown_stance',             // 409 — not in the stance catalogue
-  BAD_STOP: 'bad_stop',                         // 400 — malformed or out-of-bounds stop rule
   NO_CHARACTER: 'no_character',                 // 409 — nothing to act on in this slot
   RATE_LIMITED: 'rate_limited',                 // 429
+  /* 403 — CLOSED MODE (Security, closed-mode review item 4): the account is
+     not admitted while the game is closed. Minted only by ./closed-gate.js,
+     from a rate-gate refusal hr_engine_closed confirmed (and journalled). */
+  CLOSED: 'closed',
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
@@ -744,8 +691,28 @@ export const INTENT_ERRORS = Object.freeze({
      `idle` is always allowed and NOTHING NON-PAYABLE IS GATED — building,
      shopping, travelling, the market and the clan all stay open. A knockout
      stops the character EARNING; it does not lock the player out. That is why
-     this is a per-KIND check against PAYABLE_KINDS and not a lock. */
+     this is a per-KIND check against PAYABLE_KINDS and not a lock.
+     ⚠ NOT EMITTED BY set_activity SINCE LANE C2: rev. 3 refused `combat` alone,
+     and a `combat` declaration is now `hunt_required` on shape. The code stays
+     in the published taxonomy because the client still renders it. */
   RECOVERING: 'recovering',
+  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ───────────────────────
+       hunt_required  409 — a `combat` declaration. A fight is a HUNT now:
+                      hr_hunt_enter opens one (with its bag and its action
+                      bar) and only the hunt settle prices it. Answered on
+                      SHAPE, before the rate gate and any database work.
+       hunt_open      409 — the character is on a hunt: its pointer belongs to
+                      the session (hr_hunt_leave / hr_hunt_change move it).
+       no_hunt        409 — a hunt verb for a character with no open session.
+       bad_bar_slot   400 — `hunt_use` without a readable action-bar index.
+       hunt_leaving   409 — a press while a leave/change is pending.
+       hunt_walking   409 — a press before the walk to the hunt is over. */
+  HUNT_REQUIRED: 'hunt_required',
+  HUNT_OPEN: 'hunt_open',
+  NO_HUNT: 'no_hunt',
+  BAD_BAR_SLOT: 'bad_bar_slot',
+  HUNT_LEAVING: 'hunt_leaving',
+  HUNT_WALKING: 'hunt_walking',
 
   /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
      Read the pairs. Each one exists because collapsing it into its neighbour
@@ -772,15 +739,6 @@ export const INTENT_ERRORS = Object.freeze({
      window, and the verb does not collect first. See guardStampKeys. */
   DELTA_WOULD_STAMP: 'delta_would_stamp',
 
-  /* ── b349, THE GRANT INTENT ─────────────────────────────────────────────── */
-  BAD_REWARD: 'bad_reward',                 // 400 — the naming is malformed
-  UNKNOWN_REWARD: 'unknown_reward',         // 409 — no such claimable, ever
-  /* 409 — a REAL claimable this server cannot own YET. Carries `needs`, read
-     out of the registry, so the answer says what would unblock it. The exact
-     shape `activity_unsupported` has, and for the same reason: a player told
-     "bad request" when the truth is "the server does not track your Renown yet"
-     files a bug against the wrong system. */
-  REWARD_UNAVAILABLE: 'reward_unavailable',
   /* 500-shaped, refused before the apply. The proposed delta would stamp
      accrued_to (see deltaClosesWindow) on a verb whose registry row says it
      does not collect first. Refusing costs one gesture; proceeding costs an
@@ -860,25 +818,6 @@ export const INTENT_ERRORS = Object.freeze({
      meaning one thing per code. */
   BAD_EQUIP: 'bad_equip',
 
-  /* ── ELEMENTS/ENCHANTING v1 ──────────────────────────────────────────────
-     ONE shape code minted HERE, everything else is hr_apply's own vocabulary
-     returned verbatim — the same bargain equip strikes:
-
-       bad_enchant          400/409 — the {slot,rune} is unreadable, OR hr_apply
-                            refused the delta's shape under the lock. SHARED with
-                            hr_apply; `stage` says which layer said it.
-       wrong_slot           409 — the target slot is not the weapon slot, OR the
-                            weapon slot holds no weapon. ⚠ SHARED with equip's
-                            and market_cancel's `wrong_slot`; one code, and the
-                            three can never appear on one verb.
-       unknown_item         409 — the rune is not in hr_runes (not a rune).
-       insufficient_item    409 — the player owns no copy of the rune. THIS IS
-                            THE DEBIT/OWNERSHIP CHECK, exactly as for equip.
-
-     `unknown_item` / `wrong_slot` / `insufficient_item` are NOT minted here —
-     inventing a second name for a refusal the database already names is how a
-     taxonomy stops meaning one thing per code. */
-  BAD_ENCHANT: 'bad_enchant',
 
   /* ── MANUAL FOOD CONSUMPTION (2026-08-25) ────────────────────────────────
      ONE code minted HERE; everything else about an eat is hr_apply's own
@@ -906,19 +845,6 @@ export const INTENT_ERRORS = Object.freeze({
        no-op at full server hp); wasting food at full HP is the client's call. */
   ITEM_NOT_FOOD: 'item_not_food',
 
-  /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2) ───────────────────
-     TWO codes minted HERE (shape/catalogue, answered before any database work);
-     everything else is hr_dungeon_settle's own vocabulary returned verbatim:
-       unknown_dungeon   409 — no such dungeon in the server catalogue. Minted
-                         here when the request carried no id; the RPC also raises
-                         it for an id absent from hr_dungeons.
-       bad_mode          400 — the mode is not auto|manual|scavenger.
-       level_locked · on_cooldown · daily_cap · insufficient_item (the key) ·
-       version_conflict · intent_mismatch · no_character · rate_limited —
-                         the RPC's own, returned verbatim (a second taxonomy is a
-                         taxonomy that agrees today). */
-  UNKNOWN_DUNGEON: 'unknown_dungeon',
-  BAD_MODE: 'bad_mode',
 
   /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ────────────
      ONE code minted HERE — the shape, answered from the parsed request before
@@ -974,10 +900,13 @@ export const STATELESS_REFUSALS = Object.freeze([
      answered from src/core/hunt.js before the rate gate and before any database
      work, so reading a state envelope for one would be exactly the database work
      the shape check exists to avoid. */
-  INTENT_ERRORS.BAD_STANCE,
-  INTENT_ERRORS.UNKNOWN_STANCE,
-  INTENT_ERRORS.BAD_STOP,
+  /* hunt_required is answered on SHAPE (a `combat` declaration), and
+     bad_bar_slot from the parsed request — both before any database work. */
+  INTENT_ERRORS.HUNT_REQUIRED,
+  INTENT_ERRORS.BAD_BAR_SLOT,
   INTENT_ERRORS.RATE_LIMITED,
+  /* closed is the rate gate's refusal, renamed: the same no-state read. */
+  INTENT_ERRORS.CLOSED,
   INTENT_ERRORS.NO_CHARACTER,
   /* The gold verbs' shape refusals, and they are on this list for exactly the
      reason the activity ones are: every one is answered from the CATALOGUE,
@@ -1001,18 +930,6 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.BAD_ITEM,
   INTENT_ERRORS.UNKNOWN_ITEM,
   INTENT_ERRORS.ITEM_NOT_SELLABLE,
-  /* b349 — the grant intent's three SHAPE-AND-REGISTRY refusals. Same reason as
-     the activity three above them: all are answered from the request and the
-     frozen registry, before any database work, so reading a state envelope for
-     them would hand a malformed client the rate budget the check exists to
-     protect (property A10 measures). Nothing was written, so the client's LAST
-     envelope is still current — which is what it reconciles to.
-     `would_confiscate` is deliberately NOT here: it is an ENGINE bug reached
-     after a real read, the caller has already paid for the envelope, and a
-     refusal it cannot reconcile from would leave the client guessing. */
-  INTENT_ERRORS.BAD_REWARD,
-  INTENT_ERRORS.UNKNOWN_REWARD,
-  INTENT_ERRORS.REWARD_UNAVAILABLE,
   /* b355 — the market verbs' two SHAPE refusals, on this list for the reason
      every other shape refusal is: both are answered from the parsed request
      alone, BEFORE the rate gate and before any database work, so reading a
@@ -1038,15 +955,6 @@ export const STATELESS_REFUSALS = Object.freeze([
        on a stateless allowlist that can also arrive stateful is precisely how a
        client ends up reconciling to an envelope that was never sent. */
   INTENT_ERRORS.BAD_EQUIP,
-  /* ELEMENTS/ENCHANTING v1 — the enchant verb's ONE shape refusal, answered
-     from the parsed request and the in-process catalogues (hr_runes /
-     hr_item_slots) BEFORE the rate gate and before any database work. Nothing
-     was written and NO COLLECT RAN, so a malformed enchant costs the player
-     nothing at all rather than a confiscated window — exactly as `bad_equip`.
-     ⚠ `bad_enchant` HAS TWO PRODUCERS like `bad_equip`: hr_apply raises it too,
-       from under the row lock, and THAT one carries an envelope.
-       `refusalCarriesState` is consulted only on this layer's own refusals. */
-  INTENT_ERRORS.BAD_ENCHANT,
   /* MANUAL FOOD CONSUMPTION — `item_not_food` is answered from the in-process
      ITEMS catalogue BEFORE the rate gate and before any database work, exactly
      like `item_not_sellable`, so reading a state envelope for it is the database
@@ -1055,19 +963,6 @@ export const STATELESS_REFUSALS = Object.freeze([
      `already_full` — the server never gates a full-hp eat (see the eat error
      block above for why that gate reproduced the live-combat P0). */
   INTENT_ERRORS.ITEM_NOT_FOOD,
-  /* THE DUNGEON SETTLE VERB — its two SHAPE/CATALOGUE refusals, answered from the
-     parsed request BEFORE the rate gate and before any database work, exactly like
-     bad_offer / unknown_offer. Nothing was written, so the client's LAST envelope
-     is still current. Everything else a dungeon settle can be refused for is a
-     fact about a ROW read under the lock (the version, the key, the cooldown, the
-     cap) and is hr_dungeon_settle's own code, returned verbatim WITH the envelope.
-     ⚠ `unknown_dungeon` HAS TWO PRODUCERS like `unknown_item`: the RPC raises it
-       too, from its own hr_dungeons lookup, and THAT one reached the database and
-       carries an envelope. refusalCarriesState is consulted only on this layer's
-       own refusals (the shape path returns before any read), so the RPC's copy is
-       never routed through this list. */
-  INTENT_ERRORS.UNKNOWN_DUNGEON,
-  INTENT_ERRORS.BAD_MODE,
   /* THE TROPHY CLAIM — its ONE shape refusal, answered from the parsed request
      BEFORE the rate gate and before any database work, exactly like bad_offer.
      Nothing was written, so the client's LAST envelope is still current.
@@ -1173,6 +1068,16 @@ export const SAFE_SKIP_REASONS = Object.freeze([
   'idle',            // SKIP.NO_ACTIVITY
   'below_min_span',  // SKIP.TOO_SOON      — see the fraction note above
   'nothing_accrued', // SKIP.NOTHING
+  /* SKIP.HUNT_OPEN (lane C2): the character is on a hunt and the session owns
+     the window — the hunt settle prices it, so there is nothing owed HERE and
+     nothing for a switch to confiscate. A switch is refused anyway (the
+     pointer guard / set-activity's hunt_open), so SAFE is the honest class. */
+  'hunt_open',        // SKIP.HUNT_OPEN
+  /* SKIP.HUNT_REQUIRED (closed rebuild, lane C2): a combat pointer with no
+     hunt session. The server never pays one, so no window is owed and a
+     switch away confiscates nothing; REFUSING here would freeze the character
+     on a pointer nothing can price (the C3 lockout). */
+  'hunt_required',    // SKIP.HUNT_REQUIRED
 ]);
 
 /** The other half of the partition. Exported so the coverage guard can assert

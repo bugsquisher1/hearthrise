@@ -41,17 +41,18 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=588';
-import { ITEMS } from '../data/items.js?v=588';
-import * as ST from './session-tally.js?v=588';
-import { fill } from './signposts.js?v=588';
-import { foeFamily } from '../render/foe-family.js?v=588';
-import { weaknessWords } from '../render/foe-weakness.js?v=588';
-import { SIGNPOSTS } from '../data/signposts.js?v=588';
-import { compactNumber } from '../net/balance.js?v=588';
-import { HUNTS } from '../data/hunts.js?v=588';
-import { BOSSES } from '../data/bosses.js?v=588';
-import { nextCharmAt } from '../core/charms.js?v=588';
+import { MONSTERS } from '../data/monsters.js?v=589';
+import { COMBAT_BALANCE } from '../core/combat.js?v=589';
+import { ITEMS } from '../data/items.js?v=589';
+import * as ST from './session-tally.js?v=589';
+import { fill } from './signposts.js?v=589';
+import { foeFamily } from '../render/foe-family.js?v=589';
+import { weaknessWords } from '../render/foe-weakness.js?v=589';
+import { SIGNPOSTS } from '../data/signposts.js?v=589';
+import { compactNumber } from '../net/balance.js?v=589';
+import { HUNTS } from '../data/hunts.js?v=589';
+import { BOSSES } from '../data/bosses.js?v=589';
+import { nextCharmAt } from '../core/charms.js?v=589';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:
@@ -94,7 +95,7 @@ function weaponLabel(t) { return (window.WEAPON_TYPES && window.WEAPON_TYPES[t])
 function combatLevel() { return typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : 1; }
 function tickMs() {
   if (typeof window.combatTickMs === 'function') { try { return window.combatTickMs(); } catch (e) { /* fall through */ } }
-  return (window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400;
+  return COMBAT_BALANCE.tickMs;
 }
 /** The unlock gate the whole game uses for a tier. One formula, one place. */
 function reqLevelFor(m) { return (((m && m.tier) || 1) - 1) * 15; }

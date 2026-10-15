@@ -554,45 +554,6 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tests/apply-order-honesty.mjs --selftest
 
-      # AND DOES THE MIGRATION'S VALIDATION ACTUALLY *RUN*?
-      # 2026-09-07-retreat.sql adds player_state.consec_falls and teaches hr_apply
-      # to allowlist, validate and write it. Its own §4 self-check is strong, but it
-      # proves the validation BY strpos — it asserts that the strings
-      # 'bad_consec_falls' and 'v_consec <> trunc(v_consec)' appear in the installed
-      # body. Text is not behaviour: a body can carry every one of those markers in
-      # a branch that never runs, and §4 reports success. This repo has shipped a
-      # guard that asserted nothing twelve times and they all had that shape.
-      #
-      # So this replays the REAL ordered chain and CALLS hr_apply as the engine
-      # role with each value a buggy engine or an attacker would send: 2.5, -1, 65,
-      # the string "3", null, true and 1e30 are each refused as bad_consec_falls
-      # with the column UNMOVED (a rejection has to roll back, not merely report);
-      # 0 — a kill's reset, which IS the rule — and 64, the blast radius, are
-      # admitted and written; the retreat delta (counter + idle pointer) applies as
-      # ONE write; an ACTIVITY key does not void the counter, which is the exploit
-      # that bites hardest here because every retreat carries one; an unknown delta
-      # key is still refused; hr_state_of projects the column; no client role holds
-      # EXECUTE and a real call as `authenticated` is refused 42501; and a second
-      # apply of the file leaves both bodies byte-identical with exactly one CHECK
-      # constraint (it patches bodies that are ten patches deep — a double-apply
-      # would be a silent corruption of the engine).
-      #
-      # --selftest plants two defects in the REAL migration text, both chosen
-      # because they APPLY CLEAN: the range predicate loses its ceiling arm (65 is
-      # admitted by the function and only the table CHECK stops it) and the type
-      # predicate is disarmed (a client-shaped STRING writes a server counter).
-      # Neither is covered by §4, which is exactly why an EXECUTED guard has to be.
-      # Per C4, base AND selftest: a selftest-only registration cannot tell a
-      # broken migration from a working guard.
-      #
-      # No credentials; production untouched. Measured 2026-09-07: 1 s base + 2 s
-      # selftest on the shared PGlite snapshot, so the 12-minute budget is unmoved.
-      - name: Retreat apply — hr_apply's consec_falls validation, by execution
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/retreat-apply.mjs
-          node tests/retreat-apply.mjs --selftest
-
       # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
       # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
       # (ran 19.3 min) with three prior runs at 18.5/16.2/14.7 min, while this
@@ -818,6 +779,39 @@ jobs:
           node tools/gen-hunts.mjs --selftest
           node tests/hunts-c1.mjs
           node tests/hunts-c1.mjs --mutate
+
+      # Lane C1 hunt sessions (2026-10-21-hunt-sessions*.sql, ruling HR-2026-10-14):
+      # the catalogue is GENERATED from src/data (supplies, rule subjects, limits,
+      # travel, vendor value); on the real chain the bag conserves across pack /
+      # settle / restock / change / leave, one session is open, forged qty / time /
+      # windows are refused, a press only re-orders, tally = Σ ledger, and a second
+      # apply is byte-identical. --mutate plants eleven body defects (each red on
+      # its arm) and two text defects the file's own §8 must refuse.
+      - name: Hunt sessions DB — bag, one open session, settle applier, tally = ledger
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-hunt-sessions.mjs --check
+          node tools/gen-hunt-sessions.mjs --selftest
+          node tests/hunt-sessions-db.mjs
+          node tests/hunt-sessions-db.mjs --mutate
+
+      # Lane C2 hunt sessions — THE SETTLE (supabase/functions/hr-accrue/
+      # hunt-settle.js + 2026-10-22-hunt-sessions-settle.sql, ruling
+      # HR-2026-10-14 §4): TICK-2 (no ctx.away / presence / cap read on the hunt
+      # path; presence inputs inert), the per-swing seed is HMAC-keyed by the
+      # 64-bit secret (an FNV text mix is red), max HP is raise-only (FX-4), the
+      # old path never prices a hunter, and on the REAL chain: 20 world-tick
+      # windows == one span (tally, bag, character, clock), a death with a
+      # client connected writes the same rows as one with none, tally = Σ
+      # ledger, a press lands at its first swing boundary and never before, and
+      # a dry bag ends the hunt. --mutate plants 9 engine, 2 live-body and 3
+      # migration-text defects; each must go red.
+      - name: Hunt sessions settle — TICK-1/TICK-2, both paths, tally = ledger, keyed seed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-sessions-settle.mjs
+          node tests/hunt-sessions-settle.mjs --closed
+          node tests/hunt-sessions-settle.mjs --mutate
 
       # 2026-10-11-name-moderation.sql (Security): a name other players see is
       # the server's to refuse and to take back. On the WHOLE chain, as the
@@ -1065,46 +1059,6 @@ jobs:
           node tests/vendor-sell-many.mjs
           node tests/vendor-sell-many.mjs --mutate
 
-      # M8 SLICE 2 — THE PARTY AS A ROSTER UNIT, IN SHADOW. The three migrations
-      # carry their own §4 blocks (Security's §18-SEC.3 S2 list, executed at
-      # apply time and refusing to install otherwise); this is the STANDING half,
-      # and it asserts three things a §4 block structurally cannot.
-      #
-      #   P-IDEM  the three files re-apply byte-identically. tools/apply-migration
-      #           .mjs is run by hand, at speed, on a file that may already be in.
-      #           It runs BEFORE the fixture is planted, because file 1's §7(z)
-      #           requires the two S2 tables to be EMPTY after an apply.
-      #   P-ARM   the ARMED branch END TO END on a throwaway database: four
-      #           hr_apply calls in one transaction, the party mark and all four
-      #           member marks advancing TOGETHER (invariant 8 as a fact rather
-      #           than a promise), the carrier cleared, `meta->'party'` readable
-      #           at the level hr_apply actually writes it and the two wrong
-      #           spellings pinned empty. The migration cannot arm itself — file
-      #           2's §5(z) requires `shadow` TRUE after the apply — so the armed
-      #           half has nowhere else to live, and S5 flips an operator switch
-      #           over code no later review sees.
-      #   P-FENCE invariant 8 at the INTENT door, driven through the real
-      #           party-fence.js bytes the edge deploys: a partied character's own
-      #           accrue refused party_settle_required, every collectsFirst verb
-      #           party_hunt_running, a non-collecting verb untouched, and an
-      #           UNPARTIED character NOT refused — the last of which is what
-      #           tells a fence apart from a wall.
-      #
-      # Every call is made AS THE ROLE THAT HOLDS IT — the settle as hr_engine,
-      # both rosters as hr_tick — because driving them as the replay's owner
-      # passes either way and measures a door nobody in production knocks on.
-      #
-      # --mutate plants four defects, each of which the MIGRATIONS' OWN §4 blocks
-      # must refuse at apply time, which is the strongest verdict available: a
-      # thirteenth (nested) journal key that metaProblems() cannot see (B-A5),
-      # `exception when others` in the armed handler (B-A3), a member set the CAS
-      # must reject being accepted (S-9), and the two rosters overlapping (S-8).
-      - name: M8 parties — the roster unit and the one-call settle, in shadow
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-settle.mjs
-          node tests/party-settle.mjs --mutate
-
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
       # migration's own §5 self-check CANNOT RUN THE DERIVATION on the
@@ -1178,7 +1132,6 @@ jobs:
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
 
-
       # THE BESTIARY TROPHY LADDER, BOTH HALVES (docs/design/BESTIARY_LADDER.md).
       # It lives in THIS job and not in client-guards because its second arm
       # rebuilds a real PostgreSQL from the chain, which is what this job already
@@ -1218,26 +1171,6 @@ jobs:
       - name: Bestiary trophies - base run
         if: ${{ !cancelled() }}
         run: node tests/bestiary-trophy.mjs
-
-      # THE SHIPPED CALL SITES PASS THE MONSTER ID (Security F4/F5, 2026-09-22).
-      # The trophy index is keyed by monster id and no roster row carries one, so
-      # weaknessInfo resolves it off its fifth argument and playerCombatRolls off
-      # ctx.monsterId -- which combatCtx correctly does not carry, because it is
-      # built once per loadout. Neither call site passed it, so the Fight screen
-      # quoted 1.15 where the server pays 1.1845 at Nemesis, and the away seam
-      # maxHit is rolled through had the same hole. bestiary-trophy.mjs T6 is
-      # structurally blind to it: it passes monsterId itself. This guard builds
-      # nothing -- both callers are lifted out of the SHIPPED bytes and executed,
-      # the client one against the real src/core-bridge.js.
-      - name: Trophy call sites - the fight screen quotes what the server pays
-        if: ${{ !cancelled() }}
-        run: node tests/trophy-call-sites.mjs --selftest
-
-      # A --selftest-only registration cannot tell a broken guard from a caught
-      # defect. Run the plain body too: only it answers "green when nothing is wrong".
-      - name: Trophy call sites - base run
-        if: ${{ !cancelled() }}
-        run: node tests/trophy-call-sites.mjs
 
       # ABSENCE MUST STAY ABSENCE ON THE TROPHY WIRE (Security F3, 2026-09-22).
       # hr-accrue/index.ts reads the claimed trophy rows behind a savepoint that
@@ -1494,52 +1427,6 @@ jobs:
           node tests/party-split.mjs
           node tests/party-split.mjs --mutate
 
-      # M8 SLICE 4 — THE HUNT INTENTS, AND THE SETTLE BOUNDARY PRICED. The three
-      # migrations carry their own §4 blocks (Security's §18-SEC.3 S4 list plus
-      # §18-SEC-2.2's B-A1 and B-A6, executed at apply time and refusing to
-      # install otherwise); this is the STANDING half. A four-member party is
-      # formed through the REAL membership verbs, starts a hunt, is settled once
-      # in SHADOW through S2's own hr_party_tick_settle, and is then kicked, left
-      # and stopped.
-      #
-      #   P-IDEM   the three files re-apply byte-identically — and file 2 PATCHES
-      #            two existing bodies (hr_party_kick, hr_party_leave) by anchored
-      #            pg_get_functiondef replacement, so this is also the proof that
-      #            the patch is SKIPPED on a second apply rather than stapled in
-      #            twice. It runs BEFORE the fixture is planted, because both
-      #            files' §(z) arms require the S4 tables EMPTY after an apply.
-      #   P-SETTLE the last window goes through S2's settle and NOTHING else:
-      #            four hr_tick_shadow rows, the attribution key set as an
-      #            EQUALITY, zero ledger rows, the party watermark moved by the
-      #            settle rather than by the verb. A second settle path on a
-      #            client verb is S-3 and AWAY-12 in one move.
-      #   P-B-A1   the eight-boundary budget across ALL FOUR doors — start, stop,
-      #            leave, kick — which no single migration arm can walk end to
-      #            end because it is a property of the four verbs together.
-      #
-      # ★ B-A6 is the arm to read first: a start with one of four members' windows
-      #   still open is refused member_uncollectable and writes ZERO ROWS — no
-      #   hunt, no boundary spent, no pointer moved, no watermark moved, no
-      #   left_at. ★ T-3 is the second: a kick whose settle cannot run is refused
-      #   with left_at UNWRITTEN, the key released and no boundary spent, and the
-      #   same kick then LANDS once the settle has run.
-      #
-      # --mutate plants five defects, each of which the MIGRATIONS' OWN §4 blocks
-      # must refuse at apply time: a start that stops counting against the eight
-      # (B-A1), a start that writes ONE member's pointer instead of all four
-      # (B-A6), a kick that closes the row although the settle could not run
-      # (T-3), a stop that calls hr_party_tick_settle itself (S-3), and a
-      # party_settle_required refusal that hands the leader the watermark no
-      # caller may read. THREE of them are then re-run with the migration's §6
-      # gate neutered, so the node arms have to catch them on their own — which
-      # is the only state that matters the day somebody edits a verb without
-      # re-running the apply.
-      - name: M8 parties — the hunt intents, T-3 and the eight-boundary budget
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-hunt.mjs
-          node tests/party-hunt.mjs --mutate
-
       # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
       # MEASURE. Written by the security-engineer role during the review of
       # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
@@ -1572,7 +1459,6 @@ jobs:
         run: |
           node tests/client-state-retired-fields-adversarial.mjs
           node tests/client-state-retired-fields-adversarial.mjs --selftest
-
 
   # ── db-replay-5 ── SPLIT OUT OF db-replay-3 2026-10-06 (CI-SPLIT-5). The
   # GitHub run for e585a031 (branch next, run 37470960216) CANCELLED db-replay-3
@@ -1636,72 +1522,6 @@ jobs:
         run: |
           node tests/world-tick-parity.mjs
           node tests/world-tick-parity.mjs --mutate
-
-      # ONE WINDOW IS PAID ONCE. The lane that staged the tick claimed two
-      # defences against a replayed window and had one: Security executed the
-      # "belt and braces" watermark claim and found hr_apply clamps the
-      # TIMESTAMP and applies the VALUE regardless, so a replay carrying a fresh
-      # version paid twice and moved accrued_to zero milliseconds
-      # (SEC_WORLD_TICK_GATHER_2026-09-19.md S-3). This guard is the exit code
-      # for the defence that closes it, plus the two rollout controls the
-      # milestone is armed behind: the kill switch and SHADOW mode.
-      #
-      # --mutate re-runs every arm against RAW hr_apply — the pre-fence path,
-      # which is production behaviour and not a synthetic defect — and requires
-      # each one to go red. The two arms whose defence hr_apply ALREADY had (the
-      # version compare-and-set) are marked as shared and do not invert; they
-      # are regression arms, so neither path can quietly lose it.
-      # THE COMBAT CHANNEL, M3 (WORLD_TICK_DESIGN.md §16). Combat is the third
-      # tick channel and the hard one: deaths, the recovery clock, auto-eat,
-      # drop tables, and eleven engine inputs a gather window does not need.
-      #
-      # It exists because the sibling above was BLIND, not wrong. P1 compares
-      # the tick's engine input against the accrue path's for byte-identity and
-      # has been green while the tick ran combat with AUTO-EAT OFF and the
-      # accrue path ran it ON — its only auto-eat fixture is a maxed character
-      # at 99 HP fighting a slime who never reaches the 50% threshold, so the
-      # handler never fires and the two contracts are indistinguishable on that
-      # data. Measured on a fixture that CAN tell them apart: 48 kills / 276
-      # gold against 139 / 788. -65.0% gold, and the death counters run the
-      # other way (a rung-7 character handed the first-death novice grace).
-      #
-      # C1 therefore derives the accrue path's engine-input key set from
-      # hr-accrue/index.ts's OWN SOURCE, in both directions, so a key added
-      # there and not to the tick is red on that commit. C2 asserts every
-      # window of a whole chain is byte-identical against an independently
-      # constructed accrue caller. C13 measures the progress-op cliff on every
-      # run: an ordinary 90 s flush files up to 69 ops against hr_apply's
-      # c_max_progress_ops of 64.
-      #
-      # --mutate plants twelve defects including the four the milestone brief
-      # names — skip the food debit, shift the window by 1 s, relabel the seed
-      # (Security T-2), a free heal on death (b509) — and each must turn the
-      # NAMED claim red, not merely something.
-      - name: World tick — the combat channel, window for window
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-combat-parity.mjs
-          node tests/world-tick-combat-parity.mjs --mutate
-
-      # SECURITY'S OWN ARMS ON THE SEED LABEL, against a REAL PostgreSQL.
-      # world-tick-combat-parity has no database, so it can state the label's
-      # SHAPE and no more; this file asks pglite what Postgres actually renders
-      # a timestamptz as inside JSON, which is the spelling hr_seed is hashed
-      # over. S-M3-1 reads the label the shipped loop resolves for EVERY window
-      # (the chain, not the helper — windows 2..N used to carry the `...Z`
-      # spelling, Security T-2); S-M3-2 holds pgTimestamptzText to the server on
-      # an exact second and on three millisecond precisions, because Postgres
-      # trims trailing zeros and omits the fraction entirely on an exact second
-      # and a 10 s cadence lands there constantly.
-      #
-      # --mutate puts BOTH defects back and every arm must go RED; it exits 0
-      # only when they did. (Filed 2026-09-22 as a failing proof, so
-      # SEC_WORLD_TICK_M3_2026-09-22.md records the opposite --mutate sense.)
-      - name: World tick — the combat seed label, against a real Postgres
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/sec-world-tick-m3-seed-label.mjs
-          node tests/sec-world-tick-m3-seed-label.mjs --mutate
 
       - name: World tick — one window is paid once, and only when armed
         if: ${{ !cancelled() }}
@@ -1859,16 +1679,6 @@ jobs:
           node tests/world-tick-armed-cap.mjs
           node tests/world-tick-armed-cap.mjs --mutate
 
-      # Security review of armed-cap (SEC_GATHER_ARM_RUNBOOK_2026-10-06): the M4
-      # blocker (an ARMED party settle is refused fenced_24h / fenced_cap per
-      # member, whole window) and F2b (an ONLINE character is not an armed
-      # stall sentinel; a real stall still reads STALLED). --mutate: 8 mutants.
-      - name: World tick — armed party windows fenced per member; online is not a stall
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-party-fences.mjs
-          node tests/world-tick-party-fences.mjs --mutate
-
       # Security G1 (party-fences review): tools/vitals.mjs restates the armed
       # stall judge (the read-only role cannot execute hr_tick_stall_status).
       # Both judges run on the same 15 replayed fixtures (F2b: online = not
@@ -1879,27 +1689,6 @@ jobs:
         run: |
           node tests/vitals-armed-parity.mjs
           node tests/vitals-armed-parity.mjs --mutate
-
-      # Security (c) 1-7 on party-fences + the Game Designer ruling: a fenced
-      # party member is DROPPED from the hunt (probe-time, armed only, own locked
-      # mark + own cap) and the rest keep being paid; rejoin forward-only after
-      # their own solo settle, clamped 3/day; under two hunters ends the hunt.
-      # ATTENDED and AWAY ledger sums. --mutate: 15 mutants.
-      - name: World tick — a fenced party member is dropped, the rest are paid
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-party-drop.mjs
-          node tests/world-tick-party-drop.mjs --mutate
-
-      # Security PD1 on party-drop: a party hunt >= 24 h behind is never
-      # rostered, so its members stay partied and every accrue is refused. The
-      # owner-only reaper (pg_cron, 10 min) ends it as a server Stop in every
-      # mode, journalled per hunter; nothing paid. --mutate: 10 mutants.
-      - name: World tick — a party hunt nobody can tick is reaped
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-party-reaper.mjs
-          node tests/world-tick-party-reaper.mjs --mutate
 
       # Security P3 on the party-reaper verdict: a party hunt started while
       # combat is disarmed is never ticked, so its members' accrue is refused
@@ -2016,7 +1805,6 @@ jobs:
           node tests/world-tick-token-failclosed.mjs
           node tests/world-tick-token-failclosed.mjs --selftest
 
-
   # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
   # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
   # job (tests/run-smoke.mjs), but their --mutate/--selftest proofs were wired
@@ -2061,9 +1849,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/market-v2.mjs --selftest
 
-      - name: Auto-eat at creation — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/auto-eat-at-creation.mjs --selftest
+      # (Auto-eat at creation — RETIRED 2026-10-14 by lane C2 with Auto-Eat
+      # itself: tests/hunt-sessions-db.mjs D1 asserts the switch and its columns
+      # are gone. Deliberately unregistered, not forgotten.)
 
       - name: Bounty difficulty count — mutation proof
         if: ${{ !cancelled() }}
@@ -2254,18 +2042,6 @@ jobs:
           node tests/xp-frac-carry.mjs
           node tests/xp-frac-carry.mjs --mutate
 
-      # THE PET'S FRACTIONAL XP IS CARRIED AND ITS CAP IS THE SERVER'S
-      # (2026-10-12-companion-xp-frac.sql). A tick chain pays a utility and a
-      # combat pet exactly what one span does (the Fox on mithril earns > 0),
-      # attended == away, the remainder folds per key and is server-only, and
-      # hr_apply clamps companion XP at the cap, journalled. --mutate plants six
-      # JS defects in a copy and ten SQL defects into the migration's §4.
-      - name: Companion XP fraction carry + server cap (base + mutate)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/companion-xp-frac.mjs
-          node tests/companion-xp-frac.mjs --mutate
-
       # EVERY DELTA-KEY ALLOWLIST COVERS EVERY KEY THE ENGINE CAN PROPOSE
       # (2026-10-13-party-settle-frac-keys.sql). The proposable set is DERIVED
       # from accrual.js / tick-gather.js; hr_apply's c_delta_keys, the party
@@ -2306,7 +2082,6 @@ jobs:
           node tests/mutant-control.mjs
           node tests/mutant-control.mjs --selftest
 
-
   # ── db-replay-8 ── SPLIT OUT OF db-replay-5 2026-10-08 (CI-SPLIT-6). The
   # GitHub run for 3ea45544 (set/b565 on next, run 37725703255) CANCELLED
   # db-replay-5 at its own 20-min timeout: "the parity probe writes its own
@@ -2318,8 +2093,8 @@ jobs:
   # side, all on ONE core of a four-core runner, with PB-1/PB-2/PB-2p and every
   # mutant re-running the same (fixture, start, span, seed) chains. Fixed in the
   # same lane WITHOUT touching a replica count, a fixture or a bar: the
-  # replicas run across worker threads (tools/world-tick-replay-pool.mjs) and
-  # probe-bar computes each distinct chain once (tests/_probe-bar-chains.mjs);
+  # replicas ran across worker threads and probe-bar computed each distinct
+  # chain once (both deleted with the solo combat channel, lane C2);
   # every read prints byte-identically to the serial code (diffed: probe-bar
   # plain and --mutate, the evaluator's --selftest, vigour-line plain and
   # --mutate). The pricing family (probe, resume line, perks/bestiary, Vigour
@@ -2364,40 +2139,21 @@ jobs:
       # --mutate plants a player_state write, a shadow_accrued_to advance, a
       # shadow-journal insert, a dropped lease and a dropped chain-head check,
       # and requires each RED by name at apply AND in the guard.
-      # world-tick-probe-bar calibrates the ruling's bar on 4 h fixture spans
-      # (green) and pins the max_hp shadow-carrier finding; --mutate requires
-      # fixedSeed/shiftWindow/noAutoEat/freeHeal/skipFoodDebit/resumeMisalign
-      # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
-      # eligibility rules on planted rows, and the COMBAT REPLAY BAR
-      # (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": ±10 % and ≤ 3 se on
-      # the seeded replay expectation, realised read by z ≤ 3.29, every probe
-      # |z| ≤ 4.3) on the no-food fixture through the shipped engine at 120
-      # replicas: correct PASS, +12 % FAIL. world-tick-seed-no-leak holds the
-      # probe's stored seed (secret-equivalent, SEC_PROBE_RETAIN_2026-10-06)
-      # out of every print, export, fixture and CI read; --mutate plants seven.
+      # tools/world-tick-parity.mjs --selftest proves the evaluator's
+      # eligibility rules and the GATHER bar on planted rows (the solo combat
+      # channel, its seeded replay bar, probe-bar calibration, resume line and
+      # max-HP carry were deleted with the channel, lane C2: a fight is a hunt
+      # session). world-tick-seed-no-leak holds the probe's stored seed
+      # (secret-equivalent, SEC_PROBE_RETAIN_2026-10-06) out of every print,
+      # export, fixture and CI read; --mutate plants eight.
       - name: World tick — the parity probe writes its own rows and the bar bites
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-parity-probe.mjs
           node tests/world-tick-parity-probe.mjs --mutate
-          node tests/world-tick-probe-bar.mjs
-          node tests/world-tick-probe-bar.mjs --mutate
           node tools/world-tick-parity.mjs --selftest
           node tests/world-tick-seed-no-leak.mjs
           node tests/world-tick-seed-no-leak.mjs --mutate
-
-      # THE RESUME LINE, TO THE TICK (SEC_WORLD_TICK_PROBE_2026-10-05.md (c)).
-      # The probe bar cannot see a resume defect under ~4 min per fall, so the
-      # resume is pinned deterministically: after a knockout the first swing
-      # lands exactly on recovering_until, attended and away, in a window,
-      # across a carrier boundary and through the 10 s settler. --mutate
-      # requires three one-tick-off mutants (late gate, early stamp, late
-      # carrier) RED on the assertion each names.
-      - name: World tick — the first swing after a knockout lands on the recovery line
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-resume-alignment.mjs
-          node tests/world-tick-resume-alignment.mjs --mutate
 
       # THE PERK STACK (2026-09-28). hr_perks_of is not an envelope field, so
       # the tick priced every window at zero perks — the standing -2.56% XP gap.
@@ -2405,60 +2161,16 @@ jobs:
       # runTick for a Library-5 character and requires its shadow XP to equal
       # the accrue path's over the same window, seed and perks. --mutate
       # removes the read in a temp copy and requires P3 red.
-      # THE BESTIARY (2026-09-28, Security N4). hr_bestiary_of is not an
-      # envelope field either, so every combat window priced with no charm and
-      # no trophy. tick.js (4b) makes the collect path's BESTIARY_SQL read; this
-      # fires twelve 20,000-kill goblin fighters and requires each shadow delta
-      # to equal the accrue path's. --mutate plants "read dropped" and "wrong
-      # fold" in temp copies and requires B3 red for each.
-      - name: World tick — a tick window prices the perks and bestiary an accrue prices
+      # THE BESTIARY (2026-09-28, Security N4) moved with combat in lane C2:
+      # tests/world-tick-bestiary-parity.mjs drove the SOLO combat tick, which
+      # is retired (a solo fight is a hunt session). Its property and both of
+      # its mutants ("read dropped", "wrong fold") are tests/hunt-sessions-settle
+      # .mjs arm BESTIARY, registered under "Hunt sessions settle".
+      - name: World tick — a tick window prices the perks an accrue prices
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-perks-parity.mjs
           node tests/world-tick-perks-parity.mjs --mutate
-          node tests/world-tick-bestiary-parity.mjs
-          node tests/world-tick-bestiary-parity.mjs --mutate
-
-      # VIGOUR UNDER SUBDIVISION (2026-10-05, the 09-29 combat parity read:
-      # gold -71.8%, xp -35.5%). A tired payout was floored per settle window
-      # and a chain of 10 s windows never spent its own budget. Replays the real
-      # 09-29 span both ways; --mutate reverts each fix in a temp copy.
-      - name: World tick — a tired hunt pays the same however often it is settled
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-vigour-scale.mjs
-          node tests/world-tick-vigour-scale.mjs --mutate
-
-      # THE VIGOUR LINE IS AN INSTANT, NOT A BLEND (2026-10-06, probes 8/10 on
-      # edge 6205e4e0). A span crossing the budget paid ONE blended multiplier:
-      # +17.6% ticks / +15% gold+xp chain over the one-span accrue on probe 8's
-      # exact input. Probe 10 (wholly tired) is parity and its +42% is chance.
-      # VL3: wholly tired pays [0.22, 0.28] of rested per kill and a crossing
-      # span sits between (catches the 4x overpay mutants the parity arms
-      # miss); VL4 pins AWAY_RATE_MULT === 1 (the line is a wall-clock instant).
-      - name: World tick — a span crossing the Vigour line pays in time order
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-vigour-line.mjs
-          node tests/world-tick-vigour-line.mjs --mutate
-
-      # MAX HP FOLLOWS A MID-CHAIN HITPOINTS LEVEL-UP (2026-10-05, probe-bar
-      # PB-2: the shadow chain fought at the frozen ceiling, -14% ticks). Both
-      # chain shapes against the one-span accrue; --mutate drops each half.
-      - name: World tick — a Hitpoints level-up inside the chain raises max HP
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-maxhp-carry.mjs
-          node tests/world-tick-maxhp-carry.mjs --mutate
-
-      # THE PET'S XP ON THE TICK (2026-10-08, Security-confirmed underpay: the
-      # tick passed `char.companionXpBacked`, never set, so no companion XP op
-      # ever left a tick window). Chain vs one span; --mutate reverts each half.
-      - name: World tick — a tick chain credits companion XP like one accrue span
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-companion-xp.mjs
-          node tests/world-tick-companion-xp.mjs --mutate
 
       # ONE TICK WINDOW FILES ONE OP PER PROGRESS ROW (2026-10-08, Security P2:
       # a 90 s gather window filed 46-55 of hr_apply's 64 ops). Coalesced ==
@@ -2506,7 +2218,6 @@ jobs:
 
       - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
         run: node tests/artisan-accrual.mjs --selftest
-
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
@@ -2603,6 +2314,30 @@ jobs:
       # assertion in it, and that is the class this whole slice is about.
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
+
+      # HUNT SESSIONS, the engine half (ruling HR-2026-10-14 §4, lane E). Pure
+      # src/core, no DB. TICK-1: N ten-second ticks equal one span byte for byte
+      # (session, bag, tally, events, ledger-shaped fx) through falls, knock-outs,
+      # arrows and a Feast; BOTH-PATH: settles cut where a connected client's
+      # presses cut them write what the bare world tick writes; TICK-MANUAL: a
+      # press equals its matching rule; BAG: loaded = used + left; HEAL: "*heal"
+      # covers the missing HP before it saves gold; END: END_ORDER; BUFF: the SQL
+      # segment rule. --mutate plants eight defects, each red on its named arm.
+      - name: Hunt sessions — one swing clock, action bar, bag, end order
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-session-engine.mjs
+          node tests/hunt-session-engine.mjs --mutate
+
+      # THE ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14: 2.0 s, every player and
+      # monster basic attack). I1 the value; I2 core, hr-accrue and a real hunt
+      # agree on it; I3 moving the constant moves the engine, and no second
+      # numeric copy exists under src/ or the edge. --mutate: five defects.
+      - name: Basic attack — one 2.0 s interval, one source
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/basic-attack-interval.mjs
+          node tests/basic-attack-interval.mjs --mutate
 
       # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
       # itself can fail. The guard already runs inside run-smoke; its --selftest
@@ -2748,38 +2483,13 @@ jobs:
       # readable signal. It gets parity here: 26 mutations, and the clean
       # control the --selftest re-runs per arm proves the guard passes in CI
       # in its own right. No credentials; production untouched.
-      - name: Attended loot-credit — top-up bounded, loot-only, botd per UTC-day segment
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/attended-loot-credit.mjs
-          node tests/attended-loot-credit.mjs --selftest
-
-      # THE DUNGEON-SCRIP SERVER-OF-RECORD GUARDS (SA-015, docs/design/
-      # dungeon-settlement.md). Report #3 was "dungeon scrip goes to 0 on reload"
-      # — scrip minted client-side, wiped by the blob-retired rebuild. These prove
-      # the server-of-record fix END TO END on the REAL migration chain (PGlite):
-      # the earn (hr_dungeon_settle) with its 5,000-gross / 250-count daily fuses
-      # and the Condition-3 rule that a Quartermaster SPEND (negative meta.scrip)
-      # can never net down the earn cap; the spend (hr_quartermaster_buy) server-
-      # priced + debit-once + replay-safe; the marketability shape (scrip/keys
-      # BoP, blueprints/deed tradeable — Tyler b268); and the reload survival
-      # itself (hr_state_of projects the balance, record.js reads it back). Each
-      # --selftest plants real defects and demands every one turns the guard RED.
-      # The GREEN pass is the PLAIN line in each step below. (It used to say it ran
-      # "inside run-smoke's dungeonServerGuardsPreflight" — there is no such function
-      # in tests/run-smoke.mjs and there never was, so until 2026-09-12 no CI job ran
-      # these four guards' plain bodies at all.)
-      - name: Dungeon settle — scrip earn, positive-only cap, 250-count cap, key gate
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/dungeon-settle.mjs
-          node tests/dungeon-settle.mjs --selftest
-
-      - name: Quartermaster buy — server-priced, debit-once, replay-safe, negative spend row
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/quartermaster-buy.mjs
-          node tests/quartermaster-buy.mjs --selftest
+      # (Attended loot-credit — RETIRED 2026-10-14 by lane C2: the attended
+      # top-up, hr_attended_kills and hr_credit_kills are deleted by the hunt
+      # sessions ruling. What replaces it: settle-carry-defer D6 and
+      # world-tick-combat-parity C10 (an attended claim is INERT on every path),
+      # hunt-sessions-settle TICK-2 (no edge file names the attended credit) and
+      # hunt-sessions-db D1 (the functions are dropped). Deliberately
+      # unregistered, not forgotten.)
 
       - name: Dungeon marketability — scrip/keys BoP, blueprints/deed stay tradeable
         if: ${{ !cancelled() }}
@@ -2843,41 +2553,6 @@ jobs:
         run: |
           node tests/state-of-farm-projection.mjs
           node tests/state-of-farm-projection.mjs --selftest
-
-      # THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07,
-      # supabase/migrations/2026-09-07-last-away-receipt.sql). A receipt the
-      # server PAID is progression, not preference: G.lastOfflineSummary is a
-      # NO_SYNC field (src/net/events.js:93), so ONE reload deleted the Home
-      # "While you were away" card, the welcome-back modal and the combat recap
-      # for a night the server had already paid, journalled and banked.
-      # The feature can fail in two OPPOSITE directions and the guard asserts
-      # both: it can write TOO LITTLE (the card is still empty), or TOO OFTEN --
-      # a receipt on every 90 s settle is ~40 column writes/hour/character on the
-      # hottest row in the database, which is the game_events mistake with a new
-      # name (1.6M rows / 229 MB from SIX players in FOUR days).
-      # It grades the SHIPPED code, not a transcription: awayReceiptFor lives in
-      # supabase/functions/hr-accrue/away-receipt.js (plain ESM, imports in Node
-      # AND Deno) exactly so this file can import what deploys, and hr_apply is
-      # CALLED FOR REAL on a replayed chain -- the builder's own output lands, is
-      # projected, round-trips through summaryFromAway and survives a settle that
-      # omits the key, while sync-sized / over-window / oversized / unknown-key /
-      # negative / gold-over-delta / window-less / non-object receipts are all
-      # refused with bad_receipt. It also holds the two allowlists and the three
-      # copies of SYNC_MAX_MS to each other, and proves index.ts recomputes the
-      # receipt on EVERY degrade attempt (the ladder halves the span; a receipt
-      # computed once would be refused as sync-sized and 409 the whole absence).
-      # 8 mutations; the four SQL arms are run GATE-BLIND (the migration's own
-      # SEC4 short-circuited) so the tick is the guard's and not the migration's.
-      # No credentials; production untouched.
-      - name: Away receipt journal - the night the server keeps, and the 90s one it must not
-        if: ${{ !cancelled() }}
-        run: node tests/away-receipt-journal.mjs --selftest
-
-      # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
-      # migration from a working guard (every arm throws either way). Run the base too.
-      - name: Away receipt journal - base run (the migration itself is green)
-        if: ${{ !cancelled() }}
-        run: node tests/away-receipt-journal.mjs
 
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
@@ -3103,31 +2778,6 @@ jobs:
         run: |
           node tests/absence-priced-at-return.mjs
           node tests/absence-priced-at-return.mjs --mutate
-
-      # THE GRANT INTENT (b349). The first intent that MOVES MONEY, so the
-      # invariants are about payment: a claim lands exactly once, the price and
-      # the period and the streak are all the server's, a replay receipts
-      # nothing, and one key reused on a later day is a loud intent_mismatch
-      # rather than a silent no-op. --selftest plants 23 regressions and demands
-      # every one is caught.
-      - name: The grant intent — claim once, server-priced, server-dated
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/claim-intent.mjs
-          node tests/claim-intent.mjs --selftest
-
-      # THE DAILY LOGIN REWARD (2026-10-16-login-reward.sql, W0 #9). The
-      # generated SQL catalogue is rewards.js byte for byte; SQL and JS price
-      # and streak alike over every case; a played claim, a missed day (one step
-      # back, never day 1) and the claim after it pay exactly the catalogue; and
-      # hr_apply refuses any other price. --mutate: five JS defects (reset on a
-      # miss, multiplier overflow, no wrap, unclaimed row counts, supplies
-      # dropped) and three SQL defects the migration's §4 must stop.
-      - name: Daily login reward — one step per missed day, x3 cap, server re-price (base + mutate)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/login-reward.mjs
-          node tests/login-reward.mjs --mutate
 
       # THE HARVEST DAILY IS DEALT ONLY TO A FARMER (2026-10-16-daily-harvest-
       # eligibility.sql, game-designer 2026-10-10). No seeds or no plot -> never
@@ -3423,80 +3073,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bestiary-ladder.mjs
 
-      # ── M6: HUNTS, THE ANALYZER AND VIGOUR (2026-09-22) ──────────────────
-      # docs/design/HUNTS_AND_ANALYZER.md. Three guards, each with its mutation
-      # proof, registered HERE because run-ci-local.mjs derives its step list by
-      # parsing this file (CLAUDE.md §5) — a guard registered anywhere else is a
-      # guard Tyler's machine never runs.
-      #
-      # THE ONE RULE THE FIRST GUARD HOLDS: a stance may never introduce a
-      # multiplier, a rate or a bonus (design §2.2). Its S4 arm exists because
-      # the naive implementation DID carry power — `careful` asks for a 0.75
-      # auto-eat threshold and Auto-Eat I's ceiling is 25%, so handing the
-      # stance's number straight to the simulation gives every player the
-      # 100-mark Auto-Eat II entitlement for free. Its S5 arm drives the same
-      # window attended AND away and requires the hunt to end at the same
-      # moment (AWAY-1); the mutations patch the ENGINE, not this guard's
-      # expectations, so a moved goalpost cannot read as a catch.
-      # No database, no credential, seconds.
-      - name: Hunt stance and stop rules - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-stance-stop.mjs --selftest
-
-      # A --selftest-only registration cannot tell a broken guard from a caught
-      # defect. Run the plain body too: only it answers "green when nothing is wrong".
-      - name: Hunt stance and stop rules - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-stance-stop.mjs
-
-      # THE ANALYZER IS ARITHMETIC OVER THE JOURNAL, and this proves every field
-      # equals a sum computed in JavaScript from the SAME fixture rows — not
-      # against a second SQL query, which would be the same arithmetic asked
-      # twice. Also proves the absence that matters: a restart forgets the night
-      # WITHOUT deleting a journal row, which is why there is no per-hunt
-      # counter table to reset (design §3). Replays the chain in PGlite.
-      - name: Hunt Analyzer - every field is a hand-computed sum
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-analyzer.mjs --selftest
-
-      - name: Hunt Analyzer - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-analyzer.mjs
-
-      # VIGOUR IS A MONEY SURFACE. The refill RPC is driven for real against a
-      # rebuilt database: the catalogue price is charged once, a replayed key
-      # debits nothing, the per-day cap refuses WITHOUT taking gold, and five
-      # refills never pass the 22-hour ceiling that keeps "richest player hunts
-      # most" from becoming "richest player hunts always". Its ceiling arms run
-      # against a CLAN-PERKED character, because at the floor grant the numbers
-      # saturate exactly (720 + 5x120 = 1,320 = 22 h) and the ceiling branch is
-      # unreachable — the first draft of that guard passed both ceiling
-      # mutations for precisely that reason.
-      - name: Vigour - the budget, the ceiling and the gold sink
-        if: ${{ !cancelled() }}
-        run: node tests/vigour.mjs --selftest
-
-      - name: Vigour - base run
-        if: ${{ !cancelled() }}
-        run: node tests/vigour.mjs
-
-      # THE CHARGE MUST NOT DEPEND ON HOW OFTEN A PLAYER SETTLES. Finding S-1
-      # of docs/planning/SEC_HUNTS_M6_2026-09-22.md, and a P0: the charge floored
-      # PER WINDOW and discarded the remainder, so an hour of hunting cost 40
-      # Vigour minutes at an ordinary 90 s poll and ZERO at a sub-minute
-      # set_activity loop (which is exempt from ACCRUE_MIN_MS by design, b531) —
-      # a limiter rounded toward the player is a limiter that does not exist,
-      # and the gold and loot it let through are tradeable. This guard was RED
-      # BY DESIGN and carried by tests/guards-unregistered.json until the fix;
-      # its mutations now plant the defect BACK and every arm must catch it.
-      # Drives the real computeAccrual. No database, no credential, seconds.
-      - name: Vigour charge conservation - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/vigour-charge-conservation.mjs --selftest
-
-      - name: Vigour charge conservation - base run
-        if: ${{ !cancelled() }}
-        run: node tests/vigour-charge-conservation.mjs
+      # tests/hunt-analyzer.mjs RETIRED by lane C2: the pointer-era
+      # hr_hunt_analyzer(uuid,int) it graded is dropped by
+      # 2026-10-22-hunt-sessions-delete-away.sql. The SESSION analyzer
+      # (C1's hr_hunt_analyzer on a session) has no hand-computed-sum guard
+      # yet — reported as a lane C2 known limitation, not covered here.
 
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.
@@ -3639,8 +3220,6 @@ jobs:
           node tests/lore-notes.mjs --selftest
           node tests/lifetime-tally.mjs
           node tests/lifetime-tally.mjs --selftest
-          node tests/companion-pays-parity.mjs
-          node tests/companion-pays-parity.mjs --selftest
           node tests/companion-promise-parity.mjs
           node tests/companion-promise-parity.mjs --selftest
 
@@ -3934,6 +3513,15 @@ jobs:
         run: |
           node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
+
+      # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
+      # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
+      # has a walk and a sensible bag, and every end reason has plain copy.
+      - name: Supplies catalogue - hunt bag, action bar and end card data
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/supplies-catalogue.mjs --selftest
+          node tests/supplies-catalogue.mjs
 
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
@@ -4345,7 +3933,6 @@ jobs:
       - name: Guard hygiene — base run
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs
-
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on

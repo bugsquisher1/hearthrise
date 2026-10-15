@@ -2444,11 +2444,12 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
   /* No `?v=` here: a cache-buster is a browser mechanism, bump-version.sh walks
      src/ only so this one froze at ?v=328, and Node ignores the query anyway.
      tools/pack-edge.mjs `versionQueryGuard()` now fails the build on one. */
-  let computeAccrual; let ITEMS_DATA; let MONSTERS_DATA;
+  let computeAccrual; let ITEMS_DATA; let MONSTERS_DATA; let NODES;
   try {
     ({ computeAccrual } = await import('../supabase/functions/hr-accrue/accrual.js'));
     ({ ITEMS: ITEMS_DATA } = await import('../src/data/items.js'));
     ({ MONSTERS: MONSTERS_DATA } = await import('../src/data/monsters.js'));
+    ({ GATHER_NODES: NODES } = await import('../supabase/functions/hr-accrue/catalogue.js'));
   } catch (e) {
     divergences.push(`accrual phase skipped: ${e.message}`);
     return { ran: false };
@@ -2465,19 +2466,22 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
     return { ran: false };
   }
 
-  const monster = Object.keys(MONSTERS_DATA)[0];
+  /* A GATHERING pointer (closed rebuild, lane C2): a fight outside a hunt
+     session is never priced, so the away ladder is walked on the payable kind
+     the away path still prices. */
+  const NODE = 'normal_tree';
   const stats = { grants: 0, replays: 0, degraded: 0, forfeits: 0, minted: 0 };
 
   for (const key of keys) {
     const c = books.char(key);
     for (const round of [0, 1]) {
-      // Put the character on a real combat activity with a real start clock.
+      // Put the character on a real gathering activity with a real start clock.
       await db.query(
         `update player_state
-            set active_kind = 'combat', active_id = $3,
+            set active_kind = 'gather', active_id = $3,
                 active_since = now() - interval '6 hours',
                 accrued_to   = now() - interval '6 hours'
-          where user_id = $1 and slot = $2`, [c.uid, c.slot, monster]);
+          where user_id = $1 and slot = $2`, [c.uid, c.slot, NODE]);
       c.version += 0; // a direct UPDATE, not an intent: version is untouched
 
       // ROUND 1 squeezes the bank to ONE stack so a real accrual delta trips
@@ -2502,13 +2506,21 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
 
       const env = {
         nowMs: Number(st.n), accruedToMs: Number(st.a), activeSinceMs: Number(st.s),
-        activeKind: 'combat', activeId: monster, capMs: 12 * 3600000,
+        activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000,
         seed: 1234567, hp: Number(st.hp), maxHp: Number(st.max_hp), gold: Number(st.gold),
-        skills, equipment, items: ITEMS_DATA, monsters: MONSTERS_DATA,
+        skills, equipment, items: ITEMS_DATA, monsters: MONSTERS_DATA, nodes: NODES,
       };
 
       let out = computeAccrual(env);
-      if (!out.accrued) continue;
+      if (!out.accrued) {
+        /* Nothing to price: the squeezed cap must still be restored, or the
+           next phase inherits a one-stack bank (a skipped restore read as a
+           bank_full far from here). */
+        await db.query('update player_state set bank_cap = 100 where user_id = $1 and slot = $2', [c.uid, c.slot]);
+        c.bankCap = 100;
+        divergences.push(`accrual phase: the ${NODE} window for ${key} priced nothing (${out.reason}) — the ladder was not walked`);
+        continue;
+      }
 
       // The version comes from the MODEL, not from a fresh read. Re-reading it
       // here would paper over any version drift the ladder introduced, and

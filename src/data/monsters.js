@@ -70,7 +70,7 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=588';
+import { applyClassProfiles } from './monster-classes.js?v=589';
 
 export const MONSTERS = {
 
@@ -153,7 +153,7 @@ export const MONSTERS = {
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12],
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
-      { id: 'fang_studs', ch: .0008, lucky: true }] },
+      { id: 'fang_studs', ch: .0007, lucky: true }] },   // .0008 -> .0007 (lane C2): at the 2.0 s swing the bat dies 1.2x as often; 4.0 -> 4.6 expected hours, back inside lucky-finds' [4, 30] band
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },

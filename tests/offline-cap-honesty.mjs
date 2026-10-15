@@ -17,9 +17,11 @@
 //   OCH-3  on CODE lines (classify() from comment-ratio-ratchet.mjs), no string
 //          literal puts a number of hours or a percentage next to offline/away, or
 //          raise/extend next to "away limit"/"offline cap", outside the allowlist.
-//   OCH-4  legacy.js offlineCapHours reads G._vigour and no client perk; chain-end
-//          hr_vigour_of floors at c_base_h*60 over hr_offline_cap_ms; the
-//          2026-09-22 anchored patch projects vigour and is in the apply order.
+//   OCH-4  legacy.js offlineCapHours reads G._vigour and no client perk; and
+//          since lane C2 (closed rebuild) Vigour is DELETED: hr_vigour_of is
+//          dropped after its last definition in the apply order and the
+//          chain-end hr_state_of projects no `vigour`, so the client meter is
+//          never written and no surface can promise a Vigour-derived cap.
 //
 // Credential-free, database-free. Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -31,8 +33,7 @@ import { classify } from './comment-ratio-ratchet.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const VIGOUR_PATCH = '2026-09-22-vigour-daily.sql';
-const VIGOUR_ANCHOR = "'vigour', public.hr_vigour_of";
+const VIGOUR_DROP = 'drop function if exists public.hr_vigour_of(uuid, integer);';
 
 /* A private copy of codex-claims' chain-end reader (that one is module-private). */
 function chainEndBody(order, sql, fn) {
@@ -156,11 +157,17 @@ export function check(w) {
     if (/HearthriseRenown|HearthriseHomestead|HearthriseClans|offlineBonusHours/.test(fnBody)) fail('OCH-4', 'offlineCapHours reads a client perk');
     if (!/_vigour/.test(fnBody)) fail('OCH-4', 'offlineCapHours does not read the server meter (G._vigour)');
   }
-  const vig = chainEndBody(w.order, w.sql, 'hr_vigour_of');
-  const floor = vig && /c_floor_min\s+constant\s+int\s*:=\s*(\d+)/i.exec(vig.text);
-  if (!floor || Number(floor[1]) !== baseH * 60) fail('OCH-4', 'hr_vigour_of c_floor_min != c_base_h*60 (' + (floor && floor[1]) + ' vs ' + baseH * 60 + ')');
-  if (!vig || !/greatest\s*\(\s*c_floor_min[\s\S]{0,200}hr_offline_cap_ms/i.test(vig.text)) fail('OCH-4', 'hr_vigour_of grant is not greatest(c_floor_min, hr_offline_cap_ms)');
-  if (w.order.indexOf(VIGOUR_PATCH) < 0 || (w.sql[VIGOUR_PATCH] || '').indexOf(VIGOUR_ANCHOR) < 0) fail('OCH-4', VIGOUR_PATCH + ' does not project vigour in hr_state_of');
+  /* The last file that DEFINES hr_vigour_of must be followed by one that
+     DROPS it, and the chain-end projection must not name it. */
+  let lastDef = -1; let lastDrop = -1;
+  w.order.forEach((f, i) => {
+    const t = (w.sql[f] || '').replace(/--[^\n]*/g, '');
+    if (/^create or replace function public\.hr_vigour_of\s*\(/im.test(t)) lastDef = i;
+    if (t.indexOf(VIGOUR_DROP) >= 0) lastDrop = i;
+  });
+  if (lastDrop < 0 || lastDrop < lastDef) fail('OCH-4', 'hr_vigour_of is not dropped after its last definition — Vigour is still a server meter');
+  const st = chainEndBody(w.order, w.sql, 'hr_state_of');
+  if (!st || /'vigour'|hr_vigour_of/.test(st.text)) fail('OCH-4', 'the chain-end hr_state_of (' + (st && st.file) + ') still projects vigour');
   return bad;
 }
 
@@ -172,7 +179,8 @@ const edit = (w, where, key, from, to) => {
   return c;
 };
 const capFile = (w) => chainEndBody(w.order, w.sql, 'hr_offline_cap_ms').file;
-const vigFile = (w) => chainEndBody(w.order, w.sql, 'hr_vigour_of').file;
+const stateFile = (w) => chainEndBody(w.order, w.sql, 'hr_state_of').file;
+const dropFile = (w) => w.order.find((f) => (w.sql[f] || '').indexOf(VIGOUR_DROP) >= 0);
 const RENOWN_TERM = "  if coalesce(v_renown_high, 0) >= 400 then v_hours := v_hours + 1; end if;\n";
 const SERF = "perk: null,                            unlock: 'The Serf title";
 
@@ -184,8 +192,15 @@ function selftest(w) {
     ['M4a renown term in SQL, RANKS mismatched (none)', 'OCH-2', (x) => edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4')],
     ['M4b renown term in SQL, RANKS says +2', 'OCH-2', (x) => edit(edit(x, 'sql', capFile(x), '  if coalesce(v_clan_lv, 0) >= 4', RENOWN_TERM + '  if coalesce(v_clan_lv, 0) >= 4'), 'files', 'src/features/renown.js', SERF, "perk: { offlineHours: 2 }, unlock: 'The Serf title")],
     ['M5 HearthriseRenown read back in offlineCapHours', 'OCH-4', (x) => edit(x, 'files', 'src/legacy.js', 'var A=window.HearthriseAccrual;', 'var A=window.HearthriseAccrual; var R=window.HearthriseRenown;')],
-    ['M6 c_floor_min 600', 'OCH-4', (x) => edit(x, 'sql', vigFile(x), 'c_floor_min   constant int := 720;', 'c_floor_min   constant int := 600;')],
-    ['M7 vigour anchor text removed', 'OCH-4', (x) => { const c = clone(x); c.sql[VIGOUR_PATCH] = c.sql[VIGOUR_PATCH].split(VIGOUR_ANCHOR).join("'vigour_x', public.hr_vigour_of"); return c; }],
+    ['M6 the drop of hr_vigour_of removed', 'OCH-4', (x) => edit(x, 'sql', dropFile(x), VIGOUR_DROP, '-- (kept)')],
+    ['M7 the chain-end hr_state_of projects vigour again', 'OCH-4', (x) => {
+      const c = clone(x); const f = stateFile(x); const t = c.sql[f];
+      const at = t.search(/^create or replace function public\.hr_state_of\s*\(/im);
+      const v = t.indexOf("'version',", at);
+      if (at < 0 || v < 0) throw new Error('selftest anchor missing in ' + f + ": hr_state_of's 'version',");
+      c.sql[f] = t.slice(0, v) + "'vigour', public.hr_vigour_of(p_user, p_slot), " + t.slice(v);
+      return c;
+    }],
     ['M8 "+25% offline progress" back on Hearth Hall', 'OCH-3', (x) => edit(x, 'files', 'src/legacy.js', '3 character slots and exclusive cosmetics.', '3 character slots, +25% offline progress, exclusive cosmetics.')],
   ];
   let caught = 0;

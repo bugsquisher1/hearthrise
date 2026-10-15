@@ -63,7 +63,9 @@ export async function accrueEnvelopeAwayGuard() {
       const end = idx.indexOf('A refused / replayed aux settle', start);
       const branch = idx.slice(start, end < 0 ? start + 2500 : end);
       // The accrued:true return in this branch must carry an away receipt.
-      const ret = branch.match(/return json\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/);
+      /* `respond(...)` since lane C2 (hunt sessions): the same json() return,
+         with a hunter's session view attached — the payload literal is unchanged. */
+      const ret = branch.match(/return (?:json|await respond)\(\{\s*ok:\s*true,\s*accrued:\s*true[\s\S]*?\}\);/);
       if (!ret) {
         fail('SOURCE: could not find the accrued:true return inside the standalone-settle branch');
       } else if (!/\baway\b/.test(ret[0])) {
@@ -99,7 +101,7 @@ export async function accrueEnvelopeAwayGuard() {
   }
 
   /* == PART 1b - THE MAIN AWAY RECEIPT STATES THE STOP AND THE RECOVERY =====
-     (2026-09-07, QA's P1.) The engine has stated all nine of these for builds -
+     (2026-09-07, QA's P1; combat's four left with lane C2.) The engine has stated these for builds -
      `src/core/artisan-sim.js` returns burnt/stoppedBy/stoppedById/stoppedSkill/
      stoppedPerHour, `src/core/skill-sim.js` the four non-rate ones,
      `src/core/combat-sim.js` deaths/recoverMs/recoverRemainingMs/recoverLadder -
@@ -125,9 +127,14 @@ export async function accrueEnvelopeAwayGuard() {
         + 'fix it before trusting green');
     } else {
       const block = idx.slice(start, end);
+      /* LANE C2: the four combat fields (deaths / recoverMs /
+         recoverRemainingMs / recoverLadder) left this payload with the away
+         combat path — a fight is a hunt session, settled by hunt_settle and the
+         world tick, and its falls ride the session tally (hunt.falls / down_ms),
+         never the accrue receipt. The accrue path prices gathering and benches,
+         and these five are the stops those engines state. */
       const RECEIPT_FIELDS = [
         'burnt', 'stoppedBy', 'stoppedById', 'stoppedSkill', 'stoppedPerHour',
-        'deaths', 'recoverMs', 'recoverRemainingMs', 'recoverLadder',
       ];
       for (const key of RECEIPT_FIELDS) {
         const m = block.match(new RegExp('^\\s*' + key + ':([\\s\\S]*?)(?=\\n\\s*(?:/\\*|[a-zA-Z]+:))', 'm'));

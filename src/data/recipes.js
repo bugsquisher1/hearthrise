@@ -13,17 +13,17 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=588';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=588';
-import { SLOT_RECIPES } from './slot-ladders.js?v=588';
+import { GEAR_RECIPES } from './gear-tiers.js?v=589';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=589';
+import { SLOT_RECIPES } from './slot-ladders.js?v=589';
 /* b356 — the review-book catalogue's faucets. APPENDED ONLY: this import and
    the two `LIB2_RECIPES.*` terms in ARTISAN_RECIPES below are the whole edit,
    so the parallel Runecrafting/Stonemason lanes merge without a conflict. */
-import { LIB2_RECIPES } from './library2-items.js?v=588';
-import { ITEMS, foodClassOf } from './items.js?v=588';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=588';
+import { LIB2_RECIPES } from './library2-items.js?v=589';
+import { ITEMS, foodClassOf } from './items.js?v=589';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=589';
 /* W0 (2026-10-10): the boss materials' recipes — src/data/boss-forge.js. */
-import { BOSS_FORGE_RECIPES } from './boss-forge.js?v=588';
+import { BOSS_FORGE_RECIPES } from './boss-forge.js?v=589';
 
 const BASE_RECIPES = {
   cooking: [

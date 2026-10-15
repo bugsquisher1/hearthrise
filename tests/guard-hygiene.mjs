@@ -7,6 +7,8 @@
 //   node tests/guard-hygiene.mjs --selftest  # every mutation must be CAUGHT
 //   node tests/guard-hygiene.mjs --json
 //
+// mutant-anchors: none — every --selftest mutation transforms an in-memory copy of the tree (readTree), never a file
+//
 // ── WHY THIS EXISTS ─────────────────────────────────────────────────────
 // Two failures, both silent, both measured in this repo on 2026-09-06.
 //
@@ -398,8 +400,8 @@ const MUTATIONS = [
     why: 'the cheapest way to silence rule 1 is a one-word reason. The allowlist is where the debt is '
        + 'written down; "TODO" is a quieter orphan, not a decision',
     mutate: (t) => ({ ...t, allowlist: { ...t.allowlist,
-      guards: { ...t.allowlist.guards, 'enchant-intent.mjs': { reason: 'later' } } } }),
-    expect: /UNREASONED: tests\/enchant-intent\.mjs/,
+      guards: { ...t.allowlist.guards, 'market-offers-guard.mjs': { reason: 'later' } } } }),
+    expect: /UNREASONED: tests\/market-offers-guard\.mjs/,
   },
   {
     id: 'M4-a-registered-guard-file-is-deleted',
@@ -424,8 +426,8 @@ const MUTATIONS = [
     why: 'somebody registers an allowlisted guard and forgets to remove the entry. The list then '
        + 'over-reports the debt, which is how a list stops being trusted and then stops being pruned',
     mutate: (t) => ({ ...t,
-      workflowText: t.workflowText + '\n      - name: adopted\n        run: node tests/enchant-intent.mjs\n' }),
-    expect: /STALE ALLOWLIST ENTRY: tests\/enchant-intent\.mjs/,
+      workflowText: t.workflowText + '\n      - name: adopted\n        run: node tests/market-offers-guard.mjs\n' }),
+    expect: /STALE ALLOWLIST ENTRY: tests\/market-offers-guard\.mjs/,
   },
   {
     id: 'M7-a-header-comment-is-not-an-implementation',

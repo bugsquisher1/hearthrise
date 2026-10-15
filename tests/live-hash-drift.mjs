@@ -346,7 +346,7 @@ export async function sweep(sources) {
   const byName = new Map();
   /** @param {boolean} [touches] does this file RESTATE the body (see ATTRIBUTION
    *  above)? A read-only pin still TRACKS the name; it never claims the install. */
-  const note = (name, rule, file, touches = true) => {
+  const note = (name, rule, file, touches = true, build = true) => {
     if (!byName.has(name)) byName.set(name, { rules: new Set(), files: new Set() });
     const e = byName.get(name);
     e.rules.add(rule);
@@ -356,7 +356,15 @@ export async function sweep(sources) {
     // a build keeps a name TRACKED past a drop it evidently survived, which is
     // the fail-closed direction — the drop decision may keep measuring a body
     // that is gone, never stop measuring one that is there.
-    if (file && rule === 'pin') addTo(builtIn, name, file);
+    //
+    // EXCEPT an OVER-COLLECTED literal (`build` false): a loop-driven reader
+    // takes every signature literal in its file, and a file that DROPS a body
+    // lists it there too ("these must be gone"). Such a literal proves only that
+    // the file NAMES the body, not that the body exists — so it tracks the name
+    // without counting as a build. The drop is still believed only as far as it
+    // is MEASURED: a body either side still carries is reported (classifyLive /
+    // classifyReplay, selftest cases drop_did_not_take_* / dropped_but_live_*).
+    if (file && rule === 'pin' && build) addTo(builtIn, name, file);
   };
   const restated = new Map();
   const shapeless = [];
@@ -400,9 +408,24 @@ export async function sweep(sources) {
        pg_get_functiondef gate: such a file may mention pg_get_functiondef only
        inside a raise-message string, which codeOnly() keeps. */
     {
-      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,160}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|[a-z_][a-z0-9_]*)/gi)];
+      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,240}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|to_regprocedure\(\s*([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*\)|([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*::\s*regprocedure|[a-z_][a-z0-9_]*)/gi)];
       let prosrcHits = 0;
       for (const r of oidReads) {
+        if (r[3] || r[4]) {
+          /* LOOP-DRIVEN (2026-10-22-hunt-sessions-delete-away.sql pins four bodies
+             from a `values` table; 2026-10-22-closed-mode-ungated-rpcs.sql reads
+             six from a `foreach` array): `oid = to_regprocedure(r.sig)` or
+             `oid = f::regprocedure`. The loop variable cannot be resolved
+             statically, so — exactly as the pg_get_functiondef loop rule below —
+             every signature literal in the file is taken. Over-collection is the
+             safe direction. */
+          let loopHits = 0;
+          for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
+            if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); loopHits += 1; }
+          }
+          prosrcHits += loopHits;
+          continue;
+        }
         if (r[2]) {
           // inline form: `where oid = to_regprocedure('public.name(args)')`
           if (SIGLIT.test(r[2])) { const n = r[2].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }
@@ -457,7 +480,7 @@ export async function sweep(sources) {
            direction: an extra tracked body costs one baseline row, a missing one
            costs the whole point of the guard. */
         for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
-          if (SIGLIT.test(m[1])) { sig(m[1]); found += 1; }
+          if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); hits += 1; found += 1; }
         }
       }
       if (!found) shapeless.push(`${f}: pg_get_functiondef(${v}::regprocedure) — cannot resolve the signature`);
@@ -1231,6 +1254,30 @@ async function selftest() {
       want: (t) => t.get(V) && !t.get(V).dropped,
       why: 'expected the name to stay TRACKED (no .dropped mark) because a later file re-creates it',
     },
+    dropping_file_lists_the_gone_body: {
+      what: 'the 2026-10-22 delete-away shape: the dropping file also runs a LOOP-driven prosrc '
+          + 'reader whose values list names the dropped body ("these must be gone"). An '
+          + 'over-collected literal is a mention, not a build, so the drop is believed — and still '
+          + 'measured on both sides (drop_did_not_take_replay / dropped_but_live_still_has_it)',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', `${DROP}
+`
+        + "do $$ declare r record; v text; begin for r in select * from (values ('public.other_fn(integer)'), "
+        + `('public.${V}(p_slot integer)')) t(sig) loop select prosrc into v from pg_proc p where p.oid = to_regprocedure(r.sig); `
+        + 'end loop; end $$;']],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected the drop to be believed when the only later mention is an over-collected literal',
+    },
+    later_loop_mention_is_not_a_rebuild: {
+      what: 'a LATER file loop-driven reader over-collects the dropped name from a precondition '
+          + '("hr_set_auto_eat must be gone", 2026-10-22-closed-mode-ungated-rpcs.sql). That is not '
+          + 'a re-creation; the name stays dropped (and measured)',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP], ['9000-03-later.sql',
+        "do $$ declare f text; v text; begin foreach f in array array['public.other_fn(integer)'] loop "
+        + 'select prosrc into v from pg_proc p where p.oid = f::regprocedure; end loop; '
+        + `if to_regprocedure('public.${V}(p_slot integer)') is not null then raise exception 'still here'; end if; end $$;`]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected a later over-collected mention not to count as a re-creation',
+    },
     drop_then_recreate_same_file: {
       what: 'the market_v2 idiom: one file drops a signature and re-creates it a few lines later. '
           + 'Ordering alone cannot separate them, so a build in the dropping file wins',
@@ -1377,16 +1424,17 @@ const MUTATIONS = {
     repl: '      -- totalLevel x 2 (sum of every skill level owned) [edited after apply]',
   },
   gate_bucket_added: {
-    // FINAL BODY: hr_rpc_gate's last author is 2026-10-16-goal-board-retire.sql
-    // (it splices onto 2026-10-18-discord-gift.sql's pinned restatement, which
-    // refuses any earlier plant at its §0). The plant rides that last splice: one
+    // FINAL BODY: hr_rpc_gate's last author is 2026-10-21-hunt-sessions.sql §6
+    // (a whole restatement pinned to the 2026-10-16-goal-board-retire.sql splice,
+    // so a plant in any EARLIER file now trips that pin and the chain stops
+    // replaying — measured 2026-10-14). The plant rides the restatement: one
     // extra bucket line. The next author of hr_rpc_gate must move this plant again.
-    file: '2026-10-16-goal-board-retire.sql',
+    file: '2026-10-21-hunt-sessions.sql',
     what: 'a rate bucket is edited into hr_rpc_gate in the repo — the b487 root-cause class, and '
         + 'a body EVERY client-callable RPC passes through',
     expect: 'replay hr_rpc_gate(p_bucket text)',
-    find: "    'when ''hr_tally_state'' then v_limit := 120;' || chr(10) ||",
-    repl: "    'when ''hr_tally_state'' then v_limit := 120;' || chr(10) || '    when ''hr_mut_bucket'' then v_limit := 9999;' || chr(10) ||",
+    find: "    when 'hunt_read' then v_limit := 60;\n",
+    repl: "    when 'hunt_read' then v_limit := 60;\n    when 'hr_mut_bucket' then v_limit := 9999;\n",
   },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',

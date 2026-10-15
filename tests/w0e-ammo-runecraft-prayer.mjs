@@ -11,16 +11,18 @@
 //
 //   AMMO  An EMPTY ammo slot on a bow or a staff is "run dry" (x0.25), so it is
 //         never better than running out. Before W0 the empty slot fought at
-//         full strength (measured 3.4x a dry stack). ATTENDED (simulateTick, the
-//         live loop) and AWAY (computeAccrual, the hr-accrue engine) both. The
+//         full strength (measured 3.4x a dry stack). The live swing
+//         (simulateTick) and the HUNT engine (computeAccrual on a hunt session,
+//         the one body the tick and the hunt verbs run — lane C2) both. The
 //         free tier-1 rung of every ladder is in the starter kit and on the shop
 //         counter, so no new player is in the penalty state.
 //   RUNE  Runecrafting's level-1 loop closes with nothing else trained: mine
 //         Rune Essence -> cut Blank Runes -> bind EARTH runes -> spend them in a
 //         magic fight. Every step runs through computeAccrual.
-//   PRAY  The Prayer ward lands identically ATTENDED, AWAY and TICK (AWAY-1):
-//         one function (`monsterCombatRolls`) prices every monster swing, and
-//         all three paths hand it the same skills map.
+//   PRAY  The Prayer ward lands identically on the live swing, a hunt settle
+//         and a hunt cut into 10 s windows (AWAY-1): one function
+//         (`monsterCombatRolls`) prices every monster swing, and every path
+//         hands it the same skills map.
 //
 // Node-only, credential-free, no database. Mutated runs import a STAGED COPY of
 // src/ and supabase/functions/hr-accrue/ (Node cannot import a string, and the
@@ -32,6 +34,7 @@ import { readFile, writeFile, cp, mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
+import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -98,10 +101,10 @@ const MUTATIONS = {
   },
   ward_attended_only: {
     file: 'supabase/functions/hr-accrue/accrual.js',
-    why: 'the away engine prices monster swings without the Prayer level, so the ward pays while '
-       + 'watching and not while away (AWAY-1 broken)',
-    find: '      return monsterCombatRolls(m, { eq, skills: fightSkills, bonus });',
-    repl: '      return monsterCombatRolls(m, { eq, skills: { ...fightSkills, prayer: 0 }, bonus });',
+    why: 'the hunt engine prices monster swings without the Prayer level, so the ward pays on the '
+       + 'live swing and not in a hunt settle (AWAY-1 broken)',
+    find: '    monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: state.skills, bonus }); },',
+    repl: '    monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: { ...state.skills, prayer: 0 }, bonus }); },',
   },
 };
 
@@ -151,12 +154,10 @@ export async function runAll({ mutate } = {}) {
     const SIM = await imp('src/core/combat-sim.js');
     const AMMO = await imp('src/core/ammo.js');
     const { createRng } = await imp('src/core/rng.js');
-    const { NO_BONUS } = await imp('src/core/botd.js');
     const { resolveStyle } = await imp('src/core/styles.js');
     const { xpForLevel } = await imp('src/core/xp.js');
     const { indexArtisanRecipes } = await imp('src/core/artisan-sim.js');
     const { computeAccrual } = await imp('supabase/functions/hr-accrue/accrual.js');
-    const { hydrate, advance, shadowTick } = await imp('supabase/functions/hr-accrue/tick-shadow.js');
 
     const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
     const GATHER_INDEX = {};
@@ -218,16 +219,27 @@ export async function runAll({ mutate } = {}) {
       return { kills, taken, spent };
     }
 
-    /* ── THE AWAY COLUMN: hr-accrue's engine ── */
-    const away = (o) => computeAccrual({
-      userId: UID, slot: 0, nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
-      activeKind: o.kind || 'combat', activeId: o.id || TARGET, capMs: 12 * 3600000, seed: o.seed || SEED,
-      hp: o.hp || 99, maxHp: o.hp || 99, gold: 0,
-      skills: o.skills, equipment: o.equipment || {}, inventory: o.inventory || {},
-      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
-      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX, recipes: ARTISAN_INDEX,
-      actionBudget: null,
-    });
+    /* ── THE SERVER COLUMN: hr-accrue's engine. A fight rides a hunt session
+       (tests/hunt-fixture.mjs): its supplies are the session BAG (the fixture's
+       `inventory`, loaded), and the foe is back at once so a fight measures
+       damage, not the respawn clock. Gathering and the benches are the away
+       pointer they always were. ── */
+    const away = (o) => {
+      const inp = {
+        userId: UID, slot: 0, nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+        activeKind: o.kind || 'combat', activeId: o.id || TARGET, capMs: 12 * 3600000, seed: o.seed || SEED,
+        hp: o.hp || 99, maxHp: o.hp || 99, gold: 0,
+        skills: o.skills, equipment: o.equipment || {}, inventory: o.inventory || {},
+        toolCarry: {},
+        items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX, recipes: ARTISAN_INDEX,
+        actionBudget: null,
+      };
+      if ((o.kind || 'combat') !== 'combat') return computeAccrual(inp);
+      const bag = {};
+      for (const [id, q] of Object.entries(o.inventory || {})) bag[id] = { loaded: q };
+      return computeAccrual(huntAccrualInput({ ...inp, inventory: {} },
+        { seed: o.seed || SEED, bag, pull: { size: 1, respawnMs: 0 } }));
+    };
 
     const RANGED = { attack: 0, hitpoints: MAX_XP, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
     const MAGE = { hitpoints: MAX_XP, defense: MAX_XP, magic: MAX_XP, prayer: 0 };
@@ -252,17 +264,15 @@ export async function runAll({ mutate } = {}) {
       const sDry = away({ equipment: bow(PAID_ARROW), inventory: {}, skills: RANGED, hp: 1e6 });
       const sFree = away({ equipment: bow(FREE_ARROW), inventory: { [FREE_ARROW]: 1 }, skills: RANGED, hp: 1e6 });
       ok(sEmpty.accrued && sDry.accrued && sFree.accrued,
-        `A2 AWAY: a fixture accrued nothing (${sEmpty.reason}/${sDry.reason}/${sFree.reason})`);
+        `A2 HUNT: a fixture accrued nothing (${sEmpty.reason}/${sDry.reason}/${sFree.reason})`);
       if (sEmpty.accrued && sDry.accrued && sFree.accrued) {
         ok(sEmpty.summary.kills <= sDry.summary.kills,
-          `A2 AWAY: an EMPTY quiver killed ${sEmpty.summary.kills} against ${sDry.summary.kills} dry — `
+          `A2 HUNT: an EMPTY quiver killed ${sEmpty.summary.kills} against ${sDry.summary.kills} dry — `
           + 'the away engine still rewards not equipping ammo');
         ok(sEmpty.summary.kills * 2 < sFree.summary.kills,
-          `A2 AWAY: empty ${sEmpty.summary.kills} vs free rung ${sFree.summary.kills} — empty slot not run dry`);
-        ok(sEmpty.summary.weakMs === sEmpty.summary.ticks * sEmpty.tickMs && sEmpty.summary.dryMs === 0,
-          `A2 AWAY: an empty quiver must be weak for the WHOLE span from 0 ms (weakMs ${sEmpty.summary.weakMs}, `
-          + `dryMs ${sEmpty.summary.dryMs}) so the receipt can say why`);
-        ok(sFree.summary.weakMs === 0, `A2 AWAY: the free rung reported ${sFree.summary.weakMs} ms unsupplied`);
+          `A2 HUNT: empty ${sEmpty.summary.kills} vs free rung ${sFree.summary.kills} — empty slot not run dry`);
+        ok(!(sFree.hunt && sFree.hunt.uses && sFree.hunt.uses[FREE_ARROW]),
+          `A2 HUNT: the free rung ${FREE_ARROW} was spent from the bag (${JSON.stringify(sFree.hunt && sFree.hunt.uses)}) — tier 1 never depletes`);
       }
 
       /* The one reader the UI asks. */
@@ -332,7 +342,8 @@ export async function runAll({ mutate } = {}) {
         const mageSk = { ...skills, magic: xpAt(15) };
         const supplied = away({ equipment: { weapon: STAFF, ammo: 'earth_rune' }, inventory: { earth_rune: earth }, skills: mageSk, hp: 1e6 });
         const empty = away({ equipment: { weapon: STAFF }, skills: mageSk, hp: 1e6 });
-        const used = supplied.accrued ? -((supplied.delta.items || {}).earth_rune || 0) : 0;
+        /* A hunt spends from its BAG; the window states what it used. */
+        const used = supplied.accrued ? Math.floor(Number(((supplied.hunt || {}).uses || {}).earth_rune) || 0) : 0;
         ok(used > 0, `R2: a magic fight with ${earth} crafted Earth runes spent none — the rune is not consumed`);
         ok(supplied.accrued && empty.accrued && supplied.summary.kills > empty.summary.kills,
           `R2: crafted Earth runes did not out-kill an empty staff slot (${supplied.summary && supplied.summary.kills} vs ${empty.summary && empty.summary.kills})`);
@@ -401,45 +412,56 @@ export async function runAll({ mutate } = {}) {
       const aw0 = away({ id: FOE, equipment: melee, skills: body(0), hp: HP });
       const aw9 = away({ id: FOE, equipment: melee, skills: body(MAX_XP), hp: HP });
       const lost = (r) => (r.accrued ? HP - r.delta.hp : NaN);
-      ok(aw0.accrued && aw9.accrued, `P3 AWAY: a fixture accrued nothing (${aw0.reason}/${aw9.reason})`);
+      ok(aw0.accrued && aw9.accrued, `P3 HUNT: a fixture accrued nothing (${aw0.reason}/${aw9.reason})`);
       ok(band(lost(aw9) / lost(aw0)),
-        `P3 AWAY: Prayer 99 lost ${(lost(aw9) / lost(aw0)).toFixed(3)} of Prayer 1's HP (want ~${(1 - ward).toFixed(2)})`);
+        `P3 HUNT: Prayer 99 lost ${(lost(aw9) / lost(aw0)).toFixed(3)} of Prayer 1's HP (want ~${(1 - ward).toFixed(2)})`);
 
-      /* AWAY-1, exact: one simulateSpan, ctx.away true vs false, same seed —
-         the ward is not a scope question, so the fight is byte-identical. */
-      const spanOf = (isAway) => {
+      /* AWAY-1, exact: one hunt span, the same session run twice — the ward is
+         not a scope question (a hunt has none), so the fight is byte-identical. */
+      const spanOf = () => {
         const eq = C.equipmentStats(melee, ITEMS);
         const style = resolveStyle(eq.weaponType, null);
         const G = { activeMonster: FOE, monsterHp: 0, monsterMaxHp: 0, playerHp: HP, playerMaxHp: HP,
           gold: 0, skills: body(MAX_XP), stats: {}, inventory: {}, equipment: { ...melee }, ammoCarry: {} };
         const bonus = () => 0;
-        const s = SIM.simulateSpan(G, {
-          away: isAway, fromMs: FROM_MS, toMs: FROM_MS + 3600000, tickMs: 2400, capped: false,
-          rng: createRng(SEED), monsters: MONSTERS, items: ITEMS, bonus, style, activeBuffCount: 0,
+        const ctx = {
+          fromMs: FROM_MS, toMs: FROM_MS + 3600000, tickMs: 2400,
+          monsters: MONSTERS, items: ITEMS, bonus, style, activeBuffCount: 0,
           playerRolls: (mm) => C.playerCombatRolls(mm, { eq, equipment: melee, items: ITEMS, skills: G.skills, bonus,
             setBonus: C.armorSetBonus(melee, ITEMS), profile: Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType }), style }),
           monsterRolls: (mm) => C.monsterCombatRolls(mm, { eq, skills: G.skills, bonus }),
           weakness: (mm) => C.weaknessInfo(mm, eq),
-          botdFor: () => ({ killBonuses: () => NO_BONUS }),
           fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
-        });
+        };
+        huntOn(G, ctx, { seed: SEED, fromMs: FROM_MS });
+        const s = SIM.simulateSpan(G, ctx);
         return { hp: G.playerHp, kills: s.kills };
       };
-      const sa = spanOf(false); const sb = spanOf(true);
-      ok(sa.hp === sb.hp && sa.kills === sb.kills,
-        `P4 AWAY-1: the warded fight differs attended (${sa.hp} hp, ${sa.kills} kills) vs away (${sb.hp}, ${sb.kills})`);
+      const sa = spanOf(); const sb = spanOf();
+      ok(sa.kills > 0 && sa.hp === sb.hp && sa.kills === sb.kills,
+        `P4 AWAY-1: the warded hunt is not deterministic (${sa.hp} hp, ${sa.kills} kills) vs (${sb.hp}, ${sb.kills})`);
 
-      /* TICK: the world tick chains 10 s windows through the same engine. */
+      /* TICK: the world tick settles a hunt in 10 s windows through the same
+         engine, the session carried window to window (TICK-1). */
       const tickLost = (p) => {
-        let ch = hydrate({ userId: UID, slot: 0, activeSinceMs: FROM_MS, activeKind: 'combat', activeId: FOE,
-          capMs: 12 * 3600000, hp: HP, maxHp: HP, gold: 0, skills: body(p), equipment: melee, inventory: {},
-          autoEatEnabled: false, autoEatFood: null, autoEatPct: 0 });
-        const cats = { items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX };
+        const eq = C.equipmentStats(melee, ITEMS);
+        const style = resolveStyle(eq.weaponType, null);
+        const G = { activeMonster: FOE, monsterHp: 0, monsterMaxHp: 0, playerHp: HP, playerMaxHp: HP,
+          gold: 0, skills: body(p), stats: {}, inventory: {}, equipment: { ...melee }, ammoCarry: {} };
+        const bonus = () => 0;
+        const ctx = {
+          tickMs: 2400, monsters: MONSTERS, items: ITEMS, bonus, style, activeBuffCount: 0,
+          playerRolls: (mm) => C.playerCombatRolls(mm, { eq, equipment: melee, items: ITEMS, skills: G.skills, bonus,
+            setBonus: C.armorSetBonus(melee, ITEMS), profile: Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType }), style }),
+          monsterRolls: (mm) => C.monsterCombatRolls(mm, { eq, skills: G.skills, bonus }),
+          weakness: (mm) => C.weaknessInfo(mm, eq),
+          fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
+        };
+        huntOn(G, ctx, { seed: SEED, fromMs: FROM_MS });
         for (let t = FROM_MS; t < FROM_MS + 2 * 3600000; t += 10000) {
-          const r = shadowTick(ch, t, t + 10000, cats, {});
-          ch = advance(ch, r);
+          SIM.simulateSpan(G, Object.assign({}, ctx, { fromMs: t, toMs: t + 10000 }));
         }
-        return HP - ch.hp;
+        return HP - G.playerHp;
       };
       const tk0 = tickLost(0); const tk9 = tickLost(MAX_XP);
       ok(tk0 > 500, `P5 fixture: the tick chain took only ${tk0} damage from ${FOE}`);

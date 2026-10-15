@@ -313,86 +313,14 @@
     try { return !!R.isRecordPending(); } catch (e) { return true; }
   }
 
-  function isClaimable(G) {
-    G = G || window.G; var s = ensureState(G); if (!s) return false;
-    return todayKey() !== s.lastClaimDay;
-  }
+  /* THE DAILY LOGIN IS DELETED (lane C2, the closed rebuild; Security GO item
+     10). The server's `claim_reward` verb and the login reward it paid are gone,
+     so nothing here is ever claimable and `claim` predicts, pays and sends
+     nothing — a client gesture with no server half would only spend a rate
+     budget to earn an unknown_verb. This file leaves whole with lane D1. */
+  function isClaimable() { return false; }
 
-  function claim(G) {
-    G = G || window.G; var s = ensureState(G); if (!s) return null;
-    if (recordPending()) return null;
-    if (!isClaimable(G)) return null;
-    var rw = rewardFor(G);
-    /* NOTHING IS PAID WHEN NOTHING CAN BE PRICED. `rewardFor` is null exactly
-       when src/data/rewards.js did not arrive, and paying an invented number is
-       the failure this whole program exists to remove — a client authoring a
-       progression value. The state is left untouched too, so the day is still
-       claimable once the wiring is fixed. */
-    if (!rw) return null;
-    rw = Object.assign({}, rw);   // a receipt of our own — never mark the catalogue row
-    /* ══════════════════════════════════════════════════════════════════════
-       THE DOUBLE-PAY SURFACE — the one Security named before it was written.
-       ══════════════════════════════════════════════════════════════════════
-       With the kill switch ON this claim goes to the server as
-       `claim_reward {kind:'daily', key:'login'}` and the server decides the
-       amount from ITS OWN copy of src/data/rewards.js, its own day key and its
-       own streak (derived from yesterday's claim row — `G.streak.count` is
-       never an input and there is no field through which it could become one).
-
-       The lines below are then a PREDICTION, not a payment:
-         · they run through `goldSettle`, which records the amount against this
-           gesture's intent key;
-         · the server's envelope is applied ABSOLUTELY by src/net/gold.js
-           (`G.gold = state.gold`, `G.gems = state.gems`) and RETIRES the
-           prediction;
-         · `granted` — the receipt — is RENDERED and never added to anything.
-
-       So the money moves exactly once and it is the server's number. There is
-       no ordering in which both halves pay: an additive apply does not exist in
-       the code. A refusal carrying no envelope rolls the prediction back; an
-       unanswered call leaves it standing for the next envelope to settle,
-       because guessing either way would be the client authoring a value.
-
-       ⚠ `s.lastClaimDay` REMAINS A LOCAL CACHE — "have I shown the sheet today"
-         — and with the switch on it is no longer the eligibility test. The
-         server's `not_claimable` is, because it is the only answer that
-         survives a second device. It is set BEFORE the call so a double-tap
-         cannot open two claims; the server refuses the second anyway, under a
-         lock, and that refusal is what actually guarantees it. */
-    /* ⚠ GOLD **AND** GEMS THROUGH ONE PREDICTION (F5). The gem half used to be
-       a bare `G.gems += rw.gems` sitting next to the seam call, which made it
-       the one number in a wired gesture that was paid locally and never
-       reconciled — the double-pay this file's header claims to have closed,
-       still open one field over. Security's probe: two tabs, same UTC day. The
-       server refuses the second claim under a lock and clamps gems at the
-       5,000/day ceiling; the client paid both. ONE entry covers both fields so
-       they cannot acquire separate lifecycles. */
-    var key = window.goldIntentKey();
-    window.goldSettleCurrency({ gold: rw.gold || 0, gems: rw.gems || 0 }, 'claim.daily_login', key);
-    s.lastClaimDay = todayKey();
-    if (key && window.HearthriseGold) {
-      var p = window.HearthriseGold.claimReward('daily', 'login', key);
-      /* b462 — the verdict is READ, not dropped. A `refused` (not_claimable:
-         already claimed today on this or another device) must not leave a
-         "Daily reward: 500 gold" toast standing on a payout that never landed —
-         that was the visible half of the every-refresh bug. The gold seam has
-         already rolled the prediction back; this is the honest sentence. */
-      if (p && p.then) p.then(function (v) {
-        var o = v && v.outcome;
-        if (o === 'refused') {
-          s.lastClaimDay = todayKey();
-          if (typeof window.notify === 'function') window.notify('Today’s daily reward was already claimed — come back tomorrow.', 'info');
-        } else if ((o === 'applied' || o === 'replayed') && typeof window.notify === 'function') {
-          window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
-        }
-        try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (e) {}
-      }, function () {});
-      rw._toastDeferred = true;   // the verdict toasts; the click handler must not
-    }
-    try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
-    try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
-    return rw;
-  }
+  function claim() { return null; }
 
   function fmt(n) { return (n || 0).toLocaleString(); }
   // Gilt glyph from the shared icon set (no emoji — directive). Falls back

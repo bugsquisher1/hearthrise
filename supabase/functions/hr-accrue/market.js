@@ -164,7 +164,6 @@ async function runMarketIntent(o) {
          was earned in, then the goods move. */
   const settled = await settleBeforeMutate({
     exec, user, slot, verb, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
-    partyOwnsWindow: o.partyOwnsWindow === true,
   });
   if (!settled.proceed) return settled.refusal;
   const collected = settled.collected;

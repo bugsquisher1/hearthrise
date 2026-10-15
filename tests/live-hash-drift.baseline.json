@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-15",
- "replay_ms": 2259,
+ "replay_ms": 2205,
  "counts": {
-  "tracked_names": 99,
-  "entries": 94
+  "tracked_names": 118,
+  "entries": 103
  },
  "functions": [
   {
@@ -153,6 +153,29 @@
    "agree": true
   },
   {
+   "sig": "hr_access_check()",
+   "name": "hr_access_check",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-closed-mode.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
+   ],
+   "live": {
+    "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
+    "norm_len": 615,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
+    "norm_len": 615,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_apply(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_delta jsonb)",
    "name": "hr_apply",
    "tracked_by": [
@@ -195,17 +218,18 @@
     "2026-10-12-companion-xp-frac.sql",
     "2026-10-16-login-reward.sql",
     "2026-10-19-account-wallet.sql",
-    "2026-10-20-hunts-start-gate.sql"
+    "2026-10-20-hunts-start-gate.sql",
+    "2026-10-22-hunt-sessions-delete-away.sql"
    ],
    "live": {
-    "md5": "2f9c5aa597e77f52788f343457e5c6b0",
-    "norm_len": 153572,
+    "md5": "c959096bd33d32da37e443872a1b8823",
+    "norm_len": 134607,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2f9c5aa597e77f52788f343457e5c6b0",
-    "norm_len": 153572,
+    "md5": "c959096bd33d32da37e443872a1b8823",
+    "norm_len": 134607,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -237,17 +261,18 @@
     "2026-09-28-grant-hygiene-hr-ops.sql",
     "2026-09-28-settle-before-mutate.sql",
     "2026-10-06-world-tick-parity-probe.sql",
-    "2026-10-10-world-tick-presence-horizon.sql"
+    "2026-10-10-world-tick-presence-horizon.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
    ],
    "live": {
-    "md5": "2442b34bfbba6cad487e64392e492f81",
-    "norm_len": 43859,
+    "md5": "4f709a1c42a3c620d330a7ae3e0d34de",
+    "norm_len": 45633,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2442b34bfbba6cad487e64392e492f81",
-    "norm_len": 43859,
+    "md5": "4f709a1c42a3c620d330a7ae3e0d34de",
+    "norm_len": 45633,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -591,6 +616,53 @@
    "agree": true
   },
   {
+   "sig": "hr_clan_browser(p_limit integer)",
+   "name": "hr_clan_browser",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-14-leaderboard-view-lockdown.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
+   ],
+   "live": {
+    "md5": "4de2d1ab665b7346db266da9e82756f5",
+    "norm_len": 2037,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2e8828115bdfe3a323867452bf32afdd",
+    "norm_len": 3790,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "2026-10-15 (Coordinator, --codediff): CODE-IDENTICAL — the whole delta is comments/whitespace; production runs the same executable text the repo rebuilds. (Clans are retired; M1 drops this function.)"
+  },
+  {
+   "sig": "hr_companion_equip(p_slot integer, p_companion text, p_unequip boolean)",
+   "name": "hr_companion_equip",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-20-companion-model.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
+   ],
+   "live": {
+    "md5": "7d5ff57df0bc48aedea5b7e880d93762",
+    "norm_len": 4824,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7d5ff57df0bc48aedea5b7e880d93762",
+    "norm_len": 4824,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_companion_grant(p_slot integer, p_companion text, p_source text, p_idem uuid)",
    "name": "hr_companion_grant",
    "tracked_by": [
@@ -598,17 +670,18 @@
    ],
    "touched_by": [
     "2026-08-22-companion-grant.sql",
-    "2026-09-06-companion-grant-hardening.sql"
+    "2026-09-06-companion-grant-hardening.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
    ],
    "live": {
-    "md5": "81b5a41b4861f284f25b0dc1046d941f",
-    "norm_len": 8482,
+    "md5": "172260834de31310749af088b28d9b5a",
+    "norm_len": 8668,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "81b5a41b4861f284f25b0dc1046d941f",
-    "norm_len": 8482,
+    "md5": "172260834de31310749af088b28d9b5a",
+    "norm_len": 8668,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -626,17 +699,42 @@
     "2026-08-14-character-bootstrap.sql",
     "2026-09-04-auto-eat-at-creation.sql",
     "2026-09-08-hero-slot-buy.sql",
-    "2026-10-19-account-wallet.sql"
+    "2026-10-19-account-wallet.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql",
+    "2026-10-22-hunt-sessions-delete-away.sql"
    ],
    "live": {
-    "md5": "5c003834ebdadc2088055d75a9a7b8a9",
-    "norm_len": 11333,
+    "md5": "16edeb155d99c38949da8d5b74aed56b",
+    "norm_len": 8851,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c003834ebdadc2088055d75a9a7b8a9",
-    "norm_len": 11333,
+    "md5": "16edeb155d99c38949da8d5b74aed56b",
+    "norm_len": 8851,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_credit_combat_xp(p_slot integer, p_xp jsonb, p_idem text)",
+   "name": "hr_credit_combat_xp",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-31-combat-xp-credit.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "3f8f7916df64860d0f8bcca734434fe3",
+    "norm_len": 769,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3f8f7916df64860d0f8bcca734434fe3",
+    "norm_len": 769,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -663,57 +761,6 @@
    "replay": {
     "md5": "40cd62d5540dd49407fb92e6a0419f3a",
     "norm_len": 19432,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_credit_kills(p_slot integer, p_target text, p_claimed bigint, p_idem text)",
-   "name": "hr_credit_kills",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-30-bounty-kill-credit.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "590318076439b73cbb0558571065f744",
-    "norm_len": 998,
-    "measured": "2026-10-15",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "590318076439b73cbb0558571065f744",
-    "norm_len": 998,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_credit_kills__ungated(p_slot integer, p_target text, p_claimed bigint, p_idem text)",
-   "name": "hr_credit_kills__ungated",
-   "tracked_by": [
-    "chain",
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-30-bounty-kill-credit.sql",
-    "2026-09-01-kill-daily-credit.sql",
-    "2026-09-02-renown-kill-faucet.sql",
-    "2026-09-06-cadence-recovery-floor.sql",
-    "2026-10-17-bestiary-target.sql"
-   ],
-   "live": {
-    "md5": "ee0e1ef440fa5e0e56b1e236caa6b492",
-    "norm_len": 33401,
-    "measured": "2026-10-15",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "ee0e1ef440fa5e0e56b1e236caa6b492",
-    "norm_len": 33401,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1034,6 +1081,190 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_analyzer(p_slot integer, p_session uuid)",
+   "name": "hr_hunt_analyzer",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-hunt-analyzer.sql",
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "2937c89a2213145f2e99633df936a13a",
+    "norm_len": 4021,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2937c89a2213145f2e99633df936a13a",
+    "norm_len": 4021,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_apply(p_user uuid, p_slot integer, p_session uuid, p_version bigint, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_buffs jsonb, p_press jsonb, p_project boolean)",
+   "name": "hr_hunt_apply",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-22-hunt-sessions-settle.sql",
+    "2026-10-22-hunt-sessions-value-bound.sql"
+   ],
+   "live": {
+    "md5": "6e8623a250cf6c4a4bb2543c51792c3e",
+    "norm_len": 38119,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6e8623a250cf6c4a4bb2543c51792c3e",
+    "norm_len": 38119,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_enter(p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_falls integer, p_hours integer, p_idem uuid)",
+   "name": "hr_hunt_enter",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "5a672ab449ef328a91170b0563702f70",
+    "norm_len": 7222,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5a672ab449ef328a91170b0563702f70",
+    "norm_len": 7222,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_settle_session(p_user uuid, p_slot integer, p_session uuid, p_delta jsonb)",
+   "name": "hr_hunt_settle_session",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "40102b6d75cfddd1d448cfbcdf9c1b43",
+    "norm_len": 18253,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "40102b6d75cfddd1d448cfbcdf9c1b43",
+    "norm_len": 18253,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_slots_check(p_slots jsonb)",
+   "name": "hr_hunt_slots_check",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "39edbe0919e0e8ff51498ad38f8c3944",
+    "norm_len": 5371,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "39edbe0919e0e8ff51498ad38f8c3944",
+    "norm_len": 5371,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_stop_valid(p_stop jsonb)",
+   "name": "hr_hunt_stop_valid",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-hunt-stance-stop.sql"
+   ],
+   "live": {
+    "md5": "8c09a1a30c26db6754c36f18e339da54",
+    "norm_len": 1346,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8c09a1a30c26db6754c36f18e339da54",
+    "norm_len": 1346,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_use(p_slot integer, p_bar_slot integer, p_idem uuid)",
+   "name": "hr_hunt_use",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "c1eeb72929be6c0aa5e4622b70efb3c3",
+    "norm_len": 3602,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c1eeb72929be6c0aa5e4622b70efb3c3",
+    "norm_len": 3602,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_view(p_session uuid)",
+   "name": "hr_hunt_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
+   ],
+   "live": {
+    "md5": "6f8ed66f53e0eb984402262ff3b068d8",
+    "norm_len": 1592,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6f8ed66f53e0eb984402262ff3b068d8",
+    "norm_len": 1592,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
    "name": "hr_intent_replay",
    "tracked_by": [
@@ -1076,6 +1307,29 @@
    "replay": {
     "md5": "c3a3699a1ecf9b4b1324e6cfef1bbdbc",
     "norm_len": 2604,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_load(p_slot integer)",
+   "name": "hr_load",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-apply-engine.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
+   ],
+   "live": {
+    "md5": "e60fa9248521c859ea29d108fba74c51",
+    "norm_len": 1248,
+    "measured": "2026-10-15",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e60fa9248521c859ea29d108fba74c51",
+    "norm_len": 1248,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1328,17 +1582,18 @@
     "2026-10-08-world-tick-party-drop.sql",
     "2026-10-08-world-tick-party-fences.sql",
     "2026-10-13-party-settle-frac-keys.sql",
-    "2026-10-14-world-tick-m4-party-horizon.sql"
+    "2026-10-14-world-tick-m4-party-horizon.sql",
+    "2026-10-22-hunt-sessions-delete-away.sql"
    ],
    "live": {
-    "md5": "2e35d8dcf91232c4275d9d0e19318586",
-    "norm_len": 41916,
+    "md5": "1b09ff20d59a4d32bf5922b6685073ce",
+    "norm_len": 41901,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e35d8dcf91232c4275d9d0e19318586",
-    "norm_len": 41916,
+    "md5": "1b09ff20d59a4d32bf5922b6685073ce",
+    "norm_len": 41901,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1596,17 +1851,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-06-recovering-until.sql"
+    "2026-09-06-recovering-until.sql",
+    "2026-10-22-closed-mode-ungated-rpcs.sql"
    ],
    "live": {
-    "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
-    "norm_len": 7771,
+    "md5": "917af913c47a6856de12caf5b62448de",
+    "norm_len": 7957,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
-    "norm_len": 7771,
+    "md5": "917af913c47a6856de12caf5b62448de",
+    "norm_len": 7957,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1648,7 +1904,8 @@
     "2026-10-15-party-hunt-view.sql",
     "2026-10-16-goal-board-retire.sql",
     "2026-10-18-discord-gift.sql",
-    "2026-10-21-closed-mode.sql"
+    "2026-10-21-closed-mode.sql",
+    "2026-10-21-hunt-sessions.sql"
    ],
    "live": {
     "md5": "bd8b22943058fd69b32096c66ace93b1",
@@ -1657,36 +1914,8 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "38ce13bad11779bde35fbb74632b8f12",
-    "norm_len": 3269,
-    "source": "computed-from-replay"
-   },
-   "agree": false,
-   "why": "2026-10-15 (Coordinator, measured with --codediff): live = replay + the hunt-session rate buckets (when 'hunt' then 30; 'hunt_use' 60; 'hunt_read' ...) from 2026-10-21-hunt-sessions.sql, which was APPLIED on prod by the C2 lane before the 10-14 session died but is not yet merged into main (it lives on lane/c2-hunt-sessions-edge). Everything else, including the closed-mode hr_access_check splice (2026-10-21-closed-mode.sql, applied 02:25 UTC 10-15), is identical. Closes when C2 merges and restates hr_rpc_gate in full."
-  },
-  {
-   "sig": "hr_set_auto_eat(p_slot integer, p_enabled boolean, p_food text, p_pct integer, p_clear_food boolean)",
-   "name": "hr_set_auto_eat",
-   "tracked_by": [
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-15-auto-eat.sql",
-    "2026-08-23-trait-buy.sql",
-    "2026-08-29-auto-eat-tiers.sql",
-    "2026-09-06-recovering-until.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "a38d6e4eb2d4e3eb59d15dfb185421a1",
-    "norm_len": 6869,
-    "measured": "2026-10-15",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "a38d6e4eb2d4e3eb59d15dfb185421a1",
-    "norm_len": 6869,
+    "md5": "bd8b22943058fd69b32096c66ace93b1",
+    "norm_len": 3621,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1856,17 +2085,19 @@
     "2026-10-09-xp-frac-carry.sql",
     "2026-10-11-name-moderation.sql",
     "2026-10-12-companion-xp-frac.sql",
-    "2026-10-19-account-wallet.sql"
+    "2026-10-19-account-wallet.sql",
+    "2026-10-22-hunt-sessions-delete-away.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
    ],
    "live": {
-    "md5": "bcb92b2e6a313c0ee893f51e0f81da39",
-    "norm_len": 33266,
+    "md5": "2d84cc7de190f7a7ceb94aceb478731f",
+    "norm_len": 30363,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bcb92b2e6a313c0ee893f51e0f81da39",
-    "norm_len": 33266,
+    "md5": "2d84cc7de190f7a7ceb94aceb478731f",
+    "norm_len": 30363,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1929,17 +2160,18 @@
     "2026-09-22-world-tick-derived-token.sql",
     "2026-10-06-world-tick-channel-arm.sql",
     "2026-10-11-world-tick-catchup.sql",
-    "2026-10-11-world-tick-shards.sql"
+    "2026-10-11-world-tick-shards.sql",
+    "2026-10-22-hunt-sessions-settle.sql"
    ],
    "live": {
-    "md5": "3ab6af18dd72dcf0e6d81ec11f8ccec1",
-    "norm_len": 13989,
+    "md5": "7b811630c267c7ce2a85b2e3fceef461",
+    "norm_len": 15426,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3ab6af18dd72dcf0e6d81ec11f8ccec1",
-    "norm_len": 13989,
+    "md5": "7b811630c267c7ce2a85b2e3fceef461",
+    "norm_len": 15426,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2083,17 +2315,18 @@
    ],
    "touched_by": [
     "2026-08-23-trait-buy.sql",
-    "2026-09-03-intent-mismatch-class.sql"
+    "2026-09-03-intent-mismatch-class.sql",
+    "2026-10-22-hunt-sessions-delete-away.sql"
    ],
    "live": {
-    "md5": "89916214f9aa67785acac0103db9dcef",
-    "norm_len": 10518,
+    "md5": "eaec519d270b9a80729ae4d707432935",
+    "norm_len": 10045,
     "measured": "2026-10-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "89916214f9aa67785acac0103db9dcef",
-    "norm_len": 10518,
+    "md5": "eaec519d270b9a80729ae4d707432935",
+    "norm_len": 10045,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2213,29 +2446,6 @@
    "replay": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_vigour_of(p_user uuid, p_slot integer)",
-   "name": "hr_vigour_of",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-09-22-vigour-daily.sql",
-    "2026-09-25-vigour-price-by-level.sql"
-   ],
-   "live": {
-    "md5": "6bc6811e38172d1376e1bec901e7b2d4",
-    "norm_len": 5295,
-    "measured": "2026-10-15",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "6bc6811e38172d1376e1bec901e7b2d4",
-    "norm_len": 5295,
     "source": "computed-from-replay"
    },
    "agree": true

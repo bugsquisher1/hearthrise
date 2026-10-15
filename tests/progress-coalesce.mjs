@@ -11,7 +11,7 @@
 // per-poll op, or a flush past ~110 s, would refuse EVERY window of that
 // character `too_many_progress_ops`. Fix: tick-gather.js writeIntent coalesces
 // through tick-contract.js RULE 2b `coalesceProgress`, the ONE coalescer the
-// fold and the combat flush use too.
+// fold uses too (the solo combat flush left with the combat channel, lane C2).
 //
 //   U1  the coalescer's own rules: per-row sums, distinct (kind, key, period)
 //       never merged, a state change starts a new entry, the per-op add cap
@@ -20,11 +20,11 @@
 //       raw (the polls' concatenation, the old pack) vs shipped; shipped <= 20
 //   H1  ★ HEADROOM, from now on: every single 90 s window (ATTENDED: the
 //       online visit) of a 30 min chain for every fixture — inline and the
-//       services/world-tick/fixtures sessions, gather and combat — and every
+//       services/world-tick/fixtures gather sessions — and every
 //       8-window S4 fold (AWAY) ships <= 32 ops (half of hr_apply's 64)
 //   D1  ★ THE DIFFERENTIAL, through the replayed hr_apply, per fixture
-//       (gather, gather + utility pet [companion + companion_xp_frac],
-//       xp_frac, combat + pet, hearthfind):
+//       (gather, gather + utility pet,
+//       xp_frac, hearthfind):
 //         ATTENDED  one window: shipped (coalesced) == old pack (raw
 //                   concatenation): state byte-identical AND ledger rows
 //                   byte-identical; == every poll applied on its own
@@ -47,7 +47,6 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { loadGatherSessions, atSpan as gatherAtSpan } from '../services/world-tick/gather.js';
-import { loadCombatSessions, atSpan as combatAtSpan } from '../services/world-tick/combat.js';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -123,10 +122,10 @@ async function copyTree(mut) {
 
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
-  const [contract, gather, combat, xp, cxp] = await Promise.all([
-    at(C), at(G), at('supabase/functions/hr-accrue/tick-combat.js'), at('src/core/xp.js'), at('src/core/companion-xp.js'),
+  const [contract, gather, xp, cxp] = await Promise.all([
+    at(C), at(G), at('src/core/xp.js'), at('src/core/companion-xp.js'),
   ]);
-  return { contract, gather, combat, xp, cxp };
+  return { contract, gather, xp, cxp };
 }
 
 // ── FIXTURES ───────────────────────────────────────────────────────────────
@@ -139,20 +138,6 @@ function gatherSession(M, t0, { pet = null, frac = false, node = 'normal_tree', 
     capMs: 43200000, hp: 40, maxHp: 40, gold: 0,
     skills: { [skill]: M.xp.xpForLevel(lv), hitpoints: 1200 }, inventory: {}, equipment: {}, toolCarry: null,
     ...(frac ? { xpFrac: {} } : {}),
-    ...(pet && frac ? { companionXpFrac: {} } : {}),
-    perks: { ok: true, companion: pet ? { id: pet, xp: 0 } : null },
-  };
-}
-
-function combatSession(M, t0, { pet = null, frac = false, n = 2 } = {}) {
-  return {
-    userId: uid(n), slot: 0, shard: 0, version: 1,
-    activeKind: 'combat', activeId: 'goblin', activeSinceMs: t0, accruedToMs: t0,
-    accruedToText: M.combat.pgTimestamptzText(t0),
-    capMs: 43200000, hp: 99, maxHp: 99, gold: 0,
-    skills: { attack: 1300000, strength: 1300000, defence: 1300000, hitpoints: 1300000 },
-    inventory: {}, equipment: {},
-    ...(frac ? { xpFrac: {} } : {}),
     perks: { ok: true, companion: pet ? { id: pet, xp: 0 } : null },
   };
 }
@@ -162,14 +147,11 @@ const FIXTURES = [
   { id: 'gather', kind: 'gather', make: (M, t0, n) => gatherSession(M, t0, { n }) },
   { id: 'gather+pet', kind: 'gather', pet: 'fox', make: (M, t0, n) => gatherSession(M, t0, { pet: 'fox', frac: true, n }) },
   { id: 'xp_frac', kind: 'gather', make: (M, t0, n) => gatherSession(M, t0, { frac: true, node: 'mithril_rock', skill: 'mining', lv: 61, n }) },
-  { id: 'combat+pet', kind: 'combat', pet: 'wolf_pup', make: (M, t0, n) => combatSession(M, t0, { pet: 'wolf_pup', frac: true, n }) },
   { id: 'hearthfind', kind: 'gather', hf: true,
     make: (M, t0, n) => Object.assign(gatherSession(M, t0, { frac: true, n }), { hearthfindReady: true }) },
 ];
 
-const settle = (M, s, from, to) => (s.activeKind === 'combat'
-  ? M.combat.settleCombatSession(s, from, to, GEOM)
-  : M.gather.settleGatherSession(s, from, to, GEOM));
+const settle = (M, s, from, to) => M.gather.settleGatherSession(s, from, to, GEOM);
 
 /** The polls an intent's window settled, in order (their own deltas, unfolded). */
 function pollsOf(chain, intent) {
@@ -245,7 +227,6 @@ function pureArms(M, ok, log) {
     const sessions = [];
     for (const f of FIXTURES) if (!f.hf) sessions.push([f.id, f.make(M, t0, 9)]);
     for (const s of loadGatherSessions()) sessions.push([`file:${s.name}`, gatherAtSpan(s, t0)]);
-    for (const s of loadCombatSessions()) sessions.push([`file:${s.name}`, combatAtSpan(s, t0)]);
     let worstA = 0; let worstAway = 0; let at = ''; let atAway = ''; let windows = 0;
     for (const [id, s] of sessions) {
       const ch = settle(M, s, t0, t0 + SPAN);

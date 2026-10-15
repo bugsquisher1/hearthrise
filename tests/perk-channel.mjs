@@ -53,6 +53,11 @@ import {
 } from '../src/core/perks.js';
 import { burnChance, BURN_BASE } from '../src/core/artisan.js';
 import { zeroBonus, bonusFor, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { huntAccrualInput } from './hunt-fixture.mjs';
+/* Lane C2: combat accrues only on a hunt session (a pointer-only night answers
+   hunt_required), so every P9 night runs as a training hunt on its monster with
+   no respawn wait — the old pointer fight's kill rate, the same seed. */
+const huntNight = (inp) => computeAccrual(huntAccrualInput(inp, { seed: inp.seed, pull: { size: 1, respawnMs: 0 } }));
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { xpForLevel } from '../src/core/xp.js';
@@ -438,10 +443,10 @@ async function run(patch) {
     };
     ok(MONSTERS[base.activeId] && MONSTERS[base.activeId].hp > 12,
       `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
-    const none = computeAccrual({ ...base, perks: null });
+    const none = huntNight({ ...base, perks: null });
     /* Trophy Room L5 (+5% combatXP) + a Watchtower (+2%) = +7% combat XP.
        Library L5 (+5% allXP) + the capstone (+2%) = +7% on everything. */
-    const decked = computeAccrual({
+    const decked = huntNight({
       ...base,
       perks: {
         ok: true,
@@ -476,7 +481,7 @@ async function run(patch) {
         + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +14.0% on this fixture.');
       /* SHAPE, immune to the flooring: a bigger grant must pay more than a
          smaller one. If the channel were paying a constant, both would match. */
-      const only = (p) => sum(computeAccrual({ ...base, perks: { ok: true, plots: {}, propertyTier: 0, ...p } }));
+      const only = (p) => sum(huntNight({ ...base, perks: { ok: true, plots: {}, propertyTier: 0, ...p } }));
       const big = only({ rooms: { trophy: 5 } });        // +5% combatXP
       const small = only({ rooms: { trophy: 2 } });      // +2% combatXP
       ok(big > small && small > a,
@@ -505,8 +510,8 @@ async function run(patch) {
         `P9-W: ${weakest} is missing or not at the catalogue's minimum HP (${minHp}) — this block exists `
         + 'for the weakest monster, in the <= 12 HP band the per-grant floor used to swallow');
       const wBase = { ...base, activeId: weakest };
-      const wNone = computeAccrual({ ...wBase, perks: null });
-      const wRung2 = computeAccrual({ ...wBase, perks: { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } } });
+      const wNone = huntNight({ ...wBase, perks: null });
+      const wRung2 = huntNight({ ...wBase, perks: { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } } });
       ok(wNone.accrued === true && wRung2.accrued === true && wNone.summary.died === false,
         `P9-W: the ${weakest} fixture did not run a full night (${wNone.reason} / ${wRung2.reason})`);
       if (wNone.accrued && wRung2.accrued) {
@@ -535,7 +540,7 @@ async function run(patch) {
        This is the degrade path measured on the real engine rather than on
        makeBonus alone — a database with the channel installed but no unlocks
        written must be indistinguishable from one without the channel. */
-    const emptyEnv = computeAccrual({
+    const emptyEnv = huntNight({
       ...base, perks: { ok: true, rooms: {}, plots: {}, propertyTier: 0 },
     });
     ok(JSON.stringify(emptyEnv.delta) === JSON.stringify(none.delta),

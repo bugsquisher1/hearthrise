@@ -218,53 +218,29 @@ function auditPure(w) {
     }
   }
 
-  /* T6 — AWAY-1 / BOTH-PATH. The ATTENDED shape (`playerCombatRolls(m, ctx)`,
-     which the live tick and the attended loot top-up call) and the AWAY shape
-     (`weaknessInfo(m, eq, charms, trophies, id)`, which the span binds as
-     `ctx.weakness`) must quote ONE drop rate for one fight. b509 is the receipt
-     for why both columns get their own assertion: the away death was tested
-     nine ways while the attended one handed out a free full heal.
-
-     ⚠ AND THE ID IS THE THING THAT BREAKS FIRST. No roster row carries an `id`,
-       so a caller that drops the fifth argument pays every charm and no trophy
-       — silently, and on one path only. The third case below is that caller.
-
-     ⚠ THIS ARM PASSES THE ID ITSELF, so it is structurally blind to a SHIPPED
-       CALLER that does not — which is exactly what Security F4 found on
-       2026-09-22 with T6 green (src/legacy.js `getPlayerCombatRolls` and
-       hr-accrue/accrual.js `playerRolls(m)` both omitted it). That half is
-       tests/trophy-call-sites.mjs, which lifts both callers out of the shipped
-       bytes and executes them. This arm owns the CORE contract; that one owns
-       who calls it. Neither subsumes the other. */
+  /* T6 — A TROPHY PRICES NO FIGHT (closed rebuild, lane C2; demolition safety
+     review item 9). The trophy is KEPT — claimed, displayed, mounted — but its
+     COMBAT multiplier and the class charm's were deleted from the one fight
+     expression. So a full-ladder trophy and a top-rank charm must leave the
+     drop and damage factors EXACTLY where an empty bestiary leaves them, on the
+     attended shape (`playerCombatRolls`) and the bound one (`weaknessInfo`)
+     alike, whatever extra arguments a stale caller still hands them. */
   {
     const m = MONSTERS.slime;
     const eq = equipmentStats({}, ITEMS);
     const kills = Object.create(null); kills.slime = TROPHY_STAGES[TROPHY_STAGES.length - 1].at;
     const trophies = trophyIndex(kills, MONSTERS);
-    const charms = charmIndex(killsByClass(kills, MONSTERS));
-
-    const away = weaknessInfo(m, eq, charms, trophies, 'slime');
-    const attended = playerCombatRolls(m, {
-      eq, equipment: {}, items: ITEMS, skills: {}, charms, trophies, monsterId: 'slime',
-    }).weak;
-    if (!near(away.dropMult, attended.dropMult)) {
-      say('T6', `AWAY-1 broken: the away binding quotes dropMult ${away.dropMult}, the attended one ${attended.dropMult}`);
+    if (trophyStageFor('slime', trophies) !== MAX_TROPHY_STAGE) {
+      say('T6', 'CONTROL: the fixture does not hold a top-stage trophy — the arm would be vacuous');
     }
-    if (away.trophyStage !== attended.trophyStage) {
-      say('T6', `AWAY-1 broken: the two paths priced different stages (${away.trophyStage} vs ${attended.trophyStage})`);
-    }
-    /* The trophy must actually have PAID on both, or this assertion passes on
-       two identical zeroes — the vacuous form of an AWAY-1 test. */
-    const bare = weaknessInfo(m, eq, charms, null, 'slime');
-    if (!(away.dropMult > bare.dropMult)) {
-      say('T6', `a full-ladder trophy paid nothing (dropMult ${away.dropMult} vs ${bare.dropMult} with no trophy) — the both-path assertion is vacuous`);
-    }
-    /* …and a binding that forgot the id pays the charm and NOT the trophy. This
-       is asserted as a FACT about the failure mode, so the day someone removes
-       the id from a call site the shape of the loss is already documented. */
-    const idless = weaknessInfo(m, eq, charms, trophies);
-    if (idless.trophyStage !== 0 || idless.dropMult >= away.dropMult) {
-      say('T6', 'a weaknessInfo call with no monster id paid a trophy — the index is being keyed off something other than the id');
+    const bare = weaknessInfo(m, eq);
+    const stale = weaknessInfo(m, eq, { vermin: 4 }, trophies, 'slime');
+    const attended = playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: {}, charms: { vermin: 4 },
+      trophies, monsterId: 'slime' }).weak;
+    for (const [what, w] of [['weaknessInfo', stale], ['playerCombatRolls', attended]]) {
+      if (!near(w.dropMult, bare.dropMult) || !near(w.damageMult, bare.damageMult)) {
+        say('T6', `${what} still prices a trophy or a charm into a fight (drop ${w.dropMult} / dmg ${w.damageMult} vs ${bare.dropMult} / ${bare.damageMult})`);
+      }
     }
   }
 

@@ -42,9 +42,6 @@ import { refusalBody } from './envelope.js';
  * @param o.env             the envelope this call read (gate + read statement)
  * @param o.nowMs           that read's server `now()`, in ms
  * @param o.capMs           that read's `hr_offline_cap_ms`
- * @param o.partyOwnsWindow true when party-fence.js found the character partied:
- *                          hr_party_tick_settle owns and prices that window, so
- *                          this verb must not move the watermark at all.
  * @returns {{ proceed: true, env, version, collected } |
  *           { proceed: false, refusal: { status, body } }}
  */
@@ -57,8 +54,7 @@ export async function settleBeforeMutate(o) {
   if (!collectsFirst(verb)) return unchanged('verb_does_not_collect');
 
   /* A SWITCH MUST NOT COME HERE. Its own commit stamps `accrued_to`, so it runs
-     the privileged collect and then its switch (set-activity.js, equip.js,
-     enchant.js). Settling it here would defer a remainder its switch then
+     the privileged collect and then its switch (set-activity.js, equip.js). Settling it here would defer a remainder its switch then
      stamps away. Fail closed: a refusal costs a tap. */
   if (closesWindow(verb)) {
     return {
@@ -73,8 +69,6 @@ export async function settleBeforeMutate(o) {
       },
     };
   }
-
-  if (o.partyOwnsWindow === true) return unchanged('party_owns_window');
 
   const collect = await collectCurrentWindow({
     exec, user, slot, env, st: env.state || {}, nowMs, capMs, pointerSurvives: true,

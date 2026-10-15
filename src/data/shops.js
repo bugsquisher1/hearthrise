@@ -16,14 +16,14 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6
-//   124 offers · 220 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: 704bcf3aef8de63c2e38824813dc0512731a8b0ef6c025ca0119d6885e5e05dd
+//   121 offers · 217 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
-//   seed              16  src/legacy.js
+//   seed              13  src/legacy.js
 //   equip             11  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6";
+export const SHOPS_DIGEST = "704bcf3aef8de63c2e38824813dc0512731a8b0ef6c025ca0119d6885e5e05dd";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -704,27 +704,6 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "seed.cooked_lobster", table: "seed",
-    name: "Cooked Lobster",
-    cost: [{ kind: "currency", id: "gold", amount: 2000 }],
-    grant: [{ kind: "item", id: "cooked_lobster", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.cooked_shrimp", table: "seed",
-    name: "Cooked Shrimp",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "cooked_shrimp", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.cooked_trout", table: "seed",
-    name: "Cooked Trout",
-    cost: [{ kind: "currency", id: "gold", amount: 450 }],
-    grant: [{ kind: "item", id: "cooked_trout", amount: 5 }],
-    repeatable: true,
-  },
-  {
     id: "seed.emberfruit_seed", table: "seed",
     name: "Emberfruit Seed",
     cost: [{ kind: "currency", id: "gold", amount: 900 }],
@@ -923,7 +902,7 @@ export const SHOP_TABLES = [
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
     "note": "the price is per BUNDLE of qty, not per unit",
-    "count": 16
+    "count": 13
   },
   {
     "table": "equip",

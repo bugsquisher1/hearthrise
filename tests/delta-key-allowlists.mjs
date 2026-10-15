@@ -188,7 +188,9 @@ export function proposable({ accrual, ticks }) {
     escapes(b, 'delta', name, bad);
     return new Set([...literalKeys(b, 'delta', bad), ...assignedKeys(b, 'delta')]);
   };
-  const combat = of('computeAccrual');
+  /* LANE C2 (hunt sessions): the combat body is `accrueHunt` — a fight is a
+     hunt session — so the combat delta is built there. Both bodies are read. */
+  const combat = new Set([...of('computeAccrual'), ...of('accrueHunt')]);
   const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
   /* THE TICK LAYER rewrites a settled delta in place in three shapes —
@@ -241,7 +243,7 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   const ok = sqlArray(settleDef, 'c_delta_ok');
   const stamp = sqlArray(settleDef, 'c_stamp');
   if (!apply || !ok || !stamp) { fail('K0', 'an allowlist could not be read out of an installed body'); return { red, P }; }
-  const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'fight', 'deaths', 'xp_frac', 'companion_xp_frac'],
+  const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'fight', 'deaths', 'xp_frac'],
                  gather: ['items', 'xp', 'xp_frac', 'tool_carry', 'progress'], artisan: ['items', 'xp', 'xp_frac'] };
   for (const [eng, keys] of Object.entries(need)) {
     const miss = keys.filter((k) => !P[eng].has(k));
@@ -518,7 +520,12 @@ async function main() {
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac'];") },
     { name: 'party allowlist accepts a key hr_apply refuses', arms: /^KC:/,
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac','companion_xp_frac','wealth'];") },
-    { name: 'hr_apply allowlist lacks companion_xp_frac', arms: /^KA:/,
+    /* Re-pointed lane C2: the engine no longer writes companion_xp_frac (companion
+       XP deleted), so dropping THAT key from hr_apply is KC's and P's to see, not
+       KA's. xp_frac is still engine output, so its absence must be KA-red. */
+    { name: 'hr_apply allowlist lacks xp_frac', arms: /^KA:/,
+      plant: bodyMutant(applyDef, "    'xp_frac',\n", '') },
+    { name: 'hr_apply allowlist lacks companion_xp_frac (no engine writer)', arms: /^(KC|P):/,
       plant: bodyMutant(applyDef, "    'companion_xp_frac',\n", '') },
     { name: 'a NEW combat key the allowlists do not know', arms: /^(KA|KB|KD):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', '  if (goldDelta > 0) delta.gold = goldDelta;\n  delta.zz_new_key = 1;') } },
@@ -548,8 +555,8 @@ async function main() {
         "  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n  folded['zz'] = 1;") }) } },
     { name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
       plant: bodyMutant(settleDef, '  v_role     text;', "  v_role     text; v_dyn text := format('%I', c_delta_ok[14]);") },
-    { name: 'foldDeltas stops classifying companion_xp_frac', arms: /^KD:/,
-      src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac', 'companion_xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);") } },
+    { name: 'foldDeltas stops classifying xp_frac', arms: /^KD:/,
+      src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze([]);") } },
     { name: 'a dormant key\'s column appears', arms: /^KE:/,
       plant: async () => { await db.exec('alter table public.player_state add column ammo_carry numeric'); return async () => { await db.exec('alter table public.player_state drop column ammo_carry'); }; } },
     { name: 'the single-writer scan is narrowed to nothing', arms: /^KW:/,

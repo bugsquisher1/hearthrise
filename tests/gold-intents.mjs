@@ -83,6 +83,8 @@ const EXTRA = [
   ['accrual', MIG('2026-08-11-accrual.sql')],
   /* the accrue-cap read the edge modules make since the presence horizon; see the file. */
   ['presence-horizon-slice-shim', join(ROOT, 'tests', 'fixtures', 'presence-horizon-slice-shim.sql')],
+  /* the hunt-open read the accrue and collect paths make since lane C2; see the file. */
+  ['hunt-sessions-slice-shim', join(ROOT, 'tests', 'fixtures', 'hunt-sessions-slice-shim.sql')],
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
   ['activity-intent', MIG('2026-08-15-activity-intent.sql')],
@@ -625,7 +627,11 @@ async function run(mutate) {
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
-      cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
+      /* Master plan row 2 (lane C2): the Counter no longer SELLS cooked food,
+         so there is no shop round-trip for the b565 cap to close and the plain
+         sell rate applies (0.6 × value: 240 / 55 / 18, was capped 200 / 45 / 15).
+         A cooked food back on the Counter re-caps it and turns this red. */
+      cooked_lobster: 240, cooked_trout: 55, cooked_shrimp: 18,
     };
     const offRuling = Object.keys(BUYBACK_EXPECT)
       .filter((id) => cat.vendorPriceOf(ITEMS, id) !== BUYBACK_EXPECT[id])
@@ -787,7 +793,7 @@ async function run(mutate) {
     await clearGate();
     await db.query(
       `update public.player_state
-          set active_kind = 'combat', active_id = 'goblin', max_hp = 900, hp = 900,
+          set active_kind = 'gather', active_id = 'copper_rock', max_hp = 900, hp = 900,
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
@@ -796,8 +802,12 @@ async function run(mutate) {
     ok(r.body.ok === true, `G4-CONTROL: the purchase failed: ${JSON.stringify(r.body).slice(0, 200)}`);
     const after = await state(db, UID);
     const moved = new Date(after.accrued_to).getTime() - new Date(before.accrued_to).getTime();
-    ok(r.body.collected && Number(r.body.collected.kills) > 0 && moved > 2.9 * 3600e3,
-      `G4: a purchase over a 3 h combat window moved accrued_to by ${moved} ms with `
+    /* Lane C2: a combat pointer with no session prices nothing (hunt_required),
+       so the night here is a MINING night (copper, so G9's log count is untouched) — the settle-before-mutate rule is the
+       same, and a night that paid no XP would be the vacuous case. */
+    const paidXp = Object.values((r.body.collected && r.body.collected.xp) || {}).reduce((a, n) => a + Number(n || 0), 0);
+    ok(r.body.collected && paidXp > 0 && moved > 2.9 * 3600e3,
+      `G4: a purchase over a 3 h gather window moved accrued_to by ${moved} ms with `
       + `collected=${JSON.stringify(r.body.collected).slice(0, 160)}. The night must be SETTLED at the `
       + 'pre-purchase state and receipted — a watermark that moves without a receipt is the '
       + 'confiscation this group exists for, and one that does not move leaves the night to be '
@@ -1058,45 +1068,50 @@ async function run(mutate) {
     ok(sell.resolveSale('normal_log').ok === true, 'G8-CONTROL: resolveSale refuses a real item');
   }
 
-  // ── G-PROV. THE PROVISIONER'S COUNTER (content pack 9) ──────────────────
-  // Lobster is sold by the five at 2000, and the 150g single iron arrow is
-  // retired. The price is the edge's own catalogue, charged per BUNDLE; a
-  // body that carries its own price or grant is not read, and the purchase is
-  // journalled with the unit price the server charged.
+  // ── G-PROV. THE COUNTER SELLS BY THE BUNDLE (content pack 9) ─────────────
+  // The price is the edge's own catalogue, charged per BUNDLE; a body that
+  // carries its own price or grant is not read, and the purchase is journalled
+  // with the unit price the server charged. Lane C2 (master plan row 2): the
+  // Counter no longer sells cooked food, so the lobster bundle this group used
+  // is an unknown offer now (asserted below) and the bundle rule is proven on a
+  // seed bundle instead.
   {
     await clearGate();
     await grant({ gold: 10000, journal: { kind: 'admin', intent: 'fixture:prov' } });
-    const LOB = 'seed.cooked_lobster';
-    const res = buy.resolveOffer(LOB);
-    ok(res.ok === true && res.offer.gold === 2000
-      && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: 'cooked_lobster', amount: 1 * 5 }]),
-      `G-PROV: resolveOffer('${LOB}') returned ${JSON.stringify(res)}`);
+    const lob = buy.resolveOffer('seed.cooked_lobster');
+    ok(lob.ok === false && lob.error === 'unknown_offer',
+      `G-PROV: the Counter still sells cooked lobster (${JSON.stringify(lob).slice(0, 160)}) — row 2 took cooked food off it`);
+    const OFF = 'seed.potato_seed'; const ITEM = 'potato_seed'; const PRICE = 100; const PER = 5;
+    const res = buy.resolveOffer(OFF);
+    ok(res.ok === true && res.offer.gold === PRICE
+      && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: ITEM, amount: PER }]),
+      `G-PROV: resolveOffer('${OFF}') returned ${JSON.stringify(res)}`);
 
     const before = await state(db, UID);
-    const lobBefore = await invOf(db, UID, 'cooked_lobster');
+    const itBefore = await invOf(db, UID, ITEM);
     const beforeLedger = (await ledger(db, UID)).length;
     /* A forged body: its own price, a bigger grant and a bundle size. None of
-       it is read — the server charges its catalogue's 2000 for one bundle of 5. */
-    const r = await doBuy({ intentId: uuid(), offer: LOB, qty: 1,
-      gold: 1, cost: 1, price: 1, unit_gold: 1, grant: [{ id: 'cooked_lobster', amount: 999 }] });
+       it is read — the server charges its catalogue's price for one bundle. */
+    const r = await doBuy({ intentId: uuid(), offer: OFF, qty: 1,
+      gold: 1, cost: 1, price: 1, unit_gold: 1, grant: [{ id: ITEM, amount: 999 }] });
     ok(r.status === 200 && r.body.ok === true, `G-PROV: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     const st = await state(db, UID);
-    ok(Number(before.gold) - Number(st.gold) === 2000,
-      `G-PROV: one lobster bundle cost ${Number(before.gold) - Number(st.gold)} gold, expected 2000`);
-    ok(await invOf(db, UID, 'cooked_lobster') - lobBefore === 5,
-      `G-PROV: the bag gained ${await invOf(db, UID, 'cooked_lobster') - lobBefore} lobster, expected 5`);
+    ok(Number(before.gold) - Number(st.gold) === PRICE,
+      `G-PROV: one ${ITEM} bundle cost ${Number(before.gold) - Number(st.gold)} gold, expected ${PRICE}`);
+    ok(await invOf(db, UID, ITEM) - itBefore === PER,
+      `G-PROV: the bag gained ${await invOf(db, UID, ITEM) - itBefore} ${ITEM}, expected ${PER}`);
     const rows = (await ledger(db, UID)).slice(beforeLedger);
-    ok(rows.length === 1 && rows[0].kind === 'shop' && Number(rows[0].gold) === -2000
-      && rows[0].meta && rows[0].meta.offer === LOB && Number(rows[0].meta.unit_gold) === 2000,
-      `G-PROV: the purchase is not journalled as {offer:${LOB}, unit_gold:2000}: ${JSON.stringify(rows)}`);
+    ok(rows.length === 1 && rows[0].kind === 'shop' && Number(rows[0].gold) === -PRICE
+      && rows[0].meta && rows[0].meta.offer === OFF && Number(rows[0].meta.unit_gold) === PRICE,
+      `G-PROV: the purchase is not journalled as {offer:${OFF}, unit_gold:${PRICE}}: ${JSON.stringify(rows)}`);
 
-    /* The count multiplies BUNDLES, never the price down: 2 bundles = 4000 for 10. */
+    /* The count multiplies BUNDLES, never the price down: 2 bundles = 2 x price for 2 x PER. */
     const b2 = await state(db, UID);
-    const r2 = await doBuy({ intentId: uuid(), offer: LOB, qty: 2 });
+    const r2 = await doBuy({ intentId: uuid(), offer: OFF, qty: 2 });
     ok(r2.body.ok === true, `G-PROV: two bundles refused: ${JSON.stringify(r2.body).slice(0, 200)}`);
-    ok(Number(b2.gold) - Number((await state(db, UID)).gold) === 4000
-      && await invOf(db, UID, 'cooked_lobster') - lobBefore === 15,
-      'G-PROV: two lobster bundles did not cost 4000 for 10');
+    ok(Number(b2.gold) - Number((await state(db, UID)).gold) === 2 * PRICE
+      && await invOf(db, UID, ITEM) - itBefore === 3 * PER,
+      `G-PROV: two ${ITEM} bundles did not cost ${2 * PRICE} for ${2 * PER}`);
 
     /* The retired trap row is an unknown offer, and it moves nothing. */
     const g0 = Number((await state(db, UID)).gold);

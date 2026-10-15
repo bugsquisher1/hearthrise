@@ -204,7 +204,6 @@ export async function runValueIntent(o) {
   }
   const settled = await settleBeforeMutate({
     exec, user, slot, verb, env, nowMs: read.nowMs, capMs: read.capMs,
-    partyOwnsWindow: o.partyOwnsWindow === true,
   });
   if (!settled.proceed) return settled.refusal;
   env = settled.env;

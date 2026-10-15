@@ -21,7 +21,7 @@
 //   D1  the migration's allowlist == src/data/monsters.js minus boss/champion
 //   D2  2,000 seeded boards (every combat band) post only allowlisted monsters
 //   A0  the engine's input surface has no bounty key (it cannot price a target)
-//   A1  AWAY, engine: an hour on goblins writes ev:kill_monster:goblin only
+//   A1  the engine (a training hunt): an hour on goblins writes ev:kill_monster:goblin only
 //   A2  AWAY, engine control: an hour on X writes ev:kill_monster:X only
 //   B1  a second apply is byte-identical
 //   F1  a boss contract is refused not_board_eligible (journalled); X accepted
@@ -45,6 +45,7 @@ import { generateBountyBoard } from '../src/core/bounty.js';
 import { createRng } from '../src/core/rng.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { ENGINE_INPUT_KEYS } from '../supabase/functions/hr-accrue/envelope.js';
+import { huntAccrualInput } from './hunt-fixture.mjs';
 
 const MIG = '2026-10-17-bestiary-target.sql';
 const PRE = '2026-10-15-party-hunt-select-lockdown.sql';   // the chain end before this file
@@ -75,14 +76,16 @@ const X = BOARD.find((id) => MONSTERS[id].tier === 1 && id !== 'goblin');
 const BOSS = Object.keys(MONSTERS).filter((id) => MONSTERS[id].boss).sort()[0];
 const MAXED = 13034431;
 
+/* A fight is a hunt session (closed rebuild, lane C2): the hour rides a training
+   hunt on the pointer's monster (tests/hunt-fixture.mjs). */
 function engineKills(activeId, nowMs) {
-  const r = computeAccrual({
+  const r = computeAccrual(huntAccrualInput({
     userId: '00000000-0000-4000-8000-0000000be571', slot: 0,
     nowMs, accruedToMs: nowMs - 3600000, activeSinceMs: nowMs - 3600000,
     activeKind: 'combat', activeId, capMs: 12 * 3600000, seed: 0x5eedbe57, hp: 99, maxHp: 99,
     skills: { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED, ranged: 0, magic: 0, prayer: 0 },
     gold: 0, equipment: {}, items: ITEMS, monsters: MONSTERS,
-  });
+  }, { seed: 0x5eedbe57 }));
   const prog = (r.delta && r.delta.progress) || [];
   return { r, prog, keys: prog.filter((p) => /^ev:kill_monster:/.test(p.key)) };
 }

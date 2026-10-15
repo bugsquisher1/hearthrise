@@ -15,13 +15,10 @@
 // rule is there with the measurement that motivated it.
 //
 // PURE ESM, Node + Deno. Lives IN the edge payload because the op:'tick' entry
-// runs it; `services/world-tick/contract.js` re-exports it so the offline guards
-// and the replay tool keep ONE copy (AWAY-12). No `?v=` (not under src/**).
+// runs it; the offline guards and the replay tool import it directly, so there
+// is ONE copy (AWAY-12). No `?v=` (not under src/**).
 // ============================================================================
 
-/* The two vigour counter keys, from the module that owns them, so the row the
-   engine files and the row this file sums cannot be two spellings. */
-import { VIGOUR_PROGRESS_KEY, VIGOUR_REMAINDER_KEY } from '../../../src/core/hunt.js';
 import { levelFromXp } from '../../../src/core/xp.js';
 
 /* ── RULE 1: TICK-ALIGNED WINDOWS ───────────────────────────────────────────
@@ -90,7 +87,7 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
      ABSOLUTE   the key is a CHECKPOINT of resulting state; folding is "last
                 window wins". accrual.js's own header calls these out by name:
                 `fight`, `tool_carry`, `ammo_carry`, `recovering_until`,
-                `consec_falls`, `accrued_to`, `hp`, `activity`.
+                `accrued_to`, `hp`, `activity`.
      APPEND     the key is a list of events; folding is concatenation, and the
                 per-call clamp (MAX_DEATH_ROWS, the progress-op cap) must be
                 re-checked AFTER the fold, never only per window. */
@@ -98,16 +95,14 @@ export const ADDITIVE_SCALAR = Object.freeze(['gold']);
 export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
-  'recovering_until', 'ammo_carry', 'tool_carry', 'consec_falls',
+  'recovering_until', 'ammo_carry', 'tool_carry',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
 /* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last
    window wins" ENTRY BY ENTRY. `xp_frac` (2026-10-09-xp-frac-carry.sql) carries
    only the skills a window moved, so a whole-map last-wins would drop the
-   remainder of a skill an earlier window moved and a later one did not.
-   `companion_xp_frac` (2026-10-12-companion-xp-frac.sql) is the same shape
-   per companion. */
-export const ABSOLUTE_MAP = Object.freeze(['xp_frac', 'companion_xp_frac']);
+   remainder of a skill an earlier window moved and a later one did not. */
+export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);
 
 export function foldDeltas(deltas) {
   const out = {};
@@ -233,7 +228,6 @@ export function valueSummary(res) {
     hp: Number(d.hp || 0),
     fight: d.fight || null,
     recovering_until: typeof d.recovering_until === 'undefined' ? undefined : d.recovering_until,
-    consec_falls: d.consec_falls,
     kills: Number(s.kills || 0),
     ticks: Number(s.ticks || 0),
     crits: Number(s.crits || 0),
@@ -296,27 +290,20 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
    `shadow_accrued_to` already chains):
      hp                a window that starts at the row's hp re-fights from full
      recovering_until  the knockout never sticks; this is the measured defect
-     consec_falls      `retreatAtFall` never fires, so the pointer never ends
      fight             every window restarts the foe at full HP: kills inflate
      ammo_carry        the sub-action remainder is forfeit every window
      tool_carry        the same, on gather, and it is forfeit TODAY
      activity          a pointer the engine idled keeps being settled
    ADDITIVE, as CUMULATIVE MOVEMENT rather than as an absolute:
      gold, xp, items   the bag is the one input the engine SPENDS. Without it
-                       auto-eat eats the SAME food every window — the shadow
+                       a window spends the SAME stack every time — the shadow
                        reads as a character with an infinite larder, which is
                        the PAYING direction.
    COUNTERS hr_apply would have written from the delta's own `progress` ops,
    summed off THAT list rather than re-derived (there is no rule here, only a
    sum of the engine's own output):
-     deaths_today / deaths_lifetime   `recoveryFor()` prices every fall from
-                       these. Dropped, a character six falls into the day is
-                       handed the first-death novice grace, every window,
-                       forever. Less knockout is more paying time: a mint.
-     vigour_spent_min  the daily budget refills itself every window, so
-                       `vigourMult` never decays. Also a mint.
-   And `bestiary_kills`, the charm index's counter, which `advance()` already
-   maintains from `summary.kills`.
+     deaths_today / deaths_lifetime   the death rows state them; dropped, every
+                       window would restart the count.
 
    ── WHAT IS DELIBERATELY NOT CARRIED, EACH WITH ITS REASON ─────────────────
      maxHp             NOT A KEY OF ITS OWN — it is a FUNCTION of the carried
@@ -325,7 +312,7 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
                        dropped, and a mid-chain Hitpoints level-up fought every
                        later window at the old ceiling: -13.6% ticks on a
                        character still gaining Hitpoints levels, the combat
-                       parity miss (tests/world-tick-maxhp-carry.mjs).
+                       parity miss (the deleted solo-combat max-HP carry guard).
      hearthfindReady   `hr_state_of` projects the LITERAL `true`
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for
@@ -337,8 +324,7 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
                        the ABSOLUTE `until` the server already holds, so the
                        envelope's copy stays correct window after window.
      version, gems     no settle moves them, and in shadow nothing moves at all.
-     equipment, enchant, combatStyle, the auto-eat trio, huntStance, huntStop,
-     traits, perks     read-only inputs. No delta key touches one.
+     equipment, combatStyle, perks   read-only inputs. No delta key touches one.
 
    ── THE BOUND (design constraint 6) ────────────────────────────────────────
    `inventory` can be hundreds of stacks and this object rides a column on
@@ -353,28 +339,18 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
 export const SHADOW_STATE_V = 1;
 export const MAX_SHADOW_XP_KEYS = 32;
 export const MAX_SHADOW_ITEM_KEYS = 64;
-export const MAX_SHADOW_BESTIARY_KEYS = 16;
 /* The column's own ceiling, restated from the CHECK constraint in
    2026-09-23-world-tick-shadow-state-chain.sql §1 so the edge refuses to send
    what the database would refuse to store. 16 KiB against a measured ~700 B. */
 export const MAX_SHADOW_STATE_BYTES = 16384;
 
-/* The counters the engine files as `progress` ops, read back off that list.
-   `stat:deaths` under period '' is lifetime and under a UTC day key is today's;
-   `daily:ev:vigour_min` + `daily:ev:vigour_rem_ms` are the hunt's charge — ONE
-   number in two rows (src/core/hunt.js vigourCharge). Summing the engine's own
-   ops is not arithmetic of our own — it is the same number, read where it was put.
-
-   ⚠ THE REMAINDER IS RETURNED TOO (2026-10-05). It used to be dropped, and a
-     10 s window charges `addMin = 0, remMs = 10000` — so a chain of ticks never
-     charged its own budget at all, and a character crossing the Vigour line
-     mid-chain kept paying full rate: +269% gold against the one-span accrue on a
-     replay that starts 20 minutes under the line (tests/world-tick-vigour-scale.mjs). */
+/* The counters the engine files as `progress` ops, read back off that list:
+   `stat:deaths` under period '' is lifetime and under a UTC day key is today's.
+   Summing the engine's own ops is not arithmetic of our own — it is the same
+   number, read where it was put. */
 export function countersFromProgress(progress) {
   let deathsLifetime = 0;
   let deathsToday = 0;
-  let vigourMin = 0;
-  let vigourRemMs = 0;
   for (const op of progress || []) {
     if (!op) continue;
     const add = Math.floor(Number(op.add) || 0);
@@ -382,25 +358,9 @@ export function countersFromProgress(progress) {
     if (op.kind === 'stat' && op.key === 'deaths') {
       if (op.period === '' || op.period == null) deathsLifetime += add;
       else deathsToday += add;
-      continue;
     }
-    if (op.kind === 'daily' && op.key === VIGOUR_PROGRESS_KEY) vigourMin += add;
-    if (op.kind === 'daily' && op.key === VIGOUR_REMAINDER_KEY) vigourRemMs += add;
   }
-  return { deathsLifetime, deathsToday, vigourMin, vigourRemMs };
-}
-
-/* THE CHAIN'S SPENT MINUTES, as `hr_vigour_of` would read them back after the
-   chain's own charges: `floor((minutes x 60000 + remainder) / 60000)`, the ONE
-   division the read does. `baseSpentMin` is the envelope's `spent_min`; the
-   day's pre-chain sub-minute remainder is not projected, so it is taken as 0 —
-   the chain crosses each minute up to 59.999 s late, a bound that does not grow
-   with the cadence (which is the property the floor-per-window charge broke). */
-export function chainSpentMin(baseSpentMin, chainMin, chainRemMs) {
-  const base = Math.max(0, Math.floor(Number(baseSpentMin) || 0));
-  const min = Math.max(0, Math.floor(Number(chainMin) || 0));
-  const rem = Math.max(0, Math.floor(Number(chainRemMs) || 0));
-  return base + min + Math.floor(rem / 60000);
+  return { deathsLifetime, deathsToday };
 }
 
 /* ── MAX HP FOLLOWS THE HITPOINTS LEVEL, RAISE-ONLY (2026-10-05) ────────────
@@ -469,8 +429,7 @@ export function shadowStateOf(char, opts) {
   };
   const xp = trim(chain.xp, MAX_SHADOW_XP_KEYS);
   const items = trim(chain.items, MAX_SHADOW_ITEM_KEYS);
-  const bestiary = trim(chain.bestiaryKills, MAX_SHADOW_BESTIARY_KEYS);
-  if (xp === false || items === false || bestiary === false) return null;
+  if (xp === false || items === false) return null;
 
   const st = { v: SHADOW_STATE_V, base_version: Number(o.baseVersion) };
   if (o.atMs != null) st.at = new Date(Number(o.atMs)).toISOString();
@@ -480,7 +439,6 @@ export function shadowStateOf(char, opts) {
      explicit one and the engine would start proposing a key hr_apply refuses. */
   if (typeof c.hp === 'number') st.hp = Math.floor(c.hp);
   if ('recoveringUntilMs' in c) st.recovering_until = c.recoveringUntilMs || 0;
-  if ('consecFalls' in c) st.consec_falls = c.consecFalls;
   if ('fight' in c) st.fight = c.fight;
   if ('ammoCarry' in c) st.ammo_carry = c.ammoCarry;
   if ('toolCarry' in c) st.tool_carry = c.toolCarry;
@@ -494,22 +452,9 @@ export function shadowStateOf(char, opts) {
     st.xp_frac = {};
     for (const k of Object.keys(chain.xpFrac).sort()) st.xp_frac[k] = Number(chain.xpFrac[k]) || 0;
   }
-  /* THE PET'S REMAINDER, the same checkpoint per companion. */
-  if (chain.companionXpFrac && Object.keys(chain.companionXpFrac).length) {
-    if (Object.keys(chain.companionXpFrac).length > MAX_SHADOW_XP_KEYS) return null;
-    st.companion_xp_frac = {};
-    for (const k of Object.keys(chain.companionXpFrac).sort()) {
-      st.companion_xp_frac[k] = Number(chain.companionXpFrac[k]) || 0;
-    }
-  }
   if (items) st.items = items;
-  if (bestiary) st.bestiary_kills = bestiary;
   if (chain.deathsToday) st.deaths_today = Math.floor(chain.deathsToday);
   if (chain.deathsLifetime) st.deaths_lifetime = Math.floor(chain.deathsLifetime);
-  if (chain.vigourMin) st.vigour_spent_min = Math.floor(chain.vigourMin);
-  /* The remainder row's cumulative ms. Without it the carrier re-floors the
-     charge at every fire and the shadow never spends its budget (2026-10-05). */
-  if (chain.vigourRemMs) st.vigour_rem_ms = Math.floor(chain.vigourRemMs);
 
   /* Nothing moved — no window settled. Sending `{v:1}` would chain an empty
      proposal and look like a carrier that works; null is the honest answer. */
@@ -537,7 +482,6 @@ export function applyShadowState(session, state) {
 
   if (typeof st.hp === 'number') s.hp = st.hp;
   if ('recovering_until' in st) s.recoveringUntilMs = st.recovering_until || 0;
-  if ('consec_falls' in st) s.consecFalls = st.consec_falls;
   if ('fight' in st) s.fight = st.fight;
   if ('ammo_carry' in st) s.ammoCarry = st.ammo_carry;
   if ('tool_carry' in st) s.toolCarry = st.tool_carry;
@@ -560,10 +504,6 @@ export function applyShadowState(session, state) {
   if (st.xp_frac && typeof st.xp_frac === 'object' && s.xpFrac && typeof s.xpFrac === 'object') {
     s.xpFrac = Object.assign({}, s.xpFrac, st.xp_frac);
   }
-  if (st.companion_xp_frac && typeof st.companion_xp_frac === 'object'
-      && s.companionXpFrac && typeof s.companionXpFrac === 'object') {
-    s.companionXpFrac = Object.assign({}, s.companionXpFrac, st.companion_xp_frac);
-  }
   if (st.items) {
     const inv = Object.assign({}, s.inventory);
     for (const k of Object.keys(st.items)) {
@@ -572,29 +512,9 @@ export function applyShadowState(session, state) {
     }
     s.inventory = inv;
   }
-  if (st.bestiary_kills) {
-    const b = Object.assign({}, s.bestiaryKills);
-    for (const k of Object.keys(st.bestiary_kills)) {
-      b[k] = (b[k] || 0) + Number(st.bestiary_kills[k] || 0);
-    }
-    s.bestiaryKills = b;
-  }
   if (st.deaths_today) s.deathsTodayBefore = (Number(s.deathsTodayBefore) || 0) + st.deaths_today;
   if (st.deaths_lifetime) {
     s.deathsLifetimeBefore = (Number(s.deathsLifetimeBefore) || 0) + st.deaths_lifetime;
-  }
-  /* VIGOUR IS A BLOCK, NOT A SCALAR: `hr_vigour_of` hands the engine
-     `{budget_min, spent_min, …}` and only `spent_min` is a counter a settle
-     moves. A session with no vigour block has a database without the column
-     and must keep reading that way. */
-  if ((st.vigour_spent_min || st.vigour_rem_ms) && s.vigour && typeof s.vigour === 'object') {
-    /* `_vigourBaseMin` is the envelope's own spent_min, kept as scratch so
-       advance() re-derives from the same base rather than adding onto a
-       number that already holds the chain (tick-shadow.js advance). */
-    s._vigourBaseMin = Math.max(0, Math.floor(Number(s.vigour.spent_min) || 0));
-    s.vigour = Object.assign({}, s.vigour, {
-      spent_min: chainSpentMin(s._vigourBaseMin, st.vigour_spent_min, st.vigour_rem_ms),
-    });
   }
 
   /* ── THE ACCUMULATOR IS SEEDED, NOT RESTARTED ───────────────────────────
@@ -607,7 +527,7 @@ export function applyShadowState(session, state) {
 
      CAUGHT BY C17, NOT BY REVIEW. The first draft of this function did not
      seed it, and the carried chain diverged from the in-memory chain by +21
-     meals and -5 deaths on the auto-eat fixture: the bag kept refilling itself
+     meals and -5 deaths on a fed fixture: the bag kept refilling itself
      across flush boundaries, which is the very defect the carrier exists to
      close, reproduced one layer up. The ABSOLUTE fields above do not need this
      because they are checkpoints — the last window's value IS the state — but
@@ -616,13 +536,9 @@ export function applyShadowState(session, state) {
     gold: Number(st.gold) || 0,
     xp: Object.assign({}, st.xp),
     xpFrac: Object.assign({}, st.xp_frac),
-    companionXpFrac: Object.assign({}, st.companion_xp_frac),
     items: Object.assign({}, st.items),
-    bestiaryKills: Object.assign({}, st.bestiary_kills),
     deathsToday: Number(st.deaths_today) || 0,
     deathsLifetime: Number(st.deaths_lifetime) || 0,
-    vigourMin: Number(st.vigour_spent_min) || 0,
-    vigourRemMs: Number(st.vigour_rem_ms) || 0,
     activity: st.activity || null,
   };
   return s;

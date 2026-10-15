@@ -1662,7 +1662,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "REVIEW 2026-10-15: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "why": "2026-10-15 (Coordinator, measured with --codediff): live = replay + the hunt-session rate buckets (when 'hunt' then 30; 'hunt_use' 60; 'hunt_read' ...) from 2026-10-21-hunt-sessions.sql, which was APPLIED on prod by the C2 lane before the 10-14 session died but is not yet merged into main (it lives on lane/c2-hunt-sessions-edge). Everything else, including the closed-mode hr_access_check splice (2026-10-21-closed-mode.sql, applied 02:25 UTC 10-15), is identical. Closes when C2 merges and restates hr_rpc_gate in full."
   },
   {
    "sig": "hr_set_auto_eat(p_slot integer, p_enabled boolean, p_food text, p_pct integer, p_clear_food boolean)",

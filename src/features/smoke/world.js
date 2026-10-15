@@ -320,7 +320,7 @@ export default [
     }
   }),
 
-  /* Live b585 (Tyler): "WASD doesn't work" — the World only had click-to-walk. */
+  /* Tyler, 2026-10-14: "WASD doesn't work" — the World only had click-to-walk. */
   () => tryRunAsync('WORLD-8: WASD and the arrows walk the hero in the Common, 8 ways, and stop on key-up; never while a field has focus or a dialog is open', async () => {
     const G = window.G;
     const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world');

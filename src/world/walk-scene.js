@@ -85,7 +85,7 @@ export function createWalkScene(map, o) {
       const f = map.focus;
       /* The hero is drawn on whole art pixels and the camera is led by THAT
          pixel, not by the fraction, so the hero and the ground under it move
-         in the same frames. Led by the fraction (b585) the camera crept a device
+         in the same frames. Led by the fraction, the camera crept a device
          pixel at a time while the hero jumped a whole art pixel (z device px):
          on screen the hero stepped 0, 1, 3, 4 px on alternate frames. */
       const hx = onPixel(at.x), hy = onPixel(at.y);

@@ -48,7 +48,7 @@ const UPDOWN = (dy) => (dy > 0 ? 's' : 'n');
  * The facing for a step (dx, dy) of a walk heading `trip` overall. A straight
  * step faces its way. The art has four facings, so a DIAGONAL step faces the
  * trip's dominant axis (a walk mostly south keeps facing the camera through its
- * diagonal steps, instead of flipping to a side view and back — live b585), or,
+ * diagonal steps, instead of flipping to a side view and back), or,
  * on an exact diagonal, keeps the facing it had when that is one of its two
  * components, else shows the side.
  */

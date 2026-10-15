@@ -385,8 +385,17 @@ const ENGINE_ARMS = {
       plain_steel_arrows: { kind: 'ammo', price: 1000, heals: 0, mana: 0, partner: 'steel_arrows' },
       bad_row: { kind: 'heal', price: 2.5, heals: 4 },
     };
+    /* JUNK ONLY (Master Design Reference §8 review): bones and every other
+       un-flagged drop are never sell-to-cover stock; only `junk: true` is. */
+    for (const id of ['bones', 'bat_wing', 'goblin_ear', 'rat_tail']) {
+      if (M.ITEMS[id] && M.HSD.coverSellable(M.ITEMS[id], false)) problems.push(`${id} is sell-to-cover stock — auto-sell is junk only`);
+    }
+    if (!M.HSD.coverSellable({ junk: true }, false) || M.HSD.coverSellable({ junk: true }, true)) problems.push('a junk row is not coverable (or a junk SUPPLY is)');
     const mk = (bag, purse, slots = bar, extra = {}) => M.AR.newHuntSession(Object.assign({ id: 'b', huntFromMs: 0, bag, slots, basics,
-      shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' }, purse, goldFloor: 0 }, extra));
+      /* The store mechanics under test need the player to have CHOSEN the store
+         (Master Design Reference §4); the choice itself is graded by DRY /
+         HEALSTORE in tests/hunt-session-engine.mjs. */
+      shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' }, purse, goldFloor: 0, supplySource: 'store' }, extra));
     const fire = (hs, atMs) => {
       const st = { playerHp: 2, playerMaxHp: 10, playerMana: 0, playerMaxMana: 10, huntSession: hs, buffs: [] };
       const ate = M.AR.runActionBar(st, { atMs });
@@ -434,6 +443,7 @@ const ENGINE_ARMS = {
     coin.huntSession.basics = { salted_shrimp: basics.salted_shrimp };
     coin.huntSession.shop = { heal: 'salted_shrimp', mana: null };
     coin.huntSession.goldFloor = 0;
+    coin.huntSession.supplySource = 'store';
     coin.huntSession.slots = [{ item: '*heal_shop', on: true, conditions: when }];
     const co = M.AC.computeAccrual(coin);
     if (!(((co.hunt || {}).buys || {}).salted_shrimp > 0)) problems.push(`a 0-gold hunter bought ${JSON.stringify((co.hunt || {}).buys)} from its own kill coins (gold ${co.delta && co.delta.gold})`);
@@ -445,12 +455,12 @@ const ENGINE_ARMS = {
     inp.huntSession.basics = { plain_steel_arrows: basics.plain_steel_arrows };
     inp.huntSession.goldFloor = 0;
     inp.huntSession.slots = [{ item: 'plain_steel_arrows', on: true, conditions: [] }];
-    /* The store takes a dry line ONLY on the set's 'store' choice (Combat Design
-       Bible v1.4); on 'end' the same dry quiver ends the hunt ammo_out and buys nothing. */
-    const endOut = M.AC.computeAccrual({ ...inp, huntSession: { ...inp.huntSession, onDry: 'end', tally: JSON.parse(JSON.stringify(inp.huntSession.tally)) } });
+    /* The store takes a dry line ONLY on the set's choice (Master Design
+       Reference §4); on mine+end the same dry quiver ends the hunt ammo_out and buys nothing. */
+    const endOut = M.AC.computeAccrual({ ...inp, huntSession: { ...inp.huntSession, supplySource: 'mine', onEmpty: 'end', tally: JSON.parse(JSON.stringify(inp.huntSession.tally)) } });
     const he = endOut.hunt || {};
-    if (Object.keys(he.buys || {}).length || (he.ended && he.ended.reason === 'gold_out')) problems.push(`on 'end' a dry quiver bought ${JSON.stringify(he.buys)} (ended '${he.ended && he.ended.reason}')`);
-    inp.huntSession.onDry = 'store';
+    if (Object.keys(he.buys || {}).length || (he.ended && he.ended.reason === 'gold_out')) problems.push(`on mine+end a dry quiver bought ${JSON.stringify(he.buys)} (ended '${he.ended && he.ended.reason}')`);
+    inp.huntSession.onEmpty = 'switch';
     const out = M.AC.computeAccrual(inp);
     const h = out.hunt || {};
     if (!h.ended || h.ended.reason !== 'gold_out') problems.push(`a dry quiver ended '${h.ended && h.ended.reason}', not gold_out`);
@@ -568,6 +578,13 @@ async function hunter(db, M, o) {
   if (o.slots) {
     const r = await one(db, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid)', ['C2', JSON.stringify(o.slots), idem()]);
     if (!r || r.ok !== true) throw new Error('action set refused: ' + JSON.stringify(r));
+  }
+  /* HUNT SUPPLIES (Master Design Reference §4): a fixture that buys from the
+     store must have CHOSEN it, through the player's own RPC. */
+  if (o.supply) {
+    const r = await one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, $1::uuid, $2, $3)",
+      [idem(), o.supply.source ?? null, o.supply.empty ?? null]);
+    if (!r || r.ok !== true) throw new Error('supplies choice refused: ' + JSON.stringify(r));
   }
   if (o.mode) {
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1, $2, $3, $4::uuid)',
@@ -710,6 +727,8 @@ const STRONG = {
    charges it 3 (inside the 2% bound, below the floor). */
 /* The bar a shop buyer fights with: the bag's heal, then the shop's — ON
    (a new character's default bar has the shop slot off, master plan row 25). */
+/* The bag's heal first, then the shop's: Use My Supplies, Switch on empty. */
+const SWITCH = { source: 'mine', empty: 'switch' };
 const SHOP_BAR = [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
   { item: '*heal_shop', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
 /* The bar WEAK fights with: the bag's heal only. Lane D's default preset also
@@ -886,7 +905,7 @@ const DB_ARMS = {
     /* (1) BOTH PATHS buy the same heals (lane D's default bar: the bag's heal,
        then the shop's), and the gold moved is exactly coins − Waste. */
     const price = Number(await one(db, `select price from public.hr_hunt_basic_supplies where basic_id = 'salted_shrimp'`));
-    const BUYER = { ...WEAK, slots: SHOP_BAR, gold: 25 * price };
+    const BUYER = { ...WEAK, slots: SHOP_BAR, supply: SWITCH, gold: 25 * price };
     const g0 = await inTx(db, async () => { await hunter(db, M, BUYER); return Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID])); });
     if (!(price > 0)) problems.push('CONTROL: the shop catalogue has no salted_shrimp');
     const r = await compareRuns(db, M, BUYER, ticksOf(90000, SPAN_MS), odd);
@@ -905,7 +924,7 @@ const DB_ARMS = {
     /* (2) GOLD_OUT IS PROVED FROM THE PURSE: claimed with gold to spare above
        the floor it is refused; claimed with gold under floor + price it lands. */
     await inTx(db, async () => {
-      const { sid, from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR });
+      const { sid, from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR, supply: SWITCH });
       const claim = (o) => { o.hunt.ended = { reason: 'gold_out', at: o.hunt.to }; };
       await db.query('update public.player_state set gold = 100000 where user_id = $1 and slot = 0', [UID]);
       const rich = await settleTo(db, M, from + 120000, { tamper: claim });
@@ -919,8 +938,20 @@ const DB_ARMS = {
     /* (3) FORGERIES: loot never looted, an item that is no cover item, loot sold
        for no purchase, a drink bought before mana, a shop use the bar does not name. */
     await inTx(db, async () => {
-      const { from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR, gold: 25 * price });
+      const { from } = await hunter(db, M, { ...WEAK, slots: SHOP_BAR, supply: SWITCH, gold: 25 * price });
       const before = await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]);
+      /* SELL-TO-COVER IS JUNK ONLY (Master Design Reference §8 review): bones
+         are never sold to cover a purchase — no shipped item is junk, so the
+         catalogue lists nothing and the settle refuses not_coverable. */
+      {
+        const x = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => { o.hunt.cover = { bones: 1 }; o.hunt.buys = { salted_shrimp: 1 }; } });
+        if (!x.res || x.res.error !== 'not_coverable') problems.push(`bones sold to cover answered ${JSON.stringify(x.res).slice(0, 200)}, want not_coverable`);
+        if (Number(await one(db, 'select count(*) from public.hr_hunt_cover_items')) !== 0) problems.push('the shipped cover catalogue lists an item no data row flags junk');
+      }
+      /* The remaining forgeries need a coverable row: a FIXTURE junk catalogue,
+         rolled back with the transaction. */
+      await db.query(`insert into public.hr_hunt_cover_items (item_id, unit) values ('bones', 1), ('dragon_gem', 50)
+                        on conflict (item_id) do nothing`);
       const cases = [
         ['loot the session never looted', (o) => { o.hunt.cover = { dragon_gem: 1 }; o.hunt.buys = { salted_shrimp: 1 }; }, 'cover_over'],
         ['an item that is no cover item', (o) => { o.hunt.cover = { cooked_shrimp: 1 }; o.hunt.buys = { salted_shrimp: 1 }; }, 'not_coverable'],
@@ -951,7 +982,8 @@ const DB_ARMS = {
       await db.query('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [UID, before]);
       /* A SHOT ON A SET THAT CHOSE 'end' (Combat Design Bible v1.4): the bar names
          it, the set did not switch to the store — refused store_off, nothing moved. */
-      await db.query(`update public.player_action_sets set slots = slots || '[{"item":"plain_steel_arrows","on":true,"conditions":[]}]'::jsonb
+      await db.query(`update public.player_action_sets set slots = slots || '[{"item":"plain_steel_arrows","on":true,"conditions":[]}]'::jsonb,
+                             supply_source = 'mine', on_empty = 'end'
                         where user_id = $1 and slot = 0`, [UID]);
       const so = await settleTo(db, M, from + SPAN_MS, { tamper: (o) => { o.hunt.buys = { plain_steel_arrows: 1 }; } });
       if (!so.res || so.res.error !== 'store_off') problems.push(`a shot bought on an "end" set answered ${JSON.stringify(so.res).slice(0, 200)}, want store_off`);
@@ -961,13 +993,15 @@ const DB_ARMS = {
       await db.query(`update public.player_action_sets set slots = slots - (jsonb_array_length(slots) - 1) where user_id = $1 and slot = 0`, [UID]);
       await settleTo(db, M, from + SPAN_MS + 1000);
       await asUser(db, UID);
-      const pick = async (v) => one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, gen_random_uuid(), $1)", [v]);
-      const bad = await pick('auto');
-      const good = await pick('store');
+      const pick = async (src, emp) => one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, gen_random_uuid(), $1, $2)", [src, emp]);
+      const badSrc = await pick('auto', null);
+      const badEmp = await pick(null, 'store');
+      const good = await pick('store', 'switch');
       const keep = await one(db, "select public.hr_action_set_options(0, 0, 'nearest', 1, 300, gen_random_uuid())");
-      if (!bad || bad.error !== 'bad_on_dry') problems.push(`on_dry 'auto' answered ${JSON.stringify(bad)}`);
-      if (!good || good.on_dry !== 'store') problems.push(`on_dry 'store' answered ${JSON.stringify(good)}`);
-      if (!keep || keep.on_dry !== 'store') problems.push(`a call without p_on_dry changed the stored choice: ${JSON.stringify(keep)}`);
+      if (!badSrc || badSrc.error !== 'bad_supply_source') problems.push(`supply_source 'auto' answered ${JSON.stringify(badSrc)}`);
+      if (!badEmp || badEmp.error !== 'bad_on_empty') problems.push(`on_empty 'store' answered ${JSON.stringify(badEmp)}`);
+      if (!good || good.supply_source !== 'store' || good.on_empty !== 'switch') problems.push(`store+switch answered ${JSON.stringify(good)}`);
+      if (!keep || keep.supply_source !== 'store' || keep.on_empty !== 'switch') problems.push(`a call without the choice changed it: ${JSON.stringify(keep)}`);
     });
     /* A knockout in a hunt is flat (master plan row 16): a longer one is refused. */
     await inTx(db, async () => {
@@ -1375,6 +1409,8 @@ const MUTANTS = [
     from: '      if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, false);\n', to: '' },
   { arm: 'STAMINA', name: 'the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
+  { arm: 'BUY-RULE', name: 'sell-to-cover sells any common drop again (bones)', file: 'src/data/hunt-sessions.js',
+    from: '  return item.junk === true;', to: "  return item.junk === true || item.rarity === undefined || item.rarity === 'common';" },
   { arm: 'BUY-RULE', name: 'a shop slot never buys', file: 'src/core/action-rules.js',
     from: "      ? { id: shopId, kind: 'heal', buy: true } : { why: 'gold_short', item: shopId, kind: 'heal' };",
     to: "      ? { why: 'bag_empty' } : { why: 'gold_short', item: shopId, kind: 'heal' };" },
@@ -1417,8 +1453,8 @@ const MUTANTS = [
 /* DB mutants: planted in a LIVE function body of the booted chain (create or
    replace), the arm run, the body restored. */
 const DB_MUTANTS = [
-  { arm: 'BUY', name: 'a shot is bought on a set that chose "end" (the silent store)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
-    find: "where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' then", replace: "where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' and false then" },
+  { arm: 'BUY', name: 'a store buy lands on a set that chose mine + end (the silent store)', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    find: "                          and (a.supply_source = 'store' or a.on_empty = 'switch')) then", replace: "                          and (true or a.on_empty = 'switch')) then" },
   { arm: 'BUY', name: 'the buy cap admits two lanes\' worth', fn: 'public.hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
     find: "+ coalesce((v_ukind->>'heal')::bigint, 0) + coalesce((v_ukind->>'buff')::bigint, 0) > v_win / v_cdh + 1",
     replace: "+ coalesce((v_ukind->>'heal')::bigint, 0) + coalesce((v_ukind->>'buff')::bigint, 0) > 2 * v_win / v_cdh + 1" },
@@ -1459,7 +1495,7 @@ const DB_MUTANTS = [
   { arm: 'ACTIONBAR', name: 'a spell slot is saved', fn: 'public.hr_hunt_slots_check(jsonb)',
     find: "    if v_s ? 'kind' and not (select sk.active from public.hr_hunt_slot_kinds sk where sk.kind = v_s->>'kind') then",
     replace: "    if false then" },
-  { arm: 'ACTIONBAR', name: 'a party-only target mode is stored on a solo set', fn: 'public.hr_action_set_options(integer,integer,text,integer,bigint,uuid,text)',
+  { arm: 'ACTIONBAR', name: 'a party-only target mode is stored on a solo set', fn: 'public.hr_action_set_options(integer,integer,text,integer,bigint,uuid,text,text)',
     find: "  if not (select m.solo from public.hr_hunt_target_modes m where m.mode = p_target) then", replace: "  if false then" },
   { arm: 'FRESH', name: 'Mill Cellar respawns six times sooner', fn: 'public.hr_hunt_pull_of(uuid,integer,uuid)',
     find: "ceil(t.respawn_ms::numeric * z.size / t.pull_size)::bigint", replace: "ceil(t.respawn_ms::numeric * z.size / t.pull_size / 6)::bigint" },

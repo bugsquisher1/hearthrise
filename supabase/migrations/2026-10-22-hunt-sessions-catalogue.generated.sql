@@ -6,7 +6,7 @@
 --   src/data/monsters.js and the vendor price (hr-accrue/catalogue.js).
 --   Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: f98c0b0c76c35d3749079abb455ba2fb58dd6331f8cb2bce58ff73392f33b8c0
+--   digest: 37a0078be1cbf55aad136a41e05cdcd8562c6f766844a8a7fa77f52e61b5cc39
 --   52 supplies, 98 hunts (named + training), 6 rule subjects,
 --   7 combat buff types, 22 limits, 9 end reasons, 484 vendor values,
 --   17 shop supplies paid per use, 4 slot targets, 2 slot kinds,
@@ -202,93 +202,7 @@ insert into public.hr_hunt_slot_targets (target, kind, src) values
   ('*mana', 'mana', 'bag'),
   ('*mana_shop', 'mana', 'shop');
 delete from public.hr_hunt_cover_items;
-insert into public.hr_hunt_cover_items (item_id, unit) values
-  ('alpha_fang', 450),
-  ('ancient_claw', 1600),
-  ('ancient_fragment', 85),
-  ('ancient_rune', 300),
-  ('bat_wing', 2),
-  ('bear_claw', 36),
-  ('bear_pelt', 52),
-  ('big_bones', 1),
-  ('bone_chips', 2),
-  ('bones', 1),
-  ('brute_plate', 26),
-  ('captain_medal', 700),
-  ('coal', 8),
-  ('copper_ore', 2),
-  ('cracked_spellstone', 260),
-  ('dawnstone_ore', 280),
-  ('death_steel', 110),
-  ('demon_shard', 40),
-  ('dire_fang', 30),
-  ('dragon_bones', 2),
-  ('dragon_gem', 2000),
-  ('dragon_scale', 100),
-  ('duskwood_log', 230),
-  ('ember_bar', 1600),
-  ('ember_essence', 40),
-  ('emberfruit', 96),
-  ('emberstone_ore', 104),
-  ('frost_essence', 40),
-  ('frostfin', 104),
-  ('goblin_ear', 1),
-  ('goblin_totem', 120),
-  ('gold_bar', 280),
-  ('gold_ore', 20),
-  ('goldenroot', 52),
-  ('grave_dust', 19),
-  ('hell_ember', 600),
-  ('herring', 2),
-  ('hollow_sigil', 1400),
-  ('iron_bar', 90),
-  ('iron_fitting', 480),
-  ('iron_ore', 5),
-  ('keystone', 3000),
-  ('lich_soul', 160),
-  ('lobster', 20),
-  ('magic_essence', 10),
-  ('maple_log', 16),
-  ('mithril_bar', 650),
-  ('mithril_ore', 40),
-  ('moonbloom', 170),
-  ('normal_log', 1),
-  ('oak_log', 4),
-  ('plague_ichor', 36),
-  ('poison_essence', 40),
-  ('pumpkin', 30),
-  ('rat_tail', 1),
-  ('raw_bear_meat', 3),
-  ('raw_panther_meat', 1),
-  ('raw_wolf_meat', 1),
-  ('razor_claw', 72),
-  ('ruby', 400),
-  ('rune_bar', 1200),
-  ('rune_frag', 6),
-  ('runewood_log', 96),
-  ('shadow_pelt', 96),
-  ('shadow_thread', 64),
-  ('silk_thread', 11),
-  ('slime_gel', 1),
-  ('small_fang', 3),
-  ('spider_eye', 220),
-  ('steel_bar', 150),
-  ('swarm_heart', 650),
-  ('timber_beam', 300),
-  ('troll_hide', 16),
-  ('trout', 4),
-  ('turnip', 4),
-  ('vamp_dust', 24),
-  ('venom_sac', 15),
-  ('void_chitin', 160),
-  ('void_core', 2200),
-  ('war_crown', 2500),
-  ('warlord_badge', 350),
-  ('wheat', 10),
-  ('willow_log', 8),
-  ('wolf_pelt', 7),
-  ('wraith_veil', 420),
-  ('yew_log', 40);
+-- (no item is flagged junk: sell-to-cover is inert until one is)
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
   ('spell', false),
@@ -485,16 +399,23 @@ alter table public.player_action_sets alter column gold_floor set not null;
 alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
 alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
   check (gold_floor between 0 and 100000);
--- Each action set's DRY-LINE CHOICE (hunt-sessions.js ON_DRY, Combat Design
--- Bible v1.4): 'end' ends the hunt on a dry carried line; 'store' buys the
--- line's shop basic per unit. Default 'end' — the store is never silent.
-alter table public.player_action_sets add column if not exists on_dry text;
-update public.player_action_sets set on_dry = 'end' where on_dry is null;
-alter table public.player_action_sets alter column on_dry set default 'end';
-alter table public.player_action_sets alter column on_dry set not null;
-alter table public.player_action_sets drop constraint if exists player_action_sets_on_dry_ck;
-alter table public.player_action_sets add constraint player_action_sets_on_dry_ck
-  check (on_dry in ('end', 'store'));
+-- Each action set's HUNT SUPPLIES choice (hunt-sessions.js SUPPLY_SOURCE /
+-- ON_EMPTY; Master Design Reference §4): supply_source 'mine' | 'store',
+-- on_empty 'end' | 'switch'. Defaults 'mine' + 'end' — the store is never silent.
+alter table public.player_action_sets add column if not exists supply_source text;
+update public.player_action_sets set supply_source = 'mine' where supply_source is null;
+alter table public.player_action_sets alter column supply_source set default 'mine';
+alter table public.player_action_sets alter column supply_source set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_supply_source_ck;
+alter table public.player_action_sets add constraint player_action_sets_supply_source_ck
+  check (supply_source in ('mine', 'store'));
+alter table public.player_action_sets add column if not exists on_empty text;
+update public.player_action_sets set on_empty = 'end' where on_empty is null;
+alter table public.player_action_sets alter column on_empty set default 'end';
+alter table public.player_action_sets alter column on_empty set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_on_empty_ck;
+alter table public.player_action_sets add constraint player_action_sets_on_empty_ck
+  check (on_empty in ('end', 'switch'));
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -1025,7 +946,7 @@ begin
      or (select count(*) from public.hr_hunt_vendor_value) <> 484
      or (select count(*) from public.hr_hunt_basic_supplies) <> 17
      or (select count(*) from public.hr_hunt_slot_targets) <> 4
-     or (select count(*) from public.hr_hunt_cover_items) <> 86
+     or (select count(*) from public.hr_hunt_cover_items) <> 0
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_travel where pull_size is null or pull_size not between 1 and 8
             or respawn_ms is null or respawn_ms < 1000 * pull_size) <> 0

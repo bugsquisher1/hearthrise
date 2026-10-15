@@ -479,10 +479,13 @@ begin
     'gold_floor', coalesce((select a.gold_floor from public.player_action_sets a
                              where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset),
                            public.hr_hunt_limit('gold_floor_default')),
-    -- END or SWITCH TO STORE when a carried line runs dry (Combat Design Bible
-    -- v1.4): no stored set reads 'end' — the store is never silent.
-    'on_dry', coalesce((select a.on_dry from public.player_action_sets a
-                         where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end'),
+    -- HUNT SUPPLIES (Master Design Reference §4): where supplies come from
+    -- ('mine' | 'store') and what an empty carried line does ('end' | 'switch').
+    -- No stored set reads 'mine' + 'end' — the store is never silent.
+    'supply_source', coalesce((select a.supply_source from public.player_action_sets a
+                                where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'mine'),
+    'on_empty', coalesce((select a.on_empty from public.player_action_sets a
+                           where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end'),
     'cover', coalesce((select jsonb_object_agg(c.item_id, jsonb_build_object('unit', c.unit,
                  'avail', greatest(0, least(
                    coalesce((select pi.qty from public.player_inventory pi
@@ -842,7 +845,8 @@ grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 -- ── §4d hr_action_set_options — an action set's TARGET MODE, PULL COUNT and
 --     GOLD FLOOR ─────────────────────────────────────────────────────────────
 -- (Tyler 2026-10-14, Huntera's bar; master plan row 3, the floor; the DRY-LINE
--- choice, Combat Design Bible v1.4 — p_on_dry 'end' | 'store', null = unchanged.)
+-- HUNT SUPPLIES choice, Master Design Reference §4 — p_supply_source 'mine' |
+-- 'store' and p_on_empty 'end' | 'switch', null = unchanged.)
 -- The client sends up to four values; a mode outside hr_hunt_target_modes, a party-only mode on
 -- a solo set, a pull or a floor outside the limits rows is REFUSED, never
 -- clamped. Mode and pull are stored and INERT until U2 (row 18). Preset 0 with no saved row
@@ -850,8 +854,9 @@ grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 -- for its settle, like hr_action_set_put. C1's verb shape: identity -> slot ->
 -- idempotency replay -> rate gate -> input -> lock -> state -> write -> stored result.
 drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid);
+drop function if exists public.hr_action_set_options(int, int, text, int, bigint, uuid, text);
 create or replace function public.hr_action_set_options(p_slot int, p_preset int, p_target text, p_pull int,
-  p_floor bigint, p_idem uuid, p_on_dry text default null)
+  p_floor bigint, p_idem uuid, p_supply_source text default null, p_on_empty text default null)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   c_verb constant text := 'action_set_options';
@@ -879,8 +884,10 @@ begin
   if p_floor is null or p_floor < public.hr_hunt_limit('gold_floor_min') or p_floor > public.hr_hunt_limit('gold_floor_max') then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_gold_floor',
       'min', public.hr_hunt_limit('gold_floor_min'), 'max', public.hr_hunt_limit('gold_floor_max'))); end if;
-  if p_on_dry is not null and p_on_dry not in ('end', 'store') then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_on_dry')); end if;
+  if p_supply_source is not null and p_supply_source not in ('mine', 'store') then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_supply_source')); end if;
+  if p_on_empty is not null and p_on_empty not in ('end', 'switch') then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_on_empty')); end if;
 
   v_s := public.hr_hunt_lock(v_uid, p_slot);
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
@@ -896,12 +903,15 @@ begin
   end if;
   update public.player_action_sets
      set target_mode = p_target, pull_count = p_pull, gold_floor = p_floor,
-         on_dry = coalesce(p_on_dry, on_dry), updated_at = now()
+         supply_source = coalesce(p_supply_source, supply_source),
+         on_empty = coalesce(p_on_empty, on_empty), updated_at = now()
    where user_id = v_uid and slot = p_slot and preset = p_preset;
   v_r := jsonb_build_object('ok', true, 'preset', p_preset, 'target_mode', p_target, 'pull_count', p_pull,
                             'gold_floor', p_floor,
-                            'on_dry', (select a.on_dry from public.player_action_sets a
-                                        where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset));
+                            'supply_source', (select a.supply_source from public.player_action_sets a
+                                               where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset),
+                            'on_empty', (select a.on_empty from public.player_action_sets a
+                                          where a.user_id = v_uid and a.slot = p_slot and a.preset = p_preset));
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
@@ -909,9 +919,9 @@ end $$;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
    and proname in ('hr_action_set_mode', 'hr_action_set_options', 'hr_vigour_refill');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid, p_on_dry text',
+  ('hr_action_set_options', 'p_slot integer, p_preset integer, p_target text, p_pull integer, p_floor bigint, p_idem uuid, p_supply_source text, p_on_empty text',
    'authenticated',
-   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3 + Combat Design Bible v1.4): an action set''s target mode, pull count, gold floor and dry-line choice (end | store); catalogue / limits values only, refused not clamped');
+   'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3 + Combat Design Bible v1.4): an action set''s target mode, pull count, gold floor and hunt-supplies choice (supply_source mine | store, on_empty end | switch); catalogue / limits values only, refused not clamped');
 -- (master plan row 20) hr_vigour_refill leaves the client surface: hunts no
 -- longer spend Vigour, so a gold-for-Vigour verb buys nothing a hunter needs.
 -- (2026-10-22-hunt-sessions-delete-away.sql drops it outright; guarded so this
@@ -1380,10 +1390,14 @@ begin
                                                   and (select t.tier from public.hr_hunt_travel t where t.hunt_id = v_s.hunt_id) = any (q.tiers))))) then
           perform public.hr_reject('not_on_bar', jsonb_build_object('item', v_k));
         end if;
-        -- A SHOT IS BOUGHT ONLY ON THE PLAYER'S "SWITCH TO STORE" (Combat Design
-        -- Bible v1.4): the running set's on_dry must read 'store'.
-        if v_kind = 'ammo' and coalesce((select a.on_dry from public.player_action_sets a
-                                          where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset), 'end') <> 'store' then
+        -- THE STORE IS USED ONLY ON THE PLAYER'S CHOICE (Master Design Reference
+        -- §4): ANY shop buy — heal, drink or shot — needs the running set to
+        -- read supply_source 'store' or on_empty 'switch'. (Whether a 'switch'
+        -- buy came after the carried line was empty is the engine's walk; the
+        -- money half here is that the player opted into the store at all.)
+        if not exists (select 1 from public.player_action_sets a
+                        where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset
+                          and (a.supply_source = 'store' or a.on_empty = 'switch')) then
           perform public.hr_reject('store_off', jsonb_build_object('item', v_k)); end if;
         v_bk := v_bk || jsonb_build_object(v_kind, coalesce((v_bk->>v_kind)::bigint, 0) + v_n);
         v_items := v_items || jsonb_build_object(v_k, jsonb_build_object('qty', v_n, 'price', v_price));
@@ -2093,9 +2107,9 @@ revoke execute on function public.hr_stamina_view(uuid, int) from public;
 revoke execute on function public.hr_stamina_view(uuid, int) from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke execute on function public.hr_last_activity_note() from public;
 revoke execute on function public.hr_last_activity_note() from anon, authenticated, service_role, hr_engine, hr_tick;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) from public;
-revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) from anon, service_role, hr_engine, hr_tick;
-grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text) to authenticated;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) from public;
+revoke execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) from anon, service_role, hr_engine, hr_tick;
+grant  execute on function public.hr_action_set_options(int, int, text, int, bigint, uuid, text, text) to authenticated;
 grant execute on function public.hr_hunt_open_of(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
@@ -3237,6 +3251,16 @@ begin
       'pull', v_pz || jsonb_build_object('pulls', 0, 'left', (select pull_left from public.hunt_sessions where id = v_sid),
         'respawn_at', to_jsonb((select respawn_at from public.hunt_sessions where id = v_sid))));
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
+    -- The store is used only on the player's choice (Master Design Reference
+    -- §4): a new set reads mine + end, so a shop heal on the bar is refused
+    -- store_off; the probe then opts into the store.
+    set local role hr_engine;
+    v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
+             v_hunt || jsonb_build_object('buys', jsonb_build_object('salted_shrimp', 1)));
+    reset role;
+    if v_r->>'error' is distinct from 'store_off' then raise exception 'GATE(n): a shop heal on a mine+end set answered %', v_r; end if;
+    update public.player_action_sets set supply_source = 'store'
+     where user_id = v_uid and slot = 0 and preset = 0;
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, gen_random_uuid(), v_delta,
              v_hunt || jsonb_build_object('buys', jsonb_build_object('cooked_shrimp', 1)));

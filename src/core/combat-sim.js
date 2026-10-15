@@ -238,7 +238,7 @@ export function resolveDeath(state, ctx) {
 /* THE SHOP SHOT (Tyler 2026-10-14; supply-basics.js): when the equipped arrow
    or rune has a shop shot behind it (same partner), the quiver is the bag line
    FIRST and then whatever the purse can buy, shot by shot — only on the
-   player's own "Switch to Store" choice (shopShotFor reads the set's onDry) —
+   player's own choice (Store Supplies, or Switch on empty: storeAllowed) —
    and a shop shot fires at BASIC_EFFECT_SHARE of its crafted partner's ammo
    bonus (`shop` on the answer; action-rules.js buyFromShop). A style that
    needs its ammo and can neither draw nor buy a shot marks the session goldOut

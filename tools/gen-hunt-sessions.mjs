@@ -73,7 +73,7 @@ import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { RULE_SUBJECTS, COOLDOWN_LANES, ACTION_SET_LIMITS, HEAL_ANY, DEFAULT_PRESET,
   SLOT_KINDS, TARGET_MODES, DEFAULT_TARGET_MODE, PULL_COUNT, PULL_CAP, SLOT_TARGETS } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, ON_DRY, DEFAULT_RESUME, EVENT_COPY,
+  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, DEFAULT_RESUME, EVENT_COPY,
   coverSellable } from '../src/data/hunt-sessions.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
@@ -91,7 +91,7 @@ export function catalogueRows(src = {}) {
     subjects: RULE_SUBJECTS, cooldowns: COOLDOWN_LANES, setLimits: ACTION_SET_LIMITS,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER, preset: DEFAULT_PRESET,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, staminaMaxMs: STAMINA_MAX_MS,
-    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, onDry: ON_DRY, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
+    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, slotTargets: SLOT_TARGETS, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     slotKinds: SLOT_KINDS, targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     pull: PULL_COUNT, pullCap: PULL_CAP, resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END, ...src,
@@ -292,11 +292,16 @@ export function catalogueRows(src = {}) {
   for (const r of vendor) {
     if (!ID.test(r.id) || !Number.isInteger(r.unit)) throw new Error(`vendor value ${r.id} = ${r.unit}`);
   }
-  const onDry = { modes: [...S.onDry.modes], default: S.onDry.default };
-  if (!onDry.modes.every((m) => ID.test(m)) || !onDry.modes.includes('end') || !onDry.modes.includes(onDry.default)) {
-    throw new Error(`ON_DRY ${JSON.stringify(S.onDry)} must offer 'end' and name a default among its modes`);
+  const supplySource = { modes: [...S.supplySource.modes], default: S.supplySource.default };
+  if (!supplySource.modes.every((m) => ID.test(m)) || !supplySource.modes.includes('mine')
+      || supplySource.default !== 'mine') {
+    throw new Error(`SUPPLY_SOURCE ${JSON.stringify(S.supplySource)} must offer 'mine' and default to it (the store is never silent)`);
   }
-  return { onDry, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
+  const onEmpty = { modes: [...S.onEmpty.modes], default: S.onEmpty.default };
+  if (!onEmpty.modes.every((m) => ID.test(m)) || !onEmpty.modes.includes('end') || onEmpty.default !== 'end') {
+    throw new Error(`ON_EMPTY ${JSON.stringify(S.onEmpty)} must offer 'end' and default to it (the store is never silent)`);
+  }
+  return { supplySource, onEmpty, supplies, travel, subjects, buffTypes, lim, ends, preset, vendor, slotKinds, targets, resumable, basics, slotTargets,
     cover, resume, eventTypes,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -458,8 +463,8 @@ delete from public.hr_hunt_slot_targets;
 insert into public.hr_hunt_slot_targets (target, kind, src) values
 ${targetRowValues};
 delete from public.hr_hunt_cover_items;
-insert into public.hr_hunt_cover_items (item_id, unit) values
-${coverValues};
+${r.cover.length ? `insert into public.hr_hunt_cover_items (item_id, unit) values
+${coverValues};` : '-- (no item is flagged junk: sell-to-cover is inert until one is)'}
 delete from public.hr_hunt_slot_kinds;
 insert into public.hr_hunt_slot_kinds (kind, active) values
 ${slotKindValues};
@@ -513,16 +518,23 @@ alter table public.player_action_sets alter column gold_floor set not null;
 alter table public.player_action_sets drop constraint if exists player_action_sets_gold_floor_ck;
 alter table public.player_action_sets add constraint player_action_sets_gold_floor_ck
   check (gold_floor between ${r.lim.gold_floor_min} and ${r.lim.gold_floor_max});
--- Each action set's DRY-LINE CHOICE (hunt-sessions.js ON_DRY, Combat Design
--- Bible v1.4): 'end' ends the hunt on a dry carried line; 'store' buys the
--- line's shop basic per unit. Default 'end' — the store is never silent.
-alter table public.player_action_sets add column if not exists on_dry text;
-update public.player_action_sets set on_dry = ${sq(r.onDry.default)} where on_dry is null;
-alter table public.player_action_sets alter column on_dry set default ${sq(r.onDry.default)};
-alter table public.player_action_sets alter column on_dry set not null;
-alter table public.player_action_sets drop constraint if exists player_action_sets_on_dry_ck;
-alter table public.player_action_sets add constraint player_action_sets_on_dry_ck
-  check (on_dry in (${r.onDry.modes.map(sq).join(', ')}));
+-- Each action set's HUNT SUPPLIES choice (hunt-sessions.js SUPPLY_SOURCE /
+-- ON_EMPTY; Master Design Reference §4): supply_source 'mine' | 'store',
+-- on_empty 'end' | 'switch'. Defaults 'mine' + 'end' — the store is never silent.
+alter table public.player_action_sets add column if not exists supply_source text;
+update public.player_action_sets set supply_source = ${sq(r.supplySource.default)} where supply_source is null;
+alter table public.player_action_sets alter column supply_source set default ${sq(r.supplySource.default)};
+alter table public.player_action_sets alter column supply_source set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_supply_source_ck;
+alter table public.player_action_sets add constraint player_action_sets_supply_source_ck
+  check (supply_source in (${r.supplySource.modes.map(sq).join(', ')}));
+alter table public.player_action_sets add column if not exists on_empty text;
+update public.player_action_sets set on_empty = ${sq(r.onEmpty.default)} where on_empty is null;
+alter table public.player_action_sets alter column on_empty set default ${sq(r.onEmpty.default)};
+alter table public.player_action_sets alter column on_empty set not null;
+alter table public.player_action_sets drop constraint if exists player_action_sets_on_empty_ck;
+alter table public.player_action_sets add constraint player_action_sets_on_empty_ck
+  check (on_empty in (${r.onEmpty.modes.map(sq).join(', ')}));
 -- Each action set's TARGET MODE and PULL COUNT (Huntera's bar), stored server-side.
 alter table public.player_action_sets add column if not exists target_mode text;
 alter table public.player_action_sets add column if not exists pull_count smallint;
@@ -642,8 +654,10 @@ function selftest() {
     'two shop heals for one tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
     'a shop shot whose partner is no ammo': () => ({ basics: BASIC_SUPPLIES.map((b) => (b.kind === 'ammo' ? { ...b, partner: 'cooked_shrimp' } : b)) }),
     'a named hunt with no tier': () => ({ huntTiers: {} }),
-    'a dry-line default that is not a mode': () => ({ onDry: { modes: ['end', 'store'], default: 'auto' } }),
-    'a dry-line choice with no end': () => ({ onDry: { modes: ['store'], default: 'store' } }),
+    'a supply source that defaults to the store': () => ({ supplySource: { modes: ['mine', 'store'], default: 'store' } }),
+    'a supply source with no mine': () => ({ supplySource: { modes: ['store'], default: 'store' } }),
+    'an on-empty default that switches': () => ({ onEmpty: { modes: ['end', 'switch'], default: 'switch' } }),
+    'an on-empty choice with no end': () => ({ onEmpty: { modes: ['switch'], default: 'switch' } }),
     'a gold floor default above its max': () => ({ floor: { min: 0, max: 100, default: 300 } }),
     'a default resume that is a hunt': () => ({ defaultResume: { kind: 'combat', id: 'rat' } }),
     'no active consumable lane': () => ({ cooldowns: { consumable: { ms: 2000, active: false }, offense: { ms: null, active: false } } }),

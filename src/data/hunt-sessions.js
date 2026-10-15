@@ -42,13 +42,19 @@ export const KNOCKOUT_MS = 60000;
    whole gold in the range. */
 export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
 
-/* WHAT A HUNT DOES WHEN A CARRIED SUPPLY LINE RUNS DRY (Combat Design Bible
-   v1.4: supplies come from carried inventory OR "Store Supplies" — the store
-   only on the player's own choice, never silently). `end` (the default): the
-   line is out and the hunt ends `<line>_out`. `store`: the shop basic of
-   the line takes over, paid per unit inside the settle. Per action set
-   (player_action_sets.on_dry), set with hr_action_set_options. */
-export const ON_DRY = Object.freeze({ modes: Object.freeze(['end', 'store']), default: 'end' });
+/* HUNT SUPPLIES (Master Design Reference §4; Combat Design Bible v1.4): the
+   player chooses, per action set, where supplies come from and what happens
+   when they run out — the store is never used silently.
+     SUPPLY_SOURCE  `mine` (the default): the carried bag only.
+                    `store`: the store's supplies, paid per use inside the
+                    settle (a packed crafted line is still spent first).
+     ON_EMPTY       `end` (the default): a carried line that runs dry ends the
+                    hunt `<line>_out`. `switch`: the store takes over that line.
+   So the shop is reachable only under `store`, or `mine` + `switch` once the
+   carried line is empty. Stored in player_action_sets.supply_source /
+   on_empty, set with hr_action_set_options; the settle re-checks it. */
+export const SUPPLY_SOURCE = Object.freeze({ modes: Object.freeze(['mine', 'store']), default: 'mine' });
+export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['end', 'switch']), default: 'end' });
 
 /* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
    (master plan row 25): fishing the Shrimp Spot. A new character's
@@ -56,17 +62,20 @@ export const ON_DRY = Object.freeze({ modes: Object.freeze(['end', 'store']), de
 export const DEFAULT_RESUME = Object.freeze({ kind: 'gather', id: 'shrimp_s' });
 
 /* SELL-TO-COVER: WHAT A HUNT MAY SELL TO KEEP THE SHOP PAID (master plan row 3;
-   placeholder rule until the loot-rule defaults of M4 name "Sell"). Loot a
-   monster drops that is plain material: never equipment, never a packed
-   supply or a shop supply's partner, never above `common`, and worth at least
-   1 gold to the vendor. Only units THIS session looted, still in the bag, are
-   ever sold (hr_hunt_apply §5b); the price is the vendor's own
-   (hr_hunt_vendor_value). The generator lists them as hr_hunt_cover_items. */
+   narrowed by the Master Design Reference §8 review, 2026-10-15). Auto-sell is
+   OPT-IN and touches JUNK ONLY: an item must carry `junk: true` in
+   src/data/items.js — never bones (Prayer), never a creature product a future
+   imbuement may need, never equipment, never a packed supply or a shop
+   supply's partner. No item is flagged junk today, so sell-to-cover is INERT
+   until the loot-rules lane (M4) flags its first row. Only units THIS session
+   looted, still in the bag, are ever sold (hr_hunt_apply §5b); the price is the
+   vendor's own (hr_hunt_vendor_value). The generator lists them as
+   hr_hunt_cover_items. */
 export function coverSellable(item, isSupply) {
   if (!item || typeof item !== 'object') return false;
   if (item.slot || item.type === 'weapon' || item.type === 'armor' || item.type === 'jewelry') return false;
   if (isSupply) return false;
-  return item.rarity === undefined || item.rarity === 'common';
+  return item.junk === true;
 }
 
 /* TBD-designer (Tyler 2026-10-14: "for now a small loss of xp on death";

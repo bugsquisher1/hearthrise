@@ -1437,10 +1437,17 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   supplies share `cd_consumable_ms` (2 s): the engine fires at most one per lane per swing
   (`COOLDOWN_LANES` / `LANE_OF_KIND`), and `hr_hunt_apply` (5b) caps heal + drink + bag uses
   together at `window / cd_consumable_ms + 1`. The ability lanes are reserved, with no SQL rows.
-* **Dry supply: End or Store (default End).** A shop fallback fires only when the action set chose
-  `on_dry = 'store'` (`hr_action_set_options(..., p_on_dry)`, refused `bad_on_dry`); with
-  `'end'` a dry line ends the hunt and nothing is bought (`store_off`). Shop arrows hit for 0.75 of
+* **Hunt supplies: Mine or Store, End or Switch (Master Design Reference §4).** Each action set
+  stores `supply_source` ('mine' | 'store') and `on_empty` ('end' | 'switch'), default
+  'mine' + 'end', set only by `hr_action_set_options(..., p_supply_source, p_on_empty)` (refused
+  `bad_supply_source` / `bad_on_empty`). The engine reaches the store only through
+  `storeAllowed`: always under 'store', under 'mine' only with 'switch' once no carried line of
+  that kind has a use left — for the shop heal slot and the shop shot alike. `hr_hunt_apply` (5b)
+  refuses ANY shop buy (`store_off`) on a set that chose neither. Shop arrows hit for 0.75 of
   their crafted partner's ammo bonus (`BASIC_EFFECT_SHARE`); there are no shop runes.
+* **Sell-to-cover is junk only.** `coverSellable` admits an item only when it carries
+  `junk: true` (never bones, gear, supplies or a supply's partner); none does today, so
+  `hr_hunt_cover_items` is empty and cover is inert until the loot-rules lane flags a row.
 * **One basic-attack interval (Tyler 2026-10-14).** `COMBAT_BALANCE.tickMs` = 2000 ms is the one
   source (`tests/basic-attack-interval.mjs`). Gear speed, the weapon family and a style's
   `speedMod` still scale it — removing them is a balance pass, not done here.

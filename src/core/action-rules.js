@@ -19,7 +19,7 @@
 import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=586';
 import { RULE_SUBJECTS, COOLDOWN_LANES, LANE_OF_KIND, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
   SLOT_TARGETS } from '../data/rule-subjects.js?v=586';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, ON_DRY } from '../data/hunt-sessions.js?v=586';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=586';
 import { applyBuffSegment } from './buffs.js?v=586';
 import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=586';
 
@@ -70,13 +70,23 @@ export function basicOf(hs, id) {
   const b = hs && hs.basics && typeof id === 'string' && Object.prototype.hasOwnProperty.call(hs.basics, id) ? hs.basics[id] : null;
   return b && Number.isInteger(b.price) && b.price > 0 ? b : null;
 }
+/** MAY THE STORE SUPPLY `kind` NOW? Only on the player's own choice (Master
+    Design Reference §4, hunt-sessions.js SUPPLY_SOURCE / ON_EMPTY): always
+    under `store`; under `mine` only with `switch` AND once no carried line of
+    that kind has a use left. Every shop path asks this — the heal slot, the
+    shop shot behind an empty quiver line, and the out-of-supply end test. */
+export function storeAllowed(hs, kind) {
+  if (!hs) return false;
+  if (hs.supplySource === 'store') return true;
+  if (hs.onEmpty !== 'switch') return false;
+  return !Object.keys(hs.bag || {}).some((id) => kindOf(id) === kind && leftOf(hs, id) > 0);
+}
 /** The shop shot an empty quiver line of `ammoId` falls back to, or null —
-    only when the player CHOSE the store for a dry line (the action set's
-    `onDry` is 'store'; Combat Design Bible v1.4, never silently) AND the bar
-    NAMES that shot in a slot that is on: gold moves only through a slot that
-    shows its price (master plan row 1). */
+    only when the store may supply ammo (storeAllowed) AND the bar NAMES that
+    shot in a slot that is on: gold moves only through a slot that shows its
+    price (master plan row 1). */
 export function shopShotFor(hs, ammoId) {
-  if (!hs || hs.onDry !== 'store') return null;
+  if (!hs || !storeAllowed(hs, 'ammo')) return null;
   const named = new Set((Array.isArray(hs && hs.slots) ? hs.slots : []).filter((sl) => sl && sl.on).map((sl) => sl.item));
   for (const id of Object.keys((hs && hs.basics) || {}).sort()) {
     const b = basicOf(hs, id);
@@ -239,6 +249,7 @@ function resolveSlot(slot, v) {
     if (!b) return { why: 'not_fireable' };
     if (b.kind === 'mana') return { why: 'no_mana' };          // inert until the mana engine ships
     if (b.kind !== 'heal') return { why: 'not_fireable' };     // shots are spent by the quiver, not fired
+    if (!storeAllowed(v.hs, 'heal')) return { why: 'store_off' };
     if (!(v.maxHp - v.hp > 0)) return { why: 'full_hp' };
     return canAfford(v.hs, b.price)
       ? { id: shopId, kind: 'heal', buy: true } : { why: 'gold_short', item: shopId, kind: 'heal' };
@@ -393,7 +404,7 @@ function essentialOut(hs, kind) {
     any = true;
     if (leftOf(hs, id) > 0 || (kind === 'ammo' && shopShotFor(hs, id))) return false;
   }
-  if (any && kind === 'heal' && barBuys(hs, 'heal')) return false;
+  if (any && kind === 'heal' && barBuys(hs, 'heal') && (hs.supplySource === 'store' || hs.onEmpty === 'switch')) return false;
   return any;
 }
 const at = (ms, t) => ms !== null && ms !== undefined && Number.isFinite(Number(ms)) && t >= Number(ms);
@@ -559,8 +570,10 @@ export function newHuntSession(o) {
     pull: pullState(s.pull, from),
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */
     goldFloor: Math.min(GOLD_FLOOR.max, Math.max(GOLD_FLOOR.min, int(s.goldFloor, GOLD_FLOOR.default))),
-    /* End or Switch-to-Store when a carried line runs dry (ON_DRY; unknown = the default, 'end'). */
-    onDry: ON_DRY.modes.includes(s.onDry) ? s.onDry : ON_DRY.default,
+    /* HUNT SUPPLIES: where supplies come from and what an empty carried line
+       does (SUPPLY_SOURCE / ON_EMPTY; unknown = the defaults, 'mine' + 'end'). */
+    supplySource: SUPPLY_SOURCE.modes.includes(s.supplySource) ? s.supplySource : SUPPLY_SOURCE.default,
+    onEmpty: ON_EMPTY.modes.includes(s.onEmpty) ? s.onEmpty : ON_EMPTY.default,
     cover: coverTable(s.cover),
     /* The stamina pool at `nextSwingAtMs`, from the server's read (null = no
        read: the session then never ends on stamina and proposes none, and the

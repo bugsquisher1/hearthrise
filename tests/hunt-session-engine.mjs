@@ -306,14 +306,15 @@ const ARMS = {
 
 /* ── THE THREE COMBAT-BIBLE ARMS (designer review 2026-10-15 §2, K3 / K8 / K9) ── */
 /* A ranged fight whose carried arrow line is EMPTY and whose bar names the shop
-   shot: the dry-line choice decides whether the store takes over. */
-function dryFixture(M, onDry) {
+   shot: the HUNT SUPPLIES choice (supplySource / onEmpty) decides whether the
+   store takes over. */
+function dryFixture(M, choice) {
   const SHOT = 'plain_barbed_arrows';
   const hs = M.AR.newHuntSession({
     id: 'sess-dry', huntFromMs: T0, bag: { barbed_arrows: { loaded: 0, essential: true }, cooked_trout: { loaded: 30 } },
     slots: [M.RS.DEFAULT_PRESET.slots[0], { item: SHOT, on: true, conditions: [] }],
     basics: { [SHOT]: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: 'barbed_arrows' } },
-    purse: 100000, onDry,
+    purse: 100000, ...(choice || {}),
   });
   const equipment = { weapon: 'shortbow', ammo: 'barbed_arrows' };
   const eq = M.C.equipmentStats(equipment, M.ITEMS);
@@ -343,23 +344,54 @@ const BIBLE_ARMS = {
     if (JSON.stringify(Object.keys(hs.cooldowns)) !== '["consumable"]') return `the session keeps cooldown keys ${JSON.stringify(Object.keys(hs.cooldowns))}`;
     return null;
   },
-  /* K8: the store takes over a dry carried line ONLY on the player's choice. */
+  /* K8 / Master Design Reference §4: the store supplies a hunt ONLY on the
+     player's choice — 'store', or 'mine' + 'switch' once the carried line is
+     empty. 'mine' + 'end' (the default) ends on the dry line and buys nothing. */
   DRY: (M) => {
-    const end = dryFixture(M, 'end');
-    const store = dryFixture(M, 'store');
+    const end = dryFixture(M, { supplySource: 'mine', onEmpty: 'end' });
     const deflt = dryFixture(M, undefined);
+    const sw = dryFixture(M, { supplySource: 'mine', onEmpty: 'switch' });
+    const store = dryFixture(M, { supplySource: 'store', onEmpty: 'end' });
     if (end.hs.endedReason !== 'ammo_out' || Object.keys(end.hs.tally.bought || {}).length) {
-      return `onDry 'end': the dry arrow line ended '${end.hs.endedReason}' and bought ${JSON.stringify(end.hs.tally.bought)} — the store took over silently`;
+      return `mine+end: the dry arrow line ended '${end.hs.endedReason}' and bought ${JSON.stringify(end.hs.tally.bought)} — the store took over silently`;
     }
-    if (deflt.hs.onDry !== 'end' || deflt.hs.endedReason !== 'ammo_out') return `no choice reads '${deflt.hs.onDry}' and ended '${deflt.hs.endedReason}' — the default must be 'end'`;
-    if (!((store.hs.tally.bought || {}).plain_barbed_arrows > 0) || store.hs.endedReason === 'ammo_out') {
-      return `onDry 'store': bought ${JSON.stringify(store.hs.tally.bought)}, ended '${store.hs.endedReason}' — the chosen store did not take over`;
+    if (deflt.hs.supplySource !== 'mine' || deflt.hs.onEmpty !== 'end' || deflt.hs.endedReason !== 'ammo_out') {
+      return `no choice reads ${deflt.hs.supplySource}+${deflt.hs.onEmpty} and ended '${deflt.hs.endedReason}' — the default must be mine+end`;
     }
+    for (const [label, f] of [['mine+switch', sw], ['store', store]]) {
+      if (!((f.hs.tally.bought || {}).plain_barbed_arrows > 0) || f.hs.endedReason === 'ammo_out') {
+        return `${label}: bought ${JSON.stringify(f.hs.tally.bought)}, ended '${f.hs.endedReason}' — the chosen store did not take over`;
+      }
+    }
+    return null;
+  },
+  /* The HEAL path obeys the same choice. A bar whose FIRST slot is the shop heal:
+     under mine+end it never buys (store_off); under mine+switch it waits for the
+     carried heals to run out; under store it buys. */
+  HEALSTORE: (M) => {
+    const mk = (choice, bag) => M.AR.newHuntSession({ id: 'sess-hs', huntFromMs: T0, bag,
+      slots: [{ item: '*heal_shop', on: true, conditions: [] }, { item: '*heal', on: true, conditions: [] }],
+      basics: { salted_shrimp: { kind: 'heal', price: 15, heals: 6, mana: 0, partner: null } },
+      shop: { heal: 'salted_shrimp', mana: null }, purse: 100000, ...choice });
+    const fire = (hs) => M.AR.fireRules({ hs, hp: 5, maxHp: 50, mana: 0, maxMana: 0, buffs: [], atMs: T0 });
+    const packed = { cooked_shrimp: { loaded: 5 } };
+    const empty = { cooked_shrimp: { loaded: 0 } };
+    const a = fire(mk({ supplySource: 'mine', onEmpty: 'end' }, empty));
+    if (a.uses.some((u) => u.buy)) return `mine+end bought a shop heal: ${JSON.stringify(a.uses)}`;
+    if (!a.dropped.some((d) => d.why === 'store_off') && !(a.uses.length === 0)) return `mine+end: ${JSON.stringify(a)}`;
+    const b = fire(mk({ supplySource: 'mine', onEmpty: 'switch' }, packed));
+    if (b.uses.length !== 1 || b.uses[0].buy || b.uses[0].id !== 'cooked_shrimp') {
+      return `mine+switch with carried heals left fired ${JSON.stringify(b.uses)} — the store took over before the bag was empty`;
+    }
+    const c = fire(mk({ supplySource: 'mine', onEmpty: 'switch' }, empty));
+    if (c.uses.length !== 1 || !c.uses[0].buy) return `mine+switch with an empty bag fired ${JSON.stringify(c.uses)} — the switch did not happen`;
+    const d = fire(mk({ supplySource: 'store', onEmpty: 'end' }, empty));
+    if (d.uses.length !== 1 || !d.uses[0].buy) return `store fired ${JSON.stringify(d.uses)} — the chosen store did not sell a heal`;
     return null;
   },
   /* K9: a shop shot fires at BASIC_EFFECT_SHARE of its crafted partner. */
   SHOPSHOT: (M) => {
-    const store = dryFixture(M, 'store');
+    const store = dryFixture(M, { supplySource: 'store' });
     const share = M.SB.BASIC_EFFECT_SHARE;
     if (!(share === 0.75)) return `BASIC_EFFECT_SHARE is ${share}, not the ruled 0.75`;
     if (!store.shares.length || !store.shares.every((x) => x === share)) return `shop swings handed the rolls ammoShare ${JSON.stringify([...new Set(store.shares)])}, want ${share} on every one`;
@@ -411,7 +443,11 @@ const MUTANTS = [
   { arm: 'LANE', name: 'a heal and a buff food each keep their own lane', file: 'src/core/action-rules.js',
     from: '    if (!r.id || !ready(r)) continue;\n    used.add(laneOf(r));', to: '    if (!r.id || !ready(r)) continue;\n    used.add(r.kind);' },
   { arm: 'DRY', name: 'the store takes over a dry line whatever the player chose', file: 'src/core/action-rules.js',
-    from: "  if (!hs || hs.onDry !== 'store') return null;\n", to: '  if (!hs) return null;\n' },
+    from: "  if (hs.supplySource === 'store') return true;\n  if (hs.onEmpty !== 'switch') return false;\n", to: "  if (hs.supplySource === 'store') return true;\n" },
+  { arm: 'HEALSTORE', name: 'the shop heal slot ignores the supplies choice', file: 'src/core/action-rules.js',
+    from: "    if (!storeAllowed(v.hs, 'heal')) return { why: 'store_off' };\n", to: '' },
+  { arm: 'HEALSTORE', name: 'switch hands over to the store before the bag is empty', file: 'src/core/action-rules.js',
+    from: '  return !Object.keys(hs.bag || {}).some((id) => kindOf(id) === kind && leftOf(hs, id) > 0);', to: '  return true;' },
   { arm: 'SHOPSHOT', name: 'a shop shot hits like its crafted partner', file: 'src/core/combat-sim.js',
     from: 'supply && supply.shop ? { ammoShare: BASIC_EFFECT_SHARE } : undefined', to: 'undefined' },
   { arm: 'BUFF', name: 'a weaker buff is never dropped', file: 'src/core/buffs.js',

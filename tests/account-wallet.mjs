@@ -26,15 +26,14 @@
 //   W-PRIV   as `authenticated`: no read, insert or update on either wallet
 //            table, and no execute on the three helpers.
 //   W-IDEM   a second apply is byte-identical (inventory + the eleven bodies).
-//   W-EDGE   claim-reward.js reports granted.gems from the apply's gems_paid,
-//            never from the price.
+//   (W-EDGE, the claim_reward receipt, left with the verb: lane C2.)
 //
 // --mutate: a per-slot grant key, a credit with no ledger row, the projection
 // reading the old per-hero column, a client grant on the wallet table, a claim
 // writing the wallet directly, a per-slot day cap, the engine allowed to spend,
 // a hero-slot buy debiting twice, a gem-unlock buy without the account lock
-// (Security C1), a prune that eats the wallet journal (Security F2); + an edge
-// mutant (receipt from the price). W-PRUNE (plain): an aged wallet row
+// (Security C1), a prune that eats the wallet journal (Security F2). W-PRUNE
+// (plain): an aged wallet row
 // survives hr_ledger_prune while an aged accrue row beside it does not.
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -49,8 +48,7 @@ const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const MIG = '2026-10-19-account-wallet.sql';
 const PREV = PRE_WALLET;   // the file before the wallet, derived from the apply order
 const SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
-const EDGE_FILE = 'supabase/functions/hr-accrue/claim-reward.js';
-const EDGE = (await readFile(join(ROOT, EDGE_FILE), 'utf8')).replace(/\r\n/g, '\n');
+
 const SELF = '-- ── §8 SELF-CHECK';
 if (SQL.indexOf(SELF) < 0) { console.error('harness: the migration has no §8 marker'); process.exit(2); }
 const SIGS = [
@@ -75,19 +73,6 @@ async function tryApply(db, sql, after) {
   } finally {
     await db.exec('rollback;');
   }
-}
-
-/* W-EDGE: the receipt's gems are what the wallet paid. */
-function edgeScan(src = EDGE) {
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-  const bad = [];
-  // The receipt is the `granted: … { … }` object; its gems line is the one that matters.
-  const granted = (code.match(/granted: res\.replayed === true \? null : \{[\s\S]*?\n\s*\},/) || [''])[0];
-  const line = (granted.match(/^\s*gems: .*$/m) || [''])[0].trim();
-  if (line !== "gems: ('gems_paid' in res) ? Number(res.gems_paid) || 0 : (priced.gems || 0),") {
-    bad.push(`granted.gems is not "what the wallet paid, the price only when the apply did not say" (${line || 'no receipt gems line'})`);
-  }
-  return bad;
 }
 
 let db;
@@ -175,9 +160,6 @@ if (!MUTATE) {
   });
   if (carried) { red.push('W-CARRY'); console.log(`  ✗ ${carried}`); }
 
-  const bad = edgeScan();
-  if (bad.length) { red.push('W-EDGE'); console.log(`  ✗ W-EDGE — ${bad.join('; ')}`); }
-  else console.log('  ✓ W-EDGE — the claim receipt reports what the wallet paid (gems_paid), never the price');
   await db.close();
   console.log(red.length ? `\nRED: ${red.join(', ')}` : '\nGREEN: one account wallet — once per account, journalled, the same on every hero');
   process.exit(red.length ? 1 : 0);
@@ -222,26 +204,11 @@ const MUTANTS = [
              "  perform public.hr_wallet_debit(v_uid, v_slot, v_cat.cost_gems, v_intent || ':x', '{}'::jsonb);\n"
              + "  v_wallet := public.hr_wallet_debit(v_uid, v_slot, v_cat.cost_gems, v_intent,\n                jsonb_build_object('slot_id', v_cat.slot_id, 'idem', p_idem));\n"]] },
 ];
-const EDGE_ANCHOR = "gems: ('gems_paid' in res) ? Number(res.gems_paid) || 0 : (priced.gems || 0),";
-if (EDGE.split(EDGE_ANCHOR).length !== 2) { console.error('harness: the edge mutant anchor moved'); process.exit(2); }
-const EDGE_MUTANTS = [
-  { name: 'receiptFromPrice', why: 'the claim receipt reports the PRICED gems, not what the wallet paid',
-    src: EDGE.replace(EDGE_ANCHOR, () => 'gems: priced.gems || 0,') },
-];
-
 console.log('\naccount-wallet --mutate: every mutant must go RED on its named arm');
-if (edgeScan().length) { console.error('harness: the unmutated edge scan is red'); process.exit(2); }
 const control = await tryApply(db, SQL);
 if (control) { console.error(`harness: the unmutated file is red (${control})`); process.exit(2); }
-console.log(`[mutants] ${MUTANTS.length + EDGE_MUTANTS.length}`);
+console.log(`[mutants] ${MUTANTS.length}`);
 let survived = 0;
-for (const m of EDGE_MUTANTS) {
-  const bad = edgeScan(CONTROL ? EDGE : m.src);
-  const hit = bad.length > 0;
-  console.log(`[mutant] ${m.name} ${hit ? 'caught' : 'survived'}`);
-  if (hit) console.log(`  ✓ ${m.name} — ${m.why}: RED via W-EDGE: ${bad[0]}`);
-  else { survived++; console.log(`  ✗ ${m.name} — ${m.why}: SURVIVED`); }
-}
 for (const m of MUTANTS) {
   let mutated = SQL;
   for (const [find, repl] of m.edits) {
@@ -259,7 +226,7 @@ for (const m of MUTANTS) {
   else { survived++; console.log(`  ✗ ${m.name} — ${m.why}: ${got === null ? 'SURVIVED' : `red only via ${got.slice(0, 300)}`}`); }
 }
 await db.close();
-const total = MUTANTS.length + EDGE_MUTANTS.length;
+const total = MUTANTS.length;
 if (CONTROL) {
   console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${total - survived} arm(s) read caught`);
   process.exit(survived === total ? 0 : 1);

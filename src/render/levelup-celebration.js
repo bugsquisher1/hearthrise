@@ -50,12 +50,8 @@
     return banner('is-mark', mark.name, [
       ['lu-title', skillName(skillId) + ' ' + level],
       ['lu-lore', mark.lore],
-      ['lu-foot', 'Kept in your Chronicle'],
+      ['lu-foot', 'Yours for good'],
     ], medal, 6000);
-  };
-
-  window.hrPetLevelNotice = function (text) {
-    return banner('is-pet', 'Companion', [['lu-title', text]], '', 3700);
   };
 
   window.hrOpenMastery = function (skillId) {
@@ -76,7 +72,7 @@
     var top = CM && CM.markFor(99);
     body.appendChild(part('p', 'cm-mastery-mark', top ? top.lore : ''));
     var foot = part('div', 'hr-sheet-foot cm-mastery-foot');
-    foot.appendChild(part('p', 'cm-mastery-note', 'Kept in your Chronicle for good'));
+    foot.appendChild(part('p', 'cm-mastery-note', 'Yours for good'));
     var close = part('button', 'cm-mastery-btn', 'Close');
     close.type = 'button';
     close.setAttribute('data-hr-dismiss', '');

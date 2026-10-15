@@ -621,13 +621,13 @@ export default [
       assert(el && el.matches('.hr-levelup-pop.is-mark') && document.querySelectorAll('.is-mark').length === 1,
         'mining 50 must paint exactly one .hr-levelup-pop.is-mark');
       const t = el.textContent;
-      assert(t.includes('Old Hand') && t.includes(CM.markFor(50).lore) && t.includes('Kept in your Chronicle'),
+      assert(t.includes('Old Hand') && t.includes(CM.markFor(50).lore) && t.includes('Yours for good'),
         'the Mark banner must name Old Hand, its lore and the Chronicle, got ' + JSON.stringify(t));
       assert(window.showLevelupCelebration('mining', 42) === null, 'level 42 is no mark and must paint nothing');
       const scrim = window.hrOpenMastery('fishing');
       made.push(scrim);
       const sheet = scrim.matches('.hr-scrim') && scrim.querySelector('.hr-sheet');
-      assert(sheet && sheet.textContent.includes(CM.masteryLore('fishing')) && sheet.textContent.includes('Kept in your Chronicle for good'),
+      assert(sheet && sheet.textContent.includes(CM.masteryLore('fishing')) && sheet.textContent.includes('Yours for good'),
         'the Mastery sheet must carry the fishing line and the Chronicle note');
       assert(window.HearthriseSheet.closeTop() && !scrim.isConnected, 'Escape (closeTop) must remove the Mastery sheet');
     } finally { made.forEach((n) => { if (n) n.remove(); }); }

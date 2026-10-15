@@ -13,7 +13,6 @@
   line-height: 1.2;
 }
 .hr-levelup-pop.is-mark .lu-title,
-.hr-levelup-pop.is-pet .lu-title { color: var(--ink); overflow-wrap: anywhere; }
 .hr-levelup-pop .lu-lore {
   margin-top: 4px;
   font-size: var(--t-small);

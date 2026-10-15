@@ -1969,83 +1969,6 @@ export default [
     }
   }),
 
-  () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
-    const A = window.HearthriseAccrual;
-    const AU = window.HearthriseAuto;
-    if (!A || !AU || typeof AU.maybeSwitchOnAutoEat !== 'function'
-        || typeof A.__noteAutoEatSettings !== 'function') return;
-
-    /* MEASURED on production 2026-09-06: 34 of 36 characters OWN Auto-Eat and
-       have it OFF, because the grant never flipped the switch. They are exactly
-       the population the Recovery ladder is about to start charging. The fix is
-       NOT a bulk server UPDATE — hr_set_auto_eat is the sole writer of that
-       column — it is the client walking the ordinary path once, past the same
-       gate, with a dismissible way back. */
-    const save = A.serverAutoEatSettings();
-    const restore = () => { try { A.__noteAutoEatSettings(save); } catch (e) {} AU._resetSwitchOnOffer(); };
-    try {
-      /* UNKNOWN is not FALSE. An older server projects no `auto_eat_touched`;
-         an offer made on missing data is an offer made on every boot. */
-      AU._resetSwitchOnOffer();
-      A.__noteAutoEatSettings({ enabled: false, touched: undefined });
-      assert(AU.maybeSwitchOnAutoEat().offered === false,
-        'the switch-on offer fired against an UNKNOWN touch state — every older-server boot would '
-        + 'flip the switch again');
-
-      /* A DECISION, EITHER WAY, IS FINAL. `auto_eat_set_at` is stamped by
-         hr_set_auto_eat on every call, including the "Keep it off" one. */
-      AU._resetSwitchOnOffer();
-      A.__noteAutoEatSettings({ enabled: false, touched: true });
-      assert(AU.maybeSwitchOnAutoEat().offered === false,
-        'a player who has already decided (touched=true, switch OFF — i.e. someone who tapped '
-        + '"Keep it off") was re-prompted. That is the one thing this flow must never do.');
-
-      /* ALREADY ON: nothing to offer, forever. */
-      AU._resetSwitchOnOffer();
-      A.__noteAutoEatSettings({ enabled: true, touched: false });
-      assert(AU.maybeSwitchOnAutoEat().offered === false,
-        'the offer fired at a character who already has Auto-Eat ON');
-
-      /* ── NO HOST, NO FLIP (Security F4) ────────────────────────────────
-         The offer changes how the player's night is FOUGHT. On a surface with
-         no notification host — an early boot, a headless embed, a page whose
-         toast layer failed to load — flipping the switch and then failing to
-         say so is not an offer, it is a silent mutation of combat behaviour.
-         BOTH hosts are stubbed out here because the code falls back from
-         `notifyAction` to `notify`; removing only one proves nothing. */
-      const savedAction = window.notifyAction, savedNotify = window.notify;
-      const savedTraits = window.G && window.G.traits;
-      const savedEat = AU.getEat();
-      try {
-        window.notifyAction = undefined; window.notify = undefined;
-        if (window.G) window.G.traits = Object.assign({}, savedTraits || {}, { auto_eat: 1 });
-        AU._resetSwitchOnOffer();
-        AU.setEat({ enabled: false });
-        A.__noteAutoEatSettings({ enabled: false, touched: false });
-        const r = AU.maybeSwitchOnAutoEat();
-        assert(r.offered === false && r.why === 'no-host',
-          'with no notification host the switch-on still claimed to offer (' + JSON.stringify(r)
-          + '). It must decline, not proceed silently.');
-        assert(AU.getEat().enabled === false,
-          'THE BUG F4 NAMES: with no host reachable the offer flipped Auto-Eat ON anyway. The '
-          + 'player\'s combat behaviour changed and nothing told them.');
-        /* AND THE OFFER IS NOT CONSUMED — a boot that could not speak must not
-           spend the one chance a boot that can speak would have used. */
-        assert(AU.maybeSwitchOnAutoEat().why === 'no-host',
-          'the host-less boot consumed the one-shot offer; the next bootable page would never ask');
-      } finally {
-        window.notifyAction = savedAction; window.notify = savedNotify;
-        if (window.G) window.G.traits = savedTraits;
-        try { AU.setEat(savedEat); } catch (e) {}
-      }
-    } finally { restore(); }
-  }),
-
-  /* SETTINGS-AUTOEAT-1 — condition 1 of the 2b arm: the warning is AT the
-     control, on BOTH ends, before the night rather than after it. Asserted on
-     the pure hint function through the panel's own published seam, because the
-     panel is 900 lines of string building and a DOM walk here would be testing
-     the renderer instead of the rule. */
   () => tryRun('SETTINGS-RETIRED-1: Settings offers no save/export/import/backup/erase, even with backup keys present', () => {
     const BK = 'hearthrise:save-backup:v9', SK = 'hearthbound-save-v2';
     const m = document.getElementById('settings-modal');
@@ -2150,148 +2073,9 @@ export default [
     }
   }),
 
-  // ── b134 — Batch B (auto-eat + train-to-level engines) ──
 
-  // b134: maybeAutoEat() consumes a food + heals when HP is below
-  // threshold. Disabled-by-default config: setEat first, then trigger.
-  () => tryRun('b134: maybeAutoEat heals + decrements food when below threshold', () => {
-    if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeAutoEat !== 'function') return;
-    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
-    const snap = snapshotG();
-    const eatBefore = window.HearthriseAuto.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    try {
-      // Set up: low HP, food in bag, auto-eat enabled + trait unlocked (b217)
-      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;          // 30% — below default 50% threshold
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.cooked_shrimp = 5;
-      window.G.combatLog = window.G.combatLog || [];
-      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
-      const preHp = window.G.playerHp, preQty = window.G.inventory.cooked_shrimp;
-      const ate = window.HearthriseAuto.maybeAutoEat();
-      assert(ate === true, 'maybeAutoEat should return true when triggered');
-      assert(window.G.playerHp > preHp, 'playerHp should increase, was ' + preHp + ' now ' + window.G.playerHp);
-      assert(window.G.inventory.cooked_shrimp === preQty - 1,
-        'cooked_shrimp should decrement by 1, before=' + preQty + ' after=' + window.G.inventory.cooked_shrimp);
-    } finally {
-      window.HearthriseAuto.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      restoreG(snap);
-    }
-  }),
 
-  /* b343: THE CLIENT'S AUTO-EAT DECISION IS THE SERVER'S.
-   *
-   * The rule used to live only in this classic script, which Deno cannot
-   * import — so the server accrual engine had NO auto-eat at all, and because
-   * a missing fx handler is a no-op by construction in combat-sim.js, the
-   * omission was silent. Measured on the same seed and state, the server paid
-   * 63%-99% LESS than the client for an unattended night and the character
-   * died minutes into it.
-   *
-   * The fix moved the DECISION to src/core/auto-eat.js, which both sides
-   * import. This test is the client half of that contract: whatever
-   * maybeAutoEat() does, resolveAutoEat() must have decided — including WHICH
-   * food and how much it heals. If someone re-inlines the rule here "for
-   * speed", the two sides can drift again and only this goes red.
-   */
-  () => tryRun('b343: maybeAutoEat routes through the SHARED core decision (server parity)', () => {
-    const A = window.HearthriseAuto, C = window.HearthriseCore;
-    if (!A || typeof A.maybeAutoEat !== 'function') return;
-    assert(C && C.autoEat && typeof C.autoEat.resolveAutoEat === 'function',
-      'HearthriseCore.autoEat.resolveAutoEat missing — the client and the server no longer share the rule');
-    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
-    const snap = snapshotG();
-    const eatBefore = A.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    try {
-      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;
-      window.G.inventory = { cooked_shrimp: 5 };
-      window.G.combatLog = [];
-      A.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
 
-      // Ask the CORE what should happen, before letting the client do it.
-      const decision = C.autoEat.resolveAutoEat({
-        enabled: true, owned: true, hp: 3, maxHp: 10, threshold: A.eatThreshold(),
-        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
-      });
-      assert(decision && decision.foodId === 'cooked_shrimp',
-        'the core declined to eat on a fixture the client is about to eat on');
-
-      const ate = A.maybeAutoEat();
-      assert(ate === true, 'maybeAutoEat should have eaten');
-      assert(window.G.playerHp === decision.hp,
-        'the client healed to ' + window.G.playerHp + ' but the core decided ' + decision.hp
-        + ' — the two sides would pay a different night');
-      assert(window.G.inventory.cooked_shrimp === 4,
-        'the client consumed a different amount than the one meal the core decided');
-
-      // ...and the purchased-trait gate is the CORE's gate, not a local one.
-      window.G.traits = {};
-      window.G.playerHp = 3;
-      assert(A.maybeAutoEat() === false, 'auto-eat fired without the purchased trait');
-      assert(C.autoEat.resolveAutoEat({
-        enabled: true, owned: false, hp: 3, maxHp: 10, threshold: 0.5,
-        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
-      }) === null, 'the core ate without the purchased trait — the server would too');
-    } finally {
-      A.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      restoreG(snap);
-    }
-  }),
-
-  // b134: maybeAutoEat() does nothing when disabled.
-  () => tryRun('b134: maybeAutoEat is a no-op when eat.enabled = false', () => {
-    if (!window.HearthriseAuto) return;
-    const snap = snapshotG();
-    const eatBefore = window.HearthriseAuto.getEat();
-    try {
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.cooked_shrimp = 5;
-      window.HearthriseAuto.setEat({ enabled: false, foodId: 'cooked_shrimp' });
-      const ate = window.HearthriseAuto.maybeAutoEat();
-      assert(ate === false, 'maybeAutoEat should return false when disabled, got ' + ate);
-      assert(window.G.playerHp === 3, 'playerHp should NOT change when disabled');
-    } finally {
-      window.HearthriseAuto.setEat(eatBefore);
-      restoreG(snap);
-    }
-  }),
-
-  // b134: maybeAutoEat() falls back to "best food in bag" when no foodId set.
-  () => tryRun('b134: maybeAutoEat picks best food when foodId not set', () => {
-    if (!window.HearthriseAuto || !window.ITEMS) return;
-    // Need at least 2 different healing foods to test selection.
-    const eligible = Object.keys(window.ITEMS).filter(id => window.ITEMS[id] && window.ITEMS[id].heals);
-    if (eligible.length < 1) return;
-    const snap = snapshotG();
-    const eatBefore = window.HearthriseAuto.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    try {
-      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour            // b217: trait unlocked so eat logic runs
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;
-      window.G.inventory = {};
-      // Give them only one food — so "best" must pick it.
-      const foodId = eligible[0];
-      window.G.inventory[foodId] = 1;
-      window.G.combatLog = [];
-      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: null });
-      const ate = window.HearthriseAuto.maybeAutoEat();
-      assert(ate === true, 'maybeAutoEat should fall back to best-in-bag, got false');
-    } finally {
-      window.HearthriseAuto.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      restoreG(snap);
-    }
-  }),
 
   // b134: maybeStopTraining() stops the active skill when target level is reached.
   () => tryRun('b134: maybeStopTraining stops skill at goal level', () => {
@@ -2494,26 +2278,6 @@ export default [
     } finally { F.done(); }
   }),
 
-  () => tryRun('WELCOME-AE-OFF-1: the auto-eat-off line never quotes today\'s bag as the night\'s', () => {
-    const F = koFix();
-    try {
-      const off = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 10, gainedItems: 0, gainedGold: 0, gainedKills: 3,
-        at: Date.now(), died: true, diedTo: 'slime', deaths: 4, recoverMs: 2 * 3600000, foodEaten: 0,
-        recoverLadder: [0, 120000, 240000, 120000], autoEat: { enabled: false, pct: 25, hadFood: true } };
-      const read = (bag) => {
-        Object.assign(F.G, { inventory: bag, lastOfflineSummary: Object.assign({}, off) });
-        window.__maybeShowWelcome({ again: true });
-        return document.getElementById('welcome-rows').textContent;
-      };
-      const t1 = read({ cooked_shrimp: 5 }), t2 = read({ cooked_shrimp: 12 });
-      assert(/Auto-Eat was switched off/.test(t1), 'the fixture never reached the auto-eat-off line: ' + t1);
-      assert(t1 === t2 && !/You were carrying \d+/.test(t1), 'the line reads the bag now: ' + t1 + ' | ' + t2);
-    } finally {
-      const ov = document.getElementById('welcome-overlay');
-      if (ov) ov.classList.remove('show');
-      F.done();
-    }
-  }),
 
   () => tryRun('HOME-KO-CLOCK-1: the Home card\'s recovery clock is the live server line', () => {
     const F = koFix();
@@ -2545,17 +2309,13 @@ export default [
     assert(!/already/.test(f({ weaponType: 'neutral' }, true).weakLine), 'bare hands said already');
   }),
 
-  () => tryRun('FOE-B: the element waits behind the curtain, and the outmatched tip names the weapon', () => {
+  /* The charm-gated element curtain left with the Bestiary charms in the
+     2026-10-14 demolition; what remains is the weapon tip. */
+  () => tryRun('FOE-B: the outmatched tip names the weapon, and no element curtain is drawn', () => {
     const F = window.HearthriseFoe, D = window.HearthriseDeathSheet;
-    const stub = (o) => Object.assign({ countersKnown: () => true, classOfMonsterId: () => 'humanoid', revealsElement: () => false,
-      nextOfClass: () => ({ remaining: 7 }), classLabel: () => 'Humanoid' }, o);
-    const f = (charms, eq, known) => F.facts('goblin', { eq: eq || { weaponType: 'hammer', element: null }, known: !!known, charms });
-    const hid = f(stub()).elementLine;
-    assert(/7 more Humanoid/.test(hid) && !/\b(poison\w*|venom\w*|toxi\w*|blight\w*)\b/i.test(hid), 'the hidden line: ' + hid);
-    assert(/poison rune/.test(f(stub({ revealsElement: () => true })).elementLine), 'a studied kind was not told poison');
-    assert(/already carries the poison/.test(f(stub({ revealsElement: () => true }), { weaponType: 'hammer', element: 'poison' }, true).elementLine), 'no elementHeld');
-    assert(f(stub({ countersKnown: () => false })).elementLine === '', 'unknown counters printed a line');
-    const m = D.describeDeath({ ateThisFight: 2, foodQty: 0, monsterName: 'Goblin', foe: f(null) });
+    const facts = F.facts('goblin', { eq: { weaponType: 'hammer', element: null }, known: true, charms: null });
+    assert(facts && !facts.elementLine, 'the demolished element curtain came back: ' + JSON.stringify(facts && facts.elementLine));
+    const m = D.describeDeath({ ateThisFight: 2, foodQty: 0, monsterName: 'Goblin', foe: facts });
     assert(m.tipKey === 'outmatched' && /1H Sword/.test(m.tip) && !/armou?r|Defence/.test(m.tip), 'the tip: ' + m.tipKey + ' ' + m.tip);
   }),
 

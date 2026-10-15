@@ -882,16 +882,16 @@ export const FOOD_KIND_META = {
   provision: {
     label: 'Provision',
     verb: 'Eat',
-    blurb: 'Healing food. Auto-Eat can use this.',
+    blurb: 'Healing food.',
   },
   feast: {
     label: 'Feast',
     verb: 'Use',
-    blurb: 'Eaten for a timed buff. Auto-Eat never uses it.',
+    blurb: 'Eaten for a timed buff.',
   },
   draught: {
     label: 'Draught',
     verb: 'Drink',
-    blurb: 'Drunk for a timed buff. Auto-Eat never uses it.',
+    blurb: 'Drunk for a timed buff.',
   },
 };

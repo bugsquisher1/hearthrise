@@ -55,23 +55,6 @@ async function mfWhatsNew() {
 
 export default [
 
-  /* ══════════════════════════════════════════════════════════════════════════
-     THE DAILY-REWARD DAY, AND THE TWO WAYS THE SHEET HAS LIED ABOUT IT.
-
-     Shared fixtures for DAILY-SHEET-3 and -4. Both drive the sheet through the
-     SAME two doors a player's browser uses:
-       · noteServerStreak(envelope) — what hr_load / hr-accrue hand it, carrying
-         the character's own daily/login claim rows (the b465 marker rows) and
-         the SERVER's clock;
-       · G.dailyReward.lastClaimDay + G.streak — the local residue, which is all
-         the sheet has before the first envelope lands.
-     `cycleDay` and `rewardFor` are asserted directly because they ARE the Home
-     card's whole computation (src/features/home-dashboard.js:1041 renders
-     'Daily reward · Day ' + DL.cycleDay(G) and DL.rewardFor(G)); the modal is
-     asserted through the rendered DOM. */
-
-
-
   () => tryRun('MODAL-FIT-1 (b556): the welcome-back card fits on BOTH return paths — Continue reachable, rows scroll, Escape closes it, navigation does not', () => {
     assert(typeof window.__maybeShowWelcome === 'function', 'the b341 seam __maybeShowWelcome is gone');
     const s = { seen: G.lastSeen, wel: G.lastWelcome, off: G.lastOfflineSummary };
@@ -167,20 +150,12 @@ export default [
     }
   }),
 
-  /* -- regression suite -- MODAL-FIT-2: overflowing Quartermaster and bug report keep their
-     controls on screen; Escape closes the Quartermaster and the Hearthfind veil (whose
-     fading-out node must read as closed) but never the bug form, which keeps typed text. */
-  () => tryRunAsync('MODAL-FIT-2: Quartermaster, bug report and Hearthfind veil fit; Escape spares only the bug form', async () => {
+  /* -- regression suite -- MODAL-FIT-2: an overflowing bug report keeps its controls on
+     screen; Escape closes the Hearthfind veil (whose fading-out node must read as closed)
+     but never the bug form, which keeps typed text. */
+  () => tryRunAsync('MODAL-FIT-2: bug report and Hearthfind veil fit; Escape spares only the bug form', async () => {
     const unpark = mfClear(), HF = window.HearthriseHearthfind;
     try {
-      window.openQuartermaster();
-      const qm = document.getElementById('quartermaster-overlay'), qb = document.getElementById('quartermaster-body');
-      qb.innerHTML = '<div class="qm-row">Row</div>'.repeat(200);
-      mfReach(qm.querySelector('.qm-close'), 'the Quartermaster close');
-      mfInView(qm.querySelector('.quartermaster-modal'), 'the Quartermaster card');
-      assert(qb.scrollHeight > qb.clientHeight, 'the Quartermaster rows are not a scroll region');
-      mfEsc();
-      assert(!document.getElementById('quartermaster-overlay'), 'Escape did not close the Quartermaster');
       window.HearthriseBugReport.open();
       document.querySelector('#hr-bug-modal textarea').rows = 400;
       mfReach(document.querySelector('#hr-bug-modal [type=submit]'), 'the bug report\'s Send');
@@ -194,7 +169,7 @@ export default [
       mfEsc();
       assert(!veil.classList.contains('in') && window.HearthriseSheet.topOpen() !== veil, 'Escape left the veil open, or its fade-out still reads as open');
     } finally {
-      ['quartermaster-overlay', 'hr-bug-modal', 'hr-hf-veil'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
+      ['hr-bug-modal', 'hr-hf-veil'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
       if (HF) HF.dismissReveal();
       unpark();
     }
@@ -211,32 +186,9 @@ export default [
      the real reader a server envelope, then assert the reader answers the SERVER.
      Driving the shipped reconciles and readers, not a copy of them.
      MUTATION (proven per block): restore the deleted residue read — give
-     playStreakDays its `G.streak.count` fallback back, or let ownsGemUnlock fall
-     through to `G.ownedThemes` — and that block goes RED. */
+     playStreakDays its `G.streak.count` fallback back, or let ownsSlot read
+     `G.heroSlotsUnlocked` — and that block goes RED. */
 
-  () => tryRun('RESIDUE-PURGE-2: a forged ENTITLEMENT in the bag confers nothing', () => {
-    const A = window.HearthriseAccrual, G = window.G;
-    const snap = residuePurgeSnap(G);
-    try {
-      /* A FORGED residue claims a 1,000-gem theme and a 1,200-gem cosmetic; the
-         server's set carries only the free row. */
-      G.ownedThemes = ['default', 'volcanic'];
-      G.ownedCosmetics = ['pet_phoenix'];
-      A.reconcileGemUnlocks(G, { ok: true, gem_unlocks: ['theme:default'] });
-      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
-        'THE BUG: a residue entry still confers a gem-priced theme the server never sold');
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
-        'THE BUG: a residue entry still confers a gem-priced cosmetic the server never sold');
-      assert(window.ownsGemUnlock('theme', 'default') === true,
-        'the FREE theme must stay owned — the catalogue gives it away and the projection carries it');
-
-      /* HERO SLOTS: residue says five, the account owns one. */
-      G.heroSlotsUnlocked = 5;
-      A.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
-      assert(window.HearthriseProfile.ownsSlot(3) === false,
-        'THE BUG: the residue still lists a hero slot the realm will refuse with slot_not_owned');
-    } finally { residuePurgeRestore(G, snap); }
-  }),
 
   () => tryRun('RESIDUE-PURGE-3: the auto-eat triple is the server\'s, and none of the nine rides the save', () => {
     const A = window.HearthriseAccrual, G = window.G;
@@ -314,9 +266,11 @@ export default [
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
-      'currentCombatTier', 'buyback', 'raids',
-      'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
+      'currentCombatTier', 'buyback', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
+    /* The demolished systems' fields left the bag with them (2026-10-14). */
+    ['raids', 'muster', 'rallyPledge', 'bountyHunter', 'dailyReward', 'renown', 'houseTheme', 'tools'].forEach((f) =>
+      assert(RF.indexOf(f) < 0, f + ' belongs to a demolished system and must not ride the residue bag'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
        come back: both were second copies of a value hr_state_of projects
        (`renown_high`; `state.tool_carry`). renownHigh is now the in-session
@@ -343,12 +297,11 @@ export default [
 
     const G = window.G;
     const keep = {};
-    const touched = ['bestiary', 'traits', 'toolCarry', 'raids'];
+    const touched = ['bestiary', 'traits', 'toolCarry'];
     touched.forEach((f) => { keep[f] = G[f]; });
     try {
       G.bestiary = { goblin: { kills: 5, firstKill: 1700000000000 } };
       G.toolCarry = { woodcutting: 0.75 };
-      G.raids = { lastStrikeDay: '2026-08-24', solo: { week: 9, damage: 400, strikes: 2 }, claimed: { '9': true } };
 
       // SAVE: what the client ships to client_state
       const patch = window.HearthriseCapstone.buildResiduePatch(G);
@@ -376,8 +329,6 @@ export default [
          end). What must hold HERE is that the bag no longer carries it at all. */
       assert(typeof reloaded.toolCarry === 'undefined',
         'the residue round-trip still carries toolCarry — the server column is the one copy');
-      assert(reloaded.raids && reloaded.raids.claimed && reloaded.raids.claimed['9'] === true,
-        'the weekly raid claim marker was lost — a reload would re-open a claimed reward');
 
       /* THE BAG HAS A HARD CEILING. hr_put_client_state refuses the whole patch
          over 256 KiB (state_too_large) — and a refused patch means EVERY residue
@@ -533,12 +484,13 @@ export default [
     const C = window.HearthriseCapstone;
     if (!C || !C.isBlobRetired()) return;             // only meaningful with the capstone armed
     const next = HP.canUnlockNext();
-    if (!next || next.free) return;                   // only a real gem spend proves this
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    if (!next) return;                                // every slot already owned
+    // Hero slots are GOLD since the 2026-10-14 ruling (gems left the game).
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     try {
-      G.gems = next.cost + 1000;
-      stampRecordLikeLoad(G);                         // a genuinely KNOWN, sufficient balance
+      G.gold = next.cost + 1000;
+      stampBalanceLikeLoad(G);                        // a genuinely KNOWN, sufficient balance
       const r = HP.unlockSlot(next.slotId);
       assert(r && r.ok,
         'a player who can afford a hero slot cannot buy one: unlockSlot answered "'
@@ -547,15 +499,15 @@ export default [
         + 'rolls back for every player, every time. The durability proof has to move to a store that still '
         + 'exists (a server slot-purchase verb, or the durable profile/client_state record); deleting the '
         + 'proof would bring back the b371 dupe.');
-      assert(G.gems === 1000, 'the gems were not actually spent');
+      assert(G.gold === next.cost + 1000, 'unlockSlot debited gold locally — the server verb owns that debit');
       assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
     } finally {
-      G.gems = prevGems;
+      G.gold = prevGold;
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
+      stampBalanceLikeLoad(G);
     }
   })),
 
@@ -563,12 +515,12 @@ export default [
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     const next = HP.canUnlockNext();
-    if (!next || next.free) return;
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    if (!next) return;
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const realSave = window.saveLocal;
     try {
-      G.gems = next.cost + 1000;
+      G.gold = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
       /* b515 — THE DORMANT HALF IS RETIRED AND THE PROPERTY INVERTED. This test
          used to grade two positions. DORMANT: `unlockSlot` read the save blob
@@ -608,7 +560,7 @@ export default [
     } finally {
       try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.saveLocal = realSave;
-      G.gems = prevGems;
+      G.gold = prevGold;
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
@@ -647,7 +599,7 @@ export default [
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
     try {
-      if (B) B.balanceNum = (g, f) => (f === 'gems' ? 999999 : realBalanceNum(g, f));
+      if (B) B.balanceNum = (g, f) => (f === 'gold' ? 99999999 : realBalanceNum(g, f));
 
       // ── SERVER SILENT: the row is buyable-in-order but NOT offered. ──
       delete G._heroSlots;
@@ -657,7 +609,7 @@ export default [
         'slotRows() claims the server has answered when G._heroSlots is absent');
       assert(row.afford === true,
         'the fixture is degenerate: the row must be AFFORDABLE, so that a disabled button can only '
-        + 'be about the server being silent and not about the gems');
+        + 'be about the server being silent and not about the gold');
 
       if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
         window.HearthriseHome.render();
@@ -730,9 +682,7 @@ export default [
       assert(nx && nx.slotId === 2,
         'the ladder must point at the first slot the SERVER says is missing, got '
         + JSON.stringify(nx));
-      assert(nx.free === false,
-        'under the server answer the Hearth Hall waiver is decided SERVER-SIDE (a waived slot '
-        + 'arrives already owned), so a device-local entitlements claim must not make a slot free');
+      assert(nx.cost > 0, 'a device-local entitlements claim must not make a slot free, got cost ' + nx.cost);
     } finally {
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile.unlockedSlots = prevCache;
@@ -750,12 +700,12 @@ export default [
     const origNotify = window.notify, origRec = window.HearthriseRecord;
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const sent = []; const toasts = []; let refreshed = 0;
     try {
       HP.adoptServerSlots([0]);
-      window.clientMayWriteRecordField = () => false;           // gems ARMED
+      window.clientMayWriteRecordField = () => false;           // the balance is ARMED
       window.notify = (m) => { toasts.push(String(m)); };
       /* STUBBED, and not only for tidiness: the real requestRecord() drives a
          live hr_load that REPLACES the record on the shared G, landing a network
@@ -784,8 +734,8 @@ export default [
         'buySlot did not send exactly one hero-slot intent: ' + JSON.stringify(sent));
       assert(r && r.ok === true && r.server === true,
         'the server purchase did not report success: ' + JSON.stringify(r));
-      assert(G.gems === prevGems,
-        'THE SELF-MINT: buySlot debited G.gems locally under the arm. The server owns that balance; '
+      assert(G.gold === prevGold,
+        'THE SELF-MINT: buySlot debited G.gold locally under the arm. The server owns that balance; '
         + 'a local debit is reconciled away by the next envelope while the slot stays granted, '
         + 'which is the b371 dupe.');
       assert(HP.unlockedCount() === 2,
@@ -801,7 +751,7 @@ export default [
       window.clientMayWriteRecordField = origMay;
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
-      G.gems = prevGems; G.heroSlotsUnlocked = prevUnlocked;
+      G.gold = prevGold; G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
@@ -818,9 +768,11 @@ export default [
     const origGC = window.HearthriseGoalClaim, origMay = window.clientMayWriteRecordField;
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
-    const prevGems = G.gems;
+    const prevGold = G.gold;
+    /* The server verb still answers insufficient_gems until the M2 gold restatement;
+       the client already prices the slot in gold and says so. */
     const cases = [
-      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
+      ['insufficient_gems', /Not enough gold/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
       ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
       ['requires_previous_slot', /Unlock the previous slot first/i, {}],
     ];
@@ -839,7 +791,7 @@ export default [
         assert(want.test(String(r.reason || '')),
           `'${code}' rendered as "${r.reason}" — every machine code needs its own honest sentence, `
           + 'or the player files the wrong bug (b494)');
-        assert(G.gems === prevGems, `'${code}' moved gems on a refusal`);
+        assert(G.gold === prevGold, `'${code}' moved gold on a refusal`);
         assert(HP.unlockedCount() === 1, `'${code}' granted the slot anyway`);
       }
       // …and a refusal must never leave the in-flight latch stuck.
@@ -857,7 +809,7 @@ export default [
     } finally {
       window.HearthriseGoalClaim = origGC;
       window.clientMayWriteRecordField = origMay;
-      G.gems = prevGems;
+      G.gold = prevGold;
       try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
       try { document.getElementById('hr-confirm-overlay')?.remove(); } catch (e) {}
     }
@@ -1757,20 +1709,16 @@ export default [
   }),
 
 
-  () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
+  () => tryRun('AWAY-7: away kills feed the drop log and quests; an away death increments stats.deaths', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
-    const seen = { recordKill: 0, daily: 0, quest: 0, deed: 0 };
+    const seen = { recordKill: 0, quest: 0 };
     const realLog = window.HearthriseDropLog;
-    const realFarm = window.HearthriseFarm;
-    const realDaily = window.updateDaily;
     const realQuest = window.updateQuest;
     try {
       window.HearthriseDropLog = Object.assign({}, realLog, { recordKill: () => { seen.recordKill++; } });
-      window.HearthriseFarm = Object.assign({}, realFarm, { rollKillDeed: () => { seen.deed++; } });
-      window.updateDaily = function (t) { if (t === 'kill_any') seen.daily++; return realDaily.apply(this, arguments); };
       window.updateQuest = function (t) { if (t === 'kill_any' || t === 'kill_monster') seen.quest++; return realQuest.apply(this, arguments); };
 
       const m = window.MONSTERS.goblin;
@@ -1780,9 +1728,7 @@ export default [
       P._withOfflineReplay(() => { window.killMonster(m); });
 
       assert(seen.recordKill === 1, 'an away kill must reach HearthriseDropLog.recordKill (collection log under-reported every overnight)');
-      assert(seen.daily === 1, 'an away kill must tick updateDaily("kill_any") — "Slay 10 monsters" made ZERO progress overnight');
       assert(seen.quest === 2, 'an away kill must tick both kill_any and kill_monster quests, got ' + seen.quest);
-      assert(seen.deed === 1, 'an away kill must roll a Farmer\'s Deed');
 
       /* stats.deaths: never incremented ANYWHERE before this change — not away,
          not live. Assert both paths, because a rule that only holds in one is
@@ -1807,8 +1753,6 @@ export default [
          uses. */
       try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       window.HearthriseDropLog = realLog;
-      window.HearthriseFarm = realFarm;
-      window.updateDaily = realDaily;
       window.updateQuest = realQuest;
       restoreG(snap);
     }
@@ -2599,7 +2543,6 @@ export default [
           fx: {
             addItem: (id, qty) => window.addItem(id, qty),
             addXp: (sk, amt) => window.addXp(sk, amt),
-            updateDaily: (k, n) => window.updateDaily(k, n),
             updateQuest: (k, n) => window.updateQuest(k, n),
             onStop: () => window.stopSkill && window.stopSkill(),
           },
@@ -2748,7 +2691,6 @@ export default [
             addItem: (id, q) => window.addItem(id, q),
             removeItem: (id, q) => window.removeItem(id, q),
             addXp: (sk, amt) => window.addXp(sk, amt),
-            updateDaily: (k, n) => window.updateDaily(k, n),
             updateQuest: (k, n) => window.updateQuest(k, n),
           },
         });
@@ -2826,7 +2768,7 @@ export default [
     Object.keys(src).forEach((sk) => { authored += (src[sk] || []).length; });
     assert(n === authored,
       'the index holds ' + n + ' recipes but ' + authored + ' are authored — rows were dropped or collided');
-    assert(n > 250, 'only ' + n + ' recipes indexed — the catalogue did not load');
+    assert(n > 100, 'only ' + n + ' recipes indexed — the catalogue did not load');   // 111 after the 2026-10-14 gear-recipe cut
 
     assert(Object.getPrototypeOf(idx) === null,
       'the recipe index has a prototype — `constructor` and `__proto__` are reachable ids that would '
@@ -2930,7 +2872,7 @@ export default [
   }),
 
 
-  () => tryRun('b326-1: the welcome-back band states the rate, the crits, the featured boss and the paused buffs — and invents none of them', () => {
+  () => tryRun('b326-1: the welcome-back band states the rate, the crits and the paused buffs — and invents none of them', () => {
     const G = window.G;
     const H = window.HearthriseHome;
     assert(H && typeof H.render === 'function', 'the Home dashboard must expose render()');
@@ -2960,10 +2902,9 @@ export default [
       /* Item 2 — away combat reports its crits. */
       assert(/142 kills/.test(txt) && /21 crits/.test(txt),
         'away combat must report kills AND crits ("142 kills · 21 crits"): ' + txt);
-      /* Item 1b — the featured boss, its real duration, and the multiplier the
-         SIMULATION reported (never a guessed default). */
-      assert(/8h on the Boss of the Day/.test(txt), 'the band must report featured time: ' + txt);
-      assert(/\+50% drops/.test(txt), 'the band must quote the multiplier the payload carried: ' + txt);
+      /* Item 1b — the Boss of the Day left in the 2026-10-14 demolition: an old
+         payload that still carries featuredMs must not resurrect its line. */
+      assert(!/Boss of the Day/.test(txt), 'the band names the demolished Boss of the Day: ' + txt);
       /* Item 3 — a held buff is reported as paused, not as paid. */
       assert(/paused/i.test(txt), 'the band must say the held buffs were paused: ' + txt);
       assert(!/blessing.*applied|blessed/i.test(txt.replace(/food buffs pay while you play/i, '')),
@@ -2984,24 +2925,6 @@ export default [
       assert(!/Boss of the Day/.test(qtxt), 'no featured-boss line when featuredMs is 0: ' + qtxt);
       assert(!/paused/i.test(qtxt), 'no paused-buff line when buffsPaused is false: ' + qtxt);
       assert(/base rate/i.test(qtxt), 'the rate statement is unconditional and must survive: ' + qtxt);
-
-      /* A WEEKLY boss pays x2.0. A renderer that hardcoded the daily x1.5
-         would halve the night in copy — so the number comes from the payload. */
-      G.lastOfflineSummary = Object.assign({}, FULL, { featuredDropMult: 2.0 });
-      H.render();
-      assert(/\+100% drops/.test(document.getElementById('hd-root').textContent),
-        'a weekly featured boss must read +100% drops, not the daily default');
-
-      /* An OLD summary (written before the field existed) must say the boss
-         applied and quote NO percentage, rather than invent the daily one. */
-      const legacySummary = Object.assign({}, FULL);
-      delete legacySummary.featuredDropMult;
-      G.lastOfflineSummary = legacySummary;
-      H.render();
-      const ltxt = document.getElementById('hd-root').textContent.replace(/\s+/g, ' ');
-      assert(/Boss of the Day/.test(ltxt), 'a pre-b326 summary must still report the featured time');
-      assert(!/Boss of the Day \(\+/.test(ltxt),
-        'with no featuredDropMult in the payload the band must quote NO percentage: ' + ltxt);
 
       /* Stale news steps aside — the band is a greeting, not furniture. */
       G.lastOfflineSummary = Object.assign({}, FULL, { at: Date.now() - 60 * 60000 });
@@ -5599,14 +5522,10 @@ export default [
   /* ── OFFLINE-CAP (CLAUDE.md §6): the away limit is the server's hr_offline_cap_ms,
      read as hr_vigour_of.grant_min. No client perk sum, no guessed 12, no promise. */
   () => tryRun('OFFLINE-CAP-1a: offlineCapHours reads the server grant, never a perk sum', () => {
-    const R = window.HearthriseRenown, gp = R.getPerks;
-    R.getPerks = () => ({ allXP: 0, offlineHours: 12, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
-    try {
-      const at = (min) => withCap(min, () => window.offlineCapHours());
-      assert(at(720) === 12, 'grant_min 720 must read 12h whatever the client perks say, got ' + at(720));
-      assert(at(900) === 15, 'grant_min 900 (clan 7) must read 15h, got ' + at(900));
-      assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
-    } finally { R.getPerks = gp; }
+    const at = (min) => withCap(min, () => window.offlineCapHours());
+    assert(at(720) === 12, 'grant_min 720 must read 12h, got ' + at(720));
+    assert(at(900) === 15, 'grant_min 900 must read 15h, got ' + at(900));
+    assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
   }),
 
   () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending sentence when unknown', () => {
@@ -5622,15 +5541,15 @@ export default [
     assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);
   }),
 
-  () => tryRun('OFFLINE-CAP-1c: no House, Home or renown surface promises away hours the server does not pay', () => withCap(720, () => {
-    const HH = window.HearthriseHomestead, R = window.HearthriseRenown, bad = /offline (cap|max)|\+\d+h offline/i;
+  () => tryRun('OFFLINE-CAP-1c: no House or Home surface promises away hours the server does not pay', () => withCap(720, () => {
+    const HH = window.HearthriseHomestead, bad = /offline (cap|max)|\+\d+h offline/i;
     HH.renderCard();
     const card = (document.getElementById('hh-property-card') || {}).textContent || '';
     assert(card.length > 0 && !bad.test(card), 'the House card promises away hours: ' + card.replace(/\s+/g, ' '));
     window.showTab('profile'); window.HearthriseHome.render();
     const home = ((document.getElementById('hd-root') || {}).textContent || '').replace(/\s+/g, ' ');
     assert(home.length > 0 && !bad.test(home), 'Home promises away hours: ' + home.slice(0, 600));
-    const copy = R.RANKS.map((r) => r.unlock).concat(HH.TIERS.map((t) => t.desc));
+    const copy = HH.TIERS.map((t) => t.desc);
     copy.forEach((s) => assert(!/\d+\s*h(our)?s?\s*(offline|away)|offline progress/i.test(s), 'a ladder line promises away hours: ' + s));
     const castle = HH.TIERS[HH.TIERS.length - 1].desc;
     assert(/\+2% all XP/.test(castle), 'the Castle must state what CAPSTONE_PERKS pays (+2%): ' + castle);

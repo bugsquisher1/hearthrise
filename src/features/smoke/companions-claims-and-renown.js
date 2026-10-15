@@ -41,39 +41,6 @@ const withQuestServer = async (counts, fn) => {
     await fn(q, () => calls.filter((id) => id === 'first_cook').length, step, (c) => { unfeed(); unfeed = feedServerQuests(c); });
   } finally { unfeed(); window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap); }
 };
-/* THE ONE DAILY LIST rig (W0): today's slate is the daily quest `daily_kill`
-   (goal 25), the claim transport is a signed-in stub that records every
-   claimDaily, and the SERVER's tally is `tally` (null = never answered), fed
-   through the real cache seam. `rig.open(tally?)` re-feeds and returns the
-   sheet's row. The browser's own count (G.daily.tasks[0].progress) is set to
-   the goal on purpose: nothing on the sheet may read it. */
-const withDailyList = async (tally, fn) => {
-  const snap = snapshotG(), GC = window.HearthriseGoalClaim, note = window.notify, TL = window.HearthriseTally;
-  const calls = [];
-  const feed = (t) => TL.__feed(t ? Object.assign({ offered: ['daily_kill'], paid: [], week: {} }, t) : null);
-  try {
-    window.notify = () => {};
-    const task = window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill');
-    window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: task.goal })] };
-    window.HearthriseGoalClaim = {
-      isSignedIn: () => true,
-      /* answered (a refusal), so the module's in-flight latch is released before
-         the next test: a never-settling stub would hold it for the whole suite */
-      claimDaily: (id) => { calls.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); },
-      tallyState: () => Promise.resolve({ ok: false, error: 'test_stub' }),
-    };
-    feed(tally);
-    await fn(calls, { open: async (t) => {
-      if (t !== undefined) feed(t);
-      window.openQuestsModal();
-      await new Promise((res) => setTimeout(res, 0));
-      return document.querySelector('#quests-modal-overlay .qm-quest');
-    } });
-  } finally {
-    window.closeQuestsModal(); TL.__feed(null);
-    window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap);
-  }
-};
 /* The hr_bestiary_of mirror the settle writes, seeded directly: `ids` killed once. */
 const seedServerMonsters = (ids) => {
   const kbm = Object.create(null); ids.forEach((m) => { kbm[m] = 1; });
@@ -1574,7 +1541,7 @@ export default [
     const EXPECT = {
       small_wolf: 'raw_wolf_meat', wolf: 'raw_wolf_meat', dire_wolf: 'raw_wolf_meat',
       panther: 'raw_panther_meat', bear: 'raw_bear_meat', ancient_bear: 'raw_bear_meat',
-      goblin_warlord: 'chief_blade_recipe', warband_captain: 'captain_recipe',
+      // goblin_warlord / warband_captain's gear scrolls left with the gear recipes (2026-10-14).
       lich: 'soul_recipe', dragon: 'marrow_cookbook', plague_swarm: 'field_cookbook',
     };
     Object.keys(EXPECT).forEach((mid) => {
@@ -2012,6 +1979,8 @@ export default [
      it REACHES the DOM with the item's name, its held state and its real
      source, and the button is dead-with-a-reason rather than lit-and-lying. */
 
+  /* The dungeon blueprint this drove left in the 2026-10-14 demolition; a gold
+     shortfall is the blocker every rung still has, and the bar must say it. */
   () => tryRun('b355: the pinned Build bar says WHY it is blocked — never a toast', () => {
     const H = window.HearthriseHomestead;
     if (!H || !window.HearthriseRoomModal) return;
@@ -2019,49 +1988,25 @@ export default [
     try {
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
-      window.G.gold = 999999;
-      stampRecordLikeLoad(window.G);    // b456: modalDescriptor reads gold via canAfford AND the rung via roomsOf
-      window.G.inventory = { normal_log: 999 };
-      bag.agree();   // the server holds the same bag (no blueprint): the bar's reason is the subject
+      predZero(); window.G.gold = 0;
+      stampRecordLikeLoad(window.G);    // b456: a KNOWN 0, and the rung through roomsOf
+      window.G.inventory = { normal_log: 999, oak_log: 999 };
+      bag.agree();
 
       const m = H.modalDescriptor('kitchen');
-      const acts = m.sections.find((s) => s.kind === 'actions');
-      const btn = acts.buttons.find((b) => /^Upgrade|^Build/.test(b.label));
+      const btn = m.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade|^Build/.test(b.label));
       assert(btn && btn.pin, 'the Build control must still be the pinned one');
-      assert(btn.disabled, 'a blueprint-gated Build button must be disabled, not lit');
-      assert(/Kitchen Blueprint II/.test(btn.why || ''), 'the button must name the gate: ' + btn.why);
-      assert(btn.gates && btn.gates.length === 1, 'the pinned control must carry the gate as data');
+      assert(btn.disabled, 'an unaffordable Build button must be disabled, not lit');
+      assert(/Missing|gold/i.test(btn.why || ''), 'the button must name what is short: ' + btn.why);
+      assert(!/Blueprint/.test(btn.why || ''), 'the demolished blueprint gate is back: ' + btn.why);
 
       H.openRoom('kitchen');
       const bar = document.querySelector('.hr-room-build');
       assert(bar, 'the pinned build bar must exist');
-      assert(/Kitchen Blueprint II/.test(bar.textContent), 'the BAR must name the gate, not a toast');
-      assert(/Crypt of Bones/.test(bar.textContent), 'the bar must say where to get one');
-      assert(bar.querySelector('.hr-room-gate.is-need'), 'the bar gate must render in its unmet state');
-      assert(bar.querySelector('button[disabled]'), 'the bar button must be dead while the gate is unmet');
-      assert(/Kitchen Blueprint II/.test(bar.querySelector('button[disabled]').getAttribute('title') || ''),
-        'the reason must survive on the button hover too');
-      /* Said ONCE. A bar that prints "Needs Kitchen Blueprint II" above a block
-         saying "Kitchen Blueprint II — you have none" reads as a rendering
-         fault, which is the same standard the House card already holds. */
-      assert((bar.textContent.match(/Kitchen Blueprint II/g) || []).length === 1,
-        'the gate must be stated once in the bar, not twice');
+      assert(bar.querySelector('button[disabled]'), 'the bar button must be dead while the rung is unaffordable');
+      assert(/Missing|gold/i.test(bar.textContent), 'the BAR must name the shortfall, not a toast: ' + bar.textContent);
       /* The whole point of the pin: this is ABOVE the scroll container. */
       assert(!bar.closest('.hr-room-body'), 'the build bar must never be inside the scrolling body');
-
-      /* Two blockers at once must name BOTH — fixing the one you were told
-         about only to find the button still dead is the same bug again. */
-      predZero(); window.G.gold = 0;
-      /* b456 ⚠ stampRecordLikeLoad, NOT stampBalanceLikeLoad. applyRecord replaces
-         `G._record` WHOLESALE, so a balance-only re-stamp here silently drops the
-         Kitchen rung out of `known` — the room reverts to UNKNOWN/level 0, the
-         pinned control becomes "Build" instead of "Upgrade", and the assertion
-         below stops finding a button at all. Measured exactly that way. */
-      stampRecordLikeLoad(window.G);    // armed: the shortfall line must read a KNOWN 0, not UNKNOWN
-      const both = H.modalDescriptor('kitchen');
-      const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
-      assert(/Kitchen Blueprint II/.test(b2.why) && /Missing/.test(b2.why),
-        'both the gate and the shortfall must be named: ' + b2.why);
     } finally { restoreG(snap); bag.restore(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
   }),
 
@@ -2107,33 +2052,5 @@ export default [
       await drv.drive(null); await Promise.resolve(); await Promise.resolve();
       assert(A.awaySettleDone() && !btn.disabled && !btn.hasAttribute('data-hr-latched'), 'the boot settle answered and the control stayed latched');
     } finally { drv.restore(); A.__resetAwaySettleLatch(was); box.remove(); }
-  }),
-  () => tryRun('COMPANY-1: company, a party member\'s doing and a Crier find come only from a fresh realm view', () => {
-    const TP = window.HearthriseTownPanel, T = window.HearthriseTown, I = window.HearthriseIdentity;
-    assert(TP && typeof TP.companyOf === 'function' && typeof TP.doingOf === 'function' && typeof window.partyPanelHtml === 'function',
-      'the company seams (companyOf, doingOf, partyPanelHtml) are not published');
-    const now = Date.parse('2026-09-28T12:00:00Z'), [mon, mon2] = Object.keys(window.MONSTERS);
-    const peer = (name, id, away) => ({ name, activity_kind: 'combat', activity_id: id, seen_ago_s: 5, away });
-    const body = (crierName) => ({ ok: true, now: new Date(now).toISOString(), here: 3, shown: 3,
-      peers: [peer('Paione', mon, false), peer('Me', mon, false), peer('Kd', mon2, true)],
-      crier: [{ name: crierName, item_id: 'emberheart', source_kind: 'monster', source_id: 'dragon', one_in: 15000, found_ago_s: 60 }] });
-    const v = T.normalizeTown(body('Paione')), mine = { kind: 'combat', id: mon };
-    const names = (x) => JSON.stringify(x.map((p) => p.name));
-    assert(names(TP.companyOf(v, mine, 'Me', now)) === '["Paione"]', 'company was ' + names(TP.companyOf(v, mine, 'Me', now)));
-    assert(!TP.companyOf(v, mine, null, now).length && !TP.companyOf({ status: 'off' }, mine, 'Me', now).length
-      && !TP.companyOf({ ...v, at: now - 3 * T.TOWN_POLL_MS }, mine, 'Me', now).length, 'company came from no name, an off view or a stale view');
-    const party = { known: true, partyId: 'P1', role: 'member', members: ['Paione', null, 'Me'].map((name) => ({ name, combat_level: 5, hp: 10, hp_max: 10 })) };
-    const rows = (town) => {
-      const box = document.createElement('div');
-      box.innerHTML = window.partyPanelHtml(party, { nowMs: now, town, canon: I.canon, you: 'Me' });
-      return [...box.querySelectorAll('.party-member')].map((li) => { const d = li.querySelector('.party-m-doing'); return d ? d.textContent : ''; });
-    };
-    const live = rows(v);
-    assert(live[0].includes(window.MONSTERS[mon].name) && live[1] === '' && live[2] === '',
-      'party doing rows were ' + JSON.stringify(live));
-    assert(rows({ ...v, at: now - 3 * T.TOWN_POLL_MS }).every((d) => d === ''), 'a stale realm view still named a party member\'s doing');
-    assert(TP.townPanelHtml(v, now).includes('data-inspect-item="emberheart"'), 'the Crier find is not a tap target for the item flyout');
-    const bad = TP.townPanelHtml(T.normalizeTown(body('<b>x')), now);
-    assert(bad.includes('&lt;b&gt;x') && !bad.includes('<b>x'), 'a crier name rendered as markup');
   }),
 ];

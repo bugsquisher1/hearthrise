@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
 import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=584';
 import { fitBar, xpChip } from '../../render/bar-fit.js?v=584';
 import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=584';
@@ -269,7 +269,7 @@ export default [
     // screen's Skills sub-tab (asserted separately below). It's out of this
     // real-panel loop precisely because showTab('skills') now activates
     // #panel-character, not #panel-skills.
-    const tabs = ['profile', 'character', 'combat', 'bounty', 'inventory', 'shop', 'farming', 'house', 'social'];
+    const tabs = ['profile', 'character', 'combat', 'inventory', 'shop', 'farming', 'house', 'social'];
     for (const t of tabs) {
       try { window.showTab(t); }
       catch (e) { throw new Error(`showTab("${t}") threw: ${e.message || e}`); }
@@ -653,8 +653,8 @@ export default [
 
   // 2026-10-14, Tyler on live: "Under the counter keeps blanking in and out".
   // A live frame repaints through refreshActivityBar() + refreshAll(); the shop
-  // rebuilt its whole counter on each one, wiping the four shop companions that
-  // a 1.5 s poller then re-appended under "Under the counter". Twenty frames
+  // rebuilt its whole counter on each one, wiping the rows a 1.5 s poller then
+  // re-appended under "Under the counter". Twenty frames
   // over an unchanged shop must write nothing, and a balance change swaps a
   // Buy button, never its row or the row's art.
   () => tryRun('regression: the Local Shop holds still across 20 live frames (SHOP-FLICKER-1)', () => {
@@ -662,11 +662,10 @@ export default [
     const snap = snapshotG();
     const savedTab = window.shopTab;
     const frame = () => { window.refreshActivityBar(); window.refreshAll(); };
-    const comps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || ''));
-    assert(comps.length === 4, 'fixture: expected the four shop companions, found ' + comps.length);
     try {
       window.showTab('shop');
-      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+      // The shop companions and the cosmetics tab left in the 2026-10-14 demolition.
+      ['seeds', 'equip'].forEach((tab) => {
         window.setShopTab(tab);
         const counter = panel.querySelector('.sc-counter');
         const kids = Array.from(counter.children);
@@ -674,20 +673,11 @@ export default [
         assert(sep, tab + ': no "Under the counter" separator');
         const mo = new MutationObserver(() => {});
         mo.observe(panel, { subtree: true, childList: true, attributes: true, characterData: true });
-        for (let i = 0; i < 20; i++) {
-          frame();
-          const shown = panel.querySelectorAll('.shop-row[data-companion]').length;
-          assert(shown === (tab === 'equip' ? 4 : 0), tab + ' frame ' + i + ': ' + shown + ' companion rows on the counter');
-        }
+        for (let i = 0; i < 20; i++) frame();
         const recs = mo.takeRecords(); mo.disconnect();
         assert(recs.length === 0, tab + ': 20 frames over an unchanged shop wrote ' + recs.length + ' DOM mutations (first on '
           + (recs[0] && (recs[0].target.className || recs[0].target.nodeName)) + ')');
         assert(kids.every((k) => k.parentNode === counter), tab + ': a counter row was replaced by an unchanged frame');
-        if (tab === 'equip') {
-          const order = Array.from(counter.children);
-          const lastComp = order.map((c) => c.hasAttribute('data-companion')).lastIndexOf(true);
-          assert(lastComp >= 0 && lastComp < order.indexOf(sep), 'equip: the companions must sit with the wares, above "Under the counter"');
-        }
       });
       const top = window.SEED_SHOP.reduce((a, r) => (r.cost > a.cost ? r : a), window.SEED_SHOP[0]);
       const rowOf = () => Array.from(panel.querySelectorAll('.shop-row')).find((r) => {
@@ -1936,102 +1926,8 @@ export default [
     } finally { restoreG(snap); G.rooms = localSnap.rooms; stampRecordLikeLoad(G); }
   }),
 
-  () => tryRun('DEEPSEAM-3: every verdite piece is a real BRIDGE — stat, wield level and price strictly between its steel and mithril twin', () => {
-    const I = window.ITEMS;
-    const R = window.ARTISAN_RECIPES;
-    const all = Object.keys(R).reduce((a, k) => a.concat(R[k] || []), []);
-    /* new id · steel twin · mithril twin · the stat that must climb */
-    [['verdite_helm', 'steel_helm', 'mithril_helm', 'defB'],
-      ['verdite_platebody', 'steel_platebody', 'mithril_platebody', 'defB'],
-      ['verdite_platelegs', 'steel_platelegs', 'mithril_platelegs', 'defB'],
-      ['verdite_blade', 'steel_sword', 'mithril_sword', 'atkB'],
-      ['heartgarnet_maul', 'steel_warhammer', 'mithril_warhammer', 'strB']].forEach(([id, lo, hi, stat]) => {
-      const n = I[id], a = I[lo], b = I[hi];
-      assert(n && a && b, id + ': one of ' + id + '/' + lo + '/' + hi + ' is missing');
-      assert(n.slot === a.slot && n.slot === b.slot, id + ' sits in slot ' + n.slot + ', its twins in ' + a.slot + '/' + b.slot + ' — it is not the same lane');
-      assert(n[stat] > a[stat] && n[stat] < b[stat], id + ' carries ' + stat + ' ' + n[stat] + ', which is not strictly between ' + lo + ' (' + a[stat] + ') and ' + hi + ' (' + b[stat] + ') — a bridge that ties or beats the tier above it is not a bridge');
-      assert(n.v > a.v && n.v < b.v, id + ' is priced ' + n.v + ', not between ' + a.v + ' and ' + b.v + ' — the vendor and the market read this number');
-      /* The WIELD gate is the half a player meets first, and it is the hole
-         this batch exists to fill: armour gates on `defense` at a
-         MATERIAL_TIERS level, so the ladder read 30 → 45 with nothing between. */
-      const rq = window.gearWieldReq(n), rqa = window.gearWieldReq(a), rqb = window.gearWieldReq(b);
-      assert(rq && rqa && rqb, id + ': a piece in this lane carries no wield requirement — a tradeable 28-defence plate with no gate is the market selling power to a level-1 account');
-      assert(rq.skill === rqa.skill, id + ' gates on ' + rq.skill + ' while ' + lo + ' gates on ' + rqa.skill + ' — armour requirements are DEFENCE-only (standing ruling, 2026-08-15)');
-      assert(rq.lv > rqa.lv && rq.lv < rqb.lv, id + ' wields at ' + rq.lv + ', not between ' + lo + ' (' + rqa.lv + ') and ' + hi + ' (' + rqb.lv + ')');
-      /* And it is obtainable: exactly one recipe makes it. */
-      const made = all.filter((r) => r.output === id);
-      assert(made.length === 1, id + ' is made by ' + made.length + ' recipes — vendor trash with no recipe is what this batch exists to stop, and two recipes is two authorities');
-      Object.keys(window.HearthriseCore.artisan.recipeInputs(made[0])).forEach((k) => assert(I[k], id + "'s recipe consumes " + k + ', which is not an item'));
-    });
-  }),
 
-  () => tryRun('DEEPSEAM-4: the Forge Verdite Platebody tile is DISABLED at Smithing 49 and LIVE at 50 — the client half of hr_apply activity_locked', () => {
-    const snap = snapshotG();
-    const G = window.G, I = window.ITEMS;
-    try {
-      const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_verdite_platebody');
-      assert(rec && rec.req === 50, 'forge_verdite_platebody must be the Smithing 50 rung, got ' + JSON.stringify(rec));
-      G.inventory = { verdite_bar: 20, flux_salt: 10 };
-      /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
-      const cell = (html) => {
-        const at = html.indexOf('forge_verdite_platebody');
-        assert(at > 0, 'the smithing bench rendered no forge_verdite_platebody tile at all');
-        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
-      };
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req - 1) }); stampRecordLikeLoad(window.G);
-      const below = cell(window.renderArtisanActivities('smithing'));
-      assert(/disabled/.test(below), 'at Smithing ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
-      assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) }); stampRecordLikeLoad(window.G);
-      const live = cell(window.renderArtisanActivities('smithing'));
-      assert(!/disabled/.test(live), 'at Smithing ' + rec.req + ', holding bars, the rung must be LIVE: ' + live.slice(0, 200));
-      assert(live.indexOf(I.verdite_platebody.n) >= 0, 'the live tile must name what it makes, ' + I.verdite_platebody.n);
-    } finally { restoreGAndRecord(snap); }
-  }),
 
-  () => tryRun('SELFSUPPLY-1: at Smithing 30 the bench offers the Steel Bar AND the steel armour it feeds — the tier opens on ONE rung', () => {
-    /* THE PLAYED MOMENT this ruling exists for. Before 2026-09-13 a smith who
-       reached 30 saw the steel tier open — Gauntlets 31, Boots 32, Belt 33 — with
-       the Steel Bar locked until 35, so the first thing a new tier taught was that
-       you cannot make it. This renders the REAL bench at 29, 30 and 31 and reads
-       the buttons, i.e. it fails on the pre-ruling data at the `30` assertion.
-       Ore is in the bag so the test measures the LEVEL GATE and nothing else. */
-    const snap = snapshotG();
-    const G = window.G, I = window.ITEMS;
-    try {
-      const bar = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_steel');
-      const glove = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_steel_gauntlets');
-      assert(bar && bar.req === 30, 'smelt_steel must be the Smithing 30 rung (the steel tier gate), got ' + (bar && bar.req));
-      assert(glove && glove.req === 31, 'forge_steel_gauntlets must still be the 31 rung, got ' + (glove && glove.req));
-
-      G.inventory = { iron_bar: 40, coal: 40, steel_bar: 10 };
-      const cell = (html, id) => {
-        const at = html.indexOf(id);
-        assert(at > 0, 'the smithing bench rendered no ' + id + ' tile at all');
-        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
-      };
-      const atLevel = (lv) => {
-        G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(lv) }); stampRecordLikeLoad(window.G);
-        return window.renderArtisanActivities('smithing');
-      };
-
-      const at29 = atLevel(29);
-      assert(/disabled/.test(cell(at29, 'smelt_steel')), 'at Smithing 29 the Steel Bar must still be locked');
-      assert(/disabled/.test(cell(at29, 'forge_steel_gauntlets')), 'at Smithing 29 the gauntlets must still be locked');
-
-      const at30 = atLevel(30);
-      const barTile = cell(at30, 'smelt_steel');
-      assert(!/disabled/.test(barTile), 'AT SMITHING 30 THE STEEL BAR MUST BE LIVE — this is the whole ruling: '
-        + barTile.slice(0, 200));
-      assert(barTile.indexOf(I.steel_bar.n) >= 0, 'the live tile must name what it makes, ' + I.steel_bar.n);
-      assert(/disabled/.test(cell(at30, 'forge_steel_gauntlets')),
-        'the gauntlets are the 31 rung — at 30 the player smelts first, then forges');
-
-      const at31 = atLevel(31);
-      assert(!/disabled/.test(cell(at31, 'forge_steel_gauntlets')),
-        'at Smithing 31, holding bars, the first steel armour rung must be LIVE');
-    } finally { restoreGAndRecord(snap); }
-  }),
 
   () => tryRun('SELFSUPPLY-2: no tier gate sits above the first rung it feeds, and no bar opens below the reagent it eats', () => {
     /* The two rules that bound the ruling from either side, on every metal tier
@@ -2106,7 +2002,7 @@ export default [
     /* CONTROL: the scan must be looking at the real, whole catalogue. A guard
        reading an empty table reports zero violations forever. */
     const total = Object.keys(R).reduce((n, sk) => n + (R[sk] || []).length, 0);
-    assert(total >= 300, 'the scan saw only ' + total + ' recipes — it is not reading the live catalogue');
+    assert(total >= 100, 'the scan saw only ' + total + ' recipes — it is not reading the live catalogue');   // 111 after the 2026-10-14 gear-recipe cut
 
     /* THE RATCHET IS PAID. It was FROZEN AT 57 (34 smithing) from the Deep Seam
        batch until 2026-09-13, when the self-supply ruling moved the SUPPLY rungs
@@ -2601,12 +2497,11 @@ export default [
      the RED run raises none of the page errors this test exists to prevent. */
   () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin', async () => {
     const T = window.HearthriseTown, N = window.HearthriseNetStatus;
-    const M = window.HearthriseMuster, HF = window.HearthriseHearthfind;
+    const HF = window.HearthriseHearthfind;
     const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';
     assert(hookable(T) && typeof T.refreshTown === 'function' && typeof T.heartbeat === 'function'
       && hookable(N) && typeof N.__probeForTest === 'function' && typeof N.__probesForTest === 'function'
-      && hookable(M) && typeof M.__ambientTick === 'function' && typeof M.__flushTick === 'function'
-      && typeof M._resetHydrateThrottle === 'function' && hookable(HF) && typeof HF.__pollTick === 'function',
+      && hookable(HF) && typeof HF.__pollTick === 'function',
       'a channel on the helper\'s list has no pause seam — this test would pass vacuously');
     const realFetch = window.fetch, hits = [], prior = window.G._town;
     const STUB = 'https://test.local';
@@ -2628,11 +2523,7 @@ export default [
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS);
       await T.heartbeat(Date.now() + T.TOWN_POLL_MS);
       await N.__probeForTest();
-      // The interval ticks; the pledge pass reads only with no pledge and its throttle open.
-      const hadPledge = Object.prototype.hasOwnProperty.call(window.G, 'rallyPledge'), pledgeWas = window.G.rallyPledge;
-      delete window.G.rallyPledge; M._resetHydrateThrottle();
-      try { await M.__ambientTick(); await M.__flushTick(); await HF.__pollTick(); }
-      finally { if (hadPledge) window.G.rallyPledge = pledgeWas; }
+      await HF.__pollTick();
       unstub();
       await Promise.all(straddling);
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS * 2);
@@ -2642,7 +2533,6 @@ export default [
         + ' request(s): ' + hits.concat(spent ? [spent + ' network-status probe(s)'] : []).join(', '));
       assert(T.__pauseForTest() === 1 && T.__resumeForTest() === 0
         && N.__pauseForTest() === 1 && N.__resumeForTest() === 0
-        && M.__pauseForTest() === 1 && M.__resumeForTest() === 0
         && HF.__pauseForTest() === 1 && HF.__resumeForTest() === 0,
         'the stub did not resume a channel it paused — a depth did not return to zero, so that channel '
         + 'stays dead for every arm after it and this test would pass by silencing the feature');
@@ -3046,29 +2936,18 @@ export default [
     window.showTab('profile');
   }),
 
-  // b127: closeAllModals must dismiss every overlay style. Tests by
-  // opening the Quests modal (qm-overlay element-removal pattern)
-  // then asserting closeAllModals removes it.
-  () => tryRun('b127: closeAllModals dismisses qm-overlay', () => {
-    if (typeof window.openQuestsModal !== 'function' ||
-        typeof window.closeAllModals !== 'function') return;
-    window.openQuestsModal();
-    let overlay = document.getElementById('quests-modal-overlay');
-    assert(overlay, 'openQuestsModal did not create #quests-modal-overlay');
-    window.closeAllModals();
-    overlay = document.getElementById('quests-modal-overlay');
-    assert(!overlay, 'closeAllModals did not remove #quests-modal-overlay');
-  }),
 
   // b127: navigating to a different tab should auto-close any open
   // modal (the 3-modals-stacked-on-Combat bug from the QA sweep).
+  /* The Quests modal this drove left with the dailies (2026-10-14); the
+     settings sheet is the modal every build carries. */
   () => tryRun('b127: showTab() auto-closes open modals', () => {
-    if (typeof window.openQuestsModal !== 'function') return;
-    window.openQuestsModal();
-    assert(document.getElementById('quests-modal-overlay'), 'Quests modal did not open');
+    assert(typeof window.openSettings === 'function', 'window.openSettings is missing');
+    window.openSettings();
+    const open = () => document.querySelector('#settings-modal.show');
+    assert(open(), 'the settings sheet did not open');
     window.showTab('combat');
-    assert(!document.getElementById('quests-modal-overlay'),
-      'Quests modal stayed open after navigating to Combat — showTab should auto-close');
+    assert(!open(), 'a modal stayed open after navigating to Combat — showTab should auto-close');
     window.showTab('profile');
   }),
 
@@ -3090,7 +2969,6 @@ export default [
     if (typeof window.closeAllModals !== 'function') return;
     // Make sure nothing is open first
     document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-    if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
     // Now call it — should be a no-op, must not throw. SA-013: assert BOTH the
     // no-throw contract and the post-condition (nothing is left open), instead
     // of only "did not throw".
@@ -3188,22 +3066,6 @@ export default [
     }
     assert(visible === 0,
       visible + ' of ' + ids.length + ' low-priority topbar buttons still visible on mobile (should be hidden, accessed via MORE menu)');
-  }),
-
-  // b132: on mobile, the quests modal qm-body should collapse to single
-  // column. The 280px right sidebar (QUEST INFO) is hidden so the
-  // quest list gets the full width.
-  () => tryRun('b132: quest modal single-column on mobile', () => {
-    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
-    if (typeof window.openQuestsModal !== 'function') { skip('openQuestsModal seam absent'); return; }
-    window.openQuestsModal();
-    const body = document.querySelector('#quests-modal-overlay .qm-body');
-    if (!body) { if (window.closeQuestsModal) window.closeQuestsModal(); skip('quests modal body not rendered'); return; }
-    const cs = getComputedStyle(body);
-    const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length;
-    if (window.closeQuestsModal) window.closeQuestsModal();
-    assert(cols <= 1,
-      'qm-body should be single-column on mobile, got ' + cols + ' columns');
   }),
 
   // ── b133 — Batch A foundations (auto-actions + drop-log + migrations) ──
@@ -3619,30 +3481,30 @@ export default [
         /* THE STATUS-BAR FIXTURE (FIGHT-STATUS-VERB-1, BAR-FIT-1, BAR-FIT-2): a
            fight on the long-named foe carrying the UPPER BAND a late-game player
            does - 123,456 this fight, STR 98 with 1,228,825 to go (the widest
-           to-go there is, 98 -> 99, built by the real chip builder), bounty
-           234/1,500, a Lifetime of 12,345,678, the away chip at "you fall" -
+           to-go there is, 98 -> 99, built by the real chip builder), a Lifetime
+           of 12,345,678, the away chip at a seven-digit rate -
            visited in a phoneFrame at 922x423 and 1280x800, in the theme face and
            in Verdana/DejaVu (what a player with blocked webfonts and CI see).
            The foe is SET, never fought, so no swing can leave a death sheet. */
         const statusBar = async (states, perFrame, perLive) => {
-          const G = window.G, LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan, D = window.HearthriseDeathSheet;
-          assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function', 'the Lifetime seam or the Night Plan chip is not published');
+          const G = window.G, LT = window.HearthriseLifetime, D = window.HearthriseDeathSheet;
+          assert(LT && typeof LT.__swapView === 'function', 'the Lifetime seam is not published');
           assert(window.HearthriseBarFit && window.HearthriseBarFit.xpChip === xpChip && typeof window.xpForLevel === 'function', 'the XP chip builder (render/bar-fit.js) is not what legacy.js reaches');
           const xp98 = () => xpChip({ skill: 'strength', name: 'Strength', level: 98, toGo: window.xpForLevel(99) - window.xpForLevel(98), glyph: window.HR.icon('strength', 13, 'currentColor') });
-          const bh = G.bountyHunter, hp = G.playerHp, parked = LT.__swapView(null);
-          const kind = { 'stated+bounty': [SPENT, true], stated: [SPENT, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
+          const hp = G.playerHp, parked = LT.__swapView(null);
+          const kind = { stated: SPENT, dry: DRY };
           const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           try {
             for (const state of states) {
-              const [meterOf, bounty] = kind[state];
+              const meterOf = kind[state];
               await fight(meterOf(), async (m) => {
                 const crowd = () => {
                   LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
                   G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 123456;
-                  G.bountyHunter = Object.assign({}, bh, { active: bounty ? { target: 'carnivorous_plant', required: 1500, progress: 234 } : null });
                   m.paint(); window.refreshActivityBar();
                   const meta = document.getElementById('ab-meta'), away = meta.querySelector('.ab-away'), xp = meta.querySelector('.ab-xp');
-                  if (away) away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
+                  const awayChip = '<span class="ab-xph ab-away" title="Away rate"><b>1,234,567</b> away</span>';
+                  if (away) away.outerHTML = awayChip; else meta.insertAdjacentHTML('beforeend', awayChip);
                   if (xp) xp.outerHTML = xp98();
                   return meta;
                 };
@@ -3657,7 +3519,7 @@ export default [
                       doc.head.appendChild(st);
                     }
                     fitBar(doc.getElementById('activity-bar')); // the frame runs no scripts; the live bar's observer does this
-                    perFrame(doc, state + ' ' + w + 'x' + h + ' ' + face + ': ', { state, bounty, face, meta0: w === 922 && face === 'theme' ? meta0 : null });
+                    perFrame(doc, state + ' ' + w + 'x' + h + ' ' + face + ': ', { state, face, meta0: w === 922 && face === 'theme' ? meta0 : null });
                   });
                 }
                 if (!perLive) return;
@@ -3665,11 +3527,11 @@ export default [
                 const steps = () => (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean).length;
                 const settle = async (pred) => { for (let i = 0; i < 30 && !pred(); i++) await frames(); return pred(); };
                 await frames(); await frames();
-                await perLive({ state, bar, steps, settle, crowd, bh });
+                await perLive({ state, bar, steps, settle, crowd });
               });
             }
           } finally {
-            LT.__swapView(parked); G.bountyHunter = bh; G.playerHp = hp;
+            LT.__swapView(parked); G.playerHp = hp;
             // Whatever a fixture opens, it puts away: a knockout here would sit over every later test.
             if (D && typeof D.__resetForTest === 'function') D.__resetForTest();
           }
@@ -3815,7 +3677,7 @@ export default [
           // ── regression suite — FIGHT-PHONE-DENSITY (the visual gate) ───────────
           // Four defects of one class, all on the Fight screen, all from its
           // density on a landscape phone: (1) a stated Vigour meter HID the
-          // Lifetime chip everywhere and the "away: you fall" chip at 922; (2) at
+          // Lifetime chip everywhere and the away chip at 922; (2) at
           // 922 the stage was clamped to the card, so its auto rows shrank and the
           // metrics strip and session tally printed over each other under Eat;
           // (3) four nowrap stance buttons in a 291px column ran their labels
@@ -3826,9 +3688,8 @@ export default [
           // against the frame) from the live #app, in both meter states, with the
           // realm's Lifetime stated and the away chip at its widest wording.
           () => tryRunAsync('FIGHT-PHONE-DENSITY: every combat-bar chip shows in both Vigour states, the stances keep a gap, the food row clears the session lines, the Loadout header is whole', async () => {
-            const LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan;
-            assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function',
-              'the Lifetime view seam or the Night Plan chip is not published');
+            const LT = window.HearthriseLifetime;
+            assert(LT && typeof LT.__swapView === 'function', 'the Lifetime view seam is not published');
             const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
             const bad = [];
             try {
@@ -3838,8 +3699,8 @@ export default [
                   window.refreshActivityBar();
                   const away = document.querySelector('#ab-meta .ab-away');
                   assert(away, 'the activity bar drew no away chip while fighting');
-                  away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
-                  assert(/you fall/.test(document.getElementById('ab-meta').textContent), 'the away chip is not at its widest wording');
+                  away.outerHTML = '<span class="ab-xph ab-away" title="Away rate"><b>1,234,567</b> away</span>';
+                  assert(/1,234,567 away/.test(document.getElementById('ab-meta').textContent), 'the away chip is not at its widest figure');
                   assert(/1,284,905/.test(document.getElementById('ab-meta').textContent), 'the realm Lifetime is not on the bar');
                   const app = document.getElementById('app');
                   assert(app && document.querySelector('#panel-combat[data-combat-view="fight"]'), 'the Fight view is not up');
@@ -3931,16 +3792,15 @@ export default [
           }),
 
           // ── regression suite — FIGHT-PHONE-DENSITY-3 (visual gate 5, defect 1) ──
-          // With Auto-eat on, the action bar scrolled 783 > 650 at 922x423: Loot/
+          // With a stocked food row, the action bar scrolled 783 > 650 at 922x423: Loot/
           // Stats and History sat past the card and the screen, History out of
           // reach (and past both at 1280x800). Ruling: every control in the arena
           // card is reachable without scrolling; labels shorten before controls hide.
-          () => tryRunAsync('FIGHT-PHONE-DENSITY-3: with Auto-eat on, every action-bar button lies inside the arena card and the screen at 922x423 and 1280x800, clear of the food row', async () => {
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-3: with food stocked, every action-bar button lies inside the arena card and the screen at 922x423 and 1280x800, clear of the food row', async () => {
             const bad = [];
             await fight(METER(), async (m) => withStockedFight(() => {
               m.paint();
               window.HearthriseCombatHud.refresh();
-              assert(document.querySelector('#fs-actionbar .arena-autoeat'), 'the stocked fight drew no Auto-eat control');
               const app = document.getElementById('app'), cls = document.body.className;
               for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
                 doc.body.className = cls;
@@ -4045,11 +3905,11 @@ export default [
 
           // ── regression suite — FIGHT-COUNTS-1 (found on the live play gate) ──
           // The Eat button read "+8 HP · 100000 left" beside a rail reading
-          // "100,000 held", the bounty chip "0/1500", the strip "≈1 kills". Every
+          // "100,000 held", the strip "≈1 kills". Every
           // count on the bar and the strip is the house format, and a singular
           // reads as one.
-          () => tryRunAsync('FIGHT-COUNTS-1: the Eat button, the bounty chip and the metrics strip print every count in the house format', async () => {
-            const G = window.G, HUD = window.HearthriseCombatHud, real = HUD._forecast, bh = G.bountyHunter;
+          () => tryRunAsync('FIGHT-COUNTS-1: the Eat button and the metrics strip print every count in the house format', async () => {
+            const G = window.G, HUD = window.HearthriseCombatHud, real = HUD._forecast;
             const raw = (t) => (String(t).match(/\d{4,}/g) || []);
             try {
               await fight(METER(), async (m) => withStockedFight(() => {
@@ -4058,17 +3918,15 @@ export default [
                 assert(id, 'the stocked fight has no provision to eat');
                 G.inventory = Object.assign({}, G.inventory, { [id]: 100000 });
                 G.playerHp = 1;
-                G.bountyHunter = Object.assign({}, bh, { active: { target: 'goblin', required: 1500, progress: 0 } });
                 HUD._forecast = (mm) => Object.assign({}, real(mm), { survivesAnHour: false, survivalSeconds: 40, survivalKills: 1 });
                 m.paint(); HUD.refresh(); window.refreshActivityBar(); window.HearthriseCombatScreens.renderFight();
-                const eat = document.querySelector('#arena-act-player .arena-eat'), chip = document.querySelector('#ab-meta .ab-bounty');
+                const eat = document.querySelector('#arena-act-player .arena-eat');
                 const met = document.getElementById('fs-metrics');
                 assert(eat && /left/.test(eat.textContent), 'the Eat button is not in its eat state: "' + (eat ? eat.textContent : 'absent') + '"');
                 assert(!raw(eat.textContent).length && /100,000 left/.test(eat.textContent), 'the Eat button printed a raw count: "' + eat.textContent.trim() + '"');
-                assert(chip && !raw(chip.textContent).length && /1,500/.test(chip.textContent), 'the bounty chip printed a raw count: "' + (chip ? chip.textContent.trim() : 'absent') + '"');
                 assert(met && /≈1 kill\b/.test(met.textContent) && !/1 kills/.test(met.textContent), 'the strip printed "' + (met ? met.textContent.trim() : 'absent') + '"');
               }));
-            } finally { HUD._forecast = real; G.bountyHunter = bh; }
+            } finally { HUD._forecast = real; }
           }),
 
           // ── regression suite — FIGHT-STATUS-VERB-1 (found on the live play gate) ──
@@ -4076,19 +3934,19 @@ export default [
           // "Figh…". The verb is whole at both sizes in any face; only the foe's
           // name gives way, no chip folds onto a clipped second line, and no chip
           // is clipped by the meta - the LAST chip ends inside #ab-meta's visible
-          // box. Numbers are the UPPER BAND (statusBar above), in all four Vigour
-          // x bounty states, so the Game Designer's worst case - 922x423, Verdana,
-          // stated Vigour + a bounty - is one of the sixteen frames. Every chip's
+          // box. Numbers are the UPPER BAND (statusBar above), in both Vigour
+          // states, so the Game Designer's worst case - 922x423, Verdana,
+          // stated Vigour - is one of the eight frames. Every chip's
           // title keeps its full figure however short its face has gone, and at
           // `short` the XP chip's "STR" is the skill's own glyph (rulings,
           // 2026-10-03). The LIVE bar is then narrowed and widened to prove the
           // observer steps up on overflow and back down when room returns.
           () => tryRunAsync('FIGHT-STATUS-VERB-1: "Fighting" is never cut and no bar chip wraps or is clipped, at 922x423 and 1280x800, in the theme face and a wide fallback, with upper-band numbers', async () => {
             const bad = [];
-            await statusBar(['stated+bounty', 'stated', 'dry+bounty', 'dry'], (doc, at, { bounty, meta0 }) => {
+            await statusBar(['stated', 'dry'], (doc, at, { meta0 }) => {
               if (meta0) {
                 const said = meta0.textContent.replace(/\s+/g, ' ');
-                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678', 'you fall'].concat(bounty ? ['234/1,500'] : [])) {
+                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678', '1,234,567 away']) {
                   if (said.indexOf(want) < 0) bad.push(at + 'the fixture bar does not say "' + want + '": ' + said);
                 }
                 for (const [sel, title] of [['.ab-kills', 'Kills this fight: 123,456'], ['.ab-xp', 'Strength 98 · 1,228,825 XP to go'], ['.ab-tkills', 'Lifetime kills: 12,345,678']]) {
@@ -4097,7 +3955,6 @@ export default [
                 }
                 const xl = meta0.querySelector('.ab-xp');
                 if (!xl || xl.getAttribute('aria-label') !== 'Strength 98 · 1,228,825 XP to go') bad.push(at + 'the XP chip is labelled "' + (xl && xl.getAttribute('aria-label')) + '"');
-                if (!!meta0.querySelector('.ab-bounty') !== bounty) bad.push(at + 'the bounty chip is ' + (bounty ? 'missing' : 'drawn with no contract'));
                 if (!/Carnivorous Plant/.test(document.getElementById('ab-name').textContent)) bad.push(at + 'the bar is not on the long-named foe');
               }
               const name = doc.getElementById('ab-name'), meta = doc.getElementById('ab-meta'), bar = doc.getElementById('activity-bar'), stop = doc.getElementById('ab-stop');
@@ -4108,8 +3965,7 @@ export default [
               const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
               if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
               const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
-              const want = bounty ? 5 : 4;
-              if (chips.length < want) bad.push(at + 'the meta draws ' + chips.length + ' chips, want ' + want + ' (this fight, XP, ' + (bounty ? 'bounty, ' : '') + 'Lifetime, away)');
+              if (chips.length < 4) bad.push(at + 'the meta draws ' + chips.length + ' chips, want 4 (this fight, XP, Lifetime, away)');
               const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
               chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
               // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
@@ -4128,7 +3984,7 @@ export default [
               if (!vr || vr.width < 1 || vr.left < b.left - 0.5 || vr.right > mr.left + 0.5) bad.push(at + 'the Vigour chip is missing or overlaps the meta');
               if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > doc.defaultView.innerWidth) bad.push(at + 'Stop is pushed off the bar');
             }, async ({ state, bar, steps, settle }) => {
-              if (state !== 'stated+bounty') return;
+              if (state !== 'stated') return;
               // THE LIVE OBSERVER, both directions: squeeze the real bar, then give the room back.
               const roomy = steps();
               try {
@@ -4162,18 +4018,18 @@ export default [
               bar.setAttribute('data-fit', keep);
               if (!over) bad.push(at + 'the fit took "' + took[took.length - 1] + '" while the bar had room without it [fit: ' + keep + ']');
             };
-            await statusBar(['stated+bounty', 'stated', 'dry+bounty', 'dry'], (doc, at) => {
+            await statusBar(['stated', 'dry'], (doc, at) => {
               const bar = doc.getElementById('activity-bar'), meta = doc.getElementById('ab-meta');
               if (!bar || !meta) { bad.push(at + 'the frame lost the activity bar'); return; }
               earned(bar, meta, at);
-            }, async ({ state, bar, crowd, bh }) => {
+            }, async ({ state, bar, crowd }) => {
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
-              if (state !== 'stated+bounty') return;
+              if (state !== 'stated') return;
               const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
-                window.G.bountyHunter = Object.assign({}, bh, { active: null }); window.G.combatKillsThisFoe = 5;
+                window.G.combatKillsThisFoe = 5;
                 window.refreshActivityBar();
                 await tick(); await tick();
                 earned(bar, meta, 'live sparse full width: ');
@@ -4191,7 +4047,7 @@ export default [
 
           // ── regression suite — BAR-FIT-2 (review of the measured fit, 9e2030bc) ──
           // The fit re-runs on CONTENT, not only on width: a bar held at 560px
-          // goes from crowded to sparse (the bounty paid off, a new foe, a small
+          // goes from crowded to sparse (a new foe, a small
           // Lifetime) and must step back DOWN, then crowded again and step back
           // UP. The width never changes, so the ResizeObserver never fires - only
           // the MutationObserver and a key that reads the bar's text can see it.
@@ -4199,7 +4055,7 @@ export default [
           // both fail here by name.
           () => tryRunAsync('BAR-FIT-2: at a held width the fit follows the content - crowded to sparse steps down, sparse to crowded steps back up', async () => {
             const bad = [], G = window.G, LT = window.HearthriseLifetime;
-            await statusBar(['stated+bounty'], null, async ({ bar, steps, settle, crowd, bh }) => {
+            await statusBar(['stated'], null, async ({ bar, steps, settle, crowd }) => {
               try {
                 bar.style.maxWidth = '560px';
                 crowd();
@@ -4207,7 +4063,7 @@ export default [
                 const crowded = steps();
                 if (!crowded) { bad.push('the crowded bar at 560px took no fit step - nothing to step down from'); return; }
                 LT.__swapView({ counts: { kills: { n: 5, exact: true } } });
-                G.bountyHunter = Object.assign({}, bh, { active: null }); G.combatKillsThisFoe = 5;
+                G.combatKillsThisFoe = 5;
                 window.refreshActivityBar();
                 if (!(await settle(() => steps() < crowded))) bad.push('at 560px a sparse bar kept ' + crowded + ' steps (the content change did not re-fit)');
                 const sparse = steps();

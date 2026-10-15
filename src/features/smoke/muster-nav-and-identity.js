@@ -322,11 +322,12 @@ export default [
 
 
 
-  () => tryRun('NAV-DOORS-1: the menu is nine static doors in the audit\'s order, on both rails', () => {
+  /* The Clan and Events doors left with their systems in the 2026-10-14 demolition. */
+  () => tryRun('NAV-DOORS-1: the menu is seven static doors in the audit\'s order, on both rails', () => {
     const N = window.HearthriseNav;
     assert(N && Array.isArray(N.hubs), 'window.HearthriseNav is not published');
-    const want = ['profile', 'character', 'skills', 'combat', 'homestead', 'clan', 'events', 'shops', 'social'];
-    const labels = ['Home', 'Character', 'Skills', 'Combat', 'Homestead', 'Clan', 'Events', 'Market', 'Social'];
+    const want = ['profile', 'character', 'skills', 'combat', 'homestead', 'shops', 'social'];
+    const labels = ['Home', 'Character', 'Skills', 'Combat', 'Homestead', 'Market', 'Social'];
     assert(N.hubs.map((h) => h.id).join() === want.join(), 'HUBS order is ' + N.hubs.map((h) => h.id).join());
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
     for (const [host, cls] of [['#sidebar', 'nav-btn'], ['#bottom-nav', 'bn-btn']]) {
@@ -362,14 +363,8 @@ export default [
       ['Inventory', 'character', 'inventory', '#panel-inventory > *'],
       ['Skills', 'skills', 'skills', '#panel-skills > *'],
       ['Combat', 'combat', 'combat', '#panel-combat .combat-picker'],
-      ['Bounty', 'combat', 'bounty', '#panel-bounty > *'],
-      ['Dungeons', 'combat', 'dungeons', '#panel-dungeons .dgn-section'],
       ['Farm', 'homestead', 'farming', '#farm-panel'],
       ['House', 'homestead', 'house', '#house-panel'],
-      ['Stable', 'homestead', 'stable', '#stable-body'],
-      ['Clan', 'clan', 'clan', '#clan-panel'],
-      ['Party', 'clan', 'party', '#party-panel'],
-      ['Events', 'events', 'events', '#hr-muster-card'],
       ['Shops: Local Shop', 'shops', 'shop', '#shop-panel'],
       ['Shops: Market', 'shops', 'market', '#market-root > *'],
       ['Social', 'social', 'social', '#leaderboard'],
@@ -449,14 +444,13 @@ export default [
      content is reached from the menu by gestures alone. */
   () => tryRunAsync('NAV-DOORS-3: every old record screen is in the Journal, reached from the menu', async () => {
     const tick = () => new Promise((r) => setTimeout(r, 40));
-    const ST = window.HearthriseStandings, HL = window.HearthriseHuntersLedger;
+    const ST = window.HearthriseStandings;
     const ids = Object.keys(window.MONSTERS || {});
     const snap = snapshotG(), putBack = keepServerMirrors();
     try {
-      // Standings and the Hunter's Ledger draw nothing when the realm has nothing
-      // to say (signed out / known-empty); prove the tabs ask them.
+      // Standings draws nothing when the realm has nothing to say (signed out /
+      // known-empty); prove the tab asks it.
       if (ST) window.HearthriseStandings = Object.assign({}, ST, { card: () => '<div data-test-standings>standings</div>' });
-      if (HL) window.HearthriseHuntersLedger = Object.assign({}, HL, { card: () => '<div class="hl-card" data-test-ledger>ledger</div>' });
       // The realm counts one kill, so the row is named and opens its drop table.
       window.HearthriseTrophies.noteEnvelope({ bestiary: { kills_by_monster: { [ids[0]]: 1 } } });
       document.querySelector('#sidebar .nav-btn[data-tab="character"]').click(); await tick();
@@ -467,10 +461,7 @@ export default [
         ['luck ledger', 'collection', '#best-luck summary'],
         ['Hearthfinds', 'collection', '.hr-hf-cl'],
         ['Bestiary', 'bestiary', '.bestiary-list .bestiary-row'],
-        ['charms', 'bestiary', '.charm-strip'],
-        ["Hunter's Ledger", 'bestiary', '[data-test-ledger]'],
-        ['Chronicle', 'deeds', '.jr-chronicle .hr-ch-sec'],
-        ['Deeds', 'deeds', '.ach-list .ach-row'],
+        ['Chronicle', 'recent', '.jr-chronicle'],
         ['lifetime stats', 'stats', '.stats-grid .stat-tile'],
         ['lifetime tally', 'stats', '.stats-section'],
         ['your week', 'stats', '.jr-week'],
@@ -492,9 +483,9 @@ export default [
       // The bell opens the Chronicle where it now lives.
       window.showTab('profile');
       document.getElementById('btn-notif').click(); await tick();
-      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="deeds"]'), 'the bell did not open the Journal on Deeds');
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="recent"]'), 'the bell did not open the Journal on Recent');
       // Every old record route still lands.
-      for (const [route, tab] of [['achievements', 'deeds'], ['bestiary', 'bestiary'], ['collection', 'collection'], ['chronicle', 'deeds']]) {
+      for (const [route, tab] of [['bestiary', 'bestiary'], ['collection', 'collection'], ['chronicle', 'recent']]) {
         window.showTab('profile');
         window.showTab(route); await tick();
         assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="' + tab + '"]'), 'showTab("' + route + '") did not land on Journal ' + tab);
@@ -505,7 +496,6 @@ export default [
         assert(typeof window[fn] !== 'function', 'window.' + fn + ' is back — the Journal replaced it'));
     } finally {
       if (ST) window.HearthriseStandings = ST;
-      if (HL) window.HearthriseHuntersLedger = HL;
       restoreG(snap); putBack();
       try { window.showTab('profile'); } catch (e) {}
     }
@@ -1317,25 +1307,19 @@ export default [
     veiled.forEach(({ el }) => { el.style.display = 'none'; });
     try {
       window.showTab('shop');
-      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+      ['seeds', 'equip'].forEach((tab) => {
         window.setShopTab(tab);
         const panel = document.getElementById('shop-panel');
         assert(panel.querySelector('.sc-scene svg'), tab + ': the shopfront scene is missing');
         assert(panel.querySelector('.sc-counter'), tab + ': the offers are not on a counter');
-        // The equip tab renders the shop companions with its wares (render/shop.js).
-        const shopComps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || '')).length;
-        const expect = tab === 'seeds' ? window.SEED_SHOP.length
-          : tab === 'equip' ? window.EQUIP_SHOP.length + shopComps : 4;
+        const expect = tab === 'seeds' ? window.SEED_SHOP.length : window.EQUIP_SHOP.length;
         const rows = panel.querySelectorAll('.sc-counter .shop-row');
         // Name what the counter PAINTED: "got 15, wanted 14" cost a session on its own.
-        const _want = expect + Object.keys(window.TRAITS).length;
-        assert(rows.length === _want,
-          tab + ': expected ' + expect + ' offers + ' + Object.keys(window.TRAITS).length
-          + ' trait(s) = ' + _want + ', got ' + rows.length + ' — rows: '
+        assert(rows.length === expect,
+          tab + ': expected ' + expect + ' offers, got ' + rows.length + ' — rows: '
           + Array.from(rows).map((r) => {
             const b = r.querySelector('.info b');
-            return (b ? b.textContent : r.textContent).trim().slice(0, 28)
-              + (r.hasAttribute('data-companion') ? '[companion]' : '');
+            return (b ? b.textContent : r.textContent).trim().slice(0, 28);
           }).join(' | '));
         rows.forEach((row, i) => {
           const btn = row.querySelector('button');
@@ -1465,17 +1449,17 @@ export default [
     try {
 
     const legacyCats = LB._categoriesFor('legacy').map((c) => c.id);
-    assert(legacyCats.indexOf('throne') < 0, 'Throne needs snapshot.renown — hide it until then');
     assert(legacyCats.indexOf('skills') < 0, 'per-skill boards need the migration');
-    assert(legacyCats.indexOf('clans') < 0, 'the clan board needs the migration');
     assert(legacyCats.indexOf('overall') >= 0 && legacyCats.indexOf('combat') >= 0,
       'the three pre-existing boards must survive un-migrated');
     assert(LB._boardsIn('overall', 'legacy').join(',') === 'total_level,wealth', 'degraded Overall');
     assert(LB._boardsIn('combat', 'legacy').join(',') === 'combat_level', 'degraded Combat');
 
+    /* The Throne (renown) and Clans categories left in the 2026-10-14 demolition. */
     const fullCats = LB._categoriesFor('full').map((c) => c.id);
-    assert(fullCats.length === 5, 'migrated, all five categories are offered');
-    assert(LB._boardsIn('skills', 'full').length === 17, 'migrated, all 17 skill boards appear');
+    assert(fullCats.join(',') === 'overall,skills,combat', 'migrated, the three categories are offered: ' + fullCats.join(','));
+    assert(LB._boardsIn('skills', 'full').length === LB.SKILL_ORDER.length,
+      'migrated, every skill board appears (' + LB.SKILL_ORDER.length + ')');
 
     // A selection is always resolved onto a board that exists — this is what
     // stops a player who picked "Mining" pre-migration from staring at a board
@@ -1510,15 +1494,15 @@ export default [
     const view = LB._buildView({
       top: [{ rank: 1, id: 'a', name: 'Aldric', score: 142300 }], rank: 1, total: 1, near: []
     }, 'a');
-    const html = LB._boardHtml('renown', view);
+    const html = LB._boardHtml('total_level', view);
     assert(html.indexOf('Hearth Token') < 0 && html.indexOf('gems') < 0, 'no currency in the board');
     assert(window.G.gold === goldBefore && window.G.gems === gemsBefore, 'rendering must move nothing');
 
     // Rank 1 earns a cosmetic title. It is honest because the rank behind it
     // came from the server, and it is the ONLY thing ranking grants.
-    assert(LB._crownFor('renown') === 'the Throne', 'the flagship crown');
+    assert(LB._crownFor('total_level') === 'the Peerless', 'the flagship crown');
     assert(LB._crownFor('skill:mining') === 'the Veinfinder', 'per-skill crowns are named');
-    assert(html.indexOf('the Throne') >= 0, 'rank 1 wears its title on the board');
+    assert(html.indexOf('the Peerless') >= 0, 'rank 1 wears its title on the board');
   }),
 
   // THE STANDINGS: Home's sentence and the Social note read one server answer;
@@ -1579,9 +1563,9 @@ export default [
     assert(offenders.length === 0, 'emoji in the board — ' + offenders.slice(0, 4).join(' | '));
 
     // Every state says something true; none of them is blank.
-    assert(LB._boardHtml('renown', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
-    assert(LB._boardHtml('renown', states.anon).indexOf('Sign in') >= 0 ||
-           LB._boardHtml('renown', states.anon).indexOf('no place on the') >= 0,
+    assert(LB._boardHtml('total_level', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
+    assert(LB._boardHtml('total_level', states.anon).indexOf('Sign in') >= 0 ||
+           LB._boardHtml('total_level', states.anon).indexOf('no place on the') >= 0,
       'an anonymous board must point at the action that puts you on it');
   }),
 

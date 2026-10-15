@@ -97,7 +97,7 @@
      infer, so it is STATED, on the food itself and on this panel. ONE string,
      published, because a tooltip and a panel that word it differently is how a rule
      becomes folklore. */
-  const BUFF_GESTURE_NOTE = 'Buff applies when you eat it yourself — auto-eating only heals.';
+  const BUFF_GESTURE_NOTE = 'Buff applies when you eat it yourself.';
   window.BUFF_GESTURE_NOTE = BUFF_GESTURE_NOTE;
   /* The same sentence as a tooltip row, so legacy.js's item flyout states the rule
      without growing the monolith or owning a second copy of the wording. Full-width

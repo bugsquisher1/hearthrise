@@ -126,13 +126,15 @@ export default [
   }),
 
 
-  () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the boots on your feet; the unlock moment speaks once per newly finished step', async () => {
+  /* The wear-the-boots rung left the spine with the 2026-10-14 demolition; step 7
+     is the first craft, and step 8 the first harvest. */
+  () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the first craft; the unlock moment speaks once per newly finished step', async () => {
     const six = Object.assign({}, FIRST4, { crafted: 1 });
-    await onBar(facts({ counts: six, property: 1, workers: 1, bag: { leather_boots: 1 } }), async (bar) => {
-      assert(/^Step 7/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Wear', 'crafted but not worn: ' + text(bar));
+    await onBar(facts({ counts: FIRST4, property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 7/.test(text(bar)) && /Craft your first item/.test(text(bar)), 'step 7 is not the first craft: ' + text(bar));
     });
-    await onBar(facts({ counts: six, property: 1, workers: 1, equipment: { boots: 'leather_boots' } }), async (bar) => {
-      assert(/^Step 8/.test(text(bar)), 'boots worn did not finish step 7: ' + text(bar));
+    await onBar(facts({ counts: six, property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 8/.test(text(bar)), 'a first craft did not finish step 7: ' + text(bar));
     });
     const SP = window.HearthriseSpine;
     const was = SP.__park(true);

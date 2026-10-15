@@ -869,7 +869,7 @@ async function run(mutate) {
       'room.kitchen.1 ', ' room.kitchen.1', 'ROOM.KITCHEN.1',
       "room.kitchen.1'; drop table player_state; --",
       'room.kitchen.99', 'room.not_a_room.1', 'x'.repeat(500),
-      'theme.winter', 'equip.bronze_sword', 'plot.scarecrow',
+      'equip.bronze_sword', 'plot.scarecrow',
     ];
     for (const h of hostile) {
       await clearGate();
@@ -882,15 +882,9 @@ async function run(mutate) {
     }
     ok(Number((await db.query('select count(*) as n from public.player_state')).rows[0].n) >= 2,
       'U9: player_state did not survive the hostile bodies');
-
-    /* AND THE REAL-BUT-UNSELLABLE ONES ARE NAMED. `theme.winter` is a real
-       purchase; telling a player it does not exist sends them to the wrong bug
-       report. */
-    await clearGate();
-    const themed = await doBuy({ intentId: uuid(), offer: 'theme.winter' });
-    ok(themed.body.error === 'offer_unsupported' && themed.body.reason,
-      `U9: a real offer this build cannot sell answered ${JSON.stringify(themed.body)} — it must `
-      + 'be refused BY NAME with the reason attached');
+    /* The real-but-unsellable arm (`theme.winter`, refused BY NAME) left with
+       the house themes in the 2026-10-14 demolition: no catalogue row is a
+       refusal any more, so there is nothing real to name. */
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U9b · THE WHOLE POINT: A BOUGHT RUNG MAKES A REAL SPAN BURN NOTHING ─

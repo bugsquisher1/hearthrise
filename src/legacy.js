@@ -421,7 +421,7 @@ let G={
      one (last key wins), so the documented defaults never existed and the
      purchased ladder read as un-owned. Guarded by smoke SA010-1. */
   bank:{goldBuys:0,gemBuys:0,grandfather:0},
-  entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
+  entitlements:{},                          /* account-level flags (none since the 2026-10-14 IAP demolition) */
   /* ⚠ `ownedThemes` / `ownedCosmetics` ARE GONE (2026-09-14) and must not come
      back as fields. Ownership of a gem-bought unlock is the SERVER's set —
      hr_state_of `gem_unlocks` → accrue.js reconcileGemUnlocks → G._gemUnlocks
@@ -2061,59 +2061,6 @@ function _skillLabel(id){
    readable in one place instead of inferable from two.
    ══════════════════════════════════════════════════════════════════════ */
 
-/* ════════════════════════════════════════════════
-   NETCLIENT — backend abstraction
-   - In dev: uses MockBackend (in-memory + localStorage)
-   - Same call shape as a real REST/edge worker. Swap MockBackend
-     with real fetch() implementation when the backend is live.
-   ════════════════════════════════════════════════ */
-const NetClient=(()=>{
-  const ENDPOINT=null;  /* set to "https://api.hearthbound.example" later */
-  const isOnline=()=>navigator.onLine && !!ENDPOINT;
-
-  async function call(path,opts={}){
-    if(!isOnline())return Mock.handle(path,opts);
-    return fetch(ENDPOINT+path,{
-      method:opts.method||'GET',
-      headers:{'Content-Type':'application/json','X-Auth':G.account?.token||''},
-      body:opts.body?JSON.stringify(opts.body):undefined,
-    }).then(r=>r.json());
-  }
-
-  /* mock backend mirrors the shape of the real API */
-  const Mock={
-    _users:[
-      {id:'u1',displayName:'DragonSlayer99',total:1842,combat:115,gold:2500000},
-      {id:'u2',displayName:'IronMan2024',total:1756,combat:108,gold:1800000},
-      {id:'u3',displayName:'FarmQueen',total:1690,combat:95,gold:2100000},
-      {id:'u4',displayName:'CozyCrafter',total:1544,combat:78,gold:950000},
-      {id:'u5',displayName:'GoblinHunter',total:1422,combat:102,gold:750000},
-      {id:'u6',displayName:'TealKnight',total:1310,combat:88,gold:680000},
-      {id:'u7',displayName:'PumpkinKing',total:1280,combat:74,gold:1200000},
-      {id:'u8',displayName:'AshvaleAria',total:1198,combat:81,gold:520000},
-    ],
-    handle(path,opts){
-      return new Promise(res=>setTimeout(()=>res(this._route(path,opts)),120));
-    },
-    _route(path,opts){
-      if(path.startsWith('/leaderboard')){
-        const mode=new URL('http://x'+path).searchParams.get('mode')||'total';
-        const me={id:'me',displayName:G.playerName+' (You)',total:getTotalLevel(),combat:getCombatLevel(),gold:balOr('gold',0),you:true};
-        const list=[...this._users,me].sort((a,b)=>(b[mode]||0)-(a[mode]||0)).slice(0,15)
-          .map((u,i)=>({...u,rank:i+1}));
-        return {ok:true,mode,list};
-      }
-
-      return {ok:false,error:'unknown route '+path};
-    },
-  };
-
-  return {
-    online:isOnline,
-    async leaderboard(mode='total'){return call('/leaderboard?mode='+encodeURIComponent(mode));},
-
-  };
-})();
 
 /* ── b371 — THE ONE SAVE-HEALTH SENTENCE ────────────────────────────────────
    Three surfaces (this header, the home dashboard, Settings > Account) each
@@ -4318,11 +4265,6 @@ const COMBAT_FX={
       window.HearthriseDropLog.recordKill(id,dropped);
     }
   },
-  rollKillDeed:function(m){
-    if(window.HearthriseFarm&&typeof window.HearthriseFarm.rollKillDeed==='function'){
-      window.HearthriseFarm.rollKillDeed(m);
-    }
-  },
   updateQuest:function(t,n,meta){ updateQuest(t,n,meta); },
   /* Healing auto-eat. Survival, not a bonus — it runs away and it consumes.
      Heal-only: it never applies a food's timed buff (b163). */
@@ -5021,8 +4963,6 @@ function closeAllModals(){
   document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
   // Pattern B: .ach-overlay.show (the lucky-find sheet)
   document.querySelectorAll('.ach-overlay.show').forEach(o=>o.classList.remove('show'));
-  // Pattern D: #quests-modal-overlay — element-removal pattern
-  if(typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
   // Pattern E: legacy fixed-position dim layers tagged by id
   ['settings-modal','more-modal','session-modal']
     .forEach(id=>{var el=document.getElementById(id); if(el) el.classList.remove('show');});
@@ -6494,21 +6434,8 @@ function upgradeRoom(id){
      b227: …and gates the upper rungs of rooms you already own. */
   const gate=roomRungGate(id,lv+1);
   if(!gate.ok){notify(gate.reason,'kill');return false;}
-  /* Wave 2 (audit P0 fix): housing blueprints were INERT — upgradeRoom never
-     consumed them, so the single most common dungeon reward did nothing. Every
-     blueprint item declares `unlocks:'<room>.<tier>'`; if a blueprint exists for
-     the tier being built, it is now REQUIRED and consumed. Blueprints gate room
-     tiers 2-3 only (never the initial build / skill unlock), so this deepens the
-     dungeon→homestead loop without deadlocking core progression. */
-  const _bp=roomRungItemGate(id,lv+1); const _bpId=_bp?_bp.id:null;
-  if(_bp && !_bp.ok){
-    /* The toast is now the LAST line of defence, not the first notice: the room
-       modal's ladder, its pinned build bar and the House card all state this
-       requirement inline before the player ever clicks (b355). Kept because
-       upgradeRoom is the authority and must refuse audibly on any path. */
-    notify(_bp.known===false ? _bp.name+' still being counted — try again in a moment' : 'Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
-    return false;
-  }
+  /* The dungeon blueprints that gated rungs 2-3 were cut in the 2026-10-14
+     demolition (designer ruling §2): rungs keep their gold and material costs. */
   const missing=describeMissingCost(nx.cost);
   if(missing){notify('Missing: '+missing,'kill');return false;}
   /* ── b500 — THE ROOM IS SHOWN BUILT ONLY WHEN THE SERVER RECORDS IT. ────────
@@ -6521,14 +6448,13 @@ function upgradeRoom(id){
      a server-refused build (a Forge whose property-tier prereq the client tier
      wrongly cleared, or a material the server settled one short of the client)
      showed the room built and was gone on reload. Now the rung advances ONLY on
-     the server's ok, and a refusal is spoken plainly. ⚠ THE ITEM COST +
-     BLUEPRINT STAY CLIENT-SIDE — item authority is a separate program;
-     hr_unlock_buy consumes them server-side, so this predicts the gold half. */
+     the server's ok, and a refusal is spoken plainly. ⚠ THE ITEM COST STAYS
+     CLIENT-SIDE — item authority is a separate program; hr_unlock_buy
+     consumes it server-side, so this predicts the gold half. */
   const _roomOffer='room.'+id+'.'+(lv+1);
   const _rk=goldIntentKey();
   const _debitRoom=()=>{
     for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')goldSettle(-v,'house.upgrade_room',_rk);else removeItem(k,v);}
-    if(_bpId) removeItem(_bpId,1);
   };
   /* b431 — the local rung write is a PREDICTION, gated: under the rooms record
      arm the server envelope is the only writer of the rung (G.rooms may be
@@ -6573,38 +6499,6 @@ function upgradeRoom(id){
   return true;
 }
 
-/* ── THE ITEM GATE, AS A TOTAL FUNCTION (b355) ────────────────────────────
-   Tyler, live, on the Kitchen: "this doesn't tell me anywhere it requires a
-   blueprint or how to get a blueprint."
-
-   He was right and the cause was structural, not copy. The blueprint check
-   lived INSIDE upgradeRoom as a loop over ITEMS — reachable only by ACTING.
-   Every surface that shows a rung (the ladder, the pinned build bar, the House
-   card) could therefore only describe gold and materials, because the one
-   place that knew about blueprints answered a question you had to already have
-   committed to asking. A requirement that is only discoverable by failing is
-   not a requirement, it is a trap.
-
-   So the check becomes TOTAL — it answers for any rung, owned or not, built or
-   not — and is published. upgradeRoom still enforces with it (same function,
-   so a view can never disagree with the authority), but now every view can ASK.
-
-   Returns null when the rung has no item gate at all, else
-     { id, name, need, have, known, ok, source }   (known:false = the server bag is unstated; have -1)
-   `source` is the real reverse-index line (window.itemSourceLine, b242) so a
-   blueprint that starts dropping somewhere new re-describes itself for free —
-   the old toast hardcoded "they drop from dungeons", which is prose, not data. */
-function roomRungItemGate(id,want){
-  const key=id+'.'+want;
-  let bid=null;
-  for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
-  if(!bid) return null;
-  const srv=window.HearthriseAccrual?.gateItemCount(G,bid)??null, known=srv!==null, need=1, have=known?srv:-1;   /* the SERVER's bag (hr_unlock_buy consumes it); NULL = unstated: known:false, pending, never 0 */
-  let source='';
-  try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
-  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, known:known, ok:known&&have>=need, source:source};
-}
-
 /* Is rung `want` (1-based) legal at the player's current property tier?
    Total — answers for a rung nobody owns yet, which is what the ladder in the
    room modal needs in order to say WHY a row is dim instead of just being dim. */
@@ -6635,7 +6529,6 @@ function renderHouseSurfaces(){
 }
 window.upgradeRoom=upgradeRoom;
 window.roomRungGate=roomRungGate;
-window.roomRungItemGate=roomRungItemGate;
 window.renderHouseSurfaces=renderHouseSurfaces;
 function buildPlot(id){
   const b=PLOT_BUILDINGS[id];const have=G.plotBuildings.filter(x=>x.id===id).length;if(have>=b.max)return;
@@ -6704,36 +6597,19 @@ function buildPlot(id){
 /* ────────────────────────────────────────────────
    RENDER — Social (leaderboard, clan)
    ──────────────────────────────────────────────── */
-let lbMode='total';
-async function renderSocial(){
+function renderSocial(){
   const lbEl=document.getElementById('leaderboard');if(!lbEl)return;
-  /* b222 (#11): the leaderboard half of this panel now belongs to
-     src/features/leaderboards.js — 21 boards, a two-level picker, and the
-     pinned "your rank + the rivals either side" block that this render never
-     had. Delegating rather than duplicating also retires the last consumer of
-     NetClient's eight fabricated players: that mock could only ever have shown
-     the signed-out player invented rivals, which the Final Directive forbids.
-     The legacy path below is kept ONLY as the no-module fallback. */
+  /* b222 (#11): the leaderboard half of this panel belongs to
+     src/features/leaderboards.js. The no-module fallback and the NetClient mock
+     it read (eight fabricated players) were deleted with the clan override that
+     had been routing it through hr_leaderboard (2026-10-14 demolition): with the
+     module missing, the panel says so rather than inventing rivals. */
   if(window.HearthriseLeaderboards && typeof window.HearthriseLeaderboards.render==='function'){
     window.HearthriseLeaderboards.wire();
     const p=window.HearthriseLeaderboards.render();
     if(p&&p.catch)p.catch(()=>{});
   } else {
-    lbEl.innerHTML='<div class="empty"><span class="em-icon">'+_hrGly('uiHourglass',16)+'</span>Fetching ranks…</div>';
-    const r=await NetClient.leaderboard(lbMode);
-    if(r.ok){
-      /* b213 QA: the b206 leaderboard override fetches the REAL Supabase view
-         even when signed out (anon key) and flags it r.live — don't stamp real
-         player rows "Mock data". */
-      const sub=document.getElementById('lb-sub');
-      if(sub)sub.textContent=(r.live||(NetClient.online()&&G.account))?'Live':'Mock data';
-      /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
-      const rankBadge=(n)=>{
-        const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
-        return c?`<b style="color:${c};font-family:var(--f-display);font-size:calc(16px * var(--ui-scale, 1))">${n}</b>`:String(n);
-      };
-      lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
-    }
+    lbEl.innerHTML='<div class="empty">The boards could not load. Reload to try again.</div>';
   }
   /* The people you know, beside the leaderboards. */
   const cl=document.getElementById('social-panel');
@@ -6745,7 +6621,6 @@ async function renderSocial(){
    three old mode names map onto the new board ids so an old call still lands
    on the board it meant. */
 function setLbMode(m){
-  lbMode=m;
   document.querySelectorAll('[data-lb]').forEach(c=>c.classList.toggle('active',c.dataset.lb===m));
   const LB=window.HearthriseLeaderboards;
   if(LB&&typeof LB.selectBoard==='function'){
@@ -7055,7 +6930,7 @@ function boot(){
   /* auto-save every 90 seconds */
   setInterval(()=>{saveLocal();},90000);
   /* expose dev helpers */
-  window.G=G;window.NetClient=NetClient;
+  window.G=G;
   /* b371 — the engine has now PAINTED a screen (showTab('profile') above).
      `__hrIconsReady()` reads this to decide whether the icon map arriving
      late needs to force a repaint, or whether it beat first paint and has
@@ -7257,9 +7132,9 @@ function clearLoadout(idx){
    cannot invent its own.
    ════════════════════════════════════════════════════════ */
 const _FOOD_KIND_META_FALLBACK = {
-  provision:{label:'Provision', verb:'Eat',   blurb:'Healing food. Auto-Eat can use this.'},
-  feast:    {label:'Feast',     verb:'Use',   blurb:'Eaten for a timed buff. Auto-Eat never uses it.'},
-  draught:  {label:'Draught',   verb:'Drink', blurb:'Drunk for a timed buff. Auto-Eat never uses it.'},
+  provision:{label:'Provision', verb:'Eat',   blurb:'Healing food.'},
+  feast:    {label:'Feast',     verb:'Use',   blurb:'Eaten for a timed buff.'},
+  draught:  {label:'Draught',   verb:'Drink', blurb:'Drunk for a timed buff.'},
 };
 const _FOOD_VERB_PAST = {Eat:'Ate', Drink:'Drank', Use:'Used'};
 /* Mirrors data/items.js foodKindOf for the boot window before the ESM data
@@ -8695,8 +8570,7 @@ console.log('Activity bar: loaded');
          card used to tell, arriving before the player leaves instead of after. */
       return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall — '+
              'the first fall of the day is free, and every one after it costs longer ('+
-             recMin+' minutes, then double each time). Nothing is earned while you are down. '+
-             'Auto-Eat keeps the fight running instead.';
+             recMin+' minutes, then double each time). Nothing is earned while you are down.';
     }
     var capH = offlineCapHours(), capMs = capH==null ? Infinity : capH*3600000;
     var foodMs = est.survivalSeconds * 1000;

@@ -9,250 +9,11 @@
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=584';
 
 
-/* ══════════════════════════════════════════════════════════════════════════
-   M8 SLICE 1 — THE PARTY PANEL'S RIG.
-
-   A server-shaped realm behind a stubbed `window.fetch`, shared by the two
-   END-TO-END arms below (PARTY-1 and PARTY-2) so neither carries its own copy;
-   PARTY-3..7 need no realm at all, because the renderer is pure. It answers the
-   three table reads and the five verbs the way the applied migrations answer —
-   2026-09-23-m8-parties-s1-{1-tables,2-verbs}.sql — and it RECORDS every
-   request, because the negative arm's subject is not what the panel drew but
-   what the client asked for (findings B7 and B8).
-
-   The numbers it hands back are deliberately ones the client could not derive:
-   a combat level it has no skills for, an hp pair belonging to another account.
-   A test that asserts the panel shows 43 can only pass if 43 came off the wire.
-   ══════════════════════════════════════════════════════════════════════════ */
-const partyRig = () => {
-  const realFetch = window.fetch;
-  const calls = [];
-  const WREN = { name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null };
-  const BRAM = { name: 'Bram', combat_level: 43, hp: 12, hp_max: 74,
-                 recovering_until: new Date(Date.now() + 20 * 60000).toISOString() };
-  const world = {
-    member: [],
-    view: null,
-    invites: [{ id: 'inv-1', party_id: 'P9', created_at: new Date().toISOString(),
-                expires_at: new Date(Date.now() + 11 * 60000).toISOString() }],
-    inviteAnswer: { ok: false, error: 'invite_target_unavailable' },
-    deadView: null,   // PARTY-8: when set, every roster read answers this instead
-    /* THE PARTY HUNT (stage 2). Absent on a local realm that has not applied
-       2026-10-15-party-hunt-view.sql, so the rig answers the way the staged
-       bodies do: the view's shape, and start/stop's refusals by code. */
-    huntView: null,                 // hr_party_hunt_view's answer; null -> not_in_party
-    startAnswer: { ok: true, hunt_id: 'H1', party_id: 'P1' },
-    stopAnswer: { ok: true, stopped: true, hunt_id: 'H1' },
-    onStart: null,                  // (body) -> void: the realm's side effect of an accepted start
-  };
-  const answer = (u, body) => {
-    if (u.indexOf('/rpc/hr_party_hunt_start') !== -1) {
-      if (world.startAnswer.ok && world.onStart) world.onStart(body);
-      return world.startAnswer;
-    }
-    if (u.indexOf('/rpc/hr_party_hunt_stop') !== -1) {
-      if (world.stopAnswer.ok && world.huntView && world.huntView.hunt) {
-        world.huntView = { ...world.huntView, hunt: { ...world.huntView.hunt, live: false,
-          ended_at: new Date().toISOString(), stopped_by: 'leader' } };
-      }
-      return world.stopAnswer;
-    }
-    if (u.indexOf('/rpc/hr_party_hunt_view') !== -1) return world.huntView || { ok: false, error: 'not_in_party' };
-    if (u.indexOf('/rpc/hr_party_create') !== -1) {
-      world.member = [{ party_id: 'P1', role: 'leader' }];
-      world.view = { ok: true, party_id: 'P1', members: [WREN] };
-      world.invites = [];
-      return { ok: true, party_id: 'P1', role: 'leader', members: 1 };
-    }
-    if (u.indexOf('/rpc/hr_party_invite') !== -1) {
-      const r = world.inviteAnswer;
-      /* A SUCCESSFUL INVITE IS ANSWERED `{ok:true, sent:true}` AND NOTHING ELSE
-         — the verb tells the sender nothing about the target. Bram appears in
-         the ROSTER, i.e. only once the realm says he is there. */
-      if (r.ok) world.view = { ok: true, party_id: 'P1', members: [WREN, BRAM] };
-      return r;
-    }
-    if (u.indexOf('/rpc/hr_party_kick') !== -1) {
-      world.view = { ok: true, party_id: 'P1', members: [WREN] };
-      return { ok: true, kicked: true, members: 1 };
-    }
-    if (u.indexOf('/rpc/hr_party_leave') !== -1) {
-      world.member = []; world.view = null;
-      return { ok: true, left: true, dissolved: true, members: 0 };
-    }
-    if (u.indexOf('/rpc/hr_party_view') !== -1) return world.deadView || world.view || { ok: false, error: 'not_in_party' };
-    if (u.indexOf('party_member?') !== -1) return world.member;
-    if (u.indexOf('party_invite?') !== -1) return world.invites;
-    if (u.indexOf('party?select=id,size_cap') !== -1) return world.member.length ? [{ id: 'P1', size_cap: 4 }] : [];
-    return [];
-  };
-  window.fetch = (url, init) => {
-    const u = String(url);
-    const method = (init && init.method) || 'GET';
-    let body = null;
-    try { body = (init && init.body) ? JSON.parse(init.body) : null; } catch (e) { body = null; }
-    calls.push({ url: u, method, body });
-    const payload = answer(u, body);
-    // `{ __http, body }` answers a non-200 the way PostgREST does (PARTY-8).
-    if (payload && payload.__http) {
-      return Promise.resolve({ ok: false, status: payload.__http, json: () => Promise.resolve(payload.body) });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
-  };
-  /* WHO THE LOCAL PLAYER IS — the panel marks your own row and withholds Remove
-     from it, and without a name that branch is never taken. A monkey-patch over
-     `I.displayName` pinned the panel's reading and nothing else. The first-run
-     sheets a session arms are `stubSignedIn`'s business now, not this rig's. */
-  const unstub = stubSignedIn(0, 'Wren');
-  window.HearthriseParty.__resetForTest();
-  const el = (sel) => document.querySelector('#party-panel ' + sel);
-  /* EVERY REQUEST THE PAGE MAKES LANDS IN `calls`, NOT JUST THE PANEL'S. The
-     stub replaces `window.fetch` wholesale, so a sync, an accrue or a record
-     write from the live engine's own timers is recorded too — and those fire on
-     a clock nobody here controls, which is how PARTY-2's last arm came to read
-     `a closed panel made 1 requests` on a loaded runner and stay green on CI.
-     The panel's own surface is the party contract's reads and verbs, so the
-     cadence arms count those. */
-  const PARTY_URL = /\/rpc\/hr_party_|party_member\?|party_invite\?|party\?select=id,size_cap/;
-  return {
-    world, calls, el,
-    // ALREADY A MEMBER, from the rig's own Wren: two arms re-spelled his fields.
-    joinAs: (role) => { world.member = [{ party_id: 'P1', role: role }]; world.view = { ok: true, party_id: 'P1', members: [WREN] }; },
-    idle: async (n) => { for (let i = 0; i < n; i++) { window.HearthriseParty.pollNow(); await drain(); } },
-    partyCalls: () => calls.filter((c) => PARTY_URL.test(c.url)),
-    rpcs: (n) => calls.filter((c) => c.url.indexOf('/rpc/' + n) !== -1),
-    text: () => (document.getElementById('party-panel') || { textContent: '' }).textContent,
-    open: async () => { window.showTab('party'); await drain(); await drain(); },
-    /* TYPE A NAME AND SUBMIT, re-reading the live nodes every time: the panel
-       replaces its own innards on each read, so a field captured before a
-       repaint is a detached node and the keystrokes go nowhere. That is not a
-       test detail — it is the bug a repaint-on-every-read panel invites. */
-    invite: async (name) => {
-      const field = el('#party-invite-name');
-      assert(field, 'the leader has no invite field');
-      field.value = name;
-      field.dispatchEvent(new Event('input', { bubbles: true }));
-      el('form[data-party-act="invite"]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      await drain(); await drain();
-    },
-    restore: () => {
-      try { window.HearthriseParty.setVisible(false); } catch (e) {}
-      try { window.HearthriseParty.__resetForTest(); } catch (e) {}
-      window.fetch = realFetch;
-      unstub();
-      try { window.showTab('profile'); } catch (e) {}
-    },
-  };
-};
-
 export default [
 
-  // ══════════════════════════════════════════════════════════════════
-  // b222 regression suite — THE CLAN SEAT foundation (backlog #10, Wave 3a)
-  // docs/design/clan-overhaul.md v2. Data + four engine seams + the migration's
-  // client-side reducers. No castle UI ships in this wave; everything below is
-  // a foundation that must be correct BEFORE anything renders on top of it.
-  // ══════════════════════════════════════════════════════════════════
-
-  // #10a: the four castle goods. Their whole job is to be refined, deposited
-  // and never eaten — so the properties that make that true are the contract.
-  () => tryRun('b222: the four castle goods are stores, not gear and not food', () => {
-    const I = window.ITEMS;
-    const expect = { timber_beam: [300, 2], iron_fitting: [480, 2], field_ration: [90, 1], keystone: [3000, 5] };
-    Object.keys(expect).forEach((id) => {
-      const it = I[id];
-      assert(it, 'castle good missing from ITEMS: ' + id);
-      assert(it.tag === 'castle', id + ' must carry tag:"castle" — it is the ONE field the lane derives from');
-      assert(it.v === expect[id][0], id + ' value drifted from the spec: ' + it.v);
-      assert(it.tier === expect[id][1], id + ' material tier drifted: ' + it.tier);
-      // Typeless: nothing equips a beam. Food-less: auto-eat can never burn a
-      // Field Ration, and foodClassOf() must answer null so the cooking screen
-      // does not file it under Provisions.
-      assert(!it.type, id + ' must have no `type` — it is stores, not gear');
-      assert(!it.heals && !it.buff && !it.foodClass, id + ' must not heal or buff');
-      assert(window.foodClassOf(it) === null, 'foodClassOf(' + id + ') must be null, got ' + window.foodClassOf(it));
-      assert(window.isCastleGood(it) === true, 'isCastleGood must claim ' + id);
-    });
-    assert(window.isCastleGood(I.cooked_shark) === false, 'isCastleGood must not claim ordinary items');
-  }),
 
 
 
-  // #10d: SEAM 1 — goldFind, declared since the buff registry shipped and read
-  // by nothing. Lich Soul Soup promised +50% gold find for five minutes and
-  // delivered zero; the castle Treasury perk would have been the second broken
-  // promise on the same key. Both are now real.
-  () => tryRun('b222 SEAM 1: goldFind multiplies monster gold (it was declared and never read)', () => {
-    assert(typeof window.applyGoldFind === 'function', 'applyGoldFind seam missing');
-    const E = window.HearthriseWorldEvents;
-    const origBonus = window.getBonus;
-    const snap = snapshotG();
-    /* b332: this asserted "no goldFind pays 1000" against the REAL calendar,
-       so it went red on every day the game happened to draw The Open Coffers
-       or The King's Bounty — a live, date-dependent flake (it was failing on
-       2026-08-12). Pinned to the QUIET control like every other calendar-
-       sensitive test in this suite. */
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
-    try {
-      /* NO CALENDAR. This assertion's baseline is "the ambient goldFind is
-         zero", and from b227 that stopped being true on roughly a quarter of
-         all days: `open_coffers` (+3%) and `kings_bounty` (+4%) are gold-find
-         blessings, they are picked deterministically from the UTC date, and
-         while the player is online they reach getBonus through the calendar's
-         own wrapper. So this test went red on 2026-08-12 having passed on the
-         11th, with nothing committed in between — a date-dependent test, not a
-         defect. The rest of the suite already says QUIET when it needs a known
-         baseline; this one never adopted it. */
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-
-      // The pure helper, first.
-      assert(window.applyGoldFind(1000) === 1000, 'with no goldFind, gold must be untouched');
-      window.getBonus = (k) => (k === 'goldFind' ? 0.5 : origBonus(k));
-      assert(window.applyGoldFind(1000) === 1500, '+50% goldFind must pay 1500, got ' + window.applyGoldFind(1000));
-      window.getBonus = (k) => (k === 'goldFind' ? -5 : origBonus(k));
-      assert(window.applyGoldFind(1000) === 1000, 'a negative contributor must clamp at 0, never pay negative gold');
-      assert(window.applyGoldFind(0) === 0 && window.applyGoldFind(-3) === 0, 'non-positive base pays nothing');
-
-      // …then the real kill path. A Slime pays 1-3 gold; at +10000% one kill
-      // must pay at least 101, which is arithmetically impossible unwired.
-      window.getBonus = (k) => (k === 'goldFind' ? 100 : origBonus(k));
-      predZero(); window.G.gold = 0;
-      window.G.activeMonster = 'slime';
-      window.G.monsterHp = 0;
-      window.killMonster(window.MONSTERS.slime);
-      assert(goldOf() >= 101,   // b455: display read — under the arm a kill's loot is a prediction
-        'killMonster ignored goldFind — one Slime paid ' + goldOf() + ', expected >= 101');
-      assert(window.G.gold <= 303, 'gold overshot the multiplied range: ' + window.G.gold);
-      /* Away combat used to be a SEPARATE kill path, so this guard used to
-         check that the second one also called applyGoldFind. There is no
-         second one: away and live both resolve a kill through
-         src/core/combat-sim.js `resolveKill`. The guard therefore asserts the
-         thing that actually keeps the two honest — that the single resolver
-         applies gold find, and that the old loop has not been resurrected. */
-      assert(String(window.HearthriseCore.combatSim.resolveKill).indexOf('applyGoldFind') >= 0,
-        'the one kill resolver no longer applies gold find');
-      assert(typeof window.processOfflineCombat === 'undefined',
-        'processOfflineCombat is back — a second combat loop is exactly what the away ruling deleted');
-
-      /* b560 INVERTED this: the Open Coffers is a name, not a gold-find
-         contributor — hr-accrue's bonusFor has no blessing layer, so a client
-         that multiplied the drop would predict gold the server never pays
-         (BLESSING-HONESTY). Online or not, the calendar must move nothing. */
-      window.getBonus = origBonus;
-      const OPEN = E.DAILY.find((d) => d.id === 'open_coffers');
-      assert(OPEN && OPEN.bonus === undefined, 'the Open Coffers must carry no gold-find table');
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      const quietMult = window.goldFindMult(), quietGold = window.applyGoldFind(10000);
-      E._force({ daily: OPEN, weekly: E.QUIET });
-      assert(window.goldFindMult() === quietMult && window.applyGoldFind(10000) === quietGold,
-        'the Open Coffers moved gold find ' + quietMult + ' → ' + window.goldFindMult() + ' — the server pays no blessing');
-    } finally {
-      E._force(null);
-      window.getBonus = origBonus;
-      if (E) E._force(null);
-      restoreG(snap);
-    }
-  }),
 
   // #10e: SEAM 2 — the timed-buff scaling choke-point the Tavern's Hearth needs
   // (+40% duration / +20% strength at Tavern 10). Default must be exactly
@@ -360,34 +121,6 @@ export default [
     }
   }),
 
-  // b228: the two roads to Rested, and the one ceiling they share.
-  () => tryRun('b228: Rested XP — two roads, one ceiling, and the deeper bank', () => {
-    const snap = snapshotG();
-    try {
-      assert(window.RESTED_QUANTUM_CAP === 1600, 'the aggregate Rested ceiling should be 1,600 XP/charge');
-      /* b456: the Library rung is server-of-record, so each position is stamped
-         through the real hr_load path — an unstamped `G.rooms.library = 5` reads
-         as the fail-closed EMPTY map, i.e. no Library, and all three rows would
-         have measured the same "no quantum" answer. */
-      window.G.rooms = Object.assign({}, window.G.rooms, { library: 0 });
-      stampRecordLikeLoad(window.G);
-      assert(window.restedQuantum() === 0, 'no Library and no Tavern must mean no quantum');
-      assert(window.restedCap() === window.RESTED_CAP, 'the base bank is 80 charges');
-      window.G.rooms = Object.assign({}, window.G.rooms, { library: 4 });
-      stampRecordLikeLoad(window.G);
-      assert(window.restedQuantum() === 800, 'the Scriptorium road pays 800 XP/charge');
-      window.G.rooms = Object.assign({}, window.G.rooms, { library: 5 });
-      stampRecordLikeLoad(window.G);
-      assert(window.restedQuantum() === 1600, 'the Great Library road pays 1,600 XP/charge');
-      assert(window.restedCap() === 120, 'the Great Library deepens the bank to 120');
-      // The castle road, mirrored from the clan-seat reducer.
-      const CS = window.HearthriseClanSeat;
-      assert(CS.restedQuantum(0) === 0 && CS.restedQuantum(10) === 1600,
-        'the castle road must reach the same ceiling by Tavern 10');
-      assert(CS.restedQuantum(10) <= window.RESTED_QUANTUM_CAP,
-        'neither road may exceed the shared ceiling');
-    } finally { restoreGAndRecord(snap); }
-  }),
 
   // #10g: SEAM 3, THE ONE THAT MATTERS. b214 shipped offline rewards paid two
   // and three times per login because processOffline and two catch-up systems
@@ -1851,11 +1584,12 @@ export default [
         // held files author STYLESHEET rules — the other two write inline
         // style= attributes, which no sheet scan can see and which 19c
         // catches instead. Both discriminators below are exact:
-        //   • clan-seat.css is a whole sheet the clan agent owns;
+        //   • room-modal.css is a whole sheet: the room/hrcs rules that left
+        //     clan-seat.css in the 2026-10-14 demolition, pending their sweep;
         //   • home-dashboard.js injects every rule under the literal prefix
         //     `#panel-profile #<root> `, so its namespace cannot be spoofed
         //     by an unrelated rule that merely mentions "hd-".
-        if (sheetHref && /clan-seat\.css/.test(sheetHref)) continue;
+        if (sheetHref && /room-modal\.css/.test(sheetHref)) continue;
         if (/#panel-profile\s+#hd-/.test(rule.selectorText)) continue;
         // `font-size:0` is not small type — it is the glyph-suppression idiom:
         // an element that carries an emoji/text fallback in its markup and an
@@ -2011,164 +1745,14 @@ export default [
      account — this build has no skills, no hp and no formula that could produce
      them — so the assertions can only pass if the panel printed what came off
      the wire (CLAUDE.md §6). */
-  () => tryRunAsync('M8 PARTY-2c: the party rig leaves no first-run sheet behind, and none arrives 2.5 s later', async () => {
-    const SHEETS = '.hr-id-scrim, #hr-post-signup-modal';
-    const was = new Set(document.querySelectorAll(SHEETS));
-    const added = () => [...document.querySelectorAll(SHEETS)].filter((e) => !was.has(e)).map((e) => e.id || e.className);
-    const rig = partyRig();
-    try { await rig.open(); } finally { rig.restore(); }
-    assert(!added().length, 'the rig left a first-run sheet up: ' + added().join(', '));
-    await new Promise((r) => setTimeout(r, 2500));
-    assert(!added().length, 'a first-run sheet opened 2.5 s after the arm — inside post-signup-welcome\'s '
-      + 'own poll window, which is where it landed on CI: ' + added().join(', '));
-  }),
-
-  /* PARTY-3..7 — THE PURE HALF. `partyPanelHtml(view, opts)` is a function of
-     what it is handed, so these five properties cost a fixture each instead of
-     a rig: the states a player can be in, the bar's arithmetic, the three
-     columns slice 1 must NOT draw, who may remove whom, and the refusal
-     vocabulary. Cheap, and each one is a thing that has to stay true. */
-  () => tryRun('M8 PARTY-3: every state says what it is, and every state carries the honest line', () => {
-    const H = window.partyPanelHtml;
-    const base = { known: true, partyId: null, members: [], invites: [] };
-    const cases = [
-      [{ ...base, signedOut: true }, /Sign in to play with other people/],
-      [{ ...base, known: false }, /Asking the realm/],
-      [base, /not in a party — form one or accept an invite/],
-      [{ ...base, partyId: 'P1', role: 'member', members: [{ name: 'Nia', combat_level: 9, hp: 5, hp_max: 5 }] }, /Nia/],
-    ];
-    cases.forEach(([v, re]) => {
-      const html = H(v, { nowMs: 0 });
-      assert(re.test(html), 'state did not render ' + re + ': ' + html.slice(0, 120));
-      /* Every state says how hunting together is reached: out of a party, one
-         line; in one, the hunt card (closed until a view read says open). */
-      assert(v.partyId ? /class="party-hunt/.test(html) && /Party hunting isn(&#39;|')t open yet/.test(html)
-                       : /Form a party to hunt together/.test(html),
-        'a state dropped its line about hunting together: ' + html.slice(0, 200));
-      assert(!/later build/.test(html), 'the retired "later build" line is back');
-    });
-  }),
-
-  () => tryRun('M8 PARTY-4: the hp bar is the ratio of two SERVER numbers, clamped, and never invents one', () => {
-    const H = window.partyPanelHtml;
-    const bar = (hp, max) => {
-      const m = /party-hp-fill" style="width:(\d+)%/.exec(H({ known: true, partyId: 'P1', role: 'member',
-        members: [{ name: 'A', combat_level: 3, hp: hp, hp_max: max }], invites: [] }, { nowMs: 0 }));
-      return m ? Number(m[1]) : null;
-    };
-    assert(bar(12, 74) === 16, '12/74 must draw 16%, got ' + bar(12, 74));
-    assert(bar(61, 61) === 100, 'a full bar must be 100%, got ' + bar(61, 61));
-    assert(bar(0, 40) === 0, 'an empty bar must be 0%, got ' + bar(0, 40));
-    assert(bar(5, 0) === 0, 'a zero maximum must not divide, got ' + bar(5, 0));
-    assert(bar(80, 61) === 100, 'hp over hp_max must clamp, got ' + bar(80, 61));
-    const unknown = H({ known: true, partyId: 'P1', role: 'member', members: [{ name: 'A' }], invites: [] }, { nowMs: 0 });
-    assert(/—/.test(unknown) && !/Lv 0/.test(unknown), 'a value the server did not send must print as an em-dash, never as 0');
-  }),
-
-  () => tryRun('M8 PARTY-5: the three columns S2 owns are NOT drawn while they are NULL', () => {
-    /* hr_party_view carried share_bp / xp / gold as NULL until 2026-10-15-party-
-       hunt-view.sql retired them (the hunt card owns them). The roster panel must
-       still never draw them if a stale server sends the keys: a column of
-       em-dashes is a worse lie than an absent column. */
-    const html = window.partyPanelHtml({ known: true, partyId: 'P1', role: 'leader', invites: [],
-      members: [{ name: 'Nia', combat_level: 51, hp: 44, hp_max: 58, share_bp: null, xp: null, gold: null }] }, { nowMs: 0 });
-    assert(!/share|bp|\bxp\b|gold/i.test(html), 'slice 1 rendered a settle column it has no value for: ' + html.slice(0, 200));
-  }),
-
-  () => tryRun('M8 PARTY-6: Remove is the leader\'s, by NAME, and never on your own row', () => {
-    const H = window.partyPanelHtml;
-    const roster = [{ name: 'Wren', combat_level: 57, hp: 61, hp_max: 61 }, { name: 'Nia', combat_level: 51, hp: 44, hp_max: 58 }];
-    const view = { known: true, partyId: 'P1', members: roster, invites: [] };
-    const opts = { nowMs: 0, you: 'Wren', canon: window.HearthriseIdentity.canon };
-    const asLeader = H({ ...view, role: 'leader' }, opts);
-    const asMember = H({ ...view, role: 'member' }, opts);
-    assert(/data-party-name="Nia"/.test(asLeader), 'the leader cannot remove another member');
-    assert(!/data-party-name="Wren"/.test(asLeader), 'the leader is offered Remove on their own row — the server answers bad_party');
-    assert(!/data-party-act="kick"/.test(asMember), 'a plain member was offered a control only a leader may use');
-    assert(!/user_id|uuid/i.test(asLeader), 'the panel leaked an addressable handle — the frozen view carries names, not ids');
-  }),
-
-
-  /* PARTY-H2 — EVERY STATE, EVERY WORD (§2, §4, §6). Pure renders of the card. */
-  () => tryRun('M8 PARTY-H2: the live view draws each member state and the event strip in the spec\'s words', () => {
-    const H = window.partyPanelHtml;
-    const now = Date.parse('2026-10-08T12:00:00Z');
-    const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
-    const party = { known: true, partyId: 'P1', role: 'member', invites: [],
-      members: [{ name: 'Ash', combat_level: 30, hp: 1, hp_max: 1 }] };
-    const view = { ok: true, channel_open: true,
-      hunt: { active_id: 'no_such_mon', stance: 'steady', started_at: iso(0), kills: 12, live: true },
-      members: [
-        { name: 'Ash',  me: false, state: 'hunting',       hp: 30, hp_max: 40, share_bp: 6667, xp: 70, gold: 11, kills: 8 },
-        { name: 'Bram', me: true,  state: 'camping_today', camped_at: iso(42), hp: 9, hp_max: 50, share_bp: 0, xp: 5, gold: 2, kills: 1 },
-        { name: 'Cora', me: false, state: 'rejoining',     camped_at: iso(3),  hp: 20, hp_max: 20, share_bp: 0, xp: 6, gold: 3, kills: 2 },
-        { name: 'Dax',  me: false, state: 'camping',       camped_at: iso(125), hp: 4, hp_max: 4, share_bp: 0, xp: 7, gold: 4, kills: 1 },
-      ],
-      events: [
-        { kind: 'rejoin', name: 'Cora', at: iso(0.2) }, { kind: 'drop', name: 'Dax', at: iso(125) },
-        { kind: 'stop', reason: 'stale_hunt', name: 'X', at: iso(1) }, { kind: 'stop', reason: 'stale_hunt', name: 'Y', at: iso(1) },
-      ] };
-    const html = H(party, { nowMs: now, hunt: { view } });
-    const tx = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    assert(/Hunting no_such_mon · Steady · 0:00 so far · 12 kills/.test(tx), 'header: ' + tx.slice(0, 200));
-    assert(!/>Hunting<\/span>/.test(html), 'Hunting is the default and draws NO tag');
-    assert(/Camping for today/.test(tx) && /You've made camp 3 times today\. You can rejoin tomorrow, or hunt solo\./.test(tx),
-      'camping_today must carry its tag and, on my row, the clamp line');
-    assert(/Rejoining/.test(tx) && /Camping\b/.test(tx), 'Rejoining / Camping tags missing');
-    assert(/made camp 42 min ago/.test(tx) && /made camp 2 h ago/.test(tx), 'made camp {ago} missing');
-    assert(/66\.67%/.test(tx), 'a hunting member\'s split is share_bp as a percent');
-    assert((tx.match(/—/g) || []).length >= 3, 'a camping or rejoining member\'s split is "—"');
-    assert(/Cora rejoined the hunt\./.test(tx) && /Dax made camp\./.test(tx), 'event strip wording');
-    assert((tx.match(/The hunt ended after going quiet\./g) || []).length === 1, 'a run of identical stop rows is ONE line');
-    assert(/just now/.test(tx), 'an event under a minute old reads "just now"');
-    assert(/Waiting for the leader to start a hunt\./.test(H(party, { nowMs: now,
-      hunt: { view: { ok: true, channel_open: true, hunt: null, members: [], events: [] } } })), 'a member\'s idle line');
-    const closed = H({ ...party, role: 'leader' }, { nowMs: now, hunt: { view: { ok: true, channel_open: false, hunt: null, members: [], events: [] } } });
-    assert(/Party hunting isn(&#39;|')t open yet\. It switches on during the beta\./.test(closed) && !/hunt-start/.test(closed),
-      'a closed channel rests on its sentence with Start HIDDEN');
-    const unread = H({ ...party, role: 'leader' }, { nowMs: now, hunt: null });
-    assert(!/hunt-start/.test(unread), 'before any view read, Start is hidden (fail-safe "not open")');
-    [['leader', 'The leader ended the hunt.'],
-     ['too_few_hunters', 'The hunt ended: everyone else made camp or left. You\'re back to solo.'],
-     ['not_in_cohort', 'The hunt ended: party hunting was paused across the realm. Nothing was lost.'],
-     ['gate', 'The hunt ended: party hunting was paused across the realm. Nothing was lost.'],
-     ['stale_hunt', 'The hunt ended after going quiet.']].forEach(([by, line]) => {
-      const e = H(party, { nowMs: now, hunt: { view: { ok: true, channel_open: true, members: [], events: [],
-        hunt: { active_id: 'x', live: false, ended_at: iso(5), stopped_by: by } } } }).replace(/&#39;/g, "'");
-      assert(e.indexOf(line) !== -1, 'stopped_by ' + by + ' must read "' + line + '"');
-    });
-  }),
 
 
 
-  /* PARTY-H7 — THE RETURN RECEIPT'S PARTY LINE (§5), every case, from the view. */
-  () => tryRun('M8 PARTY-H7: the away receipt gains the one party line, in the spec\'s words', () => {
-    const L = window.partyReceiptLine;
-    assert(typeof L === 'function', 'partyReceiptLine is not published');
-    const now = Date.parse('2026-10-08T12:00:00Z');
-    const off = { at: now, awayMs: 8 * 3600000 };
-    const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
-    const v = (hunt, me, events) => ({ ok: true, channel_open: true, hunt, events: events || [],
-      members: [{ name: 'Ash', me: false, state: 'hunting' }, Object.assign({ name: 'Bo', me: true }, me)] });
-    const live = { active_id: 'no_such_mon', live: true, started_at: iso(600), kills: 50 };
-    assert(L(v(live, { state: 'hunting', xp: 1234, gold: 56, kills: 78 }), off, now)
-      === 'Party hunt: +1,234 XP · +56g · 78 kills this hunt.', 'never dropped (hunt began before I left)');
-    assert(L(v({ ...live, started_at: iso(60) }, { state: 'hunting', xp: 1, gold: 2, kills: 3 }), off, now)
-      === 'Party hunt: +1 XP · +2g · 3 kills while you were away.', 'never dropped (hunt began while I was away)');
-    assert(L(v(live, { state: 'rejoining', camped_at: iso(90) }), off, now)
-      === 'You made camp 1 h ago after your offline limit. The party kept hunting no_such_mon. You\'re back in the hunt.', 'dropped and rejoined');
-    assert(L(v(live, { state: 'camping_today', camped_at: iso(90) }), off, now)
-      === 'You made camp. The party is still hunting; you can rejoin tomorrow.', 'clamped');
-    assert(L(v({ active_id: 'x', live: false, ended_at: iso(30), stopped_by: 'too_few_hunters' }, { state: 'ended', xp: 900, gold: 40 }), off, now)
-      === 'The hunt ended 30 min ago: everyone else made camp or left. You earned +900 XP · +40g with the party before it ended.', 'ended while away');
-    assert(L(v({ active_id: 'x', live: false, ended_at: iso(9 * 60), stopped_by: 'leader' }, { state: 'ended' }), off, now) === '',
-      'a hunt that ended BEFORE I left is not this absence\'s news');
-    assert(L({ ok: false, error: 'not_in_party' }, off, now) === '' && L(null, off, now) === '', 'no party, no line');
-  }),
 
-  /* DISCORD — the invite where a new player looks, and the gift sheet's states.
-     The amount is the server's (2026-10-18-discord-gift.sql); the sheet quotes
-     what the answer says and never touches G.gems. */
+
+
+
+
   () => tryRun('DISCORD-1: the first screen invites the player to the Discord, with the gift, in both modes', () => {
     const D = window.HearthriseDiscord;
     assert(D && /^https:\/\/discord\.gg\//.test(D.INVITE), 'HearthriseDiscord.INVITE is not published');

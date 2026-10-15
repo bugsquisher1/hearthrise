@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=584';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=584';
 
 export default [
 
@@ -65,9 +65,10 @@ export default [
     assert(/Farming/.test(pump) && /Pumpkin/.test(pump),
       'a crop product must name the crop to grow, got: ' + pump);
     // Regression: none of the pre-existing routes may be displaced.
-    assert(/Smithing/i.test(window.itemSourceLine('steel_sword')), 'crafted route regressed');
+    // (The gear recipes and the dungeon route left in the 2026-10-14 demolition.)
+    const smithed = window.ARTISAN_RECIPES.smithing[0].output;
+    assert(/Smithing/i.test(window.itemSourceLine(smithed)), 'crafted route regressed: ' + smithed);
     assert(/Mining/i.test(window.itemSourceLine('iron_ore')), 'gathered route regressed');
-    assert(/Crypt of Bones/.test(window.itemSourceLine('kitchen_blueprint_t2')), 'dungeon route regressed');
   }),
 
   () => tryRun('b372: KD420 — tapping the maple planks in the house upgrade shows where they come from', () => {
@@ -100,7 +101,7 @@ export default [
     } finally { restoreG(snap); window.closeInvDetail(); }
   }),
 
-  () => tryRun('b372: a room rung cost and its blueprint gate are both inspectable', () => {
+  () => tryRun('b372: a room rung cost is inspectable, and its flyout opens above the modal', () => {
     const H = window.HearthriseHomestead;
     if (!H || !window.HearthriseRoomModal) return;
     const snap = snapshotG();
@@ -112,15 +113,13 @@ export default [
       H.openRoom('kitchen');
       const costLink = document.querySelector('.hr-room-scrim .hr-cs-qty[data-inspect-item]');
       assert(costLink, 'a rung cost naming an item must be inspectable');
-      const gateLink = document.querySelector('.hr-room-scrim .hr-room-gate-nm[data-inspect-item="kitchen_blueprint_t2"]');
-      assert(gateLink, 'the blueprint gate — the requirement a player can least easily answer — must be inspectable');
 
       /* THE STACKING BUG THIS FEATURE WOULD OTHERWISE SHIP: the room modal
          scrim sits at z-index 100000 and `.inv-detail` at 1500, so the flyout
          would have opened BEHIND the modal that launched it. */
-      gateLink.click();
+      costLink.click();
       const ov = document.getElementById('inv-detail-overlay');
-      assert(ov && ov.classList.contains('show'), 'the gate must open the flyout');
+      assert(ov && ov.classList.contains('show'), 'the cost must open the flyout');
       const scrimZ = parseInt(getComputedStyle(document.querySelector('.hr-room-scrim')).zIndex, 10) || 0;
       assert(parseInt(ov.style.zIndex, 10) > scrimZ,
         'the flyout must be lifted ABOVE the overlay it was opened from (' + ov.style.zIndex + ' vs ' + scrimZ + ')');
@@ -407,10 +406,6 @@ export default [
        notification in the DOM for a later whole-document scan (b227) to catch. */
     const notifyBefore = window.notify;
     window.notify = function () {};
-    // Same for the once-a-day sheet: `autoBoot()` opens `#hr-dl-modal` at the first quiet moment iff `todayKey() !== lastClaimDay`, so unpinned this arm's page state depends on the date. Pinned through the module's own day key; put away below through the × the sheet draws, never a node removal (that skips the close unhooking its document-level Escape).
-    const dailyBefore = G.dailyReward;
-    assert(window.HearthriseDaily._todayKey, 'daily-reward.js stopped publishing its own day key — the sheet cannot be pinned');
-    G.dailyReward = { lastClaimDay: window.HearthriseDaily._todayKey() };
     const buyCalls = [], hireCalls = [], assignCalls = [];
     const SRV_UID = 'wSRV1';
     // gold stub: buyUnlock always "lands" so the hire proceeds to materialise.
@@ -483,8 +478,6 @@ export default [
       window.HearthriseWorkersNet = netBefore;
       window.HearthriseGold = goldBefore;
       window.notify = notifyBefore;
-      G.dailyReward = dailyBefore;
-      try { const x = document.querySelector('#hr-dl-modal [data-dl-close]'); if (x) x.click(); } catch (e) {}
       G.workers = saved.workers; G.homestead = saved.homestead; G.skills = saved.skills; G.gold = saved.gold;
       try { stampBalanceLikeLoad(G); } catch (e) {}
     }
@@ -504,8 +497,7 @@ export default [
       const smith = (window.ARTISAN_RECIPES.smithing || []).map(r => r.id);
       ['forge_bronze_axe', 'forge_rune_pickaxe'].forEach(id =>
         assert(smith.includes(id), 'smithing recipe missing: ' + id));
-      const craft = (window.ARTISAN_RECIPES.crafting || []).map(r => r.id);
-      assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
+      // (The fishing-rod recipes left with the artisan tools, 2026-10-14; axes and pickaxes stay.)
     } finally { G.inventory = savedInv; }
   }),
   () => tryRun('b204: artisan offline — a cooking session progresses across an absence (was zero)', () => {
@@ -552,21 +544,20 @@ export default [
       assert(cook && cook.type === 'cooked', 'first_cook must be a cooking quest');
     } finally { G.quests = saved.quests; }
   }),
-  () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
+  () => tryRun('b217: cooking progresses the quest tracker (live artisan path)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const saved = {
       quests: JSON.parse(JSON.stringify(G.quests || [])),
-      daily: JSON.parse(JSON.stringify(G.daily || {})),
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
       activeSkill: G.activeSkill, target: G.skillTargetId
     };
     try {
-      // Guard the fix: the LIVE window.doArtisanAction must feed updateDaily +
-      // updateQuest for cooking — before b217 it updated only G.stats, so daily
-      // "Cook N" tasks and the onboarding cook quest were un-completable.
+      // Guard the fix: the LIVE window.doArtisanAction must feed updateQuest for
+      // cooking — before b217 it updated only G.stats, so the onboarding cook
+      // quest was un-completable.
       // b225: kitchen 3, not 1. This test guards the counter WIRING, and the
       // campfire ruling made a Kitchen-L1 cook a 12% coin-flip — three cooks
       // would fail this assertion roughly one run in three for a reason that
@@ -584,18 +575,11 @@ export default [
       stampRecordLikeLoad(G);
       G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
       G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
-      G.daily = G.daily || {};
-      // b414: generateDailyTasks resets on the UTC day key now (server-authoritative
-      // selection), not toDateString() — pin lastReset to the same key so this
-      // hand-set task is not regenerated out from under the assertion.
-      G.daily.lastReset = window.hrGoalDayKey();
-      G.daily.tasks = [{ id: 'daily_cook', type: 'cooked', label: 'Cook 12 items', goal: 12, progress: 0, reward: 400, done: false }];
       for (let i = 0; i < 3; i++) window.doArtisanAction('cooking', 'cook_shrimp');
       assert(G.quests[0].progress === 3, 'cooking must progress the onboarding cook quest, got ' + G.quests[0].progress);
-      assert(G.daily.tasks[0].progress === 3, 'cooking must progress the daily cook task, got ' + G.daily.tasks[0].progress);
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      G.quests = saved.quests; G.daily = saved.daily; G.inventory = saved.inv;
+      G.quests = saved.quests; G.inventory = saved.inv;
       G.rooms = saved.rooms; G.skills = saved.skills;
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
       stampRecordLikeLoad(G);
@@ -635,151 +619,6 @@ export default [
       G.skillProgress = saved.prog;
     }
   }),
-  () => tryRunAsync('report #41: kills with NO bounty buffer for the server daily-kill credit', async () => {
-    const G = window.G;
-    if (typeof window.handleBountyKill !== 'function') { skip('bounty seam absent'); return; }
-    assert(typeof window.hrKillCreditFlush === 'function',
-      'hrKillCreditFlush is missing — the bounty-free kill credit is unwired and the daily goal is dead');
-    const armed = typeof window.clientMayWriteRecordField === 'function'
-      && window.clientMayWriteRecordField('gold') === false;
-    if (!armed) return; // the server credit path only runs under the gold arm
-    const ids = Object.keys(window.MONSTERS || {});
-    const free = ids[0]; const bountied = ids[1] || ids[0];
-    if (!free || free === bountied) { skip('need two distinct monsters'); return; }
-    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
-      pend: G._killCreditPending };
-    const calls = [];
-    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
-      isSignedIn: function () { return true; },
-      // Credit only 2 of whatever is claimed, so "subtract what the server took"
-      // is distinguishable from "subtract what we sent".
-      creditKills: function (t, claimed) { calls.push({ t: t, claimed: claimed }); return Promise.resolve({ ok: true, bounty: false, credit: 2, credited: 2 }); }
-    });
-    try {
-      window.ensureBountyState && window.ensureBountyState();
-      G._killCreditPending = {};
-      // A cull bounty is running on `bountied` — its kills belong to that cadence.
-      G.bountyHunter.active = { id: 'b_free', type: 'cull', target: bountied, difficulty: 'normal',
-        required: 20, progress: 0, rewards: { gold: 100, marks: 3, xp: 10 } };
-      window.handleBountyKill(free, window.MONSTERS[free]);
-      window.handleBountyKill(free, window.MONSTERS[free]);
-      window.handleBountyKill(free, window.MONSTERS[free]);
-      assert((G._killCreditPending[free] || 0) >= 1,
-        'a kill with NO bounty on that monster must buffer for the daily-kill credit; buffered '
-        + (G._killCreditPending[free] || 0));
-      window.handleBountyKill(bountied, window.MONSTERS[bountied]);
-      assert(!(bountied in G._killCreditPending),
-        'a kill on the ACTIVE bounty target must NOT double-buffer — the bounty cadence owns it '
-        + 'with cumulative semantics');
-      /* Drain whatever the kills started. Like hrCreditCombatXpFlush, a fresh
-         session's FIRST kill flushes immediately (the cadence window is open), so
-         a call may already be in flight; the assertions below must not race it. */
-      for (let i = 0; i < 6; i += 1) await Promise.resolve();
-      // Re-seed a KNOWN backlog so the payload assertion is exact regardless of
-      // what the immediate first-kill flush happened to send.
-      G._killCreditPending = {}; G._killCreditPending[free] = 3;
-      const before = calls.length;
-      await window.hrKillCreditFlush(true);
-      const mine = calls.slice(before).filter((c) => c.t === free);
-      assert(mine.length === 1, 'a forced flush must send exactly one credit for the pending target; got '
-        + mine.length);
-      assert(mine[0].claimed === 3, 'the flush must carry the OBSERVED count (3), got ' + mine[0].claimed);
-      assert((G._killCreditPending[free] || 0) === 1,
-        'the flush must subtract what the SERVER credited (2 of 3), leaving 1 pending; left '
-        + (G._killCreditPending[free] || 0));
-      const after = calls.length;
-      await window.hrKillCreditFlush();
-      assert(calls.length === after,
-        'an unforced flush inside the cadence window must send nothing — the cap is time-based, so '
-        + 'a faster cadence buys nothing and every call costs a log row');
-    } finally {
-      if (window.hrKillCreditFlush.clearTrail) window.hrKillCreditFlush.clearTrail();
-      window.HearthriseGoalClaim = saved.gc;
-      G.bountyHunter = saved.bh;
-      G._killCreditPending = saved.pend;
-    }
-  }),
-  /* report #41, THE STOP CASE — and it is the whole reported symptom, not an edge.
-     b484 shipped the bounty credit gated on "the next kill" and that is exactly how
-     a bounty came to hang forever: the player reaches the target, STOPS, and a retry
-     that only fires on a kill never fires again (b485 had to add
-     hrScheduleBountyRetry for it). A daily-kill cadence hung off the kill hook
-     reproduces the same defect — the kills observed inside the last window sit
-     unsent and the goal stays "30/30 · Confirming…". So after a kill there must be
-     a SCHEDULED drain that does not need another kill, it must keep going while a
-     backlog remains, and it must stop once the backlog is empty (an idle tab that
-     calls a money-adjacent RPC on a timer for ever is its own defect). */
-  () => tryRunAsync('report #41: stopping at target still drains — a scheduled credit, not one gated on the next kill', async () => {
-    const G = window.G;
-    if (typeof window.handleBountyKill !== 'function') { skip('bounty seam absent'); return; }
-    assert(typeof window.hrKillCreditFlush === 'function'
-      && typeof window.hrKillCreditFlush.trailArmed === 'function',
-      'the trailing drain seam is missing — a player who stops at target would sit in '
-      + '"Confirming…" until they kill again, which is the b484 bounty defect reintroduced');
-    const armed = typeof window.clientMayWriteRecordField === 'function'
-      && window.clientMayWriteRecordField('gold') === false;
-    if (!armed) return; // the server credit path only runs under the gold arm
-    const free = Object.keys(window.MONSTERS || {})[0];
-    if (!free) { skip('no monsters'); return; }
-    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
-      pend: G._killCreditPending };
-    let credit = 2;   // the server accepts only part of each claim (the cap)
-    const calls = [];
-    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
-      isSignedIn: function () { return true; },
-      creditKills: function (t, claimed) { calls.push({ t: t, claimed: claimed }); return Promise.resolve({ ok: true, bounty: false, credit: credit }); }
-    });
-    try {
-      window.ensureBountyState && window.ensureBountyState();
-      G.bountyHunter.active = null;
-      G._killCreditPending = {};
-      window.hrKillCreditFlush.clearTrail();
-      // Nine kills observed; the server's cap accepts 2. Then the player STOPS.
-      G._killCreditPending[free] = 9;
-      await window.hrKillCreditFlush(true);
-      for (let i = 0; i < 6; i += 1) await Promise.resolve();
-      assert((G._killCreditPending[free] || 0) === 7,
-        'the server accepted 2 of 9, so 7 must stay pending; left ' + (G._killCreditPending[free] || 0));
-      // THE PROPERTY: with a backlog and NO further kill, a drain is SCHEDULED.
-      window.hrKillCreditFlush.armTrail();
-      assert(window.hrKillCreditFlush.trailArmed() === true,
-        'with kills still pending and the player stopped, a drain must be SCHEDULED — otherwise the '
-        + 'daily counter never reaches target and the goal parks in "Confirming…" for ever');
-      // …and the drain really drains: the next window carries the REMAINING count.
-      window.hrKillCreditFlush.clearTrail();
-      const before = calls.length;
-      credit = 7;
-      await window.hrKillCreditFlush(true);
-      for (let i = 0; i < 6; i += 1) await Promise.resolve();
-      assert(calls.length === before + 1, 'the drain must send exactly one credit per window');
-      assert(calls[calls.length - 1].claimed === 7,
-        'the drain must carry the REMAINING observed count (7), got ' + calls[calls.length - 1].claimed);
-      assert(window.hrKillCreditFlush.pendingTotal() === 0,
-        'the backlog must be empty once the server has taken it; left ' + window.hrKillCreditFlush.pendingTotal());
-      // …and an empty backlog leaves no timer behind.
-      assert(window.hrKillCreditFlush.trailArmed() === false,
-        'an empty backlog must leave NO scheduled drain — an idle tab must not call a '
-        + 'money-adjacent RPC on a timer for ever');
-      window.hrKillCreditFlush.armTrail();
-      assert(window.hrKillCreditFlush.trailArmed() === false,
-        'arming with nothing pending must be a no-op');
-    } finally {
-      if (window.hrKillCreditFlush.clearTrail) window.hrKillCreditFlush.clearTrail();
-      window.HearthriseGoalClaim = saved.gc;
-      G.bountyHunter = saved.bh;
-      G._killCreditPending = saved.pend;
-    }
-  }),
-  // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
-  // escalates; gem path is the better-value premium deal; can't overspend.
-  /* b4xx: CLIENT-AUTHORITATIVE now — buyBankSpaceGold() is wired to unlock_buy
-     (seam:bank.buy_gold). With the accrual switch ON but no server configured in
-     the harness, the fired intent answers `unconfigured` and rolls the local debit
-     back, so the exact-deduction assertions below must run with the switch OFF —
-     the shipping-today path, and the same discipline slice 1 applied to its debit
-     tests. The gem path and the cap arithmetic are switch-independent.
-     gold-arm: gold/gems are ARMED, so the debit lands and the affordability check
-     reads a KNOWN balance only after the stamp — stampBalanceLikeLoad below. */
   () => tryRunAsync('b269: buying bank space raises the cap; gold escalates; and the gem rung has no server verb', async () => {
     const G = window.G;
     assert(typeof window.buyBankSpaceGold === 'function', 'buyBankSpaceGold missing');
@@ -1062,17 +901,13 @@ export default [
     const prevTheme = document.body.getAttribute('data-theme');
     document.body.setAttribute('data-theme', 'hearthlight');
     const fixture = document.createElement('div');
+    /* The bounty board and the IAP cards left in the 2026-10-14 demolition;
+       the shop scene and counter are the in-world surfaces that remain. */
     fixture.innerHTML =
-      '<section id="panel-bounty" class="panel active"><div class="bb-board">' +
-        '<article class="bb-notice"><p class="bb-task"><b>x</b></p><span class="bb-kind">x</span>' +
-        '<div class="bb-pay"><span class="hr-inline"><span class="hr-amt">1</span></span></div>' +
-        '<small class="muted">x</small></article></div></section>' +
       '<section id="panel-shop" class="panel active">' +
         '<div class="sc-scene"><span>x</span></div>' +
         '<div class="sc-counter"><div class="shop-row"><div class="info"><b>x</b><span>x</span></div>' +
           '<span class="price"><span class="hr-amt">1</span></span></div><div class="sc-sep">x</div></div>' +
-        '<div class="iap-card"><div class="iap-icon"><span class="hr-glyph"></span></div>' +
-          '<div class="desc">x</div><div class="iap-price"><small>x</small></div></div>' +
       '</section>';
     document.body.appendChild(fixture);
     try {
@@ -1303,16 +1138,17 @@ export default [
 
 
   () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {
-    // hearth_token is the IAP-only bond (1 -> 150 gems). Every dungeon used to
-    // drop it at chance 1.0, minting real-money currency from PvE.
-    const D = window.DUNGEONS;
-    if (!D) return;
-    Object.entries(D).forEach(([id, d]) => {
-      (d.loot || []).forEach(l => {
-        assert(l.id !== 'hearth_token',
-          'dungeon ' + id + ' must not drop hearth_token (premium currency is IAP-mint-only)');
+    // hearth_token was the IAP-only bond. Every dungeon used to drop it at
+    // chance 1.0, minting real-money currency from PvE. The dungeons left in the
+    // 2026-10-14 demolition; the monster tables are the PvE loot that remains.
+    const M = window.MONSTERS;
+    assert(M && Object.keys(M).length > 0, 'CONTROL: no monster table to scan');
+    Object.entries(M).forEach(([id, m]) => {
+      (m.drops || []).forEach((d) => {
+        assert(d.id !== 'hearth_token', 'monster ' + id + ' must not drop hearth_token (premium currency is never a PvE drop)');
       });
     });
+    assert(!window.DUNGEONS, 'the demolished dungeon table is back');
   }),
 
   /* THE WAVE1 ARTISAN BENCH-LOCK TEST WAS RETIRED HERE, NOT SILENCED. Its
@@ -1418,17 +1254,6 @@ export default [
     } finally { G.inventory = snap.inv; }
   }),
 
-  () => tryRun('WAVE3: artisan tools exist and are craftable', () => {
-    const I = window.ITEMS, R = window.ARTISAN_RECIPES;
-    if (!I || !R) return;
-    ['bronze_hammer', 'rune_hammer', 'bone_needle', 'rune_needle', 'bronze_knife', 'rune_knife'].forEach(id => {
-      assert(I[id] && I[id].type === 'tool', id + ' must be a tool item');
-    });
-    const allRec = [].concat(R.smithing || [], R.crafting || []);
-    ['forge_rune_hammer', 'craft_rune_needle', 'forge_rune_knife'].forEach(rid => {
-      assert(allRec.find(r => r.id === rid), 'recipe ' + rid + ' must exist');
-    });
-  }),
 
   () => tryRun('WAVE3: a gathering tool deterministically adds extra yield over time', () => {
     // The double is a fractional carry (no RNG), so N actions with a 10% tool grant
@@ -1708,13 +1533,18 @@ export default [
 
 
 
-  () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
-    const I = window.ITEMS, M = window.MONSTERS, D = window.DUNGEONS, AR = window.ARTISAN_RECIPES;
+  () => tryRun('WAVE4b: every combat drop has a downstream use (no dead-end loot)', () => {
+    const I = window.ITEMS, M = window.MONSTERS, AR = window.ARTISAN_RECIPES;
     if (!I || !M || !AR) return;
-    // Everything that drops from a monster or a dungeon.
+    // Everything that drops from a monster (the dungeons left on 2026-10-14).
     const drops = new Set();
     Object.values(M).forEach(m => (m.drops || []).forEach(d => drops.add(d.id)));
-    if (D) Object.values(D).forEach(d => (d.loot || []).forEach(l => drops.add(l.id)));
+    /* A room rung or a property tier that costs the item is a use too: the
+       castle goods and trophies (wolf_pelt, dragon_gem, ancient_rune) are
+       spent on the House, not at a bench (designer ruling 2026-10-14 §3). */
+    const usedAsCost = new Set();
+    Object.values(window.ROOMS || {}).forEach((r) => (r.levels || []).forEach((lv) => Object.keys(lv.cost || {}).forEach((k) => usedAsCost.add(k))));
+    ((window.HearthriseHomestead && window.HearthriseHomestead.TIERS) || []).forEach((t) => Object.keys((t && t.cost) || {}).forEach((k) => usedAsCost.add(k)));
     // Everything consumed as a recipe input.
     const usedAsInput = new Set();
     Object.values(AR).forEach(list => (list || []).forEach(r => {
@@ -1726,7 +1556,7 @@ export default [
     // buriable (bones), or a tagged currency/key/housing/cosmetic/castle good.
     const hasUse = (id) => {
       const it = I[id]; if (!it) return true; // unknown → not our concern here
-      if (usedAsInput.has(id)) return true;
+      if (usedAsInput.has(id) || usedAsCost.has(id)) return true;
       if (['weapon', 'armor', 'jewelry', 'tool', 'ammo', 'companion'].includes(it.type)) return true;
       if (it.heals || it.buff || it.buryXp) return true;
       if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
@@ -1948,9 +1778,9 @@ export default [
       assert(I[id].bop === true, 'signature gear ' + id + ' must be bind-on-pickup');
       assert(I[id].type === 'weapon', 'signature gear ' + id + ' must be an equippable weapon');
     });
-    // Cosmetics/trophies/materials + deeds/blueprints = the sellable dungeon money source → tradeable.
-    ['warboss_standard','lexarch_seal','voidwoven_sigil','riftmaw_husk','elderscale_heart',
-     'farm_deed','kitchen_blueprint_t2','trophy_blueprint_t3','library_blueprint_t3'].forEach(id => {
+    // Cosmetics/trophies/materials = a market money source → tradeable. (farm_deed and the
+    // room blueprints were cut in the 2026-10-14 demolition, ruling §2.)
+    ['warboss_standard','lexarch_seal','voidwoven_sigil','riftmaw_husk','elderscale_heart'].forEach(id => {
       assert(I[id], 'tradeable dungeon drop ' + id + ' must exist');
       assert(!I[id].bop, id + ' must be tradeable (non-BoP) — dungeon loot is a market money source');
     });
@@ -2228,7 +2058,7 @@ export default [
      The data rules live in tests/w0f-fun-content.mjs; these drive the three
      surfaces a player meets. */
 
-  () => tryRun('W0-CHAMP-1: each tier 1-5 has a champion on the Fight list, its relic is server-revealed, and the board never offers one', () => {
+  () => tryRun('W0-CHAMP-1: each tier 1-5 has a champion on the Fight list, and its relic is server-revealed', () => {
     const M = window.MONSTERS, LF = window.HearthriseLuckyFinds;
     assert(M && LF && typeof LF.isRevealed === 'function', 'roster or lucky-finds seam absent');
     const champs = Object.keys(M).filter((id) => M[id].champion === true);
@@ -2243,16 +2073,6 @@ export default [
     });
     // A tier-1 champion is meetable from combat level 0 — the whole point.
     assert((M.old_tusker.tier - 1) * 15 === 0, 'the tier-1 champion must be open to a fresh hero');
-    const B = window.HearthriseCore && window.HearthriseCore.bounty;
-    const RM = window.HearthriseCore && window.HearthriseCore.rngMod;
-    assert(B && typeof B.pickBountyMonster === 'function' && RM && typeof RM.createRng === 'function', 'bounty picker or rng module absent');
-    {
-      let hit = 0;
-      for (let s = 1; s <= 300; s++) {
-        const id = B.pickBountyMonster(1 + (s % 5), 'normal', [], M, RM.createRng(s));
-        if (M[id] && M[id].champion) hit++;
-      }
-      assert(hit === 0, 'the bounty board offered a champion ' + hit + ' time(s)');
-    }
+    // (The bounty-board arm left with the board in the 2026-10-14 demolition.)
   }),
 ];

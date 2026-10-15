@@ -136,6 +136,9 @@ Object.assign(window, {
   // b224 — the presentation twin of foodClassOf, so the item modal, the combat
   // picker and the hover tooltip all name a food the same way.
   foodKindOf, FOOD_KIND_META,
+  // b222 — the Building Materials predicate behind the artisan 'castle' lane
+  // (designer ruling 2026-10-14 §3: castle goods stay).
+  isCastleGood,
   MATERIAL_TIERS,
 });
 

@@ -48,25 +48,6 @@ const catchToasts = () => {
 
 export default [
 
-  // ════════════════════════════════════════════════════════════
-  // b136 — Batch C: Housing-gated farm progression
-  // ════════════════════════════════════════════════════════════
-
-  // b136: HearthriseFarm API is loaded with the required surface.
-  () => tryRun('b136: HearthriseFarm API + farm_deed item exist', () => {
-    assert(window.HearthriseFarm, 'HearthriseFarm missing');
-    const required = ['getPlotLevel','getPlotUnlockedCrops','canPlantCrop',
-                      'getDeedsRequiredForNextLevel','getDeedCount','upgradePlot',
-                      'rollKillDeed','rollBountyDeed','MAX_LEVEL'];
-    for (const fn of required) {
-      assert(window.HearthriseFarm[fn] !== undefined,
-        'HearthriseFarm.' + fn + ' missing');
-    }
-    assert(window.ITEMS && window.ITEMS.farm_deed,
-      "ITEMS.farm_deed missing — Tyler's tradable deed item must exist");
-    assert(!window.ITEMS.farm_deed.bop,
-      'farm_deed must NOT be bind-on-pickup — Tyler explicitly asked for tradable on market');
-  }),
 
   // b136: at default Plot Lv 1, only Turnip is plantable.
   () => tryRun('b136: plot Lv 1 unlocks turnip only', () => {
@@ -416,30 +397,6 @@ export default [
     }
   })),
 
-  // b136: deed roll honours tier gate (Tier 1 mob = no roll).
-  () => tryRun('b136: rollKillDeed never grants for Tier 1 monsters', () => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      const before = window.G.inventory.farm_deed | 0;
-      // Run many trials — Tier 1 must never grant a deed.
-      const t1 = { tier: 1, name: 'TestSlime' };
-      for (let i = 0; i < 2000; i++) {
-        window.HearthriseFarm.rollKillDeed(t1);
-      }
-      const after = window.G.inventory.farm_deed | 0;
-      assert(after === before,
-        'Tier 1 must never drop deeds, got ' + (after - before) + ' deeds in 2000 rolls');
-    } finally {
-      restoreG(snap);
-    }
-  }),
-
-  // b136: schema migration left plotLevels intact at 1 by default.
-  /* ⚠ THIS PRECONDITION WAS A LEAK AND THE SEAL EXPOSED IT (2026-09-13): nothing in the boot
-     path sets `plotLevels` post-cutover (the v3→v4 save migration is pre-cutover, the beta was
-     wiped), so only the tests above — writing it through a BARE snapshot entry — made the old
-     ambient assertion true. `getPlotLevel()`'s fail-safe is where the invariant lives. */
   () => tryRun('b136: G.plotLevels is a number >=1 (migration default holds)', () => {
     const F = window.HearthriseFarm, snap = snapshotG();
     assert(F && typeof F.getPlotLevel === 'function', 'HearthriseFarm.getPlotLevel is missing — nothing owns the plot tier');
@@ -548,22 +505,21 @@ export default [
       stampBalanceLikeLoad(window.G);
       window.G.stats = window.G.stats || {};
       window.G.stats.kills = 5;
-      // b478: the Home "Harvest" delta must read the LIVE crop counter
-      // (stats.cropsHarvested — what harvestPlot/companions actually write), not the
-      // dead stats.harvested. Baseline the live counter and leave the dead one at 0
-      // so this fails if getTodayDelta ever reverts to the dead field.
-      window.G.stats.cropsHarvested = 10;
-      window.G.stats.harvested = 0;
+      // The Home "Harvest" delta reads stats.harvested — the server's ev:harvest
+      // projection. The client-written cropsHarvested lost its only writer with the
+      // companions (2026-10-14); leave it at 0 so this fails if the delta reverts to it.
+      window.G.stats.harvested = 10;
+      window.G.stats.cropsHarvested = 0;
       window.HearthriseLaunchpad.ensureDailySnapshot();
       // Now mutate
       window.G.gold = 1250;
       stampBalanceLikeLoad(window.G);
       window.G.stats.kills = 7;
-      window.G.stats.cropsHarvested = 13;   // +3 crops harvested today
+      window.G.stats.harvested = 13;   // +3 crops harvested today (as the server projects it)
       const d = window.HearthriseLaunchpad.getTodayDelta();
       assert(d.goldEarned === 250, 'goldEarned should be 250, got ' + d.goldEarned);
       assert(d.kills === 2, 'kills should be 2, got ' + d.kills);
-      assert(d.harvested === 3, 'harvested delta must track cropsHarvested (+3), got ' + d.harvested);
+      assert(d.harvested === 3, 'harvested delta must track the server stats.harvested (+3), got ' + d.harvested);
       // Negative deltas (e.g. spent gold) clamp to 0 — fairness for the player
       window.G.gold = 500;
       stampBalanceLikeLoad(window.G);
@@ -622,12 +578,14 @@ export default [
       'raw_wolf_meat','raw_panther_meat','raw_bear_meat', 'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
       'roasted_carrot','roasted_pumpkin','vegetable_stew',
       'bear_claw_pie','hunters_feast','dragon_stew','lich_soul_soup','void_banquet',
-      'bronze_bar','steel_bar','rune_bar', 'chief_blade_recipe','captain_recipe','alpha_pattern',
-      'spellstone_diagram','gemcutter_note', 'soul_recipe','marrow_cookbook','field_cookbook',
+      'bronze_bar','steel_bar','rune_bar', 'soul_recipe','marrow_cookbook','field_cookbook',
     ];
+    /* W0 cut dragon_marrow_recipe; the 2026-10-14 demolition cut the five gear
+       recipe scrolls (chief_blade_recipe, captain_recipe, alpha_pattern,
+       spellstone_diagram, gemcutter_note) with the gear recipes they taught. */
     const missing = required.filter(id => !window.ITEMS || !window.ITEMS[id]);
     assert(missing.length === 0,
-      'expected all 25 Phase A.1 items present (W0 cut dragon_marrow_recipe), missing: ' + missing.join(','));
+      'expected all ' + required.length + ' Phase A.1 items present, missing: ' + missing.join(','));
     // Non-zero values where expected
     assert(window.ITEMS.bronze_bar.v > 0, 'bronze_bar.v should be > 0');
     assert(window.ITEMS.steel_bar.v > 0, 'steel_bar.v should be > 0');
@@ -646,7 +604,8 @@ export default [
     const copies = Object.keys(C).filter((k) => C[k] !== 0).map((k) => k + '=' + C[k]);
     assert(copies.length === 0, 'legacy.js re-declared a second copy of: ' + copies.join(', ')
       + ' — author content once, in src/data/*');
-    assert(Object.keys(window.ITEMS).length > 400 && Object.keys(window.SKILLS_DEF).length >= 17
+    // 15 skills since stonemason and bountyHunter left (2026-10-14).
+    assert(Object.keys(window.ITEMS).length > 400 && Object.keys(window.SKILLS_DEF).length >= 15
       && window.TREES.length >= 5 && window.ROCKS.length >= 5 && window.FISH_SPOTS.length >= 4
       && Object.keys(window.CROPS).length >= 6,
       'the merged tables must still be the full ESM ones');
@@ -661,9 +620,8 @@ export default [
     const findRecipe = (skill, id) =>
       (r[skill] || []).some(rec => rec.id === id);
     const checks = ('smithing:smelt_bronze smithing:smelt_steel smithing:smelt_rune '
-      + 'cooking:cook_wolf_meat cooking:cook_bear_meat cooking:cook_veg_stew '
-      + 'smithing:forge_chief_blade smithing:forge_captain_blade crafting:craft_alpha_cloak'
-    ).split(' ').map((s) => s.split(':'));
+      + 'cooking:cook_wolf_meat cooking:cook_bear_meat cooking:cook_veg_stew'
+    ).split(' ').map((s) => s.split(':'));   // the three gear rows left with the gear recipes (2026-10-14)
     const missing = checks.filter(([s,id]) => !findRecipe(s, id));
     assert(missing.length === 0,
       'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
@@ -1116,15 +1074,15 @@ export default [
     if (typeof window.buildTibiaDoll !== 'function') return;
     const prev = window._tdPane;
     try {
-      window._tdPane = 'pet';
+      window._tdPane = 'stats';
       const doll = window.buildTibiaDoll();
       if (!doll) return; // EQUIP_SLOTS not ready in this env
       const active = doll.querySelector('.td-tab.active');
-      assert(active && active.getAttribute('data-td-pane') === 'pet',
-        'rebuilt doll did not restore the persisted Companion sub-tab (snap-back regression)');
+      assert(active && active.getAttribute('data-td-pane') === 'stats',
+        'rebuilt doll did not restore the persisted Stats sub-tab (snap-back regression)');
       const gearPane = doll.querySelector('.td-doll');
       assert(gearPane && gearPane.style.display === 'none',
-        'Equipment pane should be hidden when the Companion sub-tab is the persisted one');
+        'Equipment pane should be hidden when the Stats sub-tab is the persisted one');
     } finally { window._tdPane = prev; }
   }),
 
@@ -1824,8 +1782,6 @@ export default [
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       hp: G.playerHp, maxHp: G.playerMaxHp, monster: G.activeMonster,
       mhp: G.monsterHp, mmax: G.monsterMaxHp,
-      traits: JSON.parse(JSON.stringify(G.traits || {})),
-      eat: JSON.parse(JSON.stringify(window.HearthriseAuto.getEat())),
     };
     const row = () => {
       window.renderCombat();
@@ -1846,21 +1802,13 @@ export default [
       G.playerMaxHp = 100; G.playerHp = 30;
       G.inventory = { cooked_shrimp: 5 };
 
-      // Auto-eat not owned → no picker at all (it would configure nothing),
-      // a working manual Eat, and a note that says so.
-      G.traits = {};
+      /* The Auto-Eat picker and its Bounty Shop lock left in the 2026-10-14
+         demolition: there is no picker to configure, a working manual Eat, and
+         a note that says how to heal. */
       let r = row();
-      assert(!r.hasPicker, 'auto-eat picker must not render when the trait is not owned');
+      assert(!r.hasPicker, 'an auto-eat picker rendered — the Auto-Eat surface was demolished');
       assert(/^Eat /.test(r.btn) && !r.disabled, 'a manual Eat button must be offered, got: ' + r.btn);
-      assert(/unlocked in the Bounty Shop/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
-
-      // Trait owned → picker appears and the note explains the threshold.
-      G.traits = { auto_eat: true, auto_eat_2: true };
-      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
-      r = row();
-      assert(r.hasPicker, 'auto-eat picker must render once the trait is owned');
-      assert(/is below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
-      assert(/never auto-eaten/i.test(r.note), 'the note must say Feasts are never auto-eaten, got: ' + r.note);
+      assert(/press Eat/i.test(r.note) && !/Bounty Shop|auto-eat/i.test(r.note), 'the note must say how to heal by hand, got: ' + r.note);
 
       // Full HP → Eat is an honest disabled state, not a silent no-op.
       G.playerHp = 100;
@@ -1879,8 +1827,6 @@ export default [
     } finally {
       G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
       G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
-      G.traits = snap.traits;
-      window.HearthriseAuto.setEat(snap.eat);
       try { window.renderCombat(); } catch (e) { /* restoring state only */ }
     }
   }),
@@ -2273,28 +2219,29 @@ export default [
     try {
       window.showTab('skills');
       window.openSkillDetail('smithing');
-      window.setArtisanCategory('smithing', 'armour');
+      // The armour lane left with the gear recipes (2026-10-14); Tools is a multi-recipe lane that stays.
+      window.setArtisanCategory('smithing', 'tools');
       const detail = document.getElementById('skill-detail');
       const activeOf = () => {
         const el = detail.querySelector('.act-cats .chip.active');
         return el && el.getAttribute('data-artcat');
       };
       assert(detail.querySelector('.act-cats'), 'no category strip rendered on the smithing screen');
-      assert(activeOf() === 'armour', 'category did not select: ' + activeOf());
+      assert(activeOf() === 'tools', 'category did not select: ' + activeOf());
       // Only the selected lane is on screen, and it is not the whole list.
       const shown = detail.querySelectorAll('.act-tile').length;
       const all = window.ARTISAN_RECIPES.smithing.length;
       assert(shown > 0 && shown < all, 'grid shows ' + shown + ' of ' + all + ' — the filter is not applied');
-      const armour = window.categorizeRecipes('smithing', window.ARTISAN_RECIPES.smithing, window.ITEMS)
-        .groups.find((g) => g.key === 'armour');
-      assert(shown === armour.recipes.length,
-        'Armour lane shows ' + shown + ' tiles, expected ' + armour.recipes.length);
+      const lane = window.categorizeRecipes('smithing', window.ARTISAN_RECIPES.smithing, window.ITEMS)
+        .groups.find((g) => g.key === 'tools');
+      assert(shown === lane.recipes.length,
+        'Tools lane shows ' + shown + ' tiles, expected ' + lane.recipes.length);
       // The real snap-back triggers.
       window.addItem('iron_bar', 1);
       window.updateTopbar();
       window.renderSkillDetail('smithing');
-      assert(activeOf() === 'armour', 'category snapped back after addItem/updateTopbar: ' + activeOf());
-      assert(window._artisanCat.smithing === 'armour', '_artisanCat lost the selection');
+      assert(activeOf() === 'tools', 'category snapped back after addItem/updateTopbar: ' + activeOf());
+      assert(window._artisanCat.smithing === 'tools', '_artisanCat lost the selection');
       // Cooking must open on its two named lanes. (renderSkillDetail directly:
       // openSkillDetail defers its paint by a tick, which a sync test can't see.)
       window.__viewedSkillId = 'cooking';

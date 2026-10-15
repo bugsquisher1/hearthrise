@@ -3005,7 +3005,7 @@ export default [
       assert(at(/XP earned/) >= 0 && at(/Kills/) >= 0,
         'the rev. 2 card lost the gains it was built to lead with: ' + t2.join(' | '));
       const iPickedUp = at(/picked up against the Slime after every fall/);
-      const iFix = at(/Auto-Eat was switched off|worth about/);
+      const iFix = at(/Food would have turned|worth about/);
       const iFell = at(/You fell 4 times to the Slime/);
       const iLadder = at(/Recovery grows with every fall/);
       const i40 = at(/got back up at 40% health each time/);
@@ -3397,7 +3397,8 @@ export default [
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
     const S = await import('../../data/shops.js?v=584');
-    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
+    // 86 offers after the 2026-10-14 demolition (traits, dungeons, IAP and themes left the catalogue).
+    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 50,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
 
@@ -3421,7 +3422,7 @@ export default [
        passes trivially if the live table is missing and both sides read
        `undefined`. So prove the live tables are actually here first — this is
        the assertion-that-asserts-nothing check, done before the assertions. */
-    for (const t of ['ROOMS', 'SEED_SHOP', 'EQUIP_SHOP', 'TRAITS', 'IAP_CATALOG', 'BANK_SPACE', 'DUNGEONS']) {
+    for (const t of ['ROOMS', 'SEED_SHOP', 'EQUIP_SHOP', 'BANK_SPACE']) {
       assert(window[t] && (Array.isArray(window[t]) ? window[t].length : Object.keys(window[t]).length),
         'window.' + t + ' is missing or empty at runtime, so comparing prices against it would '
         + 'assert nothing');
@@ -3460,54 +3461,17 @@ export default [
       assert(goldOf('equip.' + s.id) === s.cost, 'equip.' + s.id + ' price disagrees with EQUIP_SHOP');
     }
 
-    /* TRAITS and the bank gem rung — the two non-gold player currencies that
-       the server has no column for and one it does. */
-    for (const id of Object.keys(window.TRAITS)) {
-      const t = window.TRAITS[id];
-      const cur = t.currency === 'marks' ? 'marks' : 'gold';
-      assert(anyOf('trait.' + id, 'currency', cur) === t.cost,
-        'trait.' + id + ' price disagrees with TRAITS');
-    }
+    /* The bank gem rung — the one non-gold player currency with a column. */
     assert(anyOf('bank.gems', 'currency', 'gems') === window.BANK_SPACE.gem.cost,
       'bank.gems price disagrees with BANK_SPACE');
 
-    /* DUNGEONS — the item-priced class, and the one whose spend code has a
-       live `hearth_token` branch that debits G.inventory rather than the
-       currency column. If a dungeon ever gains a gold or token cost, this
-       catches a catalogue that still thinks entry is a key. */
-    for (const id of Object.keys(window.DUNGEONS)) {
-      const d = window.DUNGEONS[id];
-      const o = byId.get('dungeon.' + id);
-      assert(o, 'the catalogue has no offer for dungeon "' + id + '"');
-      const want = [];
-      if (d.cost && d.cost.gold) want.push('currency:gold:' + d.cost.gold);
-      if (d.cost && d.cost.hearth_token) want.push('item:hearth_token:' + d.cost.hearth_token);
-      if (d.cost && d.cost.key) want.push('item:' + d.cost.key + ':1');
-      const got = o.cost.map((l) => l.kind + ':' + l.id + ':' + l.amount);
-      assert(JSON.stringify(want.sort()) === JSON.stringify(got.sort()),
-        'dungeon.' + id + ' entry fee is ' + JSON.stringify(want) + ' live but '
-        + JSON.stringify(got) + ' in the catalogue');
-      assert(o.reqLv === (d.reqLv | 0),
-        'dungeon.' + id + ' gate is Lv ' + d.reqLv + ' live but ' + o.reqLv + ' in the catalogue — '
-        + 'a server that authorises the spend re-checks this');
-    }
-
-    /* IAP — money in CENTS. A float or a string here is a billing bug. */
-    for (const p of window.IAP_CATALOG) {
-      const cents = anyOf('iap.' + p.sku, 'money', 'usd');
-      assert(Number.isSafeInteger(cents) && cents > 0,
-        'iap.' + p.sku + ' price ' + cents + ' is not a positive integer number of cents');
-      assert('$' + (cents / 100).toFixed(2) === String(p.price).replace('/mo', ''),
-        'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
-    }
-
-    /* The catalogue must never be mistaken for complete. Six spend sites
+    /* The catalogue must never be mistaken for complete. Four spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
        no catalogue at all. */
-    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
+    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 4,
       'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
-      + 'known set is 6, and dropping one hides a price the server cannot compute');
+      + 'known set is 4 since the 2026-10-14 demolition, and dropping one hides a price the server cannot compute');
     for (const d of S.DERIVED_PRICES) {
       assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
       assert(d.where && d.formula && d.server_needs,
@@ -3540,7 +3504,7 @@ export default [
             reverted data row would never show up in a DOM sweep of a save that
             has not reached that quest.
          B. STATE-DEPENDENT RENDERERS — the away card, the activity bar, the
-            boss cards, the monster preview. Every one of them carried the word
+            monster preview. Every one of them carried the word
             in EXACTLY ONE of its branches, so a sweep of whatever state the
             suite happens to be in would miss it. Both branches are driven.
          C. THE ACTUAL SCREENS — every tab, rendered, including tooltips
@@ -3558,7 +3522,6 @@ export default [
     const G = window.G;
     const snap = snapshotG();
     const prevTab = window.activeTab;
-    const realHasTrait = window.hasTrait;
     const found = [];
     const scan = (where, text) => {
       const s = String(text == null ? '' : text);
@@ -3571,10 +3534,6 @@ export default [
       const steps = (window.HearthriseCoach && window.HearthriseCoach.steps) || [];
       assert(steps.length > 0, 'no First Steps rows were scanned — pass A would be vacuous');
       steps.forEach((s) => scan('COACH[' + s.id + ']', (s.title || '') + ' ' + (s.body || '') + ' ' + (s.primary || '')));
-      Object.keys(window.TRAITS || {}).forEach((k) => {
-        const t = window.TRAITS[k];
-        scan('TRAITS[' + k + ']', (t.name || '') + ' ' + (t.desc || ''));
-      });
 
       // ── B. BOTH BRANCHES OF EVERY STATE-DEPENDENT RENDERER ────────────────
       const H = window.HearthriseHome;
@@ -3592,7 +3551,6 @@ export default [
 
       window.showTab('combat');
       [false, true].forEach((sustains) => {
-        window.hasTrait = function (id) { return id === 'auto_eat' ? sustains : realHasTrait.apply(this, arguments); };
         G.foodSlot = sustains ? 'cooked_shrimp' : null;
         if (sustains) G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 40 });
         G.activeMonster = 'slime'; G.stats = Object.assign({}, G.stats, { kills: sustains ? 4000 : 3 });
@@ -3600,9 +3558,6 @@ export default [
         const meta = document.getElementById('ab-meta');
         scan('activityBar(sustains=' + sustains + ')', meta ? meta.innerHTML : '');
         G.activeMonster = null;
-        try { window.HearthriseBossOfDay.render(); window.HearthriseBossOfDay.renderWeekly(); } catch (e) {}
-        Array.from(document.querySelectorAll('#panel-combat .botd-away'))
-          .forEach((el, i) => scan('bossCard#' + i + '(sustains=' + sustains + ')', el.innerHTML));
         try {
           window.openMobPreview('slime');
           const mp = document.getElementById('mp-modal');
@@ -3612,7 +3567,7 @@ export default [
 
       // ── C. THE RENDERED SCREENS, TOOLTIPS INCLUDED ────────────────────────
       const TABS = ['home', 'profile', 'character', 'combat', 'skills', 'farming', 'house',
-        'social', 'clan', 'shop', 'market', 'bounty', 'stable', 'events', 'dungeons', 'inventory'];
+        'social', 'shop', 'market', 'inventory'];
       let scanned = 0;
       TABS.forEach((t) => {
         try { window.showTab(t); } catch (e) { return; }
@@ -3629,7 +3584,6 @@ export default [
         'the retired permit wording is back in ' + found.length + ' player-facing place(s):\n  '
         + found.slice(0, 6).join('\n  '));
     } finally {
-      window.hasTrait = realHasTrait;
       restoreG(snap);
       try { window.refreshActivityBar(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -4474,22 +4428,6 @@ export default [
 
   () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
     const snap = snapshotG();
-    /* PIN THE CALENDAR TO A QUIET SEASON FIRST.
-       This test measures what a ROOM RUNG pays, but `getBonus` is additively
-       wrapped by world-events.js, so an active blessing lands in the same
-       number. That made the assertions silently date-dependent: on a `feast_day`
-       (`+0.04 cookSpeed`) the Kitchen-5 row reads 0.14 instead of 0.10, and on a
-       `steady_fire` (`+0.25 noBurn`) EVERY noBurn row goes red — two of the
-       eleven daily events, so this was a ~1-in-6 chance of a red suite that had
-       nothing to do with the code under test. `QUIET` exists in world-events.js
-       for exactly this ("the 'no calendar' control every gate test needs, so an
-       assertion never depends on today's date"); this test simply never took it.
-       Caught on 2026-08-16 when the daily rotated into feast_day mid-session:
-       the same tree ran green three times, then red three times, with no edit in
-       between — and b363 reproduced it identically, which is what proved it was
-       the calendar and not the change under review. */
-    const WE = window.HearthriseWorldEvents;
-    if (WE && typeof WE._force === 'function') WE._force({ daily: WE.QUIET, weekly: WE.QUIET });
     try {
       /* MEASURED EXPECTATIONS, not restated from the table under test:
          src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
@@ -4534,8 +4472,6 @@ export default [
         'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ', expected +0.08');
     } finally {
       restoreG(snap);
-      // Hand the calendar back to the real date for every test after this one.
-      if (WE && typeof WE._force === 'function') WE._force(null);
     }
   }),
   /* ══════════════════════════════════════════════════════════════════════
@@ -4612,15 +4548,8 @@ export default [
       'the whenSignedIn test seams are gone — a test that could only observe "it did not run" would '
       + 'pass against an implementation that threw the callback away');
 
-    /* ── THE CALLER, by name. The suite boots with no session, so muster.js's
-       clock+pledge chain must still be SITTING here waiting. Counting alone
-       would pass the day some other module started deferring and muster
-       stopped, so the label is the assertion.
-       MUTATION: call syncClock() directly from muster's boot() again → RED. */
-    assert(gate._signedInWaiting().indexOf('muster:clock+pledge') !== -1,
-      'muster.js is not holding its clock sync behind a session — it is back to firing hr_server_now '
-      + '420ms after DOMContentLoaded, which is before auth.js can publish a token, which is 3,196 '
-      + 'refused calls a day. Waiting: [' + gate._signedInWaiting().join(', ') + ']');
+    /* The named caller (muster.js's clock+pledge chain) left with the Muster in
+       the 2026-10-14 demolition; the seam's own behaviour is asserted below. */
 
     const Auth = window.HearthriseAuth;
     /* account-gate reads HearthriseAuth.isSignedIn() — not getSession() — so

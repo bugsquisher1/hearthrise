@@ -131,12 +131,6 @@ export default [
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const CF = window.HearthriseCookingFire;
-    /* NO CALENDAR — same reason as b222 SEAM 1 above. `steady_fire` is a daily
-       blessing worth noBurn 0.25, and the burn curve is SUBTRACTIVE, so on the
-       days it is dealt an open fire is 0% rather than 25% and this test's
-       rigged worst-case roll stops being a burn at all. Date-dependent, and it
-       would have gone red on 2026-08-29. */
-    const E = window.HearthriseWorldEvents;
     const saved = {
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
@@ -151,7 +145,6 @@ export default [
        It never surfaced before because the broken hash could only reach a few
        of the nine dailies; with the draw fixed, every calendar-sensitive test
        has to say so. QUIET is the no-calendar control. */
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       G.rooms = {};                                   // open fire
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -205,10 +198,8 @@ export default [
       assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      E._force(null);
       Math.random = saved.random;
       window.HearthriseCore.setRng(null);
-      if (E) E._force(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
@@ -245,14 +236,12 @@ export default [
 
   () => tryRun('b225: the burn risk is on the screen before the player presses the tile', () => {
     const G = window.G;
-    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const saved = {
       rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
     };
     const cook = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     const smith = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });   // b332: see the burn test above
     try {
       assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -284,19 +273,7 @@ export default [
       stampRecordLikeLoad(G);
       if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
 
-      /* b560 inverted the calendar's claim: The Steady Fire is a name and a
-         line of copy, and the engine pays no blessing layer — so it must NOT
-         move the number on the tile, online or not (BLESSING-HONESTY). */
-      const STEADY = E.DAILY.find((d) => d.id === 'steady_fire');
-      assert(STEADY && STEADY.bonus === undefined, 'The Steady Fire must carry no burn-chance table');
-      G.rooms = {};
-      stampRecordLikeLoad(G);
-      const plain = window.cookBurnChance(cook);
-      E._force({ daily: STEADY, weekly: E.QUIET });
-      assert(window.cookBurnChance(cook) === plain,
-        'The Steady Fire moved the burn curve ' + plain + ' → ' + window.cookBurnChance(cook) + ' — the server pays no blessing');
     } finally {
-      if (E) E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
       stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
     }
@@ -310,10 +287,8 @@ export default [
   () => tryRun('b225: building a Kitchen repaints the cooking screen (the risk is never stale)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
-    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const prevTab = window.activeTab;
     const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), inv: G.inventory, skills: JSON.parse(JSON.stringify(G.skills || {})) };
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       if (typeof window.renderSkillDetail !== 'function') return;
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -338,7 +313,6 @@ export default [
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      if (E) E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
       stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
       try { window.showTab(prevTab || 'profile'); } catch {}
@@ -682,11 +656,8 @@ export default [
       ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
       ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
       ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
-      /* Phase A. ⚠ DELIBERATELY A LIST, not `Object.keys(C.bounty)`: deriving it found `BOUNTY_BOARD_TIER_BY_LEVEL` on window as a COPY of the core value rather than the core object — a real defect of this test's own class, owned by the bounty board and NOT fixed in the lane that found it (widening the pin here would red the suite for an unrelated lane). CONFLICTS.md 2026-09-12. */
+      /* Phase A. (The bounty constants left with the bounty board in the 2026-10-14 demolition.) */
       ['COMBAT_STYLES', C.styles.COMBAT_STYLES],
-      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS], ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
-      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT], ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
-      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL], ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
     ];
     for (const [name, coreValue] of pairs) {
       assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
@@ -2112,12 +2083,6 @@ export default [
   }),
 
 
-  // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.
-  () => tryRun('b306: IAP.grant is not exposed on window (console gem/token mint closed)', () => {
-    assert(window.IAP && typeof window.IAP === 'object', 'window.IAP must exist for platform wrappers');
-    assert(typeof window.IAP.grant === 'undefined', 'IAP.grant must NOT be exposed — it mints currency/entitlements with no validation');
-    assert(typeof window.IAP.buy === 'function', 'IAP.buy must still be available');
-  }),
 
   // b306 SECURITY: the admin cheat panel must be owner/dev-only, never openable by
   // a random player on the live host via ?admin=1.
@@ -2360,12 +2325,12 @@ export default [
   // it cannot come back. All four are RED against pre-b319 code.
 
   // (2b-i) The allowlist. The five loop-driven types must never reach the upload
-  // buffer or the POST body; the five low-frequency ones must.
+  // buffer or the POST body; the allowlisted low-frequency ones must.
   () => tryRun('b319: high-frequency events NEVER reach the network; allowlisted ones do', () => {
     const S = window.HearthriseSync, E = window.HearthriseEvents;
     assert(S && typeof S.getEventBuffer === 'function' && typeof S.buildEventRows === 'function', 'b319 telemetry seam must be exposed');
     const HI = ['kill', 'gather', 'eat', 'buffApply', 'companionProc'];
-    const LO = ['companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const LO = ['questClaim', 'boot_probe', 'inv_flip_drift'];
     const saved = S.getEventBuffer();          // the suite must not pollute real telemetry
     const wasEnabled = S.isEventLogEnabled();
     try {
@@ -2404,7 +2369,7 @@ export default [
   // regressed, the fix would have silently broken gameplay instead of the DB.
   () => tryRun('b319: the in-process bus still delivers every event, including the un-uploaded ones', () => {
     const E = window.HearthriseEvents;
-    const ALL = ['kill', 'gather', 'eat', 'buffApply', 'companionProc', 'companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const ALL = ['kill', 'gather', 'eat', 'buffApply', 'companionProc', 'questClaim', 'boot_probe', 'inv_flip_drift'];
     const S = window.HearthriseSync;
     const saved = S.getEventBuffer();
     const seen = {}, offs = [];
@@ -2460,7 +2425,7 @@ export default [
     try {
       S.resetEventLimiter(); S.restoreEventBuffer([]);
       assert(S.setEventLogEnabled(false) === false && S.isEventLogEnabled() === false, 'the switch must actually turn off');
-      ['companionLevelUp', 'questClaim', 'dungeonClear'].forEach((t) => E.emit(t, { smoke: true }));
+      ['questClaim', 'boot_probe', 'inv_flip_drift'].forEach((t) => E.emit(t, { smoke: true }));
       assert(S.getEventBuffer().length === 0, 'no event may be uploaded while logging is off');
       assert(S.getEventStats().dropped.disabled === 3, 'events dropped by the switch are counted');
       // THE POINT: the save path is untouched by the telemetry switch.
@@ -3966,6 +3931,17 @@ export default [
     const dests = document.getElementById('wt-dests');
     const priorMax = rail.style.maxWidth;
     const priorWrap = dests ? dests.style.cssText : '';
+    /* The war cards left in the 2026-10-14 demolition, so the rail can be empty;
+       the scroll cue is the subject here, so fixture cards give it a row. */
+    const fixtureCards = [];
+    if (dests && dests.children.length < 2) {
+      for (let i = 0; i < 6; i++) {
+        const c = document.createElement('div');
+        c.className = 'wt-dest'; c.setAttribute('data-test-fixture', '1');
+        c.style.cssText = 'flex:0 0 160px;width:160px;height:40px';
+        dests.appendChild(c); fixtureCards.push(c);
+      }
+    }
     try {
       rail.style.maxWidth = '240px';                 // force the overflow at any viewport
       if (dests) { dests.style.flexWrap = 'nowrap'; dests.style.minWidth = 'min-content'; }
@@ -3980,6 +3956,7 @@ export default [
       assert(rail.dataset.scroll === 'end', 'a rail at its far end must read "end", got ' + rail.dataset.scroll);
       rail.scrollLeft = 0; rail.dispatchEvent(new Event('scroll'));
     } finally {
+      fixtureCards.forEach((c) => c.remove());
       rail.style.maxWidth = priorMax;
       if (dests) dests.style.cssText = priorWrap;
       dispatchEvent(new Event('resize'));

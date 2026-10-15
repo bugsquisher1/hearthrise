@@ -1235,7 +1235,7 @@
             return '<div class="hd-card hd-duo">' +
               '<div class="mi">' + gly('uiLock', 20, '', 'var(--ink-3)') + '</div>' +
               '<div class="bd"><div class="t">Hero slot ' + (r.slotId + 1) + '</div>' +
-                '<div class="s">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div></div>' +
+                '<div class="s">' + (Number(r.cost).toLocaleString() + ' gold') + '</div></div>' +
               /* A BUTTON THAT CANNOT WORK IS NEVER LIT — the ruling on
                  slotRows().afford in multi-character.js. A lit "Buy" beside
                  "200 gems" on an account holding one gem is the first thing a
@@ -1253,8 +1253,8 @@
                     + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
                   : (r.afford === false
                     ? '<button class="hd-cta ghost" disabled title="You have ' + num(r.cost - r.shortBy)
-                      + ' of ' + num(r.cost) + ' gems">Needs ' + num(r.shortBy) + ' more gems</button>'
-                    : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'))
+                      + ' of ' + num(r.cost) + ' gold">Needs ' + num(r.shortBy) + ' more gold</button>'
+                    : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">Buy</button>'))
                 : '<div class="when">unlock slot ' + r.slotId + ' first</div>') +
             '</div>';
           }).join('');

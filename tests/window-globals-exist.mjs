@@ -38,6 +38,14 @@ const KNOWN_ABSENT = {
   HearthrisePostSignup: 'W0-INTRO-1 asserts the cut post-signup welcome is ABSENT — the read IS the assertion',
   HearthriseBetaBanner: 'W0-INTRO-1 asserts the cut open-beta welcome card is ABSENT — the read IS the assertion',
   HearthriseTelemetry: 'optional analytics sink; client-state.js guards with `if (T && typeof T.event === "function")`',
+  /* DEMOLISHED 2026-10-14. Each read survives only in a C2/B1-owned file (net/accrue,
+     net/record, combat-screens, render/hunt-panel) that the demolition lane may not
+     touch; the same names are on tests/demolition-absence.mjs's shrink-only ALLOW
+     list, which goes red if any of them spreads. Delete each row with its read. */
+  HearthriseCharms: 'demolished (charms); read left in combat-screens.js (B1) — demolition-absence ALLOW',
+  HearthriseRenown: 'demolished (renown); read left in net/accrue.js (C2) — demolition-absence ALLOW',
+  HearthriseDaily: 'demolished (dailies); read left in net/record.js (C2) — demolition-absence ALLOW',
+  HearthriseMuster: 'demolished (muster); read left in render/hunt-panel.js (B1) — demolition-absence ALLOW',
 };
 
 const NAME = /\bwindow\.(Hearthrise[A-Za-z0-9_]*)/g;

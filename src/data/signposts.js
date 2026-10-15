@@ -13,7 +13,7 @@ export const SIGNPOSTS = Object.freeze({
     'bag.weapons': { text: 'No weapons in your bag; the one you wield sits on your character. Shops sell a starter blade, bow and staff, and Smithing and Crafting make better ones.', door: { tab: 'shops', label: 'Visit Shops' } },
     'bag.armor': { text: 'No armour in your bag; what you wear sits on your character. Shops sell boots, gloves and a first helm, and Smithing and Crafting make the rest.', door: { tab: 'shops', label: 'Visit Shops' } },
     'bag.jewelry': { text: 'No jewellery in your bag. Shops sell a ring and a necklace, and Crafting makes finer ones.', door: { tab: 'shops', label: 'Visit Shops' } },
-    'bag.food': { text: 'No food in your bag, so Auto-Eat has nothing to reach for. Cook what you fish or farm, or buy a cooked meal under Supplies in Shops.', door: { skill: 'cooking', label: 'Go to Cooking' } },
+    'bag.food': { text: 'No food in your bag. Cook what you fish or farm, or buy a cooked meal under Supplies in Shops.', door: { skill: 'cooking', label: 'Go to Cooking' } },
     'bag.mats': { text: 'No materials in your bag. Chop, mine and fish on the Skills screen; monsters drop hides, fangs and stranger things.', door: { tab: 'skills', label: 'Start a skill' } },
     'bag.seeds': { text: 'No seeds in your bag. Supplies in Shops sells every seed the farm grows, and each crop opens at its own Farming level.', door: { tab: 'shops', label: 'Visit Shops' } },
     'bag.bones': { text: 'No bones in your bag. Many monsters leave bones behind, and burying them at the altar trains Prayer.', door: { tab: 'combat', label: 'Find a fight' } },

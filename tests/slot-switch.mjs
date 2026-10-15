@@ -145,7 +145,7 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
     const setup = await page.evaluate(async ({ mutate, LOG, MARK }) => {
       const P = window.HearthriseProfile;
       P.init();
-      window.G.gems = 5000;
+      window.G.gold = Math.max(Number(window.G.gold) || 0, 20000);   // slot 1 costs 15,000 gold (SLOT_COSTS_GOLD)
       // gold-arm: stamp the armed balance via the REAL applyRecord path so
       // unlockSlot's affordability read is KNOWN (as it is post-hr_load in prod).
       if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
@@ -374,7 +374,7 @@ export async function slotSwitchGuard(browser, url, opts = {}) {
     const setup = await page.evaluate(() => {
       const P = window.HearthriseProfile;
       P.init();
-      window.G.gems = 5000;
+      window.G.gold = Math.max(Number(window.G.gold) || 0, 20000);   // slot 1 costs 15,000 gold (SLOT_COSTS_GOLD)
       // gold-arm: stamp the armed balance via the REAL applyRecord path (see above).
       if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
       const r = P.unlockSlot(1);                      // direct: the buy dialog is tested separately

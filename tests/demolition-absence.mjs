@@ -91,6 +91,8 @@ export const ALLOW = {
   'supabase/functions/hr-accrue/dungeon-settle.js': ['dungeon_settle'],
   'supabase/functions/hr-accrue/quartermaster-buy.js': ['quartermaster_buy'],
   'supabase/functions/hr-accrue/claim-reward.js': ['claim_reward'],
+  // ELEM-5b pins accrue.js's top-level envelope `enchant` adoption; it leaves with C2's half.
+  'src/features/smoke/monsters-inventory-and-brand.js': ['enchant'],
   // B1 (combat screens, death sheet, hunt panel): the hunt-screen rebuild.
   'src/features/combat-screens.js': ['HearthriseCharms'],
   'src/features/death-sheet.js': ['TRAITS'],
@@ -98,7 +100,7 @@ export const ALLOW = {
   // D2 data: the raid-boss table item-authority still partitions on until M1/M2.
   'src/data/raid-bosses.js': ['RAID_BOSSES'],
 };
-export const ALLOW_MAX = 24;
+export const ALLOW_MAX = 25;
 
 /* ── Comments out, strings kept (a verb is a string) ──────────────────── */
 export function stripComments(t) {

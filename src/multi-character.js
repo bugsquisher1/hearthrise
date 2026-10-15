@@ -15,7 +15,6 @@
 //       {id:0, name:'...', combatLv:..., totalLv:..., createdAt:..., lastSeen:...},
 //       ...
 //     ],
-//     entitlements:  {hearthHall:true, ...},         // ACCOUNT-level, not per-character
 //     (NO ownedThemes / ownedCosmetics: gem-unlock ownership is the SERVER's set
 //      — hr_state_of `gem_unlocks`, read through legacy.js ownsGemUnlock. A copy
 //      here would be a second answer to one question, in a store a console edits.)
@@ -26,7 +25,7 @@
 //
 // HARD CAP: 5 slots. Pricing: slot 1 free, slots 2-5 escalating GOLD (designer
 // ruling 2026-10-14 §4: gems leave the game until monetization is decided).
-// Hearth Hall Premium unlocks 3 of the 4 paid slots automatically.
+// (The Hearth Hall Premium waiver left with IAP in the 2026-10-14 demolition.)
 //
 // Migrating an existing single-save player: on first run with this
 // module loaded, copy 'hearthbound-save-v2' → 'hearthrise:char:0'
@@ -625,10 +624,7 @@
     var G = window.G;
     if(!G) return { ok:false, reason:'The game is still loading — try again in a moment' };
     var cost = SLOT_COSTS_GOLD[slotId] || 0;
-    // Hearth Hall Premium grants 3 of the 4 paid slots free (slots 1, 2, 3).
-    var hasPremium = profile.entitlements && profile.entitlements.hearthHall;
-    var freeFromPremium = hasPremium && slotId >= 1 && slotId <= 3;
-    if(!freeFromPremium && !window.balCanAfford(cost, 'gold')){
+    if(!window.balCanAfford(cost, 'gold')){
       return { ok:false, reason: window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold')
         : window.balShortfall(cost, 'gold') };
     }
@@ -674,7 +670,7 @@
        because nothing told the topbar its balance had changed. Same two-line
        pairing every other gem sink already does — see buyCosmetic in legacy.js. */
     try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
-    if(typeof window.notify === 'function') window.notify('Unlocked slot ' + (slotId+1) + (freeFromPremium ? ' (Premium)' : ' for ' + cost.toLocaleString() + ' gold'), 'levelup');
+    if(typeof window.notify === 'function') window.notify('Unlocked slot ' + (slotId+1) + ' for ' + cost.toLocaleString() + ' gold', 'levelup');
     return { ok: true };
   }
 
@@ -695,11 +691,7 @@
       return Promise.resolve({ ok:false, reason:'Unlock hero slots in order' });
     }
     var n = slotId + 1;
-    var opts = next.free
-      ? { title:'Unlock hero slot ' + n + '?',
-          body:'Hero slot ' + n + ' is included with Hearth Hall Premium — unlocking it costs you nothing.',
-          confirmLabel:'Unlock', cancelLabel:'Not now' }
-      : { title:'Spend ' + next.cost.toLocaleString() + ' gold?',
+    var opts = { title:'Spend ' + next.cost.toLocaleString() + ' gold?',
           body:'Unlock hero slot ' + n + ' for ' + next.cost.toLocaleString() + ' gold. This '
              + 'purchase cannot be undone.',
           confirmLabel:'Buy slot ' + n, cancelLabel:'Not now' };
@@ -1047,19 +1039,9 @@
       var nextId = 0;
       while(nextId < MAX_SLOTS && ownsSlot(nextId)) nextId++;
       if(nextId >= MAX_SLOTS) return null;
-      /* ⚠ `free` IS DEVICE-LOCAL AND IS NOW DISPLAY-ONLY. Under the arm the
-         Hearth Hall waiver is a fact about OWNERSHIP that the server decides
-         (hr_hero_slots_of reads an `entitlement:hearthHall` flag row), so a
-         waived slot arrives ALREADY OWNED and never reaches this function at
-         all — which is why `free` is forced false once the server has spoken.
-         Pre-envelope, and on a build where gems are still the client's, the old
-         localStorage rule stands so nothing changes byte-for-byte. */
-      var hasPremium = !serverKnown() && p.entitlements && p.entitlements.hearthHall;
-      var free = hasPremium && nextId >= 1 && nextId <= 3;
       return {
         slotId: nextId,
-        cost: free ? 0 : SLOT_COSTS_GOLD[nextId],
-        free: !!free,
+        cost: SLOT_COSTS_GOLD[nextId],
         serverKnown: serverKnown(),
       };
     },
@@ -1116,15 +1098,6 @@
       }
       for(var i = 0; i < MAX_SLOTS; i++){
         if(i === active || ownsSlot(i)) continue;
-        /* ⚠ `free` IS DISPLAY-ONLY AND DEVICE-LOCAL. See canUnlockNext: under the
-           arm the Hearth Hall waiver is decided SERVER-SIDE and a waived slot
-           arrives already owned, so it renders as a hero row and never as a
-           "free unlock" button. `hearthrise:profile` is localStorage that nothing
-           in the shipped build ever writes — one devtools line used to be three
-           free hero slots — so once the server has spoken, this claim is not
-           consulted. */
-        var hasPremium = !_srv && p.entitlements && p.entitlements.hearthHall;
-        var free = hasPremium && i >= 1 && i <= 3;
         /* b465 — `canBuy` NEVER MEANT "you can buy this".
            It means "this is the next slot in order", and both renderers read it
            as permission: a brand-new account holding ONE gem was shown "200
@@ -1136,7 +1109,7 @@
            balance is UNKNOWN (server not yet heard from): unknown is not a
            shortfall, and a renderer must not paint it as one — the same
            distinction balShortfall() draws for gold. */
-        var _cost = free ? 0 : SLOT_COSTS_GOLD[i];
+        var _cost = SLOT_COSTS_GOLD[i];
         var _have = null;
         try {
           var _B = window.HearthriseBalance;
@@ -1146,10 +1119,10 @@
           if (typeof _have !== 'number' || !isFinite(_have)) _have = null;
         } catch (e) { _have = null; }
         rows.push({
-          kind: 'locked', slotId: i, free: !!free,
+          kind: 'locked', slotId: i,
           cost: _cost, canBuy: (i === buyNext),
-          afford: free ? true : (_have === null ? null : _have >= _cost),
-          shortBy: (free || _have === null) ? 0 : Math.max(0, _cost - _have),
+          afford: _have === null ? null : _have >= _cost,
+          shortBy: _have === null ? 0 : Math.max(0, _cost - _have),
           /* ── THE HONEST BUTTON (2026-09-08) ─────────────────────────────
              `canBuy` still means only "this is the next rung in the ladder"
              (b465). What was missing is whether the SERVER can be asked at all:
@@ -1275,9 +1248,9 @@
              is how the rule erodes. */
           '<div class="cs-slot-portrait">' + lockGlyph() + '</div>' +
           '<div class="cs-slot-meta">' +
-            '<div class="cs-slot-name">Hero ' + (r.slotId+1) + (r.free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
-            /* b373 — "900 gems", not "900 💎". The last emoji on this modal. */
-            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (Number(r.cost).toLocaleString() + ' gold')) + '</div>' +
+            '<div class="cs-slot-name">Hero ' + (r.slotId+1) + '</div>' +
+            /* b373 — a word, not an emoji. The last emoji on this modal. */
+            '<div class="cs-slot-stats">' + Number(r.cost).toLocaleString() + ' gold</div>' +
           '</div>' +
           /* b465 — a Buy you cannot pay for is disabled, and says why. Unknown
              (afford === null) still offers the button: we do not know that they
@@ -1293,9 +1266,9 @@
               ? '<button class="cs-buy" disabled title="Waiting for the realm to confirm which '
                 + 'heroes this account owns">' + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
               : (r.afford === false
-                ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy) + ' of ' + r.cost + ' gems">'
-                  + 'Needs ' + r.shortBy + ' more gems</button>'
-                : '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'))
+                ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy).toLocaleString() + ' of ' + r.cost.toLocaleString() + ' gold">'
+                  + 'Needs ' + r.shortBy.toLocaleString() + ' more gold</button>'
+                : '<button class="cs-buy" data-buy="' + r.slotId + '">Buy</button>'))
             : '<div class="cs-locked-tag">unlock the previous slot first</div>') +
         '</div>';
       }).join('');

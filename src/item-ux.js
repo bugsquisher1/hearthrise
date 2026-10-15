@@ -210,7 +210,6 @@
       if(food.buffText){
         marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiSpark',13,'--gold-2') + '</span><b>' + food.buffText + '</b></div>';
       }
-      marketBlock += '<div class="ttl-row-2"><i>' + (food.autoEatable ? 'Auto-Eat can use this' : 'Never auto-eaten') + '</i></div>';
     } else {
       if(item.heals){
         marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiHeart',13,'--red') + '</span><b>+' + item.heals + ' HP</b></div>';

@@ -88,13 +88,11 @@
       gold:          (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (window.G.gold | 0),
       kills:         stats.kills | 0,
       gathered:      stats.gathered | 0,
-      /* b478: harvest reads cropsHarvested, NOT the dead `harvested`. Farm harvest
-         increments G.stats.cropsHarvested (companions.js/harvestPlot); the old
-         `harvested` field is never written on a crop harvest, so the Home "Harvest"
-         tile printed 0 forever — the same dead-field class as the b341 xp tile.
-         The delta key below stays `harvested` so consumers (home-dashboard.js) are
-         unchanged; only the SOURCE counter moves to the live one. */
-      harvested:     stats.cropsHarvested | 0,
+      /* Harvests read `stats.harvested`: the SERVER's ev:harvest, projected by
+         accrue.js EVENT_COUNTER_PROJECTION. The client-written cropsHarvested
+         (b478) had one writer, companions.js's harvest hook, which left with the
+         companions in the 2026-10-14 demolition. */
+      harvested:     stats.harvested | 0,
     };
     window.G.daily.snapshot = fresh;
     if(typeof window.saveLocal === 'function'){
@@ -117,7 +115,7 @@
         ? 0 : Math.max(0, ((typeof window.balOr === 'function' ? window.balOr('gold', 0) : (window.G.gold|0))) - snap.gold),
       kills:        Math.max(0, (stats.kills|0)   - snap.kills),
       gathered:     Math.max(0, (stats.gathered|0)- snap.gathered),
-      harvested:    Math.max(0, (stats.cropsHarvested|0)-snap.harvested),
+      harvested:    Math.max(0, (stats.harvested|0)-snap.harvested),
     };
   }
 
@@ -334,8 +332,7 @@
         verb: (qdest && qdest.verb) || 'Go',
         deepLink: function(){
           var QN = window.HearthriseQuestNav;
-          if(QN && typeof QN.go === 'function'){ QN.go(q); return; }
-          if(typeof window.openQuestsModal === 'function') window.openQuestsModal();
+          if(QN && typeof QN.go === 'function') QN.go(q);
         },
         _cmp: pq,
         _tier: qtier,

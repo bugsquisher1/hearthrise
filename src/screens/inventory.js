@@ -76,6 +76,8 @@ var CATEGORIES = [
   {id:'mats',    glyph:'uiOre',    name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
   {id:'seeds',   glyph:'uiSeed',   name:'Seeds',        test:function(it){return it && it.seed;}},
   {id:'bones',   glyph:'uiBone',   name:'Bones',        test:function(it){return it && it.buryXp;}},
+  /* Tools stayed as optional boosts (designer ruling, 595b566a), so their bag class stays too (b487). */
+  {id:'tools',   glyph:'uiPickaxe',name:'Tools',        test:function(it){return it && it.type==='tool';}},
   {id:'recipes', glyph:'uiScroll', name:'Recipes',      test:function(it){return it && it.recipe;}},
 ];
 

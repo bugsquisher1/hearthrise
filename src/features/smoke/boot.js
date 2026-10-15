@@ -131,14 +131,16 @@ export default [
        gone, so a tap for it would be a tap on nothing. This list is the census of
        SURVIVING migrated sites: a name here that the registry does not report is
        still a dropped trigger, which is the property this test exists to hold.
-       'activities-autoopen' left with the deleted activities-grid.js twin; 'auto-open-activity' is the surviving site. */
+       'activities-autoopen' left with the deleted activities-grid.js twin; 'auto-open-activity' is the surviving site.
+       'bounty-tab', 'clan-activity', 'dungeons-render', 'stable-render' and 'muster-events' left with their
+       systems in the 2026-10-14 demolition. */
     const EXPECTED = [
-      'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
-      'clan-activity', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
-      'character-rebuild', 'dungeons-render', 'nav-hub-strip', 'journal', 'obs-tabchange',
-      'character-page', 'stable-render', 'combat-tier-chips',
+      'inv-new', 'combat-style-selector', 'character-render', 'panel-extras',
+      'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
+      'character-rebuild', 'nav-hub-strip', 'journal', 'obs-tabchange',
+      'character-page', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
-      'muster-events', 'screen-primers',
+      'screen-primers',
     ];
     const missing = EXPECTED.filter((n) => !names.includes(n));
     assert(missing.length === 0, 'showTab taps never registered (trigger dropped in migration): ' + missing.join(', '));

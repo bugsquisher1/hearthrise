@@ -35,17 +35,6 @@ export default [
 
 
 
-  () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
-    assert(typeof window._scvResolvePlayerHp === 'function', 'the boss survival rule seam must exist');
-    // The exact tester scenario: HP already near 0, taking a lethal blow, WITH food (heal>0).
-    const afterLethal = window._scvResolvePlayerHp(5, 40, 3, 255);
-    assert(afterLethal <= 0, 'a lethal blow must leave hp<=0 even with heal-on-hit, got ' + afterLethal);
-    // A glancing blow on a living fighter still heals (sustain must keep working).
-    const sustained = window._scvResolvePlayerHp(100, 5, 3, 255);
-    assert(sustained > 100 - 5, 'a surviving fighter must still heal on hit, got ' + sustained);
-    // Heal never overflows max HP.
-    assert(window._scvResolvePlayerHp(254, 1, 50, 255) === 255, 'heal must clamp to max HP');
-  }),
 
   () => tryRun('b248: bag scroll survives an in-place re-render (paione: inventory snapped to top mid-fight)', () => {
     assert(typeof window._nearestScrollable === 'function', 'the scroll-preserving helper must exist');
@@ -643,13 +632,12 @@ export default [
       window.hideAcquisitionTip();
       return txt;
     };
-    /* Craft-only items across four benches — none has a drop, node or shop row
-       to fall back on, so each one is a real test of the recipe path. */
+    /* Craft-only items — none has a drop, node or shop row to fall back on, so
+       each one is a real test of the recipe path. (dressed_block and ember_rune
+       left with the Stonemason and the enchant runes, 2026-10-14.) */
     const CASES = [
-      ['dressed_block', 'Stonemason'],
       ['rune_blank', 'Runecrafting'],   // W0: the base blank cuts moved to Runecrafting
       ['normal_plank', 'Crafting'],
-      ['ember_rune', 'Runecrafting'],
     ];
     CASES.forEach(([id, skill]) => {
       const txt = ask(id);
@@ -1088,8 +1076,11 @@ export default [
       'the item-index seams (itemDesc/itemSourceLine/itemUsedInLine) must exist');
     // Flavour descriptions authored for the whole table.
     assert(window.itemDesc('steel_sword') && window.itemDesc('steel_sword').length > 8, 'items must carry a flavour description');
-    // Source: a crafted item names its craft; a mined ore names Mining.
-    assert(/Smithing/i.test(window.itemSourceLine('steel_sword')), 'a crafted item must name its craft source, got: ' + window.itemSourceLine('steel_sword'));
+    // Source: a crafted item names its craft; a mined ore names Mining. (The gear
+    // recipes left in the 2026-10-14 demolition, so the crafted fixture is the
+    // first live smithing output rather than the steel sword.)
+    const smithed = window.ARTISAN_RECIPES.smithing[0].output;
+    assert(/Smithing/i.test(window.itemSourceLine(smithed)), 'a crafted item must name its craft source, got: ' + window.itemSourceLine(smithed));
     assert(/Mining/i.test(window.itemSourceLine('iron_ore')), 'a mined ore must name Mining, got: ' + window.itemSourceLine('iron_ore'));
     // Used-in: a common ingredient lists what it makes.
     assert(window.itemUsedInLine('iron_bar').length > 0, 'a common ingredient must list what it is used in');
@@ -1104,8 +1095,8 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('item flavour coverage — Hearthfinds and dungeon uniques explain themselves too', () => {
-    for (const id of ['dungeon_scrip', 'emberheart', 'voidmaw_scepter']) {
+  () => tryRun('item flavour coverage — Hearthfinds and boss uniques explain themselves too', () => {
+    for (const id of ['emberheart', 'voidmaw_scepter']) {   // dungeon_scrip left with the dungeons
       assert(typeof window.itemDesc(id) === 'string' && window.itemDesc(id).length > 0, `"${id}" must carry a flavour line`);
     }
   }),
@@ -1459,7 +1450,7 @@ export default [
     assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 2 }) === 'bag.hidden', 'a filtered bag must not claim the items are gone');
     assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 0 }) === 'bag.weapons', 'an empty class must use its own line');
     assert(SP.door('bag.seeds').tab === 'shops', 'the seeds door must open Shops');
-    assert(/Auto-Eat/.test(SP.fill('bag.food')), 'the food line must name Auto-Eat');
+    assert(/No food/.test(SP.fill('bag.food')) && !/Auto-Eat/.test(SP.fill('bag.food')), 'the food line must say the bag is empty, and never name the demolished Auto-Eat');
   }),
 
   () => tryRunAsync('EVEN-CARDS-1: every card in a recipe grid row has one width, one height, one art box and one pinned status line — and padded sprite art fills the box', async () => {
@@ -1467,7 +1458,7 @@ export default [
     const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing;
     assert(T && typeof T.__tileForArtisan === 'function' && R, 'the artisan tile seam and the smithing recipes must be published');
     const pick = (id) => { const r = R.find((x) => x.id === id); assert(r, 'smithing recipe ' + id + ' is gone — re-pick the fixture'); return r; };
-    const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_deathsteel_ingot'].map(pick);
+    const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_rune'].map(pick);
     assert(Object.keys(row[4].inputs || {}).length >= 3, 'the long-input fixture must have three inputs');
     /* …and one card that carries an extra line (the wear gate), so the row has
        a genuinely taller card the grid must stretch the others to. */

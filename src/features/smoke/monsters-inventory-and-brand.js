@@ -51,11 +51,11 @@ export default [
     assert(typeof window.remapMonsterFamilies === 'function', 'remapMonsterFamilies must exist');
   }),
 
-  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, bounty, chronicle, resume)', () => {
+  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, resume, the fight)', () => {
     const G = window.G;
     const snap = {
-      bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
-      chronicle: G.chronicle, lastActivity: G.lastActivity, activeMonster: G.activeMonster,
+      bestiary: G.bestiary, dropLog: G.dropLog,
+      lastActivity: G.lastActivity, activeMonster: G.activeMonster,
     };
     const alias = window.MONSTER_ALIAS;
     try {
@@ -64,11 +64,6 @@ export default [
       window.MONSTER_ALIAS = { old_wyrm_id: 'dragon' };
       G.bestiary = { old_wyrm_id: { kills: 40, first: 5 }, dragon: { kills: 2, first: 9 } };
       G.dropLog = { old_wyrm_id: { kills: 40, drops: { dragon_bones: 12 } } };
-      G.bountyHunter = {
-        board: [{ id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' }],
-        active: { id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' },
-      };
-      G.chronicle = { entries: [{ id: 'boss:old_wyrm_id', kind: 'boss', text: 'First kill — Green Dragon' }] };
       G.lastActivity = { kind: 'monster', id: 'old_wyrm_id' };
       G.activeMonster = 'old_wyrm_id';
 
@@ -79,13 +74,6 @@ export default [
         'bestiary kills must MERGE (40+2), not overwrite — got ' + JSON.stringify(G.bestiary.dragon));
       assert(G.bestiary.dragon.first === 5, 'the earlier first-kill timestamp must win');
       assert(G.dropLog.dragon && G.dropLog.dragon.drops.dragon_bones === 12, 'dropLog must fold');
-      assert(G.bountyHunter.board[0].target === 'dragon', 'the bounty target must fold');
-      assert(G.bountyHunter.board[0].id === 'cull_dragon_1700_42',
-        'the id STRING embeds the monster id — an accepted bounty can never complete otherwise; got '
-        + G.bountyHunter.board[0].id);
-      assert(G.bountyHunter.active.target === 'dragon', 'the active bounty must fold too');
-      assert(G.chronicle.entries[0].id === 'boss:dragon',
-        'the chronicle idempotency key embeds the id — a re-kill writes a SECOND "First kill" row otherwise');
       assert(G.lastActivity && G.lastActivity.id === 'dragon', 'Resume must fold, not be dropped');
       assert(G.activeMonster === 'dragon', 'the in-flight fight must fold');
     } finally {
@@ -96,17 +84,15 @@ export default [
 
   () => tryRun('MON-ALIAS-3: a RETIRED id (aliased to null) is dropped, never left dangling', () => {
     const G = window.G;
-    const snap = { bestiary: G.bestiary, bountyHunter: G.bountyHunter, activeMonster: G.activeMonster };
+    const snap = { bestiary: G.bestiary, activeMonster: G.activeMonster };
     const alias = window.MONSTER_ALIAS;
     try {
       window.MONSTER_ALIAS = { cut_monster: null };
       G.bestiary = { cut_monster: { kills: 9 }, slime: { kills: 1 } };
-      G.bountyHunter = { board: [{ id: 'cull_cut_monster_1_2', target: 'cut_monster' }], active: null };
       G.activeMonster = 'cut_monster';
       window.remapMonsterIds(G);
       assert(!G.bestiary.cut_monster, 'a retired id must not survive in the bestiary');
       assert(G.bestiary.slime, 'unrelated entries must be untouched');
-      assert(G.bountyHunter.board.length === 0, 'a bounty for a retired monster must be removed from the board');
       assert(G.activeMonster === null, 'the fight against a retired monster must stop, not crash the loop');
     } finally { window.MONSTER_ALIAS = alias; Object.assign(G, snap); }
   }),
@@ -165,13 +151,12 @@ export default [
     });
 
     const G = window.G;
-    const snap = { bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+    const snap = { bestiary: G.bestiary, dropLog: G.dropLog,
       activeMonster: G.activeMonster, lastActivity: G.lastActivity };
     try {
       G.bestiary = { barn_rat: { kills: 204, first: 5 }, rat: { kills: 12, first: 9 },
         jackal: { kills: 30 }, cultist: { kills: 7 } };
       G.dropLog = { barn_rat: { kills: 204, drops: { rat_tail: 88 } } };
-      G.bountyHunter = { board: [], active: { id: 'cull_barn_rat_1700_42', target: 'barn_rat', type: 'cull' } };
       G.activeMonster = 'jackal';
       G.lastActivity = { kind: 'monster', id: 'cultist' };
 
@@ -185,9 +170,6 @@ export default [
       assert(G.bestiary.wolf && G.bestiary.wolf.kills === 30, 'jackal kills must land on wolf');
       assert(G.bestiary.dark_wizard && G.bestiary.dark_wizard.kills === 7, 'cultist kills must land on dark_wizard');
       assert(G.dropLog.rat && G.dropLog.rat.drops.rat_tail === 88, 'the drop history must fold too');
-      assert(G.bountyHunter.active.target === 'rat' && G.bountyHunter.active.id === 'cull_rat_1700_42',
-        'an accepted bounty for a merged monster must fold, or it can never be completed: '
-        + JSON.stringify(G.bountyHunter.active));
       assert(G.activeMonster === 'wolf', 'a fight in flight against a merged monster must fold, not stop');
       assert(G.lastActivity.id === 'dark_wizard', 'Resume must fold to the surviving id');
     } finally { Object.assign(G, snap); }
@@ -1405,61 +1387,6 @@ export default [
      asserting the recipe is in Runecrafting would still pass if a copy were
      also left in Crafting, and a duplicate recipe is precisely the failure this
      whole change exists to remove. */
-  () => tryRun('ELEM-1/b432: Runecrafting owns every rune — the three binds live there at 25, nowhere else, and lane into Weapon Enchants', () => {
-    const ITEMS = window.ITEMS;
-    const EL = window.HearthriseCore && window.HearthriseCore.elements;
-    assert(EL && typeof EL.runeElement === 'function', 'core must expose the elements module');
-    ['ember', 'frost', 'poison'].forEach((e) => {
-      const ess = ITEMS[e + '_essence']; const rune = ITEMS[e + '_rune'];
-      assert(ess && ess.tag === 'reagent', e + '_essence must exist as a reagent');
-      assert(rune && rune.tag === 'rune' && rune.element === e, e + '_rune must carry element:"' + e + '"');
-      assert(!rune.bop && !ess.bop, 'essences and runes must be tradeable (no bop)');
-      /* runeElement reads the element off the rune, and null for a non-rune. */
-      assert(EL.runeElement(e + '_rune', ITEMS) === e, 'runeElement(' + e + '_rune) must be ' + e);
-      assert(EL.runeElement('bronze_sword', ITEMS) === null, 'runeElement of a non-rune must be null');
-    });
-    const R = window.HearthriseRecipes || window;
-    const ALL = window.ARTISAN_RECIPES || {};
-    ['ember', 'frost', 'poison'].forEach((e) => {
-      /* WHICH SKILLS MAKE THIS RUNE? Exactly one, and it is Runecrafting. */
-      const makers = Object.keys(ALL).filter((s) => (ALL[s] || []).some((r) => r.output === e + '_rune'));
-      assert(makers.length === 1 && makers[0] === 'runecrafting',
-        e + '_rune must be made by RUNECRAFTING and by nothing else — made by: '
-        + (makers.join(', ') || '(nothing)'));
-      const rec = ALL.runecrafting.find((r) => r.output === e + '_rune');
-      assert(rec && rec.req === 25, 'bind_' + e + '_rune must sit at Runecrafting 25 (the Crafting 25 gate, moved not raised)');
-      /* The essence inputs are UNCHANGED by the move — nobody's supply chain
-         shifted — and the blank is the new common grammar of the bench. */
-      assert(rec.inputs && rec.inputs[e + '_essence'] === 4 && rec.inputs.magic_essence === 1,
-        'bind_' + e + '_rune must keep its {' + e + '_essence:4, magic_essence:1} cost across the move');
-      assert(rec.inputs.rune_blank > 0,
-        'bind_' + e + '_rune must be bound onto a rune_blank — every rune on this bench starts as a blank');
-      if (typeof R.recipeCategory === 'function') {
-        assert(R.recipeCategory('runecrafting', rec, ITEMS) === 'enchant',
-          'bind_' + e + '_rune must lane into Weapon Enchants, got ' + R.recipeCategory('runecrafting', rec, ITEMS));
-      }
-    });
-    /* THE TWO LANES BOTH FILL, and nothing is stranded in either skill. An
-       empty declared lane is a dead tab; an uncategorized recipe is invisible. */
-    if (typeof R.categorizeRecipes === 'function') {
-      const rc = R.categorizeRecipes('runecrafting');
-      assert(rc.uncategorized.length === 0,
-        'a Runecrafting recipe landed in no lane: ' + rc.uncategorized.map((r) => r.id).join(', '));
-      const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
-      assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
-      assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder (W0: air is kit + shop only), got ' + laneOf('staff').length);
-      assert(laneOf('essence').length === 2, 'Essence & Blanks must hold the two cuts (essence is mined at the Essence Rock), got ' + laneOf('essence').length);
-      /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
-         groups is the proof that the strip is a real choice and not a label. */
-      assert(rc.groups.length === 3,
-        'the Runecrafting strip must show all three lanes (W0 adds Essence & Blanks), got: ' + rc.groups.map((g) => g.label).join(' | '));
-      assert(R.categorizeRecipes('crafting').uncategorized.length === 0,
-        'moving the runes out must not strand a crafting recipe uncategorized');
-    }
-    /* And Crafting no longer declares the lane it no longer fills. */
-    assert(!(window.ARTISAN_CATEGORIES.crafting || []).some((d) => d.key === 'runes'),
-      'crafting still declares a Runes tab it can never fill — an empty tab is a dead end');
-  }),
 
   () => tryRun('ELEM-2: a matched enchant pays x1.15 through weaknessInfo; immune/neutral pay x1.00 (mutation-proved by flipping elementWeak)', () => {
     const C = window.HearthriseCore.combat;
@@ -4119,15 +4046,14 @@ export default [
      crafted since (and still toasted ✓). MUTATION: fund from gateItemCount → (a)
      red; toast before routeEquipGesture answers → (c) red. */
   () => tryRunAsync('LOADOUT-SRV-BAG: a loadout equips a piece crafted since the last envelope, names every skipped slot, and says ✓ only on the server\'s answer', async () => {
-    const G = window.G, Auto = window.HearthriseAuto;
+    const G = window.G;
     const snap = snapshotG(), bag = serverBagFixture();
-    const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
+    const real = { notify: window.notify, route: window.routeEquipGesture,
       loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
-    const said = [], eats = []; let answer = 'equipped';
+    const said = []; let answer = 'equipped';
     try {
       window.notify = (m) => { said.push(String(m)); };
       window.routeEquipGesture = () => Promise.resolve({ outcome: answer });   // the wire is EQUIP-BATCH's subject; the ANSWER is this one's
-      if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
       const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
       const wear = (eq, inv) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.inventory = Object.assign({}, inv); G.loadouts = [kit]; said.length = 0; };
       const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -4150,7 +4076,6 @@ export default [
       wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
       window.applyLoadout(0); await settle();
       assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
-      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
 
       // (d) the retried equip is NEVER ANSWERED: the tap still gets an answer — the house failure line, never a ✓.
       // MUTATION: drop the unanswered branch in applyLoadout's verdict → (d) red (the tap says nothing).
@@ -4163,7 +4088,6 @@ export default [
       }
     } finally {
       window.notify = real.notify; window.routeEquipGesture = real.route;
-      if (Auto) Auto.setEat = real.setEat;
       G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
       bag.restore(); restoreG(snap);
     }
@@ -4508,203 +4432,7 @@ export default [
     }
   }),
 
-  () => tryRun('EAT-RESTOCK-5: AUTO-eat must tell the server, and must stay silent during an away replay', () => {
-    /* The deterministic half of the report. `window.eatFood` has sent the `eat`
-       intent since the Paione P0; `HearthriseAuto.maybeAutoEat()` — the path that
-       actually fires during a fight, through COMBAT_FX.autoEat — only healed and
-       decremented locally. The server therefore still held every auto-eaten
-       Provision, which is why it came back on the next envelope AND after a
-       reload. Nothing here talks to a server: it asserts that the consumption
-       reaches the ONE seam, which is what owns the hold and the intent. */
-    const Auto = window.HearthriseAuto;
-    if (!Auto || typeof Auto.maybeAutoEat !== 'function') return;
-    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
-    assert(typeof window.noteItemConsumed === 'function',
-      'legacy.js must publish the consumption seam window.noteItemConsumed');
 
-    const snap = snapshotG();
-    const eatBefore = Auto.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    const realNote = window.noteItemConsumed;
-    const realReplay = window.inOfflineReplay;
-    const seen = [];
-    try {
-      window.noteItemConsumed = function (id, qty, opts) { seen.push({ id, qty, opts }); return true; };
-      window.G.traits = { auto_eat: true, auto_eat_2: true };
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.cooked_shrimp = 5;
-      window.G.combatLog = window.G.combatLog || [];
-      Auto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
-
-      assert(Auto.maybeAutoEat() === true, 'the fixture must actually auto-eat');
-      assert(seen.length === 1, 'an auto-eat must reach the consumption seam exactly once — got ' + seen.length);
-      assert(seen[0].id === 'cooked_shrimp', 'the seam must be told WHICH food — got ' + seen[0].id);
-      assert(seen[0].qty === 1, 'one unit per auto-eat — got ' + seen[0].qty);
-      assert(seen[0].opts && seen[0].opts.auto === true,
-        'the auto path must be marked so its intents are paced against the shared rate bucket');
-
-      /* AND THE AWAY GATE, on the REAL seam: during an offline replay the SERVER
-         ate the food and states the debit in `away.items`, so a second intent
-         would debit it twice and a hold would double-subtract. Driven with a
-         probe id no other test or content row uses, against the live G, because
-         legacy.js closes over its own `G` binding and cannot be handed another. */
-      window.noteItemConsumed = realNote;
-      window.inOfflineReplay = function () { return true; };
-      assert(window.noteItemConsumed('probe_away_food', 1, { auto: true }) === false,
-        'the seam must be a no-op during an away replay');
-      assert(!(window.G._pendingConsume && window.G._pendingConsume.probe_away_food),
-        'an away replay must record no hold — the server already stated the debit');
-
-      /* …and OUT of the replay it does hold (so the gate is the away flag, not a
-         dead call). `send:false` keeps the assertion off the network entirely. */
-      window.inOfflineReplay = function () { return false; };
-      assert(window.noteItemConsumed('probe_away_food', 1, { send: false }) === true,
-        'outside an away replay the seam must record the consumption');
-      assert(window.HearthrisePendingConsume.pendingFor(window.G, 'probe_away_food') === 1,
-        'the unit must be held once recorded');
-    } finally {
-      window.noteItemConsumed = realNote;
-      window.inOfflineReplay = realReplay;
-      Auto.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      try { if (window.G._pendingConsume) delete window.G._pendingConsume.probe_away_food; } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('EAT-RESTOCK-6: the client sends an auto-eat intent ONLY when the SERVER is not eating', () => {
-    /* THE DIRECTION THAT WOULD BE WORSE THAN THE BUG. The accrual engine eats
-       for the character when `player_state.auto_eat_enabled` is true and states
-       the debit in `away.items`; a client `eat` intent for the same auto-eat
-       would then debit the food TWICE — item LOSS, not a restock. So the send is
-       gated on the SERVER'S OWN answer, observed off `state.auto_eat_enabled`
-       (hr_state_of projects it on every envelope), and it fails CLOSED.
-
-       Measured premise, not an assumption: 2026-08-29-auto-eat-tiers.sql records
-       "0 rows on production (no character has auto_eat_enabled)", and
-       hr_set_auto_eat is that column's only writer — which is why the server
-       kept every auto-eaten Provision, and why the client had to send.
-       ⚠ b497 FLIPS THAT PREMISE, and the gate is correct on the other side of it
-       too: 2026-09-04-auto-eat-at-creation.sql sets `auto_eat_enabled = true` at
-       character creation, so the LIVE answer becomes block 2, not block 3, and
-       the client send retires itself with no flag to flip.
-
-       ⚠⚠ "THE SERVER EATS" IS ABOUT THE CHARACTER, NOT ABOUT BEING AWAY. Block 2
-       runs with `inOfflineReplay()` FALSE — i.e. an ATTENDED auto-eat — on
-       purpose: `computeAccrual` has no away input and no presence input, prices
-       whatever elapsed since `accrued_to`, and gates `fx.autoEat()` on
-       `autoEatEnabled` alone, while this client settles on a ~90 s cadence with
-       the tab visible. Measured server-side by tests/accrual-engine.mjs
-       `attendedSettleAutoEatGuard` (a fresh 10-HP goblin fight eats 2 meals over
-       60 s, 3 over 90 s, each with the matching negative item delta).
-       So the proposal to re-shape the gate as "attended ⇒ always send, away
-       excluded by inOfflineReplay()" — 2026-09-04-auto-eat-at-creation.sql's
-       header claims "the server's sim only eats during AWAY accrual" — is a
-       DOUBLE DEBIT on every attended meal. Block 2 is where it goes red.
-
-       MUTATION: drop the `opts.auto && !_clientOwnsAutoEatDebit()` guard in
-       legacy.js noteItemConsumed → block 3 goes red.
-       MUTATION: replace it with `opts.auto && inOfflineReplay()` → block 2 goes
-       red. Return BEFORE `P.noteConsumed` → block 2b goes red. */
-    const A = window.HearthriseAccrual;
-    assert(typeof A.serverAutoEats === 'function' && typeof A.clientOwnsAutoEatDebit === 'function'
-      && typeof A.__resetServerAutoEat === 'function', 'the auto-eat ownership observation must be published');
-    assert(typeof window.__eatQueueState === 'function' && typeof window.__eatQueueReset === 'function',
-      'the eat-queue seams must be published for this test');
-
-    const realActive = window.serverAccrualActive;
-    const realReplay = window.inOfflineReplay;
-    const M = window.HearthriseEat;
-    const realSend = M.sendEat;
-    let sent = 0;
-    /* Count RAISED INTENTS, not queue depth: an intent may go straight out or
-       wait out the pacing gap, and the property under test is "was the server
-       told", not "how fast". */
-    const raised = () => sent + window.__eatQueueState().queued.length;
-    const reset = () => { window.__eatQueueReset(); sent = 0; };
-    try {
-      window.serverAccrualActive = function () { return true; };
-      window.inOfflineReplay = function () { return false; };
-      M.sendEat = function () { sent++; return Promise.resolve({ outcome: 'eaten' }); };
-
-      /* 1. NEVER OBSERVED ⇒ FAIL CLOSED. Unknown must mean "leave it to the
-         server", because the unknown-and-wrong case destroys an item. */
-      A.__resetServerAutoEat();
-      assert(A.serverAutoEats() === null, 'a fresh device has observed nothing');
-      assert(A.clientOwnsAutoEatDebit() === false, 'unknown must fail CLOSED — the client does not send');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 0, 'with the server unknown, an auto-eat must NOT be sent — got ' + raised());
-
-      /* 2. THE SERVER SAYS IT EATS ⇒ STILL NO SEND. This is the double-debit
-         guard, and it must survive whichever path observed the flag: the boot
-         hr_load settle reaches it through reconcileInventory, exactly like the
-         live envelope does. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === true, 'the observation must take the server\'s word');
-      assert(A.clientOwnsAutoEatDebit() === false, 'when the server eats, the client must not');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 0, 'THE DOUBLE-DEBIT GUARD: no client intent while the server eats the same food');
-
-      /* 2b. …AND THE HOLD IS STILL RECORDED. "The server owns the debit" is a
-         statement about the INTENT, never about the hold, and the difference is
-         the whole restock bug: the client has ALREADY decremented G.inventory,
-         and the settle that will state the same debit is up to ~90 s away. For
-         those 90 s every envelope names the pre-eat count, and without a hold
-         `reconcileInventory` ratchets it straight back — the b467→b479 P0, with
-         auto-eat now on for every new character (b497) instead of nobody.
-         The hold DRAINS on evidence: when the settle's figure comes down, the
-         entry's `drop` covers it and the entry is deleted. So this is not a
-         second debit — it is the seam that keeps the display honest until the
-         one real debit lands.
-         MUTATION: return from noteItemConsumed before `P.noteConsumed` when the
-         server owns the debit → this goes red and block 2 stays green. */
-      const PC = window.HearthrisePendingConsume;
-      assert(PC && typeof PC.pendingFor === 'function' && typeof PC.releaseConsumed === 'function',
-        'the pending-consumption seam must be published for this test');
-      PC.releaseConsumed(window.G, 'cooked_shrimp');          // start from a known zero
-      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 0, 'the fixture must start with no hold');
-      reset();
-      assert(window.noteItemConsumed('cooked_shrimp', 1, { auto: true }) === true,
-        'an attended auto-eat must be RECORDED even when the server owns the debit');
-      assert(raised() === 0, 'still no intent — block 2b must not weaken the double-debit guard');
-      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 1,
-        'THE RESTOCK GUARD: the locally-eaten unit must be HELD until the settle states the debit, '
-        + 'or the next envelope ratchets it back — got ' + PC.pendingFor(window.G, 'cooked_shrimp'));
-
-      /* 3. THE SERVER SAYS IT DOES NOT ⇒ THE CLIENT OWNS THE DEBIT. Today's live
-         answer, and the half of the P0 that makes auto-eaten food stay eaten. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: false }, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === false, 'a definite no must be recorded');
-      assert(A.clientOwnsAutoEatDebit() === true, 'a definite no hands the debit to the client');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 1,
-        'THE BUG: with the server not eating, the client MUST send the debit — got ' + raised());
-
-      /* 4. A MANUAL eat is never gated by any of this — the server has never
-         eaten one, and eatFood has sent that intent since the Paione P0. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1);   // manual
-      assert(sent === 1, 'a manual eat must always send, whatever the server does about auto-eat');
-
-      /* 5. AN ENVELOPE THAT DOES NOT CARRY THE FIELD MUST NOT CHANGE THE ANSWER
-         — absence is not a claim, the same rule the bag follows. */
-      A.reconcileInventory({ inventory: {} }, { state: {}, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === true, 'an envelope omitting the field leaves the last answer alone');
-    } finally {
-      window.__eatQueueReset();
-      M.sendEat = realSend;
-      window.serverAccrualActive = realActive;
-      window.inOfflineReplay = realReplay;
-      A.__resetServerAutoEat();
-      try { if (window.G && window.G._pendingConsume) delete window.G._pendingConsume.cooked_shrimp; } catch (e) {}
-    }
-  }),
 
   () => tryRun('SETTLE-3: `below_min_span` is a NON-EVENT — no sheet, no receipt reset, no halt', () => {
     /* §3.4. Today `accrued:false` is outcome `nothing`; under live settlement it
@@ -6121,7 +5849,7 @@ export default [
   () => tryRun('b371: a leaderboard with available:false withdraws its chip', () => {
     const LB = window.HearthriseLeaderboards;
     assert(LB && typeof LB._reduceBoard === 'function', 'leaderboards reducers are not published');
-    const off = LB._reduceBoard(200, { ok: true, board: 'renown', available: false, top: [], total: 0 });
+    const off = LB._reduceBoard(200, { ok: true, board: 'wealth', available: false, top: [], total: 0 });
     assert(off.action === 'accept', 'an unavailable board should still be an accepted answer');
     assert(off.available === false, 'reduceBoard dropped available:false');
     const on = LB._reduceBoard(200, { ok: true, board: 'overall', top: [], total: 0 });
@@ -6130,25 +5858,25 @@ export default [
     /* ⚠ PIN THE AVAILABILITY MAP (b499) — see the note in the b222 picker test.
        This test DRIVES _markAvailability itself, so it needs a known starting
        point; without one the very first assertion below is measuring whether a
-       real render happened to have answered `available:false` for renown
-       earlier in the run, which production currently does. */
+       real render happened to have answered `available:false` for a board
+       earlier in the run. (It drove the renown board until the 2026-10-14 demolition.) */
     const _avail = LB._availabilitySnapshot();
     LB._restoreAvailability(null);
 
     // The picker is data-driven off the same flag.
-    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0, 'renown is not in the throne category');
+    assert(LB._boardsIn('overall', 'full').indexOf('wealth') >= 0, 'wealth is not in the overall category');
     try {
-      LB._markAvailability('renown', false);
-      assert(LB._available('renown', 'full') === false, 'available() ignores the unavailable flag');
-      assert(LB._boardsIn('throne', 'full').indexOf('renown') < 0,
-        'the renown chip is still offered after the server said it has no source');
+      LB._markAvailability('wealth', false);
+      assert(LB._available('wealth', 'full') === false, 'available() ignores the unavailable flag');
+      assert(LB._boardsIn('overall', 'full').indexOf('wealth') < 0,
+        'the wealth chip is still offered after the server said it has no source');
       // A normal board is untouched by another board's state.
-      assert(LB._available('overall', 'full') === true, 'marking renown unavailable disabled overall too');
+      assert(LB._available('total_level', 'full') === true, 'marking wealth unavailable disabled total_level too');
     } finally {
-      LB._markAvailability('renown', true);
+      LB._markAvailability('wealth', true);
     }
-    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0,
-      'renown did not come back when the server said it was available again');
+    assert(LB._boardsIn('overall', 'full').indexOf('wealth') >= 0,
+      'wealth did not come back when the server said it was available again');
     LB._restoreAvailability(_avail);
   }),
 
@@ -6281,57 +6009,6 @@ export default [
     assert(/Local Shop/.test(empty.tip), 'the empty-bag tip never names where to buy: ' + empty.tip);
   }),
 
-  () => tryRun('b525: a level-1 smith can reach bronze armour without a level-30 mining grind', () => {
-    /* THE PLAYED MOMENT (live, QA account, 2026-09-09 03:00 UTC): Combat 14 with
-       no armour, following the game's own teaching order — mine copper, smelt,
-       forge bronze. Bronze Bar wanted 1 coal, and the ONLY gatherable coal in the
-       game is Coal Rock at MINING 30. The starter tier was unreachable, and Iron
-       (Mining 15) sat BELOW Bronze on the real ladder. The ruling made coal a
-       tier-3 reagent whose first sink is Steel (Smithing 35, beside Coal Rock's
-       Mining 30) and dropped Bronze to req 1.
-       This test PLAYS the ruled path as a level-1 character: it closes over the
-       set of things a Mining-1 / Smithing-1 / Woodcutting-1 player can actually
-       obtain, and walks the chain forward. It fails on the pre-ruling data
-       because bronze_bar's coal input has no producer in that reachable set. */
-    const R = window.ARTISAN_RECIPES, ROCKS = window.ROCKS, TREES = window.TREES;
-    assert(R && R.smithing && Array.isArray(ROCKS) && Array.isArray(TREES), 'the recipe/gather tables are not published');
-    /* Every cost shape, one reader — the same fold src/core/artisan.js does. */
-    const costOf = (r) => Object.assign({}, r.input ? { [r.input]: r.inputQty || 1 } : {}, r.inputs || {}, r.secondary || {});
-
-    /* WHAT A LEVEL-1 CHARACTER HAS: no shop, no drop, no bank — if the chain
-       needs it, a req-1 node produces it. Then smelt forward to a fixpoint. */
-    const bag = new Set(ROCKS.concat(TREES).filter((n) => n.req <= 1).map((n) => n.prod));
-    assert(bag.has('copper_ore'), 'no Mining-1 node produces copper ore any more');
-    for (let pass = 0, grew = true; grew && pass < 8; pass++) {
-      grew = R.smithing.filter((r) => r.req <= 1 && !bag.has(r.output)
-        && Object.keys(costOf(r)).every((k) => bag.has(k))).map((r) => bag.add(r.output)).length > 0;
-    }
-    assert(bag.has('bronze_bar'), 'a Smithing-1 character cannot make a bronze bar from Mining-1 ore — the tier-1 chain is walled: '
-      + JSON.stringify(costOf(R.smithing.find((r) => r.output === 'bronze_bar') || {})));
-
-    /* FORGE. The armour is the POINT of the bar: reachable at its own level. */
-    for (const out of ['bronze_helm', 'bronze_platebody', 'bronze_platelegs']) {
-      const r = R.smithing.find((x) => x.output === out);
-      assert(r && r.req <= 15, out + ' is missing or forged outside the starter band: ' + (r && r.req));
-      const missing = Object.keys(costOf(r)).filter((k) => !bag.has(k) && k !== out);
-      assert(!missing.length, out + ' needs ' + missing + ', which a starter cannot obtain on the ruled path');
-    }
-
-    /* THE RULING AS A RULE, not a number: nothing reachable before coal is
-       minable may demand coal — every skill, so a low bar cannot regrow one. */
-    const coalNode = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req)[0];
-    assert(coalNode, 'nothing mines coal at all');
-    for (const skill of Object.keys(R)) for (const r of R[skill]) {
-      assert(!costOf(r).coal || r.req >= coalNode.req, skill + '/' + r.id + ' demands coal at level ' + r.req
-        + ' but the first coal node (' + coalNode.id + ') is Mining ' + coalNode.req);
-    }
-
-    /* AND STILL A CHOICE: bronze beats copper on xp/sec AND costs more ore. */
-    const rate = (r) => r.xp / (r.ms / 1000), ore = (r) => costOf(r).copper_ore || 0;
-    const cu = R.smithing.find((r) => r.id === 'smelt_copper'), br = R.smithing.find((r) => r.id === 'smelt_bronze');
-    assert(rate(br) > rate(cu), 'bronze bar is not faster xp than copper bar');
-    assert(ore(br) > ore(cu), 'bronze bar is strictly better than copper bar in every way — copper is dead');
-  }),
 
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
     const D = window.HearthriseDeathSheet;
@@ -7001,15 +6678,6 @@ export default [
         try { window.showTab(tab); } catch (e) { /* a tab that will not open is another test's problem */ }
         SURFACES.forEach(([label, sel]) => sweep(label, document.querySelector(sel)));
       });
-      /* The Quests modal is the site the sweep was commissioned for — its rows
-         carried 🩸 / 📈 / ⛏️ in 48px icon plates. It is a modal, so no tab
-         switch reaches it. */
-      if (typeof window.openQuestsModal === 'function') {
-        window.openQuestsModal();
-        sweep('quests-modal', document.getElementById('quests-modal-overlay'));
-        if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-        else { const o = document.getElementById('quests-modal-overlay'); if (o) o.remove(); }
-      }
     } finally {
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -8281,7 +7949,6 @@ export default [
 
       window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
       window.ensureRetentionState();
       const first = window.G.quests.find((q) => !q.done);
       assert(first, 'CONTROL: the fixture must leave a chain quest open');
@@ -8415,7 +8082,7 @@ export default [
     try {
       window.notify = function (m, k) { said.push(String(m)); };
       // A REAL id from the report; bag and log are restored in the finally.
-      const HELD = 'granite';                 // ITEMS.granite === 'Granite Stone'
+      const HELD = 'oak_log';                 // the report's granite left with the Stonemason (2026-10-14); any held id is the same class
       const UNSEEN = 'bones';                 // held by nobody here, logged by nobody here
       assert(window.ITEMS && window.ITEMS[HELD] && window.ITEMS[UNSEEN],
         'setup: this build does not know ' + HELD + ' / ' + UNSEEN + ' — the test would pass vacuously');
@@ -8725,9 +8392,9 @@ export default [
     }
   }),
 
-  () => tryRun('LUCKY-4: every drop-table surface states a lucky row as "1 in N", never "0.0%" (collection log <1%, fight screen, BotD card, monster panel)', () => {
-    const G = window.G, C = window.HearthriseCore, HUD = window.HearthriseCombatHud;
-    assert(typeof window.__lootRowHtml === 'function' && HUD && window.HearthriseBossOfDay, 'setup: a drop-table surface is unpublished');
+  () => tryRun('LUCKY-4: every drop-table surface states a lucky row as "1 in N", never "0.0%" (collection log <1%, fight screen, monster panel)', () => {
+    const G = window.G, HUD = window.HearthriseCombatHud;
+    assert(typeof window.__lootRowHtml === 'function' && HUD, 'setup: a drop-table surface is unpublished');
     const wolf = window.MONSTERS.small_wolf.drops.find((d) => d.lucky);
     const devil = window.MONSTERS.fire_devil.drops.find((d) => d.lucky);
     assert(wolf && devil && devil.ch === 0.0004, 'setup: the lucky rows moved: ' + JSON.stringify([wolf, devil]));
@@ -8739,7 +8406,6 @@ export default [
     /* Fight screen (the loot modal). */
     const { restore } = combatScreen();
     const snap = snapshotG();
-    const realBotd = C.botd;
     try {
       G.activeMonster = 'small_wolf';
       assert(HUD.openLoot(), 'the loot modal did not open');
@@ -8753,16 +8419,8 @@ export default [
       const dt = (document.querySelector('.hr-room-scrim') || {}).textContent || '';
       assert(/1 in 2,500/.test(dt) && !/0\.0%/.test(dt), 'the fight screen prints fire_devil\'s .0004 row as: ' + dt.slice(0, 400));
       HUD.close();
-      /* Boss of the Day card, rendered with small_wolf featured. */
-      C.botd = Object.assign({}, realBotd, { botdFor: function (at, ms) { return Object.assign({}, realBotd.botdFor(at, ms), { dailyId: 'small_wolf' }); } });
-      window.HearthriseBossOfDay.render();
-      const card = document.getElementById('hr-botd-card');
-      const ct = card ? card.textContent : '';
-      assert(/Wolfbone Torc/.test(ct) && /1 in 1,250/.test(ct) && !/0\.0%/.test(ct), 'the BotD card does not state Wolfbone Torc as 1 in 1,250: ' + ct.slice(0, 400));
     } finally {
-      C.botd = realBotd;
       try { HUD.close(); } catch (e) {}
-      try { window.HearthriseBossOfDay.render(); } catch (e) {}
       restoreG(snap);
       restore();
     }

@@ -125,37 +125,31 @@ export default [
 
   /* HOUSE-SERVER-BAG-2 — EACH item-gate reader counts the server's bag, asserted at
      its own seam: HOUSE-SERVER-BAG-1 drives heldOf + upgradeRoom and cannot see
-     canPayCost (the room/plot grid button), _costPart (the cost chip) or
-     roomRungItemGate (the blueprint line). Three states each: UNSTATED (pending,
-     never a figure), the server holds NONE, and the CONTROL where it holds them.
-     MUTATION: point canPayCost, _costPart or roomRungItemGate back at G.inventory → red. */
-  () => tryRun('HOUSE-SERVER-BAG-2: canPayCost, the cost chip and the blueprint gate each count the server\'s bag', () => {
+     canPayCost (the room/plot grid button) or _costPart (the cost chip). Three
+     states each: UNSTATED (pending, never a figure), the server holds NONE, and
+     the CONTROL where it holds them. (The blueprint gate left with the dungeon
+     blueprints in the 2026-10-14 demolition.)
+     MUTATION: point canPayCost or _costPart back at G.inventory → red. */
+  () => tryRun('HOUSE-SERVER-BAG-2: canPayCost and the cost chip each count the server\'s bag', () => {
     const G = window.G, snap = snapshotG(), bag = serverBagFixture();
-    assert(typeof window.canPayCost === 'function' && typeof window._costPart === 'function'
-      && typeof window.roomRungItemGate === 'function', 'CONTROL: an item-gate reader is unpublished');
-    const bp = Object.keys(window.ITEMS).find((k) => window.ITEMS[k] && window.ITEMS[k].unlocks === 'kitchen.2');
-    assert(!!bp, 'CONTROL: no blueprint unlocks kitchen.2, so the item gate cannot be measured');
+    assert(typeof window.canPayCost === 'function' && typeof window._costPart === 'function',
+      'CONTROL: an item-gate reader is unpublished');
+    assert(typeof window.roomRungItemGate === 'undefined', 'the demolished blueprint gate is back');
     try {
-      G.inventory = Object.assign({}, G.inventory, { normal_log: 9999, [bp]: 5 });   // the display bag holds plenty
+      G.inventory = Object.assign({}, G.inventory, { normal_log: 9999 });   // the display bag holds plenty
       delete G._serverBag;                                                           // (1) no envelope has stated the bag
       assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost paid from an UNSTATED server bag');
       const p0 = window._costPart('normal_log', 1);
       assert(/is-short/.test(p0) && /no figure yet/.test(p0), 'the cost chip counted the display bag before the server spoke: ' + p0);
-      const g0 = window.roomRungItemGate('kitchen', 2);
-      assert(g0 && g0.ok === false && g0.known === false && g0.have === -1,
-        'the blueprint gate read an unstated bag as a figure (pending is not 0): ' + JSON.stringify(g0));
       bag.agree({});                                                                 // (2) the realm holds none
       assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost counted the display bag over the server\'s empty one');
       const p1 = window._costPart('normal_log', 1);
       assert(/is-short/.test(p1) && /you have 0/.test(p1), 'the cost chip counted the display bag: ' + p1);
-      const g1 = window.roomRungItemGate('kitchen', 2);
-      assert(g1.ok === false && g1.known === true && g1.have === 0, 'the blueprint gate counted the display bag: ' + JSON.stringify(g1));
-      bag.agree({ normal_log: 3, [bp]: 1 });                                         // (3) CONTROL: the realm holds them
+      bag.agree({ normal_log: 3 });                                                  // (3) CONTROL: the realm holds them
       assert(window.canPayCost({ normal_log: 3 }) === true && window.canPayCost({ normal_log: 4 }) === false,
         'canPayCost must count the server\'s 3, exactly');
       const p2 = window._costPart('normal_log', 3);
       assert(/is-met/.test(p2) && /you have 3/.test(p2), 'the cost chip must show the server\'s 3: ' + p2);
-      assert(window.roomRungItemGate('kitchen', 2).ok === true, 'a blueprint the server holds must meet the gate');
     } finally { restoreG(snap); bag.restore(); }
   }),
 
@@ -165,7 +159,7 @@ export default [
      Kitchen Blueprint II" / "You have none" — a claim about a bag nobody had read.
      The bar, the gate line and the authority's toast now all say "still being counted".
      MUTATION: restore the `m.id + ' balance not loaded yet'` branch in the modal
-     builder, or `?? 0` in roomRungItemGate → red. */
+     builder → red. (The blueprint half left with the dungeon blueprints, 2026-10-14.) */
   () => tryRun('HOUSE-SERVER-BAG-3: before the bag is stated the House says "still being counted", never "none"', () => {
     const G = window.G, H = window.HearthriseHomestead, RM = window.HearthriseRoomModal, snap = snapshotG(), bag = serverBagFixture();
     assert(H && typeof H.modalDescriptor === 'function' && RM, 'CONTROL: the room modal is unpublished');
@@ -179,16 +173,10 @@ export default [
       assert(btn && btn.disabled, 'a Build against an unstated bag must be disabled: ' + JSON.stringify(btn));
       assert(/Normal Log still being counted/.test(btn.why) && !/balance not loaded yet/.test(btn.why),
         'an unstated ITEM must read "still being counted", never currency words: ' + btn.why);
-      assert(/Kitchen Blueprint II still being counted/.test(btn.why) && !/Needs Kitchen Blueprint II/.test(btn.why),
-        'the blueprint must read pending, not "Needs": ' + btn.why);
+      assert(!/Blueprint/.test(btn.why), 'the demolished blueprint gate is back on the Build bar: ' + btn.why);
       assert(!/Missing [^·]*still being counted/.test(btn.why), 'an unstated count is pending, not "Missing": ' + btn.why);
       H.openRoom('kitchen');
-      const line = document.querySelector('.hr-room-body .hr-room-gate');
-      assert(line && line.classList.contains('is-pending') && /Still being counted/.test(line.textContent)
-        && !/You have none/.test(line.textContent), 'the gate line claimed a figure: ' + (line && line.outerHTML));
-      /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
-      const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
-      assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
+      assert(!document.querySelector('.hr-room-body .hr-room-gate'), 'the demolished blueprint gate line is back in the room modal');
       /* Visual gate: the modal's uncounted cost chip ("—/20 Normal Log") rendered in the red "short" colour.
          MUTATION: drop `is-pending` from costChip's known:false branch → red. */
       const qty = [...document.querySelectorAll('.hr-room-wrap .hr-cs-qty')].find((c) => c.querySelector('.bal-pending') && /Normal Log/.test(c.textContent));
@@ -200,17 +188,11 @@ export default [
       /* …and the House card's chips are neither met nor short: no red "none" for a count nobody has read. */
       const host = document.createElement('div'); H.renderRoomGrid(host);
       const cost = host.querySelector('.hh-room[data-room="kitchen"] .hh-room-cost');
-      const gateChip = cost && cost.querySelector('.hh-cost-gate'), logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
-      assert(gateChip && gateChip.classList.contains('is-pending') && !gateChip.classList.contains('is-short'),
-        'the pending blueprint chip must be is-pending, not is-short: ' + (gateChip && gateChip.outerHTML));
+      const logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
       assert(logChip && logChip.classList.contains('is-pending'), 'the pending cost chip must be is-pending: ' + (logChip && logChip.outerHTML));
       window.notify = (m) => { said.push(String(m)); };
       assert(window.upgradeRoom('kitchen') === false, 'the authority must refuse against an unstated bag');
-      assert(said.some((m) => /Kitchen Blueprint II still being counted/.test(m)) && !said.some((m) => /^Requires a/.test(m)),
-        'the authority\'s toast must say pending, not "Requires a": ' + JSON.stringify(said));
-      bag.agree();                                                                  // CONTROL: stated, no blueprint
-      said.length = 0; window.upgradeRoom('kitchen');
-      assert(said.some((m) => /^Requires a Kitchen Blueprint II/.test(m)), 'CONTROL: a stated bag without the blueprint must say "Requires a": ' + JSON.stringify(said));
+      assert(!said.some((m) => /Blueprint/.test(m)), 'the authority named the demolished blueprint: ' + JSON.stringify(said));
     } finally { window.notify = realNotify; restoreG(snap); bag.restore(); RM.close(); }
   }),
 
@@ -1491,18 +1473,17 @@ export default [
      The price fixture comes from the AUTHORED table — a hardcoded 500 goes green
      on the day a Designer reprices Forest Lodge and silently stops testing that
      the gesture matches the quote. */
-  () => tryRun('RESIDUE-CUT-1: ownedThemes / ownedCosmetics / unlockedRecipes are OFF the residue allowlist; houseTheme is on it', () => {
+  () => tryRun('RESIDUE-CUT-1: ownedThemes / ownedCosmetics / unlockedRecipes / houseTheme are OFF the residue allowlist', () => {
     const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
     assert(Array.isArray(RF) && RF.length > 0, 'RESIDUE_FIELDS is not published — this test would pass vacuously');
-    ['ownedThemes', 'ownedCosmetics', 'unlockedRecipes'].forEach(function (f) {
+    /* houseTheme left with the house themes (2026-10-14 demolition): a pointer
+       to a theme that no longer exists is a dead residue field. */
+    ['ownedThemes', 'ownedCosmetics', 'unlockedRecipes', 'houseTheme'].forEach(function (f) {
       assert(RF.indexOf(f) < 0,
         'THE CLASS: `' + f + '` is back on the residue allowlist. It is a client-written bag the '
         + 'server stores verbatim, and it asserts ownership of a SERVER-SOLD capability — themes and '
         + 'cosmetics are hr_buy_gem_unlock\u2019s, recipes are hr_recipe_learn\u2019s. Ownership has one source.');
     });
-    assert(RF.indexOf('houseTheme') >= 0,
-      '`houseTheme` must STAY residue: it is the equipped pointer, a per-character display preference '
-      + 'the server has no column for, and it is read fail-closed (activeHouseTheme)');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════

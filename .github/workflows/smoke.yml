@@ -3426,6 +3426,19 @@ jobs:
           node tests/goal-board-gone.mjs
           node tests/goal-board-gone.mjs --selftest
 
+      # DEMOLITION ABSENCE (2026-10-14 clean slate). Clans, raids, the party,
+      # muster, rally, world events, renown, dailies, login streaks, deeds,
+      # bounty, marks, traits, dungeons, the Quartermaster, gem unlocks, themes,
+      # IAP, the Hearth Token, charms, the Hunter's Ledger, companions, pets,
+      # BotD, Set the Night and enchanting left the client. Their names, verbs,
+      # files and doors stay gone; the engine reads C2/B1 still carry are an
+      # allowlist that may only shrink. --selftest re-plants one of each.
+      - name: Demolition absence — the demolished systems stay gone
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/demolition-absence.mjs
+          node tests/demolition-absence.mjs --selftest
+
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;
       # this is the floor that keeps it there. Client-only (item-descriptions.js

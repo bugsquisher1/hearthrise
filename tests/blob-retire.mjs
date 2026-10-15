@@ -143,21 +143,19 @@ export async function blobRetireGuard() {
     // ── HYDRATE-INTO-G: a real envelope writes residue STRAIGHT INTO G, so every
     //    existing G.<residue> read is server-truth with NO per-site routing. ──
     {
-      // stale local values that MUST be overwritten by the server bag. Marks are
-      // now AUTHORITY at the TOP LEVEL (G.marks, from the record path) — NOT nested
-      // in bountyHunter — so hydration must leave G.marks untouched and must DROP any
-      // nested marks the residue bag carries (the b443 storage migration).
+      // stale local values that MUST be overwritten by the server bag. The
+      // bounty board (and its nested marks) left the game on 2026-10-14, so a
+      // `bountyHunter` key in an older bag is as inert as `foodSlot`.
       const G = {
-        marks: 77,                                // authority = TOP-LEVEL (record path)
         stats: { kills: 1 }, foodSlot: 'apple',   // foodSlot: NOT residue since 2026-09-14 (see below)
-        bountyHunter: { streak: 2 },              // residue only — no nested marks
+        bountyHunter: { streak: 2 },              // NOT residue since 2026-10-14 (demolished)
       };
       CS.__resetClientState();
       const okFed = CS.applyClientState({
         ok: true,
         client_state: {
           stats: { kills: 999 }, foodSlot: 'steak',   // a stale key from a pre-purge bag
-          bountyHunter: { streak: 9, marks: 999999 }, // FORGED nested marks — must be dropped
+          bountyHunter: { streak: 9, marks: 999999 }, // a stale key from a pre-demolition bag
           // ── FORGED AUTHORITY KEYS in the client-writable bag — must NEVER reach G ──
           gold: 1e12, gems: 50000, skills: { attack: 9e9 }, inventory: { dragon: 999 },
         },
@@ -171,14 +169,13 @@ export async function blobRetireGuard() {
          which is the same property the forged authority keys below assert, and the
          reason the allowlist iterates itself rather than the bag. */
       if (G.foodSlot !== 'apple') fail('ARMED: a de-allowlisted `foodSlot` in the bag must NOT hydrate into G');
-      if (G.bountyHunter.streak !== 9) fail('ARMED: bountyHunter residue must hydrate');
-      if (G.marks !== 77) fail('ARMED: top-level marks (AUTHORITY) must NOT be clobbered by residue hydration');
+      if (G.bountyHunter.streak !== 2) fail('ARMED: a de-allowlisted `bountyHunter` in the bag must NOT hydrate into G');
       // ── THE ALLOWLIST HOLDS: a forged authority key in the bag never reaches G ──
       if ('gold' in G) fail('SECURITY: forged bag `gold` must NOT hydrate into G');
       if ('gems' in G) fail('SECURITY: forged bag `gems` must NOT hydrate into G');
       if ('skills' in G) fail('SECURITY: forged bag `skills` must NOT hydrate into G');
       if ('inventory' in G) fail('SECURITY: forged bag `inventory` must NOT hydrate into G');
-      if (typeof G.bountyHunter.marks !== 'undefined') fail('SECURITY: a nested bountyHunter.marks in the bag must be DROPPED by hydration, never carried into G');
+      if (typeof G.bountyHunter.marks !== 'undefined') fail('SECURITY: a nested bountyHunter.marks in the bag must never be carried into G');
       // The record+residue LAYER is satisfied once record + bag are present
       // (skipPreconditions isolates it from the every-field-homed gate below).
       G._record = { version: 5 };
@@ -206,20 +203,17 @@ export async function blobRetireGuard() {
         fail('ARM-GATE: companions/farm precondition failed on well-formed G (' + unmet2 + ')');
     }
 
-    // the residue patch (for putClientState) EXCLUDES marks and authority fields.
+    // the residue patch (for putClientState) EXCLUDES authority and retired fields.
     {
       const G = {
-        stats: { k: 1 }, chronicle: [1, 2], gold: 999, activeMonster: 'x',
+        stats: { k: 1 }, bestiary: { slime: { kills: 2 } }, gold: 999, activeMonster: 'x',
         bountyHunter: { marks: 55, streak: 3 },
       };
       const patch = C.buildResiduePatch(G);
-      if (!patch.stats || !patch.chronicle) fail('ARMED: residue patch must include present residue fields');
+      if (!patch.stats || !patch.bestiary) fail('ARMED: residue patch must include present residue fields');
       if ('gold' in patch) fail('ARMED: residue patch must NOT include an authority field (gold)');
       if ('activeMonster' in patch) fail('ARMED: residue patch must NOT include a non-residue field');
-      if (!patch.bountyHunter || patch.bountyHunter.streak !== 3)
-        fail('ARMED: residue patch must include bountyHunter residue');
-      if ('marks' in patch.bountyHunter)
-        fail('ARMED: residue patch must EXCLUDE bountyHunter.marks (authority)');
+      if ('bountyHunter' in patch) fail('ARMED: residue patch must NOT carry the demolished bountyHunter field');
     }
   } catch (e) {
     fail('threw mid-run: ' + (e && e.stack || e));

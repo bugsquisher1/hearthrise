@@ -1271,9 +1271,8 @@ export function computeAccrual(input) {
 
      ⚠ THE `UNSUPPORTED` LINE IS NOT DEAD CODE, AND IT IS THE ONLY THING THE
        BLOCK ABOVE PAYABLE_KINDS CAN HONESTLY CLAIM. Without it a kind added to
-       that array with no simulation FALLS THROUGH INTO THE COMBAT TAIL, which
-       reads `MONSTERS[<a recipe id>]`, finds nothing, and prices the night
-       against an undefined monster — a wrong payment with no error anywhere.
+       that array with no simulation answers `undefined` — no reason, no delta
+       contract — and every caller reads that as whatever its own default is.
        With it, an unsimulated kind is refused with a REFUSING reason: delta
        NONE, watermark unmoved, window DEFERRED until somebody writes the
        simulation. Unreachable today by construction (the three names below are

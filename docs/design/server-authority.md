@@ -1407,17 +1407,49 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
 * **One settle, three doors.** The world tick (`hr_hunt_roster` → `tick.js` `hunts`), the
   player's `hunt_settle`, and `hunt_use` (a press, landing at the first swing boundary at or after
   it) run the SAME `settleHunt`. A settle-before-mutate verb collects a hunter through it too.
-  Combat outside a session is no longer priced for a hunter: the solo combat channel is out of
-  the tick, `hr_credit_kills` / auto-eat are gone, a combat settle writes no away receipt, and the
-  `hr_hunt_accrue_fence` trigger refuses any combat accrue row for a character with an open
-  session unless it is stamped with that session (`hr.hunt_session`).
-* **Swap then delete (designer loop check, 2026-10-14).** Gathering and the benches still return
-  through the "while you were away" card until lane G gives them sessions, so C2 removes only the
-  COMBAT away objects. STAYS for lane G: `player_state.last_away_receipt`, its `hr_apply` key +
-  (4a-r) validation + SET write, the `hr_state_of` projection, the edge's `away-receipt.js` (which
-  now refuses a `journal.kind = 'combat'` settle) and the F2 rescue, `hr_offline_cap_ms` and the
-  gather/artisan presence horizon. GOES (drop file): the four `auto_eat_*` columns,
-  `hr_set_auto_eat`, `hr_credit_kills(__ungated)`, `hr_attended_kills`.
+  Combat outside a session is not priced at all: a combat pointer with no session answers
+  `hunt_required` (a SAFE skip), the solo combat channel is out of the tick, and the
+  `hr_hunt_accrue_fence` trigger refuses ANY ledger row — every kind, not only combat accrue — for
+  a character with an open session unless it is written inside that session's own settle
+  (`hr.hunt_session`).
+* **Deleted outright (the game is closed and wiped; no swap, no hide-then-delete).**
+  `2026-10-22-hunt-sessions-delete-away.sql` restates `hr_apply`, `hr_state_of`,
+  `hr_create_character` and `hr_trait_buy__ungated` whole (md5-pinned pre-images) without: the away
+  receipt (`last_away_receipt` column, key, (4a-r), projection), Auto-Eat (four columns,
+  `hr_set_auto_eat`, the bootstrap switch-on and free trait), Vigour (`hr_vigour_*`, the envelope
+  block), stances / stop / the Retreat counter, the pointer-era `hr_hunt_analyzer`,
+  `hr_credit_kills(__ungated)` and `hr_attended_kills`. The edge lost the away combat span, the
+  receipt writer, `claim_reward`, enchant, dungeon settle, the Quartermaster and the party fence;
+  the engine pays no charm, trophy or Boss-of-the-Day multiplier (demolition safety review item
+  9: trophies stay as claims and display) and writes no companion XP. Its removed lines are
+  frozen and classified in `tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs`.
+* **The spawn cycle — a stateful kill cap (Security design items 1–2).** A ground shows `pull`
+  foes and a pull is back `respawn_ms` after it started; the pull a hunt runs is the server's
+  (`hr_hunt_pull_of`: the set's `pull_count` clamped to the ground and to `PULL_CAP` = 1), and
+  `pull_left` / `respawn_at` carry the cycle across windows, so every settle re-proves its kills
+  from its own stamped rows. A training hunt (activity = a monster id) is the same cycle on one
+  monster.
+* **Concurrency without a version CAS on the session (Security item 8).** `hr_hunt_apply` takes
+  hr_apply's per-character advisory lock and CASes the SESSION's swing clock (`session_moved`);
+  `hr_apply` keeps its own version CAS for the value half. Two settles of one session cannot both
+  land, and a replayed intent key answers `replayed` and writes nothing.
+* **One consumable cooldown lane (Combat Design Bible v1.4, designer review).** Heal, mana and buff
+  supplies share `cd_consumable_ms` (2 s): the engine fires at most one per lane per swing
+  (`COOLDOWN_LANES` / `LANE_OF_KIND`), and `hr_hunt_apply` (5b) caps heal + drink + bag uses
+  together at `window / cd_consumable_ms + 1`. The ability lanes are reserved, with no SQL rows.
+* **Dry supply: End or Store (default End).** A shop fallback fires only when the action set chose
+  `on_dry = 'store'` (`hr_action_set_options(..., p_on_dry)`, refused `bad_on_dry`); with
+  `'end'` a dry line ends the hunt and nothing is bought (`store_off`). Shop arrows hit for 0.75 of
+  their crafted partner's ammo bonus (`BASIC_EFFECT_SHARE`); there are no shop runes.
+* **One basic-attack interval (Tyler 2026-10-14).** `COMBAT_BALANCE.tickMs` = 2000 ms is the one
+  source (`tests/basic-attack-interval.mjs`). Gear speed, the weapon family and a style's
+  `speedMod` still scale it — removing them is a balance pass, not done here.
+* **Closed mode reaches every door.** The six RPCs that never called `hr_rpc_gate` (`hr_load`,
+  `hr_create_character`, `hr_clan_browser`, `hr_companion_equip`, `hr_companion_grant`,
+  `hr_rest`) call `hr_access_check()` first (`2026-10-22-closed-mode-ungated-rpcs.sql`); the edge
+  answers a non-admitted caller `403 {error:'closed'}` (`closed-gate.js`, read through the
+  hr_engine-only `hr_engine_closed`) instead of the gate's bare 429; `tools/vitals.mjs` alerts when
+  `pgrst.db_pre_request` stops naming `hr_access_check` on the authenticator role.
 * **Vigour plays no part in a hunt (2026-10-14 rulings).** `END_ORDER` is falls → heals_out →
   ammo_out → gold_out → stamina → hours → left → changed → server. The forward generated catalogue
   `2026-10-22-hunt-sessions-catalogue.generated.sql` removes `vigour` from `hr_hunt_end_reasons` and
@@ -1439,8 +1471,8 @@ the session rows, the bag and the verbs; C2 owns the settle. Sources of truth:
   (`hr_hunt_supplies.npc_price` ← `supplies.js NPC_BASIC_PRICES`, empty until the designer prices
   the basics) is bought when the bag holds none — per heal, per draught, per shot; crafted stock
   first. The engine's purse = gold at the window start + kill coins; it proposes UNITS only
-  (`buys`). `hr_hunt_apply` (5b) prices them from the catalogue (`not_for_sale`), caps heal/buff
-  buys + bag uses by the window's cooldowns and ammo buys by the swings walked, the same bounds per
+  (`buys`). `hr_hunt_apply` (5b) prices them from the catalogue (`not_for_sale`), caps heal/drink
+  buys + bag uses by the one consumable lane and ammo buys by the swings walked, the same bounds per
   UTC day (`too_many_buys`), refuses a debit the gold cannot cover (`gold_short`), debits, journals
   ONE `kind 'hunt'` / `supply_buy` row (gold −cost, meta items {qty, price}), and credits the
   tally (`bought`, `supply_gold` = Waste in the Analyzer). A buy the purse cannot cover ends the hunt

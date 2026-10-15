@@ -2,6 +2,16 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-10-15 — lane/s-shell-framework (World shell framework, unwired)
+- Built `src/shell/{window-manager,hud,launcher,renderers,shell}.js`, `src/data/{shell-windows,hud-widgets}.js`,
+  `src/styles/shell.css`, `assets/ui/frame-iron{,-thin}.png` (copied from the approved A/B "B" samples).
+- Rows ship only with a renderer (`hud` window, `launchers` widget): a launcher never opens an empty
+  frame, and `tests/shell-renderers.mjs` enforces the pairing. Bag/Gear/Skills/Home/Settings arrive as row+renderer.
+- The residue field is `hudLayout`, not `hud`: a unique name is what lets `tests/hud-layout-display-only.mjs`
+  confine readers by scan. ARCHITECTURE_CONTRACTS P6 updated to match.
+- Learned: a framed window must be `box-sizing: border-box`, or the dock width, the inset and the painted
+  width disagree by the frame (measured 396 vs 380 px before the fix).
+
 ## 2026-09-12 — THE DEPOT: a dormant server verb finally has a client (bank-store, b438 → b544)
 
 **Branch** `worktree-agent-a50e80b5a0c025fcb`, merged `origin/next` twice (7b45f2f8, then the

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hunt Sim — Sewer</title>
+<style>
+  :root { --bg:#16181b; --panel:rgba(14,16,19,.82); --ink:#e6e1d6; --dim:#9a958b; --accent:#e0a050; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.35 ui-monospace,Consolas,monospace; overflow:hidden; }
+  canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
+  #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:6px; border-radius:4px; }
+  #bar button { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
+  #bar button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
+  #log { position:fixed; right:8px; bottom:8px; width:300px; max-height:42vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; }
+  #log b { color:var(--accent); font-weight:normal; }
+  #hud { position:fixed; left:8px; bottom:8px; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; color:var(--dim); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="bar">
+  <button id="pause">Pause</button>
+  <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
+  <button id="restart">Restart</button>
+  <button id="tGrid">Grid / footprints</button>
+  <button id="tPath">Paths / aggro</button>
+</div>
+<div id="hud"></div>
+<div id="log"></div>
+<script src="grid.js"></script>
+<script src="sim.js"></script>
+</body>
+</html>

@@ -48,10 +48,10 @@
 //   T-R1  one refused character does not cost the other 199 their window
 //         (§7 item 7) — and hr_apply is never reached on any of those paths
 //   T-BB1 the body is BOUNDED before it is parsed (§7 item 8)
-//   T-X1  THE BESTIARY READ (tick.js (4b), 2026-09-28): made once per priced
-//         window with the roster row's selectors and the collect path's own
-//         BESTIARY_SQL, hr_engine-only in the chain, degrades on 42883 ONLY,
-//         never made below the flush line, and shadow still pays nothing
+//   T-X1h THE PERK READ, BOUND (Security N6): two roster rows, two different
+//         perk stacks in one fire, each read bound to its own row and reaching
+//         only its own session. (The bestiary read and the party unit left with
+//         the party tick and the charm/trophy multipliers, lane C2.)
 //
 // ── --selftest: FOUR MUTATIONS, EACH MUST GO RED ───────────────────────────
 // A guard that has never been red is not a guard (CLAUDE.md §4). Each mutation
@@ -67,14 +67,11 @@
 //   M5 chain the next window on the BODY's accrued_to instead of the fence's
 //      watermark (the M-1 stall, reproduced through the entry)
 //   M6 abort the whole batch on the first refused character
-//   M12 swallow EVERY error on the bestiary read (not just 42883)
-//   M13 drop the bestiary read (the N4 gap, reproduced through the entry)
-//   M14 drop the perks read (N4b's perk half; T-X1h/T-X1i)
-//   M15 bind both reads to roster[0] for every character (N6)
-//   M16 hand each character the previous one's answers, arguments intact (N6)
-//   M17 drop the slot from both reads (H1; T-X1i2, one user on two slots)
-//   M18 swallow a party member's read error (H2; T-X1e2)
-//   M19 ignore the channel a fence answer names (mode_channel_mismatch; T-PCc, T-PCd)
+//   M14 drop the perks read (N4b; T-X1h)
+//   M15 bind the read to roster[0] for every character (N6)
+//   M16 hand each character the previous one's answer, arguments intact (N6)
+//   M19 ignore the channel a fence answer names (mode_channel_mismatch; T-PCc)
+//   (M12/M13/M17/M18 left with the bestiary read and the party unit, lane C2)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -97,7 +94,6 @@ import {
   CADENCE_MS_MIN, CADENCE_MS_MAX, FLUSH_MS_MIN, FLUSH_MS_MAX,
 } from '../supabase/functions/hr-accrue/tick.js';
 /* The collect path's statement — T-X1b requires the tick to issue these bytes. */
-import { BESTIARY_SQL } from '../supabase/functions/hr-accrue/set-activity.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const SELFTEST = process.argv.slice(2).includes('--selftest');
@@ -182,11 +178,8 @@ const TRANSPORT = [];
 const PG_TIMESTAMPTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
 const UID = '11111111-2222-3333-4444-555555555555';
 const EVIL = '99999999-9999-9999-9999-999999999999';
-/* N6's second character. Sorts AFTER UID, so the party unit (sorted by user)
-   and the roster run them in the same order. */
+/* N6's second character. Sorts AFTER UID, so the roster runs them in order. */
 const UID2 = '11111111-2222-3333-4444-666666666666';
-const PARTY = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
-const HUNT = 'aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff';
 
 function fakeDb(cfg) {
   const o = Object.assign({
@@ -200,29 +193,20 @@ function fakeDb(cfg) {
        is more permissive than the door it stands in for is not a test. */
     shadowMarkMs: null,
     version: 7, activeKind: 'gather', known: new Set([UID]),
-    /* hr_bestiary_of's answer (tick.js (4b)); `bestiaryError` makes the read
-       throw with that SQLSTATE instead. */
-    bestiary: { goblin: 2000 }, bestiaryError: null,
     /* N6 (2026-09-28): PER-CHARACTER answers, so a two-row fire can hand each
-       character a DIFFERENT perk stack and bestiary and an arm can see whose
-       answer reached whose session. `null` keeps the one-answer-for-all shape
-       every older arm was written against. `activeId` lets an arm put the
-       characters on a monster (the bestiary is a combat input only).
+       character a DIFFERENT perk stack and an arm can see whose answer reached
+       whose session. `null` keeps the one-answer-for-all shape every older arm
+       was written against.
        KEYED BY `user:slot`, as the reads are (H1, 2026-09-28): a map keyed
        by user alone answers both of one user's slots the same, so no arm
        could see a read that dropped the slot. */
-    perksBy: null, bestiaryBy: null, activeId: 'normal_tree',
-    /* `user:slot` -> SQLSTATE ('' = codeless): that character's perks or
-       bestiary read throws instead (H2, a member's read failing mid-party). */
-    perksErrorBy: null, bestiaryErrorBy: null,
-    /* THE PARTY FENCE's mark (`party_hunt.accrued_to` / the lease's shadow
-       mark), modelled as the solo one is above. */
-    partyMarkMs: null, partyShadowMarkMs: null,
-    /* Render the fence's reported mark as Postgres's jsonb does (`…+00:00`).
-       Combat spells its seed label from that text and refuses the `…Z` one
-       (tick-combat.js rosterWatermarkText, Security T-2); gather does not
-       care, so the older gather arms keep the ISO spelling they were written
-       against. The party fence always answers in the jsonb spelling. */
+    perksBy: null, activeId: 'normal_tree',
+    /* `user:slot` -> SQLSTATE ('' = codeless): that character's perks read
+       throws instead. */
+    perksErrorBy: null,
+    /* Render the fence's reported mark as Postgres's jsonb does (`…+00:00`);
+       gather does not care, so the older gather arms keep the ISO spelling
+       they were written against. */
     jsonbMark: false,
     /* PER-CHANNEL ARMING (2026-10-06-world-tick-channel-arm.sql). `armed`,
        when an array, is `hr_tick_config.armed_channels` and decides the mode
@@ -237,7 +221,7 @@ function fakeDb(cfg) {
   const named = (ch) => (o.answerChannel === undefined ? { channel: ch }
     : (o.answerChannel === null ? {} : { channel: o.answerChannel }));
   /* Whose projection was served last (`user:slot`) — the character the
-     driver is working on. tick.js and tick-party.js both run ONE character at a time, state
+     driver is working on. tick.js runs ONE character at a time, state
      read -> reads -> engine, so an access to another character's answer while
      this one is current is a cross-binding. */
   o.current = null;
@@ -299,43 +283,6 @@ function fakeDb(cfg) {
       return [{ perks: o.known.has(params[0])
         ? { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0 }
         : { ok: false, error: 'no_character' } }];
-    }
-    /* THE BESTIARY COUNTERS (tick.js (4b), 2026-09-28) — the collect path's
-       BESTIARY_SQL, aggregated in SQL: one row, `kills` a jsonb object; `{}`
-       for a character who has killed nothing. */
-    if (text.includes('hr_bestiary_of')) {
-      if (o.bestiaryError !== null) {
-        const e = new Error('hr_bestiary_of: planted failure');
-        if (o.bestiaryError) e.code = o.bestiaryError;
-        throw e;
-      }
-      planted(o.bestiaryErrorBy, 'hr_bestiary_of', params);
-      const bk = `${params[0]}:${params[1]}`;
-      if (o.bestiaryBy && o.known.has(params[0]) && bk in o.bestiaryBy) return [{ kills: o.bestiaryBy[bk] }];
-      return [{ kills: o.known.has(params[0]) ? Object.assign({}, o.bestiary) : {} }];
-    }
-    /* THE PARTY FENCE (tick-party.js probeParty / partyFence). The probe is a
-       deliberately stale window, refused `party_window_already_settled` WITH
-       the mark — the solo fence's shape at party grain. A settle past the mark
-       is recorded per member and, in shadow, moves only the shadow mark. */
-    if (text.includes('hr_party_tick_settle')) {
-      const [holder, party, wFrom, wTo, key, membersJson] = params;
-      const members = JSON.parse(membersJson);
-      if (!o.enabled) return [{ res: { ok: false, error: 'tick_disabled' } }];
-      const mark = o.partyMarkMs === null ? o.markMs : o.partyMarkMs;
-      const eff = shadowFor('combat') ? Math.max(mark, o.partyShadowMarkMs ?? mark) : mark;
-      if (Date.parse(wFrom) < eff || Date.parse(wTo) <= eff) {
-        return [{ res: { ok: false, error: 'party_window_already_settled',
-          accrued_to: jsonbTs(eff), shadow: shadowFor('combat'), ...named('combat'),
-          shadow_state: null } }];
-      }
-      for (const m of members) {
-        settles.push({ holder, party, user: m.user, slot: m.slot, version: m.version,
-          wFrom, wTo, key, delta: m.delta });
-      }
-      if (shadowFor('combat')) { o.partyShadowMarkMs = Date.parse(wTo); return [{ res: { ok: true, mode: 'shadow' } }]; }
-      o.partyMarkMs = Date.parse(wTo);
-      return [{ res: { ok: true, mode: 'armed' } }];
     }
     if (text.includes('hr_tick_settle')) {
       const [holder, user, slot, channel, version, wFrom, wTo, key, delta] = params;
@@ -862,21 +809,6 @@ async function runArms(mod) {
     ok(outO.body.processed === 1 && old.settles.length === 1,
       'T-PCc2 — a pre-migration answer (no channel named) is read as the fence gave it',
       JSON.stringify(outO.body));
-    /* At party grain: a party hunt is COMBAT. */
-    const partyBody = { op: 'tick', flush_ms: 72000, roster: [],
-      parties: [{ party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
-        accrued_to: new Date(NOW_MS - 120000).toISOString(), members: [{ user_id: UID, slot: 0 }] }] };
-    const pOk = fakeDb({ armed: ['gather'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true });
-    const outPOk = await runTick({ exec: pOk.exec, body: partyBody });
-    const pX = fakeDb({ armed: ['gather'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
-      answerChannel: 'gather' });
-    const outPX = await runTick({ exec: pX.exec, body: partyBody });
-    ok(outPOk.body.shadowed === 1 && pOk.settles.length === 1
-        && outPX.body.shadowed === 0 && outPX.body.processed === 0 && pX.settles.length === 0
-        && JSON.stringify(outPX.body.reasons || {}).includes('mode_channel_mismatch'),
-      'T-PCd — gather armed, a party (combat) settles in SHADOW; a party answer naming gather\'s '
-      + 'mode settles nobody (mode_channel_mismatch)',
-      JSON.stringify({ ok: outPOk.body, x: outPX.body }));
   }
 
   // ── T-M1 — M-1's RECEIVING HALF, END TO END ─────────────────────────────
@@ -950,186 +882,47 @@ async function runArms(mod) {
       JSON.stringify(outT.body));
   }
 
-  // ── T-X1 — THE BESTIARY READ (Security N4, 2026-09-28) ───────────────────
-  group('T-X1  hr_bestiary_of is read by the drivers that price combat (the party unit; the hunt settle)');
+  // ── T-X1h — THE PERK READ IS BOUND TO ITS OWN ROW (Security N6) ───────────
+  group('T-X1h  each roster row reads its own perk stack and reaches only its own session');
   {
-    /* LANE C2: only combat prices charms and trophies, and the solo combat
-       channel is retired (a solo fight is a hunt session — its read is
-       ./hunt-settle.js's, proved against a real chain by
-       tests/hunt-sessions-settle.mjs BESTIARY). The channel tick therefore makes
-       NO bestiary read for its gather windows (T-X1n), and every single-member
-       arm below drives the PARTY unit, which makes the read per member. */
-    const fire = async (cfg) => {
-      const db = fakeDb(Object.assign({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true }, cfg || {}));
-      const out = await runTick({ exec: db.exec, body: { op: 'tick', flush_ms: 72000, roster: [], parties: [{
-        party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
-        accrued_to: new Date((cfg && cfg.markMs) || NOW_MS - 120000).toISOString(),
-        members: [{ user_id: UID, slot: 0 }] }] } });
-      return { db, out, reads: db.calls.filter((c) => c.text.includes('hr_bestiary_of')) };
+    /* Two characters get DIFFERENT perk stacks in ONE fire, each answer a Proxy
+       that logs which character the driver was working on when it was touched.
+       Each answer must reach its OWN session (touched while it is current) and
+       never another's. Both rows are gatherers: the solo combat channel, the
+       party unit and the bestiary read left with lane C2. */
+    const log = [];
+    const ref = {};
+    const spy = (owner, obj) => {
+      const note = () => log.push({ owner, at: ref.db ? ref.db.cfg.current : null });
+      return new Proxy(obj, {
+        get(t, k, r) { if (typeof k === 'string') note(); return Reflect.get(t, k, r); },
+        has(t, k) { note(); return Reflect.has(t, k); },
+        ownKeys(t) { note(); return Reflect.ownKeys(t); },
+        getOwnPropertyDescriptor(t, k) { note(); return Reflect.getOwnPropertyDescriptor(t, k); },
+      });
     };
-    {
-      const solo = fakeDb({ shadow: true });
-      const outSolo = await runTick({ exec: solo.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
-      ok(outSolo.body.shadowed === 1 && !solo.calls.some((c) => c.text.includes('hr_bestiary_of')),
-        'T-X1n — a gather window settles and the channel tick makes NO bestiary read (gather never prices one)',
-        JSON.stringify(outSolo.body));
+    const perksOf = (renown) => ({ ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: renown });
+    const owners = [`${UID}:0`, `${UID2}:0`];
+    const db = fakeDb({ shadow: true, activeKind: 'gather', activeId: 'normal_tree',
+      known: new Set([UID, UID2]),
+      perksBy: { [owners[0]]: spy(owners[0], perksOf(5)), [owners[1]]: spy(owners[1], perksOf(0)) } });
+    ref.db = db;
+    const out = await runTick({ exec: db.exec, body: { op: 'tick', roster: [rosterRow(UID), rosterRow(UID2)] } });
+    const reads = db.calls.filter((c) => c.text.includes('hr_perks_of')).map((c) => `${c.params[0]}:${c.params[1]}`);
+    const bad = [];
+    for (const u of owners) {
+      const own = log.filter((x) => x.owner === u);
+      if (!own.some((x) => x.at === u)) bad.push(`perks(${u.slice(-4)}) never reached its own session`);
+      const cross = own.filter((x) => x.at !== u);
+      if (cross.length) bad.push(`perks(${u.slice(-4)}) read while ${String(cross[0].at).slice(-4)} was current`);
     }
-    const a = await fire();
-    ok(a.reads.length === 1 && a.reads[0].params[0] === UID && a.reads[0].params[1] === 0,
-      'T-X1a — one read per priced member window, bound to the member\'s selectors',
-      JSON.stringify(a.reads.map((c) => c.params)));
-    ok(a.reads.length === 1 && a.reads[0].text === BESTIARY_SQL,
-      'T-X1b — the statement IS set-activity.js BESTIARY_SQL, the collect path\'s own bytes');
-    {
-      const mig = join(ROOT, 'supabase', 'migrations');
-      const def = await readFile(join(mig, '2026-08-20-bestiary.sql'), 'utf8');
-      const granted = /grant execute on function public\.hr_bestiary_of\(uuid, int\) to hr_engine;/.test(def);
-      const revoked = /revoke execute on function public\.hr_bestiary_of\(uuid, int\)\s+from public, anon, authenticated, service_role;/.test(def);
-      const leaks = [];
-      for (const f of (await readdir(mig)).filter((x) => x.endsWith('.sql'))) {
-        const sql = await readFile(join(mig, f), 'utf8');
-        if (/grant\s+execute\s+on\s+function\s+public\.hr_bestiary_of[^;]*\bto\s+(?!hr_engine\b)/i.test(sql)) leaks.push(f);
-      }
-      ok(granted && revoked && leaks.length === 0,
-        'T-X1c — hr_bestiary_of is hr_engine-only: granted to the engine, revoked from every client role, '
-        + 'and no migration grants it wider', `granted=${granted} revoked=${revoked} leaks=${leaks.join(',')}`);
-    }
-    const d = await fire({ bestiaryError: '42883' });
-    ok(d.out.body.shadowed === 1 && d.db.settles.length === 1,
-      'T-X1d — 42883 (no such function) degrades to "no counters" and the party window is still priced',
-      JSON.stringify(d.out.body));
-    for (const code of ['42501', '57014', '']) {
-      const e = await fire({ bestiaryError: code });
-      ok(e.out.body.shadowed === 0 && e.out.body.refused === 1 && e.db.settles.length === 0,
-        `T-X1e — ${code ? 'SQLSTATE ' + code : 'a codeless error'} is NOT swallowed: the party is refused, nothing settles`,
-        JSON.stringify(e.out.body));
-    }
-    ok(a.out.body.shadowed === 1 && a.out.body.processed === 0
-      && a.db.cfg.version === 7 && !a.db.calls.some((c) => c.text.includes('hr_apply')),
-      'T-X1f — with counters answered, SHADOW still pays nothing: no hr_apply, watermark and version unchanged',
-      JSON.stringify(a.out.body));
-    const b = await fire({ markMs: NOW_MS - 1000 });
-    ok(b.reads.length === 0 && b.db.settles.length === 0,
-      'T-X1g — below the flush line the read is never made (only a priced window costs it)',
-      JSON.stringify(b.out.body));
-
-    /* ── N6 (Security, 2026-09-28): TWO ROWS, TWO DIFFERENT ANSWERS ────────
-       T-X1a fires one row, so a read bound to roster[0] for every character —
-       or one character's answer handed to another's session — passes it. Here
-       two characters on a monster get DIFFERENT perk stacks and bestiaries in
-       ONE fire, each answer a Proxy that logs which character the driver was
-       working on when the answer was touched. Each character's answer must
-       reach its OWN session (touched while it is current) and never another's
-       (touched while the other is current). The solo roster (T-X1h) and the
-       party unit (T-X1i) are the two drivers; both call ./tick-reads.js. */
-    /* `owners` are the two characters as `user:slot` — two users by default,
-       ONE user on two slots for T-X1i2 (H1). */
-    const twoRow = async (bodyOf, owners = [`${UID}:0`, `${UID2}:0`], extra) => {
-      const log = [];
-      const ref = {};
-      const spy = (owner, what, obj) => {
-        const note = () => log.push({ owner, what, at: ref.db ? ref.db.cfg.current : null });
-        return new Proxy(obj, {
-          get(t, k, r) { if (typeof k === 'string') note(); return Reflect.get(t, k, r); },
-          has(t, k) { note(); return Reflect.has(t, k); },
-          ownKeys(t) { note(); return Reflect.ownKeys(t); },
-          getOwnPropertyDescriptor(t, k) { note(); return Reflect.getOwnPropertyDescriptor(t, k); },
-        });
-      };
-      const perksOf = (renown) => ({ ok: true, rooms: {}, plots: {}, propertyTier: 0,
-        unlockedRecipes: {}, renownAllXp: renown });
-      const [o1, o2] = owners;
-      const db = fakeDb(Object.assign({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
-        known: new Set(owners.map((k) => k.split(':')[0])),
-        perksBy: { [o1]: spy(o1, 'perks', perksOf(5)), [o2]: spy(o2, 'perks', perksOf(0)) },
-        bestiaryBy: { [o1]: spy(o1, 'bestiary', { goblin: 2000 }),
-          [o2]: spy(o2, 'bestiary', { goblin: 3 }) } }, extra || {}));
-      ref.db = db;
-      const out = await runTick({ exec: db.exec, body: bodyOf() });
-      const readsOf = (fn) => db.calls.filter((c) => c.text.includes(fn))
-        .map((c) => `${c.params[0]}:${c.params[1]}`);
-      return { db, out, log, owners, perks: readsOf('hr_perks_of'), bestiary: readsOf('hr_bestiary_of') };
-    };
-    const bound = (r, whats = ['perks', 'bestiary']) => {
-      const bad = [];
-      for (const u of r.owners) {
-        for (const what of whats) {
-          const own = r.log.filter((x) => x.owner === u && x.what === what);
-          if (!own.some((x) => x.at === u)) bad.push(`${what}(${u.slice(-4)}) never reached its own session`);
-          const cross = own.filter((x) => x.at !== u);
-          if (cross.length) bad.push(`${what}(${u.slice(-4)}) read while ${String(cross[0].at).slice(-4)} was current`);
-        }
-      }
-      if (JSON.stringify(r.perks) !== JSON.stringify(r.owners)
-        || (whats.includes('bestiary') && JSON.stringify(r.bestiary) !== JSON.stringify(r.owners))) {
-        bad.push(`reads bound to perks=${JSON.stringify(r.perks)} bestiary=${JSON.stringify(r.bestiary)}`);
-      }
-      const users = r.db.settles.map((x) => `${x.user}:${x.slot}`).sort();
-      if (JSON.stringify(users) !== JSON.stringify([...r.owners].sort())) bad.push(`shadow rows for ${JSON.stringify(users)}`);
-      return bad;
-    };
-    /* Two SOLO rows are GATHERERS since lane C2 (the solo combat channel is
-       retired), so the channel driver's read is the perk stack alone. */
-    const h = await twoRow(() => ({ op: 'tick', roster: [rosterRow(UID), rosterRow(UID2)] }), undefined,
-      { activeKind: 'gather', activeId: 'normal_tree', jsonbMark: false });
-    const hBad = bound(h, ['perks']);
-    ok(hBad.length === 0 && h.out.body.shadowed === 2 && h.bestiary.length === 0,
+    if (JSON.stringify(reads) !== JSON.stringify(owners)) bad.push(`reads bound to ${JSON.stringify(reads)}`);
+    const users = db.settles.map((x) => `${x.user}:${x.slot}`).sort();
+    if (JSON.stringify(users) !== JSON.stringify([...owners].sort())) bad.push(`shadow rows for ${JSON.stringify(users)}`);
+    ok(bad.length === 0 && out.body.shadowed === 2 && !db.calls.some((c) => c.text.includes('hr_bestiary_of')),
       'T-X1h — two roster rows, two different perk stacks in one fire: each character\'s perk read is '
-      + 'bound to its own row and reaches only its own session (N6); no bestiary read on a gather window',
-      JSON.stringify({ out: h.out.body, bad: hBad, bestiary: h.bestiary }));
-    const i = await twoRow(() => ({ op: 'tick', flush_ms: 72000, roster: [], parties: [{
-      party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
-      accrued_to: new Date(NOW_MS - 120000).toISOString(),
-      members: [{ user_id: UID2, slot: 0 }, { user_id: UID, slot: 0 }] }] }));
-    const iBad = bound(i);
-    ok(iBad.length === 0 && i.out.body.shadowed === 1,
-      'T-X1i — a two-member PARTY in one fire: each member makes both reads through tick-reads.js, '
-      + 'bound to its own (user, slot), and only its own shadow row is priced from them (N4b/N6)',
-      JSON.stringify({ out: i.out.body, bad: iBad }));
-
-    /* ── H1 (Security, 2026-09-28): ONE USER, TWO SLOTS, ONE PARTY FIRE ────
-       T-X1h/T-X1i put two USERS on slot 0, so a read that dropped the slot
-       (bound to `(user, 0)` for every slot) passed both. Here the same user
-       brings two characters, each with its own perk stack and bestiary; each
-       slot's shadow row must have been priced from its own slot's reads. */
-    const partyOf = (members) => () => ({ op: 'tick', flush_ms: 72000, roster: [], parties: [{
-      party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
-      accrued_to: new Date(NOW_MS - 120000).toISOString(), members }] });
-    const i2 = await twoRow(partyOf([{ user_id: UID, slot: 1 }, { user_id: UID, slot: 0 }]),
-      [`${UID}:0`, `${UID}:1`]);
-    const i2Bad = bound(i2);
-    ok(i2Bad.length === 0 && i2.out.body.shadowed === 1,
-      'T-X1i2 — ONE user on TWO slots in one party fire: each slot reads its own perks and bestiary '
-      + 'and each slot\'s shadow row is priced from its own reads, never the other slot\'s (H1)',
-      JSON.stringify({ out: i2.out.body, bad: i2Bad }));
-  }
-
-  // ── T-X1e2 — A MEMBER'S READ FAILS MID-PARTY (Security H2, 2026-09-28) ──
-  group('T-X1e2  a party member\'s perks/bestiary read error refuses the whole party');
-  {
-    /* T-X1e's rule at party grain. Member 1 reads cleanly; member 2's read
-       throws. Pricing the party from one member's inputs is the partial settle
-       §18.2.5 calls a mint, so the fire must be REFUSED and no settle statement
-       may follow the failed read (the probe before it writes nothing). */
-    for (const fn of ['hr_perks_of', 'hr_bestiary_of']) {
-      for (const code of ['42501', '57014', '']) {
-        const key = fn === 'hr_perks_of' ? 'perksErrorBy' : 'bestiaryErrorBy';
-        const db = fakeDb({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
-          known: new Set([UID, UID2]), [key]: { [`${UID2}:0`]: code } });
-        const out = await runTick({ exec: db.exec, body: { op: 'tick', flush_ms: 72000, roster: [],
-          parties: [{ party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
-            accrued_to: new Date(NOW_MS - 120000).toISOString(),
-            members: [{ user_id: UID, slot: 0 }, { user_id: UID2, slot: 0 }] }] } });
-        const failAt = db.calls.findIndex((c) => c.text.includes(fn) && c.params[0] === UID2);
-        const m1Read = db.calls.some((c) => c.text.includes(fn) && c.params[0] === UID);
-        const settleAfter = db.calls.slice(failAt + 1).filter((c) => c.text.includes('hr_party_tick_settle'));
-        ok(failAt >= 0 && m1Read && out.body.refused === 1 && out.body.shadowed === 0
-          && settleAfter.length === 0 && db.settles.length === 0,
-          `T-X1e2 — member 2's ${fn} ${code ? 'SQLSTATE ' + code : 'codeless error'}: the whole party is `
-          + 'refused and no hr_party_tick_settle is issued after it',
-          JSON.stringify({ out: out.body, failAt, m1Read, settleAfter: settleAfter.length, settles: db.settles.length }));
-      }
-    }
+      + 'bound to its own row and reaches only its own session (N6); no bestiary read',
+      JSON.stringify({ out: out.body, bad }));
   }
 
   // ── T-BB1 — THE BODY IS BOUNDED BEFORE IT IS PARSED ─────────────────────
@@ -1205,27 +998,26 @@ async function runArms(mod) {
     const EXPECTED_TICK_MODULES = [
       'supabase/functions/hr-accrue/tick.js',
       'supabase/functions/hr-accrue/tick-gather.js',
-      'supabase/functions/hr-accrue/tick-combat.js',
       'supabase/functions/hr-accrue/tick-shadow.js',
       'supabase/functions/hr-accrue/tick-contract.js',
     ];
     ok(JSON.stringify([...TICK_MODULES].sort()) === JSON.stringify([...EXPECTED_TICK_MODULES].sort())
       && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
-      'T-F1g — the allowlist is these five NAMED files, not a directory or a prefix',
+      'T-F1g — the allowlist is these four NAMED files (tick-combat.js left with the solo combat channel, lane C2), not a directory or a prefix',
       `allowlist drifted: ${JSON.stringify(TICK_MODULES)}`);
 
-    /* T-F1h — the newly-registered settler is fenced exactly as gather is.
+    /* T-F1h — a registered settler is fenced exactly as the entry is.
        Registering a file must not be a way to exempt it. */
-    const COMBATMOD = { name: 'supabase/functions/hr-accrue/tick-combat.js',
+    const SETTLERMOD = { name: 'supabase/functions/hr-accrue/tick-gather.js',
       src: "  Object.assign({}, o, { caller: 'tick', seedOf });\n" };
-    ok(P([GATE, COMBATMOD]).length === 0,
-      'T-F1h — tick-combat.js may spell `caller:\'tick\'` behind the bearer gate');
-    ok(P([COMBATMOD]).length === 1,
-      'T-F1i — (2) bites on it too: tick-combat.js with no bearer gate is refused',
-      JSON.stringify(P([COMBATMOD])));
-    ok(P([GATE, COMBATMOD, { name: 'supabase/functions/hr-accrue/equip.js',
-      src: "import { settleCombatSession } from './tick-combat.js';\n" }]).length === 1,
-      'T-F1j — (3) bites on it too: an ordinary verb importing the combat settler is refused');
+    ok(P([GATE, SETTLERMOD]).length === 0,
+      'T-F1h — tick-gather.js may spell `caller:\'tick\'` behind the bearer gate');
+    ok(P([SETTLERMOD]).length === 1,
+      'T-F1i — (2) bites on it too: tick-gather.js with no bearer gate is refused',
+      JSON.stringify(P([SETTLERMOD])));
+    ok(P([GATE, SETTLERMOD, { name: 'supabase/functions/hr-accrue/equip.js',
+      src: "import { settleGatherSession } from './tick-gather.js';\n" }]).length === 1,
+      'T-F1j — (3) bites on it too: an ordinary verb importing the gather settler is refused');
   }
 
   // ── T-W1 / T-P1 — WIRING, against the PACKED bytes ──────────────────────
@@ -1420,9 +1212,7 @@ const MUTATIONS = [
         return out;
       },
     }),
-    /* T-X1f too: shadow must still pay nothing with the bestiary read in the
-       path, and an arm that stayed green under a paying shadow would not say so. */
-    mustFail: ['T-S1', 'T-X1f'],
+    mustFail: ['T-S1'],
   },
   {
     /* M-1 ITSELF, reproduced through the entry. The mutant believes the body:
@@ -1459,12 +1249,12 @@ const MUTATIONS = [
   },
   {
     /* THE mode_channel_mismatch CHECK'S OWN PROOF (Security follow-up,
-       SEC_WORLD_TICK_CHANNEL_ARM_2026-10-05 finding 7). tick.js and
-       tick-party.js skip a fence answer that names another channel; an
+       SEC_WORLD_TICK_CHANNEL_ARM_2026-10-05 finding 7). tick.js skips a fence
+       answer that names another channel; an
        answer naming NONE is read as given (pre-migration fence). Dropping the
        name from every answer is therefore exactly "the check is gone": the
        wrong-channel answer is believed and its mode settles the character.
-       T-PCc (solo) and T-PCd (party) must both go red. */
+       T-PCc must go red. */
     id: 'M19', what: 'ignore the channel a fence answer names (mode_channel_mismatch removed)',
     patch: (m) => Object.assign({}, m, {
       runTick: async (o) => REAL.runTick(Object.assign({}, o, {
@@ -1476,7 +1266,7 @@ const MUTATIONS = [
         },
       })),
     }),
-    mustFail: ['T-PCc —', 'T-PCd'],
+    mustFail: ['T-PCc —'],
   },
   {
     /* T-3's OWN PROOF. T-T1 is worth nothing unless it goes red on the defect
@@ -1544,36 +1334,6 @@ const MUTATIONS = [
     mustFail: ['T-R1'],
   },
   {
-    /* The degrade rule widened: a tick that treats a permission error, a
-       timeout, anything, as "no counters" prices a studied class at zero and
-       reports the window as healthy — a swallowed error is a guard's pass. */
-    id: 'M12', what: 'swallow every error on the bestiary read, not just 42883',
-    patch: (m) => Object.assign({}, m, {
-      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
-        exec: async (text, params) => {
-          if (!text.includes('hr_bestiary_of')) return o.exec(text, params);
-          try { return await o.exec(text, params); } catch { return [{ kills: null }]; }
-        },
-      })),
-    }),
-    mustFail: ['T-X1e'],
-  },
-  {
-    /* N4 ITSELF: the read is not made and the combat session prices with no
-       charm and no trophy. Answered without reaching the database, which is
-       exactly what an entry that never issued the statement looks like. */
-    id: 'M13', what: 'drop the bestiary read',
-    patch: (m) => Object.assign({}, m, {
-      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
-        exec: async (text, params) => (text.includes('hr_bestiary_of')
-          ? [{ kills: null }] : o.exec(text, params)),
-      })),
-    }),
-    /* N6: the party's two-member arm sees the dropped read too (the solo
-       two-row arm is gatherers since lane C2 and reads no bestiary). */
-    mustFail: ['T-X1a', 'T-X1i'],
-  },
-  {
     /* N4b ON THE PERK HALF: the stack is not handed over and the window prices
        at zero perks. One-row arms never looked at perks at all. */
     id: 'M14', what: 'drop the perks read',
@@ -1583,7 +1343,7 @@ const MUTATIONS = [
           ? [{ perks: null }] : o.exec(text, params)),
       })),
     }),
-    mustFail: ['T-X1h', 'T-X1i'],
+    mustFail: ['T-X1h'],
   },
   {
     /* N6 AS SECURITY WROTE IT: every read bound to roster[0]. With one row it
@@ -1591,11 +1351,11 @@ const MUTATIONS = [
     id: 'M15', what: 'bind both reads to the FIRST character for every character',
     patch: (m) => Object.assign({}, m, {
       runTick: async (o) => REAL.runTick(Object.assign({}, o, {
-        exec: async (text, params) => ((text.includes('hr_perks_of') || text.includes('hr_bestiary_of'))
+        exec: async (text, params) => (text.includes('hr_perks_of')
           ? o.exec(text, [UID].concat(params.slice(1))) : o.exec(text, params)),
       })),
     }),
-    mustFail: ['T-X1h', 'T-X1i'],
+    mustFail: ['T-X1h'],
   },
   {
     /* THE SWAP, WITH THE STATEMENT'S ARGUMENTS LEFT CORRECT: each read is
@@ -1608,8 +1368,7 @@ const MUTATIONS = [
         const prev = new Map();
         return REAL.runTick(Object.assign({}, o, {
           exec: async (text, params) => {
-            const k = text.includes('hr_perks_of') ? 'perks'
-              : (text.includes('hr_bestiary_of') ? 'bestiary' : null);
+            const k = text.includes('hr_perks_of') ? 'perks' : null;
             const rows = await o.exec(text, params);
             if (!k) return rows;
             const give = prev.has(k) ? prev.get(k) : rows;
@@ -1619,36 +1378,7 @@ const MUTATIONS = [
         }));
       },
     }),
-    mustFail: ['T-X1h', 'T-X1i'],
-  },
-  {
-    /* H1: THE SLOT DROPPED. Each read is made for the right user and slot 0,
-       whatever the character's slot. Two users on slot 0 cannot see it; one
-       user on two slots can. */
-    id: 'M17', what: 'drop the slot from both reads (every read bound to slot 0)',
-    patch: (m) => Object.assign({}, m, {
-      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
-        exec: async (text, params) => ((text.includes('hr_perks_of') || text.includes('hr_bestiary_of'))
-          ? o.exec(text, [params[0], 0].concat(params.slice(2))) : o.exec(text, params)),
-      })),
-    }),
-    mustFail: ['T-X1i2'],
-  },
-  {
-    /* H2: MEMBER 2's READ ERROR SWALLOWED. The party prices member 2 at zero
-       perks / no charm and settles as if healthy — T-X1e's defect one member
-       down, where the solo arm cannot see it. */
-    id: 'M18', what: 'swallow member 2\'s perks/bestiary read error in a party',
-    patch: (m) => Object.assign({}, m, {
-      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
-        exec: async (text, params) => {
-          const k = text.includes('hr_perks_of') ? 'perks' : (text.includes('hr_bestiary_of') ? 'kills' : null);
-          if (!k || params[0] !== UID2) return o.exec(text, params);
-          try { return await o.exec(text, params); } catch { return [{ [k]: null }]; }
-        },
-      })),
-    }),
-    mustFail: ['T-X1e2'],
+    mustFail: ['T-X1h'],
   },
 ];
 

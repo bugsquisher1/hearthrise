@@ -1,0 +1,43 @@
+{
+  "id": "bank_sign",
+  "class": "hanging",
+  "material": "wood",
+  "source": "bank_sign.png",
+  "frame": [
+    22,
+    29
+  ],
+  "anchor_px": [
+    11,
+    27
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "hover_px": 30,
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "dec84816-2c21-4cc8-91e5-1d187f06e02f",
+    "request": {
+      "description": "hanging wooden shop sign on an iron bracket, painted with a gold coin, front view, top-down RPG, muted colours, dark outline, no shadow",
+      "width": 32,
+      "height": 32,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "Town v0.6 (art/town-v06): same create_map_object settings as the live well/lamppost/bench sidecars."
+}

@@ -1,0 +1,43 @@
+{
+  "id": "market_stall",
+  "class": "fixture",
+  "material": "wood",
+  "source": "market_stall.png",
+  "frame": [
+    52,
+    57
+  ],
+  "anchor_px": [
+    26,
+    56
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "shadow": "cast",
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "f36c7d61-33ac-4a74-9749-232b7679b9c9",
+    "request": {
+      "description": "medieval market stall with a striped red and cream cloth awning on four wooden posts and a plank counter with goods, straight front view in a top-down RPG, muted colours, dark outline, no shadow, no ground",
+      "width": 64,
+      "height": 64,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "Town v0.6 (art/town-v06): same create_map_object settings as the live well/lamppost/bench sidecars."
+}

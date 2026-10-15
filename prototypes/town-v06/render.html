@@ -1,0 +1,28 @@
+<!doctype html><meta charset=utf-8>
+<link rel=stylesheet href="../../src/styles/tokens.css"><link rel=stylesheet href="../../src/styles/world.css">
+<style>html,body{margin:0;background:#000}#host{width:100vw;height:100vh;position:relative}</style>
+<div id=host></div>
+<script type=module>
+// Real engine: createCanvasBackend over the live manifests + compileMap. ?map=<module path>&x=&y=
+import { createBook } from '../../src/world/core/book.js';
+import { compileMap } from '../../src/world/core/map-compile.js';
+import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
+import * as terrain from '../../src/data/world/terrain.js';
+import { ATLAS_SETS } from '../../src/data/world/atlas-sets.js';
+const Q = new URLSearchParams(location.search);
+const manifests = {}, images = {};
+await Promise.all(ATLAS_SETS.map(async (s) => {
+  manifests[s] = await (await fetch('../../assets/world/atlas-' + s + '.json')).json();
+  images[s] = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = '../../assets/world/atlas-' + s + '.png'; });
+}));
+const book = createBook(manifests);
+const tables = { materials: { ...terrain.MATERIALS, water: { solid: true } }, sprites: book.sprites, openClasses: terrain.OPEN_CLASSES, lights: terrain.LIGHTS };
+const row = (await import(Q.get('map'))).default;
+const map = compileMap(row, tables);
+const css = (t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+const be = createCanvasBackend({ win: window, doc: document, book, images, tables, css });
+be.mount(document.getElementById('host')); be.setMap(map);
+const at = { x: +Q.get('x'), y: +Q.get('y') };
+be.sync({ hero: at, camera: at, units: [] });
+setTimeout(() => { be.sync({ hero: at, camera: at, units: [] }); window.__done = true; }, 300);
+</script>

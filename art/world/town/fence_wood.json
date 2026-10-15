@@ -1,0 +1,42 @@
+{
+  "id": "fence_wood",
+  "class": "bulky",
+  "material": "wood",
+  "source": "fence_wood.png",
+  "frame": [
+    28,
+    24
+  ],
+  "anchor_px": [
+    14,
+    23
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_map_object",
+    "id": "450fea0b-d327-4388-8fea-8561bd5914c0",
+    "request": {
+      "description": "short straight section of weathered wooden picket fence, two posts and pointed pickets, straight front view, top-down RPG, muted brown wood, dark outline, no shadow, no ground",
+      "width": 32,
+      "height": 40,
+      "view": "high top-down",
+      "outline": "single color outline",
+      "shading": "detailed shading",
+      "detail": "high detail"
+    }
+  },
+  "notes": "Town v0.6 (art/town-v06): same create_map_object settings as the live well/lamppost/bench sidecars."
+}

@@ -4,13 +4,14 @@
   Spec: docs/design/WORLD_SHELL.md. NOT part of the game: index.html never links it,
   nothing under src/ imports it, it signs nobody in and sends no intent. It boots the
   REAL World runtime (src/world/world-boot.js) over fixture state, and wraps it in the
-  proposed shell: slim rail, name/level/gold strip, hunt HUD, windows over the world.
+  proposed shell: one strip (name, level, gold, launcher icons), hunt HUD, windows over the world.
 
   Open: any static server at the repo root, then /prototypes/world-shell/
     ?scene=town|home|hunt     which scene the World shows (default town)
-    ?open=bag,equip           windows open at load (any of the rail ids)
+    ?open=bag,equip           windows open at load (bag, equip, skills, home, bestiary, market, chat, settings)
     ?clean=1                  hide the prototype's own scene switch (for screenshots)
-  Keys: B bag, C gear, K skills, H homestead, L bestiary, M market,
+    ?edit=1                   start in Edit HUD mode (also: U, or Settings > Edit HUD)
+  Launchers: the icon row at the top right of the strip. Keys: B bag, C gear, K skills, H homestead, L bestiary, M market,
         Enter chat, Esc close the top window (or open Settings when none is open).
 -->
 <html lang="en">
@@ -30,14 +31,11 @@
 </head>
 <body data-theme="hearthlight">
 <div class="ws">
-  <nav class="ws-rail" aria-label="Windows">
-    <div class="ws-rail-main" data-rail="main"></div>
-    <div class="ws-rail-foot" data-rail="foot"></div>
-  </nav>
-
   <header class="ws-strip">
     <span class="ws-who"><b class="ws-name" data-strip="name"></b><span class="ws-level" data-strip="level"></span></span>
-    <span class="ws-gold" data-strip="gold"></span>
+    <span class="ws-right" data-strip="right">
+      <span class="ws-gold" data-strip="gold"></span>
+    </span>
   </header>
 
   <main class="ws-world active" id="panel-world">
@@ -54,6 +52,10 @@
     <div class="ws-layer" data-layer></div>
     <div class="ws-proto" data-proto role="group" aria-label="Prototype scene"></div>
   </main>
+  <!-- Widgets that may sit anywhere on the screen, the strip included (the launcher row). -->
+  <div class="ws-screen-hud" data-screen-hud></div>
+  <!-- Edit HUD mode: the soft grid and the widget list. -->
+  <div class="ws-edit" data-edit hidden></div>
 </div>
 
 <script src="src/data/glyphs.js"></script>

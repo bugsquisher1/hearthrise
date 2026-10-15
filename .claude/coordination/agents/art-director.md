@@ -2900,3 +2900,11 @@ Lesson: the prototype's first screenshot answered a question the spec had not as
 live world hides exactly what you opened it beside (the hero, the target). The fix is a camera inset in
 the engine, not a smaller window. Lesson 2: shoot with a local node server and Playwright at DPR 1. The
 pane's screenshots are downscaled JPEGs, too soft to judge pixel scale.
+Iteration (same day, after the Coordinator's independent review and three of Tyler's notes): the side rail is gone and the
+launchers are an icon row at the top right of the strip; the World runs edge to edge. Everything on screen
+is now a HUD widget with a contract (anchor, offset, min, opacity, visible); the cutover ships show/hide,
+opacity and reset, and drag (Edit HUD) is v1.1. The camera inset is faked in the prototype by widening the stage.
+The bag shows its used pockets plus a capacity bar. The action bar's second row appears only when bound. The
+phone's bottom HUD is 62 px (14.7%). 24 of 24 headless interaction checks pass.
+Lesson: the "nameplate rat vs frame Rat" defect was mine. The prototype never published window.MONSTERS,
+so the engine fell back to the id. Check a harness against what the game provides before blaming the art.

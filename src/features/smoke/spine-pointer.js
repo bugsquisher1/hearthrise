@@ -26,7 +26,7 @@ async function onBar(f, body, tab) {
     return await body(document.getElementById('hr-spine-bar'), SP);
   } finally { R.__pin(was); SP.__forget(); restoreG(snap); window.showTab('profile'); }
 }
-const text = (bar) => [...bar.querySelectorAll('.sp-step, .sp-title, .sp-part, .sp-reward, .sp-daily, .sp-go')]
+const text = (bar) => [...bar.querySelectorAll('.sp-step, .sp-title, .sp-part, .sp-reward, .sp-go')]
   .map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' ');
 
 export default [

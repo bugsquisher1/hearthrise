@@ -57,32 +57,24 @@ function partsHtml(m, o) {
   }).join('');
 }
 
-function dailyHtml(d) {
-  if (!d) return '';
-  const fig = (d.known ? d.done : '—') + '/' + d.total;
-  return '<button type="button" class="sp-daily' + (d.claim ? ' is-claim' : '') + '" data-sp="daily" title="'
-    + (d.claim ? 'A daily reward is ready to claim' : 'Today\'s daily quests') + '">Daily ' + fig + '</button>';
-}
-
 /** The bar on every tab but Home. `o.pending` draws the honest loading line. */
 export function barHtml(m, o) {
   if (o.pending || !m || !m.ready) {
     return '<div class="sp-in"><span class="sp-step">' + o.dash + '</span><span class="sp-title is-pending">Finding your next step</span>'
-      + dailyHtml(o.daily) + '</div>';
+      + '</div>';
   }
   if (m.finished) {
     /* Two lengths of the same line: a landscape phone shares the topbar with the
        pane strip and has room for the short one only (CSS picks). */
     return '<div class="sp-in"><span class="sp-title" title="Every step is done. The realm is yours.">'
       + '<span class="sp-long">Every step is done. The realm is yours.</span><span class="sp-short">Every step done</span></span>'
-      + dailyHtml(o.daily) + '</div>';
+      + '</div>';
   }
   const a = action(m, o.routes);
   const reward = a && a.claim ? '<span class="sp-reward">' + esc(rewardText(m.reward, o.itemName)) + '</span>' : '';
   return '<div class="sp-in"><span class="sp-step">Step ' + m.step + '</span>'
     + '<span class="sp-title">' + esc(m.row.title) + '</span>'
     + '<span class="sp-parts">' + partsHtml(m, o) + reward + '</span>'
-    + dailyHtml(o.daily)
     + (a ? '<button type="button" class="sp-go' + (a.claim ? ' is-claim' : '') + '" data-sp="go">' + esc(a.verb) + '</button>' : '')
     + '</div>';
 }
@@ -93,7 +85,7 @@ export function cardHtml(m, o) {
   if (m.finished) {
     return '<div class="hd-spine" data-sp-card><div class="hd-card hd-mile is-title"><div class="hd-mile-badge">'
       + o.icon('uiCrown', 22, 'var(--gold-2)') + '</div><div class="hd-mile-body"><div class="hd-mile-title">Every step is done</div>'
-      + '<div class="hd-mile-sub">The road is walked. The realm is yours.</div></div>' + dailyHtml(o.daily) + '</div></div>';
+      + '<div class="hd-mile-sub">The road is walked. The realm is yours.</div></div></div></div>';
   }
   const a = action(m, o.routes);
   const reward = rewardText(m.reward, o.itemName);
@@ -105,7 +97,7 @@ export function cardHtml(m, o) {
     + '<div class="sp-parts">' + partsHtml(m, o) + '</div>'
     + (reward ? '<div class="sp-reward">Reward: ' + esc(reward) + '</div>' : '')
     + (m.next ? '<div class="sp-next">Next: ' + esc(m.next.title) + '</div>' : '')
-    + '</div><div class="sp-acts">' + dailyHtml(o.daily)
+    + '</div><div class="sp-acts">'
     + (a ? '<button type="button" class="hd-cta' + (a.claim ? ' is-claim' : '') + '" data-sp="go">' + esc(a.verb) + '</button>' : '')
     + '</div></div></div>';
 }

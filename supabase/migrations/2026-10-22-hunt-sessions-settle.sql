@@ -223,7 +223,6 @@ begin
      or not exists (select 1 from public.hr_hunt_limits where key = 'stamina_low_min')
      or not exists (select 1 from public.hr_hunt_limits where key = 'gold_floor_default')
      or to_regclass('public.hr_return_anchor') is null
-     or to_regprocedure('public.hr_vigour_refill(integer,uuid)') is null
      or exists (select 1 from public.hr_hunt_end_reasons where reason = 'vigour') then
     raise exception 'PRECONDITION: 2026-10-22-hunt-sessions-catalogue.generated.sql is not applied '
                     '(no death_xp_permille / stamina_max_min limit, no stamina end, or vigour still ends a hunt)';
@@ -864,8 +863,15 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
    'added 2026-10-22 (hunt sessions C2, Tyler 2026-10-14 + master plan row 3): an action set''s target mode, pull count and gold floor; catalogue / limits values only, refused not clamped');
 -- (master plan row 20) hr_vigour_refill leaves the client surface: hunts no
 -- longer spend Vigour, so a gold-for-Vigour verb buys nothing a hunter needs.
-revoke execute on function public.hr_vigour_refill(int, uuid) from public;
-revoke execute on function public.hr_vigour_refill(int, uuid) from anon, authenticated, service_role;
+-- (2026-10-22-hunt-sessions-delete-away.sql drops it outright; guarded so this
+-- file re-applies cleanly after that one.)
+do $mig$
+begin
+  if to_regprocedure('public.hr_vigour_refill(integer,uuid)') is not null then
+    execute 'revoke execute on function public.hr_vigour_refill(int, uuid) from public';
+    execute 'revoke execute on function public.hr_vigour_refill(int, uuid) from anon, authenticated, service_role';
+  end if;
+end $mig$;
 
 -- ── §5 hr_hunt_apply — ONE SETTLE, ONE STATEMENT, ONE SUBTRANSACTION ───────
 create or replace function public.hr_hunt_apply(p_user uuid, p_slot int, p_session uuid, p_version bigint,

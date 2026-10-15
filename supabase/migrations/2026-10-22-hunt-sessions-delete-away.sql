@@ -3708,6 +3708,11 @@ begin
 
   begin  -- ── SUBTRANSACTION: every probe row is discarded at HRC2D ──────────
     insert into auth.users (id) values (v_uid);
+    /* CLOSED MODE (2026-10-21-closed-mode.sql, applied first): the probe is
+       ADMITTED for the length of this subtransaction, which discards it. */
+    if to_regclass('public.hr_access_allowlist') is not null then
+      execute 'insert into public.hr_access_allowlist (user_id, note) values ($1, ''c2 self-check probe'')' using v_uid;
+    end if;
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     v_r := public.hr_create_character(0);
     if v_r->>'created' <> 'true' then raise exception 'GATE(c): no probe character: %', v_r; end if;

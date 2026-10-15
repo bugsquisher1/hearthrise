@@ -38,6 +38,12 @@
 //       catalogue, C1's file, the C2 forward catalogue that supersedes C1's
 //       rows, and C2's settle file, which edits four C1 bodies), is
 //       byte-identical (schema inventory, function bodies + ACLs, catalogue rows)
+//   A1  CLOSED MODE REACHES THE SIX UNGATED RPCs (Security R3): hr_load,
+//       hr_create_character, hr_clan_browser, hr_companion_equip,
+//       hr_companion_grant and hr_rest each refuse a non-allowlisted caller
+//       hr_closed with closed mode on, and an allowlisted caller passes
+//       (2026-10-22-closed-mode-ungated-rpcs.sql; the file's own §3 refuses a
+//       splice that misses one)
 // --mutate plants each defect into the LIVE function body (create or replace,
 // rolled back) and requires the arm that owns it to go red; two more defects
 // are planted in the migration TEXT and must be refused by its own §8.
@@ -429,19 +435,61 @@ async function g1(db) {
    settle and the delete) is byte-identical. The applied C1 files are history:
    their §0 preconditions name objects the delete file removes (hr_vigour_of),
    so re-running them after it is not a property any database will exercise. */
+/* A1 — the six RPCs that never call hr_rpc_gate refuse a non-admitted caller
+   themselves. Closed mode forced on, every row rolled back. */
+const UNGATED = '2026-10-22-closed-mode-ungated-rpcs.sql';
+const UNGATED_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', UNGATED), 'utf8').replace(/\r\n/g, '\n');
+const SIX = [
+  ['hr_load', 'select public.hr_load(0)'],
+  ['hr_create_character', 'select public.hr_create_character(0)'],
+  ['hr_clan_browser', 'select public.hr_clan_browser(25)'],
+  ['hr_companion_equip', "select public.hr_companion_equip(0, 'fox', true)"],
+  ['hr_companion_grant', "select public.hr_companion_grant(0, 'fox', 'shop', gen_random_uuid())"],
+  ['hr_rest', 'select public.hr_rest(0, gen_random_uuid())'],
+];
+async function a1(db) {
+  const red = [];
+  const IN = '00000000-0000-4000-8000-0000000c2aa1';
+  const OUT = '00000000-0000-4000-8000-0000000c2aa2';
+  await db.query('begin');
+  try {
+    await db.exec(`insert into auth.users (id) values ('${IN}'), ('${OUT}') on conflict (id) do nothing;
+      insert into public.hr_access_allowlist (user_id, note) values ('${IN}', 'A1') on conflict (user_id) do nothing;
+      insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'A1') on conflict (key) do update set enabled = true;`);
+    const as = async (uid) => db.exec(`select set_config('request.jwt.claim.sub', '${uid}', true),
+      set_config('request.jwt.claims', '{"sub":"${uid}","role":"authenticated"}', true)`);
+    for (const [name, sql] of SIX) {
+      await as(OUT);
+      await db.exec('savepoint a1');
+      let err = null;
+      try { await db.query(sql); } catch (e) { err = String(e.message); }
+      await db.exec('rollback to savepoint a1');
+      if (!err || !err.includes('hr_closed')) red.push(`A1: ${name} admitted a non-allowlisted caller with closed mode on (${err || 'no refusal'})`);
+    }
+    await as(IN);
+    await db.exec('savepoint a1');
+    let err = null;
+    try { await db.query('select public.hr_load(0)'); } catch (e) { err = String(e.message); }
+    await db.exec('rollback to savepoint a1');
+    if (err && err.includes('hr_closed')) red.push('A1: hr_load refused an ALLOWLISTED caller — the check is not the admitted test');
+  } finally { await db.query('rollback'); }
+  return red;
+}
+
 async function c1(db) {
   const red = [];
   const { inventory } = await import('./schema-replay.mjs');
   const snap = async () => JSON.stringify([await inventory(db),
     await q(db, `select p.oid::regprocedure::text f, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and (p.proname like 'hr_hunt%' or p.proname in ('hr_rpc_gate', 'hr_mark_seen',
+                   'hr_load', 'hr_create_character', 'hr_clan_browser', 'hr_companion_equip', 'hr_companion_grant', 'hr_rest',
                    'hr_action_set_put', 'hr_action_set_delete', 'hr_jsonb_add', 'hr_ledger_session_stamp')) order by 1`),
     await q(db, `select * from public.hr_hunt_supplies order by 1`), await q(db, `select * from public.hr_hunt_travel order by 1`),
     await q(db, `select * from public.hr_hunt_limits order by 1`), await q(db, `select * from public.hr_hunt_vendor_value order by 1`),
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  for (const f of [CAT_NOW, SETTLE, DROP]) {
+  for (const f of [CAT_NOW, SETTLE, DROP, UNGATED]) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }
@@ -526,10 +574,10 @@ const TEXT_MUTANTS = [
 const { bootReplay } = await import('./schema-replay.mjs');
 const { db } = await bootReplay({});
 if (!MUTATE) {
-  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await c1(db))];
+  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 C1 green');
+  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 A1 C1 green');
 } else {
   let escaped = 0;
   const control = await runArms(db);
@@ -554,6 +602,35 @@ if (!MUTATE) {
     const caught = red.some((r) => r.startsWith('D1'));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} D1: the drop file's reader scan blinded${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
+  }
+  /* A1 bites: hr_rest re-created WITHOUT the access line (the body the
+     ungated file spliced, one line removed) must be red. Rolled back. */
+  {
+    let red = [];
+    try {
+      const def = String(await one(db, `select pg_get_functiondef('public.hr_rest(integer,uuid)'::regprocedure)`)).replace(/\r/g, '');
+      const line = '  perform public.hr_access_check();\n';
+      if (def.split(line).length !== 2) throw new Error('A1 mutant anchor moved');
+      await db.exec(def.replace(line, ''));
+      red = await a1(db);
+    } finally {
+      await db.exec(UNGATED_TEXT);   // restore the spliced body (the file is idempotent)
+    }
+    const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_rest'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_rest loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    if (!caught) escaped++;
+  }
+  /* A1's own file bites: a splice list missing hr_rest is refused by its §3. */
+  {
+    const from = "    'public.hr_rest(integer,uuid)'\n  ] loop";
+    if (UNGATED_TEXT.split(from).length !== 2) throw new Error('A1 text mutant anchor moved');
+    let raised = null;
+    try {
+      const { db: d4 } = await bootReplay({ patches: new Map([[UNGATED, [[from, '    \'public.hr_load(integer)\'\n  ] loop']]]]), upTo: UNGATED });
+      await d4.close?.();
+    } catch (e) { raised = String(e.message).includes('§3a') ? '§3a' : null; }
+    console.log(`  ${raised ? 'caught ' : 'ESCAPED'} A1: the ungated file's splice list misses hr_rest${raised ? ` (${raised})` : ''}`);
+    if (!raised) escaped++;
   }
   /* G1 bites ON THE CHAIN: Vigour is let back into the end-reason wall, and
      into the catalogue — each alone must be red. Rolled back. */

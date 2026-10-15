@@ -105,7 +105,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES } from './schema-replay.mjs';
+import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles } from './schema-replay.mjs';
 
 const BASELINE = join(ROOT, 'tests', 'schema-drift.baseline.json');
 const argv = process.argv.slice(2);
@@ -426,6 +426,18 @@ const MUTATIONS = {
 
   -- (z) THE LEAK CHECK - the fixture is gone, so every gate above ran inside the`,
     ]]]],
+  },
+  wipe_keeps_ledger: {
+    what: 'the declared clean-slate wipe moves player_ledger from its WIPE list to its KEEP list — it applies, its own self-check has nothing to say about a kept table, and a money journal survives the clean slate',
+    // The second half of the bystander property past the wipe (assertBystanders):
+    // the rows were present immediately before the wipe and must be gone after.
+    expect: 'bystander',
+    patches: [['2026-10-21-closed-rebuild-wipe.sql', [
+      ["'player_farm', 'player_intents', 'player_inventory', 'player_ledger',",
+       "'player_farm', 'player_intents', 'player_inventory',"],
+      ["'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'profiles',",
+       "'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'profiles', 'player_ledger',"],
+    ]]],
   },
   selfcheck_global_prune_fn: {
     what: 'a self-check calls the real retention prune — global by construction — without narrowing its reach to the probe first',
@@ -895,15 +907,47 @@ insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at) v
    now() - interval '2 days');
 `;
 
+/* THE ONE DECLARED WIPE (Tyler 2026-10-14/15, supabase/migrations/
+   2026-10-21-closed-rebuild-wipe.sql) truncates player_ledger ON PURPOSE, so
+   "the bystanders survive to the end of the chain" stops being the property
+   past that file. The property becomes two halves, both still checked:
+     · every file BEFORE the wipe leaves both bystanders in place — captured by
+       a seed that runs immediately before the wipe file, into a TEMP table
+       (pg_temp, so no public inventory and no wipe classification sees it);
+     · the wipe itself removes them — a wipe that skipped the ledger would leave
+       a player's money journal behind on a clean slate.
+   A chain without the wipe file is judged exactly as before. */
+const WIPE_FILE = '2026-10-21-closed-rebuild-wipe.sql';
+const BYSTANDERS_PRE_WIPE = `
+create temp table if not exists _bystanders_pre_wipe (intent text);
+insert into _bystanders_pre_wipe
+  select intent from public.player_ledger where user_id = '${BYSTANDER_UID}';
+`;
+
 /**
- * Both bystander rows must still be there when the chain ends. A missing row is
- * not a schema finding — it is a self-check that deleted a real player's money
- * history — so it is raised with its own flag and reported in its own words.
+ * Both bystander rows must still be there when the chain ends (or, on a chain
+ * that carries the declared wipe, immediately before it — and gone after it). A
+ * missing row is not a schema finding — it is a self-check that deleted a real
+ * player's money history — so it is raised with its own flag and reported in
+ * its own words.
  */
 async function assertBystanders(db) {
+  const wiped = (await db.query(`select to_regclass('pg_temp._bystanders_pre_wipe') is not null as t`)).rows[0].t;
   const { rows } = await db.query(
-    `select intent from public.player_ledger where user_id = $1 order by intent`,
-    [BYSTANDER_UID]);
+    wiped ? 'select intent from _bystanders_pre_wipe order by intent'
+          : 'select intent from public.player_ledger where user_id = $1 order by intent',
+    wiped ? [] : [BYSTANDER_UID]);
+  if (wiped) {
+    const left = (await db.query('select count(*)::int as n from public.player_ledger where user_id = $1',
+      [BYSTANDER_UID])).rows[0].n;
+    if (left !== 0) {
+      const e = new Error(`THE DECLARED WIPE (${WIPE_FILE}) LEFT ${left} LEDGER ROW(S) BEHIND.\n`
+        + '  It truncates player_ledger by ruling; a ledger row that survives it is a money journal\n'
+        + '  on a clean slate.');
+      e.bystander = true;
+      throw e;
+    }
+  }
   const seen = rows.map((r) => r.intent);
   const missing = ['bystander_aged', 'bystander_live'].filter((i) => !seen.includes(i));
   if (!missing.length) return;
@@ -924,6 +968,7 @@ async function fingerprint(patches, extraSeeds) {
   // its own, and two seeds on the SAME file concatenate rather than one
   // silently replacing the other.
   const seedBefore = new Map([[BYSTANDER_AT, BYSTANDERS]]);
+  if ((await chainFiles()).some(([n]) => n === WIPE_FILE)) seedBefore.set(WIPE_FILE, BYSTANDERS_PRE_WIPE);
   for (const [file, sql] of extraSeeds || []) {
     seedBefore.set(file, (seedBefore.get(file) || '') + sql);
   }

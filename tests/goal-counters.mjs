@@ -65,6 +65,7 @@ import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import { indexGatherNodes } from '../src/core/skill-sim.js';
 import { MIN_ACTION_MS } from '../src/core/pacing.js';
 import { xpForLevel } from '../src/core/xp.js';
+import { huntAccrualInput } from './hunt-fixture.mjs';
 
 const USER = '00000000-0000-4000-c000-9081a1c00000';
 const SEED = 0x9021;
@@ -172,8 +173,10 @@ const goalOps = (delta) => opsOf(delta).filter((o) => {
 const findOp = (delta, kind, type) =>
   opsOf(delta).find((o) => o.kind === kind && o.key === `${GOAL_KEY_PREFIX}${type}`) || null;
 
+/* A fight is a hunt session (closed rebuild, lane C2): the night rides a
+   training hunt on the monster (tests/hunt-fixture.mjs). */
 function combatNight(over) {
-  return computeAccrualFn({
+  return computeAccrualFn(huntAccrualInput({
     userId: USER, slot: 0,
     nowMs: NOW_MS, accruedToMs: NOW_MS - 2 * HOUR, activeSinceMs: NOW_MS - 2 * HOUR,
     activeKind: 'combat', activeId: MONSTER,
@@ -182,10 +185,9 @@ function combatNight(over) {
     skills: { attack: xpForLevel(70), strength: xpForLevel(70), defence: xpForLevel(70),
               hitpoints: xpForLevel(70) },
     equipment: {}, inventory: {},
-    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
     items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
     ...over,
-  });
+  }, { seed: SEED }));
 }
 
 function gatherNight(over) {
@@ -197,7 +199,6 @@ function gatherNight(over) {
     hp: 999, maxHp: 999, gold: 0,
     skills: { woodcutting: xpForLevel(70) },
     equipment: {}, inventory: TOOL ? { [TOOL]: 1 } : {},
-    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
     toolCarry: {},
     items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
     ...over,
@@ -644,15 +645,17 @@ async function runOn(db, patches) {
   // counter reads 0". Both window anchors reproduce it; only `nowMs` does not.
   {
     // A CAPPED absence: 40h away, 12h paid. Its credited window ENDED 28h ago.
+    // A GATHER night: a hunt has no cap (TICK-2 — the tick settles it as it
+    // runs), so the away cap and its day anchor live on the gather pointer.
     const capNow = Date.UTC(2026, 7, 20, 9, 0, 0);
-    const capped = combatNight({
+    const capped = gatherNight({
       nowMs: capNow, accruedToMs: capNow - 40 * HOUR, activeSinceMs: capNow - 40 * HOUR,
       capMs: 12 * HOUR,
     });
     ok(capped.accrued === true && capped.capped === true,
       `G10: the fixture is not capped (accrued=${capped.accrued}, capped=${capped.capped}) — the `
       + 'whole point of it is a window that ended days before the player returned');
-    const op = findOp(capped.delta, 'daily', 'kill_any');
+    const op = findOp(capped.delta, 'daily', 'gather');
     ok(!!op && op.period === G.utcDayKey(capNow),
       `G10: a capped night filed its daily counter under ${JSON.stringify(op?.period)}; expected `
       + `the RETURN day ${JSON.stringify(G.utcDayKey(capNow))}. Anchoring to the credited window `
@@ -664,7 +667,7 @@ async function runOn(db, patches) {
 
     // Two returns on different days write different period keys — one rule,
     // applied twice, and the lifetime counter is unaffected by either.
-    const d1 = findOp(combat.delta, 'daily', 'kill_any');
+    const d1 = findOp(gather.delta, 'daily', 'gather');
     ok(d1.period !== op.period, 'G10: two nights returning on different UTC days share a period key');
   }
 
@@ -991,33 +994,35 @@ async function runOn(db, patches) {
    planted proves nothing, and "the mutation escaped" is the wrong diagnosis
    for "the mutation never happened". */
 const MUTATIONS = [
+  /* Re-anchored lane C2 (closed rebuild): a fight is a hunt session, so the
+     combat handlers are accrueHunt's (supabase/functions/hr-accrue/accrual.js). */
   { name: 'M1 combat: the updateDaily handler is removed (today\'s shipped behaviour)',
-    file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    /* `meta` is now READ",
-    to: "    /* `meta` is now READ" },
-  /* Re-anchored lane C2: the combat handler also feeds the LIVE charm/trophy
-     ladders inside a hunt session (`killed(...)`), so it is a block now. */
+    file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt, meta) {\n",
+    to: "    updateQuest(type, amt, meta) {\n" },
   { name: 'M2 combat: the updateQuest handler is removed',
-    file: 'accrual', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n      if (type === 'kill_monster' && meta) killed(meta.target, amt == null ? 1 : Math.floor(Number(amt) || 0));\n    },\n\n    /* Still deliberately ABSENT, and each absence",
-    to: "\n\n    /* Still deliberately ABSENT, and each absence" },
+    file: 'accrual', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
+    to: "  };" },
   { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
-    file: 'accrual', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n      if (type === 'kill_monster' && meta) killed(",
-    to: "      if (type === 'kill_monster' && meta) killed(" },
+    file: 'accrual', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
+    to: "    },\n  };" },
   /* b461 moved both anchors: the modal-goal emit (goal-period.js) now sits
      immediately after each goalProgressOps push, so the distinctive text that
      FOLLOWS the line is its own comment rather than the bestiary / delta. The
      mutation is unchanged — delete the push, keep everything after it. */
   { name: 'M3 combat: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer",
-    to: "\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, credit.toMs, events)) progress.push(op);\n",
+    to: "" },
   { name: 'M4 gather: the goal ops never reach the delta',
     file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
     to: "\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own" },
   { name: 'M5 gather: the yield is ignored and every action counts 1',
     file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
     to: "    updateDaily(type) { goals.daily(type, 1); },\n    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
-  { name: 'M6 combat: the daily is anchored to the credited window, not the return',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer",
-    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer" },
+  /* Re-anchored lane C2: a hunt has no cap (TICK-2), so the capped night and
+     its day anchor (G10) are the gather pointer's. */
+  { name: 'M6 gather: the daily is anchored to the credited window, not the return',
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
+    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own" },
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
     file: 'goals', from: "return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;",
     to: "return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;" },
@@ -1034,8 +1039,8 @@ const MUTATIONS = [
     file: 'goals', from: "               add: clamp(type, daily[type], 'daily'), state: 'active' });",
     to: "               add: clamp(type, daily[type], 'daily'), state: 'claimed' });" },
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
-    file: 'accrual', from: "      collection.record(id, n);          // Slice 2: the per-item loot counter\n",
-    to: "" },
+    file: 'accrual', from: "      bag[id] = (bag[id] || 0) + n;\n      collection.record(id, n);\n",
+    to: "      bag[id] = (bag[id] || 0) + n;\n" },
   /* W0: a STATE goal type is legal only while goal-catalogue.js declares it. Drop
      the declaration and the authored 'property' step must turn G2(b) red. */
   { name: 'M14 catalogue: the property STATE goal type is undeclared',
@@ -1046,8 +1051,8 @@ const MUTATIONS = [
   { name: 'M15 goals: an authored event type (harvest) is missing from GOAL_EVENTS',
     file: 'goals', from: "  'harvest',    // farm\n", to: "" },
   { name: 'M13 combat: the collection ops never reach the delta',
-    file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n",
-    to: "" },
+    file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n\n  /* THE SESSION IS SETTLED",
+    to: "\n  /* THE SESSION IS SETTLED" },
 ];
 
 const ENGINE_PATH = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');

@@ -57,3 +57,30 @@ This is a 64x48 blockout of the v0.5 blueprint. Grey cobble rectangles stand in 
 | sewage water | `b16b1d21-ea0c-4970-b7a6-24432629fd90` | not checked yet |
 
 These are single tiles, not Wang tilesets, so Map Workshop does not scatter them automatically. Use them as stamps, or let our renderer pick a variant at random for interior cells.
+
+## Region 1 — Greenhaven Frontier (2026-10-15)
+
+New pro tilesets (32 px, high top-down, transition 0.25, chained on shared base tiles):
+
+| Ground | Tileset | id | Notes |
+|---|---|---|---|
+| Meadowbrook Thicket | grass ↔ brush thicket | `c09e937d-f7dc-4c3f-be88-492d7ea06174` | raggedness 0.65, meander 0.2 |
+| Mosslight Glade | leaf litter ↔ fey glow moss | `18ce7360-6e1c-477d-a3bd-77ccf4726b67` | lower = leaf litter base of `9aa313ea` |
+| Pebblebrook Bank | river water ↔ riverbank pebbles | `9c7ea680-f7ad-4dbd-9015-36c6c743000f` | lower = water base of `68884353` |
+| Coppercap Warrens | cellar earth ↔ copper-vein rock floor | `c72b1a14-20f7-4c32-aedf-25f78b845909` | lower = earth base of `998912d5` |
+| Rootcellar | cellar earth ↔ root-tangled wall | `73220ad4-2e53-43fb-92fe-4c689b441fef` | raggedness 0.3; wall top reads flat brown |
+
+Map objects (basic, high top-down): fallen log `acc4c666-65d2-459b-92d1-5b926526f5bc`, flower bush `f5d7ee70-2550-48f8-92dc-1269c03f3d39`, split-rail fence `186719d7-6edd-43cd-9a52-601507566eaa`, broken wagon `eda68a0d-8b19-44b6-8906-b68cd9b68567`, milestone `99dbfe88-eb64-431c-b233-f5c610f589ff`, reeds `b0c56edd-824c-4da0-b440-27694cc0dc16`. Not yet placed on maps.
+
+Starter maps (48×36, rect blockouts):
+
+| Ground | Map id |
+|---|---|
+| Meadowbrook Thicket | `cba3d790-3bb2-4b8e-87f4-f8db61fe8cbf` |
+| Old Mill Road | `6100afb7-f601-4d94-95c2-92fffbc87a65` |
+| Mosslight Glade | `952445b0-d7b4-4e1e-9111-27287b3ddf2c` |
+| Pebblebrook Bank | `8f8da874-c405-4d77-a439-02fdaa6093ff` |
+| Coppercap Warrens | `e364bc2f-0092-4ac3-8f48-dd4b870e66ee` |
+| Rootcellar | `88d3c8f1-c65d-4948-82e4-95b3d454816e` |
+
+Known issues: the mud puddle set `baf062b2` has 2 tile images that no longer fetch (puddle removed from Rootcellar); maps show a few black tiles only where an exit path meets the map edge.

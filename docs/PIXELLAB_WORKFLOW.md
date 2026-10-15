@@ -47,6 +47,9 @@ Tyler's production directive (2026-10-15). PixelLab is the generator; our own pi
 - Quadruped templates are bear, cat, dog, horse and lion only; small creatures go through the object tools.
 - The tools return 8 rotations, but our engine reads `s, e, n, w` until NOW-3 lands; diagonals are wasted until then.
 
+## 4b. Spend rule: free first (Tyler, 2026-10-15)
+Batch 1 spent 40 generations on rat and slime readability, then still needed a free value lift to reach the target. From now on, a fix to an EXISTING sprite (contrast, value, hue, rim light, small pose edits) tries the free in-repo pass first: a value lift, a palette ramp shift, `pixelart_workbench` hand edits. PixelLab is used only when that cannot meet the accept criteria. Generations are for NEW art: new creatures, new facings, new animations and tilesets.
+
 ## 5. The first production batch (small, aimed at the first playable)
 Order matters: R1 and R3 can run now; R2 lands with the engine's 8-facing support (ART_ROADMAP NOW-3). **R0 preflight (free):** `get_balance`; `get_character(character_id="03dec2e0-d4e4-4745-8c31-7d97aa0aeba6")` (confirm 8 rotations; read the walk and idle group names); `get_object(object_id="18ec0bfa-136c-47ba-a3c8-11ddfa50bceb")`.
 

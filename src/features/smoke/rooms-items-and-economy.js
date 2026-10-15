@@ -4067,8 +4067,7 @@ export default [
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
-      /* master plan row 2 (lane C2): the Counter no longer sells cooked food, so no cap applies */
-      cooked_lobster: 240, cooked_trout: 55, cooked_shrimp: 18,
+      cooked_lobster: 240, cooked_trout: 55, cooked_shrimp: 18,   // uncapped: no longer sold (lane C2)
     };
     const wrong = Object.keys(EXPECT).filter((id) => window.vendorPrice(id) !== EXPECT[id])
       .map((id) => id + ' shows ' + window.vendorPrice(id) + ', server pays ' + EXPECT[id]);

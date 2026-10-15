@@ -1928,7 +1928,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and runs no local fight — the k" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): "RECOVER-19 a BOOT RESUME while knocked out raises no pre-fight warning and runs no local fight — the k" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('RECOVER-17 (b520): an IDLE BOOT hydrates the recovery line — the reload no longer '

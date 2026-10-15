@@ -1058,7 +1058,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "b341: the away SIMULATION states how long it survived and what killed you — and the translator mirrors it" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " the away SIMULATION states how long it survived and what killed you — and the translator mirrors it" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('rev.2: the DURABLE away card describes a recovery night as one that kept paying', () => {
@@ -1627,7 +1627,7 @@ export default [
      refused permission.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  /* RETIRED (lane C2, the closed rebuild): "b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b342-2: the COMBAT screen tells a fighting player what actually ends an away night, and promises nothing else', () => {

@@ -3154,7 +3154,7 @@ export default [
      guarded nothing. The rig is AWAY-1b's: the SHIPPED combat ctx (whose
      `fx.autoEat` is the real `resolveAutoEat` decision) inside `_withOfflineReplay`.
      THE SAME SEEDED SPAN RUNS TWICE, bag and empty: the empty run MUST fall. */
-  /* RETIRED (lane C2, the closed rebuild): "b267: auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b297: a kill triggers the arena death FX (foe-dying / Defeated stamp)', () => {
@@ -4137,13 +4137,13 @@ export default [
      ⚠ KNOWN LIMITATION, stated rather than papered over: under the capstone the
        durable record of the switch is the SERVER's (the activity intent), and
        this test cannot reach that seam. tests/activity-seam.mjs owns it. */
-  /* RETIRED (lane C2, the closed rebuild): "b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the w" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " an away night switches to the auto-accepted bounty target MID-NIGHT deferred the switch past the w" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.rand" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.rand" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one " — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one " — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {

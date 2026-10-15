@@ -1305,7 +1305,7 @@ export default [
      other skills are still at zero at the end. That is why they are not
      decoration at the bottom — they ARE the test.
      ══════════════════════════════════════════════════════════════════════════ */
-  /* RETIRED (lane C2, the closed rebuild): "b432 E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, a" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, a" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b432: "How do I get this?" names the bench for a craftable, and never claims a live item was removed', () => {

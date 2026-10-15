@@ -2423,7 +2423,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-2 (b465):…" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-2…" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
      Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('FIELDNOTES-1: every MONSTERS id has exactly one hunter\'s note, charset-clean, unique, and silent about its own weakness and undropped items', () => {

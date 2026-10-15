@@ -69,7 +69,7 @@ export default [
      card's whole computation (src/features/home-dashboard.js:1041 renders
      'Daily reward · Day ' + DL.cycleDay(G) and DL.rewardFor(G)); the modal is
      asserted through the rendered DOM. */
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-3 (b475, re-ruled b498): the sheet displays the server's CLAIM streak, not the residue" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-3, re-ruled the sheet displays the server's CLAIM streak, not the residue" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-4 (W0): a MISSED day steps the advertised day back ONE, never to Day 1 — and the sheet never promi" — it covered a system C2 deleted
@@ -604,7 +604,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-1 (b462): the daily-reward "shown today" marker rides the residue, and a server refusal never toas" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-1 the daily-reward "shown today" marker rides the residue, and a server refusal never toas" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withClientOwnedSlots(() => withLocalBlob(() => {
@@ -3126,7 +3126,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "b326-2: the simulation reports the drop multiplier featured time actually paid" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " the simulation reports the drop multiplier featured time actually paid" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('buffs step 2: the server owns the clock — the pill is the envelope, it never pauses, '
@@ -4211,7 +4211,7 @@ export default [
   /* THE AWAY HALF (§4 both-path). The night runs the SAME resolveAutoEat through
      the same maybeAutoEat, so the food it eats must be the server's too — the
      away rig, one seeded span, with the two nominations disagreeing. */
-  /* RETIRED (lane C2, the closed rebuild): "b547: the AWAY replay eats the server…" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " the AWAY replay eats the server…" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
      Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b547: the play streak shown is the server\'s streak_days, not the per-device residue', () => {

@@ -635,7 +635,7 @@ export default [
       if (hadClaims) G._collectionServerClaimed = sClaims; else delete G._collectionServerClaimed;
     }
   }),
-  /* RETIRED (lane C2, the closed rebuild): "b166: daily login reward claims once per day + escalates with streak" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " daily login reward claims once per day + escalates with streak" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('b164: Renown ladder scores, ranks up, claims, and perks apply', async () => {

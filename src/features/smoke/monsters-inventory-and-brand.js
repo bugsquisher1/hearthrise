@@ -6652,7 +6652,7 @@ export default [
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "b526: an empty bag can be answered with gold — the counter sells a meal" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " an empty bag can be answered with gold — the counter sells a meal" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b526: the empty-bag death sheet carries the door to the counter', () => {
@@ -6891,7 +6891,7 @@ export default [
     assert(killed && killed.v === '', 'the unknown killer carried a kills figure: ' + JSON.stringify(killed));
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "b373/rev.2: RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer" — it covered a system C2 deleted
+  /* RETIRED (lane C2, the closed rebuild): " RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('b373/b511: an IDLE player takes the server\'s hp, and only a live fight is client-owned', async () => {

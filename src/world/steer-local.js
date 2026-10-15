@@ -22,8 +22,8 @@
 // sends an intent, which is what "the mill hatch only navigates" means.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=586';
-import { diagonalOf } from './core/facing.js?v=586';
+import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=587';
+import { diagonalOf } from './core/facing.js?v=587';
 
 export const WALK_TILES_PER_S = 3.2;
 

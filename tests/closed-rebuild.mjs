@@ -232,8 +232,17 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
                              from public.hr_wipe_log where wipe_key = 'closed-rebuild-2026-10'`);
     if (!log || !(log.ps >= 2) || !(log.pl >= 1)) return `W-WIPE: hr_wipe_log does not journal what was removed (${JSON.stringify(log)})`;
 
+    // ── W-SLOT (P1 2026-10-15): after the wipe every account owns slot 0 and only
+    //    slot 0; a device still addressing a pre-wipe hero slot is refused
+    //    slot_not_owned (the client re-addresses to 0 — CLOSED/DEAD-SLOT-1 in-page),
+    //    and slot 0 is created through the real RPC.
+    const owned = (await one(`select public.hr_hero_slots_of('${A}')::text as s`)).s;
+    if (owned !== '[0]') return `W-SLOT: a wiped account owns ${owned}, expected [0]`;
+    r = await as('authenticated', A, 'select public.hr_create_character(2) as v');
+    if (r.err || r.rows[0].v.error !== 'slot_not_owned') return `W-SLOT: a dead hero slot was not refused slot_not_owned (${JSON.stringify(r)})`;
     // ── W-ONCE: the allowlisted player starts the rebuild; a re-apply wipes nothing ──
-    r = await as('authenticated', A, 'select public.hr_create_character(0)');
+    r = await as('authenticated', A, 'select public.hr_create_character(0) as v');
+    if (!r.err && r.rows[0].v.ok !== true) return `W-SLOT: slot 0 was not created after the wipe (${JSON.stringify(r.rows[0].v)})`;
     if (r.err) return `W-ONCE: the allowlisted player cannot start again after the wipe (${r.err.message})`;
     const ps1 = await count('player_state');
     try { await db.exec(wipeSql); } catch (e) { return `W-ONCE: the re-apply raised (${String(e.message).split('\n')[0]})`; }

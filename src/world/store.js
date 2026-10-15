@@ -12,9 +12,9 @@
 // it, which is correct for a view. tests/world-no-authority.mjs fails the build
 // on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=586';
-import { sceneFor } from './core/scene-route.js?v=586';
-import { HUNT_MAP_INDEX } from './hunt-maps.js?v=586';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=587';
+import { sceneFor } from './core/scene-route.js?v=587';
+import { HUNT_MAP_INDEX } from './hunt-maps.js?v=587';
 
 /** The display scratch, created on first use. The world's only write to G. */
 export function worldOf(G) {

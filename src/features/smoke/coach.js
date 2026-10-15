@@ -8,9 +8,9 @@
 // on. The suite never pays anything: every gesture here is a start/stop or a
 // sale whose answer is the harness's (unconfigured) transport.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, tryRun, assert, snapshotG, restoreG } from './_harness.js?v=586';
-import { buildResiduePatch } from '../../net/capstone.js?v=586';
-import { hydrateInto } from '../../net/client-state.js?v=586';
+import { tryRunAsync, tryRun, assert, snapshotG, restoreG } from './_harness.js?v=587';
+import { buildResiduePatch } from '../../net/capstone.js?v=587';
+import { hydrateInto } from '../../net/client-state.js?v=587';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const START = () => ({ counts: {}, skills: { hitpoints: 1154 }, bag: { turnip_seed: 8, shrimp: 10, cooked_shrimp: 20 }, kills: {}, sold: false, activity: false });

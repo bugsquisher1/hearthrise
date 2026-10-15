@@ -113,7 +113,6 @@ import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
    the real migration chain into PGlite and drive real RPCs, because both are
    client/server CONTRACTS: the board DRAWS a kill count the accept CLAMPS, and
    the entry trait is granted by the same RPC that mints the starting kit. */
-import { autoEatAtCreationGuard } from './auto-eat-at-creation.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';

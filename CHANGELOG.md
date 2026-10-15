@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 588 — 2026-10-15 (One clear view)
+
+**The world looks the same everywhere.** Town, cottage and cellar now draw at the same crisp scale, so you see more of the town at once and nothing jumps in size when you move between places.
+
 ## v0.9.2-beta build 587 — 2026-10-15 (Back to your hero)
 
 **No more endless "Still connecting".** If your device remembered a hero slot that no longer exists after the reset, the game now takes you straight to your main hero instead of waiting forever.

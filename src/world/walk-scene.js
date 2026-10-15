@@ -13,11 +13,12 @@
 // A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=587';
-import { createSteer, tapAction } from './steer-local.js?v=587';
-import { townState, stationOf } from './town-scene.js?v=587';
-import { furnish, maskWith } from './home-scene.js?v=587';
-import { T } from './core/grid.js?v=587';
+import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=588';
+import { createSteer, tapAction } from './steer-local.js?v=588';
+import { townState, stationOf } from './town-scene.js?v=588';
+import { furnish, maskWith } from './home-scene.js?v=588';
+import { T } from './core/grid.js?v=588';
+import { pickFacing } from './core/facing.js?v=588';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
@@ -90,11 +91,12 @@ export function createWalkScene(map, o) {
          on screen the hero stepped 0, 1, 3, 4 px on alternate frames. */
       const hx = onPixel(at.x), hy = onPixel(at.y);
       const clip = o.sprites.hero && o.sprites.hero.anims && o.sprites.hero.anims.walk;
-      const fps = (clip && clip.fps) || 10, n = (clip && clip.dirs && clip.dirs[at.dir] && clip.dirs[at.dir].length) || 1;
+      const shown = clip && clip.dirs ? clip.dirs[pickFacing(clip.dirs, at.dir, at.diag)] : null;
+      const fps = (clip && clip.fps) || 10, n = (shown && shown.length) || 1;
       /* walking: the age at which the clip shows the frame for the distance covered; standing: time since it stopped */
       const age = at.moving ? ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps : steer.restMs(now);
       return {
-        hero: { x: hx, y: hy, dir: at.dir, anim: at.moving ? 'walk' : 'idle', age },
+        hero: { x: hx, y: hy, dir: at.dir, diag: at.diag, anim: at.moving ? 'walk' : 'idle', age },
         camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
         units: cast.units, bubbles: cast.bubbles, props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,

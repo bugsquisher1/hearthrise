@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=587';
-import { buildResiduePatch } from '../../net/capstone.js?v=587';
+import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=588';
+import { buildResiduePatch } from '../../net/capstone.js?v=588';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {
@@ -412,6 +412,55 @@ export default [
       closed.remove();
       window.showTab('profile');
       if (!hadWorld) delete G._world;
+    }
+  }),
+
+  () => tryRunAsync('WORLD-9: one pixel density in town, cottage and cellar (x2, never a fitted zoom), and a docked window set with setInset never covers the hero', async () => {
+    const G = window.G;
+    const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world');
+    const prevWorld = hadWorld ? JSON.parse(JSON.stringify(G._world)) : null;
+    let rt = null;
+    try {
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      G._world = { choice: 'home' };
+      rt = await openWorld();
+      assert(typeof rt.setInset === 'function', 'the world runtime has no setInset(): the shell cannot keep a docked window off the hero');
+      assert(await until(() => rt.stats().scene === 'home_cottage', 2000), 'the pick of Home did not show the cottage');
+      rt.step();
+      const zHome = rt.stats().z;
+      /* the hero on the Common's east edge, where an uncovered camera puts it under a right-hand dock.
+         Set and switched in one turn: a frame in between would note the cottage position over it. */
+      G._world.pos = { map: 'town_common', x: 22, y: 9 };
+      document.querySelector('#panel-world [data-world-choice="town"]').click();
+      assert(await until(() => rt.stats().scene === 'town_common', 2000), 'tapping Town did not show the Common');
+      const want = Math.max(1, Math.round((window.innerWidth > 2400 ? 3 : 2) * (window.devicePixelRatio || 1)));
+      const stage = document.querySelector('#panel-world .world-stage').getBoundingClientRect();
+      const dock = Math.min(340, Math.round(stage.width / 2));
+      const edge = stage.right - dock;
+      const heroX = () => { const s = rt.stats(); const h = s.walk.hero; return rt.screenOf(Math.round(h.x), Math.round(h.y)).x; };
+      rt.setInset(null);
+      rt.step();
+      const zTown = rt.stats().z;
+      assert(zTown === want, 'the Common must draw at the one density (' + want + ' device px per art px), drew at ' + zTown);
+      assert(heroX() > edge, 'precondition: with no dock the hero on the east edge stands where a 340 px dock would cover it (x ' + Math.round(heroX()) + ', dock from ' + Math.round(edge) + ')');
+      rt.setInset({ right: dock });
+      rt.step();
+      assert(heroX() < edge - 8, 'with a ' + dock + ' px dock set, the hero must stand in the uncovered World (x ' + Math.round(heroX()) + ', dock from ' + Math.round(edge) + ')');
+      assert(rt.stats().inset && rt.stats().inset.right === dock, 'the backend did not keep the inset: ' + JSON.stringify(rt.stats().inset));
+      rt.setInset(null);
+      assert(zHome === zTown, 'the cottage drew at ' + zHome + ', the Common at ' + zTown + ': the zoom must never change between scenes');
+
+      window.startCombat('rat', { confirmed: true });
+      assert(await until(() => rt.stats().kind === 'hunt', 3000), 'a rat fight did not route the World to the cellar: ' + JSON.stringify(rt.stats().scene));
+      rt.step();
+      assert(rt.stats().scene === 'mill_cellar' && rt.stats().z === zTown, 'the cellar drew at ' + rt.stats().z + ', the Common at ' + zTown + ': no fitted room zoom');
+      const s = rt.stats();
+      assert(Array.isArray(s.stubbed) && s.stubbed.length === 0, 'sprites drawn as stubs in the cellar: ' + (s.stubbed || []).slice(0, 5).join(', '));
+    } finally {
+      if (rt) rt.setInset(null);
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      window.showTab('profile');
+      if (hadWorld) G._world = prevWorld; else delete G._world;
     }
   }),
 ];

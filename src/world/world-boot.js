@@ -28,23 +28,23 @@
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=587';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=587';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=587';
-import { HUNT_INDEX } from '../data/hunts.js?v=587';
-import { compileMap } from './core/map-compile.js?v=587';
-import { STUB_SPRITE } from './core/book.js?v=587';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=587';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=587';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=587';
-import { loadAtlases } from './atlas.js?v=587';
-import { createCanvasBackend } from './render/canvas-backend.js?v=587';
-import { huntOfMap } from './hunt-maps.js?v=587';
-import { createHuntScene } from './hunt-scene.js?v=587';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=587';
-import { createWalkScene } from './walk-scene.js?v=587';
-import { homeMapFor } from './home-scene.js?v=587';
-import { runAction } from './steer-local.js?v=587';
+import { BUILD } from '../build-info.js?v=588';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=588';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=588';
+import { HUNT_INDEX } from '../data/hunts.js?v=588';
+import { compileMap } from './core/map-compile.js?v=588';
+import { STUB_SPRITE } from './core/book.js?v=588';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=588';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=588';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=588';
+import { loadAtlases } from './atlas.js?v=588';
+import { createCanvasBackend } from './render/canvas-backend.js?v=588';
+import { huntOfMap } from './hunt-maps.js?v=588';
+import { createHuntScene } from './hunt-scene.js?v=588';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=588';
+import { createWalkScene } from './walk-scene.js?v=588';
+import { homeMapFor } from './home-scene.js?v=588';
+import { runAction } from './steer-local.js?v=588';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -145,6 +145,7 @@ function createEnvReader(win) {
  *   step()     paint one frame now
  *   stats()    { running, frames, scene, kind, hunt, walk, ...backend.snapshot() } for tests
  *   screenOf(x, y)  the client point over tile (x, y) of the scene showing, for a test's tap
+ *   setInset({left, right, top, bottom})  CSS px of the stage a docked window covers
  *   destroy()
  * @param {HTMLElement} panel
  */
@@ -400,6 +401,12 @@ export async function bootWorld(panel) {
     step: () => step(0),
     stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
+    /**
+     * The shell's docked windows: the strips of the stage they cover, in CSS px
+     * ({left, right, top, bottom}; null when none). The camera frames the rest
+     * from the next frame on, so a window never covers the hero.
+     */
+    setInset(o) { backend.setInset(o); if (panel.classList.contains('active')) step(0); },
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;

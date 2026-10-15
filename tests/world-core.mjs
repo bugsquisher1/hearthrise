@@ -18,7 +18,10 @@
 //      doorway open), every other from its front; 150 ms fade
 //   S  shadows: manifest ellipses at the contact point; cast silhouettes fall
 //      down-right in proportion to height; one mask; hung art is lifted
-//   C  zoom table and one-device-pixel camera steps
+//   C  ONE pixel density per screen class (x2, x3 above 2400 CSS px wide; no
+//      per-room fit), one-device-pixel camera steps, and the camera inset: a
+//      docked window never covers the hero, a small room centres in the
+//      uncovered part
 //   L  map lint over every shipped map, and over planted bad rows (whole
 //      tiles, doors, roofs, reachability of walked maps, the wall kit, stations
 //      in plain view)
@@ -140,8 +143,15 @@ function check(M) {
   });
 
   fam('C', () => {
-    const table = [[1080, 1, 3], [900, 1, 3], [423, 3, 4], [423, 1, 2], [768, 1, 2], [2160, 1, 7], [0, 1, 2]];
-    for (const [h, dd, z] of table) ok('C1', M.camera.zoomFor(h, dd) === z, 'zoomFor(' + h + ', ' + dd + ') is ' + M.camera.zoomFor(h, dd) + ', want ' + z);
+    /* ONE PIXEL DENSITY PER SCREEN CLASS: x2 CSS px per art pixel on the desktop
+       and the phone, x3 only on a window wider than 2400; device px = density x DPR. */
+    const table = [[1440, 1, 2], [1920, 1, 2], [922, 1, 2], [922, 3, 6], [1440, 2, 4], [1366, 1.5, 3], [2400, 1, 2], [2560, 1, 3], [3840, 2, 6], [0, 1, 2]];
+    for (const [w, dd, z] of table) ok('C1', M.camera.zoomFor(w, dd) === z, 'zoomFor(' + w + ', ' + dd + ') is ' + M.camera.zoomFor(w, dd) + ', want ' + z);
+    /* ...and never per scene: the canvas sets z in measure() (the window) and nowhere else, and no room frame reaches it */
+    const draws = M.canvasSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    ok('C6', (draws.match(/(?<!let )\bz = /g) || []).length === 1 && /z = zoomFor\(win\.innerWidth, dpr\)/.test(draws) && !/fitZoom|map\.frame/.test(draws),
+      'the canvas must take ONE zoom from the window (measure) and never a per-room or fitted one');
+    ok('C6', !('fitZoom' in M.camera) && !('frameCentre' in M.camera), 'the fitted zoom is gone (WORLD_SHELL §1: fitZoom is removed)');
     for (let z = 2; z <= 5; z++) {
       let prev = null;
       for (let k = 0; k <= 3 * z; k++) {
@@ -161,6 +171,39 @@ function check(M) {
     ok('C4', small.x === -100 && small.y === -100, 'a world smaller than the view is centred');
     const edge = M.camera.follow({ x: 5, y: 5 }, { w: 100, h: 100 }, { w: 1000, h: 1000 });
     ok('C4', edge.x === 0 && edge.y === 0, 'the camera clamps at the world edge');
+
+    /* C7 THE CAMERA INSET (WORLD_SHELL §1): a docked window (340 CSS px = 170 art px
+       at x2) covers the right of the stage. On every tile of every walked map, with
+       the camera leaning toward the map's focus as walk-scene.js leans it, the hero
+       stands in the UNCOVERED part — on the phone stage and the desktop one; a room
+       that fits the uncovered part is centred in it, and one that does not keeps the
+       uncovered view inside the room. */
+    const dock = { right: 170 };
+    /* the uncovered part, from the camera alone: the view minus the docked strip on its right */
+    const openOf = (fv, vw, vh) => ({ x: fv.cam.x, y: fv.cam.y, w: vw - dock.right, h: vh });
+    const inOpen = (o, hx, hy) => { const cx = (hx + 0.5) * T, cy = (hy + 0.5) * T; return cx >= o.x && cx <= o.x + o.w && cy >= o.y && cy <= o.y + o.h; };
+    for (const [stage, vw, vh] of [['922x423 phone', 834 / 2, 277 / 2], ['1440x900 desktop', 1240 / 2, 693 / 2]]) {
+      for (const id of ['town_common', 'home_cottage']) {
+        const m = compiled(id), f = m.focus;
+        let bad = null, n = 0;
+        for (let y = 0; y < m.h && !bad; y++) for (let x = 0; x < m.w && !bad; x++) {
+          const look = f ? { x: x + (f[0] - x) * 0.5, y: y + (f[1] - y) * 0.5 } : { x, y };
+          const o = openOf(M.camera.frameView(look, vw, vh, m, 2, T, { inset: dock, keep: { x, y } }), vw, vh);
+          n++;
+          if (!inOpen(o, x, y)) bad = [x, y, o];
+        }
+        ok('C7', !bad && n > 100, stage + ' ' + id + ': the hero on ' + JSON.stringify(bad) + ' stands under the docked window');
+      }
+    }
+    const cellar = compiled('mill_cellar'), fr = cellar.frame;
+    const bo = openOf(M.camera.frameView({ x: 10, y: 6 }, 1680 / 2, 873 / 2, cellar, 2, T, { inset: dock, keep: { x: 10, y: 6 } }), 1680 / 2, 873 / 2);
+    ok('C7', Math.abs(bo.x + bo.w / 2 - (fr.x + fr.w / 2) * T) <= 0.5 && Math.abs(bo.y + bo.h / 2 - (fr.y + fr.h / 2) * T) <= 0.5,
+      'a room that fits the uncovered World must be centred in it, not in the whole stage: open ' + JSON.stringify(bo));
+    for (const hx of [fr.x, fr.x + fr.w - 1]) {
+      const o = openOf(M.camera.frameView({ x: hx, y: 6 }, 834 / 2, 277 / 2, cellar, 2, T, { inset: dock, keep: { x: hx, y: 6 } }), 834 / 2, 277 / 2);
+      ok('C7', inOpen(o, hx, 6) && o.x >= fr.x * T - 0.5 && o.x + o.w <= (fr.x + fr.w) * T + 0.5,
+        'a room bigger than the uncovered World follows the hero and stays inside the room: hero ' + hx + ', open ' + JSON.stringify(o));
+    }
     ok('C5', M.camera.fpsFor(true) === 30 && M.camera.fpsFor(false) === 60, '30 fps on the phone query, 60 elsewhere');
     ok('C5', M.camera.MOBILE_QUERY === '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)' && M.worldCss.includes('@media ' + M.camera.MOBILE_QUERY),
       'the 30 fps query must be the canonical mobile query world.css uses');
@@ -295,7 +338,11 @@ const MUTANTS = [
   ['S2', 'a cast shadow that ignores height', 'src/world/core/shadows.js', [['return [px + SHEAR.x * hgt,', 'return [px + SHEAR.x * 10,']]],
   ['S3', 'a second shadow composite', 'src/world/render/canvas-backend.js', [['    g.drawImage(shade.c, 0, 0);\n', '    g.drawImage(shade.c, 0, 0);\n    g.drawImage(shade.c, 0, 0);\n']]],
   ['S4', 'hung art drawn on the floor', 'src/world/core/compose.js', [["const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;", 'const air = 0;']]],
-  ['C1', 'zoom with a floor of 1', 'src/world/core/camera.js', [['Math.max(2, Math.round(', 'Math.max(1, Math.round(']]],
+  ['C1', 'the density read off device px (a DPR-3 phone drawn at x3)', 'src/world/core/camera.js', [['const css = (innerWidth || 0) > WIDE_CSS', 'const css = (innerWidth || 0) * (dpr || 1) > WIDE_CSS']]],
+  ['C6', 'a per-room zoom comes back', 'src/world/render/canvas-backend.js', [['    const k = dpr / z;\n', '    z = map.frame ? z + 1 : z;\n    const k = dpr / z;\n']]],
+  ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
+  ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T);', 'inset, null, T);']]],
+  ['C7', 'a small room centred in the whole stage, not the uncovered part', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo + (span - v) / 2 + a;']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###....................#',\n", "    '###.......#............#',\n"]]],

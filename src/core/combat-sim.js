@@ -55,27 +55,27 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=587';
-import { rollDropTable } from './drops.js?v=587';
-import { resolveHearthfind } from './hearthfind.js?v=587';
-import { hitXpRoute, killXpRoute } from './styles.js?v=587';
-import { applyGoldFind } from './pacing.js?v=587';
-import { resumeHpFor } from './recovery.js?v=587';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=588';
+import { rollDropTable } from './drops.js?v=588';
+import { resolveHearthfind } from './hearthfind.js?v=588';
+import { hitXpRoute, killXpRoute } from './styles.js?v=588';
+import { applyGoldFind } from './pacing.js?v=588';
+import { resumeHpFor } from './recovery.js?v=588';
 /* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
    `state.huntSession` is present, and `simulateSpan` then walks the session's
    absolute swing clock (`simulateHuntSpan` below). */
 import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop,
-  floorOf, coverValue } from './action-rules.js?v=587';
-import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=587';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=587';
-import { createRng } from './rng.js?v=587';
-import { pickSpawn } from './hunt-spawn.js?v=587';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=587';
+  floorOf, coverValue } from './action-rules.js?v=588';
+import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=588';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=588';
+import { createRng } from './rng.js?v=588';
+import { pickSpawn } from './hunt-spawn.js?v=588';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=588';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=587';
+import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=588';
 
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }

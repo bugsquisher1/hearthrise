@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=584';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=584';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=584';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=584';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=585';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=585';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=585';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=585';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -3890,7 +3890,23 @@ export default [
      `the stub origin was asked for 4 request(s): …/hr_town_of, …/hr_heartbeat,
      2 network-status probe(s)`. The spy REJECTS a stub-origin request, so even
      the RED run raises none of the page errors this test exists to prevent. */
-  () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin', async () => {
+  /* REGRESSION (2026-10-14): legacy.js's name reader copied the stub's name into G.playerName and it
+     outlived the stub. MUTATION: drop the playerName restore in _harness.js firstRunAnswered → RED. */
+  () => tryRun('STUB-NAME-1: a stubbed session hands G.playerName back exactly as it found it', () => {
+    const G = window.G;
+    const had = Object.prototype.hasOwnProperty.call(G, 'playerName'), was = G.playerName;
+    try {
+      G.playerName = 'Adventurer';
+      const unstub = stubSignedIn(0, 'StubNameProbe');
+      try {
+        if (typeof window.updateTopbar === 'function') window.updateTopbar();
+        assert(G.playerName === 'StubNameProbe', 'CONTROL: under the stub the name readers adopt the harness name (got ' + G.playerName + ')');
+      } finally { unstub(); }
+      assert(G.playerName === 'Adventurer', 'the stub left its name in G.playerName: ' + G.playerName);
+    } finally { if (had) G.playerName = was; else delete G.playerName; }
+  }),
+
+  () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin',async () => {
     const T = window.HearthriseTown, N = window.HearthriseNetStatus;
     const M = window.HearthriseMuster, HF = window.HearthriseHearthfind;
     const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';
@@ -4923,7 +4939,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=584');
+          await import('../../data/codex.js?v=585');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5523,19 +5539,28 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated+bounty') return;
               const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+              /* Hold the 100 ms repaint (legacy.js) while measuring, as a clock is pinned: it puts back the real
+                 chips and the fit follows a frame later, so a sample in that frame saw a stale fit (2026-10-14). */
+              const realRefresh = window.refreshActivityBar;
+              let held = true;
+              window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };
+              const paint = (fn) => { held = false; try { return fn(); } finally { held = true; } };
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 window.G.bountyHunter = Object.assign({}, bh, { active: null }); window.G.combatKillsThisFoe = 5;
-                window.refreshActivityBar();
+                paint(() => window.refreshActivityBar());
                 await tick(); await tick();
                 earned(bar, meta, 'live sparse full width: ');
                 for (const px of [760, 680, 620, 560]) {
-                  bar.style.maxWidth = px + 'px'; crowd();
+                  bar.style.maxWidth = px + 'px'; paint(crowd);
                   await tick(); await tick(); // the observers' frame runs the fit
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
-              } finally { bar.style.maxWidth = ''; }
+                const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();
+                await new Promise((r) => setTimeout(r, 350));
+                if (meta.textContent.indexOf(toGo) < 0) bad.push('the 100 ms repaint was not held: the crowded XP chip (' + toGo + ' to go) is gone, so a case could be measured on the sparse meta');
+              } finally { window.refreshActivityBar = realRefresh; bar.style.maxWidth = ''; }
             });
             // Not vacuous: some case keeps every word, and the reserve steps were reached.
             if (!seen.some((x) => /: none$/.test(x)) || !seen.some((x) => / streak$/.test(x))) bad.push('the cases do not span "room" to "streak": ' + seen.join('; '));
@@ -5745,7 +5770,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=584');
+    const mod = await import('../../net/activity.js?v=585');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

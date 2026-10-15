@@ -7,10 +7,12 @@
 //            void under rock — static per map, so the backend bakes it once
 //   decals   flat art (rugs, spills, the hatch)
 //   shadows  ONE mask: manifest ellipses and cast silhouettes (shadows.js)
-//   sprites  everything that stands, y-sorted by its contact row (zsort.js)
+//   sprites  everything that stands, y-sorted by its contact row (zsort.js):
+//            the map's objects, the state's props (a home's furniture) and units
 //   raised   what sits at wall height: rock tops, capstones, roofs, chimneys
 //   lights   the map's light kind plus point lights
-//   plates   screen-resolution text anchors (the hero's name)
+//   plates   screen-resolution text anchors (names), bubbles (the crier's
+//            line over its speaker) and the walk mark (where a tap sent you)
 //
 // PLACEMENT (art-budget.js MANIFEST): a frame is drawn at
 //   (tx*T + floor(fw*T/2) - anchor.x,  ty*T + fh*T - 1 - anchor.y)
@@ -25,10 +27,10 @@
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=584';
-import { heroBuilding } from './roofs.js?v=584';
-import { ellipseShadow, castMatrix } from './shadows.js?v=584';
-import { vertexGrid, tileKey } from './wang.js?v=584';
+import { ySort } from './zsort.js?v=585';
+import { heroBuilding } from './roofs.js?v=585';
+import { ellipseShadow, castMatrix } from './shadows.js?v=585';
+import { vertexGrid, tileKey } from './wang.js?v=585';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -74,7 +76,8 @@ export function groundTiles(map, book, tables, T) {
 /**
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
- * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number}} state
+ * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
+ *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
@@ -99,7 +102,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     y -= air;
     const ground = s.class === 'flier' ? air : 0;
     const d = { id, set: f.set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
-      kind: o.kind || s.layer, cls: s.class, tx, ty };
+      kind: o.kind || s.layer, cls: s.class, tx, ty, ref: o.ref || null };
     if (!near(x, y, w, h)) return d;
     if (s.layer === 'decal') decals.push(d);
     else if (o.raised) raised.push(d);
@@ -165,21 +168,40 @@ export function composeFrame(map, book, state, view, tables, T) {
 
   for (const o of map.objects) place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
 
-  const plates = [], bars = [], floats = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
+  const plates = [], bars = [], floats = [], bubbles = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
   let target = null;
-  /* A unit: { id, x, y, anim, dir, age (ms into the clip), alpha, plate:{text,kind}, bar, target }. */
+  /* Where a placed thing's head is: the anchor column and the row its art's height reaches. */
+  const head = (d) => {
+    const s = book.sprite(d.id);
+    const cx = d.x + s.anchor[0], foot = d.y + s.anchor[1];
+    return { cx, foot, top: foot - (s.height || 20) - (s.class === 'flier' ? s.hover || 0 : 0) };
+  };
+  /* PROPS come from state, not the map row (a home's furniture follows the rooms
+     you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. */
+  for (const o of state.props || []) {
+    const d = place(o.id, o.x, o.y, { ref: o.ref });
+    if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1 }); }
+  }
+  /* A unit: { id, x, y, anim, dir, age (ms into the clip), alpha, plate:{text,kind,alpha?}, bar, target }. */
   function unit(u, isHero) {
-    const s = book.sprite(u.id);
     const anim = u.anim || 'idle';
     const i = clipFrame(book, u.id, anim, u.dir || 's', u.age == null ? state.t || 0 : u.age);
-    const d = place(u.id, u.x, u.y, { anim, dir: u.dir || 's', i, kind: 'unit', alpha: u.alpha });
-    const cx = d.x + s.anchor[0], foot = d.y + s.anchor[1];
-    const top = foot - (s.height || 20) - (s.class === 'flier' ? s.hover || 0 : 0);
-    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.alpha == null ? 1 : u.alpha });
+    const d = place(u.id, u.x, u.y, { anim, dir: u.dir || 's', i, kind: 'unit', alpha: u.alpha, ref: u.ref });
+    const { cx, foot, top } = head(d);
+    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha });
     if (u.bar != null) bars.push({ x: cx, y: top - 2, w: 18, pct: Math.max(0, Math.min(1, u.bar)), kind: isHero ? 'hero' : 'foe' });
     if (u.target) target = { x: cx - 15, y: top - 2, w: 30, h: foot - top + 6 };
     return { cx, foot, top };
   }
+  /* A speech bubble over a map object ({ text, x, y } in tiles: the speaker's tile). */
+  for (const b of state.bubbles || []) {
+    const o = map.objects.find((m) => m.x === b.x && m.y === b.y);
+    if (!o) continue;
+    const s = book.sprite(o.id);
+    bubbles.push({ text: b.text, x: (o.x + o.fw / 2) * T, y: (o.y + o.fh) * T - 1 - (s.height || 20) - 14 });
+  }
+  /* The tile a tap sent the hero to, while it walks there. */
+  const mark = state.mark ? { x: (state.mark.x + 0.5) * T, y: (state.mark.y + 1) * T - 7 } : null;
   if (hero) {
     const h = unit(Object.assign({ id: 'hero', anim: 'idle', dir: 's' }, hero, {
       plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
@@ -194,7 +216,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
   const roofs = map.buildings.map((b) => ({ id: b.id, alpha: state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1) }));
   return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points },
-    plates, bars, floats, target };
+    plates, bars, floats, target, bubbles, mark };
 }
 
 /**

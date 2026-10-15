@@ -19,7 +19,9 @@
 //   S  shadows: manifest ellipses at the contact point; cast silhouettes fall
 //      down-right in proportion to height; one mask; hung art is lifted
 //   C  zoom table and one-device-pixel camera steps
-//   L  map lint over every shipped map, and over planted bad rows
+//   L  map lint over every shipped map, and over planted bad rows (whole
+//      tiles, doors, roofs, reachability of walked maps, the wall kit, stations
+//      in plain view)
 //   P  8-way A* never cuts a corner
 //   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
 //      floor is laid in its cycle order
@@ -184,6 +186,10 @@ function check(M) {
       ['furniture north of a south wall', 'L-NORTH', 'home_cottage', (r) => { r.objects.find((o) => o.id === 'table').y = 9; }],
       ['an outdoor map with a treeless window', 'L-TREES', 'town_common', (r) => { r.objects = r.objects.filter((o) => o.id !== 'oak'); }],
       ['a barrel on rock', 'L-SPACE', 'mill_cellar', (r) => { r.objects.push({ id: 'barrel', x: 1, y: 7 }); }],
+      ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
+      ['an enterable building with no inside wall kit', 'L-KIT', 'town_common', (r) => { delete r.buildings[0].closed; }],
+      ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [40, 7]; }],
+      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [15, 7] }); }],
     ];
     for (const [what, code, id, edit] of want) ok('L1', plant(id, edit).includes(code), 'the lint did not reject ' + what + ' with ' + code);
   });

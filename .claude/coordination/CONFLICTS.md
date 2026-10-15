@@ -1672,3 +1672,12 @@ Both files restate `world_event_claim__ungated`. W0a removes the Rally Seal; the
 The plan gives `src/data/world/art-budget.js` to W2. W1 had to size its stub boxes before that file exists, so `src/world/stub-atlas.js` carries one box per class taken from the plan's scale table (hero 38 in 64x64, door 48, wall 48 + 10 cap, tree 112, crown 80), and `tests/world-core.mjs` G2 pins them to the budget. W1 did NOT create `art-budget.js`, to avoid an add/add conflict. **Owed by whichever lane lands second:** stub-atlas reads its sizes from W2's `art-budget.js`, and G2 checks the stubs against that file instead of literals.
 
 **RESOLVED 2026-10-14 (W1 merged W2 @8bb3f239):** the stub class table is deleted. The manifests are the one source of frame, anchor, footprint, class and shadow (`src/world/core/book.js`); a sprite no atlas carries draws as one STUB_SPRITE box. `art-budget.js` stays W2's.
+
+---
+
+## 2026-10-14 — SEMANTIC (decided; Game Designer to confirm): the home template keys on the PROPERTY rung, not `state.plot_level`
+**Lane:** `lane/w4-world-town-home` (systems-engineer). No git hunk.
+
+The world plan (§2 Home) and the W4 brief say "the template follows `state.plot_level`". Here `player_state.plot_level` is the FARM SOIL rung (written only by `hr_farm_upgrade_plot`, shown as "Soil Lv N", gates crop tiers). The house a player owns is the property rung (camp → homestead → farmstead → manor → castle, `HearthriseProperty.serverPropertyTier()`), and the plan's own "farmstead and manor templates" are property names. Keying the house on soil would show a manor owner a cottage until they bought richer soil. **Decision:** `src/data/world/house-layouts.js` HOUSE_TEMPLATES is keyed by `fromTier` on the server's property rung (unknown → the first template). Every rung shows the cottage today, so nothing a player sees differs; it matters the day a second template ships. **Game Designer:** whether the camp rung (tier 0, "a bedroll and a fire") gets its own camp map is your call for that day.
+
+**Also:** the plan's "12 px" south stub — the approved W2 art (`plank_stub`, 24 px, as in the signed-off house still) is drawn unchanged; it never covers the hero (row 9 stays clear by lint L-NORTH).

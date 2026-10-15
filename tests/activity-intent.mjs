@@ -705,38 +705,19 @@ async function run(mutate) {
     ok(rate1 === rate0, 'A1c: a refusal on shape spent rate budget');
   }
 
-  // ── A3. ⚠ THE RULE: COLLECT BEFORE SWITCH ────────────────────────────────
-  // Three hours of goblins, then "now I mine copper". The three hours must be
-  // PAID, not confiscated. This is the invariant the whole slice exists for.
-  // Since lane C2 the goblin pointer is a PRE-SESSION combat pointer written
-  // as fixture (a `combat` declaration is hunt_required, A1c): the collect still
-  // prices it on the one combat body, which is what a character carrying one
-  // across the hunt-sessions deploy meets on its next switch.
-  let paidGold, paidXp;
+  // ── A3. A COMBAT POINTER WITH NO HUNT SESSION NEVER LOCKS THE CHARACTER ──
+  // Closed rebuild, lane C2: a fight is a hunt session and nothing else prices
+  // one, so a `combat` pointer outside a session (unreachable through the verbs
+  // — a `combat` declaration is hunt_required, A1c — and written here as
+  // fixture) answers SKIP.HUNT_REQUIRED, a SAFE reason. The switch away must
+  // PROCEED: nothing is owed, nothing is paid, no accrue row is written, and
+  // the window is closed. Refusing would freeze the character on a pointer no
+  // build can price (Security C3's lockout). The collect-before-switch rule
+  // itself is A3b (gather) and A3c (artisan), the kinds a switch can owe.
   {
-    /* ⚠ THE PROBE HAS TO SURVIVE THE THREE HOURS, OR THIS TEST IS A COIN FLIP.
-       Found by the mutation harness, not by reasoning: the FIRST version of A3
-       used the character exactly as hr_create_character makes it — hp 10/10, a
-       bronze sword — and a fresh character dies to a Goblin in about sixty
-       seconds. `simulateSpan` then ends the span, and a three-hour window
-       legitimately pays ~0 gold. The clean run passed, and two DIFFERENT
-       mutations reported the same "the window was confiscated" failure — one of
-       them for the right reason and one because the PRNG seed (hr_seed mixes a
-       per-database 256-bit secret, so it differs on every boot) happened to
-       kill the probe. An assertion that fails when nothing is wrong is the same
-       defect as one that passes when something is: both mean the run carries no
-       information.
-
-       So the probe is levelled first, with direct DML as the harness owner —
-       fixture setup, not a code path under test — and `died` is asserted false
-       so a future flake is LOUD instead of being read as a confiscation. */
-    await db.query(
-      `update public.player_skills set xp = 800000
-        where user_id = $1 and slot = 0
-          and skill_id in ('attack','strength','defence','hitpoints')`, [UID]);
     await db.query(
       `update public.player_state
-          set max_hp = 900, hp = 900, active_kind = 'combat', active_id = 'goblin',
+          set active_kind = 'combat', active_id = 'goblin',
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
@@ -744,56 +725,23 @@ async function run(mutate) {
     const beforeLedger = (await ledger(db, UID)).length;
 
     const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
-    ok(r.status === 200 && r.body.ok === true, `A3: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
-    /* THE CONTROL IS "IT FOUGHT", NOT "IT SURVIVED". The probe is EXPECTED to
-       die eventually: the server has no autoEat handler (food_slot /
-       auto_eat_pct are not columns on player_state), so nothing heals it and
-       three unhealed hours end in a death for any level. That is a documented,
-       deliberate under-pay, not a bug in this test. What must hold is that the
-       window was FOUGHT before it ended — which is what makes "gold > 0" a
-       statement about the collect rather than about the PRNG. */
-    ok(r.body.collected,
-      'A3: the response carries NO collection receipt — the switch did not collect at all, so the '
-      + 'three-hour window was confiscated. An intent must COLLECT BEFORE IT SWITCHES.');
-    ok(r.body.collected.kills > 0,
-      `A3-CONTROL: the probe landed ${r.body.collected.kills} kills in three hours, so "paid 0 `
-      + 'gold" would be honest and the assertion below would be measuring the PRNG rather than the '
-      + 'collect. Level the fixture, do not relax the assertion.');
-
+    ok(r.status === 200 && r.body.ok === true,
+      `A3: a switch away from a session-less combat pointer was refused ${r.status} `
+      + `${JSON.stringify(r.body).slice(0, 300)} — hunt_required must be SAFE, or the character is frozen`);
     const st = await state(db, UID);
-    paidGold = Number(st.gold) - Number(before.gold);
-    paidXp = (await skillXp(db, UID, 'attack')) - beforeXp;
-    ok(paidGold > 0,
-      `A3: THE WINDOW WAS CONFISCATED — three hours of combat paid ${paidGold} gold. `
-      + 'An intent must COLLECT BEFORE IT SWITCHES; hr_apply stamps accrued_to = now() on any '
-      + 'activity delta, so a switch that does not collect first destroys the elapsed window.');
-    ok(paidXp > 0, `A3: three hours of combat paid ${paidXp} attack XP`);
-    ok(st.active_id === 'copper_rock', `A3: the switch did not happen (${st.active_id})`);
-
-    // TWO applies, two ledger rows — the payment and the declaration, separately
-    // auditable. One merged row would be neither.
+    ok(st.active_kind === 'gather' && st.active_id === 'copper_rock', `A3: the switch did not happen (${st.active_id})`);
+    ok(Number(st.gold) === Number(before.gold) && (await skillXp(db, UID, 'attack')) === beforeXp,
+      `A3: three hours on a session-less combat pointer PAID (gold ${before.gold} -> ${st.gold}) — `
+      + 'a fight outside a hunt session is never priced');
     const rows = (await ledger(db, UID)).slice(beforeLedger);
-    ok(rows.length === 2, `A3: ${rows.length} ledger rows for collect+switch, expected 2`);
-    const accrue = rows.find((x) => x.intent === 'accrue');
-    const decl = rows.find((x) => x.intent === 'set_activity:gather:copper_rock');
-    ok(!!accrue, `A3: no 'accrue' ledger row — the collect did not happen (${rows.map((x) => x.intent)})`);
-    ok(!!decl, 'A3: no set_activity ledger row');
-    ok(accrue.kind === 'combat', `A3: the collect was journalled as '${accrue.kind}', expected combat`);
-    ok(Number(accrue.gold_in) === paidGold,
-      `A3: the ledger stamped gold_in=${accrue.gold_in} but ${paidGold} gold arrived — the daily `
-      + 'budget would be charged the wrong amount');
-    // The receipt the client renders, stated by the server.
-    ok(r.body.collected && r.body.collected.gold === paidGold,
-      `A3: the response receipt says ${JSON.stringify(r.body.collected)} but ${paidGold} gold was paid`);
-
-    // AND THE WINDOW IS CLOSED: accrued_to is now(), so the same span cannot be
-    // paid twice.
+    ok(!rows.some((x) => x.intent === 'accrue'),
+      `A3: an accrue row was journalled for a pointer nothing prices (${rows.map((x) => x.intent)})`);
     ok(new Date(st.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
-      'A3: accrued_to did not advance — the same window could be collected again');
+      'A3: accrued_to did not advance — the dead window stays open behind the new pointer');
   }
 
   /* ── A3b. THE OTHER PAYABLE KIND, END TO END (b348) ──────────────────────
-     A3 proves the collect-before-switch rule for combat. Gathering is 23 of the
+     A3b proves the collect-before-switch rule for gathering. Gathering is 23 of the
      344 catalogue rows and, until b348, ALL of them answered
      `unsupported_activity` — a REFUSING reason, so a switch was refused and the
      window deferred rather than confiscated. Now it must actually PAY, and the
@@ -2051,12 +1999,14 @@ async function run(mutate) {
        flipped back to `false` is behaviourally silent here (the window is not
        confiscated, it is priced at the state the verb creates — the mint
        tests/absence-priced-at-return.mjs measures) and only the pin sees it. */
-    const SETTLE = ['claim_reward', 'dungeon_settle', 'eat', 'market_buy', 'market_cancel',
-      'market_list', 'quartermaster_buy', 'shop_buy', 'unlock_buy', 'vendor_sell', 'vendor_sell_many'];
-    const SWITCH = ['enchant', 'equip', 'set_activity'];
+    /* claim_reward / dungeon_settle / quartermaster_buy / enchant were deleted
+       outright with the closed rebuild (lane C2). */
+    const SETTLE = ['eat', 'market_buy', 'market_cancel',
+      'market_list', 'shop_buy', 'unlock_buy', 'vendor_sell', 'vendor_sell_many'];
+    const SWITCH = ['equip', 'set_activity'];
     const collecting = Object.keys(it.INTENT_REGISTRY).filter((v) => it.collectsFirst(v)).sort();
     ok(collecting.join(',') === [...SETTLE, ...SWITCH].sort().join(','),
-      `A19: the collectsFirst rows are [${collecting}] — expected the three switches plus every verb `
+      `A19: the collectsFirst rows are [${collecting}] — expected the two switches plus every verb `
       + `that adds or changes a priceable input [${SETTLE}]. A settle-before-mutate row flipped to `
       + 'false prices the whole open absence at the state that verb just created.');
     ok([...it.SWITCH_VERBS].sort().join(',') === SWITCH.join(','),
@@ -2074,8 +2024,7 @@ async function run(mutate) {
     }
     /* SOURCE: every module that implements a settle verb READS the one helper,
        and none still carries the fail-closed COLLECT_REQUIRED stub it replaced. */
-    for (const f of ['spend.js', 'eat.js', 'claim-reward.js', 'market.js', 'unlock-buy.js',
-      'quartermaster-buy.js', 'dungeon-settle.js']) {
+    for (const f of ['spend.js', 'eat.js', 'market.js', 'unlock-buy.js']) {
       const src = (await readFile(join(fnDir, f), 'utf8'))
         .replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
       ok(/settleBeforeMutate\(/.test(src),
@@ -2110,31 +2059,32 @@ async function run(mutate) {
 
     // (b) `collected` survives a REPLAYED SWITCH whose collect genuinely paid.
     //     Measured: 3,809 gold and 744 kills of applied payment reported as null.
-    //     The paying window is a PRE-SESSION combat pointer (fixture, as in A3):
-    //     gold is the measure, and since lane C2 only a fight pays gold.
+    //     The paying window is a two-hour CHOP (since lane C2 a fight is a hunt
+    //     session and a switch's collect never prices one): logs are the measure.
     await clearGate();
     await db.query(
       `update public.player_state
-          set max_hp = 900, hp = 900, active_kind = 'combat', active_id = 'goblin',
+          set active_kind = 'gather', active_id = 'normal_tree',
               accrued_to = now() - interval '2 hours', active_since = now() - interval '2 hours'
         where user_id = $1 and slot = 0`, [UID]);
-    const goldBefore = Number((await state(db, UID)).gold);
+    const logsOf = async () => Number((await db.query(
+      "select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'normal_log'",
+      [UID])).rows[0].n);
+    const logsBefore = await logsOf();
     const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
-    const goldAfter = Number((await state(db, UID)).gold);
+    const logsAfter = await logsOf();
     ok(again.body.replayed === true,
       `A20-CONTROL: the switch was not a replay (${JSON.stringify(again.body).slice(0, 200)}) — the `
       + 'assertion below would then be about an ordinary success');
-    ok(goldAfter > goldBefore,
-      `A20-CONTROL: the collect paid ${goldAfter - goldBefore} gold for two hours, so "the receipt `
+    ok(logsAfter > logsBefore,
+      `A20-CONTROL: the collect paid ${logsAfter - logsBefore} logs for two hours, so "the receipt `
       + 'was dropped" would be indistinguishable from "there was nothing to receipt"');
-    ok(again.body.collected && again.body.collected.gold === goldAfter - goldBefore,
+    ok(again.body.collected && again.body.collected.items
+      && again.body.collected.items.normal_log === logsAfter - logsBefore,
       `A20: a REPLAYED switch reported collected=${JSON.stringify(again.body.collected)} while `
-      + `${goldAfter - goldBefore} gold was genuinely applied by THIS invocation's collect. The test `
+      + `${logsAfter - logsBefore} logs were genuinely applied by THIS invocation's collect. The test `
       + 'is "did this collect apply", never "was the switch a replay" — the two halves are separate '
       + 'applies precisely so that they can differ.');
-    ok(again.body.collected.kills > 0,
-      `A20-CONTROL: the receipt reports ${again.body.collected.kills} kills, so gold could have come `
-      + 'from somewhere other than the collect');
   }
 
   // ── A21. A CATALOGUE LOOKUP IS `hasOwnProperty`, NEVER TRUTHINESS.

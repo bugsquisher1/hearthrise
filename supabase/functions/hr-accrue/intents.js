@@ -1067,6 +1067,11 @@ export const SAFE_SKIP_REASONS = Object.freeze([
      nothing for a switch to confiscate. A switch is refused anyway (the
      pointer guard / set-activity's hunt_open), so SAFE is the honest class. */
   'hunt_open',        // SKIP.HUNT_OPEN
+  /* SKIP.HUNT_REQUIRED (closed rebuild, lane C2): a combat pointer with no
+     hunt session. The server never pays one, so no window is owed and a
+     switch away confiscates nothing; REFUSING here would freeze the character
+     on a pointer nothing can price (the C3 lockout). */
+  'hunt_required',    // SKIP.HUNT_REQUIRED
 ]);
 
 /** The other half of the partition. Exported so the coverage guard can assert

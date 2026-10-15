@@ -174,6 +174,24 @@ const BASE_RECIPES = {
     /* b215: the last two bars — smithing had nothing new between 75 and 99. */
     {id:'smelt_ember',   name:'Emberforged Bar', icon:'🟧', inputs:{emberstone_ore:1, coal:4},                output:'ember_bar',   xp:340, req:75, ms:6400},
     {id:'smelt_dawn',    name:'Dawnsteel Bar',   icon:'🟪', inputs:{dawnstone_ore:1, ember_bar:1, coal:5},    output:'dawn_bar',    xp:480, req:88, ms:7000},
+    /* GATHERING TOOLS — optional speed boosts (designer ruling 2026-10-14: tools
+       stay; the pickaxe/axe ladder is the one source kept). Rods, hammers,
+       needles and knives have no recipe for now. The Emberforged rung moved
+       80 -> 85 in the same ruling. */
+    {id:'forge_bronze_axe',     name:'Forge Bronze Axe',      icon:'🪓', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_axe',      xp:40,   req:3,  ms:2500},
+    {id:'forge_iron_axe',       name:'Forge Iron Axe',        icon:'🪓', inputs:{iron_bar:2, oak_plank:1},        output:'iron_axe',        xp:140,  req:18, ms:3000},
+    {id:'forge_steel_axe',      name:'Forge Steel Axe',       icon:'🪓', inputs:{steel_bar:2, willow_plank:1},    output:'steel_axe',       xp:320,  req:38, ms:3800},
+    {id:'forge_mithril_axe',    name:'Forge Mithril Axe',     icon:'🪓', inputs:{mithril_bar:2, maple_plank:1},   output:'mithril_axe',     xp:700,  req:58, ms:4500},
+    {id:'forge_rune_axe',       name:'Forge Rune Axe',        icon:'🪓', inputs:{rune_bar:2, yew_plank:1},        output:'rune_axe',        xp:1500, req:78, ms:5500},
+    {id:'forge_bronze_pickaxe', name:'Forge Bronze Pickaxe',  icon:'⛏️', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_pickaxe',  xp:40,   req:3,  ms:2500},
+    {id:'forge_iron_pickaxe',   name:'Forge Iron Pickaxe',    icon:'⛏️', inputs:{iron_bar:2, oak_plank:1},        output:'iron_pickaxe',    xp:140,  req:18, ms:3000},
+    {id:'forge_steel_pickaxe',  name:'Forge Steel Pickaxe',   icon:'⛏️', inputs:{steel_bar:2, willow_plank:1},    output:'steel_pickaxe',   xp:320,  req:38, ms:3800},
+    {id:'forge_mithril_pickaxe',name:'Forge Mithril Pickaxe', icon:'⛏️', inputs:{mithril_bar:2, maple_plank:1},   output:'mithril_pickaxe', xp:700,  req:58, ms:4500},
+    {id:'forge_rune_pickaxe',   name:'Forge Rune Pickaxe',    icon:'⛏️', inputs:{rune_bar:2, yew_plank:1},        output:'rune_pickaxe',    xp:1500, req:78, ms:5500},
+    {id:'forge_ember_axe',     name:'Forge Emberforged Axe',     icon:'🪓', inputs:{ember_bar:2, runewood_plank:1}, output:'ember_axe',     xp:2600, req:85, ms:5800},
+    {id:'forge_dawn_axe',      name:'Forge Dawnsteel Axe',       icon:'🪓', inputs:{dawn_bar:2, duskwood_plank:1},  output:'dawn_axe',      xp:4200, req:92, ms:6400},
+    {id:'forge_ember_pickaxe', name:'Forge Emberforged Pickaxe', icon:'⛏️', inputs:{ember_bar:2, runewood_plank:1}, output:'ember_pickaxe', xp:2600, req:85, ms:5800},
+    {id:'forge_dawn_pickaxe',  name:'Forge Dawnsteel Pickaxe',   icon:'⛏️', inputs:{dawn_bar:2, duskwood_plank:1},  output:'dawn_pickaxe',  xp:4200, req:92, ms:6400},
     /* b222 — Castle Stores (clan-overhaul v2 §4.3). Bone Chips are the
        hardener: bone ash for case-hardening is real metallurgy, and it gives
        the 45-60% drop from Weak Skeleton / Skeleton its first ever use. */
@@ -318,7 +336,7 @@ export const ARTISAN_RECIPES = {
    Prayer is deliberately absent — its bench is a list, not a taxonomy, and
    it has no output item to derive from.
 
-   Demolition (2026-10-14): the weapon, armour, jewellery, tool, materials and
+   Demolition (2026-10-14): the weapon, armour, jewellery, materials and
    weapon-enchant lanes went with crafted gear, tools and Enchant v1, and the
    Stonemason bench was cut (designer ruling): whetstones are smithed, rune
    blanks are cut at Runecrafting and the keystone is crafted. "Building
@@ -328,6 +346,7 @@ export const ARTISAN_RECIPES = {
 export const ARTISAN_CATEGORIES = {
   smithing: [
     { key: 'smelting',   label: 'Smelting' },
+    { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
     { key: 'castle',     label: 'Building Materials' },
   ],
@@ -369,6 +388,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
   const type = out ? out.type : null;
 
   if (skillId === 'smithing') {
+    if (type === 'tool') return 'tools';          // axes + pickaxes
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
     if (isCastleGood(out)) return 'castle';       // Iron Fitting

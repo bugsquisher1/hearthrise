@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 79d6bbcfb92e3673ff9428c0f699e028b45df177fbca1d10d25141bd39142878
+--   catalogue digest: 80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4
 --   rows: 471 items (15 untradeable) ·
 --         268 item-slot pairs · 15 equip slots ·
---         15 skills · 9 crops · 253 activities ·
+--         15 skills · 9 crops · 267 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -1029,6 +1029,20 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','fletch_mithril_arrows','crafting',48,null,false),
   ('artisan','fletch_rune_arrows','crafting',63,null,false),
   ('artisan','fletch_steel_arrows','crafting',33,null,false),
+  ('artisan','forge_bronze_axe','smithing',3,null,false),
+  ('artisan','forge_bronze_pickaxe','smithing',3,null,false),
+  ('artisan','forge_dawn_axe','smithing',92,null,false),
+  ('artisan','forge_dawn_pickaxe','smithing',92,null,false),
+  ('artisan','forge_ember_axe','smithing',85,null,false),
+  ('artisan','forge_ember_pickaxe','smithing',85,null,false),
+  ('artisan','forge_iron_axe','smithing',18,null,false),
+  ('artisan','forge_iron_pickaxe','smithing',18,null,false),
+  ('artisan','forge_mithril_axe','smithing',58,null,false),
+  ('artisan','forge_mithril_pickaxe','smithing',58,null,false),
+  ('artisan','forge_rune_axe','smithing',78,null,false),
+  ('artisan','forge_rune_pickaxe','smithing',78,null,false),
+  ('artisan','forge_steel_axe','smithing',38,null,false),
+  ('artisan','forge_steel_pickaxe','smithing',38,null,false),
   ('artisan','grind_coarse_whetstone','smithing',1,null,false),
   ('artisan','grind_copper_whetstone','smithing',10,null,false),
   ('artisan','grind_dawn_whetstone','smithing',90,null,false),
@@ -1247,7 +1261,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '79d6bbcfb92e3673ff9428c0f699e028b45df177fbca1d10d25141bd39142878', now())
+  values (true, '80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1281,7 +1295,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 15', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 253 then raise exception 'hr_activities has % rows, expected 253', v_n; end if;
+  if v_n <> 267 then raise exception 'hr_activities has % rows, expected 267', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1412,7 +1426,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 0 then raise exception 'hr_runes has % rows, generator emitted 0', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 79d6bbcfb92e3673ff9428c0f699e028b45df177fbca1d10d25141bd39142878',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 80c5286d08fca66a9a90b3520a18dfe9498ed822bf19ca59600d5b89e700e3e4',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

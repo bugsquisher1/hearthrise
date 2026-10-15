@@ -636,7 +636,11 @@ function ensureCharStyle() {
       + R + '.csk-tile{padding:9px 10px 11px;gap:8px}}',
     // Hero sub-tab — Account stat grid
     R + '#char-hero{display:flex;flex-direction:column;gap:12px}',
-    R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
+    /* auto-fit, not repeat(4): the 2026-10-14 demolition left FIVE cells, and a
+       fixed 4 put the fifth on an orphan row — an 80px row that made the card
+       taller than #panel-character's whole window at 922x423 with the
+       desktop-mode banner up (reachability LAST-SKILL-ROW). */
+    R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}',
     R + '.cr-acct-cell{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:8px;padding:12px 10px;text-align:center}',
     R + '.cr-acct-cell b{display:block;font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
     R + '.cr-acct-cell > span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',

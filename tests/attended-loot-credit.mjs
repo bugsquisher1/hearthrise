@@ -387,6 +387,29 @@ function a4_containment() {
   ok(JSON.stringify(out.delta.fight ?? null) === JSON.stringify(ctl.delta.fight ?? null),
     `A4: the top-up moved the fight checkpoint (${JSON.stringify(ctl.delta.fight)} -> `
     + `${JSON.stringify(out.delta.fight)})`);
+  /* A MID-FIGHT SAMPLE. After the 2026-10-14 demolition merge the window above
+     ends on a freshly respawned goblin (checkpoint hp == max), where a top-up that
+     forgets to restore the checkpoint writes the same bytes — fight_not_restored
+     escaped. The settle instant is walked forward in 500 ms steps until the
+     control's checkpoint is a HALF-KILLED foe, and the comparison repeats there. */
+  const maxHp = Number(MONSTERS[MONSTER].hp) || 0;
+  let mid = null;
+  for (let step = 0; step <= 40 && !mid; step += 1) {
+    const at = NOW_MS + step * 500;
+    const c = accrue({ nowMs: at, combatXpAccruedToMs: at - 1000 });
+    const f = c.accrued && c.delta.fight;
+    if (f && f.monster === MONSTER && Number(f.hp) > 0 && Number(f.hp) < maxHp) mid = { at, c };
+  }
+  ok(mid, `A4: no settle instant within 20 s ends mid-fight (max hp ${maxHp}), so the checkpoint `
+    + 'restore is untested — re-pick the walk.');
+  if (mid) {
+    const o = accrue({ nowMs: mid.at, combatXpAccruedToMs: mid.at - 1000,
+      attended: attendedEnvelope({ [MONSTER]: OBSERVED_KILLS }, ATT_FROM, mid.at - 1000) });
+    ok(o.attendedTopUp > 0 && JSON.stringify(o.delta.fight) === JSON.stringify(mid.c.delta.fight),
+      `A4: mid-fight, the top-up (${o.attendedTopUp}) moved the checkpoint `
+      + `(${JSON.stringify(mid.c.delta.fight)} -> ${JSON.stringify(o.delta.fight)}) — it must `
+      + 'restore the half-killed foe resolveKill respawned.');
+  }
   ok(JSON.stringify(out.delta.activity ?? null) === JSON.stringify(ctl.delta.activity ?? null),
     'A4: the top-up moved the activity pointer');
   ok(out.delta.hp === ctl.delta.hp,
@@ -649,11 +672,13 @@ function a11_charmedTopUp() {
     + `${charmed.attendedTopUp}, sim ${base.summary.kills} -> ${charmed.summary.kills}). It is a DROP `
     + 'multiplier: it must not move the fight, the cap or the credit arithmetic.');
   const got = (r, id) => Math.floor(Number((r.delta.items || {})[id]) || 0);
-  ok(got(charmed, rolled.id) > got(base, rolled.id),
+  /* 2026-10-14 demolition: Bestiary charms are RETIRED on both halves (accrual.js
+     `const charms = null`). The arm now pins the retirement on the ATTENDED path:
+     a studied class pays exactly what an unstudied one does. */
+  ok(got(charmed, rolled.id) === got(base, rolled.id),
     `A11: a rank-${TOP.rank} charm on ${CLS} credited ${got(charmed, rolled.id)} ${rolled.id} where an `
     + `unstudied character got ${got(base, rolled.id)}, over ${base.attendedTopUp} topped-up kills. `
-    + "The attended top-up runs resolveKill through its own lootCtx — if that closure does not "
-    + 'carry the charm, the charm pays away nights and not watched ones.');
+    + 'Charms were retired 2026-10-14: the attended top-up must not pay a drop bonus for them.');
   ok(got(charmed, sure.id) === got(base, sure.id),
     `A11: the charm moved the GUARANTEED drop ${sure.id} from ${got(base, sure.id)} to `
     + `${got(charmed, sure.id)}. effectiveDropChance returns ch >= 1 untouched on purpose: a `

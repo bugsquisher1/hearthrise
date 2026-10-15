@@ -56,7 +56,6 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TROPHY_STAGES, MAX_TROPHY_STAGE } from '../src/data/bestiary.js';
 import { trophyIndex, monsterIdIn } from '../src/core/trophies.js';
-import { charmIndex, killsByClass } from '../src/core/charms.js';
 import { playerCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -100,7 +99,8 @@ const ROW = MONSTERS[MON_ID];
 const KILLS = Object.create(null);
 KILLS[MON_ID] = TROPHY_STAGES[TROPHY_STAGES.length - 1].at;
 const TROPHIES = trophyIndex(KILLS, MONSTERS);
-const CHARMS = charmIndex(killsByClass(KILLS, MONSTERS));
+// Bestiary charms are retired on both halves (2026-10-14): the engine and the client pass null.
+const CHARMS = null;
 const EQ = equipmentStats({}, ITEMS);
 
 /* THE NUMBER THE SERVER PAYS. combat-sim.js `resolveKill` reads its drop

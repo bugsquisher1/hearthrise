@@ -252,7 +252,9 @@ export const CLAIMABLES = Object.freeze({
   'daily:login': Object.freeze({
     status: 'priced',
     periodic: true,
-    site: 'src/features/daily-reward.js:76 claim()',
+    /* The client half (features/daily-reward.js) left in the 2026-10-14 demolition; the
+       verb's pricer is the only site left, and it goes with claim_reward (C2). */
+    site: 'supabase/functions/hr-accrue/claim-reward.js:342 priceLoginClaim()',
     ledgerKind: 'quest',
     note: 'streak derived server-side from the last claim row; a missed day costs one step',
   }),
@@ -273,7 +275,7 @@ export const CLAIMABLES = Object.freeze({
   'flag:renown_rank': Object.freeze({
     status: 'blocked',
     periodic: false,
-    site: 'src/features/renown.js:308 claimRank()',
+    site: 'supabase/functions/hr-accrue/claim-reward.js:377 validateClaim()',   // renown.js left 2026-10-14
     ledgerKind: 'quest',
     needs: 'server-side Renown. effectiveRenown(G) is computed entirely from the '
          + 'client save and has no column, table or RPC.',
@@ -281,7 +283,7 @@ export const CLAIMABLES = Object.freeze({
   'bounty:turnin': Object.freeze({
     status: 'blocked',
     periodic: false,
-    site: 'src/legacy.js:2902 completeBounty()',
+    site: 'supabase/functions/hr-accrue/claim-reward.js:377 validateClaim()',   // the bounty board left 2026-10-14
     ledgerKind: 'quest',
     needs: 'player_state.marks (IN FLIGHT, another workstream) AND a server '
          + 'bounty board. The gold half alone would pay a turn-in while '

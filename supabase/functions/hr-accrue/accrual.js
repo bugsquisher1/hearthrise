@@ -172,7 +172,6 @@ import { companionSpanGrant } from '../../../src/core/companion-xp.js';
      engine must derive its own numbers from the counters. Same rows, one
      function, two independent folds — which is also why the client's predicted
      rank can only ever be reconciled, never trusted. */
-import { killsByClass, charmIndex } from '../../../src/core/charms.js';
 /* THE TROPHY LADDER (docs/design/BESTIARY_LADDER.md). `trophyIndex` only — the
    two multiplier functions are read inside `weaknessInfo` and must not be read
    here, for the reason src/core/trophies.js's header states: a trophy priced in
@@ -1598,7 +1597,11 @@ export function computeAccrual(input) {
      resolves to no multiplier at all, which is the pre-charm behaviour byte for
      byte and the under-paying direction. One value, read by BOTH the away span
      and the attended top-up below, so AWAY-1 parity holds by construction. */
-  const charms = charmIndex(killsByClass(inp.bestiaryKills, monsters));
+  /* 2026-10-14 demolition: Bestiary charms are retired on BOTH halves (the client
+     mirror left with render/bestiary-charms.js), so the index is null — the
+     no-multiplier, pre-charm behaviour described above — and the Fight screen and
+     this engine quote one drop multiplier again (tests/trophy-call-sites.mjs). */
+  const charms = null;
   /* THE TROPHY INDEX — the SAME `inp.bestiaryKills` rows the charm folds, read
      PER MONSTER instead of per class, against the same sealed catalogue. It is
      derived here, ONCE, and handed to both the away span and the attended

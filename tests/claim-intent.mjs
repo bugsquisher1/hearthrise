@@ -267,8 +267,8 @@ const MUTATIONS = {
     file: DATA('rewards.js'),
     why: 'a claimable\'s `site` names a symbol that is not in the file it names — the required-'
        + 'but-unread field going stale, which is the whole of G4',
-    find: "    site: 'src/features/daily-reward.js:76 claim()',",
-    repl: "    site: 'src/features/daily-reward.js:76 claimTheThingThatWasRenamed()',",
+    find: "    site: 'supabase/functions/hr-accrue/claim-reward.js:342 priceLoginClaim()',",
+    repl: "    site: 'supabase/functions/hr-accrue/claim-reward.js:342 claimTheThingThatWasRenamed()',",
   },
   registry_status_lies: {
     file: DATA('rewards.js'),

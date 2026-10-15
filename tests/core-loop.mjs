@@ -712,7 +712,9 @@ async function loop3(S, M, tag, rows) {
   /* The ore and the bars are named; the PIECE is whatever the server lets this
      smith forge from that bag, so a re-tuned recipe level moves the pick, not the gate. */
   const ROUTE = [
-    { kind: 'gather', id: 'copper_rock', mins: 10, makes: 'copper_ore', skill: 'mining' },
+    /* 15 min, not 10: with the gear recipes gone (2026-10-14) the wearable a level-5 smith can make is
+       the ammo-slot whetstone, ground from the ORE the bars leave behind. */
+    { kind: 'gather', id: 'copper_rock', mins: 15, makes: 'copper_ore', skill: 'mining' },
     { kind: 'artisan', id: 'smelt_bronze', mins: 5, makes: 'bronze_bar', skill: 'smithing' },
     { kind: 'artisan', id: null, mins: 1, makes: null, skill: 'smithing' },
   ];

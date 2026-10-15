@@ -46,8 +46,6 @@
     "node tests/hunts-c1.mjs --mutate": "db-replay-4",
     "node tests/name-moderation.mjs": "db-replay-4",
     "node tests/name-moderation.mjs --mutate": "db-replay-4",
-    "node tests/renown-projection.mjs": "db-replay-2",
-    "node tests/renown-projection.mjs --selftest": "db-replay-2",
     "node tests/restore-census.mjs": "db-replay-2",
     "node tests/restore-census.mjs --mutate": "db-replay-2",
     "node tests/restore-census.mjs --baseline-selftest": "db-replay-2",

@@ -43,7 +43,8 @@
 --                   the pointer-era `hunt_analyzer` projection; the old
 --                   hr_hunt_analyzer(uuid, int) it called (the C1 session
 --                   analyzer hr_hunt_analyzer(int, uuid) is a different
---                   function and stays).
+--                   function and stays). The retired party settle's key
+--                   allowlist loses `consec_falls` with hr_apply's (§1e).
 --   ATTENDED CREDIT hr_credit_kills (+ __ungated, client RPC + baseline row),
 --                   hr_attended_kills.
 --
@@ -3573,6 +3574,27 @@ begin
   return v_result;
 end $function$;
 
+-- §1e hr_party_tick_settle — its key allowlist is hr_apply's c_delta_keys by
+-- contract (S-1: no shadow evidence for a payload hr_apply refuses), so
+-- `consec_falls` leaves it with hr_apply's. ONE anchored edit; the retired
+-- party settle is otherwise untouched until demolition M2 drops it.
+do $mig$
+declare
+  v_def text; v_n int;
+  c_old constant text := $a$    'consec_falls','deaths','progress','hearthfind','tool_carry','journal',
+$a$;
+  c_new constant text := $a$    'deaths','progress','hearthfind','tool_carry','journal',
+$a$;
+begin
+  if to_regprocedure('public.hr_party_tick_settle(text,uuid,timestamp with time zone,timestamp with time zone,uuid,jsonb)') is null then
+    return; end if;
+  v_def := replace(pg_get_functiondef('public.hr_party_tick_settle(text,uuid,timestamp with time zone,timestamp with time zone,uuid,jsonb)'::regprocedure), chr(13), '');
+  if strpos(v_def, c_new) > 0 and strpos(v_def, c_old) = 0 then
+    raise notice 'hr_party_tick_settle already accepts no consec_falls — edit skipped'; return; end if;
+  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
+  if v_n <> 1 then raise exception 'hr_party_tick_settle: the c_delta_ok anchor matched % times (need 1) — the body moved', v_n; end if;
+  execute replace(v_def, c_old, c_new);
+end $mig$;
 revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from public;
 revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from anon, authenticated, service_role;
 grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr_engine;

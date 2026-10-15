@@ -312,7 +312,7 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
                        dropped, and a mid-chain Hitpoints level-up fought every
                        later window at the old ceiling: -13.6% ticks on a
                        character still gaining Hitpoints levels, the combat
-                       parity miss (tests/world-tick-maxhp-carry.mjs).
+                       parity miss (the deleted solo-combat max-HP carry guard).
      hearthfindReady   `hr_state_of` projects the LITERAL `true`
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for

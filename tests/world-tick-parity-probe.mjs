@@ -26,9 +26,9 @@
 //   PP-6  no function body outside the probe trio reads hr_tick_probe — rule 3
 //   PP-7  a database without the functions skips the step, never the fire
 //   PP-9  a CLOSED probe retains the input stored at open and the one-span
-//         seed (= hr_seed's span-start draw), and the evaluator's own SELECT +
-//         productionReplayOf replays every closed combat probe from them
-//         byte-identically (2026-10-07-probe-retain-input.sql)
+//         seed (= hr_seed's span-start draw) (2026-10-07-probe-retain-input.sql),
+//         no combat probe exists (the channel is retired, lane C2), and the
+//         evaluator's own SELECT reads neither the input nor the seed
 //
 // Writes NOTHING to production; synthetic uuids gen_random_uuid() cannot mint.
 // Exit: 0 green · 1 a red arm · 2 harness.
@@ -315,11 +315,10 @@ async function guard(db, opts) {
 
   // ── PP-9 THE CLOSED PROBE KEEPS WHAT ITS REPLAY NEEDS ────────────────────
   //    The input at close is the input captured while open; the seed is the
-  //    span-start hr_seed draw the edge used; and the evaluator — its own
-  //    QUERY, its own productionReplayOf — would reproduce each closed combat
-  //    probe's stored one-span result from the stored (input, seed). Since lane
-  //    C2 no combat probe can open (the solo combat channel is undriven), so
-  //    the arm pins that there is none rather than replaying a vacuous set.
+  //    span-start hr_seed draw the edge used. Since lane C2 no combat probe
+  //    can open (the solo combat channel is undriven) and the evaluator is a
+  //    gather read with no replay, so its own QUERY, executed here, must carry
+  //    neither the stored input nor the secret-equivalent seed.
   {
     const kept = await q(`select id, channel, input, seed, to_jsonb(span_from) #>> '{}' as span_from
                             from public.hr_tick_probe where status = 'closed' order by id`);
@@ -332,16 +331,15 @@ async function guard(db, opts) {
       if (!cap || canon(k.input) !== canon(cap.input)) bad.push(`#${k.id} ${k.channel} input not the open snapshot`);
       if (k.seed === null || String(k.seed) !== String(want)) bad.push(`#${k.id} ${k.channel} seed ${k.seed} != ${want}`);
     }
-    const { QUERY, productionReplayOf } = await import('../tools/world-tick-parity.mjs');
-    const rows = (await q(QUERY(14))).filter((r) => r.status === 'closed' && r.channel === 'combat');
-    const replay = productionReplayOf('unpacked', 2);
-    const outs = rows.map((r) => ({ id: r.id, rep: replay(r) }));
-    const notRepro = outs.filter((o) => !o.rep || o.rep.unavailable || o.rep.reproduced !== true);
-    judge('PP-9', kept.length >= 2 && bad.length === 0 && rows.length === 0 && notRepro.length === 0,
+    const { QUERY } = await import('../tools/world-tick-parity.mjs');
+    const read = await q(QUERY(14));
+    const rows = read.filter((r) => r.status === 'closed' && r.channel === 'combat');
+    const leaked = read.filter((r) => 'seed' in r || 'input' in r).map((r) => r.id);
+    judge('PP-9', kept.length >= 2 && bad.length === 0 && rows.length === 0 && leaked.length === 0 && read.length >= 2,
       `${kept.length} closed probes retain the open input + the span-start seed; no combat probe opened `
       + '(the solo combat channel is retired, lane C2)',
-      `retention broken: [${bad.slice(0, 3).join('; ')}] closed ${kept.length}; combat replays `
-      + `${outs.map((o) => `#${o.id} ${o.rep && (o.rep.unavailable || o.rep.reproduceDetail)}`).join(', ').slice(0, 300)}`);
+      `retention broken: [${bad.slice(0, 3).join('; ')}] closed ${kept.length}; combat probes ${rows.length}; `
+      + `the evaluator read ${read.length} rows, ${leaked.length} carrying input or seed`);
   }
 
   // ── PP-3 THE CHAIN IS BYTE-IDENTICAL WITH AND WITHOUT THE PROBE ──────────

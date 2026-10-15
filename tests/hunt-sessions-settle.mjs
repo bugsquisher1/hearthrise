@@ -99,6 +99,24 @@
 //   BESTIARY   NO LADDER PRICES A FIGHT (closed rebuild, lane C2: the charm and
 //              trophy combat multipliers are deleted): 20,000 counted kills of
 //              every spawn pay EXACTLY what none do.
+//   RESUME-LINE  the first swing after a knockout lands exactly on the line, to
+//              the tick (opening knocked out, cut mid-knockout, inside one
+//              window), and a fall is never a free heal.
+//   QUIVER     every loosed shot is one arrow out of the bag; a 40-arrow bag
+//              fires 40 and ends ammo_out.
+//   PARITY     the tick's door, the player's settle door and the composed
+//              pieces write the SAME rows for the same window.
+//   HEAL       every heal supply heals exactly ITEMS[id].heals, costs one from
+//              the bag, and never fires on a body.
+//   SLOT       a slot-1 hunt's settle binds every read and write to slot 1.
+//   XPDOOR     the client's combat-XP door (hr_credit_combat_xp) pays nothing:
+//              hunt_open for a hunter, an empty window for an idle character.
+//
+// RETIRED GUARDS. --mutate also plants the faults of the guards the closed
+// rebuild deleted (world-tick-combat-parity, -resume-alignment, -maxhp-carry,
+// -probe-bar, -bestiary-parity, sec-world-tick-m3-seed-label,
+// attended-loot-credit, combat-xp-settle-first/-split, accrual-engine's away
+// arms), each tagged [guard] in its name; the named arm is the replacement.
 // ════════════════════════════════════════════════════════════════════════
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -336,6 +354,132 @@ const ENGINE_ARMS = {
     }
     if (!(half.kills > 0 && half.kills < up.kills)) {
       problems.push(`half a window inside a knockout earned ${half.kills} kills against ${up.kills} up — the line is not read`);
+    }
+    return problems;
+  },
+
+  /* RESUME-LINE — the first swing after a knockout lands EXACTLY on the line,
+     to the tick (the successor of tests/world-tick-resume-alignment.mjs RA-0..2,
+     which Security filed because a one-tick-off resume is ~6% of combat time and
+     inside any statistical bar). KNOCKOUT above proves the line is READ; this
+     proves where it is: a fall at the end of its swing (F) is down until
+     F + KNOCKOUT_MS and swings at that instant, not a tick before or after.
+       RA-0  a window that OPENS knocked out swings first at the carried line.
+       RA-1  a window cut mid-knockout proposes recovering_until = F + KO.
+       RA-2  inside one window, every recovered fall costs exactly KO of down
+             time. (RA-3, across a cut, is BOTH-PATH and TICK-1 through the
+             database: the line rides player_state between settles.) */
+  'RESUME-LINE': async (M) => {
+    const problems = [];
+    const { KNOCKOUT_MS } = await import(pathToFileURL(join(M.root, 'src/data/hunt-sessions.js')).href);
+    const weak = (extra) => {
+      const inp = huntInput(M, Object.assign({ activeId: 'goblin_warren', hp: 10, maxHp: 10,
+        skills: { attack: 0, strength: 0, defense: 0, hitpoints: 1200 } }, extra || {}));
+      inp.huntSession = M.AR.newHuntSession({ id: SID, huntFromMs: T0, nextSwingAtMs: T0, bag: {}, slots: [], fallsLimit: 6 });
+      return inp;
+    };
+    const span = M.AC.computeAccrual(weak());
+    const dl = ((span.summary && span.summary.deathLog) || []).map((d) => d.atMs);
+    if (dl.length < 2) { problems.push(`CONTROL: the weak hunter fell ${dl.length} time(s) in 15 min — the arm needs two`); return problems; }
+    const recovered = dl.length - (span.hunt && span.hunt.ended ? 1 : 0);
+    if (Number(span.hunt && span.hunt.down_ms) !== recovered * KNOCKOUT_MS) {
+      problems.push(`RA-2: ${recovered} recovered fall(s) cost ${span.hunt && span.hunt.down_ms} ms down, not ${recovered} x ${KNOCKOUT_MS} — the resume is off the line`);
+    }
+    for (let k = 1; k < dl.length; k++) {
+      if (!(dl[k] - dl[k - 1] > KNOCKOUT_MS)) problems.push(`RA-2: fall ${k + 1} at +${dl[k] - T0} ms lands inside fall ${k}'s knockout (+${dl[k - 1] - T0})`);
+    }
+    // RA-1: cut the window halfway through the first knockout.
+    const cut = weak({ nowMs: dl[0] + KNOCKOUT_MS / 2 });
+    cut.huntWindow = { fromMs: T0, toMs: dl[0] + KNOCKOUT_MS / 2 };
+    const mid = M.AC.computeAccrual(cut);
+    const want = new Date(dl[0] + KNOCKOUT_MS).toISOString();
+    if (!mid.delta || mid.delta.recovering_until !== want) {
+      problems.push(`RA-1: a window cut mid-knockout proposes recovering_until ${mid.delta && mid.delta.recovering_until}, not the fall + ${KNOCKOUT_MS} ms (${want})`);
+    }
+    /* RA-H: A FALL IS NEVER A FREE HEAL (CLAUDE.md §6; b509, the probe bar's
+       freeHeal mutant). The fall leaves the hero at the resume line, and the
+       first swing after the knockout starts from it — a window cut one
+       millisecond past the line holds no more than that. */
+    const { resumeHpFor } = await import(pathToFileURL(join(M.root, 'src/core/recovery.js')).href);
+    const resumeHp = resumeHpFor(10);
+    if (span.summary.deathLog.some((d) => d.resumeHp !== resumeHp)) {
+      problems.push(`RA-H: a fall left the hero at ${span.summary.deathLog.map((d) => d.resumeHp)} hp, not the resume line ${resumeHp}`);
+    }
+    const stood = weak({ nowMs: dl[0] + KNOCKOUT_MS + 1 });
+    stood.huntWindow = { fromMs: T0, toMs: dl[0] + KNOCKOUT_MS + 1 };
+    const up = M.AC.computeAccrual(stood);
+    if (!(up.delta && Number(up.delta.hp) <= resumeHp)) {
+      problems.push(`RA-H: one swing after the knockout the hero holds ${up.delta && up.delta.hp} hp, above the resume line ${resumeHp} — the stand-up healed`);
+    }
+    // RA-0: a window that opens knocked out, its line on a swing boundary.
+    const line = T0 + 30000;
+    const open = M.AC.computeAccrual(weak({ recoveringUntilMs: line }));
+    const openFalls = ((open.summary && open.summary.deathLog) || []).length - (open.hunt && open.hunt.ended ? 1 : 0);
+    const carried = Number(open.hunt && open.hunt.down_ms) - openFalls * KNOCKOUT_MS;
+    if (carried !== line - T0) {
+      problems.push(`RA-0: a window opening knocked out until +${line - T0} ms spent ${carried} ms down before its first swing — the first swing is not on the carried line`);
+    }
+    return problems;
+  },
+
+  /* QUIVER — EVERY SHOT IS AN ARROW OUT OF THE BAG (the successor of
+     accrual-engine's ammoGuard, which held the away span to the client's ammo
+     spend). A ranged hunter's carried arrows are spent one per loosed shot,
+     a 40-arrow bag on mine+end fires exactly 40 and ends ammo_out at the next
+     boundary, and nothing is loosed past it. */
+  QUIVER: async (M) => {
+    const problems = [];
+    const ranged = (n) => {
+      const inp = huntInput(M, { hp: 99, maxHp: 99,
+        skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000, ranged: 200000 },
+        equipment: { weapon: 'shortbow', ammo: 'steel_arrows' } });
+      inp.huntSession = M.AR.newHuntSession({ id: SID, huntFromMs: T0, nextSwingAtMs: T0,
+        bag: { steel_arrows: { loaded: n, left: n } }, slots: [], fallsLimit: 6 });
+      inp.huntSession.supplySource = 'mine'; inp.huntSession.onEmpty = 'end';
+      return M.AC.computeAccrual(inp);
+    };
+    const deep = ranged(2000);
+    const shots = Number(deep.summary && deep.summary.ticks);
+    const spent = Number(((deep.hunt || {}).uses || {}).steel_arrows || 0);
+    if (!(shots > 0)) problems.push('CONTROL: the ranged hunter loosed nothing');
+    if (spent !== shots) problems.push(`${shots} shots spent ${spent} arrows from the bag — a shot is not one arrow`);
+    const dry = ranged(40);
+    const h = dry.hunt || {};
+    if (Number((h.uses || {}).steel_arrows) !== 40 || Number(dry.summary && dry.summary.ticks) !== 40) {
+      problems.push(`a 40-arrow bag spent ${JSON.stringify(h.uses)} over ${dry.summary && dry.summary.ticks} shots`);
+    }
+    if (!h.ended || h.ended.reason !== 'ammo_out') problems.push(`an empty quiver ended '${h.ended && h.ended.reason}', not ammo_out`);
+    return problems;
+  },
+
+  /* HEAL — EVERY HEAL SUPPLY HEALS ITS CATALOGUE VALUE AND COSTS ONE FROM THE
+     BAG (the successor of accrual-engine's Auto-Eat arms and DEEPWATERS-S2,
+     "each Swordfish Steak heals exactly 32 and is debited once"). The action
+     bar's heal line fires at <= 50% on a hero far down, for EVERY heal row in
+     src/data/supplies.js: hp rises by ITEMS[id].heals (never more, never
+     less), the bag line drops by one, and nothing fires on a body (hp 0). */
+  HEAL: async (M) => {
+    const problems = [];
+    const { SUPPLIES } = await import(pathToFileURL(join(M.root, 'src/data/supplies.js')).href);
+    const heals = Object.values(SUPPLIES).filter((s) => s.kind === 'heal');
+    if (heals.length < 3) problems.push(`CONTROL: only ${heals.length} heal supplies`);
+    for (const s of heals) {
+      const want = Number(M.ITEMS[s.id] && M.ITEMS[s.id].heals);
+      for (const start of [1, 0]) {
+        const hs = M.AR.newHuntSession({ id: SID, huntFromMs: T0, nextSwingAtMs: T0,
+          bag: { [s.id]: { loaded: 3, left: 3 } },
+          slots: [{ item: s.id, on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }] });
+        const st = { huntSession: hs, playerHp: start, playerMaxHp: 9999, buffs: [] };
+        const ate = M.AR.runActionBar(st, { atMs: T0 });
+        const left = hs.bag[s.id] && hs.bag[s.id].left;
+        if (start === 0) {
+          if (ate || st.playerHp !== 0 || left !== 3) problems.push(`${s.id} fired on a body (hp 0 -> ${st.playerHp}, bag ${left})`);
+          continue;
+        }
+        if (!(want > 0)) { problems.push(`CONTROL: ${s.id} has no catalogue heal`); continue; }
+        if (!ate || st.playerHp !== start + want) problems.push(`${s.id} healed ${st.playerHp - start}, not its catalogue ${want}`);
+        if (left !== 2) problems.push(`${s.id} left ${left} of 3 in the bag after one meal`);
+      }
     }
     return problems;
   },
@@ -1444,6 +1588,129 @@ const DB_ARMS = {
     if (Number(rows) !== Object.keys(M.MONSTERS).length) problems.push(`VALUE: hr_hunt_kill_bounds has ${rows} rows for ${Object.keys(M.MONSTERS).length} monsters`);
     return problems;
   }),
+  /* PARITY — ONE SETTLE, WHOEVER CUTS THE WINDOW (the successor of
+     tests/world-tick-combat-parity.mjs C2 and world-tick-bestiary-parity B3:
+     "the delta the tick proposes is byte-identical to the delta the player's
+     own settle proposes for the same window"). The old tick had its own
+     session builder beside the accrue path's and drifted from it four times.
+     A hunt has one composition (hunt-settle.js settleOnce); this arm proves the
+     tick's door, the player's door and the pieces the other arms compose all
+     write the SAME rows for the same window, so a mode-keyed input — a read
+     the tick skips, a clock the player's door rounds — goes red. */
+  PARITY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { sid } = await hunter(db, M, STRONG);
+    const exec = makeExec(db);
+    const now = Number(await one(db, `select floor(extract(epoch from now()) * 1000)::bigint`));
+    await db.query('savepoint parity');
+    const runs = {};
+    for (const [door, go] of [
+      ['tick', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid })],
+      ['settle', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0 })],
+      ['pieces', () => settleTo(db, M, now)],
+    ]) {
+      const r = await go();
+      if (door !== 'pieces' && (!r || r.outcome !== 'paid')) problems.push(`CONTROL: the ${door} door did not pay (${r && r.outcome}/${r && r.reason})`);
+      runs[door] = canon(await snapshot(db, sid));
+      await db.query('rollback to savepoint parity');
+    }
+    if (runs.tick !== runs.settle) problems.push(`the tick and the player's settle wrote different rows for one window ${firstDiff(runs.tick, runs.settle)}`);
+    if (runs.tick !== runs.pieces) problems.push(`the tick and the composed pieces wrote different rows for one window ${firstDiff(runs.tick, runs.pieces)}`);
+    if (!JSON.parse(runs.tick).tally || !(JSON.parse(runs.tick).tally.kills > 0)) problems.push('CONTROL: the parity window killed nothing');
+    return problems;
+  }),
+
+  /* SLOT — EVERY READ AND WRITE OF A SETTLE IS BOUND TO THE SESSION'S OWN SLOT
+     (the successor of edge-tick-gate T-X1i2 / M17, "one user on two slots, each
+     slot reads its own perks", which left with the party fire). A hunt on slot
+     1 is settled through the real settleHunt; every statement it issues that
+     names a slot names 1 — the perks read (which prices the hunt's XP and
+     bonus), the session read and the apply. */
+  SLOT: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    await newUser(db);
+    await asUser(db, UID);
+    for (const s of [0, 1]) {
+      /* Own slot 1 the way hr_buy_hero_slot records it (tests/conservation-fuzz.mjs): a flag row, no value. */
+      if (s > 0) await db.query(`insert into public.player_progress (user_id, slot, kind, key, value, period_key)
+                                 values ($1, 0, 'flag', 'character_slot:' || $2, 1, '') on conflict do nothing`, [UID, s]);
+      const c = await one(db, 'select public.hr_create_character($1)', [s]);
+      if (!c || c.created !== true) { problems.push(`CONTROL: slot ${s} character refused: ${JSON.stringify(c)}`); return problems; }
+    }
+    await db.query(`update public.hr_hunt_config set enabled = true where id`);
+    const e = await one(db, `select public.hr_hunt_enter(1, 'mill_cellar', '[]'::jsonb, 0, null, null, $1::uuid)`, [idem()]);
+    if (!e || e.ok !== true) { problems.push(`CONTROL: the slot-1 hunt was refused: ${JSON.stringify(e)}`); return problems; }
+    const sid = e.session.id;
+    await db.query(`update public.hunt_sessions set entered_at = now() - interval '11 minutes',
+                      hunt_from = date_trunc('second', now() - interval '10 minutes'),
+                      settled_to = date_trunc('second', now() - interval '10 minutes'),
+                      next_swing_at = date_trunc('second', now() - interval '10 minutes') where id = $1`, [sid]);
+    await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+    const inner = makeExec(db);
+    const seen = [];
+    const exec = async (text, params) => { seen.push({ text: String(text), params: params || [] }); return inner(text, params); };
+    const r = await M.HS.settleHunt({ exec, user: UID, slot: 1, mode: 'tick', session: sid });
+    if (!r || r.outcome !== 'paid') problems.push(`CONTROL: the slot-1 settle did not pay (${r && r.outcome}/${r && r.reason})`);
+    const perks = seen.filter((s) => /perks/i.test(s.text));
+    if (!perks.length) problems.push('CONTROL: the settle issued no perks read — the arm cannot see its binding');
+    for (const s of seen) {
+      const i = s.params.findIndex((v) => v === UID);
+      if (i < 0) continue;
+      const slotArg = s.params[i + 1];
+      if (slotArg !== 1 && slotArg !== '1') problems.push(`a slot-1 settle issued ${s.text.trim().slice(0, 70)}… with slot ${JSON.stringify(slotArg)}`);
+    }
+    const slot0 = await one(db, `select count(*)::int from public.player_ledger where user_id = $1 and slot = 0 and session_id = $2`, [UID, sid]);
+    if (slot0) problems.push(`the slot-1 hunt wrote ${slot0} ledger row(s) on slot 0`);
+    return problems;
+  }),
+
+  /* XPDOOR — THE CLIENT'S COMBAT-XP DOOR PAYS NOTHING (the successor of
+     tests/combat-xp-settle-first.mjs, combat-xp-settle-split.mjs and
+     accrual-engine's combatXpDayCeilingGuard). Those bounded what
+     hr_credit_combat_xp — the client-fight XP door — could add beside a settle
+     (never trim a window it did not pay, never pay one twice, never past an
+     honest day). A hunt has no client fight: the settle pays every swing. The
+     door stays installed until R1 retires the client loop, so it must pay
+     NOTHING to anyone: a hunter is answered hunt_open (settle §6b), and a
+     character who is not hunting cannot be in combat (hunt_required), so the
+     credit's combat window is empty. Both answered here, by execution. */
+  XPDOOR: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const skills = async () => canon(await one(db, `select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac))
+                                                     from public.player_skills where user_id = $1 and slot = 0`, [UID]));
+    const credit = async () => {
+      await asUser(db, UID);
+      const r = await one(db, `select public.hr_credit_combat_xp(0, $1::jsonb, $2)`, [JSON.stringify({ attack: 400, hitpoints: 130 }), idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      return r;
+    };
+    const { sid } = await hunter(db, M, STRONG);
+    const before = await skills();
+    const onHunt = await credit();
+    if (!onHunt || onHunt.ok !== false || onHunt.error !== 'hunt_open') problems.push(`a hunter's combat-XP credit was answered ${JSON.stringify(onHunt)}, not hunt_open`);
+    if (await skills() !== before) problems.push('a hunter\'s combat-XP credit moved a skill');
+    /* Leave, settle the walk home, and wait out the settle-first window: the
+       character is idle, not hunting, and has nothing unsettled. */
+    await db.query(`update public.hunt_sessions set leave_at = now() - interval '10 minutes' where id = $1`, [sid]);
+    await M.HS.settleHunt({ exec: makeExec(db), user: UID, slot: 0, mode: 'tick', session: sid });
+    /* Settled two minutes ago (inside settle-first's 180 s), idle for an hour:
+       the credit's window is [2 min ago, now) and the not-in-combat cap ends
+       it at the hour-old switch — so it must be empty. */
+    await db.query(`update public.player_state set active_kind = 'idle', active_id = null,
+                      active_since = now() - interval '1 hour', accrued_to = now() - interval '2 minutes',
+                      combat_xp_accrued_to = now() - interval '2 minutes' where user_id = $1 and slot = 0`, [UID]);
+    const idleBefore = await skills();
+    const idle = await credit();
+    if (!idle || idle.ok !== true || Number(idle.credit) !== 0 || idle.reason !== 'not_in_combat') {
+      problems.push(`an idle character's combat-XP credit was answered ${JSON.stringify(idle).slice(0, 300)}, not ok/credit 0/not_in_combat`);
+    }
+    if (await skills() !== idleBefore) problems.push(`an idle (not hunting) character's combat-XP credit moved a skill: ${JSON.stringify(idle).slice(0, 300)}`);
+    if (!(await one(db, `select count(*)::int from public.hunt_sessions where id = $1 and ended_at is not null`, [sid]))) {
+      problems.push('CONTROL: the probe hunt did not end — the idle half proves nothing');
+    }
+    return problems;
+  }),
+
   BESTIARY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, STRONG);
@@ -1576,6 +1843,79 @@ const MUTANTS = [
     from: '      const xpLost = deathXpLoss(state.skills, ctx.style);', to: '      const xpLost = {};' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
+  /* ── THE RETIRED GUARDS' MUTANTS, PLANTED AGAINST THE HUNT ENGINE ─────────
+     Each name carries the guard the closed rebuild deleted and the fault it
+     was filed against; the arm named here is its replacement and must go red.
+     world-tick-resume-alignment resumeOneTickLate / stampOneTickEarly /
+     carrierOneTickLate, and the probe bar's freeHeal: */
+  { arm: 'RESUME-LINE', name: '[resume-alignment] a knocked-out hunter swings one tick late (the gate holds ON the line)', file: 'src/core/combat-sim.js',
+    from: '    if (atMs < recoverUntilMs) {', to: '    if (atMs <= recoverUntilMs) {' },
+  { arm: 'RESUME-LINE', name: '[resume-alignment] the line is stamped from the START of the dying swing', file: 'src/core/combat-sim.js',
+    from: '      const fellAtMs = hs.nextSwingAtMs;', to: '      const fellAtMs = atMs;' },
+  { arm: 'RESUME-LINE', name: '[probe-bar freeHeal, b509] the stand-up after a fall heals to full', file: 'src/core/combat-sim.js',
+    from: '  state.playerHp = resumeHpFor(state.playerMaxHp);\n}\n', to: '  state.playerHp = state.playerMaxHp;\n}\n' },
+  { arm: 'BOTH-PATH', name: '[resume-alignment carrierOneTickLate] the carried recovery line drifts a tick per settle', file: join(FN, 'envelope.js'),
+    from: '? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,',
+    to: '? (st.recovering_until ? new Date(st.recovering_until).getTime() + 2000 : 0) : null,' },
+  /* world-tick-combat-parity shiftWindow / wallclock / C2 / relabelSeed /
+     skipFoodDebit, sec-world-tick-m3-seed-label S-M3-1, world-tick-maxhp-carry H1: */
+  /* (The old shiftWindow/wallclock anchors — the window's fromMs — are
+     EQUIVALENT here: a hunt swings on the session's own clock (next_swing_at),
+     and huntWindow.fromMs only bounds the 6 h fuse. The fault transposes to the
+     two clocks a hunt window DOES read: the session clock and the window end.) */
+  { arm: 'TICK-1', name: '[combat-parity shiftWindow] the session clock is read one second late', file: join(FN, 'hunt-settle.js'),
+    from: '    nextSwingAtMs: num(h.next_swing_at_ms),', to: '    nextSwingAtMs: num(h.next_swing_at_ms) + 1000,' },
+  { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid, not the server instant', file: join(FN, 'hunt-settle.js'),
+    from: '  let toMs = nowMs;', to: "  let toMs = mode === 'tick' ? nowMs - (nowMs % 90000) : nowMs;" },
+  { arm: 'PARITY', name: '[combat-parity C2 / bestiary-parity read-dropped] the tick door builds its session without the action bar', file: join(FN, 'hunt-settle.js'),
+    from: '  const hs = huntSessionFromRead(h);', to: "  const hs = huntSessionFromRead(mode === 'tick' ? { ...h, slots: [] } : h);" },
+  { arm: 'TICK-1', name: '[combat-parity relabelSeed / seed-label S-M3-1] each window re-labels its swings from zero', file: join(FN, 'accrual.js'),
+    from: '    swingSeed: huntSeeder,', to: '    swingSeed: (i) => huntSeeder(i - hs0.swingIndex),' },
+  { arm: 'END', name: '[combat-parity skipFoodDebit / attended-loot A5] a supply taken from the bag is not debited', file: 'src/core/action-rules.js',
+    from: '  line.left = int(line.left, 0) - take;', to: '  line.left = int(line.left, 0);' },
+  { arm: 'TICK-1', name: '[maxhp-carry H1] a hitpoints level-up inside the window never raises max HP', file: join(FN, 'accrual.js'),
+    from: "ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;", to: "ev.skill === 'hitpoints' && false) state.playerMaxHp = ev.to;" },
+  /* world-tick-parity P5 rewind. (P2/P3 "unaligned" has no hunt analogue: the
+     window end never owns a remainder — the session stores next_swing_at, so a
+     swing a cut passes over is simply the next window's first. Planted, that
+     mutant is EQUIVALENT: BOTH-PATH's odd cuts write identical rows. Measured
+     2026-10-15, not assumed.) */
+  { arm: 'TICK-1', name: '[world-tick-parity P5 rewind] the settle re-simulates the last swing to be safe', file: join(FN, 'hunt-settle.js'),
+    from: '    nextSwingAtMs: num(h.next_swing_at_ms),', to: '    nextSwingAtMs: num(h.next_swing_at_ms) - 2000,' },
+  /* world-tick-scale F11 foldDropsCompanionArm (companion XP is deleted; its return is refused by name): */
+  { arm: 'TICK-2', name: '[world-tick-scale F11] the tick fold hydrates the companion-XP arm again', file: join(FN, 'tick-shadow.js'),
+    from: "import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';",
+    to: "import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';\nexport const COMPANION_XP_SERVER_BACKED = true;" },
+  /* accrual-engine autoEat* / DEEPWATERS-S2 (a meal heals its catalogue value) and retreatGuard (the falls limit): */
+  { arm: 'HEAL', name: '[accrual-engine DEEPWATERS-S2] a bag heal heals one less than its catalogue value', file: 'src/core/action-rules.js',
+    from: '      const heals = u.buy ? basicOf(hs, u.id).heals : SUPPLIES[u.id].heals;',
+    to: '      const heals = u.buy ? basicOf(hs, u.id).heals : SUPPLIES[u.id].heals - 1;' },
+  { arm: 'HEAL', name: '[accrual-engine attendedSettleAutoEat] a heal fires on a body', file: 'src/core/action-rules.js',
+    from: '  if (!(Number(state.playerHp) > 0)) return false;\n  if (!Array.isArray(state.buffs)) state.buffs = [];',
+    to: '  if (!Array.isArray(state.buffs)) state.buffs = [];' },
+  { arm: 'BOTH-PATH', name: '[accrual-engine retreatGuard] the falls limit ends nothing', file: 'src/core/action-rules.js',
+    from: '  falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),',
+    to: '  falls: () => false,' },
+  /* edge-tick-gate M17 (T-X1i2, one user on two slots — left with the party fire): */
+  { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
+    from: '  const perks = await readTickPerks(exec, user, slot);', to: '  const perks = await readTickPerks(exec, user, 0);' },
+  /* world-tick-probe-bar fixedSeed / noAutoEat (Auto-Eat's successor is the action bar): */
+  { arm: 'SEED', name: '[probe-bar fixedSeed] every swing of a session rolls the same seed', file: join(FN, 'hunt-seed.js'),
+    from: '.update(seedLabel(instanceId, domain, i), \'utf8\')', to: '.update(seedLabel(instanceId, domain, 0), \'utf8\')' },
+  { arm: 'TICK-1', name: '[probe-bar noAutoEat] the action bar fires nothing', file: 'src/core/action-rules.js',
+    from: 'export function runActionBar(state, ctx) {\n', to: 'export function runActionBar(state, ctx) {\n  if (state) return false;\n' },
+  /* combat-xp-settle-first, attended-loot-credit, world-tick-bestiary-parity, accrual-engine ammoGuard: */
+  { arm: 'TICK-2', name: '[combat-xp-settle-first] the live combat-XP watermark trims the hunt window', file: join(FN, 'accrual.js'),
+    from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.max(Math.floor(nat(w.fromMs, -1)), Math.floor(nat(inp.combatXpAccruedToMs, 0)));' },
+  { arm: 'TICK-2', name: '[attended-loot-credit no_topup] the hunt settle reads the attended kill credit again', file: join(FN, 'hunt-settle.js'),
+    from: "import { computeAccrual } from './accrual.js';", to: "import { computeAccrual } from './accrual.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
+  { arm: 'BESTIARY', name: '[bestiary-parity] the settle reads hr_bestiary_of and a ladder prices the hunt again', file: join(FN, 'hunt-settle.js'),
+    from: '  const perks = await readTickPerks(exec, user, slot);',
+    to: "  const perks = await readTickPerks(exec, user, slot);\n  const [bk] = await exec('select coalesce(sum(kills), 0)::int as n from public.hr_bestiary_of($1::uuid, $2::int)', [user, slot]);\n  const ladder = Number(bk && bk.n) > 0;",
+    also: [['      secret: salt, pressAtMs: press ? press.at : null,', '      secret: salt, pressAtMs: press ? press.at : null, ladder,'],
+      ['    monsters: MONSTERS,\n    nodes: GATHER_NODES,', "    monsters: o.ladder ? Object.fromEntries(Object.entries(MONSTERS).map(([k, v]) => [k, { ...v, drops: (v.drops || []).map((d) => ({ ...d, ch: Math.min(1, d.ch * 1.5) })) }])) : MONSTERS,\n    nodes: GATHER_NODES,"]] },
+  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/combat-sim.js',
+    from: '    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);', to: '    const fromBag = Math.min(n, bagLeft);' },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain (create or
@@ -1638,6 +1978,11 @@ const DB_MUTANTS = [
     find: "      if not (select m.solo from public.hr_hunt_target_modes m where m.mode = v_v #>> '{}') then", replace: "      if false then" },
   { arm: 'FRESH', name: 'Mill Cellar respawns six times sooner', fn: 'public.hr_hunt_pull_of(uuid,integer,uuid)',
     find: "ceil(t.respawn_ms::numeric * z.size / t.pull_size)::bigint", replace: "ceil(t.respawn_ms::numeric * z.size / t.pull_size / 6)::bigint" },
+  /* combat-xp-settle-first / -split, accrual-engine combatXpDayCeilingGuard: the client's combat-XP door. */
+  { arm: 'XPDOOR', name: '[combat-xp ceiling] the not-in-combat cap is gone (an idle client credits combat XP)', fn: 'public.hr_credit_combat_xp__ungated(integer,jsonb,text)',
+    find: "                       then least(now(), coalesce(v_active_since, 'epoch'::timestamptz))", replace: '                       then now()' },
+  { arm: 'XPDOOR', name: "[combat-xp-settle-split] a hunter's client credit pays beside the settle again", fn: 'public.hr_credit_combat_xp(integer,jsonb,text)',
+    find: '    case when public.hr_hunt_open_of(auth.uid(), coalesce(p_slot, 0)) is not null', replace: '    case when false' },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];
@@ -1682,7 +2027,16 @@ async function main() {
         const p = join(dir, m.file);
         const src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
         if (src.split(m.from).length !== 2) { console.error(`✗ mutant "${m.name}": marker not found exactly once in ${m.file}`); bad++; continue; }
-        writeFileSync(p, src.replace(m.from, () => m.to));
+        /* `also`: further edits in the SAME file, each anchored exactly once
+           (a defect that needs a read AND a use, e.g. a ladder priced again). */
+        let out = src.replace(m.from, () => m.to);
+        let bad2 = false;
+        for (const [f2, t2] of m.also || []) {
+          if (out.split(f2).length !== 2) { console.error(`✗ mutant "${m.name}": also-marker not found exactly once in ${m.file}`); bad2 = true; break; }
+          out = out.replace(f2, () => t2);
+        }
+        if (bad2) { bad++; continue; }
+        writeFileSync(p, out);
         const res = await runArms(dir, db, [m.arm]);
         if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }

@@ -1155,6 +1155,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bestiary-trophy.mjs
 
+      # ONE NUMBER FOR A KILL (Security F4/F5, re-pointed by the closed rebuild).
+      # The Fight screen, the loot preview and the hunt engine's ctx, lifted out
+      # of the shipped bytes and executed for a top-trophy/top-charm holder, quote
+      # the same drop and damage multipliers and name no ladder lift. --selftest
+      # plants 4 defects (each caught by name) and a silent control.
+      - name: Trophy call sites - one drop rate, no ladder lift (selftest)
+        if: ${{ !cancelled() }}
+        run: node tests/trophy-call-sites.mjs --selftest
+
+      - name: Trophy call sites - base run
+        if: ${{ !cancelled() }}
+        run: node tests/trophy-call-sites.mjs
+
       # ABSENCE MUST STAY ABSENCE ON THE TROPHY WIRE (Security F3, 2026-09-22).
       # hr-accrue/index.ts reads the claimed trophy rows behind a savepoint that
       # degrades on 42883 -- a database without hr_trophy_of, which is also this
@@ -2193,8 +2206,15 @@ jobs:
       # windows == one span (tally, bag, character, clock), a death with a
       # client connected writes the same rows as one with none, tally = Σ
       # ledger, a press lands at its first swing boundary and never before, and
-      # a dry bag ends the hunt. --mutate plants 9 engine, 2 live-body and 3
-      # migration-text defects; each must go red.
+      # a dry bag ends the hunt. RESUME-LINE / QUIVER / HEAL / PARITY / SLOT /
+      # XPDOOR carry the properties of the guards the closed rebuild deleted
+      # (world-tick-combat-parity, -resume-alignment, -maxhp-carry, -probe-bar,
+      # -bestiary-parity, sec-world-tick-m3-seed-label, attended-loot-credit,
+      # combat-xp-settle-first/-split, accrual-engine's away arms): --mutate
+      # plants each retired guard's faults, tagged [guard], against the hunt
+      # engine, and every one must go red with the rest. Measured 2026-10-15
+      # locally: plain 9 s, --mutate 2 min 47 s (91 mutants); the job ran 4.0
+      # min on GitHub before this (step 1.3 min) against its 21.
       - name: Hunt sessions settle — TICK-1/TICK-2, both paths, tally = ledger, keyed seed
         if: ${{ !cancelled() }}
         run: |
@@ -2486,9 +2506,10 @@ jobs:
       # in its own right. No credentials; production untouched.
       # (Attended loot-credit — RETIRED 2026-10-14 by lane C2: the attended
       # top-up, hr_attended_kills and hr_credit_kills are deleted by the hunt
-      # sessions ruling. What replaces it: settle-carry-defer D6 and
-      # world-tick-combat-parity C10 (an attended claim is INERT on every path),
-      # hunt-sessions-settle TICK-2 (no edge file names the attended credit) and
+      # sessions ruling. What replaces it: settle-carry-defer D6 (an attended
+      # claim is INERT on every path), hunt-sessions-settle TICK-2 (no edge file
+      # names the attended credit; its --mutate plants "[attended-loot-credit
+      # no_topup]" and "[combat-parity skipFoodDebit / attended-loot A5]") and
       # hunt-sessions-db D1 (the functions are dropped). Deliberately
       # unregistered, not forgotten.)
 

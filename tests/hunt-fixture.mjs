@@ -82,3 +82,12 @@ export function huntAccrualInput(inp, opts) {
     huntSecret: secretOf(o.seed ?? inp.seed ?? 1),
   };
 }
+
+/** A pointer-era combat fixture, re-homed on a training hunt (lane C2: combat
+ *  accrues only on a session). No respawn wait, so the kill rate is the old
+ *  pointer fight's; the session secret derives from the fixture's own seed.
+ *  A non-combat input passes through untouched. */
+export function onTrainingHunt(inp, opts) {
+  if (!inp || inp.activeKind !== 'combat') return inp;
+  return huntAccrualInput(inp, { seed: inp.seed, pull: { size: 1, respawnMs: 0 }, ...(opts || {}) });
+}

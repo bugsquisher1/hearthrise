@@ -25,6 +25,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { onTrainingHunt } from './hunt-fixture.mjs';
+/* Lane C2: combat accrues only on a hunt session — the fixture runs as a training hunt. */
+const computeAccrualOnHunt = (inp) => computeAccrual(onTrainingHunt(inp));
 import {
   companionKeyBonus, companionXpToReach, companionLevelFromXp,
   COMPANION_KEYS, COMPANION_MAX_LEVEL,
@@ -59,7 +62,7 @@ const FROM_MS = Date.UTC(2026, 2, 14, 20, 0, 0);
 const NOW_MS = FROM_MS + 12 * 3600000;
 
 function run(perks, away = true) {
-  return computeAccrual({
+  return computeAccrualOnHunt({
     userId: '00000000-0000-4000-8000-0000000000c0', slot: 0,
     nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
     activeKind: 'combat', activeId: MONSTER, capMs: 12 * 3600000,

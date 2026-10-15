@@ -50,6 +50,9 @@ import { COMBAT_STYLES, DEFAULT_STYLE_KEYS, resolveStyle, normaliseStyleKeys,
   hitXpRoute, killXpRoute, HIT_XP_PER_DAMAGE }
   from '../src/core/styles.js';
 import { computeAccrual, deriveTickMs } from '../supabase/functions/hr-accrue/accrual.js';
+import { onTrainingHunt } from './hunt-fixture.mjs';
+/* Lane C2: combat accrues only on a hunt session — the fixture runs as a training hunt. */
+const computeAccrualOnHunt = (inp) => computeAccrual(onTrainingHunt(inp));
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 
@@ -287,7 +290,7 @@ function baseSkills() {
 }
 
 function accrue(combatStyle) {
-  return computeAccrual({
+  return computeAccrualOnHunt({
     userId: '00000000-0000-4000-8000-0000000000c5',
     slot: 0,
     nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
@@ -324,7 +327,7 @@ function accrue(combatStyle) {
    fight, which is the throughput the old check mistook for a bonus. */
 function accrueSaturated(combatStyle) {
   const sat = 50000000;          // ⇒ base accuracy well past the 0.95 clamp
-  return computeAccrual({
+  return computeAccrualOnHunt({
     userId: '00000000-0000-4000-8000-0000000000c5',
     slot: 0,
     nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,

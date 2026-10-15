@@ -58,6 +58,7 @@ import { pathToFileURL } from 'node:url';
 
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { onTrainingHunt } from './hunt-fixture.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
 import { makeBonus } from '../src/core/perks.js';
 import { burnChance, BURN_BASE, KITCHEN_NO_BURN, recipeInputs } from '../src/core/artisan.js';
@@ -564,7 +565,7 @@ async function run(patches) {
          the RED message names both and diagnoses neither. */
       let asLoot = 0;
       for (const seed of SEEDS) {
-        const r = computeAccrualFn({ ...base, seed });
+        const r = computeAccrualFn(onTrainingHunt({ ...base, seed }));   // lane C2: a training hunt
         if (!r.accrued) continue;
         if ((r.delta.items || {})[fixture.scroll]) asLoot++;
         const found = (r.delta.progress || []).find((x) => x && x.key === scrollKey);

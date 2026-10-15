@@ -2298,16 +2298,16 @@ export function __resetBaselineComplete() {
 
 /** Declare that the SERVER owns the full inventory bag on this client. THE MANUAL
  *  ARM STEP — nothing auto-calls this; it is taken deliberately, once, after the
- *  restore drill + wipe. Arming (v !== false) enforces two guards and THROWS if
- *  either fails, because a silent-inert arm is exactly the failure mode this
+ *  restore drill + wipe. Arming (v !== false) enforces its guards and THROWS if
+ *  one fails, because a silent-inert arm is exactly the failure mode this
  *  program has been burned by:
  *
- *   (a) DUNGEONS MUST BE LOADED. `serverOwnedItem` classifies an id that is BOTH a
- *       combat drop and dungeon loot (e.g. `magic_essence`) — an OVERLAP id — as
- *       EXCLUDED only once window.DUNGEONS is present; before boot it is
- *       classified OWNABLE, and an armed absolute envelope would DELETE a legit
- *       dungeon copy. So arming asserts DUNGEONS is present and rebuilds the
- *       partition against it (folding the loot tables into the excluded set).
+ *   (a) RETIRED with dungeons (lane C2, 2026-10-14). It asserted window.DUNGEONS
+ *       was loaded so overlap ids (dungeon loot that was also a combat drop)
+ *       were folded into the excluded set before an absolute envelope could
+ *       delete a dungeon copy. Dungeons are deleted for the wipe, so there is no
+ *       client-held dungeon copy left to protect; arming rebuilds the partition
+ *       against whatever item-authority reads, and nothing gates on DUNGEONS.
  *   (b) THE BASELINE-COMPLETE SIGNAL MUST HAVE BEEN OBSERVED. If armed while the
  *       server does not stamp `inventory_complete`, an empty-{} envelope would be
  *       indistinguishable from a complete-but-empty baseline and could WIPE the
@@ -2333,13 +2333,7 @@ export function markInventoryAuthorityLive(v) {
         + blockers.length + ' un-backed OWNABLE mint lane(s) remain — an absolute envelope would '
         + 'DELETE items a client path still mints without a server write. ' + blockers.join(' | '));
     }
-    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
-    if (!D || typeof D !== 'object') {
-      throw new Error('[accrue] refusing to arm inventory authority: window.DUNGEONS is not loaded. '
-        + 'Overlap ids (dungeon loot that is also a combat drop) classify OWNABLE before boot, so an '
-        + 'absolute envelope could delete a legit dungeon copy. Arm only after the game has booted.');
-    }
-    rebuildItemAuthority({ dungeons: D });   // fold loot tables into the excluded set
+    rebuildItemAuthority();
     if (!baselineCompleteSeen) {
       throw new Error('[accrue] refusing to arm inventory authority: no baseline-complete envelope has '
         + 'been observed (server is not stamping inventory_complete). An incomplete baseline could not '
@@ -2377,9 +2371,9 @@ export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
    enable flag alone this refuses.
 
    PROPERTIES THE SECURITY REVIEW MUST BE ABLE TO TRUST:
-     · IMPOSSIBLE TO ARM ACCIDENTALLY — five independent conditions must ALL hold
-       (enable flag, baseline signal observed, DUNGEONS loaded, no un-backed mint
-       lane, not already armed, not disarmed this session). Any one false ⇒ no-op.
+     · IMPOSSIBLE TO ARM ACCIDENTALLY — independent conditions must ALL hold
+       (enable flag, staged, an observed server grant, baseline signal observed,
+       no un-backed mint lane, not already armed, not disarmed this session). Any one false ⇒ no-op.
      · NEVER THROWS INTO THE ENVELOPE PATH — the whole body is wrapped; a refusal
        or an arm-gate throw is caught, logged, and retried on the NEXT envelope.
        A boot envelope can never crash the accrual apply because of this.
@@ -2436,8 +2430,6 @@ export function maybeAutoArm() {
     if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
     if (!isServerArmObserved()) return false;   // (3c) no OBSERVED server grant this session
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
-    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
-    if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
     if (flipArmBlockers().length) return false;      // (6) an un-backed OWNABLE mint lane remains
     /* Every precondition holds — throw the switch. markInventoryAuthorityLive
        re-checks the same guards and only throws if one regressed between here and
@@ -2632,16 +2624,14 @@ export function resetEnvelopeDrift() {
    ~658), so `envelopeDrift.destructive` IS the destructive-owned-omission count
    over the soak window. This accessor exposes it, plus the two arm preconditions,
    as one queryable object so the eventual arm gate (and a status readout / bug
-   report) can require: DUNGEONS loaded, the server stamping complete envelopes,
+   report) can require: the server stamping complete envelopes,
    and destructive === 0 for a sustained window BEFORE anyone calls
    markInventoryAuthorityLive(true). Pure read — no side effects. */
 export function inventoryFlipReadiness() {
-  const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
   const soakMs = envelopeDrift.since ? Math.max(0, nowMs() - envelopeDrift.since) : 0;
   return {
     armed: inventoryAuthorityLive,
     absolute: isInventoryAbsolute(),
-    dungeonsLoaded: !!(D && typeof D === 'object'),
     stage: INVENTORY_ARM_STAGE,
     staged: inventoryArmStagedNow,
     baselineCompleteSeen,
@@ -2697,7 +2687,6 @@ export function flipDriftSummary() {
     /* WHICH BUILD SAID SO. A +24 h soak spans a release, and a destructive
        omission is only interpretable against the code that produced it. */
     build: (BUILD && BUILD.cache) || null,
-    dungeonsLoaded: !!r.dungeonsLoaded,
     baselineCompleteSeen: !!r.baselineCompleteSeen,
   };
 }
@@ -2713,7 +2702,7 @@ let _flipDriftTimer = null;
    per session instead of one per cadence tick. */
 function _flipDriftDedupeKey(s) {
   return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
-    s.lastLossMag, s.ready, s.armed, s.staged, s.build, s.dungeonsLoaded,
+    s.lastLossMag, s.ready, s.armed, s.staged, s.build,
     s.baselineCompleteSeen, s.transition || ''].join('|');
 }
 

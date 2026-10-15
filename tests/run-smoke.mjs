@@ -2325,20 +2325,19 @@ const run = async () => {
       console.log('\nCompanion perk guard — a seeded fight with a companion equipped is byte-identical '
         + 'away vs live; the passive bonus is server-owned and draw-free.');
     }
-    /* ── The companion XP writer guard (dormant server-of-record) ────────────
-       The WRITE half of the companion channel: the accrual engine credits the
-       equipped pet a `stat companion_xp:<id>` op for its role-matched actions
-       (per kill / per gather-yield / per produce — the companionActionXp basis),
-       draw-free so away == live, clamped to the L30 cap, and INERT while the arm
-       switch is dormant. The projection (hr_perks_of) already reads that row. */
+    /* ── The companion XP guard ──────────────────────────────────────────
+       The per-action rule (companionActionXp / companionSpanXp) stays pinned;
+       the ENGINE writer was deleted outright in lane C2, so the guard now
+       proves no hunt, gather or bench night (attended or away) emits a
+       companion_xp op or companion_xp_frac. */
     const companionXpProblems = companionXpGuard();
     if (companionXpProblems.length) {
-      console.log('\nCompanion XP writer guard — FAILED:');
+      console.log('\nCompanion XP guard — FAILED:');
       for (const p of companionXpProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nCompanion XP writer guard — the engine credits the equipped pet per role-matched '
-        + 'action (client parity), byte-identical away vs live, capped; dormant emits nothing.');
+      console.log('\nCompanion XP guard — the per-action rule is pinned; the engine writes no companion XP '
+        + '(deleted in lane C2) on a hunt, gather or bench night, attended or away.');
     }
     /* ── The artisan progress model guard (b352) ────────────────────────
        The two shapes that block a server-paid artisan night, end to end on a

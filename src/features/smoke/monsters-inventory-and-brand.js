@@ -3166,7 +3166,6 @@ export default [
       assert(A.isEnvelopeAbsolute() === true, 'guard: the equip flip must be armed (the per-session fact this lane removed)');
       assert(IA.INVENTORY_ARM_ENABLED === true, 'guard: INVENTORY_ARM_ENABLED must be true for this test to mean anything');
       assert(IA.flipArmBlockers().length === 0, 'guard: flipArmBlockers() must be empty — got ' + JSON.stringify(IA.flipArmBlockers()));
-      assert(!!(window.DUNGEONS && typeof window.DUNGEONS === 'object'), 'guard: window.DUNGEONS must be loaded');
       A.noteBaselineComplete({ inventory_complete: true });
       assert(A.isBaselineCompleteSeen() === true, 'guard: the baseline-complete signal must read as observed');
       A.noteServerArmPermission(true);   // arming needs an OBSERVED server grant (INV-STAGE-9)
@@ -3872,7 +3871,7 @@ export default [
     }
   }),
 
-  () => tryRun('INVENTORY-BASELINE-4: the arm gate refuses on a missing DUNGEONS (a) OR an unobserved baseline signal (b)', () => {
+  () => tryRun('INVENTORY-BASELINE-4: the arm gate refuses on an unobserved baseline signal (b), and DUNGEONS gates nothing (lane C2)', () => {
     const A = window.HearthriseAccrual;
     const IA = window.HearthriseItemAuthority;
     assert(A && typeof A.isBaselineCompleteSeen === 'function', 'isBaselineCompleteSeen must be published');
@@ -3892,14 +3891,16 @@ export default [
     }
     const savedDungeons = globalThis.DUNGEONS;
     try {
-      /* GUARD (a): DUNGEONS absent. Overlap ids classify OWNABLE before boot, so
-         an absolute envelope could delete a legit dungeon copy — arming must throw. */
-      A.noteBaselineComplete({ inventory_complete: true });   // satisfy (b) so (a) is what fails
+      /* GUARD (a) IS RETIRED (lane C2, 2026-10-14): dungeons are deleted for
+         the wipe, so with (b) satisfied a missing window.DUNGEONS must NOT stop
+         the arm — a stale gate on a deleted system would hold authority hostage. */
+      A.noteBaselineComplete({ inventory_complete: true });
       globalThis.DUNGEONS = undefined;
       let threwA = false;
       try { A.markInventoryAuthorityLive(true); } catch (e) { threwA = true; }
-      assert(threwA === true, 'arming with window.DUNGEONS absent must THROW (guard a)');
-      assert(A.isInventoryAuthorityLive() === false, 'a refused arm must leave the flag OFF');
+      assert(threwA === false, 'arming with window.DUNGEONS absent must NOT throw — the DUNGEONS gate is retired');
+      assert(A.isInventoryAuthorityLive() === true, 'with the signal observed, a missing DUNGEONS still arms');
+      A.markInventoryAuthorityLive(false);
 
       /* GUARD (b): the baseline-complete signal has NOT been observed. An empty-{}
          envelope would then be indistinguishable from a complete-but-empty
@@ -3936,7 +3937,7 @@ export default [
     A.resetEnvelopeDrift();
     let r = A.inventoryFlipReadiness();
     assert(r.destructiveOwnedOmissions === 0, 'a fresh soak window starts at zero destructive omissions — got ' + r.destructiveOwnedOmissions);
-    assert(typeof r.dungeonsLoaded === 'boolean' && typeof r.baselineCompleteSeen === 'boolean',
+    assert(typeof r.baselineCompleteSeen === 'boolean' && !('dungeonsLoaded' in r),
       'the readout must expose the arm preconditions');
 
     /* A non-destructive envelope (server ahead) must NOT bump the destructive
@@ -3977,7 +3978,8 @@ export default [
        This is what makes it safe to emit as ONE analytics row (journal rule 6). */
     const s = A.flipDriftSummary();
     const expectedKeys = ['destructiveOwnedOmissions', 'envelopesApplied', 'completeEnvelopes',
-      'lastLossMag', 'soakMinutes', 'ready', 'armed', 'dungeonsLoaded', 'baselineCompleteSeen'];
+      'lastLossMag', 'soakMinutes', 'ready', 'armed', 'baselineCompleteSeen'];
+    assert(!('dungeonsLoaded' in s), 'the retired DUNGEONS precondition is still in the summary');
     for (const k of expectedKeys) assert(k in s, 'summary must expose ' + k);
     for (const k of Object.keys(s)) {
       const t = typeof s[k];

@@ -15,7 +15,7 @@
 //
 // PURE except for `gStore`, the adapter that reads and writes the residue on G.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=586';
+import { escapeHtml as esc } from '../utils/dom.js?v=587';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;

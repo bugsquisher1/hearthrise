@@ -19,14 +19,14 @@
 // Published as window.HearthriseShell = { mount }. Nothing in the game mounts it
 // yet: the cutover lane wires it (docs/design/WORLD_SHELL.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=586';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=586';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=586';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=586';
-import { createHud, gStore, placeWidget } from './hud.js?v=586';
-import { keyLabel, glyphSvg } from './launcher.js?v=586';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=586';
-import { escapeHtml as esc } from '../utils/dom.js?v=586';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=587';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=587';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=587';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=587';
+import { createHud, gStore, placeWidget } from './hud.js?v=587';
+import { keyLabel, glyphSvg } from './launcher.js?v=587';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=587';
+import { escapeHtml as esc } from '../utils/dom.js?v=587';
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it

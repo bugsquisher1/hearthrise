@@ -67,7 +67,7 @@ function check(base) {
 const PLANTS = [
   { name: 'a gate reads the layout', file: 'src/features/plant.js', text: 'export function canBuy(G) { return !!(G.hudLayout && G.hudLayout.desktop); }\n', want: 'D1 src/features/plant.js' },
   { name: 'a bracket read in net/', file: 'src/net/plant.js', text: "export const x = (G) => G['hudLayout'];\n", want: 'D1 src/net/plant.js' },
-  { name: 'the HUD imports the network', file: HUD, prepend: "import { putClientState } from '../net/client-state.js?v=586';\n", want: 'imports ../net/client-state.js' },
+  { name: 'the HUD imports the network', file: HUD, prepend: "import { putClientState } from '../net/client-state.js';\n", want: 'imports ../net/client-state.js' },
   { name: 'the HUD calls fetch', file: HUD, append: "\nexport function leak(v) { return fetch('/x', { body: JSON.stringify(v) }); }\n", want: 'names `fetch`' },
   { name: 'the HUD dynamic-imports the engine', file: HUD, append: "\nexport const later = () => import('../core/combat-sim.js');\n", want: 'dynamic import' },
 ];

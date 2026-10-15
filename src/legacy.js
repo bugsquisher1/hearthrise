@@ -361,7 +361,7 @@ try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
       (tools/gen-shops.mjs keys them off the table name). Harmless, internal,
       and worth renaming the table to SUPPLY_SHOP when this data leaves
       legacy.js — the generator anchor and the SQL offer ids move together. */
-const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:60},{id:'coarse_whetstone',qty:10,cost:60},{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:18,cost:300},{id:'cooked_lobster',qty:5,cost:2000}];
+const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:60},{id:'coarse_whetstone',qty:10,cost:60},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:18,cost:300}];
 /* W0 (coherence audit, top-10 #2): the Local Shop sells STARTER gear only — no
    tier-2+ piece. Iron/Steel armour and weapons, the Longbow and the Oak Staff
    undercut Smithing and Crafting 15-35, so the first upgrade a player wears is

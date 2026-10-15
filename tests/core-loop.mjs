@@ -27,7 +27,9 @@
 //    1    log in                    hr_create_character <- src/data/start-kit.js   all
 //    2    fish                      set_activity gather:shrimp_s, settle            3
 //    3    cook a heal               set_activity artisan:cook_shrimp, settle        6
-//    4    buy basic food            shop_buy, the cheapest healing NPC offer        6
+//    4    the NPC prices food per use hr_hunt_basic_supplies: the tier-1 shop heal   6
+//                                   is priced per use, and no counter sells food
+//                                   below it (master plan row 2)
 //    5    enter a hunt              hr_hunt_enter mill_cellar with a packed bag     6
 //                                   (a hunt above my band is refused)
 //    6    kills pay                 settleHunt -> computeAccrual (session) ->       7
@@ -43,11 +45,13 @@
 //   LOOP-2, a mid-level character (Combat 40)
 //    1    a Combat-40 character     fixture levels + gold + steel kit, REAL equip   all
 //    2    pick a hunt for my level  src/data/hunts.js band contains my level        4
-//    3    buy supplies              shop_buy, the best NPC food I can afford        4
-//    4    enter with them           hr_hunt_enter, the food in the bag              5
-//    5    the hunt burns supplies   settleHunt: kills, loot, XP, bag heals          6
+//    3    switch the shop heal on   hr_action_set_put: the bar buys a heal per use  4
+//                                   (master plan rows 1 and 25: off for a new bar)
+//    4    enter with an empty bag   hr_hunt_enter, the gold is the supply           5
+//    5    the hunt buys and loots   settleHunt: kills, loot, XP, shop heals paid    6
+//                                   per use (supply_buy), never below the floor
 //    6    leave and sell            hr_hunt_leave, vendor_sell_many                 7
-//    7    restock                   shop_buy the food the hour burnt                8
+//    7    the hour pays for itself  loot + coins - the shop's gold > 0              8
 //    8    keep hunting              a new session pays the next hour                9
 //    9    reload                    hr_load == the last envelope                    -
 //
@@ -559,15 +563,15 @@ async function loop1(S, M, tag, rows) {
     t.note(`${used} raw -> +${cooked} cooked, +${inv(p.env, 'burnt_food') - inv(before, 'burnt_food')} burnt, cooking L${lvOf(p.env, 'cooking')}`);
   });
 
-  await step(4, 'buy basic food (NPC)', async (t) => {
-    const o = cheapestFood(M);
-    t.ok(o, 'the NPC counter sells no healing food at all');
-    const before = p.env;
-    t.ok(num(before.state.gold) >= o.gold, `the cheapest food (${o.id}) costs ${o.gold}, the player has ${before.state.gold}`);
-    await p.act(t, `shop_buy ${o.id}`, { verb: 'shop_buy', offer: o.id, qty: 1 });
-    t.ok(inv(p.env, o.item) === inv(before, o.item) + o.amount, `${o.id} did not deliver ${o.amount} ${o.item}`);
-    t.ok(num(p.env.state.gold) === num(before.state.gold) - o.gold, `${o.id} charged ${num(before.state.gold) - num(p.env.state.gold)}, the catalogue says ${o.gold}`);
-    t.note(`${o.id}: ${o.amount} ${o.item} for ${o.gold} gold`);
+  await step(4, 'the NPC prices food per use', async (t) => {
+    /* Master plan rows 1-2 (hybrid supplies): the NPC sells a heal PER USE from
+       a shop slot that shows its price; no counter sells cooked food below it. */
+    const basic = (await S.q(`select basic_id, heals, price from public.hr_hunt_basic_supplies
+                               where kind = 'heal' and 1 = any (tiers)`))[0];
+    t.ok(basic && num(basic.price) > 0 && num(basic.heals) > 0, `the server prices no tier-1 shop heal: ${brief(basic)}`);
+    const cheap = foodOffers(M).filter((o) => basic && o.gold / (o.amount * o.heals) < num(basic.price) / num(basic.heals));
+    t.ok(cheap.length === 0, `a counter undercuts the shop heal: ${cheap.map((o) => o.id).join(', ')}`);
+    t.note(`${basic && basic.basic_id}: ${basic && basic.heals} hp for ${basic && basic.price} g a use; ${foodOffers(M).length} counter food offer(s)`);
   });
 
   await step(5, 'enter a hunt (Mill Cellar)', async (t) => {
@@ -630,7 +634,11 @@ async function loop1(S, M, tag, rows) {
     await p.enter(t, HUNT, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h2 = await p.hunt(t, HUNT_MIN);
     const per = (h) => (h.kills ? h.ate / h.kills : Infinity);
-    const better = h2.kills > hunt1.kills || (h2.kills === hunt1.kills && per(h2) <= per(hunt1)) || h2.deaths < hunt1.deaths;
+    /* Mill Cellar is SPAWN-LIMITED (src/data/hunts.js respawnMs): a better
+       weapon cannot kill foes that have not come back, so on that ground it
+       shows as fewer heals a kill at (about) the same kill count. */
+    const better = h2.kills > hunt1.kills || (h2.kills >= Math.floor(hunt1.kills * 0.95) && per(h2) < per(hunt1))
+      || (h2.kills === hunt1.kills && per(h2) <= per(hunt1)) || h2.deaths < hunt1.deaths;
     t.ok(better, `same hunt, ${bought.id} on: ${h2.kills} kills / ${h2.ate} heals / ${h2.deaths} falls vs ${hunt1.kills} / ${hunt1.ate} / ${hunt1.deaths} before`);
     t.note(`${hunt1.kills} -> ${h2.kills} kills, heals/kill ${per(hunt1).toFixed(2)} -> ${per(h2).toFixed(2)}, +${h2.xp} XP`);
   });
@@ -729,28 +737,31 @@ async function loop2(S, M, tag, rows) {
     t.note(`${hunt.id} [${hunt.band}] (${fit.length} of ${HUNTS.length} hunts fit combat ${cl})`);
   });
 
-  await step(3, 'buy supplies', async (t) => {
-    const offers = foodOffers(M).filter((o) => o.gold * 4 <= num(p.env.state.gold)).sort((a, b) => b.heals - a.heals);
-    t.ok(offers.length > 0, `no NPC food is affordable four times over on ${p.env.state.gold} gold`);
-    food = offers[0];
-    const before = p.env;
-    await p.act(t, `shop_buy ${food.id} x4`, { verb: 'shop_buy', offer: food.id, qty: 4 });
-    t.ok(inv(p.env, food.item) === inv(before, food.item) + 4 * food.amount, `${food.id} did not deliver`);
-    t.note(`4 x ${food.id} = ${4 * food.amount} ${food.item} (heals ${food.heals}) for ${4 * food.gold}`);
+  await step(3, 'switch the shop heal on', async (t) => {
+    /* A new bar has the shop slot OFF (master plan row 25); the player turns it
+       on and the hunt pays the NPC per use (row 1). */
+    const bar = [{ item: '*heal_shop', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
+    const put = await S.rpc(p.uid, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid) r', ['shop', JSON.stringify(bar), uuid()]);
+    t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
+    food = { item: '*heal_shop' };
   });
 
-  await step(4, 'enter with them', async (t) => {
-    await p.enter(t, hunt.id, { [food.item]: inv(p.env, food.item) });
+  await step(4, 'enter with an empty bag', async (t) => {
+    await p.enter(t, hunt.id, {});
     t.ok(p.env.state.active_kind === 'combat' && p.env.state.active_id === hunt.id, `the pointer is ${p.env.state.active_id}`);
   });
 
-  await step(5, 'the hunt burns supplies and loots', async (t) => {
+  await step(5, 'the hunt buys heals and loots', async (t) => {
     hour = await p.hunt(t, HOUR_MIN);
+    const tally = (hour.session && hour.session.tally) || {};
+    const bought = Object.values(tally.bought || {}).reduce((a, n) => a + num(n), 0);
     t.ok(hour.kills > 0, `an hour of ${hunt.id} at combat 40 killed ${hour.kills}`);
     t.ok(hour.xp > 0, 'the kills paid no combat XP');
     t.ok(Object.keys(hour.loot).length > 0, `${hour.kills} kills dropped no loot`);
-    t.ok(hour.ate > 0, `an hour of ${hunt.id} burnt no supplies (${hour.kills} kills): food is not part of this hunt`);
-    t.note(huntNote(hour, food.item));
+    t.ok(bought > 0 && num(tally.supply_gold) > 0, `an hour of ${hunt.id} bought no shop heal (${hour.kills} kills): the per-use shop is not part of this hunt`);
+    t.ok(num(p.env.state.gold) >= 300, `the shop took the purse to ${p.env.state.gold}, below the 300 floor`);
+    food.bought = bought; food.gold = num(tally.supply_gold);
+    t.note(`${huntNote(hour)}; ${bought} shop heals for ${tally.supply_gold} g`);
   });
 
   await step(6, 'leave and sell the loot', async (t) => {
@@ -760,18 +771,16 @@ async function loop2(S, M, tag, rows) {
     t.note(`+${s.got} gold from loot, +${hour.gold} gold dropped`);
   });
 
-  await step(7, 'restock', async (t) => {
-    const packs = Math.max(1, Math.ceil(hour.ate / food.amount));
-    const cost = packs * food.gold;
-    t.ok(num(p.env.state.gold) >= cost, `restocking ${hour.ate} ${food.item} costs ${cost}, the player has ${p.env.state.gold}`);
-    const before = p.env;
-    await p.act(t, `shop_buy ${food.id} x${packs}`, { verb: 'shop_buy', offer: food.id, qty: packs });
-    t.ok(inv(p.env, food.item) === inv(before, food.item) + packs * food.amount, 'the restock did not deliver');
-    t.note(`hour net ${lootGold - cost >= 0 ? '+' : ''}${lootGold - cost} gold (loot ${lootGold} - food ${cost})`);
+  await step(7, 'the hour pays for itself', async (t) => {
+    /* hour.gold is the purse's move over the hour: coins dropped minus the
+       shop's per-use debits, so the sale on top of it is the hour's net. */
+    const net = lootGold;
+    t.ok(net > 0, `an hour of ${hunt.id} on the shop's heals lost gold: net ${net} (shop took ${food.gold})`);
+    t.note(`hour net ${net >= 0 ? '+' : ''}${net} gold (the shop's ${food.gold} included)`);
   });
 
   await step(8, 'keep hunting', async (t) => {
-    await p.enter(t, hunt.id, { [food.item]: inv(p.env, food.item) });
+    await p.enter(t, hunt.id, {});
     const h2 = await p.hunt(t, HOUR_MIN);
     t.ok(h2.kills > 0, `the next hour of ${hunt.id} killed ${h2.kills}`);
     t.note(`${h2.kills} kills, ${h2.ate} eaten`);

@@ -24,6 +24,10 @@
 //      more per point or per shot than the partner's book value
 //   B2 every crafted arrow and rune from tier 2 up has a shop version, and
 //      every monster tier has exactly one shop heal and one shop drink
+//   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
+//      for less gold per point than the shop's per-use basic of that tier
+//      (master plan row 2: the Counter's seed.cooked_* sold food ~4x cheaper
+//      per HP than the basic, so the per-use price meant nothing)
 //   B3 a bigger shop heal or drink never costs less per point than a smaller
 //   R1 the rule vocabulary is exactly the rulings', and frozen
 //   R2 the default preset is food at HP <= 50% and drink at mana <= 40%, bag
@@ -58,6 +62,7 @@ import { itemSources, ITEMS, MONSTERS } from '../src/data/catalogue-coherence.js
 import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { SHOP_OFFERS } from '../src/data/shops.js';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
 const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
@@ -205,6 +210,28 @@ function checkBasics(d, f) {
       if (ladder[i].price / ladder[i][key] < ladder[i - 1].price / ladder[i - 1][key]) f('B3', `${ladder[i].n} costs less per point than ${ladder[i - 1].n}, so the smaller one is never fired`);
     }
   }
+  /* B4: every gold offer that hands over something a hunt can eat or drink,
+     priced per point against the per-use basic of the item's own tier (the
+     basic's own row when it is the partner). Gold only: a gem or item cost is
+     no NPC price. */
+  for (const o of d.offers) {
+    const gold = (o.cost || []).filter((c) => c.kind === 'currency' && c.id === 'gold').reduce((a, c) => a + c.amount, 0);
+    if (!(gold > 0) || (o.cost || []).length !== 1) continue;
+    for (const g of (o.grant || [])) {
+      const it = g.kind === 'item' && d.items[g.id];
+      if (!it) continue;
+      for (const [kind, key] of [['heal', 'heals'], ['mana', 'mana']]) {
+        const pts = Number(it[key]) || 0;
+        if (!(pts > 0)) continue;
+        const basic = d.basics.find((b) => b.kind === kind && b.partner === g.id)
+          || d.basics.find((b) => b.kind === kind && b.tiers.includes(Number(it.foodTier) || 1));
+        if (!basic) { f('B4', `${o.id} sells ${g.id} (${kind}) and no shop ${kind} prices its tier`); continue; }
+        const offerPer = gold / (g.amount * pts);
+        const basicPer = basic.price / basic[key];
+        if (offerPer < basicPer) f('B4', `${o.id} sells ${g.id} at ${offerPer.toFixed(2)} g a point, under the shop's ${basic.id} at ${basicPer.toFixed(2)}`);
+      }
+    }
+  }
   if (d.checkValues && (basicFor('heal', 1) !== BASIC_INDEX.salted_shrimp || basicFor('mana', 6) !== BASIC_INDEX.thin_emberfruit_cordial)) f('B2', 'basicFor does not resolve a tier to its shop row');
 }
 
@@ -308,7 +335,7 @@ export function check(d) {
 const REAL = () => ({
   rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
   combatBuffs: COMBAT_BUFF_TYPES, subjects: RULE_SUBJECTS, preset: DEFAULT_PRESET, hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
-  limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true,
+  limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true, offers: SHOP_OFFERS,
 });
 
 function presetWith(cond) {
@@ -331,6 +358,10 @@ function selftest() {
     ['B1', 'a shop rune under twice the crafted rune per shot', (d) => { withBasic(d, 'plain_fire_rune', { price: 4 }); }],
     ['B2', 'a crafted rune with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_blood_rune'); }],
     ['B2', 'a monster tier with no shop drink', (d) => { d.basics = d.basics.filter((b) => b.id !== 'thin_emberfruit_cordial'); }],
+    ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 150 g for 5)', (d) => {
+      d.offers = [...d.offers, { id: 'seed.cooked_shrimp', table: 'seed',
+        cost: [{ kind: 'currency', id: 'gold', amount: 150 }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];
+    }],
     ['B3', 'a big shop heal cheaper per point than a small one', (d) => { withBasic(d, 'salted_lobster', { price: 200 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
     ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],

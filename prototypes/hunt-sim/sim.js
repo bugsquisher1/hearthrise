@@ -59,17 +59,16 @@ for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG
 // optional walk cycles (assets/walk/manifest.json); static rotations otherwise
 let WALK = null;
 fetch('assets/walk/manifest.json').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
+// manifest unit names -> sim kinds
+const WALK_NAME = { giant_rat: 'rat', giant_bat: 'bat', venom_spider: 'spider', rat_king: 'ratking' };
 function prepWalk(m) {
   const out = {};
-  const units = m.units || m;
-  for (const [name, u] of Object.entries(units)) {
-    const dirs = u.directions || u.dirs || {};
-    const frames = {};
-    for (const [d, list] of Object.entries(dirs)) {
-      const paths = Array.isArray(list) ? list : (list.frames || []);
-      frames[d] = paths.map(p => loadImg('assets/walk/' + p));
-    }
-    out[name] = { frames, fps: u.fps || 8, anchor: u.foot_anchor || u.anchor || null };
+  for (const [name, u] of Object.entries(m.units || {})) {
+    const walk = {}, idle = {};
+    for (const [d, list] of Object.entries(u.directions || {})) walk[d] = list.map(p => loadImg('assets/walk/' + p));
+    for (const [d, p] of Object.entries(u.idle || {})) idle[d] = loadImg('assets/walk/' + p);
+    for (const [d, src] of Object.entries(u.fallback || {})) if (!walk[d] && walk[src]) walk[d] = walk[src];
+    out[WALK_NAME[name] || name] = { walk, idle, fps: u.fps || 8, anchor: u.foot_anchor || null, hover: !!u.hover };
   }
   return out;
 }
@@ -493,12 +492,13 @@ const T = CONFIG.tile;
 const cx = x => (x + 1) * T + T / 2, cy = y => (y + 1) * T + T / 2; // grid cell -> map pixel centre (map origin is cell -1)
 
 function spriteFor(u) {
-  if (WALK && WALK[u.kind] && WALK[u.kind].frames[u.dir] && WALK[u.kind].frames[u.dir].length) {
-    const w = WALK[u.kind], fr = w.frames[u.dir];
-    const i = u.moving ? Math.floor(u.animT * w.fps) % fr.length : 0;
-    if (fr[i].complete && fr[i].naturalWidth) return { im: fr[i], foot: w.anchor ? w.anchor[1] : null };
+  const w = WALK && WALK[u.kind];
+  if (w) {
+    const fr = w.walk[u.dir];
+    const im = u.moving && fr && fr.length ? fr[Math.floor(u.animT * w.fps) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
+    if (im && im.complete && im.naturalWidth) return { im, anchor: w.anchor, hover: w.hover };
   }
-  return { im: IMG[u.kind][u.dir], foot: null };
+  return { im: IMG[u.kind][u.dir], anchor: null, hover: false };
 }
 function render() {
   g.setTransform(CONFIG.scale, 0, 0, CONFIG.scale, 0, 0);
@@ -529,10 +529,12 @@ function render() {
   // corpses first, then living in y order (feet)
   const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.py - b.py) || (a.px - b.px));
   for (const u of list) {
-    const { im, foot } = spriteFor(u);
+    const { im, anchor, hover } = spriteFor(u);
     if (!im.complete || !im.naturalWidth) continue;
-    const fy = foot != null ? foot : footOf(u.kind);
-    const x = Math.round(ox + cx(u.px) - im.naturalWidth / 2), y = Math.round(oy + cy(u.py) + 10 - fy);
+    // feet on the tile centre (manifest foot_anchor); hovering units float above their tile
+    const ax = anchor ? anchor[0] : im.naturalWidth / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
+    const lift = hover && u.alive ? 6 + Math.round(Math.sin(S.time * 4 + u.id) * 2) : 0;
+    const x = Math.round(ox + cx(u.px) - ax), y = Math.round(oy + cy(u.py) - ay - lift);
     if (!u.alive) { g.globalAlpha = Math.max(0, 0.55 * (1 - u.dead / CONFIG.corpseSec)); g.filter = 'grayscale(1) brightness(.6)'; }
     g.drawImage(im, x, y);
     g.globalAlpha = 1; g.filter = 'none';
@@ -591,6 +593,7 @@ function frame(now) {
 window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); logRender(); return STATS.pulls; };
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
+window.__WALK = () => WALK;
 window.__hurt = (u, n) => hurt(u, n);
 reset();
 requestAnimationFrame(frame);

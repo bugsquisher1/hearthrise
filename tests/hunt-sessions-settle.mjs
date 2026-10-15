@@ -109,6 +109,19 @@ import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
+/* --closed: replay and run every arm with the game CLOSED (hr_flags.closed_mode
+   on, as production has been since 2026-10-15 02:25), so a probe or fixture
+   that only passes in an open game is caught before an apply. */
+const CLOSED = process.argv.includes('--closed');
+/* The fixture hunter's account. Closed, it is what an admitted account is in
+   production: on the allowlist (everyone else stays refused). */
+async function newUser(db) {
+  await db.query('insert into auth.users (id) values ($1)', [UID]);
+  if (CLOSED) {
+    await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'hunt-sessions-settle --closed')
+                    on conflict (user_id) do nothing`, [UID]);
+  }
+}
 const FN = join('supabase', 'functions', 'hr-accrue');
 
 async function loadEdge(root) {
@@ -569,7 +582,7 @@ async function admin(db, delta) {
 
 /* A probe character on a hunt that started `minutesAgo` minutes ago. */
 async function hunter(db, M, o) {
-  await db.query('insert into auth.users (id) values ($1)', [UID]);
+  await newUser(db);
   await asUser(db, UID);
   const c = await one(db, 'select public.hr_create_character(0)');
   if (!c || c.created !== true) throw new Error('probe character refused: ' + JSON.stringify(c));
@@ -899,7 +912,7 @@ const DB_ARMS = {
     });
     /* (4) AN EMPTY POOL CANNOT ENTER A HUNT; a rested one can. */
     await inTx(db, async () => {
-      await db.query('insert into auth.users (id) values ($1)', [UID]);
+      await newUser(db);
       await asUser(db, UID);
       await one(db, 'select public.hr_create_character(0)');
       await db.query(`update public.hr_hunt_config set enabled = true where id`);
@@ -1074,7 +1087,7 @@ const DB_ARMS = {
   },
   ACTIONBAR: async (db, M) => inTx(db, async () => {
     const problems = [];
-    await db.query('insert into auth.users (id) values ($1)', [UID]);
+    await newUser(db);
     await asUser(db, UID);
     await one(db, 'select public.hr_create_character(0)');
     const slot = { item: '*heal', on: true, conditions: [{ subject: 'self_mana_pct', op: '<=', value: 30 }] };
@@ -1637,14 +1650,22 @@ const SQL_MUTANTS = [
   { name: 'the fence guards only combat accrue rows', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.kind = 'combat' and new.intent = 'accrue')" },
   { name: 'the fence stops the hired hands too (design ruling 2026-10-15)', find: "  for each row when (new.intent = 'accrue' and new.kind <> 'worker')", replace: "  for each row when (new.intent = 'accrue')" },
   { name: 'a player verb between the read and the apply refuses the settle (version CAS)', find: '    v_a := public.hr_apply(p_user, p_slot, v_ver, p_intent, p_delta);', replace: '    v_a := public.hr_apply(p_user, p_slot, p_version, p_intent, p_delta);' },
+  /* The 2026-10-15 apply failure: production's clock carries microseconds, the
+     engine's milliseconds. Without the clock trigger the self-check's GATE(f)
+     (whose session clock is moved off the millisecond) must fail. */
+  { name: 'the hunt clock keeps microseconds (the 10-15 apply failure)', find: 'create trigger hr_hunt_clock_ms before insert or update on public.hunt_sessions', replace: 'create trigger hr_hunt_clock_ms before delete on public.hunt_sessions' },
   { name: 'the fence trigger is not installed', find: 'create trigger hr_hunt_accrue_fence before insert on public.player_ledger', replace: 'create trigger hr_hunt_accrue_fence_off before update on public.player_ledger' },
 ];
 
 async function main() {
   const { bootReplay, LAST_PATCHED } = await import('./schema-replay.mjs');
   let db;
-  try { ({ db } = await bootReplay()); } catch (e) {
+  try { ({ db } = await bootReplay(CLOSED ? { keepClosed: true } : undefined)); } catch (e) {
     console.error(`✗ the chain would not replay: ${String(e.message).slice(0, 600)}`);
+    process.exit(1);
+  }
+  if (CLOSED && (await db.query(`select enabled from public.hr_flags where key = 'closed_mode'`)).rows[0]?.enabled !== true) {
+    console.error('✗ --closed: the replay is not closed — the mode would prove nothing');
     process.exit(1);
   }
   if (MUTATE) {

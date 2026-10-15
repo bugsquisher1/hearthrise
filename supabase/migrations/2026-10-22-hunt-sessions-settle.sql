@@ -347,6 +347,36 @@ revoke execute on function public.hr_hunt_instance_solo() from public, anon, aut
 drop trigger if exists hr_hunt_instance_solo on public.hunt_sessions;
 create trigger hr_hunt_instance_solo before insert on public.hunt_sessions
   for each row execute function public.hr_hunt_instance_solo();
+-- THE HUNT CLOCK IS WHOLE MILLISECONDS. The engine prices a session in epoch
+-- milliseconds (swing boundaries, the respawn clock, stamina); production's
+-- now() carries MICROSECONDS. A session instant off the millisecond meets a
+-- millisecond the settle derived from it (the respawn clock is stored as
+-- `epoch + ms`) and the two never compare equal — the 2026-10-15 apply of this
+-- file failed its own GATE(f) on exactly that (respawn_at .883 vs .882123),
+-- invisible on a replay whose clock is already whole milliseconds. Every
+-- instant of a session is truncated to the millisecond as it is written, so
+-- the database and the engine keep ONE clock.
+create or replace function public.hr_hunt_clock_ms()
+returns trigger language plpgsql set search_path = public, pg_catalog as $$
+begin
+  new.entered_at    := date_trunc('milliseconds', new.entered_at);
+  new.hunt_from     := date_trunc('milliseconds', new.hunt_from);
+  new.settled_to    := date_trunc('milliseconds', new.settled_to);
+  new.next_swing_at := date_trunc('milliseconds', new.next_swing_at);
+  new.leave_at      := date_trunc('milliseconds', new.leave_at);
+  new.change_at     := date_trunc('milliseconds', new.change_at);
+  new.ended_at      := date_trunc('milliseconds', new.ended_at);
+  return new;
+end $$;
+revoke execute on function public.hr_hunt_clock_ms() from public, anon, authenticated, service_role;
+drop trigger if exists hr_hunt_clock_ms on public.hunt_sessions;
+create trigger hr_hunt_clock_ms before insert or update on public.hunt_sessions
+  for each row execute function public.hr_hunt_clock_ms();
+update public.hunt_sessions
+   set hunt_from = hunt_from
+ where hunt_from <> date_trunc('milliseconds', hunt_from)
+    or settled_to <> date_trunc('milliseconds', settled_to)
+    or next_swing_at <> date_trunc('milliseconds', next_swing_at);
 comment on table public.hunt_instances is
   '2026-10-22 (hunt sessions C2, architecture contracts S1). The shared state of one hunting ground instance '
   '(the spawn cycle). Solo: 1:1 with its session, id = session id. Written only by hr_hunt_apply.';
@@ -3092,6 +3122,16 @@ begin
     update public.hunt_sessions set entered_at = now() - interval '10 minutes', hunt_from = now() - interval '9 minutes',
                                     settled_to = now() - interval '9 minutes', next_swing_at = now() - interval '9 minutes'
      where id = v_sid;
+    -- PRODUCTION'S CLOCK HAS MICROSECONDS; a replay's (PGlite) has whole
+    -- milliseconds. The 10-15 apply of this file failed GATE(f) on exactly that
+    -- difference, so the probe's session clock is moved OFF the millisecond the
+    -- way now() leaves it on production, and every check below runs on the
+    -- clock it will meet there.
+    update public.hunt_sessions
+       set hunt_from = hunt_from + interval '123 microseconds',
+           settled_to = settled_to + interval '123 microseconds',
+           next_swing_at = next_swing_at + interval '123 microseconds'
+     where id = v_sid;
     select settled_to into v_from from public.hunt_sessions where id = v_sid;
     v_to := v_from + interval '20 seconds';
     select version, gold into v_ver, v_gold from public.player_state where user_id = v_uid and slot = 0;
@@ -3256,7 +3296,20 @@ begin
        or (select i.pull_left from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid) <> (v_pz->>'size')::int - 1
        or (select i.respawn_at from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid)
           <> v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000) then
-      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina / pull together'; end if;
+      raise exception 'GATE(f): the settle did not move gold / clock / bag / tally / press / stamp / stamina / pull together: %',
+        jsonb_build_object(
+          'gold', (select gold from public.player_state where user_id = v_uid and slot = 0) - v_gold,
+          'swing', (select swing_index from public.hunt_sessions where id = v_sid),
+          'bag', (select qty_left from public.hunt_bag where session_id = v_sid and item_id = 'cooked_shrimp'),
+          'coins', (select coins from public.hunt_session_tally where session_id = v_sid),
+          'kills', (select kills from public.hunt_session_tally where session_id = v_sid),
+          'presses', (select presses from public.hunt_sessions where id = v_sid),
+          'stamped', (select count(*) from public.player_ledger where user_id = v_uid and kind = 'combat' and intent = 'accrue' and session_id = v_sid),
+          'stamina_ms', (select stamina_ms from public.player_state where user_id = v_uid and slot = 0) - (v_cap - 20000),
+          'stamina_at', (select stamina_at from public.player_state where user_id = v_uid and slot = 0)::text, 'to', v_to::text,
+          'pull_left', (select i.pull_left from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid),
+          'respawn_at', (select i.respawn_at from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.id = v_sid)::text,
+          'respawn_want', (v_from + make_interval(secs => (v_pz->>'respawn_ms')::numeric / 1000))::text); end if;
     -- (f2) IDEMPOTENT: the same key replays and moves nothing more.
     set local role hr_engine;
     v_r := public.hr_hunt_apply(v_uid, 0, v_sid, v_ver, '00000000-0000-4000-8000-0000000c2bf1', v_delta, v_hunt);

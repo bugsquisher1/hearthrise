@@ -810,6 +810,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-sessions-settle.mjs
+          node tests/hunt-sessions-settle.mjs --closed
           node tests/hunt-sessions-settle.mjs --mutate
 
       # 2026-10-11-name-moderation.sql (Security): a name other players see is

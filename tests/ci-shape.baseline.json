@@ -51,6 +51,7 @@
     "node tests/hunt-sessions-db.mjs": "db-replay-4",
     "node tests/hunt-sessions-db.mjs --mutate": "db-replay-4",
     "node tests/hunt-sessions-settle.mjs": "db-replay-4",
+    "node tests/hunt-sessions-settle.mjs --closed": "db-replay-4",
     "node tests/hunt-sessions-settle.mjs --mutate": "db-replay-4",
     "node tests/name-moderation.mjs": "db-replay-4",
     "node tests/name-moderation.mjs --mutate": "db-replay-4",

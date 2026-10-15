@@ -8,7 +8,6 @@
 // ══════════════════════════════════════════════════════════════════════
 import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=588';
 import { buildResiduePatch } from '../../net/capstone.js?v=588';
-import { pickFacing } from '../../world/core/facing.js?v=588';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {
@@ -393,6 +392,8 @@ export default [
       await stops('Down+Right');
       /* PixelLab R2: the hero's atlas has the diagonals, so a south-east step DRAWS the
          south-east walk and the south-east idle, not their cardinal stand-ins. */
+      /* imported here, not at the top: the suite loads at boot and World code must not (BOOT-5) */
+      const { pickFacing } = await import('../../world/core/facing.js?v=588');
       const heroArt = await (await fetch('assets/world/atlas-hero.json', { cache: 'no-store' })).json();
       const clips = heroArt.sprites.hero.anims;
       assert(held.diag === 'se', 'a south-east step must face the hero south-east: ' + JSON.stringify(held));

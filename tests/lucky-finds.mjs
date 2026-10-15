@@ -12,16 +12,19 @@
 //       grant, not boss/raid loot, not any other monster's drop;
 //   (b) the monster is not a Hearthfind source and not a seeded fixture;
 //   (c) FAUCET CAP: ch x dropBonus x vendorPriceOf <= 5% of the gp midpoint;
-//   (d) HOURS, measured with the one engine: base in [4, 30] h, and >= 1.5 h at
-//       the multiplier ceiling (dropBonus x MAX_MEMORY_DROP_MULT x best drop
-//       buff x Boss-of-the-Day). Vigour-dry hours are reported, not gated;
+//   (d) HOURS, measured with the one engine ON A HUNT SESSION (a training
+//       fight, the real 10 s respawn, fed from the bag): base in [4, 30] h,
+//       and >= 1.5 h at the multiplier ceiling (dropBonus x the best drop
+//       buff — the trophy/charm memory and Boss-of-the-Day multipliers and
+//       Vigour were deleted with the closed rebuild, lane C2);
 //   (e) >= 4 lucky rows per tier T1-T6, unique items, lucky row LAST;
 //   (f) item.tier is the monster's tier or one above it;
 //   (g) pickProofItem (bounty proof) is unchanged by the lucky row.
 //
-// BOTH PATHS: the AWAY half runs the real server engine (computeAccrual) and a
-// raw away simulateSpan; the ATTENDED half runs the live tick (away:false) on
-// the same seed. Both must credit the item through fx.addItem.
+// BOTH PATHS (lane C2: a hunt is one engine whether a client watches or not):
+// the hunt span itself (simulateSpan on the session) and the real server
+// engine (computeAccrual with the session attached, the world tick's and the
+// hunt verbs' one body) must both credit the item and say so.
 //
 // Run GREEN:  node tests/lucky-finds.mjs
 // Prove RED:  node tests/lucky-finds.mjs --selftest
@@ -38,14 +41,10 @@ import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { RAID_BOSSES } from '../src/data/raid-bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
-import { MAX_MEMORY_DROP_MULT } from '../src/data/bestiary.js';
-import { DAILY_POOL, WEEKLY_POOL, DAILY_BONUS, WEEKLY_BONUS } from '../src/core/botd.js';
-import { VIGOUR_DRY_MULT } from '../src/core/hunt.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { pickProofItem } from '../src/core/bounty.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
-import { createRng } from '../src/core/rng.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   swingIntervalMs, DEFAULT_PROFILE,
@@ -54,6 +53,7 @@ import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
 
 let fails = [];
 const ok = (cond, rule, msg) => { if (!cond) fails.push(`(${rule}) ${msg}`); };
@@ -93,9 +93,10 @@ function mentions(v, id) {
 }
 const shopGranted = (id) => SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.kind === 'item' && g.id === id));
 
-/* One simulated hour at the monster's tier loadout, through the one engine.
-   `awayFlag` and `span` are only varied by the both-path tests below. */
-function fight(monsters, monsterId, { seed = SEED, hours = 1, away = true, fx = {} } = {}) {
+/* One simulated hour at the monster's tier loadout, through the one engine:
+   a training hunt (one foe, the real respawn), fed from the bag. */
+const FIGHT_FOOD = 'cooked_shark';
+function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
   const m = monsters[monsterId];
   const tier = Math.min(6, Math.max(1, m.tier));
   const L = LOADOUT[tier].level;
@@ -108,19 +109,16 @@ function fight(monsters, monsterId, { seed = SEED, hours = 1, away = true, fx = 
   const state = { activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
     playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
   const ctx = {
-    away, fromMs: 0, toMs: hours * 3600000, tickMs: swingIntervalMs(eq, style),
-    rng: createRng(seed), monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
+    fromMs: 0, toMs: hours * 3600000, tickMs: swingIntervalMs(eq, style),
+    monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE, style }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
-    botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
-    fx: {
-      /* FED: heal to full below half, so the hour measures the fight. */
-      autoEat() { if (state.playerHp < state.playerMaxHp * 0.5) { state.playerHp = state.playerMaxHp; return true; } return false; },
-      ...fx,
-    },
+    fx: { ...fx },
   };
+  /* FED: a deep bag behind the default heal slot, so the hour measures the fight. */
+  huntOn(state, ctx, { seed, fromMs: 0, food: FIGHT_FOOD, foodQty: 100000 });
   const out = simulateSpan(state, ctx);
   return { kills: out.kills, deaths: out.deaths };
 }
@@ -191,16 +189,12 @@ function check(monsters) {
     ok(got.deaths === 0, 'd', `${tag}: the measurement hour contained ${got.deaths} death(s)`);
     const base = effectiveDropChance(d, { dropMult: db });
     const hrs = got.kills > 0 ? 1 / (got.kills * base) : Infinity;
-    const botd = Math.max(1, WEEKLY_POOL.includes(mid) ? WEEKLY_BONUS.dropMult : 1,
-      DAILY_POOL.includes(mid) ? DAILY_BONUS.dropMult : 1);
-    const ceil = effectiveDropChance(d, { dropMult: db * MAX_MEMORY_DROP_MULT, dropBuff: MAX_DROP_BUFF_PCT / 100, featuredMult: botd });
+    const ceil = effectiveDropChance(d, { dropMult: db, dropBuff: MAX_DROP_BUFF_PCT / 100 });
     const ceilHrs = got.kills > 0 ? 1 / (got.kills * ceil) : Infinity;
-    const dryHrs = hrs / VIGOUR_DRY_MULT;
     ok(hrs >= HOURS_MIN && hrs <= HOURS_MAX, 'd', `${tag}: ${hrs.toFixed(1)} expected hours, outside [${HOURS_MIN}, ${HOURS_MAX}]`);
     ok(ceilHrs >= CEILING_HOURS_MIN, 'd', `${tag}: ${ceilHrs.toFixed(2)} h at the multiplier ceiling, below ${CEILING_HOURS_MIN}`);
     lines.push(`  T${m.tier} ${mid.padEnd(18)} ${d.id.padEnd(22)} 1 in ${String(Math.round(1 / base)).padStart(5)}  `
-      + `${String(got.kills).padStart(4)}/h  ${hrs.toFixed(1).padStart(5)} h  ceiling ${ceilHrs.toFixed(1).padStart(4)} h  `
-      + `vigour-dry ${dryHrs.toFixed(0).padStart(3)} h`);
+      + `${String(got.kills).padStart(4)}/h  ${hrs.toFixed(1).padStart(5)} h  ceiling ${ceilHrs.toFixed(1).padStart(4)} h`);
   }
   for (let t = 1; t <= 6; t++) {
     ok((perTier[t] || 0) >= MIN_ROWS_PER_TIER, 'e', `tier ${t} has ${perTier[t] || 0} lucky rows, needs ${MIN_ROWS_PER_TIER}`);
@@ -216,10 +210,10 @@ function bothPaths() {
   const notes = [];
   /* A lucky row is rare by design, so the seed is SEARCHED deterministically
      (first hit from a fixed start) instead of hand-picked. */
-  const seen = (seed, away) => {
+  const seen = (seed) => {
     const credited = {};
     const events = [];
-    fight(MONSTERS, PROBE_MONSTER, { seed, hours: 3, away, fx: {
+    fight(MONSTERS, PROBE_MONSTER, { seed, hours: 3, fx: {
       addItem(id, n) { credited[id] = (credited[id] || 0) + n; },
       /* the server's onDrop, verbatim (hr-accrue/accrual.js) */
       onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
@@ -227,41 +221,37 @@ function bothPaths() {
     return { credited, events };
   };
   let seed = null;
-  for (let s = SEED; s < SEED + 400; s++) { if (seen(s, true).credited[PROBE_ITEM]) { seed = s; break; } }
-  ok(seed !== null, 'away', `no seed in [${SEED}, ${SEED + 400}) drops ${PROBE_ITEM} in a 3 h away span`);
+  for (let s = SEED; s < SEED + 400; s++) { if (seen(s).credited[PROBE_ITEM]) { seed = s; break; } }
+  ok(seed !== null, 'hunt', `no seed in [${SEED}, ${SEED + 400}) drops ${PROBE_ITEM} in a 3 h hunt`);
   if (seed !== null) {
-    const away = seen(seed, true);
-    ok(away.events.some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'away',
-      `seed ${seed}: the away span credited ${PROBE_ITEM} but emitted no {type:'rare_drop'} event`);
-    const live = seen(seed, false);
-    ok(!!live.credited[PROBE_ITEM], 'attended',
-      `seed ${seed}: the live tick (away:false) did not credit ${PROBE_ITEM} where the away span did`);
-    notes.push(`  simulateSpan seed ${seed}: away credits ${away.credited[PROBE_ITEM]}, attended credits ${live.credited[PROBE_ITEM] || 0}`);
+    const hunt = seen(seed);
+    ok(hunt.events.some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'hunt',
+      `seed ${seed}: the hunt span credited ${PROBE_ITEM} but emitted no {type:'rare_drop'} event`);
+    notes.push(`  simulateSpan (hunt) seed ${seed}: credits ${hunt.credited[PROBE_ITEM]}`);
   }
   /* THE REAL SERVER ENGINE: delta.items, the ev:loot collection op, events[]. */
   const L = LOADOUT[1].level;
-  const run = (s) => computeAccrual({
+  const run = (s) => computeAccrual(huntAccrualInput({
     userId: '00000000-0000-4000-8000-000000000001', slot: 0,
     nowMs: 1760000000000 + 3 * 3600000, accruedToMs: 1760000000000, activeSinceMs: 1760000000000,
     activeKind: 'combat', activeId: PROBE_MONSTER, capMs: 12 * 3600000, seed: s,
     hp: 20, maxHp: 20, gold: 0,
     skills: { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L), hitpoints: xpForLevel(20) },
-    equipment: equipmentFor(1), inventory: { shrimp: 5000 },
-    autoEatEnabled: true, autoEatFood: 'shrimp', autoEatPct: 25,
+    equipment: equipmentFor(1), inventory: {},
     items: ITEMS, monsters: MONSTERS,
-  });
+  }, { seed: s, food: FIGHT_FOOD, foodQty: 5000 }));
   let hit = null;
   for (let s = SEED; s < SEED + 400 && !hit; s++) {
     const out = run(s);
     if (out && out.accrued && out.delta && out.delta.items && out.delta.items[PROBE_ITEM] > 0) hit = { s, out };
   }
-  ok(!!hit, 'away', `computeAccrual: no seed in [${SEED}, ${SEED + 400}) mints ${PROBE_ITEM} over a 3 h night`);
+  ok(!!hit, 'hunt', `computeAccrual: no seed in [${SEED}, ${SEED + 400}) mints ${PROBE_ITEM} over a 3 h night`);
   if (hit) {
     const { out } = hit;
     const ops = (out.delta.progress || []);
-    ok(ops.some((o) => o.key === lootKey(PROBE_ITEM) && o.add >= 1), 'away',
+    ok(ops.some((o) => o.key === lootKey(PROBE_ITEM) && o.add >= 1), 'hunt',
       `computeAccrual seed ${hit.s}: minted ${PROBE_ITEM} but wrote no ${lootKey(PROBE_ITEM)} collection op`);
-    ok((out.events || []).some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'away',
+    ok((out.events || []).some((e) => e.type === 'rare_drop' && e.item === PROBE_ITEM), 'hunt',
       `computeAccrual seed ${hit.s}: minted ${PROBE_ITEM} but events[] carries no {type:'rare_drop'}`);
     notes.push(`  computeAccrual seed ${hit.s}: delta.items.${PROBE_ITEM}=${out.delta.items[PROBE_ITEM]}, `
       + `${lootKey(PROBE_ITEM)} op present, rare_drop event present`);
@@ -320,6 +310,6 @@ if (all.length) {
   process.exit(1);
 }
 console.log(`lucky-finds: ${res.count} lucky rows keep every rule `
-  + `(simulateSpan 1 h, seed ${SEED}, Controlled, fed; ceiling = dropBonus x ${MAX_MEMORY_DROP_MULT} x `
-  + `${1 + MAX_DROP_BUFF_PCT / 100} x BotD)\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
+  + `(a 1 h training hunt, seed ${SEED}, Controlled, fed; ceiling = dropBonus x `
+  + `${1 + MAX_DROP_BUFF_PCT / 100})\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
 process.exit(0);

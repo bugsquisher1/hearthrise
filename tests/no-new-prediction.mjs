@@ -90,7 +90,7 @@ const EXCLUDED = [
    Every number here may FALL as the tick takes a channel over. Lowering it is
    the paydown; raising it is a decision that needs Tyler's ruling reversed. */
 const BASELINE = {
-  sites: 35,
+  sites: 34,
   predictExports: 19,
   fields: ['gems', 'gold', 'skills'],
   reconcilers: [
@@ -114,8 +114,6 @@ const BASELINE = {
     'src/net/accrue.js:reconcileTraits',
     'src/net/accrue.js:reconcileWorkers',
     'src/net/dungeon-scrip-record.js:reconcileScrip',
-    'src/net/dungeon-settle.js:reconcileFromEnvelope',
-    'src/net/dungeon-settle.js:reconcileQuartermasterFromEnvelope',
     'src/net/farm-sync.js:reconcileFarmResult',
     'src/net/gold.js:reconcilePredictions',
     'src/net/item-ledger.js:reconcile',

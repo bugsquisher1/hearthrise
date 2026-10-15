@@ -163,7 +163,6 @@ export function snapshotLegacyFields(G) {
     companions: G.companions,
     farmPlots: G.farmPlots,
     rooms: G.rooms,
-    bountyHunter: G.bountyHunter,
     gold: G.gold,
     gems: G.gems,
     stats: G.stats,

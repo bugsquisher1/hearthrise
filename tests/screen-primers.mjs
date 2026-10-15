@@ -17,8 +17,8 @@
 //   G4  bodies are unique
 //   G5  the table and every row are frozen
 //   G6  the edge bundle never carries it; no src/core or src/data file imports it
-//   G7  the Shop row promises no real-money buy and names no Premium Shop while
-//       its door is shut (nav-consolidation.js PREMIUM_OPEN = false, W0)
+//   G7  the Shop row promises no real-money buy and names no Premium Shop: the
+//       build has no premium door at all (the IAP store was demolished 2026-10-14)
 //   G8  src/data/coach.js (First Steps) carries none of the retired sentences, and the fight step
 //       keeps the live Recovery Rule clauses
 //
@@ -97,9 +97,8 @@ async function check(root, origins) {
   }
 
   const legacy = readFileSync(join(root, 'src', 'legacy.js'), 'utf8');
-  const nav = readFileSync(join(root, 'src', 'nav-consolidation.js'), 'utf8');
-  if (/var PREMIUM_OPEN\s*=\s*false/.test(nav) && /premium|gem pack|real money|web beta|cannot buy/i.test((P['panel-shop'] || {}).body || '')) {
-    fail('G7', 'the Premium door is shut (PREMIUM_OPEN = false) and the Shop primer still talks about buying for money');
+  if (/premium|gem pack|real money|web beta|cannot buy/i.test((P['panel-shop'] || {}).body || '')) {
+    fail('G7', 'the build has no premium door and the Shop primer still talks about buying for money');
   }
 
   const ftue = readFileSync(join(root, GUIDE), 'utf8');
@@ -140,7 +139,7 @@ async function selftest() {
       ['G1', 'a key that is no panel', () => edit(DATA, (s) => s.replace("'panel-farming'", "'panel-farmin'")), null],
       ['G2', 'a body with no full stop', () => edit(DATA, (s) => s.replace('save you the clicking.', 'save you the clicking')), null],
       ['G3', 'a digit in a body', () => edit(DATA, (s) => s.replace('Plant a seed', 'Plant 3 seeds')), null],
-      ['G4', 'a duplicated body', () => edit(DATA, (s) => s.replace(farm, "'panel-farming': row('The Farm', 'Companions travel with you one at a time. The one you equip lends you its bonus and earns experience of its own, and every locked card says where the others are found.'), _x: row('The Farm',")), null],
+      ['G4', 'a duplicated body', () => edit(DATA, (s) => s.replace(farm, "'panel-farming': row('The Farm', 'The Local Shop sells starter gear, seeds and supplies for gold, and the Player Market beside it is where players trade.'), _x: row('The Farm',")), null],
       ['G5', 'an unfrozen row', () => edit(DATA, (s) => s.replace('Object.freeze({ title, body })', '({ title, body })')), null],
       ['G6', 'a src/data import of the table', () => edit('src/data/items.js', (s) => "import { SCREEN_PRIMERS } from './screen-primers.js';\n" + s), null],
       ['G6', 'a screen-primers origin in the edge bundle', () => () => {}, [...origins, DATA]],

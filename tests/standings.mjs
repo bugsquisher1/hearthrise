@@ -13,7 +13,7 @@
 //            which equals keys(SKILLS_DEF)
 //   STAND-2  every crown is 'the <Name>', unique, and collides with no name in
 //            the whole name corpus (monsters, items, gear, titles, ranks,
-//            renown, board crowns, rallies) in either direction
+//            board crowns) in either direction
 //   STAND-3  the hr-accrue edge pack carries neither file, no src/core or
 //            src/data module imports one, and the data file imports nothing
 //   STAND-4  the feature file reads no transport, currency, storage, raw skill
@@ -113,7 +113,6 @@ async function loadReal() {
   const lb = read('src/features/leaderboards.js');
   const orderLit = /var SKILL_ORDER = \[([\s\S]*?)\]/.exec(lb);
   if (!orderLit) throw Object.assign(new Error('SKILL_ORDER literal not found'), { harness: true });
-  const renown = read('src/features/renown.js');
   const corpus = [
     ...Object.values(MONSTERS).map((m) => m && m.name),
     ...Object.values(ITEMS).map((i) => i && i.n),
@@ -121,9 +120,7 @@ async function loadReal() {
     ...HEARTHFIND_TROPHIES.map((t) => t.titleName), HEARTHFIND_SET_TITLE.name,
     ...Object.values(CHARM_RANK_NAMES), ...Object.values(TROPHY_STAGE_NAMES),
     ...Object.values(SKILL_GUIDE).map((g) => g.title),
-    ...[...renown.matchAll(/name: '([^']+)', +title: '([^']+)'/g)].flatMap((m) => [m[1], m[2]]),
     ...[...lb.matchAll(/crown: '([^']+)'/g)].map((m) => m[1]),
-    ...[...read('src/features/muster.js').matchAll(/name: '(The [^']+)'/g)].map((m) => m[1]),
   ].filter((n) => typeof n === 'string' && n.trim());
   const sources = {};
   for (const p of walk(join(ROOT, 'src'))) sources[rel(p)] = readFileSync(p, 'utf8');

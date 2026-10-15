@@ -102,16 +102,14 @@ const TOP = {
   traits:              { kind: 'reconciled', client: ['traits'], reader: ['src/net/accrue.js', 'reconcileTraits'], why: 'mirrored BOTH directions; deliberately NOT residue (client-state.js says so by name)' },
   buffs:               { kind: 'reconciled', client: ['buffs'], reader: ['src/net/accrue.js', 'reconcileBuffs'], why: 'the buff clock is the server\'s (2026-09-13); dropped from the residue in the same commit' },
   enchant:             { kind: 'reconciled', client: ['enchant'], reader: ['src/net/accrue.js', 'applyEnvelopeState'], why: 'TOP-LEVEL on the envelope (executed 2026-09-14), feeds equipmentStats()' },
-  /* No `ratchet` on bountyHunter (~112 legitimate raw reads of the contract sheet);
-     `rawPaths` pins the two reads that ARE the figure at zero outside view(). */
-  bounty:              { kind: 'split', client: ['bountyHunter'], mirror: '_bountyServer', reader: ['src/render/bounty-progress.js', 'view'],
-    rawPaths: { 'bounty.active.progress': /\b(?:active|_ab)\.progress\b(?!\s*=[^=])/g, 'bounty._serverConfirmed': /\b_serverConfirmed\b/g },
-    why: 'the contract count hr_claim_bounty judges; noteServerProgress() writes G._bountyServer, view() is the ONE figure every surface prints (the server\'s, or pending)' },
+  /* bounty, gem_unlocks and renown_high: the client surfaces were DEMOLISHED on
+     2026-10-14 and nothing reads them; the projections leave with M2. */
+  bounty:              { kind: 'meta', why: 'client surface demolished 2026-10-14; the projection leaves with M2' },
   dungeon_cooldowns:   { kind: 'reconciled', client: ['_dungeonCooldowns'], reader: ['src/net/accrue.js', 'reconcileDungeonCooldowns'], why: 'scratch by design; `G.dungeons` was DELETED from the residue for this' },
   hero_slots:          { kind: 'split', client: ['heroSlotsUnlocked'], mirror: '_heroSlots', reader: ['src/multi-character.js', 'ownsSlot'], ratchet: true, why: 'the owned set is the server\'s; the residue is a pre-envelope render hint that buys nothing' },
-  gem_unlocks:         { kind: 'split', client: ['ownedThemes', 'ownedCosmetics'], mirror: '_gemUnlocks', reader: ['src/features/gem-unlocks.js', 'ownsGemUnlock'], ratchet: true, why: 'CLIENT HALF LANDED 2026-09-14: accrue.js reconcileGemUnlocks writes G._gemUnlocks from the envelope (and record.js hydrates it on an idle boot), ownsGemUnlock reads ONLY that, and both `client` fields were DELETED from G and from RESIDUE_FIELDS in the same build — they stay named here so the ratchet keeps them at ZERO raw reads and a re-introduction goes red.' },
+  gem_unlocks:         { kind: 'meta', why: 'client surface demolished 2026-10-14; the projection leaves with M2' },
   unlocked_recipes:    { kind: 'split', client: ['unlockedRecipes'], mirror: '_recipeUnlocks', reader: ['src/features/recipe-scrolls.js', 'unlockedRecipesMap'], ratchet: true, why: 'CLIENT HALF LANDED 2026-09-14: accrue.js reconcileRecipes writes G._recipeUnlocks, unlockedRecipesMap() is the ONE read (legacy gateOk, recipe-book, collection-log, the bag) and the field left RESIDUE_FIELDS with the addItem scroll wrapper. Named here so the ratchet holds it at ZERO.' },
-  renown_high:         { kind: 'split', client: ['renownHigh'], mirror: '_serverHigh', reader: ['src/features/renown.js', 'countedRenown'], ratchet: true, why: 'countedRenown() prefers the realm; the residue ratchet is the PREDICTION shown before the first envelope and decides nothing' },
+  renown_high:         { kind: 'meta', why: 'client surface demolished 2026-10-14; the projection leaves with M2' },
   /* THE HUNT'S TWO TOP-LEVEL BLOCKS (2026-09-22). Both land in `_`-prefixed
      SCRATCH and NEITHER is in the residue, deliberately: every number on the
      Hunt panel is one a player acts on, so HUNT_ANALYZER_UI.md §6 forbids a
@@ -175,7 +173,6 @@ const STATE = {
    reason it is not a copy of the server's answer. Anything not on this list is
    red; adding a name here is a review, which is the whole point. */
 const RESIDUE_OK = {
-  houseTheme:        'a per-character POINTER at which owned theme is applied — not the entitlement (that is gem_unlocks/ownsGemUnlock).',
   lootFilter:        'a client-only display preference; it hides, it never discards, and it gates nothing server-side.',
   lockedItems:       'the client-side sell-lock; it only stops the CLIENT authoring a sell intent. A forged or absent lock grants nothing.',
   /* ⚠ heroSlotsUnlocked, renownHigh, streak, autoEatPct, combatStyle, foodSlot and
@@ -185,7 +182,6 @@ const RESIDUE_OK = {
      the permission outliving the review. Re-adding any of them means re-arguing
      the case, which is the point. */
   autoActions:       'a COMPOUND preference bag: replant and trainGoal are real prefs and ride, while the server-owned `eat` branch (enabled/pct/food) is STRIPPED on the way out by capstone.js buildResiduePatch and on the way in by hydrateInto.',
-  bountyHunter:      'the contract sheet; the server figure lives in G._bountyServer and BOUNTY_TRANSIENT_KEYS is stripped at both residue seams',
   inventory:         'NOT RESIDUE — listed here only because `pendingItemSpends` shadows it; the bag itself is a record field.',
 };
 
@@ -499,8 +495,6 @@ function selftest() {
       () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.autoActions.eat.foodId;\n'); return i; }],
     ['a projected key dropped from the mapping (state.streak_days unmapped)', 'PROJ-UNMAPPED',
       () => clone(), (b) => ({ ...b, projection: { top: b.projection.top, state: [...b.projection.state, 'streak_days_v2'] } })],
-    ['a War Table figure read off the attended counter (`active.progress` planted in src/features/combat-screens.js)', 'RAW-READ-ROSE',
-      () => { const i = clone(); i.scan.set('src/features/combat-screens.js', (i.scan.get('src/features/combat-screens.js') || '') + '\nvar x = active.progress;\n'); return i; }],
     ['a reader that does not exist (playStreakDays removed from src/net/accrue.js)', 'READER-MISSING',
       () => { const i = clone(); i.readerFiles.set('src/net/accrue.js', (i.readerFiles.get('src/net/accrue.js') || '').split('playStreakDays').join('xxRemovedxx')); return i; }],
   ];
@@ -511,7 +505,7 @@ function selftest() {
     else { bad++; console.error(`  FAIL ${code.padEnd(14)} NOT caught: ${label}\n       got: ${r.fail.join(' | ') || '(green)'}`); }
   }
   if (bad) { console.error(`✗ SELFTEST: ${bad} arm(s) not caught.`); return 1; }
-  console.log('no-client-copy-of-projection --selftest: 1 control + 5 arms, every arm red for its own reason.');
+  console.log('no-client-copy-of-projection --selftest: 1 control + 4 arms, every arm red for its own reason.');
   return 0;
 }
 

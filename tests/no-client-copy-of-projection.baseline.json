@@ -1,12 +1,7 @@
 {
   "rawReads": {
-    "bounty.active.progress": 0,
-    "bounty._serverConfirmed": 0,
     "heroSlotsUnlocked": 0,
-    "ownedThemes": 0,
-    "ownedCosmetics": 0,
     "unlockedRecipes": 0,
-    "renownHigh": 0,
     "autoActions": 5
   },
   "projection": {
@@ -82,5 +77,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-11"
+  "generatedAt": "2026-10-15"
 }

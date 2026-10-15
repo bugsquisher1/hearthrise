@@ -12,16 +12,14 @@
 // G.stats, a client gold watermark, a client level-up counter) and the server
 // could not verify it; it is cut, client and server
 // (supabase/migrations/2026-10-16-goal-board-retire.sql). The server-paid daily
-// quests are the one list (src/features/daily-quests.js), read from the
-// server's tally.
+// quest list that replaced it was itself DEMOLISHED on 2026-10-14 with the
+// other dailies; its absence is tests/demolition-absence.mjs's to enforce.
 //   GB-1  no shipped client code names the board: its pools, getters, claim,
 //         transport verbs, RPCs, baselines or the client counters it fed
 //   GB-2  the residue no longer carries the board's slates or gold watermark
 //   GB-3  the chain retires the board: the retire file is in the apply order
 //         after the file that made it, drops both RPCs, both bodies and the
 //         catalogue, and no later file re-creates any of them
-//   GB-4  the one daily list reads the server's tally, never a task's
-//         browser-counted `progress`
 // Pure text, no database, milliseconds.
 //
 // Exit: 0 green · 1 red · 2 harness error.
@@ -97,14 +95,6 @@ export function check(d) {
       }
     }
   }
-
-  const list = stripJs(d.dailyList);
-  if (!list.includes('tallyState(') || !list.includes('HearthriseTally')) {
-    add('GB-4', 'src/features/daily-quests.js does not read the server tally');
-  }
-  if (/\b(task|t|q)\.progress\b/.test(list)) {
-    add('GB-4', 'src/features/daily-quests.js reads a task\'s browser-counted .progress');
-  }
   return problems;
 }
 
@@ -122,7 +112,6 @@ function loadReal() {
   return {
     client, order, sql,
     clientState: read('src/net/client-state.js'),
-    dailyList: read('src/features/daily-quests.js'),
   };
 }
 
@@ -135,14 +124,13 @@ function run() {
     return 1;
   }
   console.log(`✓ goal-board-gone: ${d.client.length} client files name none of the board's ${BOARD_NAMES.length} parts, `
-    + `the residue carries none of its fields, ${RETIRE} retires it at the chain end, and the one daily list `
-    + 'reads the server tally');
+    + `the residue carries none of its fields, and ${RETIRE} retires it at the chain end`);
   return 0;
 }
 
 function fixture() {
   return {
-    client: [['src/features/x.js', "// readSource was here\nvar a = window.HearthriseTally;\n"]],
+    client: [['src/features/x.js', "// readSource was here\nvar a = 1;\n"]],
     order: [CREATOR, 'mid.sql', RETIRE],
     sql: new Map([[CREATOR, 'create table if not exists public.hr_goal_rewards ();'], ['mid.sql', 'select 1;'],
       [RETIRE, ['drop function if exists public.hr_claim_goal(text, boolean, int, uuid);',
@@ -150,8 +138,7 @@ function fixture() {
         'drop function if exists public.hr_goal_state(int);',
         'drop function if exists public.hr_goal_state__ungated(int);',
         'drop table if exists public.hr_goal_rewards;'].join('\n')]]),
-    clientState: "export const RESIDUE_FIELDS = Object.freeze([\n  'daily', // the shown sheet\n  'dailyReward',\n]);",
-    dailyList: 'var t = window.HearthriseTally; GC.tallyState(); var n = serverCount(task);',
+    clientState: "export const RESIDUE_FIELDS = Object.freeze([\n  'stats', // goal counters\n  'quests',\n]);",
   };
 }
 
@@ -164,12 +151,11 @@ function selftest() {
     ['a client file calls getGoalsForToday()', 'GB-1', (f) => { f.client[0][1] += 'getGoalsForToday();\n'; }],
     ['a client counter G.stats.levelups++', 'GB-1', (f) => { f.client[0][1] += 'G.stats.levelups = (G.stats.levelups||0)+1;\n'; }],
     ['the transport grows claimGoal again', 'GB-1', (f) => { f.client[0][1] += "claimGoal: function(){ return call('hr_claim_goal'); }\n"; }],
-    ["RESIDUE_FIELDS carries 'dailyGoals'", 'GB-2', (f) => { f.clientState = f.clientState.replace("'dailyReward',", "'dailyReward',\n  'dailyGoals',"); }],
+    ["RESIDUE_FIELDS carries 'dailyGoals'", 'GB-2', (f) => { f.clientState = f.clientState.replace("'quests',", "'quests',\n  'dailyGoals',"); }],
     ['the retire file is out of the order', 'GB-3', (f) => { f.order = f.order.filter((x) => x !== RETIRE); }],
     ['the retire file keeps the catalogue', 'GB-3', (f) => { f.sql.set(RETIRE, f.sql.get(RETIRE).replace('drop table if exists public.hr_goal_rewards;', '')); }],
     ['a later file re-creates hr_claim_goal', 'GB-3', (f) => { f.order.push('later.sql'); f.sql.set('later.sql', 'create or replace function public.hr_claim_goal() returns void language sql as $$ select $$;'); }],
-    ['the list reads task.progress', 'GB-4', (f) => { f.dailyList += 'var shown = task.progress;'; }],
-    ['the list stops reading the tally', 'GB-4', (f) => { f.dailyList = 'var n = 0;'; }],
+
   ];
   for (const [label, want, mutate] of arms) {
     const f = fixture(); mutate(f);

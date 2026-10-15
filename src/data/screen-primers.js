@@ -15,8 +15,6 @@ export const SCREEN_PRIMERS = Object.freeze({
     'Crops grow in real time, even while you are away. Plant a seed from the Local Shop, water it to hurry it along, and carry the harvest to Cooking. Plant all and Water all save you the clicking.'),
   'panel-house': row('Your homestead',
     'Your home grows from a camp to a castle, one property tier at a time, paid in gold and in things you gathered and made. Each tier adds farm plots and hired hands, most open new rooms, and every room makes part of your day quicker or richer.'),
-  'panel-stable': row('The Stable',
-    'Companions travel with you one at a time. The one you equip lends you its bonus and earns experience of its own, and every locked card says where the others are found.'),
   'panel-shop': row('The Local Shop',
     'The Local Shop sells starter gear, seeds and supplies for gold, and the Player Market beside it is where players trade.'),
   'panel-market': row('The Player Market',

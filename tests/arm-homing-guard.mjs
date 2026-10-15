@@ -181,7 +181,7 @@ export async function armHomingGuard() {
   const SNAPSHOT_FIELDS = [
     // the 18 legacy contract fields
     'skills', 'inventory', 'bank', 'equipment', 'companions', 'farmPlots', 'rooms',
-    'bountyHunter', 'gold', 'gems', 'stats', 'playerName', 'activeStyle', 'foodSlot',
+    'gold', 'gems', 'stats', 'playerName', 'activeStyle', 'foodSlot',
     'restedXp', 'restedAt',
     /* `chronicle` LEFT THIS CENSUS ON 2026-10-14 because it left the GAME: the
        Milestones log was cut (demolition, designer ruling §5) and no writer in
@@ -198,7 +198,7 @@ export async function armHomingGuard() {
        — and the only way to satisfy it would be to put the forgeable bag back.
        If either name ever reappears as a `G` write, the SCANNER (not this list)
        catches it, unhomed, exactly as it should. */
-    'settings', 'houseTheme', 'plotBuildings',
+    'settings', 'plotBuildings',
     'daily', 'collection', 'quests', 'entitlements', 'lastSeen', 'createdAt',
     // other persisted top-level state
     'marks', 'gems', 'plotLevels', 'workers', 'enchant',

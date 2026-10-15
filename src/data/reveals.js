@@ -21,11 +21,11 @@
 // `uses` vocabulary (src/core/spine-progress.js evaluates it):
 //   count(key, min)   a permanent `stat` progress row
 //   skill(id)         server XP above the character's starting XP
-//   property(min) · workers(min) · companions(min)
+//   property(min) · workers(min)
 // PURE ESM. No DOM, no window.
 // ════════════════════════════════════════════════════════════════════════
 
-import { count, property, workers, companions } from './spine.js?v=584';
+import { count, property, workers } from './spine.js?v=584';
 
 const skill = (id) => Object.freeze({ fact: 'skill', id });
 const row = (id, step, uses, product) => Object.freeze({ id, step, uses: Object.freeze(uses || []), product: product || null });
@@ -53,14 +53,11 @@ export const REVEALS = Object.freeze([
   row('pane:combat', 3, fought),
   row('pane:farming', 4, [count('ev:planted', 1), skill('farming')]),
   row('pane:house', 5, [property(1)]),
-  row('pane:stable', 10, [companions(1)]),
   row('pane:social', 10),
   // The World pane ships behind its own switch (src/features/world-panel.js WORLD_LAUNCHED).
   row('pane:world', 1, [], 'world'),
 
   // ── Combat war table ───────────────────────────────────────────────────
-  row('war:botd', 3, fought),
-  row('war:weekly', 3, fought),
   /* From the last step on, the war table also shows the ONE nearest card
      beyond the ten-level window: the next thing worth climbing toward. */
   row('war:next', 10),

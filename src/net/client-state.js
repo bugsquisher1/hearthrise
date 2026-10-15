@@ -138,6 +138,9 @@ export const RESIDUE_FIELDS = Object.freeze([
      in src/ writes either field any more. Re-adding one would give ownership two
      sources, and the residue is the one a cloud restore can rewind (§6). */
   'plotBuildings',  // client-only display state: which building art sits on which yard tile
+  'daily',          // client-only display state: the Home 'Since midnight' card's day baseline
+                    // (profile-launchpad.js ensureDailySnapshot). The daily QUESTS that shared the
+                    // key were demolished on 2026-10-14; the baseline pays nothing and gates nothing
   'collection',     // client-only progress: {itemId:count}, "have I ever held this". No projection
   'quests',         // client-only display state: the quest chain's local marks (hr_claim_quest pays)
   'entitlements',   // {hearthHall:true,…} convenience flags with no projection yet (hr_unlocks has an
@@ -603,15 +606,8 @@ let hydratedOnce = false;
  *  already correct with ZERO per-site routing — this is what retires the
  *  1,001-site read sweep. Residue is NON-AUTHORITY (self-only), so there is no
  *  forgery concern and no fail-closed per-site accessor is needed: a hydrated G
- *  is exactly as trustworthy as the server bag it came from.
- *
- *  ⚠ bountyHunter USED TO HOLD A NESTED AUTHORITY FIELD (bountyHunter.marks). Marks
- *  have MIGRATED to the top-level scalar `G.marks` — a plain record field like gold
- *  — so bountyHunter is now WHOLLY residue. hydrateInto still DROPS any `marks` key
- *  defensively (a forged bag key or a stray legacy nested marks must never shadow the
- *  top-level record authority), and buildResiduePatch (capstone.js) likewise excludes
- *  it on the way out. No residue field carries a nested field owned elsewhere anymore
- *  (audited: stats/chronicle/collection/daily/quests/settings/… are wholly self-only). */
+ *  is exactly as trustworthy as the server bag it came from. Only `autoActions`
+ *  carries a nested field owned elsewhere (its `eat` branch), stripped both ways. */
 export function applyClientState(res, G) {
   /* ── b492 — THE BOOT OBSERVATION OF THE PROPERTY RUNG. ───────────────────────
      THE LIVE P1: `homestead` is one of the residue fields BELOW ("without it the

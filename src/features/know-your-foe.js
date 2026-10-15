@@ -71,20 +71,6 @@ export function aboutHtml(f, { door } = {}) {
     + '</div>';
 }
 
-/** The active bounty notice's Field Note. `target` is residue: a key only, never echoed. */
-export function noticeHtml(target) {
-  const note = noteOf(target);
-  return note ? '<p class="bb-note"><i>' + esc(note) + '</i></p>' : '';
-}
-
-/** ' · ember' after a notice's weakness, only through the charm curtain. */
-export function elementSuffix(target) {
-  const M = window.MONSTERS;
-  const charms = window.HearthriseCharms;
-  if (!own(M, target) || !M[target].elementWeak || !charms || !charms.countersKnown()) return '';
-  return charms.revealsElement(charms.classOfMonsterId(target)) ? ' · ' + esc(M[target].elementWeak) : '';
-}
-
 export function setupKnowYourFoe() {
-  window.HearthriseFoe = Object.freeze({ facts, aboutHtml, noticeHtml, elementSuffix });
+  window.HearthriseFoe = Object.freeze({ facts, aboutHtml });
 }

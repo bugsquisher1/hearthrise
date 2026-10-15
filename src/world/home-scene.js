@@ -14,9 +14,9 @@
 // that room's existing modal; tapping a signpost opens the House screen.
 // PURE: no DOM, no window, no G — the caller passes rungs, rows and names.
 // ════════════════════════════════════════════════════════════════════════
-import { HOUSE_TEMPLATES, ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=587';
-import { lintMap } from './core/map-compile.js?v=587';
-import { onEdge, isCorner } from './core/grid.js?v=587';
+import { HOUSE_TEMPLATES, ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=588';
+import { lintMap } from './core/map-compile.js?v=588';
+import { onEdge, isCorner } from './core/grid.js?v=588';
 
 /** The home map for a property rung (null = not stated yet → the first template). */
 export function homeMapFor(tier) {

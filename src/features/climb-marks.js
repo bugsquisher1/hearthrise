@@ -19,8 +19,8 @@
 // parks the watcher (src/features/smoke-test.js).
 // ════════════════════════════════════════════════════════════════════════
 
-import { CLIMB_MARKS, MARK_NAMES, MARK_LORE, MASTERY_LORE } from '../data/mark-lore.js?v=587';
-import { COMPANION_MAX_LEVEL } from './companions.js?v=587';
+import { CLIMB_MARKS, MARK_NAMES, MARK_LORE, MASTERY_LORE } from '../data/mark-lore.js?v=588';
+import { COMPANION_MAX_LEVEL } from './companions.js?v=588';
 
 /* An away receipt older than this is history, not a moment (accrue.js's rule). */
 const RECEIPT_FRESH_MS = 30 * 60 * 1000;

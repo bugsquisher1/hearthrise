@@ -26,20 +26,20 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=587';
-import { ARTISAN_RECIPES } from './recipes.js?v=587';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=587';
-import { SKILLS_DEF } from './skills.js?v=587';
-import { DUNGEONS, QM_STOCK } from './dungeons.js?v=587';
-import { SHOP_OFFERS } from './shops.js?v=587';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=587';
-import { HEARTHFIND_ITEMS } from './hearthfind.js?v=587';
-import { EFFECT_KINDS } from './item-effects.js?v=587';
-import { MONSTERS } from './monsters.js?v=587';
+import { ITEMS } from './items.js?v=588';
+import { ARTISAN_RECIPES } from './recipes.js?v=588';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=588';
+import { SKILLS_DEF } from './skills.js?v=588';
+import { DUNGEONS, QM_STOCK } from './dungeons.js?v=588';
+import { SHOP_OFFERS } from './shops.js?v=588';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=588';
+import { HEARTHFIND_ITEMS } from './hearthfind.js?v=588';
+import { EFFECT_KINDS } from './item-effects.js?v=588';
+import { MONSTERS } from './monsters.js?v=588';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
   qmStockIds, shopGrantIds, goalRewardIds, raidRewardIds, dungeonRewardIds,
-} from './item-authority.js?v=587';
+} from './item-authority.js?v=588';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

@@ -68,15 +68,19 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    (git archive of src/ + supabase/functions/hr-accrue). Pinned, never banded,
    like SEEDED_ORE in tests/accrual-engine.mjs: a content change that moves the
    slime fight re-measures it deliberately. */
-const PRE_CHANGE_DRAWS = { n: 3976, hash: '357d0542', kills: 588,
-  items: '{"bones":184,"slime_gel":542,"sticky_core":17}' };
+/* RE-MEASURED lane C2 for the one 2.0 s basic attack (Tyler 2026-10-14; was
+   2.4 s): the same span now holds 1.2x the swings, so 3976 -> 4765 draws and
+   588 -> 703 kills. The property this pins — the XP sink never moves a draw —
+   is the carry/floor/none equality just below, unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4765, hash: '29651c1', kills: 703,
+  items: '{"bones":216,"slime_gel":650,"sticky_core":17}' };
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2360, hash: '5d791d1f' };
+const PRE_CHANGE_DRAWS_L5 = { n: 2846, hash: '81c8474' };   // re-measured at 2.0 s (was 2360 / 5d791d1f at 2.4 s)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',

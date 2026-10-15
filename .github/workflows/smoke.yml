@@ -3072,19 +3072,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bestiary-ladder.mjs
 
-      # THE ANALYZER IS ARITHMETIC OVER THE JOURNAL, and this proves every field
-      # equals a sum computed in JavaScript from the SAME fixture rows — not
-      # against a second SQL query, which would be the same arithmetic asked
-      # twice. Also proves the absence that matters: a restart forgets the night
-      # WITHOUT deleting a journal row, which is why there is no per-hunt
-      # counter table to reset (design §3). Replays the chain in PGlite.
-      - name: Hunt Analyzer - every field is a hand-computed sum
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-analyzer.mjs --selftest
-
-      - name: Hunt Analyzer - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-analyzer.mjs
+      # tests/hunt-analyzer.mjs RETIRED by lane C2: the pointer-era
+      # hr_hunt_analyzer(uuid,int) it graded is dropped by
+      # 2026-10-22-hunt-sessions-delete-away.sql. The SESSION analyzer
+      # (C1's hr_hunt_analyzer on a session) has no hand-computed-sum guard
+      # yet — reported as a lane C2 known limitation, not covered here.
 
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.

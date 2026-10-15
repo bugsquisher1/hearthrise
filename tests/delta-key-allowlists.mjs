@@ -520,7 +520,12 @@ async function main() {
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac'];") },
     { name: 'party allowlist accepts a key hr_apply refuses', arms: /^KC:/,
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac','companion_xp_frac','wealth'];") },
-    { name: 'hr_apply allowlist lacks companion_xp_frac', arms: /^KA:/,
+    /* Re-pointed lane C2: the engine no longer writes companion_xp_frac (companion
+       XP deleted), so dropping THAT key from hr_apply is KC's and P's to see, not
+       KA's. xp_frac is still engine output, so its absence must be KA-red. */
+    { name: 'hr_apply allowlist lacks xp_frac', arms: /^KA:/,
+      plant: bodyMutant(applyDef, "    'xp_frac',\n", '') },
+    { name: 'hr_apply allowlist lacks companion_xp_frac (no engine writer)', arms: /^(KC|P):/,
       plant: bodyMutant(applyDef, "    'companion_xp_frac',\n", '') },
     { name: 'a NEW combat key the allowlists do not know', arms: /^(KA|KB|KD):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', '  if (goldDelta > 0) delta.gold = goldDelta;\n  delta.zz_new_key = 1;') } },

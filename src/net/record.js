@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileStamina, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=586';
+import { resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=586';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1960,9 +1960,6 @@ function settle(verdict) {
        reads "ready" all session and every Auto-Run comes back refused. Per dungeon
        AND per mode; fail-open on absence. See reconcileDungeonCooldowns' header. */
     hydrationStep('dungeon-cooldowns', () => reconcileDungeonCooldowns(G, verdict.body));
-    /* THE HUNT STAMINA POOL, same idle-boot class: the Hunt button's "rests back"
-       line must be the server's on the first paint. See reconcileStamina. */
-    hydrationStep('stamina', () => reconcileStamina(G, verdict.body));
     /* THE PLAY STREAK, same idle-boot hydration class (absence-safe). */
     hydrationStep('play-streak', () => reconcilePlayStreak(G, verdict.body));
     /* THE FRACTIONAL TOOL CARRY: no longer residue, so an idle boot without this line starts every tool at zero. */

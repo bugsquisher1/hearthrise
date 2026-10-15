@@ -151,7 +151,7 @@ const MUTATIONS = {
   hunt_drops_nothing: {
     file: 'accrual.js', by: 'LOOP-1 step 6',
     why: 'kills stop dropping loot server-side: the hunt pays XP and nothing to sell',
-    find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      bag[id] = (bag[id] || 0) + n;      // edible from the moment it drops',
+    find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      bag[id] = (bag[id] || 0) + n;\n      collection.record(id, n);',
     repl: '      return;',
   },
   sell_pays_nothing: {
@@ -174,8 +174,12 @@ const MUTATIONS = {
     repl: '    if (fits) {',
   },
   bag_ignored: {
-    file: '../../../src/core/action-rules.js', by: 'LOOP-3 step 5',
-    why: 'the "*heal" bag slot never finds a packed heal: the shop bills for food the player cooked',
+    /* Re-pointed lane C2: with the dry-supply choice defaulting to 'end' (designer
+       review item b) no shop heal covers an ignored bag, so the FIRST loop that
+       hunts on packed food (LOOP-1) already goes red at the leave — its packed
+       shrimp never left the bag. LOOP-3 step 5 still goes red later. */
+    file: '../../../src/core/action-rules.js', by: 'LOOP-1 step 7',
+    why: 'the "*heal" bag slot never finds a packed heal: the packed food is never eaten',
     find: '    const id = pickHeal(v.hs, v.maxHp - v.hp);\n    return id ?',
     repl: '    const id = null;\n    return id ?',
   },

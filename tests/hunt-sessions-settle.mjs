@@ -364,12 +364,12 @@ const ENGINE_ARMS = {
     if (h.down_ms !== 0) problems.push('CONTROL: the strong probe was knocked out');
     /* The client reader: the server's value, replaced; garbage is "unknown". */
     const G = { _stamina: { ms: 1 } };
-    M.NET.reconcileStamina(G, { stamina: { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap, hunting: true } });
+    M.NET.hydrateHunt(G, { stamina: { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap, hunting: true } });
     if (!G._stamina || G._stamina.ms !== 1234 || G._stamina.atMs !== T0 || G._stamina.maxMs !== cap || G._stamina.hunting !== true) {
-      problems.push(`reconcileStamina did not take the server's pool: ${JSON.stringify(G._stamina)}`);
+      problems.push(`hydrateHunt did not take the server's pool: ${JSON.stringify(G._stamina)}`);
     }
-    M.NET.reconcileStamina(G, { stamina: { ms: 'x' } });
-    if (G._stamina !== null) problems.push('reconcileStamina kept a value the envelope replaced with garbage');
+    M.NET.hydrateHunt(G, { stamina: { ms: 'x' } });
+    if (G._stamina !== null) problems.push('hydrateHunt kept a value the envelope replaced with garbage');
     return problems;
   },
 

@@ -32,11 +32,15 @@
 // into PGlite (real PostgreSQL, in process), then a real player through the REAL
 // rate-gated RPC as `authenticated` with a JWT subject set. It also BINDS THE
 // THREE COPIES OF THE PRICE LADDER that must never disagree:
-//   (A) src/multi-character.js  SLOT_COSTS_GEMS — the authored source, what the
+//   (A) src/multi-character.js  SLOT_COSTS_GOLD — the authored source, what the
 //       drawer and the Home rail render and what tools/gen-shops.mjs reads;
 //   (B) src/data/shops.js       SHOP_OFFERS — the generated ESM catalogue Node
 //       and Deno import;
-//   (C) public.hr_hero_slots    — what the server CHARGES.
+//   (C) public.hr_hero_slots    — what the server CHARGES: cost_gold at the chain
+//       end (2026-10-23-demolition-hero-slots-gold.sql, Security R3 2026-10-15).
+//       The A-H arms below still grade the 2026-09-08 body at its own scope (the
+//       ladder, locks, idempotency and ownership mechanics it introduced); arm Z
+//       grades the chain-end GOLD purchase.
 // A slot the server cannot sell, a slot the client cannot see, or a price that
 // differs by one gem fails the build BY NAME, in whichever pair disagrees.
 //
@@ -61,6 +65,9 @@ import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-09-08-hero-slot-buy.sql';
+const HERO_GOLD = '2026-10-23-demolition-hero-slots-gold.sql';
+/* A HERO_GOLD mutant also short-circuits that file's §4, so THIS guard is what must see it. */
+const GOLD_GATE_BLIND = ['  -- (a) the catalogue: four rows, priced in gold as authored, none waived.\n', '  return;\n'];
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
@@ -203,6 +210,20 @@ const MUTATIONS = {
     find: '  p_slot_id int, p_slot int default 0, p_idem uuid default null)',
     repl: '  p_slot_id int, p_slot int, p_idem uuid)',
   },
+  gold_price_drifts: {
+    file: HERO_GOLD,
+    why: 'a hand edits ONE gold price in the chain-end catalogue: the shop advertises 15,000 and the '
+       + 'server charges another number',
+    find: '  from (values (1, 15000), (2, 75000), (3, 250000), (4, 750000)) as v(slot_id, gold)',
+    repl: '  from (values (1, 14000), (2, 75000), (3, 250000), (4, 750000)) as v(slot_id, gold)',
+  },
+  gold_not_debited: {
+    file: HERO_GOLD,
+    why: 'the gold debit is dropped: the slot is granted and the hero keeps every coin, a free '
+       + 'hero slot behind a priced button',
+    find: '     set gold = gold - v_cat.cost_gold, version = version + 1, updated_at = now()',
+    repl: '     set gold = gold, version = version + 1, updated_at = now()',
+  },
   price_drifts_from_the_client: {
     why: 'a hand edits ONE gem price in the server catalogue. The shop advertises one number and '
        + 'the server charges another — the class the three-way bind exists to make impossible',
@@ -219,7 +240,7 @@ const UUID = () => crypto.randomUUID();
    {costs:[0,200,…], maxSlots:5, premiumHi:3}. */
 async function authoredLadder() {
   const src = await readFile(join(ROOT, 'src', 'multi-character.js'), 'utf8');
-  const m = /const\s+SLOT_COSTS_GEMS\s*=\s*\[([^\]]*)\]/.exec(src);
+  const m = /const\s+SLOT_COSTS_GOLD\s*=\s*\[([^\]]*)\]/.exec(src);
   const cap = /const\s+MAX_SLOTS\s*=\s*(\d+)/.exec(src);
   /* The premium waiver's authored rule, read from the one expression that owns
      it rather than assumed: `free = hasPremium && nextId >= 1 && nextId <= 3`. */
@@ -235,6 +256,7 @@ async function authoredLadder() {
 
 /** One end-to-end run against a freshly replayed database. */
 async function run(mutate) {
+  if (mutate && MUTATIONS[mutate].file) mutate = undefined;   // a chain-end mutant; see chainEnd()
   const patches = mutate
     ? new Map([[MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
@@ -445,6 +467,60 @@ async function run(mutate) {
 
   await db.close?.();
   return obs;
+}
+
+/** ARM Z — the CHAIN-END purchase, in GOLD, on the whole replayed chain. */
+let cleanChainEnd = null;
+async function chainEnd(mutate) {
+  const m = mutate && MUTATIONS[mutate];
+  if (!(m && m.file === HERO_GOLD) && cleanChainEnd) return cleanChainEnd;
+  const { db } = await bootReplay(m && m.file === HERO_GOLD
+    ? { patches: new Map([[HERO_GOLD, [[m.find, m.repl], GOLD_GATE_BLIND]]]), upTo: HERO_GOLD } : {});
+  const q = async (sql, p) => (await db.query(sql, p)).rows;
+  const asUser = async (uid, sql, p) => {
+    await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
+    await q('set role authenticated');
+    try { return (await db.query(sql, p)).rows[0]?.r; } finally { await db.query('reset role').catch(() => {}); }
+  };
+  const z = {};
+  z.catalogue = await q('select slot_id, cost_gold::text cost, premium_waived from public.hr_hero_slots order by slot_id');
+  const c1 = Number(z.catalogue.find((r) => r.slot_id === 1)?.cost);
+  const uid = (await q('select gen_random_uuid() as i'))[0].i;
+  await q('insert into auth.users (id, instance_id, aud, role, email) '
+    + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','gold@probe.invalid')", [uid]);
+  await q('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
+  await q('delete from public.hr_rate_counters');
+  z.create = await asUser(uid, 'select public.hr_create_character(0) as r');
+  await q('insert into public.account_wallet (user_id, gems) values ($1, 5000) on conflict (user_id) do update set gems = 5000', [uid]);
+  const goldOf = async () => Number((await q('select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0]?.g);
+  const gemsOf = async () => Number((await q('select gems::text g from account_wallet where user_id=$1', [uid]))[0]?.g);
+  const buy = async () => { await q('delete from public.hr_rate_counters');
+    return asUser(uid, 'select public.hr_buy_hero_slot($1,$2,$3) as r', [1, 0, crypto.randomUUID()]); };
+  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1 - 1]);
+  z.short = await buy(); z.shortGold = await goldOf();
+  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1]);
+  z.ok = await buy(); z.okGold = await goldOf(); z.gems = await gemsOf();
+  z.ledger = await q("select gold::text gold, gold_in::text gold_in, gems_in::text gems_in, meta from player_ledger "
+    + "where user_id=$1 and kind='hero_slot'", [uid]);
+  z.c1 = c1;
+  await db.close?.();
+  if (!m) cleanChainEnd = z;
+  return z;
+}
+
+function gradeChainEnd(z) {
+  ok(z.create?.ok === true, `Z FIXTURE: hr_create_character refused: ${JSON.stringify(z.create)}`);
+  ok(z.short?.error === 'insufficient_gold' && Number(z.short?.short_by) === 1,
+    `Z: a hero one gold short of slot 1 was not refused insufficient_gold: ${JSON.stringify(z.short)}`);
+  ok(z.shortGold === z.c1 - 1, `Z: the refused purchase moved gold (${z.shortGold})`);
+  ok(z.ok?.ok === true && z.ok?.currency === 'gold' && Number(z.ok?.cost) === z.c1,
+    `Z: the gold purchase of slot 1 answered ${JSON.stringify(z.ok)}`);
+  ok(z.okGold === 0, `Z: slot 1 left ${z.okGold} gold of exactly ${z.c1} — the debit is not the catalogue price`);
+  ok(z.gems === 5000, `Z: the gold purchase moved account gems (${z.gems} of 5000)`);
+  ok(z.ledger?.length === 1 && Number(z.ledger[0].gold) === -z.c1 && Number(z.ledger[0].gold_in) === 0
+     && Number(z.ledger[0].gems_in) === 0,
+    `Z: the purchase journal is ${JSON.stringify(z.ledger)}, expected one row with gold -${z.c1} and no inflow`);
+  return new Map((z.catalogue || []).map((r) => [r.slot_id, r]));
 }
 
 /** Grade one run. Every assertion names the PROPERTY, not the line. */
@@ -673,23 +749,23 @@ function grade(o) {
 async function bindGuard(cat) {
   const A = await authoredLadder();
   ok(Array.isArray(A.costs) && A.costs.length >= 2,
-    'BIND: `const SLOT_COSTS_GEMS = [` could not be read out of src/multi-character.js — the '
+    'BIND: `const SLOT_COSTS_GOLD = [` could not be read out of src/multi-character.js — the '
     + 'authored ladder is unreadable, so nothing below asserts anything');
   if (!Array.isArray(A.costs)) return;
   ok(A.maxSlots === A.costs.length,
-    `BIND: MAX_SLOTS is ${A.maxSlots} but SLOT_COSTS_GEMS has ${A.costs.length} rungs — the client `
+    `BIND: MAX_SLOTS is ${A.maxSlots} but SLOT_COSTS_GOLD has ${A.costs.length} rungs — the client `
     + 'itself disagrees about how many hero slots exist');
-  ok(A.costs[0] === 0, `BIND: slot 0 is priced at ${A.costs[0]} gems; it must be free`);
+  ok(A.costs[0] === 0, `BIND: slot 0 is priced at ${A.costs[0]} gold; it must be free`);
 
   // (A) ↔ (C)
   for (let i = 1; i < A.costs.length; i++) {
     const c = cat.get(i);
-    ok(!!c, `BIND: authored hero slot ${i} (${A.costs[i]} gems) is ABSENT from public.hr_hero_slots, `
+    ok(!!c, `BIND: authored hero slot ${i} (${A.costs[i]} gold) is ABSENT from public.hr_hero_slots, `
       + 'so its Buy button is DEAD under the gems arm — the exact defect this migration exists for');
     if (!c) continue;
     ok(Number(c.cost) === A.costs[i],
-      `BIND: slot ${i} costs ${A.costs[i]} gems in src/multi-character.js but ${c.cost} in `
-      + 'hr_hero_slots — the drawer would advertise one price and the server would charge another');
+      `BIND: slot ${i} costs ${A.costs[i]} gold in src/multi-character.js but ${c.cost} in `
+      + 'hr_hero_slots.cost_gold — the drawer would advertise one price and the server would charge another');
     const wantWaived = A.premiumHi != null && i >= 1 && i <= A.premiumHi;
     ok(c.premium_waived === wantWaived,
       `BIND: slot ${i} is ${wantWaived ? '' : 'NOT '}waived by Hearth Hall on screen and `
@@ -710,10 +786,10 @@ async function bindGuard(cat) {
     + `has ${A.costs.length - 1} paid rungs. Re-run \`node tools/gen-shops.mjs\`.`);
   for (const off of offers) {
     const i = Number(String(off.id).split('.')[1]);
-    const line = (off.cost || []).find((l) => l.kind === 'currency' && l.id === 'gems');
-    ok(!!line, `BIND: generated offer ${off.id} is not priced in gems`);
+    const line = (off.cost || []).find((l) => l.kind === 'currency' && l.id === 'gold');
+    ok(!!line, `BIND: generated offer ${off.id} is not priced in gold`);
     ok(line && line.amount === A.costs[i],
-      `BIND: generated offer ${off.id} costs ${line && line.amount} gems, the authored ladder says `
+      `BIND: generated offer ${off.id} costs ${line && line.amount} gold, the authored ladder says `
       + `${A.costs[i]} — src/data/shops.js is stale; re-run \`node tools/gen-shops.mjs\``);
     const c = cat.get(i);
     ok(c && Number(c.cost) === (line && line.amount),
@@ -766,8 +842,8 @@ async function bindGuard(cat) {
  */
 export async function heroSlotBuyGuard() {
   problems.length = 0;
-  const catalogue = grade(await run());
-  await bindGuard(catalogue);
+  grade(await run());
+  await bindGuard(gradeChainEnd(await chainEnd()));
   return [...problems];
 }
 
@@ -790,8 +866,8 @@ if (RUN_DIRECTLY) {
       problems.length = 0;
       let caught = false;
       try {
-        const cat = grade(await run(id));
-        await bindGuard(cat);
+        grade(await run(id));
+        await bindGuard(gradeChainEnd(await chainEnd(id)));
         caught = problems.length > 0;
       } catch (e) {
         caught = true;   // a mutation that makes the run throw is also caught
@@ -804,8 +880,9 @@ if (RUN_DIRECTLY) {
     process.exit(bad ? 1 : 0);
   }
 
-  const cat = grade(await run(mutateArg ? mutateArg.split('=')[1] : undefined));
-  await bindGuard(cat);
+  const mid = mutateArg ? mutateArg.split('=')[1] : undefined;
+  grade(await run(mid));
+  await bindGuard(gradeChainEnd(await chainEnd(mid)));
 
   if (problems.length) {
     console.error(`hero-slot-buy: ${problems.length} problem(s)\n`);

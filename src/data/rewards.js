@@ -37,12 +37,13 @@
    quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 270), so
    logging in never out-earns playing, plus 25 cooked shrimp and 10 cooked
    herring for Auto-Eat, 25 turnip and 10 carrot seeds for the plots (turnip is
-   farming 1, carrot farming 10), one Bone Key (the first dungeon, the Crypt of
-   Bones, opens at combat 25) and 2 gems.
+   farming 1, carrot farming 10) and 2 gems.
 
    `items` are SUPPLIES: they scale with the week multiplier like gold does.
-   `keys` and `gems` are FIXED: one Bone Key a week, never three, because a key
-   is a dungeon run and the multiplier is a loyalty bonus, not a loot table.
+   `keys` and `gems` are FIXED: the multiplier is a loyalty bonus, not a loot
+   table. No day pays a key since the dungeons were cut (2026-10-15, Security R2:
+   the Bone Key left hr_items, so a day 7 that paid it failed with unknown_item;
+   it was worth 0 and bound on pickup, so day 7 keeps its gold and gems only).
    And they pay only when the BONUS IS DUE (loginBonusDue): a STRAIGHT arrival
    (the last claim was yesterday) AND no keys or gems paid by a login claim in
    the six server days before today — the server reads that from player_ledger
@@ -59,7 +60,7 @@ export const DAILY_LOGIN_CYCLE = Object.freeze([
   Object.freeze({ gold: 130, items: Object.freeze({ carrot_seed: 10 }) }),
   Object.freeze({ gold: 160, items: Object.freeze({ cooked_herring: 10 }) }),
   Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 15 }) }),
-  Object.freeze({ gold: 270, gems: 2, keys: Object.freeze({ bone_key: 1 }) }),   // Day 7
+  Object.freeze({ gold: 270, gems: 2 }),   // Day 7
 ]);
 
 /** Each COMPLETED week scales gold and supplies by this much again... */
@@ -67,7 +68,7 @@ export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
 /* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
    x26, a fuse rather than a dial; this one is the dial. At the cap the richest
-   claim is day 7: 810 gold, one Bone Key, 2 gems; a capped week pays 3,000
+   claim is day 7: 810 gold and 2 gems; a capped week pays 3,000
    gold. The SERVER re-derives this price and refuses any other
    (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
    are bound by tests/login-reward.mjs, which runs both over every streak. */

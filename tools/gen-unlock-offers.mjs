@@ -448,14 +448,13 @@ begin
     raise exception 'sellable offers whose grant is not a rung the unlock catalogue knows: %', v_bad;
   end if;
 
-  -- Every item this table can charge, and every blueprint it can consume, must
-  -- be an item the apply engine's catalogue knows — otherwise the debit is a
-  -- charge for something that does not exist.
+  -- Every item this table names, sellable or refused, and every blueprint it
+  -- can consume, must be an item the apply engine's catalogue knows (Security
+  -- R2, 2026-10-15: no row may name an item missing from hr_items).
   if to_regclass('public.hr_items') is not null then
     select string_agg(x.offer_id, ', ') into v_bad from (
       select o.offer_id, k as item_id
         from public.hr_unlock_offers o, jsonb_object_keys(coalesce(o.items,'{}'::jsonb)) k
-       where o.refusal is null
       union all
       select o.offer_id, o.req_item from public.hr_unlock_offers o where o.req_item is not null) x
      where not exists (select 1 from public.hr_items i where i.item_id = x.item_id);

@@ -668,6 +668,24 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> ${runes.length} then raise exception 'hr_runes has % rows, generator emitted ${runes.length}', v_n; end if;
 
+  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A quest
+  -- reward, a dungeon loot row, a Quartermaster offer or a login-cycle day
+  -- naming an id hr_items no longer holds fails at claim time with
+  -- unknown_item; it is refused here instead. hr_unlock_offers is refilled
+  -- AFTER this file and asserts the same of its own rows in its own §4
+  -- (tools/gen-unlock-offers.mjs).
+  select count(*) into v_bad from (
+    select k as id from public.hr_quest_rewards q, jsonb_object_keys(coalesce(q.items, '{}'::jsonb)) k
+    union all
+    select item_id from public.hr_dungeon_loot
+    union all
+    select item_id from public.hr_qm_offers
+    union all
+    select k from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r),
+                  jsonb_object_keys(coalesce(d.r->'items', '{}'::jsonb) || coalesce(d.r->'keys', '{}'::jsonb)) k
+  ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
+  if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
+
   raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ${DIGEST}',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
@@ -951,6 +969,15 @@ begin
   if v_top > ${BUFF_SCALE_MAX_BONUS} then
     raise exception 'the top cellar rung sells % duration, above the server cap of ${BUFF_SCALE_MAX_BONUS} '
                     '— hr_apply would clamp it and the shop line would be a lie', v_top;
+  end if;
+
+  -- A HOME NEVER GRANTS XP OR A RESOURCE ADVANTAGE (Master Design Reference §9,
+  -- 2026-10-14; Security C3): no rung may carry an XP, yield or Rested key.
+  select count(*) into v_bad from public.hr_room_perks
+   where perks ?| array['allXP','combatXP','farmYield','restedXp','rested','restedCap']
+      or exists (select 1 from jsonb_object_keys(perks) k where k like 'yield\\_%');
+  if v_bad > 0 then
+    raise exception '% room rung(s) grant XP, yield or Rested — a home never does (§9)', v_bad;
   end if;
 
   -- No client write policy, and no client write grant.

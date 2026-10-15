@@ -15,8 +15,11 @@
 //        catalogue — and redeploying hr-accrue — is not required).
 //   2. hr_crop_plot_tier  — which PLOT TIER unlocks a crop. Source:
 //        PLOT_TIERS[t].unlocks in src/core/farm.js.
-//   3. hr_plot_tier       — the DEED cost to reach each plot level. Source:
-//        PLOT_TIERS[t].cost in src/core/farm.js.
+//   3. hr_plot_tier       — the price of each plot level: deed_cost from
+//        PLOT_TIERS[t].cost, gold_cost and req_farm_level from PLOT_TIER_PRICES
+//        (src/core/farm.js). ALL THREE are emitted: a truncate + refill that names
+//        only deed_cost lets the 2026-09-06 column defaults (gold 0, level 1) price
+//        every tier at nothing (Security R1, 2026-10-15).
 //   4. hr_farm_yield_perk — the FLAT farmYield paid at harvest by the SERVER-
 //        owned perk stack: the Garden room rung (src/data/perks.js
 //        ROOM_PERKS.garden), the Scarecrow plot building (src/core/perks.js
@@ -41,7 +44,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { PLOT_TIERS, MAX_PLOT_LEVEL, REGROW_LIMITS } from '../src/core/farm.js';
+import { PLOT_TIERS, PLOT_TIER_PRICES, MAX_PLOT_LEVEL, REGROW_LIMITS } from '../src/core/farm.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
 import { PLOT_PERKS } from '../src/core/perks.js';
 import { COMPANIONS } from '../src/data/companions.js';
@@ -95,7 +98,11 @@ function plotTierCosts() {
   for (let lv = 1; lv <= MAX_PLOT_LEVEL; lv++) {
     const c = PLOT_TIERS[lv].cost;
     if (!Number.isInteger(c) || c < 0) throw new Error(`PLOT_TIERS[${lv}].cost is not a non-negative int: ${c}`);
-    rows.push([lv, c]);
+    const p = lv === 1 ? { gold: 0, farming: 1, deeds: 0 } : PLOT_TIER_PRICES[lv];
+    if (!p || !Number.isInteger(p.gold) || !Number.isInteger(p.farming)) throw new Error(`PLOT_TIER_PRICES[${lv}] missing`);
+    if (lv > 1 && (p.gold <= 0 || p.farming <= 1)) throw new Error(`plot level ${lv} is unpriced (gold ${p.gold}, farming ${p.farming})`);
+    if (p.deeds !== c) throw new Error(`plot level ${lv}: PLOT_TIER_PRICES deeds ${p.deeds} != PLOT_TIERS cost ${c}`);
+    rows.push([lv, c, p.gold, p.farming]);
   }
   if (rows[0][1] !== 0) throw new Error('level 1 must cost 0 deeds (the starting state)');
   return rows;
@@ -134,7 +141,10 @@ export function render() {
     .update(JSON.stringify({ regrow, crops, tiers, perks })).digest('hex');
   const regrowV = regrow.map(([id, v]) => `  ('${id}', ${v})`).join(',\n');
   const cropsV = crops.map(([id, t]) => `  ('${id}', ${t})`).join(',\n');
-  const tiersV = tiers.map(([lv, c]) => `  (${lv}, ${c})`).join(',\n');
+  const tiersV = tiers.map(([lv, c, g, r]) => `  (${lv}, ${c}, ${g}, ${r})`).join(',\n');
+  const tierChecks = tiers.filter(([lv]) => lv > 1).map(([lv, , g, r]) =>
+    `  if not exists (select 1 from public.hr_plot_tier where plot_level = ${lv} and gold_cost = ${g} and req_farm_level = ${r}) then\n`
+    + `    raise exception 'plot level ${lv} is not priced at ${g} gold / farming ${r}'; end if;`).join('\n');
   const perksV = perks.map(([k, v]) => `  ('${k}', ${v})`).join(',\n');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE SERVER FARM-GATE CATALOGUES  (GENERATED — DO NOT EDIT)
@@ -216,8 +226,10 @@ truncate table public.hr_crop_plot_tier;
 insert into public.hr_crop_plot_tier (crop_id, plot_tier) values
 ${cropsV};
 
+alter table public.hr_plot_tier add column if not exists gold_cost      bigint not null default 0;
+alter table public.hr_plot_tier add column if not exists req_farm_level int    not null default 1;
 truncate table public.hr_plot_tier;
-insert into public.hr_plot_tier (plot_level, deed_cost) values
+insert into public.hr_plot_tier (plot_level, deed_cost, gold_cost, req_farm_level) values
 ${tiersV};
 
 truncate table public.hr_farm_yield_perk;
@@ -249,6 +261,10 @@ begin
   if (select deed_cost from public.hr_plot_tier where plot_level = 1) <> 0 then
     raise exception 'plot level 1 must cost 0 deeds';
   end if;
+  -- Every paid tier carries its gold price and farming gate (R1: never the defaults).
+${tierChecks}
+  select count(*) into v_bad from public.hr_plot_tier where plot_level > 1 and (gold_cost <= 0 or req_farm_level <= 1);
+  if v_bad > 0 then raise exception '% plot tier(s) above 1 are free or ungated', v_bad; end if;
   select count(*) into v_bad from pg_policies
     where schemaname = 'public'
       and tablename in ('hr_crop_plot_tier','hr_plot_tier','hr_farm_yield_perk')

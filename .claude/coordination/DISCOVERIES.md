@@ -3708,3 +3708,9 @@ SHIPPED the same day: Charcoal & Gold is the default; the warm-white tints are o
 their own strengths, so a future palette moves every highlight by changing one value. Not swept, on
 purpose: src/bug-report.js inline styles (own literal ink) and src/net/account-gate.js (keeps literal
 fallbacks so the front door paints before anything else loads).
+## 2026-10-14 · art-director · the World runtime boots standalone
+`bootWorld(panel)` needs only a `#panel-world.active` with `.world-stage` and `.world-chrome`, a `window.G`,
+and a document base at the repo root (atlases resolve against `document.baseURI`). With those it runs outside
+the game with no sign-in: prototypes/world-shell uses this. Every `win.*` read in world-boot fails safe. The
+in-world taps route through `window.showTab`, `openSkillDetail`, `HearthriseHomestead.openRoom` and
+`HearthriseCombatScreens.showHunt`, the four seams the shell cutover rewires to windows.

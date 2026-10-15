@@ -3300,3 +3300,12 @@ Off-style (glossy/plastic, clashes with the hearthfire shelf): iron/steel/mithri
 potato, copper + iron ore (green rock with red veins, reads as neither).
 Usable but not wired (style clash with shipped hearthfire art; keep for a full re-do): remaining monsters, crops,
 dishes, coal, gold/mithril ore, log, planks, sprout, tilled/watered plots. Sheets: docs/art-experiments/.
+## 2026-10-14 · art-director -> systems-engineer · World Shell camera inset (design/world-shell, docs/design/WORLD_SHELL.md §1)
+P1 before the shell cutover: windows docked over the World hide the hero (1440: Gear covers him) and the
+target (phone: the sheet covers the rat). `createCanvasBackend` needs `setInset({right})` so `frameView`
+centres and `fitZoom` fits inside the uncovered rect; art still draws under the window. Shots:
+prototypes/world-shell/shots/desktop-town-bag-gear.png, phone-hunt-gear.png. The hunt map rows also need
+route/floors/links/pockets/spots for dynamic hunting (§3); spec only, no code yet.
+## 2026-10-14 · art-director -> asset-director · leather_belt reads as a ring
+In the Gear doll (prototypes/world-shell) `leather_belt` sits beside `copper_ring` and both read as rings at
+×1 and ×2. A belt should show its buckle and strap length. A re-draw goes on the next pixel-item batch.

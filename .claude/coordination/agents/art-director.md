@@ -2888,3 +2888,15 @@ focus ring) lost its khaki; the PWA splash/status colour follows. Left warm on p
 highlight, the bounty board and shopfront (wooden objects), farm soil, painted scene art. PALETTE-1 guards
 the ladder AND the painted chrome (a brown panel-floor literal fails it). Lesson: a sweep that recolours
 "the light" must stop at the gold — a highlight ON gold metal is the metal's, not the UI's.
+
+### 2026-10-14 · design/world-shell: the shell spec and a clickable prototype
+Spec docs/design/WORLD_SHELL.md: an 88 px rail (today 180), a 40 px name/level/gold strip, the World edge to
+edge at a whole zoom, a hunt HUD (vitals + 2×10 bar, target, ground chip, log), and windows docked right
+(up to 3, drag to float, Esc). The phone gets one side sheet. The migration is ONE cutover (Tyler overruled
+the gradual swap): old screens and the tab rail are deleted in the same change. I recommended adding the
+hunt-ground card and the away ledger to the cutover set, because without them you can't start a hunt or claim.
+The prototype (prototypes/world-shell/) boots the real World with fixtures. Its interactions were checked headless.
+Lesson: the prototype's first screenshot answered a question the spec had not asked: a window over a
+live world hides exactly what you opened it beside (the hero, the target). The fix is a camera inset in
+the engine, not a smaller window. Lesson 2: shoot with a local node server and Playwright at DPR 1. The
+pane's screenshots are downscaled JPEGs, too soft to judge pixel scale.

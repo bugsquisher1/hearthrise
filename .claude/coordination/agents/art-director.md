@@ -2908,3 +2908,17 @@ The bag shows its used pockets plus a capacity bar. The action bar's second row 
 phone's bottom HUD is 62 px (14.7%). 24 of 24 headless interaction checks pass.
 Lesson: the "nameplate rat vs frame Rat" defect was mine. The prototype never published window.MONSTERS,
 so the engine fell back to the id. Check a harness against what the game provides before blaming the art.
+
+### 2026-10-15 · design/art-phase2: audit, bible, roadmap, samples, PixelLab workflow
+Docs: docs/design/ART_AUDIT_2026-10-15.md (53 lines), ART_DIRECTION.md extended into the bible (§1–§13),
+docs/ASSET_STANDARDS.md, docs/PIXELLAB_WORKFLOW.md (with the first batch R0–R4), docs/design/ART_ROADMAP.md,
+and the World atlas registry in ASSET_MANIFEST.md (124 rows, printed by tools/world-art/registry.mjs).
+Samples in prototypes/world-shell/samples/ (combat, slots, analyzer, readability, chrome A/B); shots in
+prototypes/world-shell/shots/phase2/. Decided: pixel 9-slice chrome with the analyzer's type (Pixelify rejected),
+8 hero facings, the 3:1 body-edge rule, the rarity ladder from world colours, the combat fatigue budget.
+Lessons: (1) measure readability INSIDE the outline; a sprite's mean luminance lies (outline + shadow pull it
+down) and its outline vanishes on a dark floor. (2) The prototype drifted from its own spec (phone HUD 90 px vs
+the 68 px ruling, Cinzel in the strip): audit the prototype against the latest ruling, not the other way round.
+(3) Drawing a sample from the shipped atlases on a canvas (combat.js) is cheap and honest: "before" is the
+engine's own overlay rules, so the comparison is fair. (4) A sample can show a bug the engine hides: the loot
+bag lands on the corpse (choreo.js) and disappears.

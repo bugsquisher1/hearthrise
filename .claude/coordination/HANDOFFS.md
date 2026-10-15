@@ -3309,3 +3309,21 @@ route/floors/links/pockets/spots for dynamic hunting (§3); spec only, no code y
 ## 2026-10-14 · art-director -> asset-director · leather_belt reads as a ring
 In the Gear doll (prototypes/world-shell) `leather_belt` sits beside `copper_ring` and both read as rings at
 ×1 and ×2. A belt should show its buckle and strap length. A re-draw goes on the next pixel-item batch.
+## 2026-10-15 · art-director -> systems-engineer · 8 hero facings + the combat overlay (design/art-phase2, docs/design/ART_ROADMAP.md NOW-3/4/5)
+NOW-3 (P1): the pather walks 8 directions (path.js) but the hero has 4 facings, so every diagonal step slides.
+Needs: DIRS per class in art-budget.js (characters 8, monsters 2), build.mjs row order, dirOf 8-way in choreo.js,
+and a nearest-cardinal fallback in the renderer, with one regression test. Lands with batch R2 (the art).
+NOW-4/5: the overlay per ART_DIRECTION §11 (samples/combat.html shows before and after): a ground ring instead of
+the red strokeRect, crit 22 px gold with a 120 ms pop (today the hit size, canvas-backend.js:191), floats start
+above the plate, a heal float kind, plates only on target/elites/players, and the loot bag BESIDE the corpse
+(choreo.js:166 puts it on the corpse, where it vanishes) with a ground mark; rare drops get a stepped light column.
+## 2026-10-15 · art-director -> asset-director · readability guard, loot bag, arcane ramp, 9-slice home
+(1) NOW-7: tests/world-assets.mjs gains the body-edge rule (the ring inside the outline at ≥ 3:1 to the ground's
+floor median; method in prototypes/world-shell/samples/readability.js). Land it after batch R3, or it starts red
+on the rat (2.36), the slime (2.59) and the loot bag (1.06). (2) R4: replace loot_bag (docs/PIXELLAB_WORKFLOW.md
+§5). (3) A two-colour "arcane" ramp in art/world/palette.json for the epic rarity (#9b72d0 proposed): a full
+re-lock. (4) At the cutover the iron 9-slices (prototypes/world-shell/samples/make-frames.mjs) move to assets/ui/.
+## 2026-10-15 · art-director -> coordinator · the first PixelLab batch + one WORLD_SHELL change to rule on
+docs/PIXELLAB_WORKFLOW.md §5 is the exact batch (R0 preflight, R1 south walk, R2 diagonals, R3 rat and slime
+readability, R4 loot bag; about 30–90 generations, most in R3). The edit-first rows are free. NOW-10 needs a yes:
+hide the action bar in town on the phone (WORLD_SHELL §2 says `when: always`); it takes 21% of the phone there.

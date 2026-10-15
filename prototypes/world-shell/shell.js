@@ -28,6 +28,14 @@ import { MONSTERS } from '../../src/data/monsters.js';
 import { PIXEL_DIR, fileFor } from '../../src/data/item-art.js';
 
 const Q = new URLSearchParams(location.search);
+/* Phase-2 chrome A/B (ART_DIRECTION §9, samples/chrome-ab.css): ?chrome=nine|pixel restyles the HUD for the comparison shots. */
+if (['nine', 'pixel'].includes(Q.get('chrome'))) {
+  document.documentElement.dataset.chrome = Q.get('chrome');
+  const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'prototypes/world-shell/samples/chrome-ab.css' });
+  document.head.appendChild(link);
+  await new Promise((r) => { link.onload = r; link.onerror = r; });
+  await document.fonts.load('700 16px "Pixelify Sans"').catch(() => {});
+}
 const GLYPH = window.HR_GLYPHS || {};
 const mq = window.matchMedia(MOBILE_QUERY);
 const isPhone = () => mq.matches;

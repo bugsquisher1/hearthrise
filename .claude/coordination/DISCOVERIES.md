@@ -3714,3 +3714,15 @@ and a document base at the repo root (atlases resolve against `document.baseURI`
 the game with no sign-in: prototypes/world-shell uses this. Every `win.*` read in world-boot fails safe. The
 in-world taps route through `window.showTab`, `openSkillDetail`, `HearthriseHomestead.openRoom` and
 `HearthriseCombatScreens.showHunt`, the four seams the shell cutover rewires to windows.
+## 2026-10-15 · art-director · a black outline does nothing on a dark floor
+The Mill Cellar earth's median luminance is 0.027; the rat's outline pixels average 0.016 (1.17:1), so the
+silhouette is carried only by the body just inside the outline (2.36:1). Measure readability on that inner
+ring, not on the sprite's mean (40% of the rat is near-black outline and shadow). The loot bag is 1.06:1 and
+lands on the corpse's tile. ART_DIRECTION §4 makes 3:1 the rule; prototypes/world-shell/samples/readability.html
+is the meter.
+## 2026-10-15 · art-director · PixelLab facts that shape our specs
+create_character v3 without a reference always returns 8 rotations, so the hero (03dec2e0) should already have
+diagonal rotations; only the clips and the engine are missing (R0 confirms). Characters have no
+replace_existing: a redone clip is a new group, and the old one is kept. animate_character v3 animates ONE
+direction per call. Pixelify Sans (OFL) at the 14.5 px floor falls off its pixel grid: a pixel face is only crisp
+at whole multiples of its grid, which is why the HUD keeps Alegreya (ART_DIRECTION §9).

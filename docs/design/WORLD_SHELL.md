@@ -65,7 +65,7 @@ The hero walks to monsters, monsters walk to the hero, and a ground is an author
 - **Esc** closes the top window, or opens Settings when nothing is open. Keys are ignored while typing.
 - **The World never pauses:** 38 frames in 0.6 s were measured with a window open. Windows are not modal and have no backdrop.
 - **Motion:** a 120 ms slide and fade in from the dock edge, and 120 ms back out. No bounce. Reduced motion turns it off.
-- **One frame for every window:** a 44 px head (gold glyph, Cinzel title, key chip, close), `--modal-bg`, a `--line` border, the `--r-lg` radius, and one overlay shadow. One primary per window, and no cards inside.
+- **One frame for every window:** a 44 px head (gold glyph, title, key chip, close), `--modal-bg`, and one overlay shadow. One primary per window, and no cards inside. **Updated 2026-10-15 (Art Director, the chrome A/B):** the border and radius are replaced by the iron pixel 9-slice (4 art px on windows, 2 on HUD widgets, radius 0) and the title takes the analyzer's heading style (§7); see `ART_DIRECTION.md` §9–§10.
 - **Icons:** pixel items are drawn at the screen's one density (§1), so ×2 = 64 px everywhere. The doll's belt is now `iron_belt`. `leather_belt` reads as a ring, which is an Asset Director handoff.
 
 ## 5. Rules check (ART_DIRECTION §4–6, DESIGN_STANDARDS), measured on the prototype

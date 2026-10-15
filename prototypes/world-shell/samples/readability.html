@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  prototypes/world-shell/samples/readability.html — monster readability on the Mill Cellar floor.
+  PROTOTYPE ONLY (docs/PIXELLAB_WORKFLOW.md §5, batch items R3 and R4). Before: the shipped rat, slime and
+  loot bag. After: a deterministic EDIT preview, no generation: every pixel moves one step up its
+  own ramp of hr-world-56-v2 (so the result is still palette-locked), and the outline pixels that
+  face the light (up and left) take a lit rim colour. The numbers under each pair are measured
+  in this page from the drawn pixels.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<base href="../../../">
+<title>Sample: monster readability</title>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="prototypes/world-shell/samples/samples.css">
+</head>
+<body data-theme="hearthlight">
+<main class="sm">
+  <h1>Monster readability on the Mill Cellar floor <span class="tag">x2, cellar ambient light</span></h1>
+  <p class="lede">The rule (ART_DIRECTION §4): an actor's body edge reads at 3:1 or better against the floor's median, measured inside the outline, because a black outline vanishes on a near-black floor (the rat's outline sits at 1.17:1 today). Left of each pair: shipped. Right: the ramp-lift plus lit-rim edit, previewed here with no generation.</p>
+  <div class="row" data-out></div>
+</main>
+<script type="module" src="prototypes/world-shell/samples/readability.js"></script>
+</body>
+</html>

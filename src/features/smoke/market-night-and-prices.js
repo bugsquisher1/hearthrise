@@ -4332,15 +4332,12 @@ export default [
        false for EVERY equippable, and it is dropped. The surfaces below are still
        read against the AUTHORITY, never the raw field, so one that re-derives its
        own number still fails here. */
-    /* DEMOLITION (2026-10-14): the smithed armour left with its recipes, so the
-       probe is the smithed Steel Whetstone — an ammo-slot item worn on an ATTACK
-       gate, made at the Whetstones lane. Same four surfaces, same authority. */
-    const probe = 'steel_whetstone';
+    const probe = 'steel_platebody';
     const it = window.ITEMS[probe];
     assert(it, 'the probe item must exist');
     const req = window.gearWieldReq(it);
-    assert(req && req.skill === 'attack' && req.lv > 0,
-      'the authority must derive an attack gate for ' + probe + ', got ' + JSON.stringify(req));
+    assert(req && req.skill === 'defense' && req.lv > 0,
+      'the authority must derive a defence gate for ' + probe + ', got ' + JSON.stringify(req));
 
     const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
     const prevTab = window.activeTab;
@@ -4359,7 +4356,7 @@ export default [
         await new Promise((r) => setTimeout(r, 60));
         const reqEl = tipHost.querySelector('.ttl-req');
         assert(reqEl, 'the hover tooltip states no wear requirement for ' + probe);
-        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /attack/i.test(reqEl.textContent),
+        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /defen/i.test(reqEl.textContent),
           'the tooltip requirement must name the skill and the level, got "' + reqEl.textContent + '"');
       } finally { tile.remove(); }
 
@@ -4372,38 +4369,31 @@ export default [
         'the item detail modal states no wear requirement for ' + probe + ' — "' + modalText.slice(0, 200) + '"');
       if (typeof window.closeInvDetail === 'function') window.closeInvDetail();
 
-      /* (3) THE CRAFTING TILE — "what def requirements we need to wear those
-         too". The craft gate and the wear gate are different numbers on
-         different skills (Smithing 40 to forge, Defence 30 to wear). */
-      const rec = window.ARTISAN_RECIPES.smithing.find((r) => r.output === probe);
-      assert(rec, 'no smithing recipe produces ' + probe);
+      /* (3) THE CRAFTING TILE's wear line. No recipe makes wearable gear since the
+         2026-10-14 demolition (the gear recipes left; whetstones and arrows are
+         ammo, which carries no wield gate), so the painted Armour-lane tile has no
+         subject. What stays true is graded: the one shared helper states the
+         requirement for a gated item, states nothing for an ungated output, and
+         every LIVE recipe output gets exactly the line the authority implies. */
       assert(typeof window.hrWearLineHtml === 'function', 'the shared wear-line helper must be published');
       const line = window.hrWearLineHtml(probe);
       assert(/at-wear/.test(line) && line.indexOf('' + req.lv) >= 0,
         'the wear line does not state the requirement: "' + line + '"');
       assert(window.hrWearLineHtml('normal_log') === '',
         'a non-wearable output must produce no wear line');
+      Object.keys(window.ARTISAN_RECIPES || {}).forEach((sk) => (window.ARTISAN_RECIPES[sk] || []).forEach((r) => {
+        if (!r || !r.output) return;
+        const gated = !!window.gearWieldReq(window.ITEMS[r.output]);
+        assert(/at-wear/.test(window.hrWearLineHtml(r.output)) === gated,
+          r.id + ': the wear line must appear exactly when the output carries a wield gate');
+      }));
 
-      // Painted, through whichever tile builder is actually wired.
-      G.skills.smithing = 1e7;
-      window._actLastRender = { skillId: null, activeKey: null };
-      window.showTab('skills');
-      window.openSkillDetail('smithing');
-      await new Promise((r) => setTimeout(r, 80));
-      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'whetstones');
-      await new Promise((r) => setTimeout(r, 80));
-      const plate = [...document.querySelectorAll('#skill-detail .act-tile')]
-        .find((t) => t.getAttribute('data-prod') === probe);
-      assert(plate, 'the ' + probe + ' recipe tile did not render on the Whetstones lane');
-      const wearEl = plate.querySelector('.at-wear');
-      assert(wearEl && wearEl.textContent.indexOf('' + req.lv) >= 0,
-        'the crafting tile does not say what you need to WEAR the output — "' + plate.innerText.replace(/\s+/g, ' ') + '"');
-
-      /* (4) AND THE ESM TWIN, which paints nothing today and therefore drifts
-         (b345's lesson). Graded through its published builder. */
+      /* (4) THE ESM TWIN tile builder still carries the line, graded through its
+         published builder on a probe recipe for the gated item. */
       const AG = window.HearthriseActivitiesGrid;
       assert(AG && typeof AG.__tileForArtisan === 'function', 'the activities-grid test seam is gone');
-      assert(/at-wear/.test(AG.__tileForArtisan(rec, 'smithing')),
+      const probeRec = { id: '__probe_' + probe, name: 'Probe', icon: '', inputs: { iron_bar: 1 }, output: probe, xp: 1, req: 1, ms: 1000 };
+      assert(/at-wear/.test(AG.__tileForArtisan(probeRec, 'smithing')),
         'the activities-grid TWIN does not carry the wear line — the two tile builders have drifted');
     } finally {
       G.inventory = saved.inv; G.skills = saved.skills;

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 589 — 2026-10-15 (A new hunting engine)
+
+**Hunting runs on a brand-new engine.** Hunts now run on the server as private hunts with one steady 2-second swing, a stamina pool, and a choice of using your own supplies or the store's. The new hunt screen arrives soon; while the game is closed, the old fight view is switched off.
+
 ## v0.9.2-beta build 588 — 2026-10-15 (One clear view)
 
 **The world looks the same everywhere.** Town, cottage and cellar now draw at the same crisp scale, so you see more of the town at once and nothing jumps in size when you move between places.

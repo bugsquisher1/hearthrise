@@ -28,23 +28,23 @@
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=588';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=588';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=588';
-import { HUNT_INDEX } from '../data/hunts.js?v=588';
-import { compileMap } from './core/map-compile.js?v=588';
-import { STUB_SPRITE } from './core/book.js?v=588';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=588';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=588';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=588';
-import { loadAtlases } from './atlas.js?v=588';
-import { createCanvasBackend } from './render/canvas-backend.js?v=588';
-import { huntOfMap } from './hunt-maps.js?v=588';
-import { createHuntScene } from './hunt-scene.js?v=588';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=588';
-import { createWalkScene } from './walk-scene.js?v=588';
-import { homeMapFor } from './home-scene.js?v=588';
-import { runAction } from './steer-local.js?v=588';
+import { BUILD } from '../build-info.js?v=589';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=589';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=589';
+import { HUNT_INDEX } from '../data/hunts.js?v=589';
+import { compileMap } from './core/map-compile.js?v=589';
+import { STUB_SPRITE } from './core/book.js?v=589';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=589';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=589';
+import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=589';
+import { loadAtlases } from './atlas.js?v=589';
+import { createCanvasBackend } from './render/canvas-backend.js?v=589';
+import { huntOfMap } from './hunt-maps.js?v=589';
+import { createHuntScene } from './hunt-scene.js?v=589';
+import { createHuntChrome, hudModel } from './hunt-chrome.js?v=589';
+import { createWalkScene } from './walk-scene.js?v=589';
+import { homeMapFor } from './home-scene.js?v=589';
+import { runAction } from './steer-local.js?v=589';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

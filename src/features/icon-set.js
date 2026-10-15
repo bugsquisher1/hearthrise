@@ -34,11 +34,11 @@
   // economy + everything else. Nothing else gets to introduce a hue.
   var ACCENT = {
     attack: '--red', strength: '--red', defense: '--red', hitpoints: '--red',
-    ranged: '--red', bountyHunter: '--red',
+    ranged: '--red',
     magic: '--gem', prayer: '--gem', gems: '--gem',
     // hand-authored glyphs (src/data/glyphs-extra.js). Runecrafting is arcane;
     // Stonemason is an artisan craft and sits with cooking/crafting/smithing.
-    runecrafting: '--gem', stonemason: '--gold',
+    runecrafting: '--gem',
     woodcutting: '--green', mining: '--green', fishing: '--green',
     farming: '--green', foraging: '--green',
     cooking: '--gold', crafting: '--gold', smithing: '--gold', gold: '--gold'

@@ -2011,67 +2011,6 @@ export default [
      These three tests are the contract: the gate is DATA on the descriptor,
      it REACHES the DOM with the item's name, its held state and its real
      source, and the button is dead-with-a-reason rather than lit-and-lying. */
-  () => tryRun('b355: an item-gated rung states the blueprint, its state and its source', () => {
-    const H = window.HearthriseHomestead;
-    if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;
-    if (typeof window.roomRungItemGate !== 'function') { assert(false, 'roomRungItemGate must be published'); return; }
-    const snap = snapshotG(), bag = serverBagFixture();
-    try {
-      window.G.homestead = { tier: 3 };
-      window.G.rooms = { kitchen: 1 };
-      window.G.gold = 999999;
-      // b456: gold AND rooms are both server-of-record now — one stamp, real path.
-      stampRecordLikeLoad(window.G);    // armed: `affordable` reads gold via canAfford, the rung via roomsOf
-      window.G.inventory = { normal_log: 999, oak_log: 999 };
-      bag.agree();   // the server holds the same bag (no blueprint): the gate line is the subject
-
-      // ── the descriptor carries it, on the rung AND on `next`
-      const d = H.roomDescriptor('kitchen');
-      const rung2 = d.ladder[1];
-      assert(rung2.gates && rung2.gates.length === 1, 'kitchen rung 2 must carry exactly one item gate');
-      assert(rung2.gates[0].id === 'kitchen_blueprint_t2', 'the gate must be the Kitchen Blueprint II');
-      assert(rung2.gates[0].ok === false, 'with an empty bag the gate must be unmet');
-      assert(rung2.gates[0].source, 'the gate must know where the blueprint comes from');
-      assert(/Crypt of Bones/.test(rung2.gates[0].source),
-        'the source must come from the real loot table, got: ' + rung2.gates[0].source);
-      assert(d.ladder[0].gates.length === 0, 'rung 1 has no blueprint and must claim none');
-
-      /* THE BUG ITSELF: affordable said yes while upgradeRoom said no. */
-      assert(d.next.affordable === false,
-        'a rung missing its blueprint is NOT affordable, however much gold you hold');
-      assert(window.upgradeRoom('kitchen') === false && (window.G.rooms.kitchen === 1),
-        'the authority must still refuse — and the view must agree with it');
-
-      // ── it reaches the DOM, in the ladder, with name + state + source
-      H.openRoom('kitchen');
-      const gates = document.querySelectorAll('.hr-room-body .hr-room-gate');
-      assert(gates.length >= 1, 'the ladder must render a requirement line for the gated rung');
-      const txt = [].map.call(gates, (g) => g.textContent).join(' | ');
-      assert(/Kitchen Blueprint II/.test(txt), 'the requirement line must NAME the item: ' + txt);
-      assert(/You have none/.test(txt), 'it must say whether you hold one');
-      assert(/Crypt of Bones/.test(txt), 'it must say where one comes from');
-      const need = document.querySelector('.hr-room-body .hr-room-gate.is-need');
-      assert(need, 'an unheld gate must be marked as needed, not styled like a met cost');
-
-      // ── holding one flips the same line, and unblocks the rung
-      window.G.inventory.kitchen_blueprint_t2 = 1;
-      bag.agree();   // held means the SERVER holds it (roomRungItemGate counts its bag)
-      window.HearthriseRoomModal.refresh();
-      assert(document.querySelector('.hr-room-body .hr-room-gate.is-met'), 'holding the blueprint must show as met');
-      assert(/In your bags/.test(document.querySelector('.hr-room-body .hr-room-gate.is-met').textContent),
-        'a held blueprint must say so in words');
-      assert(H.roomDescriptor('kitchen').next.affordable === true,
-        'with the blueprint and the cost in hand the rung must be buildable');
-
-      // ── an OWNED rung keeps the requirement visible, marked spent, so the
-      //    ladder teaches the pattern before you hit the rung you cannot pay.
-      window.G.rooms = { kitchen: 3 };
-      stampRecordLikeLoad(window.G);   // b456: the new rung must come off the record, not the blob
-      window.HearthriseRoomModal.refresh();
-      assert(document.querySelector('.hr-room-body .hr-room-gate.is-spent'),
-        'a built gated rung must still show its requirement, marked spent');
-    } finally { restoreG(snap); bag.restore(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
-  }),
 
   () => tryRun('b355: the pinned Build bar says WHY it is blocked — never a toast', () => {
     const H = window.HearthriseHomestead;

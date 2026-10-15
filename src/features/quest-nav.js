@@ -79,7 +79,7 @@
     woodcutting: 'Go chop', mining: 'Go mine', fishing: 'Go fish',
     cooking: 'Go cook', smithing: 'Go smith', crafting: 'Go craft',
     prayer: 'Go pray', farming: 'Go farm',
-    runecrafting: 'Go bind', stonemason: 'Go cut stone',
+    runecrafting: 'Go bind',
   };
   function SKILL(id) {
     var def = window.SKILLS_DEF && window.SKILLS_DEF[id];
@@ -295,12 +295,7 @@
   function livePools() {
     var out = [];
     function push(list) { if (Array.isArray(list)) out = out.concat(list.filter(Boolean)); }
-    if (Array.isArray(window.DAILY_TASK_POOL)) {
-      window.DAILY_TASK_POOL.forEach(function (f) {
-        try { out.push(typeof f === 'function' ? f() : f); } catch (e) { /* factory needs G */ }
-      });
-    }
-    if (window.G) { push(window.G.quests); push(window.G.daily && window.G.daily.tasks); }
+    if (window.G) push(window.G.quests);
     return out;
   }
 

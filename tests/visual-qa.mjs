@@ -79,7 +79,7 @@ const VIEWPORTS = VP_ARG
     { key: 'desktop', width: 1440, height: 900 },
     { key: 'landscape', width: 852, height: 393 },
   ];
-const ALL_SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'bounty', 'dungeons', 'farming', 'house', 'stable', 'clan', 'party', 'events', 'shops', 'market', 'social'];
+const ALL_SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'farming', 'house', 'shops', 'market', 'social'];
 const SCREENS = argOf('--screens') ? ALL_SCREENS.filter((s) => argOf('--screens').split(',').includes(s)) : ALL_SCREENS;
 
 /* Injected into the page — runs against a REAL rendered layout.

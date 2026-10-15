@@ -768,8 +768,6 @@ function onPanelClick(e) {
     } else if (act === 'dest') {
       const go = btn.dataset.go;
       if (go === 'tab' && typeof window.showTab === 'function') window.showTab(btn.dataset.tab);
-      else if (go === 'botd' && window.HearthriseBossOfDay) window.HearthriseBossOfDay.fight();
-      else if (go === 'weekly' && window.HearthriseBossOfDay) window.HearthriseBossOfDay.fightWeekly();
       else if (go === 'monster' && btn.dataset.monster) preview(btn.dataset.monster);
     }
     return;

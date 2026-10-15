@@ -378,11 +378,8 @@ function restedRoads() {
     const rung = (lv > 0 && window.ROOMS && window.ROOMS.library) ? window.ROOMS.library.levels[lv - 1] : null;
     if (rung && rung.rested > 0) roads.library = rung.rested;
   } catch (e) {}
-  try {
-    if (window.HearthriseClanSeatUI && typeof window.HearthriseClanSeatUI.restedQuantum === 'function') {
-      roads.clan = Number(window.HearthriseClanSeatUI.restedQuantum()) || 0;
-    }
-  } catch (e) {}
+  /* `clan` stays in the shape core/rested.js reads and is 0: the clan Tavern
+     road left with the clans (2026-10-14 demolition). */
   return roads;
 }
 

@@ -128,7 +128,6 @@ export const VENDOR_SELL_VERB = 'vendor_sell';
    all-or-nothing under hr_apply. The wire carries `lines: [{item, qty}]` —
    names and counts, never a price (buildGoldRequest). */
 export const VENDOR_SELL_MANY_VERB = 'vendor_sell_many';
-export const CLAIM_REWARD_VERB = 'claim_reward';
 /* ── unlock_buy — GOLD OUT, A PERMANENT RUNG IN. ─────────────────────────────
    The mirror of shop_buy on the buy side and its OPPOSITE on the wire: shop_buy
    sends an offer AND a qty, unlock_buy sends an OFFER ID AND NOTHING ELSE. No
@@ -854,9 +853,6 @@ export function buildGoldRequest(opts) {
     body.lines = (Array.isArray(o.lines) ? o.lines : [])
       .map((l) => ({ item: String(l && l.item), qty: Number(l && l.qty) }));
   }
-  else if (o.verb === CLAIM_REWARD_VERB) {
-    body.reward = { kind: String(o.rewardKind), key: String(o.rewardKey) };
-  }
   /* ⚠ THE MARKET BRANCHES, AND THE ASYMMETRY IN THEM IS THE SECURITY PROPERTY.
      `market_list` sends an `ask` — a seller naming a price about their own
      goods, which becomes SERVER STATE the moment it is accepted. `market_buy`
@@ -1221,15 +1217,6 @@ export function sellItems(lines, key) {
   return sendGoldIntent({ verb: VENDOR_SELL_MANY_VERB, lines: out }, key);
 }
 
-export function claimReward(kind, rkey, key) {
-  const k = String(kind == null ? '' : kind);
-  const v = String(rkey == null ? '' : rkey);
-  if (!REWARD_KEY_RE.test(k) || !REWARD_KEY_RE.test(v)) {
-    return Promise.resolve(inert('unsendable', CLAIM_REWARD_VERB, 'bad_reward', { kind: k, key: v }, key));
-  }
-  return sendGoldIntent({ verb: CLAIM_REWARD_VERB, rewardKind: k, rewardKey: v }, key);
-}
-
 /* ══════════════════════════════════════════════════════════════════════════
    THE MARKET GESTURES (b355). Each returns a promise the caller does NOT await.
    ══════════════════════════════════════════════════════════════════════════
@@ -1329,7 +1316,7 @@ if (typeof window !== 'undefined') {
   });
 
   window.HearthriseGold = {
-    SHOP_BUY_VERB, VENDOR_SELL_VERB, VENDOR_SELL_MANY_VERB, CLAIM_REWARD_VERB, MAX_SELL_LINES,
+    SHOP_BUY_VERB, VENDOR_SELL_VERB, VENDOR_SELL_MANY_VERB, MAX_SELL_LINES,
     MARKET_VERBS, MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB,
     listOnMarket, cancelMarketListing, buyMarketListing, isListingId, MAX_ASK,
     MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS, PREDICTION_CARRY_MS, PREDICTED_FIELDS,
@@ -1339,7 +1326,7 @@ if (typeof window !== 'undefined') {
     envelopeOf, receiptOf, classifyGoldResponse, dropPrediction, isAnswered, applyGoldEnvelope,
     buildGoldRequest, newIntentKey, isIntentKey, resolvePurchase, shopOfferIndex,
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,
-    buyShop, buyUnlock, sellItem, sellItems, claimReward, sendGoldIntent,
+    buyShop, buyUnlock, sellItem, sellItems, sendGoldIntent,
     noteGoodsPrediction, goodsPredictions, reverseGoods, rekeyPrediction,
     UNLOCK_BUY_VERB, UNLOCK_OFFER_ID_RE,
     LEDGER: GOLD_SITE_LEDGER, BALANCE_RESOLVED_EVENT,

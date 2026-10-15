@@ -246,15 +246,15 @@ export default [
   /* -- interactive coverage -- THE ADVENTURES WINDOW. Tabs, a lock that
      says why, a star that survives the residue round trip, and the Hunt button's
      intent: start-hunt when the server takes it, the first spawn until then. */
-  () => tryRunAsync('ADV-1: the Adventures window renders its four tabs and each pane', async () => {
+  () => tryRunAsync('ADV-1: the Adventures window renders its two tabs and each pane', async () => {
     const CS = window.HearthriseCombatScreens, snap = snapshotG();
     try {
       try { window.stopCombat(); } catch (e) {}
       window.G.activeMonster = null;
       window.showTab('combat'); CS.setView('table');
       const tabs = [...document.querySelectorAll('#wt-tabs .wt-tab')].map((b) => b.textContent);
-      assert(tabs.join() === 'Hunts,Bosses,Dungeons,Monsters', 'the tabs read ' + tabs.join());
-      const want = { hunts: '#wt-hunts .wt-hunt', bosses: '#wt-bosses .wt-row', dungeons: '#wt-dungeons .wt-row', training: '#wt-grid .wt-card' };
+      assert(tabs.join() === 'Hunts,Monsters', 'the tabs read ' + tabs.join());
+      const want = { hunts: '#wt-hunts .wt-hunt', training: '#wt-grid .wt-card' };
       for (const k of Object.keys(want)) {
         document.querySelector('#wt-tabs [data-wtab="' + k + '"]').click();
         await sleep(30);

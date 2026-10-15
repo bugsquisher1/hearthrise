@@ -18,7 +18,7 @@ import { SHOP_OFFERS } from '../data/shops.js?v=584';
 
 const SKILL_LABEL = {
   smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer',
-  runecrafting: 'Runecrafting', stonemason: 'Stonemason',
+  runecrafting: 'Runecrafting',
 };
 
 /* b372 — WHICH COUNTER SELLS IT. The index answered "where's this from?" from

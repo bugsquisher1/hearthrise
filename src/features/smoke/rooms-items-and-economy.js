@@ -1366,78 +1366,6 @@ export default [
       'preview hit-chance must equal the engine accuracy');
   }),
 
-  // gold-arm: upgradeRoom's gold debit is gated by clientMayWriteRecordField
-  // (switch-OFF position); the stamp makes the affordability read known.
-  () => tryRunAsync('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', async () => {
-    // The most common dungeon reward was inert — upgradeRoom never touched it.
-    const G = window.G;
-    if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.kitchen || !window.ITEMS) return;
-    const bp = 'kitchen_blueprint_t2';
-    if (!window.ITEMS[bp]) return;
-    const bag = serverBagFixture();
-    const snap = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), homestead: JSON.parse(JSON.stringify(G.homestead || {})), inv: JSON.parse(JSON.stringify(G.inventory || {})), gold: G.gold };
-    try {
-      G.homestead = { tier: 6 };                              // property tier high enough that the rung gate passes
-      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });   // built; upgrading to tier 2
-      const inv = {}; Object.keys(window.ITEMS).forEach(id => inv[id] = 100000); delete inv[bp]; // everything EXCEPT the blueprint
-      G.inventory = inv; G.gold = 1e9;
-      bag.agree();   // the server holds everything but the blueprint, too
-      /* b515: the rooms record is ARMED, so the "already built at 1" premise has
-         to arrive through applyRecord or `roomRungG` reads UNKNOWN and this
-         would be testing the FIRST build, not the upgrade. */
-      stampRecordLikeLoad(G);
-      const before = G.rooms.kitchen;
-      /* ⚠ THE BLUEPRINT GATE IS THE CLIENT'S, AND THAT IS DELIBERATE — b500's
-         own note: "THE ITEM COST + BLUEPRINT STAY CLIENT-SIDE — item authority
-         is a separate program; hr_unlock_buy consumes them server-side, so this
-         predicts the gold half." So the refusal must cost NO round trip, and the
-         consumption is still a local write (inventory is not on the record). */
-      await withRoomServer({ kitchen: before + 1 }, G.gold - 1, async (rig) => {
-        const noBp = window.upgradeRoom('kitchen');
-        await rig.drain();
-        assert(noBp === false && G.rooms.kitchen === before, 'kitchen tier 2 must be blocked without the blueprint');
-        assert(rig.sent.length === 0,
-          'a blueprint-refused build spent a server round trip to be told what the client already knew: '
-          + JSON.stringify(rig.sent));
-
-        G.inventory[bp] = 1;
-        bag.agree();   // the blueprint is REAL server-side (the gate counts the server's bag)
-        /* WHO EATS THE BLUEPRINT, AND WHY THE CLIENT MAY NOT PREDICT IT.
-           Under b500 the client's `_debitRoom()` — which removed the blueprint
-           and the item costs — runs ONLY on the client-authoritative branch. On
-           the server branch `hr_unlock_buy` consumes them inside the transaction
-           that took them, and the client predicts nothing, deliberately: the
-           general bag is still MERGE (`isInventoryAbsolute()` is false in
-           production — the inventory arm has not landed), so an envelope cannot
-           REMOVE an item, and a local removal would therefore be a subtraction
-           nothing can ever reconcile. The b362 report is the same shape pointed
-           the other way (14 Dragon Scales decaying 14 -> 2 -> 1 as envelopes
-           arrived).
-
-           So the assertion is that the client does NOT author the consumption,
-           and the intent does not name the materials. The blueprint disappearing
-           from the player's bag is the INVENTORY ARM's to deliver; asserting it
-           here would be asserting a bag the client is currently right not to
-           write. Named, not tested away.
-           MUTATION: restore `_debitRoom()` on the server branch of upgradeRoom
-           → red on the "predicted" assertion below. */
-        const withBp = window.upgradeRoom('kitchen');
-        await rig.drain();
-        assert(withBp === true, 'with the blueprint the upgrade must be dispatched');
-        assert(rig.sent.length === 1 && rig.sent[0].offer === 'room.kitchen.' + (before + 1),
-          'the upgrade named the wrong offer: ' + JSON.stringify(rig.sent));
-        assert(!('blueprint' in (rig.sent[0] || {})) && !('items' in (rig.sent[0] || {})),
-          'the upgrade body names the materials — the server reads them off hr_unlock_offers, and a '
-          + 'client that can name them can name none: ' + JSON.stringify(rig.sent[0]));
-        assert(G.rooms.kitchen === before + 1, 'with the blueprint kitchen must upgrade');
-        assert((G.inventory[bp] || 0) === 1,
-          'the client PREDICTED the blueprint consumption. The bag is merge-mode, so an envelope cannot '
-          + 'put an item back — a local removal here is a permanent subtraction nothing reconciles, which '
-          + 'is the b362 Dragon-Scale decay in reverse. hr_unlock_buy is the consumer.');
-      });
-    } finally { G.rooms = snap.rooms; G.homestead = snap.homestead; G.inventory = snap.inv; G.gold = snap.gold;
-      try { stampRecordLikeLoad(G); } catch (e) {} bag.restore(); }
-  }),
 
   () => tryRun('WAVE2: the damage food buff actually raises max hit (Cooked Shark honest)', () => {
     const G = window.G;
@@ -1778,22 +1706,6 @@ export default [
   }),
 
 
-  () => tryRun('WAVE4c: data-driven boss registry — full schema + one source of truth', () => {
-    const B = window.BOSSES, BD = window.BOSS_BY_DUNGEON, D = window.DUNGEONS;
-    if (!B || !D) return;
-    const REQ = ['id', 'name', 'title', 'tier', 'reqLv', 'style', 'weakness', 'mechanic', 'signature'];
-    Object.entries(B).forEach(([id, b]) => {
-      REQ.forEach(f => assert(b[f] != null, 'boss ' + id + ' missing field: ' + f));
-      assert(['melee', 'ranged', 'magic'].includes(b.style), b.id + ' style must be a real combat style');
-      assert(Array.isArray(b.signature) && b.signature.every(s => window.ITEMS[s]), b.id + ' signature items must exist');
-    });
-    // single source of truth: a dungeon's boss name must match its registry record
-    Object.entries(D).forEach(([did, d]) => {
-      const rec = BD && BD[did];
-      if (rec && d.boss) assert(rec.name === d.boss.name,
-        did + ': registry boss "' + rec.name + '" must match the dungeon card "' + d.boss.name + '"');
-    });
-  }),
 
 
   () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
@@ -1829,39 +1741,6 @@ export default [
       orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to VENDOR_TRASH (src/data/catalogue-coherence.js): ' + orphans.slice(0, 30).join(', '));
   }),
 
-  () => tryRun('DGN-TRUTH-1: armed, the Scavenger summary shows the server settle, never the client rolls', () => {
-    assert(typeof window.scavengerSummaryHtml === 'function', 'dungeon-scavenger.js must expose scavengerSummaryHtml');
-    const I = window.ITEMS || {}, name = (id) => (I[id] && I[id].n) || id;
-    const o = { armed: true, victory: true, takenPct: 80, bossName: 'Bone Lord', awarded: [{ id: 'big_bones', qty: 5 }] };
-    const html = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: { outcome: 'settled', body: { settled: { items: { bone_key: 2 }, scrip: 9 } } } }));
-    assert(html.includes(name('bone_key')) && html.includes('+2') && html.includes('9 Dungeon Scrip'),
-      'the armed summary must render the settled chest and scrip (got ' + html + ')');
-    assert(!html.includes(name('big_bones')), 'THE BUG: the armed summary listed a client roll the server never paid');
-    const pending = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: null }));
-    assert(pending.includes('Counting your rewards') && !pending.includes(name('big_bones')),
-      'before the verdict the armed summary must say it is settling, and name no client roll (got ' + pending + ')');
-  }),
-
-  /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
-     REPORTED LIVE 2026-09-13, Tyler's own character: the Goblin Warcamp card
-     read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server
-     says you have no key for that dungeon." Measured in production the same minute:
-     that character's `player_inventory` held bone_key 142 and obsidian_sigil 56 and
-     NO goblin_seal row at all.
-
-     THE MECHANISM: an attended kill rolls its drops with the CLIENT's Math.random
-     for instant feedback while the settle pays the SERVER's re-simulation of the
-     same span with the server's seeded PRNG, and the envelope's live merge is a
-     one-way `Math.max` ratchet (accrue.js, the never-delete rule) which
-     can never take the difference back. So a 6%-chance key the client rolled and
-     the server did not stays in the display bag for the rest of the session, the
-     card counts it, and the button invites a run `hr_dungeon_settle` must refuse.
-
-     The gate and the label now read `serverItemCount` -- the mirror of
-     `hr_state_of`'s whole-bag projection of `player_inventory`, which is the exact
-     table the RPC debits. An unstated bag is PENDING (DGN-KEY-2), never the local count.
-     MUTATION: point keyHeld() back at G.inventory, or drop the _serverBag mirror,
-     and (a)/(b) go red. */
   () => tryRun('FARM-SEED-1: a plant is pre-flighted against the server seed count, not the fresh-G start kit', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.gateItemCount === 'function' && typeof window.plantCrop === 'function'
@@ -2348,31 +2227,6 @@ export default [
   /* ══ W0 (game-designer, 2026-10-10) — the fun list, played through the page ══
      The data rules live in tests/w0f-fun-content.mjs; these drive the three
      surfaces a player meets. */
-  () => tryRun('W0-TROPHY-1: boss trophies hang in the Trophy Room from bag AND depot, and each one held lights a lamp', () => {
-    const H = window.HearthriseHomestead, BT = window.HearthriseBossTrophies;
-    assert(H && typeof H.bossTrophySections === 'function' && typeof H.roomScene === 'function', 'trophy wall seam absent');
-    assert(BT && Array.isArray(BT.list) && BT.list.length === 4, 'HearthriseBossTrophies must publish the four boss trophies');
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      G.inventory = Object.assign({}, G.inventory, { warboss_standard: 0, lexarch_seal: 0, voidwoven_sigil: 0, dragon_relic: 0 });
-      G.bank = Object.assign({}, G.bank, { warboss_standard: 0, lexarch_seal: 0, voidwoven_sigil: 0, dragon_relic: 0 });
-      const bare = H.bossTrophySections()[0];
-      assert(bare && /0 of 4 hung/.test(bare.title), 'an empty wall must read 0 of 4: ' + (bare && bare.title));
-      assert(bare.rows.every((r) => !/Hung/.test(r.right)), 'nothing held, nothing hung');
-      assert(bare.rows.some((r) => /Goblin Warcamp/.test(r.right)), 'a missing trophy must say where it comes from');
-      const sceneBare = H.roomScene('trophy', true);
-      G.inventory.warboss_standard = 1;   // in the bag
-      G.bank.dragon_relic = 1;            // in the depot — still hung
-      const two = H.bossTrophySections()[0];
-      assert(/2 of 4 hung/.test(two.title), 'bag + depot must both hang: ' + two.title);
-      assert(two.rows.filter((r) => /Hung/.test(r.right)).length === 2, 'exactly the two held trophies read Hung');
-      const sceneTwo = H.roomScene('trophy', true);
-      const lamps = (h) => (h.match(/<ellipse/g) || []).length;
-      assert(lamps(sceneTwo) === lamps(sceneBare) + 2, 'each held trophy lights one lamp (' + lamps(sceneBare) + ' -> ' + lamps(sceneTwo) + ')');
-      assert(lamps(H.roomScene('trophy', false)) === 0, 'an unbuilt (unlit) room lights nothing');
-    } finally { restoreG(snap); }
-  }),
 
   () => tryRun('W0-CHAMP-1: each tier 1-5 has a champion on the Fight list, its relic is server-revealed, and the board never offers one', () => {
     const M = window.MONSTERS, LF = window.HearthriseLuckyFinds;

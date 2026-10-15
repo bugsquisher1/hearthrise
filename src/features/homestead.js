@@ -1333,7 +1333,6 @@
     roomDescriptor: roomDescriptor,
     modalDescriptor: modalDescriptor,
     trophyWallSections: trophyWallSections,
-    bossTrophySections: bossTrophySections,
     roomScene: roomScene,
     renderRoomGrid: renderRoomGrid,
     openRoom: openRoom,

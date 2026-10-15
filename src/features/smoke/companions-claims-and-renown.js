@@ -1573,11 +1573,8 @@ export default [
         assert(all.indexOf(id) < 0, 'scroll ' + id + ' drops but its target item "' + it.recipe + '" does not exist (b145)');
       }
     });
-    // b343: and the two that were unblocked must actually be obtainable now —
-    // shipping the item without the drop leaves the recipe permanently locked.
-    ['spellstone_diagram', 'gemcutter_note'].forEach((s) => {
-      assert(all.indexOf(s) >= 0, s + ' must now drop — its target item shipped in b343 (slot-ladders.js)');
-    });
+    // (b343's two unblocked scrolls, spellstone_diagram and gemcutter_note, were cut
+    //  with the gear recipes on 2026-10-14; the rule above and below still holds.)
     // And every scroll that DOES drop must actually unlock a live recipe.
     const gates = new Set();
     Object.keys(window.ARTISAN_RECIPES || {}).forEach((sk) =>

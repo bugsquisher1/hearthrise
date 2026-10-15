@@ -63,9 +63,7 @@ export default [
     assert(window.SKILL_ACTION_STAT && window.SKILL_ACTION_STAT.fishing === 'fished',
       'SKILL_ACTION_STAT must be published — quest-nav inverts it');
 
-    // A bounty is a goal too, and its "where" is the board.
-    assert(at({ id: 'b1', type: 'cull', target: 'wolf', tier: 1, difficulty: 'easy', required: 8 }) === 'bounty',
-      'a bounty contract -> the bounty board');
+    // (The bounty-contract route left with the board, 2026-10-14.)
 
     // Copy honesty: a goal that names a thing gets a button that names it.
     assert(QN.destination(FISH).verb === 'Go fish', 'a fishing goal should say Go fish');

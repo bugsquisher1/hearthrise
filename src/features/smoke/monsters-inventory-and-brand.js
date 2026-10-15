@@ -2920,8 +2920,8 @@ export default [
 
     // (b) EVERY grant source is ruled ownable-or-excluded, including the
     //     non-engine ones the universe used to miss.
-    // (qmStockIds left with the Quartermaster, 2026-10-14.)
-    for (const fn of ['shopGrantIds', 'goalRewardIds', 'raidRewardIds', 'seedIds']) {
+    // (qmStockIds and raidRewardIds left with the Quartermaster and the raids, 2026-10-14.)
+    for (const fn of ['shopGrantIds', 'goalRewardIds', 'seedIds']) {
       assert(typeof IA[fn] === 'function' && IA[fn]().size > 0,
         fn + ' must be published and non-empty, or the completeness check is walking an empty set');
     }

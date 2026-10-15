@@ -4042,7 +4042,7 @@ export default [
           }),
 
           // ── regression suite — BAR-FIT-2 (review of the measured fit, 9e2030bc) ──
-          // The fit re-runs on CONTENT, not only on width: a bar held at 560px
+          // The fit re-runs on CONTENT, not only on width: a bar held at 420px
           // goes from crowded to sparse (a new foe, a small
           // Lifetime) and must step back DOWN, then crowded again and step back
           // UP. The width never changes, so the ResizeObserver never fires - only
@@ -4053,18 +4053,19 @@ export default [
             const bad = [], G = window.G, LT = window.HearthriseLifetime;
             await statusBar(['stated'], null, async ({ bar, steps, settle, crowd }) => {
               try {
-                bar.style.maxWidth = '560px';
+                // 420px: without the bounty and away chips (2026-10-14) 560px no longer crowds the bar.
+                bar.style.maxWidth = '420px';
                 crowd();
                 await settle(() => steps() > 0);
                 const crowded = steps();
-                if (!crowded) { bad.push('the crowded bar at 560px took no fit step - nothing to step down from'); return; }
+                if (!crowded) { bad.push('the crowded bar at 420px took no fit step - nothing to step down from'); return; }
                 LT.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 G.combatKillsThisFoe = 5;
                 window.refreshActivityBar();
-                if (!(await settle(() => steps() < crowded))) bad.push('at 560px a sparse bar kept ' + crowded + ' steps (the content change did not re-fit)');
+                if (!(await settle(() => steps() < crowded))) bad.push('at 420px a sparse bar kept ' + crowded + ' steps (the content change did not re-fit)');
                 const sparse = steps();
                 crowd();
-                if (!(await settle(() => steps() > sparse))) bad.push('at 560px the crowded bar came back and stayed at ' + sparse + ' steps');
+                if (!(await settle(() => steps() > sparse))) bad.push('at 420px the crowded bar came back and stayed at ' + sparse + ' steps');
               } finally { bar.style.maxWidth = ''; }
             });
             assert(bad.length === 0, 'THE CONTENT-BLIND FIT: ' + bad.join('; '));

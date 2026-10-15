@@ -61,7 +61,12 @@ export const COMBAT_BALANCE = {
   monsterAttackDamageScale: 0.45,
   defenseXpMiss: 1,
   defenseXpDamageScale: 2,
-  tickMs: 2400,
+  /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-14: "2.0 s for every
+     player and monster basic attack — the Tibia rhythm"; Combat Design Bible
+     v1.4). The ONE source: the live scheduler (combatTickMs), the hunt engine
+     (hr-accrue deriveTickMs) and the away replay all read it through
+     swingIntervalMs; tests/basic-attack-interval.mjs proves no second copy. */
+  tickMs: 2000,
   /* THE FLOOR ON A SWING. `combatTickMs()` clamps to this, and so does
      `simulateSpan` — because a tick interval is a DIVISOR of elapsed time on
      the accrual path, and a divisor is an exploit surface. It lives here,

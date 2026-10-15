@@ -183,6 +183,8 @@
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",
     "node tests/hunt-session-engine.mjs": "economy-selftests",
     "node tests/hunt-session-engine.mjs --mutate": "economy-selftests",
+    "node tests/basic-attack-interval.mjs": "economy-selftests",
+    "node tests/basic-attack-interval.mjs --mutate": "economy-selftests",
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs --selftest": "economy-selftests",

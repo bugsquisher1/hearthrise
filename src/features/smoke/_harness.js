@@ -1283,7 +1283,7 @@ export const awaySpan = (o) => {
   const out = C.combatSim.simulateSpan(state, Object.assign({
     away: opts.away !== false,
     fromMs, toMs: fromMs + spanMs,
-    tickMs: Number.isFinite(opts.tickMs) ? opts.tickMs : 2400,
+    tickMs: Number.isFinite(opts.tickMs) ? opts.tickMs : C.combat.COMBAT_BALANCE.tickMs,
     rng: C.rngMod.createRng(Number.isFinite(opts.seed) ? opts.seed : 0xC0FFEE),
     monsters: window.MONSTERS,
     playerRolls: () => ({ accuracy: 1e9, maxHit: 40, critChance: 0 }),

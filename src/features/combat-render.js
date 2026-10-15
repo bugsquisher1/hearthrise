@@ -15,6 +15,7 @@
 // Exports: setupCombatRender()
 
 import { MONSTERS } from '../data/monsters.js?v=585';
+import { COMBAT_BALANCE } from '../core/combat.js?v=585';
 import { ITEMS } from '../data/items.js?v=585';
 import { formatDropOdds } from '../core/drops.js?v=585';
 import { SIGNPOSTS } from '../data/signposts.js?v=585';
@@ -158,7 +159,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
 ));
 
 function tickMs() {
-  return (window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400;
+  return COMBAT_BALANCE.tickMs;
 }
 function weaponLabel(type) {
   return (window.WEAPON_TYPES && window.WEAPON_TYPES[type]) || type || '—';

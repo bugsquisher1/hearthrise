@@ -42,6 +42,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { MONSTERS } from '../data/monsters.js?v=585';
+import { COMBAT_BALANCE } from '../core/combat.js?v=585';
 import { ITEMS } from '../data/items.js?v=585';
 import * as ST from './session-tally.js?v=585';
 import { fill } from './signposts.js?v=585';
@@ -94,7 +95,7 @@ function weaponLabel(t) { return (window.WEAPON_TYPES && window.WEAPON_TYPES[t])
 function combatLevel() { return typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : 1; }
 function tickMs() {
   if (typeof window.combatTickMs === 'function') { try { return window.combatTickMs(); } catch (e) { /* fall through */ } }
-  return (window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400;
+  return COMBAT_BALANCE.tickMs;
 }
 /** The unlock gate the whole game uses for a tier. One formula, one place. */
 function reqLevelFor(m) { return (((m && m.tier) || 1) - 1) * 15; }

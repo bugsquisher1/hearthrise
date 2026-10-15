@@ -37,6 +37,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { pickSpawn } from '../src/core/hunt-spawn.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
+import { COMBAT_BALANCE } from '../src/core/combat.js';
 import { createRng } from '../src/core/rng.js';
 import { huntRows } from '../tools/gen-hunts.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
@@ -88,7 +89,7 @@ function run(S) {
 
   // P1 — the mix, on a hunt session, one seed.
   const hunt = HUNT_INDEX.mill_cellar;
-  const TICK = 2400; const TICKS = 3000;
+  const TICK = COMBAT_BALANCE.tickMs; const TICKS = 3000;
   const fresh = () => ({ activeMonster: hunt.spawns[0].monster, monsterHp: 0, monsterMaxHp: 0,
     playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} });
   const T0 = Date.UTC(2026, 9, 20, 1, 0, 0);
@@ -284,7 +285,7 @@ if (!MUTATE) {
       const E = await import(pathToFileURL(f).href);
       const t = { items: {}, xp: {}, kills: {} };
       const st = { activeMonster: 'rat', monsterHp: 0, monsterMaxHp: 0, playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} };
-      const ctx = { fromMs: 0, toMs: 2400 * 500, tickMs: 2400, monsters: MONSTERS,
+      const ctx = { fromMs: 0, toMs: COMBAT_BALANCE.tickMs * 500, tickMs: COMBAT_BALANCE.tickMs, monsters: MONSTERS,
         hunt: HUNT_INDEX.mill_cellar, bonus: () => 0, playerRolls: () => ({ accuracy: 0.9, maxHit: 6, critChance: 0 }),
         monsterRolls: () => ({ accuracy: 0, maxHit: 0 }), weakness: () => ({ dropMult: 1 }),
         fx: { recordKill(id) { t.kills[id] = (t.kills[id] || 0) + 1; } } };

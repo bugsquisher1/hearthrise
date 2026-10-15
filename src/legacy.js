@@ -10807,7 +10807,7 @@ function _activityProgress(){
     /* Monster combat: tick is fixed (~2.4s). We can fake fluid progress
        by interpolating between combatLog entries — but cleaner: read
        G._combatTickStart if set, else just animate via timer. */
-    const tickMs = (typeof COMBAT_BALANCE === 'object' && COMBAT_BALANCE.tickMs) || 2400;
+    const tickMs = COMBAT_BALANCE.tickMs; /* the one basic-attack interval (tests/basic-attack-interval.mjs) */
     const last = G._combatTickStart || (G._combatTickStart = Date.now());
     const elapsed = Date.now() - last;
     return Math.min(1, elapsed / tickMs);
@@ -11197,7 +11197,7 @@ console.log('Activity bar: loaded');
        in at its rolled chance. */
     var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {};
     var pr = (typeof getPlayerCombatRolls === 'function') ? getPlayerCombatRolls(m, eq) : null;
-    var CB = (typeof window.COMBAT_BALANCE === 'object') ? window.COMBAT_BALANCE : {tickMs:2400, critMult:1.5};
+    var CB = COMBAT_BALANCE;
     var maxHit, accuracy, critChance, weaknessBonus;
     if(pr){
       maxHit = pr.maxHit; accuracy = pr.accuracy; critChance = pr.critChance || 0;
@@ -11211,7 +11211,7 @@ console.log('Activity bar: loaded');
     var meanHit = (1 + maxHit) / 2;                   // uniform mean
     var critMult = CB.critMult || 1.5;
     var avgDmg = accuracy * meanHit * (1 + critChance * (critMult - 1));
-    var tickMs = (typeof combatTickMs === 'function') ? combatTickMs() : (CB.tickMs || 2400);
+    var tickMs = (typeof combatTickMs === 'function') ? combatTickMs() : CB.tickMs;
     var dps = avgDmg * (1000 / tickMs);
     var killTimeS = m.hp / Math.max(0.01, dps);
     var killsHr = 3600 / killTimeS;
@@ -11482,7 +11482,7 @@ console.log('Activity bar: loaded');
 
       <div class="mp-info-row">
         <div><span class="mp-info-label">Weakness</span><span class="mp-info-val">${weaknessLabel} ${weaknessTag}</span></div>
-        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((typeof combatTickMs==='function'?combatTickMs():((window.COMBAT_BALANCE&&window.COMBAT_BALANCE.tickMs)||2400))/1000).toFixed(2)}s</span></div>
+        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((typeof combatTickMs==='function'?combatTickMs():COMBAT_BALANCE.tickMs)/1000).toFixed(2)}s</span></div>
       </div>
 
       <div class="mp-grid">
@@ -13892,7 +13892,7 @@ window._calcForSkill = function(skill){
     var avgDmg = (1 + maxHit)/2 * accuracy;
     if(avgDmg <= 0) return null;
     var ticksToKill = Math.ceil(m.hp / avgDmg);
-    var tickMs = 2400; /* default combat tick */
+    var tickMs = COMBAT_BALANCE.tickMs; /* the one basic-attack interval */
     var msPerKill = ticksToKill * tickMs;
     var killsHr = 3600000 / msPerKill;
     var killXp = skill === 'hitpoints' ? 0 : m.xp * ratio; // killXpRoute pays styled skills only

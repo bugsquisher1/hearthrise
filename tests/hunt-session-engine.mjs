@@ -92,7 +92,7 @@ function melee(M, seed) {
   });
   const state = { activeMonster: 'rat', playerHp: 12, playerMaxHp: 12, huntSession: hs, stats: {},
     deathsTodayBefore: 1, deathsLifetimeBefore: 9, inventory: {} };
-  const ctx = { tickMs: 2400, swingSeed: seederOf(seed, hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+  const ctx = { tickMs: M.C.COMBAT_BALANCE.tickMs, swingSeed: seederOf(seed, hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     playerRolls: () => ({ accuracy: 0.55, maxHit: 3, critChance: 0.05 }),
     monsterRolls: () => ({ accuracy: 0.7, maxHit: 7 }) };
@@ -322,7 +322,7 @@ function dryFixture(M, onDry) {
   const shares = [];
   const state = { activeMonster: 'rat', playerHp: 300, playerMaxHp: 300, huntSession: hs, stats: {}, inventory: {},
     equipment, ammoCarry: {}, skills };
-  const ctx = { tickMs: 2400, swingSeed: seederOf('0x5eed', hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
+  const ctx = { tickMs: M.C.COMBAT_BALANCE.tickMs, swingSeed: seederOf('0x5eed', hs.id), monsters: M.MONSTERS, items: M.ITEMS, hunt: M.HUNTS.mill_cellar,
     weaponType: 'ranged', bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     playerRolls: (m, o) => { shares.push(o && o.ammoShare); return M.C.playerCombatRolls(m, { eq, equipment, items: M.ITEMS, skills, profile, ammoShare: o && o.ammoShare }); },
     monsterRolls: () => ({ accuracy: 0, maxHit: 0 }), fromMs: T0, toMs: T0 + 600000 };

@@ -107,3 +107,7 @@ Ship Honing first (it reuses 7 ids and proves the hunting-time clock), then Keen
 ## Open questions for Tyler (2)
 1. One home per account: I made the home, benches and trophy shelf **account-wide** (shared by Hero 1/2/3), and the depot, plots, hands, bestiary and preparations **per hero**. Confirm.
 2. Extra-rare: MDR says 100–200 h, your 10-14 note says 100–150 h. I centred it on 150 h with the 100–200 band (the bestiary pulls the floor to 80 h). OK?
+
+## Tyler answers (2026-10-15)
+- Home, benches, depot, trophies AND the bestiary are shared by all characters on an account (an incentive to play alts). Bestiary kill counts, stages and fees are account-wide.
+- Extra-rare drops centred at 150 h (inside the 100-200 h band) is the starting point.

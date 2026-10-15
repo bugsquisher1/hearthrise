@@ -3,6 +3,14 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-10-14 · FROM Systems Engineer (D1 `lane/demo-shell`) → TO C2 + D2 + B1 + Art Director · **What the demolished client leaves for each lane**
+
+- **C2 (net/accrue, net/record, edge):** delete the `window.DUNGEONS` clause from the inventory-authority arm gate and the `main.js` line that publishes it empty (CONFLICTS.md 2026-10-14); `tests/demolition-absence.mjs` ALLOW lists your remaining reads (HearthriseDaily/Renown, `enchant`, the edge verbs) and goes red if any spreads — delete each row with its read. `serverAutoEats` and `playStreakKnown` are in dead-exports' ALLOW for the same reason. The ELEM-5b in-page test pins accrue's top-level `enchant` adoption — delete it with that code.
+- **D2 (data):** ~30 gear rows (helms, platebodies, dragonrend_greatblade, maple_bow, gold_ring…) have no recipe left (b243/b247/b348/LUCKY-7/WAVE4 red in-page); `bone_key` still drops and `oak_rod` is granted but neither is classified in item-authority (SERVER-OWNED-4); the 2026-10-23 staged catalogue breaks the replay chain, which reds every pglite guard (A0, A3c, BIND, utc-midnight-replay, ledger-rollup…).
+- **B1 (combat-screens, death-sheet, hunt-panel):** the War Table has no destination cards now (rail renders empty); death-sheet still names the Bounty Shop and TRAITS; hunt-panel reads HearthriseMuster.
+- **Art Director:** `src/styles/room-modal.css` is the room/hrcs modal's own sheet (moved out of clan-seat.css, still 13.5px under the font-floor exemption it inherited).
+
+
 ### 2026-10-10 · FROM Systems Engineer → TO Game Designer + Art Director + Security · **W0 ammo / Runecrafting / Prayer (lane/w0e-ammo-runecraft-prayer)**
 
 **Game Designer — proposed numbers, all data rows (retune a row, not a branch):**

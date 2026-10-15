@@ -5,7 +5,8 @@
 const CONFIG = {
   tile: 32, scale: 2, dt: 1 / 30,
   swing: 2.0,                 // every attack, heroes and monsters
-  aggroRadius: 5,             // tiles, knight to any pack member (needs line of sight)
+  heroRespawnSec: 8,
+  pullDist: 1.5,               // pack aggros when the knight, inside its room, is this close to the pack centre          // a dead hero reappears at the entrance
   respawnSec: 90,
   corpseSec: 4,
   regroupSec: 1.5,
@@ -28,12 +29,12 @@ const CONFIG = {
   },
   // the route, pocket by pocket; spawn tiles come from the PixelLab map placements
   pockets: [
-    { name: 'NW room',      spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
-    { name: 'SW room',      spawns: [['slime', 6, 31], ['slime', 7, 30], ['slime', 8, 31]] },
-    { name: 'Channel west', spawns: [['bat', 30, 27], ['bat', 31, 29]] },
-    { name: 'NE room',      spawns: [['spider', 41, 5], ['spider', 43, 5], ['spider', 40, 6], ['bat', 42, 4], ['bat', 44, 6]] },
-    { name: 'SE room',      spawns: [['kobold', 43, 32], ['kobold', 44, 31], ['kobold', 45, 32]] },
-    { name: 'Rat King',     spawns: [['ratking', 53, 23], ['rat', 52, 21], ['rat', 52, 25]] },
+    { name: 'NW room',      room: [3, 2, 12, 9],   spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
+    { name: 'SW room',      room: [2, 27, 13, 34], spawns: [['slime', 6, 31], ['slime', 7, 30], ['slime', 8, 31]] },
+    { name: 'Channel west', room: [29, 25, 37, 34], spawns: [['bat', 30, 27], ['bat', 31, 29]] },
+    { name: 'NE room',      room: [38, 2, 48, 12], spawns: [['spider', 41, 5], ['spider', 43, 5], ['spider', 40, 6], ['bat', 42, 4], ['bat', 44, 6]] },
+    { name: 'SE room',      room: [40, 30, 47, 34], spawns: [['kobold', 43, 32], ['kobold', 44, 31], ['kobold', 45, 32]] },
+    { name: 'Rat King',     room: [51, 17, 55, 29], spawns: [['ratking', 53, 23], ['rat', 52, 21], ['rat', 52, 25]] },
   ],
   start: [[0, 21], [0, 20], [0, 22], [1, 21]],
 };
@@ -46,6 +47,7 @@ const key = (x, y) => y * W + x;
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 const eu = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const inRoom = (i, x, y) => { const r = CONFIG.pockets[i].room; return x >= r[0] && y >= r[1] && x <= r[2] && y <= r[3]; };
 
 // ---------- images ----------
 const IMG = {};
@@ -165,10 +167,11 @@ const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
 const living = side => S.units.filter(u => u.alive && u.side === side);
 
 // ---------- movement ----------
+function leash(u) { return u.side === 'mon' ? (x, y) => !inRoom(u.pocket, x, y) : null; }
 function setGoal(u, gx, gy) {
   if (u.goal && u.goal[0] === gx && u.goal[1] === gy && (u.path.length || (u.x === gx && u.y === gy))) return;
   u.goal = [gx, gy];
-  u.path = astar(u.x, u.y, gx, gy) || [];
+  u.path = astar(u.x, u.y, gx, gy, leash(u)) || [];
 }
 function stepUnit(u, dt) {
   if (u.t < 1) {
@@ -190,7 +193,8 @@ function stepUnit(u, dt) {
       swap(u, blocker); return;
     }
     if (u.wait > 0.5 && u.goal) {
-      const p = astar(u.x, u.y, u.goal[0], u.goal[1], (x, y) => S.occ.has(key(x, y)) && cheb({ x, y }, u) <= 3);
+      const lf = leash(u);
+      const p = astar(u.x, u.y, u.goal[0], u.goal[1], (x, y) => (S.occ.has(key(x, y)) && cheb({ x, y }, u) <= 3) || (lf && lf(x, y)));
       if (p && p.length) u.path = p;
       u.wait = 0.2;
     }
@@ -220,11 +224,34 @@ function face(u, t) { if (t) u.dir = dirOf(t.x - u.x, t.y - u.y); }
 function hurt(t, amt, src) {
   if (!t.alive) return;
   t.hp = Math.max(0, t.hp - amt);
-  S.fx.push({ type: 'num', x: t.px, y: t.py, txt: String(amt), col: t.side === 'hero' ? '#ff6a5a' : '#ffe9b0', age: 0 });
+  t.numN = ((t.numN || 0) + 1) % 4;
+  S.fx.push({ type: 'num', x: t.px, y: t.py, dx: [0, 7, -7, 0][t.numN], dy: [0, -4, -4, -9][t.numN], txt: String(amt), col: t.side === 'hero' ? '#ff6a5a' : '#ffe9b0', age: 0 });
   S.fx.push({ type: 'spark', x: t.px, y: t.py, age: 0 });
   if (t.hp <= 0) {
     t.alive = false; t.dead = 0; t.path = []; S.occ.delete(key(t.x, t.y));
-    if (t.side === 'hero') { t.hp = 1; t.alive = true; S.occ.set(key(t.x, t.y), t); } // placeholder: heroes don't die in the PoC
+    if (t.side === 'hero') heroDied(t);
+  }
+}
+function heroDied(h) {
+  h.respawnAt = S.time + CONFIG.heroRespawnSec; h.goal = null;
+  STATS.deaths = (STATS.deaths || 0) + 1;
+  if (S.pull) S.pull.deaths = (S.pull.deaths || 0) + 1;
+  if (h.kind === 'knight') {
+    // wipe: the pack leashes home and heals; everyone respawns at the entrance
+    for (const u of living('hero')) { u.alive = false; u.dead = 0; u.path = []; S.occ.delete(key(u.x, u.y)); u.respawnAt = h.respawnAt; }
+    for (const m of living('mon')) if (m.target) { m.target = null; m.hp = m.maxHp; setGoal(m, ...m.home); }
+    if (S.pull) { S.pull.wipe = true; endPull(); }
+    S.phase = 'dead';
+  } else {
+    for (const m of living('mon')) if (m.target === h) m.target = hero('knight');
+  }
+}
+function respawnHeroes() {
+  for (const h of S.units) if (h.side === 'hero' && !h.alive && S.time >= h.respawnAt) {
+    const f = freeNear(...CONFIG.start[0], 3); if (!f) continue;
+    Object.assign(h, { alive: true, hp: h.maxHp, x: f[0], y: f[1], px: f[0], py: f[1], fx: f[0], fy: f[1], t: 1, path: [], goal: null, dead: 0 });
+    S.occ.set(key(f[0], f[1]), h);
+    if (h.kind === 'knight') { S.trail = [[f[0], f[1]]]; S.camSnap = true; }
   }
 }
 function adjacentMonsters(tile) { return living('mon').filter(m => m.target && cheb(m, tile) <= 1); }
@@ -243,13 +270,15 @@ function aiTravel() {
   const goal = freeNear(Math.round(c[0]), Math.round(c[1]), 2) || [mons[0].x, mons[0].y];
   if (!k.goal || k.repath <= 0) { setGoal(k, goal[0], goal[1]); k.repath = 1.5; }
   // aggro check
-  for (const m of mons) if (eu(m, k) <= CONFIG.aggroRadius && los(m, k)) { startPull(); return; }
+  // the knight walks into the room up to the pack, so the ranged are inside the door too
+  if (inRoom(S.pocketIdx, k.x, k.y) && Math.hypot(k.x - c[0], k.y - c[1]) <= CONFIG.pullDist) { startPull(); return; }
   followTrail();
 }
 function followTrail() {
   const order = ['paladin', 'druid', 'sorcerer'];
   order.forEach((n, i) => {
     const u = hero(n);
+    if (!u.alive) return;
     const idx = S.trail.length - 1 - (i + 1) * 2;
     if (idx < 0) return;
     const [tx, ty] = S.trail[idx];
@@ -322,14 +351,16 @@ function ringFree(t, r, m) {
   return best;
 }
 function rangedPos(u, k, mons) {
+  if (!u.alive) return;
   const want = CONFIG.heroes[u.kind].back;
   const nearMon = mons.some(m => cheb(m, u) <= 1);
   S.pull.minBack[u.kind] = Math.min(S.pull.minBack[u.kind], eu(u, k));
+  S.pull.samples++; if (inRoom(S.pull.pocket, u.x, u.y)) S.pull.inside = (S.pull.inside || 0) + 1;
   if (u.repath > 0 && !nearMon) return;
   u.repath = 1.0;
   const ok = (x, y) => eu({ x, y }, k) >= want - 1 && eu({ x, y }, k) <= want + 1.2;
   const score = (x, y) => {
-    let s = Math.abs(eu({ x, y }, k) - want) * 2 + eu({ x, y }, u) * 0.35;
+    let s = Math.abs(eu({ x, y }, k) - want) * 2 + eu({ x, y }, u) * 0.35 + (inRoom(S.pull.pocket, x, y) ? 0 : 4);
     for (const m of mons) s -= Math.min(eu({ x, y }, m), 6) * 0.15;
     return s;
   };
@@ -350,10 +381,12 @@ function rangedPos(u, k, mons) {
 function endPull() {
   const p = S.pull, name = CONFIG.pockets[p.pocket].name;
   const rec = { run: S.run, pocket: name, secs: +(S.time - p.start).toFixed(1), waits: +(totalWait() - p.waitsAtStart).toFixed(1),
-    noSpot: p.noSpot, queuedMax: p.queuedMax, minBack: Object.fromEntries(Object.entries(p.minBack).map(([a, b]) => [a, +b.toFixed(1)])) };
+    noSpot: p.noSpot, queuedMax: p.queuedMax, deaths: p.deaths || 0, wipe: !!p.wipe, rangedInside: p.samples ? Math.round(100 * (p.inside || 0) / p.samples) : 0, minBack: Object.fromEntries(Object.entries(p.minBack).map(([a, b]) => [a, +b.toFixed(1)])) };
   STATS.pulls.push(rec);
+  S.pull = null;
+  if (rec.wipe) { S.packs[p.pocket].aggro = false; logRender(); return; }
   S.packs[p.pocket].alive = false; S.packs[p.pocket].respawnAt = S.time + CONFIG.respawnSec;
-  S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.pull = null;
+  S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = true;
   logRender();
 }
 function nextPocket() {
@@ -371,6 +404,7 @@ function attacks(dt) {
     u.swing -= dt;
     if (u.swing > 0) continue;
     if (u.side === 'mon') {
+      if (u.target && !u.target.alive) u.target = hero('knight').alive ? hero('knight') : null;
       if (u.target && cheb(u, u.target) <= 1 && u.t >= 1) {
         face(u, u.target); hurt(u.target, rnd(...CONFIG.monsters[u.kind].dmg), u); u.swing = CONFIG.swing;
       }
@@ -408,7 +442,7 @@ function attacks(dt) {
       } });
       continue;
     }
-    S.fx.push({ type: 'proj', kind: u.kind === 'paladin' ? 'arrow' : u.kind === 'druid' ? 'leaf' : 'bolt', x: u.px, y: u.py, tx: tgt.x, ty: tgt.y,
+    S.fx.push({ type: 'proj', kind: u.kind === 'paladin' ? 'arrow' : u.kind === 'druid' ? 'nature' : 'bolt', x: u.px, y: u.py, tx: tgt.x, ty: tgt.y,
       age: 0, dur: 0.22, onHit: () => hurt(tgt, rnd(...cfg.dmg), u) });
   }
 }
@@ -420,6 +454,7 @@ function tick(dt) {
   const k = hero('knight');
   const last = S.trail[S.trail.length - 1];
   if (!last || last[0] !== k.x || last[1] !== k.y) { S.trail.push([k.x, k.y]); if (S.trail.length > 40) S.trail.shift(); }
+  respawnHeroes();
   // respawns
   S.packs.forEach((p, i) => { if (!p.alive && S.time >= p.respawnAt && !(S.phase === 'fight' && S.pull && S.pull.pocket === i)) {
     S.units = S.units.filter(u => u.side === 'hero' || u.pocket !== i || u.alive);
@@ -427,9 +462,13 @@ function tick(dt) {
   } });
   if (S.phase === 'travel') aiTravel();
   else if (S.phase === 'fight') aiFight();
-  else if (S.phase === 'regroup') {
+  else if (S.phase === 'dead') {
+    if (k.alive) { S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = false; }
+  } else if (S.phase === 'regroup') {
     S.phaseT -= dt; followTrail();
-    if (S.phaseT <= 0) nextPocket();
+    // the party waits until everyone is alive and close to the knight
+    const together = S.units.every(h => h.side !== 'hero' || (h.alive && eu(h, k) <= 7));
+    if (S.phaseT <= 0 && together) { if (S.regroupNext) nextPocket(); else S.phase = 'travel'; }
   }
   if (S.phase !== 'fight') for (const h of living('hero')) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * CONFIG.oocRegenPct * dt);
   // idle monsters drift home (corpses stay put)
@@ -466,7 +505,9 @@ function render() {
   g.imageSmoothingEnabled = false;
   g.fillStyle = '#16181b'; g.fillRect(0, 0, view.w, view.h);
   const k = hero('knight');
-  cam.x += (cx(k.px) - view.w / 2 - cam.x) * 0.12; cam.y += (cy(k.py) - view.h / 2 - cam.y) * 0.12;
+  const tx = cx(k.px) - view.w / 2, ty = cy(k.py) - view.h / 2;
+  if (S.camSnap || Math.hypot(tx - cam.x, ty - cam.y) > T * 4) { cam.x = tx; cam.y = ty; S.camSnap = false; }
+  else { cam.x += (tx - cam.x) * 0.12; cam.y += (ty - cam.y) * 0.12; }
   const ox = -Math.round(cam.x), oy = -Math.round(cam.y);
   if (IMG.map.complete) g.drawImage(IMG.map, ox, oy);
   if (opts.grid) {
@@ -482,8 +523,8 @@ function render() {
       g.strokeStyle = u.side === 'hero' ? 'rgba(120,200,255,.7)' : 'rgba(255,120,120,.6)'; g.beginPath(); g.moveTo(ox + cx(u.px), oy + cy(u.py));
       for (const [x, y] of u.path) g.lineTo(ox + cx(x), oy + cy(y)); g.stroke();
     }
-    S.packs.forEach((p, i) => { if (!p.alive || p.aggro) return; for (const m of living('mon').filter(m => m.pocket === i && !m.target)) {
-      g.strokeStyle = 'rgba(255,90,60,.25)'; g.beginPath(); g.arc(ox + cx(m.px), oy + cy(m.py), CONFIG.aggroRadius * T, 0, 7); g.stroke(); } });
+    CONFIG.pockets.forEach((p, i) => { if (!S.packs[i].alive) return; const r = p.room;
+      g.strokeStyle = 'rgba(255,90,60,.45)'; g.strokeRect(ox + (r[0] + 1) * T + .5, oy + (r[1] + 1) * T + .5, (r[2] - r[0] + 1) * T, (r[3] - r[1] + 1) * T); });
   }
   // corpses first, then living in y order (feet)
   const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.py - b.py) || (a.px - b.px));
@@ -505,7 +546,7 @@ function render() {
     if (f.type === 'proj') {
       const r = f.age / f.dur, x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 8;
       if (f.kind === 'arrow') { const a = Math.atan2(f.ty - f.y, f.tx - f.x); g.strokeStyle = '#e8dcc0'; g.beginPath(); g.moveTo(x - Math.cos(a) * 5, y - Math.sin(a) * 5); g.lineTo(x, y); g.stroke(); }
-      else { g.fillStyle = f.kind === 'leaf' ? '#8be07a' : '#8fd0ff'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); }
+      else { g.fillStyle = f.kind === 'nature' ? '#b6f08a' : '#8fd0ff'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); }
     } else if (f.type === 'spark') {
       g.fillStyle = '#fff3c0'; const x = Math.round(ox + cx(f.x)), y = Math.round(oy + cy(f.y)) - 8;
       g.fillRect(x - 3, y, 7, 1); g.fillRect(x, y - 3, 1, 7);
@@ -516,7 +557,7 @@ function render() {
       for (let i = 0; i < 5; i++) { const a = i * 1.26 + f.age * 6, x = ox + cx(f.x) + Math.cos(a) * 8, y = oy + cy(f.y) - 6 - f.age * 18 + Math.sin(a) * 3; g.fillRect(Math.round(x), Math.round(y), 2, 2); }
     } else {
       g.font = '8px ui-monospace,Consolas,monospace'; g.textAlign = 'center';
-      const x = Math.round(ox + cx(f.x)), y = Math.round(oy + cy(f.y) - 26 - f.age * 14);
+      const x = Math.round(ox + cx(f.x) + (f.dx || 0)), y = Math.round(oy + cy(f.y) - 26 + (f.dy || 0) - f.age * 14);
       g.fillStyle = '#000'; g.fillText(f.txt, x + 1, y + 1); g.fillStyle = f.col; g.fillText(f.txt, x, y);
     }
   }
@@ -533,7 +574,7 @@ $('restart').onclick = () => reset();
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {
-  const rows = STATS.pulls.slice(-14).map(p => `r${p.run} ${p.pocket.padEnd(12)} <b>${String(p.secs).padStart(5)}s</b>  wait ${p.waits}s${p.noSpot ? '  cramped ' + p.noSpot : ''}`);
+  const rows = STATS.pulls.slice(-14).map(p => `r${p.run} ${p.pocket.padEnd(12)} <b>${String(p.secs).padStart(5)}s</b>  wait ${p.waits}s${p.deaths ? '  deaths ' + p.deaths : ''}${p.wipe ? '  WIPE' : ''}`);
   $('log').innerHTML = 'Pulls (time to clear)\n' + (rows.join('\n') || '—');
 }
 function hudRender() {
@@ -550,5 +591,6 @@ function frame(now) {
 window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); logRender(); return STATS.pulls; };
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
+window.__hurt = (u, n) => hurt(u, n);
 reset();
 requestAnimationFrame(frame);

@@ -95,11 +95,12 @@ build, re-run the script and paste its output here; never hand-merge the table.
 
 Open edits from the 2026-10-15 audit (`docs/design/ART_AUDIT_2026-10-15.md`): the first production
 batch (R1 hero south walk, R2 hero diagonals, R3 rat and slime readability, R4 loot bag) is specified in
-`docs/PIXELLAB_WORKFLOW.md` §5; everything else waits for Tyler's first playable test.
+`docs/PIXELLAB_WORKFLOW.md` §5; everything else waits for Tyler's first playable test. R1a, R3 and R4
+landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for the engine's 8 facings.
 
 | id | set | class | frame | animation states (frames@fps) | facings | decision | source (PixelLab tool, id) |
 |---|---|---|---|---|---|---|---|
-| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senw | **edit**: south walk lifts only the left foot; add 4 diagonal facings (idle, walk); no hit clip | create_character `03dec2e0` |
+| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senw | **edit**: R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler | create_character `03dec2e0` |
 | peer_knight | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk to be a real peer | create_character `c95a6991` |
 | peer_mage | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `6112c21c` |
 | peer_ranger | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `f2a0b6c7` |
@@ -128,19 +129,19 @@ batch (R1 hero south walk, R2 hero diagonals, R3 rat and slime readability, R4 l
 | hive_wasp | cellar | flier | 48×48 | idle 1, walk 4@12, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **retain**: body edge 4.67:1; idle is 1 still frame (add a wing-buzz idle later) | create_object_pro_flash `630c2cff` |
 | ladder | cellar | hanging | 18×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | lantern_post | cellar | fixture | 22×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
-| loot_bag | cellar | loot | 12×14 | idle 1 | s | **replace**: body edge 1.06:1: invisible on the floor and on a corpse | create_1_direction_object `53ef2fe1` |
+| loot_bag | cellar | loot | 14×14 | idle 1 | s | **replace**: R4 done 2026-10-15: a 14×14 tied burlap sack drawn by hand in palette (0 gens), body edge 1.06 → 3.21:1, lands beside the corpse; approved: pending Tyler | hand-drawn in palette (free, no generation) |
 | millstone | cellar | bulky | 28×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | mushrooms | cellar | small | 16×16 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
 | pebbles | cellar | decal | 14×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
 | puddle | cellar | decal | 16×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| rat | cellar | critter | 48×48 | idle 1, walk 6@10, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: body edge 2.36:1 on cellar earth (rule ≥3:1); idle is 1 still frame | create_object_pro_flash `18ec0bfa` |
+| rat | cellar | critter | 48×48 | idle 1, walk 6@10, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.36 → 4.03:1 (min 3.76 over the 27 east frames), silhouette IoU ≥ 0.985, edit_image `4ef84f2b` + `f6a044fa`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `18ec0bfa` |
 | rat_skull | cellar | small | 12×12 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
 | sack_lying | cellar | clutter | 32×20 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | sack_pile | cellar | bulky | 32×32 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | sack_stack | cellar | bulky | 32×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | sack_tall | cellar | bulky | 26×30 | idle 1 | s | **retain** | create_1_direction_object `b90e189e` |
 | skull | cellar | small | 14×14 | idle 1 | s | **retain** | create_1_direction_object `53ef2fe1` |
-| slime | cellar | critter | 48×48 | idle 1, walk 6@8, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: body edge 2.59:1 on cellar earth; idle is 1 still frame | create_object_pro_flash `4bef8259` |
+| slime | cellar | critter | 48×48 | idle 1, walk 6@8, attack 7@12, hit 5@12, death 7@10, corpse 1 | senw | **edit**: R3 done 2026-10-15: body edge 2.59 → 4.33:1 (min 3.68 over the 27 east frames), silhouette IoU ≥ 0.978, edit_image `99916c7b` + `5436c660`, 20 gens; open: idle is 1 still frame; approved: pending Tyler | create_object_pro_flash `4bef8259` |
 | stone_cap | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |
 | stone_cap_h | cellar | wallcap | 32×12 | idle 1 | s | **retain** | hand / script |
 | stone_cap_w | cellar | wallcap | 12×32 | idle 1 | s | **retain** | hand / script |

@@ -63,6 +63,8 @@ Order matters: R1 and R3 can run now; R2 lands with the engine's 8-facing suppor
 
 Batch estimate: about 30–90 generations, most of it R3. **Cost tracking:** the Coordinator records `get_balance` before and after each row; the actual figure goes into the sidecar's `pixellab.cost` and the registry row. Nothing runs without the Coordinator's go (budget freeze, 2026-08-17: per-spend approval).
 
+**Actuals (2026-10-15, lane `art-batch1`):** balance 8599 → 8559 generations (40). R1a accepted as a free edit (0); R3b/R3c 2 `edit_image` calls each (10 + 10 per monster). The edit kept every silhouette but drifted it 0–6 px and stopped short of 3.5:1 on its own, so each frame is re-aligned to the shipped mask by its best whole-pixel shift and its non-outline pixels value-lifted (×1.12 rat, ×1.15–1.25 slime) before the lock. R4 accepted as a free hand drawing (0). Evidence is in each sidecar's `pixellab` block.
+
 ## 6. Planned after the first playable (counts only; no calls yet)
 | Batch | Calls | Tools |
 |---|---|---|

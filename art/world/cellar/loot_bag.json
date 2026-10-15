@@ -1,15 +1,15 @@
 {
   "id": "loot_bag",
   "class": "loot",
-  "material": "wood",
+  "material": "native",
   "source": "loot_bag.png",
   "frame": [
-    12,
+    14,
     14
   ],
   "anchor_px": [
-    6,
-    12
+    7,
+    13
   ],
   "footprint": [
     1,
@@ -26,14 +26,12 @@
     }
   ],
   "pixellab": {
-    "tool": "create_1_direction_object",
-    "id": "53ef2fe1-bd6d-47a2-bca0-8a3f2de48bdb",
-    "candidate": 4,
-    "request": {
-      "description": "small prop for a dark medieval mill cellar in a top-down RPG, seen from the front and above, muted earthy colours, dark outline, detailed shading, lying on the floor",
-      "size": 16,
-      "view": "top-down",
-      "item_description": "leather loot pouch tied with string"
-    }
-  }
+    "tool": "hand-drawn in palette (free, no generation)",
+    "batch": "R4 (docs/PIXELLAB_WORKFLOW.md §5)",
+    "cost": 0,
+    "drawn": "14x14 tied burlap sack drawn pixel by pixel in hr-world-56-v2: earth #a88457 body, #8a6440 / #6e4c30 shade to the lower right, rope and lit top #c49a5c, outline shadow #17141a; light from the upper left",
+    "replaces": "create_1_direction_object 53ef2fe1-bd6d-47a2-bca0-8a3f2de48bdb candidate 4 (leather pouch, body edge 1.06:1 on cellar earth)",
+    "approval": "pending Tyler"
+  },
+  "notes": "Body edge 3.21:1 against the cellar_earth median (rule >= 3:1; the pouch it replaces was 1.06:1). Drawn in palette colours, so its material is native (the lock is the identity). It lands on a tile beside the corpse (src/world/choreo.js bagSpot), never on it."
 }

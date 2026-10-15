@@ -46,7 +46,7 @@ Then look at it in the game at ×2 (the prototype's hunt or town scene) and, for
 ## 6. Performance budget
 | Budget | Limit | Today |
 |---|---|---|
-| Atlas size | ≤ 2048×2048 (`ATLAS_MAX`) | hero 1024×520, cellar 1024×716, town 512×428, home 512×164 |
+| Atlas size | ≤ 2048×2048 (`ATLAS_MAX`) | hero 1024×520, cellar 1024×804, town 512×428, home 512×164 |
 | Atlases resident in one scene | ≤ 3 (hero + place + one shared) | 2 |
 | Hero with 8 facings | about 1024×1040 (4 clips × 8 facings × ≤8 frames at 65 px pitch) | fits |
 | Animated sprites on screen | ≤ 40 actors + 20 animated props at 60 fps on a mid phone | not yet measured: measure on the first route ground |

@@ -29,6 +29,14 @@
 //             party_hunt_roster_log or party_hunt_tally directly. The hunt-view
 //             readers (huntMemberRow, partyReceiptLine) are exempt by name:
 //             those keys live on hr_party_hunt_view rows.
+//             RE-POINTED (closed rebuild, 2026-10-15): the scan no longer names
+//             two client files (the demolition deletes src/net/party.js and
+//             src/render/party-panel.js). It walks EVERY file under src/ for the
+//             two server-only tables, and every file that names the server-side
+//             view (hr_party_view / hr_party_hunt_view) for the retired keys —
+//             so a reader that comes back under any name, in any file, is red,
+//             and a tree with no client reader at all is green, not vacuous by
+//             accident: the table-name half still bites on every file.
 //
 // --mutate plants a defect in §0-§6 of the file's text, executes it, then runs
 // the UNCHANGED §7 and requires it to refuse on the named arm. The four the
@@ -38,7 +46,7 @@
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
@@ -97,11 +105,28 @@ function cutFunction(code, name) {
 }
 
 /** P-CLIENT: the static half of A2 and of "the view is the only read path". */
+async function srcFiles(dir = 'src') {
+  const out = [];
+  for (const e of await readdir(join(ROOT, dir), { withFileTypes: true })) {
+    const rel = dir + '/' + e.name;
+    /* The in-page suite FAKES the server (it stubs hr_party_view's answer, retired keys and all,
+       to prove the client ignores them); it is a test, not a client reader. */
+    if (rel === 'src/features/smoke') continue;
+    if (e.isDirectory()) out.push(...await srcFiles(rel));
+    else if (/\.(js|mjs|ts)$/.test(e.name)) out.push(rel);
+  }
+  return out;
+}
+
 async function clientScan(override = {}) {
-  const files = ['src/net/party.js', 'src/render/party-panel.js'];
+  /* `override` may name a file that does not exist on disk: a mutant plants a
+     NEW reader, which is exactly the regression a scan of named files missed. */
+  const files = [...new Set([...(await srcFiles()), ...Object.keys(override)])].sort();
   const bad = [];
   for (const f of files) {
     const src = f in override ? override[f] : await readFile(join(ROOT, f), 'utf8');
+    if (!/hr_party_view|hr_party_hunt_view|party_hunt_roster_log|party_hunt_tally/.test(src) && !(f in HUNT_VIEW_READERS)) continue;
+    const readsView = /hr_party_view|hr_party_hunt_view/.test(src) || f in HUNT_VIEW_READERS;
     // Code only: strip line and block comments so the header prose may name them.
     let code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
     for (const fn of HUNT_VIEW_READERS[f] || []) {
@@ -110,7 +135,7 @@ async function clientScan(override = {}) {
       code = cut;
     }
     for (const k of ['share_bp', '.xp', '.gold', "['xp']", "['gold']"]) {
-      if (code.includes(k)) bad.push(`${f} reads ${k}`);
+      if (readsView && code.includes(k)) bad.push(`${f} reads ${k}`);
     }
     for (const t of ['party_hunt_roster_log', 'party_hunt_tally']) {
       if (code.includes(t)) bad.push(`${f} names ${t}`);
@@ -121,19 +146,16 @@ async function clientScan(override = {}) {
 
 /* The scan's own mutation proof (--mutate): each plant must turn P-CLIENT red. */
 async function scanMutantList() {
-  const panel = await readFile(join(ROOT, 'src/render/party-panel.js'), 'utf8');
-  const net = await readFile(join(ROOT, 'src/net/party.js'), 'utf8');
-  const plant = (src, anchor, add) => {
-    if (src.split(anchor).length - 1 !== 1) { console.error(`harness: scan mutant anchor matched != 1: ${anchor}`); process.exit(2); }
-    return src.replace(anchor, () => anchor + add);
-  };
+  /* THREE plants in every tree (tests/mutant-control.mjs counts them). Each is
+     a NEW file, so the scan must find a reader it was never told about. */
+  const NEW = 'src/net/party-roster-reader.js';
   const M = [
-    { name: 'rosterRowReadsXp', why: 'the ROSTER row (hr_party_view) renders a retired xp key',
-      over: { 'src/render/party-panel.js': plant(panel, '  function memberRow(m, opts) {\n', '    var leak = m.xp;\n') } },
-    { name: 'netReadsShare', why: 'the net layer reads share_bp off the roster answer',
-      over: { 'src/net/party.js': net + '\nfunction leak(v) { return v.members[0].share_bp; }\n' } },
-    { name: 'exemptReaderRenamed', why: 'an exempt hunt-view reader is renamed, so the exemption silently names nothing',
-      over: { 'src/render/party-panel.js': panel.split('function partyReceiptLine(').join('function partyReceiptLine2(') } },
+    { name: 'rosterRowReadsXp', why: 'a client reader of the ROSTER (hr_party_view) renders a retired xp key',
+      over: { [NEW]: "export async function roster(sb) { const v = await sb.rpc('hr_party_view', {}); return v.members.map((m) => m.xp); }\n" } },
+    { name: 'netReadsShare', why: 'a client reader reads share_bp off the roster answer',
+      over: { [NEW]: "export async function shares(sb) { const v = await sb.rpc('hr_party_view', {}); return v.members[0].share_bp; }\n" } },
+    { name: 'clientReadsTally', why: 'a client file reads the server-only per-hunt tally table directly',
+      over: { [NEW]: "export const q = (sb) => sb.from('party_hunt_tally').select('*');\n" } },
   ];
   return M;
 }

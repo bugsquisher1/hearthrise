@@ -96,6 +96,9 @@ function realPureWorld() {
     maxTotalDamage: MAX_TOTAL_DAMAGE_MULT,
     wireMax: 4,          // request.js MAX_TROPHY_STAGE_WIRE, re-read below
     sqlThresholds: null, // filled from the migration by auditPure's caller
+    /* T6's fight expression: the SHIPPED functions. Injected only so a mutation
+       can plant a ladder back into the one expression and T6 must notice. */
+    fight: { weaknessInfo, playerCombatRolls },
     /* The multiplier functions themselves are NOT injected: they are the thing
        under test. What is injected is every number they are supposed to obey,
        so a mutation moves the CONTRACT and the assertion has to notice. */
@@ -233,13 +236,16 @@ function auditPure(w) {
     if (trophyStageFor('slime', trophies) !== MAX_TROPHY_STAGE) {
       say('T6', 'CONTROL: the fixture does not hold a top-stage trophy — the arm would be vacuous');
     }
-    const bare = weaknessInfo(m, eq);
-    const stale = weaknessInfo(m, eq, { vermin: 4 }, trophies, 'slime');
-    const attended = playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: {}, charms: { vermin: 4 },
+    /* The fight expression is read through the world so --selftest can plant a
+       ladder back into it; the real world carries the shipped functions. */
+    const fx = w.fight;
+    const bare = fx.weaknessInfo(m, eq);
+    const stale = fx.weaknessInfo(m, eq, { vermin: 4 }, trophies, 'slime');
+    const attended = fx.playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: {}, charms: { vermin: 4 },
       trophies, monsterId: 'slime' }).weak;
-    for (const [what, w] of [['weaknessInfo', stale], ['playerCombatRolls', attended]]) {
-      if (!near(w.dropMult, bare.dropMult) || !near(w.damageMult, bare.damageMult)) {
-        say('T6', `${what} still prices a trophy or a charm into a fight (drop ${w.dropMult} / dmg ${w.damageMult} vs ${bare.dropMult} / ${bare.damageMult})`);
+    for (const [what, r] of [['weaknessInfo', stale], ['playerCombatRolls', attended]]) {
+      if (!near(r.dropMult, bare.dropMult) || !near(r.damageMult, bare.damageMult)) {
+        say('T6', `${what} still prices a trophy or a charm into a fight (drop ${r.dropMult} / dmg ${r.damageMult} vs ${bare.dropMult} / ${bare.damageMult})`);
       }
     }
   }
@@ -359,6 +365,15 @@ const PURE_MUTATIONS = [
     (w) => { w.sqlThresholds = [2500, 5000, 10000, 99999]; }],
   ['T9', 'the wire bound falls behind the ladder',
     (w) => { w.wireMax = 3; }],
+  ['T6', 'a trophy prices the fight again (the stale 4th/5th arguments are read)',
+    (w) => {
+      const real = w.fight.weaknessInfo;
+      const lifted = (m, eq, charms, trophies, id) => {
+        const r = real(m, eq);
+        return trophies && id && trophies[id] ? { ...r, dropMult: r.dropMult * 1.1845 } : r;
+      };
+      w.fight = { weaknessInfo: lifted, playerCombatRolls: (m, ctx) => ({ weak: lifted(m, ctx.eq, ctx.charms, ctx.trophies, ctx.monsterId) }) };
+    }],
 ];
 
 /* NEGATIVE CONTROLS — changes that must stay SILENT. A guard that goes red on

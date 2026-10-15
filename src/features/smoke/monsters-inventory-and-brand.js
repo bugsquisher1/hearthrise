@@ -3162,9 +3162,7 @@ export default [
       'a cooking output must classify excluded and never be owned');
 
     /* OVERLAP SAFETY — an id granted by BOTH a modeled and an un-modeled path is
-       EXCLUDED (the never-delete direction). `wheat` is a crop AND a rat drop.
-       (`magic_essence` was the dungeon-loot overlap; the dungeons left in the
-       2026-10-14 demolition, so it is a plain drop now and rightly OWNABLE.) */
+       EXCLUDED (the never-delete direction). `wheat` is a crop AND a rat drop. */
     assert(IA.classifyItem('wheat') === 'excluded' && IA.serverOwnedItem('wheat') === false,
       'wheat is a crop AND a drop — it must be EXCLUDED so a harvested copy is never deleted');
     assert(IA.classifyItem('magic_essence') === 'ownable',
@@ -8499,9 +8497,6 @@ export default [
       const rows = box.querySelectorAll('[data-luck-row="' + id + '"]');
       assert(rows.length === 1 && rows[0].textContent.indexOf(R[id]) >= 0 && rows[0].querySelector('.bal-pending'), id + ': expected one row with its rumour and the pending mark: ' + (rows[0] ? rows[0].innerHTML : 'none'));
     }
-    /* "Also made at the bench" appears exactly when a recipe makes the find. (The
-       maple_bow fixture lost its recipe with crafted gear, 2026-10-14; the rule is
-       now graded both ways over every lucky row.) */
     const crafted = new Set(Object.values(window.ARTISAN_RECIPES || {}).flat().map((r) => r && r.output).filter(Boolean));
     for (const [id] of ids) {
       const says = /Also made at the bench/.test(box.querySelector('[data-luck-row="' + id + '"]').textContent);

@@ -4369,11 +4369,7 @@ export default [
         'the item detail modal states no wear requirement for ' + probe + ' — "' + modalText.slice(0, 200) + '"');
       if (typeof window.closeInvDetail === 'function') window.closeInvDetail();
 
-      /* (3) THE CRAFTING TILE's wear line. No recipe makes wearable gear since the
-         2026-10-14 demolition (the gear recipes left; whetstones and arrows are
-         ammo, which carries no wield gate), so the painted Armour-lane tile has no
-         subject. What stays true is graded: the one shared helper states the
-         requirement for a gated item, states nothing for an ungated output, and
+      /* (3) THE CRAFTING TILE's wear line: the shared helper states the gate, and
          every LIVE recipe output gets exactly the line the authority implies. */
       assert(typeof window.hrWearLineHtml === 'function', 'the shared wear-line helper must be published');
       const line = window.hrWearLineHtml(probe);
@@ -4388,8 +4384,7 @@ export default [
           r.id + ': the wear line must appear exactly when the output carries a wield gate');
       }));
 
-      /* (4) THE ESM TWIN tile builder still carries the line, graded through its
-         published builder on a probe recipe for the gated item. */
+      /* (4) THE ESM TWIN tile builder carries it too (a probe recipe). */
       const AG = window.HearthriseActivitiesGrid;
       assert(AG && typeof AG.__tileForArtisan === 'function', 'the activities-grid test seam is gone');
       const probeRec = { id: '__probe_' + probe, name: 'Probe', icon: '', inputs: { iron_bar: 1 }, output: probe, xp: 1, req: 1, ms: 1000 };

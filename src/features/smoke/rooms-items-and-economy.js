@@ -1753,9 +1753,6 @@ export default [
   }),
 
 
-  /* The gold_bar -> gold_ring sink left with the jewellery recipes in the
-     2026-10-14 demolition; gold_bar is catalogue-coherence VENDOR_TRASH until the
-     roster gives it a job (tests/catalogue-coherence.mjs holds that). */
   () => tryRun('WAVE4: shared drop bands', () => {
     assert(typeof window.dropBand === 'function', 'window.dropBand must be published');
     assert(window.dropBand(1) === 'always', '100% → always');

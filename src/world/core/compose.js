@@ -27,10 +27,10 @@
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=586';
-import { heroBuilding } from './roofs.js?v=586';
-import { ellipseShadow, castMatrix } from './shadows.js?v=586';
-import { vertexGrid, tileKey } from './wang.js?v=586';
+import { ySort } from './zsort.js?v=587';
+import { heroBuilding } from './roofs.js?v=587';
+import { ellipseShadow, castMatrix } from './shadows.js?v=587';
+import { vertexGrid, tileKey } from './wang.js?v=587';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;

@@ -18,7 +18,7 @@ A new kind of sprite gets a class row in `art-budget.js` before its first asset.
 
 ## 2. Sheets, layout and naming
 - **Source:** `art/world/<set>/<id>.png` (curated, aligned, un-locked frames) + `art/world/<set>/<id>.json` (the sidecar: `id, class, material, source, anchor_px, footprint, overhang_px, anims, pixellab, notes`). The source sheet has one row per (anim, facing), anims in sidecar order, frames left to right at the frame size.
-- **Facings order:** `s, e, n, w` today (`DIRS`). **(new)** Characters add `se, ne, nw, sw` after them once the engine reads 8 facings (Systems Engineer, ART_ROADMAP NOW-3); a renderer falls back to the nearest cardinal for a missing diagonal.
+- **Facings order:** `s, e, n, w, se, ne, nw, sw` (`DIRS`); a sheet has rows only for the facings its sidecar declares. Every clip has the four cardinals; a character may add the diagonals (the hero's idle and walk have them since R2), and the renderer falls back to the nearest cardinal for a missing diagonal (`src/world/core/facing.js`).
 - **Sets:** one atlas per place (`hero`, `town`, `home`, `cellar`); a new hunting ground gets its own set. Shared actors live in `hero` (or a future `monsters` set when two grounds share a monster).
 - **Ids:** `snake_case`, equal to the data id (`rat` is `MONSTERS.rat`, an item icon is its `ITEMS` key). Variants are suffixes (`barrel_old`, `stone_wall_arch`), never numbers.
 - **Clip names:** `idle, walk, attack, hit, death, corpse` (monsters), `idle, walk, attack, down` (+ `hit` new) for characters, `face` for wall slices, `slice` for roofs.

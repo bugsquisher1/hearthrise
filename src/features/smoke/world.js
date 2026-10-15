@@ -8,6 +8,7 @@
 // ══════════════════════════════════════════════════════════════════════
 import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=587';
 import { buildResiduePatch } from '../../net/capstone.js?v=587';
+import { pickFacing } from '../../world/core/facing.js?v=587';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {
@@ -321,7 +322,7 @@ export default [
   }),
 
   /* Tyler, 2026-10-14: "WASD doesn't work" — the World only had click-to-walk. */
-  () => tryRunAsync('WORLD-8: WASD and the arrows walk the hero in the Common, 8 ways, and stop on key-up; never while a field has focus or a dialog is open', async () => {
+  () => tryRunAsync('WORLD-8: WASD and the arrows walk the hero in the Common, 8 ways (a diagonal step draws the diagonal art), and stop on key-up; never while a field has focus or a dialog is open', async () => {
     const G = window.G;
     const hadWorld = Object.prototype.hasOwnProperty.call(G, '_world');
     const key = (type, code, target) => {
@@ -384,9 +385,20 @@ export default [
       key('keydown', 'ArrowDown');
       key('keydown', 'ArrowRight');
       assert(await until(() => walkOf(rt).cell.join() === '12,10', 2000), 'Down+Right held must step the diagonal onto 12,10: ' + JSON.stringify(walkOf(rt)));
+      /* the hero as the last FRAME drew it, read while both keys are down (letting go of one first turns him to the other) */
+      await until(() => walkOf(rt).hero.diag === 'se', 1000);
+      const held = Object.assign({}, walkOf(rt).hero);
       key('keyup', 'ArrowDown');
       key('keyup', 'ArrowRight');
       await stops('Down+Right');
+      /* PixelLab R2: the hero's atlas has the diagonals, so a south-east step DRAWS the
+         south-east walk and the south-east idle, not their cardinal stand-ins. */
+      const heroArt = await (await fetch('assets/world/atlas-hero.json', { cache: 'no-store' })).json();
+      const clips = heroArt.sprites.hero.anims;
+      assert(held.diag === 'se', 'a south-east step must face the hero south-east: ' + JSON.stringify(held));
+      assert(pickFacing(clips.walk.dirs, held.dir, held.diag) === 'se' && clips.walk.dirs.se.length === clips.walk.dirs.s.length,
+        'the south-east step must draw the south-east walk art; the hero atlas has ' + Object.keys(clips.walk.dirs).join(','));
+      assert(pickFacing(clips.idle.dirs, held.dir, held.diag) === 'se', 'a hero facing south-east must stand in the south-east idle; the atlas has ' + Object.keys(clips.idle.dirs).join(','));
 
       await settle([11, 9]);
       document.body.appendChild(field);

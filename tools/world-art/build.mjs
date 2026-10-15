@@ -19,7 +19,7 @@
 //     hover_px?, shadow?, anims: [{ name, fps, loop, hit?, dirs: { s: n, e: n, … } }],
 //     pixellab: { the generation request }, notes? }
 //   The source sheet holds one row per (anim, dir), anims in sidecar order and dirs
-//   in s,e,n,w order, frames left to right at the frame size.
+//   in DIRS order (s,e,n,w, then se,ne,nw,sw where present), frames left to right.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
 //   tiles: { NWNESWSE: [[col, row], …] }, pixellab } — T×T cells of the source.
 //

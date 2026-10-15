@@ -49,10 +49,12 @@ import { CLASSES, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 
 // What the hunt (W3) and the town/home scenes (W4) are built against. A prop needs
-// its one idle frame; a unit every listed clip in all four facings.
-const UNIT = ['s', 'e', 'n', 'w'], PROP = ['s'];
+// its one idle frame; a unit every listed clip in all four facings. The hero also
+// walks and idles on the diagonals (PixelLab R2; the engine's 8-facing pick in
+// src/world/core/facing.js shows them the moment the atlas has them).
+const UNIT = ['s', 'e', 'n', 'w'], DIAG = ['se', 'ne', 'nw', 'sw'], PROP = ['s'];
 const REQUIRED = {
-  hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'], dirs: UNIT },
+  hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'], dirs: UNIT, diag: { anims: ['idle', 'walk'], dirs: DIAG } },
   rat: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
   slime: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
   hive_wasp: { set: 'cellar', class: 'flier', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
@@ -85,6 +87,24 @@ function loadAtlases(root = ROOT) {
   });
 }
 
+/** What the scenes need that the atlases lack. `seen`: id → { set, sprite } from the manifests. */
+function contentFails(seen) {
+  const fails = [];
+  for (const [id, want] of Object.entries(REQUIRED)) {
+    const got = seen[id];
+    if (!got) { fails.push(`content: no sprite "${id}" in set ${want.set}`); continue; }
+    if (got.set !== want.set) fails.push(`content: "${id}" is in set ${got.set}, the renderer loads it from ${want.set}`);
+    if (got.sprite.class !== want.class) fails.push(`content: "${id}" is class ${got.sprite.class}, expected ${want.class}`);
+    const need = [[want.anims, want.dirs], ...(want.diag ? [[want.diag.anims, want.diag.dirs]] : [])];
+    for (const [anims, dirs] of need) for (const a of anims) for (const d of dirs) {
+      const clip = got.sprite.anims[a];
+      if (!clip || !(clip.dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
+      else if (clip.dirs[d].length !== (clip.dirs[dirs[0]] || clip.dirs.s || []).length) fails.push(`content: "${id}" ${a} facing ${d} has ${clip.dirs[d].length} frames, its other facings ${(clip.dirs[dirs[0]] || clip.dirs.s).length}`);
+    }
+  }
+  return fails;
+}
+
 function guard() {
   const fails = [];
   const atlases = loadAtlases();
@@ -102,13 +122,7 @@ function guard() {
     }
     for (const id of Object.keys(m.terrain)) for (const f of validateTerrain(terrainFromAtlas(m, atlas, id))) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
   }
-  for (const [id, want] of Object.entries(REQUIRED)) {
-    const got = seen[id];
-    if (!got) { fails.push(`content: no sprite "${id}" in set ${want.set}`); continue; }
-    if (got.set !== want.set) fails.push(`content: "${id}" is in set ${got.set}, the renderer loads it from ${want.set}`);
-    if (got.sprite.class !== want.class) fails.push(`content: "${id}" is class ${got.sprite.class}, expected ${want.class}`);
-    for (const a of want.anims) for (const d of want.dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
-  }
+  fails.push(...contentFails(seen));
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
@@ -207,6 +221,17 @@ function selftest(atlases) {
     if (rules.has(rule)) console.log(`  ✓ ${name}: caught by [${rule}]`);
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [${rule}] (rules hit: ${[...rules].join(', ') || 'none'})`); }
   }
+  // Content: the hero atlas without its south-east walk must be refused.
+  const heroAtlas = atlases.find((a) => a.manifest.sprites.hero);
+  if (heroAtlas) {
+    const seen = {};
+    for (const { manifest: m } of atlases) for (const id of Object.keys(m.sprites)) seen[id] = { set: m.set, sprite: m.sprites[id] };
+    if (contentFails(seen).length) { console.error(`world-assets --selftest: harness — the shipped content is not clean: ${contentFails(seen).join('; ')}`); process.exit(2); }
+    const walk = seen.hero.sprite.anims.walk, { se, ...rest } = walk.dirs;
+    const cut = { ...seen, hero: { ...seen.hero, sprite: { ...seen.hero.sprite, anims: { ...seen.hero.sprite.anims, walk: { ...walk, dirs: rest } } } } };
+    if (contentFails(cut).some((f) => f.includes('walk facing se'))) console.log('  ✓ a hero atlas without its south-east walk: caught by [content]');
+    else { escaped++; console.log('  ✗ a hero atlas without its south-east walk: NOT caught by [content]'); }
+  } else { escaped++; console.log('  ✗ no hero atlas to plant the content defect in'); }
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
   // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
   const tmp = mkdtempSync(join(tmpdir(), 'world-assets-'));
@@ -223,7 +248,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all 6 planted defects caught; ${controls.length} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all 7 planted defects caught; ${controls.length} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

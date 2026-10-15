@@ -68,6 +68,8 @@ Batch estimate: about 30–90 generations, most of it R3. **Cost tracking:** the
 
 **Actuals (2026-10-15, lane `art-batch1`):** balance 8599 → 8559 generations (40). R1a accepted as a free edit (0); R3b/R3c 2 `edit_image` calls each (10 + 10 per monster). The edit kept every silhouette but drifted it 0–6 px and stopped short of 3.5:1 on its own, so each frame is re-aligned to the shipped mask by its best whole-pixel shift and its non-outline pixels value-lifted (×1.12 rat, ×1.15–1.25 slime) before the lock. R4 accepted as a free hand drawing (0). Evidence is in each sidecar's `pixellab` block.
 
+**Actuals R2 (2026-10-15, lane `art-batch2`):** balance 8559 → 8541 (18). Idle: 4 v3 calls appended to `23a56522`, all accepted. Walk: the four v3 calls appended to `e0833032` with the cardinal text gave a half stride (one foot lifts, the other slides), so they stay in PixelLab only; a re-roll with R1b's alternation text (`c67c844c`) was accepted for ne, nw and sw; se is skeleton-v3 `walking-8-frames` (`c9540a39`, 3), the only se roll whose feet alternate; the skeleton-v3 sw (3) was rejected because the sword vanishes for three frames. No mirroring: it would move the sword to the left hand. Per-facing record in `art/world/hero/hero.json`.
+
 ## 6. Planned after the first playable (counts only; no calls yet)
 | Batch | Calls | Tools |
 |---|---|---|

@@ -26,7 +26,11 @@
         "s": 5,
         "e": 5,
         "n": 5,
-        "w": 5
+        "w": 5,
+        "se": 5,
+        "ne": 5,
+        "nw": 5,
+        "sw": 5
       }
     },
     {
@@ -37,7 +41,11 @@
         "s": 8,
         "e": 8,
         "n": 8,
-        "w": 8
+        "w": 8,
+        "se": 8,
+        "ne": 8,
+        "nw": 8,
+        "sw": 8
       }
     },
     {
@@ -84,7 +92,27 @@
         "mode": "v3",
         "action_description": "standing still on guard, breathing slowly, sword and shield held ready",
         "frame_count": 4,
-        "group": "23a56522-7381-4d81-bee6-1c870230545c"
+        "group": "23a56522-7381-4d81-bee6-1c870230545c",
+        "diagonals": {
+          "batch": "R2 (docs/PIXELLAB_WORKFLOW.md §5)",
+          "date": "2026-10-15",
+          "tool": "animate_character",
+          "mode": "v3",
+          "directions": [
+            "south-east",
+            "north-east",
+            "north-west",
+            "south-west"
+          ],
+          "frame_count": 4,
+          "group": "23a56522-7381-4d81-bee6-1c870230545c",
+          "animation_name": "idle_v3",
+          "action_description": "standing still on guard, breathing slowly, sword and shield held ready",
+          "calls": 4,
+          "cost": 4,
+          "placement": "raw 52x52 at (+5,+15), as the cardinals",
+          "approval": "pending Tyler"
+        }
       },
       "walk": {
         "tool": "animate_character",
@@ -99,6 +127,72 @@
           "change": "south walk: the screen-right boot lifts 2/3/2 px in frames 1-3, the screen-left boot 2/3/2 px in frames 5-7; contact poses at frames 0 and 4 on opposite feet; sword, shield and body untouched",
           "undo": "save_to_asset(image=\"85b93d64-b778-4b2f-a79a-2cb0a7a5ba45\", target=\"character:03dec2e0-d4e4-4745-8c31-7d97aa0aeba6:south:e0833032-9a4c-4e10-bcc5-d6d1a95261d8\")",
           "cost": 0,
+          "approval": "pending Tyler"
+        },
+        "diagonals": {
+          "batch": "R2 (docs/PIXELLAB_WORKFLOW.md §5)",
+          "date": "2026-10-15",
+          "accepted": {
+            "south-east": {
+              "tool": "animate_character",
+              "mode": "skeleton-v3",
+              "template_animation_id": "walking-8-frames",
+              "group": "c9540a39-5c79-4341-9417-c529f8458609",
+              "animation_name": "walk_skel_diag",
+              "cost": 3,
+              "placement": "raw 64x64 at (-1,+8): lowest foot on the anchor row",
+              "why": "the only se clip whose feet alternate (both v3 rolls lift one foot only)"
+            },
+            "north-east": {
+              "tool": "animate_character",
+              "mode": "v3",
+              "frame_count": 8,
+              "group": "c67c844c-b7bf-4df1-b878-9844973e5b1a",
+              "animation_name": "walk_v3_diag",
+              "action_description": "walking forward at a steady pace, the left and right legs alternating clearly with each foot lifting in turn, sword held low in the right hand, shield on the left arm, cloak swaying",
+              "cost": 1,
+              "placement": "raw 52x52 at (+5,+15), reference frame 0 dropped"
+            },
+            "north-west": {
+              "tool": "animate_character",
+              "mode": "v3",
+              "frame_count": 8,
+              "group": "c67c844c-b7bf-4df1-b878-9844973e5b1a",
+              "animation_name": "walk_v3_diag",
+              "action_description": "(as north-east)",
+              "cost": 1,
+              "placement": "raw 52x52 at (+5,+15), reference frame 0 dropped"
+            },
+            "south-west": {
+              "tool": "animate_character",
+              "mode": "v3",
+              "frame_count": 8,
+              "group": "c67c844c-b7bf-4df1-b878-9844973e5b1a",
+              "animation_name": "walk_v3_diag",
+              "action_description": "(as north-east)",
+              "cost": 1,
+              "placement": "raw 52x52 at (+5,+15), reference frame 0 dropped"
+            }
+          },
+          "rejected": [
+            {
+              "what": "v3 se/ne/nw/sw appended to walk_v3 e0833032 with the cardinal walk text",
+              "cost": 4,
+              "why": "a half stride: one foot lifts, the other only slides (fails the R1 both-feet rule); kept in PixelLab, not in assets/"
+            },
+            {
+              "what": "v3 se in walk_v3_diag c67c844c",
+              "cost": 1,
+              "why": "superseded by the skeleton-v3 se, whose feet alternate more clearly"
+            },
+            {
+              "what": "skeleton-v3 sw in walk_skel_diag c9540a39",
+              "cost": 3,
+              "why": "the sword vanishes in frames 5-7 (gear not constant)"
+            }
+          ],
+          "mirror": "not used: a mirror would put the sword in the left hand",
+          "cost_total": 14,
           "approval": "pending Tyler"
         }
       },

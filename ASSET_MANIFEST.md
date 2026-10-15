@@ -96,11 +96,11 @@ build, re-run the script and paste its output here; never hand-merge the table.
 Open edits from the 2026-10-15 audit (`docs/design/ART_AUDIT_2026-10-15.md`): the first production
 batch (R1 hero south walk, R2 hero diagonals, R3 rat and slime readability, R4 loot bag) is specified in
 `docs/PIXELLAB_WORKFLOW.md` §5; everything else waits for Tyler's first playable test. R1a, R3 and R4
-landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for the engine's 8 facings.
+landed 2026-10-15 (40 generations, all R3; approval pending Tyler). R2 landed 2026-10-15 on lane `art-batch2` (18 generations, 8 of them rejected rolls; approval pending Tyler).
 
 | id | set | class | frame | animation states (frames@fps) | facings | decision | source (PixelLab tool, id) |
 |---|---|---|---|---|---|---|---|
-| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senw | **edit**: R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler | create_character `03dec2e0` |
+| hero | hero | character | 64×64 | idle 5@5, walk 8@10, attack 7@12, down 7@8 | senwsenenwsw | **edit**: R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); R2 done 2026-10-15: idle + walk on se/ne/nw/sw (idle v3 `23a56522`; walk se skeleton-v3 `c9540a39`, ne/nw/sw v3 `c67c844c`), 18 gens incl. 8 rejected; open: no hit clip, attack/down on the diagonals; approved: pending Tyler | create_character `03dec2e0` |
 | peer_knight | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk to be a real peer | create_character `c95a6991` |
 | peer_mage | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `6112c21c` |
 | peer_ranger | hero | character | 64×64 | idle 1 | senw | **edit**: one still frame per facing; needs idle + walk | create_character `f2a0b6c7` |

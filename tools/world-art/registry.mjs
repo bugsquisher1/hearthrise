@@ -8,7 +8,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SETS = ['hero', 'cellar', 'town', 'home'];
 // Decisions (Art Director, 2026-10-15; the R1/R3/R4 batch results landed the same day). Default: retain.
 const D = {
-  hero: ['edit', 'R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler'],
+  hero: ['edit', 'R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); R2 done 2026-10-15: idle + walk on se/ne/nw/sw (idle v3 `23a56522`; walk se skeleton-v3 `c9540a39`, ne/nw/sw v3 `c67c844c`), 18 gens incl. 8 rejected; open: no hit clip, attack/down on the diagonals; approved: pending Tyler'],
   rat: ['edit', 'R3 done 2026-10-15: body edge 2.36 → 4.03:1 (min 3.76 over the 27 east frames), silhouette IoU ≥ 0.985, edit_image `4ef84f2b` + `f6a044fa`, 20 gens; open: idle is 1 still frame; approved: pending Tyler'],
   slime: ['edit', 'R3 done 2026-10-15: body edge 2.59 → 4.33:1 (min 3.68 over the 27 east frames), silhouette IoU ≥ 0.978, edit_image `99916c7b` + `5436c660`, 20 gens; open: idle is 1 still frame; approved: pending Tyler'],
   loot_bag: ['replace', 'R4 done 2026-10-15: a 14×14 tied burlap sack drawn by hand in palette (0 gens), body edge 1.06 → 3.21:1, lands beside the corpse; approved: pending Tyler'],

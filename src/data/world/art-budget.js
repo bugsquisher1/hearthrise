@@ -31,7 +31,9 @@
 export const T = 32;
 export const TOLERANCE = 0.10;
 export const ATLAS_MAX = 2048;
-export const DIRS = Object.freeze(['s', 'e', 'n', 'w']);
+// Facings in sheet-row order: the cardinals every clip has, then the diagonals a
+// character may add (src/world/core/facing.js falls back to a cardinal without them).
+export const DIRS = Object.freeze(['s', 'e', 'n', 'w', 'se', 'ne', 'nw', 'sw']);
 
 // Runtime ellipse: w = min(0.8 × footprint width × T, 1.1 × mass width), h = 0.35 w,
 // offset (+2, +2), all composited once at --world-shadow-alpha. Fliers' shadows sit

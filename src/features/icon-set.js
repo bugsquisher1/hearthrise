@@ -213,7 +213,7 @@
   var NAV_MAP = {
     profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
     skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
-    house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable',
+    house: 'navHouse', social: 'navSocial', more: 'navMore',
     market: 'navMarket', dungeons: 'navDungeons', events: 'uiEvent',
     // b225 (#18): the Clan Seat's own nav entry. `uiCastle` and not a banner or
     // a shield — the destination is a keep you build, and it has to read as a

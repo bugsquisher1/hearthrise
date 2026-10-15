@@ -22,10 +22,9 @@
 //   2. `goal.type`    — 'kill_any' | 'gather' | 'harvest' | 'cooked' |
 //      'smithed' | 'crafted'. This is `updateDaily()`'s existing action
 //      vocabulary, not new metadata invented for navigation.
-//   3. bounty shape   — a board contract (tier + difficulty + monster target).
-//   4. the goal's own words — the net under hand-authored `G.quests` text,
+//   3. the goal's own words — the net under hand-authored `G.quests` text,
 //      and the only place an artisan LANE is inferred.
-//   5. the skills grid — the total fallback, so the resolver never returns
+//   4. the skills grid — the total fallback, so the resolver never returns
 //      null and a click is never dead.
 //
 // The b220 taxonomy lesson applies to lanes too: a lane is only ever chosen
@@ -56,15 +55,13 @@
       detail: opts.detail || null,
       verb: opts.verb || 'Go',
       label: opts.label || tab,
-      glyph: opts.glyph || 'bountyHunter',
+      glyph: opts.glyph || 'totalLvl',
       via: opts.via || null,
     };
   }
   var COMBAT  = function () { return dest('combat',  { verb: 'Go fight', label: 'Combat',       glyph: 'navCombat' }); };
   var FARM    = function () { return dest('farming', { verb: 'Go farm',  label: 'Farm',         glyph: 'farming' }); };
   var MARKET  = function () { return dest('market',  { verb: 'Go sell',  label: 'Market',       glyph: 'gold' }); };
-  var BOUNTY  = function () { return dest('bounty',  { verb: 'Go to the board',  label: 'Bounty Board', glyph: 'bountyHunter' }); };
-  var EVENTS  = function () { return dest('events',  { verb: 'Go to the muster', label: 'Events',       glyph: 'uiBanner' }); };
   var HOUSE   = function () { return dest('house',   { verb: 'Go build', label: 'Homestead',    glyph: 'uiHome' }); };
   var GRID    = function () { return dest('skills',  { verb: 'Go train', label: 'Skills',       glyph: 'totalLvl' }); };
   /* "Gather 15 resources" is the FIRST row of "Your first day", so its button
@@ -116,7 +113,7 @@
     crafted: function () { return SKILL('crafting'); },
     // Both artisan skills bump `refined`; the grid is the honest answer.
     refined: GRID,
-    planted: FARM, harvested: FARM, cropsHarvested: FARM,
+    planted: FARM, harvested: FARM,
     gathered: GATHER,     // "any resource" — the grid IS the choice of which
     levelups: GRID,       // "gain a level" — any skill will do
     totalGoldEarned: MARKET, totalGoldSpent: MARKET,
@@ -155,20 +152,10 @@
     return null;
   }
 
-  // ── layer 3: a bounty board contract ───────────────────────────────────
-  // Bounties are goals too, and they are the one goal family whose "where"
-  // is the board itself — you accept and track them there.
-  function isBounty(goal) {
-    return !!(goal && goal.difficulty && goal.tier != null && goal.target &&
-      typeof goal.target === 'string');
-  }
-
-  // ── layer 4: the goal's own words ──────────────────────────────────────
+  // ── layer 3: the goal's own words ──────────────────────────────────────
   // Ordered: the first pattern that matches wins, so "Cook 12 fish" is
   // cooking (the verb) and not fishing (the noun).
   var TEXT_RULES = [
-    [/\bbount/,                                  BOUNTY],
-    [/\bmuster|\brally|\bevent\b/,               EVENTS],
     [/\bcook|\bbake|\broast|\bdish|\bmeal/,      function () { return SKILL('cooking'); }],
     [/\bsmith|\bsmelt|\bforge|\bbar\b/,          function () { return SKILL('smithing'); }],
     [/\bcraft|\bsaw\b|\bplank|\bfletch/,         function () { return SKILL('crafting'); }],
@@ -238,8 +225,7 @@
     var text = goal.name || goal.label || goal.desc || '';
     var d = null, via = null;
 
-    if (isBounty(goal)) { d = BOUNTY(); via = 'bounty'; }
-    if (!d) { d = fromSource(goal.source); if (d) via = 'source'; }
+    d = fromSource(goal.source); if (d) via = 'source';
     if (!d) { d = fromType(goal.type);     if (d) via = 'type'; }
     if (!d) { d = fromText(text);          if (d) via = 'text'; }
     if (!d) { d = GRID(); via = 'fallback'; }

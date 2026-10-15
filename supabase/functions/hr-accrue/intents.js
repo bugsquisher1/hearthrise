@@ -673,6 +673,10 @@ export const INTENT_ERRORS = Object.freeze({
   UNKNOWN_ACTIVITY: 'unknown_activity',         // 409 — not in the authored data
   NO_CHARACTER: 'no_character',                 // 409 — nothing to act on in this slot
   RATE_LIMITED: 'rate_limited',                 // 429
+  /* 403 — CLOSED MODE (Security, closed-mode review item 4): the account is
+     not admitted while the game is closed. Minted only by ./closed-gate.js,
+     from a rate-gate refusal hr_engine_closed confirmed (and journalled). */
+  CLOSED: 'closed',
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
@@ -901,6 +905,8 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.HUNT_REQUIRED,
   INTENT_ERRORS.BAD_BAR_SLOT,
   INTENT_ERRORS.RATE_LIMITED,
+  /* closed is the rate gate's refusal, renamed: the same no-state read. */
+  INTENT_ERRORS.CLOSED,
   INTENT_ERRORS.NO_CHARACTER,
   /* The gold verbs' shape refusals, and they are on this list for exactly the
      reason the activity ones are: every one is answered from the CATALOGUE,

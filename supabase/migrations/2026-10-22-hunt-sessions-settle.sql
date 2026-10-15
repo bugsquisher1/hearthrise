@@ -207,6 +207,12 @@ begin
     raise exception 'PRECONDITION: the hunt-session tables / applier (2026-10-21-hunt-sessions.sql), hr_apply, '
                     'hr_state_of, hr_seed, hr_item_buffs, hr_hunt_supplies or hr_tick_config is absent';
   end if;
+  -- CLOSED MODE applies first (2026-10-21-closed-mode.sql): hr_engine_closed
+  -- below asks its hr_admitted.
+  if to_regprocedure('public.hr_admitted(uuid)') is null
+     or to_regprocedure('public.hr_record_rejection(uuid,integer,text,text,jsonb,bigint)') is null then
+    raise exception 'PRECONDITION: hr_admitted (2026-10-21-closed-mode.sql) or hr_record_rejection is absent';
+  end if;
   -- The C2 catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql) carries
   -- the price of a fall and the stamina cap, and puts 'stamina' where 'vigour'
   -- stood in the end order; it applies first.
@@ -2045,6 +2051,28 @@ grant execute on function public.hr_hunt_engine_read(uuid, int) to hr_engine;
 grant execute on function public.hr_hunt_apply(uuid, int, uuid, bigint, uuid, jsonb, jsonb, jsonb, jsonb, boolean) to hr_engine;
 grant execute on function public.hr_hunt_roster(text, int, int) to hr_tick;
 
+-- ── THE EDGE'S CLOSED-MODE ANSWER (Security, closed-mode review item 4) ─────
+-- hr_rate_gate (closed-mode L3) refuses a non-admitted account with a bare
+-- `false`, which the edge answered 429 rate_limited — a refusal a player would
+-- read as "slow down", and one no ledger could tell from a burst. Asked ONLY
+-- after the gate refused: when the account is not admitted it journals ONE
+-- hr_rejections aggregate upsert, code 'closed', for (user, slot, verb), and
+-- answers true; the edge then answers 403 {error:'closed'}. An admitted
+-- account that was genuinely rate-limited reads false and keeps its 429.
+-- SECURITY DEFINER (hr_admitted is invoker and hr_engine holds no table
+-- privilege); hr_engine only (c_engine_allow, link 18).
+create or replace function public.hr_engine_closed(p_user uuid, p_slot int, p_verb text)
+returns boolean language plpgsql volatile security definer set search_path = public as $$
+begin
+  if p_user is null or public.hr_admitted(p_user) then return false; end if;
+  perform public.hr_record_rejection(p_user, least(greatest(coalesce(p_slot, 0), 0), 5),
+    left(coalesce(nullif(p_verb, ''), 'accrue'), 40), 'closed', jsonb_build_object('gate', 'edge'), 1);
+  return true;
+end $$;
+revoke execute on function public.hr_engine_closed(uuid, int, text) from public;
+revoke execute on function public.hr_engine_closed(uuid, int, text) from anon, authenticated, service_role, hr_tick;
+grant execute on function public.hr_engine_closed(uuid, int, text) to hr_engine;
+
 -- THE DETECTOR learns the three engine entries (link 18 of
 -- HR_GRANT_HYGIENE_CHAIN): an INSERTION at the head of c_engine_allow, derived
 -- from 2026-10-10-world-tick-presence-horizon.sql's committed block by
@@ -2111,6 +2139,13 @@ declare
     -- when this window's bag uses paid for every new segment. It pays nothing
     -- hr_apply would refuse.
     'hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    -- NOT READ-ONLY, bounded: the CLOSED-MODE answer for a refused edge call
+    -- (Security, closed-mode review item 4). Asked only after hr_rate_gate
+    -- refused (p_user, p_slot) — the pair the engine already passes it. It
+    -- reads hr_admitted for that user and, when not admitted, writes ONE
+    -- hr_rejections aggregate upsert (code 'closed') for that user; it moves
+    -- no value and names no other target.
+    'hr_engine_closed(uuid,integer,text)',
     -- ── ADDED 2026-10-10 — THE PRESENCE HORIZON (Game Designer ruling on B1) ──
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
     -- link with an EMPTY declared-removals list.

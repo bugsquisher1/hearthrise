@@ -44,6 +44,12 @@
 //       hr_closed with closed mode on, and an allowlisted caller passes
 //       (2026-10-22-closed-mode-ungated-rpcs.sql; the file's own §3 refuses a
 //       splice that misses one)
+//   A2  THE EDGE SAYS `closed` (Security item 4): a rate-gate refusal of a
+//       non-admitted account becomes 403 {error:'closed'} through the shipped
+//       ./closed-gate.js on the real hr_engine_closed (as hr_engine), and is
+//       journalled in hr_rejections as code 'closed'; an admitted account's
+//       refusal stays 429 rate_limited; a non-refusal is untouched; a database
+//       without the function keeps the 429
 // --mutate plants each defect into the LIVE function body (create or replace,
 // rolled back) and requires the arm that owns it to go red; two more defects
 // are planted in the migration TEXT and must be refused by its own §8.
@@ -476,6 +482,48 @@ async function a1(db) {
   return red;
 }
 
+/* A2 — the edge's closed-mode answer, the shipped module on the real chain. */
+async function a2(db) {
+  const red = [];
+  const { closedAnswer } = await import('../supabase/functions/hr-accrue/closed-gate.js');
+  const IN = '00000000-0000-4000-8000-0000000c2ab1';
+  const OUT = '00000000-0000-4000-8000-0000000c2ab2';
+  await db.query('begin');
+  try {
+    await db.exec(`insert into auth.users (id) values ('${IN}'), ('${OUT}') on conflict (id) do nothing;
+      insert into public.hr_access_allowlist (user_id, note) values ('${IN}', 'A2') on conflict (user_id) do nothing;
+      insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'A2') on conflict (key) do update set enabled = true;`);
+    /* The edge's seam: one statement as hr_engine (index.ts `exec`). */
+    const exec = async (text, params) => {
+      await db.exec('set local role hr_engine');
+      try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
+    };
+    const limited = { ok: false, error: 'rate_limited' };
+    const a = await closedAnswer({ exec, user: OUT, slot: 0, verb: 'hunt_settle', status: 429, body: limited });
+    if (a.status !== 403 || a.body.error !== 'closed') red.push(`A2: a non-admitted refusal answered ${a.status} ${JSON.stringify(a.body)}, not 403 closed`);
+    const j = await one(db, `select coalesce(sum(n), 0)::int from public.hr_rejections where user_id = $1 and code = 'closed'`, [OUT]);
+    if (!(j >= 1)) red.push(`A2: the closed refusal was not journalled (hr_rejections code 'closed' n=${j})`);
+    const b = await closedAnswer({ exec, user: IN, slot: 0, verb: 'accrue', status: 429, body: limited });
+    if (b.status !== 429 || b.body.error !== 'rate_limited') red.push(`A2: an ADMITTED account's rate refusal answered ${b.status} ${JSON.stringify(b.body)}`);
+    const jIn = await one(db, `select count(*)::int from public.hr_rejections where user_id = $1 and code = 'closed'`, [IN]);
+    if (jIn !== 0) red.push('A2: an admitted account was journalled closed');
+    const c = await closedAnswer({ exec, user: OUT, slot: 0, verb: 'accrue', status: 200, body: { ok: true } });
+    if (c.status !== 200) red.push('A2: a non-refusal answer was rewritten');
+    const d = await closedAnswer({ exec: async () => { throw new Error('42883'); }, user: OUT, slot: 0, verb: 'accrue', status: 429, body: limited });
+    if (d.status !== 429) red.push('A2: a failed read changed the refusal (fail-safe broken)');
+  } finally { await db.query('rollback'); }
+  /* THE WIRING (index.ts is Deno TS; read, not run): every verb answer and the
+     accrue verb's own gate refusal leave through `reply` -> closedAnswer, and
+     no player-path answer bypasses it with a bare json(out.body, out.status). */
+  const idx = readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8').split(String.fromCharCode(13)).join('');
+  const at = idx.indexOf('const reply = async');
+  const dispatch = at < 0 ? '' : idx.slice(idx.indexOf('};', at));
+  if (at < 0 || !/closedAnswer\(\{ exec, user, slot, verb: intent\.verb, status, body \}\)/.test(idx)) red.push('A2: index.ts has no reply -> closedAnswer seam');
+  if (/return json\(out\.body, out\.status\);/.test(dispatch)) red.push('A2: a verb answer in index.ts bypasses reply (a bare json(out.body, out.status))');
+  if (!idx.includes("if (read?.limited) return await reply({ ok: false, error: 'rate_limited' }, 429);")) red.push("A2: the accrue verb's gate refusal bypasses reply");
+  return red;
+}
+
 async function c1(db) {
   const red = [];
   const { inventory } = await import('./schema-replay.mjs');
@@ -574,10 +622,10 @@ const TEXT_MUTANTS = [
 const { bootReplay } = await import('./schema-replay.mjs');
 const { db } = await bootReplay({});
 if (!MUTATE) {
-  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await c1(db))];
+  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await a2(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 A1 C1 green');
+  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 A1 A2 C1 green');
 } else {
   let escaped = 0;
   const control = await runArms(db);
@@ -618,6 +666,20 @@ if (!MUTATE) {
     }
     const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_rest'));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_rest loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    if (!caught) escaped++;
+  }
+  /* A2 bites: hr_engine_closed answers false for everyone (the bare 429 back). */
+  {
+    let red = [];
+    try {
+      await db.exec(`create or replace function public.hr_engine_closed(p_user uuid, p_slot int, p_verb text)
+        returns boolean language plpgsql volatile security definer set search_path = public as $$ begin return false; end $$;`);
+      red = await a2(db);
+    } finally {
+      await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', SETTLE), 'utf8'));   // restore (idempotent file)
+    }
+    const caught = red.some((r) => r.startsWith('A2'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A2: hr_engine_closed never says closed${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
   }
   /* A1's own file bites: a splice list missing hr_rest is refused by its §3. */

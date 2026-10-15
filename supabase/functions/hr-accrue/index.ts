@@ -97,6 +97,7 @@ import { withCors } from './cors.js';
    (tests/edge-tick-gate.mjs). Nothing else in this payload may import it. */
 import { tickGate, tickBodyAuthOk, runTick, readTickBytes, parseTickBytes } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
+import { closedAnswer } from './closed-gate.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
@@ -369,6 +370,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         return await tx.unsafe(text, params as any[]);
       }) as unknown as Record<string, any>[];
 
+    /* ── THE CLOSED-MODE ANSWER (Security, closed-mode review item 4) ────────
+       Every verb's answer leaves through here. A rate-gate refusal is asked
+       once more, in ./closed-gate.js, whether the account is admitted at all:
+       a non-admitted caller hears 403 `closed` (journalled server-side), never
+       429 `rate_limited`. Any other answer passes untouched, unpriced. */
+    const reply = async (body: unknown, status = 200): Promise<Response> => {
+      const out = await closedAnswer({ exec, user, slot, verb: intent.verb, status, body });
+      return json(out.body, out.status);
+    };
+
     /* ── VERB DISPATCH ─────────────────────────────────────────────────────
        Each intent is its own pure ESM module behind `exec`, so the bytes a Node
        test drives are the bytes that deploy. index.ts stays what its header
@@ -381,7 +392,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         activity: intent.activity,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE EQUIP VERB (b366) ─────────────────────────────────────────────
@@ -398,7 +409,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         equip: intent.equip,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ───────────────────
@@ -422,7 +433,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         item: intent.item,
         auto: intent.auto,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE GOLD VERBS (b351) ─────────────────────────────────────────────
@@ -446,7 +457,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         offer: intent.offer,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'vendor_sell') {
@@ -458,7 +469,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         item: intent.item,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* b564 — THE BULK SALE. `lines` is a list of NAMES and COUNTS built field
@@ -472,7 +483,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         lines: intent.lines,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* b354 — THE UNLOCK PURCHASE. It forwards LESS than shop_buy does: no
@@ -489,7 +500,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         offer: intent.offer,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). Same three
@@ -512,7 +523,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         trophy: intent.trophy,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT CROSSES BETWEEN TWO
@@ -537,7 +548,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         qty: intent.qty,
         ask: intent.ask,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'market_cancel') {
@@ -548,7 +559,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         listing: intent.listing,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     if (intent.verb === 'market_buy') {
@@ -560,7 +571,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         listing: intent.listing,
         qty: intent.qty,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     /* ── THE HUNT VERBS (lane C2) ───────────────────────────────────────────
@@ -579,7 +590,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         barSlot: intent.barSlot,
       });
-      return json(out.body, out.status);
+      return await reply(out.body, out.status);
     }
 
     // ── READ. One transaction, engine role, rate gate FIRST. ───────────────
@@ -713,7 +724,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         collection_found: collectionFound, hunt_open: huntOpen } as Row;
     });
 
-    if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
+    if (read?.limited) return await reply({ ok: false, error: 'rate_limited' }, 429);
 
     const env = read?.state as Record<string, any> | null;
     if (!env || env.ok !== true) {

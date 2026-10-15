@@ -335,10 +335,11 @@ export const LINKS = [
      functions one hunt-session settle needs: hr_hunt_open_of (is a hunt open),
      hr_hunt_engine_read (the session, bag, bar and the keyed-seed secret) and
      hr_hunt_apply (hr_apply + hr_hunt_settle_session in one subtransaction).
-     Three entries at the HEAD of c_engine_allow, an INSERTION, so its
-     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its
-     base is link 17's TARGET. The grants and this link land in ONE file. It is
-     the new last toucher. */
+     Three entries at the HEAD of c_engine_allow, plus hr_engine_closed (the
+     edge's closed-mode answer, Security closed-mode review item 4), an
+     INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART
+     1f-ii is EMPTY. Its base is link 17's TARGET. The grants and this link
+     land in ONE file. It is the new last toucher. */
   {
     base: '2026-10-10-world-tick-presence-horizon.sql',
     target: '2026-10-22-hunt-sessions-settle.sql',
@@ -402,6 +403,13 @@ export const PATCHES = [
     -- when this window's bag uses paid for every new segment. It pays nothing
     -- hr_apply would refuse.
     'hr_hunt_apply(uuid,integer,uuid,bigint,uuid,jsonb,jsonb,jsonb,jsonb,boolean)',
+    -- NOT READ-ONLY, bounded: the CLOSED-MODE answer for a refused edge call
+    -- (Security, closed-mode review item 4). Asked only after hr_rate_gate
+    -- refused (p_user, p_slot) — the pair the engine already passes it. It
+    -- reads hr_admitted for that user and, when not admitted, writes ONE
+    -- hr_rejections aggregate upsert (code 'closed') for that user; it moves
+    -- no value and names no other target.
+    'hr_engine_closed(uuid,integer,text)',
 `,
     where: 'after',
   },

@@ -6,8 +6,9 @@
 //                                    # the deny-list codes per (user, slot)
 //   node tools/vitals.mjs --world-tick # the tick's fire log per hour (24 h) and the
 //                                    # shadow journal per day (7 d), with the STALL rule
-//   node tools/vitals.mjs --selftest # the world-tick aggregation and STALL rule on
-//                                    # fixture rows, mutation-proved; no token, no DB
+//   node tools/vitals.mjs --selftest # the world-tick aggregation and STALL rule, and the
+//                                    # closed-mode pre-request check, on fixture rows,
+//                                    # mutation-proved; no token, no DB
 //
 // Runs ONE fixed SELECT over public.player_ledger through the same management
 // endpoint tools/apply-migration.mjs uses (token from ~/.supabase-token, read
@@ -359,6 +360,27 @@ function armedLagVerdict(row) {
   if (stuck >= 1) return { verdict: 'STUCK', why: `${stuck} of ${judged} armed character(s) > 15 min behind with no tick payment in 15 min` };
   return { verdict: 'OK', why: `${judged} armed character(s), none stuck` };
 }
+// CLOSED MODE'S FIRST LAYER (Security, closed-mode review R3): while the game
+// is closed, PostgREST must run public.hr_access_check before EVERY request
+// (`alter role authenticator set pgrst.db_pre_request`, 2026-10-21-closed-mode.sql
+// §8). A role reset, a dashboard edit or a restore can drop that setting
+// silently: the other three layers still refuse most calls, so nothing looks
+// broken while table reads and the client-writable tables are open again.
+// `row.closed` is the flag read fail-closed (a missing row is closed);
+// `row.hook` is the authenticator's setting text, or null when it has none.
+function closedGateVerdict(row) {
+  if (!row || row.closed === undefined || row.hook === undefined) return { verdict: 'UNREAD', why: 'no reading' };
+  if (row.installed === false || String(row.installed) === 'false') {
+    return { verdict: 'NOT INSTALLED', why: '2026-10-21-closed-mode.sql is not applied (no hr_access_check)' };
+  }
+  const closed = row.closed === true || String(row.closed) === 'true';
+  const hook = row.hook === null ? null : String(row.hook);
+  if (!closed) return { verdict: 'OPEN', why: 'closed_mode is off — the game is open; the hook is not required' };
+  if (hook !== 'pgrst.db_pre_request=public.hr_access_check') {
+    return { verdict: 'ALARM', why: `closed, but authenticator's pre-request is ${hook === null ? 'UNSET' : hook} — every REST call skips hr_access_check (L1 lost)` };
+  }
+  return { verdict: 'OK', why: 'closed, and PostgREST runs public.hr_access_check before every request' };
+}
 // ── STALL RULE END ───────────────────────────────────────────────────────────
 const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
 const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STALL_RULE.hours} whole hours ending now had`
@@ -372,6 +394,14 @@ const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STAL
 // it to supabase_read_only_user, which is who this endpoint runs as. Before that
 // file is applied the call fails and the line says so.
 const SLOT_HEALTH = 'select public.hr_slot_health() as h';
+/* CLOSED MODE'S PRE-REQUEST HOOK (closedGateVerdict). A missing flag row reads
+   CLOSED, exactly as hr_admitted reads it. */
+const CLOSED_GATE = `
+select to_regprocedure('public.hr_access_check()') is not null as installed,
+       coalesce((select enabled from public.hr_flags where key = 'closed_mode'), true) as closed,
+       (select c from pg_db_role_setting s, unnest(s.setconfig) c
+         where s.setrole = (select oid from pg_roles where rolname = 'authenticator') and s.setdatabase = 0
+           and c like 'pgrst.db_pre_request=%' limit 1) as hook`;
 
 // ── PARTY HUNTS > 24 h BEHIND (Security PD1) ────────────────────────────────
 // The interim operator check, verbatim, plus what the reaper ended in 7 days.
@@ -572,7 +602,7 @@ async function selftest() {
   const b = SRC.indexOf('// ── STALL RULE END');
   if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
   const RULE_SRC = SRC.slice(a, b);
-  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict };`)();
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict, closedGateVerdict };`)();
 
   const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
   const checks = (L) => {
@@ -638,6 +668,17 @@ async function selftest() {
     t('L3 the counts as the endpoint returns them (strings) -> STUCK', LV({ judged: '3', stuck: '1' }), 'STUCK');
     t('L4 nobody armed-owned -> NO VERDICT, never STUCK', LV({ judged: 0, stuck: 0 }), 'NO VERDICT');
     t('L5 no counts -> UNREAD, never OK', LV({}), 'UNREAD');
+    // Closed mode's first layer (Security R3).
+    const CV = (row) => L.closedGateVerdict(row).verdict;
+    const HOOK = 'pgrst.db_pre_request=public.hr_access_check';
+    t('C1 closed, hook installed -> OK', CV({ closed: true, hook: HOOK }), 'OK');
+    t('C2 closed, hook UNSET -> ALARM', CV({ closed: true, hook: null }), 'ALARM');
+    t('C3 closed, a different pre-request -> ALARM', CV({ closed: true, hook: 'pgrst.db_pre_request=public.other' }), 'ALARM');
+    t('C4 the flag as the endpoint returns it (a string) -> ALARM', CV({ closed: 'true', hook: null }), 'ALARM');
+    t('C5 open -> OPEN, the hook not required', CV({ closed: false, hook: null }), 'OPEN');
+    t('C6 no reading -> UNREAD, never OK', CV({}), 'UNREAD');
+    t('C7 closed mode not applied yet -> NOT INSTALLED, never ALARM', CV({ installed: false, closed: true, hook: null }), 'NOT INSTALLED');
+    t('C8 installed (a string), closed, unset -> ALARM', CV({ installed: 'true', closed: true, hook: null }), 'ALARM');
     return out;
   };
 
@@ -673,6 +714,11 @@ async function selftest() {
     { name: 'partyStaleUnreadIsOk', find: "if (!Number.isFinite(stale)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
     { name: 'lagOneStuckTolerated', find: 'if (stuck >= 1) return', repl: 'if (stuck >= 2) return' },
     { name: 'lagNobodyIsOk', find: "if (!(judged >= 1)) return { verdict: 'NO VERDICT'", repl: "if (false) return { verdict: 'NO VERDICT'" },
+    { name: 'closedHookIgnored', find: "if (hook !== 'pgrst.db_pre_request=public.hr_access_check') {", repl: 'if (false) {' },
+    { name: 'closedAnyHookIsOk', find: "if (hook !== 'pgrst.db_pre_request=public.hr_access_check') {", repl: 'if (hook === null) {' },
+    { name: 'closedStringFlagMissed', find: "const closed = row.closed === true || String(row.closed) === 'true';", repl: 'const closed = row.closed === true;' },
+    { name: 'closedInstalledIgnored', find: "if (row.installed === false || String(row.installed) === 'false') {", repl: 'if (true) {' },
+    { name: 'closedUnreadIsOk', find: "if (!row || row.closed === undefined || row.hook === undefined) return { verdict: 'UNREAD', why: 'no reading' };", repl: '' },
     { name: 'lagUnreadIsOk', find: "if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
   ];
   let missed = 0;
@@ -788,6 +834,16 @@ if (selftestMode) {
       if (v.verdict !== 'OK') process.exitCode = 1;
     } catch (e) {
       console.log(`party hunts > 24 h behind: UNREAD — ${e.message} (the exit code says so)`);
+    }
+    // Closed mode's first layer (Security R3): must read OK while closed.
+    try {
+      const row = (await ask(CLOSED_GATE))[0];
+      const v = closedGateVerdict(row);
+      console.log(`closed-mode pre-request hook: ${v.verdict} — ${v.why}`);
+      if (v.verdict === 'ALARM' || v.verdict === 'UNREAD') process.exitCode = 1;
+    } catch (e) {
+      console.log(`closed-mode pre-request hook: UNREAD — ${e.message} (the exit code says so)`);
+      process.exitCode = 1;
     }
     // The cron job hr-slot-health files maintenance_alerts on the same rule;
     // this line is the read a person sees at session start.

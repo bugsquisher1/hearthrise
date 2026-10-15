@@ -120,8 +120,6 @@ const TOP = {
      three blocks by PRESENCE, so a database that predates the migration leaves
      the scratch untouched and the panel renders nothing rather than an empty
      meter. No ratchet: there is no persisted copy to count. */
-  vigour:              { kind: 'reconciled', client: ['_vigour'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'hr_vigour_of\'s whole meter INCLUDING the server\'s day_key — two spellings of "today" is how a daily gets charged twice' },
-  hunt_analyzer:       { kind: 'reconciled', client: ['_huntAnalyzer'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'the last SETTLED reading, or null — ABSOLUTE, never a union: a null must REPLACE the previous hunt\'s profit line' },
 };
 
 const STATE = {
@@ -145,16 +143,16 @@ const STATE = {
   accrued_to:            { kind: 'meta', why: 'the priced window watermark (accrue.js bootAccruedToAt)' },
   workers_accrued_to:    { kind: 'meta', why: 'the worker accrual watermark' },
   combat_xp_accrued_to:  { kind: 'meta', why: 'the combat-XP cadence watermark' },
-  consec_falls:          { kind: 'reconciled', client: ['consecFalls'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the retreat counter hr_apply validates' },
   deaths_today:          { kind: 'reconciled', client: ['deathsToday'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the Recovery Rule counter' },
   deaths_lifetime:       { kind: 'reconciled', client: ['deathsLifetime'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the durable death counter (a death is never a free heal)' },
   recovering_until:      { kind: 'reconciled', client: ['recoveringUntil'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the recovery clock is the server\'s' },
   /* The four auto_eat_* keys left the projection in lane C2
-     (2026-10-22-hunt-sessions-away-readers.sql; ruling HR-2026-10-14 §3: Auto-Eat
-     became the hunt's action bar). Their client half is lane R1's to delete.
-     last_away_receipt STAYS until lane G (swap then delete): gathering and the
-     benches still return through the "while you were away" card. */
-  last_away_receipt:     { kind: 'reconciled', client: ['_awayReceipt'], reader: ['src/net/accrue.js', 'reconcileAwayReceipt'], why: 'the night the server kept (gathering / benches; combat writes none since lane C2)' },
+     (2026-10-22-hunt-sessions-delete-away.sql; ruling HR-2026-10-14 §3: Auto-Eat
+     became the hunt's action bar). So did last_away_receipt, consec_falls,
+     hunt_stance, hunt_stop, hunt_analyzer and vigour (the receipt, the Retreat,
+     stances and the old combat meters, deleted outright for the wipe). Their
+     client halves (_awayReceipt, consecFalls, _hunt, _huntAnalyzer, _vigour)
+     are lane D1/R1's to delete. */
   combat_style:          { kind: 'reconciled', client: ['combatStyle'], reader: ['src/net/accrue.js', 'reconcileCombatStyle'], why: 'server-wins per family, with the in-flight pick held in `_pendingStyle` scratch. Off RESIDUE_FIELDS since 2026-09-14 — the map is rebuilt from the envelope, never persisted' },
   tool_carry:            { kind: 'reconciled', client: ['toolCarry'], reader: ['src/net/accrue.js', 'reconcileToolCarry'], why: 'the fractional gather carry is the server\'s: the engine advances player_state.tool_carry through the same core advanceToolCarry the attended tick uses, and reconcileToolCarry replaces the prediction on every envelope (client half landed 2026-09-14, closing the OWED)' },
   streak_days:           { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'THE PLAY STREAK. The client counter is DELETED (2026-09-14): streak-chip.js advances nothing, `streak` is off RESIDUE_FIELDS, and playStreakDays() answers 0 until the realm speaks' },
@@ -168,8 +166,6 @@ const STATE = {
      chosen", and the panel must not confuse the two. Scratch (`_hunt`), never
      residue — the stance the engine obeys is the column hr_apply validates
      against hr_hunt_stances, never a client-held pick. */
-  hunt_stance:           { kind: 'reconciled', client: ['_hunt'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'HOW to fight; null = steady. Carries no multiplier (design §2.2) — the id is an allowlist the server enforces' },
-  hunt_stop:             { kind: 'reconciled', client: ['_hunt'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'WHEN to stop; the stop predicate runs server-side in the one engine both the tick and the away replay call' },
 };
 
 /* ── CHECK 3'S ONLY ESCAPE HATCH ────────────────────────────────────────────

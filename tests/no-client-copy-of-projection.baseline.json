@@ -21,7 +21,6 @@
       "farm",
       "gem_unlocks",
       "hero_slots",
-      "hunt_analyzer",
       "inventory",
       "inventory_complete",
       "must_rename",
@@ -38,7 +37,6 @@
       "traits",
       "unlocked_recipes",
       "version",
-      "vigour",
       "workers"
     ],
     "state": [
@@ -49,7 +47,6 @@
       "bank_cap",
       "combat_style",
       "combat_xp_accrued_to",
-      "consec_falls",
       "deaths_lifetime",
       "deaths_today",
       "dungeon_scrip",
@@ -62,9 +59,6 @@
       "hearthfind_ready",
       "hearthfind_titles",
       "hp",
-      "hunt_stance",
-      "hunt_stop",
-      "last_away_receipt",
       "marks",
       "max_hp",
       "plot_level",
@@ -78,5 +72,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-14"
+  "generatedAt": "2026-10-15"
 }

@@ -115,10 +115,10 @@ import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
    the entry trait is granted by the same RPC that mints the starting kit. */
 /* tests/auto-eat-at-creation.mjs was RETIRED 2026-10-14 by lane C2 (hunt sessions,
    ruling HR-2026-10-14 §3): Auto-Eat is the hunt's action-bar heal slot now, and
-   2026-10-22-hunt-sessions-away-readers.sql takes the switch out of
-   hr_create_character before the drop file removes the columns. What replaces
-   it: tests/hunt-sessions-db.mjs D1 (the objects are gone, a planted reader
-   refuses the drop) and the away-readers file's own §5 self-check. Deliberately
+   2026-10-22-hunt-sessions-delete-away.sql takes the switch out of
+   hr_create_character and removes the columns in one file. What replaces it:
+   tests/hunt-sessions-db.mjs D1 (the objects are gone, a planted reader
+   refuses the drop) and that file's own self-check. Deliberately
    unregistered, not forgotten. */
 import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';

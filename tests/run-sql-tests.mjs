@@ -85,6 +85,7 @@ import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions-delete-away.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -604,8 +605,9 @@ const ALSO_LINTED = [
   /* HUNT SESSIONS (ruling HR-2026-10-14), lane C2. The settle file creates the
      engine reads, the one applier hr_hunt_apply, the fence trigger and the tick
      roster, and is link 18 of HR_GRANT_HYGIENE_CHAIN (the CURRENT last toucher
-     of hr_assert_grant_hygiene). The arm, away-readers and drop files grant
-     nothing new; they are listed so a later edit that does is linted.
+     of hr_assert_grant_hygiene). The arm and delete-away files grant nothing
+     new; they are listed so a later edit that does is linted. The closed-mode
+     ungated-RPC splice re-grants the six RPCs it restates, so it is linted too.
      ⚠ NOT LISTED: C1's 2026-10-21-hunt-sessions.sql (APPLIED 2026-10-14). It
      revokes in a format() loop these regex lints cannot read (31 false FAILs)
      and its self-check uses a named dollar tag; its ACL is asserted executed by
@@ -615,8 +617,8 @@ const ALSO_LINTED = [
   '2026-10-22-hunt-sessions-catalogue.generated.sql',
   '2026-10-22-hunt-sessions-settle.sql',
   '2026-10-22-hunt-sessions-arm.sql',
-  '2026-10-22-hunt-sessions-away-readers.sql',
-  '2026-10-22-hunt-sessions-drop-away.sql',
+  '2026-10-22-hunt-sessions-delete-away.sql',
+  '2026-10-22-closed-mode-ungated-rpcs.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -661,6 +663,12 @@ const HR_APPLY_CHAIN = [
      into it. That is why it is the last link and why its declared removals are
      the lines those 44 patches REPLACED. */
   '2026-09-14-hr-apply-restatement.sql',
+  /* LANE C2 — THE DEMOLITION (ruling HR-2026-10-14). The chain-end body read
+     back with pg_get_functiondef, minus the away receipt, the Retreat counter
+     and the death row's auto_eat_enabled. Its declared removals are FROZEN in
+     tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs, classified
+     there line class by line class. */
+  '2026-10-22-hunt-sessions-delete-away.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -721,6 +729,10 @@ const HR_STATE_OF_CHAIN = [
   // per account, identical on every slot). Its declared replacements below are
   // the banner line and the two scalar lines that now read the wallet.
   '2026-10-19-account-wallet.sql',
+  // LANE C2 — THE DEMOLITION. The wallet body minus the auto-eat, Retreat,
+  // stance/stop, receipt, hunt-analyzer and vigour keys; its removals are FROZEN
+  // in tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs.
+  '2026-10-22-hunt-sessions-delete-away.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1548,8 +1560,21 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
 {
   const applyBody = (file) => {
     const sql = (sources.get(file) || '').replace(/\r\n/g, '\n');
-    const i = sql.indexOf(SPEC.open);
+    /* Case-insensitive, and any dollar tag: a body restated from
+       pg_get_functiondef reads `CREATE OR REPLACE FUNCTION … AS $function$`
+       and closes `end $function$;`. Before lane C2 only the lowercase `$$`
+       shape was readable, so such a file was a definer the walk could not
+       grade (it failed "cannot extract", never silently passed). */
+    const i = sql.toLowerCase().indexOf(SPEC.open.toLowerCase());
     if (i < 0) return null;
+    const tagM = /\$[A-Za-z_]*\$/.exec(sql.slice(i));
+    if (tagM && tagM[0] !== '$$') {
+      const tag = tagM[0];
+      const start = i + tagM.index + tag.length;
+      const tagEnds = [sql.indexOf(`\nend ${tag};\n`, start), sql.indexOf(`\n${tag};\n`, start)].filter((x) => x >= 0);
+      if (!tagEnds.length) return null;
+      return sql.slice(start, Math.min(...tagEnds));
+    }
     /* The body ends at `\nend $$;\n` OR at its dollar-quote's own close
        `\n$$;\n`, whichever is FIRST. A `$$`-quoted body cannot contain either
        inside it, so the first one is this function's end. Before 2026-10-19 only
@@ -1571,6 +1596,9 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
      and no file appears in both chains (a file that restated hr_apply AND
      hr_rate_gate would need its removals split, and is not a thing that exists). */
   const DECLARED_REMOVALS = {
+    /* LANE C2's demolition of hr_apply — frozen and classified in its own
+       module (336 lines: whole features, so too long to inline here). */
+    '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -1812,6 +1840,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
      is then hr_apply's/hr_rate_gate's/… as before, untouched. */
   const DECLARED_REMOVALS_BY_FN = {
     hr_state_of: {
+      '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as
@@ -2103,12 +2132,16 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
     hearthfind: ['pointer', 'names an item; the trophy, its legitimacy, the pairing, the day count '
       + 'and the instant are all re-derived from hr_hearthfind_items/_sources. At most one per '
       + 'apply, three per character per UTC day, and it cannot be minted through `items`'],
-    consec_falls: ['bounded', 'Recovery rev. 3 — an ABSOLUTE non-negative integer counting falls with '
-      + 'no kill between. Engine output; gates nothing a player wants and enters no conservation sum, '
-      + 'so it is checked for shape and blast radius only'],
-    last_away_receipt: ['metadata', 'the away card. It DESCRIBES the value the rest of the same delta '
-      + 'moved and moves none itself; every number in it is re-derived against the locked row and '
-      + 'now(), and a sync-sized span is refused rather than stored'],
+    /* LANE C2 (2026-10-22-hunt-sessions-delete-away.sql): consec_falls and
+       last_away_receipt left hr_apply with the Retreat and the away receipt.
+       xp_frac and companion_xp_frac reached THIS list then, not when they went
+       live — they arrived by anchored patch, invisible to a static chain whose
+       last link was the 09-14 restatement. */
+    xp_frac: ['bounded', '2026-10-09 — an ABSOLUTE per-skill remainder in [0,1), the tool_carry '
+      + 'shape; range-refused (bad_xp_frac), at most c_max_carry_skills keys. It moves no balance: '
+      + 'a whole XP point only ever reaches player_skills through the clamped, budgeted `xp` key'],
+    companion_xp_frac: ['bounded', '2026-10-12 — the equipped companion remainder in [0,1), the xp_frac '
+      + 'shape; range-refused, keyed to an equipped companion only. Moves no balance'],
     recovering_until: ['bounded', 'First-Night Idle Rescue — an ABSOLUTE instant, ceilinged ahead of '
       + 'now() and REFUSED when it would shorten a running knockout (Security F1). A clock, never a '
       + 'balance'],
@@ -2238,8 +2271,24 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
          tests/gem-daily-budget.mjs plants and this lint must be able to see. */
       const insertStmt = (applySql.match(
         /insert into public\.player_ledger[\s\S]*?\)\);/) || [''])[0];
-      const stamped = new RegExp(`\\b${col}\\b`).test(insertStmt)
+      const stampedHere = new RegExp(`\\b${col}\\b`).test(insertStmt)
         && new RegExp(`\\bv_${col}\\b`).test(insertStmt);
+      /* THE ACCOUNT WALLET (2026-10-19): gems live per ACCOUNT, so hr_apply
+         stamps its own row's gems_in as 0 and hands the credit to
+         hr_wallet_credit, which journals the SAME amount as its own
+         kind='wallet' row with gems_in = p_gems. That is the stamp, one hop
+         away — and both halves are required: hr_apply must pass v_new_<k> to
+         the wallet, AND the wallet's insert must stamp <k>_in from p_<k>.
+         Either half missing is the "sum that cannot grow" this lint is for. */
+      const walletSql = [...sources.values()].filter((sql) =>
+        /create or replace function public\.hr_wallet_credit\s*\(/i.test(sql)).pop() || '';
+      const walletFn = (walletSql.match(/create or replace function public\.hr_wallet_credit[\s\S]*?\nend \$\$;/i) || [''])[0];
+      const walletInsert = (walletFn.match(/insert into public\.player_ledger[\s\S]*?\)\);/) || [''])[0];
+      const walletValues = walletInsert.split(/\bvalues\b/i)[1] || '';
+      const stampedByWallet = new RegExp(`public\\.hr_wallet_credit\\([^;]*\\bv_new_${k}\\b`).test(applySql)
+        && new RegExp(`\\b${col}\\b`).test(walletInsert)
+        && new RegExp(`\\bp_${k}\\b`).test(walletValues);
+      const stamped = stampedHere || stampedByWallet;
       const dimension = new RegExp(`'${k}',\\s*c_day_${k}_budget`).test(budgetSql);
       const column = [...sources.values()].some((sql) =>
         new RegExp(`alter table public\\.player_ledger add column if not exists ${col}\\b`, 'i').test(sql));

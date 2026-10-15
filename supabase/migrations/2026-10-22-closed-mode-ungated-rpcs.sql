@@ -52,7 +52,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
-do $mig$
+do $$
 begin
   if to_regprocedure('public.hr_access_check()') is null then
     raise exception 'closed-mode-ungated-rpcs §0: public.hr_access_check() does not exist — apply 2026-10-21-closed-mode.sql first';
@@ -61,10 +61,10 @@ begin
      or exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'hr_set_auto_eat') then
     raise exception 'closed-mode-ungated-rpcs §0: hr_set_auto_eat still exists — apply 2026-10-22-hunt-sessions-delete-away.sql first';
   end if;
-end $mig$;
+end $$;
 
 -- ── §1 THE SPLICE — ONE LINE, FIRST, IN EACH OF THE SIX ──────────────────────
-do $mig$
+do $$
 declare
   f        text;
   v_src    text;
@@ -96,7 +96,7 @@ begin
       '  ' || c_line || chr(10));
     execute v_new;
   end loop;
-end $mig$;
+end $$;
 
 -- ── §2 GRANTS — EXACT, REVOKE FIRST ──────────────────────────────────────────
 revoke execute on function public.hr_load(integer) from public, anon, service_role;
@@ -113,7 +113,7 @@ grant execute on function public.hr_companion_grant(integer,text,text,uuid) to a
 grant execute on function public.hr_rest(integer,uuid) to authenticated;
 
 -- ── §3 SELF-CHECK, EXECUTED ──────────────────────────────────────────────────
-do $mig$
+do $$
 declare
   f       text;
   v_def   text;
@@ -195,4 +195,4 @@ begin
      or (select enabled from public.hr_flags where key = 'closed_mode') is distinct from v_flag then
     raise exception 'closed-mode-ungated-rpcs §3c: the self-check left a fixture or moved the flag'; end if;
   perform public.hr_assert_grant_hygiene(true);
-end $mig$;
+end $$;

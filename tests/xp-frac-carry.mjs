@@ -23,7 +23,9 @@
 //       exactly floor((remainder0 + sum of grants) / 1e-6 units), computed
 //       independently of grantXp.
 //   X2  +2% PAYS ON THE WEAKEST MONSTER. 100 kills of the slime (8 HP), a maxed
-//       hitter: Trophy rung 2 pays, per skill, at least floor(2% of the bare XP).
+//       hitter: a +2% combat_xp buff pays, per skill, at least floor(2% of the bare XP).
+//       (The source was the Trophy Room's rung 2 until a home stopped granting XP,
+//       Master Design Reference §9, 2026-10-14; the buff is the live +2% that is left.)
 //   X3  AWAY-1 PARITY, XP AND REMAINDER. The same seeded fight priced by the
 //       ATTENDED loop (simulateTick per swing, grantXp per grant, the remainder
 //       carried in the state by identity, the client's live-tick loop driven
@@ -135,12 +137,13 @@ async function load(base) {
     at('src/core/xp.js'), at('src/core/styles.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
+  const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
   return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, tick, tg, gatherFixture, residueSrc };
+    xp, styles, pacing, buffs, tick, tg, gatherFixture, residueSrc };
 }
 
 async function mutantBase(m) {
@@ -166,7 +169,8 @@ const FROM = Date.UTC(2026, 2, 15, 0, 0, 0);
 const SEED = 0x5eed1234;
 const UID = '00000000-0000-4000-8000-0000000f7ac1';
 const F0 = { attack: 0.7, strength: 0.3, defense: 0.123456, hitpoints: 0.999999 };
-const RUNG2 = { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } };
+const BOOST = Object.freeze([{ type: 'combat_xp', magnitude: 2,
+  from: new Date(FROM - 1000).toISOString(), until: new Date(FROM + 48 * 3600000).toISOString() }]);
 
 function maxed(L) {
   const x = L.xp.xpForLevel(99);
@@ -175,12 +179,12 @@ function maxed(L) {
 
 /* The accrue-path input for a combat span — the shape engineInputsFromEnvelope
    produces, with the catalogues every call site names. */
-function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) {
+function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, boost, seed, monster }) {
   return {
     userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
     activeKind: 'combat', activeId: monster || 'slime', capMs: 12 * 3600000, seed: seed ?? SEED,
     hp: 990, maxHp: 990, gold: 0, skills: { ...skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
-    equipment: {}, inventory: {}, perks: perks || null,
+    equipment: {}, inventory: {}, perks: perks || null, buffs: boost || null,
     items: L.ITEMS, monsters: L.MONSTERS, nodes: {},
   };
 }
@@ -188,13 +192,13 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
 /* The ATTENDED context: the pieces computeAccrual derives for a bare character,
    built here from the same exported core functions, so the attended column is
    an independent second construction of the same fight. */
-function attendedCtx(L, { skills, perks, rng, xpState, onGrant }) {
+function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
   const { cmb, acc, styles, MONSTERS, ITEMS } = L;
   const eq = cmb.equipmentStats({}, ITEMS, {});
   const setBonus = cmb.armorSetBonus({}, ITEMS);
   const profile = acc.deriveProfile(eq.weaponType);
   const style = styles.resolveStyle(eq.weaponType, styles.normaliseStyleKeys({}));
-  const bonus = acc.bonusFor(perks || null, null);
+  const bonus = acc.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
   return {
     tickMs: acc.deriveTickMs({}, ITEMS, style),
     ctx: {
@@ -293,10 +297,10 @@ async function runArms(L) {
   {
     const m = L.MONSTERS.slime;
     ok('X2', m && m.hp === 8, `the slime is not the 8-HP monster this arm is about (${m && m.hp})`);
-    const run = (perks) => {
+    const run = (boost) => {
       const skills = maxed(L);
       const xs = { skills: { ...skills }, xpFrac: {} };
-      const { ctx } = attendedCtx(L, { skills, perks, rng: L.rng.createRng(SEED), xpState: xs });
+      const { ctx } = attendedCtx(L, { skills, boost, rng: L.rng.createRng(SEED), xpState: xs });
       const st = { activeMonster: 'slime', monsterHp: 8, monsterMaxHp: 8, playerHp: 990, playerMaxHp: 990,
         stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
       let kills = 0;
@@ -310,7 +314,7 @@ async function runArms(L) {
       return { kills, gained };
     };
     const bare = run(null);
-    const rung2 = run(RUNG2);
+    const rung2 = run(BOOST);
     ok('X2', bare.kills === 100 && rung2.kills === 100, `the fixtures ran ${bare.kills}/${rung2.kills} kills, not 100`);
     let tested = 0;
     for (const k of Object.keys(bare.gained)) {
@@ -327,14 +331,14 @@ async function runArms(L) {
   {
     const SPAN = 3600000;
     const skills = maxed(L);
-    const away = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }));
+    const away = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }));
     ok('X3', away.accrued === true && !away.summary.died, `the away span did not run clean (${away.reason})`);
     const awayXp = (away.delta && away.delta.xp) || {};
     const awayFrac = Object.assign({}, F0, (away.delta && away.delta.xp_frac) || {});
 
     // ATTENDED: the live loop, grant by grant, remainder carried by identity.
     const xs = { skills: { ...skills }, xpFrac: { ...F0 } };
-    const { ctx, tickMs } = attendedCtx(L, { skills, perks: RUNG2, rng: L.rng.createRng(SEED), xpState: xs });
+    const { ctx, tickMs } = attendedCtx(L, { skills, boost: BOOST, rng: L.rng.createRng(SEED), xpState: xs });
     const st = { activeMonster: 'slime', monsterHp: 0, monsterMaxHp: 0, playerHp: 990, playerMaxHp: 990,
       stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
     st.monsterMaxHp = L.MONSTERS.slime.hp; st.monsterHp = st.monsterMaxHp;
@@ -354,7 +358,7 @@ async function runArms(L) {
     }
 
     // WORLD TICK, the same fight: one window through shadowTick, seed pinned to the span's.
-    const char = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }),
+    const char = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }),
       items: undefined, monsters: undefined, nodes: undefined });
     char.xpFrac = { ...F0 };
     const cats = { items: L.ITEMS, monsters: L.MONSTERS, nodes: {} };
@@ -371,7 +375,7 @@ async function runArms(L) {
     // simulated with the column's own arithmetic (trunc to 6 places, numeric ->
     // JSON number). Same windows, same per-window seeds: identical throughout.
     const W = 10; const step = SPAN / W;
-    const tc = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + step, skills, xpFrac: F0, perks: RUNG2 }),
+    const tc = L.shadow.hydrate({ ...combatInput(L, { fromMs: FROM, toMs: FROM + step, skills, xpFrac: F0, boost: BOOST }),
       items: undefined, monsters: undefined, nodes: undefined });
     tc.xpFrac = { ...F0 };
     const db = { skills: { ...skills }, frac: { ...F0 }, fight: null, hp: 990 };
@@ -384,8 +388,9 @@ async function runArms(L) {
       // the accrue path, re-hydrated from the "row" every window
       const env = { state: { accrued_to: new Date(mark).toISOString(), active_since: new Date(FROM).toISOString(),
         active_kind: 'combat', active_id: 'slime', hp: db.hp, max_hp: 990, gold: 0, fight: db.fight },
-        skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 99, frac: db.frac[k] || 0 }])) };
-      const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: RUNG2,
+        skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 99, frac: db.frac[k] || 0 }])),
+        buffs: BOOST };
+      const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: null,
         items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, ...L.env.engineInputsFromEnvelope(env, to),
         accruedToMs: mark, activeSinceMs: FROM });
       ok('X3', t.accrued === true && a.accrued === true, `window ${w}: tick ${t.reason} / accrue ${a.reason}`);
@@ -517,13 +522,13 @@ async function runArms(L) {
   {
     const SPAN = 3600000;
     const skills = maxed(L);
-    const paid = L.acc.computeAccrual({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }),
+    const paid = L.acc.computeAccrual({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }),
       combatXpAccruedToMs: FROM + SPAN });
     ok('X8', paid.accrued === true && paid.summary.kills > 0, `the paid window did not run a fight (${paid.reason})`);
     ok('X8', !('xp_frac' in (paid.delta || {})) && !('xp' in (paid.delta || {})),
       `a window fully paid by hr_credit_combat_xp proposed xp ${JSON.stringify(paid.delta && paid.delta.xp)} and `
       + `xp_frac ${JSON.stringify(paid.delta && paid.delta.xp_frac)} — a remainder from fights another channel paid`);
-    const unpaid = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }));
+    const unpaid = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, boost: BOOST }));
     ok('X8', unpaid.delta && unpaid.delta.xp_frac && Object.keys(unpaid.delta.xp_frac).length > 0,
       'CONTROL: the same window unpaid proposes no xp_frac, so the arm above proves nothing');
   }
@@ -597,7 +602,7 @@ function drawDigest(L, sink, level) {
   };
   const rng = L.rng.rngFrom(src);
   const xs = { skills: { ...skills }, xpFrac: {} };
-  const { ctx, tickMs } = attendedCtx(L, { skills, perks: RUNG2, rng, xpState: xs });
+  const { ctx, tickMs } = attendedCtx(L, { skills, boost: BOOST, rng, xpState: xs });
   if (sink !== 'carry') {
     ctx.fx.addXp = sink === 'none' ? () => {} : (sk, amt) => {
       xs.skills[sk] = (xs.skills[sk] || 0) + Math.floor(Number(amt) || 0);

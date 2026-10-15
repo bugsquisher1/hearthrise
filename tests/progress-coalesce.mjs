@@ -23,7 +23,7 @@
 //       services/world-tick/fixtures gather sessions — and every
 //       8-window S4 fold (AWAY) ships <= 32 ops (half of hr_apply's 64)
 //   D1  ★ THE DIFFERENTIAL, through the replayed hr_apply, per fixture
-//       (gather, gather + utility pet [companion + companion_xp_frac],
+//       (gather, gather + utility pet,
 //       xp_frac, hearthfind):
 //         ATTENDED  one window: shipped (coalesced) == old pack (raw
 //                   concatenation): state byte-identical AND ledger rows
@@ -138,7 +138,6 @@ function gatherSession(M, t0, { pet = null, frac = false, node = 'normal_tree', 
     capMs: 43200000, hp: 40, maxHp: 40, gold: 0,
     skills: { [skill]: M.xp.xpForLevel(lv), hitpoints: 1200 }, inventory: {}, equipment: {}, toolCarry: null,
     ...(frac ? { xpFrac: {} } : {}),
-    ...(pet && frac ? { companionXpFrac: {} } : {}),
     perks: { ok: true, companion: pet ? { id: pet, xp: 0 } : null },
   };
 }

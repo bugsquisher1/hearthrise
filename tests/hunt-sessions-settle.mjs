@@ -618,7 +618,7 @@ async function snapshot(db, sid) {
                 where l.session_id = $2 and l.kind = 'hunt' and l.intent = 'supply_buy'),
       'resume', (select jsonb_agg(l.meta order by l.id) from public.player_ledger l
                   where l.session_id = $2 and l.kind = 'hunt' and l.intent = 'resume'),
-      'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
+      'skills', (select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0),
       'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
       'stats', (select jsonb_object_agg(kind || ':' || key || ':' || period_key, value) from public.player_progress
                  where user_id = $1 and slot = 0 and kind <> 'daily'),
@@ -1009,8 +1009,8 @@ const DB_ARMS = {
     if (shopOn.length) problems.push(`the default bar has a shop slot ON: ${JSON.stringify(shopOn)}`);
     const resume = await one(db, `select last_activity_kind || ':' || last_activity_id from public.player_state where user_id = $1 and slot = 0`, [UID]);
     if (resume !== `${M.HSD.DEFAULT_RESUME.kind}:${M.HSD.DEFAULT_RESUME.id}`) problems.push(`a new character resumes ${resume}`);
-    /* hr_vigour_refill is off the client surface (row 20). */
-    if (await one(db, `select has_function_privilege('authenticated', 'public.hr_vigour_refill(integer,uuid)', 'execute')`)) {
+    /* hr_vigour_refill is gone (row 20; deleted outright, lane C2). */
+    if (await one(db, `select to_regprocedure('public.hr_vigour_refill(integer,uuid)') is not null`)) {
       problems.push('a client can still buy Vigour (hr_vigour_refill)');
     }
     return problems;
@@ -1235,7 +1235,7 @@ const DB_ARMS = {
     if (spawns.length < 2) problems.push(`CONTROL: ${STRONG.hunt} spawns fewer than two monsters`);
     const value = async () => canon(await one(db, `select jsonb_build_object(
         'gold', ps.gold, 'hp', ps.hp,
-        'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0),
+        'skills', (select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0),
         'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
         'tally', (select jsonb_build_object('coins', t.coins, 'kills', t.kills, 'xp', t.xp, 'loot', t.loot)
                     from public.hunt_session_tally t where t.session_id = $2))

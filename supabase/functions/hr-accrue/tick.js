@@ -1119,15 +1119,15 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
        future engine adds: state the next fire would read has moved;
      (`xp_frac` IS modelled: advance() carries it per skill and foldDeltas folds
      it ABSOLUTE_MAP, last window per skill — 2026-10-09-xp-frac-carry.sql;
-     `companion_xp_frac` likewise, per companion — 2026-10-12-companion-xp-frac.sql);
+     the pet's remainder left with companion XP, closed rebuild lane C2);
      · levels any skill — hr_renown_of is a function of skill levels and
        hr_perks_of prices `renownAllXp` from it, so a level-up can move the
        perk stack the next window is priced with.
-   Perks (`hr_perks_of`), the offline cap and the bestiary are read ONCE per
+   Perks (`hr_perks_of`) and the offline cap are read ONCE per
    visit, exactly as a single window reads them once for its nine polls.
    tests/world-tick-scale.mjs F1 proves the fold equal to the single fires. */
 export const FOLD_CHAIN_KEYS = Object.freeze(
-  ['accrued_to', 'items', 'xp', 'xp_frac', 'companion_xp_frac', 'gold', 'progress', 'tool_carry', 'journal']);
+  ['accrued_to', 'items', 'xp', 'xp_frac', 'gold', 'progress', 'tool_carry', 'journal']);
 
 function levelledUp(before, after) {
   for (const k of Object.keys(after || {})) {

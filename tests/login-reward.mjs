@@ -86,11 +86,9 @@ const JS_MUTANTS = [
   { name: 'an unclaimed last row continues the streak', arm: 'L3', file: 'src/data/rewards.js',
     edits: [["  if (!last || typeof last !== 'object' || last.state !== 'claimed') return 1;",
       "  if (!last || typeof last !== 'object') return 1;"]] },
-  { name: 'keys and gems pay on any arrival (the skip exploit)', arm: 'L7', file: 'src/data/rewards.js',
-    edits: [['  const bonus = !!(opts && opts.bonus === true);', '  const bonus = true;']] },
-  { name: 'keys ignore the ledger week (skip two, then straight)', arm: 'L7', file: 'src/data/rewards.js',
-    edits: [['  return loginClaimIsStraight(lookup) && !!lookup && lookup.bonus_ready === true;',
-      '  return loginClaimIsStraight(lookup);']] },
+  /* The two bonus-gate mutants (keys and gems on any arrival / ignoring the ledger
+     week) left with the payload they gated: since 2026-10-15 no day pays a key or a
+     gem, so the gate guards nothing and L7 asserts that instead. */
   { name: 'the edge stops sending the supplies', arm: 'L4', file: 'supabase/functions/hr-accrue/claim-reward.js',
     edits: [['  if (priced.items && Object.keys(priced.items).length) delta.items = { ...priced.items };', '']] },
 ];
@@ -364,7 +362,7 @@ async function runArms(db, mods) {
       return { gems, close };
     };
     const daily = sim(() => true);
-    if (daily.gems !== 8) fail('L7', `CONTROL: a daily player over 28 days earns ${JSON.stringify(daily)}, expected 8 gems`);
+    if (daily.gems !== 0) fail('L7', `a daily player over 28 days earns ${JSON.stringify(daily)} — gems are out of the game`);
     const patterns = [
       ['every other day', (d) => d % 2 === 1],
       /* Security's pattern: a straight week to the key, then skip two (back

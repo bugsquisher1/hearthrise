@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/render/canvas-backend.js — THE WORLD ON A 2D CANVAS.
 //
-// Interface { mount, setMap, sync, snapshot, destroy } — the same as
+// Interface { mount, setMap, setInset, sync, snapshot, destroy } — the same as
 // null-backend.js, and both draw composeFrame()'s list over the same manifest
 // book, so what the node tests assert is what this paints. The screen adds
 // pick / screenOf: a tap's client point ↔ the last frame's tiles and sprites.
@@ -21,7 +21,7 @@
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
 import { T } from '../core/grid.js?v=586';
-import { zoomFor, frameView, fitZoom, frameCentre } from '../core/camera.js?v=586';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=586';
 import { composeFrame, groundTiles } from '../core/compose.js?v=586';
 import { paintStub } from '../stub-atlas.js?v=586';
 
@@ -40,14 +40,14 @@ export function createCanvasBackend(o) {
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
-  let z = 2, dpr = 1, W = 1, H = 1, dirty = true;
+  let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
   let frames = 0, msAvg = 0, msLast = 0, last = null, lastView = null;
 
   const sizeTo = (c, w, h) => { if (c.width !== w) c.width = w; if (c.height !== h) c.height = h; };
 
   function measure() {
     dpr = win.devicePixelRatio || 1;
-    z = zoomFor(win.innerHeight, dpr);
+    z = zoomFor(win.innerWidth, dpr);
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width * dpr));
     H = Math.max(1, Math.round(r.height * dpr));
@@ -149,8 +149,8 @@ export function createCanvasBackend(o) {
       g.globalCompositeOperation = 'source-over';
     }
     if (vignette) {
-      const vw = W / z, vh = H / z;
-      const cx = fv.cam.x + vw / 2 - view.ox, cy = fv.cam.y + vh / 2 - view.oy;
+      const vw = fv.open.w, vh = fv.open.h;   // the vignette rings the uncovered World
+      const cx = fv.open.x + vw / 2 - view.ox, cy = fv.open.y + vh / 2 - view.oy;
       g.save();
       g.translate(cx, cy);
       g.scale(vw / 2, vh / 2);
@@ -260,12 +260,13 @@ export function createCanvasBackend(o) {
   function draw(state) {
     const t0 = win.performance.now();
     if (dirty) measure();
-    /* A map with a `frame` (a hunt room) is shown whole at the largest whole zoom
-       that fits; otherwise, and on a phone, the camera follows the hero (or the
-       point a walk scene leans it toward, `state.camera`). */
-    const fit = fitZoom(map.frame, W, H, dpr, T);
-    z = fit || zoomFor(win.innerHeight, dpr);
-    const fv = frameView(fit ? frameCentre(map.frame) : state.camera || state.hero, W / z, H / z, map, z, T);
+    /* ONE zoom for every scene (measure(), from the window alone). The camera
+       looks at the hero (or the point a walk scene leans it toward,
+       `state.camera`) inside the part of the stage the docked windows leave
+       uncovered, and keeps the hero in that part. */
+    const k = dpr / z;
+    const fv = frameView(state.camera || state.hero, W / z, H / z, map, z, T,
+      { inset: { left: inset.left * k, right: inset.right * k, top: inset.top * k, bottom: inset.bottom * k }, keep: state.hero });
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
     const list = composeFrame(map, book, state, view, tables, T);
@@ -329,6 +330,12 @@ export function createCanvasBackend(o) {
     },
     sync(state) { if (map && canvas) draw(state); },
     /**
+     * THE CAMERA INSET: the strips of the stage a docked window covers, in CSS
+     * px ({left, right, top, bottom}; null uncovers it). The camera frames the
+     * rest, so the hero is never under a window; the art still draws there.
+     */
+    setInset(o) { inset = cleanInset(o); },
+    /**
      * What is under a client point in the last frame: { tile: [x, y], hits } —
      * hits are the drawn props, units and decals there, top-most first. Under a
      * roof that is showing, nothing below it is hit (the tap is on the building).
@@ -353,7 +360,7 @@ export function createCanvasBackend(o) {
     },
     snapshot() {
       return {
-        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast,
+        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset),
         heroBuilding: last ? last.heroBuilding : null,
         sprites: last ? last.sprites.length : 0,
         stubbed: last ? last.sprites.concat(last.raised).filter((d) => d.kind !== 'void' && !(d.set && images[d.set])).map((d) => d.id) : [],

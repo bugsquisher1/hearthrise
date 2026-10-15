@@ -145,6 +145,7 @@ function createEnvReader(win) {
  *   step()     paint one frame now
  *   stats()    { running, frames, scene, kind, hunt, walk, ...backend.snapshot() } for tests
  *   screenOf(x, y)  the client point over tile (x, y) of the scene showing, for a test's tap
+ *   setInset({left, right, top, bottom})  CSS px of the stage a docked window covers
  *   destroy()
  * @param {HTMLElement} panel
  */
@@ -400,6 +401,12 @@ export async function bootWorld(panel) {
     step: () => step(0),
     stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
+    /**
+     * The shell's docked windows: the strips of the stage they cover, in CSS px
+     * ({left, right, top, bottom}; null when none). The camera frames the rest
+     * from the next frame on, so a window never covers the hero.
+     */
+    setInset(o) { backend.setInset(o); if (panel.classList.contains('active')) step(0); },
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;

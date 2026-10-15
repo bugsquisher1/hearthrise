@@ -23,6 +23,7 @@
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { findPath, walkable, reachFrom, canStep } from './core/path.js?v=586';
+import { diagonalOf } from './core/facing.js?v=586';
 
 export const WALK_TILES_PER_S = 3.2;
 
@@ -45,8 +46,10 @@ const SIDE = (dx) => (dx > 0 ? 'e' : 'w');
 const UPDOWN = (dy) => (dy > 0 ? 's' : 'n');
 
 /**
- * The facing for a step (dx, dy) of a walk heading `trip` overall. A straight
- * step faces its way. The art has four facings, so a DIAGONAL step faces the
+ * The CARDINAL facing for a step (dx, dy) of a walk heading `trip` overall. A
+ * diagonal step also carries its diagonal (core/facing.js), drawn when the art
+ * has that facing; this is what shows when it has not. A straight
+ * step faces its way. A DIAGONAL step faces the
  * trip's dominant axis (a walk mostly south keeps facing the camera through its
  * diagonal steps, instead of flipping to a side view and back), or,
  * on an exact diagonal, keeps the facing it had when that is one of its two
@@ -69,7 +72,7 @@ export function facingFor(dx, dy, trip, was) {
 export function createSteer(map, at) {
   const { w, h } = map;
   let mask = map.mask;
-  let x = at[0], y = at[1], dir = 's';
+  let x = at[0], y = at[1], dir = 's', diag = null;
   /* restSince starts at the first moment anyone asks: a hero that has just
      arrived on the map has been standing for no time at all. */
   let legs = [], leg = null, restSince = null, goal = null, tapped = false;
@@ -105,6 +108,7 @@ export function createSteer(map, at) {
     const dist = next[0] !== fx && next[1] !== fy ? Math.SQRT2 : 1;
     leg = { ox: fx, oy: fy, fx, fy, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
     dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);
+    diag = diagonalOf(next[0] - fx, next[1] - fy);
   }
   function rest(at) { leg = null; goal = null; restSince = at; walked = 0; }
   /** Play the legs up to `now`; returns how far into its step the hero is (0..1). */
@@ -138,6 +142,7 @@ export function createSteer(map, at) {
     const dist = Math.hypot(next[0] - x, next[1] - y);
     leg = { ox: leg.ox, oy: leg.oy, fx: x, fy: y, tx: next[0], ty: next[1], t0: now, ms: (1000 * dist) / WALK_TILES_PER_S, dist };
     dir = facingFor(next[0] - leg.ox, next[1] - leg.oy, trip, dir);
+    diag = diagonalOf(next[0] - leg.ox, next[1] - leg.oy);
   }
 
   return {
@@ -177,16 +182,18 @@ export function createSteer(map, at) {
       if (leg) reAim(now);
       else {
         startLeg(now);
-        if (!leg) { dir = facingFor(dx, dy, trip, dir); restSince = now; }
+        if (!leg) { dir = facingFor(dx, dy, trip, dir); diag = diagonalOf(dx, dy); restSince = now; }
       }
     },
     /**
-     * Advance to `now`: { x, y, dir, moving, walked } in tile coords (fractional
-     * mid-step); walked = tiles covered since the hero last stood still.
+     * Advance to `now`: { x, y, dir, diag, moving, walked } in tile coords
+     * (fractional mid-step); dir is the cardinal facing, diag the diagonal of the
+     * last step when it was one (drawn when the art has it: core/facing.js);
+     * walked = tiles covered since the hero last stood still.
      */
     step(now) {
       const k = advance(now);
-      return { x, y, dir, moving: !!leg, walked: walked + (leg ? leg.dist * k : 0) };
+      return { x, y, dir, diag, moving: !!leg, walked: walked + (leg ? leg.dist * k : 0) };
     },
     /** How long the hero has stood still (0 while walking, and while keys are held). */
     restMs(now) {

@@ -41,9 +41,14 @@
 //     the same no-corner-cutting rule, eight ways; let go and the step ends on
 //     a tile; a key takes over from a tap walk (live b585: "WASD doesn't work")
 //   M SMOOTH WALKING: a mostly-south walk faces the camera through its diagonal
-//     steps; at 60 fps and zoom 3 the hero moves 1..3 device px every frame (the
-//     camera is led by the drawn pixel); the walk clip starts on its first frame
-//     and runs by distance (live b585: walking toward the camera looked janky)
+//     steps; at 60 fps and the one density (x2) the hero moves 1..2 device px
+//     every frame (the camera is led by the drawn pixel); the walk clip starts on
+//     its first frame and runs by distance (live b585: walking toward the camera
+//     looked janky)
+//   D EIGHT FACINGS (ART_ROADMAP NOW-3): a diagonal step (tap, keys, or the
+//     hunt hero facing its foe) carries its diagonal; art with that facing draws
+//     it, the shipped four-facing art draws the cardinal facingFor/dirOf chose,
+//     and a diagonal asked for with no art falls to its nearest cardinal
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
@@ -57,10 +62,11 @@ const V = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(ROOT, 'src/build-info
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
-  const [walk, town, home, steer, store, mapc, nullb, bookm, maps, terrain, sets, stations, layouts, perks, camera] = await Promise.all([
+  const [walk, town, home, steer, store, mapc, nullb, bookm, maps, terrain, sets, stations, layouts, perks, camera, facing, choreo] = await Promise.all([
     'src/world/walk-scene.js', 'src/world/town-scene.js', 'src/world/home-scene.js', 'src/world/steer-local.js', 'src/world/store.js',
     'src/world/core/map-compile.js', 'src/world/render/null-backend.js', 'src/world/core/book.js', 'src/data/world/maps/index.js',
     'src/data/world/terrain.js', 'src/data/world/atlas-sets.js', 'src/data/world/stations.js', 'src/data/world/house-layouts.js', 'src/data/perks.js', 'src/world/core/camera.js',
+    'src/world/core/facing.js', 'src/world/choreo.js',
   ].map(imp));
   const manifests = {};
   for (const set of sets.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
@@ -68,7 +74,7 @@ async function load(base) {
   const tables = { materials: terrain.MATERIALS, sprites: book.sprites, openClasses: terrain.OPEN_CLASSES, treeClasses: terrain.TREE_CLASSES,
     lights: terrain.LIGHTS, terrains: book.terrains };
   const rows = Object.fromEntries(maps.WORLD_MAPS.map((m) => [m.id, m]));
-  return { walk, town, home, steer, store, mapc, nullb, book, tables, rows, maps, terrain, stations, layouts, perks, camera,
+  return { walk, town, home, steer, store, mapc, nullb, book, bookm, manifests, tables, rows, maps, terrain, stations, layouts, perks, camera, facing, choreo,
     residueSrc: readFileSync(join(base, 'src/net/client-state.js'), 'utf8'),
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
 }
@@ -334,9 +340,11 @@ function check(M) {
 
   /* M — A WALK THAT MOVES SMOOTHLY (live b585: walking toward the camera looked janky).
      Read off the frames the pane paints: the facing through a mostly-south walk,
-     the hero's screen step per 60 fps frame at zoom 3, and the walk clip's phase. */
-  fam('M', () => {
-    const z = 3, W = 1600, H = 900;
+     the hero's screen step per 60 fps frame at both densities the camera ships
+     (x2, and x3 on a window wider than WIDE_CSS), and the walk clip's phase. */
+  for (const z of [M.camera.zoomFor(1600, 1), M.camera.zoomFor(M.camera.WIDE_CSS + 160, 1)]) fam('M', () => {
+    /* a stage 300 art px tall at either density, so the camera scrolls with the walk */
+    const W = 1600, H = 300 * z;
     const ws = M.walk.createWalkScene(town, { at: [10, 3], sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
     let t = 1.7e12;
     ws.frame(ENV(), t);
@@ -358,12 +366,76 @@ function check(M) {
       phases.push(f.hero.age);
     }
     ok('M', dirs.size === 1 && dirs.has('s'), 'a walk mostly south must face the camera all the way, through its diagonal steps; faced ' + [...dirs].join(','));
+    ok('M', z === 2 || z === 3, 'the densities are x2 and x3, got ' + z);
     ok('M', steps.length > 20 && steps.every((d) => d >= 1 && d <= z), 'at 60 fps the hero must move 1..' + z + ' device px down the screen every frame (never stall, never jump): ' + steps.join(' '));
     const clip = M.book.sprite('hero').anims.walk;
     const frameAt = (age) => Math.floor((age * clip.fps) / 1000) % clip.dirs.s.length;
     ok('M', first && first.age != null && frameAt(first.age) === 0, 'a walk must start on its clip\'s first frame, started on ' + (first && first.age != null ? frameAt(first.age) : 'a wall-clock frame'));
     ok('M', last && last.age != null && phases.every((a, i) => !i || a >= phases[i - 1]), 'the walk clip must advance with the distance walked');
     ok('M', idleAge != null && idleAge < 1000 / 60 + 1, 'standing again, the idle clip starts from its first frame (age ' + idleAge + ')');
+  });
+
+  /* D — EIGHT FACINGS (ART_ROADMAP NOW-3). A diagonal step carries its diagonal;
+     an atlas that has that facing draws it, one that has four draws exactly the
+     cardinal facingFor/dirOf chose, as before. "eight" is the shipped hero with
+     diagonal clips planted (marked frames), the way PixelLab batch R2 will add them. */
+  fam('D', () => {
+    const MARK = 100000, DIAG = ['se', 'sw', 'ne', 'nw'];
+    const man = JSON.parse(JSON.stringify(M.manifests));
+    const heroSet = Object.keys(man).find((k) => man[k].sprites && man[k].sprites.hero);
+    for (const a of Object.values(man[heroSet].sprites.hero.anims)) DIAG.forEach((d, k) => { a.dirs[d] = a.dirs.s.map(([sx, sy]) => [sx, sy + (k + 1) * MARK]); });
+    const eight = M.bookm.createBook(man);
+    /* the facing the hero is DRAWN in, read back off the compose list by its frame */
+    const drawn = (book, hero) => {
+      const b = M.nullb.createNullBackend({ book, tables: M.tables, view: { w: 60 * T, h: 40 * T } });
+      b.mount(); b.setMap(town); b.sync({ name: 'Tyler', t: 0, hero: Object.assign({}, hero, { x: 11, y: 9, anim: 'walk', age: 0 }) });
+      const d = b.snapshot().last.sprites.find((s) => s.id === 'hero');
+      return ['n', 'e', 's', 'w'].concat(DIAG).find((f) => { const want = book.frame('hero', 'walk', f, 0); return book.sprites.hero.anims.walk.dirs[f] && want.sx === d.sx && want.sy === d.sy; });
+    };
+    ok('D', M.facing.diagonalOf(1, 1) === 'se' && M.facing.diagonalOf(-1, -1) === 'nw' && M.facing.diagonalOf(2, -1) === 'ne' && M.facing.diagonalOf(3, 1) === null && M.facing.diagonalOf(0, 1) === null,
+      'diagonalOf must name the diagonal of a diagonal heading and nothing for one nearer an axis');
+    ok('D', drawn(eight, { dir: 's', diag: 'se' }) === 'se' && drawn(eight, { dir: 'w', diag: 'nw' }) === 'nw', 'with diagonal art, a diagonal step must DRAW its diagonal: ' + drawn(eight, { dir: 's', diag: 'se' }));
+    ok('D', drawn(M.book, { dir: 's', diag: 'se' }) === 's' && drawn(M.book, { dir: 'e', diag: 'ne' }) === 'e',
+      'with four facings, a diagonal step must draw the cardinal facingFor chose (s, e), got ' + drawn(M.book, { dir: 's', diag: 'se' }) + ', ' + drawn(M.book, { dir: 'e', diag: 'ne' }));
+    ok('D', drawn(M.book, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(M.book, { dir: 'nw' }));
+    /* the feet: a held diagonal steps with its diagonal; a straight step clears it */
+    const st = M.steer.createSteer(town, [11, 9]);
+    let t = 1e12;
+    st.drive([1, 1], t);
+    const a = st.step(t + 50);
+    ok('D', a.moving && a.diag === 'se' && a.dir === M.steer.facingFor(1, 1, [1, 1], 's'), 'a held Down+Right step must carry diag se and facingFor\'s cardinal: ' + JSON.stringify(a));
+    st.drive([1, 0], t + 100);
+    const b = st.step(t + 5000);
+    ok('D', b.diag === null && b.dir === 'e', 'a straight step must clear the diagonal: ' + JSON.stringify(b));
+    /* end to end: a walk scene over the eight-facing art draws se on that step */
+    const ws = M.walk.createWalkScene(town, { at: [11, 9], sprites: eight.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    ws.frame(ENV(), t);
+    ws.drive([1, 1], t);
+    const f = ws.frame(ENV(), t + 60);
+    ok('D', f.hero.diag === 'se' && drawn(eight, f.hero) === 'se', 'a walk scene must hand the diagonal to the draw: ' + JSON.stringify(f.hero));
+    ok('D', drawn(M.book, f.hero) === f.hero.dir, 'the same frame over the shipped four-facing art must draw ' + f.hero.dir);
+    /* the hunt: the hero facing its foe on a diagonal carries that diagonal (monsters stay east/west: H8) */
+    const cellar = M.mapc.compileMap(M.rows.mill_cellar, M.tables);
+    let diagonals = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const ch = M.choreo.createChoreo(cellar, { seed, spawns: [{ monster: 'rat', w: 1 }] });
+      let at = t;
+      ch.sync({ foe: 'rat', tickMs: 3000, down: false }, at);
+      /* kill after kill: the hero walks its loop and each next rat walks in from where it stood — the diagonals */
+      for (let k = 0; k < 8; k++) {
+        at += 3000;
+        ch.beat({ foe: 'rat', killed: true, next: 'rat', tickMs: 3000, foeDmg: 5, heroDmg: 0 }, at);
+        for (let dt = 100; dt < 3000; dt += 200) {
+          const h = ch.frame(at + dt);
+          if (!h.foe) continue;
+          const dx = h.foe.x - h.hero.x, dy = h.foe.y - h.hero.y;
+          ok('D', h.hero.diag === M.facing.diagonalOf(dx, dy) && h.hero.dir === M.choreo.dirOf(dx, dy),
+            'the hunt hero must carry the diagonal toward its foe beside dirOf\'s cardinal: ' + JSON.stringify([h.hero, [h.foe.x, h.foe.y]]));
+          if (h.hero.diag) diagonals++;
+        }
+      }
+    }
+    ok('D', diagonals > 0, 'no hunt staging put the foe on the hero\'s diagonal, so the hunt half of the facing rule went untested');
   });
   return fails;
 }
@@ -414,6 +486,11 @@ const MUTANTS = [
   ['M', 'a diagonal step faces by its own sign (b585)', 'src/world/steer-local.js', [['dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);', "dir = Math.abs(next[0] - fx) >= Math.abs(next[1] - fy) ? (next[0] > fx ? 'e' : 'w') : (next[1] > fy ? 's' : 'n');"]]],
   ['M', 'the camera led by the fractional position (b585)', 'src/world/walk-scene.js', [['const hx = onPixel(at.x), hy = onPixel(at.y);', 'const hx = at.x, hy = at.y;']]],
   ['M', 'the walk clip played by the wall clock (b585)', 'src/world/walk-scene.js', [["anim: at.moving ? 'walk' : 'idle', age },", "anim: at.moving ? 'walk' : 'idle' },"]]],
+  ['D', 'the draw ignores the diagonal (four facings forever)', 'src/world/core/compose.js', [["const dir = book.facing(u.id, anim, u.dir || 's', u.diag);", "const dir = u.dir || 's';"]]],
+  ['D', 'a diagonal step forgets its diagonal', 'src/world/steer-local.js', [['diag = diagonalOf(next[0] - fx, next[1] - fy);', 'diag = null;']]],
+  ['D', 'a missing diagonal falls to its east/west half, not to facingFor\'s cardinal', 'src/world/core/facing.js', [['if (diag && dirs[diag]) return diag;', 'if (diag) return dirs[diag] ? diag : diag[1];']]],
+  ['D', 'the walk scene drops the diagonal', 'src/world/walk-scene.js', [['dir: at.dir, diag: at.diag,', 'dir: at.dir,']]],
+  ['D', 'the hunt hero carries no diagonal', 'src/world/choreo.js', [['diag: diagonalOf(head[0], head[1]) }', 'diag: null }']]],
 ];
 
 async function selftest() {
@@ -447,5 +524,5 @@ else {
     console.error('world-town-home: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-town-home: green — roofs, nothing saved, peers at their stations, furniture replaced, the hatch only navigates, steering, the keys, smooth walking');
+  console.log('world-town-home: green — roofs, nothing saved, peers at their stations, furniture replaced, the hatch only navigates, steering, the keys, smooth walking, eight facings');
 }

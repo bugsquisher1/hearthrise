@@ -182,11 +182,13 @@ export function composeFrame(map, book, state, view, tables, T) {
     const d = place(o.id, o.x, o.y, { ref: o.ref });
     if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1 }); }
   }
-  /* A unit: { id, x, y, anim, dir, age (ms into the clip), alpha, plate:{text,kind,alpha?}, bar, target }. */
+  /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip), alpha, plate:{text,kind,alpha?}, bar, target }.
+     dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
-    const i = clipFrame(book, u.id, anim, u.dir || 's', u.age == null ? state.t || 0 : u.age);
-    const d = place(u.id, u.x, u.y, { anim, dir: u.dir || 's', i, kind: 'unit', alpha: u.alpha, ref: u.ref });
+    const dir = book.facing(u.id, anim, u.dir || 's', u.diag);
+    const i = clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
+    const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref });
     const { cx, foot, top } = head(d);
     if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha });
     if (u.bar != null) bars.push({ x: cx, y: top - 2, w: 18, pct: Math.max(0, Math.min(1, u.bar)), kind: isHero ? 'hero' : 'foe' });

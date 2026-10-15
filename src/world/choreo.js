@@ -24,6 +24,7 @@
 // PURE: no DOM, no window, no G, no randomness but its own seeded draw.
 // ════════════════════════════════════════════════════════════════════════
 import { walkable } from './core/path.js?v=586';
+import { diagonalOf } from './core/facing.js?v=586';
 
 export const WINDUP_MS = 400;
 export const FAST_TICK_MS = 1200;
@@ -225,8 +226,9 @@ export function createChoreo(map, o) {
       while (leaving.length && t > leaving[0].mv.t1) leaving.shift();
       const hAt = posAt(hero.mv, t), fAt = foe ? posAt(foe.mv, t) : null;
       const pose = (u, moving) => (moving ? { anim: 'walk', age: t } : u.act && t - u.act.t0 < ACT_MS ? { anim: u.act.name, age: t - u.act.t0 } : { anim: 'idle', age: t });
-      const hDir = fAt ? dirOf(fAt[0] - hAt[0], fAt[1] - hAt[1]) : dirOf(hero.mv.to[0] - hero.mv.from[0], hero.mv.to[1] - hero.mv.from[1]);
-      const heroOut = Object.assign({ x: hAt[0], y: hAt[1], dir: hDir },
+      const head = fAt ? [fAt[0] - hAt[0], fAt[1] - hAt[1]] : [hero.mv.to[0] - hero.mv.from[0], hero.mv.to[1] - hero.mv.from[1]];
+      /* the hero (only: monsters face east or west) also carries the diagonal, drawn when its art has it */
+      const heroOut = Object.assign({ x: hAt[0], y: hAt[1], dir: dirOf(head[0], head[1]), diag: diagonalOf(head[0], head[1]) },
         down ? { anim: 'down', age: t - downSince } : pose(hero, t < hero.mv.t1));
       return {
         down,

@@ -24,6 +24,8 @@
   #anBody .r b { font-weight:normal; color:#f2ead8; }
   #anBody .h { color:var(--dim); margin-top:4px; }
   #anBody .up { color:var(--up); } #anBody .dn { color:var(--dn); }
+  /* action bar: bottom centre, compact and semi-transparent */
+  #actionbar { position:fixed; left:50%; bottom:8px; transform:translateX(-50%); background:rgba(10,12,14,.55); border:1px solid rgba(224,160,80,.25); border-radius:4px; line-height:0; }
 </style>
 </head>
 <body>
@@ -37,12 +39,14 @@
 </div>
 <div id="analyzer"><div class="ttl"><span>Hunt Analyzer</span><button id="anReset">reset</button></div><div id="anBody"></div></div>
 <div id="hud"></div>
+<div id="actionbar"></div>
 <div id="loot"></div>
 <div id="log"></div>
-<script src="grid.js?v=8"></script>
-<script src="combat-data.js?v=8"></script>
-<script src="vfx.js?v=8"></script>
-<script src="ambient.js?v=8"></script>
-<script src="sim.js?v=8"></script>
+<script src="grid.js?v=9"></script>
+<script src="combat-data.js?v=9"></script>
+<script src="vfx.js?v=9"></script>
+<script src="ambient.js?v=9"></script>
+<script src="sim.js?v=9"></script>
+<script src="actionbar.js?v=9"></script>
 </body>
 </html>

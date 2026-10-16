@@ -11,6 +11,21 @@
 //   ASSUMED  no source: a prototype pick, listed in the hunt-sim report
 // Client-side prototype only. Nothing here is server data or game code.
 
+// Action-bar loadouts: static per class for now (not editable). Slot order: basic, 3 abilities, food, drink.
+// Food and drink share ONE consumable lane (BIBLE §9.1: food restores HP, drinks restore mana, same lane).
+const CONSUMABLES = {
+  mana_potion: { name: 'Mana potion', glyph: 'potion', mana: 60, below: 0.30, price: 4 },          // ASSUMED: +60 mana instantly under 30% mana; 4 g
+  ham:         { name: 'Ham',         glyph: 'ham',    hp: 70, over: 6, below: 0.50, price: 3 },   // ASSUMED: 70 HP over 6 s under 50% HP; 3 g
+  bread:       { name: 'Bread',       glyph: 'bread',  hp: 45, over: 6, below: 0.50, price: 2 },   // ASSUMED: 45 HP over 6 s; 2 g
+};
+const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
+const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip
+  knight:   { food: ['ham', 25],   drink: ['mana_potion', 6] },
+  paladin:  { food: ['bread', 15], drink: ['mana_potion', 12] },
+  sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40] },
+  druid:    { food: ['bread', 12], drink: ['mana_potion', 40] },
+};
+
 const COMBAT = {
   swing: 2.0,                         // RECON:15,61 + COMBAT:64-69 tickMs 2000 — one universal basic-attack interval
   lanes: { offense: 2.0, heal: 1.0 }, // BIBLE §9.1 PROPOSED test values (offensive 2 s, healing 1 s)

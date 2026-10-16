@@ -123,7 +123,8 @@ window.__STATS = STATS;
 function newUnit(kind, x, y, side, pocket) {
   const base = side === 'hero' ? CONFIG.heroes[kind] : CONFIG.monsters[kind];
   return { id: S.nextId++, kind, side, pocket, x, y, px: x, py: y, fx: x, fy: y, t: 1, hp: base.hp, maxHp: base.hp,
-    mana: base.mana || 0, maxMana: base.mana || 0, cd: {}, lane: { offense: 0, heal: 0 }, shield: 0, vulnUntil: 0, markUntil: 0,
+    mana: base.mana || 0, maxMana: base.mana || 0, cd: {}, lane: { offense: 0, heal: 0, consume: 0 }, regen: null, healedAt: -9,
+    food: side === 'hero' ? LOADOUTS[kind].food[1] : 0, drink: side === 'hero' ? LOADOUTS[kind].drink[1] : 0, shield: 0, vulnUntil: 0, markUntil: 0,
     speed: base.speed, path: [], goal: null, wait: 0, swing: Math.random() * CONFIG.swing, dir: 'south', target: null,
     alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false };
 }
@@ -233,7 +234,7 @@ function elemMult(m, el) {
 let AN;
 function resetAnalyzer() {
   AN = { t0: S ? S.time : 0, xp: 0, kills: 0, gold: 0, loot: 0, magicXp: 0, dealt: {}, taken: {}, healed: {},
-    mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, log: [] };
+    mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, potions: 0, food: 0, consumeGold: 0, drinks: {}, eats: {}, log: [] };
 }
 function hurt(t, amt, src, el) {
   if (!t.alive) return;
@@ -509,8 +510,32 @@ function useAbility(u, ab, mons) {
   return true;
 }
 function heal(src, h, amt) {
+  h.healedAt = S.time;
   const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.heals = (AN.heals || 0) + 1; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
   S.fx.push({ type: 'heal', x: h.px, y: h.py, age: 0 }); pushNum(h, '+' + got, '#7dff8a');
+}
+// food and drink: one shared consumable lane (BIBLE §9.1). Drink under 30% mana; eat under 50% HP when no heal
+// has landed on this hero in the last 2 s. Both are debited from the loadout and priced in the analyzer.
+function consume(u, dt) {
+  if (u.regen) {
+    const step = Math.min(u.regen.left, u.regen.perSec * dt);
+    u.hp = Math.min(u.maxHp, u.hp + step); u.regen.left -= step;
+    if (u.regen.left <= 0.01) u.regen = null;
+  }
+  if (u.lane.consume > S.time) return;
+  const L = LOADOUTS[u.kind];
+  const dr = CONSUMABLES[L.drink[0]], fd = CONSUMABLES[L.food[0]];
+  if (u.drink > 0 && u.maxMana && u.mana / u.maxMana < dr.below) {
+    u.drink--; u.mana = Math.min(u.maxMana, u.mana + dr.mana); u.lane.consume = S.time + CONSUMABLE_LANE;
+    AN.potions++; AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1;
+    vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' }); pushNum(u, '+' + dr.mana, '#7ab4ff');
+    return;
+  }
+  if (u.food > 0 && !u.regen && u.hp / u.maxHp < fd.below && S.time - u.healedAt > 2) {
+    u.food--; u.regen = { left: fd.hp, perSec: fd.hp / fd.over }; u.lane.consume = S.time + CONSUMABLE_LANE;
+    AN.food++; AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1;
+    vfx('loot_sparkle', u.px, u.py, { follow: u, filter: 'sepia(1) saturate(2) hue-rotate(-15deg) brightness(.8)' });
+  }
 }
 function attacks(dt) {
   const k = hero('knight');
@@ -518,6 +543,7 @@ function attacks(dt) {
     if (!u.alive) continue;
     if (u.side === 'hero') {
       u.mana = Math.min(u.maxMana, u.mana + u.maxMana * COMBAT.manaRegenPerMin / 60 * dt);
+      consume(u, dt);
       if (S.phase === 'fight' && u.t >= 1) {
         const mons = engagedMonsters();
         if (mons.length) for (const ab of ABILITIES[u.kind]) if (useAbility(u, ab, mons)) break;
@@ -693,7 +719,8 @@ function render(alpha, frameDt) {
     const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
     if (f.type === 'vfx') {
       const fx0 = f.follow ? ox + cx(f.follow.rx) : fxX, fy0 = f.follow ? oy + cy(f.follow.ry) : fxY;
-      VFXLIB.draw(g, f.name, fx0, fy0 - 8, f.age); continue;
+      if (f.filter) g.filter = f.filter;
+      VFXLIB.draw(g, f.name, fx0, fy0 - 8, f.age); g.filter = 'none'; continue;
     }
     if (FX_SPRITE[f.type] && VFXLIB.draw(g, FX_SPRITE[f.type], fxX, fxY - (f.type === 'mark' ? 22 : 8), f.age)) continue;
     if (f.type === 'proj' && f.kind === 'crossbow') {
@@ -770,7 +797,7 @@ function logRender() {
 const fmt = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
 function analyzerRender() {
   const hrs = Math.max(1 / 3600, (S.time - AN.t0) / 3600), ph = v => fmt(v / hrs);
-  const supply = AN.mana * SUPPLIES.mana.price + AN.bolts * SUPPLIES.bolt.price + AN.fire_rune * SUPPLIES.fire_rune.price + AN.frost_rune * SUPPLIES.frost_rune.price;
+  const supply = AN.mana * SUPPLIES.mana.price + AN.bolts * SUPPLIES.bolt.price + AN.fire_rune * SUPPLIES.fire_rune.price + AN.frost_rune * SUPPLIES.frost_rune.price + AN.consumeGold;
   const profit = AN.loot + AN.gold - supply;
   const row = (k, v) => `<div class="r"><span>${k}</span><b>${v}</b></div>`;
   const heroes = ['knight', 'paladin', 'druid', 'sorcerer'];
@@ -781,7 +808,7 @@ function analyzerRender() {
     heroes.map(h => row(h, `${fmt(AN.dealt[h] || 0)} / ${fmt(AN.taken[h] || 0)}`)).join('') +
     row('Healing', fmt(Object.values(AN.healed).reduce((a, b) => a + b, 0))) +
     '<div class="h">Supplies used</div>' +
-    row('Mana', fmt(AN.mana)) + row('Bolts', fmt(AN.bolts)) + row('Fire runes', fmt(AN.fire_rune)) + row('Frost runes', fmt(AN.frost_rune)) +
+    row('Mana', fmt(AN.mana)) + row('Bolts', fmt(AN.bolts)) + row('Fire runes', fmt(AN.fire_rune)) + row('Frost runes', fmt(AN.frost_rune)) + row('Mana potions', fmt(AN.potions)) + row('Food', fmt(AN.food)) +
     row('Supply cost', fmt(supply) + 'g') +
     '<div class="h">Loot</div>' +
     row('Loot value', fmt(AN.loot) + 'g') + row('Gold', fmt(AN.gold) + 'g') +
@@ -814,6 +841,7 @@ function frame(now) {
   const k = hero('knight');
   AMBIENT.update(realDt, living('hero').map(h => ({ x: cx(h.px), y: cy(h.py) })), { x: cx(k.px), y: cy(k.py) });
   render(paused ? 1 : Math.min(1, acc / CONFIG.dt), realDt);
+  if (window.drawActionBar) drawActionBar();
   // DOM writes (hud, analyzer, loot log) at about 4 Hz, never per frame
   if (now - domT > 250) { domT = now; hudRender(); analyzerRender(); }
   PERF.gaps.push(realDt * 1000); PERF.cpu.push(performance.now() - t0);

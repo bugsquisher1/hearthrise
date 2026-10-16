@@ -161,24 +161,36 @@ function setGoal(u, gx, gy) {
   u.goal = [gx, gy];
   u.path = astar(u.x, u.y, gx, gy, leash(u)) || [];
 }
+// Continuous movement: a unit spends its whole per-tick travel budget, rolling straight from one tile into the
+// next without a stop at the tile centre. Walk frames advance with distance moved (u.animD, in tiles).
 function stepUnit(u, dt) {
-  if (u.t < 1) {
-    u.t = Math.min(1, u.t + dt * u.speed / (u.x !== u.fx && u.y !== u.fy ? 1.414 : 1));
-    u.px = u.fx + (u.x - u.fx) * u.t; u.py = u.fy + (u.y - u.fy) * u.t;
-    u.moving = true; u.animT += dt;
-    return;
+  let budget = dt * u.speed;           // tiles this tick
+  let moved = 0;
+  for (let guard = 0; guard < 4 && budget > 1e-6; guard++) {
+    if (u.t < 1) {
+      const len = u.x !== u.fx && u.y !== u.fy ? 1.414 : 1;
+      const need = (1 - u.t) * len, use = Math.min(need, budget);
+      u.t += use / len; budget -= use; moved += use;
+      if (u.t > 0.9999) u.t = 1;
+      continue;
+    }
+    if (!tryNextStep(u, dt)) break;
   }
-  u.px = u.x; u.py = u.y;
-  if (!u.path.length) { u.moving = false; return; }
+  u.px = u.fx + (u.x - u.fx) * u.t; u.py = u.fy + (u.y - u.fy) * u.t;
+  u.moving = moved > 0;
+  u.animD = (u.animD || 0) + moved;
+}
+function tryNextStep(u, dt) {
+  if (!u.path.length) return false;
   const [nx, ny] = u.path[0];
   const blocker = S.occ.get(key(nx, ny));
   if (blocker && blocker !== u) {
-    u.wait += dt; u.moving = false;
+    u.wait += dt;
     const wk = key(nx, ny); STATS.waits.set(wk, (STATS.waits.get(wk) || 0) + dt);
     // a party member standing idle in a corridor swaps with a party member behind it
     if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker.kind === 'knight') &&
         (u.kind === 'knight' || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
-      swap(u, blocker); return;
+      swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
       const lf = leash(u);
@@ -186,11 +198,12 @@ function stepUnit(u, dt) {
       if (p && p.length) u.path = p;
       u.wait = 0.2;
     }
-    return;
+    return false;
   }
   u.wait = 0; u.path.shift();
   S.occ.delete(key(u.x, u.y)); u.fx = u.x; u.fy = u.y; u.x = nx; u.y = ny; S.occ.set(key(nx, ny), u); u.t = 0;
   u.dir = dirOf(nx - u.fx, ny - u.fy);
+  return true;
 }
 function swap(a, b) {
   S.occ.set(key(a.x, a.y), b); S.occ.set(key(b.x, b.y), a);
@@ -522,6 +535,7 @@ function attacks(dt) {
 
 // ---------- tick ----------
 function tick(dt) {
+  for (const u of S.units) { u.ppx = u.px; u.ppy = u.py; }
   S.time += dt;
   for (const u of S.units) u.repath -= dt;
   const k = hero('knight');
@@ -570,21 +584,31 @@ function spriteFor(u) {
   const w = WALK && WALK[u.kind];
   if (w) {
     const fr = w.walk[u.dir];
-    const im = u.moving && fr && fr.length ? fr[Math.floor(u.animT * w.fps) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
+    // frames advance with distance walked, at the manifest fps when moving at the unit's speed
+    const im = u.moving && fr && fr.length ? fr[Math.floor((u.animD || 0) * w.fps / u.speed) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
     if (im && im.complete && im.naturalWidth) return { im, anchor: w.anchor, hover: w.hover };
   }
   return { im: IMG[u.kind][u.dir], anchor: null, hover: false };
 }
-function render() {
+function render(alpha, frameDt) {
   g.setTransform(CONFIG.scale, 0, 0, CONFIG.scale, 0, 0);
   g.imageSmoothingEnabled = false;
   g.fillStyle = '#16181b'; g.fillRect(0, 0, view.w, view.h);
+  // interpolate every unit between the last two sim states, so motion is continuous at any display rate
+  for (const u of S.units) {
+    const a = u.ppx === undefined ? 1 : alpha;
+    u.rx = u.ppx === undefined ? u.px : u.ppx + (u.px - u.ppx) * a; u.ry = u.ppy === undefined ? u.py : u.ppy + (u.py - u.ppy) * a;
+  }
   const k = hero('knight');
-  const tx = cx(k.px) - view.w / 2, ty = cy(k.py) - view.h / 2;
+  // camera: frame-rate independent smoothing on the interpolated knight; snaps on big jumps
+  const tx = cx(k.rx) - view.w / 2, ty = cy(k.ry) - view.h / 2;
   if (S.camSnap || Math.hypot(tx - cam.x, ty - cam.y) > T * 4) { cam.x = tx; cam.y = ty; S.camSnap = false; }
-  else { cam.x += (tx - cam.x) * 0.12; cam.y += (ty - cam.y) * 0.12; }
+  else { const f = 1 - Math.exp(-frameDt * 9); cam.x += (tx - cam.x) * f; cam.y += (ty - cam.y) * f; }
   const ox = -Math.round(cam.x), oy = -Math.round(cam.y);
   if (IMG.map.complete) g.drawImage(IMG.map, ox, oy);
+  const heroPts = living('hero').map(h => ({ x: cx(h.rx), y: cy(h.ry) }));
+  AMBIENT.drawUnder(g, ox, oy, view.w, view.h);
+  AMBIENT.drawShade(g, ox, oy, view.w, view.h, heroPts);
   if (opts.grid) {
     g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1;
     for (let x = 0; x <= W + 1; x++) { g.beginPath(); g.moveTo(ox + x * T + .5, oy); g.lineTo(ox + x * T + .5, oy + (H + 1) * T); g.stroke(); }
@@ -602,14 +626,14 @@ function render() {
       g.strokeStyle = 'rgba(255,90,60,.45)'; g.strokeRect(ox + (r[0] + 1) * T + .5, oy + (r[1] + 1) * T + .5, (r[2] - r[0] + 1) * T, (r[3] - r[1] + 1) * T); });
   }
   // corpses first, then living in y order (feet)
-  const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.py - b.py) || (a.px - b.px));
+  const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.ry - b.ry) || (a.rx - b.rx));
   for (const u of list) {
     const { im, anchor, hover } = spriteFor(u);
     if (!im.complete || !im.naturalWidth) continue;
     // feet on the tile centre (manifest foot_anchor); hovering units float above their tile
     const ax = anchor ? anchor[0] : im.naturalWidth / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
     const lift = hover && u.alive ? 6 + Math.round(Math.sin(S.time * 4 + u.id) * 2) : 0;
-    const x = Math.round(ox + cx(u.px) - ax), y = Math.round(oy + cy(u.py) - ay - lift);
+    const x = Math.round(ox + cx(u.rx) - ax), y = Math.round(oy + cy(u.ry) - ay - lift);
     if (!u.alive) {
       // death: a 0.4 s fade from colour to a grey corpse, which lingers and fades out over its last 2 s
       const fadeIn = Math.min(1, u.dead / 0.4), out = Math.min(1, (CONFIG.corpseSec - u.dead) / 2);
@@ -619,21 +643,23 @@ function render() {
     g.drawImage(im, x, y);
     g.globalAlpha = 1; g.filter = 'none';
     if (u.alive && u.shield > 0) {
-      g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.px)) + .5, Math.round(oy + cy(u.py)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
+      g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.rx)) + .5, Math.round(oy + cy(u.ry)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
     }
     if (u.alive && (u.hp < u.maxHp || (u.side === 'hero' && u.mana < u.maxMana))) {
-      const bw = 20, bx = Math.round(ox + cx(u.px) - bw / 2), by = y - 3;
+      const bw = 20, bx = Math.round(ox + cx(u.rx) - bw / 2), by = y - 3;
       g.fillStyle = '#111'; g.fillRect(bx - 1, by - 1, bw + 2, u.side === 'hero' ? 6 : 4);
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
-    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.px)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
+    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.rx)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
   }
+  AMBIENT.drawGlow(g, ox, oy, view.w, view.h);
+  const fxLead = (paused ? 0 : alpha) * CONFIG.dt;   // projectiles also interpolate between sim ticks
   const P = (v) => Math.round(v);
   for (const f of S.fx) {
     const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
     if (f.type === 'proj') {
-      const r = f.age / f.dur, x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
+      const r = Math.min(1, (f.age + fxLead) / f.dur), x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
       const a = Math.atan2(f.ty - f.y, f.tx - f.x), c = Math.cos(a), s = Math.sin(a);
       if (f.kind === 'crossbow') {          // crossbow bolt: short dark shaft, pale head
         g.strokeStyle = '#6b4a2a'; g.beginPath(); g.moveTo(P(x - c * 6) + .5, P(y - s * 6) + .5); g.lineTo(P(x) + .5, P(y) + .5); g.stroke();
@@ -732,14 +758,28 @@ function hudRender() {
   const p = CONFIG.pockets[S.pocketIdx];
   $('hud').textContent = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`;
 }
+const PERF = { gaps: [], cpu: [] };
+window.__perf = () => {
+  const st = a => { const v = a.slice().sort((x, y) => x - y); const m = v.reduce((x, y) => x + y, 0) / (v.length || 1);
+    return { n: v.length, mean: +m.toFixed(2), p50: +(v[v.length >> 1] || 0).toFixed(2), p95: +(v[(v.length * 0.95) | 0] || 0).toFixed(2), max: +(v[v.length - 1] || 0).toFixed(2) }; };
+  return { frameGapMs: st(PERF.gaps), cpuMs: st(PERF.cpu) };
+};
+let domT = 0;
 function frame(now) {
-  const el = Math.min(0.1, (now - lastT) / 1000); lastT = now;
-  if (!paused) { acc += el * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
-  render(); hudRender(); if ((S.time * 4 | 0) !== frame.last) { frame.last = S.time * 4 | 0; analyzerRender(); }
+  const t0 = performance.now();
+  const realDt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (!paused) { acc += realDt * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
+  const k = hero('knight');
+  AMBIENT.update(realDt, living('hero').map(h => ({ x: cx(h.px), y: cy(h.py) })), { x: cx(k.px), y: cy(k.py) });
+  render(paused ? 1 : Math.min(1, acc / CONFIG.dt), realDt);
+  // DOM writes (hud, analyzer, loot log) at about 4 Hz, never per frame
+  if (now - domT > 250) { domT = now; hudRender(); analyzerRender(); }
+  PERF.gaps.push(realDt * 1000); PERF.cpu.push(performance.now() - t0);
+  if (PERF.gaps.length > 600) { PERF.gaps.shift(); PERF.cpu.shift(); }
   requestAnimationFrame(frame);
 }
 // headless fast-forward for measurement: __simFast(seconds)
-window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); logRender(); return STATS.pulls; };
+window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); return STATS.pulls; };
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
 window.__AN = () => AN;

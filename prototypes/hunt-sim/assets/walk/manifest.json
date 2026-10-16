@@ -1,0 +1,922 @@
+{
+ "generated": "2026-10-15",
+ "tile_px": 32,
+ "style": "style-1",
+ "anchor_note": "foot_anchor = [x,y] px from frame top-left where the unit stands on the tile centre",
+ "units": {
+  "giant_rat": {
+   "object_id": "01744036-6944-4548-a581-a408b4bf1bee",
+   "role": "monster",
+   "fps": 10,
+   "directions": {
+    "east": [
+     "giant_rat/walk_east_0.png",
+     "giant_rat/walk_east_1.png",
+     "giant_rat/walk_east_2.png",
+     "giant_rat/walk_east_3.png",
+     "giant_rat/walk_east_4.png",
+     "giant_rat/walk_east_5.png"
+    ],
+    "north-east": [
+     "giant_rat/walk_north-east_0.png",
+     "giant_rat/walk_north-east_1.png",
+     "giant_rat/walk_north-east_2.png",
+     "giant_rat/walk_north-east_3.png",
+     "giant_rat/walk_north-east_4.png",
+     "giant_rat/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "giant_rat/walk_north-west_0.png",
+     "giant_rat/walk_north-west_1.png",
+     "giant_rat/walk_north-west_2.png",
+     "giant_rat/walk_north-west_3.png",
+     "giant_rat/walk_north-west_4.png",
+     "giant_rat/walk_north-west_5.png"
+    ],
+    "north": [
+     "giant_rat/walk_north_0.png",
+     "giant_rat/walk_north_1.png",
+     "giant_rat/walk_north_2.png",
+     "giant_rat/walk_north_3.png",
+     "giant_rat/walk_north_4.png",
+     "giant_rat/walk_north_5.png"
+    ],
+    "south-east": [
+     "giant_rat/walk_south-east_0.png",
+     "giant_rat/walk_south-east_1.png",
+     "giant_rat/walk_south-east_2.png",
+     "giant_rat/walk_south-east_3.png",
+     "giant_rat/walk_south-east_4.png",
+     "giant_rat/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "giant_rat/walk_south-west_0.png",
+     "giant_rat/walk_south-west_1.png",
+     "giant_rat/walk_south-west_2.png",
+     "giant_rat/walk_south-west_3.png",
+     "giant_rat/walk_south-west_4.png",
+     "giant_rat/walk_south-west_5.png"
+    ],
+    "south": [
+     "giant_rat/walk_south_0.png",
+     "giant_rat/walk_south_1.png",
+     "giant_rat/walk_south_2.png",
+     "giant_rat/walk_south_3.png",
+     "giant_rat/walk_south_4.png",
+     "giant_rat/walk_south_5.png"
+    ],
+    "west": [
+     "giant_rat/walk_west_0.png",
+     "giant_rat/walk_west_1.png",
+     "giant_rat/walk_west_2.png",
+     "giant_rat/walk_west_3.png",
+     "giant_rat/walk_west_4.png",
+     "giant_rat/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "giant_rat/idle_east.png",
+    "west": "giant_rat/idle_west.png",
+    "north": "giant_rat/idle_north.png",
+    "south": "giant_rat/idle_south.png",
+    "north-east": "giant_rat/idle_north-east.png",
+    "north-west": "giant_rat/idle_north-west.png",
+    "south-east": "giant_rat/idle_south-east.png",
+    "south-west": "giant_rat/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    20,
+    41
+   ]
+  },
+  "slime": {
+   "object_id": "a53b1f35-5b54-47e4-be50-40a593b96392",
+   "role": "monster",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "slime/walk_east_0.png",
+     "slime/walk_east_1.png",
+     "slime/walk_east_2.png",
+     "slime/walk_east_3.png",
+     "slime/walk_east_4.png",
+     "slime/walk_east_5.png"
+    ],
+    "north-east": [
+     "slime/walk_north-east_0.png",
+     "slime/walk_north-east_1.png",
+     "slime/walk_north-east_2.png",
+     "slime/walk_north-east_3.png",
+     "slime/walk_north-east_4.png",
+     "slime/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "slime/walk_north-west_0.png",
+     "slime/walk_north-west_1.png",
+     "slime/walk_north-west_2.png",
+     "slime/walk_north-west_3.png",
+     "slime/walk_north-west_4.png",
+     "slime/walk_north-west_5.png"
+    ],
+    "north": [
+     "slime/walk_north_0.png",
+     "slime/walk_north_1.png",
+     "slime/walk_north_2.png",
+     "slime/walk_north_3.png",
+     "slime/walk_north_4.png",
+     "slime/walk_north_5.png"
+    ],
+    "south-east": [
+     "slime/walk_south-east_0.png",
+     "slime/walk_south-east_1.png",
+     "slime/walk_south-east_2.png",
+     "slime/walk_south-east_3.png",
+     "slime/walk_south-east_4.png",
+     "slime/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "slime/walk_south-west_0.png",
+     "slime/walk_south-west_1.png",
+     "slime/walk_south-west_2.png",
+     "slime/walk_south-west_3.png",
+     "slime/walk_south-west_4.png",
+     "slime/walk_south-west_5.png"
+    ],
+    "south": [
+     "slime/walk_south_0.png",
+     "slime/walk_south_1.png",
+     "slime/walk_south_2.png",
+     "slime/walk_south_3.png",
+     "slime/walk_south_4.png",
+     "slime/walk_south_5.png"
+    ],
+    "west": [
+     "slime/walk_west_0.png",
+     "slime/walk_west_1.png",
+     "slime/walk_west_2.png",
+     "slime/walk_west_3.png",
+     "slime/walk_west_4.png",
+     "slime/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "slime/idle_east.png",
+    "west": "slime/idle_west.png",
+    "north": "slime/idle_north.png",
+    "south": "slime/idle_south.png",
+    "north-east": "slime/idle_north-east.png",
+    "north-west": "slime/idle_north-west.png",
+    "south-east": "slime/idle_south-east.png",
+    "south-west": "slime/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    23,
+    39
+   ]
+  },
+  "giant_bat": {
+   "object_id": "3d41dcb0-204b-4cba-8b22-66ae711d449d",
+   "role": "monster",
+   "fps": 12,
+   "directions": {
+    "east": [
+     "giant_bat/walk_east_0.png",
+     "giant_bat/walk_east_1.png",
+     "giant_bat/walk_east_2.png",
+     "giant_bat/walk_east_3.png",
+     "giant_bat/walk_east_4.png",
+     "giant_bat/walk_east_5.png"
+    ],
+    "north-east": [
+     "giant_bat/walk_north-east_0.png",
+     "giant_bat/walk_north-east_1.png",
+     "giant_bat/walk_north-east_2.png",
+     "giant_bat/walk_north-east_3.png",
+     "giant_bat/walk_north-east_4.png",
+     "giant_bat/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "giant_bat/walk_north-west_0.png",
+     "giant_bat/walk_north-west_1.png",
+     "giant_bat/walk_north-west_2.png",
+     "giant_bat/walk_north-west_3.png",
+     "giant_bat/walk_north-west_4.png",
+     "giant_bat/walk_north-west_5.png"
+    ],
+    "north": [
+     "giant_bat/walk_north_0.png",
+     "giant_bat/walk_north_1.png",
+     "giant_bat/walk_north_2.png",
+     "giant_bat/walk_north_3.png",
+     "giant_bat/walk_north_4.png",
+     "giant_bat/walk_north_5.png"
+    ],
+    "south-east": [
+     "giant_bat/walk_south-east_0.png",
+     "giant_bat/walk_south-east_1.png",
+     "giant_bat/walk_south-east_2.png",
+     "giant_bat/walk_south-east_3.png",
+     "giant_bat/walk_south-east_4.png",
+     "giant_bat/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "giant_bat/walk_south-west_0.png",
+     "giant_bat/walk_south-west_1.png",
+     "giant_bat/walk_south-west_2.png",
+     "giant_bat/walk_south-west_3.png",
+     "giant_bat/walk_south-west_4.png",
+     "giant_bat/walk_south-west_5.png"
+    ],
+    "south": [
+     "giant_bat/walk_south_0.png",
+     "giant_bat/walk_south_1.png",
+     "giant_bat/walk_south_2.png",
+     "giant_bat/walk_south_3.png",
+     "giant_bat/walk_south_4.png",
+     "giant_bat/walk_south_5.png"
+    ],
+    "west": [
+     "giant_bat/walk_west_0.png",
+     "giant_bat/walk_west_1.png",
+     "giant_bat/walk_west_2.png",
+     "giant_bat/walk_west_3.png",
+     "giant_bat/walk_west_4.png",
+     "giant_bat/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "giant_bat/idle_east.png",
+    "west": "giant_bat/idle_west.png",
+    "north": "giant_bat/idle_north.png",
+    "south": "giant_bat/idle_south.png",
+    "north-east": "giant_bat/idle_north-east.png",
+    "north-west": "giant_bat/idle_north-west.png",
+    "south-east": "giant_bat/idle_south-east.png",
+    "south-west": "giant_bat/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    24,
+    41
+   ],
+   "hover": true
+  },
+  "venom_spider": {
+   "object_id": "d6f7f699-30f0-4ed1-985e-62d41ae98bee",
+   "role": "monster",
+   "fps": 10,
+   "directions": {
+    "east": [
+     "venom_spider/walk_east_0.png",
+     "venom_spider/walk_east_1.png",
+     "venom_spider/walk_east_2.png",
+     "venom_spider/walk_east_3.png",
+     "venom_spider/walk_east_4.png",
+     "venom_spider/walk_east_5.png"
+    ],
+    "north-east": [
+     "venom_spider/walk_north-east_0.png",
+     "venom_spider/walk_north-east_1.png",
+     "venom_spider/walk_north-east_2.png",
+     "venom_spider/walk_north-east_3.png",
+     "venom_spider/walk_north-east_4.png",
+     "venom_spider/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "venom_spider/walk_north-west_0.png",
+     "venom_spider/walk_north-west_1.png",
+     "venom_spider/walk_north-west_2.png",
+     "venom_spider/walk_north-west_3.png",
+     "venom_spider/walk_north-west_4.png",
+     "venom_spider/walk_north-west_5.png"
+    ],
+    "north": [
+     "venom_spider/walk_north_0.png",
+     "venom_spider/walk_north_1.png",
+     "venom_spider/walk_north_2.png",
+     "venom_spider/walk_north_3.png",
+     "venom_spider/walk_north_4.png",
+     "venom_spider/walk_north_5.png"
+    ],
+    "south-east": [
+     "venom_spider/walk_south-east_0.png",
+     "venom_spider/walk_south-east_1.png",
+     "venom_spider/walk_south-east_2.png",
+     "venom_spider/walk_south-east_3.png",
+     "venom_spider/walk_south-east_4.png",
+     "venom_spider/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "venom_spider/walk_south-west_0.png",
+     "venom_spider/walk_south-west_1.png",
+     "venom_spider/walk_south-west_2.png",
+     "venom_spider/walk_south-west_3.png",
+     "venom_spider/walk_south-west_4.png",
+     "venom_spider/walk_south-west_5.png"
+    ],
+    "south": [
+     "venom_spider/walk_south_0.png",
+     "venom_spider/walk_south_1.png",
+     "venom_spider/walk_south_2.png",
+     "venom_spider/walk_south_3.png",
+     "venom_spider/walk_south_4.png",
+     "venom_spider/walk_south_5.png"
+    ],
+    "west": [
+     "venom_spider/walk_west_0.png",
+     "venom_spider/walk_west_1.png",
+     "venom_spider/walk_west_2.png",
+     "venom_spider/walk_west_3.png",
+     "venom_spider/walk_west_4.png",
+     "venom_spider/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "venom_spider/idle_east.png",
+    "west": "venom_spider/idle_west.png",
+    "north": "venom_spider/idle_north.png",
+    "south": "venom_spider/idle_south.png",
+    "north-east": "venom_spider/idle_north-east.png",
+    "north-west": "venom_spider/idle_north-west.png",
+    "south-east": "venom_spider/idle_south-east.png",
+    "south-west": "venom_spider/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    24,
+    42
+   ]
+  },
+  "kobold": {
+   "object_id": "27b8daf0-8222-4e0b-ac00-30cf6fa91b21",
+   "role": "monster",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "kobold/walk_east_0.png",
+     "kobold/walk_east_1.png",
+     "kobold/walk_east_2.png",
+     "kobold/walk_east_3.png",
+     "kobold/walk_east_4.png",
+     "kobold/walk_east_5.png"
+    ],
+    "north-east": [
+     "kobold/walk_north-east_0.png",
+     "kobold/walk_north-east_1.png",
+     "kobold/walk_north-east_2.png",
+     "kobold/walk_north-east_3.png",
+     "kobold/walk_north-east_4.png",
+     "kobold/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "kobold/walk_north-west_0.png",
+     "kobold/walk_north-west_1.png",
+     "kobold/walk_north-west_2.png",
+     "kobold/walk_north-west_3.png",
+     "kobold/walk_north-west_4.png",
+     "kobold/walk_north-west_5.png"
+    ],
+    "north": [
+     "kobold/walk_north_0.png",
+     "kobold/walk_north_1.png",
+     "kobold/walk_north_2.png",
+     "kobold/walk_north_3.png",
+     "kobold/walk_north_4.png",
+     "kobold/walk_north_5.png"
+    ],
+    "south-east": [
+     "kobold/walk_south-east_0.png",
+     "kobold/walk_south-east_1.png",
+     "kobold/walk_south-east_2.png",
+     "kobold/walk_south-east_3.png",
+     "kobold/walk_south-east_4.png",
+     "kobold/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "kobold/walk_south-west_0.png",
+     "kobold/walk_south-west_1.png",
+     "kobold/walk_south-west_2.png",
+     "kobold/walk_south-west_3.png",
+     "kobold/walk_south-west_4.png",
+     "kobold/walk_south-west_5.png"
+    ],
+    "south": [
+     "kobold/walk_south_0.png",
+     "kobold/walk_south_1.png",
+     "kobold/walk_south_2.png",
+     "kobold/walk_south_3.png",
+     "kobold/walk_south_4.png",
+     "kobold/walk_south_5.png"
+    ],
+    "west": [
+     "kobold/walk_west_0.png",
+     "kobold/walk_west_1.png",
+     "kobold/walk_west_2.png",
+     "kobold/walk_west_3.png",
+     "kobold/walk_west_4.png",
+     "kobold/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "kobold/idle_east.png",
+    "west": "kobold/idle_west.png",
+    "north": "kobold/idle_north.png",
+    "south": "kobold/idle_south.png",
+    "north-east": "kobold/idle_north-east.png",
+    "north-west": "kobold/idle_north-west.png",
+    "south-east": "kobold/idle_south-east.png",
+    "south-west": "kobold/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    24,
+    42
+   ]
+  },
+  "knight": {
+   "object_id": "54afec30-8790-4212-b658-6896c02a3d09",
+   "role": "hero_ek",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "knight/walk_east_0.png",
+     "knight/walk_east_1.png",
+     "knight/walk_east_2.png",
+     "knight/walk_east_3.png",
+     "knight/walk_east_4.png",
+     "knight/walk_east_5.png"
+    ],
+    "north-west": [
+     "knight/walk_north-west_0.png",
+     "knight/walk_north-west_1.png",
+     "knight/walk_north-west_2.png",
+     "knight/walk_north-west_3.png",
+     "knight/walk_north-west_4.png",
+     "knight/walk_north-west_5.png"
+    ],
+    "north": [
+     "knight/walk_north_0.png",
+     "knight/walk_north_1.png",
+     "knight/walk_north_2.png",
+     "knight/walk_north_3.png",
+     "knight/walk_north_4.png",
+     "knight/walk_north_5.png"
+    ],
+    "south-east": [
+     "knight/walk_south-east_0.png",
+     "knight/walk_south-east_1.png",
+     "knight/walk_south-east_2.png",
+     "knight/walk_south-east_3.png",
+     "knight/walk_south-east_4.png",
+     "knight/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "knight/walk_south-west_0.png",
+     "knight/walk_south-west_1.png",
+     "knight/walk_south-west_2.png",
+     "knight/walk_south-west_3.png",
+     "knight/walk_south-west_4.png",
+     "knight/walk_south-west_5.png"
+    ],
+    "south": [
+     "knight/walk_south_0.png",
+     "knight/walk_south_1.png",
+     "knight/walk_south_2.png",
+     "knight/walk_south_3.png",
+     "knight/walk_south_4.png",
+     "knight/walk_south_5.png"
+    ],
+    "west": [
+     "knight/walk_west_0.png",
+     "knight/walk_west_1.png",
+     "knight/walk_west_2.png",
+     "knight/walk_west_3.png",
+     "knight/walk_west_4.png",
+     "knight/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "knight/idle_east.png",
+    "west": "knight/idle_west.png",
+    "north": "knight/idle_north.png",
+    "south": "knight/idle_south.png",
+    "north-east": "knight/idle_north-east.png",
+    "north-west": "knight/idle_north-west.png",
+    "south-east": "knight/idle_south-east.png",
+    "south-west": "knight/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    22,
+    40
+   ],
+   "fallback": {
+    "north-east": "north"
+   },
+   "note": "PixelLab produced no north-east rotation for this object; use north frames for north-east."
+  },
+  "paladin": {
+   "object_id": "1cbd894c-a971-4cfa-9c4e-3d2ee477d5db",
+   "role": "hero_rp",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "paladin/walk_east_0.png",
+     "paladin/walk_east_1.png",
+     "paladin/walk_east_2.png",
+     "paladin/walk_east_3.png",
+     "paladin/walk_east_4.png",
+     "paladin/walk_east_5.png"
+    ],
+    "north-east": [
+     "paladin/walk_north-east_0.png",
+     "paladin/walk_north-east_1.png",
+     "paladin/walk_north-east_2.png",
+     "paladin/walk_north-east_3.png",
+     "paladin/walk_north-east_4.png",
+     "paladin/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "paladin/walk_north-west_0.png",
+     "paladin/walk_north-west_1.png",
+     "paladin/walk_north-west_2.png",
+     "paladin/walk_north-west_3.png",
+     "paladin/walk_north-west_4.png",
+     "paladin/walk_north-west_5.png"
+    ],
+    "north": [
+     "paladin/walk_north_0.png",
+     "paladin/walk_north_1.png",
+     "paladin/walk_north_2.png",
+     "paladin/walk_north_3.png",
+     "paladin/walk_north_4.png",
+     "paladin/walk_north_5.png"
+    ],
+    "south-east": [
+     "paladin/walk_south-east_0.png",
+     "paladin/walk_south-east_1.png",
+     "paladin/walk_south-east_2.png",
+     "paladin/walk_south-east_3.png",
+     "paladin/walk_south-east_4.png",
+     "paladin/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "paladin/walk_south-west_0.png",
+     "paladin/walk_south-west_1.png",
+     "paladin/walk_south-west_2.png",
+     "paladin/walk_south-west_3.png",
+     "paladin/walk_south-west_4.png",
+     "paladin/walk_south-west_5.png"
+    ],
+    "south": [
+     "paladin/walk_south_0.png",
+     "paladin/walk_south_1.png",
+     "paladin/walk_south_2.png",
+     "paladin/walk_south_3.png",
+     "paladin/walk_south_4.png",
+     "paladin/walk_south_5.png"
+    ],
+    "west": [
+     "paladin/walk_west_0.png",
+     "paladin/walk_west_1.png",
+     "paladin/walk_west_2.png",
+     "paladin/walk_west_3.png",
+     "paladin/walk_west_4.png",
+     "paladin/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "paladin/idle_east.png",
+    "west": "paladin/idle_west.png",
+    "north": "paladin/idle_north.png",
+    "south": "paladin/idle_south.png",
+    "north-east": "paladin/idle_north-east.png",
+    "north-west": "paladin/idle_north-west.png",
+    "south-east": "paladin/idle_south-east.png",
+    "south-west": "paladin/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    21,
+    37
+   ]
+  },
+  "druid": {
+   "object_id": "70f41f81-6f79-47ff-8e8e-165f41cb3d51",
+   "role": "hero_ed",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "druid/walk_east_0.png",
+     "druid/walk_east_1.png",
+     "druid/walk_east_2.png",
+     "druid/walk_east_3.png",
+     "druid/walk_east_4.png",
+     "druid/walk_east_5.png"
+    ],
+    "north-east": [
+     "druid/walk_north-east_0.png",
+     "druid/walk_north-east_1.png",
+     "druid/walk_north-east_2.png",
+     "druid/walk_north-east_3.png",
+     "druid/walk_north-east_4.png",
+     "druid/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "druid/walk_north-west_0.png",
+     "druid/walk_north-west_1.png",
+     "druid/walk_north-west_2.png",
+     "druid/walk_north-west_3.png",
+     "druid/walk_north-west_4.png",
+     "druid/walk_north-west_5.png"
+    ],
+    "north": [
+     "druid/walk_north_0.png",
+     "druid/walk_north_1.png",
+     "druid/walk_north_2.png",
+     "druid/walk_north_3.png",
+     "druid/walk_north_4.png",
+     "druid/walk_north_5.png"
+    ],
+    "south-east": [
+     "druid/walk_south-east_0.png",
+     "druid/walk_south-east_1.png",
+     "druid/walk_south-east_2.png",
+     "druid/walk_south-east_3.png",
+     "druid/walk_south-east_4.png",
+     "druid/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "druid/walk_south-west_0.png",
+     "druid/walk_south-west_1.png",
+     "druid/walk_south-west_2.png",
+     "druid/walk_south-west_3.png",
+     "druid/walk_south-west_4.png",
+     "druid/walk_south-west_5.png"
+    ],
+    "south": [
+     "druid/walk_south_0.png",
+     "druid/walk_south_1.png",
+     "druid/walk_south_2.png",
+     "druid/walk_south_3.png",
+     "druid/walk_south_4.png",
+     "druid/walk_south_5.png"
+    ],
+    "west": [
+     "druid/walk_west_0.png",
+     "druid/walk_west_1.png",
+     "druid/walk_west_2.png",
+     "druid/walk_west_3.png",
+     "druid/walk_west_4.png",
+     "druid/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "druid/idle_east.png",
+    "west": "druid/idle_west.png",
+    "north": "druid/idle_north.png",
+    "south": "druid/idle_south.png",
+    "north-east": "druid/idle_north-east.png",
+    "north-west": "druid/idle_north-west.png",
+    "south-east": "druid/idle_south-east.png",
+    "south-west": "druid/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    22,
+    38
+   ]
+  },
+  "sorcerer": {
+   "object_id": "9b0e8f75-4a1a-4804-9202-93c6342fc8f1",
+   "role": "hero_ms",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "sorcerer/walk_east_0.png",
+     "sorcerer/walk_east_1.png",
+     "sorcerer/walk_east_2.png",
+     "sorcerer/walk_east_3.png",
+     "sorcerer/walk_east_4.png",
+     "sorcerer/walk_east_5.png"
+    ],
+    "north-east": [
+     "sorcerer/walk_north-east_0.png",
+     "sorcerer/walk_north-east_1.png",
+     "sorcerer/walk_north-east_2.png",
+     "sorcerer/walk_north-east_3.png",
+     "sorcerer/walk_north-east_4.png",
+     "sorcerer/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "sorcerer/walk_north-west_0.png",
+     "sorcerer/walk_north-west_1.png",
+     "sorcerer/walk_north-west_2.png",
+     "sorcerer/walk_north-west_3.png",
+     "sorcerer/walk_north-west_4.png",
+     "sorcerer/walk_north-west_5.png"
+    ],
+    "north": [
+     "sorcerer/walk_north_0.png",
+     "sorcerer/walk_north_1.png",
+     "sorcerer/walk_north_2.png",
+     "sorcerer/walk_north_3.png",
+     "sorcerer/walk_north_4.png",
+     "sorcerer/walk_north_5.png"
+    ],
+    "south-east": [
+     "sorcerer/walk_south-east_0.png",
+     "sorcerer/walk_south-east_1.png",
+     "sorcerer/walk_south-east_2.png",
+     "sorcerer/walk_south-east_3.png",
+     "sorcerer/walk_south-east_4.png",
+     "sorcerer/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "sorcerer/walk_south-west_0.png",
+     "sorcerer/walk_south-west_1.png",
+     "sorcerer/walk_south-west_2.png",
+     "sorcerer/walk_south-west_3.png",
+     "sorcerer/walk_south-west_4.png",
+     "sorcerer/walk_south-west_5.png"
+    ],
+    "south": [
+     "sorcerer/walk_south_0.png",
+     "sorcerer/walk_south_1.png",
+     "sorcerer/walk_south_2.png",
+     "sorcerer/walk_south_3.png",
+     "sorcerer/walk_south_4.png",
+     "sorcerer/walk_south_5.png"
+    ],
+    "west": [
+     "sorcerer/walk_west_0.png",
+     "sorcerer/walk_west_1.png",
+     "sorcerer/walk_west_2.png",
+     "sorcerer/walk_west_3.png",
+     "sorcerer/walk_west_4.png",
+     "sorcerer/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "sorcerer/idle_east.png",
+    "west": "sorcerer/idle_west.png",
+    "north": "sorcerer/idle_north.png",
+    "south": "sorcerer/idle_south.png",
+    "north-east": "sorcerer/idle_north-east.png",
+    "north-west": "sorcerer/idle_north-west.png",
+    "south-east": "sorcerer/idle_south-east.png",
+    "south-west": "sorcerer/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    20,
+    40
+   ]
+  },
+  "rat_king": {
+   "object_id": "3c137163-dbd3-4812-8a72-a518a58f0f20",
+   "role": "boss",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "rat_king/walk_east_0.png",
+     "rat_king/walk_east_1.png",
+     "rat_king/walk_east_2.png",
+     "rat_king/walk_east_3.png",
+     "rat_king/walk_east_4.png",
+     "rat_king/walk_east_5.png",
+     "rat_king/walk_east_6.png",
+     "rat_king/walk_east_7.png"
+    ],
+    "north-east": [
+     "rat_king/walk_north-east_0.png",
+     "rat_king/walk_north-east_1.png",
+     "rat_king/walk_north-east_2.png",
+     "rat_king/walk_north-east_3.png",
+     "rat_king/walk_north-east_4.png",
+     "rat_king/walk_north-east_5.png",
+     "rat_king/walk_north-east_6.png",
+     "rat_king/walk_north-east_7.png"
+    ],
+    "north-west": [
+     "rat_king/walk_north-west_0.png",
+     "rat_king/walk_north-west_1.png",
+     "rat_king/walk_north-west_2.png",
+     "rat_king/walk_north-west_3.png",
+     "rat_king/walk_north-west_4.png",
+     "rat_king/walk_north-west_5.png",
+     "rat_king/walk_north-west_6.png",
+     "rat_king/walk_north-west_7.png"
+    ],
+    "north": [
+     "rat_king/walk_north_0.png",
+     "rat_king/walk_north_1.png",
+     "rat_king/walk_north_2.png",
+     "rat_king/walk_north_3.png",
+     "rat_king/walk_north_4.png",
+     "rat_king/walk_north_5.png",
+     "rat_king/walk_north_6.png",
+     "rat_king/walk_north_7.png"
+    ],
+    "south-east": [
+     "rat_king/walk_south-east_0.png",
+     "rat_king/walk_south-east_1.png",
+     "rat_king/walk_south-east_2.png",
+     "rat_king/walk_south-east_3.png",
+     "rat_king/walk_south-east_4.png",
+     "rat_king/walk_south-east_5.png",
+     "rat_king/walk_south-east_6.png",
+     "rat_king/walk_south-east_7.png"
+    ],
+    "south-west": [
+     "rat_king/walk_south-west_0.png",
+     "rat_king/walk_south-west_1.png",
+     "rat_king/walk_south-west_2.png",
+     "rat_king/walk_south-west_3.png",
+     "rat_king/walk_south-west_4.png",
+     "rat_king/walk_south-west_5.png",
+     "rat_king/walk_south-west_6.png",
+     "rat_king/walk_south-west_7.png"
+    ],
+    "south": [
+     "rat_king/walk_south_0.png",
+     "rat_king/walk_south_1.png",
+     "rat_king/walk_south_2.png",
+     "rat_king/walk_south_3.png",
+     "rat_king/walk_south_4.png",
+     "rat_king/walk_south_5.png",
+     "rat_king/walk_south_6.png",
+     "rat_king/walk_south_7.png"
+    ],
+    "west": [
+     "rat_king/walk_west_0.png",
+     "rat_king/walk_west_1.png",
+     "rat_king/walk_west_2.png",
+     "rat_king/walk_west_3.png",
+     "rat_king/walk_west_4.png",
+     "rat_king/walk_west_5.png",
+     "rat_king/walk_west_6.png",
+     "rat_king/walk_west_7.png"
+    ]
+   },
+   "idle": {
+    "east": "rat_king/idle_east.png",
+    "west": "rat_king/idle_west.png",
+    "north": "rat_king/idle_north.png",
+    "south": "rat_king/idle_south.png",
+    "north-east": "rat_king/idle_north-east.png",
+    "north-west": "rat_king/idle_north-west.png",
+    "south-east": "rat_king/idle_south-east.png",
+    "south-west": "rat_king/idle_south-west.png"
+   },
+   "frame_count": 8,
+   "frame_size": [
+    64,
+    64
+   ],
+   "foot_anchor": [
+    30,
+    57
+   ],
+   "note": "south direction regenerated at 8 frames to match the rest"
+  }
+ }
+}

@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=24`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=25`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=24`;
+  const iconUrl = id => `assets/icons/${id}.png?v=25`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -146,7 +146,7 @@ const UI = (() => {
   const ROLE_RING = { knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
   const CREST = { knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   function portrait(c, kind) {           // the hero's own south idle frame, head crop (16x16 from the top of the sprite) at 2x
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=24`;
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=25`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -311,7 +311,7 @@ const UI = (() => {
   const C = {   // src/styles/tokens.css (Charcoal & Gold) where a token exists
     bg0: '#0a0b0e', bg1: '#101217', bg2: '#1a1d23', bg3: '#252931', ink: '#e9e7e2', ink2: '#b8bcc4', ink3: '#979da7',
     gold: '#c9a24a', gold2: '#e3c77e', red: '#dc5f4c', gem: '#5262b3', steel: '#808b98', aqua: '#5c8f89',
-    iron: '#100c08', iron2: '#1c150e', plank0: '#241b13', plank1: '#1a130d', seam: 'rgba(0,0,0,.55)', flame: '#ffd08a', lit: '#ffb457',
+    iron: '#0a0b0e', iron2: '#16191e', plank0: '#1f2329', plank1: '#14161b', seam: 'rgba(0,0,0,.55)', flame: '#ffd08a', lit: '#ffb457',
     oxblood: '#8e3324', railInk: '#cbbc9e', mana: '#6a86d6',   // mana: a lifted --gem so the gauge reads on the rail (no token yet)
   };
   // Layout scales with the window (never the text down): 34 px tablets at the 800 px pane, 44 px at 1200+ (~25% bigger).
@@ -323,7 +323,7 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=24').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=25').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }
@@ -399,7 +399,7 @@ const UI = (() => {
     arc(cx, cy, r + 9, Math.PI * 0.70, Math.PI * 0.30, 2, C.bg0); arc(cx, cy, r + 9, Math.PI * 0.70, Math.PI * 0.70 - Math.PI * 0.40 * stam, 2, C.aqua);
     g.fillStyle = C.iron; g.beginPath(); g.arc(cx, cy, r + 2, 0, 7); g.fill();
     g.strokeStyle = C.steel; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r + 1.5, 0, 7); g.stroke();
-    g.fillStyle = '#0d0a07'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
+    g.fillStyle = '#08090b'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
     g.save(); g.beginPath(); g.arc(cx, cy, r - 1, 0, 7); g.clip();
     const top = cy + r - 2 * r * pct, eg = g.createLinearGradient(0, top, 0, cy + r);
     eg.addColorStop(0, C.lit); eg.addColorStop(0.35, '#c8641e'); eg.addColorStop(1, C.oxblood);
@@ -427,7 +427,7 @@ const UI = (() => {
   function socket(x, y, draw, label, tip) {
     g.fillStyle = C.iron; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill();
     g.strokeStyle = C.steel; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 12.5, 0, 7); g.stroke();
-    g.fillStyle = '#0d0a07'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill();
+    g.fillStyle = '#08090b'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill();
     draw(); text(label, x, y + 15, '#e7d9bd', 12, 'center', 700);
     hits.push([x - 16, y - 14, 32, 44, tip[0], tip[1]]);
   }

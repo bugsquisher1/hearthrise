@@ -15,13 +15,13 @@
     --ink:#e9e7e2; --ink-2:#b8bcc4; --paper:#e7d9bd; --rail-ink:#cbbc9e;
     --gold:#c9a24a; --gold-2:#e3c77e; --lit:#ffb457; --flame:#ffd08a; --oxblood:#8e3324;
     --red:#dc5f4c; --waste:#e8806e; --gem:#5262b3; --mana:#7b96e0; --moss:#7f9a4f; --aqua:#5c8f89; --steel:#808b98;
-    --iron:#100c08; --iron-2:#1c150e; --plank-0:#241b13; --plank-1:#1a130d; --seam:rgba(0,0,0,.55);
+    --iron:#0a0b0e; --iron-2:#16191e; --plank-0:#1f2329; --plank-1:#14161b; --seam:rgba(0,0,0,.55);
     --f-ui:'Alegreya Sans', system-ui, sans-serif; --f-label:'Alegreya Sans SC', 'Alegreya Sans', sans-serif; --f-title:'Cinzel', serif;
     --role-melee:#a9b2bd; --role-ranger:#7f9a4f; --role-mage:#6a86d6; --role-healer:#5fae9a;
   }
   html,body { margin:0; height:100%; background:var(--bg-0); color:var(--ink); font:14px/1.3 var(--f-ui); overflow:hidden; }
   canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
-  button, select { font:500 13px var(--f-ui); background:var(--iron-2); color:var(--paper); border:1px solid #3a2e22; border-radius:0; padding:2px 7px; cursor:pointer; }
+  button, select { font:500 13px var(--f-ui); background:var(--iron-2); color:var(--paper); border:1px solid #2c3038; border-radius:0; padding:2px 7px; cursor:pointer; }
   button.on { color:var(--gold-2); border-color:var(--gold); }
   #bar { position:fixed; top:6px; left:6px; display:flex; gap:3px; flex-wrap:wrap; background:var(--plank-1); border:1px solid var(--iron); padding:3px; max-width:46vw; }
   /* hunt top bar */
@@ -32,7 +32,7 @@
   #viewlbl b { color:var(--gold-2); font-weight:700; }
 
   /* ---- the board: dark wood, iron corner brackets, an engraved plaque for the title ---- */
-  .pnl { position:fixed; background:var(--plank-1); border:1px solid var(--iron); box-shadow:inset 0 0 0 1px #2a2119; padding-top:14px; }
+  .pnl { position:fixed; background:var(--plank-1); border:1px solid var(--iron); box-shadow:inset 0 0 0 1px #20242b; padding-top:14px; }
   .pnl::before, .pnl::after, .pnl > .cb { content:''; position:absolute; width:9px; height:9px; border:2px solid var(--steel); pointer-events:none; }
   .pnl::before { left:-2px; top:-2px; border-right:0; border-bottom:0; } .pnl::after { right:-2px; top:-2px; border-left:0; border-bottom:0; }
   .pnl > .cb.bl { left:-2px; bottom:-2px; border-right:0; border-top:0; } .pnl > .cb.br { right:-2px; bottom:-2px; border-left:0; border-top:0; }
@@ -46,9 +46,9 @@
   #party { top:72px; left:6px; width:238px; }
   #party .mem { position:relative; display:flex; gap:7px; margin:5px 6px; padding:6px 7px 5px 6px; background:var(--bg-2);
     border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.08), inset 0 -1px 0 rgba(0,0,0,.5); cursor:pointer; }
-  #party .mem.sel { box-shadow:inset 0 1px 0 rgba(255,180,87,.75), inset 1px 0 0 rgba(255,180,87,.55), inset 0 -1px 0 rgba(0,0,0,.5); border-color:#5a4020; }
+  #party .mem.sel { box-shadow:inset 0 1px 0 rgba(255,180,87,.75), inset 1px 0 0 rgba(255,180,87,.55), inset 0 -1px 0 rgba(0,0,0,.5); border-color:rgba(201,162,74,.5); }
   #party .port { position:relative; flex:0 0 36px; height:36px; margin-top:3px; }
-  #party .port canvas { width:32px; height:32px; border-radius:50%; border:2px solid var(--ring); background:#0d0a07; }
+  #party .port canvas { width:32px; height:32px; border-radius:50%; border:2px solid var(--ring); background:#08090b; }
   #party .port .crown, #party .port .link { position:absolute; left:50%; top:-9px; transform:translateX(-50%); font:700 12px var(--f-ui); }
   #party .port .crown { color:var(--gold-2); } #party .port .link { color:var(--ink-2); }
   #party .port .plv { position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); background:var(--iron); border:1px solid var(--ring); color:var(--paper); font:700 12px/13px var(--f-ui); padding:0 3px; }
@@ -86,15 +86,15 @@
   #hunt .row .k { flex:1; } #hunt .row .v { color:var(--lit); font:700 14px var(--f-ui); text-align:right; } #hunt .row .v.dn { color:var(--waste); }
   #hunt .row .x { color:var(--ink-2); font:500 12px var(--f-ui); }
   #hunt .row img { width:16px; height:16px; image-rendering:pixelated; }
-  #hunt .ended { margin:4px 8px; padding:3px 6px; color:var(--flame); background:rgba(255,180,87,.10); border:1px solid #5a4020; font:700 12px var(--f-ui); }
+  #hunt .ended { margin:4px 8px; padding:3px 6px; color:var(--flame); background:rgba(255,180,87,.10); border:1px solid rgba(201,162,74,.5); font:700 12px var(--f-ui); }
 
   /* ---- bottom HUD: rail + emblem canvas; carved control plaque ---- */
   #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; align-items:stretch; }
   #plaque { width:150px; margin-left:-1px; background:var(--plank-1); border:1px solid var(--iron); box-shadow:inset 0 1px 0 var(--plank-0); padding:5px 7px; display:flex; flex-direction:column; gap:3px; }
   #plaque label { display:flex; flex-direction:column; gap:1px; font:500 11px var(--f-label); color:var(--rail-ink); letter-spacing:.05em; text-shadow:0 1px 0 #000; }
-  #plaque select { appearance:none; -webkit-appearance:none; background:var(--iron); color:var(--paper); border:1px solid #3a2e22; padding:1px 5px; font:500 12px var(--f-ui); }
+  #plaque select { appearance:none; -webkit-appearance:none; background:var(--iron); color:var(--paper); border:1px solid #2c3038; padding:1px 5px; font:500 12px var(--f-ui); }
   #plaque .modes { display:flex; gap:2px; margin-top:1px; }
-  #plaque button { background:var(--iron); color:var(--rail-ink); border:1px solid #3a2e22; padding:1px 0; font:500 12px var(--f-ui); flex:1; }
+  #plaque button { background:var(--iron); color:var(--rail-ink); border:1px solid #2c3038; padding:1px 0; font:500 12px var(--f-ui); flex:1; }
   #plaque button.on { color:var(--gold-2); border-color:var(--gold); } #plaque .chase.on { color:var(--lit); border-color:#c8641e; }
   #plaque .dist { display:flex; align-items:center; gap:4px; font:500 11px var(--f-label); color:var(--rail-ink); letter-spacing:.05em; }
   #plaque .dist button { flex:0 0 20px; } #plaque .dist b { color:var(--flame); font:700 15px var(--f-ui); min-width:14px; text-align:center; }
@@ -146,11 +146,11 @@
 <div id="panelsMenu" class="hidden"></div>
 <div id="lootp" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Loot</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="lootBody"></div></div>
 <div id="log" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Pulls</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=24"></script>
-<script src="combat-data.js?v=24"></script>
-<script src="vfx.js?v=24"></script>
-<script src="ambient.js?v=24"></script>
-<script src="sim.js?v=24"></script>
-<script src="ui.js?v=24"></script>
+<script src="grid.js?v=25"></script>
+<script src="combat-data.js?v=25"></script>
+<script src="vfx.js?v=25"></script>
+<script src="ambient.js?v=25"></script>
+<script src="sim.js?v=25"></script>
+<script src="ui.js?v=25"></script>
 </body>
 </html>

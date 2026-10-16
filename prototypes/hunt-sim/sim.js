@@ -320,6 +320,11 @@ function monsterDied(m) {
   const d = MONSTERS[m.kind];
   AN.kills++; AN.xp += d.xp;
   const party = living('hero');
+  // floating "+N XP" (Tyler 2026-10-16): kills within 1 s of the first are grouped into one number, shown at the
+  // centre of where they died. The number is each hero's share (XP is split evenly across the party).
+  const share = d.xp / Math.max(1, party.length);
+  if (!S.xpGroup) S.xpGroup = { t0: S.time, xp: 0, x: 0, y: 0, n: 0 };
+  S.xpGroup.xp += share; S.xpGroup.x += m.px; S.xpGroup.y += m.py; S.xpGroup.n++;
   for (const h of party) {                 // even XP share; ASSUMED level curve (HERO_XP_PER_LEVEL)
     h.xp += d.xp / party.length; hs(h.kind).xp += d.xp / party.length;
     const lv = HERO_START_LEVEL + Math.floor(h.xp / HERO_XP_PER_LEVEL);
@@ -769,6 +774,10 @@ function attacks(dt) {
 function tick(dt) {
   for (const u of S.units) { u.ppx = u.px; u.ppy = u.py; }
   S.time += dt;
+  if (S.xpGroup && S.time - S.xpGroup.t0 >= 1) {
+    const gq = S.xpGroup; S.xpGroup = null;
+    S.fx.push({ type: 'num', big: true, x: gq.x / gq.n, y: gq.y / gq.n, dx: 0, dy: -6, txt: '+' + Math.round(gq.xp) + ' XP', col: '#ffd860', age: 0 });
+  }
   for (const u of S.units) u.repath -= dt;
   const k = lead();
   const last = S.trail[S.trail.length - 1];
@@ -978,7 +987,7 @@ function render(alpha, frameDt) {
       g.fillStyle = '#ffd860'; g.fillRect(fxX + 4, fxY - 4, 1, 1);
       if (tw) { g.fillRect(fxX + 2, fxY - 4, 5, 1); g.fillRect(fxX + 4, fxY - 6, 1, 5); }
     } else {
-      g.font = '8px ui-monospace,Consolas,monospace'; g.textAlign = 'center';
+      g.font = f.big ? 'bold 11px ui-monospace,Consolas,monospace' : '8px ui-monospace,Consolas,monospace'; g.textAlign = 'center';
       const x = P(fxX + (f.dx || 0)), y = P(fxY - 26 + (f.dy || 0) - f.age * 14);
       g.fillStyle = '#000'; g.fillText(f.txt, x + 1, y + 1); g.fillStyle = f.col; g.fillText(f.txt, x, y);
     }

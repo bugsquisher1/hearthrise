@@ -20,6 +20,7 @@ const CONSUMABLES = {
 };
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
+  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },   // ASSUMED
   knight:   { food: ['ham', 25],   drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },
   paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
@@ -28,6 +29,7 @@ const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = 
 const HERO_START_LEVEL = 20, HERO_XP_PER_LEVEL = 12000;   // ASSUMED: display-only level curve for the HUD and analyzer
 // Per-hero HUD settings (bottom-right block). dist = tiles kept from the target/leader (replaces fixed 3/5/6).
 const HERO_SETTINGS = {
+  berserker: { dist: 1, target: 'follow', stance: 'offensive', chase: true, actSet: 'hunt' },   // Melee DPS: hits the tank's target from a free adjacent slot
   knight:   { dist: 1, target: 'highest', stance: 'balanced', chase: true, actSet: 'hunt' },
   paladin:  { dist: 3, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
   druid:    { dist: 5, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
@@ -69,6 +71,8 @@ const SUPPLIES = {
 
 // Party heroes. Pools: designer ruling 2026-10-15. Basic damage: designer ruling 2026-10-15 (kept).
 const HEROES = {
+  berserker: { family: 'melee',      hp: 200, mana: 60,  speed: 3.2, range: 1.5, back: 1,
+              basic: { dmg: [6, 12], kind: 'slash' } },                                        // ASSUMED: Melee DPS (Tyler 2026-10-16) — knight pools, a heavier swing
   knight:   { family: 'melee',       hp: 200, mana: 60,  speed: 3.2, range: 1.5, back: 0,
               basic: { dmg: [4, 9], kind: 'slash' } },
   paladin:  { family: 'ranged',      hp: 150, mana: 100, speed: 3.2, range: 7, back: 3.5,
@@ -82,6 +86,12 @@ const HEROES = {
 // 3 abilities per discipline (Tyler ruling; BIBLE §17 rosters). dmg/cd/mana: designer ruling 2026-10-15 (kept).
 // lane: 'offense' | 'heal'. target: 'enemy' | 'area' | 'self' | 'ally' | 'party'.
 const ABILITIES = {
+  berserker: [                                                                                  // ASSUMED: no Challenge; never holds aggro
+    { id: 'cleave', name: 'Cleave', lane: 'offense', cd: 6, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3, magicXpMult: 0, fx: 'slash' },
+    { id: 'power_strike', name: 'Power Strike', lane: 'offense', cd: 6, mana: 6, target: 'enemy', dmg: [7, 13], magicXpMult: 0, fx: 'slash' },
+    { id: 'flame_strike', name: 'Flame Strike', lane: 'offense', cd: 8, mana: 10, rune: 'fire_rune', target: 'enemy',
+      dmg: [8, 14], element: 'fire', magicXpMult: 0.25, fx: 'fire' },
+  ],
   knight: [
     { id: 'challenge',   name: 'Challenge',    lane: 'offense', cd: 8,  mana: 0,  target: 'taunt' },                       // BIBLE §17 threat, no stun
     { id: 'flame_strike', name: 'Flame Strike', lane: 'offense', cd: 8, mana: 10, rune: 'fire_rune', target: 'enemy',

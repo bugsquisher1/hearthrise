@@ -43,6 +43,9 @@ IMG.map = loadImg('assets/sewer_map.png');
 for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG.monsters)]) {
   IMG[n] = {}; for (const d of DIRS) IMG[n][d] = loadImg(`assets/${n}/${d}.png`);
 }
+// berserker: its own art if assets/berserker/ exists, the knight's otherwise (per direction, on load error)
+IMG.berserker = {};
+for (const d of DIRS) { const i = loadImg(`assets/berserker/${d}.png`); i.onerror = () => { IMG.berserker[d] = IMG.knight[d]; }; IMG.berserker[d] = i; }
 // optional walk cycles (assets/walk/manifest.json); static rotations otherwise
 let WALK = null;
 fetch('assets/walk/manifest.json?v=4').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
@@ -162,7 +165,8 @@ const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
 // party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
 const COMPS = {
   full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
-  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'], ps: ['paladin', 'sorcerer'],
+  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
+  kbds: ['knight', 'berserker', 'druid', 'sorcerer'], kb: ['knight', 'berserker'], ps: ['paladin', 'sorcerer'],
 };
 let COMP = COMPS.full;
 const lead = () => hero(S.leaderKind);
@@ -383,7 +387,7 @@ function followTrail() {
 function startPull() {
   const i = S.pocketIdx;
   S.phase = 'fight'; S.packs[i].aggro = true;
-  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { knight: 99, paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
+  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { berserker: 99, knight: 99, paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
   const k = lead();
   for (const m of living('mon').filter(m => m.pocket === i)) m.target = k;
   k.path = []; k.goal = null;
@@ -428,7 +432,7 @@ function aiFight() {
   }
   S.pull.queuedMax = Math.max(S.pull.queuedMax, queued);
   // ranged heroes
-  for (const u of followers()) rangedPos(u, k, mons);
+  for (const u of followers()) (u.kind === 'berserker' ? meleeDpsPos : rangedPos)(u, k, mons);
 }
 function ringFree(t, r, m) {
   let best = null, bd = 1e9;
@@ -439,6 +443,23 @@ function ringFree(t, r, m) {
     const d = eu({ x, y }, m); if (d < bd) { bd = d; best = [x, y]; }
   }
   return best;
+}
+// Melee DPS: stand in a free slot next to the TANK's target and hit it; it never pulls or holds aggro
+function meleeDpsPos(u, k, mons) {
+  if (!u.alive) return;
+  const tgt = (k.lastTarget && k.lastTarget.alive && mons.includes(k.lastTarget)) ? k.lastTarget : mons.slice().sort((a, b) => eu(a, k) - eu(b, k))[0];
+  if (!tgt) return;
+  u.duty = tgt;
+  if (cheb(u, tgt) <= 1 && u.t >= 1) { u.path = []; return; }
+  if (u.repath > 0 && u.path.length) return;
+  u.repath = 0.5;
+  let best = null, bd = 1e9;
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    const x = tgt.x + dx, y = tgt.y + dy; if ((!dx && !dy) || !walk(x, y)) continue;
+    const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
+    const d = eu({ x, y }, u); if (d < bd) { bd = d; best = [x, y]; }
+  }
+  if (best) setGoal(u, ...best); else { const q = ringFree(tgt, 2, u); if (q) setGoal(u, ...q); }
 }
 function rangedPos(u, k, mons) {
   if (!u.alive) return;
@@ -546,7 +567,8 @@ function orderCmp(u) {
   }
 }
 function pickOrder(u, list) { return list.slice().sort(orderCmp(u)); }
-function inRange(u, m) { return u.kind === 'knight' ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
+const MELEE = new Set(['knight', 'berserker']);
+function inRange(u, m) { return MELEE.has(u.kind) ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
 function areaCentre(u, mons) {
   return mons.filter(m => inRange(u, m)).sort((a, b) => mons.filter(o => cheb(o, b) <= 1).length - mons.filter(o => cheb(o, a) <= 1).length)[0];
 }
@@ -563,6 +585,7 @@ function useAbility(u, ab, mons) {
       .sort((a, b) => elemMult(b, ab.element) - elemMult(a, ab.element) || orderCmp(u)(a, b))[0]; if (!tgt) return false; break;
     case 'area': tgt = areaCentre(u, mons); if (!tgt) return false;
       if (mons.filter(o => cheb(o, tgt) <= 1 && elemMult(o, ab.element) > 0).length < 2) return false; break;
+    case 'cleave': tgt = pickOrder(u, mons.filter(m => inRange(u, m)))[0]; if (!tgt) return false; break;
     case 'self': if (u.hp / u.maxHp >= ab.whenBelow || u.shield > 0) return false; tgt = u; break;
     case 'ally': tgt = living('hero').filter(h => h.hp / h.maxHp < ab.whenBelow && eu(h, u) <= HEROES[u.kind].range && los(u, h))
       .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0]; if (!tgt) return false; break;
@@ -578,7 +601,7 @@ function useAbility(u, ab, mons) {
   S.fx.push({ type: 'text', x: u.px, y: u.py, dy: -14, txt: ab.name, col: '#e8d8b0', age: 0 });
   const runeMult = ab.rune ? SUPPLIES[ab.rune].mult : 1;
   switch (ab.target) {
-    case 'taunt': vfx('challenge_taunt', k.px, k.py, { follow: k }); for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
+    case 'taunt': vfx('challenge_taunt', k.px, k.py, { follow: k }); for (const m of mons) if (m.target !== k) { m.target = k; m.peeled = false; } STATS.challenges = (STATS.challenges || 0) + 1; break;
     case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
     case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => {
       vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);
@@ -595,6 +618,12 @@ function useAbility(u, ab, mons) {
           hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element, ab.id);
         }
       } }); break;
+    }
+    case 'cleave': {      // the target plus up to maxHits-1 other monsters next to the cleaver
+      const hitList = [tgt, ...mons.filter(m => m !== tgt && cheb(m, u) <= 1)].slice(0, ab.maxHits);
+      STATS.cleaveHits = (STATS.cleaveHits || 0) + hitList.length; STATS.cleaves = (STATS.cleaves || 0) + 1;
+      for (const m of hitList) shoot(u, m, 'slash', null, () => hurt(m, rnd(...ab.dmg), u, null, ab.id));
+      break;
     }
     case 'self': u.shield = ab.shield; S.fx.push({ type: 'shield', x: u.px, y: u.py, age: 0 }); break;
     case 'ally': heal(u, tgt, rnd(...ab.heal)); break;
@@ -737,7 +766,7 @@ const T = CONFIG.tile;
 const cx = x => (x + 1) * T + T / 2, cy = y => (y + 1) * T + T / 2; // grid cell -> map pixel centre (map origin is cell -1)
 
 function spriteFor(u) {
-  const w = WALK && WALK[u.kind];
+  const w = WALK && (WALK[u.kind] || (u.kind === 'berserker' ? WALK.knight : null));   // berserker borrows the knight's walk until its own lands
   if (w) {
     const fr = w.walk[u.dir];
     // frames advance with distance walked, at the manifest fps when moving at the unit's speed

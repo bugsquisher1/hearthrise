@@ -90,6 +90,7 @@ const AMBIENT = (() => {
   // the shade: cool slate everywhere, cut away round each torch and softly round the party (readability)
   let shade = null, sg = null;
   function drawShade(g, ox, oy, vw, vh, heroes) {
+    if (!(vw > 0 && vh > 0)) return;   // hidden/zero-size view: a 0×0 canvas makes drawImage throw and kills the frame loop
     if (!shade || shade.width !== vw || shade.height !== vh) { shade = document.createElement('canvas'); shade.width = vw; shade.height = vh; sg = shade.getContext('2d'); }
     sg.globalCompositeOperation = 'source-over';
     sg.clearRect(0, 0, vw, vh);

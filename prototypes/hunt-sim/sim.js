@@ -537,13 +537,17 @@ function attacks(dt) {
     if (S.phase !== 'fight' || u.t < 1) continue;
     const mons = engagedMonsters(); if (!mons.length) continue;
     const b = HEROES[u.kind].basic;
-    const tgt = mons.filter(m => inRange(u, m) && elemMult(m, b.element) > 0).sort((a, c) => a.hp - c.hp)[0];
+    // prefer targets the element can hurt; an immune target is still attacked, it just takes 0 (Tyler 2026-10-16)
+    const inR = mons.filter(m => inRange(u, m)).sort((a, c) => a.hp - c.hp);
+    const tgt = inR.find(m => elemMult(m, b.element) > 0) || inR[0];
     if (!tgt) continue;
     if (b.mana && !spendMana(u, b.mana, b.magicXpMult)) continue;   // wand basic: no mana, no shot
     if (b.ammo) AN.bolts++;
     u.swing = CONFIG.swing;
     const hit = Math.random() < COMBAT.heroAccuracy;
-    shoot(u, tgt, b.kind, b.element, () => hit ? hurt(tgt, rnd(...b.dmg), u, b.element) : pushNum(tgt, 'miss', '#c8c8c8'));
+    const immune = elemMult(tgt, b.element) === 0;
+    shoot(u, tgt, b.kind, b.element, () => !hit ? pushNum(tgt, 'miss', '#c8c8c8')
+      : immune ? pushNum(tgt, 'immune', '#c8c8c8') : hurt(tgt, rnd(...b.dmg), u, b.element));
     // the druid's attacks can draw a queued monster onto her (aggro test); Challenge pulls it back
     if (u.kind === 'druid' && Math.random() < CONFIG.peelChance) {
       const free = mons.filter(m => m.target === k && cheb(m, k) > 1 && m.queued);
@@ -672,7 +676,15 @@ function render(alpha, frameDt) {
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
-    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.rx)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
+    if (u.alive && u.markUntil > S.time) {   // Hunter's Mark: a small pixel crosshair over the target's head
+      const mx = Math.round(ox + cx(u.rx)), my = y - 10, r = (S.time * 2 | 0) % 2 ? 4 : 3;   // gentle 2-step pulse
+      g.fillStyle = '#ff5050';
+      g.fillRect(mx - r, my - r, 2 * r + 1, 1); g.fillRect(mx - r, my + r, 2 * r + 1, 1);          // ring (square-ish, pixel-clean)
+      g.fillRect(mx - r, my - r, 1, 2 * r + 1); g.fillRect(mx + r, my - r, 1, 2 * r + 1);
+      g.fillRect(mx, my - r - 2, 1, 3); g.fillRect(mx, my + r, 1, 3);                            // ticks
+      g.fillRect(mx - r - 2, my, 3, 1); g.fillRect(mx + r, my, 3, 1);
+      g.fillStyle = '#ffd0d0'; g.fillRect(mx, my, 1, 1);                                          // centre dot
+    }
   }
   AMBIENT.drawGlow(g, ox, oy, view.w, view.h);
   const fxLead = (paused ? 0 : alpha) * CONFIG.dt;   // projectiles also interpolate between sim ticks

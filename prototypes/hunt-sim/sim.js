@@ -124,7 +124,9 @@ function newUnit(kind, x, y, side, pocket) {
   const base = side === 'hero' ? CONFIG.heroes[kind] : CONFIG.monsters[kind];
   return { id: S.nextId++, kind, side, pocket, x, y, px: x, py: y, fx: x, fy: y, t: 1, hp: base.hp, maxHp: base.hp,
     mana: base.mana || 0, maxMana: base.mana || 0, cd: {}, lane: { offense: 0, heal: 0, consume: 0 }, regen: null, healedAt: -9,
-    food: side === 'hero' ? LOADOUTS[kind].food[1] : 0, drink: side === 'hero' ? LOADOUTS[kind].drink[1] : 0, shield: 0, vulnUntil: 0, markUntil: 0,
+    food: side === 'hero' ? LOADOUTS[kind].food[1] : 0, drink: side === 'hero' ? LOADOUTS[kind].drink[1] : 0,
+    runes: side === 'hero' ? Object.assign({}, LOADOUTS[kind].runes) : {}, flash: {}, xp: 0, level: HERO_START_LEVEL,
+    set: side === 'hero' ? Object.assign({}, HERO_SETTINGS[kind]) : null, shield: 0, vulnUntil: 0, markUntil: 0,
     speed: base.speed, path: [], goal: null, wait: 0, swing: Math.random() * CONFIG.swing, dir: 'south', target: null,
     alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false };
 }
@@ -132,7 +134,9 @@ function reset() {
   S = null; resetAnalyzer();
   S = { time: 0, units: [], fx: [], nextId: 1, occ: new Map(), pocketIdx: 0, phase: 'travel', phaseT: 0,
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
-  ['knight', 'paladin', 'druid', 'sorcerer'].forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  COMP.forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  S.leaderKind = COMP[0];
+  if (!COMP.includes(VIEW.sel)) VIEW.sel = COMP[0];
   CONFIG.pockets.forEach((p, i) => spawnPack(i));
   STATS.pulls.length = 0; STATS.waits.clear(); STATS.runs = 0;
   for (const o of [STATS.noSpot, STATS.queued, STATS.minBack]) for (const k in o) delete o[k];
@@ -153,6 +157,21 @@ function freeNear(x, y, r) {
   return null;
 }
 const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
+// party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
+const COMPS = {
+  full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
+  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
+};
+let COMP = COMPS.full;
+const lead = () => hero(S.leaderKind);
+// VIEW (dev tool): whose camera, action bar and analyzer we see. mode 'hero' follows VIEW.sel; 'party' follows the centre.
+const VIEW = { sel: null, mode: 'hero' };
+window.VIEW = VIEW;
+function selectHero(kind) { if (!hero(kind)) return; VIEW.sel = kind; VIEW.mode = 'hero'; S.camPan = true; }
+function partyCam() { VIEW.mode = 'party'; S.camPan = true; }
+window.selectHero = selectHero; window.partyCam = partyCam;
+const selHero = () => hero(VIEW.sel) || lead();
+const followers = () => S.units.filter(u => u.side === 'hero' && u.kind !== S.leaderKind);
 const living = side => S.units.filter(u => u.alive && u.side === side);
 
 // ---------- movement ----------
@@ -189,8 +208,8 @@ function tryNextStep(u, dt) {
     u.wait += dt;
     const wk = key(nx, ny); STATS.waits.set(wk, (STATS.waits.get(wk) || 0) + dt);
     // a party member standing idle in a corridor swaps with a party member behind it
-    if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker.kind === 'knight') &&
-        (u.kind === 'knight' || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
+    if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker === lead()) &&
+        (u === lead() || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
       swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
@@ -234,9 +253,14 @@ function elemMult(m, el) {
 let AN;
 function resetAnalyzer() {
   AN = { t0: S ? S.time : 0, xp: 0, kills: 0, gold: 0, loot: 0, magicXp: 0, dealt: {}, taken: {}, healed: {},
-    mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, potions: 0, food: 0, consumeGold: 0, drinks: {}, eats: {}, log: [] };
+    mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, potions: 0, food: 0, consumeGold: 0, drinks: {}, eats: {}, log: [], hero: {}, outAb: {}, outEl: {}, inMon: {}, inEl: {}, lootItems: {}, supplies: {} };
 }
-function hurt(t, amt, src, el) {
+function hs(kind) {
+  return AN.hero[kind] || (AN.hero[kind] = { dealt: 0, taken: 0, healed: 0, outAb: {}, outEl: {}, inMon: {}, inEl: {}, supplies: {}, xp: 0 });
+}
+const bump = (o, k, n) => { o[k] = (o[k] || 0) + n; };
+function useSupply(u, id, n) { bump(AN.supplies, id, n); bump(hs(u.kind).supplies, id, n); }
+function hurt(t, amt, src, el, abil) {
   if (!t.alive) return;
   if (t.side === 'mon') {
     const d = MONSTERS[t.kind];
@@ -245,11 +269,21 @@ function hurt(t, amt, src, el) {
     if (S.time < t.markUntil && src && src.kind === 'paladin') m *= ABILITIES.paladin[0].bonus;
     if (m === 0) { pushNum(t, 'immune', '#9aa4b0'); return; }
     amt = Math.max(1, Math.round(amt * m));
-  } else if (t.shield > 0) {
-    const ab = Math.min(t.shield, amt); t.shield -= ab; amt -= ab;
+  } else {
+    if (t.set) amt = Math.round(amt * STANCES[t.set.stance].taken);
+    if (t.shield > 0) { const ab = Math.min(t.shield, amt); t.shield -= ab; amt -= ab; }
   }
+  if (src && src.set && t.side === 'mon') amt = Math.max(1, Math.round(amt * STANCES[src.set.stance].dmg));
   t.hp = Math.max(0, t.hp - amt);
-  if (src && src.side === 'hero') AN.dealt[src.kind] = (AN.dealt[src.kind] || 0) + amt;
+  if (src && src.side === 'hero') {
+    const key = abil || 'basic', e = el || 'physical', H = hs(src.kind);
+    bump(AN.outAb, key, amt); bump(AN.outEl, e, amt); bump(H.outAb, key, amt); bump(H.outEl, e, amt);
+  }
+  if (t.side === 'hero') {
+    const who = src ? MONSTERS[src.kind] ? MONSTERS[src.kind].name : src.kind : '?', H = hs(t.kind);
+    bump(AN.inMon, who, amt); bump(AN.inEl, 'physical', amt); bump(H.inMon, who, amt); bump(H.inEl, 'physical', amt); H.taken += amt;
+  }
+  if (src && src.side === 'hero') { AN.dealt[src.kind] = (AN.dealt[src.kind] || 0) + amt; hs(src.kind).dealt += amt; }
   if (t.side === 'hero') AN.taken[t.kind] = (AN.taken[t.kind] || 0) + amt;
   pushNum(t, String(amt), t.side === 'hero' ? '#ff6a5a' : el === 'fire' ? '#ffb060' : el === 'frost' ? '#a8e4ff' : el === 'nature' ? '#b6f08a' : '#ffe9b0');
   S.fx.push({ type: 'spark', x: t.px, y: t.py, age: 0 });
@@ -273,13 +307,18 @@ function vfx(name, x, y, opts) {
 function monsterDied(m) {
   vfx('monster_death_poof', m.px, m.py);
   const d = MONSTERS[m.kind];
-  const lvBefore = Math.floor(AN.xp / 1500);
   AN.kills++; AN.xp += d.xp;
-  if (Math.floor(AN.xp / 1500) > lvBefore) for (const h of living('hero')) vfx('level_up', h.px, h.py, { follow: h });   /* party level-up every 1,500 XP (display only) */
+  const party = living('hero');
+  for (const h of party) {                 // even XP share; ASSUMED level curve (HERO_XP_PER_LEVEL)
+    h.xp += d.xp / party.length; hs(h.kind).xp += d.xp / party.length;
+    const lv = HERO_START_LEVEL + Math.floor(h.xp / HERO_XP_PER_LEVEL);
+    if (lv > h.level) { h.level = lv; vfx('level_up', h.px, h.py, { follow: h }); }
+  }
   const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
   const got = d.drops.filter(([, ch]) => Math.random() < ch).map(([id]) => id);
   if (got.length) {
     AN.loot += got.reduce((a, id) => a + (LOOT_VALUE[id] || 0), 0);
+    for (const id of got) bump(AN.lootItems, id, 1);
     S.fx.push({ type: 'loot', x: m.px, y: m.py, age: 0 });
     AN.log.unshift(`${d.name}: ${got.join(', ')} +${gp}g`); AN.log.length = Math.min(AN.log.length, 8);
   }
@@ -288,14 +327,14 @@ function heroDied(h) {
   h.respawnAt = S.time + CONFIG.heroRespawnSec; h.goal = null;
   STATS.deaths = (STATS.deaths || 0) + 1;
   if (S.pull) S.pull.deaths = (S.pull.deaths || 0) + 1;
-  if (h.kind === 'knight') {
+  if (h === lead()) {
     // wipe: the pack leashes home and heals; everyone respawns at the entrance
     for (const u of living('hero')) { u.alive = false; u.dead = 0; u.path = []; S.occ.delete(key(u.x, u.y)); u.respawnAt = h.respawnAt; }
     for (const m of living('mon')) if (m.target) { m.target = null; m.hp = m.maxHp; setGoal(m, ...m.home); }
     if (S.pull) { S.pull.wipe = true; endPull(); }
     S.phase = 'dead';
   } else {
-    for (const m of living('mon')) if (m.target === h) m.target = hero('knight');
+    for (const m of living('mon')) if (m.target === h) m.target = lead();
   }
 }
 function respawnHeroes() {
@@ -303,7 +342,7 @@ function respawnHeroes() {
     const f = freeNear(...CONFIG.start[0], 3); if (!f) continue;
     Object.assign(h, { alive: true, hp: h.maxHp, x: f[0], y: f[1], px: f[0], py: f[1], fx: f[0], fy: f[1], t: 1, path: [], goal: null, dead: 0 });
     S.occ.set(key(f[0], f[1]), h);
-    if (h.kind === 'knight') { S.trail = [[f[0], f[1]]]; S.camSnap = true; }
+    if (h === lead()) { S.trail = [[f[0], f[1]]]; S.camSnap = true; }
   }
 }
 function adjacentMonsters(tile) { return living('mon').filter(m => m.target && cheb(m, tile) <= 1); }
@@ -312,7 +351,7 @@ function adjacentMonsters(tile) { return living('mon').filter(m => m.target && c
 function engagedMonsters() { return living('mon').filter(m => m.target); }
 
 function aiTravel() {
-  const k = hero('knight');
+  const k = lead();
   const p = CONFIG.pockets[S.pocketIdx];
   const pack = S.packs[S.pocketIdx];
   const mons = living('mon').filter(m => m.pocket === S.pocketIdx);
@@ -327,9 +366,7 @@ function aiTravel() {
   followTrail();
 }
 function followTrail() {
-  const order = ['paladin', 'druid', 'sorcerer'];
-  order.forEach((n, i) => {
-    const u = hero(n);
+  followers().forEach((u, i) => {
     if (!u.alive) return;
     const idx = S.trail.length - 1 - (i + 1) * 2;
     if (idx < 0) return;
@@ -342,21 +379,21 @@ function followTrail() {
 function startPull() {
   const i = S.pocketIdx;
   S.phase = 'fight'; S.packs[i].aggro = true;
-  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
-  const k = hero('knight');
+  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { knight: 99, paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
+  const k = lead();
   for (const m of living('mon').filter(m => m.pocket === i)) m.target = k;
   k.path = []; k.goal = null;
 }
 function totalWait() { let s = 0; for (const v of STATS.waits.values()) s += v; return s; }
 
 function aiFight() {
-  const k = hero('knight');
+  const k = lead();
   const mons = engagedMonsters();
   if (!mons.length) { endPull(); return; }
   if (!adjacentMonsters(k).length) {
     // nothing on him yet: step toward the nearest
     const near = mons.slice().sort((a, b) => eu(a, k) - eu(b, k))[0];
-    if (eu(near, k) > 2.5 && k.repath <= 0) { setGoal(k, near.x, near.y); k.path = k.path.slice(0, -1); k.repath = 0.8; }
+    if (k.set.chase && eu(near, k) > k.set.dist + 1.5 && k.repath <= 0) { setGoal(k, near.x, near.y); k.path = k.path.slice(0, -1); k.repath = 0.8; }
   } else { k.path = []; }
   // monsters: surround slots next to their target, extras queue behind
   let queued = 0;
@@ -383,7 +420,7 @@ function aiFight() {
   }
   S.pull.queuedMax = Math.max(S.pull.queuedMax, queued);
   // ranged heroes
-  for (const n of ['paladin', 'druid', 'sorcerer']) rangedPos(hero(n), k, mons);
+  for (const u of followers()) rangedPos(u, k, mons);
 }
 function ringFree(t, r, m) {
   let best = null, bd = 1e9;
@@ -397,11 +434,12 @@ function ringFree(t, r, m) {
 }
 function rangedPos(u, k, mons) {
   if (!u.alive) return;
-  const want = CONFIG.heroes[u.kind].back;
+  const want = u.set.dist;
   const nearMon = mons.some(m => cheb(m, u) <= 1);
   S.pull.minBack[u.kind] = Math.min(S.pull.minBack[u.kind], eu(u, k));
   S.pull.samples++; if (inRoom(S.pull.pocket, u.x, u.y)) S.pull.inside = (S.pull.inside || 0) + 1;
   if (u.repath > 0 && !nearMon) return;
+  if (!u.set.chase && !nearMon) return;            // chase off: hold position unless something is on top of us
   u.repath = 1.0;
   const ok = (x, y) => eu({ x, y }, k) >= want - 1 && eu({ x, y }, k) <= want + 1.2;
   const score = (x, y) => {
@@ -438,7 +476,7 @@ function nextPocket() {
   S.pocketIdx++;
   if (S.pocketIdx >= CONFIG.pockets.length) { S.pocketIdx = 0; S.run++; STATS.runs++; }
   S.phase = 'travel';
-  const k = hero('knight'); k.goal = null;
+  const k = lead(); k.goal = null;
 }
 
 // ---------- attacks ----------
@@ -447,7 +485,7 @@ function nextPocket() {
 // ability's multiplier (BIBLE section 5).
 function spendMana(u, n, mult) {
   if (u.mana < n) return false;
-  u.mana -= n; AN.mana += n; AN.magicXp += n * COMBAT.magicXpPerMana * (mult || 0); return true;
+  u.mana -= n; AN.mana += n; useSupply(u, 'mana', n); AN.magicXp += n * COMBAT.magicXpPerMana * (mult || 0); return true;
 }
 function shoot(u, tgt, kind, el, onHit) {
   face(u, tgt);
@@ -455,20 +493,32 @@ function shoot(u, tgt, kind, el, onHit) {
   S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22,
     onHit: () => { if (kind === 'crossbow') vfx('crossbow_bolt_impact', tgt.px, tgt.py); onHit(); } });
 }
+// TARGET setting (bottom HUD, per hero): follow the leader's target, nearest, lowest HP, highest % life, strongest
+function orderCmp(u) {
+  switch (u.set ? u.set.target : 'lowest') {
+    case 'nearest': return (a, b) => eu(a, u) - eu(b, u);
+    case 'highest': return (a, b) => b.hp / b.maxHp - a.hp / a.maxHp;
+    case 'strongest': return (a, b) => b.maxHp - a.maxHp;
+    case 'lowest': return (a, b) => a.hp - b.hp;
+    default: { const lt = lead() && lead().lastTarget; return (a, b) => (b === lt) - (a === lt) || eu(a, u) - eu(b, u); }   // follow
+  }
+}
+function pickOrder(u, list) { return list.slice().sort(orderCmp(u)); }
 function inRange(u, m) { return u.kind === 'knight' ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
 function areaCentre(u, mons) {
   return mons.filter(m => inRange(u, m)).sort((a, b) => mons.filter(o => cheb(o, b) <= 1).length - mons.filter(o => cheb(o, a) <= 1).length)[0];
 }
+function abilityOn(u, ab) { return !ACTION_SETS[u.set.actSet].skip(ab); }
 function useAbility(u, ab, mons) {
   if ((u.cd[ab.id] || 0) > S.time || u.lane[ab.lane] > S.time) return false;
   if (ab.mana && u.mana < ab.mana) return false;
-  const k = hero('knight');
+  const k = lead();
   let tgt = null;
   switch (ab.target) {
     case 'taunt': tgt = mons.find(m => m.target !== k); if (!tgt) return false; break;
     case 'mark': tgt = mons.filter(m => inRange(u, m)).sort((a, b) => b.hp - a.hp)[0]; if (!tgt || tgt.markUntil > S.time) return false; break;
     case 'enemy': tgt = mons.filter(m => inRange(u, m) && elemMult(m, ab.element) > 0)
-      .sort((a, b) => elemMult(b, ab.element) - elemMult(a, ab.element) || a.hp - b.hp)[0]; if (!tgt) return false; break;
+      .sort((a, b) => elemMult(b, ab.element) - elemMult(a, ab.element) || orderCmp(u)(a, b))[0]; if (!tgt) return false; break;
     case 'area': tgt = areaCentre(u, mons); if (!tgt) return false;
       if (mons.filter(o => cheb(o, tgt) <= 1 && elemMult(o, ab.element) > 0).length < 2) return false; break;
     case 'self': if (u.hp / u.maxHp >= ab.whenBelow || u.shield > 0) return false; tgt = u; break;
@@ -477,8 +527,9 @@ function useAbility(u, ab, mons) {
     case 'party': if (living('hero').filter(h => h.hp / h.maxHp < ab.whenBelow).length < ab.minHurt) return false; tgt = u; break;
   }
   if (ab.mana && !spendMana(u, ab.mana, ab.magicXpMult)) return false;
-  if (ab.rune) AN[ab.rune]++;
-  if (ab.ammo) AN.bolts += ab.ammo;
+  if (ab.rune) { AN[ab.rune]++; useSupply(u, ab.rune, 1); if (u.runes[ab.rune] > 0) u.runes[ab.rune]--; }   // carried first, then store runes
+  if (ab.ammo) { AN.bolts += ab.ammo; useSupply(u, 'bolt', ab.ammo); }
+  u.flash[ab.id] = S.time;
   u.cd[ab.id] = S.time + ab.cd; u.lane[ab.lane] = S.time + COMBAT.lanes[ab.lane];
   if (tgt !== u) face(u, tgt);
   vfx(CAST_SPRITE[u.kind], u.px, u.py, { follow: u, life: Math.min(0.7, VFXLIB.dur(CAST_SPRITE[u.kind])) });
@@ -489,7 +540,7 @@ function useAbility(u, ab, mons) {
     case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
     case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => {
       vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);
-      hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
+      hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element, ab.id);
     }); break;
     case 'area': {
       const c = tgt;
@@ -499,7 +550,7 @@ function useAbility(u, ab, mons) {
           if (VFXLIB.ready(BURST_SPRITE[ab.element])) vfx(BURST_SPRITE[ab.element], m.px, m.py);
           else S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
           if (ab.vuln) m.vulnUntil = S.time + COMBAT.vulnSec;
-          hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
+          hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element, ab.id);
         }
       } }); break;
     }
@@ -525,20 +576,27 @@ function consume(u, dt) {
   if (u.lane.consume > S.time) return;
   const L = LOADOUTS[u.kind];
   const dr = CONSUMABLES[L.drink[0]], fd = CONSUMABLES[L.food[0]];
-  if (u.drink > 0 && u.maxMana && u.mana / u.maxMana < dr.below) {
-    u.drink--; u.mana = Math.min(u.maxMana, u.mana + dr.mana); u.lane.consume = S.time + CONSUMABLE_LANE;
-    AN.potions++; AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1;
-    vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' }); pushNum(u, '+' + dr.mana, '#7ab4ff');
+  const drinkBelow = u.set.drinkBelow != null ? u.set.drinkBelow : dr.below;
+  // drink: a mana potion under its mana threshold, or a health potion under its HP threshold (instant)
+  const wantDrink = dr.mana ? u.maxMana && u.mana / u.maxMana < drinkBelow : u.hp / u.maxHp < drinkBelow;
+  if (u.drink > 0 && wantDrink) {
+    u.drink--; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.drink = S.time;
+    if (dr.mana) { u.mana = Math.min(u.maxMana, u.mana + dr.mana); pushNum(u, '+' + dr.mana, '#7ab4ff');
+      vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' }); }
+    else { const got = Math.min(dr.hp, u.maxHp - u.hp); u.hp += got; pushNum(u, '+' + got, '#ff8a8a');
+      vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(-110deg) saturate(1.6)' }); }
+    AN.potions++; AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1; useSupply(u, L.drink[0], 1);
     return;
   }
-  if (u.food > 0 && !u.regen && u.hp / u.maxHp < fd.below && S.time - u.healedAt > 2) {
-    u.food--; u.regen = { left: fd.hp, perSec: fd.hp / fd.over }; u.lane.consume = S.time + CONSUMABLE_LANE;
-    AN.food++; AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1;
+  const foodBelow = u.set.foodBelow != null ? u.set.foodBelow : fd.below;
+  if (u.food > 0 && !u.regen && u.hp / u.maxHp < foodBelow && S.time - u.healedAt > 2) {
+    u.food--; u.regen = { left: fd.hp, perSec: fd.hp / fd.over }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
+    AN.food++; AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1; useSupply(u, L.food[0], 1);
     vfx('loot_sparkle', u.px, u.py, { follow: u, filter: 'sepia(1) saturate(2) hue-rotate(-15deg) brightness(.8)' });
   }
 }
 function attacks(dt) {
-  const k = hero('knight');
+  const k = lead();
   for (const u of S.units) {
     if (!u.alive) continue;
     if (u.side === 'hero') {
@@ -546,7 +604,7 @@ function attacks(dt) {
       consume(u, dt);
       if (S.phase === 'fight' && u.t >= 1) {
         const mons = engagedMonsters();
-        if (mons.length) for (const ab of ABILITIES[u.kind]) if (useAbility(u, ab, mons)) break;
+        if (mons.length) for (const ab of ABILITIES[u.kind]) if (abilityOn(u, ab) && useAbility(u, ab, mons)) break;
       }
     }
     u.swing -= dt;
@@ -564,16 +622,17 @@ function attacks(dt) {
     const mons = engagedMonsters(); if (!mons.length) continue;
     const b = HEROES[u.kind].basic;
     // prefer targets the element can hurt; an immune target is still attacked, it just takes 0 (Tyler 2026-10-16)
-    const inR = mons.filter(m => inRange(u, m)).sort((a, c) => a.hp - c.hp);
+    const inR = pickOrder(u, mons.filter(m => inRange(u, m)));
     const tgt = inR.find(m => elemMult(m, b.element) > 0) || inR[0];
     if (!tgt) continue;
     if (b.mana && !spendMana(u, b.mana, b.magicXpMult)) continue;   // wand basic: no mana, no shot
-    if (b.ammo) AN.bolts++;
+    if (b.ammo) { AN.bolts++; useSupply(u, 'bolt', 1); }
+    u.flash.basic = S.time; u.lastTarget = tgt;
     u.swing = CONFIG.swing;
     const hit = Math.random() < COMBAT.heroAccuracy;
     const immune = elemMult(tgt, b.element) === 0;
     shoot(u, tgt, b.kind, b.element, () => !hit ? pushNum(tgt, 'miss', '#c8c8c8')
-      : immune ? pushNum(tgt, 'immune', '#c8c8c8') : hurt(tgt, rnd(...b.dmg), u, b.element));
+      : immune ? pushNum(tgt, 'immune', '#c8c8c8') : hurt(tgt, rnd(...b.dmg), u, b.element, 'basic'));
     // the druid's attacks can draw a queued monster onto her (aggro test); Challenge pulls it back
     if (u.kind === 'druid' && Math.random() < CONFIG.peelChance) {
       const free = mons.filter(m => m.target === k && cheb(m, k) > 1 && m.queued);
@@ -587,7 +646,7 @@ function tick(dt) {
   for (const u of S.units) { u.ppx = u.px; u.ppy = u.py; }
   S.time += dt;
   for (const u of S.units) u.repath -= dt;
-  const k = hero('knight');
+  const k = lead();
   const last = S.trail[S.trail.length - 1];
   if (!last || last[0] !== k.x || last[1] !== k.y) { S.trail.push([k.x, k.y]); if (S.trail.length > 40) S.trail.shift(); }
   respawnHeroes();
@@ -649,11 +708,14 @@ function render(alpha, frameDt) {
     const a = u.ppx === undefined ? 1 : alpha;
     u.rx = u.ppx === undefined ? u.px : u.ppx + (u.px - u.ppx) * a; u.ry = u.ppy === undefined ? u.py : u.ppy + (u.py - u.ppy) * a;
   }
-  const k = hero('knight');
-  // camera: frame-rate independent smoothing on the interpolated knight; snaps on big jumps
-  const tx = cx(k.rx) - view.w / 2, ty = cy(k.ry) - view.h / 2;
-  if (S.camSnap || Math.hypot(tx - cam.x, ty - cam.y) > T * 4) { cam.x = tx; cam.y = ty; S.camSnap = false; }
-  else { const f = 1 - Math.exp(-frameDt * 9); cam.x += (tx - cam.x) * f; cam.y += (ty - cam.y) * f; }
+  // camera: smooth follow of the viewed hero (or the party centre); a quick pan when the view switches
+  let fx, fy;
+  if (VIEW.mode === 'party') { const hs = S.units.filter(u => u.side === 'hero' && u.alive); const n = hs.length || 1;
+    fx = hs.reduce((a, u) => a + u.rx, 0) / n; fy = hs.reduce((a, u) => a + u.ry, 0) / n; if (!hs.length) { fx = lead().rx; fy = lead().ry; } }
+  else { const v = selHero(); fx = v.rx; fy = v.ry; }
+  const tx = cx(fx) - view.w / 2, ty = cy(fy) - view.h / 2, far = Math.hypot(tx - cam.x, ty - cam.y);
+  if (S.camSnap || (!S.camPan && far > T * 4)) { cam.x = tx; cam.y = ty; S.camSnap = false; }
+  else { const f = 1 - Math.exp(-frameDt * (S.camPan ? 6 : 9)); cam.x += (tx - cam.x) * f; cam.y += (ty - cam.y) * f; if (far < 2) S.camPan = false; }
   const ox = -Math.round(cam.x), oy = -Math.round(cam.y);
   if (IMG.map.complete) g.drawImage(IMG.map, ox, oy);
   const heroPts = living('hero').map(h => ({ x: cx(h.rx), y: cy(h.ry) }));
@@ -787,6 +849,8 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
   speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(o => o.classList.toggle('on', o === b));
 });
 $('restart').onclick = () => reset();
+$('comp').onchange = e => { COMP = COMPS[e.target.value]; reset(); };
+window.__setComp = c => { COMP = COMPS[c]; reset(); };
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {
@@ -795,34 +859,7 @@ function logRender() {
 }
 // ---------- hunt analyzer ----------
 const fmt = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
-function analyzerRender() {
-  const hrs = Math.max(1 / 3600, (S.time - AN.t0) / 3600), ph = v => fmt(v / hrs);
-  const supply = AN.mana * SUPPLIES.mana.price + AN.bolts * SUPPLIES.bolt.price + AN.fire_rune * SUPPLIES.fire_rune.price + AN.frost_rune * SUPPLIES.frost_rune.price + AN.consumeGold;
-  const profit = AN.loot + AN.gold - supply;
-  const row = (k, v) => `<div class="r"><span>${k}</span><b>${v}</b></div>`;
-  const heroes = ['knight', 'paladin', 'druid', 'sorcerer'];
-  $('anBody').innerHTML =
-    row('Session', `${Math.floor((S.time - AN.t0) / 60)}m ${Math.floor((S.time - AN.t0) % 60)}s`) +
-    row('XP/h', ph(AN.xp)) + row('Kills/h', ph(AN.kills)) + row('Magic XP/h', ph(AN.magicXp)) +
-    '<div class="h">Damage dealt / taken</div>' +
-    heroes.map(h => row(h, `${fmt(AN.dealt[h] || 0)} / ${fmt(AN.taken[h] || 0)}`)).join('') +
-    row('Healing', fmt(Object.values(AN.healed).reduce((a, b) => a + b, 0))) +
-    '<div class="h">Supplies used</div>' +
-    row('Mana', fmt(AN.mana)) + row('Bolts', fmt(AN.bolts)) + row('Fire runes', fmt(AN.fire_rune)) + row('Frost runes', fmt(AN.frost_rune)) + row('Mana potions', fmt(AN.potions)) + row('Food', fmt(AN.food)) +
-    row('Supply cost', fmt(supply) + 'g') +
-    '<div class="h">Loot</div>' +
-    row('Loot value', fmt(AN.loot) + 'g') + row('Gold', fmt(AN.gold) + 'g') +
-    row('Profit/h', `<span class="${profit >= 0 ? 'up' : 'dn'}">${ph(profit)}g</span>`);
-  $('loot').textContent = 'Loot (placeholder table)\n' + (AN.log.join('\n') || '—');
-}
-(function dragPanel() {
-  const el = $('analyzer'), hd = el.querySelector('.ttl');
-  let d = null;
-  hd.addEventListener('pointerdown', e => { d = [e.clientX - el.offsetLeft, e.clientY - el.offsetTop]; hd.setPointerCapture(e.pointerId); });
-  hd.addEventListener('pointermove', e => { if (!d) return; el.style.left = Math.max(0, e.clientX - d[0]) + 'px'; el.style.top = Math.max(0, e.clientY - d[1]) + 'px'; el.style.right = 'auto'; });
-  hd.addEventListener('pointerup', () => { d = null; });
-  $('anReset').onclick = () => resetAnalyzer();
-})();
+// the hunt analyzer, party panel and bottom HUD live in ui.js
 function hudRender() {
   const p = CONFIG.pockets[S.pocketIdx];
   $('hud').textContent = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`;
@@ -838,12 +875,12 @@ function frame(now) {
   const t0 = performance.now();
   const realDt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   if (!paused) { acc += realDt * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
-  const k = hero('knight');
+  const k = lead();
   AMBIENT.update(realDt, living('hero').map(h => ({ x: cx(h.px), y: cy(h.py) })), { x: cx(k.px), y: cy(k.py) });
   render(paused ? 1 : Math.min(1, acc / CONFIG.dt), realDt);
-  if (window.drawActionBar) drawActionBar();
+  if (window.UI) UI.frame(now);
   // DOM writes (hud, analyzer, loot log) at about 4 Hz, never per frame
-  if (now - domT > 250) { domT = now; hudRender(); analyzerRender(); }
+  if (now - domT > 250) { domT = now; hudRender(); if (window.UI) UI.slow(); }
   PERF.gaps.push(realDt * 1000); PERF.cpu.push(performance.now() - t0);
   if (PERF.gaps.length > 600) { PERF.gaps.shift(); PERF.cpu.shift(); }
   requestAnimationFrame(frame);
@@ -853,6 +890,7 @@ window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CON
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
 window.__AN = () => AN;
+window.__resetAnalyzer = () => resetAnalyzer();
 window.__WALK = () => WALK;
 window.__hurt = (u, n) => hurt(u, n);
 reset();

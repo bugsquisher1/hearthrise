@@ -53,3 +53,23 @@ Applies to `prototypes/hunt-sim/combat-data.js`. Prototype-only; nothing here is
 | ratking hp | 1100 | 600 | Measured effective party output against him is about 7 dps (fire resisted, nature immune); 600 HP is about 80 s. The resistances stay because they teach "bring frost" |
 
 **Rationale.** My round-1 supply estimate was wrong by about 10x on runes, so the economy is now re-fit to the measured usage. Supply prices rise until supplies matter, and coin is trimmed to land at about +20%. The Rat King keeps his element lesson; his HP comes down instead. Applier: if measured profit lands outside +10–30%, change only the gp multiplier.
+
+## Party-size test 2026-10-16
+
+Headless run at the current numbers: 2 loops per composition, capped at 40 sim-minutes. Clear times are in seconds per loop; W means a wipe. The front-most hero pulls and holds aggro. Profit includes potions and food.
+
+| Party | NW | SW | Channel | NE | SE | Rat King | Deaths / wipes | Potions / food | XP/h | Profit/h |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Full (K+P+D+S) | 10 / 9 | 14 / 16 | 9 / 8 | 26 / 29 | 6 / 6 | 53 / 59 | 0 / 0 | 19 / 0 | 24.1k | −2.9k |
+| Knight + sorcerer | 14 / 16 | 20 / 28 | 10 / 15 | 52 / 66 | 14 / 16 | 81 / 89 | 0 / 0 | 19 / 8 | 16.6k | −1.0k |
+| Knight + druid | 36 / 58 | 31 / 40 | 28 / 40 | 57 / 77 | 20 / 26 | 238 / 250 | 0 / 0 | 22 / 0 | 9.0k | +1.7k |
+| Paladin + druid (no tank) | 29 / 33 | 33 / 35 | 27 / 29 | 51 / 72 | 19 / 29 | 185 / 256 | 0 / 0 | 28 / 0 | 10.0k | −1.7k |
+| Solo knight | 34 / 54 | 31 / 50 | 24 / 44 | 67 / 134 | 34 / 48 | 228, then 15 W | 15 / 15 | 6 / 25 | 3.0k | +0.4k |
+| Solo paladin | 33 / 33 | 39 / 43 | 29 / 25 | 77, 15 W, 35 | 35 / 61 | 173, then 12 W | 27 / 27 | 12 / 15 | 3.0k | −1.1k |
+| Solo sorcerer | 19 / 25 | 77 / 75 | 23 / 23 | 57 / 61 | 27 / 23 | 155, then 24 W | 24 / 24 | 40 / 12 | 3.0k | −1.1k |
+| Solo druid | 12 W | — | — | — | — | — | 12 / 12 | 40 / 12 | 0 | −0.8k |
+
+**Verdict.**
+- Every 2-hero party clears the Sewer without a death. Solos clear the normal pockets (the druid wipes in the first room), but none beats the Rat King again once the first kill has spent their supplies.
+- Monster density should scale with party size. The full party clears normal pockets about 3x faster than a solo and about 2x faster than a pair. A fixed pack is trivial for 4 heroes and lethal at the boss for 1.
+- Recommended scale: pack HP or count ≈ 0.4 + 0.15 × party size, so about 0.55x solo, 0.7x pair and 1.0x full. Scale the Rat King's HP the same way, and give a solo druid a damage floor.

@@ -25,7 +25,7 @@
   button.on { color:var(--gold-2); border-color:var(--gold); }
   #bar { position:fixed; top:6px; left:6px; display:flex; gap:3px; flex-wrap:wrap; background:var(--plank-1); border:1px solid var(--iron); padding:3px; max-width:46vw; }
   /* hunt top bar */
-  #huntbar { position:fixed; top:6px; left:50%; transform:translateX(-50%); display:flex; gap:3px; align-items:center; background:var(--plank-1); border:1px solid var(--iron); padding:3px; }
+  #huntbar { position:fixed; top:6px; right:6px; display:flex; gap:3px; align-items:center; background:var(--plank-1); border:1px solid var(--iron); padding:3px; }
   #huntbar .ready { padding:0 8px; color:var(--rail-ink); font:500 12px var(--f-label); } #huntbar .ready b { color:var(--flame); font:700 15px var(--f-ui); }
   #leave { background:#4a1a14; border-color:var(--oxblood); color:#ffd8c8; font-weight:700; }
   #viewlbl { position:fixed; top:40px; left:50%; transform:translateX(-50%); color:var(--rail-ink); font:500 12px var(--f-ui); background:var(--plank-1); border:1px solid var(--iron); padding:1px 8px; }
@@ -43,7 +43,7 @@
   .pnl.min { padding-top:12px; } .pnl.min > :not(.hd):not(.cb) { display:none !important; }
 
   /* ---- party: carved stone plates, portrait sockets ---- */
-  #party { top:64px; left:6px; width:238px; }
+  #party { top:72px; left:6px; width:238px; }
   #party .mem { position:relative; display:flex; gap:7px; margin:5px 6px; padding:6px 7px 5px 6px; background:var(--bg-2);
     border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.08), inset 0 -1px 0 rgba(0,0,0,.5); cursor:pointer; }
   #party .mem.sel { box-shadow:inset 0 1px 0 rgba(255,180,87,.75), inset 1px 0 0 rgba(255,180,87,.55), inset 0 -1px 0 rgba(0,0,0,.5); border-color:#5a4020; }
@@ -110,6 +110,9 @@
   .hidden { display:none !important; }
   #panelsMenu { position:fixed; top:40px; left:50%; transform:translateX(-50%); background:var(--plank-1); border:1px solid var(--iron); padding:5px 9px; z-index:8; font:500 13px var(--f-ui); }
   #panelsMenu label { display:block; cursor:pointer; }
+  #keysMenu { position:fixed; top:40px; left:8px; background:var(--plank-1); border:1px solid var(--iron); padding:6px 10px; z-index:8; font:500 13px var(--f-ui); line-height:1.7; }
+  #keysMenu kbd { display:inline-block; min-width:16px; padding:0 4px; margin-right:4px; text-align:center; border:1px solid var(--iron); border-radius:2px; background:var(--plank-2, rgba(0,0,0,.3)); font:600 12px var(--f-ui); }
+  #keysMenu .dim { opacity:.7; font-size:12px; }
   #hud { position:fixed; left:6px; bottom:150px; background:var(--plank-1); padding:4px 8px; white-space:pre; color:var(--paper); font:500 12px var(--f-ui); display:none; }
   body.dev #hud { display:block; }
 </style>
@@ -125,6 +128,13 @@
   <button id="tGrid">Grid</button>
   <button id="tPath">Paths</button>
   <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
+  <button id="keysBtn" title="Keyboard shortcuts">Hotkeys ▾</button>
+</div>
+<div id="keysMenu" class="hidden">
+  <div><kbd>1</kbd>–<kbd>4</kbd> View a hero (Melee, Ranger, Healer, Mage)</div>
+  <div><kbd>P</kbd> Party cam (follow the group)</div>
+  <div><kbd>H</kbd> Hide / show all panels</div>
+  <div class="dim">Slot numbers on the action bar are labels only for now.</div>
 </div>
 <div id="huntbar"><button id="details">ⓘ HUNT DETAILS</button><span class="ready" id="ready"></span><button id="panelsBtn" title="show / hide panels (H toggles all)">Panels ▾</button><button id="expand" title="dev panels">»</button><button id="leave">LEAVE HUNT</button></div>
 <div id="viewlbl"></div>
@@ -136,11 +146,11 @@
 <div id="panelsMenu" class="hidden"></div>
 <div id="lootp" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Loot</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="lootBody"></div></div>
 <div id="log" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Pulls</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=18"></script>
-<script src="combat-data.js?v=18"></script>
-<script src="vfx.js?v=18"></script>
-<script src="ambient.js?v=18"></script>
-<script src="sim.js?v=18"></script>
-<script src="ui.js?v=18"></script>
+<script src="grid.js?v=20"></script>
+<script src="combat-data.js?v=20"></script>
+<script src="vfx.js?v=20"></script>
+<script src="ambient.js?v=20"></script>
+<script src="sim.js?v=20"></script>
+<script src="ui.js?v=20"></script>
 </body>
 </html>

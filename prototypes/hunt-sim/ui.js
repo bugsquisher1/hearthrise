@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=18`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=20`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=18`;
+  const iconUrl = id => `assets/icons/${id}.png?v=20`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -112,6 +112,10 @@ const UI = (() => {
     ended = true; PANELS.set('hunt', { hidden: false, min: false }); tab = 'session'; anView = 'party'; slow();
   };
   $('partyCam').onclick = () => { partyCam(); };
+  $('keysBtn').onclick = () => {   // open just under the dev bar, whatever height it wrapped to
+    $('keysMenu').style.top = ($('bar').getBoundingClientRect().bottom + 4) + 'px';
+    $('keysMenu').classList.toggle('hidden');
+  };
   addEventListener('keydown', e => {
     if (e.target.tagName === 'SELECT') return;
     const i = '1234'.indexOf(e.key); const hs = heroes();
@@ -125,7 +129,7 @@ const UI = (() => {
   const CREST = { knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   // portrait: the hero's own south idle frame, head crop (16x16 around the top of the sprite) at 2x
   function portrait(c, kind) {
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=18`;
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=20`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -254,7 +258,7 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=18').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=20').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }

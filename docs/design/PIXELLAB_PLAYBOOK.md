@@ -76,3 +76,18 @@ Cheapest high-quality path: anchor via create_image_pro at <=32px (one call, 64 
 4. **Tilesets** (~12): T1 dirt/grass, T2 dirt->cobble, T3 sand<->grass, chained by base ids.
 5. **Props** (~5): well, barrel, market stall, oak tree, lamp post via create_map_object (high top-down).
 6. **Test corner**: create_map + edit_map (cobble plaza 10x8, dirt road, sand edge) + place kit pieces/props -> view_map image to Tyler. Hero waits for batch 2 once the look is approved.
+
+## Pro tilesets: height and diagonal walls (learned 2026-10-16 from PixelLab help; video "Pro Tilesets: Full Guide")
+Use `create_topdown_tileset(mode="pro", tile_size=32)`. Pro is experimental; it takes 16, 32 or 64 px tiles and has controls for raised walls.
+- **Height:**
+  - `transition_size` above 0.4 gives tall-wall tiles.
+  - At `transition_size=0.25`, `step_slope` sets the edge: 0 is a cliff, up to 2 is a gentle slope.
+  - `transition_size` 0.5 or 1.0 gives a 25-tile set.
+- **Non-square corners:**
+  - `roundness=2` cuts corners at 45°.
+  - `roundness=1` rounds them.
+  - `connect_diagonals=True` joins the upper terrain across diagonal neighbours.
+- **Chaining:** build floor→wall first, then `get_topdown_tileset`. Pass its wall `upper_base_tile_id` as the next set's `lower_base_tile_id`. Every adjacent terrain pair needs its own connecting set; an unpaired pair renders black.
+- `shape_style` works in standard mode only; never combine it with pro.
+- `create_tiles_pro` with oblique tiles gives a 45° shear, but not the chained transition workflow.
+- **Next use:** re-make the sewer flagstone↔brick wall set with `roundness` 1 or 2, `connect_diagonals=True` and a tall `transition_size`. That fixes Tyler's "perfectly square walls" without changing which cells are walkable.

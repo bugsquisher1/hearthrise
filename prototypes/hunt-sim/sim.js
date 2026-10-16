@@ -286,7 +286,7 @@ function hurt(t, amt, src, el, abil) {
   if (src && src.set && t.side === 'mon') amt = Math.max(1, Math.round(amt * STANCES[src.set.stance].dmg));
   t.hp = Math.max(0, t.hp - amt);
   if (src && src.side === 'hero') {
-    const key = abil || 'basic', e = el || 'physical', H = hs(src.kind);
+    const key = abil || 'basic', e = (!el || el === 'bleed') ? 'physical' : el, H = hs(src.kind);   // bleed is physical damage
     bump(AN.outAb, key, amt); bump(AN.outEl, e, amt); bump(H.outAb, key, amt); bump(H.outEl, e, amt);
   }
   if (t.side === 'hero') {
@@ -644,7 +644,7 @@ function useAbility(u, ab, mons) {
     case 'enemy': if (ab.bleed) {       // Rend: quick hits, each applies a bleed stack; an X of two slashes on the target
       if (!vfx('x_slash', tgt.px, tgt.py)) S.fx.push({ type: 'xslash', x: tgt.px, y: tgt.py, age: 0 });
       face(u, tgt);
-      for (let i = 0; i < (ab.hits || 1); i++) { hurt(tgt, rnd(...ab.dmg), u, null, ab.id); applyBleed(tgt, u, ab.bleed, (LOADOUTS[u.kind] && LOADOUTS[u.kind].bleedRuneTier) || 1); }
+      for (let i = 0; i < (ab.hits || 1); i++) { hurt(tgt, rnd(...ab.dmg), u, null, ab.id); applyBleed(tgt, u, ab.bleed, ab.rune && SUPPLIES[ab.rune] ? SUPPLIES[ab.rune].tier || 1 : 1); }
       break;
     } shoot(u, tgt, ab.fx, ab.element, () => {
       vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);

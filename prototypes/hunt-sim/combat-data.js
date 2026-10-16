@@ -20,7 +20,7 @@ const CONSUMABLES = {
 };
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
-  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: {}, bleedRuneTier: 1 },   // ASSUMED; bleedRuneTier feeds Rend's scaling (no item)
+  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: { life_rune: 30 } },   // ASSUMED stack
   knight:   { food: ['ham', 25],   drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },
   paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
@@ -32,7 +32,7 @@ const HERO_START_LEVEL = 20, HERO_XP_PER_LEVEL = 12000;   // ASSUMED: display-on
 // for `dur` s; up to `max` stacks per target; reapplying refreshes every stack's duration. All ASSUMED.
 const BLEEDS = { rend: { name: 'Rend (bleed)', tick: [1, 3], every: 1, dur: 6, max: 5 } };
 // Bleed scaling (Tyler 2026-10-16), generic for any source: tick = base x (1 + meleeSkill x 0.004) x RUNE_TIER_MULT[runeTier].
-// runeTier is a parameter of the cast (no rune item behind it yet; Tyler will name which existing rune feeds it).
+// runeTier = the tier of the rune the cast consumed (Rend: a Life rune). The bleed itself stays physical.
 const BLEED_SKILL_PER_POINT = 0.004;                // ASSUMED: very slow scaling with the caster's Melee skill
 const RUNE_TIER_MULT = { 1: 1.00, 2: 1.10, 3: 1.20 }; // ASSUMED
 const HERO_MELEE_SKILL = 20;                        // ASSUMED: every hero's Melee skill in the sim (monsters default to 0)
@@ -71,6 +71,7 @@ const COMBAT = {
 
 // Runes and supplies (gold). designer ruling 2026-10-15.
 const SUPPLIES = {
+  life_rune:  { name: 'Life Rune (store)',  mult: 1.00, tier: 1, price: 12 },   // Tyler 2026-10-16: Rend's rune (BIBLE §8 Life family); tier scales the bleed only; price ASSUMED
   fire_rune:  { name: 'Fire Rune (store)',  mult: 1.00, price: 6 },    // mult REVIEW:69 store Basic ×1.00; price designer ruling 2026-10-15 r2
   frost_rune: { name: 'Frost Rune (store)', mult: 1.00, price: 6 },    // designer ruling 2026-10-15 r2 (mirrors Fire)
   bolt:       { name: 'Crossbow bolt',      mult: 1.00, price: 1 },    // per-shot cost: Tyler ruling; price designer ruling 2026-10-15 r2
@@ -97,7 +98,7 @@ const ABILITIES = {
   berserker: [                                                                                  // ASSUMED: no Challenge; never holds aggro
     { id: 'cleave', name: 'Cleave', lane: 'offense', cd: 6, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3, magicXpMult: 0, fx: 'slash' },
     { id: 'power_strike', name: 'Power Strike', lane: 'offense', cd: 6, mana: 6, target: 'enemy', dmg: [7, 13], magicXpMult: 0, fx: 'slash' },
-    { id: 'rend', name: 'Rend', lane: 'offense', cd: 6, mana: 8, target: 'enemy', dmg: [2, 4], hits: 2, magicXpMult: 0, fx: 'xslash',
+    { id: 'rend', name: 'Rend', lane: 'offense', cd: 6, mana: 8, rune: 'life_rune', target: 'enemy', dmg: [2, 4], hits: 2, magicXpMult: 0, fx: 'xslash',
       bleed: 'rend' },                                                                          // ASSUMED: two quick hatchet hits, each applies a bleed stack
   ],
   knight: [

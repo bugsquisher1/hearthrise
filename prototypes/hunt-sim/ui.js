@@ -22,8 +22,8 @@ const UI = (() => {
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
     const i = new Image(); i.src = `assets/icons/${n}.png?v=45`; ICON[n] = i;
   }
-  const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
-  const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
+  const ITEM_ICON = { life_rune: 'fire_rune', fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
+  const ITEM_NAME = { life_rune: 'Life rune', fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   // '<id>_own' = used from the hero's own carried stack: already owned, so it costs nothing this session
   const ITEM_PRICE = id => id.endsWith('_own') ? 0 : id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
@@ -358,6 +358,7 @@ const UI = (() => {
     const icon = s.ab ? (ICONMAP[s.ab.id] || (s.ab.id === 'rend' ? ICONMAP.power_strike : null)) : s.kind === 'basic' ? (ICONMAP['basic_' + NAME[u.kind].toLowerCase()] || ICON[BASIC_ICON[u.kind]]) : ICONMAP[s.id] || ICON[ITEM_ICON[s.id]];
     if (s.unusable) g.filter = 'grayscale(1) brightness(.55)';
     const o = Math.floor((SL - 32) / 2);
+    if (s.id === 'life_rune' && !ICONMAP.life_rune) g.filter = (s.unusable ? 'grayscale(1) brightness(.55) ' : '') + 'hue-rotate(95deg) saturate(1.3)';   // fire-rune art tinted green until a Life rune icon exists
     if (ready(icon)) g.drawImage(icon, x + o, y + o, 32, 32);
     else if (s.ab) { const [gn, col] = ABIL[s.ab.id] || ['star', '#ccc']; glyph(g, gn, x + Math.floor((SL - 24) / 2), y + Math.floor((SL - 24) / 2), col, 3); }
     g.filter = 'none';
@@ -461,7 +462,7 @@ const UI = (() => {
     }
   }
   function bleedTip(u, ab) {
-    const B = BLEEDS[ab.bleed], tier = (LOADOUTS[u.kind] && LOADOUTS[u.kind].bleedRuneTier) || 1;
+    const B = BLEEDS[ab.bleed], tier = ab.rune && SUPPLIES[ab.rune] ? SUPPLIES[ab.rune].tier || 1 : 1;
     const sk = 1 + (u.meleeSkill || 0) * BLEED_SKILL_PER_POINT, sc = sk * (RUNE_TIER_MULT[tier] || 1);
     return `Two quick hatchet hits; each adds a bleed stack: ${(B.tick[0] * sc).toFixed(1)}–${(B.tick[1] * sc).toFixed(1)} every ${B.every} s for ${B.dur} s, up to ${B.max} stacks, refreshed on reapply. Melee skill ${u.meleeSkill || 0} (×${sk.toFixed(2)}), rune tier ${tier} (×${(RUNE_TIER_MULT[tier] || 1).toFixed(2)}).`;
   }

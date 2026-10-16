@@ -561,6 +561,31 @@
    "loop": false,
    "additive": false,
    "image_id": "e320ac00-238b-496e-a71e-0b3754134d2b"
+  },
+  "x_slash": {
+   "frames": [
+    "x_slash/0.png",
+    "x_slash/1.png",
+    "x_slash/2.png",
+    "x_slash/3.png",
+    "x_slash/4.png",
+    "x_slash/5.png",
+    "x_slash/6.png",
+    "x_slash/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 14,
+   "size": [
+    28,
+    27
+   ],
+   "anchor": [
+    14,
+    14
+   ],
+   "loop": false,
+   "additive": false,
+   "image_id": "d908da06-1f89-401b-8f2e-86a5d54efbf0"
   }
  }
 }

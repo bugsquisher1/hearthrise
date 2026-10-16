@@ -1,0 +1,62 @@
+{
+ "size": 32,
+ "note": "32x32 pixel icons; scale by integers only. Basic attacks are keyed basic_<role>.",
+ "groups": {
+  "melee": [
+   "basic_melee",
+   "challenge",
+   "flame_strike",
+   "power_strike"
+  ],
+  "ranger": [
+   "basic_ranger",
+   "hunters_mark",
+   "flame_volley",
+   "precision_shot"
+  ],
+  "mage": [
+   "basic_mage",
+   "fireball",
+   "frost_lance",
+   "arcane_barrier"
+  ],
+  "healer": [
+   "basic_healer",
+   "greater_mend",
+   "circle_of_renewal",
+   "natures_wrath"
+  ],
+  "consumables": [
+   "fire_rune",
+   "frost_rune",
+   "health_potion",
+   "mana_potion",
+   "ham",
+   "bread"
+  ]
+ },
+ "icons": {
+  "basic_melee": "assets/icons/basic_melee.png",
+  "challenge": "assets/icons/challenge.png",
+  "flame_strike": "assets/icons/flame_strike.png",
+  "power_strike": "assets/icons/power_strike.png",
+  "basic_ranger": "assets/icons/basic_ranger.png",
+  "hunters_mark": "assets/icons/hunters_mark.png",
+  "flame_volley": "assets/icons/flame_volley.png",
+  "precision_shot": "assets/icons/precision_shot.png",
+  "basic_mage": "assets/icons/basic_mage.png",
+  "fireball": "assets/icons/fireball.png",
+  "frost_lance": "assets/icons/frost_lance.png",
+  "arcane_barrier": "assets/icons/arcane_barrier.png",
+  "basic_healer": "assets/icons/basic_healer.png",
+  "greater_mend": "assets/icons/greater_mend.png",
+  "circle_of_renewal": "assets/icons/circle_of_renewal.png",
+  "natures_wrath": "assets/icons/natures_wrath.png",
+  "fire_rune": "assets/icons/fire_rune.png",
+  "frost_rune": "assets/icons/frost_rune.png",
+  "health_potion": "assets/icons/health_potion.png",
+  "mana_potion": "assets/icons/mana_potion.png",
+  "ham": "assets/icons/ham.png",
+  "bread": "assets/icons/bread.png"
+ }
+}

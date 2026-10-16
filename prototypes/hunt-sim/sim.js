@@ -135,6 +135,8 @@ function reset() {
   S = { time: 0, units: [], fx: [], nextId: 1, occ: new Map(), pocketIdx: 0, phase: 'travel', phaseT: 0,
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
   COMP.forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  // no Melee to hold the pack: ranged heroes kite by default (chase off) at their distance (Tyler 2026-10-16)
+  if (!COMP.includes('knight')) for (const u of S.units) if (u.side === 'hero') u.set.chase = false;
   S.leaderKind = COMP[0];
   if (!COMP.includes(VIEW.sel)) VIEW.sel = COMP[0];
   CONFIG.pockets.forEach((p, i) => spawnPack(i));
@@ -160,7 +162,7 @@ const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
 // party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
 const COMPS = {
   full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
-  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
+  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'], ps: ['paladin', 'sorcerer'],
 };
 let COMP = COMPS.full;
 const lead = () => hero(S.leaderKind);
@@ -390,7 +392,9 @@ function aiFight() {
   const k = lead();
   const mons = engagedMonsters();
   if (!mons.length) { endPull(); return; }
-  if (!adjacentMonsters(k).length) {
+  if (!k.set.chase) {
+    keepDistance(k, k.set.dist, mons);   // chase off applies to the leader too: kite at its distance setting
+  } else if (!adjacentMonsters(k).length) {
     // nothing on him yet: step toward the nearest
     const near = mons.slice().sort((a, b) => eu(a, k) - eu(b, k))[0];
     if (k.set.chase && eu(near, k) > k.set.dist + 1.5 && k.repath <= 0) { setGoal(k, near.x, near.y); k.path = k.path.slice(0, -1); k.repath = 0.8; }
@@ -473,16 +477,17 @@ function rangedPos(u, k, mons) {
 function keepDistance(u, want, mons) {
   const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
   if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
-  if (u.repath > 0 && u.path.length) return;
-  u.repath = 0.4;                                              // re-check often: monsters keep closing in
-  let best = null, bs = -1e9;
-  for (let y = u.y - 6; y <= u.y + 6; y++) for (let x = u.x - 6; x <= u.x + 6; x++) {
+  // en route to a step that still restores the gap: keep going (re-picking every tick meant never arriving)
+  if (u.goal && u.path.length && gap(u.goal[0], u.goal[1]) >= want) return;
+  // the NEAREST reachable tile that restores the gap, with a line of fire, inside the room: one short step back
+  let best = null, bs = 1e9;
+  for (let y = u.y - 5; y <= u.y + 5; y++) for (let x = u.x - 5; x <= u.x + 5; x++) {
     if (!walk(x, y)) continue;
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
     if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
-    const g = Math.min(gap(x, y), want + 1);                   // more gap is better, up to just past the setting
-    const s = g * 3 - eu({ x, y }, u) * 0.5 + (mons.some(m => los({ x, y }, m)) ? 1 : -4) + (inRoom(S.pull.pocket, x, y) ? 0 : -3);
-    if (s > bs) { bs = s; best = [x, y]; }
+    const g = gap(x, y); if (g < Math.min(want, 2)) continue;  // never step next to a monster
+    const s = eu({ x, y }, u) + (g >= want ? 0 : (want - g) * 3) + (mons.some(m => los({ x, y }, m)) ? 0 : 4) + (inRoom(S.pull.pocket, x, y) ? 0 : 3);
+    if (s < bs) { bs = s; best = [x, y]; }
   }
   if (best && (best[0] !== u.x || best[1] !== u.y)) setGoal(u, ...best);
 }
@@ -632,7 +637,7 @@ function attacks(dt) {
     if (u.side === 'hero') {
       u.mana = Math.min(u.maxMana, u.mana + u.maxMana * COMBAT.manaRegenPerMin / 60 * dt);
       consume(u, dt);
-      if (S.phase === 'fight' && u.t >= 1) {
+      if (S.phase === 'fight' && (u.t >= 1 || HEROES[u.kind].range > 1.5)) {   // ranged heroes cast on the move (kiting)
         const mons = engagedMonsters();
         if (mons.length) for (const ab of ABILITIES[u.kind]) if (abilityOn(u, ab) && useAbility(u, ab, mons)) break;
       }
@@ -648,7 +653,7 @@ function attacks(dt) {
       }
       continue;
     }
-    if (S.phase !== 'fight' || u.t < 1) continue;
+    if (S.phase !== 'fight' || (u.t < 1 && HEROES[u.kind].range <= 1.5)) continue;   // ranged heroes shoot while moving: kiting
     const mons = engagedMonsters(); if (!mons.length) continue;
     const b = HEROES[u.kind].basic;
     // prefer targets the element can hurt; an immune target is still attacked, it just takes 0 (Tyler 2026-10-16)

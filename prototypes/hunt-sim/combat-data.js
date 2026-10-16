@@ -15,8 +15,8 @@
 // Food and drink share ONE consumable lane (BIBLE §9.1: food restores HP, drinks restore mana, same lane).
 const CONSUMABLES = {
   mana_potion: { name: 'Moonbloom tea', glyph: 'potion', mana: 60, below: 0.30, price: 4 },        // ASSUMED: a DRINK (Tyler: food = HP, drink = mana, no potions); +60 mana under 30%; 4 g
-  ham:         { name: 'Ham',         glyph: 'ham',    hp: 70, over: 6, below: 0.50, price: 3 },   // ASSUMED: 70 HP over 6 s under 50% HP; 3 g
-  bread:       { name: 'Bread',       glyph: 'bread',  hp: 45, over: 6, below: 0.50, price: 2 },   // ASSUMED: 45 HP over 6 s; 2 g
+  ham:         { name: 'Ham',         glyph: 'ham',    hp: 70, below: 0.50, price: 3 },   // ASSUMED: 70 HP (half instant, half over 6 s) under 50% HP; 3 g
+  bread:       { name: 'Bread',       glyph: 'bread',  hp: 45, below: 0.50, price: 2 },   // ASSUMED: 45 HP (half instant, half over 6 s); 2 g
 };
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)

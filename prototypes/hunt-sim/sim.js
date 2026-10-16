@@ -565,32 +565,37 @@ function heal(src, h, amt) {
   const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.heals = (AN.heals || 0) + 1; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
   S.fx.push({ type: 'heal', x: h.px, y: h.py, age: 0 }); pushNum(h, '+' + got, '#7dff8a');
 }
-// food and drink: one shared consumable lane (BIBLE §9.1). Drink under 30% mana; eat under 50% HP when no heal
-// has landed on this hero in the last 2 s. Both are debited from the loadout and priced in the analyzer.
+// food and drink: one shared consumable lane (BIBLE §9.1). No potions (Tyler 2026-10-16): food restores HP,
+// drink restores mana, and each pays HALF instantly and HALF as a timed over-time effect (CONSUME_HOT_S).
+// Drink under its mana threshold; eat under its HP threshold when no heal landed in the last 2 s.
+const CONSUME_INSTANT = 0.5, CONSUME_HOT_S = 6;   // ASSUMED: 50/50 split (Tyler), over-time half spread across 6 s
+function tickOverTime(u, key, stat, max, dt) {
+  const o = u[key]; if (!o) return;
+  const step = Math.min(o.left, o.perSec * dt);
+  u[stat] = Math.min(u[max], u[stat] + step); o.left -= step;
+  if (o.left <= 0.01) u[key] = null;
+}
 function consume(u, dt) {
-  if (u.regen) {
-    const step = Math.min(u.regen.left, u.regen.perSec * dt);
-    u.hp = Math.min(u.maxHp, u.hp + step); u.regen.left -= step;
-    if (u.regen.left <= 0.01) u.regen = null;
-  }
+  tickOverTime(u, 'regen', 'hp', 'maxHp', dt);
+  tickOverTime(u, 'manaRegen', 'mana', 'maxMana', dt);
   if (u.lane.consume > S.time) return;
   const L = LOADOUTS[u.kind];
   const dr = CONSUMABLES[L.drink[0]], fd = CONSUMABLES[L.food[0]];
   const drinkBelow = u.set.drinkBelow != null ? u.set.drinkBelow : dr.below;
-  // drink: a mana potion under its mana threshold, or a health potion under its HP threshold (instant)
-  const wantDrink = dr.mana ? u.maxMana && u.mana / u.maxMana < drinkBelow : u.hp / u.maxHp < drinkBelow;
-  if (u.drink > 0 && wantDrink) {
+  if (u.drink > 0 && !u.manaRegen && u.maxMana && u.mana / u.maxMana < drinkBelow) {
     u.drink--; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.drink = S.time;
-    if (dr.mana) { u.mana = Math.min(u.maxMana, u.mana + dr.mana); pushNum(u, '+' + dr.mana, '#7ab4ff');
-      vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' }); }
-    else { const got = Math.min(dr.hp, u.maxHp - u.hp); u.hp += got; pushNum(u, '+' + got, '#ff8a8a');
-      vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(-110deg) saturate(1.6)' }); }
+    const now = Math.round(dr.mana * CONSUME_INSTANT), later = dr.mana - now;
+    u.mana = Math.min(u.maxMana, u.mana + now); u.manaRegen = { left: later, perSec: later / CONSUME_HOT_S };
+    pushNum(u, '+' + now, '#7ab4ff');
+    vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' });
     AN.potions++; AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1; useSupply(u, L.drink[0], 1);
     return;
   }
   const foodBelow = u.set.foodBelow != null ? u.set.foodBelow : fd.below;
   if (u.food > 0 && !u.regen && u.hp / u.maxHp < foodBelow && S.time - u.healedAt > 2) {
-    u.food--; u.regen = { left: fd.hp, perSec: fd.hp / fd.over }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
+    const now = Math.round(fd.hp * CONSUME_INSTANT), later = fd.hp - now;
+    const got = Math.min(now, u.maxHp - u.hp); u.hp += got; pushNum(u, '+' + got, '#ff8a8a');
+    u.food--; u.regen = { left: later, perSec: later / CONSUME_HOT_S }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
     AN.food++; AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1; useSupply(u, L.food[0], 1);
     vfx('loot_sparkle', u.px, u.py, { follow: u, filter: 'sepia(1) saturate(2) hue-rotate(-15deg) brightness(.8)' });
   }

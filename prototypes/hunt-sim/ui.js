@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=22`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=23`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=22`;
+  const iconUrl = id => `assets/icons/${id}.png?v=23`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -99,8 +99,9 @@ const UI = (() => {
         '<div style="color:var(--dim);margin-top:3px">H hides / shows all</div>';
       $('panelsMenu').querySelectorAll('[data-p]').forEach(c => c.onchange = () => set(c.dataset.p, { hidden: !c.checked })); };
     function set(id, patch) { st[id] = Object.assign({}, st[id], patch); if (patch.hidden === false) st.__allOff = false; save(); apply(); }
-    document.addEventListener('click', e => { const b = e.target.closest('.minb'); if (!b) return;
-      const el = b.closest('.pnl, #hud2'); if (el) set(el.id, { min: !(st[el.id] || {}).min }); });
+    // pointerdown, not click: panel headers are re-rendered on a timer and a click across a re-render is lost
+    document.addEventListener('pointerdown', e => { if (e.button !== 0) return; const b = e.target.closest('.minb'); if (!b) return;
+      const el = b.closest('.pnl, #hud2'); if (el) { e.preventDefault(); set(el.id, { min: !(st[el.id] || {}).min }); } });
     $('panelsBtn').onclick = () => $('panelsMenu').classList.toggle('hidden');
     addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') { st.__allOff = !st.__allOff; save(); apply(); } });
     return { set, apply, get: id => st[id] || {} };
@@ -129,7 +130,7 @@ const UI = (() => {
   const CREST = { knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   // portrait: the hero's own south idle frame, head crop (16x16 around the top of the sprite) at 2x
   function portrait(c, kind) {
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=22`;
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=23`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -226,10 +227,20 @@ const UI = (() => {
         `<div class="tg"><button data-v="hero" class="${anView === 'hero' ? 'on' : ''}">This hero${h ? ' (' + NAME[h.kind] + ')' : ''}</button><button data-v="party" class="${anView === 'party' ? 'on' : ''}">Party</button></div>` +
         `<div class="tabs"><button data-t="session" class="${tab === 'session' ? 'on' : ''}" title="session totals">⌛ Session</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}" title="damage taken">⛨ Taken</button><button data-t="out" class="${tab === 'out' ? 'on' : ''}" title="damage dealt">⚔ Dealt</button></div>` +
         `<div class="pane">${body}</div>`);
-    $('anRst').onclick = () => { window.__resetAnalyzer(); ended = false; slow(); };
-    $('hunt').querySelectorAll('[data-v]').forEach(b => b.onclick = () => { anView = b.dataset.v; slow(); });
-    $('hunt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; slow(); });
-    $('hunt').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { collapsed[b.dataset.s] = !collapsed[b.dataset.s]; slow(); });
+    // The analyzer re-renders on a timer, which replaces its buttons; a press-then-release `click` is lost whenever
+    // a re-render lands in between. One delegated handler on the panel, acting on POINTERDOWN, survives re-renders.
+    if (!$('hunt')._acts) {
+      $('hunt')._acts = true;
+      $('hunt').addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        const b = e.target.closest('#anRst, [data-v], [data-t], [data-s]'); if (!b) return;
+        if (b.id === 'anRst') { window.__resetAnalyzer(); ended = false; }
+        else if (b.dataset.v) anView = b.dataset.v;
+        else if (b.dataset.t) tab = b.dataset.t;
+        else collapsed[b.dataset.s] = !collapsed[b.dataset.s];
+        e.preventDefault(); slow();
+      });
+    }
     // top bar timer: next pack respawn, else the session clock
     const next = s.packs.filter(p => !p.alive).map(p => p.respawnAt - s.time).filter(t => t > 0).sort((x, y) => x - y)[0];
     $('ready').innerHTML = next != null ? `READY IN <b>${Math.floor(next / 60)}:${String(Math.floor(next % 60)).padStart(2, '0')}</b>` : `SESSION <b>${hms(secs)}</b>`;
@@ -258,7 +269,7 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=22').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=23').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }

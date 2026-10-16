@@ -30,7 +30,7 @@
   #party .mem { padding:4px 6px; border-bottom:1px solid var(--panel-line); cursor:pointer; }
   #party .mem.sel { background:rgba(224,160,80,.10); box-shadow:inset 2px 0 0 var(--accent); }
   #party .r1 { display:flex; align-items:center; gap:4px; }
-  #party .tag { color:var(--dim); } #party .star { color:var(--gold); } #party .fol { color:var(--dim); }
+  #party .tag { color:var(--dim); } #party .ag { color:var(--steel, #808b98); } #party .star { color:var(--gold); } #party .fol { color:var(--dim); }
   #party .lv { margin-left:auto; color:var(--dim); } #party .kick { color:var(--dim); padding:0 2px; }
   #party .st { width:12px; text-align:center; }
   #party .bar { height:3px; background:#0c0d10; margin-top:2px; position:relative; }
@@ -49,19 +49,18 @@
   #hunt .row img { width:16px; height:16px; image-rendering:pixelated; }
   #hunt .ended { padding:4px 6px; color:#ffd9a0; background:rgba(224,160,80,.12); }
   /* bottom HUD */
-  #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; gap:8px; align-items:flex-end; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:5px 6px; }
-  #hudL { width:188px; display:flex; gap:4px; } #hudBars { flex:1; display:flex; flex-direction:column; gap:3px; }
-  .hb { position:relative; height:13px; background:#0c0d10; border:1px solid #000; font-size:10px; line-height:13px; }
-  .hb i { position:absolute; left:0; top:0; bottom:0; } .hb span { position:absolute; left:0; right:0; text-align:center; text-shadow:0 1px 0 #000; }
-  .hb em { position:absolute; right:3px; font-style:normal; font-size:9px; color:var(--ink); text-shadow:0 1px 0 #000; } .hb s { position:absolute; left:3px; text-decoration:none; font-size:9px; text-shadow:0 1px 0 #000; }
-  .hb.thin { height:9px; line-height:9px; font-size:9px; }
-  #hudRound { display:flex; flex-direction:column; gap:3px; } #hudRound canvas { width:24px; height:24px; }
-  #slots { cursor:default; }
-  #hudR { width:150px; display:flex; flex-direction:column; gap:3px; font-size:10px; color:var(--dim); }
-  #hudR select { width:100%; font-size:10px; padding:1px 2px; }
-  #hudR .modes { display:flex; gap:2px; } #hudR .modes button { flex:1; padding:1px 0; font-size:10px; }
-  #hudR .modes button.chase.on { background:#6a2222; border-color:#c04a3a; color:#ffd8d0; }
-  #hudR .dist { display:flex; align-items:center; gap:4px; } #hudR .dist b { color:var(--ink); font-weight:normal; min-width:14px; text-align:center; }
+  /* bottom HUD — "Hearthrise light": the rail and emblem are one canvas; the plaque is carved wood with engraved labels */
+  #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; gap:0; align-items:stretch; }
+  #hudCanvas { display:block; }
+  #plaque { width:132px; margin-left:-1px; background:#1a130d; border:1px solid #100c08; box-shadow:inset 0 1px 0 #241b13; padding:5px 7px; display:flex; flex-direction:column; gap:3px; font-size:10px; color:#cbbc9e; }
+  #plaque label { display:flex; flex-direction:column; gap:1px; text-transform:uppercase; letter-spacing:.06em; font-size:8px; color:#8a7d66; text-shadow:0 1px 0 #000; }
+  #plaque select { appearance:none; -webkit-appearance:none; background:#100c08; color:#cbbc9e; border:1px solid #2a2119; border-radius:0; padding:1px 4px; font-size:10px; text-transform:none; letter-spacing:0; text-shadow:0 1px 0 #000; }
+  #plaque .modes { display:flex; gap:2px; margin-top:2px; }
+  #plaque button { background:#100c08; color:#8a7d66; border:1px solid #2a2119; border-radius:0; padding:1px 0; font-size:9px; flex:1; text-shadow:0 1px 0 #000; }
+  #plaque button.on { color:#e3c77e; border-color:#c9a24a; }
+  #plaque .chase.on { color:#ffb457; border-color:#c8641e; }
+  #plaque .dist { display:flex; align-items:center; gap:3px; text-transform:uppercase; font-size:8px; color:#8a7d66; letter-spacing:.06em; }
+  #plaque .dist button { flex:0 0 16px; } #plaque .dist b { color:#e3c77e; font-weight:normal; font-size:11px; min-width:12px; text-align:center; }
   #tip { position:fixed; pointer-events:none; background:rgba(12,14,17,.94); border:1px solid var(--panel-line); padding:4px 6px; font-size:11px; max-width:220px; display:none; z-index:9; }
   #tip .n { color:var(--accent); } #tip .c { color:var(--dim); }
   /* dev panels behind the » expander */
@@ -72,8 +71,8 @@
   /* minimize: a panel collapses to its title strip; the bottom HUD keeps only HP/mana */
   .pnl.min > :not(.hd) { display:none !important; }
   .hidden { display:none !important; }
-  #hud2 .mini { position:absolute; top:-1px; right:-1px; padding:0 5px; font-size:11px; line-height:13px; }
-  #hud2.min #slots, #hud2.min #hudR, #hud2.min #hudRound, #hud2.min .hb.thin { display:none; }
+  #hud2 .mini { position:absolute; top:2px; right:2px; padding:0 4px; font-size:10px; line-height:12px; background:#100c08; border:1px solid #2a2119; color:#8a7d66; border-radius:0; z-index:1; }
+  #hud2.min #plaque { display:none; }
   #panelsMenu { position:fixed; top:36px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:4px 8px; z-index:8; font-size:11px; }
   #panelsMenu label { display:block; cursor:pointer; }
   #hud { position:fixed; left:8px; bottom:120px; background:var(--panel); padding:4px 8px; border-radius:3px; white-space:pre; color:var(--dim); display:none; }
@@ -86,7 +85,7 @@
   <button id="pause">Pause</button>
   <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
   <button id="restart">Restart</button>
-  <select id="comp" title="Party"><option value="full" selected>Full party</option><option value="k">Solo knight</option><option value="p">Solo paladin</option><option value="s">Solo sorcerer</option><option value="d">Solo druid</option><option value="kd">Knight + druid</option><option value="ks">Knight + sorcerer</option><option value="pd">Paladin + druid (no tank)</option></select>
+  <select id="comp" title="Party"><option value="full" selected>Full party</option><option value="k">Solo Melee</option><option value="p">Solo Ranger</option><option value="s">Solo Mage</option><option value="d">Solo Healer</option><option value="kd">Melee + Healer</option><option value="ks">Melee + Mage</option><option value="pd">Ranger + Healer (no tank)</option></select>
   <button id="tGrid">Grid</button>
   <button id="tPath">Paths</button>
   <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
@@ -95,21 +94,17 @@
 <div id="viewlbl"></div>
 <div id="party" class="pnl"></div>
 <div id="hunt" class="pnl"></div>
-<div id="hud2"><button class="mini minb" title="minimize">–</button>
-  <div id="hudL"><div id="hudBars"></div><div id="hudRound"></div></div>
-  <canvas id="slots"></canvas>
-  <div id="hudR"></div>
-</div>
+<div id="hud2"><button class="mini minb" title="minimize">–</button><canvas id="hudCanvas"></canvas><div id="plaque"></div></div>
 <div id="tip"></div>
 <div id="hud"></div>
 <div id="panelsMenu" class="hidden"></div>
 <div id="lootp" class="pnl"><div class="hd"><span>Loot</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="lootBody"></div></div>
 <div id="log" class="pnl"><div class="hd"><span>Pulls</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=13"></script>
-<script src="combat-data.js?v=13"></script>
-<script src="vfx.js?v=13"></script>
-<script src="ambient.js?v=13"></script>
-<script src="sim.js?v=13"></script>
-<script src="ui.js?v=13"></script>
+<script src="grid.js?v=14"></script>
+<script src="combat-data.js?v=14"></script>
+<script src="vfx.js?v=14"></script>
+<script src="ambient.js?v=14"></script>
+<script src="sim.js?v=14"></script>
+<script src="ui.js?v=14"></script>
 </body>
 </html>

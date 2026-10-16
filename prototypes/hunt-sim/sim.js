@@ -438,28 +438,53 @@ function rangedPos(u, k, mons) {
   const nearMon = mons.some(m => cheb(m, u) <= 1);
   S.pull.minBack[u.kind] = Math.min(S.pull.minBack[u.kind], eu(u, k));
   S.pull.samples++; if (inRoom(S.pull.pocket, u.x, u.y)) S.pull.inside = (S.pull.inside || 0) + 1;
+  // Distance is measured from this hero's TARGET monster (Tyler 2026-10-16), picked by its Target setting.
+  // While the leader is on the move and this hero has nothing in range, following the leader wins.
+  const tgt = pickOrder(u, mons)[0];
+  if (k !== u && k.path.length && !mons.some(m => inRange(u, m))) {
+    if (u.repath <= 0 && eu(u, k) > 2) { const f = freeNear(k.x, k.y, 2); if (f) setGoal(u, ...f); u.repath = 0.6; }
+    return;
+  }
+  if (!u.set.chase) { keepDistance(u, want, mons); return; }   // chase off: kite, keep `want` tiles from every monster
   if (u.repath > 0 && !nearMon) return;
-  if (!u.set.chase && !nearMon) return;            // chase off: hold position unless something is on top of us
   u.repath = 1.0;
-  const ok = (x, y) => eu({ x, y }, k) >= want - 1 && eu({ x, y }, k) <= want + 1.2;
+  const ok = (x, y) => eu({ x, y }, tgt) >= want - 1 && eu({ x, y }, tgt) <= want + 1.2;
   const score = (x, y) => {
-    let s = Math.abs(eu({ x, y }, k) - want) * 2 + eu({ x, y }, u) * 0.35 + (inRoom(S.pull.pocket, x, y) ? 0 : 4);
+    let s = Math.abs(eu({ x, y }, tgt) - want) * 2 + eu({ x, y }, u) * 0.35 + (inRoom(S.pull.pocket, x, y) ? 0 : 4);
     for (const m of mons) s -= Math.min(eu({ x, y }, m), 6) * 0.15;
     return s;
   };
-  const curGood = ok(u.x, u.y) && !nearMon && los(u, k) && u.t >= 1 && inRoom(S.pull.pocket, u.x, u.y);
+  const curGood = ok(u.x, u.y) && !nearMon && los(u, tgt) && u.t >= 1 && inRoom(S.pull.pocket, u.x, u.y);
   if (curGood && !u.path.length) return;
   let best = null, bs = 1e9;
-  for (let y = k.y - 8; y <= k.y + 8; y++) for (let x = k.x - 8; x <= k.x + 8; x++) {
+  for (let y = tgt.y - 8; y <= tgt.y + 8; y++) for (let x = tgt.x - 8; x <= tgt.x + 8; x++) {
     if (!walk(x, y) || !ok(x, y)) continue;
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
     if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
     if (mons.some(m => cheb(m, { x, y }) <= 1)) continue;
-    if (!los({ x, y }, k)) continue;
+    if (!los({ x, y }, tgt)) continue;
     const s = score(x, y); if (s < bs) { bs = s; best = [x, y]; }
   }
   if (!best) { S.pull.noSpot++; return; }
   if (!u.goal || u.goal[0] !== best[0] || u.goal[1] !== best[1]) { if (curGood && bs > score(u.x, u.y) - 0.5) return; setGoal(u, ...best); }
+}
+// Keep-distance (chase off): when any monster is closer than `want` tiles, step back to the reachable tile that
+// best restores the gap, keeping a line of fire to some monster and staying in the room. Holds once safe.
+function keepDistance(u, want, mons) {
+  const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
+  if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
+  if (u.repath > 0 && u.path.length) return;
+  u.repath = 0.4;                                              // re-check often: monsters keep closing in
+  let best = null, bs = -1e9;
+  for (let y = u.y - 6; y <= u.y + 6; y++) for (let x = u.x - 6; x <= u.x + 6; x++) {
+    if (!walk(x, y)) continue;
+    const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
+    if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
+    const g = Math.min(gap(x, y), want + 1);                   // more gap is better, up to just past the setting
+    const s = g * 3 - eu({ x, y }, u) * 0.5 + (mons.some(m => los({ x, y }, m)) ? 1 : -4) + (inRoom(S.pull.pocket, x, y) ? 0 : -3);
+    if (s > bs) { bs = s; best = [x, y]; }
+  }
+  if (best && (best[0] !== u.x || best[1] !== u.y)) setGoal(u, ...best);
 }
 function endPull() {
   const p = S.pull, name = CONFIG.pockets[p.pocket].name;

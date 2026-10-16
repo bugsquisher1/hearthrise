@@ -9,7 +9,7 @@
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.35 ui-monospace,Consolas,monospace; overflow:hidden; }
   canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
   #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:6px; border-radius:4px; }
-  #bar button, #anReset { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
+  #bar button, #bar select, #anReset { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
   #bar button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
   #log { position:fixed; right:8px; bottom:8px; width:300px; max-height:30vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; }
   #log b { color:var(--accent); font-weight:normal; }
@@ -34,6 +34,7 @@
   <button id="pause">Pause</button>
   <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
   <button id="restart">Restart</button>
+  <select id="comp" title="Party"><option value="full" selected>Full party</option><option value="k">Solo knight</option><option value="p">Solo paladin</option><option value="s">Solo sorcerer</option><option value="d">Solo druid</option><option value="kd">Knight + druid</option><option value="ks">Knight + sorcerer</option><option value="pd">Paladin + druid (no tank)</option></select>
   <button id="tGrid">Grid / footprints</button>
   <button id="tPath">Paths / aggro</button>
 </div>
@@ -42,11 +43,11 @@
 <div id="actionbar"></div>
 <div id="loot"></div>
 <div id="log"></div>
-<script src="grid.js?v=9"></script>
-<script src="combat-data.js?v=9"></script>
-<script src="vfx.js?v=9"></script>
-<script src="ambient.js?v=9"></script>
-<script src="sim.js?v=9"></script>
-<script src="actionbar.js?v=9"></script>
+<script src="grid.js?v=10"></script>
+<script src="combat-data.js?v=10"></script>
+<script src="vfx.js?v=10"></script>
+<script src="ambient.js?v=10"></script>
+<script src="sim.js?v=10"></script>
+<script src="actionbar.js?v=10"></script>
 </body>
 </html>

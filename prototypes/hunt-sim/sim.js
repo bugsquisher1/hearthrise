@@ -132,7 +132,8 @@ function reset() {
   S = null; resetAnalyzer();
   S = { time: 0, units: [], fx: [], nextId: 1, occ: new Map(), pocketIdx: 0, phase: 'travel', phaseT: 0,
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
-  ['knight', 'paladin', 'druid', 'sorcerer'].forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  COMP.forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  S.leaderKind = COMP[0];
   CONFIG.pockets.forEach((p, i) => spawnPack(i));
   STATS.pulls.length = 0; STATS.waits.clear(); STATS.runs = 0;
   for (const o of [STATS.noSpot, STATS.queued, STATS.minBack]) for (const k in o) delete o[k];
@@ -153,6 +154,14 @@ function freeNear(x, y, r) {
   return null;
 }
 const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
+// party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
+const COMPS = {
+  full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
+  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
+};
+let COMP = COMPS.full;
+const lead = () => hero(S.leaderKind);
+const followers = () => S.units.filter(u => u.side === 'hero' && u.kind !== S.leaderKind);
 const living = side => S.units.filter(u => u.alive && u.side === side);
 
 // ---------- movement ----------
@@ -189,8 +198,8 @@ function tryNextStep(u, dt) {
     u.wait += dt;
     const wk = key(nx, ny); STATS.waits.set(wk, (STATS.waits.get(wk) || 0) + dt);
     // a party member standing idle in a corridor swaps with a party member behind it
-    if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker.kind === 'knight') &&
-        (u.kind === 'knight' || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
+    if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker === lead()) &&
+        (u === lead() || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
       swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
@@ -288,14 +297,14 @@ function heroDied(h) {
   h.respawnAt = S.time + CONFIG.heroRespawnSec; h.goal = null;
   STATS.deaths = (STATS.deaths || 0) + 1;
   if (S.pull) S.pull.deaths = (S.pull.deaths || 0) + 1;
-  if (h.kind === 'knight') {
+  if (h === lead()) {
     // wipe: the pack leashes home and heals; everyone respawns at the entrance
     for (const u of living('hero')) { u.alive = false; u.dead = 0; u.path = []; S.occ.delete(key(u.x, u.y)); u.respawnAt = h.respawnAt; }
     for (const m of living('mon')) if (m.target) { m.target = null; m.hp = m.maxHp; setGoal(m, ...m.home); }
     if (S.pull) { S.pull.wipe = true; endPull(); }
     S.phase = 'dead';
   } else {
-    for (const m of living('mon')) if (m.target === h) m.target = hero('knight');
+    for (const m of living('mon')) if (m.target === h) m.target = lead();
   }
 }
 function respawnHeroes() {
@@ -303,7 +312,7 @@ function respawnHeroes() {
     const f = freeNear(...CONFIG.start[0], 3); if (!f) continue;
     Object.assign(h, { alive: true, hp: h.maxHp, x: f[0], y: f[1], px: f[0], py: f[1], fx: f[0], fy: f[1], t: 1, path: [], goal: null, dead: 0 });
     S.occ.set(key(f[0], f[1]), h);
-    if (h.kind === 'knight') { S.trail = [[f[0], f[1]]]; S.camSnap = true; }
+    if (h === lead()) { S.trail = [[f[0], f[1]]]; S.camSnap = true; }
   }
 }
 function adjacentMonsters(tile) { return living('mon').filter(m => m.target && cheb(m, tile) <= 1); }
@@ -312,7 +321,7 @@ function adjacentMonsters(tile) { return living('mon').filter(m => m.target && c
 function engagedMonsters() { return living('mon').filter(m => m.target); }
 
 function aiTravel() {
-  const k = hero('knight');
+  const k = lead();
   const p = CONFIG.pockets[S.pocketIdx];
   const pack = S.packs[S.pocketIdx];
   const mons = living('mon').filter(m => m.pocket === S.pocketIdx);
@@ -327,9 +336,7 @@ function aiTravel() {
   followTrail();
 }
 function followTrail() {
-  const order = ['paladin', 'druid', 'sorcerer'];
-  order.forEach((n, i) => {
-    const u = hero(n);
+  followers().forEach((u, i) => {
     if (!u.alive) return;
     const idx = S.trail.length - 1 - (i + 1) * 2;
     if (idx < 0) return;
@@ -342,15 +349,15 @@ function followTrail() {
 function startPull() {
   const i = S.pocketIdx;
   S.phase = 'fight'; S.packs[i].aggro = true;
-  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
-  const k = hero('knight');
+  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { knight: 99, paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
+  const k = lead();
   for (const m of living('mon').filter(m => m.pocket === i)) m.target = k;
   k.path = []; k.goal = null;
 }
 function totalWait() { let s = 0; for (const v of STATS.waits.values()) s += v; return s; }
 
 function aiFight() {
-  const k = hero('knight');
+  const k = lead();
   const mons = engagedMonsters();
   if (!mons.length) { endPull(); return; }
   if (!adjacentMonsters(k).length) {
@@ -383,7 +390,7 @@ function aiFight() {
   }
   S.pull.queuedMax = Math.max(S.pull.queuedMax, queued);
   // ranged heroes
-  for (const n of ['paladin', 'druid', 'sorcerer']) rangedPos(hero(n), k, mons);
+  for (const u of followers()) rangedPos(u, k, mons);
 }
 function ringFree(t, r, m) {
   let best = null, bd = 1e9;
@@ -438,7 +445,7 @@ function nextPocket() {
   S.pocketIdx++;
   if (S.pocketIdx >= CONFIG.pockets.length) { S.pocketIdx = 0; S.run++; STATS.runs++; }
   S.phase = 'travel';
-  const k = hero('knight'); k.goal = null;
+  const k = lead(); k.goal = null;
 }
 
 // ---------- attacks ----------
@@ -462,7 +469,7 @@ function areaCentre(u, mons) {
 function useAbility(u, ab, mons) {
   if ((u.cd[ab.id] || 0) > S.time || u.lane[ab.lane] > S.time) return false;
   if (ab.mana && u.mana < ab.mana) return false;
-  const k = hero('knight');
+  const k = lead();
   let tgt = null;
   switch (ab.target) {
     case 'taunt': tgt = mons.find(m => m.target !== k); if (!tgt) return false; break;
@@ -538,7 +545,7 @@ function consume(u, dt) {
   }
 }
 function attacks(dt) {
-  const k = hero('knight');
+  const k = lead();
   for (const u of S.units) {
     if (!u.alive) continue;
     if (u.side === 'hero') {
@@ -587,7 +594,7 @@ function tick(dt) {
   for (const u of S.units) { u.ppx = u.px; u.ppy = u.py; }
   S.time += dt;
   for (const u of S.units) u.repath -= dt;
-  const k = hero('knight');
+  const k = lead();
   const last = S.trail[S.trail.length - 1];
   if (!last || last[0] !== k.x || last[1] !== k.y) { S.trail.push([k.x, k.y]); if (S.trail.length > 40) S.trail.shift(); }
   respawnHeroes();
@@ -649,7 +656,7 @@ function render(alpha, frameDt) {
     const a = u.ppx === undefined ? 1 : alpha;
     u.rx = u.ppx === undefined ? u.px : u.ppx + (u.px - u.ppx) * a; u.ry = u.ppy === undefined ? u.py : u.ppy + (u.py - u.ppy) * a;
   }
-  const k = hero('knight');
+  const k = lead();
   // camera: frame-rate independent smoothing on the interpolated knight; snaps on big jumps
   const tx = cx(k.rx) - view.w / 2, ty = cy(k.ry) - view.h / 2;
   if (S.camSnap || Math.hypot(tx - cam.x, ty - cam.y) > T * 4) { cam.x = tx; cam.y = ty; S.camSnap = false; }
@@ -787,6 +794,8 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
   speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(o => o.classList.toggle('on', o === b));
 });
 $('restart').onclick = () => reset();
+$('comp').onchange = e => { COMP = COMPS[e.target.value]; reset(); };
+window.__setComp = c => { COMP = COMPS[c]; reset(); };
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {
@@ -838,7 +847,7 @@ function frame(now) {
   const t0 = performance.now();
   const realDt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   if (!paused) { acc += realDt * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
-  const k = hero('knight');
+  const k = lead();
   AMBIENT.update(realDt, living('hero').map(h => ({ x: cx(h.px), y: cy(h.py) })), { x: cx(k.px), y: cy(k.py) });
   render(paused ? 1 : Math.min(1, acc / CONFIG.dt), realDt);
   if (window.drawActionBar) drawActionBar();

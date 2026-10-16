@@ -20,14 +20,14 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=44`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=45`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   // '<id>_own' = used from the hero's own carried stack: already owned, so it costs nothing this session
   const ITEM_PRICE = id => id.endsWith('_own') ? 0 : id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=44`;
+  const iconUrl = id => `assets/icons/${id}.png?v=45`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -43,6 +43,7 @@ const UI = (() => {
     burst: ['#..#...#', '.#.#..#.', '..###...', '########', '..###...', '.#.#.#..', '#..#..#.', '...#...#'],
   };
   const ABIL = {
+    rend: ['cross', '#e05050', ''],
     cleave: ['burst', '#e0a070', 'Hits the target and up to 2 other monsters next to the Melee.'],
     challenge: ['star', '#ffd070', 'Draws every monster within 6 tiles back onto the Melee. No stun.'],
     flame_strike: ['flame', '#ff8a30', 'Fire-wrapped melee hit. Uses a fire rune.'],
@@ -148,7 +149,7 @@ const UI = (() => {
   const ROLE_RING = { berserker: 'var(--role-melee)', knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
   const CREST = { berserker: ['burst', '#e0a070'], knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   function portrait(c, kind) {           // the hero's own south idle frame, head crop (16x16 from the top of the sprite) at 2x
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=44`;
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=45`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -210,7 +211,7 @@ const UI = (() => {
 
   // ---------- hunt analyzer ----------
   let tab = 'session', anView = 'hero', collapsed = {}, anShape = '', AR = {};
-  const abName = id => id === 'basic' ? 'Basic attack' : (Object.values(ABILITIES).flat().find(x => x.id === id) || { name: id }).name;
+  const abName = id => id === 'basic' ? 'Basic attack' : /_bleed$/.test(id) ? BLEEDS[id.replace(/_bleed$/, '')].name : (Object.values(ABILITIES).flat().find(x => x.id === id) || { name: id }).name;
   // the frame: built once
   $('hunt').append(mk('<span class="cb bl"></span>'), mk('<span class="cb br"></span>'),
     mk(`<div class="hd"><span class="ttl">Hunt Analyzer</span><span class="sp"></span><button data-act="anRst" class="stud" title="reset the session">⟲</button><button class="minb stud" title="minimize">–</button></div>`),
@@ -327,10 +328,10 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=44').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=45').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
-    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=44'; ICONMAP[id] = i; }
+    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=45'; ICONMAP[id] = i; }
   }).catch(() => {});
   const ready = i => i && i.complete && i.naturalWidth;
 
@@ -354,7 +355,7 @@ const UI = (() => {
   function drawSlot(u, s, i, x, y) {
     tablet(x, y);
     if (!s) return;
-    const icon = s.ab ? ICONMAP[s.ab.id] : s.kind === 'basic' ? (ICONMAP['basic_' + NAME[u.kind].toLowerCase()] || ICON[BASIC_ICON[u.kind]]) : ICONMAP[s.id] || ICON[ITEM_ICON[s.id]];
+    const icon = s.ab ? (ICONMAP[s.ab.id] || (s.ab.id === 'rend' ? ICONMAP.power_strike : null)) : s.kind === 'basic' ? (ICONMAP['basic_' + NAME[u.kind].toLowerCase()] || ICON[BASIC_ICON[u.kind]]) : ICONMAP[s.id] || ICON[ITEM_ICON[s.id]];
     if (s.unusable) g.filter = 'grayscale(1) brightness(.55)';
     const o = Math.floor((SL - 32) / 2);
     if (ready(icon)) g.drawImage(icon, x + o, y + o, 32, 32);
@@ -459,6 +460,11 @@ const UI = (() => {
       socket(midX + MID - 22, h - 34, () => glyph(g, 'ring', midX + MID - 30, h - 42, C.gold, 2), 'Charm', ['Charm', 'Empty charm socket (not in the sim yet).']);
     }
   }
+  function bleedTip(u, ab) {
+    const B = BLEEDS[ab.bleed], tier = (LOADOUTS[u.kind] && LOADOUTS[u.kind].bleedRuneTier) || 1;
+    const sk = 1 + (u.meleeSkill || 0) * BLEED_SKILL_PER_POINT, sc = sk * (RUNE_TIER_MULT[tier] || 1);
+    return `Two quick hatchet hits; each adds a bleed stack: ${(B.tick[0] * sc).toFixed(1)}–${(B.tick[1] * sc).toFixed(1)} every ${B.every} s for ${B.dur} s, up to ${B.max} stacks, refreshed on reapply. Melee skill ${u.meleeSkill || 0} (×${sk.toFixed(2)}), rune tier ${tier} (×${(RUNE_TIER_MULT[tier] || 1).toFixed(2)}).`;
+  }
   function slotsFor(u) {
     const L = LOADOUTS[u.kind], out = [];
     out.push({ kind: 'basic', type: 'attack', name: 'Basic attack', cost: HEROES[u.kind].basic.mana || null, cd: Math.max(0, u.swing), cdMax: COMBAT.swing, flashKey: 'basic',
@@ -467,7 +473,7 @@ const UI = (() => {
     for (const ab of ABILITIES[u.kind]) if (!ACTION_SETS[u.set.actSet].skip(ab)) {
       const left = Math.max(0, (u.cd[ab.id] || 0) - S().time);
       out.push({ kind: 'ab', ab, type: 'spell', name: ab.name, cost: ab.mana || null, cd: left, cdMax: ab.cd, flashKey: ab.id,
-        tip: `${ab.mana ? ab.mana + ' mana · ' : ''}${ab.cd} s cooldown · ${ab.lane} lane${ab.rune ? ' · 1 ' + ITEM_NAME[ab.rune].toLowerCase() : ''}. ${ABIL[ab.id] ? ABIL[ab.id][2] : ''}`,
+        tip: `${ab.mana ? ab.mana + ' mana · ' : ''}${ab.cd} s cooldown · ${ab.lane} lane${ab.rune ? ' · 1 ' + ITEM_NAME[ab.rune].toLowerCase() : ''}. ${ab.bleed ? bleedTip(u, ab) : ABIL[ab.id] ? ABIL[ab.id][2] : ''}`,
         unusable: !!(ab.mana && u.mana < ab.mana) });
     }
     for (const [r, n] of Object.entries(u.runes || {})) out.push({ kind: 'item', id: r, type: 'rune', name: ITEM_NAME[r], count: n, tip: `${n} carried; store runes cover the rest (${SUPPLIES[r].price} gp each).` });

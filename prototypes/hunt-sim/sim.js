@@ -132,7 +132,7 @@ function newUnit(kind, x, y, side, pocket) {
   return { id: S.nextId++, kind, side, pocket, x, y, px: x, py: y, fx: x, fy: y, t: 1, hp: base.hp, maxHp: base.hp,
     mana: base.mana || 0, maxMana: base.mana || 0, cd: {}, lane: { offense: 0, heal: 0, consume: 0 }, regen: null, healedAt: -9,
     food: side === 'hero' ? LOADOUTS[kind].food[1] : 0, drink: side === 'hero' ? LOADOUTS[kind].drink[1] : 0,
-    runes: side === 'hero' ? Object.assign({}, LOADOUTS[kind].runes) : {}, flash: {}, xp: 0, level: HERO_START_LEVEL,
+    runes: side === 'hero' ? Object.assign({}, LOADOUTS[kind].runes) : {}, meleeSkill: side === 'hero' ? HERO_MELEE_SKILL : 0, flash: {}, xp: 0, level: HERO_START_LEVEL,
     set: side === 'hero' ? Object.assign({}, HERO_SETTINGS[kind]) : null, shield: 0, vulnUntil: 0, markUntil: 0,
     speed: base.speed, path: [], goal: null, wait: 0, swing: Math.random() * CONFIG.swing, dir: 'south', target: null,
     alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false };
@@ -295,7 +295,7 @@ function hurt(t, amt, src, el, abil) {
   }
   if (src && src.side === 'hero') { AN.dealt[src.kind] = (AN.dealt[src.kind] || 0) + amt; hs(src.kind).dealt += amt; }
   if (t.side === 'hero') AN.taken[t.kind] = (AN.taken[t.kind] || 0) + amt;
-  pushNum(t, String(amt), t.side === 'hero' ? '#ff6a5a' : el === 'fire' ? '#ffb060' : el === 'frost' ? '#a8e4ff' : el === 'nature' ? '#b6f08a' : '#ffe9b0');
+  pushNum(t, String(amt), t.side === 'hero' ? '#ff6a5a' : el === 'bleed' ? '#c0302a' : el === 'fire' ? '#ffb060' : el === 'frost' ? '#a8e4ff' : el === 'nature' ? '#b6f08a' : '#ffe9b0');
   S.fx.push({ type: 'spark', x: t.px, y: t.py, age: 0 });
   if (t.hp <= 0) {
     t.alive = false; t.dead = 0; t.path = []; S.occ.delete(key(t.x, t.y));
@@ -311,8 +311,9 @@ const FX_SPRITE = { slash: 'melee_slash', heal: 'nature_heal_motes', loot: 'loot
 const BURST_SPRITE = { fire: 'flame_volley_puff', nature: 'natures_wrath', frost: 'frost_lance_shatter' };
 const CAST_SPRITE = { sorcerer: 'cast_sorcerer_runes', druid: 'cast_druid_motes', paladin: 'cast_paladin_aim_glint', knight: 'cast_knight_shield_bash' };
 function vfx(name, x, y, opts) {
-  if (!VFXLIB.ready(name)) return;
+  if (!VFXLIB.ready(name)) return false;
   S.fx.push(Object.assign({ type: 'vfx', name, x, y, age: 0, life: VFXLIB.dur(name) }, opts || {}));
+  return true;
 }
 function monsterDied(m) {
   vfx('monster_death_poof', m.px, m.py);
@@ -331,6 +332,30 @@ function monsterDied(m) {
     for (const id of got) bump(AN.lootItems, id, 1);
     S.fx.push({ type: 'loot', x: m.px, y: m.py, age: 0 });
     AN.log.unshift(`${d.name}: ${got.join(', ')} +${gp}g`); AN.log.length = Math.min(AN.log.length, 8);
+  }
+}
+// ---------- bleed (generic status) ----------
+function applyBleed(t, src, kind, runeTier) {
+  const B = BLEEDS[kind]; if (!t.alive || !B) return;
+  t.bleeds = t.bleeds || [];
+  for (const b of t.bleeds) b.left = B.dur;                     // reapplying refreshes every stack
+  // the tick is fixed when the stack lands: base x (1 + source Melee skill x k) x rune-tier multiplier
+  const skill = (src && src.meleeSkill) || 0, scale = (1 + skill * BLEED_SKILL_PER_POINT) * (RUNE_TIER_MULT[runeTier || 1] || 1);
+  if (t.bleeds.filter(b => b.kind === kind).length < B.max) t.bleeds.push({ kind, src, left: B.dur, next: B.every, scale });
+  STATS.bleedApplied = (STATS.bleedApplied || 0) + 1;
+  STATS.bleedMaxStacks = Math.max(STATS.bleedMaxStacks || 0, t.bleeds.length);
+}
+function tickBleeds(dt) {
+  for (const u of S.units) {
+    if (!u.alive || !u.bleeds || !u.bleeds.length) continue;
+    for (const b of u.bleeds) {
+      b.left -= dt; b.next -= dt;
+      if (b.next <= 0 && b.left > -1e-6) { b.next += BLEEDS[b.kind].every; STATS.bleedTicks = (STATS.bleedTicks || 0) + 1; hurt(u, Math.round(rnd(...BLEEDS[b.kind].tick) * (b.scale || 1)), b.src, 'bleed', b.kind + '_bleed'); if (!u.alive) break; }
+    }
+    u.bleeds = (u.bleeds || []).filter(b => b.left > 0);
+    // blood trickle: drops spawn faster with more stacks
+    u.dripT = (u.dripT || 0) - dt;
+    if (u.alive && u.bleeds.length && u.dripT <= 0) { u.dripT = 0.7 / u.bleeds.length; S.fx.push({ type: 'drop', x: u.px, y: u.py, ox: (Math.random() * 6 - 3) | 0, age: 0 }); }
   }
 }
 function heroDied(h) {
@@ -616,7 +641,12 @@ function useAbility(u, ab, mons) {
   switch (ab.target) {
     case 'taunt': vfx('challenge_taunt', k.px, k.py, { follow: k }); for (const m of mons) if (m.target !== k) { m.target = k; m.peeled = false; } STATS.challenges = (STATS.challenges || 0) + 1; break;
     case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
-    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => {
+    case 'enemy': if (ab.bleed) {       // Rend: quick hits, each applies a bleed stack; an X of two slashes on the target
+      if (!vfx('x_slash', tgt.px, tgt.py)) S.fx.push({ type: 'xslash', x: tgt.px, y: tgt.py, age: 0 });
+      face(u, tgt);
+      for (let i = 0; i < (ab.hits || 1); i++) { hurt(tgt, rnd(...ab.dmg), u, null, ab.id); applyBleed(tgt, u, ab.bleed, (LOADOUTS[u.kind] && LOADOUTS[u.kind].bleedRuneTier) || 1); }
+      break;
+    } shoot(u, tgt, ab.fx, ab.element, () => {
       vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);
       hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element, ab.id);
     }); break;
@@ -724,6 +754,7 @@ function attacks(dt) {
     u.swing = CONFIG.swing;
     const hit = Math.random() < COMBAT.heroAccuracy;
     const immune = elemMult(tgt, b.element) === 0;
+    if (b.hits > 1) for (let i = 1; i < b.hits; i++) shoot(u, tgt, b.kind, b.element, () => Math.random() < COMBAT.heroAccuracy && elemMult(tgt, b.element) > 0 && hurt(tgt, rnd(...b.dmg), u, b.element, 'basic'));
     shoot(u, tgt, b.kind, b.element, () => !hit ? pushNum(tgt, 'miss', '#c8c8c8')
       : immune ? pushNum(tgt, 'immune', '#c8c8c8') : hurt(tgt, rnd(...b.dmg), u, b.element, 'basic'));
     // the druid's attacks can draw a queued monster onto her (aggro test); Challenge pulls it back
@@ -762,13 +793,15 @@ function tick(dt) {
   // idle monsters drift home (corpses stay put)
   for (const u of S.units) if (u.alive) stepUnit(u, dt);
   attacks(dt);
+  tickBleeds(dt);
   for (const u of S.units) if (!u.alive) u.dead += dt;
   S.units = S.units.filter(u => u.alive || u.dead < CONFIG.corpseSec || u.side === 'hero');
   for (const f of S.fx) {
     f.age += dt;
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
-  const life = { burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
+  for (const f of S.fx) if (f.type === 'drop' && f.age >= 0.55 && !f.landed) { f.landed = true; S.fx.push({ type: 'spot', x: f.x, y: f.y, ox: f.ox, age: 0 }); }
+  const life = { drop: 0.56, spot: 2.5, xslash: 0.3, burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
   S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : f.type === 'vfx' ? f.life
     : FX_SPRITE[f.type] && VFXLIB.ready(FX_SPRITE[f.type]) ? Math.max(life[f.type] || 0.9, VFXLIB.dur(FX_SPRITE[f.type])) : life[f.type] || 0.9));
 }
@@ -857,6 +890,12 @@ function render(alpha, frameDt) {
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
+    if (u.alive && u.bleeds && u.bleeds.length) {      // bleed stacks, by the HP bar
+      g.font = '8px ui-monospace,Consolas,monospace'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      const bx = Math.round(ox + cx(u.rx) + 12), by = y - 2;
+      g.fillStyle = '#000'; g.fillText('×' + u.bleeds.length, bx + 4, by + 1); g.fillStyle = '#e04a3a'; g.fillText('×' + u.bleeds.length, bx + 3, by);
+      g.fillStyle = '#9a1414'; g.fillRect(bx, by - 2, 2, 3); g.fillRect(bx + 1, by - 3, 1, 1);
+    }
     if (u.alive && u.markUntil > S.time) {   // Hunter's Mark: a small pixel crosshair over the target's head
       const mx = Math.round(ox + cx(u.rx)), my = y - 10, r = (S.time * 2 | 0) % 2 ? 4 : 3;   // gentle 2-step pulse
       g.fillStyle = '#ff5050';
@@ -903,6 +942,18 @@ function render(alpha, frameDt) {
       const r = f.age / 0.2, a0 = Math.atan2(f.y - f.fromY, f.x - f.fromX) - 1.1 + r * 1.6;
       g.strokeStyle = f.el === 'fire' ? '#ffa040' : '#f4f0e0'; g.lineWidth = 2;
       g.beginPath(); g.arc(fxX, fxY - 10, 9, a0, a0 + 1.2); g.stroke(); g.lineWidth = 1;
+    } else if (f.type === 'drop') {          // a 1x2 px drop running down from the torso to the floor
+      const r = Math.min(1, f.age / 0.55), px = fxX + f.ox, py = fxY - 14 + Math.round(r * 18);
+      g.fillStyle = '#7a0f0f'; g.fillRect(px, py, 1, 2);
+    } else if (f.type === 'spot') {          // the drip spot it leaves, fading
+      g.fillStyle = `rgba(110,14,14,${(0.6 * (1 - f.age / 2.5)).toFixed(2)})`; g.fillRect(fxX + f.ox - 1, fxY + 4, 3, 1); g.fillRect(fxX + f.ox, fxY + 5, 1, 1);
+    } else if (f.type === 'xslash') {        // Rend fallback: two crossing diagonal slashes
+      const a = Math.max(0, 1 - f.age / 0.3), L = 9;
+      g.strokeStyle = `rgba(255,236,220,${a.toFixed(2)})`; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(fxX - L, fxY - 8 - L); g.lineTo(fxX + L, fxY - 8 + L); g.moveTo(fxX + L, fxY - 8 - L); g.lineTo(fxX - L, fxY - 8 + L); g.stroke();
+      g.strokeStyle = `rgba(200,40,30,${(a * 0.8).toFixed(2)})`; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(fxX - L + 1, fxY - 8 - L); g.lineTo(fxX + L + 1, fxY - 8 + L); g.moveTo(fxX + L + 1, fxY - 8 - L); g.lineTo(fxX - L + 1, fxY - 8 + L); g.stroke();
+      g.lineWidth = 1;
     } else if (f.type === 'spark') {
       g.fillStyle = '#fff3c0'; g.fillRect(fxX - 3, fxY - 8, 7, 1); g.fillRect(fxX, fxY - 11, 1, 7);
     } else if (f.type === 'burst') {        // area hit: a few small puffs on each hit tile, gone in 0.35 s

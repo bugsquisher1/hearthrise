@@ -20,7 +20,7 @@ const CONSUMABLES = {
 };
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
-  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },   // ASSUMED
+  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: {}, bleedRuneTier: 1 },   // ASSUMED; bleedRuneTier feeds Rend's scaling (no item)
   knight:   { food: ['ham', 25],   drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },
   paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
@@ -28,6 +28,14 @@ const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = 
 };
 const HERO_START_LEVEL = 20, HERO_XP_PER_LEVEL = 12000;   // ASSUMED: display-only level curve for the HUD and analyzer
 // Per-hero HUD settings (bottom-right block). dist = tiles kept from the target/leader (replaces fixed 3/5/6).
+// Bleed: a generic status any unit can carry (monster bleed attacks can reuse it). Each stack ticks every `every` s
+// for `dur` s; up to `max` stacks per target; reapplying refreshes every stack's duration. All ASSUMED.
+const BLEEDS = { rend: { name: 'Rend (bleed)', tick: [1, 3], every: 1, dur: 6, max: 5 } };
+// Bleed scaling (Tyler 2026-10-16), generic for any source: tick = base x (1 + meleeSkill x 0.004) x RUNE_TIER_MULT[runeTier].
+// runeTier is a parameter of the cast (no rune item behind it yet; Tyler will name which existing rune feeds it).
+const BLEED_SKILL_PER_POINT = 0.004;                // ASSUMED: very slow scaling with the caster's Melee skill
+const RUNE_TIER_MULT = { 1: 1.00, 2: 1.10, 3: 1.20 }; // ASSUMED
+const HERO_MELEE_SKILL = 20;                        // ASSUMED: every hero's Melee skill in the sim (monsters default to 0)
 const HERO_SETTINGS = {
   berserker: { dist: 1, target: 'follow', stance: 'offensive', chase: true, actSet: 'hunt' },   // Melee DPS: hits the tank's target from a free adjacent slot
   knight:   { dist: 1, target: 'highest', stance: 'balanced', chase: true, actSet: 'hunt' },
@@ -72,7 +80,7 @@ const SUPPLIES = {
 // Party heroes. Pools: designer ruling 2026-10-15. Basic damage: designer ruling 2026-10-15 (kept).
 const HEROES = {
   berserker: { family: 'melee',      hp: 200, mana: 60,  speed: 3.2, range: 1.5, back: 1,
-              basic: { dmg: [6, 12], kind: 'slash' } },                                        // ASSUMED: Melee DPS (Tyler 2026-10-16) — knight pools, a heavier swing
+              basic: { dmg: [2, 5], hits: 2, kind: 'slash' } },                                // ASSUMED: dual hatchets — two half-strength hits per 2.0 s swing (approved dual-axe rule), ~7/swing vs knight 6.5
   knight:   { family: 'melee',       hp: 200, mana: 60,  speed: 3.2, range: 1.5, back: 0,
               basic: { dmg: [4, 9], kind: 'slash' } },
   paladin:  { family: 'ranged',      hp: 150, mana: 100, speed: 3.2, range: 7, back: 3.5,
@@ -89,8 +97,8 @@ const ABILITIES = {
   berserker: [                                                                                  // ASSUMED: no Challenge; never holds aggro
     { id: 'cleave', name: 'Cleave', lane: 'offense', cd: 6, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3, magicXpMult: 0, fx: 'slash' },
     { id: 'power_strike', name: 'Power Strike', lane: 'offense', cd: 6, mana: 6, target: 'enemy', dmg: [7, 13], magicXpMult: 0, fx: 'slash' },
-    { id: 'flame_strike', name: 'Flame Strike', lane: 'offense', cd: 8, mana: 10, rune: 'fire_rune', target: 'enemy',
-      dmg: [8, 14], element: 'fire', magicXpMult: 0.25, fx: 'fire' },
+    { id: 'rend', name: 'Rend', lane: 'offense', cd: 6, mana: 8, target: 'enemy', dmg: [2, 4], hits: 2, magicXpMult: 0, fx: 'xslash',
+      bleed: 'rend' },                                                                          // ASSUMED: two quick hatchet hits, each applies a bleed stack
   ],
   knight: [
     { id: 'challenge',   name: 'Challenge',    lane: 'offense', cd: 8,  mana: 0,  target: 'taunt' },                       // BIBLE §17 threat, no stun

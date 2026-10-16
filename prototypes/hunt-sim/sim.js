@@ -45,7 +45,7 @@ for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG
 }
 // optional walk cycles (assets/walk/manifest.json); static rotations otherwise
 let WALK = null;
-fetch('assets/walk/manifest.json').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
+fetch('assets/walk/manifest.json?v=4').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
 // manifest unit names -> sim kinds
 const WALK_NAME = { giant_rat: 'rat', giant_bat: 'bat', venom_spider: 'spider', rat_king: 'ratking' };
 function prepWalk(m) {
@@ -161,24 +161,36 @@ function setGoal(u, gx, gy) {
   u.goal = [gx, gy];
   u.path = astar(u.x, u.y, gx, gy, leash(u)) || [];
 }
+// Continuous movement: a unit spends its whole per-tick travel budget, rolling straight from one tile into the
+// next without a stop at the tile centre. Walk frames advance with distance moved (u.animD, in tiles).
 function stepUnit(u, dt) {
-  if (u.t < 1) {
-    u.t = Math.min(1, u.t + dt * u.speed / (u.x !== u.fx && u.y !== u.fy ? 1.414 : 1));
-    u.px = u.fx + (u.x - u.fx) * u.t; u.py = u.fy + (u.y - u.fy) * u.t;
-    u.moving = true; u.animT += dt;
-    return;
+  let budget = dt * u.speed;           // tiles this tick
+  let moved = 0;
+  for (let guard = 0; guard < 4 && budget > 1e-6; guard++) {
+    if (u.t < 1) {
+      const len = u.x !== u.fx && u.y !== u.fy ? 1.414 : 1;
+      const need = (1 - u.t) * len, use = Math.min(need, budget);
+      u.t += use / len; budget -= use; moved += use;
+      if (u.t > 0.9999) u.t = 1;
+      continue;
+    }
+    if (!tryNextStep(u, dt)) break;
   }
-  u.px = u.x; u.py = u.y;
-  if (!u.path.length) { u.moving = false; return; }
+  u.px = u.fx + (u.x - u.fx) * u.t; u.py = u.fy + (u.y - u.fy) * u.t;
+  u.moving = moved > 0;
+  u.animD = (u.animD || 0) + moved;
+}
+function tryNextStep(u, dt) {
+  if (!u.path.length) return false;
   const [nx, ny] = u.path[0];
   const blocker = S.occ.get(key(nx, ny));
   if (blocker && blocker !== u) {
-    u.wait += dt; u.moving = false;
+    u.wait += dt;
     const wk = key(nx, ny); STATS.waits.set(wk, (STATS.waits.get(wk) || 0) + dt);
     // a party member standing idle in a corridor swaps with a party member behind it
     if (u.side === 'hero' && blocker.side === 'hero' && blocker.t >= 1 && u.wait > 0.4 && !(S.phase === 'fight' && blocker.kind === 'knight') &&
         (u.kind === 'knight' || !blocker.path.length || (blocker.path[0][0] === u.x && blocker.path[0][1] === u.y))) {
-      swap(u, blocker); return;
+      swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
       const lf = leash(u);
@@ -186,11 +198,12 @@ function stepUnit(u, dt) {
       if (p && p.length) u.path = p;
       u.wait = 0.2;
     }
-    return;
+    return false;
   }
   u.wait = 0; u.path.shift();
   S.occ.delete(key(u.x, u.y)); u.fx = u.x; u.fy = u.y; u.x = nx; u.y = ny; S.occ.set(key(nx, ny), u); u.t = 0;
   u.dir = dirOf(nx - u.fx, ny - u.fy);
+  return true;
 }
 function swap(a, b) {
   S.occ.set(key(a.x, a.y), b); S.occ.set(key(b.x, b.y), a);
@@ -248,9 +261,21 @@ function pushNum(t, txt, col) {
   t.numN = ((t.numN || 0) + 1) % 4;
   S.fx.push({ type: 'num', x: t.px, y: t.py, dx: [0, 7, -7, 0][t.numN], dy: [0, -4, -4, -9][t.numN], txt, col, age: 0 });
 }
+// sprite VFX (vfx.js). `vfx` pushes a sprite effect; drawn effects map to a sprite when one is loaded.
+const FX_SPRITE = { slash: 'melee_slash', heal: 'nature_heal_motes', loot: 'loot_sparkle', mark: 'hunters_mark', shield: 'arcane_barrier' };
+const BURST_SPRITE = { fire: 'flame_volley_puff', nature: 'natures_wrath', frost: 'frost_lance_shatter' };
+const CAST_SPRITE = { sorcerer: 'cast_sorcerer_runes', druid: 'cast_druid_motes', paladin: 'cast_paladin_aim_glint', knight: 'cast_knight_shield_bash' };
+function vfx(name, x, y, opts) {
+  if (!VFXLIB.ready(name)) return;
+  S.fx.push(Object.assign({ type: 'vfx', name, x, y, age: 0, life: VFXLIB.dur(name) }, opts || {}));
+}
 function monsterDied(m) {
+  vfx('monster_death_poof', m.px, m.py);
   const d = MONSTERS[m.kind];
-  AN.kills++; AN.xp += d.xp; const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
+  const lvBefore = Math.floor(AN.xp / 1500);
+  AN.kills++; AN.xp += d.xp;
+  if (Math.floor(AN.xp / 1500) > lvBefore) for (const h of living('hero')) vfx('level_up', h.px, h.py, { follow: h });   /* party level-up every 1,500 XP (display only) */
+  const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
   const got = d.drops.filter(([, ch]) => Math.random() < ch).map(([id]) => id);
   if (got.length) {
     AN.loot += got.reduce((a, id) => a + (LOOT_VALUE[id] || 0), 0);
@@ -426,7 +451,8 @@ function spendMana(u, n, mult) {
 function shoot(u, tgt, kind, el, onHit) {
   face(u, tgt);
   if (kind === 'slash') { S.fx.push({ type: 'slash', x: tgt.px, y: tgt.py, fromX: u.px, fromY: u.py, el, age: 0 }); onHit(); return; }
-  S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22, onHit });
+  S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22,
+    onHit: () => { if (kind === 'crossbow') vfx('crossbow_bolt_impact', tgt.px, tgt.py); onHit(); } });
 }
 function inRange(u, m) { return u.kind === 'knight' ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
 function areaCentre(u, mons) {
@@ -454,17 +480,23 @@ function useAbility(u, ab, mons) {
   if (ab.ammo) AN.bolts += ab.ammo;
   u.cd[ab.id] = S.time + ab.cd; u.lane[ab.lane] = S.time + COMBAT.lanes[ab.lane];
   if (tgt !== u) face(u, tgt);
+  vfx(CAST_SPRITE[u.kind], u.px, u.py, { follow: u, life: Math.min(0.7, VFXLIB.dur(CAST_SPRITE[u.kind])) });
   S.fx.push({ type: 'text', x: u.px, y: u.py, dy: -14, txt: ab.name, col: '#e8d8b0', age: 0 });
   const runeMult = ab.rune ? SUPPLIES[ab.rune].mult : 1;
   switch (ab.target) {
-    case 'taunt': for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
+    case 'taunt': vfx('challenge_taunt', k.px, k.py, { follow: k }); for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
     case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
-    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element)); break;
+    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => {
+      vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);
+      hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
+    }); break;
     case 'area': {
       const c = tgt;
       S.fx.push({ type: 'proj', kind: ab.fx === 'fire' ? 'fireball' : ab.fx, x: u.px, y: u.py, tx: c.x, ty: c.y, age: 0, dur: 0.25, onHit: () => {
+        if (ab.id === 'fireball') vfx('fire_rune_burst', c.px, c.py);
         for (const m of engagedMonsters()) if (cheb(m, c) <= 1) {
-          S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
+          if (VFXLIB.ready(BURST_SPRITE[ab.element])) vfx(BURST_SPRITE[ab.element], m.px, m.py);
+          else S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
           if (ab.vuln) m.vulnUntil = S.time + COMBAT.vulnSec;
           hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
         }
@@ -472,7 +504,7 @@ function useAbility(u, ab, mons) {
     }
     case 'self': u.shield = ab.shield; S.fx.push({ type: 'shield', x: u.px, y: u.py, age: 0 }); break;
     case 'ally': heal(u, tgt, rnd(...ab.heal)); break;
-    case 'party': for (const h of living('hero')) if (eu(h, u) <= 8) heal(u, h, rnd(...ab.heal)); break;
+    case 'party': vfx('circle_of_renewal', u.px, u.py, { follow: u, life: 1.4 }); for (const h of living('hero')) if (eu(h, u) <= 8) heal(u, h, rnd(...ab.heal)); break;
   }
   return true;
 }
@@ -522,6 +554,7 @@ function attacks(dt) {
 
 // ---------- tick ----------
 function tick(dt) {
+  for (const u of S.units) { u.ppx = u.px; u.ppy = u.py; }
   S.time += dt;
   for (const u of S.units) u.repath -= dt;
   const k = hero('knight');
@@ -554,7 +587,8 @@ function tick(dt) {
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
   const life = { burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
-  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : life[f.type] || 0.9));
+  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : f.type === 'vfx' ? f.life
+    : FX_SPRITE[f.type] && VFXLIB.ready(FX_SPRITE[f.type]) ? Math.max(life[f.type] || 0.9, VFXLIB.dur(FX_SPRITE[f.type])) : life[f.type] || 0.9));
 }
 
 // ---------- render ----------
@@ -570,21 +604,31 @@ function spriteFor(u) {
   const w = WALK && WALK[u.kind];
   if (w) {
     const fr = w.walk[u.dir];
-    const im = u.moving && fr && fr.length ? fr[Math.floor(u.animT * w.fps) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
+    // frames advance with distance walked, at the manifest fps when moving at the unit's speed
+    const im = u.moving && fr && fr.length ? fr[Math.floor((u.animD || 0) * w.fps / u.speed) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
     if (im && im.complete && im.naturalWidth) return { im, anchor: w.anchor, hover: w.hover };
   }
   return { im: IMG[u.kind][u.dir], anchor: null, hover: false };
 }
-function render() {
+function render(alpha, frameDt) {
   g.setTransform(CONFIG.scale, 0, 0, CONFIG.scale, 0, 0);
   g.imageSmoothingEnabled = false;
   g.fillStyle = '#16181b'; g.fillRect(0, 0, view.w, view.h);
+  // interpolate every unit between the last two sim states, so motion is continuous at any display rate
+  for (const u of S.units) {
+    const a = u.ppx === undefined ? 1 : alpha;
+    u.rx = u.ppx === undefined ? u.px : u.ppx + (u.px - u.ppx) * a; u.ry = u.ppy === undefined ? u.py : u.ppy + (u.py - u.ppy) * a;
+  }
   const k = hero('knight');
-  const tx = cx(k.px) - view.w / 2, ty = cy(k.py) - view.h / 2;
+  // camera: frame-rate independent smoothing on the interpolated knight; snaps on big jumps
+  const tx = cx(k.rx) - view.w / 2, ty = cy(k.ry) - view.h / 2;
   if (S.camSnap || Math.hypot(tx - cam.x, ty - cam.y) > T * 4) { cam.x = tx; cam.y = ty; S.camSnap = false; }
-  else { cam.x += (tx - cam.x) * 0.12; cam.y += (ty - cam.y) * 0.12; }
+  else { const f = 1 - Math.exp(-frameDt * 9); cam.x += (tx - cam.x) * f; cam.y += (ty - cam.y) * f; }
   const ox = -Math.round(cam.x), oy = -Math.round(cam.y);
   if (IMG.map.complete) g.drawImage(IMG.map, ox, oy);
+  const heroPts = living('hero').map(h => ({ x: cx(h.rx), y: cy(h.ry) }));
+  AMBIENT.drawUnder(g, ox, oy, view.w, view.h);
+  AMBIENT.drawShade(g, ox, oy, view.w, view.h, heroPts);
   if (opts.grid) {
     g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1;
     for (let x = 0; x <= W + 1; x++) { g.beginPath(); g.moveTo(ox + x * T + .5, oy); g.lineTo(ox + x * T + .5, oy + (H + 1) * T); g.stroke(); }
@@ -602,14 +646,14 @@ function render() {
       g.strokeStyle = 'rgba(255,90,60,.45)'; g.strokeRect(ox + (r[0] + 1) * T + .5, oy + (r[1] + 1) * T + .5, (r[2] - r[0] + 1) * T, (r[3] - r[1] + 1) * T); });
   }
   // corpses first, then living in y order (feet)
-  const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.py - b.py) || (a.px - b.px));
+  const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.ry - b.ry) || (a.rx - b.rx));
   for (const u of list) {
     const { im, anchor, hover } = spriteFor(u);
     if (!im.complete || !im.naturalWidth) continue;
     // feet on the tile centre (manifest foot_anchor); hovering units float above their tile
     const ax = anchor ? anchor[0] : im.naturalWidth / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
     const lift = hover && u.alive ? 6 + Math.round(Math.sin(S.time * 4 + u.id) * 2) : 0;
-    const x = Math.round(ox + cx(u.px) - ax), y = Math.round(oy + cy(u.py) - ay - lift);
+    const x = Math.round(ox + cx(u.rx) - ax), y = Math.round(oy + cy(u.ry) - ay - lift);
     if (!u.alive) {
       // death: a 0.4 s fade from colour to a grey corpse, which lingers and fades out over its last 2 s
       const fadeIn = Math.min(1, u.dead / 0.4), out = Math.min(1, (CONFIG.corpseSec - u.dead) / 2);
@@ -618,22 +662,34 @@ function render() {
     }
     g.drawImage(im, x, y);
     g.globalAlpha = 1; g.filter = 'none';
-    if (u.alive && u.shield > 0) {
-      g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.px)) + .5, Math.round(oy + cy(u.py)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
+    if (u.alive && u.shield > 0 && VFXLIB.draw(g, 'arcane_barrier', ox + cx(u.rx), oy + cy(u.ry) - 10, S.time)) { /* sprite drawn */ }
+    else if (u.alive && u.shield > 0) {
+      g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.rx)) + .5, Math.round(oy + cy(u.ry)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
     }
     if (u.alive && (u.hp < u.maxHp || (u.side === 'hero' && u.mana < u.maxMana))) {
-      const bw = 20, bx = Math.round(ox + cx(u.px) - bw / 2), by = y - 3;
+      const bw = 20, bx = Math.round(ox + cx(u.rx) - bw / 2), by = y - 3;
       g.fillStyle = '#111'; g.fillRect(bx - 1, by - 1, bw + 2, u.side === 'hero' ? 6 : 4);
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
-    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.px)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
+    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.rx)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
   }
+  AMBIENT.drawGlow(g, ox, oy, view.w, view.h);
+  const fxLead = (paused ? 0 : alpha) * CONFIG.dt;   // projectiles also interpolate between sim ticks
   const P = (v) => Math.round(v);
   for (const f of S.fx) {
     const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
+    if (f.type === 'vfx') {
+      const fx0 = f.follow ? ox + cx(f.follow.rx) : fxX, fy0 = f.follow ? oy + cy(f.follow.ry) : fxY;
+      VFXLIB.draw(g, f.name, fx0, fy0 - 8, f.age); continue;
+    }
+    if (FX_SPRITE[f.type] && VFXLIB.draw(g, FX_SPRITE[f.type], fxX, fxY - (f.type === 'mark' ? 22 : 8), f.age)) continue;
+    if (f.type === 'proj' && f.kind === 'crossbow') {
+      const r = Math.min(1, (f.age + fxLead) / f.dur), x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
+      if (VFXLIB.draw(g, 'crossbow_bolt_projectile', x, y, f.age, Math.atan2(f.ty - f.y, f.tx - f.x))) continue;
+    }
     if (f.type === 'proj') {
-      const r = f.age / f.dur, x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
+      const r = Math.min(1, (f.age + fxLead) / f.dur), x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
       const a = Math.atan2(f.ty - f.y, f.tx - f.x), c = Math.cos(a), s = Math.sin(a);
       if (f.kind === 'crossbow') {          // crossbow bolt: short dark shaft, pale head
         g.strokeStyle = '#6b4a2a'; g.beginPath(); g.moveTo(P(x - c * 6) + .5, P(y - s * 6) + .5); g.lineTo(P(x) + .5, P(y) + .5); g.stroke();
@@ -732,14 +788,28 @@ function hudRender() {
   const p = CONFIG.pockets[S.pocketIdx];
   $('hud').textContent = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`;
 }
+const PERF = { gaps: [], cpu: [] };
+window.__perf = () => {
+  const st = a => { const v = a.slice().sort((x, y) => x - y); const m = v.reduce((x, y) => x + y, 0) / (v.length || 1);
+    return { n: v.length, mean: +m.toFixed(2), p50: +(v[v.length >> 1] || 0).toFixed(2), p95: +(v[(v.length * 0.95) | 0] || 0).toFixed(2), max: +(v[v.length - 1] || 0).toFixed(2) }; };
+  return { frameGapMs: st(PERF.gaps), cpuMs: st(PERF.cpu) };
+};
+let domT = 0;
 function frame(now) {
-  const el = Math.min(0.1, (now - lastT) / 1000); lastT = now;
-  if (!paused) { acc += el * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
-  render(); hudRender(); if ((S.time * 4 | 0) !== frame.last) { frame.last = S.time * 4 | 0; analyzerRender(); }
+  const t0 = performance.now();
+  const realDt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (!paused) { acc += realDt * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
+  const k = hero('knight');
+  AMBIENT.update(realDt, living('hero').map(h => ({ x: cx(h.px), y: cy(h.py) })), { x: cx(k.px), y: cy(k.py) });
+  render(paused ? 1 : Math.min(1, acc / CONFIG.dt), realDt);
+  // DOM writes (hud, analyzer, loot log) at about 4 Hz, never per frame
+  if (now - domT > 250) { domT = now; hudRender(); analyzerRender(); }
+  PERF.gaps.push(realDt * 1000); PERF.cpu.push(performance.now() - t0);
+  if (PERF.gaps.length > 600) { PERF.gaps.shift(); PERF.cpu.shift(); }
   requestAnimationFrame(frame);
 }
 // headless fast-forward for measurement: __simFast(seconds)
-window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); logRender(); return STATS.pulls; };
+window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); return STATS.pulls; };
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
 window.__AN = () => AN;

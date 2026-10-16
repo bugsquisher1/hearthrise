@@ -12,7 +12,7 @@ const AMBIENT = (() => {
 
   // light sources: the map's wall torches and braziers (PixelLab placements), lit a little below the bracket
   const LIGHTS = [[5, 1, 't'], [11, 1, 't'], [2, 20, 't'], [4, 27, 't'], [26, 1, 't'], [40, 2, 't'], [45, 2, 't'], [41, 30, 't'], [52, 17, 't'],
-    [54, 19, 'b'], [7, 14, 'b']].map(([x, y, k], i) => ({ x: wx(x), y: wy(y) + (k === 't' ? 22 : 4), r: k === 't' ? 92 : 104, seed: i * 1.7 }));
+    [54, 19, 'b'], [7, 14, 'b']].map(([x, y, k], i) => ({ x: wx(x), y: wy(y) + (k === 't' ? 22 : 4), r: k === 't' ? 92 : 104, seed: i * 1.7, torch: k === 't', fy: wy(y) }));
   const WATER = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (at(x, y) === 'd') WATER.push([x, y]);
   const RIM = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
     if (floor(x, y) && (wall(x - 1, y) || wall(x + 1, y) || wall(x, y - 1) || wall(x, y + 1))) RIM.push([x, y]);
@@ -73,6 +73,7 @@ const AMBIENT = (() => {
     }
     for (const d of drips) {
       const px = ox + d.x, py = oy + d.y;
+      if (VFXLIB.draw(g, 'water_drop_splash', px, py, d.age)) continue;
       if (d.age < 0.25) { g.fillStyle = 'rgba(190,225,220,.8)'; g.fillRect(px, py - 12 + (d.age / 0.25) * 12 | 0, 1, 2); continue; }
       const r = (d.age - 0.25) / 1.05;
       g.strokeStyle = `rgba(190,225,220,${(0.5 * (1 - r)).toFixed(3)})`;
@@ -114,6 +115,8 @@ const AMBIENT = (() => {
       g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
     }
     g.globalCompositeOperation = 'source-over';
+    // sprite flame on each wall torch (vfx.js); the map's own bracket stays underneath
+    for (const L of LIGHTS) if (L.torch) VFXLIB.draw(g, 'torch_flame_loop', ox + L.x, oy + L.fy - 2, time + L.seed);
     for (const m of motes) {
       const life = (time * m.sp + m.ph) % 1, x = ox + m.L.x + m.sx * 30 + Math.sin(time * 0.8 + m.ph * 9) * 6, y = oy + m.L.y + 20 - life * 70;
       if (x < 0 || y < 0 || x > vw || y > vh) continue;

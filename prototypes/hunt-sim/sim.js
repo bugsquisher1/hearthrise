@@ -45,7 +45,7 @@ for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG
 }
 // optional walk cycles (assets/walk/manifest.json); static rotations otherwise
 let WALK = null;
-fetch('assets/walk/manifest.json').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
+fetch('assets/walk/manifest.json?v=4').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
 // manifest unit names -> sim kinds
 const WALK_NAME = { giant_rat: 'rat', giant_bat: 'bat', venom_spider: 'spider', rat_king: 'ratking' };
 function prepWalk(m) {
@@ -261,9 +261,21 @@ function pushNum(t, txt, col) {
   t.numN = ((t.numN || 0) + 1) % 4;
   S.fx.push({ type: 'num', x: t.px, y: t.py, dx: [0, 7, -7, 0][t.numN], dy: [0, -4, -4, -9][t.numN], txt, col, age: 0 });
 }
+// sprite VFX (vfx.js). `vfx` pushes a sprite effect; drawn effects map to a sprite when one is loaded.
+const FX_SPRITE = { slash: 'melee_slash', heal: 'nature_heal_motes', loot: 'loot_sparkle', mark: 'hunters_mark', shield: 'arcane_barrier' };
+const BURST_SPRITE = { fire: 'flame_volley_puff', nature: 'natures_wrath', frost: 'frost_lance_shatter' };
+const CAST_SPRITE = { sorcerer: 'cast_sorcerer_runes', druid: 'cast_druid_motes', paladin: 'cast_paladin_aim_glint', knight: 'cast_knight_shield_bash' };
+function vfx(name, x, y, opts) {
+  if (!VFXLIB.ready(name)) return;
+  S.fx.push(Object.assign({ type: 'vfx', name, x, y, age: 0, life: VFXLIB.dur(name) }, opts || {}));
+}
 function monsterDied(m) {
+  vfx('monster_death_poof', m.px, m.py);
   const d = MONSTERS[m.kind];
-  AN.kills++; AN.xp += d.xp; const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
+  const lvBefore = Math.floor(AN.xp / 1500);
+  AN.kills++; AN.xp += d.xp;
+  if (Math.floor(AN.xp / 1500) > lvBefore) for (const h of living('hero')) vfx('level_up', h.px, h.py, { follow: h });   /* party level-up every 1,500 XP (display only) */
+  const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
   const got = d.drops.filter(([, ch]) => Math.random() < ch).map(([id]) => id);
   if (got.length) {
     AN.loot += got.reduce((a, id) => a + (LOOT_VALUE[id] || 0), 0);
@@ -439,7 +451,8 @@ function spendMana(u, n, mult) {
 function shoot(u, tgt, kind, el, onHit) {
   face(u, tgt);
   if (kind === 'slash') { S.fx.push({ type: 'slash', x: tgt.px, y: tgt.py, fromX: u.px, fromY: u.py, el, age: 0 }); onHit(); return; }
-  S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22, onHit });
+  S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22,
+    onHit: () => { if (kind === 'crossbow') vfx('crossbow_bolt_impact', tgt.px, tgt.py); onHit(); } });
 }
 function inRange(u, m) { return u.kind === 'knight' ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
 function areaCentre(u, mons) {
@@ -467,17 +480,23 @@ function useAbility(u, ab, mons) {
   if (ab.ammo) AN.bolts += ab.ammo;
   u.cd[ab.id] = S.time + ab.cd; u.lane[ab.lane] = S.time + COMBAT.lanes[ab.lane];
   if (tgt !== u) face(u, tgt);
+  vfx(CAST_SPRITE[u.kind], u.px, u.py, { follow: u, life: Math.min(0.7, VFXLIB.dur(CAST_SPRITE[u.kind])) });
   S.fx.push({ type: 'text', x: u.px, y: u.py, dy: -14, txt: ab.name, col: '#e8d8b0', age: 0 });
   const runeMult = ab.rune ? SUPPLIES[ab.rune].mult : 1;
   switch (ab.target) {
-    case 'taunt': for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
+    case 'taunt': vfx('challenge_taunt', k.px, k.py, { follow: k }); for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
     case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
-    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element)); break;
+    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => {
+      vfx(ab.id === 'power_strike' ? 'power_strike' : ab.element === 'frost' ? 'frost_lance_shatter' : ab.element === 'fire' ? 'flame_volley_puff' : 'crossbow_bolt_impact', tgt.px, tgt.py);
+      hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
+    }); break;
     case 'area': {
       const c = tgt;
       S.fx.push({ type: 'proj', kind: ab.fx === 'fire' ? 'fireball' : ab.fx, x: u.px, y: u.py, tx: c.x, ty: c.y, age: 0, dur: 0.25, onHit: () => {
+        if (ab.id === 'fireball') vfx('fire_rune_burst', c.px, c.py);
         for (const m of engagedMonsters()) if (cheb(m, c) <= 1) {
-          S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
+          if (VFXLIB.ready(BURST_SPRITE[ab.element])) vfx(BURST_SPRITE[ab.element], m.px, m.py);
+          else S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
           if (ab.vuln) m.vulnUntil = S.time + COMBAT.vulnSec;
           hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
         }
@@ -485,7 +504,7 @@ function useAbility(u, ab, mons) {
     }
     case 'self': u.shield = ab.shield; S.fx.push({ type: 'shield', x: u.px, y: u.py, age: 0 }); break;
     case 'ally': heal(u, tgt, rnd(...ab.heal)); break;
-    case 'party': for (const h of living('hero')) if (eu(h, u) <= 8) heal(u, h, rnd(...ab.heal)); break;
+    case 'party': vfx('circle_of_renewal', u.px, u.py, { follow: u, life: 1.4 }); for (const h of living('hero')) if (eu(h, u) <= 8) heal(u, h, rnd(...ab.heal)); break;
   }
   return true;
 }
@@ -568,7 +587,8 @@ function tick(dt) {
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
   const life = { burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
-  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : life[f.type] || 0.9));
+  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : f.type === 'vfx' ? f.life
+    : FX_SPRITE[f.type] && VFXLIB.ready(FX_SPRITE[f.type]) ? Math.max(life[f.type] || 0.9, VFXLIB.dur(FX_SPRITE[f.type])) : life[f.type] || 0.9));
 }
 
 // ---------- render ----------
@@ -642,7 +662,8 @@ function render(alpha, frameDt) {
     }
     g.drawImage(im, x, y);
     g.globalAlpha = 1; g.filter = 'none';
-    if (u.alive && u.shield > 0) {
+    if (u.alive && u.shield > 0 && VFXLIB.draw(g, 'arcane_barrier', ox + cx(u.rx), oy + cy(u.ry) - 10, S.time)) { /* sprite drawn */ }
+    else if (u.alive && u.shield > 0) {
       g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.rx)) + .5, Math.round(oy + cy(u.ry)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
     }
     if (u.alive && (u.hp < u.maxHp || (u.side === 'hero' && u.mana < u.maxMana))) {
@@ -658,6 +679,15 @@ function render(alpha, frameDt) {
   const P = (v) => Math.round(v);
   for (const f of S.fx) {
     const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
+    if (f.type === 'vfx') {
+      const fx0 = f.follow ? ox + cx(f.follow.rx) : fxX, fy0 = f.follow ? oy + cy(f.follow.ry) : fxY;
+      VFXLIB.draw(g, f.name, fx0, fy0 - 8, f.age); continue;
+    }
+    if (FX_SPRITE[f.type] && VFXLIB.draw(g, FX_SPRITE[f.type], fxX, fxY - (f.type === 'mark' ? 22 : 8), f.age)) continue;
+    if (f.type === 'proj' && f.kind === 'crossbow') {
+      const r = Math.min(1, (f.age + fxLead) / f.dur), x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
+      if (VFXLIB.draw(g, 'crossbow_bolt_projectile', x, y, f.age, Math.atan2(f.ty - f.y, f.tx - f.x))) continue;
+    }
     if (f.type === 'proj') {
       const r = Math.min(1, (f.age + fxLead) / f.dur), x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
       const a = Math.atan2(f.ty - f.y, f.tx - f.x), c = Math.cos(a), s = Math.sin(a);

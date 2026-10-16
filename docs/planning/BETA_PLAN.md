@@ -27,12 +27,12 @@ A friend on the allowlist can sign up, play the Mill Cellar tutorial, clear the 
 - Basic outfit recolours.
 - Loot tables for the beta grounds, gear classes 1–3.
 - Account-shared bestiary stages.
+- **Party hunting (Tyler 2026-10-15):** each player controls ONE hero; up to 4 players hunt one shared instance (AC 10), with the sim's formation rules as the auto-hunt AI (tank pulls and holds, ranged staggered).
 - Passive opt-in gathering slice, if approved (D2).
 - Screen-audit rows 1–11 and 15, on screens that stay visible.
 
 **OUT (post-beta):**
 - Gems and Crowns monetization; every gem item stays hidden.
-- Party instances (the hunt sim is the visual model).
 - Imbuements and charms.
 - Housing beyond the starter cottage; the high-end homes.
 - Fancy outfits and addons.
@@ -55,10 +55,11 @@ A friend on the allowlist can sign up, play the Mill Cellar tutorial, clear the 
 | **P4 Combat U2 + balance** (parallel with P3) | server U2 (abilities, mana, ammo, runes, resists, Prayer regen); port the hunt-sim balance rulings into catalogue rows; 1-tile footprints; tune START_KIT | C2 | Security GO; sim vs server within ±10% on the Sewer | ~20 h |
 | **P5 Start-flow content** | import the Sewer map with the sizing rules; Cellar coach chain → breakthrough to the Sewer; Rat King attack animation; knight stance fix | P3, D6 | QA clears Cellar → Sewer → Rat King with no blocked tiles | ~18 h |
 | **P6 Greenhaven + loot** | H-001–H-003 data and maps; drop tables, gear classes 1–3; bestiary stages; gathering slice (if D2); rename "Forgotten Rootcellar" | P4, P5, Tyler's creatures | a fresh hero plays from level 1 to about 20 | ~20 h |
+| **P6b Party hunting** | party invite/accept/leave; shared hunt instance with one pull/respawn state per party (gather-review Security item 13); loot split (even by gold value by default); per-role auto-hunt AI from the sim's formation rules; party UI (members' HP/mana, leader) | P3, P4 | 4 QA accounts clear the Sewer together on prod; Security GO on loot split and shared caps | ~24 h |
 | **P7 Screen + copy sweep** | screen-audit rows; copy lint on every string; outfit recolour base | P2, P6 | QUALITY_CHECKLIST passes on every reachable screen | ~12 h |
 | **P8 Beta gate** | two full fresh-account playthroughs; re-verify every "verify" row; final Security review; Tyler allowlists friends | all | §1 checklist all ticked | ~8 h |
 
-**Total about 130 agent-hours.** At the 3–4 lane token budget, that is roughly **8–10 working days** after the 10-17 usage reset, targeting **about 10-30**. That leaves November for the EA content.
+**Total about 155 agent-hours.** At the 3–4 lane token budget, that is roughly **10–12 working days** after the 10-17 usage reset, targeting **about 11-02**. That leaves November for the EA content.
 
 ## 4. Known-issues register
 | ID | Issue | Sev | Phase |
@@ -112,7 +113,7 @@ A friend on the allowlist can sign up, play the Mill Cellar tutorial, clear the 
 ## 5. Decisions for Tyler
 | # | Decision | Recommendation | Blocks |
 |---|---|---|---|
-| D1 | Beta hunt view: you control ONE hero (other players fill the party later), or the automated 4-hero party from the sim? | **One hero for beta**, with Tibia-style auto-attack and pulls. Party hunting with real players comes at EA, and the sim's formation rules become the party AI then. This is the biggest scope lever. | P3, P5 |
+| D1 | ~~Hunt view~~ DECIDED (Tyler 2026-10-15): one hero per player; party hunting with real players is IN for beta | — | — |
 | D2 | Passive gathering slice (~11 h) in beta? | Yes, ground-only pull dial | P6 |
 | D3 | Home and bestiary shared per account; extra-rares at 150 h | Already yes | — |
 | D4 | Bestiary stages: relic boost only, or small permanent bonuses too? | Relic boost only for beta | P6 |

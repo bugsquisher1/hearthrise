@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=17`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=18`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=17`;
+  const iconUrl = id => `assets/icons/${id}.png?v=18`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -61,12 +61,28 @@ const UI = (() => {
   }
 
   // ---------- drag ----------
+  // Delegated on the panel itself (headers are rebuilt every few hundred ms), pointer capture on the panel, the panel
+  // switched to top/left on grab (a bottom/right anchor would stretch it), and clamped so the header stays on screen.
   function draggable(el) {
-    const hd = el.querySelector('.hd'); if (!hd) return;
+    if (el._drag) return; el._drag = true;
     let d = null;
-    hd.addEventListener('pointerdown', e => { if (e.target.tagName === 'BUTTON') return; d = [e.clientX - el.offsetLeft, e.clientY - el.offsetTop]; hd.setPointerCapture(e.pointerId); });
-    hd.addEventListener('pointermove', e => { if (!d) return; el.style.left = Math.max(0, e.clientX - d[0]) + 'px'; el.style.top = Math.max(0, e.clientY - d[1]) + 'px'; el.style.right = 'auto'; });
-    hd.addEventListener('pointerup', () => { d = null; });
+    el.addEventListener('pointerdown', e => {
+      const hd = e.target.closest('.hd');
+      if (!hd || !el.contains(hd) || e.target.closest('button, input, select, label') || e.button !== 0) return;
+      const r = el.getBoundingClientRect();
+      Object.assign(el.style, { left: r.left + 'px', top: r.top + 'px', right: 'auto', bottom: 'auto', transform: 'none' });
+      d = { dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
+      el.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    el.addEventListener('pointermove', e => {
+      if (!d || e.pointerId !== d.id) return;
+      const w = el.offsetWidth;
+      const x = Math.min(innerWidth - 40, Math.max(40 - w, e.clientX - d.dx));     // keep at least 40 px of header on screen
+      const y = Math.min(innerHeight - 24, Math.max(10, e.clientY - d.dy));        // header row never leaves the top or bottom
+      el.style.left = x + 'px'; el.style.top = y + 'px';
+    });
+    const end = e => { if (d && (!e || e.pointerId === d.id)) { try { el.releasePointerCapture(d.id); } catch (err) { /* already released */ } d = null; } };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', () => { d = null; });
   }
 
   // ---------- top bar + view ----------
@@ -103,23 +119,42 @@ const UI = (() => {
     if (e.key === 'p' || e.key === 'P') partyCam();
   });
 
-  // ---------- party panel ----------
-  let partyKey = '';
+  // ---------- party panel: a dark-wood board of carved stone plates ----------
+  let partyKey = '', partyExpand = false;
+  const ROLE_RING = { knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
+  const CREST = { knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
+  // portrait: the hero's own south idle frame, head crop (16x16 around the top of the sprite) at 2x
+  function portrait(c, kind) {
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=18`;
+    im.onload = () => {
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+      let top = 0;
+      try { const t = document.createElement('canvas'); t.width = im.width; t.height = im.height; const tg = t.getContext('2d'); tg.drawImage(im, 0, 0);
+        const d = tg.getImageData(0, 0, im.width, im.height).data;
+        outer: for (let y = 0; y < im.height; y++) for (let xx = 0; xx < im.width; xx++) if (d[(y * im.width + xx) * 4 + 3] > 40) { top = y; break outer; } } catch (e) { top = 4; }
+      x.clearRect(0, 0, 32, 32); x.drawImage(im, Math.round(im.width / 2) - 8, Math.max(0, top - 1), 16, 16, 0, 0, 32, 32);
+    };
+  }
   function buildParty() {
     const hs = heroes(); partyKey = hs.map(h => h.kind).join();
     const lead = hs[0];
-    $('party').innerHTML = `<div class="hd"><span>Party</span><span class="sp"></span><button class="minb" title="minimize">–</button><button title="close" id="pClose">×</button></div>` +
-      hs.map(h => `<div class="mem" data-k="${h.kind}">
-        <div class="r1"><span class="st" id="st-${h.kind}"></span><span>${NAME[h.kind]}</span><span class="tag">${TAG[h.kind]}</span><span class="ag" id="ag-${h.kind}" title="holding aggro"></span>
-          ${h === lead ? '<span class="star" title="leader">★</span>' : '<span class="fol" title="following">↳</span>'}
-          <span class="lv" id="lv-${h.kind}"></span>${h === lead ? '' : '<span class="kick" title="kick (not in the sim)">×</span>'}</div>
-        <div class="bar"><i id="hp-${h.kind}" style="background:var(--hp)"></i></div>
-        <div class="bar"><i id="mp-${h.kind}" style="background:var(--mp)"></i></div>
-        <div class="stam"><div class="bar"><i id="sb-${h.kind}" style="background:var(--st)"></i></div><span id="sh-${h.kind}"></span></div>
-        <div class="dps" id="dps-${h.kind}"></div></div>`).join('') +
-      `<div class="ft">Costs are personal<div><button>Stop accepting all</button><button>Leave party</button></div></div>`;
+    $('party').innerHTML = `<span class="cb bl"></span><span class="cb br"></span>
+      <div class="hd"><span class="ttl">Party</span><span class="sp"></span><button class="stud" id="pExp" title="show DPS / HPS for everyone">⋯</button><button class="minb stud" title="minimize">–</button><button class="stud" title="close" id="pClose">×</button></div>` +
+      hs.map(h => `<div class="mem" data-k="${h.kind}" style="--ring:${ROLE_RING[h.kind]}" title="${NAME[h.kind]} — click to view">
+        <div class="port">${h === lead ? '<span class="crown" title="leader">♛</span>' : '<span class="link" title="following the leader">⛓</span>'}<canvas width="32" height="32" id="pt-${h.kind}"></canvas><span class="plv" id="lv-${h.kind}" title="level"></span></div>
+        <div class="body">
+          <div class="nm"><canvas class="crest" width="16" height="16" id="cr-${h.kind}" title="${NAME[h.kind]}"></canvas><span>${NAME[h.kind]}</span><span class="ag" id="ag-${h.kind}" title="holding aggro"></span><span class="st" id="st-${h.kind}"></span><span class="sp"></span>${h === lead ? '' : '<span class="kick" title="kick (not in the sim)">×</span>'}</div>
+          <div class="gg hp" title="health"><div class="gauge"><i id="hp-${h.kind}" style="background:#c8463a"></i></div><b id="hpn-${h.kind}"></b></div>
+          <div class="gg mp" title="mana"><div class="gauge"><i id="mp-${h.kind}" style="background:#4e6cc8"></i></div><b id="mpn-${h.kind}"></b></div>
+          <div class="stl" id="stw-${h.kind}"><i id="sb-${h.kind}"></i></div>
+          <div class="dps" id="dps-${h.kind}"></div>
+        </div></div>`).join('') +
+      `<div class="ft"><div class="note">Costs are personal</div><div class="tabs"><button title="Stop accepting all (not in the sim)">⛔</button><button title="Leave party (not in the sim)">⎋</button></div></div>`;
+    for (const h of hs) { portrait($('pt-' + h.kind), h.kind); const [gn, col] = CREST[h.kind]; glyph($('cr-' + h.kind).getContext('2d'), gn, 0, 0, col, 2); }
     $('party').querySelectorAll('.mem').forEach(m => m.onclick = () => selectHero(m.dataset.k));
     $('pClose').onclick = () => PANELS.set('party', { hidden: true });
+    $('pExp').onclick = () => { partyExpand = !partyExpand; $('party').classList.toggle('expand', partyExpand); };
+    $('party').classList.toggle('expand', partyExpand);
     draggable($('party')); PANELS.apply();
   }
   function partyFast() {
@@ -128,14 +163,15 @@ const UI = (() => {
     for (const h of heroes()) {
       const w = (id, f) => { const e = $(id); if (e) e.style.width = (Math.max(0, Math.min(1, f)) * 100).toFixed(1) + '%'; };
       w('hp-' + h.kind, h.alive ? h.hp / h.maxHp : 0); w('mp-' + h.kind, h.maxMana ? h.mana / h.maxMana : 0);
+      $('hpn-' + h.kind).textContent = Math.max(0, Math.round(h.alive ? h.hp : 0)); $('mpn-' + h.kind).textContent = Math.round(h.mana);
       const stam = Math.max(0, STAMINA_H * 3600 - sec); w('sb-' + h.kind, stam / (STAMINA_H * 3600));
-      $('sh-' + h.kind).textContent = `${Math.floor(stam / 3600)}:${String(Math.floor(stam / 60) % 60).padStart(2, '0')}h`;
-      $('lv-' + h.kind).textContent = 'Lv. ' + h.level;
+      $('stw-' + h.kind).title = `stamina ${Math.floor(stam / 3600)}:${String(Math.floor(stam / 60) % 60).padStart(2, '0')}h left`;
+      $('lv-' + h.kind).textContent = h.level;
       $('ag-' + h.kind).textContent = S().units.some(m => m.side === 'mon' && m.alive && m.target === h) ? '⛨' : '';
-      $('st-' + h.kind).textContent = !h.alive ? '✝' : h.regen ? '🍖' : (S().time - (h.flash.drink || -9)) < 1.2 ? '🧪' : '';
+      $('st-' + h.kind).textContent = !h.alive ? '✝' : h.regen ? '🍖' : (S().time - (h.flash.drink || -9)) < 1.2 ? '💧' : '';
       const H = a.hero[h.kind] || { dealt: 0 }, healed = a.healed[h.kind] || 0;
-      $('dps-' + h.kind).innerHTML = `DPS: <b>${kf(H.dealt / sec)}</b> / Total: <b>${kf(H.dealt)}</b>` +
-        (healed ? `<div class="hps">HPS: <b>${kf(healed / sec)}</b> / Total: <b>${kf(healed)}</b></div>` : '');
+      $('dps-' + h.kind).innerHTML = `DPS <b>${kf(H.dealt / sec)}</b> · total <b>${kf(H.dealt)}</b>` +
+        (healed ? `<div class="h">HPS <b>${kf(healed / sec)}</b> · total <b>${kf(healed)}</b></div>` : '');
     }
     $('party').querySelectorAll('.mem').forEach(m => m.classList.toggle('sel', VIEW.mode === 'hero' && m.dataset.k === VIEW.sel));
   }
@@ -144,7 +180,7 @@ const UI = (() => {
   let tab = 'session', anView = 'hero', collapsed = {}, anCollapsed = false;
   function money(n, neg) { return `<span class="v${neg || n < 0 ? ' dn' : ''}">${nf(n)} gp</span>`; }
   function sec(id, title, body) {
-    return `<div class="sec"><div class="sh" data-s="${id}">${collapsed[id] ? '▸' : '▾'} ${title}</div>${collapsed[id] ? '' : body}</div>`;
+    return `<div class="sec"><div class="sh" data-s="${id}" title="click to fold">${collapsed[id] ? '▸' : '▾'} ${title}</div><div>${collapsed[id] ? '' : body}</div></div>`;
   }
   const row = (k, v, extra) => `<div class="row">${extra || ''}<span class="k">${k}</span>${v}</div>`;
   function slow() {
@@ -179,12 +215,13 @@ const UI = (() => {
       body += sec('oa', 'Damage dealt by ability', Object.entries(src.outAb).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(abName(k), `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
       body += sec('oe', 'Damage dealt by element', Object.entries(src.outEl).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(k, `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
     }
-    $('hunt').innerHTML = `<div class="hd"><span>Hunt Analyzer</span><span class="sp"></span><button id="anRst" title="reset">⟲</button><button class="minb" title="minimize">–</button></div>` +
+    $('hunt').innerHTML = `<span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Hunt Analyzer</span><span class="sp"></span><button id="anRst" class="stud" title="reset the session">⟲</button><button class="minb stud" title="minimize">–</button></div>` +
       (anCollapsed ? '' :
         (ended ? '<div class="ended">Hunt ended — session summary</div>' : '') +
-        `<div class="top"><span>SESSION <b>${hms(secs)}</b></span><span>NEXT LEVEL <b>${isFinite(nextLv) ? hms(nextLv) : '--:--:--'}</b></span></div>` +
+        `<div class="top"><span title="time hunted this session">Session<b>${hms(secs)}</b></span><span title="estimated time to the viewed hero's next level" style="text-align:right">Next level<b>${isFinite(nextLv) ? hms(nextLv) : '--:--:--'}</b></span></div>` +
         `<div class="tg"><button data-v="hero" class="${anView === 'hero' ? 'on' : ''}">This hero${h ? ' (' + NAME[h.kind] + ')' : ''}</button><button data-v="party" class="${anView === 'party' ? 'on' : ''}">Party</button></div>` +
-        `<div class="tabs"><button data-t="session" class="${tab === 'session' ? 'on' : ''}">SESSION</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}">DAMAGE INPUT</button><button data-t="out" class="${tab === 'out' ? 'on' : ''}">DAMAGE OUTPUT</button></div>` + body);
+        `<div class="tabs"><button data-t="session" class="${tab === 'session' ? 'on' : ''}" title="session totals">⌛ Session</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}" title="damage taken">⛨ Taken</button><button data-t="out" class="${tab === 'out' ? 'on' : ''}" title="damage dealt">⚔ Dealt</button></div>` +
+        `<div class="pane">${body}</div>`);
     $('anRst').onclick = () => { window.__resetAnalyzer(); ended = false; slow(); };
     $('hunt').querySelectorAll('[data-v]').forEach(b => b.onclick = () => { anView = b.dataset.v; slow(); });
     $('hunt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; slow(); });
@@ -208,11 +245,16 @@ const UI = (() => {
     iron: '#100c08', iron2: '#1c150e', plank0: '#241b13', plank1: '#1a130d', seam: 'rgba(0,0,0,.55)', flame: '#ffd08a', lit: '#ffb457',
     oxblood: '#8e3324', railInk: '#cbbc9e', mana: '#6a86d6',   // mana: a lifted --gem so the gauge reads on the rail (no token yet)
   };
-  const SL = 36, GAP = 3, HALF = 5 * (SL + GAP) - GAP, MID = 158, PAD = 8;
-  const W_FULL = PAD * 2 + HALF * 2 + MID + 16, H_FULL = 2 * (SL + GAP) - GAP + PAD * 2 + 4;
+  // Layout scales with the window (never the text down): 34 px tablets at the 800 px pane, 44 px at 1200+ (~25% bigger).
+  let SL = 34, GAP = 3, HALF = 0, MID = 0, PAD = 8, W_FULL = 0, H_FULL = 0;
+  function layout() {
+    SL = innerWidth >= 1200 ? 44 : 34; MID = innerWidth >= 1200 ? 280 : 236;
+    HALF = 5 * (SL + GAP) - GAP; W_FULL = PAD * 2 + HALF * 2 + MID + 16; H_FULL = Math.max(2 * (SL + GAP) - GAP + PAD * 2 + 4, 112);
+  }
+  const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=17').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=18').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }
@@ -221,53 +263,49 @@ const UI = (() => {
 
   function tablet(x, y) {               // carved dark-stone tablet with four iron rivets
     g.fillStyle = C.bg2; g.fillRect(x, y, SL, SL);
-    g.fillStyle = 'rgba(214,224,240,.07)'; g.fillRect(x, y, SL, 1); g.fillRect(x, y, 1, SL);         // lit top/left arris
-    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, y + SL - 1, SL, 1); g.fillRect(x + SL - 1, y, 1, SL); // shadowed bottom/right
+    g.fillStyle = 'rgba(214,224,240,.07)'; g.fillRect(x, y, SL, 1); g.fillRect(x, y, 1, SL);
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, y + SL - 1, SL, 1); g.fillRect(x + SL - 1, y, 1, SL);
     g.fillStyle = C.iron; g.fillRect(x - 1, y - 1, SL + 2, 1); g.fillRect(x - 1, y + SL, SL + 2, 1); g.fillRect(x - 1, y, 1, SL); g.fillRect(x + SL, y, 1, SL);
     g.fillStyle = C.steel; for (const [rx, ry] of [[2, 2], [SL - 4, 2], [2, SL - 4], [SL - 4, SL - 4]]) g.fillRect(x + rx, y + ry, 2, 2);
-    g.fillStyle = C.iron; for (const [rx, ry] of [[3, 3], [SL - 3, 3], [3, SL - 3], [SL - 3, SL - 3]]) g.fillRect(x + rx, y + ry, 1, 1);
   }
-  function crack(x, y) {                // a hairline crack across an unusable tablet
-    g.strokeStyle = 'rgba(0,0,0,.85)'; g.lineWidth = 1; g.beginPath();
-    const pts = [[6, 4], [13, 12], [11, 17], [19, 23], [17, 28], [26, 33]];
-    g.moveTo(x + pts[0][0] + .5, y + pts[0][1] + .5); for (const [px, py] of pts.slice(1)) g.lineTo(x + px + .5, y + py + .5); g.stroke();
-    g.strokeStyle = 'rgba(214,224,240,.18)'; g.beginPath(); g.moveTo(x + 7.5, y + 4.5); for (const [px, py] of pts.slice(1)) g.lineTo(x + px + 1.5, y + py + .5); g.stroke();
+  function crack(x, y) {
+    const k = SL / 36, pts = [[6, 4], [13, 12], [11, 17], [19, 23], [17, 28], [26, 33]].map(([a, b]) => [Math.round(a * k), Math.round(b * k)]);
+    g.strokeStyle = 'rgba(0,0,0,.85)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x + pts[0][0] + .5, y + pts[0][1] + .5); for (const [px, py] of pts.slice(1)) g.lineTo(x + px + .5, y + py + .5); g.stroke();
+    g.strokeStyle = 'rgba(214,224,240,.22)'; g.beginPath(); g.moveTo(x + pts[0][0] + 1.5, y + pts[0][1] + .5); for (const [px, py] of pts.slice(1)) g.lineTo(x + px + 1.5, y + py + .5); g.stroke();
   }
-  function text(t, x, y, col, size, align, base) {
-    g.font = `${size || 9}px ui-monospace,Consolas,monospace`; g.textAlign = align || 'left'; g.textBaseline = base || 'top';
-    g.fillStyle = '#000'; g.fillText(t, x + 1, y + 1); g.fillStyle = col; g.fillText(t, x, y);
+  // all canvas text uses the UI font at >= 12 px; numbers bold 14-16 px; an outline keeps it legible over art
+  function text(t, x, y, col, size, align, weight, base) {
+    g.font = `${weight || 500} ${Math.max(12, size || 12)}px ${FONT}`; g.textAlign = align || 'left'; g.textBaseline = base || 'top';
+    g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.85)'; g.lineJoin = 'round'; g.strokeText(t, x, y); g.fillStyle = col; g.fillText(t, x, y);
   }
   function drawSlot(u, s, i, x, y) {
     tablet(x, y);
-    text(String(i < 10 ? (i + 1) % 10 : '⇧' + ((i - 9) % 10)), x + SL - 3, y + SL - 10, C.ink3, 7, 'right');
     if (!s) return;
     const icon = s.ab ? ICONMAP[s.ab.id] : s.kind === 'basic' ? (ICONMAP['basic_' + NAME[u.kind].toLowerCase()] || ICON[BASIC_ICON[u.kind]]) : ICONMAP[s.id] || ICON[ITEM_ICON[s.id]];
     if (s.unusable) g.filter = 'grayscale(1) brightness(.55)';
-    if (ready(icon)) {
-      g.drawImage(icon, x + 2, y + 2, 32, 32);
-    } else if (s.ab) { const [gn, col] = ABIL[s.ab.id] || ['star', '#ccc']; glyph(g, gn, x + 6, y + 6, col, 3); }
+    const o = Math.floor((SL - 32) / 2);
+    if (ready(icon)) g.drawImage(icon, x + o, y + o, 32, 32);
+    else if (s.ab) { const [gn, col] = ABIL[s.ab.id] || ['star', '#ccc']; glyph(g, gn, x + Math.floor((SL - 24) / 2), y + Math.floor((SL - 24) / 2), col, 3); }
     g.filter = 'none';
     if (s.unusable) crack(x, y);
-    // cooldown: an ember rising from the bottom of the tablet, with a small number
-    if (s.cd > 0.05 && s.cdMax) {
+    if (s.cd > 0.05 && s.cdMax) {   // cooldown: an ember rising from the bottom, with the seconds left
       const f = Math.min(1, 1 - s.cd / s.cdMax), h = Math.round((SL - 2) * f);
       g.fillStyle = 'rgba(10,11,14,.62)'; g.fillRect(x + 1, y + 1, SL - 2, SL - 2 - h);
       const eg = g.createLinearGradient(0, y + SL - 1 - h, 0, y + SL - 1);
       eg.addColorStop(0, 'rgba(255,180,87,.40)'); eg.addColorStop(1, 'rgba(142,51,36,.30)');
       g.fillStyle = eg; g.fillRect(x + 1, y + SL - 1 - h, SL - 2, h);
       g.fillStyle = C.lit; g.fillRect(x + 1, y + SL - 1 - h, SL - 2, 1);
-      text(s.cd < 10 ? s.cd.toFixed(1) : String(Math.ceil(s.cd)), x + SL / 2, y + SL / 2 - 5, C.flame, 10, 'center');
+      text(s.cd < 10 ? s.cd.toFixed(1) : String(Math.ceil(s.cd)), x + SL / 2, y + SL / 2, C.flame, 15, 'center', 800, 'middle');
     } else if (!s.unusable && s.kind !== 'item') {
-      // ready: a soft amber edge light along the lit arrises
-      g.fillStyle = 'rgba(227,199,126,.55)'; g.fillRect(x + 1, y + 1, SL - 2, 1); g.fillRect(x + 1, y + 1, 1, SL - 2);
+      g.fillStyle = 'rgba(227,199,126,.6)'; g.fillRect(x + 1, y + 1, SL - 2, 1); g.fillRect(x + 1, y + 1, 1, SL - 2);
     }
-    if (s.cost) text(String(s.cost), x + 3, y + 2, '#a9b8ec', 8);
-    if (s.badge) text(s.badge, x + 3, y + SL - 10, C.gold2, 7);
-    if (s.count != null) text(String(s.count), x + SL - 3, y + 2, s.count ? C.ink : C.red, 8, 'right');
+    if (s.cost) text(String(s.cost), x + 2, y, '#b9c8f4', 12, 'left', 800);
+    if (s.badge) text(s.badge, x + 2, y + SL - 13, C.gold2, 12, 'left', 700);
+    if (s.count != null) text(String(s.count), x + SL - 2, y, s.count ? '#f2ead8' : '#f0907e', 12, 'right', 800);
     const fl = s.flashKey ? S().time - (u.flash[s.flashKey] ?? -99) : 99;
     if (fl < 0.3) { g.fillStyle = `rgba(255,208,138,${(0.45 * (1 - fl / 0.3)).toFixed(2)})`; g.fillRect(x + 1, y + 1, SL - 2, SL - 2); }
   }
-  function rail(w, h) {                 // dark-wood rail: planks, seams, iron edge
+  function rail(w, h) {
     g.fillStyle = C.plank1; g.fillRect(0, 0, w, h);
     g.fillStyle = C.plank0; g.fillRect(0, 4, w, Math.floor(h / 2) - 4);
     g.fillStyle = C.seam; g.fillRect(0, Math.floor(h / 2), w, 1);
@@ -276,67 +314,76 @@ const UI = (() => {
     g.fillStyle = C.iron2; g.fillRect(1, 1, w - 2, 1);
   }
   function arc(cx, cy, r, a0, a1, width, col) { g.strokeStyle = col; g.lineWidth = width; g.lineCap = 'butt'; g.beginPath(); g.arc(cx, cy, r, a0, a1); g.stroke(); }
+  function heart(x, y, col) { g.fillStyle = col; g.beginPath(); g.moveTo(x + 5, y + 9); g.lineTo(x, y + 4); g.arc(x + 2.5, y + 2.5, 2.5, Math.PI, 0); g.arc(x + 7.5, y + 2.5, 2.5, Math.PI, 0); g.lineTo(x + 5, y + 9); g.fill(); }
+  function drop(x, y, col) { g.fillStyle = col; g.beginPath(); g.moveTo(x + 4, y); g.quadraticCurveTo(x + 9, y + 6, x + 4, y + 10); g.quadraticCurveTo(x - 1, y + 6, x + 4, y); g.fill(); }
+  function glass(x, y, col) { g.strokeStyle = col; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 8, y); g.lineTo(x, y + 10); g.lineTo(x + 8, y + 10); g.closePath(); g.stroke(); }
+  let hits = [];   // hover regions on the emblem: [x, y, w, h, title, detail]
   function emblem(u, cx, cy) {
     const into = u.xp - (u.level - HERO_START_LEVEL) * HERO_XP_PER_LEVEL, pct = Math.max(0, Math.min(1, into / HERO_XP_PER_LEVEL));
-    const r = 26;
-    // gauges: HP on the left (warm), mana on the right (cool), drawn as a track then a fill from the bottom up
-    const GR = 38, GW = 6, hp = u.alive ? Math.max(0, u.hp / u.maxHp) : 0, mp = u.maxMana ? u.mana / u.maxMana : 0;
+    const r = 28, GR = 42, GW = 7, hp = u.alive ? Math.max(0, u.hp / u.maxHp) : 0, mp = u.maxMana ? u.mana / u.maxMana : 0;
     const L0 = Math.PI * 0.62, L1 = Math.PI * 1.38, R0 = -Math.PI * 0.38, R1 = Math.PI * 0.38;
-    arc(cx, cy, GR, L0, L1, GW + 2, C.iron); arc(cx, cy, GR, L0, L1, GW, C.bg0);
-    arc(cx, cy, GR, L0, L0 + (L1 - L0) * hp, GW, C.red);
-    arc(cx, cy, GR, R0, R1, GW + 2, C.iron); arc(cx, cy, GR, R0, R1, GW, C.bg0);
-    arc(cx, cy, GR, R1 - (R1 - R0) * mp, R1, GW, C.mana);
-    // stamina: a thin arc under the emblem
+    arc(cx, cy, GR, L0, L1, GW + 2, C.iron); arc(cx, cy, GR, L0, L1, GW, C.bg0); arc(cx, cy, GR, L0, L0 + (L1 - L0) * hp, GW, C.red);
+    arc(cx, cy, GR, R0, R1, GW + 2, C.iron); arc(cx, cy, GR, R0, R1, GW, C.bg0); arc(cx, cy, GR, R1 - (R1 - R0) * mp, R1, GW, C.mana);
+    // XP: a thin gold ring segment round the hearth; stamina: a thin teal arc beneath it
+    arc(cx, cy, r + 4, -Math.PI / 2, Math.PI * 1.5, 2, C.bg0); arc(cx, cy, r + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct, 2, C.gold2);
     const stam = Math.max(0, STAMINA_H * 3600 - sessionSec()) / (STAMINA_H * 3600);
-    arc(cx, cy, r + 5, Math.PI * 0.68, Math.PI * 0.32, 2, C.bg0);
-    arc(cx, cy, r + 5, Math.PI * 0.68, Math.PI * 0.68 - (Math.PI * 0.36) * stam, 2, C.aqua);
-    // the hearth: iron frame, dark hollow, an ember filled to the level %
+    arc(cx, cy, r + 9, Math.PI * 0.70, Math.PI * 0.30, 2, C.bg0); arc(cx, cy, r + 9, Math.PI * 0.70, Math.PI * 0.70 - Math.PI * 0.40 * stam, 2, C.aqua);
     g.fillStyle = C.iron; g.beginPath(); g.arc(cx, cy, r + 2, 0, 7); g.fill();
     g.strokeStyle = C.steel; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r + 1.5, 0, 7); g.stroke();
     g.fillStyle = '#0d0a07'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
     g.save(); g.beginPath(); g.arc(cx, cy, r - 1, 0, 7); g.clip();
     const top = cy + r - 2 * r * pct, eg = g.createLinearGradient(0, top, 0, cy + r);
     eg.addColorStop(0, C.lit); eg.addColorStop(0.35, '#c8641e'); eg.addColorStop(1, C.oxblood);
-    g.fillStyle = eg; g.fillRect(cx - r, top, 2 * r, cy + r - top);
-    g.fillStyle = 'rgba(255,224,168,.55)'; g.fillRect(cx - r, Math.round(top), 2 * r, 1);
-    g.restore();
-    g.strokeStyle = C.iron; g.beginPath(); g.moveTo(cx - r + 4, cy + 9.5); g.lineTo(cx + r - 4, cy + 9.5); g.stroke();   // grate bar
-    text(String(u.level), cx, cy - 9, C.flame, 14, 'center');
-    text(Math.floor(pct * 100) + '%', cx, cy + 11, C.railInk, 8, 'center');
-    // numbers beside the gauges
-    text(`${Math.max(0, Math.round(u.hp))}/${u.maxHp}`, cx - GR - 6, cy - 22, C.red, 9, 'right');
-    text(u.regen ? '+' + Math.round(u.regen.perSec) : '+0', cx - GR - 6, cy - 11, C.ink3, 8, 'right');
-    text(`${Math.round(u.mana)}/${u.maxMana}`, cx + GR + 6, cy - 22, '#a9b8ec', 9, 'left');
-    text('+' + (u.maxMana * COMBAT.manaRegenPerMin / 60).toFixed(1) + (u.shield > 0 ? '  ◈' + Math.round(u.shield) : ''), cx + GR + 6, cy - 11, C.ink3, 8, 'left');
-    const sh = Math.max(0, STAMINA_H * 3600 - sessionSec());
-    text(`${Math.floor(sh / 3600)}:${String(Math.floor(sh / 60) % 60).padStart(2, '0')}h`, cx, cy + r + 9, C.ink3, 8, 'center');
+    g.fillStyle = eg; g.fillRect(cx - r, top, 2 * r, cy + r - top); g.restore();
+    text('Lv', cx, cy - 24, '#e7d9bd', 12, 'center', 700);
+    text(String(u.level), cx, cy - 11, C.flame, 16, 'center', 800);
+    text(`XP ${Math.floor(pct * 100)}%`, cx, cy + 7, '#e7d9bd', 12, 'center', 700);
+    // HP and MP readouts, labelled, with regen per second underneath
+    const lx = cx - GR - 10, rx = cx + GR + 10;
+    heart(lx - 70, cy - 26, C.red); text('HP', lx - 58, cy - 30, '#f0b0a4', 12, 'left', 700);
+    text(`${Math.max(0, Math.round(u.alive ? u.hp : 0))}/${u.maxHp}`, lx, cy - 14, '#f0907e', 15, 'right', 800);
+    const hpR = u.regen ? u.regen.perSec : 0;
+    text(`+${hpR.toFixed(0)}/s`, lx, cy + 4, '#b8bcc4', 12, 'right', 500);
+    drop(rx + 2, cy - 30, C.mana); text('MP', rx + 14, cy - 30, '#b9c8f4', 12, 'left', 700);
+    text(`${Math.round(u.mana)}/${u.maxMana}`, rx, cy - 14, '#b9c8f4', 15, 'left', 800);
+    const mpR = u.maxMana * COMBAT.manaRegenPerMin / 60;
+    text(`+${mpR.toFixed(1)}/s${u.shield > 0 ? '  ◈' + Math.round(u.shield) : ''}`, rx, cy + 4, '#b8bcc4', 12, 'left', 500);
+    const sh = Math.max(0, STAMINA_H * 3600 - sessionSec()), shT = `${Math.floor(sh / 3600)}:${String(Math.floor(sh / 60) % 60).padStart(2, '0')}h`;
+    glass(cx - 26, cy + r + 13, '#9fd0c4'); text(shT, cx + 4, cy + r + 10, '#cfe6e0', 12, 'center', 700);
+    hits.push([lx - 74, cy - 32, 80, 52, 'Health', `${Math.round(u.hp)} / ${u.maxHp} HP (${Math.round(hp * 100)}%). Regen +${hpR.toFixed(1)}/s from food.`]);
+    hits.push([rx - 4, cy - 32, 90, 52, 'Mana', `${Math.round(u.mana)} / ${u.maxMana} MP (${Math.round(mp * 100)}%). Regen +${mpR.toFixed(1)}/s.${u.shield > 0 ? ` Arcane shield ${Math.round(u.shield)}.` : ''}`]);
+    hits.push([cx - r, cy - r, 2 * r, 2 * r, 'Level and XP', `Level ${u.level}. ${Math.round(into)} / ${HERO_XP_PER_LEVEL} XP to level ${u.level + 1} (${(pct * 100).toFixed(1)}%).`]);
+    hits.push([cx - 34, cy + r + 6, 68, 18, 'Stamina', `${shT} of hunting left in this session (display only).`]);
   }
-  function socket(x, y, draw, label) {  // small round socket set into the rail
-    g.fillStyle = C.iron; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill();
-    g.strokeStyle = C.steel; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 10.5, 0, 7); g.stroke();
-    g.fillStyle = '#0d0a07'; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill();
-    draw(); if (label != null) text(String(label), x + 9, y + 3, C.ink, 7, 'left');
+  function socket(x, y, draw, label, tip) {
+    g.fillStyle = C.iron; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill();
+    g.strokeStyle = C.steel; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 12.5, 0, 7); g.stroke();
+    g.fillStyle = '#0d0a07'; g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill();
+    draw(); text(label, x, y + 15, '#e7d9bd', 12, 'center', 700);
+    hits.push([x - 16, y - 14, 32, 44, tip[0], tip[1]]);
   }
   let slotList = [], slotRects = [], hudMin = false;
   function drawHud() {
     const u = sel(); if (!u) return;
+    layout(); hits = [];
     hudMin = $('hud2').classList.contains('min');
     const w = hudMin ? MID + PAD * 2 : W_FULL, h = H_FULL;
-    if (cv.width !== w) { cv.width = w; cv.height = h; cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
     g.clearRect(0, 0, w, h); g.imageSmoothingEnabled = false;
     rail(w, h);
     slotList = slotsFor(u); slotRects = [];
-    const midX = hudMin ? PAD : PAD + HALF + 8;
+    const midX = hudMin ? PAD : PAD + HALF + 8, top = Math.floor((h - (2 * (SL + GAP) - GAP)) / 2);
     if (!hudMin) for (let i = 0; i < 20; i++) {
       const col = i % 10, row = Math.floor(i / 10), side = col < 5 ? 0 : 1, c5 = col % 5;
-      const x = side === 0 ? PAD + c5 * (SL + GAP) : PAD + HALF + 16 + MID + c5 * (SL + GAP), y = PAD + 2 + row * (SL + GAP);
+      const x = side === 0 ? PAD + c5 * (SL + GAP) : PAD + HALF + 16 + MID + c5 * (SL + GAP), y = top + row * (SL + GAP);
       slotRects[i] = [x, y]; drawSlot(u, slotList[i], i, x, y);
     }
-    emblem(u, midX + MID / 2, Math.floor(h / 2) - 2);
+    emblem(u, midX + MID / 2, Math.floor(h / 2) - 8);
     if (!hudMin) {
-      const L = LOADOUTS[u.kind], fi = ICON[ITEM_ICON[L.food[0]]];
-      socket(midX + 14, h - 15, () => { if (ready(fi)) g.drawImage(fi, midX + 6, h - 23, 16, 16); }, u.food);
-      socket(midX + MID - 14, h - 15, () => glyph(g, 'ring', midX + MID - 22, h - 23, C.gold, 2));
+      const L = LOADOUTS[u.kind], fi = ICONMAP[L.food[0]] || ICON[ITEM_ICON[L.food[0]]], fd = CONSUMABLES[L.food[0]];
+      socket(midX + 22, h - 34, () => { if (ready(fi)) g.drawImage(fi, midX + 14, h - 42, 16, 16); }, `Food ×${u.food}`,
+        [fd.name, `${u.food} left. ${fd.hp} HP (half at once, half over 6 s) when HP falls under ${Math.round(fd.below * 100)}%.`]);
+      socket(midX + MID - 22, h - 34, () => glyph(g, 'ring', midX + MID - 30, h - 42, C.gold, 2), 'Charm', ['Charm', 'Empty charm socket (not in the sim yet).']);
     }
   }
   function slotsFor(u) {
@@ -354,19 +401,20 @@ const UI = (() => {
     const fd = CONSUMABLES[L.food[0]], dr = CONSUMABLES[L.drink[0]];
     const lane = Math.max(0, (u.lane.consume || 0) - S().time);
     out.push({ kind: 'item', id: L.food[0], type: 'food', name: fd.name, count: u.food, cd: lane, cdMax: CONSUMABLE_LANE, flashKey: 'food', badge: Math.round((u.set.foodBelow ?? fd.below) * 100) + '%',
-      tip: `${fd.hp} HP over ${fd.over} s · eaten under ${Math.round(fd.below * 100)}% HP when no heal is coming · ${fd.price} gp.`, unusable: !u.food });
-    out.push({ kind: 'item', id: L.drink[0], type: dr.mana ? 'potion' : 'hpot', name: dr.name, count: u.drink, cd: lane, cdMax: CONSUMABLE_LANE, flashKey: 'drink', badge: Math.round((u.set.drinkBelow ?? dr.below) * 100) + '%',
-      tip: `${dr.mana ? '+' + dr.mana + ' mana' : '+' + dr.hp + ' HP'} instantly under ${Math.round(dr.below * 100)}% ${dr.mana ? 'mana' : 'HP'} · ${dr.price} gp.`, unusable: !u.drink });
+      tip: `${fd.hp} HP (half at once, half over 6 s) · eaten under ${Math.round(fd.below * 100)}% HP when no heal is coming · ${fd.price} gp.`, unusable: !u.food });
+    out.push({ kind: 'item', id: L.drink[0], type: 'potion', name: dr.name, count: u.drink, cd: lane, cdMax: CONSUMABLE_LANE, flashKey: 'drink', badge: Math.round((u.set.drinkBelow ?? dr.below) * 100) + '%',
+      tip: `${dr.mana ? '+' + dr.mana + ' mana' : '+' + dr.hp + ' HP'} (half at once, half over 6 s) under ${Math.round(dr.below * 100)}% ${dr.mana ? 'mana' : 'HP'} · ${dr.price} gp.`, unusable: !u.drink });
     return out;
   }
-  // tooltip
+  // tooltip: slots and every emblem element
   cv.addEventListener('mousemove', e => {
     const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
     const i = slotRects.findIndex(p => p && mx >= p[0] && mx < p[0] + SL && my >= p[1] && my < p[1] + SL), s = slotList[i];
+    const hit = !s && hits.find(([x, y, w, h]) => mx >= x && mx < x + w && my >= y && my < y + h);
     const tip = $('tip');
-    if (!s) { tip.style.display = 'none'; return; }
-    tip.innerHTML = `<div class="n">${s.name}</div><div class="c">${s.tip}</div>`;
-    tip.style.display = 'block'; tip.style.left = Math.min(innerWidth - 230, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 64) + 'px';
+    if (!s && !hit) { tip.style.display = 'none'; return; }
+    tip.innerHTML = s ? `<div class="n">${s.name}</div><div class="c">${s.tip}</div>` : `<div class="n">${hit[4]}</div><div class="c">${hit[5]}</div>`;
+    tip.style.display = 'block'; tip.style.left = Math.min(innerWidth - 250, e.clientX + 12) + 'px'; tip.style.top = Math.max(4, e.clientY - 80) + 'px';
   });
   cv.addEventListener('mouseleave', () => { $('tip').style.display = 'none'; });
 

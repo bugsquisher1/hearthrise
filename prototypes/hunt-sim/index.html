@@ -4,80 +4,116 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hunt Sim — Sewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
 <style>
+  /* Hearthrise light: warm amber light on cool slate; iron, dark wood, carved stone. Values from src/styles/tokens.css
+     (Charcoal & Gold) where a token exists. Readability floor: text >= 12 px, labels >= 11 px, numbers 14-16 px bold,
+     parchment ink on dark (>= 4.5:1). */
   :root {
-    --bg:#16181b; --ink:#e6e1d6; --dim:#8f897e; --accent:#e0a050; --up:#7fd27a; --dn:#e07060;
-    --panel:rgba(18,21,26,.80); --panel-line:rgba(120,128,140,.28); --iron:#2b2f35; --iron-hi:#4a5058;
-    --hp:#c8443a; --mp:#3f74d8; --xp:#c9a64a; --st:#3fa08c; --gold:#e8c060; --num:#8fdc7a; --dmg:#e8963c; --heal:#7fd27a;
+    --bg-0:#0a0b0e; --bg-1:#101217; --bg-2:#1a1d23; --bg-3:#252931;
+    --ink:#e9e7e2; --ink-2:#b8bcc4; --paper:#e7d9bd; --rail-ink:#cbbc9e;
+    --gold:#c9a24a; --gold-2:#e3c77e; --lit:#ffb457; --flame:#ffd08a; --oxblood:#8e3324;
+    --red:#dc5f4c; --waste:#e8806e; --gem:#5262b3; --mana:#7b96e0; --moss:#7f9a4f; --aqua:#5c8f89; --steel:#808b98;
+    --iron:#100c08; --iron-2:#1c150e; --plank-0:#241b13; --plank-1:#1a130d; --seam:rgba(0,0,0,.55);
+    --f-ui:'Alegreya Sans', system-ui, sans-serif; --f-label:'Alegreya Sans SC', 'Alegreya Sans', sans-serif; --f-title:'Cinzel', serif;
+    --role-melee:#a9b2bd; --role-ranger:#7f9a4f; --role-mage:#6a86d6; --role-healer:#5fae9a;
   }
-  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.35 ui-monospace,Consolas,monospace; overflow:hidden; }
+  html,body { margin:0; height:100%; background:var(--bg-0); color:var(--ink); font:14px/1.3 var(--f-ui); overflow:hidden; }
   canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
-  button, select { font:inherit; font-size:11px; background:var(--iron); color:var(--ink); border:1px solid var(--iron-hi); border-radius:2px; padding:2px 6px; cursor:pointer; }
-  button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
-  .pnl { position:fixed; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; }
-  .pnl .hd { display:flex; align-items:center; gap:6px; padding:3px 6px; border-bottom:1px solid var(--panel-line); color:var(--accent); cursor:move; user-select:none; touch-action:none; }
-  .pnl .hd .sp { flex:1; }
-  .pnl .hd button { padding:0 4px; font-size:11px; line-height:14px; }
-  #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:4px; border-radius:3px; }
+  button, select { font:500 13px var(--f-ui); background:var(--iron-2); color:var(--paper); border:1px solid #3a2e22; border-radius:0; padding:2px 7px; cursor:pointer; }
+  button.on { color:var(--gold-2); border-color:var(--gold); }
+  #bar { position:fixed; top:6px; left:6px; display:flex; gap:3px; flex-wrap:wrap; background:var(--plank-1); border:1px solid var(--iron); padding:3px; max-width:46vw; }
   /* hunt top bar */
-  #huntbar { position:fixed; top:8px; left:50%; transform:translateX(-50%); display:flex; gap:4px; align-items:center; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:3px; }
-  #huntbar .ready { padding:2px 8px; color:var(--dim); } #huntbar .ready b { color:var(--ink); font-weight:normal; }
-  #leave { background:#6a2222; border-color:#9a3a32; color:#ffd8d0; }
-  #viewlbl { position:fixed; top:38px; left:50%; transform:translateX(-50%); color:var(--dim); font-size:11px; background:var(--panel); padding:1px 8px; border-radius:3px; }
-  #viewlbl b { color:var(--accent); font-weight:normal; }
-  /* party panel */
-  #party { top:48px; left:8px; width:204px; font-size:11px; }
-  #party .mem { padding:4px 6px; border-bottom:1px solid var(--panel-line); cursor:pointer; }
-  #party .mem.sel { background:rgba(224,160,80,.10); box-shadow:inset 2px 0 0 var(--accent); }
-  #party .r1 { display:flex; align-items:center; gap:4px; }
-  #party .tag { color:var(--dim); } #party .ag { color:var(--steel, #808b98); } #party .star { color:var(--gold); } #party .fol { color:var(--dim); }
-  #party .lv { margin-left:auto; color:var(--dim); } #party .kick { color:var(--dim); padding:0 2px; }
-  #party .st { width:12px; text-align:center; }
-  #party .bar { height:3px; background:#0c0d10; margin-top:2px; position:relative; }
-  #party .bar i { position:absolute; left:0; top:0; bottom:0; }
-  #party .stam { display:flex; align-items:center; gap:4px; margin-top:2px; } #party .stam .bar { flex:1; margin:0; } #party .stam span { color:var(--dim); font-size:10px; }
-  #party .dps { margin-top:2px; color:var(--dim); font-size:10px; } #party .dps b { color:var(--dmg); font-weight:normal; } #party .hps b { color:var(--heal); font-weight:normal; }
-  #party .ft { padding:4px 6px; color:var(--dim); font-size:10px; } #party .ft div { display:flex; gap:4px; margin-top:3px; } #party .ft button { flex:1; font-size:10px; }
-  /* hunt analyzer */
-  #hunt { top:48px; right:8px; width:236px; font-size:11px; max-height:calc(100vh - 170px); overflow:auto; }
-  #hunt .top { display:flex; justify-content:space-between; padding:3px 6px; color:var(--dim); } #hunt .top b { color:var(--ink); font-weight:normal; }
-  #hunt .tg, #hunt .tabs { display:flex; gap:2px; padding:0 6px 3px; } #hunt .tg button, #hunt .tabs button { flex:1; font-size:10px; padding:1px 2px; }
-  #hunt .sec { border-top:1px solid var(--panel-line); }
-  #hunt .sh { padding:2px 6px; color:var(--accent); cursor:pointer; user-select:none; }
-  #hunt .row { display:flex; align-items:center; gap:4px; padding:0 6px; min-height:16px; }
-  #hunt .row .k { flex:1; } #hunt .row .v { color:var(--num); text-align:right; } #hunt .row .v.dn { color:var(--dn); } #hunt .row .x { color:var(--dim); }
+  #huntbar { position:fixed; top:6px; left:50%; transform:translateX(-50%); display:flex; gap:3px; align-items:center; background:var(--plank-1); border:1px solid var(--iron); padding:3px; }
+  #huntbar .ready { padding:0 8px; color:var(--rail-ink); font:500 12px var(--f-label); } #huntbar .ready b { color:var(--flame); font:700 15px var(--f-ui); }
+  #leave { background:#4a1a14; border-color:var(--oxblood); color:#ffd8c8; font-weight:700; }
+  #viewlbl { position:fixed; top:40px; left:50%; transform:translateX(-50%); color:var(--rail-ink); font:500 12px var(--f-ui); background:var(--plank-1); border:1px solid var(--iron); padding:1px 8px; }
+  #viewlbl b { color:var(--gold-2); font-weight:700; }
+
+  /* ---- the board: dark wood, iron corner brackets, an engraved plaque for the title ---- */
+  .pnl { position:fixed; background:var(--plank-1); border:1px solid var(--iron); box-shadow:inset 0 0 0 1px #2a2119; padding-top:14px; }
+  .pnl::before, .pnl::after, .pnl > .cb { content:''; position:absolute; width:9px; height:9px; border:2px solid var(--steel); pointer-events:none; }
+  .pnl::before { left:-2px; top:-2px; border-right:0; border-bottom:0; } .pnl::after { right:-2px; top:-2px; border-left:0; border-bottom:0; }
+  .pnl > .cb.bl { left:-2px; bottom:-2px; border-right:0; border-top:0; } .pnl > .cb.br { right:-2px; bottom:-2px; border-left:0; border-top:0; }
+  .pnl .hd { position:absolute; top:-9px; left:12px; right:12px; display:flex; align-items:center; gap:4px; cursor:move; user-select:none; touch-action:none; }
+  .pnl .hd .ttl { background:var(--bg-3); border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.09); padding:1px 10px; color:var(--gold-2); font:700 13px var(--f-title); letter-spacing:.08em; text-shadow:0 1px 0 #000; }
+  .pnl .hd .sp { flex:1; }
+  .stud { width:18px; height:18px; border-radius:50%; padding:0; background:var(--iron); border:1px solid var(--steel); color:var(--paper); font:700 12px/16px var(--f-ui); text-align:center; }
+  .pnl.min { padding-top:12px; } .pnl.min > :not(.hd):not(.cb) { display:none !important; }
+
+  /* ---- party: carved stone plates, portrait sockets ---- */
+  #party { top:64px; left:6px; width:238px; }
+  #party .mem { position:relative; display:flex; gap:7px; margin:5px 6px; padding:6px 7px 5px 6px; background:var(--bg-2);
+    border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.08), inset 0 -1px 0 rgba(0,0,0,.5); cursor:pointer; }
+  #party .mem.sel { box-shadow:inset 0 1px 0 rgba(255,180,87,.75), inset 1px 0 0 rgba(255,180,87,.55), inset 0 -1px 0 rgba(0,0,0,.5); border-color:#5a4020; }
+  #party .port { position:relative; flex:0 0 36px; height:36px; margin-top:3px; }
+  #party .port canvas { width:32px; height:32px; border-radius:50%; border:2px solid var(--ring); background:#0d0a07; }
+  #party .port .crown, #party .port .link { position:absolute; left:50%; top:-9px; transform:translateX(-50%); font:700 12px var(--f-ui); }
+  #party .port .crown { color:var(--gold-2); } #party .port .link { color:var(--ink-2); }
+  #party .port .plv { position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); background:var(--iron); border:1px solid var(--ring); color:var(--paper); font:700 12px/13px var(--f-ui); padding:0 3px; }
+  #party .body { flex:1; min-width:0; }
+  #party .nm { display:flex; align-items:center; gap:4px; font:700 14px var(--f-ui); color:var(--paper); }
+  #party .nm canvas.crest { width:16px; height:16px; }
+  #party .nm .ag { color:var(--ink); font-size:13px; } #party .nm .st { font-size:12px; } #party .nm .sp { flex:1; }
+  #party .nm .kick { color:var(--ink-2); font-size:13px; padding:0 2px; }
+  #party .gg { display:flex; align-items:center; gap:5px; margin-top:3px; }
+  #party .gauge { flex:1; height:6px; background:var(--bg-0); border:1px solid var(--iron); position:relative; overflow:hidden; }
+  #party .gauge i { position:absolute; left:0; top:0; bottom:0; box-shadow:inset 0 1px 0 rgba(255,255,255,.28); }
+  #party .gauge::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(0,0,0,.55) 9px 10px); }
+  #party .gg b { min-width:34px; text-align:right; font:700 14px var(--f-ui); }
+  #party .gg.hp b { color:#f0907e; } #party .gg.mp b { color:#a9bdf0; }
+  #party .stl { height:1px; background:var(--bg-0); margin-top:4px; position:relative; } #party .stl i { position:absolute; left:0; top:0; bottom:0; background:var(--aqua); }
+  #party .dps { display:none; margin-top:4px; font:500 12px var(--f-ui); color:var(--rail-ink); }
+  #party .dps b { color:var(--lit); font:700 14px var(--f-ui); } #party .dps .h b { color:#9fdc8a; }
+  #party .mem:hover .dps, #party.expand .dps { display:block; }
+  #party .ft { margin:4px 6px 6px; } #party .ft .note { color:var(--rail-ink); font:500 12px var(--f-label); text-align:center; text-shadow:0 1px 0 #000; }
+  #party .ft .tabs { display:flex; gap:4px; justify-content:center; margin-top:4px; }
+  #party .ft .tabs button { width:30px; height:26px; padding:0; background:var(--bg-2); border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.08); font-size:14px; color:var(--paper); }
+
+  /* ---- analyzer: same board; engraved section plaques; stone-textured rows ---- */
+  #hunt { top:64px; right:6px; width:262px; }
+  #hunt .top { display:flex; justify-content:space-between; gap:6px; margin:4px 8px; color:var(--rail-ink); font:500 11px var(--f-label); }
+  #hunt .top b { display:block; color:var(--flame); font:700 15px var(--f-ui); }
+  #hunt .tg { display:flex; gap:3px; margin:0 8px 4px; } #hunt .tg button { flex:1; font-size:12px; }
+  #hunt .tabs { display:flex; gap:2px; margin:0 8px; align-items:flex-end; }
+  #hunt .tabs button { flex:1; padding:3px 2px 2px; background:var(--bg-2); border:1px solid var(--iron); border-bottom:0; color:var(--ink-2); font:500 12px var(--f-label); }
+  #hunt .tabs button.on { background:var(--bg-3); color:var(--gold-2); box-shadow:inset 0 1px 0 rgba(255,180,87,.6); }
+  #hunt .pane { margin:0 8px 8px; border:1px solid var(--iron); background:var(--bg-1); max-height:calc(100vh - 360px); min-height:80px; overflow:auto; }
+  #hunt .sh { margin:6px auto 3px; width:max-content; padding:1px 10px; background:var(--bg-3); border:1px solid var(--iron); color:var(--paper); font:700 12px var(--f-label); letter-spacing:.06em; cursor:pointer; user-select:none; text-shadow:0 1px 0 #000; }
+  #hunt .row { display:flex; align-items:center; gap:5px; padding:1px 7px; min-height:20px; color:var(--paper); font:500 13px var(--f-ui); }
+  #hunt .row:nth-child(odd) { background:rgba(214,224,240,.04); } #hunt .row:nth-child(even) { background:rgba(0,0,0,.18); }
+  #hunt .row .k { flex:1; } #hunt .row .v { color:var(--lit); font:700 14px var(--f-ui); text-align:right; } #hunt .row .v.dn { color:var(--waste); }
+  #hunt .row .x { color:var(--ink-2); font:500 12px var(--f-ui); }
   #hunt .row img { width:16px; height:16px; image-rendering:pixelated; }
-  #hunt .ended { padding:4px 6px; color:#ffd9a0; background:rgba(224,160,80,.12); }
-  /* bottom HUD */
-  /* bottom HUD — "Hearthrise light": the rail and emblem are one canvas; the plaque is carved wood with engraved labels */
-  #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; gap:0; align-items:stretch; }
-  #hudCanvas { display:block; }
-  #plaque { width:132px; margin-left:-1px; background:#1a130d; border:1px solid #100c08; box-shadow:inset 0 1px 0 #241b13; padding:5px 7px; display:flex; flex-direction:column; gap:3px; font-size:10px; color:#cbbc9e; }
-  #plaque label { display:flex; flex-direction:column; gap:1px; text-transform:uppercase; letter-spacing:.06em; font-size:8px; color:#8a7d66; text-shadow:0 1px 0 #000; }
-  #plaque select { appearance:none; -webkit-appearance:none; background:#100c08; color:#cbbc9e; border:1px solid #2a2119; border-radius:0; padding:1px 4px; font-size:10px; text-transform:none; letter-spacing:0; text-shadow:0 1px 0 #000; }
-  #plaque .modes { display:flex; gap:2px; margin-top:2px; }
-  #plaque button { background:#100c08; color:#8a7d66; border:1px solid #2a2119; border-radius:0; padding:1px 0; font-size:9px; flex:1; text-shadow:0 1px 0 #000; }
-  #plaque button.on { color:#e3c77e; border-color:#c9a24a; }
-  #plaque .chase.on { color:#ffb457; border-color:#c8641e; }
-  #plaque .dist { display:flex; align-items:center; gap:3px; text-transform:uppercase; font-size:8px; color:#8a7d66; letter-spacing:.06em; }
-  #plaque .dist button { flex:0 0 16px; } #plaque .dist b { color:#e3c77e; font-weight:normal; font-size:11px; min-width:12px; text-align:center; }
-  #tip { position:fixed; pointer-events:none; background:rgba(12,14,17,.94); border:1px solid var(--panel-line); padding:4px 6px; font-size:11px; max-width:220px; display:none; z-index:9; }
-  #tip .n { color:var(--accent); } #tip .c { color:var(--dim); }
-  /* dev panels behind the » expander */
-  #log { right:8px; bottom:120px; width:290px; font-size:11px; }
-  #logBody, #lootBody { padding:4px 8px; white-space:pre; max-height:26vh; overflow:auto; }
-  #log b { color:var(--accent); font-weight:normal; }
-  #lootp { left:8px; bottom:120px; width:250px; font-size:11px; } #lootBody { color:#e8d8a0; overflow-x:hidden; }
-  /* minimize: a panel collapses to its title strip; the bottom HUD keeps only HP/mana */
-  .pnl.min > :not(.hd) { display:none !important; }
-  .hidden { display:none !important; }
-  #hud2 .mini { position:absolute; top:2px; right:2px; padding:0 4px; font-size:10px; line-height:12px; background:#100c08; border:1px solid #2a2119; color:#8a7d66; border-radius:0; z-index:1; }
+  #hunt .ended { margin:4px 8px; padding:3px 6px; color:var(--flame); background:rgba(255,180,87,.10); border:1px solid #5a4020; font:700 12px var(--f-ui); }
+
+  /* ---- bottom HUD: rail + emblem canvas; carved control plaque ---- */
+  #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; align-items:stretch; }
+  #plaque { width:150px; margin-left:-1px; background:var(--plank-1); border:1px solid var(--iron); box-shadow:inset 0 1px 0 var(--plank-0); padding:5px 7px; display:flex; flex-direction:column; gap:3px; }
+  #plaque label { display:flex; flex-direction:column; gap:1px; font:500 11px var(--f-label); color:var(--rail-ink); letter-spacing:.05em; text-shadow:0 1px 0 #000; }
+  #plaque select { appearance:none; -webkit-appearance:none; background:var(--iron); color:var(--paper); border:1px solid #3a2e22; padding:1px 5px; font:500 12px var(--f-ui); }
+  #plaque .modes { display:flex; gap:2px; margin-top:1px; }
+  #plaque button { background:var(--iron); color:var(--rail-ink); border:1px solid #3a2e22; padding:1px 0; font:500 12px var(--f-ui); flex:1; }
+  #plaque button.on { color:var(--gold-2); border-color:var(--gold); } #plaque .chase.on { color:var(--lit); border-color:#c8641e; }
+  #plaque .dist { display:flex; align-items:center; gap:4px; font:500 11px var(--f-label); color:var(--rail-ink); letter-spacing:.05em; }
+  #plaque .dist button { flex:0 0 20px; } #plaque .dist b { color:var(--flame); font:700 15px var(--f-ui); min-width:14px; text-align:center; }
+  #hud2 .mini { position:absolute; top:-9px; right:-9px; z-index:1; }
   #hud2.min #plaque { display:none; }
-  #panelsMenu { position:fixed; top:36px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:4px 8px; z-index:8; font-size:11px; }
+  #tip { position:fixed; pointer-events:none; background:var(--bg-2); border:1px solid var(--iron); box-shadow:inset 0 1px 0 rgba(214,224,240,.08); padding:5px 8px; font:500 13px var(--f-ui); color:var(--paper); max-width:240px; display:none; z-index:9; }
+  #tip .n { color:var(--gold-2); font-weight:700; } #tip .c { color:var(--paper); }
+
+  /* ---- logs and the panels menu ---- */
+  #log { right:6px; bottom:150px; width:300px; } #lootp { left:6px; bottom:150px; width:270px; }
+  #logBody, #lootBody { margin:4px 8px 8px; white-space:pre; max-height:24vh; overflow:auto; overflow-x:hidden; font:500 12px var(--f-ui); color:var(--paper); }
+  #log b { color:var(--lit); font-weight:700; }
+  .hidden { display:none !important; }
+  #panelsMenu { position:fixed; top:40px; left:50%; transform:translateX(-50%); background:var(--plank-1); border:1px solid var(--iron); padding:5px 9px; z-index:8; font:500 13px var(--f-ui); }
   #panelsMenu label { display:block; cursor:pointer; }
-  #hud { position:fixed; left:8px; bottom:120px; background:var(--panel); padding:4px 8px; border-radius:3px; white-space:pre; color:var(--dim); display:none; }
+  #hud { position:fixed; left:6px; bottom:150px; background:var(--plank-1); padding:4px 8px; white-space:pre; color:var(--paper); font:500 12px var(--f-ui); display:none; }
   body.dev #hud { display:block; }
 </style>
+
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -94,17 +130,17 @@
 <div id="viewlbl"></div>
 <div id="party" class="pnl"></div>
 <div id="hunt" class="pnl"></div>
-<div id="hud2"><button class="mini minb" title="minimize">–</button><canvas id="hudCanvas"></canvas><div id="plaque"></div></div>
+<div id="hud2"><button class="mini minb stud" title="minimize">–</button><canvas id="hudCanvas"></canvas><div id="plaque"></div></div>
 <div id="tip"></div>
 <div id="hud"></div>
 <div id="panelsMenu" class="hidden"></div>
-<div id="lootp" class="pnl"><div class="hd"><span>Loot</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="lootBody"></div></div>
-<div id="log" class="pnl"><div class="hd"><span>Pulls</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=17"></script>
-<script src="combat-data.js?v=17"></script>
-<script src="vfx.js?v=17"></script>
-<script src="ambient.js?v=17"></script>
-<script src="sim.js?v=17"></script>
-<script src="ui.js?v=17"></script>
+<div id="lootp" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Loot</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="lootBody"></div></div>
+<div id="log" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Pulls</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="logBody"></div></div>
+<script src="grid.js?v=18"></script>
+<script src="combat-data.js?v=18"></script>
+<script src="vfx.js?v=18"></script>
+<script src="ambient.js?v=18"></script>
+<script src="sim.js?v=18"></script>
+<script src="ui.js?v=18"></script>
 </body>
 </html>

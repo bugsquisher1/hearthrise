@@ -468,30 +468,6 @@
      "knight/walk_east_4.png",
      "knight/walk_east_5.png"
     ],
-    "north-east": [
-     "knight/walk_north-east_0.png",
-     "knight/walk_north-east_1.png",
-     "knight/walk_north-east_2.png",
-     "knight/walk_north-east_3.png",
-     "knight/walk_north-east_4.png",
-     "knight/walk_north-east_5.png"
-    ],
-    "north-west": [
-     "knight/walk_north-west_0.png",
-     "knight/walk_north-west_1.png",
-     "knight/walk_north-west_2.png",
-     "knight/walk_north-west_3.png",
-     "knight/walk_north-west_4.png",
-     "knight/walk_north-west_5.png"
-    ],
-    "north": [
-     "knight/walk_north_0.png",
-     "knight/walk_north_1.png",
-     "knight/walk_north_2.png",
-     "knight/walk_north_3.png",
-     "knight/walk_north_4.png",
-     "knight/walk_north_5.png"
-    ],
     "south-east": [
      "knight/walk_south-east_0.png",
      "knight/walk_south-east_1.png",
@@ -523,6 +499,30 @@
      "knight/walk_west_3.png",
      "knight/walk_west_4.png",
      "knight/walk_west_5.png"
+    ],
+    "north-east": [
+     "knight/walk_north-east_0.png",
+     "knight/walk_north-east_1.png",
+     "knight/walk_north-east_2.png",
+     "knight/walk_north-east_3.png",
+     "knight/walk_north-east_4.png",
+     "knight/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "knight/walk_north-west_0.png",
+     "knight/walk_north-west_1.png",
+     "knight/walk_north-west_2.png",
+     "knight/walk_north-west_3.png",
+     "knight/walk_north-west_4.png",
+     "knight/walk_north-west_5.png"
+    ],
+    "north": [
+     "knight/walk_north_0.png",
+     "knight/walk_north_1.png",
+     "knight/walk_north_2.png",
+     "knight/walk_north_3.png",
+     "knight/walk_north_4.png",
+     "knight/walk_north_5.png"
     ]
    },
    "idle": {
@@ -546,7 +546,7 @@
    ]
   },
   "paladin": {
-   "object_id": "1cbd894c-a971-4cfa-9c4e-3d2ee477d5db",
+   "object_id": "0934ce5c-0838-4b3e-9b53-16e9e9504489",
    "role": "hero_rp",
    "fps": 8,
    "directions": {
@@ -632,7 +632,7 @@
    ],
    "foot_anchor": [
     21,
-    37
+    38
    ]
   },
   "druid": {

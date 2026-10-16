@@ -111,18 +111,18 @@
     "circle_of_renewal/7.png"
    ],
    "frame_count": 8,
-   "fps": 8,
+   "fps": 5,
    "size": [
-    50,
-    20
+    38,
+    17
    ],
    "anchor": [
-    25,
-    10
+    19,
+    9
    ],
    "loop": true,
    "additive": false,
-   "image_id": "2c8fb1ba-3db9-445c-89d6-9c78dd12e32c"
+   "image_id": "7df3cf27-da9c-4957-bcd2-64863aeb11e9"
   },
   "natures_wrath": {
    "frames": [
@@ -413,6 +413,154 @@
    "loop": true,
    "additive": false,
    "image_id": "2789a69e-301c-437e-817f-f46824395441"
+  },
+  "level_up": {
+   "frames": [
+    "level_up/0.png",
+    "level_up/1.png",
+    "level_up/2.png",
+    "level_up/3.png",
+    "level_up/4.png",
+    "level_up/5.png",
+    "level_up/6.png",
+    "level_up/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 8,
+   "size": [
+    24,
+    42
+   ],
+   "anchor": [
+    12,
+    37
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "c10c2580-2ce5-4b6b-bb45-898539c83b44"
+  },
+  "cast_sorcerer_runes": {
+   "frames": [
+    "cast_sorcerer_runes/0.png",
+    "cast_sorcerer_runes/1.png",
+    "cast_sorcerer_runes/2.png",
+    "cast_sorcerer_runes/3.png",
+    "cast_sorcerer_runes/4.png",
+    "cast_sorcerer_runes/5.png",
+    "cast_sorcerer_runes/6.png",
+    "cast_sorcerer_runes/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 4,
+   "size": [
+    29,
+    15
+   ],
+   "anchor": [
+    14,
+    6
+   ],
+   "loop": true,
+   "additive": true,
+   "image_id": "e5f12083-553f-4bfe-9890-70edc409bd1f"
+  },
+  "cast_druid_motes": {
+   "frames": [
+    "cast_druid_motes/0.png",
+    "cast_druid_motes/1.png",
+    "cast_druid_motes/2.png",
+    "cast_druid_motes/3.png",
+    "cast_druid_motes/4.png",
+    "cast_druid_motes/5.png",
+    "cast_druid_motes/6.png",
+    "cast_druid_motes/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 4,
+   "size": [
+    24,
+    12
+   ],
+   "anchor": [
+    12,
+    6
+   ],
+   "loop": true,
+   "additive": true,
+   "image_id": "9c5c881b-374d-4129-9c3a-c31b51a68c92"
+  },
+  "cast_paladin_aim_glint": {
+   "frames": [
+    "cast_paladin_aim_glint/0.png",
+    "cast_paladin_aim_glint/1.png",
+    "cast_paladin_aim_glint/2.png",
+    "cast_paladin_aim_glint/3.png",
+    "cast_paladin_aim_glint/4.png",
+    "cast_paladin_aim_glint/5.png"
+   ],
+   "frame_count": 6,
+   "fps": 9,
+   "size": [
+    12,
+    10
+   ],
+   "anchor": [
+    5,
+    7
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "9708ba6c-b9a8-44df-879e-f98af62b8790"
+  },
+  "cast_knight_shield_bash": {
+   "frames": [
+    "cast_knight_shield_bash/0.png",
+    "cast_knight_shield_bash/1.png",
+    "cast_knight_shield_bash/2.png",
+    "cast_knight_shield_bash/3.png",
+    "cast_knight_shield_bash/4.png",
+    "cast_knight_shield_bash/5.png",
+    "cast_knight_shield_bash/6.png",
+    "cast_knight_shield_bash/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 16,
+   "size": [
+    25,
+    20
+   ],
+   "anchor": [
+    12,
+    11
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "0a0f7f69-56ad-407e-b1c3-8c9e7090e725"
+  },
+  "water_drop_splash": {
+   "frames": [
+    "water_drop_splash/0.png",
+    "water_drop_splash/1.png",
+    "water_drop_splash/2.png",
+    "water_drop_splash/3.png",
+    "water_drop_splash/4.png",
+    "water_drop_splash/5.png",
+    "water_drop_splash/6.png",
+    "water_drop_splash/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 11,
+   "size": [
+    21,
+    16
+   ],
+   "anchor": [
+    10,
+    9
+   ],
+   "loop": false,
+   "additive": false,
+   "image_id": "e320ac00-238b-496e-a71e-0b3754134d2b"
   }
  }
 }

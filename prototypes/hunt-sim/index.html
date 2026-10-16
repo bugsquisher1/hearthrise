@@ -5,15 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hunt Sim — Sewer</title>
 <style>
-  :root { --bg:#16181b; --panel:rgba(14,16,19,.82); --ink:#e6e1d6; --dim:#9a958b; --accent:#e0a050; }
+  :root { --bg:#16181b; --panel:rgba(14,16,19,.82); --ink:#e6e1d6; --dim:#9a958b; --accent:#e0a050; --up:#7fd27a; --dn:#e07060; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.35 ui-monospace,Consolas,monospace; overflow:hidden; }
   canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
   #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:6px; border-radius:4px; }
-  #bar button { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
+  #bar button, #anReset { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
   #bar button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
-  #log { position:fixed; right:8px; bottom:8px; width:300px; max-height:42vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; }
+  #log { position:fixed; right:8px; bottom:8px; width:300px; max-height:30vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; }
   #log b { color:var(--accent); font-weight:normal; }
+  #loot { position:fixed; left:8px; bottom:40px; width:300px; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; color:#e8d8a0; font-size:11px; }
   #hud { position:fixed; left:8px; bottom:8px; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; color:var(--dim); }
+  /* hunt analyzer: movable, semi-transparent */
+  #analyzer { position:fixed; top:48px; right:8px; width:220px; background:rgba(10,12,14,.62); border:1px solid rgba(224,160,80,.35); border-radius:4px; font-size:11px; }
+  #analyzer .ttl { display:flex; justify-content:space-between; align-items:center; padding:4px 6px; cursor:move; color:var(--accent); border-bottom:1px solid rgba(224,160,80,.25); user-select:none; touch-action:none; }
+  #anReset { padding:0 5px; font-size:10px; }
+  #anBody { padding:4px 6px 6px; }
+  #anBody .r { display:flex; justify-content:space-between; }
+  #anBody .r b { font-weight:normal; color:#f2ead8; }
+  #anBody .h { color:var(--dim); margin-top:4px; }
+  #anBody .up { color:var(--up); } #anBody .dn { color:var(--dn); }
 </style>
 </head>
 <body>
@@ -25,9 +35,12 @@
   <button id="tGrid">Grid / footprints</button>
   <button id="tPath">Paths / aggro</button>
 </div>
+<div id="analyzer"><div class="ttl"><span>Hunt Analyzer</span><button id="anReset">reset</button></div><div id="anBody"></div></div>
 <div id="hud"></div>
+<div id="loot"></div>
 <div id="log"></div>
 <script src="grid.js"></script>
+<script src="combat-data.js"></script>
 <script src="sim.js"></script>
 </body>
 </html>

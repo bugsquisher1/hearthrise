@@ -1,32 +1,19 @@
 'use strict';
 // Hearthrise hunt-sim: a standalone proof of concept of an automated party hunt in the
-// style-1 sewer. Placeholder numbers only; nothing here is game data.
+// style-1 sewer. Combat numbers live in combat-data.js with a source per number.
 
 const CONFIG = {
   tile: 32, scale: 2, dt: 1 / 30,
-  swing: 2.0,                 // every attack, heroes and monsters
-  heroRespawnSec: 8,
-  pullDist: 1.5,               // pack aggros when the knight, inside its room, is this close to the pack centre          // a dead hero reappears at the entrance
-  respawnSec: 90,
-  corpseSec: 4,
+  swing: COMBAT.swing,        // combat-data.js: the universal 2.0 s basic attack
+  heroRespawnSec: 8,          // ASSUMED: a dead hero reappears at the entrance
+  pullDist: 1.5,              // pack aggros when the knight, inside its room, is this close to the pack centre
+  respawnSec: 90,             // ASSUMED pack respawn
+  corpseSec: 10,              // a corpse lingers, fading over its last 2 s
   regroupSec: 1.5,
-  oocRegenPct: 0.06,          // per second, out of combat
-  tauntCd: 6,
-  peelChance: 0.18,           // chance a heal pulls a free monster onto the druid
-  heroes: {
-    knight:   { hp: 400, dmg: [14, 22], speed: 3.2, range: 1.5, back: 0 },
-    paladin:  { hp: 220, dmg: [9, 14],  speed: 3.2, range: 7,   back: 3.5 },
-    druid:    { hp: 200, dmg: [3, 6],   speed: 3.2, range: 7,   back: 5, heal: [45, 70], healBelow: 0.6 },
-    sorcerer: { hp: 180, dmg: [10, 15], speed: 3.2, range: 7,   back: 6, blastEvery: 4, blast: [14, 20] },
-  },
-  monsters: {
-    rat:     { hp: 60,  dmg: [4, 7],   speed: 3.4 },
-    slime:   { hp: 90,  dmg: [3, 6],   speed: 2.4 },
-    bat:     { hp: 50,  dmg: [3, 6],   speed: 4.4 },
-    spider:  { hp: 80,  dmg: [5, 8],   speed: 3.6 },
-    kobold:  { hp: 100, dmg: [5, 9],   speed: 3.2 },
-    ratking: { hp: 520, dmg: [10, 16], speed: 2.8 },
-  },
+  oocRegenPct: 0.06,          // ASSUMED out-of-combat HP regen per second (Prayer regen is OPEN, BIBLE section 7.2)
+  peelChance: 0.18,           // ASSUMED: chance scale for a druid attack pulling a queued monster onto her
+  heroes: HEROES,
+  monsters: MONSTERS,
   // the route, pocket by pocket; spawn tiles come from the PixelLab map placements
   pockets: [
     { name: 'NW room',      room: [3, 2, 12, 10],  spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
@@ -136,10 +123,12 @@ window.__STATS = STATS;
 function newUnit(kind, x, y, side, pocket) {
   const base = side === 'hero' ? CONFIG.heroes[kind] : CONFIG.monsters[kind];
   return { id: S.nextId++, kind, side, pocket, x, y, px: x, py: y, fx: x, fy: y, t: 1, hp: base.hp, maxHp: base.hp,
+    mana: base.mana || 0, maxMana: base.mana || 0, cd: {}, lane: { offense: 0, heal: 0 }, shield: 0, vulnUntil: 0, markUntil: 0,
     speed: base.speed, path: [], goal: null, wait: 0, swing: Math.random() * CONFIG.swing, dir: 'south', target: null,
     alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false };
 }
 function reset() {
+  S = null; resetAnalyzer();
   S = { time: 0, units: [], fx: [], nextId: 1, occ: new Map(), pocketIdx: 0, phase: 'travel', phaseT: 0,
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
   ['knight', 'paladin', 'druid', 'sorcerer'].forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
@@ -220,15 +209,53 @@ function dirOf(dx, dy) {
 function face(u, t) { if (t) u.dir = dirOf(t.x - u.x, t.y - u.y); }
 
 // ---------- combat helpers ----------
-function hurt(t, amt, src) {
+function elemMult(m, el) {
+  if (!el) return 1;
+  const d = MONSTERS[m.kind];
+  if (d.immune.includes(el)) return COMBAT.immuneMult;
+  if (d.resist.includes(el)) return COMBAT.resistMult;
+  return d.weak === el ? COMBAT.weakMult : 1;
+}
+// the hunt analyzer's tallies: one session since start/reset
+let AN;
+function resetAnalyzer() {
+  AN = { t0: S ? S.time : 0, xp: 0, kills: 0, gold: 0, loot: 0, magicXp: 0, dealt: {}, taken: {}, healed: {},
+    mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, log: [] };
+}
+function hurt(t, amt, src, el) {
   if (!t.alive) return;
+  if (t.side === 'mon') {
+    const d = MONSTERS[t.kind];
+    let m = elemMult(t, el) * (1 - d.def * COMBAT.defReductionPerPoint);
+    if (S.time < t.vulnUntil) m *= COMBAT.vulnMult;
+    if (S.time < t.markUntil && src && src.kind === 'paladin') m *= ABILITIES.paladin[0].bonus;
+    if (m === 0) { pushNum(t, 'immune', '#9aa4b0'); return; }
+    amt = Math.max(1, Math.round(amt * m));
+  } else if (t.shield > 0) {
+    const ab = Math.min(t.shield, amt); t.shield -= ab; amt -= ab;
+  }
   t.hp = Math.max(0, t.hp - amt);
-  t.numN = ((t.numN || 0) + 1) % 4;
-  S.fx.push({ type: 'num', x: t.px, y: t.py, dx: [0, 7, -7, 0][t.numN], dy: [0, -4, -4, -9][t.numN], txt: String(amt), col: t.side === 'hero' ? '#ff6a5a' : '#ffe9b0', age: 0 });
+  if (src && src.side === 'hero') AN.dealt[src.kind] = (AN.dealt[src.kind] || 0) + amt;
+  if (t.side === 'hero') AN.taken[t.kind] = (AN.taken[t.kind] || 0) + amt;
+  pushNum(t, String(amt), t.side === 'hero' ? '#ff6a5a' : el === 'fire' ? '#ffb060' : el === 'frost' ? '#a8e4ff' : el === 'nature' ? '#b6f08a' : '#ffe9b0');
   S.fx.push({ type: 'spark', x: t.px, y: t.py, age: 0 });
   if (t.hp <= 0) {
     t.alive = false; t.dead = 0; t.path = []; S.occ.delete(key(t.x, t.y));
-    if (t.side === 'hero') heroDied(t);
+    if (t.side === 'hero') heroDied(t); else monsterDied(t);
+  }
+}
+function pushNum(t, txt, col) {
+  t.numN = ((t.numN || 0) + 1) % 4;
+  S.fx.push({ type: 'num', x: t.px, y: t.py, dx: [0, 7, -7, 0][t.numN], dy: [0, -4, -4, -9][t.numN], txt, col, age: 0 });
+}
+function monsterDied(m) {
+  const d = MONSTERS[m.kind];
+  AN.kills++; AN.xp += d.xp; const gp = rnd(...d.gp); AN.gold += gp;
+  const got = d.drops.filter(([, ch]) => Math.random() < ch).map(([id]) => id);
+  if (got.length) {
+    AN.loot += got.reduce((a, id) => a + (LOOT_VALUE[id] || 0), 0);
+    S.fx.push({ type: 'loot', x: m.px, y: m.py, age: 0 });
+    AN.log.unshift(`${d.name}: ${got.join(', ')} +${gp}g`); AN.log.length = Math.min(AN.log.length, 8);
   }
 }
 function heroDied(h) {
@@ -300,13 +327,6 @@ function aiFight() {
   const k = hero('knight');
   const mons = engagedMonsters();
   if (!mons.length) { endPull(); return; }
-  // knight: hold, taunt peeled monsters back
-  S.taunt -= CONFIG.dt;
-  const peeled = mons.find(m => m.target !== k);
-  if (peeled && S.taunt <= 0) {
-    peeled.target = k; peeled.peeled = false; S.taunt = CONFIG.tauntCd;
-    S.fx.push({ type: 'text', x: k.px, y: k.py - 1, txt: 'Taunt!', col: '#ffd070', age: 0 });
-  }
   if (!adjacentMonsters(k).length) {
     // nothing on him yet: step toward the nearest
     const near = mons.slice().sort((a, b) => eu(a, k) - eu(b, k))[0];
@@ -396,53 +416,107 @@ function nextPocket() {
 }
 
 // ---------- attacks ----------
+// Basic attacks on the universal swing; abilities on two independent lanes (offense, heal) plus their own
+// cooldowns (BIBLE section 9.1). Mana and supplies are debited when the action fires; Magic XP = mana x K x the
+// ability's multiplier (BIBLE section 5).
+function spendMana(u, n, mult) {
+  if (u.mana < n) return false;
+  u.mana -= n; AN.mana += n; AN.magicXp += n * COMBAT.magicXpPerMana * (mult || 0); return true;
+}
+function shoot(u, tgt, kind, el, onHit) {
+  face(u, tgt);
+  if (kind === 'slash') { S.fx.push({ type: 'slash', x: tgt.px, y: tgt.py, fromX: u.px, fromY: u.py, el, age: 0 }); onHit(); return; }
+  S.fx.push({ type: 'proj', kind, x: u.px, y: u.py, tx: tgt.x, ty: tgt.y, age: 0, dur: 0.22, onHit });
+}
+function inRange(u, m) { return u.kind === 'knight' ? cheb(m, u) <= 1 : eu(m, u) <= HEROES[u.kind].range && los(u, m); }
+function areaCentre(u, mons) {
+  return mons.filter(m => inRange(u, m)).sort((a, b) => mons.filter(o => cheb(o, b) <= 1).length - mons.filter(o => cheb(o, a) <= 1).length)[0];
+}
+function useAbility(u, ab, mons) {
+  if ((u.cd[ab.id] || 0) > S.time || u.lane[ab.lane] > S.time) return false;
+  if (ab.mana && u.mana < ab.mana) return false;
+  const k = hero('knight');
+  let tgt = null;
+  switch (ab.target) {
+    case 'taunt': tgt = mons.find(m => m.target !== k); if (!tgt) return false; break;
+    case 'mark': tgt = mons.filter(m => inRange(u, m)).sort((a, b) => b.hp - a.hp)[0]; if (!tgt || tgt.markUntil > S.time) return false; break;
+    case 'enemy': tgt = mons.filter(m => inRange(u, m) && elemMult(m, ab.element) > 0)
+      .sort((a, b) => elemMult(b, ab.element) - elemMult(a, ab.element) || a.hp - b.hp)[0]; if (!tgt) return false; break;
+    case 'area': tgt = areaCentre(u, mons); if (!tgt) return false;
+      if (mons.filter(o => cheb(o, tgt) <= 1 && elemMult(o, ab.element) > 0).length < 2) return false; break;
+    case 'self': if (u.hp / u.maxHp >= ab.whenBelow || u.shield > 0) return false; tgt = u; break;
+    case 'ally': tgt = living('hero').filter(h => h.hp / h.maxHp < ab.whenBelow && eu(h, u) <= HEROES[u.kind].range && los(u, h))
+      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0]; if (!tgt) return false; break;
+    case 'party': if (living('hero').filter(h => h.hp / h.maxHp < ab.whenBelow).length < ab.minHurt) return false; tgt = u; break;
+  }
+  if (ab.mana && !spendMana(u, ab.mana, ab.magicXpMult)) return false;
+  if (ab.rune) AN[ab.rune]++;
+  if (ab.ammo) AN.bolts += ab.ammo;
+  u.cd[ab.id] = S.time + ab.cd; u.lane[ab.lane] = S.time + COMBAT.lanes[ab.lane];
+  if (tgt !== u) face(u, tgt);
+  S.fx.push({ type: 'text', x: u.px, y: u.py, dy: -14, txt: ab.name, col: '#e8d8b0', age: 0 });
+  const runeMult = ab.rune ? SUPPLIES[ab.rune].mult : 1;
+  switch (ab.target) {
+    case 'taunt': for (const m of mons) if (m.target !== k && cheb(m, k) <= 6) { m.target = k; m.peeled = false; } break;
+    case 'mark': tgt.markUntil = S.time + ab.dur; S.fx.push({ type: 'mark', x: tgt.px, y: tgt.py, age: 0 }); break;
+    case 'enemy': shoot(u, tgt, ab.fx, ab.element, () => hurt(tgt, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element)); break;
+    case 'area': {
+      const c = tgt;
+      S.fx.push({ type: 'proj', kind: ab.fx === 'fire' ? 'fireball' : ab.fx, x: u.px, y: u.py, tx: c.x, ty: c.y, age: 0, dur: 0.25, onHit: () => {
+        S.fx.push({ type: 'burst', el: ab.element, x: c.x, y: c.y, age: 0 });
+        for (const m of engagedMonsters()) if (cheb(m, c) <= 1) {
+          if (ab.vuln) m.vulnUntil = S.time + COMBAT.vulnSec;
+          hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
+        }
+      } }); break;
+    }
+    case 'self': u.shield = ab.shield; S.fx.push({ type: 'shield', x: u.px, y: u.py, age: 0 }); break;
+    case 'ally': heal(u, tgt, rnd(...ab.heal)); break;
+    case 'party': for (const h of living('hero')) if (eu(h, u) <= 8) heal(u, h, rnd(...ab.heal)); break;
+  }
+  return true;
+}
+function heal(src, h, amt) {
+  const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
+  S.fx.push({ type: 'heal', x: h.px, y: h.py, age: 0 }); pushNum(h, '+' + got, '#7dff8a');
+}
 function attacks(dt) {
   const k = hero('knight');
   for (const u of S.units) {
     if (!u.alive) continue;
+    if (u.side === 'hero') {
+      u.mana = Math.min(u.maxMana, u.mana + u.maxMana * COMBAT.manaRegenPerMin / 60 * dt);
+      if (S.phase === 'fight' && u.t >= 1) {
+        const mons = engagedMonsters();
+        if (mons.length) for (const ab of ABILITIES[u.kind]) if (useAbility(u, ab, mons)) break;
+      }
+    }
     u.swing -= dt;
     if (u.swing > 0) continue;
     if (u.side === 'mon') {
-      if (u.target && !u.target.alive) u.target = hero('knight').alive ? hero('knight') : null;
+      if (u.target && !u.target.alive) u.target = k.alive ? k : null;
       if (u.target && cheb(u, u.target) <= 1 && u.t >= 1) {
-        face(u, u.target); hurt(u.target, rnd(...CONFIG.monsters[u.kind].dmg), u); u.swing = CONFIG.swing;
+        face(u, u.target); u.swing = CONFIG.swing;
+        if (Math.random() < COMBAT.monsterAccuracy) hurt(u.target, rnd(1, MONSTERS[u.kind].atk), u);   // ASSUMED: a hit is 1..atk (monsters.js atk)
+        else pushNum(u.target, 'miss', '#c8c8c8');
       }
       continue;
     }
-    if (S.phase !== 'fight') continue;
+    if (S.phase !== 'fight' || u.t < 1) continue;
     const mons = engagedMonsters(); if (!mons.length) continue;
-    const cfg = CONFIG.heroes[u.kind];
-    if (u.kind === 'knight') {
-      const adj = mons.filter(m => cheb(m, u) <= 1).sort((a, b) => a.hp - b.hp);
-      if (adj.length && u.t >= 1) { face(u, adj[0]); hurt(adj[0], rnd(...cfg.dmg), u); u.swing = CONFIG.swing; }
-      continue;
-    }
-    if (u.t < 1) continue;
-    if (u.kind === 'druid') {
-      const low = living('hero').filter(h => h.hp / h.maxHp < cfg.healBelow).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-      if (low && eu(low, u) <= cfg.range && los(u, low)) {
-        face(u, low); const amt = rnd(...cfg.heal); low.hp = Math.min(low.maxHp, low.hp + amt);
-        S.fx.push({ type: 'heal', x: low.px, y: low.py, age: 0 }, { type: 'num', x: low.px, y: low.py, txt: '+' + amt, col: '#7dff8a', age: 0 });
-        u.swing = CONFIG.swing;
-        const free = mons.filter(m => m.target === k && cheb(m, k) > 1 && m.queued);
-        if (free.length && Math.random() < CONFIG.peelChance) { free[0].target = u; free[0].peeled = true; free[0].repath = 0; }
-        continue;
-      }
-    }
-    const tgt = mons.filter(m => eu(m, u) <= cfg.range && los(u, m)).sort((a, b) => a.hp - b.hp)[0];
+    const b = HEROES[u.kind].basic;
+    const tgt = mons.filter(m => inRange(u, m) && elemMult(m, b.element) > 0).sort((a, c) => a.hp - c.hp)[0];
     if (!tgt) continue;
-    face(u, tgt); u.swing = CONFIG.swing; u.casts++;
-    if (u.kind === 'sorcerer' && u.casts % cfg.blastEvery === 0) {
-      // tight 3x3 blast on the monster with the most neighbours
-      const c = mons.filter(m => eu(m, u) <= cfg.range && los(u, m)).sort((a, b) => mons.filter(o => cheb(o, b) <= 1).length - mons.filter(o => cheb(o, a) <= 1).length)[0];
-      S.fx.push({ type: 'proj', kind: 'bolt', x: u.px, y: u.py, tx: c.x, ty: c.y, age: 0, dur: 0.25, onHit: () => {
-        S.fx.push({ type: 'blast', x: c.x, y: c.y, age: 0 });
-        for (const m of engagedMonsters()) if (cheb(m, c) <= 1) hurt(m, rnd(...cfg.blast), u);
-      } });
-      continue;
+    if (b.mana && !spendMana(u, b.mana, b.magicXpMult)) continue;   // wand basic: no mana, no shot
+    if (b.ammo) AN.bolts++;
+    u.swing = CONFIG.swing;
+    const hit = Math.random() < COMBAT.heroAccuracy;
+    shoot(u, tgt, b.kind, b.element, () => hit ? hurt(tgt, rnd(...b.dmg), u, b.element) : pushNum(tgt, 'miss', '#c8c8c8'));
+    // the druid's attacks can draw a queued monster onto her (aggro test); Challenge pulls it back
+    if (u.kind === 'druid' && Math.random() < CONFIG.peelChance) {
+      const free = mons.filter(m => m.target === k && cheb(m, k) > 1 && m.queued);
+      if (free.length) { free[0].target = u; free[0].peeled = true; free[0].repath = 0; }
     }
-    S.fx.push({ type: 'proj', kind: u.kind === 'paladin' ? 'arrow' : u.kind === 'druid' ? 'nature' : 'bolt', x: u.px, y: u.py, tx: tgt.x, ty: tgt.y,
-      age: 0, dur: 0.22, onHit: () => hurt(tgt, rnd(...cfg.dmg), u) });
   }
 }
 
@@ -479,7 +553,8 @@ function tick(dt) {
     f.age += dt;
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
-  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : f.type === 'blast' ? 0.35 : f.type === 'heal' ? 0.7 : f.type === 'spark' ? 0.18 : 0.9));
+  const life = { burst: 0.4, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
+  S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : life[f.type] || 0.9));
 }
 
 // ---------- render ----------
@@ -535,31 +610,69 @@ function render() {
     const ax = anchor ? anchor[0] : im.naturalWidth / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
     const lift = hover && u.alive ? 6 + Math.round(Math.sin(S.time * 4 + u.id) * 2) : 0;
     const x = Math.round(ox + cx(u.px) - ax), y = Math.round(oy + cy(u.py) - ay - lift);
-    if (!u.alive) { g.globalAlpha = Math.max(0, 0.55 * (1 - u.dead / CONFIG.corpseSec)); g.filter = 'grayscale(1) brightness(.6)'; }
+    if (!u.alive) {
+      // death: a 0.4 s fade from colour to a grey corpse, which lingers and fades out over its last 2 s
+      const fadeIn = Math.min(1, u.dead / 0.4), out = Math.min(1, (CONFIG.corpseSec - u.dead) / 2);
+      g.globalAlpha = Math.max(0, (1 - 0.45 * fadeIn) * out);
+      g.filter = `grayscale(${fadeIn}) brightness(${1 - 0.4 * fadeIn})`;
+    }
     g.drawImage(im, x, y);
     g.globalAlpha = 1; g.filter = 'none';
-    if (u.alive && u.hp < u.maxHp) {
-      const bw = 20, bx = Math.round(ox + cx(u.px) - bw / 2), by = y - 3;
-      g.fillStyle = '#111'; g.fillRect(bx - 1, by - 1, bw + 2, 4);
-      const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
+    if (u.alive && u.shield > 0) {
+      g.strokeStyle = 'rgba(150,170,255,.55)'; g.beginPath(); g.ellipse(Math.round(ox + cx(u.px)) + .5, Math.round(oy + cy(u.py)) - 8.5, 13, 16, 0, 0, 7); g.stroke();
     }
+    if (u.alive && (u.hp < u.maxHp || (u.side === 'hero' && u.mana < u.maxMana))) {
+      const bw = 20, bx = Math.round(ox + cx(u.px) - bw / 2), by = y - 3;
+      g.fillStyle = '#111'; g.fillRect(bx - 1, by - 1, bw + 2, u.side === 'hero' ? 6 : 4);
+      const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
+      if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
+    }
+    if (u.alive && u.markUntil > S.time) { g.fillStyle = '#ff5050'; const mx = Math.round(ox + cx(u.px)), my = y - 7; g.fillRect(mx - 1, my, 3, 1); g.fillRect(mx, my - 1, 1, 3); }
   }
+  const P = (v) => Math.round(v);
   for (const f of S.fx) {
+    const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
     if (f.type === 'proj') {
-      const r = f.age / f.dur, x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 8;
-      if (f.kind === 'arrow') { const a = Math.atan2(f.ty - f.y, f.tx - f.x); g.strokeStyle = '#e8dcc0'; g.beginPath(); g.moveTo(x - Math.cos(a) * 5, y - Math.sin(a) * 5); g.lineTo(x, y); g.stroke(); }
-      else { g.fillStyle = f.kind === 'nature' ? '#b6f08a' : '#8fd0ff'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); }
+      const r = f.age / f.dur, x = ox + cx(f.x + (f.tx - f.x) * r), y = oy + cy(f.y + (f.ty - f.y) * r) - 10;
+      const a = Math.atan2(f.ty - f.y, f.tx - f.x), c = Math.cos(a), s = Math.sin(a);
+      if (f.kind === 'crossbow') {          // crossbow bolt: short dark shaft, pale head
+        g.strokeStyle = '#6b4a2a'; g.beginPath(); g.moveTo(P(x - c * 6) + .5, P(y - s * 6) + .5); g.lineTo(P(x) + .5, P(y) + .5); g.stroke();
+        g.fillStyle = '#e8e4d8'; g.fillRect(P(x), P(y), 2, 2);
+      } else if (f.kind === 'fireball') {   // fire: a hot core with an ember trail
+        g.fillStyle = '#ff7a20'; g.fillRect(P(x) - 2, P(y) - 2, 5, 5); g.fillStyle = '#ffe080'; g.fillRect(P(x) - 1, P(y) - 1, 3, 3);
+        g.fillStyle = 'rgba(255,120,30,.6)'; g.fillRect(P(x - c * 5), P(y - s * 5), 2, 2);
+      } else if (f.kind === 'frost') {      // frost lance: a pale streak
+        g.strokeStyle = '#bfefff'; g.beginPath(); g.moveTo(P(x - c * 9) + .5, P(y - s * 9) + .5); g.lineTo(P(x) + .5, P(y) + .5); g.stroke();
+        g.fillStyle = '#ffffff'; g.fillRect(P(x), P(y), 2, 2);
+      } else if (f.kind === 'nature') {     // nature bolt: a green mote with a leaf-green tail
+        g.fillStyle = '#5cc04a'; g.fillRect(P(x - c * 4), P(y - s * 4), 2, 2); g.fillStyle = '#c4f59a'; g.fillRect(P(x) - 1, P(y) - 1, 3, 3);
+      } else {                              // arcane wand shot
+        g.fillStyle = '#b48cff'; g.fillRect(P(x) - 1, P(y) - 1, 3, 3); g.fillStyle = '#f0e6ff'; g.fillRect(P(x), P(y), 1, 1);
+      }
+    } else if (f.type === 'slash') {        // melee slash: a short bright arc across the target
+      const r = f.age / 0.2, a0 = Math.atan2(f.y - f.fromY, f.x - f.fromX) - 1.1 + r * 1.6;
+      g.strokeStyle = f.el === 'fire' ? '#ffa040' : '#f4f0e0'; g.lineWidth = 2;
+      g.beginPath(); g.arc(fxX, fxY - 10, 9, a0, a0 + 1.2); g.stroke(); g.lineWidth = 1;
     } else if (f.type === 'spark') {
-      g.fillStyle = '#fff3c0'; const x = Math.round(ox + cx(f.x)), y = Math.round(oy + cy(f.y)) - 8;
-      g.fillRect(x - 3, y, 7, 1); g.fillRect(x, y - 3, 1, 7);
-    } else if (f.type === 'blast') {
-      g.fillStyle = `rgba(255,140,40,${0.45 * (1 - f.age / 0.35)})`; g.fillRect(ox + f.x * T, oy + f.y * T, T * 3, T * 3);
-    } else if (f.type === 'heal') {
+      g.fillStyle = '#fff3c0'; g.fillRect(fxX - 3, fxY - 8, 7, 1); g.fillRect(fxX, fxY - 11, 1, 7);
+    } else if (f.type === 'burst') {        // 3x3 elemental burst: tight square flash plus a ring
+      const r = f.age / 0.4, col = f.el === 'fire' ? '255,130,40' : f.el === 'nature' ? '120,210,90' : '160,220,255';
+      g.fillStyle = `rgba(${col},${0.35 * (1 - r)})`; g.fillRect(ox + f.x * T, oy + f.y * T, T * 3, T * 3);
+      g.strokeStyle = `rgba(${col},${0.9 * (1 - r)})`; g.beginPath(); g.arc(fxX + .5, fxY + .5, 8 + r * 30, 0, 7); g.stroke();
+    } else if (f.type === 'heal') {         // nature heal: green motes rising
       g.fillStyle = '#7dff8a';
-      for (let i = 0; i < 5; i++) { const a = i * 1.26 + f.age * 6, x = ox + cx(f.x) + Math.cos(a) * 8, y = oy + cy(f.y) - 6 - f.age * 18 + Math.sin(a) * 3; g.fillRect(Math.round(x), Math.round(y), 2, 2); }
+      for (let i = 0; i < 6; i++) { const a = i * 1.05 + f.age * 6; g.fillRect(P(fxX + Math.cos(a) * 8), P(fxY - 6 - f.age * 20 + Math.sin(a) * 3), 2, 2); }
+    } else if (f.type === 'shield') {
+      g.strokeStyle = `rgba(170,190,255,${1 - f.age / 0.6})`; g.beginPath(); g.arc(fxX + .5, fxY - 8.5, 10 + f.age * 10, 0, 7); g.stroke();
+    } else if (f.type === 'mark') {
+      g.strokeStyle = `rgba(255,80,80,${1 - f.age / 0.8})`; g.strokeRect(fxX - 9.5, fxY - 19.5, 19, 19);
+    } else if (f.type === 'loot') {         // loot: a small gold twinkle on the corpse
+      const tw = Math.sin(f.age * 18) > 0;
+      g.fillStyle = '#ffd860'; g.fillRect(fxX + 4, fxY - 4, 1, 1);
+      if (tw) { g.fillRect(fxX + 2, fxY - 4, 5, 1); g.fillRect(fxX + 4, fxY - 6, 1, 5); }
     } else {
       g.font = '8px ui-monospace,Consolas,monospace'; g.textAlign = 'center';
-      const x = Math.round(ox + cx(f.x) + (f.dx || 0)), y = Math.round(oy + cy(f.y) - 26 + (f.dy || 0) - f.age * 14);
+      const x = P(fxX + (f.dx || 0)), y = P(fxY - 26 + (f.dy || 0) - f.age * 14);
       g.fillStyle = '#000'; g.fillText(f.txt, x + 1, y + 1); g.fillStyle = f.col; g.fillText(f.txt, x, y);
     }
   }
@@ -579,6 +692,36 @@ function logRender() {
   const rows = STATS.pulls.slice(-14).map(p => `r${p.run} ${p.pocket.padEnd(12)} <b>${String(p.secs).padStart(5)}s</b>  wait ${p.waits}s${p.deaths ? '  deaths ' + p.deaths : ''}${p.wipe ? '  WIPE' : ''}`);
   $('log').innerHTML = 'Pulls (time to clear)\n' + (rows.join('\n') || '—');
 }
+// ---------- hunt analyzer ----------
+const fmt = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
+function analyzerRender() {
+  const hrs = Math.max(1 / 3600, (S.time - AN.t0) / 3600), ph = v => fmt(v / hrs);
+  const supply = AN.mana * SUPPLIES.mana.price + AN.bolts * SUPPLIES.bolt.price + AN.fire_rune * SUPPLIES.fire_rune.price + AN.frost_rune * SUPPLIES.frost_rune.price;
+  const profit = AN.loot + AN.gold - supply;
+  const row = (k, v) => `<div class="r"><span>${k}</span><b>${v}</b></div>`;
+  const heroes = ['knight', 'paladin', 'druid', 'sorcerer'];
+  $('anBody').innerHTML =
+    row('Session', `${Math.floor((S.time - AN.t0) / 60)}m ${Math.floor((S.time - AN.t0) % 60)}s`) +
+    row('XP/h', ph(AN.xp)) + row('Kills/h', ph(AN.kills)) + row('Magic XP/h', ph(AN.magicXp)) +
+    '<div class="h">Damage dealt / taken</div>' +
+    heroes.map(h => row(h, `${fmt(AN.dealt[h] || 0)} / ${fmt(AN.taken[h] || 0)}`)).join('') +
+    row('Healing', fmt(Object.values(AN.healed).reduce((a, b) => a + b, 0))) +
+    '<div class="h">Supplies used</div>' +
+    row('Mana', fmt(AN.mana)) + row('Bolts', fmt(AN.bolts)) + row('Fire runes', fmt(AN.fire_rune)) + row('Frost runes', fmt(AN.frost_rune)) +
+    row('Supply cost', fmt(supply) + 'g') +
+    '<div class="h">Loot</div>' +
+    row('Loot value', fmt(AN.loot) + 'g') + row('Gold', fmt(AN.gold) + 'g') +
+    row('Profit/h', `<span class="${profit >= 0 ? 'up' : 'dn'}">${ph(profit)}g</span>`);
+  $('loot').textContent = 'Loot (placeholder table)\n' + (AN.log.join('\n') || '—');
+}
+(function dragPanel() {
+  const el = $('analyzer'), hd = el.querySelector('.ttl');
+  let d = null;
+  hd.addEventListener('pointerdown', e => { d = [e.clientX - el.offsetLeft, e.clientY - el.offsetTop]; hd.setPointerCapture(e.pointerId); });
+  hd.addEventListener('pointermove', e => { if (!d) return; el.style.left = Math.max(0, e.clientX - d[0]) + 'px'; el.style.top = Math.max(0, e.clientY - d[1]) + 'px'; el.style.right = 'auto'; });
+  hd.addEventListener('pointerup', () => { d = null; });
+  $('anReset').onclick = () => resetAnalyzer();
+})();
 function hudRender() {
   const p = CONFIG.pockets[S.pocketIdx];
   $('hud').textContent = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`;
@@ -586,13 +729,14 @@ function hudRender() {
 function frame(now) {
   const el = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   if (!paused) { acc += el * speed; let n = 0; while (acc >= CONFIG.dt && n++ < 40) { tick(CONFIG.dt); acc -= CONFIG.dt; } }
-  render(); hudRender();
+  render(); hudRender(); if ((S.time * 4 | 0) !== frame.last) { frame.last = S.time * 4 | 0; analyzerRender(); }
   requestAnimationFrame(frame);
 }
 // headless fast-forward for measurement: __simFast(seconds)
 window.__simFast = secs => { for (let i = 0; i < secs / CONFIG.dt; i++) tick(CONFIG.dt); logRender(); return STATS.pulls; };
 window.__congestion = (n = 12) => [...STATS.waits].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ x: k % W, y: (k / W) | 0, wait: +v.toFixed(1) }));
 window.__S = () => S;
+window.__AN = () => AN;
 window.__WALK = () => WALK;
 window.__hurt = (u, n) => hurt(u, n);
 reset();

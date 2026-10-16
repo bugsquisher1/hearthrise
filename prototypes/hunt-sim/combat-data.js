@@ -14,14 +14,13 @@
 // Action-bar loadouts: static per class for now (not editable). Slot order: basic, 3 abilities, food, drink.
 // Food and drink share ONE consumable lane (BIBLE §9.1: food restores HP, drinks restore mana, same lane).
 const CONSUMABLES = {
-  mana_potion: { name: 'Mana potion', glyph: 'potion', mana: 60, below: 0.30, price: 4 },          // ASSUMED: +60 mana instantly under 30% mana; 4 g
+  mana_potion: { name: 'Moonbloom tea', glyph: 'potion', mana: 60, below: 0.30, price: 4 },        // ASSUMED: a DRINK (Tyler: food = HP, drink = mana, no potions); +60 mana under 30%; 4 g
   ham:         { name: 'Ham',         glyph: 'ham',    hp: 70, over: 6, below: 0.50, price: 3 },   // ASSUMED: 70 HP over 6 s under 50% HP; 3 g
   bread:       { name: 'Bread',       glyph: 'bread',  hp: 45, over: 6, below: 0.50, price: 2 },   // ASSUMED: 45 HP over 6 s; 2 g
 };
-CONSUMABLES.health_potion = { name: 'Health potion', glyph: 'potion', hp: 80, below: 0.40, price: 4 };   // ASSUMED: +80 HP instantly under 40% HP; 4 g
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
-  knight:   { food: ['ham', 25],   drink: ['health_potion', 15], runes: { fire_rune: 20 } },
+  knight:   { food: ['ham', 25],   drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },
   paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
   druid:    { food: ['bread', 12], drink: ['mana_potion', 40],  runes: {} },

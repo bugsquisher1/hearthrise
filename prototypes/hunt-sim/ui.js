@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=15`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=16`; ICON[n] = i;
   }
-  const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', health_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
-  const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Mana potion', health_potion: 'Health potion', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
+  const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
+  const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=15`;
+  const iconUrl = id => `assets/icons/${id}.png?v=16`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -212,7 +212,7 @@ const UI = (() => {
   const W_FULL = PAD * 2 + HALF * 2 + MID + 16, H_FULL = 2 * (SL + GAP) - GAP + PAD * 2 + 4;
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=15').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=16').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }
@@ -244,7 +244,6 @@ const UI = (() => {
     const icon = s.ab ? ICONMAP[s.ab.id] : s.kind === 'basic' ? (ICONMAP['basic_' + NAME[u.kind].toLowerCase()] || ICON[BASIC_ICON[u.kind]]) : ICONMAP[s.id] || ICON[ITEM_ICON[s.id]];
     if (s.unusable) g.filter = 'grayscale(1) brightness(.55)';
     if (ready(icon)) {
-      if (s.id === 'health_potion' && !ICONMAP[s.id]) g.filter = (s.unusable ? 'grayscale(1) brightness(.55) ' : '') + 'hue-rotate(-120deg) saturate(1.5)';
       g.drawImage(icon, x + 2, y + 2, 32, 32);
     } else if (s.ab) { const [gn, col] = ABIL[s.ab.id] || ['star', '#ccc']; glyph(g, gn, x + 6, y + 6, col, 3); }
     g.filter = 'none';

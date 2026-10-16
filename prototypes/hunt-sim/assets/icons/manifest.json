@@ -29,7 +29,6 @@
   "consumables": [
    "fire_rune",
    "frost_rune",
-   "health_potion",
    "mana_potion",
    "ham",
    "bread"
@@ -54,7 +53,6 @@
   "natures_wrath": "assets/icons/natures_wrath.png",
   "fire_rune": "assets/icons/fire_rune.png",
   "frost_rune": "assets/icons/frost_rune.png",
-  "health_potion": "assets/icons/health_potion.png",
   "mana_potion": "assets/icons/mana_potion.png",
   "ham": "assets/icons/ham.png",
   "bread": "assets/icons/bread.png"

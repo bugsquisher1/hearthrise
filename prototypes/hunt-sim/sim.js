@@ -38,7 +38,11 @@ const inRoom = (i, x, y) => { const r = CONFIG.pockets[i].room; return x >= r[0]
 
 // ---------- images ----------
 const IMG = {};
-function loadImg(src) { const i = new Image(); i.src = src; return i; }
+// Every asset URL carries this build's ?v= (read from our own <script> tag), so a new build always fetches fresh
+// art: same-named sprites were being served stale from the browser cache (Tyler saw the old Viking, 10-16).
+const ASSET_V = ((document.querySelector('script[src*="sim.js"]') || {}).src || '').match(/[?&]v=(\d+)/)?.[1] || String(Date.now());
+const vurl = src => src + (src.includes('?') ? '&' : '?') + 'v=' + ASSET_V;
+function loadImg(src) { const i = new Image(); i.src = vurl(src); return i; }
 IMG.map = loadImg('assets/sewer_map.png');
 for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG.monsters)]) {
   IMG[n] = {}; for (const d of DIRS) IMG[n][d] = loadImg(`assets/${n}/${d}.png`);
@@ -48,7 +52,7 @@ IMG.berserker = {};
 for (const d of DIRS) { const i = loadImg(`assets/berserker/${d}.png`); i.onerror = () => { IMG.berserker[d] = IMG.knight[d]; }; IMG.berserker[d] = i; }
 // optional walk cycles (assets/walk/manifest.json); static rotations otherwise
 let WALK = null;
-fetch('assets/walk/manifest.json?v=4').then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
+fetch(vurl('assets/walk/manifest.json')).then(r => r.ok ? r.json() : null).then(m => { if (m) WALK = prepWalk(m); }).catch(() => {});
 // manifest unit names -> sim kinds
 const WALK_NAME = { giant_rat: 'rat', giant_bat: 'bat', venom_spider: 'spider', rat_king: 'ratking' };
 function prepWalk(m) {

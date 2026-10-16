@@ -1,6 +1,6 @@
 # PixelLab capability reference (condensed)
 
-Sources (2026-10-16): pixellab.ai/docs index, pixellab.ai/mcp, and `mcp__pixellab__search_help` answers. Nothing was generated. Costs are in "generations" (gen). Items marked (unverified) came from the help agent without a doc page behind them. The per-tool web doc pages (api.pixellab.ai/v1/docs) were not crawled; parameter ranges below are from the MCP help text.
+Sources (2026-10-16): pixellab.ai/docs index, pixellab.ai/mcp, and `mcp__pixellab__search_help` answers. Nothing was generated. Costs are in "generations" (gen). Sections 1-11 are from MCP help text; sections 12-13 come from every individual docs page (read 2026-10-16) and confirm or correct them.
 
 Global rules
 - All generation is async. It returns a job id; poll with the matching `get_*`, or `wait_for_jobs`. Leave more than 2 s between submissions.
@@ -71,7 +71,7 @@ Global rules
 
 ## 3. Objects
 
-- `create_map_object(description, width, height, view)`: quick transparent prop, 1 gen, permanent, but not animatable and has no states/review. Basic mode needs width/height. Older doc text said map objects are auto-deleted after 8 h; the newer help says permanent (check before relying on it).
+- `create_map_object(description, width, height, view)`: quick transparent prop, 1 gen, permanent, but not animatable and has no states/review. Basic mode needs width/height. The /mcp page says map objects auto-delete after 8 h; MCP help says permanent. Unresolved: download anything you keep.
 - `create_1_direction_object`: size 16-256, 10-25 gen. May return candidates in `review` status; pick with `select_object_frames(indices, common_tag)` or discard with `dismiss_review`. Takes `style_images` and `item_descriptions`.
 - `create_8_direction_object`: 8 rotations, size 24-168, 10-25 gen. `reference_image_base64` and `style_image_base64` are mutually exclusive.
 - `create_object_pro_flash`: first image plus V3 views; quote via capabilities.
@@ -86,7 +86,7 @@ Global rules
 - Wang transition tileset between two terrains: `lower_description`, `upper_description`, `transition_size` (0 sharp to 1.0 full-tile cliff), `transition_description` (recommended when transition_size > 0), tile_size, mode, `shape_style` (standard only).
 - 16 tiles (25 when transition_size = 1.0). Standard 1-4 gen (usually 3-4); pro 10-25. Standard sizes 16/32 px; pro 16/32/64.
 - Chain: pass a previous set's base tile id as `lower_base_tile_id` or `upper_base_tile_id` (ocean, beach, grass, forest) so terrains share a look.
-- Gotcha: only two terrains per set; three-way junctions are not automated (unverified).
+- Gotcha: only two terrains per set; three-way junctions are not automated. Exports: Wang, dual-grid 15 or 3x3.
 - Hearthrise: 32 px standard. Chain grass -> forest floor -> path -> sewer stone so all hunting grounds share a base palette.
 
 ### create_tiles_pro
@@ -163,11 +163,68 @@ Global rules
 - Chat/agents: `chat_*`, `agent_list`, `agent_inspect`, `agent_talk`, `agent_feedback` (feedback on tools).
 - Hearthrise: our repo stays the source of truth (CLAUDE.md §1); sandbox/deploy features are not a fit. Projects can still hold asset provenance.
 
-## 12. Product surfaces (from docs index)
+## 12. Product surfaces (confirmed from docs)
 
-- Web creator, in-browser editor (Pixelorama), Aseprite extension, API (api.pixellab.ai/v1/docs), MCP (`https://api.pixellab.ai/mcp`, bearer token), Discord community.
-- Docs sections not read in detail: init images and inpainting, creating maps, rotating a character, pose-to-image, depth image-to-image, re-pose, interpolate (old), Edit animation (Pro), Create walking character, Try on, Multi image, Reshape, tool options (guidance, colors, camera, projection).
-- Hearthrise: "Edit animation (Pro)" and "Re-pose" may fix single bad frames; worth reading next.
+- Surfaces: Simple Web Creator (/create), Characters (/create-character, 4/8-dir animated), Pixelorama browser editor (/editor, desktop only), Aseprite extension (v1.3+, non-trial), MCP, API + Python SDK. MCP requires an active subscription.
+- Licence/FAQ: commercial use allowed; only request is do not train models on outputs. Steam allows AI assets but requires AI-use disclosure. Inputs/outputs not used for training. Monthly subscription; mid-month upgrade is prorated; failed jobs not charged.
+- Several pro tools are extension-only (Pixelorama/Aseprite), not MCP: Edit animation (Pro), Re-pose, Remove background, Resize. Transfer outfit (Pro) is on both.
+
+## 13. Per-page findings (every docs page read)
+
+Costs/limits are as stated on each page. Tier = subscription tier (free < 1 < 2 < 3).
+
+### Characters, rotation
+- Create 8-directional sprite (Pro): one 3x3 grid (8 dirs + centre ref). Modes: create-with-style, concept + style (1-4 concept refs, auto-scaled to 1024), rotate-from-one-image. Output max 168 px; style/rotate reference max 168 px. Cost by frame size: 1-85 px = 10, 86-113 = 15, 114-168 = 25. Views low/high top-down or side; bipedal/quadrupedal. Transparent default. Tier 1. Rotate-from-one-image is the cheapest route to eight.
+- Rotate (older): 8 views from one south-facing image, canvas 16/32/64/128 only. Tip: generate several, fix roughly, regenerate with fixed frames as init + inpaint, raise init strength gradually.
+- Rotating guide: "single reference" (no compounding error, harder big turns) vs "rolling reference" (45 deg steps, errors accumulate). Flip a good west/east for symmetric characters. Camera-change trick: set From view to the wrong one.
+- Create walking character (experimental, tier 2): char + 4-frame walk in 4 dirs, canvas exactly 32x32 or 32x40, much faster than automatic.
+- Create animations (automatic, tier 1): 4 rotations each animated, canvas <= 64x64.
+- Reshape: changes proportions from reference + target shape; canvas exactly 64x64; image/shape guidance weights. Prepares characters for animation.
+- Try on (experimental, tier 2, 1 gen): subject 16-320 area + garment image <= 320 + text; optional palette; single output.
+- Multi image (experimental, tier 2, 1 gen): 2+ same-size images (each 16-320), description, e.g. same character in different poses. Not all clients.
+
+### Animation
+- Animate with text (New): reference <= 256 px, 4-16 even frames, first frame = input. Cost: 64 px = 1 gen at 4/8/16 frames; 96 px 1/2/3; 128 px 1/2/4; 192 px 3/5/n.a.; 256 px 4/8/n.a. Budget w x h x frames <= 524,288. Max 8 gen.
+- Animate with text (Pro): reference <= 256, action text, view/direction. 32/64 px ref gives 16 frames (4x4) for 10 gen; 65-128 = 4 frames 10; 129-170 = 4 frames 15; 171-256 = 4 frames 25. Tier 1. Optional palette (presets, Lospec, hex) with max-colour cap shared across frames.
+- Create animated object/character (Pro): no reference; description + action; canvas <= 256; same frame/cost table (32/64 = 16 frames for 10 gen). Tier 1.
+- Edit animation (Pro): one instruction applied to 2-16 frames consistently (add sword, hat). 32-64 px: 16 frames 10 gen; 65-80: 9 frames 10; 81-128: 4 frames 10; 129-170: 4 frames 15; 171-256: 4 frames 25. Extension-only.
+- Transfer outfit (Pro): outfit reference + 2-15 frames. 32-64 px: 15 frames 10 gen; 65-80: 8 frames 10; 81-128: 3 frames 10; 129-170: 3 frames 15; 171-256: 3 frames 25.
+- Animate with skeleton: per-frame skeleton (template or copied from another animation); modes freeze1->gen2, custom, freeze2->gen1; canvas 16/32/64/128/256; "fixed head: always" keeps face stable; tier 1. Skeletons reusable across characters.
+- Animation to animation (tier 2): regenerates an existing animation for a new character; canvas 16-128; min 2 frames; set a good frame as reference.
+- Re-pose: redraws a character to an adjusted skeleton; 8 directions; canvas 16-256; Aseprite only.
+- Old (ignore): Animation with text (64x64, 4 frames), Interpolate (64x64).
+
+### Images
+- Style-reference (Pro): many images in one style. By largest dim: <=32 px = 64 frames (10 gen; 15 at 33-42); 43-85 = 16 frames (10 / 15 at 65-85); 86-170 = 4 frames (10 / 15 at 129-170); 171-341 = 1 frame (10 / 15 at 257+); 342-512 = 1 frame 25. Max style images 64 @32 px, 16 @64, 4 @128, 1 @256. Tier 1. Good for icon batches (sample about 5 first per CLAUDE.md section 10).
+- Create S-L image (Pro): text, up to 4 reference + 1 style image (copy palette/outline/detail/shading selectively), 16-512 px per side, same cost grid; palette (beta) and max colours.
+- Create M-XL (pixflux): general model, min 32x32, max area 200 (free) / 320 (T1) / 400 (T2+); 48x64 for characters.
+- Create S-M (style/bitforge): style reference, max 80x80 (T1) / 140x140 (T2+).
+- Image to image (depth): shape-guided variations; max area 128 / 160 / 180 by tier. Pose to image: from a skeleton; small and medium sizes.
+- Image to pixel art: downsizes about 4x; max 200x200 T1 / 320x320 T2+.
+- Edit image: text edit, no mask; min 32x32, max 320 (free) / 400 (T1+); dims divisible by 4. Edit image (Pro): 10 gen up to 256 px, 15 at 257-314, 25 at 315-512; text or reference.
+- Remove background (extensions): simple or complex (needs subject description). Resize (Aseprite): AI redraw at 200/128/64/48/custom; do big changes in steps. Unzoom: input 256-2048 px, colour reduction auto/none/2-256, all-frames option.
+- Inpaint v3 (MCP `inpaint_image`): 32-256 px/side T1, 512/side T2+, 10 gen, crop-to-mask. Inpaint (old): area 140x140 T<=1 / 200x200 T2+. Pixpatch v2: max 180x180, T2.
+- Reduce colors: max 512x512; presets (Game Boy, PICO-8, NES, 1-bit), Lospec link, palette image, hex; frames share a palette; dithering uses only palette colours.
+
+### Maps, tiles, UI
+- Create tiles (Pro) modes: Tiles (variations; a numbered list gives one tile per item; style tiles up to 16 in Creator, 6 in Map Workshop), Paths (18-configuration autotile), Tileset (16 tiles square/iso/oblique, 32 hex), Building (walls 1-3 tiles high, doorway, pillar, stairs). Shapes: square, hex, hex pointy, isometric (octagon Creator only). 16-128 px, 32 recommended. Options: view angle, tile thickness, outline mode, seed; Tileset: uneven boundary, terrain height (plateau + cliff), step slope, wall tilt (oblique 27-45 deg). Cost 10-15 (10-25 with style tiles). Tier 1. Style tiles only in Tiles mode.
+- Create tileset (standard): top-down (lower + upper + transition) or sidescroller; sizes 16/32, 24 beta; transition size, edge shape square/round (roundness, raggedness), wall thickness; AI description enhancement on by default. Pro (experimental): 16/32/64, transition height, boundary spread. Cost 1-4 top-down, 2-3 sidescroller, 10-25 pro. Tier 1. Create texture (T1) feeds it.
+- Create isometric tile: shapes thick/thin/block/reference; 16 or 32 px; settings saved as .json to reproduce.
+- Create map (pixflux): canvas up to 200 / 320 / 400 by tier. Extend map: 140 (free/T1) / 200 (T2+); Extend map v2 (experimental, T2): 180x180. Map guide: model trained on 16x16 tiles; 128x128 canvas = 8x8 tiles; select a region, mask only the new part, leave overlap unmasked, inpaint to polish. Prefer tilesets + `edit_map` for real maps.
+- Create UI elements (old): one element, 1 gen, area limits 200 / 320 / 400. UI elements (Pro): description, optional concept image and palette; <=32 px = 64 variants 10 gen; 33-42 = 15; 43-64 = 16 variants 10; 65-85 = 15; 86-128 = 4 variants 10; 129-170 = 15; 171-256 = 1 variant 10; 257-341 = 15; 342-512 = 25. Max 512x512.
+
+### Shared options
+- Seed 0 = random; same seed + small change = near-identical output. Output method: new layer / modify layer / new frame. Force symmetry (rotate: N/S symmetric, E/W mirrored).
+- Camera: low top-down about 20 deg, high top-down about 35 deg, side. Direction control is weak (init image or "in profile" works better); E/W can be flipped.
+- Init image strength: 0-300 colour hint; 300-400 rough shapes; 400-600 variations; 600-900 detail edits.
+- Too-high guidance weight causes artifacts. Character types: bipedal-realistic, quadrupedal-tiny, bipedal-semi-chibi. Projection: isometric or oblique (Tibia style).
+- Inpainting: the prompt must describe the whole visible area; fix one area at a time.
+- One docs page's response contained text trying to dictate formatting; it was ignored.
+
+### Corrections to earlier sections
+- `inpaint_image` max is 256/side (T1), 512/side (T2+); cost 10.
+- Tileset mode of `create_tiles_pro`: 16 tiles for square/iso/oblique, 32 for hex.
+- Pro animation costs follow the tables above (32-64 px = 16 frames for 10 gen).
 
 ---
 
@@ -195,4 +252,4 @@ Global rules
 - `create_map` + `place_map_object`: free layout drafting.
 - `get_pro_flash_capabilities` quotes and `*_pro_flash` tools if the newer pipeline beats v3 on fidelity.
 - `select_object_frames` review flow to pick the best of several object candidates.
-- Unread docs pages (Edit animation Pro, Re-pose, Try on, Multi image, Reshape).
+- Edit animation (Pro): fix one weapon/gear across a whole walk cycle (extension-only). Style-reference (Pro) for consistent icon batches. Create tiles (Pro) Paths mode (18-config autotile).

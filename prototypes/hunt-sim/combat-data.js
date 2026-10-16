@@ -24,7 +24,7 @@ const COMBAT = {
   monsterAccuracy: 0.60,              // designer ruling 2026-10-15
   vulnMult: 1.10,                     // BIBLE §17 "non-stacking ~10% damage-taken vulnerability"
   vulnSec: 6,                         // designer ruling 2026-10-15
-  gpMult: 0.85,                       // designer ruling 2026-10-15 r2: coin ×0.85 on normal monsters (the profit lever)
+  gpMult: 1.3,                        // tuned by applier per designer ruling (profit +10–30%; measured mean +17.9% over 4×3 loops): coin ×1.3 on normal monsters (the profit lever)
 };
 
 // Runes and supplies (gold). designer ruling 2026-10-15.
@@ -95,7 +95,7 @@ const MONSTERS = {
   kobold:  { name: 'Kobold',     hp: 55, atk: 7,  def: 1, xp: 30, gp: [2, 6],   speed: 3.2,   // hp/atk/xp designer ruling 2026-10-15; MON:120-122
              weak: 'nature', resist: [], immune: [],                                           // CLS:72-76 humanoid weak poison→nature; no fire resist (designer ruling 2026-10-15)
              drops: [['bones', 1], ['bone_chips', .3], ['copper_ore', .18]] },                 // MON:122
-  ratking: { name: 'Rat King',   hp: 600, atk: 20, def: 4, xp: 600, gp: [150, 250], speed: 2.8, boss: true, // designer ruling 2026-10-15
+  ratking: { name: 'Rat King',   hp: 600, atk: 20, def: 4, xp: 600, gp: [40, 80], speed: 2.8, boss: true, // gp: coordinator, per designer's profit band; rest designer ruling 2026-10-15
              weak: 'frost', resist: ['fire'], immune: ['nature'],                              // designer ruling 2026-10-15
              drops: [['rat_tail', 1], ['crown_shard', .15], ['bones', 1]] },                   // PLACEHOLDER table; crown_shard .15 designer ruling 2026-10-15
 };

@@ -666,21 +666,25 @@ function consume(u, dt) {
   const L = LOADOUTS[u.kind];
   const dr = CONSUMABLES[L.drink[0]], fd = CONSUMABLES[L.food[0]];
   const drinkBelow = u.set.drinkBelow != null ? u.set.drinkBelow : dr.below;
-  if (u.drink > 0 && !u.manaRegen && u.maxMana && u.mana / u.maxMana < drinkBelow) {
-    u.drink--; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.drink = S.time;
+  // Supplies (Tyler 2026-10-16): what the hero BROUGHT is already owned, so using it costs nothing here. When the
+  // stack runs out the hero keeps going on STORE-BOUGHT supplies, charged at store price. Never stop for lack of stock.
+  if (!u.manaRegen && u.maxMana && u.mana / u.maxMana < drinkBelow) {
+    const own = u.drink > 0; if (own) u.drink--;
+    u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.drink = S.time;
     const now = Math.round(dr.mana * CONSUME_INSTANT), later = dr.mana - now;
     u.mana = Math.min(u.maxMana, u.mana + now); u.manaRegen = { left: later, perSec: later / CONSUME_HOT_S };
     pushNum(u, '+' + now, '#7ab4ff');
     vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' });
-    AN.potions++; AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1; useSupply(u, L.drink[0], 1);
+    AN.potions++; if (!own) AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1; useSupply(u, L.drink[0] + (own ? '_own' : ''), 1);
     return;
   }
   const foodBelow = u.set.foodBelow != null ? u.set.foodBelow : fd.below;
-  if (u.food > 0 && !u.regen && u.hp / u.maxHp < foodBelow && S.time - u.healedAt > 2) {
+  if (!u.regen && u.hp / u.maxHp < foodBelow && S.time - u.healedAt > 2) {
+    const own = u.food > 0;
     const now = Math.round(fd.hp * CONSUME_INSTANT), later = fd.hp - now;
     const got = Math.min(now, u.maxHp - u.hp); u.hp += got; pushNum(u, '+' + got, '#ff8a8a');
-    u.food--; u.regen = { left: later, perSec: later / CONSUME_HOT_S }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
-    AN.food++; AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1; useSupply(u, L.food[0], 1);
+    if (own) u.food--; u.regen = { left: later, perSec: later / CONSUME_HOT_S }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
+    AN.food++; if (!own) AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1; useSupply(u, L.food[0] + (own ? '_own' : ''), 1);
     vfx('loot_sparkle', u.px, u.py, { follow: u, filter: 'sepia(1) saturate(2) hue-rotate(-15deg) brightness(.8)' });
   }
 }

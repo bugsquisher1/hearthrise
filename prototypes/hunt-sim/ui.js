@@ -20,13 +20,14 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=43`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=44`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
-  const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
+  // '<id>_own' = used from the hero's own carried stack: already owned, so it costs nothing this session
+  const ITEM_PRICE = id => id.endsWith('_own') ? 0 : id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=43`;
+  const iconUrl = id => `assets/icons/${id}.png?v=44`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -147,7 +148,7 @@ const UI = (() => {
   const ROLE_RING = { berserker: 'var(--role-melee)', knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
   const CREST = { berserker: ['burst', '#e0a070'], knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   function portrait(c, kind) {           // the hero's own south idle frame, head crop (16x16 from the top of the sprite) at 2x
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=43`;
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=44`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -280,8 +281,8 @@ const UI = (() => {
     if (tab === 'session') {
       if (!collapsed.s) { setV('s', 'Enemies killed', nf(a.kills)); setV('s', 'XP gain', nf(xp)); setV('s', 'Gold', gp(income), income < 0); setV('s', 'Waste', gp(waste), true); setV('s', 'Balance', gp(bal), bal < 0); }
       if (!collapsed.h) { setV('h', 'XP/h', nf(xp / hrs)); setV('h', 'Raw XP/h', nf(xp / hrs)); setV('h', 'Gold/h', gp(income / hrs)); setV('h', 'Waste/h', gp(waste / hrs), true); setV('h', 'Balance/h', gp(bal / hrs), bal < 0); }
-      patchList('u', Object.entries(supplies).filter(([, n]) => n > 0), listRow(id => ITEM_ICON[id] || ICONMAP[id] ? `<img src="${ICONMAP[id] ? ICONMAP[id].src : iconUrl(ITEM_ICON[id])}">` : '<span style="width:16px;display:inline-block"></span>'),
-        (r, [id, n]) => { T(r.k, ITEM_NAME[id] || (CONSUMABLES[id] && CONSUMABLES[id].name) || id); T(r.x, '×' + nf(n)); T(r.v, gp(n * ITEM_PRICE(id))); K(r.v, 'dn', true); });
+      patchList('u', Object.entries(supplies).filter(([, n]) => n > 0), listRow(rid => { const id = rid.replace(/_own$/, ''); return ITEM_ICON[id] || ICONMAP[id] ? `<img src="${ICONMAP[id] ? ICONMAP[id].src : iconUrl(ITEM_ICON[id])}">` : '<span style="width:16px;display:inline-block"></span>'; }),
+        (r, [id, n]) => { { const base = id.replace(/_own$/, ''); T(r.k, (ITEM_NAME[base] || (CONSUMABLES[base] && CONSUMABLES[base].name) || base) + (id.endsWith('_own') ? ' (own)' : base in CONSUMABLES ? ' (store)' : '')); } T(r.x, '×' + nf(n)); T(r.v, gp(n * ITEM_PRICE(id))); K(r.v, 'dn', true); });
       if (AR.l) T(AR.l.head, heroMode ? 'Loot collected (split evenly)' : 'Loot collected');
       patchList('l', Object.entries(a.lootItems), listRow(id => `<img src="${iconUrl(id)}">`),
         (r, [id, n]) => { T(r.k, id.replace(/_/g, ' ')); T(r.x, '×' + n); T(r.v, gp(n * (LOOT_VALUE[id] || 0))); });
@@ -326,10 +327,10 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=43').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=44').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
-    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=43'; ICONMAP[id] = i; }
+    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=44'; ICONMAP[id] = i; }
   }).catch(() => {});
   const ready = i => i && i.complete && i.naturalWidth;
 

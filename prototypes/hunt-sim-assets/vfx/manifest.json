@@ -1,0 +1,418 @@
+{
+ "note": "frames cropped to the union bbox; anchor = [x,y] px in the cropped frame where the effect is centred on the target",
+ "effects": {
+  "fire_rune_burst": {
+   "frames": [
+    "fire_rune_burst/0.png",
+    "fire_rune_burst/1.png",
+    "fire_rune_burst/2.png",
+    "fire_rune_burst/3.png",
+    "fire_rune_burst/4.png",
+    "fire_rune_burst/5.png",
+    "fire_rune_burst/6.png",
+    "fire_rune_burst/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 9,
+   "size": [
+    56,
+    30
+   ],
+   "anchor": [
+    28,
+    15
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "e9a5079c-4b0f-472e-873a-4c4661cff6ac"
+  },
+  "flame_volley_puff": {
+   "frames": [
+    "flame_volley_puff/0.png",
+    "flame_volley_puff/1.png",
+    "flame_volley_puff/2.png",
+    "flame_volley_puff/3.png",
+    "flame_volley_puff/4.png",
+    "flame_volley_puff/5.png"
+   ],
+   "frame_count": 6,
+   "fps": 12,
+   "size": [
+    19,
+    20
+   ],
+   "anchor": [
+    10,
+    12
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "4664b7f6-a1d1-4824-9666-2c434cde2648"
+  },
+  "frost_lance_shatter": {
+   "frames": [
+    "frost_lance_shatter/0.png",
+    "frost_lance_shatter/1.png",
+    "frost_lance_shatter/2.png",
+    "frost_lance_shatter/3.png",
+    "frost_lance_shatter/4.png",
+    "frost_lance_shatter/5.png",
+    "frost_lance_shatter/6.png",
+    "frost_lance_shatter/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 12,
+   "size": [
+    38,
+    51
+   ],
+   "anchor": [
+    20,
+    18
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "17aae4e2-bac1-413e-8374-2faa94d7151d"
+  },
+  "nature_heal_motes": {
+   "frames": [
+    "nature_heal_motes/0.png",
+    "nature_heal_motes/1.png",
+    "nature_heal_motes/2.png",
+    "nature_heal_motes/3.png",
+    "nature_heal_motes/4.png",
+    "nature_heal_motes/5.png",
+    "nature_heal_motes/6.png",
+    "nature_heal_motes/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 8,
+   "size": [
+    18,
+    33
+   ],
+   "anchor": [
+    9,
+    24
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "7e1bc843-2e10-47ac-82d5-70f0e99ee5db"
+  },
+  "circle_of_renewal": {
+   "frames": [
+    "circle_of_renewal/0.png",
+    "circle_of_renewal/1.png",
+    "circle_of_renewal/2.png",
+    "circle_of_renewal/3.png",
+    "circle_of_renewal/4.png",
+    "circle_of_renewal/5.png",
+    "circle_of_renewal/6.png",
+    "circle_of_renewal/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 8,
+   "size": [
+    50,
+    20
+   ],
+   "anchor": [
+    25,
+    10
+   ],
+   "loop": true,
+   "additive": false,
+   "image_id": "2c8fb1ba-3db9-445c-89d6-9c78dd12e32c"
+  },
+  "natures_wrath": {
+   "frames": [
+    "natures_wrath/0.png",
+    "natures_wrath/1.png",
+    "natures_wrath/2.png",
+    "natures_wrath/3.png",
+    "natures_wrath/4.png",
+    "natures_wrath/5.png",
+    "natures_wrath/6.png",
+    "natures_wrath/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 7,
+   "size": [
+    40,
+    32
+   ],
+   "anchor": [
+    20,
+    25
+   ],
+   "loop": false,
+   "additive": false,
+   "image_id": "06d72319-e89c-4c95-b992-54dceee16ca9"
+  },
+  "crossbow_bolt_impact": {
+   "frames": [
+    "crossbow_bolt_impact/0.png",
+    "crossbow_bolt_impact/1.png",
+    "crossbow_bolt_impact/2.png",
+    "crossbow_bolt_impact/3.png",
+    "crossbow_bolt_impact/4.png"
+   ],
+   "frame_count": 5,
+   "fps": 16,
+   "size": [
+    23,
+    20
+   ],
+   "anchor": [
+    10,
+    10
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "9d7059dc-ff9f-4a3d-8a6f-c89c5b9ab9ad"
+  },
+  "crossbow_bolt_projectile": {
+   "frames": [
+    "crossbow_bolt_projectile/0.png",
+    "crossbow_bolt_projectile/1.png",
+    "crossbow_bolt_projectile/2.png",
+    "crossbow_bolt_projectile/3.png"
+   ],
+   "frame_count": 4,
+   "fps": 12,
+   "size": [
+    13,
+    4
+   ],
+   "anchor": [
+    11,
+    2
+   ],
+   "loop": true,
+   "additive": false,
+   "image_id": "8c5c1c1d-ec25-41cb-b206-b8a5639bba7d"
+  },
+  "melee_slash": {
+   "frames": [
+    "melee_slash/0.png",
+    "melee_slash/1.png",
+    "melee_slash/2.png",
+    "melee_slash/3.png",
+    "melee_slash/4.png"
+   ],
+   "frame_count": 5,
+   "fps": 16,
+   "size": [
+    16,
+    25
+   ],
+   "anchor": [
+    1,
+    12
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "5b1f8244-c89e-431d-b904-5e44630255d4"
+  },
+  "power_strike": {
+   "frames": [
+    "power_strike/0.png",
+    "power_strike/1.png",
+    "power_strike/2.png",
+    "power_strike/3.png",
+    "power_strike/4.png",
+    "power_strike/5.png",
+    "power_strike/6.png",
+    "power_strike/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 16,
+   "size": [
+    34,
+    31
+   ],
+   "anchor": [
+    15,
+    19
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "357e135d-29d7-4571-82f5-a273301e1417"
+  },
+  "arcane_barrier": {
+   "frames": [
+    "arcane_barrier/0.png",
+    "arcane_barrier/1.png",
+    "arcane_barrier/2.png",
+    "arcane_barrier/3.png",
+    "arcane_barrier/4.png",
+    "arcane_barrier/5.png",
+    "arcane_barrier/6.png",
+    "arcane_barrier/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 7,
+   "size": [
+    37,
+    37
+   ],
+   "anchor": [
+    18,
+    18
+   ],
+   "loop": true,
+   "additive": true,
+   "image_id": "944ef367-ab75-40bf-a22c-9ec49b2cf169"
+  },
+  "hunters_mark": {
+   "frames": [
+    "hunters_mark/0.png",
+    "hunters_mark/1.png",
+    "hunters_mark/2.png",
+    "hunters_mark/3.png",
+    "hunters_mark/4.png",
+    "hunters_mark/5.png",
+    "hunters_mark/6.png",
+    "hunters_mark/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 5,
+   "size": [
+    22,
+    10
+   ],
+   "anchor": [
+    11,
+    5
+   ],
+   "loop": true,
+   "additive": false,
+   "image_id": "008cdca5-6abf-4faa-9eea-d8278154f76f"
+  },
+  "challenge_taunt": {
+   "frames": [
+    "challenge_taunt/0.png",
+    "challenge_taunt/1.png",
+    "challenge_taunt/2.png",
+    "challenge_taunt/3.png",
+    "challenge_taunt/4.png",
+    "challenge_taunt/5.png",
+    "challenge_taunt/6.png",
+    "challenge_taunt/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 9,
+   "size": [
+    46,
+    64
+   ],
+   "anchor": [
+    23,
+    55
+   ],
+   "loop": false,
+   "additive": false,
+   "image_id": "e710e76d-87e0-4bf6-9a92-37d2ef296544"
+  },
+  "loot_sparkle": {
+   "frames": [
+    "loot_sparkle/0.png",
+    "loot_sparkle/1.png",
+    "loot_sparkle/2.png",
+    "loot_sparkle/3.png",
+    "loot_sparkle/4.png",
+    "loot_sparkle/5.png",
+    "loot_sparkle/6.png",
+    "loot_sparkle/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 12,
+   "size": [
+    19,
+    20
+   ],
+   "anchor": [
+    8,
+    13
+   ],
+   "loop": false,
+   "additive": true,
+   "image_id": "1e3b3196-4d72-45c5-8808-544af523995b"
+  },
+  "monster_death_poof": {
+   "frames": [
+    "monster_death_poof/0.png",
+    "monster_death_poof/1.png",
+    "monster_death_poof/2.png",
+    "monster_death_poof/3.png",
+    "monster_death_poof/4.png",
+    "monster_death_poof/5.png",
+    "monster_death_poof/6.png",
+    "monster_death_poof/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 10,
+   "size": [
+    23,
+    18
+   ],
+   "anchor": [
+    12,
+    11
+   ],
+   "loop": false,
+   "additive": false,
+   "image_id": "5ce2d47c-e3fb-4d89-a8ca-f073abd575e0"
+  },
+  "torch_flame_loop": {
+   "frames": [
+    "torch_flame_loop/0.png",
+    "torch_flame_loop/1.png",
+    "torch_flame_loop/2.png",
+    "torch_flame_loop/3.png",
+    "torch_flame_loop/4.png",
+    "torch_flame_loop/5.png",
+    "torch_flame_loop/6.png",
+    "torch_flame_loop/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 12,
+   "size": [
+    6,
+    15
+   ],
+   "anchor": [
+    3,
+    14
+   ],
+   "loop": true,
+   "additive": true,
+   "image_id": "bf6f800e-1105-49ba-88ea-077b6948284d"
+  },
+  "water_drip_ripple": {
+   "frames": [
+    "water_drip_ripple/0.png",
+    "water_drip_ripple/1.png",
+    "water_drip_ripple/2.png",
+    "water_drip_ripple/3.png",
+    "water_drip_ripple/4.png",
+    "water_drip_ripple/5.png",
+    "water_drip_ripple/6.png",
+    "water_drip_ripple/7.png"
+   ],
+   "frame_count": 8,
+   "fps": 7,
+   "size": [
+    20,
+    10
+   ],
+   "anchor": [
+    10,
+    5
+   ],
+   "loop": true,
+   "additive": false,
+   "image_id": "2789a69e-301c-437e-817f-f46824395441"
+  }
+ }
+}

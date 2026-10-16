@@ -155,3 +155,18 @@ Prompt templates (copy, fill the brackets):
 - A Wang tileset's `upper` side needs room for its wall face, so rooms lose about half a tile at the top edge to the brick face. Size rooms so they still fit the pack after that.
 - `view_map` renders without the engine grade, so the amber/slate look appears only in the game.
 - Standard-mode Wang tilesets ignore muted colour words. Always use `mode=pro`.
+
+## 6. Additions (2026-10-15, late)
+- **Knight v3** `e6b1bc58-8481-40c0-b361-77f9eed15927`: narrower stance, normal-length legs, all 8 rotations including north-east, 6-frame walk. Supersedes v2 `54afec30-…`.
+- **Sewer life props** (Pro Flash, style = sewer crop):
+  - corner rubble `7f3ed6b9-efa1-49bb-a954-b114f174c9b4`
+  - collapsed wall chunk `0b9b5f60-2dfc-4cc0-b0d3-11d12fa0a0c3`
+  - hanging chains `b355c134-2cb2-4d3d-a183-c7074aa2f41a`
+  - pipe outflow `c32282db-05df-4d85-8ecc-2242a589f2a9`
+  - collapsed cart `18a72ca3-3022-4331-813c-3bd076dfbff3`
+  - drowned lantern `3c5f8950-df76-4b37-8f0f-c389ac1b0c1b`
+  - floor decals: cracked flagstone `7a2458a4-7a46-4394-bbe2-ecd157ce288a`, exposed dirt `2d72ee22-e9b4-471d-bd34-44c1d489067a`, floor grate `6419fce6-d6b5-4aa0-944d-2e06bbf8d80d`
+  - Unused: cobweb `dea8f99e-…` (came out on a white background). The sacks job failed.
+- **Floor variation** is about 16% of floor cells, made from decals (moss, cracked, dirt, grate) clustered by walls and water. The terrain grid is unchanged.
+- **Sim render**: `prototypes/hunt-sim/assets/sewer_map.png` (1952×1312, no units baked in). Stitch four full-scale `view_map` crops of 31×21 cells with the unit objects removed, then put the units back.
+- **VFX**: `prototypes/hunt-sim-assets/vfx/<name>/N.png` plus `vfx/manifest.json`, which lists frames, fps, size, anchor, loop and additive for each effect. All 17 effects are saved in My effects as "HR …" and were built with `vfx_workbench`, which is free.

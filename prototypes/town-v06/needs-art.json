@@ -1,0 +1,583 @@
+{
+ "materials": [
+  {
+   "id": "water",
+   "char": "~",
+   "solid": true,
+   "why": "river, weir pool and sea; needs a water terrain (wang with grass/planks edges) — rendered as void until then"
+  },
+  {
+   "id": "hill/raised ground",
+   "why": "Overmarket Rise and the Cragface notch have no elevation art"
+  }
+ ],
+ "sprites": [
+  {
+   "id": "gate_arch",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 30,
+     "y": 0,
+     "why": "gatehouse arch spanning the 3-tile gateway between the two towers (3x1 raised)"
+    }
+   ]
+  },
+  {
+   "id": "fountain",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 32,
+     "y": 23,
+     "why": "plaza centrepiece; the well stands in until it exists (2x2 stone fountain)"
+    }
+   ]
+  },
+  {
+   "id": "market_stall",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 24,
+     "y": 20,
+     "why": "awning stall 1 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 24,
+     "y": 23,
+     "why": "awning stall 2 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 24,
+     "y": 26,
+     "why": "awning stall 3 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 41,
+     "y": 21,
+     "why": "awning stall 4 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 41,
+     "y": 24,
+     "why": "awning stall 5 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 41,
+     "y": 27,
+     "why": "awning stall 6 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 27,
+     "y": 30,
+     "why": "awning stall 7 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 32,
+     "y": 30,
+     "why": "awning stall 8 of 9 ringing the plaza (2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 37,
+     "y": 30,
+     "why": "awning stall 9 of 9 ringing the plaza (2x1)"
+    }
+   ]
+  },
+  {
+   "id": "bank_sign",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 26,
+     "y": 11,
+     "why": "hanging coin sign over the bank door"
+    }
+   ]
+  },
+  {
+   "id": "depot_sign",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 39,
+     "y": 12,
+     "why": "hanging crate sign over the depot door"
+    }
+   ]
+  },
+  {
+   "id": "garden_wall",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 11,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 12,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 13,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 14,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 15,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 17,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 18,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 19,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 20,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 21,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 22,
+     "y": 13,
+     "why": "low stone garden wall (hedge stands in)"
+    }
+   ]
+  },
+  {
+   "id": "estate_gate",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 16,
+     "y": 13,
+     "why": "private iron garden gate, the Close's frontage"
+    }
+   ]
+  },
+  {
+   "id": "terrace_rail",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 50,
+     "y": 43,
+     "why": "stone terrace balustrade along the Rise frontage (8 tiles)"
+    },
+    {
+     "map": "town_edge",
+     "x": 30,
+     "y": 22,
+     "why": "cliff terrace balustrade with the view west over the town"
+    }
+   ]
+  },
+  {
+   "id": "hill_slope_edge",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 46,
+     "y": 33,
+     "why": "grass hill rim / slope edge to read as raised ground over the market"
+    }
+   ]
+  },
+  {
+   "id": "fence_wood",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 45,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 46,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 47,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 48,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 49,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 50,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 51,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 52,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 53,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 54,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 55,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 56,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 57,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 58,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 59,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 60,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 61,
+     "y": 46,
+     "why": "picket fence run along the south lots"
+    },
+    {
+     "map": "the_common_market",
+     "x": 12,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 13,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 14,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 15,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 16,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 17,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 18,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 19,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "the_common_market",
+     "x": 20,
+     "y": 16,
+     "why": "orchard fence along the estate wall"
+    },
+    {
+     "map": "crooked_shacks",
+     "x": 30,
+     "y": 24,
+     "why": "yard fence instead of a roofed hall (straight run 8 tiles)"
+    },
+    {
+     "map": "crooked_shacks",
+     "x": 42,
+     "y": 23,
+     "why": "allotment fence"
+    }
+   ]
+  },
+  {
+   "id": "veg_patch",
+   "uses": [
+    {
+     "map": "the_common_market",
+     "x": 37,
+     "y": 40,
+     "why": "allotment vegetable rows (decal 3x2)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 12,
+     "y": 41,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 15,
+     "y": 41,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 18,
+     "y": 41,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 12,
+     "y": 44,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 15,
+     "y": 44,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "the_common_market",
+     "x": 18,
+     "y": 44,
+     "why": "riverside allotments (decal 2x1)"
+    },
+    {
+     "map": "crooked_shacks",
+     "x": 43,
+     "y": 24,
+     "why": "shack allotment (decal 3x2)"
+    }
+   ]
+  },
+  {
+   "id": "washing_line",
+   "uses": [
+    {
+     "map": "crooked_shacks",
+     "x": 25,
+     "y": 10,
+     "why": "shack clutter: washing line between P05 and the lane"
+    }
+   ]
+  },
+  {
+   "id": "footbridge_rail",
+   "uses": [
+    {
+     "map": "harbor_waterfront",
+     "x": 12,
+     "y": 10,
+     "why": "rope rail for the private footbridge to Weir Isle"
+    }
+   ]
+  },
+  {
+   "id": "jetty_piles",
+   "uses": [
+    {
+     "map": "harbor_waterfront",
+     "x": 34,
+     "y": 30,
+     "why": "timber piles under the jetty edge; sea-facing deck rail"
+    }
+   ]
+  },
+  {
+   "id": "mooring_boat",
+   "uses": [
+    {
+     "map": "harbor_waterfront",
+     "x": 44,
+     "y": 27,
+     "why": "moored rowing boat at the private dock"
+    }
+   ]
+  },
+  {
+   "id": "net_rack",
+   "uses": [
+    {
+     "map": "harbor_waterfront",
+     "x": 15,
+     "y": 21,
+     "why": "fishing-net drying rack on the quay"
+    }
+   ]
+  },
+  {
+   "id": "crane_winch",
+   "uses": [
+    {
+     "map": "harbor_waterfront",
+     "x": 24,
+     "y": 21,
+     "why": "cargo winch on the quay"
+    }
+   ]
+  },
+  {
+   "id": "ore_copper",
+   "uses": [
+    {
+     "map": "town_edge",
+     "x": 20,
+     "y": 6,
+     "why": "quarry node: copper (gather station)"
+    },
+    {
+     "map": "town_edge",
+     "x": 23,
+     "y": 5,
+     "why": "quarry node: copper (gather station)"
+    }
+   ]
+  },
+  {
+   "id": "ore_iron",
+   "uses": [
+    {
+     "map": "town_edge",
+     "x": 26,
+     "y": 7,
+     "why": "quarry node: iron (gather station)"
+    },
+    {
+     "map": "town_edge",
+     "x": 21,
+     "y": 9,
+     "why": "quarry node: iron (gather station)"
+    }
+   ]
+  },
+  {
+   "id": "ore_coal",
+   "uses": [
+    {
+     "map": "town_edge",
+     "x": 25,
+     "y": 10,
+     "why": "quarry node: coal (gather station)"
+    },
+    {
+     "map": "town_edge",
+     "x": 27,
+     "y": 11,
+     "why": "quarry node: coal (gather station)"
+    }
+   ]
+  },
+  {
+   "id": "cliff_edge",
+   "uses": [
+    {
+     "map": "town_edge",
+     "x": 29,
+     "y": 23,
+     "why": "rock-to-grass cliff lip so the notch reads as cut into the mountain"
+    }
+   ]
+  }
+ ]
+}

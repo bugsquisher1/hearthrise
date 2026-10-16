@@ -1,0 +1,13 @@
+*{box-sizing:border-box}body{margin:0;font:13px system-ui,sans-serif;background:#1d1f24;color:#ddd;height:100vh;display:flex;flex-direction:column}
+header{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#2a2d34;flex-wrap:wrap}
+button,.btn,select,input{background:#3a3e48;color:#eee;border:1px solid #555;border-radius:3px;padding:3px 7px;font:inherit;cursor:pointer}
+input{cursor:text}button.on{background:#6a5acd}
+main{flex:1;display:flex;min-height:0}aside{width:250px;overflow:auto;padding:6px 10px;background:#24262c}
+#right{width:300px}h3{margin:10px 0 4px;font-size:12px;color:#aab;text-transform:uppercase}
+#center{flex:1;overflow:auto;padding:10px}canvas{image-rendering:pixelated;cursor:crosshair}
+.row{display:flex;gap:4px;margin:3px 0;align-items:center}.row input{min-width:0;flex:1}
+#tools button{margin:2px}#legend div{display:flex;gap:4px;align-items:center;margin:2px 0;cursor:pointer;padding:2px}
+#legend div.on{outline:2px solid #6a5acd}.sw{width:18px;height:18px;display:inline-block;border:1px solid #000}
+#val li.err{color:#ff8080}#val li.warn{color:#ffd070}#val li.ok{color:#80e080}
+#meta label,#sel label{display:flex;gap:4px;margin:2px 0}#meta input,#sel input{flex:1;min-width:0}
+#resize td{padding:1px 3px}code{color:#fc9}

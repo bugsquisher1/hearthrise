@@ -636,7 +636,7 @@
    ]
   },
   "druid": {
-   "object_id": "70f41f81-6f79-47ff-8e8e-165f41cb3d51",
+   "object_id": "e4e96180-b199-4d59-9f67-ef9aa033ce16",
    "role": "hero_ed",
    "fps": 8,
    "directions": {
@@ -721,12 +721,12 @@
     48
    ],
    "foot_anchor": [
-    22,
+    21,
     38
    ]
   },
   "sorcerer": {
-   "object_id": "9b0e8f75-4a1a-4804-9202-93c6342fc8f1",
+   "object_id": "e60aff3a-0e05-45d3-a83e-a8801ddf4fe8",
    "role": "hero_ms",
    "fps": 8,
    "directions": {
@@ -811,8 +811,8 @@
     48
    ],
    "foot_anchor": [
-    20,
-    40
+    19,
+    41
    ]
   },
   "rat_king": {

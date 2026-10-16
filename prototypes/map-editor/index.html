@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Hearthrise Map Editor v0</title>
+<link rel="stylesheet" href="editor.css"></head><body>
+<header>
+  <b>Map Editor v0</b>
+  <label class="btn">Open .js<input type="file" id="file" accept=".js" hidden></label>
+  <button id="newBtn">New map</button>
+  <button id="saveBtn">Save .js</button>
+  <button id="undoBtn">Undo</button><button id="redoBtn">Redo</button>
+  <select id="zoom"><option value="1">x1</option><option value="2">x2</option></select>
+  <span id="cursor">x,y: -</span> <span id="fname"></span>
+</header>
+<main>
+<aside id="left">
+  <h3>Tool</h3>
+  <div id="tools"></div>
+  <h3>Legend (paint char)</h3>
+  <div id="legend"></div>
+  <div class="row"><input id="lgChar" maxlength="1" size="2" placeholder="c"><input id="lgTer" placeholder="terrain"><button id="lgAdd">Add</button></div>
+  <h3>Object id</h3>
+  <select id="objId"></select>
+  <div class="row"><input id="objNew" placeholder="new id"><button id="objAdd">Add</button></div>
+  <h3>Station / exit</h3>
+  <div class="row">station <input id="stName" value="idle" size="8"></div>
+  <div class="row">exit to <input id="exTo" value="town_common" size="12"></div>
+  <h3>Layers</h3><div id="layers"></div>
+  <h3>Resize</h3>
+  <table id="resize"></table>
+</aside>
+<section id="center"><canvas id="cv"></canvas></section>
+<aside id="right">
+  <h3>Map fields</h3><div id="meta"></div>
+  <h3>Selected</h3><div id="sel">nothing</div>
+  <h3>Validation</h3><ul id="val"></ul>
+  <h3>Needs art</h3>
+  <div class="row"><input id="naId" placeholder="id" size="10"><input id="naDesc" placeholder="description"><button id="naAdd">Add</button></div>
+  <ul id="naList"></ul><button id="naExport">Export needs-art.json</button>
+  <details open><summary>Help</summary><p>
+  <b>Open:</b> "Open .js" and pick a file from <code>src/data/world/maps/</code>. Or "New map".<br>
+  <b>Edit:</b> pick a tool on the left. Brush/Rect paint the selected legend char. Object: click empty tile to place, drag to move, click to select, Delete key removes. Building: drag a rect on empty ground; drag inside a selected building to move, drag its bottom-right corner to resize; Door tool clicks an edge tile to toggle a door. Station/Exit/Start/Focus: click to place, drag to move. Ctrl+Z / Ctrl+Y undo/redo.<br>
+  <b>Save:</b> "Save .js" downloads a file with the same name. Copy it into <code>src/data/world/maps/</code>, then run <code>node tests/world-core.mjs --hashes</code> and update <code>maskHash</code>.<br>
+  Comments inside the object (not the header) are not kept.</p></details>
+</aside>
+</main>
+<script src="editor.js"></script>
+</body></html>

@@ -19,7 +19,7 @@ const CONFIG = {
     { name: 'NW room',      room: [3, 2, 12, 10],  spawns: [['rat', 7, 4], ['rat', 8, 3], ['rat', 9, 4], ['rat', 8, 5]] },
     { name: 'SW room',      room: [2, 27, 13, 34], spawns: [['slime', 6, 31], ['slime', 7, 30], ['slime', 8, 31]] },
     { name: 'Channel west', room: [26, 24, 37, 34], spawns: [['bat', 30, 27], ['bat', 31, 29]] },
-    { name: 'NE room',      room: [38, 2, 48, 12], spawns: [['spider', 41, 5], ['spider', 43, 5], ['spider', 40, 6], ['bat', 42, 4], ['bat', 44, 6]] },
+    { name: 'NE room',      room: [38, 2, 48, 12], spawns: [['spider', 41, 5], ['spider', 43, 5], ['bat', 42, 4], ['bat', 44, 6]] },
     { name: 'SE room',      room: [40, 30, 50, 37], spawns: [['kobold', 43, 35], ['kobold', 44, 34], ['kobold', 45, 35]] },
     { name: 'Rat King',     room: [51, 17, 57, 29], spawns: [['ratking', 55, 23], ['rat', 54, 21], ['rat', 54, 25]] },
   ],

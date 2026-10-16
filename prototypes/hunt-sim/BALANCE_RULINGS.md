@@ -39,3 +39,17 @@ Applies to `prototypes/hunt-sim/combat-data.js`. Prototype-only; nothing here is
 | ratking drops | PLACEHOLDER | keep; crown_shard 0.25 to 0.15 | The shard is the chase item; at 1-in-4 it stops being one |
 
 **Rationale.** The problems came from three mismatched scales, not from the design. The XP constant came from a different economy, supply prices were picked without counting how much is used per hour, and the live monster rows were tuned for a single-hero idle tick, not a four-hero formation. The ruling keeps hero damage fixed and scales the sewer around it. Normal pockets of 3–4 mobs at 45–70 HP against about 18 party dps clear in roughly 10–16 s. The ranged heroes reach position before the first kill. Monster attack is set so the knight falls below 70% every one or two pockets, and the Rat King (1,100 HP, about 60 s) needs both heals. Supplies drop to about 3.5–4k g/h against loot and coin of about 4.5–5k g/h, which is the modest profit. Magic XP is now in the same band as combat XP. Applier: if measured profit falls outside +10–30% of supply cost, tune the gp multiplier only, and report the measured clear times and XP/h back to me.
+
+## Round 2 — 2026-10-15 (after the measured 17.7 sim-minute run)
+
+| Value | Round 1 | New | Why |
+|---|---|---|---|
+| SUPPLIES.fire_rune / frost_rune price | 1 | 6 | Measured use is about 180 runes/h, not 1,900; at 6 g runes cost about 1.1k g/h and casting them is a real choice |
+| SUPPLIES.bolt price | 0.5 | 1 | About 1.6k bolts/h, so bolts cost about 1.6k g/h: the paladin's upkeep is visible |
+| SUPPLIES.mana price | 0.03 | 0.06 | Doubles the mana line to about 0.8k g/h; drinks still cost little |
+| monster gp multiplier (normals) | x1.5 | x0.85 | Gold drops from 3.9k to about 2.2k g/h; income about 4.2k g/h against supply about 3.5k g/h is roughly +20% |
+| spider hp / atk | 120 / 16 | 90 / 13 | Spider-heavy pack was a 40–57 s grind with a knight wipe; this keeps it the toughest pocket without a wipe |
+| NE pocket composition | 3 spiders + 2 bats | 2 spiders + 2 bats | About 320 HP total, so roughly 18–22 s: the elite pocket of the loop |
+| ratking hp | 1100 | 600 | Measured effective party output against him is about 7 dps (fire resisted, nature immune); 600 HP is about 80 s. The resistances stay because they teach "bring frost" |
+
+**Rationale.** My round-1 supply estimate was wrong by about 10x on runes, so the economy is now re-fit to the measured usage. Supply prices rise until supplies matter, and coin is trimmed to land at about +20%. The Rat King keeps his element lesson; his HP comes down instead. Applier: if measured profit lands outside +10–30%, change only the gp multiplier.

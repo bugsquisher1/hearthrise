@@ -24,15 +24,15 @@ const COMBAT = {
   monsterAccuracy: 0.60,              // designer ruling 2026-10-15
   vulnMult: 1.10,                     // BIBLE §17 "non-stacking ~10% damage-taken vulnerability"
   vulnSec: 6,                         // designer ruling 2026-10-15
-  gpMult: 1.5,                        // designer ruling 2026-10-15: coin ×1.5 on normal monsters (the profit lever)
+  gpMult: 0.85,                       // designer ruling 2026-10-15 r2: coin ×0.85 on normal monsters (the profit lever)
 };
 
 // Runes and supplies (gold). designer ruling 2026-10-15.
 const SUPPLIES = {
-  fire_rune:  { name: 'Fire Rune (store)',  mult: 1.00, price: 1 },    // mult REVIEW:69 store Basic ×1.00; price designer ruling 2026-10-15
-  frost_rune: { name: 'Frost Rune (store)', mult: 1.00, price: 1 },    // designer ruling 2026-10-15 (mirrors Fire)
-  bolt:       { name: 'Crossbow bolt',      mult: 1.00, price: 0.5 },  // per-shot cost: Tyler ruling; price designer ruling 2026-10-15
-  mana:       { name: 'Mana (drink-equivalent)', price: 0.03 },        // designer ruling 2026-10-15 (gold per mana point)
+  fire_rune:  { name: 'Fire Rune (store)',  mult: 1.00, price: 6 },    // mult REVIEW:69 store Basic ×1.00; price designer ruling 2026-10-15 r2
+  frost_rune: { name: 'Frost Rune (store)', mult: 1.00, price: 6 },    // designer ruling 2026-10-15 r2 (mirrors Fire)
+  bolt:       { name: 'Crossbow bolt',      mult: 1.00, price: 1 },    // per-shot cost: Tyler ruling; price designer ruling 2026-10-15 r2
+  mana:       { name: 'Mana (drink-equivalent)', price: 0.06 },        // designer ruling 2026-10-15 r2 (gold per mana point)
 };
 
 // Party heroes. Pools: designer ruling 2026-10-15. Basic damage: designer ruling 2026-10-15 (kept).
@@ -89,13 +89,13 @@ const MONSTERS = {
   bat:     { name: 'Giant Bat',  hp: 70, atk: 9,  def: 1, xp: 45, gp: [4, 12],  speed: 4.4,   // hp/atk/xp designer ruling 2026-10-15; MON:153-155
              weak: 'frost', resist: [], immune: ['nature'],                                    // CLS:64 vermin
              drops: [['bat_wing', .7], ['night_fang', .025], ['bones', .5]] },                 // MON:155
-  spider:  { name: 'Venom Spider', hp: 120, atk: 16, def: 6, xp: 110, gp: [14, 34], speed: 3.6, // hp/atk/xp designer ruling 2026-10-15; MON:237-239
+  spider:  { name: 'Venom Spider', hp: 90, atk: 13, def: 6, xp: 110, gp: [14, 34], speed: 3.6, // hp/atk/xp designer ruling 2026-10-15; MON:237-239
              weak: 'frost', resist: ['nature'], immune: [],                                    // nature resist: designer ruling 2026-10-15
              drops: [['venom_sac', .55], ['silk_thread', .3], ['spider_eye', .035]] },        // MON:239-240
   kobold:  { name: 'Kobold',     hp: 55, atk: 7,  def: 1, xp: 30, gp: [2, 6],   speed: 3.2,   // hp/atk/xp designer ruling 2026-10-15; MON:120-122
              weak: 'nature', resist: [], immune: [],                                           // CLS:72-76 humanoid weak poison→nature; no fire resist (designer ruling 2026-10-15)
              drops: [['bones', 1], ['bone_chips', .3], ['copper_ore', .18]] },                 // MON:122
-  ratking: { name: 'Rat King',   hp: 1100, atk: 20, def: 4, xp: 600, gp: [150, 250], speed: 2.8, boss: true, // designer ruling 2026-10-15
+  ratking: { name: 'Rat King',   hp: 600, atk: 20, def: 4, xp: 600, gp: [150, 250], speed: 2.8, boss: true, // designer ruling 2026-10-15
              weak: 'frost', resist: ['fire'], immune: ['nature'],                              // designer ruling 2026-10-15
              drops: [['rat_tail', 1], ['crown_shard', .15], ['bones', 1]] },                   // PLACEHOLDER table; crown_shard .15 designer ruling 2026-10-15
 };

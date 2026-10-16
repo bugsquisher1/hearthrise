@@ -19,13 +19,15 @@ A friend on the allowlist can sign up, play the Mill Cellar tutorial, clear the 
 - Deletion set and M1 drops.
 - Account door.
 - Shell cutover, then the B1 hunt screen: action bar, end card, Analyzer, bestiary tracker.
-- Combat U2: 2.0 s swing, wand basics cost mana, ammo per shot, 3 abilities per discipline, elemental weaknesses.
+- **Combat, XP and loot systems COMPLETE (Tyler 2026-10-15)**, not slices:
+  - Combat: 2.0 s swing; wand basics cost mana; ammo per shot; 3 abilities per discipline; elemental weaknesses and resists; runes; Prayer regen; death with XP loss; combat training.
+  - XP: Level from kills (+HP/+mana per level, curve XP(L)=20(L−1)³+50(L−1)); Melee, Ranged and Magic train by damage with the held weapon; Defense by blows received; no combat XP cap; party XP share.
+  - Loot: standard (1–3 h), rare (10–20 h) and relic (100–150 h, serial number plus broadcast) bands; extra-rares around 150 h; gear instances, classes 1–3; party loot split; analyzer and drop log.
 - Instanced hunts (C2, live). Stamina kept.
 - Cellar tutorial, the Sewer and Rat King (attack animations only on him), Greenhaven H-001–H-003.
 - Style-1 art: sewer map, v2 heroes, walk cycles, VFX.
 - The current Common as the town.
 - Basic outfit recolours.
-- Loot tables for the beta grounds, gear classes 1–3.
 - Account-shared bestiary stages.
 - **Party hunting (Tyler 2026-10-15):** each player controls ONE hero; up to 4 players hunt one shared instance (AC 10), with the sim's formation rules as the auto-hunt AI (tank pulls and holds, ranged staggered).
 - Passive opt-in gathering slice, if approved (D2).
@@ -52,14 +54,14 @@ A friend on the allowlist can sign up, play the Mill Cellar tutorial, clear the 
 | **P1 Account door** (parallel) | password reset screen; existing-email copy; sign-out clears both copies; sign-in copy (K34); R3 verify; guard-anchors; close stale branches | — | QA runs all door flows with 2 accounts on prod | ~8 h |
 | **P2 Shell cutover** | wire lane/s-shell-framework (Bag, Gear, Skills, Homestead, Bestiary, Settings); delete the old panels and CSS; hide Market, Chat and gem items; fix nameplate clamping | P0 | no reachable dead window; GitHub green; Tyler plays | ~16 h |
 | **P3 B1 hunt screen** | rebase lane/b1-hunt-screen inside the shell; restore combat on prod; render the hunt view per D1 | P2, D1 | QA hunts the Mill Cellar on prod and it settles | ~16 h |
-| **P4 Combat U2 + balance** (parallel with P3) | server U2 (abilities, mana, ammo, runes, resists, Prayer regen); port the hunt-sim balance rulings into catalogue rows; 1-tile footprints; tune START_KIT | C2 | Security GO; sim vs server within ±10% on the Sewer | ~20 h |
+| **P4 Combat + XP + loot systems** (parallel with P3) | full ruling U: abilities, mana, ammo, runes, resists, Prayer regen, death XP loss, training; Level/skill XP curves and training by damage/blows; loot bands (standard, rare, relic, extra-rare), gear instances (player_gear) classes 1–3, relic serial and broadcast; port the hunt-sim balance into catalogue rows; 1-tile footprints; START_KIT tune; ATTENDED and AWAY tests for each | C2 | Security GO on every money/XP surface; sim vs server within ±10% on the Sewer; XP and drop rates match the ruling bands in a 10 h synthetic run | ~45 h |
 | **P5 Start-flow content** | import the Sewer map with the sizing rules; Cellar coach chain → breakthrough to the Sewer; Rat King attack animation; knight stance fix | P3, D6 | QA clears Cellar → Sewer → Rat King with no blocked tiles | ~18 h |
-| **P6 Greenhaven + loot** | H-001–H-003 data and maps; drop tables, gear classes 1–3; bestiary stages; gathering slice (if D2); rename "Forgotten Rootcellar" | P4, P5, Tyler's creatures | a fresh hero plays from level 1 to about 20 | ~20 h |
+| **P6 Greenhaven + loot** | H-001–H-003 data and maps; drop tables for these grounds (systems from P4); bestiary stages; gathering slice (if D2); rename "Forgotten Rootcellar" | P4, P5, Tyler's creatures | a fresh hero plays from level 1 to about 20 | ~20 h |
 | **P6b Party hunting** | party invite/accept/leave; shared hunt instance with one pull/respawn state per party (gather-review Security item 13); loot split (even by gold value by default); per-role auto-hunt AI from the sim's formation rules; party UI (members' HP/mana, leader) | P3, P4 | 4 QA accounts clear the Sewer together on prod; Security GO on loot split and shared caps | ~24 h |
 | **P7 Screen + copy sweep** | screen-audit rows; copy lint on every string; outfit recolour base | P2, P6 | QUALITY_CHECKLIST passes on every reachable screen | ~12 h |
 | **P8 Beta gate** | two full fresh-account playthroughs; re-verify every "verify" row; final Security review; Tyler allowlists friends | all | §1 checklist all ticked | ~8 h |
 
-**Total about 155 agent-hours.** At the 3–4 lane token budget, that is roughly **10–12 working days** after the 10-17 usage reset, targeting **about 11-02**. That leaves November for the EA content.
+**Total about 180 agent-hours.** At the 3–4 lane token budget, that is roughly **12–14 working days** after the 10-17 usage reset, targeting **about 11-05**. That leaves November for the EA content.
 
 ## 4. Known-issues register
 | ID | Issue | Sev | Phase |

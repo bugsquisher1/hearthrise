@@ -250,7 +250,7 @@ function pushNum(t, txt, col) {
 }
 function monsterDied(m) {
   const d = MONSTERS[m.kind];
-  AN.kills++; AN.xp += d.xp; const gp = rnd(...d.gp); AN.gold += gp;
+  AN.kills++; AN.xp += d.xp; const gp = Math.round(rnd(...d.gp) * (d.boss ? 1 : COMBAT.gpMult)); AN.gold += gp;
   const got = d.drops.filter(([, ch]) => Math.random() < ch).map(([id]) => id);
   if (got.length) {
     AN.loot += got.reduce((a, id) => a + (LOOT_VALUE[id] || 0), 0);
@@ -463,8 +463,8 @@ function useAbility(u, ab, mons) {
     case 'area': {
       const c = tgt;
       S.fx.push({ type: 'proj', kind: ab.fx === 'fire' ? 'fireball' : ab.fx, x: u.px, y: u.py, tx: c.x, ty: c.y, age: 0, dur: 0.25, onHit: () => {
-        S.fx.push({ type: 'burst', el: ab.element, x: c.x, y: c.y, age: 0 });
         for (const m of engagedMonsters()) if (cheb(m, c) <= 1) {
+          S.fx.push({ type: 'burst', el: ab.element, x: m.px, y: m.py, seed: Math.random() * 6, age: 0 });
           if (ab.vuln) m.vulnUntil = S.time + COMBAT.vulnSec;
           hurt(m, Math.round(rnd(...ab.dmg) * runeMult), u, ab.element);
         }
@@ -477,7 +477,7 @@ function useAbility(u, ab, mons) {
   return true;
 }
 function heal(src, h, amt) {
-  const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
+  const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.heals = (AN.heals || 0) + 1; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
   S.fx.push({ type: 'heal', x: h.px, y: h.py, age: 0 }); pushNum(h, '+' + got, '#7dff8a');
 }
 function attacks(dt) {
@@ -553,7 +553,7 @@ function tick(dt) {
     f.age += dt;
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
-  const life = { burst: 0.4, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
+  const life = { burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
   S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : life[f.type] || 0.9));
 }
 
@@ -655,10 +655,16 @@ function render() {
       g.beginPath(); g.arc(fxX, fxY - 10, 9, a0, a0 + 1.2); g.stroke(); g.lineWidth = 1;
     } else if (f.type === 'spark') {
       g.fillStyle = '#fff3c0'; g.fillRect(fxX - 3, fxY - 8, 7, 1); g.fillRect(fxX, fxY - 11, 1, 7);
-    } else if (f.type === 'burst') {        // 3x3 elemental burst: tight square flash plus a ring
-      const r = f.age / 0.4, col = f.el === 'fire' ? '255,130,40' : f.el === 'nature' ? '120,210,90' : '160,220,255';
-      g.fillStyle = `rgba(${col},${0.35 * (1 - r)})`; g.fillRect(ox + f.x * T, oy + f.y * T, T * 3, T * 3);
-      g.strokeStyle = `rgba(${col},${0.9 * (1 - r)})`; g.beginPath(); g.arc(fxX + .5, fxY + .5, 8 + r * 30, 0, 7); g.stroke();
+    } else if (f.type === 'burst') {        // area hit: a few small puffs on each hit tile, gone in 0.35 s
+      const r = f.age / 0.35, rise = Math.round(r * 6);
+      const [core, edge] = f.el === 'fire' ? ['#ffe080', '#ff7a20'] : f.el === 'nature' ? ['#d8ffb0', '#5cc04a'] : ['#ffffff', '#a8e4ff'];
+      g.globalAlpha = Math.max(0, 1 - r);
+      for (let i = 0; i < 4; i++) {
+        const a = f.seed + i * 1.6, px = P(fxX + Math.cos(a) * 6), py = P(fxY - 8 + Math.sin(a) * 4) - rise - i;
+        const sz = i % 2 ? 2 : 3;
+        g.fillStyle = edge; g.fillRect(px - 1, py - 1, sz + 1, sz + 1); g.fillStyle = core; g.fillRect(px, py, sz - 1, sz - 1);
+      }
+      g.globalAlpha = 1;
     } else if (f.type === 'heal') {         // nature heal: green motes rising
       g.fillStyle = '#7dff8a';
       for (let i = 0; i < 6; i++) { const a = i * 1.05 + f.age * 6; g.fillRect(P(fxX + Math.cos(a) * 8), P(fxY - 6 - f.age * 20 + Math.sin(a) * 3), 2, 2); }

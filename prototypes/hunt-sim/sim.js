@@ -139,7 +139,7 @@ function reset() {
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
   COMP.forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
   // no Melee to hold the pack: ranged heroes kite by default (chase off) at their distance (Tyler 2026-10-16)
-  if (!COMP.includes('knight')) for (const u of S.units) if (u.side === 'hero') u.set.chase = false;
+  if (!COMP.includes('knight')) for (const u of S.units) if (u.side === 'hero' && HEROES[u.kind].range > 1.5) u.set.chase = false;
   S.leaderKind = COMP[0];
   if (!COMP.includes(VIEW.sel)) VIEW.sel = COMP[0];
   CONFIG.pockets.forEach((p, i) => spawnPack(i));
@@ -504,6 +504,15 @@ function rangedPos(u, k, mons) {
 const kites = u => !u.set.chase && u.set.dist > 1;
 function keepDistance(u, want, mons) {
   const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
+  // nothing in attack range (e.g. leashed monsters that can't come out to us): close in until something is,
+  // stopping `want` tiles short, or a kiter and a leashed pack just stare at each other
+  if (gap(u.x, u.y) >= want && !mons.some(m => inRange(u, m))) {
+    if (u.repath <= 0 || !u.path.length) {
+      const n = mons.slice().sort((a, b) => eu(a, u) - eu(b, u))[0];
+      setGoal(u, n.x, n.y); u.path = u.path.slice(0, Math.max(1, u.path.length - want)); u.repath = 0.6;
+    }
+    return;
+  }
   if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
   // en route to a step that still restores the gap: keep going (re-picking every tick meant never arriving)
   if (u.goal && u.path.length && gap(u.goal[0], u.goal[1]) >= want) return;
@@ -925,8 +934,19 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
   speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(o => o.classList.toggle('on', o === b));
 });
 $('restart').onclick = () => reset();
-$('comp').onchange = e => { COMP = COMPS[e.target.value]; reset(); };
-window.__setComp = c => { COMP = COMPS[c]; reset(); };
+// Party builder (dev tool): any 1-4 of the five heroes, so every combination can be tested (Tyler 2026-10-16).
+// Front-most leads: tank Melee, then dps Melee, then Ranger, Mage, Healer.
+const FRONT_ORDER = ['knight', 'berserker', 'paladin', 'sorcerer', 'druid'];
+document.querySelectorAll('#comp input').forEach(cb => cb.onchange = () => {
+  const on = [...document.querySelectorAll('#comp input:checked')].map(c => c.value);
+  if (!on.length || on.length > 4) { cb.checked = !cb.checked; return; }   // a party is 1-4 heroes
+  COMP = FRONT_ORDER.filter(k => on.includes(k)); reset();
+});
+window.__setComp = c => {
+  COMP = Array.isArray(c) ? FRONT_ORDER.filter(k => c.includes(k)) : COMPS[c];
+  document.querySelectorAll('#comp input').forEach(cb => cb.checked = COMP.includes(cb.value));
+  reset();
+};
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {            // pulls log: rows appended once per pull (keyed by index), never rebuilt on a timer

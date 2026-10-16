@@ -112,6 +112,8 @@
   @supports not selector(::-webkit-scrollbar) { .pnl * { scrollbar-color:rgba(201,162,74,.55) #14161b; } }
   .pnl ::-webkit-scrollbar { width:8px; } .pnl ::-webkit-scrollbar-track { background:#14161b; }
   .pnl ::-webkit-scrollbar-thumb { background:rgba(201,162,74,.55); border-radius:4px; } .pnl ::-webkit-scrollbar-thumb:hover { background:#c9a24a; }
+  #comp { display:inline-flex; gap:6px; align-items:center; padding:0 4px; font:500 12px var(--f-ui); color:var(--ink); }
+  #comp label { display:inline-flex; gap:2px; align-items:center; cursor:pointer; white-space:nowrap; }
   .hidden { display:none !important; }
   #panelsMenu { position:fixed; top:40px; left:50%; transform:translateX(-50%); background:var(--plank-1); border:1px solid var(--iron); padding:5px 9px; z-index:8; font:500 13px var(--f-ui); }
   #panelsMenu label { display:block; cursor:pointer; }
@@ -129,7 +131,7 @@
   <button id="pause">Pause</button>
   <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
   <button id="restart">Restart</button>
-  <select id="comp" title="Party"><option value="full" selected>Full party</option><option value="k">Solo Melee</option><option value="p">Solo Ranger</option><option value="s">Solo Mage</option><option value="d">Solo Healer</option><option value="kd">Melee + Healer</option><option value="ks">Melee + Mage</option><option value="kbds">Melee (tank) + Melee (dps) + Healer + Mage</option><option value="kb">Melee (tank) + Melee (dps)</option><option value="pd">Ranger + Healer (no tank)</option><option value="ps">Ranger + Mage (no tank)</option></select>
+  <span id="comp" title="Party: tick any 1-4 heroes; the front-most leads"><label><input type="checkbox" value="knight" checked>Melee (tank)</label><label><input type="checkbox" value="berserker">Melee (dps)</label><label><input type="checkbox" value="paladin" checked>Ranger</label><label><input type="checkbox" value="sorcerer" checked>Mage</label><label><input type="checkbox" value="druid" checked>Healer</label></span>
   <button id="tGrid">Grid</button>
   <button id="tPath">Paths</button>
   <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
@@ -151,11 +153,11 @@
 <div id="panelsMenu" class="hidden"></div>
 <div id="lootp" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Loot</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="lootBody"></div></div>
 <div id="log" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Pulls</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=36"></script>
-<script src="combat-data.js?v=36"></script>
-<script src="vfx.js?v=36"></script>
-<script src="ambient.js?v=36"></script>
-<script src="sim.js?v=36"></script>
-<script src="ui.js?v=36"></script>
+<script src="grid.js?v=38"></script>
+<script src="combat-data.js?v=38"></script>
+<script src="vfx.js?v=38"></script>
+<script src="ambient.js?v=38"></script>
+<script src="sim.js?v=38"></script>
+<script src="ui.js?v=38"></script>
 </body>
 </html>

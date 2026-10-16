@@ -883,16 +883,24 @@ $('comp').onchange = e => { COMP = COMPS[e.target.value]; reset(); };
 window.__setComp = c => { COMP = COMPS[c]; reset(); };
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
-function logRender() {
-  const rows = STATS.pulls.slice(-14).map(p => `r${p.run} ${p.pocket.padEnd(12)} <b>${String(p.secs).padStart(5)}s</b>  wait ${p.waits}s${p.deaths ? '  deaths ' + p.deaths : ''}${p.wipe ? '  WIPE' : ''}`);
-  $('logBody').innerHTML = 'time to clear\n' + (rows.join('\n') || '—');
+function logRender() {            // pulls log: rows appended once per pull (keyed by index), never rebuilt on a timer
+  const box = $('logBody'); if (!box) return;
+  if (!box._n || box._n > STATS.pulls.length) { box.textContent = ''; box._n = 0; const h = document.createElement('div'); h.textContent = 'time to clear'; box.append(h); }
+  for (; box._n < STATS.pulls.length; box._n++) {
+    const p = STATS.pulls[box._n], row = document.createElement('div'), t = document.createElement('b');
+    row.append(`r${p.run} ${p.pocket.padEnd(12)} `); t.textContent = String(p.secs).padStart(5) + 's'; row.append(t,
+      `  wait ${p.waits}s${p.deaths ? '  deaths ' + p.deaths : ''}${p.wipe ? '  WIPE' : ''}`);
+    box.append(row);
+    while (box.children.length > 15) box.children[1].remove();
+  }
 }
 // ---------- hunt analyzer ----------
 const fmt = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
 // the hunt analyzer, party panel and bottom HUD live in ui.js
 function hudRender() {
   const p = CONFIG.pockets[S.pocketIdx];
-  $('hud').textContent = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`;
+  const hv = `run ${S.run}  ${S.phase} → ${p.name}  t=${S.time.toFixed(0)}s  ${speed}×`, he = $("hud");
+  if (he._t !== hv) { he._t = hv; if (he.firstChild) he.firstChild.nodeValue = hv; else he.textContent = hv; }
 }
 const PERF = { gaps: [], cpu: [] };
 window.__perf = () => {

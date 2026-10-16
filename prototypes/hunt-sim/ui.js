@@ -20,13 +20,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=23`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=24`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=23`;
+  const iconUrl = id => `assets/icons/${id}.png?v=24`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -95,9 +95,13 @@ const UI = (() => {
     const save = () => { try { localStorage.setItem('huntsim-panels', JSON.stringify(st)); } catch (e) { /* storage blocked: fine */ } };
     const apply = () => { for (const id in IDS) { const el = $(id), p = st[id] || {}; if (!el) continue;
       el.classList.toggle('min', !!p.min); el.classList.toggle('hidden', !!p.hidden || !!st.__allOff); }
-      $('panelsMenu').innerHTML = Object.entries(IDS).map(([id, n]) => `<label><input type="checkbox" data-p="${id}" ${(st[id] || {}).hidden ? '' : 'checked'}> ${n}</label>`).join('') +
-        '<div style="color:var(--dim);margin-top:3px">H hides / shows all</div>';
-      $('panelsMenu').querySelectorAll('[data-p]').forEach(c => c.onchange = () => set(c.dataset.p, { hidden: !c.checked })); };
+      if (!$('panelsMenu')._built) {
+        $('panelsMenu')._built = true;
+        $('panelsMenu').innerHTML = Object.entries(IDS).map(([id, n]) => `<label><input type="checkbox" data-p="${id}"> ${n}</label>`).join('') +
+          '<div style="color:var(--rail-ink);margin-top:3px">H hides / shows all</div>';
+        $('panelsMenu').addEventListener('change', e => { const c = e.target.closest('[data-p]'); if (c) set(c.dataset.p, { hidden: !c.checked }); });
+      }
+      $('panelsMenu').querySelectorAll('[data-p]').forEach(c => { c.checked = !(st[c.dataset.p] || {}).hidden; }); };
     function set(id, patch) { st[id] = Object.assign({}, st[id], patch); if (patch.hidden === false) st.__allOff = false; save(); apply(); }
     // pointerdown, not click: panel headers are re-rendered on a timer and a click across a re-render is lost
     document.addEventListener('pointerdown', e => { if (e.button !== 0) return; const b = e.target.closest('.minb'); if (!b) return;
@@ -124,13 +128,25 @@ const UI = (() => {
     if (e.key === 'p' || e.key === 'P') partyCam();
   });
 
+  // ---------- build once, patch in place ----------
+  // Panels are built when their SHAPE changes (party composition, analyzer tab / view / fold) and only patched after
+  // that: text through the existing text node, widths and classes through memoised writes, list rows keyed by id.
+  function T(el, v) {                    // set text without replacing nodes, and only when it changed
+    v = String(v); if (el._t === v) return; el._t = v;
+    const f = el.firstChild;
+    if (f && f.nodeType === 3 && !f.nextSibling) f.nodeValue = v; else el.textContent = v;
+  }
+  function Wd(el, frac) { const v = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1) + '%'; if (el._w !== v) { el._w = v; el.style.width = v; } }
+  function K(el, cls, on) { on = !!on; if (!el._k) el._k = {}; if (el._k[cls] !== on) { el._k[cls] = on; el.classList.toggle(cls, on); } }
+  function A(el, name, v) { if (!el._a) el._a = {}; if (el._a[name] !== v) { el._a[name] = v; el.setAttribute(name, v); } }
+  const mk = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+
   // ---------- party panel: a dark-wood board of carved stone plates ----------
-  let partyKey = '', partyExpand = false;
+  let partyKey = '', partyExpand = false, PR = {};
   const ROLE_RING = { knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
   const CREST = { knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
-  // portrait: the hero's own south idle frame, head crop (16x16 around the top of the sprite) at 2x
-  function portrait(c, kind) {
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=23`;
+  function portrait(c, kind) {           // the hero's own south idle frame, head crop (16x16 from the top of the sprite) at 2x
+    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=24`;
     im.onload = () => {
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       let top = 0;
@@ -140,114 +156,152 @@ const UI = (() => {
       x.clearRect(0, 0, 32, 32); x.drawImage(im, Math.round(im.width / 2) - 8, Math.max(0, top - 1), 16, 16, 0, 0, 32, 32);
     };
   }
-  function buildParty() {
-    const hs = heroes(); partyKey = hs.map(h => h.kind).join();
-    const lead = hs[0];
-    $('party').innerHTML = `<span class="cb bl"></span><span class="cb br"></span>
-      <div class="hd"><span class="ttl">Party</span><span class="sp"></span><button class="stud" id="pExp" title="show DPS / HPS for everyone">⋯</button><button class="minb stud" title="minimize">–</button><button class="stud" title="close" id="pClose">×</button></div>` +
-      hs.map(h => `<div class="mem" data-k="${h.kind}" style="--ring:${ROLE_RING[h.kind]}" title="${NAME[h.kind]} — click to view">
-        <div class="port">${h === lead ? '<span class="crown" title="leader">♛</span>' : '<span class="link" title="following the leader">⛓</span>'}<canvas width="32" height="32" id="pt-${h.kind}"></canvas><span class="plv" id="lv-${h.kind}" title="level"></span></div>
+  function buildParty() {                // shape change only: the composition
+    const hs = heroes(); partyKey = hs.map(h => h.kind).join(); PR = {};
+    const lead = hs[0], el = $('party');
+    el.textContent = '';
+    el.append(mk('<span class="cb bl"></span>'), mk('<span class="cb br"></span>'),
+      mk(`<div class="hd"><span class="ttl">Party</span><span class="sp"></span><button class="stud" data-act="pExp" title="show DPS / HPS for everyone">⋯</button><button class="minb stud" title="minimize">–</button><button class="stud" data-act="pClose" title="close">×</button></div>`));
+    for (const h of hs) {
+      const m = mk(`<div class="mem" data-k="${h.kind}" style="--ring:${ROLE_RING[h.kind]}" title="${NAME[h.kind]} — click to view">
+        <div class="port">${h === lead ? '<span class="crown" title="leader">♛</span>' : '<span class="link" title="following the leader">⛓</span>'}<canvas width="32" height="32"></canvas><span class="plv" title="level"> </span></div>
         <div class="body">
-          <div class="nm"><canvas class="crest" width="16" height="16" id="cr-${h.kind}" title="${NAME[h.kind]}"></canvas><span>${NAME[h.kind]}</span><span class="ag" id="ag-${h.kind}" title="holding aggro"></span><span class="st" id="st-${h.kind}"></span><span class="sp"></span>${h === lead ? '' : '<span class="kick" title="kick (not in the sim)">×</span>'}</div>
-          <div class="gg hp" title="health"><div class="gauge"><i id="hp-${h.kind}" style="background:#c8463a"></i></div><b id="hpn-${h.kind}"></b></div>
-          <div class="gg mp" title="mana"><div class="gauge"><i id="mp-${h.kind}" style="background:#4e6cc8"></i></div><b id="mpn-${h.kind}"></b></div>
-          <div class="stl" id="stw-${h.kind}"><i id="sb-${h.kind}"></i></div>
-          <div class="dps" id="dps-${h.kind}"></div>
-        </div></div>`).join('') +
-      `<div class="ft"><div class="note">Costs are personal</div><div class="tabs"><button title="Stop accepting all (not in the sim)">⛔</button><button title="Leave party (not in the sim)">⎋</button></div></div>`;
-    for (const h of hs) { portrait($('pt-' + h.kind), h.kind); const [gn, col] = CREST[h.kind]; glyph($('cr-' + h.kind).getContext('2d'), gn, 0, 0, col, 2); }
-    $('party').querySelectorAll('.mem').forEach(m => m.onclick = () => selectHero(m.dataset.k));
-    $('pClose').onclick = () => PANELS.set('party', { hidden: true });
-    $('pExp').onclick = () => { partyExpand = !partyExpand; $('party').classList.toggle('expand', partyExpand); };
-    $('party').classList.toggle('expand', partyExpand);
-    draggable($('party')); PANELS.apply();
+          <div class="nm"><canvas class="crest" width="16" height="16" title="${NAME[h.kind]}"></canvas><span>${NAME[h.kind]}</span><span class="ag" title="holding aggro"> </span><span class="st"> </span><span class="sp"></span>${h === lead ? '' : '<span class="kick" title="kick (not in the sim)">×</span>'}</div>
+          <div class="gg hp" title="health"><div class="gauge"><i style="background:#c8463a"></i></div><b> </b></div>
+          <div class="gg mp" title="mana"><div class="gauge"><i style="background:#4e6cc8"></i></div><b> </b></div>
+          <div class="stl"><i></i></div>
+          <div class="dps">DPS <b> </b> · total <b> </b><div class="h">HPS <b> </b> · total <b> </b></div></div>
+        </div></div>`);
+      el.append(m);
+      const q = s => m.querySelector(s), dps = m.querySelectorAll('.dps b');
+      PR[h.kind] = { m, lv: q('.plv'), ag: q('.ag'), st: q('.st'), hp: q('.hp i'), hpn: q('.hp b'), mp: q('.mp i'), mpn: q('.mp b'), stl: q('.stl'), sb: q('.stl i'),
+        dps: dps[0], dpt: dps[1], hps: dps[2], hpt: dps[3], hrow: q('.dps .h') };
+      portrait(q('.port canvas'), h.kind); const [gn, col] = CREST[h.kind]; glyph(q('.crest').getContext('2d'), gn, 0, 0, col, 2);
+    }
+    el.append(mk(`<div class="ft"><div class="note">Costs are personal</div><div class="tabs"><button title="Stop accepting all (not in the sim)">⛔</button><button title="Leave party (not in the sim)">⎋</button></div></div>`));
+    el.classList.toggle('expand', partyExpand);
+    draggable(el); PANELS.apply();
   }
+  // one delegated listener for the party board, wired once
+  $('party').addEventListener('click', e => {
+    const act = e.target.closest('[data-act]');
+    if (act) { if (act.dataset.act === 'pClose') PANELS.set('party', { hidden: true }); else { partyExpand = !partyExpand; $('party').classList.toggle('expand', partyExpand); } return; }
+    const m = e.target.closest('.mem'); if (m && !e.target.closest('.kick')) selectHero(m.dataset.k);
+  });
   function partyFast() {
     if (heroes().map(h => h.kind).join() !== partyKey) buildParty();
     const sec = Math.max(1, sessionSec()), a = AN();
     for (const h of heroes()) {
-      const w = (id, f) => { const e = $(id); if (e) e.style.width = (Math.max(0, Math.min(1, f)) * 100).toFixed(1) + '%'; };
-      w('hp-' + h.kind, h.alive ? h.hp / h.maxHp : 0); w('mp-' + h.kind, h.maxMana ? h.mana / h.maxMana : 0);
-      $('hpn-' + h.kind).textContent = Math.max(0, Math.round(h.alive ? h.hp : 0)); $('mpn-' + h.kind).textContent = Math.round(h.mana);
-      const stam = Math.max(0, STAMINA_H * 3600 - sec); w('sb-' + h.kind, stam / (STAMINA_H * 3600));
-      $('stw-' + h.kind).title = `stamina ${Math.floor(stam / 3600)}:${String(Math.floor(stam / 60) % 60).padStart(2, '0')}h left`;
-      $('lv-' + h.kind).textContent = h.level;
-      $('ag-' + h.kind).textContent = S().units.some(m => m.side === 'mon' && m.alive && m.target === h) ? '⛨' : '';
-      $('st-' + h.kind).textContent = !h.alive ? '✝' : h.regen ? '🍖' : (S().time - (h.flash.drink || -9)) < 1.2 ? '💧' : '';
+      const r = PR[h.kind]; if (!r) continue;
+      Wd(r.hp, h.alive ? h.hp / h.maxHp : 0); Wd(r.mp, h.maxMana ? h.mana / h.maxMana : 0);
+      T(r.hpn, Math.max(0, Math.round(h.alive ? h.hp : 0))); T(r.mpn, Math.round(h.mana));
+      const stam = Math.max(0, STAMINA_H * 3600 - sec); Wd(r.sb, stam / (STAMINA_H * 3600));
+      A(r.stl, 'title', `stamina ${Math.floor(stam / 3600)}:${String(Math.floor(stam / 60) % 60).padStart(2, '0')}h left`);
+      T(r.lv, h.level);
+      T(r.ag, S().units.some(m => m.side === 'mon' && m.alive && m.target === h) ? '⛨' : ' ');
+      T(r.st, !h.alive ? '✝' : h.regen ? '🍖' : (S().time - (h.flash.drink || -9)) < 1.2 ? '💧' : ' ');
       const H = a.hero[h.kind] || { dealt: 0 }, healed = a.healed[h.kind] || 0;
-      $('dps-' + h.kind).innerHTML = `DPS <b>${kf(H.dealt / sec)}</b> · total <b>${kf(H.dealt)}</b>` +
-        (healed ? `<div class="h">HPS <b>${kf(healed / sec)}</b> · total <b>${kf(healed)}</b></div>` : '');
+      T(r.dps, kf(H.dealt / sec)); T(r.dpt, kf(H.dealt)); T(r.hps, kf(healed / sec)); T(r.hpt, kf(healed)); K(r.hrow, 'hidden', !healed);
+      K(r.m, 'sel', VIEW.mode === 'hero' && h.kind === VIEW.sel);
     }
-    $('party').querySelectorAll('.mem').forEach(m => m.classList.toggle('sel', VIEW.mode === 'hero' && m.dataset.k === VIEW.sel));
   }
 
   // ---------- hunt analyzer ----------
-  let tab = 'session', anView = 'hero', collapsed = {}, anCollapsed = false;
-  function money(n, neg) { return `<span class="v${neg || n < 0 ? ' dn' : ''}">${nf(n)} gp</span>`; }
-  function sec(id, title, body) {
-    return `<div class="sec"><div class="sh" data-s="${id}" title="click to fold">${collapsed[id] ? '▸' : '▾'} ${title}</div><div>${collapsed[id] ? '' : body}</div></div>`;
+  let tab = 'session', anView = 'hero', collapsed = {}, anShape = '', AR = {};
+  const abName = id => id === 'basic' ? 'Basic attack' : (Object.values(ABILITIES).flat().find(x => x.id === id) || { name: id }).name;
+  // the frame: built once
+  $('hunt').append(mk('<span class="cb bl"></span>'), mk('<span class="cb br"></span>'),
+    mk(`<div class="hd"><span class="ttl">Hunt Analyzer</span><span class="sp"></span><button data-act="anRst" class="stud" title="reset the session">⟲</button><button class="minb stud" title="minimize">–</button></div>`),
+    mk('<div class="ended hidden">Hunt ended — session summary</div>'),
+    mk(`<div class="top"><span title="time hunted this session">Session<b> </b></span><span title="estimated time to the viewed hero's next level" style="text-align:right">Next level<b> </b></span></div>`),
+    mk(`<div class="tg"><button data-v="hero">This hero</button><button data-v="party">Party</button></div>`),
+    mk(`<div class="tabs"><button data-t="session" title="session totals">⌛ Session</button><button data-t="in" title="damage taken">⛨ Taken</button><button data-t="out" title="damage dealt">⚔ Dealt</button></div>`),
+    mk('<div class="pane"></div>'));
+  const HN = { ended: $('hunt').querySelector('.ended'), ses: $('hunt').querySelectorAll('.top b')[0], next: $('hunt').querySelectorAll('.top b')[1],
+    vHero: $('hunt').querySelector('[data-v="hero"]'), vParty: $('hunt').querySelector('[data-v="party"]'), pane: $('hunt').querySelector('.pane'), tabs: $('hunt').querySelectorAll('[data-t]') };
+  $('hunt').addEventListener('click', e => {
+    const b = e.target.closest('[data-act="anRst"], [data-v], [data-t], [data-s]'); if (!b) return;
+    if (b.dataset.act) { window.__resetAnalyzer(); ended = false; }
+    else if (b.dataset.v) anView = b.dataset.v;
+    else if (b.dataset.t) tab = b.dataset.t;
+    else collapsed[b.dataset.s] = !collapsed[b.dataset.s];
+    slow();
+  });
+  // sections: fixed rows (k -> value) or keyed lists; built on shape change
+  const SECTIONS = {
+    session: [['s', 'Session', 'fixed', ['Enemies killed', 'XP gain', 'Gold', 'Waste', 'Balance']], ['h', 'Per hour', 'fixed', ['XP/h', 'Raw XP/h', 'Gold/h', 'Waste/h', 'Balance/h']],
+      ['u', 'Supplies used', 'list'], ['l', 'Loot collected', 'list']],
+    in: [['im', 'Damage taken by monster', 'list'], ['ie', 'Damage taken by element', 'list']],
+    out: [['oa', 'Damage dealt by ability', 'list'], ['oe', 'Damage dealt by element', 'list']],
+  };
+  function buildPane() {
+    anShape = tab + '|' + anView + '|' + JSON.stringify(collapsed); AR = {};
+    HN.pane.textContent = '';
+    for (const [id, title, kind, rows] of SECTIONS[tab]) {
+      const sec = mk(`<div class="sec"><div class="sh" data-s="${id}" title="click to fold">${collapsed[id] ? '▸' : '▾'} <span>${title}</span></div><div class="rows"></div></div>`);
+      HN.pane.append(sec);
+      const box = sec.querySelector('.rows'), head = sec.querySelector('.sh span');
+      AR[id] = { box, head, kind, rows: new Map() };
+      if (collapsed[id]) continue;
+      if (kind === 'fixed') for (const k of rows) { const r = mk(`<div class="row"><span class="k">${k}</span><span class="v"> </span></div>`); box.append(r); AR[id].rows.set(k, { r, v: r.querySelector('.v') }); }
+    }
   }
-  const row = (k, v, extra) => `<div class="row">${extra || ''}<span class="k">${k}</span>${v}</div>`;
+  function patchList(id, entries, makeRow, fill) {   // keyed rows: add once, update in place, drop when gone
+    const S_ = AR[id]; if (!S_ || collapsed[id]) return;
+    const keys = new Set(entries.map(e => e[0]));
+    for (const [k, r] of S_.rows) if (!keys.has(k)) { r.r.remove(); S_.rows.delete(k); }
+    for (const e of entries) { let r = S_.rows.get(e[0]); if (!r) { r = makeRow(e); S_.box.append(r.r); S_.rows.set(e[0], r); } fill(r, e); }
+    if (!S_.empty) { S_.empty = mk('<div class="row"><span class="k">—</span></div>'); S_.box.append(S_.empty); }
+    K(S_.empty, 'hidden', entries.length > 0);
+  }
+  const listRow = (icon) => (e) => { const r = mk(`<div class="row">${icon ? icon(e[0]) : ''}<span class="k"> </span><span class="x"> </span><span class="v"> </span></div>`);
+    return { r, k: r.querySelector('.k'), x: r.querySelector('.x'), v: r.querySelector('.v') }; };
+  const setV = (row, k, v, neg) => { const r = AR[row].rows.get(k); if (!r) return; T(r.v, v); K(r.v, 'dn', neg); };
   function slow() {
     if (!S()) return;
     const a = AN(), s = S(), hs = heroes(), h = sel(), secs = Math.max(1, sessionSec()), hrs = secs / 3600;
     const heroMode = anView === 'hero' && h;
+    if ((tab + '|' + anView + '|' + JSON.stringify(collapsed)) !== anShape) buildPane();
     const H = heroMode ? (a.hero[h.kind] || { supplies: {}, outAb: {}, outEl: {}, inMon: {}, inEl: {}, xp: 0 }) : null;
     const supplies = heroMode ? H.supplies : a.supplies;
     const waste = Object.entries(supplies).reduce((t, [id, n]) => t + n * ITEM_PRICE(id), 0);
     const income = (a.loot + a.gold) / (heroMode ? Math.max(1, hs.length) : 1);   // loot split evenly; costs are personal
-    const xp = heroMode ? H.xp : a.xp;
-    const bal = income - waste;
+    const xp = heroMode ? H.xp : a.xp, bal = income - waste;
     const hxp = h && a.hero[h.kind] ? a.hero[h.kind].xp : 0;
     const nextLv = h && hxp > 0 ? ((h.level - HERO_START_LEVEL + 1) * HERO_XP_PER_LEVEL - h.xp) / (hxp / secs) : Infinity;
-    let body = '';
+    K(HN.ended, 'hidden', !ended);
+    T(HN.ses, hms(secs)); T(HN.next, isFinite(nextLv) ? hms(nextLv) : '--:--:--');
+    T(HN.vHero, 'This hero' + (h ? ' (' + NAME[h.kind] + ')' : '')); K(HN.vHero, 'on', anView === 'hero'); K(HN.vParty, 'on', anView === 'party');
+    HN.tabs.forEach(b => K(b, 'on', b.dataset.t === tab));
+    const gp = n => nf(n) + ' gp';
     if (tab === 'session') {
-      body += sec('s', 'Session', row('Enemies killed', `<span class="v">${nf(a.kills)}</span>`) + row('XP gain', `<span class="v">${nf(xp)}</span>`) +
-        row('Gold', money(income)) + row('Waste', money(waste, true)) + row('Balance', money(bal)));
-      body += sec('h', 'Per hour', row('XP/h', `<span class="v">${nf(xp / hrs)}</span>`) + row('Raw XP/h', `<span class="v">${nf(xp / hrs)}</span>`) +
-        row('Gold/h', money(income / hrs)) + row('Waste/h', money(waste / hrs, true)) + row('Balance/h', money(bal / hrs)));
-      body += sec('u', 'Supplies used', Object.entries(supplies).filter(([, n]) => n > 0).map(([id, n]) =>
-        row(ITEM_NAME[id] || id, `<span class="x">×${nf(n)}</span><span class="v dn">${nf(n * ITEM_PRICE(id))} gp</span>`, ITEM_ICON[id] ? `<img src="${iconUrl(ITEM_ICON[id])}">` : '<span style="width:16px;display:inline-block"></span>')).join('') || row('—', ''));
-      body += sec('l', heroMode ? 'Loot collected (party, split evenly)' : 'Loot collected', Object.entries(a.lootItems).map(([id, n]) =>
-        row(id.replace(/_/g, ' '), `<span class="x">×${n}</span><span class="v">${nf(n * (LOOT_VALUE[id] || 0))} gp</span>`, `<img src="${iconUrl(id)}">`)).join('') || row('—', ''));
-    } else if (tab === 'in') {
-      const src = heroMode ? H : a;
-      body += sec('im', 'Damage taken by monster', Object.entries(src.inMon).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(k, `<span class="v dn">${nf(v)}</span>`)).join('') || row('—', ''));
-      body += sec('ie', 'Damage taken by element', Object.entries(src.inEl).map(([k, v]) => row(k, `<span class="v dn">${nf(v)}</span>`)).join('') || row('—', ''));
+      if (!collapsed.s) { setV('s', 'Enemies killed', nf(a.kills)); setV('s', 'XP gain', nf(xp)); setV('s', 'Gold', gp(income), income < 0); setV('s', 'Waste', gp(waste), true); setV('s', 'Balance', gp(bal), bal < 0); }
+      if (!collapsed.h) { setV('h', 'XP/h', nf(xp / hrs)); setV('h', 'Raw XP/h', nf(xp / hrs)); setV('h', 'Gold/h', gp(income / hrs)); setV('h', 'Waste/h', gp(waste / hrs), true); setV('h', 'Balance/h', gp(bal / hrs), bal < 0); }
+      patchList('u', Object.entries(supplies).filter(([, n]) => n > 0), listRow(id => ITEM_ICON[id] || ICONMAP[id] ? `<img src="${ICONMAP[id] ? ICONMAP[id].src : iconUrl(ITEM_ICON[id])}">` : '<span style="width:16px;display:inline-block"></span>'),
+        (r, [id, n]) => { T(r.k, ITEM_NAME[id] || (CONSUMABLES[id] && CONSUMABLES[id].name) || id); T(r.x, '×' + nf(n)); T(r.v, gp(n * ITEM_PRICE(id))); K(r.v, 'dn', true); });
+      if (AR.l) T(AR.l.head, heroMode ? 'Loot collected (split evenly)' : 'Loot collected');
+      patchList('l', Object.entries(a.lootItems), listRow(id => `<img src="${iconUrl(id)}">`),
+        (r, [id, n]) => { T(r.k, id.replace(/_/g, ' ')); T(r.x, '×' + n); T(r.v, gp(n * (LOOT_VALUE[id] || 0))); });
     } else {
-      const src = heroMode ? H : a;
-      const abName = id => id === 'basic' ? 'Basic attack' : (Object.values(ABILITIES).flat().find(x => x.id === id) || { name: id }).name;
-      body += sec('oa', 'Damage dealt by ability', Object.entries(src.outAb).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(abName(k), `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
-      body += sec('oe', 'Damage dealt by element', Object.entries(src.outEl).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(k, `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
+      const src = heroMode ? H : a, out = tab === 'out';
+      const lists = out ? [['oa', src.outAb, abName], ['oe', src.outEl, k => k]] : [['im', src.inMon, k => k], ['ie', src.inEl, k => k]];
+      for (const [id, obj, name] of lists) patchList(id, Object.entries(obj).sort((x, y) => y[1] - x[1]), listRow(null),
+        (r, [k, v]) => { T(r.k, name(k)); T(r.x, ' '); T(r.v, nf(v)); K(r.v, 'dn', !out); });
     }
-    $('hunt').innerHTML = `<span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Hunt Analyzer</span><span class="sp"></span><button id="anRst" class="stud" title="reset the session">⟲</button><button class="minb stud" title="minimize">–</button></div>` +
-      (anCollapsed ? '' :
-        (ended ? '<div class="ended">Hunt ended — session summary</div>' : '') +
-        `<div class="top"><span title="time hunted this session">Session<b>${hms(secs)}</b></span><span title="estimated time to the viewed hero's next level" style="text-align:right">Next level<b>${isFinite(nextLv) ? hms(nextLv) : '--:--:--'}</b></span></div>` +
-        `<div class="tg"><button data-v="hero" class="${anView === 'hero' ? 'on' : ''}">This hero${h ? ' (' + NAME[h.kind] + ')' : ''}</button><button data-v="party" class="${anView === 'party' ? 'on' : ''}">Party</button></div>` +
-        `<div class="tabs"><button data-t="session" class="${tab === 'session' ? 'on' : ''}" title="session totals">⌛ Session</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}" title="damage taken">⛨ Taken</button><button data-t="out" class="${tab === 'out' ? 'on' : ''}" title="damage dealt">⚔ Dealt</button></div>` +
-        `<div class="pane">${body}</div>`);
-    // The analyzer re-renders on a timer, which replaces its buttons; a press-then-release `click` is lost whenever
-    // a re-render lands in between. One delegated handler on the panel, acting on POINTERDOWN, survives re-renders.
-    if (!$('hunt')._acts) {
-      $('hunt')._acts = true;
-      $('hunt').addEventListener('pointerdown', e => {
-        if (e.button !== 0) return;
-        const b = e.target.closest('#anRst, [data-v], [data-t], [data-s]'); if (!b) return;
-        if (b.id === 'anRst') { window.__resetAnalyzer(); ended = false; }
-        else if (b.dataset.v) anView = b.dataset.v;
-        else if (b.dataset.t) tab = b.dataset.t;
-        else collapsed[b.dataset.s] = !collapsed[b.dataset.s];
-        e.preventDefault(); slow();
-      });
-    }
-    // top bar timer: next pack respawn, else the session clock
+    // top bar timer and view label: fixed structure, patched
     const next = s.packs.filter(p => !p.alive).map(p => p.respawnAt - s.time).filter(t => t > 0).sort((x, y) => x - y)[0];
-    $('ready').innerHTML = next != null ? `READY IN <b>${Math.floor(next / 60)}:${String(Math.floor(next % 60)).padStart(2, '0')}</b>` : `SESSION <b>${hms(secs)}</b>`;
-    $('viewlbl').innerHTML = VIEW.mode === 'party' ? 'Viewing <b>Party (free cam)</b>' : `Viewing <b>${NAME[h.kind]}</b> · 1–4 switch · P party cam`;
+    T(TB.rl, next != null ? 'READY IN ' : 'SESSION '); T(TB.rv, next != null ? `${Math.floor(next / 60)}:${String(Math.floor(next % 60)).padStart(2, '0')}` : hms(secs));
+    T(TB.vl, 'Viewing '); T(TB.vv, VIEW.mode === 'party' ? 'Party (free cam)' : NAME[h.kind]); T(TB.vh, VIEW.mode === 'party' ? '' : ' · 1–4 switch · P party cam');
     syncRight();
-    $('lootBody').textContent = a.log.join('\n') || '—';
+    T(TB.loot, a.log.join('\n') || '—');
   }
+  const TB = (() => {
+    $('ready').textContent = ''; $('ready').append(mk('<span> </span>'), mk('<b> </b>'));
+    $('viewlbl').textContent = ''; $('viewlbl').append(mk('<span> </span>'), mk('<b> </b>'), mk('<span> </span>'));
+    $('lootBody').textContent = ' ';
+    const r = $('ready').children, v = $('viewlbl').children;
+    return { rl: r[0], rv: r[1], vl: v[0], vv: v[1], vh: v[2], loot: $('lootBody') };
+  })();
   draggable($('hunt')); draggable($('lootp')); draggable($('log'));
 
   // ---------- bottom HUD: "Hearthrise light" ----------
@@ -269,7 +323,7 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=23').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=24').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
     for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, ''); ICONMAP[id] = i; }
@@ -428,7 +482,8 @@ const UI = (() => {
     const hit = !s && hits.find(([x, y, w, h]) => mx >= x && mx < x + w && my >= y && my < y + h);
     const tip = $('tip');
     if (!s && !hit) { tip.style.display = 'none'; return; }
-    tip.innerHTML = s ? `<div class="n">${s.name}</div><div class="c">${s.tip}</div>` : `<div class="n">${hit[4]}</div><div class="c">${hit[5]}</div>`;
+    const html = s ? `<div class="n">${s.name}</div><div class="c">${s.tip}</div>` : `<div class="n">${hit[4]}</div><div class="c">${hit[5]}</div>`;
+    if (tip._h !== html) { tip._h = html; tip.innerHTML = html; }
     tip.style.display = 'block'; tip.style.left = Math.min(innerWidth - 250, e.clientX + 12) + 'px'; tip.style.top = Math.max(4, e.clientY - 80) + 'px';
   });
   cv.addEventListener('mouseleave', () => { $('tip').style.display = 'none'; });
@@ -446,7 +501,7 @@ const UI = (() => {
       const lead = heroes()[0];
       $('rTgt').innerHTML = Object.entries(TARGET_MODES).map(([k, v]) => `<option value="${k}">${k === 'follow' ? 'Follow ' + (u === lead ? '(self: nearest)' : NAME[lead.kind]) : v}</option>`).join('');
     }
-    $('rSet').value = u.set.actSet; $('rTgt').value = u.set.target; $('dVal').textContent = u.set.dist;
+    $('rSet').value = u.set.actSet; $('rTgt').value = u.set.target; T($('dVal'), u.set.dist);
     $('plaque').querySelectorAll('[data-st]').forEach(b => b.classList.toggle('on', u.set.stance === b.dataset.st));
     $('rChase').classList.toggle('on', u.set.chase);
   }

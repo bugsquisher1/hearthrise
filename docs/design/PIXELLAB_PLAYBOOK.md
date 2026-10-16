@@ -91,3 +91,13 @@ Use `create_topdown_tileset(mode="pro", tile_size=32)`. Pro is experimental; it 
 - `shape_style` works in standard mode only; never combine it with pro.
 - `create_tiles_pro` with oblique tiles gives a 45° shear, but not the chained transition workflow.
 - **Next use:** re-make the sewer flagstone↔brick wall set with `roundness` 1 or 2, `connect_diagonals=True` and a tall `transition_size`. That fixes Tyler's "perfectly square walls" without changing which cells are walkable.
+- **From the official video (Tyler, 2026-10-16):**
+  - Prompts: keep terrain prompts short and end them on "texture" to stop stray props.
+  - Style words that move the look most: colour, season and outline words; add 2–3 at a time.
+  - Wall height: above 40%, the description field becomes the wall prompt.
+  - Edges: raggedness roughens them; reshuffle gives a new boundary at the same setting.
+  - Corners: "connect diagonal corners" with roundness at 45° joins diagonal steps into one line.
+  - Linking sets: "connect existing" shares a terrain so 3+ terrains join on one map.
+  - Before painting: do a dry run to catch black edges.
+  - Cleanup: fix stray pixels with "Edit in Pixelama" on the tileset page.
+  - Cost: pro is 15 generations at 16 px and 25 at 64 px.

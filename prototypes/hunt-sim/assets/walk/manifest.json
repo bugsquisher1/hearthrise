@@ -923,7 +923,7 @@
    "note": "south direction regenerated at 8 frames to match the rest"
   },
   "berserker": {
-   "object_id": "622fb6d0-2453-4830-b044-6df5097c7c14",
+   "object_id": "d31e2cc1-89ee-437e-9820-59eb0a7333cd",
    "role": "melee",
    "fps": 8,
    "directions": {
@@ -1008,8 +1008,8 @@
     48
    ],
    "foot_anchor": [
-    26,
-    41
+    23,
+    42
    ]
   },
   "brute": {

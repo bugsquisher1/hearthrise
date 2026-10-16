@@ -6,32 +6,31 @@ All assets are in Tyler's PixelLab account. Names start with `S1`.
 
 ## 1. Sewer map (the real one)
 
-**Map Workshop**: https://www.pixellab.ai/maps → **"Hearthrise — Sewer (style 1)"**, id `c8ed5928-aef3-409f-a712-c0ce2e73d46b`, about 57×36 cells of 32 px, 51 objects. Reworked on 2026-10-15 to remove the boxy, mirror-symmetric first layout.
+**Map Workshop**: https://www.pixellab.ai/maps → **"Hearthrise — Sewer (style 1)"**, id `c8ed5928-aef3-409f-a712-c0ce2e73d46b`, **61×41 cells** (x -1..59, y -1..39) of 32 px, 58 objects. The hunt sim widened it; its terrain grid is the sim's source, so change decals only.
 (Ignore the older map with the same name, `b473b67e-…`. It was a drifted first pass; delete it in the web app.)
 
 Layout (x,y cells):
 - West entrance corridor (x0–5, y20–22).
 - **West junction hall**, an L-shape with a notched corner (x6–15, y13–25).
-- A 1-wide squeeze north (x9, y7–12) into the **NW room**, an L-shape.
-- A 2-wide link south into the **SW room**, two offset blobs.
-- A 3-wide stretch east (x15–19, y20–22), then a dogleg up to the **channel hall**.
-- The **channel is off-centre and bent**: water runs x26–28 down to y15, east along y13–15, then down x32–34 to y31. A floor rim separates it from the walls everywhere.
-- The **long iron bridge** crosses the lower channel at y24.
-- A 3-wide corridor leads to the asymmetric **east junction hall** (x40–47, y17–28, notched).
-- North of the hall, a 2-wide dogleg runs to the irregular **NE room**.
-- South, a short link runs to the **SE room**.
-- A 2-wide corridor (x48–50, y22–23) leads to the **Rat King room** at the far east end (x51–55, y18–29).
+- North choke into the **NW room** (L-shaped, x3–12, y2–9).
+- A link south into the **SW room**, two offset blobs (x2–13, y27–34).
+- Corridor east, then a dogleg up into the **channel hall**.
+- **Bent, off-centre channel**: water runs x26–28 to y15, east along y13–15, then down x32–34 to y31. The long iron bridge crosses at (33,24).
+- Corridor east into the **east junction hall** (x40–49, y17–28).
+- North through a 3-wide corridor (x43–45, y13–16) into the **NE room** (x38–48, y3–12).
+- South into the **SE room** (x40–50, y30–37).
+- At the far east end, the **Rat King room** (x51–57, y17–29).
 
 | Pocket | Pack (grouped round the pull point) | Props |
 |---|---|---|
 | NW | 4 giant rats round (8,4) | rat nest, 2 torches, moss |
 | SW | 3 slimes round (7,31) | rat nest, torch, moss |
-| NE | **mid-fight**: EK (42,6) holding 3 spiders + 2 bats; RP (43,9), ED (45,11), MS (44,14) in the corridor | bones, 2 torches |
+| NE | **mid-fight, v2 party**: knight (42,6) holding 3 spiders (41,5) (43,5) (40,6) + 2 bats (42,4) (44,6); paladin (43,9), 3 back; druid (45,11), 5 back; sorcerer (44,12), 6 back | bones, 2 torches |
 | SE | 3 kobolds round (44,32) | rat nest, torch |
-| Boss | Rat King (53,23) + 2 rats | brazier, nest, bones, torch, moss |
+| Rat King | Rat King (53,23) + 2 rats (52,21) (52,25) | story set: 2 nests (51,19) (54,27), bones (51,28), 2 barrel pairs (55,21) (55,29), wall torch |
 
-Floor variation comes from clustered moss-and-puddle decals (object `3ae7a8a6-ced2-4efc-9864-03fbce3fd00c`) placed by walls and water. The moss-floor Wang tileset I tried (`6cee696e-…`) rendered as pale smears, so I painted it back out.
-Previews (`…/scratchpad/k/`): `map_half.png` (whole map at half scale), `sewer_fight_preview_2x.png` (fight pocket from the first layout), `lineup.png` (character approval sheet: 4 heroes and 6 monsters, south-facing, 2× on sewer floor).
+Floor variation: 14 moss-and-puddle decals (object `3ae7a8a6-ced2-4efc-9864-03fbce3fd00c`), clustered by walls and water, layer 0, about 10% of the floor.
+Previews (`…/scratchpad/k/`): `map_half.png` (whole map at half scale, current), `lineup_v2.png` (heroes and monsters), `walk_check.png` (south walk frames).
 
 ## 2. Asset ids by use
 
@@ -67,7 +66,28 @@ Missing pair: water ↔ wall top. Don't let water touch wall. Leave a 1-cell flo
 giant rat `01744036-6944-4548-a581-a408b4bf1bee` · slime `a53b1f35-5b54-47e4-be50-40a593b96392` · giant bat `3d41dcb0-204b-4cba-8b22-66ae711d449d` · venom spider `d6f7f699-30f0-4ed1-985e-62d41ae98bee` · kobold `27b8daf0-8222-4e0b-ac00-30cf6fa91b21` · **Rat King** (64 canvas) `3c137163-dbd3-4812-8a72-a518a58f0f20`
 
 ### Heroes (Pro Flash, 8 directions, style image = the reference knight crop)
-default hero / EK knight `0793db1d-6d51-4345-acc4-8f181922d60b` · RP paladin `5d1317f2-d754-43b2-8df5-34c55eb0a3b9` · ED druid `70f41f81-6f79-47ff-8e8e-165f41cb3d51` · MS sorcerer `d3fb6041-ecfd-44b1-bd16-1689f9708ac2`
+| Hero | Current (v2) id | Look |
+|---|---|---|
+| EK knight / default hero | `54afec30-8790-4212-b658-6896c02a3d09` | plume crest, pauldrons, big kite shield. No north-east rotation; the sim uses north |
+| RP paladin | `1cbd894c-a971-4cfa-9c4e-3d2ee477d5db` | crossbow; steel, cream and gold with a blue sash |
+| ED druid | `70f41f81-6f79-47ff-8e8e-165f41cb3d51` | unchanged; Tyler's favourite |
+| MS sorcerer | `9b0e8f75-4a1a-4804-9202-93c6342fc8f1` | tall hat, glowing cyan staff tip |
+
+Superseded v1 (do not use): knight `0793db1d-6d51-4345-acc4-8f181922d60b`, paladin `5d1317f2-d754-43b2-8df5-34c55eb0a3b9`, sorcerer `d3fb6041-ecfd-44b1-bd16-1689f9708ac2`.
+
+### Walk cycles (sim assets)
+Folder `prototypes/hunt-sim-assets/`: one sub-folder per unit (`knight paladin druid sorcerer giant_rat slime giant_bat venom_spider kobold rat_king`) plus `manifest.json`.
+
+Manifest format: `units.<key>` holds:
+- `object_id`, `role`, `fps`
+- `frame_size` [w,h]
+- `frame_count`
+- `foot_anchor` [x,y]: pixels from the frame's top-left, at the tile centre where the unit stands. A flying unit has `hover:true` and the anchor is its shadow point.
+- `directions.<dir>`: walk frame paths in order
+- `idle.<dir>`: one frame per direction
+- `fallback`, when a direction is missing (knight north-east falls back to north)
+
+Every walk loop is 6 frames, except the Rat King's, which is 8. The slime walk is a squash hop and the bat walk is a wing flap. All loops come from PixelLab `animate_object` (v3), at about 1 generation per direction.
 
 ### Greenhaven / town terrain (Wang, pro mode, one chained family on the grass base `42099ab7-68ef-4c41-bed9-581b37501045`)
 | Pair | Tileset id |
@@ -120,6 +140,13 @@ Prompt templates (copy, fill the brackets):
 - In tight corridors the party stays in single file in the same order.
 
 **Effects (readability)**: small 3–5 px hit sparks on the EK's targets, ONE tight AoE ring around the pack (not the whole room), short arrows of 1 tile or less, a small green heal sparkle on the EK. Nothing should cover the sprites.
+
+## 4b. Hunting-ground sizing rules (measured by the hunt sim, 2026-10-15). These override §4 where they differ.
+- **Corridors are at least 3 tiles wide.** Each map has exactly ONE deliberate 1-tile choke.
+- **Combat rooms** need open floor inside the door deep enough for the whole formation: the knight with the pack on him, the paladin 3 tiles back, the druid 5 back and the sorcerer 6 back, all inside the room.
+- **Packs** are 5 monsters or fewer.
+- **Footprint:** every unit occupies exactly 1 tile for movement and blocking, whatever its sprite size (the Rat King included).
+- **Aggro** triggers when the party enters the room. Monsters are leashed to their room and never chase into corridors.
 
 ## 5. Known pitfalls
 - base64 pasted into a call gets truncated. For anything above about 1 KB, upload it with `get_upload_url` and pass `upload:<id>` (Pro Flash `style_image.url`, character refs). Tiles Pro `style_images` still needs raw base64, so keep those crops under about 1.5 KB.

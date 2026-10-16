@@ -365,6 +365,8 @@ function aiTravel() {
   // aggro check
   // the knight walks into the room up to the pack, so the ranged are inside the door too
   if (inRoom(S.pocketIdx, k.x, k.y) && Math.hypot(k.x - c[0], k.y - c[1]) <= CONFIG.pullDist) { startPull(); return; }
+  // a kiting leader (chase off, distance > 1) pulls from its distance instead of walking into the pack (Tyler 2026-10-16)
+  if (kites(k) && inRoom(S.pocketIdx, k.x, k.y) && Math.min(...mons.map(m => cheb(m, k))) <= k.set.dist + 1) { k.path = []; k.goal = null; startPull(); return; }
   followTrail();
 }
 function followTrail() {
@@ -392,8 +394,10 @@ function aiFight() {
   const k = lead();
   const mons = engagedMonsters();
   if (!mons.length) { endPull(); return; }
-  if (!k.set.chase) {
-    keepDistance(k, k.set.dist, mons);   // chase off applies to the leader too: kite at its distance setting
+  if (kites(k)) {
+    keepDistance(k, k.set.dist, mons);   // chase off + distance > 1: the leader kites at its distance setting
+  } else if (!k.set.chase) {
+    k.path = [];                         // chase off at distance 1: hold position, don't run
   } else if (!adjacentMonsters(k).length) {
     // nothing on him yet: step toward the nearest
     const near = mons.slice().sort((a, b) => eu(a, k) - eu(b, k))[0];
@@ -449,7 +453,8 @@ function rangedPos(u, k, mons) {
     if (u.repath <= 0 && eu(u, k) > 2) { const f = freeNear(k.x, k.y, 2); if (f) setGoal(u, ...f); u.repath = 0.6; }
     return;
   }
-  if (!u.set.chase) { keepDistance(u, want, mons); return; }   // chase off: kite, keep `want` tiles from every monster
+  if (kites(u)) { keepDistance(u, want, mons); return; }       // chase off + distance > 1: kite, keep `want` tiles from every monster
+  if (!u.set.chase) return;                                     // chase off at distance 1: hold position
   if (u.repath > 0 && !nearMon) return;
   u.repath = 1.0;
   const ok = (x, y) => eu({ x, y }, tgt) >= want - 1 && eu({ x, y }, tgt) <= want + 1.2;
@@ -474,19 +479,26 @@ function rangedPos(u, k, mons) {
 }
 // Keep-distance (chase off): when any monster is closer than `want` tiles, step back to the reachable tile that
 // best restores the gap, keeping a line of fire to some monster and staying in the room. Holds once safe.
+// Kiting applies to ANY hero with chase off and a distance setting above 1 (Tyler 2026-10-16).
+const kites = u => !u.set.chase && u.set.dist > 1;
 function keepDistance(u, want, mons) {
   const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
   if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
   // en route to a step that still restores the gap: keep going (re-picking every tick meant never arriving)
   if (u.goal && u.path.length && gap(u.goal[0], u.goal[1]) >= want) return;
-  // the NEAREST reachable tile that restores the gap, with a line of fire, inside the room: one short step back
+  // the NEAREST reachable tile that restores the gap, with a line of fire, inside the room: one short step back.
+  // It must lie AWAY from the pack (farther from the pack's centre than we are now), or the "nearest safe tile"
+  // can be on the far side of the monsters and the route walks straight through them.
+  const cx = mons.reduce((a, m) => a + m.x, 0) / mons.length, cy = mons.reduce((a, m) => a + m.y, 0) / mons.length;
+  const away = (x, y) => Math.hypot(x - cx, y - cy) - Math.hypot(u.x - cx, u.y - cy);
   let best = null, bs = 1e9;
   for (let y = u.y - 5; y <= u.y + 5; y++) for (let x = u.x - 5; x <= u.x + 5; x++) {
     if (!walk(x, y)) continue;
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
     if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
+    if (away(x, y) <= 0.5) continue;                           // retreat only, never through or past the pack
     const g = gap(x, y); if (g < Math.min(want, 2)) continue;  // never step next to a monster
-    const s = eu({ x, y }, u) + (g >= want ? 0 : (want - g) * 3) + (mons.some(m => los({ x, y }, m)) ? 0 : 4) + (inRoom(S.pull.pocket, x, y) ? 0 : 3);
+    const s = eu({ x, y }, u) + (g >= want + 1 ? 0 : (want + 1 - g) * 3)   /* aim one tile PAST the setting so the step buys time */ + (mons.some(m => los({ x, y }, m)) ? 0 : 4) + (inRoom(S.pull.pocket, x, y) ? 0 : 3);
     if (s < bs) { bs = s; best = [x, y]; }
   }
   if (best && (best[0] !== u.x || best[1] !== u.y)) setGoal(u, ...best);

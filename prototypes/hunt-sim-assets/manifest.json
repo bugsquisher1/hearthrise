@@ -921,6 +921,186 @@
     57
    ],
    "note": "south direction regenerated at 8 frames to match the rest"
+  },
+  "berserker": {
+   "object_id": "871c238f-ed34-48dd-91ad-d04a3c10b197",
+   "role": "melee",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "berserker/walk_east_0.png",
+     "berserker/walk_east_1.png",
+     "berserker/walk_east_2.png",
+     "berserker/walk_east_3.png",
+     "berserker/walk_east_4.png",
+     "berserker/walk_east_5.png"
+    ],
+    "north-east": [
+     "berserker/walk_north-east_0.png",
+     "berserker/walk_north-east_1.png",
+     "berserker/walk_north-east_2.png",
+     "berserker/walk_north-east_3.png",
+     "berserker/walk_north-east_4.png",
+     "berserker/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "berserker/walk_north-west_0.png",
+     "berserker/walk_north-west_1.png",
+     "berserker/walk_north-west_2.png",
+     "berserker/walk_north-west_3.png",
+     "berserker/walk_north-west_4.png",
+     "berserker/walk_north-west_5.png"
+    ],
+    "north": [
+     "berserker/walk_north_0.png",
+     "berserker/walk_north_1.png",
+     "berserker/walk_north_2.png",
+     "berserker/walk_north_3.png",
+     "berserker/walk_north_4.png",
+     "berserker/walk_north_5.png"
+    ],
+    "south-east": [
+     "berserker/walk_south-east_0.png",
+     "berserker/walk_south-east_1.png",
+     "berserker/walk_south-east_2.png",
+     "berserker/walk_south-east_3.png",
+     "berserker/walk_south-east_4.png",
+     "berserker/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "berserker/walk_south-west_0.png",
+     "berserker/walk_south-west_1.png",
+     "berserker/walk_south-west_2.png",
+     "berserker/walk_south-west_3.png",
+     "berserker/walk_south-west_4.png",
+     "berserker/walk_south-west_5.png"
+    ],
+    "south": [
+     "berserker/walk_south_0.png",
+     "berserker/walk_south_1.png",
+     "berserker/walk_south_2.png",
+     "berserker/walk_south_3.png",
+     "berserker/walk_south_4.png",
+     "berserker/walk_south_5.png"
+    ],
+    "west": [
+     "berserker/walk_west_0.png",
+     "berserker/walk_west_1.png",
+     "berserker/walk_west_2.png",
+     "berserker/walk_west_3.png",
+     "berserker/walk_west_4.png",
+     "berserker/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "berserker/idle_east.png",
+    "west": "berserker/idle_west.png",
+    "north": "berserker/idle_north.png",
+    "south": "berserker/idle_south.png",
+    "north-east": "berserker/idle_north-east.png",
+    "north-west": "berserker/idle_north-west.png",
+    "south-east": "berserker/idle_south-east.png",
+    "south-west": "berserker/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    22,
+    40
+   ]
+  },
+  "brute": {
+   "object_id": "031cfc17-94b6-42dc-8ed3-3062501612ab",
+   "role": "melee",
+   "fps": 7,
+   "directions": {
+    "east": [
+     "brute/walk_east_0.png",
+     "brute/walk_east_1.png",
+     "brute/walk_east_2.png",
+     "brute/walk_east_3.png",
+     "brute/walk_east_4.png",
+     "brute/walk_east_5.png"
+    ],
+    "north-east": [
+     "brute/walk_north-east_0.png",
+     "brute/walk_north-east_1.png",
+     "brute/walk_north-east_2.png",
+     "brute/walk_north-east_3.png",
+     "brute/walk_north-east_4.png",
+     "brute/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "brute/walk_north-west_0.png",
+     "brute/walk_north-west_1.png",
+     "brute/walk_north-west_2.png",
+     "brute/walk_north-west_3.png",
+     "brute/walk_north-west_4.png",
+     "brute/walk_north-west_5.png"
+    ],
+    "north": [
+     "brute/walk_north_0.png",
+     "brute/walk_north_1.png",
+     "brute/walk_north_2.png",
+     "brute/walk_north_3.png",
+     "brute/walk_north_4.png",
+     "brute/walk_north_5.png"
+    ],
+    "south-east": [
+     "brute/walk_south-east_0.png",
+     "brute/walk_south-east_1.png",
+     "brute/walk_south-east_2.png",
+     "brute/walk_south-east_3.png",
+     "brute/walk_south-east_4.png",
+     "brute/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "brute/walk_south-west_0.png",
+     "brute/walk_south-west_1.png",
+     "brute/walk_south-west_2.png",
+     "brute/walk_south-west_3.png",
+     "brute/walk_south-west_4.png",
+     "brute/walk_south-west_5.png"
+    ],
+    "south": [
+     "brute/walk_south_0.png",
+     "brute/walk_south_1.png",
+     "brute/walk_south_2.png",
+     "brute/walk_south_3.png",
+     "brute/walk_south_4.png",
+     "brute/walk_south_5.png"
+    ],
+    "west": [
+     "brute/walk_west_0.png",
+     "brute/walk_west_1.png",
+     "brute/walk_west_2.png",
+     "brute/walk_west_3.png",
+     "brute/walk_west_4.png",
+     "brute/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "brute/idle_east.png",
+    "west": "brute/idle_west.png",
+    "north": "brute/idle_north.png",
+    "south": "brute/idle_south.png",
+    "north-east": "brute/idle_north-east.png",
+    "north-west": "brute/idle_north-west.png",
+    "south-east": "brute/idle_south-east.png",
+    "south-west": "brute/idle_south-west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    20,
+    42
+   ]
   }
  }
 }

@@ -855,7 +855,7 @@ $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {
   const rows = STATS.pulls.slice(-14).map(p => `r${p.run} ${p.pocket.padEnd(12)} <b>${String(p.secs).padStart(5)}s</b>  wait ${p.waits}s${p.deaths ? '  deaths ' + p.deaths : ''}${p.wipe ? '  WIPE' : ''}`);
-  $('log').innerHTML = 'Pulls (time to clear)\n' + (rows.join('\n') || '—');
+  $('logBody').innerHTML = 'time to clear\n' + (rows.join('\n') || '—');
 }
 // ---------- hunt analyzer ----------
 const fmt = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));

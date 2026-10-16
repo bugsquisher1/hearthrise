@@ -65,10 +65,19 @@
   #tip { position:fixed; pointer-events:none; background:rgba(12,14,17,.94); border:1px solid var(--panel-line); padding:4px 6px; font-size:11px; max-width:220px; display:none; z-index:9; }
   #tip .n { color:var(--accent); } #tip .c { color:var(--dim); }
   /* dev panels behind the » expander */
-  #log { position:fixed; right:8px; bottom:120px; width:290px; max-height:30vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:3px; white-space:pre; display:none; }
+  #log { right:8px; bottom:120px; width:290px; font-size:11px; }
+  #logBody, #lootBody { padding:4px 8px; white-space:pre; max-height:26vh; overflow:auto; }
   #log b { color:var(--accent); font-weight:normal; }
+  #lootp { left:8px; bottom:120px; width:250px; font-size:11px; } #lootBody { color:#e8d8a0; overflow-x:hidden; }
+  /* minimize: a panel collapses to its title strip; the bottom HUD keeps only HP/mana */
+  .pnl.min > :not(.hd) { display:none !important; }
+  .hidden { display:none !important; }
+  #hud2 .mini { position:absolute; top:-1px; right:-1px; padding:0 5px; font-size:11px; line-height:13px; }
+  #hud2.min #slots, #hud2.min #hudR, #hud2.min #hudRound, #hud2.min .hb.thin { display:none; }
+  #panelsMenu { position:fixed; top:36px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:4px 8px; z-index:8; font-size:11px; }
+  #panelsMenu label { display:block; cursor:pointer; }
   #hud { position:fixed; left:8px; bottom:120px; background:var(--panel); padding:4px 8px; border-radius:3px; white-space:pre; color:var(--dim); display:none; }
-  body.dev #log, body.dev #hud { display:block; }
+  body.dev #hud { display:block; }
 </style>
 </head>
 <body>
@@ -82,23 +91,25 @@
   <button id="tPath">Paths</button>
   <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
 </div>
-<div id="huntbar"><button id="details">ⓘ HUNT DETAILS</button><span class="ready" id="ready"></span><button id="expand" title="dev panels">»</button><button id="leave">LEAVE HUNT</button></div>
+<div id="huntbar"><button id="details">ⓘ HUNT DETAILS</button><span class="ready" id="ready"></span><button id="panelsBtn" title="show / hide panels (H toggles all)">Panels ▾</button><button id="expand" title="dev panels">»</button><button id="leave">LEAVE HUNT</button></div>
 <div id="viewlbl"></div>
 <div id="party" class="pnl"></div>
 <div id="hunt" class="pnl"></div>
-<div id="hud2">
+<div id="hud2"><button class="mini minb" title="minimize">–</button>
   <div id="hudL"><div id="hudBars"></div><div id="hudRound"></div></div>
   <canvas id="slots"></canvas>
   <div id="hudR"></div>
 </div>
 <div id="tip"></div>
 <div id="hud"></div>
-<div id="log"></div>
-<script src="grid.js?v=12"></script>
-<script src="combat-data.js?v=12"></script>
-<script src="vfx.js?v=12"></script>
-<script src="ambient.js?v=12"></script>
-<script src="sim.js?v=12"></script>
-<script src="ui.js?v=12"></script>
+<div id="panelsMenu" class="hidden"></div>
+<div id="lootp" class="pnl"><div class="hd"><span>Loot</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="lootBody"></div></div>
+<div id="log" class="pnl"><div class="hd"><span>Pulls</span><span class="sp"></span><button class="minb" title="minimize">–</button></div><div id="logBody"></div></div>
+<script src="grid.js?v=13"></script>
+<script src="combat-data.js?v=13"></script>
+<script src="vfx.js?v=13"></script>
+<script src="ambient.js?v=13"></script>
+<script src="sim.js?v=13"></script>
+<script src="ui.js?v=13"></script>
 </body>
 </html>

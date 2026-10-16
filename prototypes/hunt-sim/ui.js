@@ -19,13 +19,13 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=12`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=13`; ICON[n] = i;
   }
   const ITEM_ICON = { fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', health_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Mana potion', health_potion: 'Health potion', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   const ITEM_PRICE = id => id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=12`;
+  const iconUrl = id => `assets/icons/${id}.png?v=13`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -70,11 +70,29 @@ const UI = (() => {
 
   // ---------- top bar + view ----------
   let ended = false;
-  $('details').onclick = () => { $('hunt').style.display = $('hunt').style.display === 'none' ? '' : 'none'; };
+  // ---------- panels: minimize (title strip only), show/hide, H toggles all; remembered in localStorage ----------
+  const PANELS = (() => {
+    const IDS = { party: 'Party', hunt: 'Hunt analyzer', hud2: 'Bottom HUD', lootp: 'Loot log', log: 'Pulls log' };
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem('huntsim-panels') || '{}') || {}; } catch (e) { st = {}; }
+    const save = () => { try { localStorage.setItem('huntsim-panels', JSON.stringify(st)); } catch (e) { /* storage blocked: fine */ } };
+    const apply = () => { for (const id in IDS) { const el = $(id), p = st[id] || {}; if (!el) continue;
+      el.classList.toggle('min', !!p.min); el.classList.toggle('hidden', !!p.hidden || !!st.__allOff); }
+      $('panelsMenu').innerHTML = Object.entries(IDS).map(([id, n]) => `<label><input type="checkbox" data-p="${id}" ${(st[id] || {}).hidden ? '' : 'checked'}> ${n}</label>`).join('') +
+        '<div style="color:var(--dim);margin-top:3px">H hides / shows all</div>';
+      $('panelsMenu').querySelectorAll('[data-p]').forEach(c => c.onchange = () => set(c.dataset.p, { hidden: !c.checked })); };
+    function set(id, patch) { st[id] = Object.assign({}, st[id], patch); if (patch.hidden === false) st.__allOff = false; save(); apply(); }
+    document.addEventListener('click', e => { const b = e.target.closest('.minb'); if (!b) return;
+      const el = b.closest('.pnl, #hud2'); if (el) set(el.id, { min: !(st[el.id] || {}).min }); });
+    $('panelsBtn').onclick = () => $('panelsMenu').classList.toggle('hidden');
+    addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') { st.__allOff = !st.__allOff; save(); apply(); } });
+    return { set, apply, get: id => st[id] || {} };
+  })();
+  $('details').onclick = () => PANELS.set('hunt', { hidden: !PANELS.get('hunt').hidden });
   $('expand').onclick = () => document.body.classList.toggle('dev');
   $('leave').onclick = () => {
     if (!$('pause').classList.contains('on')) $('pause').click();
-    ended = true; $('hunt').style.display = ''; tab = 'session'; anView = 'party'; slow();
+    ended = true; PANELS.set('hunt', { hidden: false, min: false }); tab = 'session'; anView = 'party'; slow();
   };
   $('partyCam').onclick = () => { partyCam(); };
   addEventListener('keydown', e => {
@@ -89,7 +107,7 @@ const UI = (() => {
   function buildParty() {
     const hs = heroes(); partyKey = hs.map(h => h.kind).join();
     const lead = hs[0];
-    $('party').innerHTML = `<div class="hd"><span>Party</span><span class="sp"></span><button title="close" id="pClose">×</button></div>` +
+    $('party').innerHTML = `<div class="hd"><span>Party</span><span class="sp"></span><button class="minb" title="minimize">–</button><button title="close" id="pClose">×</button></div>` +
       hs.map(h => `<div class="mem" data-k="${h.kind}">
         <div class="r1"><span class="st" id="st-${h.kind}"></span><span>${NAME[h.kind]}</span><span class="tag">${TAG[h.kind]}</span>
           ${h === lead ? '<span class="star" title="leader">★</span>' : '<span class="fol" title="following">↳</span>'}
@@ -100,8 +118,8 @@ const UI = (() => {
         <div class="dps" id="dps-${h.kind}"></div></div>`).join('') +
       `<div class="ft">Costs are personal<div><button>Stop accepting all</button><button>Leave party</button></div></div>`;
     $('party').querySelectorAll('.mem').forEach(m => m.onclick = () => selectHero(m.dataset.k));
-    $('pClose').onclick = () => { $('party').style.display = 'none'; };
-    draggable($('party'));
+    $('pClose').onclick = () => PANELS.set('party', { hidden: true });
+    draggable($('party')); PANELS.apply();
   }
   function partyFast() {
     if (heroes().map(h => h.kind).join() !== partyKey) buildParty();
@@ -159,14 +177,13 @@ const UI = (() => {
       body += sec('oa', 'Damage dealt by ability', Object.entries(src.outAb).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(abName(k), `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
       body += sec('oe', 'Damage dealt by element', Object.entries(src.outEl).sort((x, y) => y[1] - x[1]).map(([k, v]) => row(k, `<span class="v">${nf(v)}</span>`)).join('') || row('—', ''));
     }
-    $('hunt').innerHTML = `<div class="hd"><span>Hunt Analyzer</span><span class="sp"></span><button id="anRst" title="reset">⟲</button><button id="anCol" title="collapse">${anCollapsed ? '▸' : '▾'}</button></div>` +
+    $('hunt').innerHTML = `<div class="hd"><span>Hunt Analyzer</span><span class="sp"></span><button id="anRst" title="reset">⟲</button><button class="minb" title="minimize">–</button></div>` +
       (anCollapsed ? '' :
         (ended ? '<div class="ended">Hunt ended — session summary</div>' : '') +
         `<div class="top"><span>SESSION <b>${hms(secs)}</b></span><span>NEXT LEVEL <b>${isFinite(nextLv) ? hms(nextLv) : '--:--:--'}</b></span></div>` +
         `<div class="tg"><button data-v="hero" class="${anView === 'hero' ? 'on' : ''}">This hero${h ? ' (' + NAME[h.kind] + ')' : ''}</button><button data-v="party" class="${anView === 'party' ? 'on' : ''}">Party</button></div>` +
         `<div class="tabs"><button data-t="session" class="${tab === 'session' ? 'on' : ''}">SESSION</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}">DAMAGE INPUT</button><button data-t="out" class="${tab === 'out' ? 'on' : ''}">DAMAGE OUTPUT</button></div>` + body);
     $('anRst').onclick = () => { window.__resetAnalyzer(); ended = false; slow(); };
-    $('anCol').onclick = () => { anCollapsed = !anCollapsed; slow(); };
     $('hunt').querySelectorAll('[data-v]').forEach(b => b.onclick = () => { anView = b.dataset.v; slow(); });
     $('hunt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; slow(); });
     $('hunt').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { collapsed[b.dataset.s] = !collapsed[b.dataset.s]; slow(); });
@@ -175,8 +192,9 @@ const UI = (() => {
     $('ready').innerHTML = next != null ? `READY IN <b>${Math.floor(next / 60)}:${String(Math.floor(next % 60)).padStart(2, '0')}</b>` : `SESSION <b>${hms(secs)}</b>`;
     $('viewlbl').innerHTML = VIEW.mode === 'party' ? 'Viewing <b>Party (free cam)</b>' : `Viewing <b>${NAME[h.kind]}</b> · 1–4 switch · P party cam`;
     syncRight();
+    $('lootBody').textContent = a.log.join('\n') || '—';
   }
-  draggable($('hunt'));
+  draggable($('hunt')); draggable($('lootp')); draggable($('log'));
 
   // ---------- bottom HUD ----------
   const SL = 34, GAP = 2, COLS = 10;

@@ -5,27 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hunt Sim — Sewer</title>
 <style>
-  :root { --bg:#16181b; --panel:rgba(14,16,19,.82); --ink:#e6e1d6; --dim:#9a958b; --accent:#e0a050; --up:#7fd27a; --dn:#e07060; }
+  :root {
+    --bg:#16181b; --ink:#e6e1d6; --dim:#8f897e; --accent:#e0a050; --up:#7fd27a; --dn:#e07060;
+    --panel:rgba(18,21,26,.80); --panel-line:rgba(120,128,140,.28); --iron:#2b2f35; --iron-hi:#4a5058;
+    --hp:#c8443a; --mp:#3f74d8; --xp:#c9a64a; --st:#3fa08c; --gold:#e8c060; --num:#8fdc7a; --dmg:#e8963c; --heal:#7fd27a;
+  }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:12px/1.35 ui-monospace,Consolas,monospace; overflow:hidden; }
   canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
-  #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:6px; border-radius:4px; }
-  #bar button, #bar select, #anReset { font:inherit; background:#2a2d31; color:var(--ink); border:1px solid #3a3e44; border-radius:3px; padding:3px 7px; cursor:pointer; }
-  #bar button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
-  #log { position:fixed; right:8px; bottom:8px; width:300px; max-height:30vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; }
+  button, select { font:inherit; font-size:11px; background:var(--iron); color:var(--ink); border:1px solid var(--iron-hi); border-radius:2px; padding:2px 6px; cursor:pointer; }
+  button.on { background:#4a3a22; border-color:var(--accent); color:#ffd9a0; }
+  .pnl { position:fixed; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; }
+  .pnl .hd { display:flex; align-items:center; gap:6px; padding:3px 6px; border-bottom:1px solid var(--panel-line); color:var(--accent); cursor:move; user-select:none; touch-action:none; }
+  .pnl .hd .sp { flex:1; }
+  .pnl .hd button { padding:0 4px; font-size:11px; line-height:14px; }
+  #bar { position:fixed; top:8px; left:8px; display:flex; gap:4px; flex-wrap:wrap; background:var(--panel); padding:4px; border-radius:3px; }
+  /* hunt top bar */
+  #huntbar { position:fixed; top:8px; left:50%; transform:translateX(-50%); display:flex; gap:4px; align-items:center; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:3px; }
+  #huntbar .ready { padding:2px 8px; color:var(--dim); } #huntbar .ready b { color:var(--ink); font-weight:normal; }
+  #leave { background:#6a2222; border-color:#9a3a32; color:#ffd8d0; }
+  #viewlbl { position:fixed; top:38px; left:50%; transform:translateX(-50%); color:var(--dim); font-size:11px; background:var(--panel); padding:1px 8px; border-radius:3px; }
+  #viewlbl b { color:var(--accent); font-weight:normal; }
+  /* party panel */
+  #party { top:48px; left:8px; width:204px; font-size:11px; }
+  #party .mem { padding:4px 6px; border-bottom:1px solid var(--panel-line); cursor:pointer; }
+  #party .mem.sel { background:rgba(224,160,80,.10); box-shadow:inset 2px 0 0 var(--accent); }
+  #party .r1 { display:flex; align-items:center; gap:4px; }
+  #party .tag { color:var(--dim); } #party .star { color:var(--gold); } #party .fol { color:var(--dim); }
+  #party .lv { margin-left:auto; color:var(--dim); } #party .kick { color:var(--dim); padding:0 2px; }
+  #party .st { width:12px; text-align:center; }
+  #party .bar { height:3px; background:#0c0d10; margin-top:2px; position:relative; }
+  #party .bar i { position:absolute; left:0; top:0; bottom:0; }
+  #party .stam { display:flex; align-items:center; gap:4px; margin-top:2px; } #party .stam .bar { flex:1; margin:0; } #party .stam span { color:var(--dim); font-size:10px; }
+  #party .dps { margin-top:2px; color:var(--dim); font-size:10px; } #party .dps b { color:var(--dmg); font-weight:normal; } #party .hps b { color:var(--heal); font-weight:normal; }
+  #party .ft { padding:4px 6px; color:var(--dim); font-size:10px; } #party .ft div { display:flex; gap:4px; margin-top:3px; } #party .ft button { flex:1; font-size:10px; }
+  /* hunt analyzer */
+  #hunt { top:48px; right:8px; width:236px; font-size:11px; max-height:calc(100vh - 170px); overflow:auto; }
+  #hunt .top { display:flex; justify-content:space-between; padding:3px 6px; color:var(--dim); } #hunt .top b { color:var(--ink); font-weight:normal; }
+  #hunt .tg, #hunt .tabs { display:flex; gap:2px; padding:0 6px 3px; } #hunt .tg button, #hunt .tabs button { flex:1; font-size:10px; padding:1px 2px; }
+  #hunt .sec { border-top:1px solid var(--panel-line); }
+  #hunt .sh { padding:2px 6px; color:var(--accent); cursor:pointer; user-select:none; }
+  #hunt .row { display:flex; align-items:center; gap:4px; padding:0 6px; min-height:16px; }
+  #hunt .row .k { flex:1; } #hunt .row .v { color:var(--num); text-align:right; } #hunt .row .v.dn { color:var(--dn); } #hunt .row .x { color:var(--dim); }
+  #hunt .row img { width:16px; height:16px; image-rendering:pixelated; }
+  #hunt .ended { padding:4px 6px; color:#ffd9a0; background:rgba(224,160,80,.12); }
+  /* bottom HUD */
+  #hud2 { position:fixed; left:50%; bottom:6px; transform:translateX(-50%); display:flex; gap:8px; align-items:flex-end; background:var(--panel); border:1px solid var(--panel-line); border-radius:3px; padding:5px 6px; }
+  #hudL { width:188px; display:flex; gap:4px; } #hudBars { flex:1; display:flex; flex-direction:column; gap:3px; }
+  .hb { position:relative; height:13px; background:#0c0d10; border:1px solid #000; font-size:10px; line-height:13px; }
+  .hb i { position:absolute; left:0; top:0; bottom:0; } .hb span { position:absolute; left:0; right:0; text-align:center; text-shadow:0 1px 0 #000; }
+  .hb em { position:absolute; right:3px; font-style:normal; font-size:9px; color:var(--ink); text-shadow:0 1px 0 #000; } .hb s { position:absolute; left:3px; text-decoration:none; font-size:9px; text-shadow:0 1px 0 #000; }
+  .hb.thin { height:9px; line-height:9px; font-size:9px; }
+  #hudRound { display:flex; flex-direction:column; gap:3px; } #hudRound canvas { width:24px; height:24px; }
+  #slots { cursor:default; }
+  #hudR { width:150px; display:flex; flex-direction:column; gap:3px; font-size:10px; color:var(--dim); }
+  #hudR select { width:100%; font-size:10px; padding:1px 2px; }
+  #hudR .modes { display:flex; gap:2px; } #hudR .modes button { flex:1; padding:1px 0; font-size:10px; }
+  #hudR .modes button.chase.on { background:#6a2222; border-color:#c04a3a; color:#ffd8d0; }
+  #hudR .dist { display:flex; align-items:center; gap:4px; } #hudR .dist b { color:var(--ink); font-weight:normal; min-width:14px; text-align:center; }
+  #tip { position:fixed; pointer-events:none; background:rgba(12,14,17,.94); border:1px solid var(--panel-line); padding:4px 6px; font-size:11px; max-width:220px; display:none; z-index:9; }
+  #tip .n { color:var(--accent); } #tip .c { color:var(--dim); }
+  /* dev panels behind the » expander */
+  #log { position:fixed; right:8px; bottom:120px; width:290px; max-height:30vh; overflow:auto; background:var(--panel); padding:6px 8px; border-radius:3px; white-space:pre; display:none; }
   #log b { color:var(--accent); font-weight:normal; }
-  #loot { position:fixed; left:8px; bottom:40px; width:300px; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; color:#e8d8a0; font-size:11px; }
-  #hud { position:fixed; left:8px; bottom:8px; background:var(--panel); padding:6px 8px; border-radius:4px; white-space:pre; color:var(--dim); }
-  /* hunt analyzer: movable, semi-transparent */
-  #analyzer { position:fixed; top:48px; right:8px; width:220px; background:rgba(10,12,14,.62); border:1px solid rgba(224,160,80,.35); border-radius:4px; font-size:11px; }
-  #analyzer .ttl { display:flex; justify-content:space-between; align-items:center; padding:4px 6px; cursor:move; color:var(--accent); border-bottom:1px solid rgba(224,160,80,.25); user-select:none; touch-action:none; }
-  #anReset { padding:0 5px; font-size:10px; }
-  #anBody { padding:4px 6px 6px; }
-  #anBody .r { display:flex; justify-content:space-between; }
-  #anBody .r b { font-weight:normal; color:#f2ead8; }
-  #anBody .h { color:var(--dim); margin-top:4px; }
-  #anBody .up { color:var(--up); } #anBody .dn { color:var(--dn); }
-  /* action bar: bottom centre, compact and semi-transparent */
-  #actionbar { position:fixed; left:50%; bottom:8px; transform:translateX(-50%); background:rgba(10,12,14,.55); border:1px solid rgba(224,160,80,.25); border-radius:4px; line-height:0; }
+  #hud { position:fixed; left:8px; bottom:120px; background:var(--panel); padding:4px 8px; border-radius:3px; white-space:pre; color:var(--dim); display:none; }
+  body.dev #log, body.dev #hud { display:block; }
 </style>
 </head>
 <body>
@@ -35,19 +78,27 @@
   <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
   <button id="restart">Restart</button>
   <select id="comp" title="Party"><option value="full" selected>Full party</option><option value="k">Solo knight</option><option value="p">Solo paladin</option><option value="s">Solo sorcerer</option><option value="d">Solo druid</option><option value="kd">Knight + druid</option><option value="ks">Knight + sorcerer</option><option value="pd">Paladin + druid (no tank)</option></select>
-  <button id="tGrid">Grid / footprints</button>
-  <button id="tPath">Paths / aggro</button>
+  <button id="tGrid">Grid</button>
+  <button id="tPath">Paths</button>
+  <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
 </div>
-<div id="analyzer"><div class="ttl"><span>Hunt Analyzer</span><button id="anReset">reset</button></div><div id="anBody"></div></div>
+<div id="huntbar"><button id="details">ⓘ HUNT DETAILS</button><span class="ready" id="ready"></span><button id="expand" title="dev panels">»</button><button id="leave">LEAVE HUNT</button></div>
+<div id="viewlbl"></div>
+<div id="party" class="pnl"></div>
+<div id="hunt" class="pnl"></div>
+<div id="hud2">
+  <div id="hudL"><div id="hudBars"></div><div id="hudRound"></div></div>
+  <canvas id="slots"></canvas>
+  <div id="hudR"></div>
+</div>
+<div id="tip"></div>
 <div id="hud"></div>
-<div id="actionbar"></div>
-<div id="loot"></div>
 <div id="log"></div>
-<script src="grid.js?v=10"></script>
-<script src="combat-data.js?v=10"></script>
-<script src="vfx.js?v=10"></script>
-<script src="ambient.js?v=10"></script>
-<script src="sim.js?v=10"></script>
-<script src="actionbar.js?v=10"></script>
+<script src="grid.js?v=12"></script>
+<script src="combat-data.js?v=12"></script>
+<script src="vfx.js?v=12"></script>
+<script src="ambient.js?v=12"></script>
+<script src="sim.js?v=12"></script>
+<script src="ui.js?v=12"></script>
 </body>
 </html>

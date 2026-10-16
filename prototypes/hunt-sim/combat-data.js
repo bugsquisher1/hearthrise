@@ -18,13 +18,31 @@ const CONSUMABLES = {
   ham:         { name: 'Ham',         glyph: 'ham',    hp: 70, over: 6, below: 0.50, price: 3 },   // ASSUMED: 70 HP over 6 s under 50% HP; 3 g
   bread:       { name: 'Bread',       glyph: 'bread',  hp: 45, over: 6, below: 0.50, price: 2 },   // ASSUMED: 45 HP over 6 s; 2 g
 };
+CONSUMABLES.health_potion = { name: 'Health potion', glyph: 'potion', hp: 80, below: 0.40, price: 4 };   // ASSUMED: +80 HP instantly under 40% HP; 4 g
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
-const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip
-  knight:   { food: ['ham', 25],   drink: ['mana_potion', 6] },
-  paladin:  { food: ['bread', 15], drink: ['mana_potion', 12] },
-  sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40] },
-  druid:    { food: ['bread', 12], drink: ['mana_potion', 40] },
+const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
+  knight:   { food: ['ham', 25],   drink: ['health_potion', 15], runes: { fire_rune: 20 } },
+  paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
+  sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
+  druid:    { food: ['bread', 12], drink: ['mana_potion', 40],  runes: {} },
 };
+const HERO_START_LEVEL = 20, HERO_XP_PER_LEVEL = 12000;   // ASSUMED: display-only level curve for the HUD and analyzer
+// Per-hero HUD settings (bottom-right block). dist = tiles kept from the target/leader (replaces fixed 3/5/6).
+const HERO_SETTINGS = {
+  knight:   { dist: 1, target: 'highest', stance: 'balanced', chase: true, actSet: 'hunt' },
+  paladin:  { dist: 3, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
+  druid:    { dist: 5, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
+  sorcerer: { dist: 6, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
+};
+const STANCES = {   // ASSUMED: Tibia-style fight modes
+  offensive: { dmg: 1.10, taken: 1.10 }, balanced: { dmg: 1.0, taken: 1.0 }, defensive: { dmg: 0.90, taken: 0.85 },
+};
+const ACTION_SETS = {   // ASSUMED presets; a set enables/disables abilities (the bar shows only enabled ones)
+  hunt: { name: 'Hunt', skip: () => false },
+  mana: { name: 'Mana train', skip: ab => !!ab.rune },              // save runes; burn mana on non-rune spells and wand
+  boss: { name: 'Boss', skip: ab => ab.target === 'area' },         // single target only
+};
+const TARGET_MODES = { follow: 'Follow leader', nearest: 'Nearest', lowest: 'Lowest HP', highest: 'Highest % life', strongest: 'Strongest' };
 
 const COMBAT = {
   swing: 2.0,                         // RECON:15,61 + COMBAT:64-69 tickMs 2000 — one universal basic-attack interval

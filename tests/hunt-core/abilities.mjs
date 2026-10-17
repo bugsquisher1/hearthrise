@@ -83,6 +83,18 @@ const cases = {
     M.abilities.castAbilities(b.inst, b.sc);
     return JSON.stringify([casts(a.sc), casts(b.sc)]) === '[["power_strike"],["arcane_barrier"]]' ? null : 'fired ' + JSON.stringify([casts(a.sc), casts(b.sc)]);
   },
+  /* AB-12: a wand/staff basic costs mana (no mana, no shot); a bow basic one shot, own line then the store. */
+  'basic-costs': (M) => {
+    const a = oneHero(M, { mana: 2 });
+    if (!M.abilities.payBasic(a.inst, a.h, { mana: 2 }, a.sc) || a.h.mana !== 0) return 'a 2-mana basic did not spend its mana';
+    if (M.abilities.payBasic(a.inst, a.h, { mana: 2 }, a.sc)) return 'a basic swung with no mana';
+    const hs = supplySession(M, { bag: { barbed_arrows: { loaded: 1 } }, shot: 'plain_barbed_arrows', ammo: 'barbed_arrows', purse: 3 });
+    const b = oneHero(M, {}, { hs, ammo: 'barbed_arrows' });
+    const shots = [0, 1, 2].map(() => M.abilities.payBasic(b.inst, b.h, { ammo: 1 }, b.sc));
+    if (JSON.stringify(shots) !== '[true,true,false]') return 'own, store, then a dry purse shot ' + JSON.stringify(shots);
+    return hs.tally.supplies.barbed_arrows === 1 && hs.tally.bought.plain_barbed_arrows === 1 && hs.goldOut === true
+      ? null : 'the shots were not split own/store, or the dry purse ended nothing: ' + JSON.stringify(hs.tally);
+  },
   /* AB-06: a shot ability spends its shots of the loaded ammo, per cast. */
   'ammo-per-shot': (M) => {
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 2 } } });
@@ -159,6 +171,8 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', '  for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }', '']] },
   { name: 'the action set skips nothing', case: 'action-set-skips',
     edits: [['src/core/hunt/abilities.js', "  if ((skip.rune && row.rune) || (skip.area && row.target === 'area')) return 'action_set';", '']] },
+  { name: 'a mana basic swings on an empty pool', case: 'basic-costs',
+    edits: [['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;', '']] },
   { name: 'a multi-shot ability may fire short', case: 'ammo-per-shot',
     edits: [['src/core/hunt/abilities.js', "      if (!shot) return { why: 'no_ammo' };", '      if (!shot) return { lines };']] },
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',

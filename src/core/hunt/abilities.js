@@ -204,7 +204,7 @@ export function fire(inst, u, pick, sc) {
 }
 
 /** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13). */
-export function regenMana(u, dtMs) {
+function regenMana(u, dtMs) {
   if (!(int(u.maxMana) > 0)) return;
   u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * dtMs) / 60000);
   const whole = Math.floor(u.manaMilli / 1000);

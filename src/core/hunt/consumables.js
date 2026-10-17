@@ -53,7 +53,7 @@ function raise(u, stat, n) {
 }
 
 /** Tick `unit`'s over-time halves due at `atMs`. */
-export function tickOverTime(u, atMs) {
+function tickOverTime(u, atMs) {
   for (const stat of ['hp', 'mana']) {
     const k = OT_KEY[stat];
     const ot = u[k];

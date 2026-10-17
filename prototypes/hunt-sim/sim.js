@@ -214,7 +214,9 @@ function tryNextStep(u, dt) {
   if (!u.path.length) return false;
   const [nx, ny] = u.path[0];
   const blocker = S.occ.get(key(nx, ny));
-  if (blocker && blocker !== u) {
+  // Collision (Tyler 2026-10-16): heroes never block each other (party members walk through one another);
+  // monsters still block heroes and monsters, and heroes still block monsters.
+  if (blocker && blocker !== u && !(u.side === 'hero' && blocker.side === 'hero')) {
     u.wait += dt;
     const wk = key(nx, ny); STATS.waits.set(wk, (STATS.waits.get(wk) || 0) + dt);
     // a party member standing idle in a corridor swaps with a party member behind it
@@ -231,7 +233,12 @@ function tryNextStep(u, dt) {
     return false;
   }
   u.wait = 0; u.path.shift();
-  S.occ.delete(key(u.x, u.y)); u.fx = u.x; u.fy = u.y; u.x = nx; u.y = ny; S.occ.set(key(nx, ny), u); u.t = 0;
+  const ok = key(u.x, u.y);
+  if (S.occ.get(ok) === u) {             // leaving: hand the tile to another hero still standing on it, else free it
+    const stay = S.units.find(v => v !== u && v.alive && v.side === 'hero' && v.x === u.x && v.y === u.y);
+    if (stay) S.occ.set(ok, stay); else S.occ.delete(ok);
+  }
+  u.fx = u.x; u.fy = u.y; u.x = nx; u.y = ny; if (!S.occ.has(key(nx, ny))) S.occ.set(key(nx, ny), u); u.t = 0;
   u.dir = dirOf(nx - u.fx, ny - u.fy);
   return true;
 }

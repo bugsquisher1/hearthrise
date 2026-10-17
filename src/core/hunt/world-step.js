@@ -24,30 +24,30 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=590';
-import { KNOCKOUT_MS } from '../../data/hunt-sessions.js?v=590';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=590';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from '../combat.js?v=590';
-import { rollDropTable } from '../drops.js?v=590';
-import { resolveHearthfind } from '../hearthfind.js?v=590';
-import { hitXpRoute, killXpRoute } from '../styles.js?v=590';
-import { applyGoldFind } from '../pacing.js?v=590';
-import { resumeHpFor } from '../recovery.js?v=590';
-import { runActionBar, spendFromBag, shopShotFor, buyFromShop, floorOf, coverValue } from '../action-rules.js?v=590';
-import { pickSpawn } from '../hunt-spawn.js?v=590';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=591';
+import { KNOCKOUT_MS } from '../../data/hunt-sessions.js?v=591';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=591';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from '../combat.js?v=591';
+import { rollDropTable } from '../drops.js?v=591';
+import { resolveHearthfind } from '../hearthfind.js?v=591';
+import { hitXpRoute, killXpRoute } from '../styles.js?v=591';
+import { applyGoldFind } from '../pacing.js?v=591';
+import { resumeHpFor } from '../recovery.js?v=591';
+import { runActionBar, spendFromBag, shopShotFor, buyFromShop, floorOf, coverValue } from '../action-rules.js?v=591';
+import { pickSpawn } from '../hunt-spawn.js?v=591';
 /* THE CONSUMPTION SEAM (design item E1): the arithmetic lives in ../ammo.js. */
-import { spendForSwings, applyAmmoMult, readAmmo } from '../ammo.js?v=590';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=590';
-import { makeUnit } from './world-state.js?v=590';
-import { holderOutside, resetPack } from './leash.js?v=590';
-import { chooseTargets } from './targeting.js?v=590';
-import { positionHeroes } from './roles.js?v=590';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=590';
-import { resolveAttacks } from './damage.js?v=590';
-import { castAbilities } from './abilities.js?v=590';
-import { tickStatuses } from './status.js?v=590';
-import { consume } from './consumables.js?v=590';
-import { soloKillXp, flushXpGroup } from './xp-share.js?v=590';
+import { spendForSwings, applyAmmoMult, readAmmo } from '../ammo.js?v=591';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=591';
+import { makeUnit } from './world-state.js?v=591';
+import { holderOutside, resetPack } from './leash.js?v=591';
+import { chooseTargets } from './targeting.js?v=591';
+import { positionHeroes } from './roles.js?v=591';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=591';
+import { resolveAttacks } from './damage.js?v=591';
+import { castAbilities } from './abilities.js?v=591';
+import { tickStatuses } from './status.js?v=591';
+import { consume } from './consumables.js?v=591';
+import { soloKillXp, flushXpGroup } from './xp-share.js?v=591';
 
 export function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 export function call(fx, name, ...args) {

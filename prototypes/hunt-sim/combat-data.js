@@ -22,7 +22,7 @@ const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/d
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
   berserker: { food: ['ham', 25],  drink: ['mana_potion', 30],  runes: { life_rune: 30 } },   // ASSUMED stack
   knight:   { food: ['ham', 25],   drink: ['mana_potion', 30],  runes: { fire_rune: 20 } },
-  paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
+  ranger:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
   druid:    { food: ['bread', 12], drink: ['mana_potion', 40],  runes: {} },
 };
@@ -39,7 +39,7 @@ const HERO_MELEE_SKILL = 20;                        // ASSUMED: every hero's Mel
 const HERO_SETTINGS = {
   berserker: { dist: 1, target: 'follow', stance: 'offensive', chase: true, actSet: 'hunt' },   // Melee DPS: hits the tank's target from a free adjacent slot
   knight:   { dist: 1, target: 'highest', stance: 'balanced', chase: true, actSet: 'hunt' },
-  paladin:  { dist: 3, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
+  ranger:  { dist: 3, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
   druid:    { dist: 5, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
   sorcerer: { dist: 6, target: 'follow',  stance: 'balanced', chase: true, actSet: 'hunt' },
 };
@@ -84,7 +84,7 @@ const HEROES = {
               basic: { dmg: [2, 5], hits: 2, kind: 'slash' } },                                // ASSUMED: dual hatchets — two half-strength hits per 2.0 s swing (approved dual-axe rule), ~7/swing vs knight 6.5
   knight:   { family: 'melee',       hp: 200, mana: 60,  speed: 3.2, range: 1.5, back: 0,
               basic: { dmg: [4, 9], kind: 'slash' } },
-  paladin:  { family: 'ranged',      hp: 150, mana: 100, speed: 3.2, range: 7, back: 3.5,
+  ranger:  { family: 'ranged',      hp: 150, mana: 100, speed: 3.2, range: 7, back: 3.5,
               basic: { dmg: [3, 8], kind: 'crossbow', ammo: 'bolt' } },                         // bolt per shot: Tyler ruling
   sorcerer: { family: 'destruction', hp: 120, mana: 320, speed: 3.2, range: 7, back: 6,
               basic: { dmg: [3, 7], kind: 'arcane', mana: 2, magicXpMult: 1.0 } },              // wand costs mana + trains Magic: Tyler ruling; 2 mana designer ruling 2026-10-15
@@ -107,7 +107,7 @@ const ABILITIES = {
       dmg: [8, 14], element: 'fire', magicXpMult: 0.25, fx: 'fire' },                                                         // magicXpMult BIBLE §5.1 0.25
     { id: 'power_strike', name: 'Power Strike', lane: 'offense', cd: 6, mana: 6, target: 'enemy', dmg: [7, 13], magicXpMult: 0, fx: 'slash' },
   ],
-  paladin: [
+  ranger: [
     { id: 'hunters_mark', name: "Hunter's Mark", lane: 'offense', cd: 12, mana: 8, target: 'mark', bonus: 1.2, dur: 8 },      // BIBLE §17 mark
     { id: 'flame_volley', name: 'Flame Volley', lane: 'offense', cd: 10, mana: 15, rune: 'fire_rune', ammo: 3, target: 'area',
       dmg: [5, 9], element: 'fire', magicXpMult: 0.25, fx: 'fire' },

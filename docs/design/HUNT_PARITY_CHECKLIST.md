@@ -14,7 +14,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 - Tests: `hc/<module>#<case>` = `tests/hunt-core/<module>.mjs`; `hv/<module>#<case>` = `tests/hunt-view/<module>.mjs`; `sql§4 <topic>` = the §4 self-check block of that lane-C migration; `visual <screen>` = the visual gate at 922x423 + desktop.
 - Owner: **S-edge** = server, pure core run by the edge settle; **S-pg** = server, Postgres RPC/table; **C** = client display only; **D** = data rows (server catalogue via P1).
 - Status: **TODO** = to build; **LIVE-SERVER** = exists on the C2 server, extend or verify; **DEV-ONLY** = sim tool, not rebuilt; **DO-NOT-PORT** = sim behaviour a ruling forbids; **SUPERSEDED** = a later ruling replaced it; **NOT-HUNT** = a real ruling owned by another lane, listed so nothing is lost; **ASK-TYLER** = purpose unknown, do not build yet. **NOT-BUILT** = in a reference screenshot but its purpose is unknown, so it is left out (Tyler 10-17: unknown reference elements are not built and are not open questions).
-- Sim role ids map to roles: `knight` = Melee tank, `berserker` = Melee DPS, `paladin` = Ranger, `sorcerer` = Mage, `druid` = Healer (Tyler 10-16, no vocations).
+- Sim role ids map to roles: `knight` = Melee tank, `berserker` = Melee DPS, `ranger` = Ranger, `sorcerer` = Mage, `druid` = Healer (Tyler 10-16, no vocations).
 
 ---
 

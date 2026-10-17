@@ -47,22 +47,22 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=590';
-import { ARTISAN_RECIPES } from './recipes.js?v=590';
-import { MONSTERS } from './monsters.js?v=590';
-import { BOSSES } from './bosses.js?v=590';
-import { ITEMS } from './items.js?v=590';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=591';
+import { ARTISAN_RECIPES } from './recipes.js?v=591';
+import { MONSTERS } from './monsters.js?v=591';
+import { BOSSES } from './bosses.js?v=591';
+import { ITEMS } from './items.js?v=591';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop or a quest reward is
    the ONLY source of could sit in limbo — neither ownable nor excluded — and
    nothing failed. Both tables are ESM data, so the completeness check reads them.
    (The Quartermaster, daily-task and raid-chest partitions were deleted with
    their systems in the 2026-10-14 demolition.) */
-import { SHOP_OFFERS } from './shops.js?v=590';
-import { QUEST_REWARDS } from './goal-catalogue.js?v=590';
+import { SHOP_OFFERS } from './shops.js?v=591';
+import { QUEST_REWARDS } from './goal-catalogue.js?v=591';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=590';
+import { BURNT_ITEM } from '../core/artisan.js?v=591';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan

@@ -22,17 +22,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=590';
-import { hashSeed } from '../rng.js?v=590';
-import * as movement from './movement.js?v=590';
-import * as targeting from './targeting.js?v=590';
-import * as roles from './roles.js?v=590';
-import * as pullCycle from './pull-cycle.js?v=590';
-import * as damage from './damage.js?v=590';
-import * as abilities from './abilities.js?v=590';
-import * as status from './status.js?v=590';
-import * as consumables from './consumables.js?v=590';
-import * as xpShare from './xp-share.js?v=590';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=591';
+import { hashSeed } from '../rng.js?v=591';
+import * as movement from './movement.js?v=591';
+import * as targeting from './targeting.js?v=591';
+import * as roles from './roles.js?v=591';
+import * as pullCycle from './pull-cycle.js?v=591';
+import * as damage from './damage.js?v=591';
+import * as abilities from './abilities.js?v=591';
+import * as status from './status.js?v=591';
+import * as consumables from './consumables.js?v=591';
+import * as xpShare from './xp-share.js?v=591';
 
 export const WORLD_VERSION = 1;
 

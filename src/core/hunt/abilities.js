@@ -27,13 +27,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=590';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=590';
-import { cheb, dist2, los } from './grid.js?v=590';
-import { makeEvent } from './events.js?v=590';
-import { hurt } from './damage.js?v=590';
-import { applyStatus } from './status.js?v=590';
-import { markHealed } from './consumables.js?v=590';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=591';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=591';
+import { cheb, dist2, los } from './grid.js?v=591';
+import { makeEvent } from './events.js?v=591';
+import { hurt } from './damage.js?v=591';
+import { applyStatus } from './status.js?v=591';
+import { markHealed } from './consumables.js?v=591';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],

@@ -41,16 +41,16 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=590';
-import { COMBAT_BALANCE } from '../core/combat.js?v=590';
-import { ITEMS } from '../data/items.js?v=590';
-import * as ST from './session-tally.js?v=590';
-import { fill } from './signposts.js?v=590';
-import { foeFamily } from '../render/foe-family.js?v=590';
-import { weaknessWords } from '../render/foe-weakness.js?v=590';
-import { compactNumber } from '../net/balance.js?v=590';
-import { HUNTS } from '../data/hunts.js?v=590';
-import { nextCharmAt } from '../core/charms.js?v=590';
+import { MONSTERS } from '../data/monsters.js?v=591';
+import { COMBAT_BALANCE } from '../core/combat.js?v=591';
+import { ITEMS } from '../data/items.js?v=591';
+import * as ST from './session-tally.js?v=591';
+import { fill } from './signposts.js?v=591';
+import { foeFamily } from '../render/foe-family.js?v=591';
+import { weaknessWords } from '../render/foe-weakness.js?v=591';
+import { compactNumber } from '../net/balance.js?v=591';
+import { HUNTS } from '../data/hunts.js?v=591';
+import { nextCharmAt } from '../core/charms.js?v=591';
 
 /** The Adventures window's tabs, in order. The single-monster list keeps its
     `training` key (tab state, tests, the coach) and reads "Monsters" to the player:

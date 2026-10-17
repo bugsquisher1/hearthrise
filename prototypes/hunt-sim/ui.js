@@ -4,10 +4,10 @@
 const UI = (() => {
   const $ = id => document.getElementById(id);
   const S = () => window.__S(), AN = () => window.__AN();
-  const ORDER = ['knight', 'paladin', 'druid', 'sorcerer'];
+  const ORDER = ['knight', 'ranger', 'druid', 'sorcerer'];
   // Hearthrise has no vocations (Tyler 2026-10-16): internal ids stay, players see roles
-  const TAG = { knight: 'MEL', berserker: 'MEL', paladin: 'RNG', druid: 'HLR', sorcerer: 'MAG' };
-  const NAME = { knight: 'Melee', berserker: 'Melee', paladin: 'Ranger', druid: 'Healer', sorcerer: 'Mage' };
+  const TAG = { knight: 'MEL', berserker: 'MEL', ranger: 'RNG', druid: 'HLR', sorcerer: 'MAG' };
+  const NAME = { knight: 'Melee', berserker: 'Melee', ranger: 'Ranger', druid: 'Healer', sorcerer: 'Mage' };
   const nf = n => Math.round(n).toLocaleString('en-US');
   const kf = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'kk' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
   const hms = s => { s = Math.max(0, Math.floor(s)); return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
@@ -20,14 +20,14 @@ const UI = (() => {
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
     'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt', 'drink_cup']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=53`; ICON[n] = i;
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=54`; ICON[n] = i;
   }
   const ITEM_ICON = { life_rune: 'fire_rune', fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'drink_cup', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { life_rune: 'Life rune', fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   // '<id>_own' = used from the hero's own carried stack: already owned, so it costs nothing this session
   const ITEM_PRICE = id => id.endsWith('_own') ? 0 : id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
-  const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=53`;
+  const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', ranger: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
+  const iconUrl = id => `assets/icons/${id}.png?v=54`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -147,8 +147,8 @@ const UI = (() => {
   // ---------- party panel: a dark-wood board of carved stone plates ----------
   let partyKey = '', partyExpand = false, PR = {};
   const partyKeyOf = hs => hs.map(h => h.id + h.kind + h.outfit + JSON.stringify(h.colors)).join();
-  const ROLE_RING = { berserker: 'var(--role-melee)', knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
-  const CREST = { berserker: ['burst', '#e0a070'], knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
+  const ROLE_RING = { berserker: 'var(--role-melee)', knight: 'var(--role-melee)', ranger: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
+  const CREST = { berserker: ['burst', '#e0a070'], knight: ['sword', '#c9ced6'], ranger: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
   function portrait(c, u, tries = 0) {   // the hero's own outfit, south idle frame (recoloured), head crop 16x16 from the top of the sprite at 2x
     const im = window.__portraitImg(u);
     if (!im) { if (tries < 40) setTimeout(() => portrait(c, u, tries + 1), 150); return; }
@@ -328,10 +328,10 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=53').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=54').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
-    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=53'; ICONMAP[id] = i; }
+    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=54'; ICONMAP[id] = i; }
     if (ICONMAP.drink_cup) ICONMAP.mana_potion = ICONMAP.drink_cup;   // the drink is a cup now; the old bottle stays in the manifest
   }).catch(() => {});
   const ready = i => i && i.complete && i.naturalWidth;

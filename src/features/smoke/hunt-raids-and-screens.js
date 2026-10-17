@@ -4028,11 +4028,7 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated') return;
               const meta = document.getElementById('ab-meta');
-              /* THE 100 MS REPAINT IS HELD while a case is measured, as a clock is pinned
-                 (6562c420): legacy.js rewrites the meta from G every 100 ms, putting the real
-                 chips back over the crowded ones this fixture injects. Each case paints
-                 itself, once, for real. (The D2-on-C2 merge kept this hold's restore in the
-                 finally and lost its declaration: 'realRefresh is not defined'.) */
+              // The 100 ms repaint is held while a case is measured (6562c420); each case paints itself once.
               const realRefresh = window.refreshActivityBar;
               let held = true;
               window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };

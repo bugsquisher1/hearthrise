@@ -37,6 +37,7 @@ import { pickSpawn } from '../hunt-spawn.js?v=589';
 /* THE CONSUMPTION SEAM (design item E1): the arithmetic lives in ../ammo.js. */
 import { spendForSwings, applyAmmoMult, readAmmo } from '../ammo.js?v=589';
 import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=589';
+import { makeUnit } from './world-state.js?v=589';
 import { holderOutside, resetPack } from './leash.js?v=589';
 import { chooseTargets } from './targeting.js?v=589';
 import { positionHeroes } from './roles.js?v=589';
@@ -83,7 +84,8 @@ const SUBSTEP = Object.freeze([
 function stepWorld(world, swingCtx, track, events) {
   if (!swingCtx.ground || !swingCtx.grid) throw new Error('world-step: a world needs its ground row and grid');
   const n = substepsOf(swingCtx.swingMs);
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null };
+  /* makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, makeUnit };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   const sc = { atMs, dtMs: HUNT_TUNING.stepMs, swing: world.swing, rng: swingCtx.rng,

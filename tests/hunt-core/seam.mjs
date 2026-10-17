@@ -58,7 +58,7 @@ const cases = {
 
 const mutants = [
   { name: 'a hook loses its sub-step context', case: 'every-agreed-export-exists',
-    edits: [['src/core/hunt/roles.js', 'export function positionHeroes(inst, sc) {}', 'export function positionHeroes(inst) {}']] },
+    edits: [['src/core/hunt/roles.js', 'export function positionHeroes(inst, sc) {', 'export function positionHeroes(inst, scx = 0) {']] },
   { name: 'a stub starts dealing damage', case: 'stubs-are-inert',
     edits: [['src/core/hunt/damage.js', 'return { dmg: 0, killed: false };', 'return { dmg: amount, killed: false };']] },
 ];

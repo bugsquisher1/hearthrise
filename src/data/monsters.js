@@ -72,6 +72,15 @@
 
 import { applyClassProfiles } from './monster-classes.js?v=589';
 
+/* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
+   (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
+   A row with no `speed` walks at MONSTER_SPEED_DEFAULT; read it only via monsterSpeedOf. */
+const MONSTER_SPEED_DEFAULT = 3000;
+export function monsterSpeedOf(row) {
+  const v = row && row.speed;
+  return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
+}
+
 export const MONSTERS = {
 
   /* ══ Tier 1 — local threats ═══════════════════════════════════════════ */
@@ -81,7 +90,7 @@ export const MONSTERS = {
        pure weapon-triangle check the class needed. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     dropBonus: 1.15,
-    hp: 8, atk: 2, def: 0, xp: 5, gp: [1, 3],
+    hp: 8, atk: 2, def: 0, xp: 5, gp: [1, 3], speed: 2400,
     drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
   /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
      row via MONSTER_ALIAS. Two Tier-1 Vermin rats with the same weakness and the
@@ -91,7 +100,7 @@ export const MONSTERS = {
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin',
-    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 4],
+    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 4], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .7 }, { id: 'small_fang', ch: .12 }, { id: 'wheat', ch: .3 }, { id: 'bones', ch: .35 }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
@@ -118,7 +127,7 @@ export const MONSTERS = {
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }, { id: 'goblin_seal', ch: .02 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
-    hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6],
+    hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 },
       { id: 'banded_signet', ch: .0006, lucky: true }] },
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
@@ -151,7 +160,7 @@ export const MONSTERS = {
   /* ══ Tier 2 — wilderness threats ══════════════════════════════════════ */
 
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
-    hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12],
+    hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
       { id: 'fang_studs', ch: .0007, lucky: true }] },   // .0008 -> .0007 (lane C2): at the 2.0 s swing the bat dies 1.2x as often; 4.0 -> 4.6 expected hours, back inside lucky-finds' [4, 30] band
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
@@ -235,7 +244,7 @@ export const MONSTERS = {
   /* ══ Tier 3 — dangerous creatures ═════════════════════════════════════ */
 
   venom_spider: { name: 'Venom Spider', icon: '🕷️', tier: 3, cls: 'vermin', family: 'Vermin',
-    hp: 52, atk: 15, def: 6, xp: 82, gp: [14, 34],
+    hp: 52, atk: 15, def: 6, xp: 82, gp: [14, 34], speed: 3600,
     drops: [{ id: 'venom_sac', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'spider_eye', ch: .035 }, { id: 'poison_essence', ch: .08 },
       { id: 'spidersilk_choker', ch: .0005, lucky: true }] },
   centipede: { name: 'Centipede', icon: '🐛', tier: 3, cls: 'vermin', family: 'Vermin',

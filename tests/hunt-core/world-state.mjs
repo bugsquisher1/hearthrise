@@ -52,7 +52,7 @@ const mutants = [
   { name: 'no byte bound', case: 'bound',
     edits: [['src/core/hunt/world-state.js', '    if (bytes > HUNT_TUNING.worldMaxBytes)', '    if (false)']] },
   { name: 'two modules persist one field', case: 'fields-composed-from-modules',
-    edits: [['src/core/hunt/roles.js', 'unit: Object.freeze([])', "unit: Object.freeze([['x', 'int']])"]] },
+    edits: [['src/core/hunt/roles.js', "unit: Object.freeze([['role', 'str'],", "unit: Object.freeze([['x', 'int'], ['role', 'str'],"]] },
 ];
 
 await suite('hunt-core/world-state', cases, mutants);

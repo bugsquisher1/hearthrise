@@ -31,8 +31,8 @@ const cases = {
 const mutants = [
   { name: 'movement rolls Math.random', case: 'core-is-pure',
     edits: [['src/core/hunt/movement.js', '  let budget = Math.floor((u.speed * sc.dtMs) / 1000);', '  let budget = Math.floor((u.speed * sc.dtMs) / 1000) + (Math.random() < 0 ? 1 : 0);']] },
-  { name: 'a stub reads the clock', case: 'core-is-pure',
-    edits: [['src/core/hunt/status.js', 'export function tickStatuses(inst, sc) {}', 'export function tickStatuses(inst, sc) { return Date.now(); }']] },
+  { name: 'a status tick reads the clock', case: 'core-is-pure',
+    edits: [['src/core/hunt/status.js', '  const units = inst.world.units;', '  const units = inst.world.units; Date.now();']] },
 ];
 
 await suite('hunt-core/purity', cases, mutants);

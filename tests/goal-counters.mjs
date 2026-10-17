@@ -271,7 +271,8 @@ async function runOn(db, patches) {
   // goal type must be countable. Each with a positive control, because a scan
   // that stopped matching would report a clean bill on a broken contract.
   {
-    const coreFiles = ['combat-sim.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
+    /* hunt/world-step.js: H1 moved the kill emits out of combat-sim.js's swing (2026-10-17). */
+    const coreFiles = ['combat-sim.js', 'hunt/world-step.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
     const emitted = new Set();
     let sites = 0;
     for (const f of coreFiles) {

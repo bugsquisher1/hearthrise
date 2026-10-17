@@ -83,7 +83,8 @@ const SUBSTEP = Object.freeze([
 function stepWorld(world, swingCtx, track, events) {
   if (!swingCtx.ground || !swingCtx.grid) throw new Error('world-step: a world needs its ground row and grid');
   const n = substepsOf(swingCtx.swingMs);
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null };
+  /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step). */
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   const sc = { atMs, dtMs: HUNT_TUNING.stepMs, swing: world.swing, rng: swingCtx.rng,

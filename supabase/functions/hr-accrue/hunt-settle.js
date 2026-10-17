@@ -1,81 +1,78 @@
 // ============================================================================
-// supabase/functions/hr-accrue/hunt-settle.js — THE HUNT SESSION SETTLE.
+// supabase/functions/hr-accrue/hunt-settle.js — THE HUNT INSTANCE SETTLE.
 //
-// Ruling HR-2026-10-14 "Hunt Sessions replace away", §2: "the world tick is the
-// only thing that settles a session". This file is that settle — ONE
-// implementation, reached from three doors that differ only in WHEN they ask:
+// Ruling HR-2026-10-14 §2 ("the world tick is the only thing that settles a
+// session") and HUNT_SCREEN_SPEC §1.3 (lane S1): a settle runs per INSTANCE.
+// A solo hunt is a party of one. ONE implementation, reached from two doors
+// that differ only in WHEN they ask:
 //
 //   the world tick   tick.js, for every session hr_hunt_roster leased to it
 //                    (mode 'tick': no rate gate, a derived intent key)
 //   hunt_settle      the player's "bring me up to date" (mode 'settle': the
-//                    `accrue` rate bucket, the ACCRUE_MIN_MS floor unless a
-//                    leave/change is pending)
-//   hunt_use         a manual action-bar press (mode 'use': the press lands at
-//                    the FIRST swing boundary at or after it — ruling §2 "It
-//                    lands immediately, not up to 10 s late" — under the
-//                    player's own key and the `activity` bucket)
-//
+//                    `accrue` rate bucket, the HUNT_SETTLE_MIN_MS floor unless
+//                    a leave / change is pending)
 // and from the collect every settle-before-mutate verb runs (set-activity.js
 // collectCurrentWindow routes a hunter here, mode 'settle', so a purchase or a
 // meal mid-hunt prices the hunt at the state BEFORE it — Security F1's rule).
+// Hunts are idle (Tyler 2026-10-16): there is no press door.
 //
 // ── WHAT ONE SETTLE DOES ────────────────────────────────────────────────────
-//   (1) READ, in one statement: the rate gate (player doors), the session
-//       (hr_hunt_engine_read: clock, bag, bar, presses, the keyed-seed secret),
-//       the character (hr_state_of), the server clock.
-//   (2) the perk stack (./tick-reads.js — the read every other settle makes,
-//       one definition).
-//   (3) COMPUTE: computeAccrual with the session attached — the SAME combat
-//       body every fight is priced by, the span walking the session's
-//       absolute swing clock with one HMAC-keyed seed per swing (./hunt-seed.js).
-//   (4) COMMIT, one statement: hr_hunt_apply(user, slot, session, version,
-//       intent, delta, hunt, buffs, press). Postgres takes the character lock,
-//       runs hr_apply and hr_hunt_settle_session in ONE subtransaction and
-//       decides whether any of it may land.
-//   A `session_moved` / `version_conflict` (another settler won the lock) is
-//   re-read and recomputed once; a clamp the degrade ladder can shrink halves
-//   the window (at most MAX_DEGRADE times). Anything else is answered as-is:
-//   the session stays where it was, owed, and the next fire offers it again.
+//   (1) READ, in one statement: the rate gate (player doors), the caller's open
+//       session's INSTANCE and EVERY open member of it (hr_hunt_instance_read:
+//       the instance clock and world, each member's session, bag, options and
+//       hr_state_of, the instance's keyed-seed secret), the server clock.
+//   (2) each member's perk stack (./tick-reads.js).
+//   (3) COMPUTE: accrual.js accrueHunt — the one combat loop over the instance
+//       world, one HMAC-keyed seed stream per swing and domain (./hunt-seed.js).
+//   (4) COMMIT, one statement: hr_hunt_apply_instance(instance, world swing,
+//       the instance half, every member's halves). Postgres locks the instance,
+//       then every member in (user_id, slot) order, re-proves every member's
+//       window and the instance's world, and decides whether ANY of it may land
+//       — all of it or none.
+//   A `session_moved` (another settler won the lock) is re-read and recomputed
+//   once; a clamp the degrade ladder can shrink halves the window (at most
+//   HUNT_MAX_DEGRADE times). Anything else is answered as-is: the instance
+//   stays where it was, owed, and the next fire offers it again.
 //
 // ── WHAT IT NEVER DOES ──────────────────────────────────────────────────────
 //   · never writes a table (hr_engine holds none) and never calls hr_apply
-//     outside hr_hunt_apply — the session half and the value half are one;
+//     outside hr_hunt_apply_instance — the session half and the value half of
+//     every member are one;
 //   · never reads a client value: the request contributes `slot` (a row the
-//     caller owns) and, for a press, a bar-slot index the database re-validates;
+//     caller owns) and nothing else;
 //   · never consults presence, an offline cap, a return anchor or `ctx.away`
 //     (TICK-2): a hunt is a hunt, watched or not.
 //
 // PURE ESM behind the injected `exec` seam, Node + Deno. No `?v=`.
 // ============================================================================
 
-import { computeAccrual } from './accrual.js';
+import { accrueHunt } from './accrual.js';
 import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
 import { readTickPerks } from './tick-reads.js';
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
-import { newHuntSession } from '../../../src/core/action-rules.js';
-import { ACTION_SET_LIMITS } from '../../../src/data/rule-subjects.js';
+import { huntGroundOf } from './hunt-ground.js';
+import { huntPlayback } from './hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
+import { equipmentStats } from '../../../src/core/combat.js';
+import { heroSetup } from '../../../src/core/hunt-spawn.js';
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
    collect): a settle asked for inside this of the last one prices nothing and
-   writes nothing — the ledger-volume fuse on a client-driven door (with the
-   30/min `accrue` gate it bounds a spamming client to ~4 settles a minute).
-   15 s, below C1's 20 s mid-hunt slack (hr_hunt_restock / set_preset /
-   action_set_put refuse `settle_first` past it), so "settle, then edit" always
-   lands. A pending leave/change is never held back. */
+   writes nothing — the ledger-volume fuse on a client-driven door. 15 s, below
+   the 20 s mid-hunt slack (settings and bag verbs refuse `settle_first` past
+   it), so "settle, then edit" always lands. A pending leave/change is never
+   held back. */
 export const HUNT_SETTLE_MIN_MS = 15000;
 
-/* hr_apply clamps the degrade ladder can escape by asking for less — the
-   accrue verb's DEGRADABLE list, restated for the one other caller that halves
-   a window. A hunt halves its WINDOW (fewer swings), never its rates. */
+/* hr_apply clamps the degrade ladder can escape by asking for less. A hunt
+   halves its WINDOW (fewer swings), never its rates. */
 export const HUNT_DEGRADABLE = Object.freeze([
   'gold_clamp', 'item_clamp', 'xp_clamp', 'progress_clamp',
   'too_many_item_kinds', 'too_many_progress_ops', 'bank_full', 'daily_budget',
 ]);
 export const HUNT_MAX_DEGRADE = 3;
-/* Refusals that mean "someone else moved the session/character under us". */
+/* Refusals that mean "someone else moved the instance under us". */
 const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
 
 /* THE READ. One statement: the gate is its first term on a player door (D3:
@@ -83,23 +80,20 @@ const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
 export const HUNT_READ_SQL = `
   with g as (select case when $3::text is null then true
                          else public.hr_rate_gate($1::uuid, $2::int, $3::text) end as allowed)
-  select g.allowed                                                              as allowed,
-         case when g.allowed then public.hr_hunt_engine_read($1::uuid, $2::int) end as hunt,
-         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end      as state,
-         now()                                                                  as now
+  select g.allowed                                                                  as allowed,
+         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,
+         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end           as state,
+         now()                                                                      as now
     from g`;
 
 /* THE COMMIT. `::text::jsonb` on every pre-stringified argument — the
-   transport rule tests/delta-transport.mjs grades (a json-described parameter
-   is re-serialised by the driver and arrives as a string scalar). */
+   transport rule tests/delta-transport.mjs grades. */
 export const HUNT_APPLY_SQL = `
-  select public.hr_hunt_apply($1::uuid, $2::int, $3::uuid, $4::bigint, $5::uuid,
-                              $6::text::jsonb, $7::text::jsonb, $8::text::jsonb, $9::text::jsonb,
-                              $10::boolean) as res`;
+  select public.hr_hunt_apply_instance($1::uuid, $2::bigint, $3::text::jsonb, $4::text::jsonb,
+                                       $5::uuid, $6::int) as res`;
 
 /* "Is a hunt open?" — the cheap read the accrue and collect paths make so the
-   old combat pricing never runs for a hunter. 42883 (no such function: a
-   database without the settle migration) reads as "no". */
+   old pricing never runs for a hunter. 42883 (no such function) reads "no". */
 export const HUNT_OPEN_SQL = 'select public.hr_hunt_open_of($1::uuid, $2::int) as session';
 export async function huntOpenOf(exec, user, slot) {
   try {
@@ -111,19 +105,17 @@ export async function huntOpenOf(exec, user, slot) {
   }
 }
 
-/** The engine-shape session from hr_hunt_engine_read. Field by field. */
-export function huntSessionFromRead(h) {
-  const num = (v) => (v === null || v === undefined || v === '') ? null : Number(v);
-  return newHuntSession({
+const num = (v) => (v === null || v === undefined || v === '') ? null : Number(v);
+
+/** The engine-shape session input of one member (newHuntSession builds it). Field by field. */
+export function huntSessionFromRead(h, instanceId) {
+  return {
     id: String(h.id),
-    instanceId: String(h.instance || h.id),
+    instanceId: String(instanceId),
     huntFromMs: num(h.hunt_from_ms),
     nextSwingAtMs: num(h.next_swing_at_ms),
     swingIndex: num(h.swing_index),
     bag: h.bag || {},
-    slots: Array.isArray(h.slots) ? h.slots : [],
-    presses: Array.isArray(h.presses) ? h.presses : [],
-    cooldowns: (h.cooldowns && typeof h.cooldowns === 'object') ? h.cooldowns : {},
     falls: num(h.falls),
     fallsLimit: num(h.falls_limit),
     hoursLimit: num(h.hours_limit),
@@ -133,64 +125,47 @@ export function huntSessionFromRead(h) {
        last), which hr_hunt_settle_session re-proves from hr_hunt_config. */
     stopAtMs: h.enabled === false ? num(h.settled_to_ms) : null,
     down: h.down === true,
-    /* THE STAMINA POOL AT THE WINDOW START: the database's own
-       hr_stamina_of(settled_to), never a client value. */
+    /* THE STAMINA POOL AT THE WINDOW START and the cap it rests to — the
+       database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
-    /* THE SHOP (hr_hunt_basic_supplies) and the ids this hunt's tier resolves
-       a shop slot to, and the action set's target mode / pull count —
-       catalogue and stored rows, never a request value; newHuntSession keeps
-       only well-formed entries. */
+    staminaMaxMs: num(h.stamina_max_ms),
+    /* THE STORE (hr_hunt_basic_supplies) and the ids this hunt's tier resolves
+       food and drink to — catalogue rows; newHuntSession keeps well-formed ones. */
     basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},
     shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
-    targetMode: typeof h.target_mode === 'string' ? h.target_mode : null,
-    /* THE SPAWN CYCLE (Security design review 2026-10-14 items 1-2): the pull
-       the SERVER computed (hr_hunt_pull_of) and the session row's cycle state.
-       hr_hunt_apply recomputes the pull under the lock and re-proves the
-       window's kills against it. */
-    pull: (h.pull && typeof h.pull === 'object') ? {
-      size: num(h.pull.size), respawnMs: num(h.pull.respawn_ms),
-      left: num(h.pull.left), respawnAtMs: num(h.pull.respawn_at_ms),
-    } : null,
-    /* THE GOLD FLOOR and the loot sell-to-cover may sell (hr_hunt_cover_items
-       x this session's own loot still in the bag) — server rows. */
+    /* THE HERO'S SUPPLY SETTING, gold floor and the loot sell-to-cover may sell. */
     goldFloor: num(h.gold_floor),
-    /* HUNT SUPPLIES — the stored choice (player_action_sets.supply_source / on_empty). */
     supplySource: typeof h.supply_source === 'string' ? h.supply_source : null,
     onEmpty: typeof h.on_empty === 'string' ? h.on_empty : null,
     cover: (h.cover && typeof h.cover === 'object') ? h.cover : {},
-  });
+  };
 }
 
 const refusal = (status, error, extra) => ({ status, body: { ok: false, error, ...(extra || {}) } });
 
 /**
- * ONE SETTLE OF ONE CHARACTER'S OPEN SESSION.
+ * ONE SETTLE OF THE INSTANCE THE CALLER'S OPEN SESSION HUNTS IN.
  *
  * @param o.exec      the one-statement seam (index.ts / tick.js)
  * @param o.user      the VERIFIED subject (player doors) or a roster selector (tick)
  * @param o.slot      the character slot
- * @param o.mode      'tick' | 'settle' | 'use'
+ * @param o.mode      'tick' | 'settle'
  * @param o.bucket    the rate bucket (player doors), null on the tick
- * @param o.intentId  the player's key (mode 'use'), else derived here
- * @param o.barSlot   the pressed action-bar slot (mode 'use')
  * @param o.session   the session the caller expects (tick roster), or null
- * @param o.project   answer with the post-settle envelope (player doors)
- * @param o.minWindowMs  the floor below which nothing is settled (default:
- *                    HUNT_SETTLE_MIN_MS for 'settle', 0 otherwise)
+ * @param o.project   answer with the caller's post-settle envelope (player doors)
+ * @param o.minWindowMs  the floor below which nothing is settled
+ * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
  * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended? }}
  */
 export async function settleHunt(o) {
-  const { exec, user, slot } = o;
-  const mode = o.mode === 'use' ? 'use' : o.mode === 'settle' ? 'settle' : 'tick';
-  let lastRefusal = null;
+  const mode = o.mode === 'settle' ? 'settle' : 'tick';
+  let last = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const v = await settleOnce(o, mode, attempt === 0 ? null : lastRefusal);
+    const v = await settleOnce(o, mode);
     if (v.outcome !== 'refused' || !RETRYABLE.includes(v.reason)) return v;
-    lastRefusal = v;
-    /* The press key is the player's: a version_conflict released it (it is on
-       hr_apply's c_release_codes), so the retry may present it again. */
+    last = v;
   }
-  return lastRefusal;
+  return last;
 }
 
 async function settleOnce(o, mode) {
@@ -203,90 +178,87 @@ async function settleOnce(o, mode) {
   if (!env || env.ok !== true) {
     return { outcome: 'none', reason: 'no_character', ...refusal(409, (env && env.error) || 'no_character') };
   }
-  const h = read.hunt;
-  if (!h || h.open !== true) {
+  const r = read.inst;
+  if (!r || r.open !== true) {
     return { outcome: 'none', reason: 'no_hunt', ...refusal(409, 'no_hunt', { ...env, ok: false }) };
   }
-  if (o.session && String(o.session) !== String(h.id)) {
-    /* The roster named a session that is no longer the open one (it ended and
-       another began between the roster and this read). Not this fire's. */
+  const mine = (r.members || []).find((m) => String(m.user) === String(user) && Number(m.slot) === Number(slot));
+  if (!mine || (o.session && String(o.session) !== String(mine.session.id))) {
+    /* The roster named a session that is no longer the open one. Not this fire's. */
     return { outcome: 'none', reason: 'session_changed', ...refusal(409, 'session_changed') };
   }
+  const inst = r.instance;
   /* The server clock, floored to the engine's millisecond. */
   const nowMs = Math.floor(new Date(read.now).getTime());
-  const fromMs = Number(h.settled_to_ms);
-  const pending = h.leave_at_ms != null || h.change_at_ms != null || h.enabled === false;
+  const fromMs = Number(inst.settled_to_ms);
+  const pending = r.members.some((m) => m.session.leave_at_ms != null || m.session.change_at_ms != null)
+    || inst.enabled === false;
   if (!(nowMs > fromMs)) {
     return { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } };
   }
-  /* THE FLOOR: the player door's (and a purchase's collect) — a settle asked
-     for inside a minute of the last one writes nothing; a switch's collect and
-     the tick pass 0. A pending leave/change is never held back. */
   const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
     : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
   if (!pending && nowMs - fromMs < minMs) {
     return { outcome: 'nothing', reason: 'below_min_span', status: 200,
       body: { ok: true, settled: false, reason: 'below_min_span', ...env } };
   }
+  const where = (o.grounds && o.grounds[inst.hunt]) || huntGroundOf(inst.hunt);
+  if (!where) return { outcome: 'refused', reason: 'no_ground', ...refusal(409, 'no_ground') };
 
-  const hs = huntSessionFromRead(h);
-  let press = null;
-  if (mode === 'use') {
-    const bar = Math.floor(Number(o.barSlot));
-    /* Huntera's bar: ACTION_SET_LIMITS.slots (20) slots, data — not a literal. */
-    if (!Number.isInteger(bar) || bar < 0 || bar >= ACTION_SET_LIMITS.slots) return { outcome: 'refused', reason: 'bad_bar_slot', ...refusal(400, 'bad_bar_slot') };
-    if (h.leave_at_ms != null || h.change_at_ms != null) return { outcome: 'refused', reason: 'hunt_leaving', ...refusal(409, 'hunt_leaving', { ...env, ok: false }) };
-    if (nowMs < Number(h.hunt_from_ms)) return { outcome: 'refused', reason: 'hunt_walking', ...refusal(409, 'hunt_walking', { ...env, ok: false }) };
-    /* The press joins the queue the engine walks, stamped with THIS read's
-       server instant; hr_hunt_apply re-validates it and stamps the same value
-       (clamped into [settled_to, now()]) under the lock. */
-    press = { slot: bar, at: nowMs };
-    hs.presses = [...hs.presses, press];
+  const members = [];
+  for (const m of r.members) members.push(await memberInput(exec, m, inst));
+  const partyRoles = members.map((m) => m._role).filter(Boolean);
+  for (const m of members) {
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
+    if (!m.hero) return { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') };
   }
-
-  const perks = await readTickPerks(exec, user, slot);
-  const salt = String(h.secret || '');
 
   let toMs = nowMs;
   let degraded = 0;
   for (;;) {
-    const out = computeAccrual(huntEngineInputs({
-      user, slot, env, hs, nowMs, fromMs, toMs, perks,
-      secret: salt, pressAtMs: press ? press.at : null,
-    }));
+    const out = accrueHunt({
+      instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },
+      window: { fromMs, toMs }, secret: String(inst.secret || ''),
+      ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
+    });
     if (!out.accrued) {
       return { outcome: 'nothing', reason: String(out.reason || 'nothing'), status: 200,
         body: { ok: true, settled: false, reason: String(out.reason || 'nothing'), ...env } };
     }
-    const intentId = mode === 'use' && o.intentId
-      ? o.intentId
-      : await intentIdFor({
-        user, slot, watermark: huntWatermarkLabel(h),
-        version: env.version, salt, attempt: degraded,
-      });
+    const payload = [];
+    for (const p of out.members) {
+      const m = members.find((x) => x.key === p.key);
+      payload.push({ user: m.user, slot: m.slot, session: m.sessionId, version: m.version,
+        intent: await intentIdFor({ user: m.user, slot: m.slot, watermark: huntWatermarkLabel(inst, m),
+          version: m.version, salt: String(inst.secret || ''), attempt: degraded }),
+        delta: p.delta, hunt: p.hunt, analyzer: p.analyzer });
+    }
     const res = await commitHuntSettle(exec, {
-      user, slot, sessionId: String(h.id), version: env.version, intentId, out, press,
-      project: o.project === true,
+      instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
+      settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
+      members: payload, project: o.project === true ? { user, slot } : null,
     });
     if (res && res.ok === true) {
-      const ended = res.hunt_settle && res.hunt_settle.ended ? String(res.hunt_settle.ended) : null;
+      const own = (res.members || []).find((x) => String(x.user) === String(user) && Number(x.slot) === Number(slot)) || {};
+      const ended = own.hunt_settle && own.hunt_settle.ended ? String(own.hunt_settle.ended) : null;
+      const replayed = res.stage === 'replayed';
       return {
-        outcome: res.stage === 'replayed' ? 'nothing' : 'paid',
-        reason: res.stage === 'replayed' ? 'replayed' : null,
+        outcome: replayed ? 'nothing' : 'paid',
+        reason: replayed ? 'replayed' : null,
         ended,
         status: 200,
-        body: { ...res, ok: true, settled: res.stage !== 'replayed',
+        body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
+          session: own.session || null, instance: res.instance || null,
+          ...(o.project === true ? { hunt_playback: huntPlayback(out.track, out.events, fromMs, out.settledTo) } : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
     const err = String((res && res.error) || 'apply_failed');
-    if (HUNT_DEGRADABLE.includes(err) && degraded < HUNT_MAX_DEGRADE && !press) {
+    if (HUNT_DEGRADABLE.includes(err) && degraded < HUNT_MAX_DEGRADE) {
       /* ASK FOR LESS: half the window, so fewer swings and a smaller delta. The
-         session clock still only moves by what is settled; the rest is owed. */
+         instance clock still only moves by what is settled; the rest is owed. */
       const half = fromMs + Math.floor((toMs - fromMs) / 2);
-      if (!(half > fromMs)) {
-        return { outcome: 'refused', reason: err, ...refusal(409, err, { detail: res ?? null }) };
-      }
+      if (!(half > fromMs)) return { outcome: 'refused', reason: err, ...refusal(409, err, { detail: res ?? null }) };
       toMs = half;
       degraded++;
       continue;
@@ -295,51 +267,45 @@ async function settleOnce(o, mode) {
   }
 }
 
-/* ── THE THREE PIECES OF ONE SETTLE, EXPORTED ────────────────────────────────
-   settleOnce composes exactly these; tests/hunt-sessions-settle.mjs composes
-   the same three against a replayed chain (choosing the window end a real
-   clock would), so the guard grades the bytes that deploy, not a copy. */
-
-/** The computeAccrual input of one hunt-session window. Field by field: the
-    envelope spread is ./envelope.js's ONE field list (every settle reads the
-    character the same way); everything else is named here. No `caller`: a
-    session's window is its own, and the caller taxonomy only prices absences. */
-export function huntEngineInputs(o) {
+/* ONE MEMBER'S ENGINE INPUT, from the instance read. Field by field: the
+   envelope spread is ./envelope.js's ONE field list. */
+async function memberInput(exec, m, inst) {
+  const env = m.state || {};
+  const nowMs = Math.floor(Number(m.session.settled_to_ms) || 0);
+  const e = engineInputsFromEnvelope(env, nowMs);
+  const perks = await readTickPerks(exec, m.user, m.slot);
+  const weaponType = equipmentStats(e.equipment || {}, ITEMS).weaponType || 'neutral';
+  const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
+  const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {
-    userId: o.user,
-    slot: o.slot,
-    nowMs: o.toMs,
-    ...engineInputsFromEnvelope(o.env, o.nowMs),
-    seed: 0,
-    perks: o.perks ?? null,
-    unlockedRecipes: (o.perks && o.perks.unlockedRecipes) ?? null,
-    items: ITEMS,
-    monsters: MONSTERS,
-    nodes: GATHER_NODES,
-    recipes: ARTISAN_RECIPES_ALL,
-    actionBudget: null,
-    huntSession: o.hs,
-    huntWindow: { fromMs: Number(o.fromMs), toMs: o.toMs, pressAtMs: o.pressAtMs ?? null },
-    huntSecret: String(o.secret || ''),
+    key: String(m.user) + ':' + String(m.slot),
+    user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
+    unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
+    sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
+    huntSession: huntSessionFromRead(m.session, inst.id),
+    skills: e.skills, xpFrac: e.xpFrac, hp: e.hp, maxHp: e.maxHp, gold: e.gold,
+    equipment: e.equipment, combatStyle: e.combatStyle, inventory: e.inventory,
+    recoveringUntilMs: e.recoveringUntilMs,
+    deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
+    hearthfindReady: e.hearthfindReady, perks,
+    _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
   };
 }
 
-/** The derived intent label of a tick/settle window: the session and the swing
-    the window starts at (with the version and the secret salt, intentIdFor). */
-export function huntWatermarkLabel(h) {
-  return 'hunt:' + String(h.id) + ':' + String(h.swing_index);
+/** The derived intent label of one member's share of an instance window: the
+    instance, the world swing the window starts at, the member's session and
+    the swing it starts at (with the version and the secret salt, intentIdFor). */
+export function huntWatermarkLabel(inst, m) {
+  return 'hunt:' + String(inst.id) + ':' + String(inst.world_swing ?? 0) + ':' + String(m.sessionId)
+    + ':' + String(m.huntSession.swingIndex);
 }
 
-/** THE COMMIT: one statement, hr_hunt_apply. An HR000 that escaped its own
-    handler is still a named refusal (the message is the machine code);
-    anything else is a defect and propagates. */
+/** THE COMMIT: one statement, hr_hunt_apply_instance. An HR000 that escaped its
+    own handler is still a named refusal; anything else is a defect and propagates. */
 export async function commitHuntSettle(exec, c) {
   try {
-    const [r] = await exec(HUNT_APPLY_SQL, [c.user, c.slot, c.sessionId, c.version, c.intentId,
-      JSON.stringify(c.out.delta), JSON.stringify(c.out.hunt),
-      c.out.huntBuffs ? JSON.stringify(c.out.huntBuffs) : null,
-      c.press ? JSON.stringify(c.press) : null,
-      c.project === true]);
+    const [r] = await exec(HUNT_APPLY_SQL, [c.instanceId, c.worldSwingFrom, JSON.stringify(c.settle),
+      JSON.stringify(c.members), c.project ? c.project.user : null, c.project ? c.project.slot : null]);
     return r && r.res;
   } catch (e) {
     if (String((e && e.code) ?? '') !== 'HR000') throw e;
@@ -349,9 +315,9 @@ export async function commitHuntSettle(exec, c) {
 
 /* ── THE TICK'S SELECTORS ────────────────────────────────────────────────────
    `hunts` in the driver's body: (user_id, slot, session_id) and NOTHING else is
-   read — the session, the clock and the character are re-read in this request.
-   A malformed row is dropped, not refused (one bad row must not cost the rest
-   their settle). Null-prototype, field by field (parseTickBody's discipline). */
+   read — the instance, its members and their characters are re-read in this
+   request. A malformed row is dropped, not refused. Null-prototype, field by
+   field (parseTickBody's discipline). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_HUNTS = 500;
 export function parseHunts(raw) {
@@ -377,17 +343,13 @@ export function parseHunts(raw) {
   return out;
 }
 
-/* ── THE PLAYER DOORS (index.ts) ─────────────────────────────────────────────
-   `hunt_settle` and `hunt_use`. The body is `{status, body}`; the envelope on a
-   success is the post-settle hr_state_of plus `session` (hr_hunt_view). */
+/* ── THE PLAYER DOOR (index.ts) ──────────────────────────────────────────────
+   `hunt_settle`. The body is `{status, body}`; the envelope on a success is the
+   caller's post-settle hr_state_of plus `session` (hr_hunt_view) and the
+   window's playback buffer (./hunt-track.js). */
 export async function runHuntVerb(o) {
   const v = await settleHunt({
-    exec: o.exec, user: o.user, slot: o.slot,
-    mode: o.verb === 'hunt_use' ? 'use' : 'settle',
-    bucket: o.bucket,
-    intentId: o.intentId,
-    barSlot: o.barSlot,
-    project: true,
+    exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true,
   });
   return { status: v.status, body: { ...v.body, verb: o.verb } };
 }

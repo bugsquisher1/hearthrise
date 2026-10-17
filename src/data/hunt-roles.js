@@ -21,13 +21,14 @@
    melee     true = attacks only from an adjacent tile, and only standing on it (RO-19)
    range     tiles; a ranged role also needs line of sight (TG-02)
    tank      true = holds, and Challenges what is not on him (spec §3.2 #2, #14)
-   peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED) */
+   peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED)
+   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds */
 export const HUNT_ROLES = Object.freeze({
-  tank: Object.freeze({ label: 'Melee (shield)', melee: true, range: 1, tank: true, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  melee_dps: Object.freeze({ label: 'Melee', melee: true, range: 1, tank: false, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  ranger: Object.freeze({ label: 'Ranger', melee: false, range: 7, tank: false, hp: 150, mana: 100, speed: 3200, peel: 0 }),
-  mage: Object.freeze({ label: 'Mage', melee: false, range: 7, tank: false, hp: 120, mana: 320, speed: 3200, peel: 0 }),
-  healer: Object.freeze({ label: 'Healer', melee: false, range: 7, tank: false, hp: 135, mana: 300, speed: 3200, peel: 180 }),
+  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, hp: 200, mana: 60, speed: 3200, peel: 0 }),
+  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, hp: 200, mana: 60, speed: 3200, peel: 0 }),
+  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, hp: 150, mana: 100, speed: 3200, peel: 0 }),
+  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, hp: 120, mana: 320, speed: 3200, peel: 0 }),
+  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, hp: 135, mana: 300, speed: 3200, peel: 180 }),
 });
 
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
@@ -42,6 +43,17 @@ export const WEAPON_ROLES = Object.freeze({
   bow: Object.freeze(['ranger']),
   crossbow: Object.freeze(['ranger']),
   staff: Object.freeze(['mage', 'healer']),
+  /* THE WEAPON TYPES src/data/items.js SHIPS TODAY (lane S1, 2026-10-17: the
+     server settle needs a role for every equippable weapon, and the weapon-style
+     content of week plan item 16 has not landed). A sword, a two-handed hammer
+     or no weapon fights as Melee DPS, a `ranged` weapon as a Ranger, a `magic`
+     one as a staff. ASSUMED; the Game Designer re-homes these when the shield /
+     axes / club / bow / staff rows exist (CONFLICTS 2026-10-17, S1). */
+  sword: Object.freeze(['melee_dps']),
+  hammer: Object.freeze(['melee_dps']),
+  neutral: Object.freeze(['melee_dps']),
+  ranged: Object.freeze(['ranger']),
+  magic: Object.freeze(['mage', 'healer']),
 });
 
 /* THE TANK'S AUTO-CHALLENGE (spec §3.2 #14, ASSUMED numbers): any engaged monster
@@ -89,6 +101,7 @@ export function validate() {
     if (r.melee && r.range !== 1) out.push(id + ': a melee role has range 1');
     for (const k of ['hp', 'mana', 'speed']) if (!Number.isInteger(r[k]) || r[k] <= 0) out.push(id + ': ' + k + ' must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
+    if (!['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'].includes(r.discipline)) out.push(id + ': unknown discipline ' + r.discipline);
   }
   for (const [w, roles] of Object.entries(WEAPON_ROLES)) {
     if (!roles.length || !roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');

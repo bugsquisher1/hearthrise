@@ -19,9 +19,9 @@
 //   tickStatuses each sub-step, units in id order, stacks in landing order:
 //                left and next fall by dtMs; a due stack ticks (left >= 0, so
 //                a 6 s stack ticks six times); the tick is round(roll x scale
-//                / 1000), dealt through damage.js hurt() as the row's
+//                / 1000), dealt through damage.js landHit() as the row's
 //                damageType (bleed: physical, ST-05) with ability = status id,
-//                so the one hurt() owns mitigation, the `dmg` event and the
+//                so the one hurt() owns mitigation and landHit the `dmg` event and the
 //                kill hand-off (ST-04). Then expired stacks go; a unit that
 //                died drops all of its stacks.
 //
@@ -33,7 +33,7 @@
 
 import { STATUSES, validateStatus } from '../../data/statuses.js?v=590';
 import { makeEvent } from './events.js?v=590';
-import { hurt } from './damage.js?v=590';
+import { landHit } from './damage.js?v=590';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]), world: Object.freeze([]), pack: Object.freeze([]) });
 
@@ -102,7 +102,7 @@ export function tickStatuses(inst, sc) {
       const amount = tickAmount(roll, st.scale);
       const source = st.src === null ? null : (units.find((u) => u.id === st.src) || null);
       sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType }));
-      hurt(inst, unit, amount, source, row.damageType, st.s);
+      landHit(inst, sc, source, unit, amount, row.damageType, { id: st.s });
       if (unit.alive !== true) break;
     }
     if (unit.alive !== true) { dropAll(unit, sc); continue; }

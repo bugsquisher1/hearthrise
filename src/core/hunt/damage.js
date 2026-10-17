@@ -30,6 +30,7 @@ import { makeEvent } from './events.js?v=590';
 import { roleOf, elementOn, inRange, peel } from './targeting.js?v=590';
 import { fallen } from './pull-cycle.js?v=590';
 import { shareKillXp } from './xp-share.js?v=590';
+import { payBasic } from './abilities.js?v=590';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
@@ -69,16 +70,19 @@ export function hurt(inst, target, amount, source, element, ability) {
  * which the analyzer tally reads. abilities.js lands its hits here too.
  */
 export function landHit(inst, sc, source, target, amount, element, ability) {
+  if (!target || !target.alive) return { dmg: 0, killed: false };
   const r = hurt(inst, target, amount, source, element, ability);
-  if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u: source.id, t: target.id }));
+  /* A status tick whose source has left the world lands with no dealer (u null). */
+  const u = source ? source.id : null;
+  if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
   else {
-    sc.emit(makeEvent('dmg', sc.atMs, { u: source.id, t: target.id, amount: r.dmg,
+    sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
       ability: (ability && ability.id) || 'basic', element: element || null }));
   }
   if (r.killed) {
-    sc.emit(makeEvent('kill', sc.atMs, { u: source.id, t: target.id }));
+    sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u: source.id, xp: MONSTERS[target.kind].xp }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: MONSTERS[target.kind].xp }, sc);
   }
   return r;
 }
@@ -107,6 +111,12 @@ export function resolveAttacks(inst, sc) {
     }
     const row = roleOf(u);
     if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;
+    /* A RANGED BASIC LOOSES ONE SHOT of the loaded ammo, own first then the store
+       (abilities.payBasic, the one supply resolver): no shot, no swing. Only a
+       hero the settle supplies (inst.heroes) carries a quiver; a bare fixture
+       unit swings free. */
+    const supplied = !!(inst.heroes && inst.heroes[u.id]);
+    if (supplied && u.role === 'ranger' && !payBasic(inst, u, { ammo: true }, sc)) continue;
     swing(inst, sc, u, t, u.acc / 1000, Math.max(1, u.maxHit));
     if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
     peel(inst, sc, u);

@@ -1,14 +1,13 @@
 // ============================================================
 // src/core/hunt/xp-share.js — PER-HERO KILL XP (spec §3.5, parity XP-01..05, XP-07, AB-04)
 //
-// THE RULE (one place; resolveKill's single-foe kill pays through it too):
+// THE RULE (one place; a solo hunt is a party of one):
 //   base share = monster XP / heroes alive at the kill        (XP-01)
 //   hero XP    = floor(base share x that hero's multiplier)   (XP-02)
 // The multiplier is read server-side and injected per hero as
 // `sc.xpMultOf(heroUnit)` (bestiary mastery, boosts, later modifiers); absent,
 // every hero's is 1 (XP-07, the bestiary-ready hook). "Raw" XP is the share
 // before the multiplier (spec §3.6 #3) and rides on each `xp` event as `raw`.
-// A solo hunt is a party of one (spec §1.1): soloKillXp is the same rule.
 //
 // "+XP" GROUPING (XP-03). Kills within HUNT_XP.groupMs of the first are ONE
 // `xp_group` event: `amount` the party's XP, `by` each hero's own (the view
@@ -53,12 +52,6 @@ export function splitKillXp(xp, heroes, sc) {
   const raw = xp / heroes.length;
   for (const h of heroes) out[h.id] = { xp: Math.floor(raw * multOf(sc, h) + 1e-9), raw: Math.floor(raw + 1e-9) };
   return out;
-}
-
-/** A solo hunt's kill (no world yet): the same rule, a party of one. Answers that hero's XP. */
-export function soloKillXp(xp, sc) {
-  const paid = splitKillXp(xpOf({ xp }), [{ id: 0 }], sc);
-  return paid[0] ? paid[0].xp : 0;
 }
 
 /**

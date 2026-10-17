@@ -12,6 +12,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { HUNT_STANCES } from './rule-subjects.js?v=590';
+import { WEAPON_ROLES } from './hunt-roles.js?v=590';
+import { ACTION_SET_SKIPS } from './abilities.js?v=590';
+
 /* Falls ends the hunt after that many knock-outs (replaces Retreat): THREE,
    for everyone (master plan row 16, 2026-10-14 — rulings S and U), so the
    range is the single value. Hours is an optional limit, off by default: the
@@ -42,27 +46,56 @@ export const KNOCKOUT_MS = 60000;
    whole gold in the range. */
 export const GOLD_FLOOR = Object.freeze({ min: 0, max: 100000, default: 300 });
 
-/* HUNT SUPPLIES (Master Design Reference §4; Combat Design Bible v1.4): the
-   player chooses, per action set, where supplies come from and what happens
-   when they run out — the store is never used silently.
-     SUPPLY_SOURCE  `mine` (the default): the carried bag only.
-                    `store`: the store's supplies, paid per use inside the
-                    settle (a packed crafted line is still spent first).
-     ON_EMPTY       `end` (the default): a carried line that runs dry ends the
-                    hunt `<line>_out`. `switch`: the store takes over that line.
-   So the shop is reachable only under `store`, or `mine` + `switch` once the
-   carried line is empty. Stored in player_action_sets.supply_source /
-   on_empty, set with hr_action_set_options; the settle re-checks it. */
+/* HUNT SUPPLIES, PER HERO (HUNT_SCREEN_SPEC §3.4 #5-7, §3.7; Tyler 2026-10-16:
+   "a hunt never stops for lack of stock", which supersedes the 10-14/10-15
+   "the store is never used silently" text this replaced).
+     SUPPLY_SOURCE  `mine` (the default): the hero's own carried stack first,
+                    free. `store`: the store row for the hunt's tier at store
+                    price (a carried line is still spent first).
+     ON_EMPTY       `switch` (the default): once the carried line is empty the
+                    store takes over, at store price. `end`: an explicit opt-in;
+                    an empty carried line ends the hunt `<line>_out`, so
+                    heals_out / ammo_out stay in END_ORDER, reachable only here.
+   A store use the gold cannot pay (above the GOLD_FLOOR, after sell-to-cover)
+   still ends the hunt `gold_out`. Stored in the action set's `options` jsonb
+   (hr_action_set_options); the settle re-checks it. */
 export const SUPPLY_SOURCE = Object.freeze({ modes: Object.freeze(['mine', 'store']), default: 'mine' });
-export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['end', 'switch']), default: 'end' });
+export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'switch' });
 
-/* THE ACTION SET'S OPTIONS, ONE JSON OBJECT (architecture contracts S4):
-   hr_action_set_options(slot, preset, p_opts jsonb, idem) validates every key
-   against the generated hr_hunt_set_options row it names, so a new option is a
-   data row here — never a new RPC signature or client-baseline row.
-     target  a solo mode of hr_hunt_target_modes
+/* The food / drink threshold range a hero may set, in percent of its pool
+   (spec §3.4 #4; the defaults are consumables.js CONSUMABLE_RULES). */
+export const THRESHOLD_PCT = Object.freeze({ min: 1, max: 99 });
+
+/* THE ACTION SET'S OPTIONS, ONE JSON OBJECT (architecture contracts S4; spec
+   §3.7 per-hero settings). An action set is keyed (user, slot, preset), so
+   "per hero" is per character. hr_action_set_options(slot, preset, p_opts,
+   idem) validates every key against the generated hr_hunt_set_options row it
+   names and stores the set in player_action_sets.options; a new option is a
+   row here, never a new RPC signature, column or client-baseline row. Refused,
+   never clamped; a key sent as null goes back to its default. An absent key
+   reads its default at the settle: the role's (rule-subjects.js ROLE_DEFAULTS
+   through src/core/hunt/roles.js defaultSettings) for target_mode, stance,
+   distance and chase; `default` below for the rest.
+     target  a mode of hr_hunt_target_modes
      limit   an integer inside the hr_hunt_limits `<limit>_min` / `_max` pair
-     enum    one of `values` */
+     enum    one of `values`
+     bool    true or false */
+export const ACTION_SET_OPTIONS = Object.freeze({
+  /* abilities.js ACTION_SET_SKIPS: what each set skips. */
+  action_set: Object.freeze({ kind: 'enum', values: Object.freeze(Object.keys(ACTION_SET_SKIPS)), default: 'hunt' }),
+  target_mode: Object.freeze({ kind: 'target' }),
+  stance: Object.freeze({ kind: 'enum', values: Object.freeze(Object.keys(HUNT_STANCES)) }),
+  distance: Object.freeze({ kind: 'limit', limit: 'distance' }),
+  chase: Object.freeze({ kind: 'bool' }),
+  /* A staff plays Mage or Healer (hunt-roles.js WEAPON_ROLES); any other weapon ignores it. */
+  role: Object.freeze({ kind: 'enum', values: WEAPON_ROLES.staff }),
+  food_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
+  drink_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
+  supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes, default: SUPPLY_SOURCE.default }),
+  on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes, default: ON_EMPTY.default }),
+  gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
+});
+
 /* THE VALUE BOUND'S HEADROOM (Security GO item 3, 2026-10-15). A settle's
    gold, XP and drops are bounded server-side by K x the catalogue maximum per
    kill (hr_hunt_kill_bounds, generated from src/data/monsters.js): gold by the
@@ -72,14 +105,6 @@ export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['end', 'switch']),
    and buffs, rested) so honest play never meets it, and stops a compromised or
    buggy engine minting more than a few times what K kills can be worth. */
 export const VALUE_HEADROOM = 3;
-
-export const ACTION_SET_OPTIONS = Object.freeze({
-  target_mode: Object.freeze({ kind: 'target' }),
-  pull_count: Object.freeze({ kind: 'limit', limit: 'pull' }),
-  gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
-  supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes }),
-  on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes }),
-});
 
 /* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
    (master plan row 25): fishing the Shrimp Spot. A new character's
@@ -119,15 +144,19 @@ export const DEATH_XP_LOSS = 0.02;
 export const SESSIONS_KEPT = 20;
 
 /* STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
-   keep it simple"; Huntera's bar is 12 hours). One pool per character, in ms:
-   it DRAINS 1:1 on every swing interval a hunt session spends hunting, and
-   RESTS BACK 1:1 at every other instant — walking out, knocked out, in town,
-   not in a hunt at all — never past this cap. At 0 the hunt ends `stamina`
-   at its next swing boundary. So 12 h hunting + 12 h resting a day costs
-   nothing. Server-owned (player_state.stamina_ms / stamina_at, the generated
-   limits row `stamina_max_min`); the client renders hr_state_of's `stamina`.
-   A gold refill (+4 h, a separate reviewed lane) is the only other writer. */
-export const STAMINA_MAX_MS = 12 * 3600000;
+   keep it simple"; Tyler 2026-10-17: 8 h free, 12 h premium). One pool per
+   character, in ms: it DRAINS 1:1 on every swing interval a hunt session spends
+   hunting, and RESTS BACK 1:1 at every other instant — walking out, knocked
+   out, in town, not in a hunt at all — never past the character's CAP:
+   `premium` while player_state.premium_until is ahead of the instant it rests
+   to, `free` otherwise (hr_stamina_of). A lapse never removes banked stamina:
+   a pool above the free cap stays, and only stops resting until it is below
+   it. At 0 the hunt ends `stamina` at its next swing boundary. Server-owned
+   (player_state.stamina_ms / stamina_at; the generated limits rows
+   `stamina_free_min` / `stamina_premium_min`); the client renders
+   hr_state_of's `stamina`. ONE source: src/data/premium.js does not restate
+   it. A gold refill (a separate reviewed lane) is the only other writer. */
+export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3600000 });
 
 /* Checked in this order on every swing; the first that holds ends the hunt.
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,

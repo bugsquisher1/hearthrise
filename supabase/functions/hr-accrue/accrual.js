@@ -85,18 +85,11 @@
 
 import {
   DEFAULT_PROFILE, swingIntervalMs, COMBAT_BALANCE,
-  equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
+  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
-/* `resolveKill` is imported ALONGSIDE `simulateSpan`, not instead of it, and it
-   is the SAME function the live 2.4s tick reaches through the client's wrapped
-   `window.killMonster`. The attended top-up below pays a kill by CALLING IT —
-   never by re-implementing a drop roll, a gold roll or a rarity flag. If you
-   find yourself typing `m.drops` in this file, stop. */
-/* `COMBAT_STOP` is the THIRD stop table imported into this file, beside
-   skill-sim's `STOP_REASON` and artisan-sim's `ARTISAN_STOP`. Aliased on the
-   way in for the same reason those two are: three tables with one shape, and a
-   bare `STOP_REASON` in a 3,500-line file is a coin toss. */
-import { simulateSpan } from '../../../src/core/combat-sim.js';
+/* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
+   hunt instance, solo or party, priced only by accrueHunt below. */
+import { simulateHuntInstance } from '../../../src/core/combat-sim.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 /* The third simulation. `simulateArtisanSpan` runs the SAME `sliceSpan` the
    gather path runs, over the same `resolveArtisanAction` the live bench runs —
@@ -114,17 +107,19 @@ import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
    line of arithmetic each side gets to write for itself. */
 import { creditWindow, recoveryRefuses } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
-/* NAMED HUNTS (lane C1). A combat pointer may name a hunt (src/data/hunts.js);
-   the spawn roll itself lives in combat-sim.js `resolveKill`, the one engine. */
-import { huntFor, huntSpawns, pickSpawn } from '../../../src/core/hunt-spawn.js';
+/* NAMED HUNTS (lane C1). A combat pointer names a hunt (src/data/hunts.js). */
+import { huntFor } from '../../../src/core/hunt-spawn.js';
 /* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). The session model is
    action-rules.js's (newHuntSession builds the engine shape the span walks);
    the bag's kinds are supplies.js's; the per-swing seed is the edge's keyed
    mix (./hunt-seed.js) — one seeder, injected into the one engine. */
 import { newHuntSession } from '../../../src/core/action-rules.js';
 import { SUPPLIES } from '../../../src/data/supplies.js';
-import { COOLDOWN_LANES } from '../../../src/data/rule-subjects.js';
-import { swingSeederFor } from './hunt-seed.js';
+import { seederFor } from './hunt-seed.js';
+/* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
+   and the analyzer's tally of what each hero dealt, took and healed. */
+import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
+import { tallyEvents } from '../../../src/core/hunt/tally.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
@@ -307,14 +302,6 @@ export const ACCRUE_MAX_SPAN_MS = 24 * 3600000;
    its own fight and the server re-simulated a SMALLER one; a hunt session has
    one fight, the server's, so there is no attended shortfall to top up and no
    client kill count to cap. */
-
-/* THE HUNT'S OPENING-SPAWN STREAM (lane C1). A window that opens a named hunt
-   with no carried fight rolls its FIRST foe once, before the span, from this
-   salted stream — so the span's own `ctx.rng` sequence is untouched and a
-   training fight (no hunt) never draws it at all. Same seed, so a dispute
-   replays. A HUNT SESSION's opening foe is drawn
-   from its own keyed swing seed instead (accrueCombat). */
-export const HUNT_RNG_SALT = 0x4e7a;
 
 /**
  * ── THE DEGRADE LADDER'S KNOB, AND IT IS A GAME RULE, SO IT LIVES HERE ─────
@@ -1132,17 +1119,10 @@ export function computeAccrual(input) {
      next intent restamps it) and a mint is not available in the other
      direction. Reachable only through an inconsistent row; unreachable through
      the intent surface, which always sends `restart: true`. */
-  /* ── HUNT SESSIONS (lane C2) ─────────────────────────────────────────────
-     A session's window has no absence in it: it is [settled_to, now) of a hunt
-     the world tick (or a hunt verb) is settling, priced by the SAME combat
-     body below with the session attached — so no cap, no credited window and
-     no ACCRUE_MIN_MS floor apply, and the swing clock decides what is paid. */
-  if (inp.activeKind === 'combat' && inp.huntSession) {
-    const hspan = huntSpanOf(inp);
-    if (!hspan) return { accrued: false, reason: SKIP.TOO_SOON };
-    return accrueHunt(inp, hspan, hunt);
-  }
-  /* ...and an OPEN session is never priced by anything else. */
+  /* ── HUNT INSTANCES (lane S1) ─────────────────────────────────────────────
+     A fight is a hunt instance, priced by `accrueHunt` below and reached only
+     through the hunt settle (./hunt-settle.js: the world tick and the player's
+     settle). An OPEN session is never priced by this door. */
   if (inp.huntOpen === true) return { accrued: false, reason: SKIP.HUNT_OPEN };
   /* A FIGHT IS A HUNT SESSION (closed rebuild, lane C2): a combat pointer with
      no session is priced by nothing — the away combat path was deleted. */
@@ -1285,162 +1265,74 @@ export function computeAccrual(input) {
   return { accrued: false, reason: SKIP.UNSUPPORTED };
 }
 
-/* ── THE HUNT SESSION'S WINDOW (lane C2) ─────────────────────────────────────
+/* ── THE HUNT INSTANCE'S WINDOW (lane S1, HUNT_SCREEN_SPEC §1.1 / §1.3) ─────
    The longest window one settle may carry. A FUSE on engine time per request
-   (6 h of 600 ms swings is 36,000 swings), never a gameplay cap: a session
-   further behind than this catches up over successive settles, the remainder
-   owed on its unmoved settled_to. hr_hunt_settle_session's own fuse is 24 h. */
+   (6 h is 10,800 swings of 2 s, each 20 sub-steps), never a gameplay cap: an
+   instance further behind than this catches up over successive settles, the
+   remainder owed on its unmoved settled_to. hr_hunt_apply_member's own fuse is
+   24 h. */
 export const HUNT_MAX_WINDOW_MS = 6 * 3600000;
 
-/* The span of one hunt-session settle, or null when there is nothing to settle
-   (an empty or inverted window). Field by field from the caller's server
-   values; the session is COPIED through newHuntSession with a ZERO tally, so
-   the tally the span accumulates IS this window's uses. */
-function huntSpanOf(inp) {
-  const w = (inp.huntWindow && typeof inp.huntWindow === 'object') ? inp.huntWindow : {};
-  const fromMs = Math.floor(nat(w.fromMs, -1));
-  const toMs0 = Math.floor(nat(w.toMs, -1));
-  if (!(fromMs > 0) || !(toMs0 > fromMs)) return null;
-  const toMs = Math.min(toMs0, fromMs + HUNT_MAX_WINDOW_MS);
-  const hs = newHuntSession(Object.assign({}, inp.huntSession, {
-    tally: null, endedReason: null, endedAtMs: null,
-  }));
-  if (!hs.id) return null;
-  /* `null`/absent is "no press" — and NOT `Number(null)`, which is 0: a press
-     at the epoch would end every window at its first boundary. */
-  const pressAtMs = (w.pressAtMs !== null && w.pressAtMs !== undefined && Number.isFinite(Number(w.pressAtMs)))
-    ? Math.floor(Number(w.pressAtMs)) : null;
-  return {
-    nowMs: toMs, grantMs: toMs - fromMs, capped: false, sinceMs: fromMs,
-    credit: { fromMs, toMs, paidMs: toMs - fromMs, unpaidMs: 0 },
-    huntSession: hs, huntToMs: toMs, pressAtMs,
-  };
+/* THE WORLD ON THE WIRE (spec §1.1 engine contract #4). hunt_instances.world
+   is the COMPACT JSON TEXT of world-state.encode(world) — the form its 16 KB
+   bound is measured on (octet_length of that text; jsonb::text would pad every
+   separator). It arrives here as that text and leaves as that text. */
+function decodeWorld(stored) {
+  const enc = typeof stored === 'string' ? JSON.parse(stored) : stored;
+  return decodeWorldRow(enc);
+}
+export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)); }
+
+/* THE COMBAT SNAPSHOT a hero's unit carries (src/core/hunt/damage.js reads it):
+   accuracy (permille) and max hit against a ZERO-defence foe — the target's own
+   defence, element and stance are applied by damage.js hurt() at the blow —
+   and the hero's defence as a monster swing reads it. From server-owned gear
+   and skills, through the SAME combat.js functions every fight is priced by. */
+const NEUTRAL_FOE = Object.freeze({});
+function heroSnapshot(state, c) {
+  const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
+    bonus: c.bonus, setBonus: c.setBonus, profile: c.profile, style: c.style });
+  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
 }
 
-/* THE FIRST SWING BOUNDARY AT OR AFTER `atMs`, on the session's own clock.
-   A press settles through exactly this boundary (ruling §2: "fires the slot at
-   the first swing boundary"), so the window end is the boundary + 1 ms — the
-   span walks boundaries strictly before its end. */
-export function firstBoundaryAtOrAfter(nextSwingAtMs, tickMs, atMs) {
-  const n = Math.floor(Number(nextSwingAtMs));
-  const t = Math.max(1, Math.floor(Number(tickMs)));
-  const a = Math.floor(Number(atMs));
-  if (!(a > n)) return n;
-  return n + Math.ceil((a - n) / t) * t;
-}
-
-/* ── THE HUNT BODY ───────────────────────────────────────────────────────────
-   ONE function prices a fight, and a fight is a HUNT SESSION (ruling
-   HR-2026-10-14; the away combat path, Auto-Eat, Vigour, stances, the Retreat,
-   the receipt, the charm / trophy / Boss-of-the-Day multipliers and companion
-   XP were deleted outright with the closed rebuild, lane C2). The window is
-   the session's own [settled_to, now), walked on its absolute swing clock with
-   one HMAC-keyed seed per swing (./hunt-seed.js); the bag — not the inventory —
-   supplies it, and the action bar is its only eater. Every value below is a
-   PROPOSAL: hr_hunt_apply re-proves it under the character lock. */
-function accrueHunt(inp, span, hunt) {
-  const { grantMs, credit } = span;
-  const hs0 = span.huntSession;
-  const monsters = inp.monsters || {};
-  /* THE SESSION'S KEYED SEEDER. Built once per settle; throws on a missing or
-     malformed secret — an unseeded hunt swing is a predictable one. */
-  const huntSeeder = swingSeederFor(String(inp.huntSecret ?? ''), hs0.instanceId || hs0.id);
-  const huntSwingFrom = hs0.swingIndex;
-  /* THE PURSE an NPC basic supply is paid from (Tyler 2026-10-14): the
-     character's gold as the server projected it at the window start; kill
-     coins join it as they drop (combat-sim.js tallyFx). */
-  hs0.purse = nat(inp.gold, 0);
-
-  // ── (1) The simulation state. Field by field, from server rows. ──────────
-  const skills0 = {};
-  for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
-  /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql); null = no column,
-     and then no `xp_frac` key is proposed. */
-  const xpFrac0 = normaliseXpFrac(inp.xpFrac);
-  const items = inp.items || {};
-  const equipment = inp.equipment || {};
+/* ONE MEMBER'S SIDE OF THE SPAN: its state, its value sinks and the counters
+   its delta is built from. The fx handlers are the ONE set every fight's value
+   flows through (tests/goal-counters.mjs anchors them). */
+function memberSide(mi, ctx) {
+  const items = ctx.items;
+  const equipment = mi.equipment || {};
   const eq = equipmentStats(equipment, items);
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
-  /* THE PLAYER'S CHOSEN STYLE, from server state (hr_set_style validated it).
-     A COPY: normaliseStyleKeys mutates its argument. */
-  const style = resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(inp.combatStyle || {}) }));
-  const maxHp = Math.max(1, nat(inp.maxHp, 10));
-
-  /* THE FOE THE WINDOW OPENS ON. A training fight: the pointer itself. A named
-     hunt: the carried fight's monster when it is one of THIS hunt's spawns
-     (hr_apply's void re-checks it against hr_hunt_spawns), else one roll from
-     the session's salted opening stream. A carried foe resumes at its carried
-     HP, capped at the catalogue's. */
-  const fight0 = normaliseFight(inp.fight);
-  const openId = !hunt ? inp.activeId
-    : (fight0 && huntSpawns(hunt, fight0.monster)) ? fight0.monster
-      : pickSpawn(hunt.spawns, createRng((huntSeeder(huntSwingFrom) ^ HUNT_RNG_SALT) >>> 0));
-  const resumed = (fight0 && fight0.monster === openId && monsters[openId] && fight0.hp > 0)
-    ? { hp: Math.min(fight0.hp, Math.max(1, nat(monsters[openId].hp, 1))),
-        maxHp: Math.max(1, nat(monsters[openId].hp, 1)), kills: fight0.kills }
-    : null;
-
+  /* THE PLAYER'S CHOSEN STYLE, from server state (hr_set_style validated it). */
+  const style = resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(mi.combatStyle || {}) }));
+  const maxHp = Math.max(1, nat(mi.maxHp, 10));
+  const skills0 = {};
+  for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
+  const xpFrac0 = normaliseXpFrac(mi.xpFrac);
   const state = {
-    activeMonster: openId,
-    monsterHp: resumed ? resumed.hp : 0,
-    monsterMaxHp: resumed ? resumed.maxHp : 0,
-    playerHp: Math.min(maxHp, Math.max(0, nat(inp.hp, maxHp))),
+    playerHp: Math.min(maxHp, Math.max(0, nat(mi.hp, maxHp))),
     playerMaxHp: maxHp,
     gold: 0,                                 // a DELTA accumulator (hr_apply's gold is a delta)
     skills: { ...skills0 },                  // a COPY: grantXp mutates it
     xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined,
     stats: {},
-    combatKillsThisFoe: resumed ? resumed.kills : 0,
-    /* The server's buff queue, measured at the session's FIRST SWING BOUNDARY
-       (the span drains one interval per boundary, so the remaining time is
-       wall-clock exact however the windows are cut — TICK-1). */
-    buffs: buffQueueFromServer(inp.buffs, hs0.nextSwingAtMs),
-    equipment,
-    huntSession: hs0,
+    recoveringUntilMs: nat(mi.recoveringUntilMs, 0),
+    buffs: [],
   };
-  /* The queue a session may PERSIST must carry each stored segment's own start
-     and scale back out (hr_hunt_buffs_put recognises an unchanged segment by its
-     exact instants). */
-  for (const b of state.buffs) {
-    const row = (Array.isArray(inp.buffs) ? inp.buffs : []).find((r) => r && r.until === b.until
-      && r.type === b.type && Number(r.magnitude) === b.magnitude);
-    if (row) { b._from = row.from ?? null; b._scale = row.scale ?? null; }
-  }
-
-  // ── (2) The delta accumulators. ───────────────────────────────────────────
-  const itemDelta = Object.create(null);
-  const events = [];
-  const levelUps = [];
-  /* THE LIVE INVENTORY VIEW the quiver reads (src/core/ammo.js readAmmo): the
-     loaded stack plus every drop. A session's supplies come from its BAG, so
-     this only feeds the ammo reader and the loot floor. */
-  const bag = Object.create(null);
-  for (const id in (inp.inventory || {})) {
-    const q = Math.floor(nat(inp.inventory[id], 0));
-    if (q > 0) bag[id] = q;
-  }
-  state.inventory = bag;
-  /* THE DETERMINISTIC FRACTIONAL AMMO CARRY (design item E2); null = no column. */
-  const ammoCarry0 = normaliseToolCarry(inp.ammoCarry);
-  state.ammoCarry = { ...(ammoCarry0 || {}) };
-  const bonus = bonusFor(inp.perks, liveBuffHost(() => state.buffs));
+  const bonus = bonusFor(mi.perks, liveBuffHost(() => state.buffs));
   const goals = makeGoalCounter();
   const bestiary = makeBestiaryCounter();
   const collection = makeCollectionCounter();
-
-  /* THE RECOVERY LINE (an ABSOLUTE server instant; null = no column, and then
-     no `recovering_until` key is proposed) and the two durable death counters
-     the death rows state. */
-  const recoverCol = inp.recoveringUntilMs !== null && typeof inp.recoveringUntilMs !== 'undefined';
-  state.recoveringUntilMs = recoverCol ? nat(inp.recoveringUntilMs, 0) : 0;
-  state.deathsTodayBefore = nat(inp.deathsTodayBefore, 0);
-  state.deathsLifetimeBefore = nat(inp.deathsLifetimeBefore, 0);
-  /* Was there a heal in the bag when the window opened? Stated on each death row. */
-  const hadFood = Object.keys(hs0.bag).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'heal' && hs0.bag[id].left > 0);
-
+  const itemDelta = Object.create(null);
+  const events = [];
   const xpGained = Object.create(null);
   const finds = [];
+  const hs = newHuntSession(Object.assign({}, mi.huntSession, { tally: null, endedReason: null, endedAtMs: null,
+    /* THE PURSE a store supply is paid from: the character's gold as the server
+       projected it at the window start; kill coins join it as they drop. */
+    purse: nat(mi.gold, 0) }));
   const fx = {
     /* XP through the SHARED grant (PACE, perks, the single floor). Max HP is
        RAISE-ONLY on a Hitpoints level (lane C2, the FX-4 root cause). */
@@ -1449,6 +1341,7 @@ function accrueHunt(inp, span, hunt) {
       const res = grantXp(state, skillId, amt, { bonus, xpB: eq.xpB || 0, restedQuantum: 0, authored: false });
       const applied = (Number(state.skills[skillId]) || 0) - before;
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
+      hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
       for (const ev of res.events) {
         if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;
       }
@@ -1457,150 +1350,172 @@ function accrueHunt(inp, span, hunt) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
       itemDelta[id] = (itemDelta[id] || 0) + n;
-      bag[id] = (bag[id] || 0) + n;
+      hs.tally.loot[id] = (hs.tally.loot[id] || 0) + n;
+      /* Loot the session may sell to cover a store charge joins the pool as it drops. */
+      if (hs.cover[id]) hs.cover[id].avail += n;
       collection.record(id, n);
     },
-    /* THE CONSUMPTION SINK (src/core/ammo.js spendForSwings). Draw-free; never
-       proposes more than the live view holds. */
-    removeItem(id, qty) {
-      const n = Math.floor(Number(qty) || 0);
-      if (!id || n <= 0) return;
-      const have = Math.max(0, Math.floor(Number(bag[id]) || 0));
-      const take = Math.min(n, have);
-      if (take <= 0) return;
-      bag[id] = have - take;
-      if (bag[id] <= 0) delete bag[id];
-      itemDelta[id] = (itemDelta[id] || 0) - take;
+    /* The coins a kill drops are in the purse at once: a store use later in the
+       same window may spend them (the database credits them in the same settle,
+       before the buys are debited). */
+    onLoot(gp) {
+      const g = Math.max(0, Math.floor(Number(gp) || 0));
+      hs.tally.coins += g;
+      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;
     },
     onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
     /* THE HEARTHFIND: a CLAIM; hr_apply re-derives everything about it. */
     onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
-    /* THE GOAL / BESTIARY COUNTERS, fed from resolveKill's two seams (kept
-       separate: one aggregate, one per-monster count, never double-counted). */
+    /* THE GOAL / BESTIARY COUNTERS, fed from the kill seams (kept separate:
+       one aggregate, one per-monster count, never double-counted). */
     updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
     updateQuest(type, amt, meta) {
       goals.quest(type, amt == null ? 1 : amt);
       bestiary.record(type, amt == null ? 1 : amt, meta);
     },
   };
-
-  // ── (3) The ctx. CONSTRUCTED FIELD BY FIELD — no caller object is spread
-  //     into it, so `minTickMs` can never ride in and defeat the tick clamp. ──
-  /* ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14; Master Design Reference §2,
-     no speed stat; architecture contracts S3/X1): every swing of a hunt is
-     COMBAT_BALANCE.tickMs, the same constant the catalogue's
-     hr_hunt_limits.swing_interval_ms is generated from, so hr_hunt_apply can
-     hold paid + down to swings x interval exactly. Gear speed, the weapon
-     family and a style's speedMod do not move a hunt's swing. */
-  const tickMs = COMBAT_BALANCE.tickMs;
-  /* A Feast the bar fires is scaled by the same [1, 2] clamp hr_apply applies. */
-  const huntBuffScale = Math.min(2, Math.max(1, 1 + (Number(bonus('buffDuration')) || 0)));
-  /* THE WINDOW END. A press settle runs through the first boundary at or after
-     the press (never past one interval beyond the server's now). */
-  const huntToMs = (span.pressAtMs !== null && span.pressAtMs !== undefined)
-    ? Math.min(firstBoundaryAtOrAfter(hs0.nextSwingAtMs, tickMs, span.pressAtMs) + 1, span.huntToMs + tickMs + 1)
-    : span.huntToMs;
-  const ctx = {
-    fromMs: credit.fromMs,
-    toMs: huntToMs,
-    swingSeed: huntSeeder,
-    buffScale: huntBuffScale,
-    tickMs,
-    rng: createRng(nat(inp.seed, 0)),
-    monsters,
-    ...(hunt ? { hunt } : {}),
-    items,
-    bonus,
-    style,
-    activeBuffCount: activeBuffs(state.buffs).length,
-    /* \`o.ammoShare\`: a shop shot's share of its partner's ammo bonus (combat-sim spendFromQuiver). */
-    playerRolls(m, o) {
-      return playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile, style,
-        ammoShare: o && o.ammoShare });
+  const h = mi.hero || {};
+  const snapCtx = { eq, equipment, items, bonus, setBonus, profile, style };
+  return {
+    mi, hs, state, fx, style, eq, skills0, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
+    member: {
+      key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx, style,
+      bonus, weakness: (row) => weaknessInfo(row, eq),
+      snapshot: (st) => heroSnapshot(st, snapCtx),
+      hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,
+        bar: h.bar || [], actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
+        foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },
-    monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: state.skills, bonus }); },
-    weakness(m) { return weaknessInfo(m, eq); },
-    fx,
   };
+}
 
-  // ── (4) Run the ONE span (combat-sim.js simulateHuntSpan). ───────────────
-  const summary = simulateSpan(state, ctx);
+/* THE ANALYZER TALLY of one member's hero (src/core/hunt/tally.js): what it
+   dealt, took and healed, by ability / element / monster. Display stats the
+   database stores with the session; every VALUE number of the analyzer comes
+   from the ledger rows the settle journals, never from here. */
+function analyzerOf(sim, unitIds, unitId) {
+  if (!Number.isInteger(unitId)) return null;
+  const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds }).heroes[unitId];
+  return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
+}
 
-  // ── (5) The delta. Every value an INTEGER (hr_apply casts ::bigint). ──────
+/**
+ * ONE SETTLE OF ONE HUNT INSTANCE (spec §1.3). A solo hunt is a party of one.
+ *
+ * @param inp.instance { id, nextSwingAtMs, world (the encoded world or null) }
+ * @param inp.window   { fromMs (the instance's settled_to), toMs (the server's now) }
+ * @param inp.secret   hr_seed(null, 0, 'hunt:' || instance) as decimal text
+ * @param inp.ground / inp.grid  the hunt ground row and its walkable grid
+ * @param inp.items / inp.monsters  the catalogues
+ * @param inp.members  [{ key, user, slot, seat, unitId, session (engine shape
+ *        input), hero { role, settings, bar, actionSet, range, maxMana, element,
+ *        foodBelowPct, drinkBelowPct }, + the envelope inputs (skills, xpFrac,
+ *        hp, maxHp, gold, equipment, combatStyle, inventory, recoveringUntilMs,
+ *        deathsTodayBefore, deathsLifetimeBefore, perks, hearthfindReady) }]
+ * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
+ *            track, events, members: [{ key, delta, hunt }] }
+ */
+export function accrueHunt(inp) {
+  const w = inp.window || {};
+  const fromMs = Math.floor(nat(w.fromMs, -1));
+  const toMs = Math.min(Math.floor(nat(w.toMs, -1)), fromMs + HUNT_MAX_WINDOW_MS);
+  if (!(fromMs > 0) || !(toMs > fromMs)) return { accrued: false, reason: SKIP.TOO_SOON };
+  if (!inp.ground || !inp.grid) return { accrued: false, reason: SKIP.NO_TARGET };
+  const tickMs = COMBAT_BALANCE.tickMs;
+  const ctx = { items: inp.items || {}, monsters: inp.monsters || {} };
+  const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
+  if (!sides.length) return { accrued: false, reason: SKIP.NOTHING };
+  const world0 = inp.instance && inp.instance.world ? decodeWorld(inp.instance.world) : null;
+  const worldSwingFrom = world0 ? world0.swing : 0;
+  const swingFrom = new Map(sides.map((s) => [s.mi.key, s.hs.swingIndex]));
+  /* THE INSTANCE'S KEYED SEEDER: built once per settle; throws on a missing or
+     malformed secret — an unseeded hunt swing is a predictable one. */
+  const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
+  const sim = simulateHuntInstance(
+    { world: world0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
+    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters });
+  const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
+
+  const out = [];
+  for (const s of sides) {
+    const summary = sim.members[s.mi.key];
+    const hs = s.hs;
+    if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
+    out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
+      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
+  }
+  if (!out.length) return { accrued: false, reason: SKIP.NOTHING };
+  return {
+    accrued: true,
+    world: sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null,
+    worldSwingFrom, worldSwingTo: sim.world ? sim.world.swing : worldSwingFrom,
+    settledTo: sim.nextSwingAtMs,
+    tickMs,
+    track: sim.track, events: sim.events,
+    members: out,
+  };
+}
+
+/* ONE MEMBER'S PROPOSAL: the hr_apply delta and the session half. */
+function memberDelta(s, summary, fromMs, toMs, tickMs) {
+  const { mi, hs, state } = s;
+  const events = s.events;
+  const levelUps = [];
   const xpDelta = {};
-  for (const k in xpGained) {
-    const g = Math.floor(xpGained[k] || 0);
+  for (const k in s.xpGained) {
+    const g = Math.floor(s.xpGained[k] || 0);
     if (g > 0) xpDelta[k] = g;
   }
   /* THE LEVEL-UPS ARE THE BANKED ONES: the persisted xp plus the proposal,
-     less what this window's falls took back (hr_hunt_apply debits it on its
-     own row). */
+     less what this window's falls took back (the database debits it). */
   const xpLostOf = summary.xpLost || {};
   for (const k in xpDelta) {
-    const before = nat(skills0[k], 0);
+    const before = nat(s.skills0[k], 0);
     const from = levelFromXp(before);
     const to = levelFromXp(before + xpDelta[k] - (Number(xpLostOf[k]) || 0));
     for (let lv = from; lv < to; lv++) levelUps.push({ skill: k, from: lv, to: lv + 1 });
   }
   const goldDelta = Math.floor(state.gold || 0);
-
-  /* THE ITEM DELTA IS SIGNED (drops up, arrows loosed down); hr_apply re-reads
-     player_inventory under the lock and refuses have + delta < 0. Unknown ids
-     are dropped and reported (one cut drop must not cost the window). A recipe
-     scroll is an UNLOCK row, never an inventory row. */
+  /* THE ITEM DELTA is the loot (store uses and own bag uses are the session
+     half's). Unknown ids are dropped and reported; a recipe scroll is an
+     UNLOCK row, never an inventory row. */
+  const cat = s.catalogue || {};
   const items_ = {};
   let itemKinds = 0;
   const recipeOps = [];
-  const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0));
-  for (const id in itemDelta) {
-    if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    if (items[id] && items[id].recipe) {
-      const got = Math.floor(itemDelta[id]);
+  for (const id in s.itemDelta) {
+    if (!catalogueHas(cat, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    if (cat[id] && cat[id].recipe) {
+      const got = Math.floor(s.itemDelta[id]);
       if (got > 0) recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
       continue;
     }
-    const n = Math.floor(itemDelta[id]);
-    if (n === 0) continue;
-    if (n < 0 && startQty(id) + n < 0) {
-      events.push({ type: 'overeat_clamped', item: id });
-      const floored = -startQty(id);
-      if (floored === 0) continue;
-      items_[id] = floored;
-    } else {
-      items_[id] = n;
-    }
+    const n = Math.floor(s.itemDelta[id]);
+    if (n <= 0) continue;
+    items_[id] = n;
     itemKinds++;
   }
-
-  /* A window that walked no boundary and ended nothing settles nothing. */
-  if (hs0.swingIndex === huntSwingFrom && !hs0.endedReason) {
-    return { accrued: false, reason: SKIP.NOTHING, summary };
-  }
-
   const stats = state.stats || {};
   const progress = [];
   for (const op of recipeOps) progress.push(op);
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('kills', stats.kills);
-  stat('crits', stats.crits);
   stat('deaths', stats.deaths);
   /* THE SECOND DEATHS ROW — the same integer under today's UTC period key. */
   const deathsN = Math.floor(Number(stats.deaths) || 0);
-  const day = deathsN > 0 ? utcDayKey(credit.toMs) : null;
+  const day = deathsN > 0 ? utcDayKey(toMs) : null;
   if (day) progress.push({ kind: 'stat', key: 'deaths', period: day, add: deathsN, state: 'active' });
   stat('rare_drops', stats.rareDrops);
-  for (const op of goalProgressOps(goals, credit.toMs, events)) progress.push(op);
-  for (const op of modalGoalOps(credit.toMs,
-        { rare_drops: stats.rareDrops, levelups: levelUps.length }, events)) progress.push(op);
-  for (const op of bestiaryProgressOps(bestiary, events)) progress.push(op);
-  for (const op of collectionProgressOps(collection, events)) progress.push(op);
+  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);
+  for (const op of modalGoalOps(toMs, { rare_drops: stats.rareDrops, levelups: levelUps.length }, events)) progress.push(op);
+  for (const op of bestiaryProgressOps(s.bestiary, events)) progress.push(op);
+  for (const op of collectionProgressOps(s.collection, events)) progress.push(op);
 
   /* THE SESSION IS SETTLED THROUGH THE INTERVAL OF ITS LAST SWING: settled_to
      IS the next swing boundary, or one millisecond past the boundary the hunt
-     ended on — the one instant every cut agrees on (STAMINA). */
-  const settledTo = hs0.endedReason ? hs0.endedAtMs + 1 : Math.max(hs0.nextSwingAtMs, credit.fromMs + 1);
-  const deferredMs = Math.max(0, credit.toMs - settledTo);
-
+     ended on — the one instant every cut agrees on. */
+  const settledTo = hs.endedReason ? hs.endedAtMs + 1 : Math.max(hs.nextSwingAtMs, fromMs + 1);
+  const winFrom = Math.max(fromMs, Math.floor(nat(mi.huntSession && mi.huntSession.nextSwingAtMs, fromMs)));
   const delta = {
     accrued_to: new Date(settledTo).toISOString(),
     hp: Math.max(0, Math.min(state.playerMaxHp, Math.floor(state.playerHp))),
@@ -1609,119 +1524,79 @@ function accrueHunt(inp, span, hunt) {
       intent: 'accrue',
       /* AGGREGATE, never per-tick and never per-kill (game_events reached 1.6M
          rows / 229 MB from six players in four days by journalling every kill).
-         One row per settle: the window, its swings, its kills (hr_hunt_apply
-         re-proves them against the spawn cycle), the meals, the area and its
-         kills by monster (`km`, summing to `kills`, priced by tier server-side). */
-      meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills,
-              ate: Math.floor(Number(summary.foodEaten) || 0), mon: String(inp.activeId).slice(0, 64),
-              ...(hunt && summary.kills > 0 ? { km: bestiary.counts() } : {}),
-              from: new Date(credit.fromMs).toISOString(),
+         One row per settle: the window, its swings, its kills (the database
+         holds them to the ground's spawn bound), the hunt and its kills by
+         monster (`km`, summing to `kills`). */
+      meta: { ms: settledTo - winFrom, ticks: summary.ticks, kills: summary.kills,
+              mon: String(mi.huntId || '').slice(0, 64),
+              ...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),
+              from: new Date(winFrom).toISOString(),
               to: new Date(settledTo).toISOString() },
     },
   };
   if (goldDelta > 0) delta.gold = goldDelta;
   /* AT MOST ONE find per apply (hr_apply accepts one); a discarded second is
      COUNTED (`dropped`) and journalled by hr_apply, never silent. */
-  if (inp.hearthfindReady && finds.length) {
-    delta.hearthfind = finds.length > 1 ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) } : finds[0];
+  if (mi.hearthfindReady && s.finds.length) {
+    delta.hearthfind = s.finds.length > 1 ? { ...s.finds[0], dropped: Math.min(s.finds.length - 1, 99) } : s.finds[0];
   }
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
-  if (xpFrac0) {
-    const fr = xpFracChanges(xpFrac0, state.xpFrac);
+  if (s.xpFrac0) {
+    const fr = xpFracChanges(s.xpFrac0, state.xpFrac);
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
   if (progress.length) delta.progress = progress;
-  /* THE CHECKPOINT: a session's foe survives a window edge, knock-out included
-     (standUp keeps facing it), checkpointed at full HP when downed. null input =
-     no `fight` column, and the key is omitted. */
-  if (fight0) {
-    const m = state.activeMonster && monsters[state.activeMonster];
-    delta.fight = m
-      ? { monster: state.activeMonster,
-          hp: (!hs0.down && Number.isFinite(state.monsterHp) && state.monsterHp > 0)
-            ? Math.floor(state.monsterHp) : Math.max(1, Math.floor(nat(m.hp, 1))),
-          kills: Math.max(0, Math.floor(state.combatKillsThisFoe || 0)) }
-      : {};
-  }
-  if (ammoCarry0) delta.ammo_carry = roundCarry(state.ammoCarry);
   /* THE RECOVERY LINE, ABSOLUTE, always sent when the column exists (null = up). */
-  if (recoverCol) {
+  if (mi.recoveringUntilMs !== null && mi.recoveringUntilMs !== undefined) {
     delta.recovering_until = state.recoveringUntilMs > 0 ? new Date(state.recoveringUntilMs).toISOString() : null;
   }
-  /* ONE death row per fall (ladder-free: a hunt's knockout is the flat
-     KNOCKOUT_MS, hr_hunt_apply refuses any other), stating the window-open
-     counters plus the fall's position. */
-  if (recoverCol && Array.isArray(summary.deathLog) && summary.deathLog.length) {
+  /* ONE death row per fall (a hunt's knockout is the flat KNOCKOUT_MS; the
+     database refuses any other), stating the window-open counters plus the
+     fall's position. */
+  if (Array.isArray(summary.deathLog) && summary.deathLog.length) {
+    const hadFood = Object.keys(hs.bag).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'heal' && hs.bag[id].left > 0);
     delta.deaths = summary.deathLog.slice(0, MAX_DEATH_ROWS).map((d, i) => ({
       monster: String(d.monster || ''),
       recovery_ms: Math.max(0, Math.floor(Number(d.recoverMs) || 0)),
-      deaths_today: state.deathsTodayBefore + i + 1,
-      deaths_lifetime: state.deathsLifetimeBefore + i + 1,
+      deaths_today: nat(mi.deathsTodayBefore, 0) + i + 1,
+      deaths_lifetime: nat(mi.deathsLifetimeBefore, 0) + i + 1,
       resume_hp: Math.max(0, Math.floor(Number(d.resumeHp) || 0)),
       food_in_bag: hadFood,
     }));
   }
-
   return {
-    accrued: true,
     delta,
-    grantMs,
-    capped: false,
-    tickMs,
-    foodEaten: Math.floor(Number(summary.foodEaten) || 0),
-    /* THE SESSION'S HALF: what hr_hunt_settle_session is asked to apply in the
-       same transaction (the clock, the uses, the cooldowns, the presses left,
-       the falls, the end, the pool, the shop, the spawn cycle). */
-    hunt: huntProposal(hs0, huntSwingFrom, settledTo, summary),
-    huntBuffs: huntBuffsOf(hs0, state.buffs, settledTo, inp.buffs, huntBuffScale),
-    /* The max HP the window ENDED at (raise-only, FX-4) — for the guard. */
+    hunt: huntProposal(hs, s.mi.huntSession ? Math.max(0, Math.floor(Number(s.mi.huntSession.swingIndex) || 0)) : 0,
+      settledTo, summary, tickMs),
     maxHp: state.playerMaxHp,
-    ...(hunt ? { huntKills: bestiary.counts() } : {}),
-    watermark: delta.accrued_to,
-    deferredMs,
-    events,
     levelUps,
+    events,
     summary: { ...summary, gold: goldDelta, xp: xpDelta, items: items_, levelUps },
   };
 }
 
-/* ── THE SESSION'S HALF OF A SETTLE (lane C2) ────────────────────────────────
-   What `hr_hunt_settle_session` (2026-10-21-hunt-sessions.sql §5) is handed in
-   the SAME transaction as the hr_apply delta. Every value is the span's own
-   statement about THIS window; the applier re-proves each one from server state
-   (swing CAS, window bounds, bag sufficiency, per-group use caps, presses only
-   shrink, falls = the death rows hr_apply just wrote, every end re-derived).
-
-   `to` IS THE WATERMARK accrueCombat settled to — the next swing boundary — so
-   `next_swing_at` equals it on a running hunt and the applier's
-   `v_next >= v_to` holds by construction; an ended hunt stops on its boundary.
-   `uses` is the window's own tally (the session was copied with a zero tally),
-   so the bag line the applier debits is exactly what the swings spent. The
-   hints are TIMES ONLY (the applier clamps each into the window and derives the
-   event itself); a rare-drop hint names an item it accepts only if this
-   settle's own ledger rows looted it. */
+/* ── THE SESSION'S HALF OF A SETTLE (lane S1) ────────────────────────────────
+   What hr_hunt_apply_member hands hr_hunt_settle_session in the SAME
+   transaction as the hr_apply delta. Every value is the span's own statement
+   about THIS window; the database re-proves each one from server state (swing
+   CAS, window bounds, bag sufficiency, per-lane use caps, falls = the death
+   rows hr_apply just wrote, every end re-derived, the store re-priced).
+   `uses` / `buys` ARE THE SUPPLY LEDGER (spec §3.8): own units leave the bag
+   and are journalled `supply_own` (no gold); store units are priced from the
+   catalogue and journalled `supply_buy` (gold). The hints are TIMES ONLY; a
+   rare-drop hint names an item the settle accepts only if its own ledger rows
+   looted it. */
 function huntIso(ms) { return new Date(Math.floor(ms)).toISOString(); }
-export function huntProposal(hs, swingFrom, settledToMs, summary) {
+export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
   const t = hs.tally || {};
-  const uses = {};
-  for (const id of Object.keys(t.supplies || {})) {
-    const n = Math.floor(Number(t.supplies[id]) || 0);
-    if (n > 0) uses[id] = n;
-  }
+  const pos = (o) => Object.fromEntries(Object.entries(o || {})
+    .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0));
   const hints = { slot_dry: {}, fall: [], rare_drop: [] };
   for (const e of (summary && Array.isArray(summary.huntEvents) ? summary.huntEvents : [])) {
     if (!e) continue;
     if (e.type === 'slot_dry' && e.item && !(e.item in hints.slot_dry)) hints.slot_dry[e.item] = Math.floor(e.atMs);
     else if (e.type === 'fall') hints.fall.push(Math.floor(e.atMs));
-    else if (e.type === 'rare_drop' && e.item && hints.rare_drop.length < 10) {
-      hints.rare_drop.push({ item: String(e.item), at: Math.floor(e.atMs) });
-    }
-  }
-  const cooldowns = {};
-  for (const g of Object.keys(COOLDOWN_LANES).filter((l) => COOLDOWN_LANES[l].active)) {
-    const v = Math.floor(Number((hs.cooldowns || {})[g]) || 0);
-    if (v > 0) cooldowns[g] = v;
   }
   const rawXp = {};
   for (const k of Object.keys(t.xp || {})) {
@@ -1734,10 +1609,7 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     swing_to: hs.swingIndex,
     to: huntIso(settledToMs),
     next_swing_at: huntIso(next),
-    uses,
-    cooldowns,
-    presses_left: (Array.isArray(hs.presses) ? hs.presses : [])
-      .map((p) => (p && typeof p === 'object') ? Math.floor(Number(p.slot)) : Math.floor(Number(p))),
+    uses: pos(t.supplies),
     falls: Math.max(0, Math.floor(Number(hs.falls) || 0)),
     down: !!hs.down,
     down_ms: Math.max(0, Math.floor(Number(t.downMs) || 0)),
@@ -1745,77 +1617,19 @@ export function huntProposal(hs, swingFrom, settledToMs, summary) {
     raw_xp: rawXp,
     hints,
     ended: hs.endedReason ? { reason: hs.endedReason, at: huntIso(hs.endedAtMs) } : null,
-    /* WHAT THIS WINDOW BOUGHT FROM THE NPC (Tyler 2026-10-14), `{item: units}`.
-       Units only: hr_hunt_apply prices every unit from ITS catalogue
-       (hr_hunt_supplies.npc_price), caps them by the window, debits the gold
-       and journals one `supply_buy` row (§5b). */
-    buys: Object.fromEntries(Object.entries(t.bought || {})
-      .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0)),
-    /* WHAT THIS WINDOW SOLD TO COVER A SHOP CHARGE (master plan row 3),
-       `{item: units}`: hr_hunt_apply re-prices each unit at the vendor's own
-       price and bounds it by this session's loot still in the bag (§5b). */
-    cover: Object.fromEntries(Object.entries(t.covered || {})
-      .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0)),
-    /* THE STAMINA POOL AT `to` (Tyler 2026-10-14), walked swing by swing from
-       the database's own start value. hr_hunt_apply takes it off the proposal,
-       re-bounds it against this window's paid / knocked-out time and the death
-       rows' recovery, and writes it at `to` (§5a). Null only when the read had
-       none, which the database refuses. */
+    buys: pos(t.bought),
+    cover: pos(t.covered),
+    /* THE STAMINA POOL AT `to`, walked swing by swing from the database's own
+       start value (hr_stamina_of); re-bounded there against this window's
+       paid / knocked-out time and the death rows' recovery. */
     stamina: hs.staminaMs === null || hs.staminaMs === undefined ? null : Math.max(0, Math.floor(Number(hs.staminaMs))),
-    /* THE SPAWN CYCLE AT `to` (Security design review 2026-10-14 items 1-2):
-       the pull the engine ran (the server's), the foes of the current pull
-       still standing, when the next pull is due, and how many pulls this
-       window started. hr_hunt_apply takes it off the proposal, recomputes the
-       pull under the lock and requires kills == left_old + size x pulls - left,
-       pulls within the respawns the window admits, the pair moving forward. */
-    pull: { size: hs.pull.size, respawn_ms: hs.pull.respawnMs, left: hs.pull.left,
-      respawn_at: huntIso(hs.pull.respawnAtMs), pulls: hs.pull.pulls },
-    /* THE PRICE OF EACH FALL (Tyler 2026-10-14), one `{skill: xp}` per death
-       row this window proposes, in the same order and the same slice as
-       `delta.deaths` — hr_hunt_apply takes it off the proposal before
-       hr_hunt_settle_session sees it, re-checks every number against
-       player_skills and hr_hunt_limit('death_xp_permille'), debits, journals
-       one `death_xp` row and states it on each `fall` event. */
+    /* THE PRICE OF EACH FALL, one `{skill: xp}` per death row, in order. */
     death_xp: ((summary && Array.isArray(summary.deathLog)) ? summary.deathLog : [])
       .slice(0, MAX_DEATH_ROWS).map((d) => Object.assign({}, (d && d.xpLost) || {})),
+    /* THE HERO'S UNIT in the instance world (null once it has left). */
+    unit_id: summary && Number.isInteger(summary.unitId) ? summary.unitId : null,
+    tick_ms: tickMs,
   };
-}
-
-/* THE BUFF QUEUE A SESSION LEAVES BEHIND, in the server's absolute shape
-   (`player_state.buffs`: {type, magnitude, until, from, scale}), or null when
-   there is nothing to say: no stored segment and no buff line fired.
-   CANONICAL, so N windows and one span leave the SAME row (TICK-1): whenever
-   anything is stored or fired, the queue as it stands at the window end — live
-   segments only — is written back. A stored segment keeps its stored instants
-   VERBATIM (a manual eat's `until` carries microseconds the engine's
-   millisecond clock cannot re-spell, and hr_hunt_buffs_put recognises an
-   unchanged segment by its exact instants). Proposed, never trusted:
-   hr_hunt_buffs_put admits a new or lengthened segment only when this window's
-   own bag uses paid for it (2026-10-22-hunt-sessions-settle.sql §4). */
-export function huntBuffsOf(hs, buffs, settledToMs, storedRows, newScale) {
-  const sup = (hs.tally && hs.tally.supplies) || {};
-  const usedBuff = Object.keys(sup).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'buff' && sup[id] > 0);
-  const stored = Array.isArray(storedRows) && storedRows.length > 0;
-  if (!usedBuff && !stored) return null;
-  const out = [];
-  for (const b of Array.isArray(buffs) ? buffs : []) {
-    if (!b || !(b.remainingMs > 0)) continue;
-    const untilMs = typeof b.until === 'number' ? b.until : Date.parse(String(b.until));
-    if (!Number.isFinite(untilMs) || untilMs <= settledToMs) continue;
-    const seg = { type: b.type, magnitude: b.magnitude,
-      until: typeof b.until === 'number' ? huntIso(b.until) : String(b.until) };
-    const fromRaw = b.from !== undefined ? b.from : b._from;
-    if (typeof fromRaw === 'number' && Number.isFinite(fromRaw) && fromRaw <= untilMs) seg.from = huntIso(fromRaw);
-    else if (typeof fromRaw === 'string' && fromRaw) seg.from = fromRaw;
-    /* A stored segment keeps its stamped scale (hr_state_of projects 1 for one
-       written before the key existed); a segment the bar fired carries the
-       scale it was bought at, as hr_apply's buff_apply stamps one. */
-    const scale = b.scale !== undefined ? b.scale : (b._scale !== undefined && b._scale !== null ? b._scale : newScale);
-    if (Number.isFinite(Number(scale)) && Number(scale) >= 1) seg.scale = Number(scale);
-    out.push(seg);
-  }
-  out.sort((a, c) => (Date.parse(a.until) - Date.parse(c.until)));
-  return out;
 }
 
 /* ── THE WINDOW, ON THE RECEIPT (Ruling 2) ──────────────────────────────────

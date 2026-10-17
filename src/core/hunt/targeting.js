@@ -51,6 +51,8 @@ export function inRange(inst, u, m) {
 const ORDER = Object.freeze({
   nearest: (inst, u) => (a, b) => dist2(a, u) - dist2(b, u),
   weakest: () => (a, b) => a.hp - b.hp,
+  /* Highest % life first, compared as integers (b.hp / b.maxHp vs a.hp / a.maxHp, cross-multiplied). */
+  highest_pct: () => (a, b) => b.hp * a.maxHp - a.hp * b.maxHp,
   strongest: () => (a, b) => b.maxHp - a.maxHp,
   /* The leader's last target first (TG-04), then nearest. The leader itself has no one to follow. */
   follow: (inst, u) => {

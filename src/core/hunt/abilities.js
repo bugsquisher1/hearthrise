@@ -15,7 +15,8 @@
 // A heal is capped at the missing HP and stamps healedAt (AB-09).
 //
 // SEAMS to the other core lanes, called through their agreed signatures only:
-// damage.hurt (H2) for every hit, status.applyStatus (H3) for a status, and
+// damage.landHit (H2) for every hit (the one place a kill is handed off),
+// status.applyStatus (H3) for a status, and
 // the fields damage.js reads: `markBy`/`markUntil`, `vulnUntil`, `shield`.
 // Magic XP is H5's: each `cast` event carries `mana` and `magicXpMult`.
 //
@@ -31,8 +32,8 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../..
 import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=590';
 import { cheb, dist2, los } from './grid.js?v=590';
 import { makeEvent } from './events.js?v=590';
-import { hurt } from './damage.js?v=590';
-import { applyStatus } from './status.js?v=590';
+import { landHit } from './damage.js?v=590';
+import { applyStatus, statusRow } from './status.js?v=590';
 import { markHealed } from './consumables.js?v=590';
 
 export const PERSISTED = Object.freeze({
@@ -161,19 +162,20 @@ function effect(inst, u, row, t, sc) {
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        hurt(inst, t, roll(sc, row.dmg), u, el, row.id);
-        if (row.status) applyStatus(inst, t, { id: row.status }, u, sc);
+        landHit(inst, sc, u, t, roll(sc, row.dmg), el, { id: row.id });
+        /* The status ROW (applyStatus refuses a look-alike) and a source by unit id. */
+        if (row.status) applyStatus(inst, t, statusRow(row.status), { u: u.id }, sc);
       }
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
         if (row.vuln) m.vulnUntil = sc.atMs + ABILITY_RULES.vulnMs;
-        hurt(inst, m, roll(sc, row.dmg), u, el, row.id);
+        landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
       }
       break;
     case 'cleave': {
       const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) hurt(inst, m, roll(sc, row.dmg), u, el, row.id);
+      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
       break;
     }
     case 'self':

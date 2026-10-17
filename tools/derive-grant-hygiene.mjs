@@ -345,6 +345,20 @@ export const LINKS = [
     target: '2026-10-22-hunt-sessions-settle.sql',
     patchIds: ['hunt_settle'],
   },
+  /* Link 19 (lane S1, HUNT_SCREEN_SPEC §1.3) — THE INSTANCE SETTLE.
+     2026-10-23-hunt-world-state.sql grants hr_engine EXECUTE on the two
+     functions one instance settle needs: hr_hunt_instance_read (the instance,
+     its members and the keyed-seed secret) and hr_hunt_apply_instance (every
+     member's hr_apply + session half in one subtransaction, then the world).
+     Two entries at the HEAD of c_engine_allow, an INSERTION, so its
+     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY (the
+     dropped C2 entries stay as stale TEXT, which admits nothing that does not
+     exist). Its base is link 18's TARGET. It is the new last toucher. */
+  {
+    base: '2026-10-22-hunt-sessions-settle.sql',
+    target: '2026-10-23-hunt-world-state.sql',
+    patchIds: ['hunt_instance'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -378,6 +392,32 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'hunt_instance',
+    name: 'the c_engine_allow array head (link 19)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-10-23 — THE INSTANCE SETTLE (lane S1, HUNT_SCREEN_SPEC §1.3) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Each claim re-derived:
+    --
+    -- read-only (STABLE): the instance the caller's OPEN session hunts in — its
+    -- clock, world, the keyed-seed secret hr_seed(null, 0, 'hunt:' || instance)
+    -- — and every OPEN member's session and hr_state_of. Its target argument is
+    -- (p_user, p_slot), the hr_state_of pair; the members it adds are characters
+    -- the engine already reads and settles (it holds hr_state_of / hr_apply).
+    'hr_hunt_instance_read(uuid,integer)',
+    -- SELF-VALIDATING, the hr_apply claim: under the instance lock and its
+    -- world_swing CAS, with the member set held to the instance's open sessions,
+    -- it CALLS hr_apply (every invariant of each member's value half, under that
+    -- member's character lock) and the session applier (swing CAS, window, bag,
+    -- per-lane use caps, falls journalled, every end re-proved), plus the kill
+    -- bound, the value bound, the store's catalogue prices, the stamina bound
+    -- and the world's shape and byte bound — in ONE subtransaction; a refusal
+    -- anywhere rolls every member back. It pays nothing hr_apply would refuse.
+    'hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
+`,
+    where: 'after',
+  },
   {
     id: 'hunt_settle',
     name: 'the c_engine_allow array head (link 18)',

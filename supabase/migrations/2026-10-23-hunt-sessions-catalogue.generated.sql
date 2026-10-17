@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 6fd2525f8f9624cd90024bb0b858c50ecf9a2077feb57919b3404915f63136ff
---   52 supplies, 98 hunts (named + training), 26 limits, 9 end reasons,
+--   digest: 31949744ee19df0222e2d2be090368c2d19b8ace3d82f82a71be3ceba03ed4da
+--   52 supplies, 98 hunts (named + training), 29 limits, 9 end reasons,
 --   460 vendor values, 17 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 11 action-set options, 0 hunt grounds
 --
@@ -146,10 +146,20 @@ create table if not exists public.hr_premium_login_reward (
   item_id text check (item_id is null or item_id ~ '^[a-z0-9_]{1,64}$'),
   qty     int  not null check (qty between 1 and 10)
 );
+-- WHAT A WEAPON MAKES A HERO (hunt-roles.js WEAPON_ROLES): each weapon's type,
+-- and the roles a type plays, the first the default.
+create table if not exists public.hr_hunt_weapons (
+  item_id     text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  weapon_type text not null check (weapon_type ~ '^[a-z0-9_]{1,32}$')
+);
+create table if not exists public.hr_hunt_weapon_roles (
+  weapon_type text primary key check (weapon_type ~ '^[a-z0-9_]{1,32}$'),
+  roles       text[] not null check (cardinality(roles) between 1 and 5)
+);
 do $$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward'] loop
+  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -389,6 +399,69 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 -- (no hunt ground ships yet: every hunt answers no_ground until the content lane adds one)
+delete from public.hr_hunt_weapons;
+insert into public.hr_hunt_weapons (item_id, weapon_type) values
+  ('alphaheart_longbow', 'ranged'),
+  ('apprentice_staff', 'magic'),
+  ('ashcrown_greatsword', 'sword'),
+  ('bramble_blade', 'sword'),
+  ('bronze_sword', 'sword'),
+  ('captains_ribblade', 'sword'),
+  ('chief_blade', 'sword'),
+  ('dawn_sword', 'sword'),
+  ('dawn_warhammer', 'hammer'),
+  ('demoncaller_staff', 'magic'),
+  ('dragonfang_pike', 'sword'),
+  ('dragonrend_greatblade', 'sword'),
+  ('dragonrib_bow', 'ranged'),
+  ('duskwood_bow', 'ranged'),
+  ('duskwood_staff', 'magic'),
+  ('ember_sword', 'sword'),
+  ('ember_warhammer', 'hammer'),
+  ('emberfang_blade', 'sword'),
+  ('fangdart_recurve', 'ranged'),
+  ('heartgarnet_maul', 'hammer'),
+  ('iron_sword', 'sword'),
+  ('iron_warhammer', 'hammer'),
+  ('lazlos_maul', 'hammer'),
+  ('longbow', 'ranged'),
+  ('maple_bow', 'ranged'),
+  ('maple_staff', 'magic'),
+  ('mithril_sword', 'sword'),
+  ('mithril_warhammer', 'hammer'),
+  ('oak_staff', 'magic'),
+  ('rat_stick', 'hammer'),
+  ('rune_sword', 'sword'),
+  ('rune_warhammer', 'hammer'),
+  ('runewood_bow', 'ranged'),
+  ('runewood_staff', 'magic'),
+  ('shortbow', 'ranged'),
+  ('steel_sword', 'sword'),
+  ('steel_warhammer', 'hammer'),
+  ('stone_maul', 'hammer'),
+  ('verdite_blade', 'sword'),
+  ('void_censer', 'magic'),
+  ('voidmaw_scepter', 'magic'),
+  ('wartusk_cleaver', 'sword'),
+  ('whispering_codex', 'magic'),
+  ('widows_fang', 'sword'),
+  ('willow_longbow', 'ranged'),
+  ('willow_staff', 'magic'),
+  ('yew_bow', 'ranged'),
+  ('yew_staff', 'magic');
+delete from public.hr_hunt_weapon_roles;
+insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
+  ('bow', array['ranger']::text[]),
+  ('club', array['melee_dps']::text[]),
+  ('crossbow', array['ranger']::text[]),
+  ('dual_axe', array['melee_dps']::text[]),
+  ('hammer', array['melee_dps']::text[]),
+  ('magic', array['mage', 'healer']::text[]),
+  ('neutral', array['melee_dps']::text[]),
+  ('ranged', array['ranger']::text[]),
+  ('shield', array['tank']::text[]),
+  ('staff', array['mage', 'healer']::text[]),
+  ('sword', array['melee_dps']::text[]);
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape) values (true, 1, 2395093220);
 delete from public.hr_premium_login_reward;
@@ -509,6 +582,9 @@ insert into public.hr_hunt_limits (key, value) values
   ('hours_max', 24),
   ('hours_min', 1),
   ('knockout_ms', 60000),
+  ('magic_xp_permille', 1500),
+  ('mana_burst_max', 320),
+  ('mana_per_min_max', 3320),
   ('party_max', 4),
   ('presets', 5),
   ('sessions_kept', 20),
@@ -1028,7 +1104,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 52
      or (select count(*) from public.hr_hunt_travel) <> 98
-     or (select count(*) from public.hr_hunt_limits) <> 26
+     or (select count(*) from public.hr_hunt_limits) <> 29
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_vendor_value) <> 460
      or (select count(*) from public.hr_hunt_basic_supplies) <> 17
@@ -1044,6 +1120,8 @@ begin
      or (select count(*) from public.hr_hunt_ground_spawns) <> 0
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
+     or (select count(*) from public.hr_hunt_weapons) <> 48
+     or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
@@ -1076,11 +1154,11 @@ begin
     raise exception 'a ground spawns a monster with no kill bound'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
-    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward'] loop
+    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward')) then
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

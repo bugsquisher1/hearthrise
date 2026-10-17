@@ -1818,7 +1818,7 @@ const MUTANTS = [
     to: "    if (b.kind === 'ammo') return { why: 'not_fireable' };\n" },
   { arm: 'BUY-RULE', name: 'a dry purse ends nothing', file: 'src/core/action-rules.js',
     from: '  gold_out: (hs) => hs.goldOut === true,', to: '  gold_out: () => false,' },
-  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/combat-sim.js',
+  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/hunt/world-step.js',
     from: '    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);', to: '' },
   { arm: 'BUY-RULE', name: 'the floor is ignored', file: 'src/core/action-rules.js',
     from: 'export function floorOf(hs) { return Math.max(0, int(hs && hs.goldFloor, GOLD_FLOOR.default)); }',
@@ -1826,7 +1826,7 @@ const MUTANTS = [
   { arm: 'BUY-RULE', name: 'sell-to-cover sells the dearest loot first', file: 'src/core/action-rules.js',
     from: '    .sort((a, b) => (hs.cover[a].unit - hs.cover[b].unit) || (a < b ? -1 : 1));',
     to: '    .sort((a, b) => (hs.cover[b].unit - hs.cover[a].unit) || (a < b ? -1 : 1));' },
-  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/combat-sim.js',
+  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/hunt/world-step.js',
     from: '    recoverMs: KNOCKOUT_MS,\n', to: '    recoverMs: 0,\n' },
   { arm: 'BUY-RULE', name: 'kill coins never reach the purse', file: 'src/core/combat-sim.js',
     from: "      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));", to: '' },
@@ -1914,7 +1914,7 @@ const MUTANTS = [
     to: "  const perks = await readTickPerks(exec, user, slot);\n  const [bk] = await exec('select coalesce(sum(kills), 0)::int as n from public.hr_bestiary_of($1::uuid, $2::int)', [user, slot]);\n  const ladder = Number(bk && bk.n) > 0;",
     also: [['      secret: salt, pressAtMs: press ? press.at : null,', '      secret: salt, pressAtMs: press ? press.at : null, ladder,'],
       ['    monsters: MONSTERS,\n    nodes: GATHER_NODES,', "    monsters: o.ladder ? Object.fromEntries(Object.entries(MONSTERS).map(([k, v]) => [k, { ...v, drops: (v.drops || []).map((d) => ({ ...d, ch: Math.min(1, d.ch * 1.5) })) }])) : MONSTERS,\n    nodes: GATHER_NODES,"]] },
-  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/combat-sim.js',
+  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/world-step.js',
     from: '    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);', to: '    const fromBag = Math.min(n, bagLeft);' },
 ];
 

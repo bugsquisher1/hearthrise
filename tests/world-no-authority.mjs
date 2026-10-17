@@ -179,7 +179,7 @@ function selftest() {
     ['W-G', 'a nested write', plant('G.skills.attack = 5;')],
     ['W-G', 'a nested write through an alias', plant('const g = window.G; g.inventory[id] = 0;')],
     ['W-G', 'a computed-key write', plant("G['gold'] = 5;")],
-    ['W-IMPORT', 'importing the combat engine', top("import { simulateTick } from '../core/combat-sim.js';")],
+    ['W-IMPORT', 'importing the combat engine', top("import { stepSwing } from '../core/combat-sim.js';")],
     ['W-IMPORT', 'importing the RNG', top("import { rngFor } from '../core/rng.js';")],
     ['W-IMPORT', 'importing the accrual seam', top("import '../net/accrue.js';")],
     ['W-IMPORT', 'a dynamic import of the record seam', plant("import('../net/record.js');")],

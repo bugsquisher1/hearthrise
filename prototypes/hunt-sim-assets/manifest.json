@@ -1013,7 +1013,7 @@
    ]
   },
   "brute": {
-   "object_id": "031cfc17-94b6-42dc-8ed3-3062501612ab",
+   "object_id": "26e7de23-83d3-418b-aaa4-356cafae4fe5",
    "role": "melee",
    "fps": 7,
    "directions": {
@@ -1084,13 +1084,13 @@
    },
    "idle": {
     "east": "brute/idle_east.png",
-    "west": "brute/idle_west.png",
-    "north": "brute/idle_north.png",
-    "south": "brute/idle_south.png",
     "north-east": "brute/idle_north-east.png",
     "north-west": "brute/idle_north-west.png",
+    "north": "brute/idle_north.png",
     "south-east": "brute/idle_south-east.png",
-    "south-west": "brute/idle_south-west.png"
+    "south-west": "brute/idle_south-west.png",
+    "south": "brute/idle_south.png",
+    "west": "brute/idle_west.png"
    },
    "frame_count": 6,
    "frame_size": [
@@ -1098,8 +1098,284 @@
     48
    ],
    "foot_anchor": [
-    20,
+    23,
     42
+   ]
+  },
+  "witch": {
+   "object_id": "85ae81a0-1164-4a49-9101-48960535f0bc",
+   "role": "outfit",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "witch/walk_east_0.png",
+     "witch/walk_east_1.png",
+     "witch/walk_east_2.png",
+     "witch/walk_east_3.png",
+     "witch/walk_east_4.png",
+     "witch/walk_east_5.png"
+    ],
+    "north-east": [
+     "witch/walk_north-east_0.png",
+     "witch/walk_north-east_1.png",
+     "witch/walk_north-east_2.png",
+     "witch/walk_north-east_3.png",
+     "witch/walk_north-east_4.png",
+     "witch/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "witch/walk_north-west_0.png",
+     "witch/walk_north-west_1.png",
+     "witch/walk_north-west_2.png",
+     "witch/walk_north-west_3.png",
+     "witch/walk_north-west_4.png",
+     "witch/walk_north-west_5.png"
+    ],
+    "north": [
+     "witch/walk_north_0.png",
+     "witch/walk_north_1.png",
+     "witch/walk_north_2.png",
+     "witch/walk_north_3.png",
+     "witch/walk_north_4.png",
+     "witch/walk_north_5.png"
+    ],
+    "south-east": [
+     "witch/walk_south-east_0.png",
+     "witch/walk_south-east_1.png",
+     "witch/walk_south-east_2.png",
+     "witch/walk_south-east_3.png",
+     "witch/walk_south-east_4.png",
+     "witch/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "witch/walk_south-west_0.png",
+     "witch/walk_south-west_1.png",
+     "witch/walk_south-west_2.png",
+     "witch/walk_south-west_3.png",
+     "witch/walk_south-west_4.png",
+     "witch/walk_south-west_5.png"
+    ],
+    "south": [
+     "witch/walk_south_0.png",
+     "witch/walk_south_1.png",
+     "witch/walk_south_2.png",
+     "witch/walk_south_3.png",
+     "witch/walk_south_4.png",
+     "witch/walk_south_5.png"
+    ],
+    "west": [
+     "witch/walk_west_0.png",
+     "witch/walk_west_1.png",
+     "witch/walk_west_2.png",
+     "witch/walk_west_3.png",
+     "witch/walk_west_4.png",
+     "witch/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "witch/idle_east.png",
+    "north-east": "witch/idle_north-east.png",
+    "north-west": "witch/idle_north-west.png",
+    "north": "witch/idle_north.png",
+    "south-east": "witch/idle_south-east.png",
+    "south-west": "witch/idle_south-west.png",
+    "south": "witch/idle_south.png",
+    "west": "witch/idle_west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    23,
+    40
+   ],
+   "regions": {
+    "legend": {
+     "hat": [
+      255,
+      0,
+      0
+     ],
+     "robe": [
+      0,
+      255,
+      0
+     ],
+     "trim": [
+      0,
+      0,
+      255
+     ]
+    },
+    "walk": {
+     "east": [
+      "witch/mask_walk_east_0.png",
+      "witch/mask_walk_east_1.png",
+      "witch/mask_walk_east_2.png",
+      "witch/mask_walk_east_3.png",
+      "witch/mask_walk_east_4.png",
+      "witch/mask_walk_east_5.png"
+     ],
+     "north-east": [
+      "witch/mask_walk_north-east_0.png",
+      "witch/mask_walk_north-east_1.png",
+      "witch/mask_walk_north-east_2.png",
+      "witch/mask_walk_north-east_3.png",
+      "witch/mask_walk_north-east_4.png",
+      "witch/mask_walk_north-east_5.png"
+     ],
+     "north-west": [
+      "witch/mask_walk_north-west_0.png",
+      "witch/mask_walk_north-west_1.png",
+      "witch/mask_walk_north-west_2.png",
+      "witch/mask_walk_north-west_3.png",
+      "witch/mask_walk_north-west_4.png",
+      "witch/mask_walk_north-west_5.png"
+     ],
+     "north": [
+      "witch/mask_walk_north_0.png",
+      "witch/mask_walk_north_1.png",
+      "witch/mask_walk_north_2.png",
+      "witch/mask_walk_north_3.png",
+      "witch/mask_walk_north_4.png",
+      "witch/mask_walk_north_5.png"
+     ],
+     "south-east": [
+      "witch/mask_walk_south-east_0.png",
+      "witch/mask_walk_south-east_1.png",
+      "witch/mask_walk_south-east_2.png",
+      "witch/mask_walk_south-east_3.png",
+      "witch/mask_walk_south-east_4.png",
+      "witch/mask_walk_south-east_5.png"
+     ],
+     "south-west": [
+      "witch/mask_walk_south-west_0.png",
+      "witch/mask_walk_south-west_1.png",
+      "witch/mask_walk_south-west_2.png",
+      "witch/mask_walk_south-west_3.png",
+      "witch/mask_walk_south-west_4.png",
+      "witch/mask_walk_south-west_5.png"
+     ],
+     "south": [
+      "witch/mask_walk_south_0.png",
+      "witch/mask_walk_south_1.png",
+      "witch/mask_walk_south_2.png",
+      "witch/mask_walk_south_3.png",
+      "witch/mask_walk_south_4.png",
+      "witch/mask_walk_south_5.png"
+     ],
+     "west": [
+      "witch/mask_walk_west_0.png",
+      "witch/mask_walk_west_1.png",
+      "witch/mask_walk_west_2.png",
+      "witch/mask_walk_west_3.png",
+      "witch/mask_walk_west_4.png",
+      "witch/mask_walk_west_5.png"
+     ]
+    },
+    "idle": {
+     "east": "witch/mask_idle_east.png",
+     "north-east": "witch/mask_idle_north-east.png",
+     "north-west": "witch/mask_idle_north-west.png",
+     "north": "witch/mask_idle_north.png",
+     "south-east": "witch/mask_idle_south-east.png",
+     "south-west": "witch/mask_idle_south-west.png",
+     "south": "witch/mask_idle_south.png",
+     "west": "witch/mask_idle_west.png"
+    },
+    "note": "mask pixel colour = recolourable region; recolour keeps each pixel's value step and swaps hue/saturation; transparent = fixed (skin, hair, staff, boots, outline)"
+   }
+  },
+  "dawnward": {
+   "object_id": "478371a8-809e-4ee5-8722-96b008a3fa87",
+   "role": "outfit",
+   "fps": 8,
+   "directions": {
+    "east": [
+     "dawnward/walk_east_0.png",
+     "dawnward/walk_east_1.png",
+     "dawnward/walk_east_2.png",
+     "dawnward/walk_east_3.png",
+     "dawnward/walk_east_4.png",
+     "dawnward/walk_east_5.png"
+    ],
+    "north-east": [
+     "dawnward/walk_north-east_0.png",
+     "dawnward/walk_north-east_1.png",
+     "dawnward/walk_north-east_2.png",
+     "dawnward/walk_north-east_3.png",
+     "dawnward/walk_north-east_4.png",
+     "dawnward/walk_north-east_5.png"
+    ],
+    "north-west": [
+     "dawnward/walk_north-west_0.png",
+     "dawnward/walk_north-west_1.png",
+     "dawnward/walk_north-west_2.png",
+     "dawnward/walk_north-west_3.png",
+     "dawnward/walk_north-west_4.png",
+     "dawnward/walk_north-west_5.png"
+    ],
+    "north": [
+     "dawnward/walk_north_0.png",
+     "dawnward/walk_north_1.png",
+     "dawnward/walk_north_2.png",
+     "dawnward/walk_north_3.png",
+     "dawnward/walk_north_4.png",
+     "dawnward/walk_north_5.png"
+    ],
+    "south-east": [
+     "dawnward/walk_south-east_0.png",
+     "dawnward/walk_south-east_1.png",
+     "dawnward/walk_south-east_2.png",
+     "dawnward/walk_south-east_3.png",
+     "dawnward/walk_south-east_4.png",
+     "dawnward/walk_south-east_5.png"
+    ],
+    "south-west": [
+     "dawnward/walk_south-west_0.png",
+     "dawnward/walk_south-west_1.png",
+     "dawnward/walk_south-west_2.png",
+     "dawnward/walk_south-west_3.png",
+     "dawnward/walk_south-west_4.png",
+     "dawnward/walk_south-west_5.png"
+    ],
+    "south": [
+     "dawnward/walk_south_0.png",
+     "dawnward/walk_south_1.png",
+     "dawnward/walk_south_2.png",
+     "dawnward/walk_south_3.png",
+     "dawnward/walk_south_4.png",
+     "dawnward/walk_south_5.png"
+    ],
+    "west": [
+     "dawnward/walk_west_0.png",
+     "dawnward/walk_west_1.png",
+     "dawnward/walk_west_2.png",
+     "dawnward/walk_west_3.png",
+     "dawnward/walk_west_4.png",
+     "dawnward/walk_west_5.png"
+    ]
+   },
+   "idle": {
+    "east": "dawnward/idle_east.png",
+    "north-east": "dawnward/idle_north-east.png",
+    "north-west": "dawnward/idle_north-west.png",
+    "north": "dawnward/idle_north.png",
+    "south-east": "dawnward/idle_south-east.png",
+    "south-west": "dawnward/idle_south-west.png",
+    "south": "dawnward/idle_south.png",
+    "west": "dawnward/idle_west.png"
+   },
+   "frame_count": 6,
+   "frame_size": [
+    48,
+    48
+   ],
+   "foot_anchor": [
+    23,
+    41
    ]
   }
  }

@@ -2262,7 +2262,7 @@ export const retreatFixture = () => {
     const C = window.HearthriseCore;
     const CS = C && C.combatSim;
     const AW = C && C.away;
-    assert(CS && typeof CS.simulateTick === 'function' && typeof CS.forecastFight === 'function',
+    assert(CS && typeof CS.stepSwing === 'function' && typeof CS.forecastFight === 'function',
       'the combat-sim seam is missing — the Retreat cannot be exercised');
     assert(AW && typeof AW.retreatAtFall === 'function',
       'src/core/away.js does not export retreatAtFall — the rule has no table');
@@ -2303,7 +2303,7 @@ export const retreatFixture = () => {
       });
       const c2 = Object.assign({}, ctx, { fx: sink });
       for (let i = 0; i < (maxTicks || 40000) && falls.length < maxFalls; i++) {
-        const r = CS.simulateTick(st, c2);
+        const r = CS.stepSwing(null, Object.assign({}, c2, { state: st }));
         if (r.outcome === 'death') {
           falls.push(Object.assign({ retreat: !!r.retreat, foodless: !!r.foodless,
             consecFalls: r.consecFalls }, lastInfo || {}));

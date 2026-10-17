@@ -44,6 +44,7 @@ const ASSET_V = ((document.querySelector('script[src*="sim.js"]') || {}).src || 
 const vurl = src => src + (src.includes('?') ? '&' : '?') + 'v=' + ASSET_V;
 function loadImg(src) { const i = new Image(); i.src = vurl(src); return i; }
 IMG.map = loadImg('assets/sewer_map.png');
+IMG.cup = loadImg('assets/icons/drink_cup.png');
 for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG.monsters)]) {
   IMG[n] = {}; for (const d of DIRS) IMG[n][d] = loadImg(`assets/${n}/${d}.png`);
 }
@@ -62,10 +63,81 @@ function prepWalk(m) {
     for (const [d, list] of Object.entries(u.directions || {})) walk[d] = list.map(p => loadImg('assets/walk/' + p));
     for (const [d, p] of Object.entries(u.idle || {})) idle[d] = loadImg('assets/walk/' + p);
     for (const [d, src] of Object.entries(u.fallback || {})) if (!walk[d] && walk[src]) walk[d] = walk[src];
-    out[WALK_NAME[name] || name] = { walk, idle, fps: u.fps || 8, anchor: u.foot_anchor || null, hover: !!u.hover };
+    const w = out[WALK_NAME[name] || name] = { walk, idle, fps: u.fps || 8, anchor: u.foot_anchor || null, hover: !!u.hover, mask: null };
+    if (u.regions) {    // recolourable regions (hat/robe/trim ...): one mask frame per sprite frame, mask colour = region
+      w.mask = { legend: u.regions.legend || {}, walk: {}, idle: {} };
+      for (const [d, list] of Object.entries(u.regions.walk || {})) w.mask.walk[d] = list.map(p => loadImg('assets/walk/' + p));
+      for (const [d, p] of Object.entries(u.regions.idle || {})) w.mask.idle[d] = loadImg('assets/walk/' + p);
+    }
   }
   return out;
 }
+
+// ---------- outfits and recolour ----------
+// An OUTFIT is a sprite set (assets/walk/<outfit>/), independent of the ROLE (the ability/stat set). An outfit with region
+// masks (the witch: hat / robe / trim) can be recoloured per region: at load, into an offscreen canvas, never smoothed.
+// Recolour keeps each pixel's value (brightness) and swaps hue + saturation to the picked colour.
+const OUTFITS = { knight: 'Knight', berserker: 'Berserker', brute: 'Quarry Brute', paladin: 'Paladin', druid: 'Druid', sorcerer: 'Sorcerer', witch: 'Witch', dawnward: 'Dawnward Paladin' };
+const DEFAULT_OUTFIT = { knight: 'knight', berserker: 'berserker', paladin: 'paladin', sorcerer: 'sorcerer', druid: 'druid' };
+const outfitRegions = o => (WALK && WALK[o] && WALK[o].mask) ? Object.keys(WALK[o].mask.legend) : [];
+const RECOLOR = new Map();
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
+function rgbToHs(r, g_, b) {
+  r /= 255; g_ /= 255; b /= 255; const mx = Math.max(r, g_, b), mn = Math.min(r, g_, b), d = mx - mn;
+  let h = 0; if (d) h = mx === r ? ((g_ - b) / d + 6) % 6 : mx === g_ ? (b - r) / d + 2 : (r - g_) / d + 4;
+  return [h * 60, mx ? d / mx : 0, mx];
+}
+function hsvToRgb(h, s, v) {
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c, i = Math.floor(h / 60) % 6;
+  const [r, g_, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][i];
+  return [Math.round((r + m) * 255), Math.round((g_ + m) * 255), Math.round((b + m) * 255)];
+}
+function recolor(im, mk, legend, col) {
+  if (!mk || !mk.complete || !mk.naturalWidth || !im.naturalWidth) return im;
+  const ck = im.src + '|' + Object.keys(legend).map(k => col[k] || '').join();
+  let c = RECOLOR.get(ck); if (c) return c;
+  const w = im.naturalWidth, h = im.naturalHeight;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.imageSmoothingEnabled = false; x.drawImage(im, 0, 0);
+  const m = document.createElement('canvas'); m.width = w; m.height = h;
+  const mx = m.getContext('2d', { willReadFrequently: true }); mx.drawImage(mk, 0, 0);
+  const id = x.getImageData(0, 0, w, h), px = id.data, md = mx.getImageData(0, 0, w, h).data;
+  const tgt = {}; for (const [k, rgb] of Object.entries(legend)) if (col[k]) tgt[k] = { rgb, hs: rgbToHs(...hexRgb(col[k])) };
+  for (let i = 0; i < px.length; i += 4) {
+    if (md[i + 3] < 128 || px[i + 3] === 0) continue;
+    let best = null, bd = 1e9;                      // nearest legend colour = this pixel's region
+    for (const k in tgt) { const L = tgt[k].rgb, d = (md[i] - L[0]) ** 2 + (md[i + 1] - L[1]) ** 2 + (md[i + 2] - L[2]) ** 2; if (d < bd) { bd = d; best = tgt[k]; } }
+    if (!best || bd > 120 * 120) continue;
+    const v = Math.max(px[i], px[i + 1], px[i + 2]) / 255;
+    const rgb = hsvToRgb(best.hs[0], best.hs[1], v * (0.4 + 0.6 * best.hs[2]));
+    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2];
+  }
+  x.putImageData(id, 0, 0);
+  if (RECOLOR.size > 800) RECOLOR.clear();
+  RECOLOR.set(ck, c); return c;
+}
+// the sprite a unit shows this frame (walk cycle / idle, recoloured when it has colours and its outfit has masks)
+function spriteFor(u) {
+  const w = WALK && WALK[u.outfit || u.kind];
+  if (w) {
+    const fr = w.walk[u.dir];
+    let im = null, mk = null;
+    if (u.moving && fr && fr.length) {   // frames advance with distance walked, at the manifest fps when moving at the unit's speed
+      const i = Math.floor((u.animD || 0) * w.fps / u.speed) % fr.length; im = fr[i]; mk = w.mask && w.mask.walk[u.dir] && w.mask.walk[u.dir][i];
+    } else if (w.idle[u.dir]) { im = w.idle[u.dir]; mk = w.mask && w.mask.idle[u.dir]; }
+    else if (fr) { im = fr[0]; mk = w.mask && w.mask.walk[u.dir] && w.mask.walk[u.dir][0]; }
+    if (im && im.complete && im.naturalWidth) {
+      if (u.colors && w.mask) im = recolor(im, mk, w.mask.legend, u.colors);
+      return { im, anchor: w.anchor, hover: w.hover };
+    }
+  }
+  return { im: IMG[u.kind][u.dir], anchor: null, hover: false };
+}
+// the idle-south frame (recoloured) for the party portraits
+window.__portraitImg = u => {
+  const w = WALK && WALK[u.outfit || u.kind]; if (!w || !w.idle.south || !w.idle.south.complete || !w.idle.south.naturalWidth) return null;
+  return u.colors && w.mask ? recolor(w.idle.south, w.mask.idle.south, w.mask.legend, u.colors) : w.idle.south;
+};
 
 // foot anchor: lowest opaque row of the south sprite (fallback 6 px above the canvas bottom)
 const FOOT = {};
@@ -135,17 +207,20 @@ function newUnit(kind, x, y, side, pocket) {
     runes: side === 'hero' ? Object.assign({}, LOADOUTS[kind].runes) : {}, meleeSkill: side === 'hero' ? HERO_MELEE_SKILL : 0, flash: {}, xp: 0, level: HERO_START_LEVEL,
     set: side === 'hero' ? Object.assign({}, HERO_SETTINGS[kind]) : null, shield: 0, vulnUntil: 0, markUntil: 0,
     speed: base.speed, path: [], goal: null, wait: 0, swing: Math.random() * CONFIG.swing, dir: 'south', target: null,
-    alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false };
+    alive: true, dead: 0, casts: 0, moving: false, animT: 0, repath: 0, peeled: false, outfit: kind, colors: null, slot: 0 };
 }
 function reset() {
   S = null; resetAnalyzer();
   S = { time: 0, units: [], fx: [], nextId: 1, occ: new Map(), pocketIdx: 0, phase: 'travel', phaseT: 0,
     pull: null, packs: [], trail: [], taunt: 0, run: 1 };
-  COMP.forEach((k, i) => addUnit(newUnit(k, ...CONFIG.start[i], 'hero')));
+  // heroes are tracked by unit id, so a role may appear any number of times (4 tanks). Front-most leads: sorted by role, slot order within a role.
+  PARTY.map((p, slot) => [p, slot]).filter(([p]) => p.role)
+    .sort((a, b) => FRONT_ORDER.indexOf(a[0].role) - FRONT_ORDER.indexOf(b[0].role) || a[1] - b[1])
+    .forEach(([p, slot], i) => { const u = newUnit(p.role, ...CONFIG.start[i], 'hero'); u.outfit = p.outfit || DEFAULT_OUTFIT[p.role]; u.colors = p.colors || null; u.slot = slot; addUnit(u); });
   // no Melee to hold the pack: ranged heroes kite by default (chase off) at their distance (Tyler 2026-10-16)
-  if (!COMP.includes('knight')) for (const u of S.units) if (u.side === 'hero' && HEROES[u.kind].range > 1.5) u.set.chase = false;
-  S.leaderKind = COMP[0];
-  if (!COMP.includes(VIEW.sel)) VIEW.sel = COMP[0];
+  if (!PARTY.some(p => p.role === 'knight')) for (const u of S.units) if (u.side === 'hero' && HEROES[u.kind].range > 1.5) u.set.chase = false;
+  S.lead = S.units.find(u => u.side === 'hero');
+  if (!S.units.some(u => u.side === 'hero' && u.id === VIEW.sel)) VIEW.sel = S.lead.id;
   CONFIG.pockets.forEach((p, i) => spawnPack(i));
   STATS.pulls.length = 0; STATS.waits.clear(); STATS.runs = 0;
   for (const o of [STATS.noSpot, STATS.queued, STATS.minBack]) for (const k in o) delete o[k];
@@ -165,31 +240,49 @@ function freeNear(x, y, r) {
     if (Math.max(Math.abs(dx), Math.abs(dy)) === d && walk(x + dx, y + dy) && !S.occ.has(key(x + dx, y + dy))) return [x + dx, y + dy];
   return null;
 }
-const hero = k => S.units.find(u => u.kind === k && u.side === 'hero');
+const heroById = id => S.units.find(u => u.id === id && u.side === 'hero');
 // party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
 const COMPS = {
   full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
   kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
   kbds: ['knight', 'berserker', 'druid', 'sorcerer'], kb: ['knight', 'berserker'], ps: ['paladin', 'sorcerer'],
+  tanks: ['knight', 'knight', 'knight', 'knight'],
 };
-let COMP = COMPS.full;
-const lead = () => hero(S.leaderKind);
+const FRONT_ORDER = ['knight', 'berserker', 'paladin', 'sorcerer', 'druid'];
+// PARTY = the 4 slots of the builder: { role, outfit, colors } (role '' = empty slot). Role = abilities + stats; outfit = sprite.
+const slotSpec = r => typeof r === 'string' ? { role: r, outfit: DEFAULT_OUTFIT[r] || r, colors: null } : { role: r.role || '', outfit: r.outfit || DEFAULT_OUTFIT[r.role] || r.role, colors: r.colors || null };
+const toParty = c => { const a = (Array.isArray(c) ? c : COMPS[c]).map(slotSpec); while (a.length < 4) a.push({ role: '', outfit: '', colors: null }); return a.slice(0, 4); };
+let PARTY = toParty('full');
+const lead = () => S.lead;
 // VIEW (dev tool): whose camera, action bar and analyzer we see. mode 'hero' follows VIEW.sel; 'party' follows the centre.
 const VIEW = { sel: null, mode: 'hero' };
 window.VIEW = VIEW;
-function selectHero(kind) { if (!hero(kind)) return; VIEW.sel = kind; VIEW.mode = 'hero'; S.camPan = true; }
+function selectHero(id) { if (typeof id === 'string') { const h = S.units.find(u => u.side === 'hero' && u.kind === id); id = h && h.id; } if (!heroById(id)) return; VIEW.sel = id; VIEW.mode = 'hero'; S.camPan = true; }
 function partyCam() { VIEW.mode = 'party'; S.camPan = true; }
 window.selectHero = selectHero; window.partyCam = partyCam;
-const selHero = () => hero(VIEW.sel) || lead();
-const followers = () => S.units.filter(u => u.side === 'hero' && u.kind !== S.leaderKind);
+const selHero = () => heroById(VIEW.sel) || lead();
+const followers = () => S.units.filter(u => u.side === 'hero' && u !== S.lead);
 const living = side => S.units.filter(u => u.alive && u.side === side);
 
 // ---------- movement ----------
-function leash(u) { return u.side === 'mon' ? (x, y) => !inRoom(u.pocket, x, y) : null; }
+// THE leash: the one place that decides where a unit may stand. Monsters never leave their own pack's room; during a
+// fight a kiting hero never leaves the pack's room either (no free damage from outside the leash). Every path is planned
+// with it (pathBlocked) and every single step is checked against it (tryNextStep), so no repath, queue or fallback can skip it.
+function leashRoom(u) {
+  if (u.side === 'mon') return u.pocket;
+  if (S.phase === 'fight' && S.pull && kites(u)) return S.pull.pocket;
+  return -1;
+}
+// a unit inside may never step out; one already outside (late to the fight) is free to walk in however the corridor winds
+function canStep(u, fx, fy, x, y) {
+  const i = leashRoom(u); if (i < 0) return true;
+  return inRoom(i, x, y) || !inRoom(i, fx, fy);
+}
+const pathBlocked = u => { const i = leashRoom(u); return i < 0 || !inRoom(i, u.x, u.y) ? null : (x, y) => !inRoom(i, x, y); };   // outside: plan freely; canStep stops anything inside from leaving
 function setGoal(u, gx, gy) {
   if (u.goal && u.goal[0] === gx && u.goal[1] === gy && (u.path.length || (u.x === gx && u.y === gy))) return;
   u.goal = [gx, gy];
-  u.path = astar(u.x, u.y, gx, gy, leash(u)) || [];
+  u.path = astar(u.x, u.y, gx, gy, pathBlocked(u)) || [];
 }
 // Continuous movement: a unit spends its whole per-tick travel budget, rolling straight from one tile into the
 // next without a stop at the tile centre. Walk frames advance with distance moved (u.animD, in tiles).
@@ -213,6 +306,7 @@ function stepUnit(u, dt) {
 function tryNextStep(u, dt) {
   if (!u.path.length) return false;
   const [nx, ny] = u.path[0];
+  if (!canStep(u, u.x, u.y, nx, ny)) { u.path = []; u.goal = null; return false; }   // leash choke point
   const blocker = S.occ.get(key(nx, ny));
   // Collision (Tyler 2026-10-16): heroes never block each other (party members walk through one another);
   // monsters still block heroes and monsters, and heroes still block monsters.
@@ -225,7 +319,7 @@ function tryNextStep(u, dt) {
       swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
-      const lf = leash(u);
+      const lf = pathBlocked(u);
       const p = astar(u.x, u.y, u.goal[0], u.goal[1], (x, y) => (S.occ.has(key(x, y)) && cheb({ x, y }, u) <= 3) || (lf && lf(x, y)));
       if (p && p.length) u.path = p;
       u.wait = 0.2;
@@ -272,11 +366,11 @@ function resetAnalyzer() {
   AN = { t0: S ? S.time : 0, xp: 0, kills: 0, gold: 0, loot: 0, magicXp: 0, dealt: {}, taken: {}, healed: {},
     mana: 0, bolts: 0, fire_rune: 0, frost_rune: 0, potions: 0, food: 0, consumeGold: 0, drinks: {}, eats: {}, log: [], hero: {}, outAb: {}, outEl: {}, inMon: {}, inEl: {}, lootItems: {}, supplies: {} };
 }
-function hs(kind) {
-  return AN.hero[kind] || (AN.hero[kind] = { dealt: 0, taken: 0, healed: 0, outAb: {}, outEl: {}, inMon: {}, inEl: {}, supplies: {}, xp: 0 });
+function hs(u) {
+  return AN.hero[u.id] || (AN.hero[u.id] = { dealt: 0, taken: 0, healed: 0, outAb: {}, outEl: {}, inMon: {}, inEl: {}, supplies: {}, xp: 0 });
 }
 const bump = (o, k, n) => { o[k] = (o[k] || 0) + n; };
-function useSupply(u, id, n) { bump(AN.supplies, id, n); bump(hs(u.kind).supplies, id, n); }
+function useSupply(u, id, n) { bump(AN.supplies, id, n); bump(hs(u).supplies, id, n); }
 function hurt(t, amt, src, el, abil) {
   if (!t.alive) return;
   if (t.side === 'mon') {
@@ -293,15 +387,15 @@ function hurt(t, amt, src, el, abil) {
   if (src && src.set && t.side === 'mon') amt = Math.max(1, Math.round(amt * STANCES[src.set.stance].dmg));
   t.hp = Math.max(0, t.hp - amt);
   if (src && src.side === 'hero') {
-    const key = abil || 'basic', e = (!el || el === 'bleed') ? 'physical' : el, H = hs(src.kind);   // bleed is physical damage
+    const key = abil || 'basic', e = (!el || el === 'bleed') ? 'physical' : el, H = hs(src);   // bleed is physical damage
     bump(AN.outAb, key, amt); bump(AN.outEl, e, amt); bump(H.outAb, key, amt); bump(H.outEl, e, amt);
   }
   if (t.side === 'hero') {
-    const who = src ? MONSTERS[src.kind] ? MONSTERS[src.kind].name : src.kind : '?', H = hs(t.kind);
+    const who = src ? MONSTERS[src.kind] ? MONSTERS[src.kind].name : src.kind : '?', H = hs(t);
     bump(AN.inMon, who, amt); bump(AN.inEl, 'physical', amt); bump(H.inMon, who, amt); bump(H.inEl, 'physical', amt); H.taken += amt;
   }
-  if (src && src.side === 'hero') { AN.dealt[src.kind] = (AN.dealt[src.kind] || 0) + amt; hs(src.kind).dealt += amt; }
-  if (t.side === 'hero') AN.taken[t.kind] = (AN.taken[t.kind] || 0) + amt;
+  if (src && src.side === 'hero') { AN.dealt[src.id] = (AN.dealt[src.id] || 0) + amt; hs(src).dealt += amt; }
+  if (t.side === 'hero') AN.taken[t.id] = (AN.taken[t.id] || 0) + amt;
   pushNum(t, String(amt), t.side === 'hero' ? '#ff6a5a' : el === 'bleed' ? '#c0302a' : el === 'fire' ? '#ffb060' : el === 'frost' ? '#a8e4ff' : el === 'nature' ? '#b6f08a' : '#ffe9b0');
   S.fx.push({ type: 'spark', x: t.px, y: t.py, age: 0 });
   if (t.hp <= 0) {
@@ -333,7 +427,7 @@ function monsterDied(m) {
   if (!S.xpGroup) S.xpGroup = { t0: S.time, xp: 0, x: 0, y: 0, n: 0 };
   S.xpGroup.xp += share; S.xpGroup.x += m.px; S.xpGroup.y += m.py; S.xpGroup.n++;
   for (const h of party) {                 // even XP share; ASSUMED level curve (HERO_XP_PER_LEVEL)
-    h.xp += d.xp / party.length; hs(h.kind).xp += d.xp / party.length;
+    h.xp += d.xp / party.length; hs(h).xp += d.xp / party.length;
     const lv = HERO_START_LEVEL + Math.floor(h.xp / HERO_XP_PER_LEVEL);
     if (lv > h.level) { h.level = lv; vfx('level_up', h.px, h.py, { follow: h }); }
   }
@@ -428,17 +522,21 @@ function followTrail() {
 function startPull() {
   const i = S.pocketIdx;
   S.phase = 'fight'; S.packs[i].aggro = true;
-  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: { berserker: 99, knight: 99, paladin: 99, druid: 99, sorcerer: 99 }, samples: 0 };
+  S.pull = { pocket: i, start: S.time, waitsAtStart: totalWait(), noSpot: 0, queuedMax: 0, minBack: {}, samples: 0 };
   const k = lead();
   for (const m of living('mon').filter(m => m.pocket === i)) m.target = k;
   k.path = []; k.goal = null;
 }
 function totalWait() { let s = 0; for (const v of STATS.waits.values()) s += v; return s; }
 
+// Aggro leash: a monster whose target stands outside the pack's room drops aggro, returns home and heals to full.
+// If that is the whole pack (the aggro holder left the area) the pull is reset, never counted as a clear.
+function resetMonster(m) { m.target = null; m.hp = m.maxHp; m.queued = false; m.peeled = false; m.bleeds = []; setGoal(m, ...m.home); }
 function aiFight() {
   const k = lead();
+  for (const m of engagedMonsters()) if (!inRoom(m.pocket, m.target.x, m.target.y)) { resetMonster(m); STATS.leashResets = (STATS.leashResets || 0) + 1; }
   const mons = engagedMonsters();
-  if (!mons.length) { endPull(); return; }
+  if (!mons.length) { if (living('mon').some(m => m.pocket === S.pull.pocket)) S.pull.reset = true; endPull(); return; }
   if (kites(k)) {
     keepDistance(k, k.set.dist, mons);   // chase off + distance > 1: the leader kites at its distance setting
   } else if (!k.set.chase) {
@@ -473,7 +571,7 @@ function aiFight() {
   }
   S.pull.queuedMax = Math.max(S.pull.queuedMax, queued);
   // ranged heroes
-  for (const u of followers()) (u.kind === 'berserker' ? meleeDpsPos : rangedPos)(u, k, mons);
+  for (const u of followers()) (MELEE.has(u.kind) ? meleeDpsPos : rangedPos)(u, k, mons);
 }
 function ringFree(t, r, m) {
   let best = null, bd = 1e9;
@@ -502,11 +600,12 @@ function meleeDpsPos(u, k, mons) {
   }
   if (best) setGoal(u, ...best); else { const q = ringFree(tgt, 2, u); if (q) setGoal(u, ...q); }
 }
+const SPOT_MARGIN = 2.5;   // a new spot must beat the claimed one by this many score points to be worth the walk
 function rangedPos(u, k, mons) {
   if (!u.alive) return;
   const want = u.set.dist;
   const nearMon = mons.some(m => cheb(m, u) <= 1);
-  S.pull.minBack[u.kind] = Math.min(S.pull.minBack[u.kind], eu(u, k));
+  { const mb = u.kind + '#' + u.id; S.pull.minBack[mb] = Math.min(S.pull.minBack[mb] ?? 99, eu(u, k)); }
   S.pull.samples++; if (inRoom(S.pull.pocket, u.x, u.y)) S.pull.inside = (S.pull.inside || 0) + 1;
   // Distance is measured from this hero's TARGET monster (Tyler 2026-10-16), picked by its Target setting.
   // While the leader is on the move and this hero has nothing in range, following the leader wins.
@@ -517,27 +616,39 @@ function rangedPos(u, k, mons) {
   }
   if (kites(u)) { keepDistance(u, want, mons); return; }       // chase off + distance > 1: kite, keep `want` tiles from every monster
   if (!u.set.chase) return;                                     // chase off at distance 1: hold position
-  if (u.repath > 0 && !nearMon) return;
-  u.repath = 1.0;
   const ok = (x, y) => eu({ x, y }, tgt) >= want - 1 && eu({ x, y }, tgt) <= want + 1.2;
   const score = (x, y) => {
     let s = Math.abs(eu({ x, y }, tgt) - want) * 2 + eu({ x, y }, u) * 0.35 + (inRoom(S.pull.pocket, x, y) ? 0 : 4);
     for (const m of mons) s -= Math.min(eu({ x, y }, m), 6) * 0.15;
     return s;
   };
+  const claimed = (x, y) => S.units.some(v => v !== u && v.side === 'hero' && ((v.goal && v.goal[0] === x && v.goal[1] === y) || (v.spot && v.spot[0] === x && v.spot[1] === y)));
+  // Spot reservation: the claimed spot is kept while it stays valid. En route we never re-pick; a new spot must beat the
+  // claimed one by SPOT_MARGIN score points (hysteresis), or the mage bounces between near-equal tiles.
+  const valid = s => s && walk(s[0], s[1]) && ok(s[0], s[1]) && !claimed(s[0], s[1]) && !(S.occ.get(key(s[0], s[1])) && S.occ.get(key(s[0], s[1])) !== u)
+    && !mons.some(m => cheb(m, { x: s[0], y: s[1] }) <= 1) && los({ x: s[0], y: s[1] }, tgt) && inRoom(S.pull.pocket, s[0], s[1]);
+  const held = valid(u.spot);
+  if (held) {
+    const atSpot = u.x === u.spot[0] && u.y === u.spot[1] && u.t >= 1;
+    if (!atSpot) { if (!(u.goal && u.goal[0] === u.spot[0] && u.goal[1] === u.spot[1] && u.path.length)) setGoal(u, ...u.spot); return; }
+  } else if (u.spot) u.spot = null;
+  if (u.repath > 0 && !nearMon) return;
+  u.repath = 1.0;
   const curGood = ok(u.x, u.y) && !nearMon && los(u, tgt) && u.t >= 1 && inRoom(S.pull.pocket, u.x, u.y);
-  if (curGood && !u.path.length) return;
+  if (curGood && !u.path.length && (held || !u.spot)) { if (!held) u.spot = [u.x, u.y]; return; }
   let best = null, bs = 1e9;
   for (let y = tgt.y - 8; y <= tgt.y + 8; y++) for (let x = tgt.x - 8; x <= tgt.x + 8; x++) {
     if (!walk(x, y) || !ok(x, y)) continue;
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
-    if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
+    if (claimed(x, y)) continue;
     if (mons.some(m => cheb(m, { x, y }) <= 1)) continue;
     if (!los({ x, y }, tgt)) continue;
     const s = score(x, y); if (s < bs) { bs = s; best = [x, y]; }
   }
   if (!best) { S.pull.noSpot++; return; }
-  if (!u.goal || u.goal[0] !== best[0] || u.goal[1] !== best[1]) { if (curGood && bs > score(u.x, u.y) - 0.5) return; setGoal(u, ...best); }
+  if (held && bs > score(u.spot[0], u.spot[1]) - SPOT_MARGIN) return;
+  if (!held && curGood && bs > score(u.x, u.y) - SPOT_MARGIN) { u.spot = [u.x, u.y]; return; }
+  u.spot = best; STATS.spotChanges = (STATS.spotChanges || 0) + 1; setGoal(u, ...best);
 }
 // Keep-distance (chase off): when any monster is closer than `want` tiles, step back to the reachable tile that
 // best restores the gap, keeping a line of fire to some monster and staying in the room. Holds once safe.
@@ -545,18 +656,42 @@ function rangedPos(u, k, mons) {
 const kites = u => !u.set.chase && u.set.dist > 1;
 function keepDistance(u, want, mons) {
   const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
+  // outside the pack's area (arrived late, or knocked out): walk in first. Shooting from out here is free damage.
+  if (!inRoom(S.pull.pocket, u.x, u.y)) {
+    if (u.path.length) return;
+    let b = null, bsc = 1e9;
+    for (let y = u.y - 12; y <= u.y + 12; y++) for (let x = u.x - 12; x <= u.x + 12; x++) {
+      if (!walk(x, y) || !inRoom(S.pull.pocket, x, y)) continue;
+      const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
+      const g = gap(x, y); if (g < Math.min(want, 2)) continue;
+      const sc = eu({ x, y }, u) + (g >= want ? 0 : (want - g) * 2) + (mons.some(m => los({ x, y }, m)) ? 0 : 3);
+      if (sc < bsc) { bsc = sc; b = [x, y]; }
+    }
+    if (b) { u.spot = b; setGoal(u, ...b); }
+    return;
+  }
   // nothing in attack range (e.g. leashed monsters that can't come out to us): close in until something is,
   // stopping `want` tiles short, or a kiter and a leashed pack just stare at each other
   if (gap(u.x, u.y) >= want && !mons.some(m => inRange(u, m))) {
-    if (u.repath <= 0 || !u.path.length) {
-      const n = mons.slice().sort((a, b) => eu(a, u) - eu(b, u))[0];
-      setGoal(u, n.x, n.y); u.path = u.path.slice(0, Math.max(1, u.path.length - want)); u.repath = 0.6;
+    if (u.path.length) return;                                  // en route: committed, no re-pick
+    const n = mons.slice().sort((a, b) => eu(a, u) - eu(b, u))[0];
+    const p = astar(u.x, u.y, n.x, n.y, pathBlocked(u)) || [];
+    // stop at the FIRST tile on the way that is `want` away and already has a shot, so closing in never overshoots
+    // into the retreat band (that overshoot was the close-in / back-off bounce)
+    let stop = -1;
+    for (let i = 0; i < p.length; i++) {
+      const t = { x: p[i][0], y: p[i][1], kind: u.kind };
+      if (gap(t.x, t.y) >= want && mons.some(m => eu(m, t) <= HEROES[u.kind].range && los(t, m))) { stop = i; break; }
     }
+    const cut = stop >= 0 ? p.slice(0, stop + 1) : p.slice(0, Math.max(1, p.length - want));
+    if (cut.length) { u.goal = cut[cut.length - 1]; u.path = cut; u.spot = u.goal; STATS.spotChanges = (STATS.spotChanges || 0) + 1; }
     return;
   }
   if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
   // en route to a step that still restores the gap: keep going (re-picking every tick meant never arriving)
   if (u.goal && u.path.length && gap(u.goal[0], u.goal[1]) >= want) return;
+  // hysteresis: a spot picked a moment ago is kept while it is not dangerous (nothing adjacent / within 1)
+  if (S.time - (u.spotT || -9) < 1.2 && gap(u.x, u.y) >= Math.min(want, 2) + 1) return;
   // the NEAREST reachable tile that restores the gap, with a line of fire, inside the room: one short step back.
   // It must lie AWAY from the pack (farther from the pack's centre than we are now), or the "nearest safe tile"
   // can be on the far side of the monsters and the route walks straight through them.
@@ -564,7 +699,7 @@ function keepDistance(u, want, mons) {
   const away = (x, y) => Math.hypot(x - cx, y - cy) - Math.hypot(u.x - cx, u.y - cy);
   let best = null, bs = 1e9;
   for (let y = u.y - 5; y <= u.y + 5; y++) for (let x = u.x - 5; x <= u.x + 5; x++) {
-    if (!walk(x, y)) continue;
+    if (!walk(x, y) || !inRoom(S.pull.pocket, x, y)) continue;      // HARD limit: kite tiles are inside the pack's area
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
     if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
     if (away(x, y) <= 0.5) continue;                           // retreat only, never through or past the pack
@@ -572,7 +707,7 @@ function keepDistance(u, want, mons) {
     const s = eu({ x, y }, u) + (g >= want + 1 ? 0 : (want + 1 - g) * 3)   /* aim one tile PAST the setting so the step buys time */ + (mons.some(m => los({ x, y }, m)) ? 0 : 4) + (inRoom(S.pull.pocket, x, y) ? 0 : 3);
     if (s < bs) { bs = s; best = [x, y]; }
   }
-  if (best && (best[0] !== u.x || best[1] !== u.y)) setGoal(u, ...best);
+  if (best && (best[0] !== u.x || best[1] !== u.y)) { u.spot = best; u.spotT = S.time; STATS.spotChanges = (STATS.spotChanges || 0) + 1; setGoal(u, ...best); }
 }
 function endPull() {
   const p = S.pull, name = CONFIG.pockets[p.pocket].name;
@@ -581,6 +716,10 @@ function endPull() {
   STATS.pulls.push(rec);
   S.pull = null;
   if (rec.wipe) { S.packs[p.pocket].aggro = false; logRender(); return; }
+  if (p.reset) {                          // the aggro holder left the pack's area: nothing cleared, the party regroups and pulls again
+    rec.reset = true; S.packs[p.pocket].aggro = false;
+    S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = false; logRender(); return;
+  }
   S.packs[p.pocket].alive = false; S.packs[p.pocket].respawnAt = S.time + CONFIG.respawnSec;
   S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = true;
   logRender();
@@ -688,7 +827,7 @@ function useAbility(u, ab, mons) {
 }
 function heal(src, h, amt) {
   h.healedAt = S.time;
-  const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.heals = (AN.heals || 0) + 1; AN.healed[src.kind] = (AN.healed[src.kind] || 0) + got;
+  const got = Math.min(amt, h.maxHp - h.hp); h.hp += got; AN.heals = (AN.heals || 0) + 1; AN.healed[src.id] = (AN.healed[src.id] || 0) + got;
   S.fx.push({ type: 'heal', x: h.px, y: h.py, age: 0 }); pushNum(h, '+' + got, '#7dff8a');
 }
 // food and drink: one shared consumable lane (BIBLE §9.1). No potions (Tyler 2026-10-16): food restores HP,
@@ -715,9 +854,10 @@ function consume(u, dt) {
     u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.drink = S.time;
     const now = Math.round(dr.mana * CONSUME_INSTANT), later = dr.mana - now;
     u.mana = Math.min(u.maxMana, u.mana + now); u.manaRegen = { left: later, perSec: later / CONSUME_HOT_S };
-    pushNum(u, '+' + now, '#7ab4ff');
+    S.fx.push({ type: 'num', big: true, x: u.px, y: u.py, dx: 0, dy: -8, txt: '+' + now + ' MP', col: '#7ab4ff', age: 0 });   // the instant half, readable
+    S.fx.push({ type: 'cup', x: u.px, y: u.py, follow: u, age: 0 });                                                         // a cup pops over the head
     vfx('nature_heal_motes', u.px, u.py, { follow: u, filter: 'hue-rotate(110deg) saturate(1.4)' });
-    AN.potions++; if (!own) AN.consumeGold += dr.price; AN.drinks[u.kind] = (AN.drinks[u.kind] || 0) + 1; useSupply(u, L.drink[0] + (own ? '_own' : ''), 1);
+    AN.potions++; if (!own) AN.consumeGold += dr.price; AN.drinks[u.id] = (AN.drinks[u.id] || 0) + 1; useSupply(u, L.drink[0] + (own ? '_own' : ''), 1);
     return;
   }
   const foodBelow = u.set.foodBelow != null ? u.set.foodBelow : fd.below;
@@ -726,7 +866,7 @@ function consume(u, dt) {
     const now = Math.round(fd.hp * CONSUME_INSTANT), later = fd.hp - now;
     const got = Math.min(now, u.maxHp - u.hp); u.hp += got; pushNum(u, '+' + got, '#ff8a8a');
     if (own) u.food--; u.regen = { left: later, perSec: later / CONSUME_HOT_S }; u.lane.consume = S.time + CONSUMABLE_LANE; u.flash.food = S.time;
-    AN.food++; if (!own) AN.consumeGold += fd.price; AN.eats[u.kind] = (AN.eats[u.kind] || 0) + 1; useSupply(u, L.food[0] + (own ? '_own' : ''), 1);
+    AN.food++; if (!own) AN.consumeGold += fd.price; AN.eats[u.id] = (AN.eats[u.id] || 0) + 1; useSupply(u, L.food[0] + (own ? '_own' : ''), 1);
     vfx('loot_sparkle', u.px, u.py, { follow: u, filter: 'sepia(1) saturate(2) hue-rotate(-15deg) brightness(.8)' });
   }
 }
@@ -817,7 +957,7 @@ function tick(dt) {
     if (f.type === 'proj' && f.age >= f.dur && !f.hit) { f.hit = true; f.onHit(); }
   }
   for (const f of S.fx) if (f.type === 'drop' && f.age >= 0.55 && !f.landed) { f.landed = true; S.fx.push({ type: 'spot', x: f.x, y: f.y, ox: f.ox, age: 0 }); }
-  const life = { drop: 0.56, spot: 2.5, xslash: 0.3, burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
+  const life = { cup: 1.0, drop: 0.56, spot: 2.5, xslash: 0.3, burst: 0.35, heal: 0.7, spark: 0.18, slash: 0.2, shield: 0.6, mark: 0.8, loot: 1.2 };
   S.fx = S.fx.filter(f => f.age < (f.type === 'proj' ? f.dur : f.type === 'vfx' ? f.life
     : FX_SPRITE[f.type] && VFXLIB.ready(FX_SPRITE[f.type]) ? Math.max(life[f.type] || 0.9, VFXLIB.dur(FX_SPRITE[f.type])) : life[f.type] || 0.9));
 }
@@ -831,16 +971,6 @@ const opts = { grid: false, paths: false };
 const T = CONFIG.tile;
 const cx = x => (x + 1) * T + T / 2, cy = y => (y + 1) * T + T / 2; // grid cell -> map pixel centre (map origin is cell -1)
 
-function spriteFor(u) {
-  const w = WALK && (WALK[u.kind] || (u.kind === 'berserker' ? WALK.knight : null));   // berserker borrows the knight's walk until its own lands
-  if (w) {
-    const fr = w.walk[u.dir];
-    // frames advance with distance walked, at the manifest fps when moving at the unit's speed
-    const im = u.moving && fr && fr.length ? fr[Math.floor((u.animD || 0) * w.fps / u.speed) % fr.length] : (w.idle[u.dir] || (fr && fr[0]));
-    if (im && im.complete && im.naturalWidth) return { im, anchor: w.anchor, hover: w.hover };
-  }
-  return { im: IMG[u.kind][u.dir], anchor: null, hover: false };
-}
 function render(alpha, frameDt) {
   g.setTransform(CONFIG.scale, 0, 0, CONFIG.scale, 0, 0);
   g.imageSmoothingEnabled = false;
@@ -883,9 +1013,9 @@ function render(alpha, frameDt) {
   const list = S.units.slice().sort((a, b) => (a.alive - b.alive) || (a.ry - b.ry) || (a.rx - b.rx));
   for (const u of list) {
     const { im, anchor, hover } = spriteFor(u);
-    if (!im.complete || !im.naturalWidth) continue;
+    if (!(im instanceof HTMLCanvasElement) && (!im.complete || !im.naturalWidth)) continue;
     // feet on the tile centre (manifest foot_anchor); hovering units float above their tile
-    const ax = anchor ? anchor[0] : im.naturalWidth / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
+    const ax = anchor ? anchor[0] : (im.naturalWidth || im.width) / 2, ay = anchor ? anchor[1] : footOf(u.kind) - 6;
     const lift = hover && u.alive ? 6 + Math.round(Math.sin(S.time * 4 + u.id) * 2) : 0;
     const x = Math.round(ox + cx(u.rx) - ax), y = Math.round(oy + cy(u.ry) - ay - lift);
     if (!u.alive) {
@@ -906,11 +1036,14 @@ function render(alpha, frameDt) {
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
-    if (u.alive && u.bleeds && u.bleeds.length) {      // bleed stacks, by the HP bar
-      g.font = '8px ui-monospace,Consolas,monospace'; g.textAlign = 'left'; g.textBaseline = 'middle';
-      const bx = Math.round(ox + cx(u.rx) + 12), by = y - 2;
-      g.fillStyle = '#000'; g.fillText('×' + u.bleeds.length, bx + 4, by + 1); g.fillStyle = '#e04a3a'; g.fillText('×' + u.bleeds.length, bx + 3, by);
-      g.fillStyle = '#9a1414'; g.fillRect(bx, by - 2, 2, 3); g.fillRect(bx + 1, by - 3, 1, 1);
+    if (u.alive && u.bleeds && u.bleeds.length) {      // bleed stacks: a blood-drop badge with the stack count, right of the HP bar
+      const n = u.bleeds.length, bx = Math.round(ox + cx(u.rx) + 12), by = y - 8;
+      g.fillStyle = '#000'; g.fillRect(bx - 1, by - 1, 15, 12);
+      g.fillStyle = '#9a1414'; g.fillRect(bx, by, 13, 10);
+      g.fillStyle = '#e04a3a'; g.fillRect(bx, by, 13, 1);
+      g.fillStyle = '#ffd0c8'; g.fillRect(bx + 2, by + 3, 1, 1); g.fillRect(bx + 2, by + 4, 1, 3); g.fillRect(bx + 3, by + 6, 1, 1);   // a drop
+      g.font = 'bold 9px ui-monospace,Consolas,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#fff'; g.fillText(String(n), bx + 9, by + 5);
     }
     if (u.alive && u.markUntil > S.time) {   // Hunter's Mark: a small pixel crosshair over the target's head
       const mx = Math.round(ox + cx(u.rx)), my = y - 10, r = (S.time * 2 | 0) % 2 ? 4 : 3;   // gentle 2-step pulse
@@ -927,6 +1060,13 @@ function render(alpha, frameDt) {
   const P = (v) => Math.round(v);
   for (const f of S.fx) {
     const fxX = P(ox + cx(f.x)), fxY = P(oy + cy(f.y));
+    if (f.type === 'cup') {                 // a drink cup pops over the head, rises and fades; 32 -> 16 is an exact 2:1 so it stays crisp
+      if (IMG.cup.complete && IMG.cup.naturalWidth) {
+        const sz = 16, cxp = Math.round(ox + cx(f.follow.rx)), cyp = Math.round(oy + cy(f.follow.ry)) - 46 - Math.round(Math.min(1, f.age / 0.5) * 8);
+        g.globalAlpha = Math.max(0, Math.min(1, (1.0 - f.age) / 0.3)); g.drawImage(IMG.cup, cxp - sz / 2, cyp, sz, sz); g.globalAlpha = 1;
+      }
+      continue;
+    }
     if (f.type === 'vfx') {
       const fx0 = f.follow ? ox + cx(f.follow.rx) : fxX, fy0 = f.follow ? oy + cy(f.follow.ry) : fxY;
       if (f.filter) g.filter = f.filter;
@@ -1009,19 +1149,38 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
   speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(o => o.classList.toggle('on', o === b));
 });
 $('restart').onclick = () => reset();
-// Party builder (dev tool): any 1-4 of the five heroes, so every combination can be tested (Tyler 2026-10-16).
-// Front-most leads: tank Melee, then dps Melee, then Ranger, Mage, Healer.
-const FRONT_ORDER = ['knight', 'berserker', 'paladin', 'sorcerer', 'druid'];
-document.querySelectorAll('#comp input').forEach(cb => cb.onchange = () => {
-  const on = [...document.querySelectorAll('#comp input:checked')].map(c => c.value);
-  if (!on.length || on.length > 4) { cb.checked = !cb.checked; return; }   // a party is 1-4 heroes
-  COMP = FRONT_ORDER.filter(k => on.includes(k)); reset();
-});
-window.__setComp = c => {
-  COMP = Array.isArray(c) ? FRONT_ORDER.filter(k => c.includes(k)) : COMPS[c];
-  document.querySelectorAll('#comp input').forEach(cb => cb.checked = COMP.includes(cb.value));
-  reset();
-};
+// Party builder (dev tool): 4 slots x role x outfit (+ a colour per recolourable region). Heroes are tracked by unit id,
+// so duplicate roles work (4 tanks). Front-most leads: tank Melee, then dps Melee, then Ranger, Mage, Healer (slot order within a role).
+const ROLE_NAME = { knight: 'Melee (tank)', berserker: 'Melee (dps)', paladin: 'Ranger', sorcerer: 'Mage', druid: 'Healer' };
+const REGION_DEFAULT = { hat: '#8a5bd0', robe: '#4a8a5a', trim: '#d0a040' };
+const slotUnit = i => S.units.find(h => h.side === 'hero' && h.slot === i);
+function builderBuild() {
+  const box = $('builder'); box.textContent = '';
+  const mkEl = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+  const opt = (v, t, sel) => mkEl('option', { value: v, textContent: t, selected: sel });
+  PARTY.forEach((p, i) => {
+    const row = mkEl('div', { className: 'brow' });
+    const role = mkEl('select', { title: 'Role: abilities and stats' }, opt('', '— empty —', !p.role), ...Object.entries(ROLE_NAME).map(([k, v]) => opt(k, v, p.role === k)));
+    const outfit = mkEl('select', { title: 'Outfit: the sprite, independent of the role' }, ...Object.entries(OUTFITS).filter(([k]) => !WALK || WALK[k]).map(([k, v]) => opt(k, v, p.outfit === k)));
+    outfit.disabled = !p.role;
+    role.onchange = () => { const old = DEFAULT_OUTFIT[p.role]; p.role = role.value; if (!p.outfit || p.outfit === old || !old) p.outfit = DEFAULT_OUTFIT[p.role] || ''; if (!PARTY.some(q => q.role)) { p.role = 'knight'; p.outfit = 'knight'; } reset(); builderBuild(); };
+    outfit.onchange = () => { p.outfit = outfit.value; p.colors = null; const u = slotUnit(i); if (u) { u.outfit = p.outfit; u.colors = null; } builderBuild(); };
+    row.append(mkEl('b', { textContent: String(i + 1) }), role, outfit);
+    for (const r of p.role ? outfitRegions(p.outfit) : []) {
+      const c = mkEl('input', { type: 'color', value: (p.colors && p.colors[r]) || REGION_DEFAULT[r] || '#808080', title: 'Recolour: ' + r });
+      c.oninput = () => {
+        const cur = {}; row.querySelectorAll('input[type=color]').forEach(x => { cur[x.dataset.r] = x.value; });
+        p.colors = cur; const u = slotUnit(i); if (u) u.colors = cur;
+      };
+      c.dataset.r = r; row.append(mkEl('label', { className: 'creg', textContent: r }, c));
+    }
+    if (p.colors) row.append(mkEl('button', { textContent: '↺', title: 'Back to the outfit\'s own colours', onclick: () => { p.colors = null; const u = slotUnit(i); if (u) u.colors = null; builderBuild(); } }));
+    box.append(row);
+  });
+}
+$('partyBtn').onclick = () => { $('builder').style.top = ($('bar').getBoundingClientRect().bottom + 4) + 'px'; if ($('builder').classList.contains('hidden')) builderBuild(); $('builder').classList.toggle('hidden'); };
+// test hook: a name from COMPS, role strings, or { role, outfit, colors } specs
+window.__setComp = c => { PARTY = toParty(c); reset(); builderBuild(); };
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
 function logRender() {            // pulls log: rows appended once per pull (keyed by index), never rebuilt on a timer

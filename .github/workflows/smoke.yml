@@ -2277,6 +2277,16 @@ jobs:
           node tests/hunt-session-engine.mjs
           node tests/hunt-session-engine.mjs --mutate
 
+      # THE HUNT CORE (HUNT_SCREEN_SPEC §1.6): every tests/hunt-core/*.mjs —
+      # grid, the one leash, movement, the event schema, the persisted world,
+      # stepSwing inside the one loop (split-parity with the world re-decoded
+      # at every cut), purity. Each file runs its cases AND plants its own
+      # mutants into temp copies, so this one line is the plain run and the
+      # proof. Core lanes add files there, never a line here.
+      - name: Hunt core — movement, leash, world step (cases + mutants)
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-core/run-all.mjs
+
       # THE ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14: 2.0 s, every player and
       # monster basic attack). I1 the value; I2 core, hr-accrue and a real hunt
       # agree on it; I3 moving the constant moves the engine, and no second

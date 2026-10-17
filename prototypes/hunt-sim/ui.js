@@ -12,22 +12,22 @@ const UI = (() => {
   const kf = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'kk' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
   const hms = s => { s = Math.max(0, Math.floor(s)); return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const heroes = () => S().units.filter(u => u.side === 'hero');
-  const sel = () => S().units.find(u => u.side === 'hero' && u.kind === VIEW.sel) || heroes()[0];
+  const sel = () => S().units.find(u => u.side === 'hero' && u.id === VIEW.sel) || heroes()[0];
   const sessionSec = () => S().time - AN().t0;
   const STAMINA_H = 8;   // ASSUMED: an 8 h stamina/session budget, display only
 
   // ---------- icons ----------
   const ICON = {};
   for (const n of ['fire_rune', 'frost_rune', 'moonbloom_elixir', 'cooked_wolf_meat', 'wheat_bread', 'iron_sword', 'maple_bow', 'apprentice_staff', 'maple_staff',
-    'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt']) {
-    const i = new Image(); i.src = `assets/icons/${n}.png?v=45`; ICON[n] = i;
+    'rat_tail', 'bones', 'slime_gel', 'bat_wing', 'venom_sac', 'silk_thread', 'spider_eye', 'bone_chips', 'copper_ore', 'small_fang', 'night_fang', 'sticky_core', 'crown_shard', 'bolt', 'drink_cup']) {
+    const i = new Image(); i.src = `assets/icons/${n}.png?v=53`; ICON[n] = i;
   }
-  const ITEM_ICON = { life_rune: 'fire_rune', fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'moonbloom_elixir', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
+  const ITEM_ICON = { life_rune: 'fire_rune', fire_rune: 'fire_rune', frost_rune: 'frost_rune', mana_potion: 'drink_cup', ham: 'cooked_wolf_meat', bread: 'wheat_bread', bolt: 'bolt' };
   const ITEM_NAME = { life_rune: 'Life rune', fire_rune: 'Fire rune', frost_rune: 'Frost rune', mana_potion: 'Moonbloom tea', ham: 'Ham', bread: 'Bread', bolt: 'Crossbow bolt', mana: 'Mana (regen value)' };
   // '<id>_own' = used from the hero's own carried stack: already owned, so it costs nothing this session
   const ITEM_PRICE = id => id.endsWith('_own') ? 0 : id === 'mana' ? SUPPLIES.mana.price : SUPPLIES[id] ? SUPPLIES[id].price : CONSUMABLES[id] ? CONSUMABLES[id].price : 0;
   const BASIC_ICON = { berserker: 'iron_sword', knight: 'iron_sword', paladin: 'maple_bow', sorcerer: 'apprentice_staff', druid: 'maple_staff' };
-  const iconUrl = id => `assets/icons/${id}.png?v=45`;
+  const iconUrl = id => `assets/icons/${id}.png?v=53`;
 
   // ability glyphs (8x8, drawn at 3 px per cell = 24 px, centred in the slot)
   const GLYPH = {
@@ -127,7 +127,7 @@ const UI = (() => {
   addEventListener('keydown', e => {
     if (e.target.tagName === 'SELECT') return;
     const i = '1234'.indexOf(e.key); const hs = heroes();
-    if (i >= 0 && hs[i]) selectHero(hs[i].kind);
+    if (i >= 0 && hs[i]) selectHero(hs[i].id);
     if (e.key === 'p' || e.key === 'P') partyCam();
   });
 
@@ -146,27 +146,27 @@ const UI = (() => {
 
   // ---------- party panel: a dark-wood board of carved stone plates ----------
   let partyKey = '', partyExpand = false, PR = {};
+  const partyKeyOf = hs => hs.map(h => h.id + h.kind + h.outfit + JSON.stringify(h.colors)).join();
   const ROLE_RING = { berserker: 'var(--role-melee)', knight: 'var(--role-melee)', paladin: 'var(--role-ranger)', sorcerer: 'var(--role-mage)', druid: 'var(--role-healer)' };
   const CREST = { berserker: ['burst', '#e0a070'], knight: ['sword', '#c9ced6'], paladin: ['bolt', '#9fbf6a'], druid: ['leaf', '#7fd0b8'], sorcerer: ['flame', '#ffb457'] };
-  function portrait(c, kind) {           // the hero's own south idle frame, head crop (16x16 from the top of the sprite) at 2x
-    const im = new Image(); im.src = `assets/walk/${kind}/idle_south.png?v=45`;
-    im.onload = () => {
-      const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
-      let top = 0;
-      try { const t = document.createElement('canvas'); t.width = im.width; t.height = im.height; const tg = t.getContext('2d'); tg.drawImage(im, 0, 0);
-        const d = tg.getImageData(0, 0, im.width, im.height).data;
-        outer: for (let y = 0; y < im.height; y++) for (let xx = 0; xx < im.width; xx++) if (d[(y * im.width + xx) * 4 + 3] > 40) { top = y; break outer; } } catch (e) { top = 4; }
-      x.clearRect(0, 0, 32, 32); x.drawImage(im, Math.round(im.width / 2) - 8, Math.max(0, top - 1), 16, 16, 0, 0, 32, 32);
-    };
+  function portrait(c, u, tries = 0) {   // the hero's own outfit, south idle frame (recoloured), head crop 16x16 from the top of the sprite at 2x
+    const im = window.__portraitImg(u);
+    if (!im) { if (tries < 40) setTimeout(() => portrait(c, u, tries + 1), 150); return; }
+    const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+    let top = 0;
+    try { const t = document.createElement('canvas'); t.width = w; t.height = h; const tg = t.getContext('2d'); tg.drawImage(im, 0, 0);
+      const d = tg.getImageData(0, 0, w, h).data;
+      outer: for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) if (d[(y * w + xx) * 4 + 3] > 40) { top = y; break outer; } } catch (e) { top = 4; }
+    x.clearRect(0, 0, 32, 32); x.drawImage(im, Math.round(w / 2) - 8, Math.max(0, top - 1), 16, 16, 0, 0, 32, 32);
   }
   function buildParty() {                // shape change only: the composition
-    const hs = heroes(); partyKey = hs.map(h => h.kind).join(); PR = {};
+    const hs = heroes(); partyKey = partyKeyOf(hs); PR = {};
     const lead = hs[0], el = $('party');
     el.textContent = '';
     el.append(mk('<span class="cb bl"></span>'), mk('<span class="cb br"></span>'),
       mk(`<div class="hd"><span class="ttl">Party</span><span class="sp"></span><button class="stud" data-act="pExp" title="show DPS / HPS for everyone">⋯</button><button class="minb stud" title="minimize">–</button><button class="stud" data-act="pClose" title="close">×</button></div>`));
     for (const h of hs) {
-      const m = mk(`<div class="mem" data-k="${h.kind}" style="--ring:${ROLE_RING[h.kind]}" title="${NAME[h.kind]} — click to view">
+      const m = mk(`<div class="mem" data-k="${h.id}" style="--ring:${ROLE_RING[h.kind]}" title="${NAME[h.kind]} — click to view">
         <div class="port">${h === lead ? '<span class="crown" title="leader">♛</span>' : '<span class="link" title="following the leader">⛓</span>'}<canvas width="32" height="32"></canvas><span class="plv" title="level"> </span></div>
         <div class="body">
           <div class="nm"><canvas class="crest" width="16" height="16" title="${NAME[h.kind]}"></canvas><span>${NAME[h.kind]}</span><span class="ag" title="holding aggro"> </span><span class="st"> </span><span class="sp"></span>${h === lead ? '' : '<span class="kick" title="kick (not in the sim)">×</span>'}</div>
@@ -177,9 +177,9 @@ const UI = (() => {
         </div></div>`);
       el.append(m);
       const q = s => m.querySelector(s), dps = m.querySelectorAll('.dps b');
-      PR[h.kind] = { m, lv: q('.plv'), ag: q('.ag'), st: q('.st'), hp: q('.hp i'), hpn: q('.hp b'), mp: q('.mp i'), mpn: q('.mp b'), stl: q('.stl'), sb: q('.stl i'),
+      PR[h.id] = { m, lv: q('.plv'), ag: q('.ag'), st: q('.st'), hp: q('.hp i'), hpn: q('.hp b'), mp: q('.mp i'), mpn: q('.mp b'), stl: q('.stl'), sb: q('.stl i'),
         dps: dps[0], dpt: dps[1], hps: dps[2], hpt: dps[3], hrow: q('.dps .h') };
-      portrait(q('.port canvas'), h.kind); const [gn, col] = CREST[h.kind]; glyph(q('.crest').getContext('2d'), gn, 0, 0, col, 2);
+      portrait(q('.port canvas'), h); const [gn, col] = CREST[h.kind]; glyph(q('.crest').getContext('2d'), gn, 0, 0, col, 2);
     }
     el.append(mk(`<div class="ft"><div class="note">Costs are personal</div><div class="tabs"><button title="Stop accepting all (not in the sim)">⛔</button><button title="Leave party (not in the sim)">⎋</button></div></div>`));
     el.classList.toggle('expand', partyExpand);
@@ -189,13 +189,13 @@ const UI = (() => {
   $('party').addEventListener('click', e => {
     const act = e.target.closest('[data-act]');
     if (act) { if (act.dataset.act === 'pClose') PANELS.set('party', { hidden: true }); else { partyExpand = !partyExpand; $('party').classList.toggle('expand', partyExpand); } return; }
-    const m = e.target.closest('.mem'); if (m && !e.target.closest('.kick')) selectHero(m.dataset.k);
+    const m = e.target.closest('.mem'); if (m && !e.target.closest('.kick')) selectHero(+m.dataset.k);
   });
   function partyFast() {
-    if (heroes().map(h => h.kind).join() !== partyKey) buildParty();
+    if (partyKeyOf(heroes()) !== partyKey) buildParty();
     const sec = Math.max(1, sessionSec()), a = AN();
     for (const h of heroes()) {
-      const r = PR[h.kind]; if (!r) continue;
+      const r = PR[h.id]; if (!r) continue;
       Wd(r.hp, h.alive ? h.hp / h.maxHp : 0); Wd(r.mp, h.maxMana ? h.mana / h.maxMana : 0);
       T(r.hpn, Math.max(0, Math.round(h.alive ? h.hp : 0))); T(r.mpn, Math.round(h.mana));
       const stam = Math.max(0, STAMINA_H * 3600 - sec); Wd(r.sb, stam / (STAMINA_H * 3600));
@@ -203,9 +203,9 @@ const UI = (() => {
       T(r.lv, h.level);
       T(r.ag, S().units.some(m => m.side === 'mon' && m.alive && m.target === h) ? '⛨' : ' ');
       T(r.st, !h.alive ? '✝' : h.regen ? '🍖' : (S().time - (h.flash.drink || -9)) < 1.2 ? '💧' : ' ');
-      const H = a.hero[h.kind] || { dealt: 0 }, healed = a.healed[h.kind] || 0;
+      const H = a.hero[h.id] || { dealt: 0 }, healed = a.healed[h.id] || 0;
       T(r.dps, kf(H.dealt / sec)); T(r.dpt, kf(H.dealt)); T(r.hps, kf(healed / sec)); T(r.hpt, kf(healed)); K(r.hrow, 'hidden', !healed);
-      K(r.m, 'sel', VIEW.mode === 'hero' && h.kind === VIEW.sel);
+      K(r.m, 'sel', VIEW.mode === 'hero' && h.id === VIEW.sel);
     }
   }
 
@@ -267,12 +267,12 @@ const UI = (() => {
     const a = AN(), s = S(), hs = heroes(), h = sel(), secs = Math.max(1, sessionSec()), hrs = secs / 3600;
     const heroMode = anView === 'hero' && h;
     if ((tab + '|' + anView + '|' + JSON.stringify(collapsed)) !== anShape) buildPane();
-    const H = heroMode ? (a.hero[h.kind] || { supplies: {}, outAb: {}, outEl: {}, inMon: {}, inEl: {}, xp: 0 }) : null;
+    const H = heroMode ? (a.hero[h.id] || { supplies: {}, outAb: {}, outEl: {}, inMon: {}, inEl: {}, xp: 0 }) : null;
     const supplies = heroMode ? H.supplies : a.supplies;
     const waste = Object.entries(supplies).reduce((t, [id, n]) => t + n * ITEM_PRICE(id), 0);
     const income = (a.loot + a.gold) / (heroMode ? Math.max(1, hs.length) : 1);   // loot split evenly; costs are personal
     const xp = heroMode ? H.xp : a.xp, bal = income - waste;
-    const hxp = h && a.hero[h.kind] ? a.hero[h.kind].xp : 0;
+    const hxp = h && a.hero[h.id] ? a.hero[h.id].xp : 0;
     const nextLv = h && hxp > 0 ? ((h.level - HERO_START_LEVEL + 1) * HERO_XP_PER_LEVEL - h.xp) / (hxp / secs) : Infinity;
     K(HN.ended, 'hidden', !ended);
     T(HN.ses, hms(secs)); T(HN.next, isFinite(nextLv) ? hms(nextLv) : '--:--:--');
@@ -328,10 +328,11 @@ const UI = (() => {
   const FONT = "'Alegreya Sans', system-ui, sans-serif";
   const cv = $('hudCanvas'), g = cv.getContext('2d');
   let ICONMAP = {};
-  fetch('assets/icons/manifest.json?v=45').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/icons/manifest.json?v=53').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     const map = m.icons || m.abilities || m;
-    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=45'; ICONMAP[id] = i; }
+    for (const [id, f] of Object.entries(map)) { if (typeof f !== 'string') continue; const i = new Image(); i.src = 'assets/icons/' + f.replace(/^.*icons\//, '') + '?v=53'; ICONMAP[id] = i; }
+    if (ICONMAP.drink_cup) ICONMAP.mana_potion = ICONMAP.drink_cup;   // the drink is a cup now; the old bottle stays in the manifest
   }).catch(() => {});
   const ready = i => i && i.complete && i.naturalWidth;
 
@@ -507,8 +508,8 @@ const UI = (() => {
   let syncedFor = null;
   function syncRight(force) {
     const u = sel(); if (!u) return;
-    if (syncedFor !== u.kind || force) {
-      syncedFor = u.kind;
+    if (syncedFor !== u.id || force) {
+      syncedFor = u.id;
       const lead = heroes()[0];
       $('rTgt').innerHTML = Object.entries(TARGET_MODES).map(([k, v]) => `<option value="${k}">${k === 'follow' ? 'Follow ' + (u === lead ? '(self: nearest)' : NAME[lead.kind]) : v}</option>`).join('');
     }

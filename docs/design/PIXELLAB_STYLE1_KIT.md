@@ -174,3 +174,16 @@ Prompt templates (copy, fill the brackets):
 - **Hero v3 set (current):** knight `e6b1bc58-8481-40c0-b361-77f9eed15927`, paladin `0934ce5c-0838-4b3e-9b53-16e9e9504489`, druid `e4e96180-b199-4d59-9f67-ef9aa033ce16`, sorcerer `e60aff3a-0e05-45d3-a83e-a8801ddf4fe8`. All have a natural stance, 8 rotations and a 6-frame walk in 8 directions. Earlier versions are superseded.
 - **Action-bar icons**: `prototypes/hunt-sim/assets/icons/<id>.png` plus `icons/manifest.json`, 22 icons, grouped by role (Melee, Ranger, Mage, Healer, plus consumables). Made with `create_image_pixen` at 32×32 and seed 7, using one prompt frame: "square RPG ability icon, dark slate blue-grey background inside a thin warm amber rim border, centered: <subject>, crisp pixel art, no text". Each icon costs 1 generation.
 - **Melee outfit options:** berserker v4 (simple silhouette for 48 px: iron nose-guard helm, fur collar, red tunic, a small single-bit hatchet in each hand) `6e27fec6-ce0d-4320-9b6e-753ab0b8518f` (v5: re-posed to a narrow stance, walk checked against the knight; supersedes `9f90a598-…`, `d31e2cc1-…`, `622fb6d0-…` and `871c238f-…`), and Quarry Brute (apron, head wrap, stone maul) `031cfc17-94b6-42dc-8ed3-3062501612ab`. Both have 8 rotations and a 6-frame walk in 8 directions, and are exported as `hunt-sim-assets/{berserker,brute}`.
+
+## 7. Week-1 art (2026-10-17)
+- **Re-pose recipe** (how Viking v5 and Brute v2 were made, about 10 gen each): `edit_image_pixen` on the south rotation ("narrow natural stance, feet under the hips", 1 gen), then `create_object_pro_flash` with `first_frame_url` set to that edit (48×48, 8 directions, high top-down; rotations only, 1 gen), then `animate_object` v3 with `frame_count=6, keep_first_frame=false`. Do south first and judge it, then the other 7 (1 gen each).
+- **Quarry Brute v2** `26e7de23-83d3-418b-aaa4-356cafae4fe5` carries the maul at his side. It supersedes `031cfc17-…`, whose S/N walk shuffled.
+- **Witch** (outfit) `85ae81a0-1164-4a49-9101-48960535f0bc`: plum hat, moss robe, rust trim and a gnarled staff.
+  - East comes from its own `walk-profile` group, because the default prompt made the staff drop and a yellow panel appear. West mirrors east.
+  - Region masks are `mask_walk_<dir>_<i>.png` and `mask_idle_<dir>.png`: red = hat, green = robe, blue = trim, transparent = fixed. A recolour keeps each pixel's value and swaps its hue and saturation (`_checks/witch_regions.png`).
+- **Dawnward Paladin** (outfit) `478371a8-809e-4ee5-8722-96b008a3fa87`: steel plate, a white surcoat with a gold sun, a pale blue cape, a flanged mace and a round sun shield. v1 `42c11699-…` was rejected for a 35 px body and short legs.
+- **Walk check:** a walk ships only after `_checks/<unit>_vs_knight.png` has been read. It shows the knight v3 row above each candidate row for all 8 directions; the green line is the knight's foot line. Reject a walk when:
+  - gear appears or vanishes mid-loop;
+  - the feet do not lift in turn;
+  - the body height is more than 2 px off the knight's body without its plume.
+- **Icons redone:** `basic_ranger` (crossbow), `frost_lance` (a flying icicle, not a sword), and `fire_rune` and `frost_rune` (large rune stones). Also a new `drink_cup` (a steaming tea mug), the drink consumable. All use the same pixen frame prompt, seed 7, 32×32.

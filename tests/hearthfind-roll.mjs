@@ -315,12 +315,13 @@ async function runAll(mut) {
   // ── ROLL-5  ONE ROLL SITE PER ENGINE, NONE OUTSIDE src/core. ────────────
   {
     const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8').catch(() => '');
-    const combat = await read('../src/core/combat-sim.js');
+    /* The combat engine is the loop (combat-sim.js) plus its swing (hunt/world-step.js). */
+    const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js'));
     const skill = await read('../src/core/skill-sim.js');
     const legacy = await read('../src/legacy.js');
     const count = (s, re) => (s.match(re) || []).length;
     ok(count(combat, /resolveHearthfind\s*\(/g) === 1,
-      `combat-sim.js has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
+      `the combat engine has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
     ok(count(skill, /resolveHearthfind\s*\(/g) === 1,
       `skill-sim.js has ${count(skill, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
     ok(!/rollHearthfind|resolveHearthfind/.test(legacy),

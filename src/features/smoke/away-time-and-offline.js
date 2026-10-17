@@ -1144,7 +1144,7 @@ export default [
           const ctx = window.HearthriseCombatSim.ctx();
           for (let i = 0; i < 240; i++) {
             if (!G.activeMonster) break;
-            C.combatSim.simulateTick(G, ctx);
+            C.combatSim.stepSwing(null, Object.assign({}, ctx, { state: G }));
           }
         };
         if (away) P._withOfflineReplay(body); else body();
@@ -1258,7 +1258,7 @@ export default [
         const C = window.HearthriseCore;
         const { ctx, state, swings } = rig();
         ctx.away = false;
-        for (let i = 0; i < 200 && state.activeMonster; i++) C.combatSim.simulateTick(state, ctx);
+        for (let i = 0; i < 200 && state.activeMonster; i++) C.combatSim.stepSwing(null, Object.assign({}, ctx, { state }));
         check(swings, 'ATTENDED');
       }),
       /* RETIRED (lane C2, the closed rebuild): "XP-DEALT-2 (away):…" — it covered a system C2 deleted
@@ -1368,7 +1368,7 @@ export default [
       G.stats = Object.assign({}, G.stats, { crits: 0 });
       C.setRng({ next: () => 0, int: (a) => a, chance: () => true });
       P._withOfflineReplay(() => {
-        C.combatSim.simulateTick(G, window.HearthriseCombatSim.ctx());
+        C.combatSim.stepSwing(null, Object.assign(window.HearthriseCombatSim.ctx(), { state: G }));
       });
       assert(G.stats.crits === 1, 'an away crit must increment stats.crits, got ' + G.stats.crits);
 
@@ -1634,9 +1634,9 @@ export default [
 
   () => tryRun('AWAY-12: the second combat loop is GONE and cannot come back unnoticed', () => {
     assert(typeof window.processOfflineCombat === 'undefined',
-      'processOfflineCombat exists again — the away ruling deleted it; add to simulateTick and gate on ctx.away instead');
+      'processOfflineCombat exists again — the away ruling deleted it; add to stepSwing (src/core/hunt/world-step.js) instead');
     const C = window.HearthriseCore;
-    assert(C.combatSim && typeof C.combatSim.simulateTick === 'function' && typeof C.combatSim.simulateSpan === 'function',
+    assert(C.combatSim && typeof C.combatSim.stepSwing === 'function' && typeof C.combatSim.simulateSpan === 'function',
       'the unified simulation must be published on the core');
     /* combatTick must DELEGATE, not re-implement. A source-text check, because
        ES module namespaces are frozen so the function cannot be stubbed out.
@@ -1644,7 +1644,7 @@ export default [
        tick is wrapped by combat-render.js, and inspecting the wrapper would
        tell us nothing about whether the engine has re-grown its own loop. */
     const src = window.HearthriseCombatSim._tickSource();
-    assert(/simulateTick/.test(src), 'the live tick must call the shared simulateTick — it has re-grown its own loop');
+    assert(/stepSwing/.test(src), 'the live tick must call the shared stepSwing — it has re-grown its own loop');
     assert(!/rollAttack/.test(src), 'the live tick is rolling its own attacks again; that maths belongs in src/core');
     const away = String(window.simulateAwayCombat || '');
     assert(/simulateSpan/.test(away), 'away combat must be a SPAN of the shared tick');

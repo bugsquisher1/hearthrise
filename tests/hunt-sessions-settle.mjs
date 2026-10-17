@@ -1749,6 +1749,7 @@ const DB_ARMS = {
 async function runArms(root, db, only) {
   const M = await loadEdge(root);
   const out = {};
+  if (db) await rewindDice(db);
   for (const [name, arm] of Object.entries(ENGINE_ARMS)) {
     if (only && !only.includes(name)) continue;
     try { out[name] = await arm(M); } catch (e) { out[name] = ['threw: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')]; }
@@ -1818,7 +1819,7 @@ const MUTANTS = [
     to: "    if (b.kind === 'ammo') return { why: 'not_fireable' };\n" },
   { arm: 'BUY-RULE', name: 'a dry purse ends nothing', file: 'src/core/action-rules.js',
     from: '  gold_out: (hs) => hs.goldOut === true,', to: '  gold_out: () => false,' },
-  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/combat-sim.js',
+  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/hunt/world-step.js',
     from: '    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);', to: '' },
   { arm: 'BUY-RULE', name: 'the floor is ignored', file: 'src/core/action-rules.js',
     from: 'export function floorOf(hs) { return Math.max(0, int(hs && hs.goldFloor, GOLD_FLOOR.default)); }',
@@ -1826,7 +1827,7 @@ const MUTANTS = [
   { arm: 'BUY-RULE', name: 'sell-to-cover sells the dearest loot first', file: 'src/core/action-rules.js',
     from: '    .sort((a, b) => (hs.cover[a].unit - hs.cover[b].unit) || (a < b ? -1 : 1));',
     to: '    .sort((a, b) => (hs.cover[b].unit - hs.cover[a].unit) || (a < b ? -1 : 1));' },
-  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/combat-sim.js',
+  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/hunt/world-step.js',
     from: '    recoverMs: KNOCKOUT_MS,\n', to: '    recoverMs: 0,\n' },
   { arm: 'BUY-RULE', name: 'kill coins never reach the purse', file: 'src/core/combat-sim.js',
     from: "      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));", to: '' },
@@ -1914,7 +1915,7 @@ const MUTANTS = [
     to: "  const perks = await readTickPerks(exec, user, slot);\n  const [bk] = await exec('select coalesce(sum(kills), 0)::int as n from public.hr_bestiary_of($1::uuid, $2::int)', [user, slot]);\n  const ladder = Number(bk && bk.n) > 0;",
     also: [['      secret: salt, pressAtMs: press ? press.at : null,', '      secret: salt, pressAtMs: press ? press.at : null, ladder,'],
       ['    monsters: MONSTERS,\n    nodes: GATHER_NODES,', "    monsters: o.ladder ? Object.fromEntries(Object.entries(MONSTERS).map(([k, v]) => [k, { ...v, drops: (v.drops || []).map((d) => ({ ...d, ch: Math.min(1, d.ch * 1.5) })) }])) : MONSTERS,\n    nodes: GATHER_NODES,"]] },
-  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/combat-sim.js',
+  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/world-step.js',
     from: '    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);', to: '    const fromBag = Math.min(n, bagLeft);' },
 ];
 
@@ -2002,6 +2003,23 @@ const SQL_MUTANTS = [
   { name: 'the fence trigger is not installed', find: 'create trigger hr_hunt_accrue_fence before insert on public.player_ledger', replace: 'create trigger hr_hunt_accrue_fence_off before update on public.player_ledger' },
 ];
 
+/* PIN THE DICE. A hunt's swings are HMAC(hr_seed(user, slot, 'hunt:<session id>'),
+   '<instance id>...') and the instance id IS the session id. Both halves were
+   random per run (the per-database `prng` secret, and gen_random_uuid() for the
+   session), so every run rolled a different fight and a mutant that only shows
+   on some fights (DEATHXP, resume alignment) was caught on some runs only.
+   The secret is a fixed value and gen_random_uuid() (this throwaway database's
+   copy) counts from a sequence that runArms rewinds, so the same fixture rolls
+   the same swings on every run and every mutant. The seeder itself (the HMAC
+   reference arm) is untouched. */
+async function pinDice(db) {
+  await db.query(`update public.hr_server_secrets set secret = sha256(convert_to('hunt-sessions-settle:fixed-prng:1', 'utf8')) where name = 'prng'`);
+  await db.exec(`create sequence if not exists public.hr_test_uuid_seq;
+    create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
+      $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;`);
+}
+const rewindDice = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
+
 async function main() {
   const { bootReplay, LAST_PATCHED } = await import('./schema-replay.mjs');
   let db;
@@ -2009,6 +2027,7 @@ async function main() {
     console.error(`✗ the chain would not replay: ${String(e.message).slice(0, 600)}`);
     process.exit(1);
   }
+  await pinDice(db);
   if (CLOSED && (await db.query(`select enabled from public.hr_flags where key = 'closed_mode'`)).rows[0]?.enabled !== true) {
     console.error('✗ --closed: the replay is not closed — the mode would prove nothing');
     process.exit(1);

@@ -106,8 +106,9 @@ export async function loadWorld() {
     mig: (f) => read('supabase/migrations/' + f),
     packNames: packed.files.map((x) => x.name),
     accrualJs: read('supabase/functions/hr-accrue/accrual.js'),
+    /* The combat engine: the loop (combat-sim.js) and its swing (hunt/world-step.js). */
+    combatSimJs: read('src/core/combat-sim.js') + read('src/core/hunt/world-step.js'),
     combatJs: read('src/core/combat.js'),
-    combatSimJs: read('src/core/combat-sim.js'),
     clientStateJs: read('src/net/client-state.js'),
     indexHtml: read('index.html'),
     src,

@@ -277,12 +277,12 @@ if (!MUTATE) {
     const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));
     try {
       cpSync(join(ROOT, 'src'), join(dir, 'src'), { recursive: true });
-      const f = join(dir, 'src', 'core', 'combat-sim.js');
+      const f = join(dir, 'src', 'core', 'hunt', 'world-step.js');
       const src = readFileSync(f, 'utf8');
       const anchor = 'const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;';
       if (src.split(anchor).length !== 2) throw new Error('engine plant anchor moved');
       writeFileSync(f, src.replace(anchor, 'const nextId = id;'));
-      const E = await import(pathToFileURL(f).href);
+      const E = await import(pathToFileURL(join(dir, 'src', 'core', 'combat-sim.js')).href);
       const t = { items: {}, xp: {}, kills: {} };
       const st = { activeMonster: 'rat', monsterHp: 0, monsterMaxHp: 0, playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} };
       const ctx = { fromMs: 0, toMs: COMBAT_BALANCE.tickMs * 500, tickMs: COMBAT_BALANCE.tickMs, monsters: MONSTERS,

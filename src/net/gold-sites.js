@@ -306,7 +306,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'src/legacy.js#onLoot': {
     kind: 'seam', status: 'none',
     why: 'b455 — THE KILL\'S GOLD, MOVED OFF THE RECORD AND ONTO THE DISPLAY. '
-      + '`resolveKill` in src/core/combat-sim.js writes `state.gold += gp` directly — correct on '
+      + '`resolveKill` in src/core/hunt/world-step.js writes `state.gold += gp` directly — correct on '
       + 'the SERVER, where that line IS the credit, and on an ARMED client it trips record.js\'s '
       + 'b347 fingerprint so the whole economy UI em-dashes until the next settle. This is the '
       + 'EXACT INVERSE of that write (`G.gold -= gp`, unclamped, on the very next statement the '
@@ -459,11 +459,19 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ ALREADY THE SERVER'S ══════════════════════════════════════════════════
-  'src/core/combat-sim.js#resolveKill': {
+  /* H1/H5 (2026-10-17): resolveKill moved out of src/core/combat-sim.js into the
+     world hunt's swing; it and the per-hero tally live in src/core/hunt/** —
+     the same shared engine, vendored into hr-accrue. */
+  'src/core/hunt/world-step.js#resolveKill': {
     kind: 'server', status: 'none',
-    why: 'THE SHARED SIMULATION. src/core/combat-sim.js is vendored into the Edge Function by '
-      + 'tools/pack-edge.mjs and the SERVER runs this exact line to price a kill. It is not a '
-      + 'client site that needs moving; it is the code that already moved.',
+    why: 'THE SHARED SIMULATION, world-hunt half. src/core/hunt/world-step.js is vendored into '
+      + 'the Edge Function and prices a world kill on the SERVER; the settle re-bounds it '
+      + '(hr_hunt_apply value bound). It is the code that already moved.',
+  },
+  'src/core/hunt/tally.js#tallyEvents': {
+    kind: 'server', status: 'none',
+    why: 'THE SHARED SIMULATION, the per-hero tally of a world-hunt window\'s kill gold. Vendored '
+      + 'into hr-accrue; it sums the server engine\'s own events, never a client number.',
   },
 
   // ══ GRANTS ════════════════════════════════════════════════════════════════

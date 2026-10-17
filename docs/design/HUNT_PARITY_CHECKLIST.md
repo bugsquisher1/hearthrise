@@ -140,7 +140,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | DM-13 | Universal 2.0 s swing for every player and monster basic | combat-data.js:57; T10-15 L83 | core/world-step.js | S-edge, D | hunt-tuning `swing` 2.0 | hc/world-step#swing-2s | TODO |
 | DM-14 | Random swing phase per unit at spawn | sim.js:137 | core/world-step.js | S-edge | none (seeded) | hc/world-step#swing-phase-seeded | TODO |
 | DM-15 | Projectile hit lands after 0.22-0.25 s flight | sim.js:603-608, :667 | core/damage.js (timed event) + view/fx-layer.js | S-edge, C | hunt-tuning `projectileS` | hc/damage#projectile-delay | TODO |
-| DM-16 | Coin drop x 1.3 on normal monsters | sim.js:340; combat-data.js:69 | core/damage.js kill → edge loot | S-edge, D | monsters `gp`; tuning `gpMult` | hc/xp#gold-roll-seeded | TODO |
+| DM-16 | Coin drop x 1.3 on normal monsters | sim.js:340; combat-data.js:69 | core/damage.js kill → edge loot | S-edge, D | monsters `gp`; tuning `gpMult` | hc/xp-share#gold-roll-seeded | TODO |
 | DM-17 | Loot drop rolls per drop row | sim.js:341-347 | edge loot (existing drop path) | S-edge | monsters `drops[]` | hc/world-step#drops-seeded | LIVE-SERVER |
 
 ## 8. Abilities — `core/abilities.js`
@@ -150,7 +150,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | AB-01 | Gates: cooldown, lane, mana | sim.js:627-628 | core/abilities.js | S-edge | abilities `cd`, `lane`, `mana` | hc/abilities#lane-blocks-second-cast | TODO |
 | AB-02 | Two lanes: offense 2 s, heal 1 s | combat-data.js:58 | data/abilities.js lanes | D | contract §1.1 lanes | hc/abilities#lane-times | TODO |
 | AB-03 | Target types: taunt, mark, enemy, area (≥2), cleave, self, ally, party | sim.js:630-643 | core/abilities.js | S-edge | abilities `target` | hc/abilities#target-types | TODO |
-| AB-04 | Mana spend + Magic XP = mana x 1.5 x mult | sim.js:599-602; combat-data.js:59 | core/abilities.js + core/xp.js | S-edge, D | tuning `magicXpPerMana` | hc/xp#magic-xp-from-mana | TODO |
+| AB-04 | Mana spend + Magic XP = mana x 1.5 x mult | sim.js:599-602; combat-data.js:59 | core/abilities.js + core/xp-share.js | S-edge, D | tuning `magicXpPerMana` | hc/xp-share#magic-xp-from-mana | TODO |
 | AB-05 | Rune use: carried first, then store | sim.js:645 | core/abilities.js + core/consumables.js | S-edge | rune items; supply-basics store rows | hc/abilities#rune-own-then-store | TODO |
 | AB-06 | Ammo use per shot | sim.js:646; combat-data.js:78 | core/abilities.js | S-edge, D | bolt row (missing) | hc/abilities#ammo-per-shot | TODO |
 | AB-07 | Set cooldown and lane on fire | sim.js:648 | core/abilities.js | S-edge | none | hc/abilities#cd-set | TODO |
@@ -193,18 +193,18 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | CO-09 | Carried stack sizes per role | combat-data.js:22-28 | S-pg `hunt_bag` (player-packed) | S-pg | none (the player packs) | sql§4 bag-from-inventory | LIVE-SERVER |
 | CO-10 | Per-hero food/drink thresholds | sim.js:710, :723; ui.js:483-485 | win/hunt-settings.js + S-pg options | S-pg, C | options keys `foodBelow`, `drinkBelow` | sql§4 threshold-range-refused | TODO |
 
-## 11. XP — `core/xp.js`
+## 11. XP — `core/xp-share.js`
 
 | id | feature | source | real module | owner | data rows | test name | status |
 |---|---|---|---|---|---|---|---|
-| XP-01 | Kill counts XP; party share = XP / living heroes | sim.js:328-336 | core/xp.js | S-edge | monsters `xp` | hc/xp#share-split-by-living | TODO |
-| XP-02 | Per-hero XP = base share x that hero's multipliers, credited server-side | T10-16 L148 | core/xp.js + S-pg `hr_credit_combat_xp` | S-edge, S-pg | multiplier hook (1 today) | hc/xp#each-hero-own-multiplier | TODO |
-| XP-03 | "+XP" grouping: kills within 1 s → one number at the kills' centre | sim.js:330-334, :784-787; T10-16 L147 | core/xp.js (event) + view/fx-layer.js | S-edge, C | tuning `xpGroupS` 1 | hc/xp#group-window-1s | TODO |
+| XP-01 | Kill counts XP; party share = XP / living heroes | sim.js:328-336 | core/xp-share.js | S-edge | monsters `xp` | hc/xp-share#share-split-by-living | TODO |
+| XP-02 | Per-hero XP = base share x that hero's multipliers, credited server-side | T10-16 L148 | core/xp-share.js + S-pg `hr_credit_combat_xp` | S-edge, S-pg | multiplier hook (1 today) | hc/xp-share#each-hero-own-multiplier | TODO |
+| XP-03 | "+XP" grouping: kills within 1 s → one number at the kills' centre | sim.js:330-334, :784-787; T10-16 L147 | core/xp-share.js (event) + view/fx-layer.js | S-edge, C | tuning `xpGroupS` 1 | hc/xp-share#group-window-1s | TODO |
 | XP-04 | The popup shows the VIEWED hero's own share | T10-16 L147-148 | view/fx-layer.js | C | none | hv/fx-layer#group-shows-viewed-hero-share | TODO |
-| XP-05 | Level-up event + effect | sim.js:337-338 | core/xp.js + view/fx-layer.js | S-edge, C | progression curve (src/core/progression.js) | hc/xp#level-event | TODO |
-| XP-06 | Sim level curve (start 20, 12,000 per level) is a placeholder | combat-data.js:29 | src/core/progression.js | S-edge | real curve | hc/xp#no-sim-curve | DO-NOT-PORT |
-| XP-07 | Bestiary multiplier plugs in; bestiary is account-wide | T10-15 L86; T10-16 L148 | core/xp.js | S-edge | bestiary stage rows (later) | hc/xp#multiplier-hook | TODO |
-| XP-08 | Death XP loss 2% | data/hunt-sessions.js `DEATH_XP_LOSS` | S-pg + core/xp.js | S-pg | `DEATH_XP_LOSS` | sql§4 death-xp-loss | LIVE-SERVER |
+| XP-05 | Level-up event + effect | sim.js:337-338 | core/xp-share.js + view/fx-layer.js | S-edge, C | progression curve (src/core/progression.js) | hc/xp-share#level-event | TODO |
+| XP-06 | Sim level curve (start 20, 12,000 per level) is a placeholder | combat-data.js:29 | src/core/progression.js | S-edge | real curve | hc/xp-share#no-sim-curve | DO-NOT-PORT |
+| XP-07 | Bestiary multiplier plugs in; bestiary is account-wide | T10-15 L86; T10-16 L148 | core/xp-share.js | S-edge | bestiary stage rows (later) | hc/xp-share#multiplier-hook | TODO |
+| XP-08 | Death XP loss 2% | data/hunt-sessions.js `DEATH_XP_LOSS` | S-pg + core/xp-share.js | S-pg | `DEATH_XP_LOSS` | sql§4 death-xp-loss | LIVE-SERVER |
 
 ## 12. Analyzer and tallies — `core/tally.js`, S-pg `hr_hunt_analyzer`
 
@@ -399,7 +399,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | PP-06 | HP, mana and stamina gauges with numbers / time | ui.js:173-175, :199-202; ref 17 | wdg/party-panel.js | C | instance hunt view (peers never from another envelope) | hv/party-panel#peer-hp-from-instance-view | TODO |
 | PP-07 | Aggro icon when a monster targets the hero | ui.js:204 | wdg/party-panel.js | C | events `target` | hv/party-panel#aggro-icon | TODO |
 | PP-08 | Status icon: down, eating, drinking | ui.js:205 | wdg/party-panel.js | C | events | hv/party-panel#status-icon | TODO |
-| PP-09 | DPS / total and HPS / total, on expand | ui.js:176, :206-207; ref 17; week plan item 10 | wdg/party-panel.js | C | `hunt_tally` | hv/party-panel#dps-from-tally | TODO |
+| PP-09 | DPS / total and HPS / total, on expand | ui.js:176, :206-207; ref 17; week plan item 10 | wdg/party-panel.js | C | `party` (per-member dealt/healed, not premium-gated) | hv/party-panel#dps-from-tally | TODO |
 | PP-10 | Click a member to view it | ui.js:189-193 | wdg/party-panel.js → ses/character-strip.js | C | none | hv/party-panel#click-views | TODO |
 | PP-11 | Footer: "Costs are personal", Stop accepting all, Leave party | ui.js:184; ref 17 | wdg/party-panel.js | C, S-pg | party verbs | hv/party-panel#footer-actions | TODO |
 | PP-12 | Kick × on non-leaders | ui.js:172; ref 17 | wdg/party-panel.js | C, S-pg | party verbs | sql§4 only-leader-kicks | TODO |
@@ -412,14 +412,14 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 |---|---|---|---|---|---|---|---|
 | AW-01 | Frame: title, reset, minimise | ui.js:216-217; ref 18 | wdg/analyzer.js | C | none | visual analyzer | TODO |
 | AW-02 | "Hunt ended — session summary" banner | ui.js:218, :277 | wdg/analyzer.js | C | end card copy (`END_CARD_COPY`) | hv/analyzer#ended-banner | TODO |
-| AW-03 | Session timer and Next-level timer | ui.js:219, :278; ref 18 | wdg/analyzer.js | C | `hunt_tally` | hv/analyzer#timers-from-server | TODO |
+| AW-03 | Session timer and Next-level timer | ui.js:219, :278; ref 18 | wdg/analyzer.js | C | `hunt_analyzer` | hv/analyzer#timers-from-server | TODO |
 | AW-04 | This hero / Party toggle | ui.js:220; T10-16 L148 | wdg/analyzer.js | C | none | hv/analyzer#hero-party | TODO |
 | AW-05 | Tabs: Session / Taken / Dealt | ui.js:221; ref 18 (Session, Damage input, Damage output) | wdg/analyzer.js | C | none | hv/analyzer#tabs | TODO |
-| AW-06 | Session section: kills, XP gain, gold, waste, balance | ui.js:235; ref 18 | wdg/analyzer.js | C | `hunt_tally` | hv/analyzer#session-rows | TODO |
-| AW-07 | Per hour: XP/h, raw XP/h, gold/h, waste/h, balance/h | ui.js:235; ref 18 | wdg/analyzer.js | C | `hunt_tally` | hv/analyzer#per-hour-rows | TODO |
-| AW-08 | Supplies used: icon, name (own / store), count, gold | ui.js:285-286; ref 18 | wdg/analyzer.js | C | `hunt_tally.supplies` | hv/analyzer#own-store-lines | TODO |
-| AW-09 | Loot collected: icon, name, count, value ("split evenly" in hero view) | ui.js:287-289; ref 18 | wdg/analyzer.js | C | `hunt_tally.loot` | hv/analyzer#loot-rows | TODO |
-| AW-10 | Taken by monster and element; dealt by ability and element | ui.js:237-238, :290-295 | wdg/analyzer.js | C | `hunt_tally` | hv/analyzer#damage-tabs | TODO |
+| AW-06 | Session section: kills, XP gain, gold, waste, balance | ui.js:235; ref 18 | wdg/analyzer.js | C | `hunt_analyzer` | hv/analyzer#session-rows | TODO |
+| AW-07 | Per hour: XP/h, raw XP/h, gold/h, waste/h, balance/h | ui.js:235; ref 18 | wdg/analyzer.js | C | `hunt_analyzer` | hv/analyzer#per-hour-rows | TODO |
+| AW-08 | Supplies used: icon, name (own / store), count, gold | ui.js:285-286; ref 18 | wdg/analyzer.js | C | `hunt_analyzer.supplies` | hv/analyzer#own-store-lines | TODO |
+| AW-09 | Loot collected: icon, name, count, value ("split evenly" in hero view) | ui.js:287-289; ref 18 | wdg/analyzer.js | C | `hunt_analyzer.loot` | hv/analyzer#loot-rows | TODO |
+| AW-10 | Taken by monster and element; dealt by ability and element | ui.js:237-238, :290-295 | wdg/analyzer.js | C | `hunt_analyzer` | hv/analyzer#damage-tabs | TODO |
 | AW-11 | Fold sections, keep the scroll | ui.js:240-253; ref 18 (chevrons) | wdg/analyzer.js | C | none | hv/analyzer#fold-keeps-scroll | TODO |
 | AW-12 | Keyed rows: add once, update, drop | ui.js:254-264 | wdg/analyzer.js via paint.js `rows` | C | none | hv/analyzer#keyed-rows | TODO |
 | AW-13 | Number formats (1,234 / 1.2k / kk / hh:mm:ss / gp) | ui.js:11-13, :281 | src/render/format (shared) | C | none | hv/format#each | TODO |
@@ -459,7 +459,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | CL-01 | Combat tab in the chat window (movable, minimisable, semi-transparent) | T10-16 L150 | wdg/chat-combat-tab.js | C | data/combat-text.js log types | visual chat | TODO |
 | CL-02 | Lines: dealt, taken, heals, XP, loot, supplies (own/store), level-ups, deaths, status effects | T10-16 L151 | wdg/chat-combat-tab.js | C | log types | hv/combat-log#line-per-event-type | TODO |
 | CL-03 | Filters per type; hero vs whole party | T10-16 L152 | wdg/chat-combat-tab.js | C | none | hv/combat-log#filters | TODO |
-| CL-04 | Lines come from server events, so the log matches the analyzer | T10-16 L153 | wdg/chat-combat-tab.js | C | `hunt.events` | hv/combat-log#matches-tally | TODO |
+| CL-04 | Lines come from server events, so the log matches the analyzer | T10-16 L153 | wdg/chat-combat-tab.js | C | `hunt_events` | hv/combat-log#matches-tally | TODO |
 | CL-05 | Filter choices are a display-only preference | T10-16 L154 | residue allowlist | C | none | guard residue allowlist | TODO |
 | CL-06 | Sim loot log (last 8 drops) | sim.js:346; ui.js:301 | wdg/chat-combat-tab.js (loot lines) | C | none | hv/combat-log#loot-lines | TODO |
 | CL-07 | Sim pulls log (time to clear per pull) | sim.js:1027-1037 | none | C | none | none (dev) | DEV-ONLY |

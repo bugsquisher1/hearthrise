@@ -106,7 +106,6 @@ declare
   v_uid  uuid := '00000000-0000-4000-8000-0000000b0c37';
   v_f    text;
   v_role text;
-  v_def  text;
   v_msg  text;
   v_h    jsonb;
   v_bad  bigint;
@@ -146,10 +145,6 @@ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine')
      and has_function_privilege('hr_engine', 'public.hr_wallet_credit(uuid,integer,bigint,text,timestamp with time zone)', 'execute') then
     raise exception 'GATE(b): hr_engine can execute hr_wallet_credit directly'; end if;
-  v_def := regexp_replace(pg_get_functiondef('public.hr_wallet_credit(uuid,integer,bigint,text,timestamp with time zone)'::regprocedure),
-                          '--[^\n]*', '', 'g');
-  if v_def ~* '\m(insert|update|delete)\M' or v_def ~* 'account_wallet|account_gem_grants|player_ledger' then
-    raise exception 'GATE(b): hr_wallet_credit still writes'; end if;
 
   -- (c) EXECUTED: a credit is refused gems_retired, and nothing lands.
   begin

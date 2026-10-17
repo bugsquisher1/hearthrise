@@ -127,7 +127,9 @@ async function run(legacySrc, accrualSrc, C) {
   const rollsSrc = lift(legacySrc, 'function getPlayerCombatRolls(m,eq=getEquipmentStats()){',
     '\n/* Wave 5c: armour SET bonus.', 'getPlayerCombatRolls');
   const weakSrc = lift(legacySrc, 'function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore,id=null){',
-    '\n/* ELEMENTS v1 — CROSS-VERB COUPLING', 'getWeaknessInfo');
+    /* close anchor = the next function; the ELEMENTS v1 comment that used to
+       follow it left with the enchant (demolition D2). */
+    '\nfunction getPreferredSlot(def){', 'getWeaknessInfo');
   // eslint-disable-next-line no-new-func
   const client = new Function('getEquipmentStats', 'getArmorSetBonus',
     `${rollsSrc}\n${weakSrc}\n; return { getPlayerCombatRolls, getWeaknessInfo };`)(() => EQ, () => null);

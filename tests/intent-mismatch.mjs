@@ -84,7 +84,9 @@ const GOAL_BODY = 'public.hr_claim_goal__ungated(text,boolean,int,uuid)';
    of this sweep is precisely the hole the sweep exists to see. */
 export const GUARDED = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
-  'public.hr_bounty_spend__ungated(int,text,text,uuid)',     // 4-arg since 2026-10-04-bounty-abandon-server-fee.sql (guard carried from birth)
+  /* hr_bounty_spend__ungated left the chain end with the bounty board
+     (2026-10-23-demolition-bounty-gems-close.sql, K4): a dropped body has no
+     replay to guard; tests/bounty-gems-close.mjs proves it does not resolve. */
   'public.hr_buy_hero_slot__ungated(int,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',

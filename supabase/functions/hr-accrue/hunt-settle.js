@@ -171,78 +171,19 @@ export async function settleHunt(o) {
 }
 
 async function settleOnce(o, mode) {
-  const { exec, user, slot } = o;
-  const [read] = await exec(HUNT_READ_SQL, [user, slot, mode === 'tick' ? null : (o.bucket || null)]);
-  if (!read || read.allowed !== true) {
-    return { outcome: 'limited', reason: 'rate_limited', ...refusal(429, 'rate_limited') };
-  }
-  const env = read.state;
-  if (!env || env.ok !== true) {
-    return { outcome: 'none', reason: 'no_character', ...refusal(409, (env && env.error) || 'no_character') };
-  }
-  const r = read.inst;
-  if (!r || r.open !== true) {
-    return { outcome: 'none', reason: 'no_hunt', ...refusal(409, 'no_hunt', { ...env, ok: false }) };
-  }
-  const mine = (r.members || []).find((m) => String(m.user) === String(user) && Number(m.slot) === Number(slot));
-  if (!mine || (o.session && String(o.session) !== String(mine.session.id))) {
-    /* The roster named a session that is no longer the open one. Not this fire's. */
-    return { outcome: 'none', reason: 'session_changed', ...refusal(409, 'session_changed') };
-  }
-  const inst = r.instance;
-  /* The server clock, floored to the engine's millisecond. */
-  const nowMs = Math.floor(new Date(read.now).getTime());
-  const fromMs = Number(inst.settled_to_ms);
-  const pending = r.members.some((m) => m.session.leave_at_ms != null || m.session.change_at_ms != null)
-    || inst.enabled === false;
-  if (!(nowMs > fromMs)) {
-    return { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } };
-  }
-  const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
-    : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
-  if (!pending && nowMs - fromMs < minMs) {
-    return { outcome: 'nothing', reason: 'below_min_span', status: 200,
-      body: { ok: true, settled: false, reason: 'below_min_span', ...env } };
-  }
-  const where = (o.grounds && o.grounds[inst.hunt]) || huntGroundOf(inst.hunt);
-  if (!where) return { outcome: 'refused', reason: 'no_ground', ...refusal(409, 'no_ground') };
-
-  const members = [];
-  for (const m of r.members) members.push(await memberInput(exec, m, inst));
-  const partyRoles = members.map((m) => m._role).filter(Boolean);
-  for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
-    if (!m.hero) return { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') };
-  }
-
-  let toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
-  if (!(toMs > fromMs)) {
-    return { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } };
-  }
+  const plan = await readHuntSettle(o, mode);
+  if (plan.answer) return plan.answer;
+  const { user, slot } = o;
+  const { env, fromMs } = plan;
+  let toMs = plan.toMs;
   let degraded = 0;
   for (;;) {
-    const out = accrueHunt({
-      instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },
-      window: { fromMs, toMs }, secret: String(inst.secret || ''),
-      ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
-    });
-    if (!out.accrued) {
-      return { outcome: 'nothing', reason: String(out.reason || 'nothing'), status: 200,
-        body: { ok: true, settled: false, reason: String(out.reason || 'nothing'), ...env } };
+    const p = await proposeHuntSettle(plan, toMs, degraded);
+    if (!p.out.accrued) {
+      return { outcome: 'nothing', reason: String(p.out.reason || 'nothing'), status: 200,
+        body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...env } };
     }
-    const payload = [];
-    for (const p of out.members) {
-      const m = members.find((x) => x.key === p.key);
-      payload.push({ user: m.user, slot: m.slot, session: m.sessionId, version: m.version,
-        intent: await intentIdFor({ user: m.user, slot: m.slot, watermark: huntWatermarkLabel(inst, m),
-          version: m.version, salt: String(inst.secret || ''), attempt: degraded }),
-        delta: p.delta, hunt: p.hunt, analyzer: p.analyzer });
-    }
-    const res = await commitHuntSettle(exec, {
-      instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
-      settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
-      members: payload, project: o.project === true ? { user, slot } : null,
-    });
+    const res = await commitHuntSettle(o.exec, { ...p.commit, project: o.project === true ? { user, slot } : null });
     if (res && res.ok === true) {
       const own = (res.members || []).find((x) => String(x.user) === String(user) && Number(x.slot) === Number(slot)) || {};
       const ended = own.hunt_settle && own.hunt_settle.ended ? String(own.hunt_settle.ended) : null;
@@ -254,7 +195,7 @@ async function settleOnce(o, mode) {
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
-          ...(o.project === true ? { hunt_playback: huntPlayback(out.track, out.events, fromMs, out.settledTo) } : {}),
+          ...(o.project === true ? { hunt_playback: huntPlayback(p.out.track, p.out.events, fromMs, p.out.settledTo) } : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
@@ -270,6 +211,85 @@ async function settleOnce(o, mode) {
     }
     return { outcome: 'refused', reason: err, ...refusal(409, err, { detail: res ?? null, stage: res && res.stage }) };
   }
+}
+
+/* ── THE THREE PIECES OF ONE SETTLE, EXPORTED ────────────────────────────────
+   settleOnce composes exactly these; tests/hunt-sessions-settle.mjs composes the
+   same three against a replayed chain (and may tamper the proposal between the
+   second and the third), so the guard grades the bytes that deploy.
+
+   (1) THE READ: the gate, the instance and its members, the server clock, and
+       every early answer (rate-limited, no hunt, not due, below the floor, no
+       ground, no role). Answers { answer } or the plan { env, inst, members,
+       where, fromMs, toMs }. */
+export async function readHuntSettle(o, mode) {
+  const { exec, user, slot } = o;
+  const [read] = await exec(HUNT_READ_SQL, [user, slot, mode === 'tick' ? null : (o.bucket || null)]);
+  if (!read || read.allowed !== true) {
+    return { answer: { outcome: 'limited', reason: 'rate_limited', ...refusal(429, 'rate_limited') } };
+  }
+  const env = read.state;
+  if (!env || env.ok !== true) {
+    return { answer: { outcome: 'none', reason: 'no_character', ...refusal(409, (env && env.error) || 'no_character') } };
+  }
+  const r = read.inst;
+  if (!r || r.open !== true) {
+    return { answer: { outcome: 'none', reason: 'no_hunt', ...refusal(409, 'no_hunt', { ...env, ok: false }) } };
+  }
+  const mine = (r.members || []).find((m) => String(m.user) === String(user) && Number(m.slot) === Number(slot));
+  if (!mine || (o.session && String(o.session) !== String(mine.session.id))) {
+    /* The roster named a session that is no longer the open one. Not this fire's. */
+    return { answer: { outcome: 'none', reason: 'session_changed', ...refusal(409, 'session_changed') } };
+  }
+  const inst = r.instance;
+  /* The server clock, floored to the engine's millisecond. */
+  const nowMs = Math.floor(new Date(read.now).getTime());
+  const fromMs = Number(inst.settled_to_ms);
+  const pending = r.members.some((m) => m.session.leave_at_ms != null || m.session.change_at_ms != null)
+    || inst.enabled === false;
+  const notDue = { answer: { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } } };
+  if (!(nowMs > fromMs)) return notDue;
+  const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
+    : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
+  if (!pending && nowMs - fromMs < minMs) {
+    return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
+      body: { ok: true, settled: false, reason: 'below_min_span', ...env } } };
+  }
+  const where = (o.grounds && o.grounds[inst.hunt]) || huntGroundOf(inst.hunt);
+  if (!where) return { answer: { outcome: 'refused', reason: 'no_ground', ...refusal(409, 'no_ground') } };
+  const members = [];
+  for (const m of r.members) members.push(await memberInput(exec, m, inst));
+  const partyRoles = members.map((m) => m._role).filter(Boolean);
+  for (const m of members) {
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
+    if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
+  }
+  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  if (!(toMs > fromMs)) return notDue;
+  return { env, inst, members, where, fromMs, toMs };
+}
+
+/* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
+       share. Answers { out, commit } — `commit` is commitHuntSettle's input. */
+export async function proposeHuntSettle(plan, toMs, attempt) {
+  const { inst, members, where, fromMs } = plan;
+  const out = accrueHunt({
+    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },
+    window: { fromMs, toMs }, secret: String(inst.secret || ''),
+    ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
+  });
+  if (!out.accrued) return { out, commit: null };
+  const payload = [];
+  for (const p of out.members) {
+    const m = members.find((x) => x.key === p.key);
+    payload.push({ user: m.user, slot: m.slot, session: m.sessionId, version: m.version,
+      intent: await intentIdFor({ user: m.user, slot: m.slot, watermark: huntWatermarkLabel(inst, m),
+        version: m.version, salt: String(inst.secret || ''), attempt: attempt || 0 }),
+      delta: p.delta, hunt: p.hunt, analyzer: p.analyzer });
+  }
+  return { out, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
+    settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
+    members: payload } };
 }
 
 /* ONE MEMBER'S ENGINE INPUT, from the instance read. Field by field: the
@@ -305,8 +325,9 @@ export function huntWatermarkLabel(inst, m) {
     + ':' + String(m.huntSession.swingIndex);
 }
 
-/** THE COMMIT: one statement, hr_hunt_apply_instance. An HR000 that escaped its
-    own handler is still a named refusal; anything else is a defect and propagates. */
+/* (3) THE COMMIT: one statement, hr_hunt_apply_instance. An HR000 that escaped
+       its own handler is still a named refusal; anything else is a defect and
+       propagates. */
 export async function commitHuntSettle(exec, c) {
   try {
     const [r] = await exec(HUNT_APPLY_SQL, [c.instanceId, c.worldSwingFrom, JSON.stringify(c.settle),

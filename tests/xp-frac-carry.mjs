@@ -299,7 +299,7 @@ async function runArms(L) {
         stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
       let kills = 0;
       for (let i = 0; i < 100000 && kills < 100; i++) {
-        const r = L.sim.simulateTick(st, ctx);
+        const r = L.sim.stepSwing(null, Object.assign({}, ctx, { state: st }));
         if (r.outcome === 'kill') kills++;
         if (r.outcome === 'death' || r.outcome === 'stop') break;
       }
@@ -546,7 +546,7 @@ function drawDigest(L, sink, level) {
   const st = { activeMonster: 'slime', monsterHp: 8, monsterMaxHp: 8, playerHp: 990, playerMaxHp: 990,
     stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
   let kills = 0;
-  for (let i = 0; i < Math.floor(1800000 / tickMs); i++) if (L.sim.simulateTick(st, ctx).outcome === 'kill') kills++;
+  for (let i = 0; i < Math.floor(1800000 / tickMs); i++) if (L.sim.stepSwing(null, Object.assign({}, ctx, { state: st })).outcome === 'kill') kills++;
   return { n, hash: h.toString(16), kills, items: JSON.stringify(sortKeys(items)) };
 }
 

@@ -181,7 +181,7 @@ export async function runAll({ mutate } = {}) {
     const STAFF = Object.keys(ITEMS).find((id) => ITEMS[id] && ITEMS[id].weaponType === 'magic');
     const TARGET = MONSTERS.goblin ? 'goblin' : Object.keys(MONSTERS)[0];
 
-    /* ── THE ATTENDED COLUMN: the live loop, one simulateTick per swing ── */
+    /* ── THE ATTENDED COLUMN: the live loop, one stepSwing per swing ── */
     function attended({ equipment, inventory, skills, ticks, monsterId, seed }) {
       const items = ITEMS; const bonus = () => 0;
       const eq = C.equipmentStats(equipment, items);
@@ -212,7 +212,7 @@ export async function runAll({ mutate } = {}) {
         if (!G.monsterHp || G.monsterHp <= 0) {
           const m = MONSTERS[G.activeMonster]; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
         }
-        const r = SIM.simulateTick(G, ctx);
+        const r = SIM.stepSwing(null, Object.assign({}, ctx, { state: G }));
         if (r.outcome === SIM.OUTCOME.KILL) kills++;
         if (typeof r.mDmg === 'number') taken += r.mDmg;
       }

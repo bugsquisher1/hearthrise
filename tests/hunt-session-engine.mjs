@@ -450,7 +450,7 @@ const MUTANTS = [
     from: "    if (!storeAllowed(v.hs, 'heal')) return { why: 'store_off' };\n", to: '' },
   { arm: 'HEALSTORE', name: 'switch hands over to the store before the bag is empty', file: 'src/core/action-rules.js',
     from: '  return !Object.keys(hs.bag || {}).some((id) => kindOf(id) === kind && leftOf(hs, id) > 0);', to: '  return true;' },
-  { arm: 'SHOPSHOT', name: 'a shop shot hits like its crafted partner', file: 'src/core/combat-sim.js',
+  { arm: 'SHOPSHOT', name: 'a shop shot hits like its crafted partner', file: 'src/core/hunt/world-step.js',
     from: 'supply && supply.shop ? { ammoShare: BASIC_EFFECT_SHARE } : undefined', to: 'undefined' },
   { arm: 'BUFF', name: 'a weaker buff is never dropped', file: 'src/core/buffs.js',
     from: '(Number(s.magnitude) < mag && s.remainingMs <= end)', to: 'false' },

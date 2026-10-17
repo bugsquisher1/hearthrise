@@ -6131,7 +6131,7 @@ function combatTick(){
      above it, being knocked out would read as a stalled fight. */
   if(hrCombatDown())return;
   if(typeof retimeCombat==='function') retimeCombat();
-  const r=window.HearthriseCore.combatSim.simulateTick(G,combatSimCtx());
+  const r=window.HearthriseCore.combatSim.stepSwing(null,Object.assign(combatSimCtx(),{state:G}));
   /* A kill repaints through killMonster; a death repaints through stopCombat;
      a stop has nothing to show. Only an ordinary exchange falls through. */
   if(r.outcome!=='hit')return;

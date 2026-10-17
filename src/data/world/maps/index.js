@@ -1,8 +1,8 @@
 // src/data/world/maps/index.js — every world map, and which one each scene opens on.
 // A new map is a file in this folder plus one row below; nothing else changes.
-import millCellar from './mill_cellar.js?v=590';
-import townCommon from './town_common.js?v=590';
-import homeCottage from './home_cottage.js?v=590';
+import millCellar from './mill_cellar.js?v=591';
+import townCommon from './town_common.js?v=591';
+import homeCottage from './home_cottage.js?v=591';
 
 export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage]);
 

@@ -31,7 +31,7 @@
 
 import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getFloorHeal, getAppliedFrame,
   requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT,
-  armGapHeal, requestGapHeal, getGapHealState } from './accrue.js?v=590';
+  armGapHeal, requestGapHeal, getGapHealState } from './accrue.js?v=591';
 
 export const LIVE_EVENT = 'frame';
 const LIVE_BACKOFF_BASE_MS = 1000;

@@ -17,8 +17,8 @@
 //   signOut()     close every character, then auth.signOut() (every copy)
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=589';
-import { CharacterSession } from './character-session.js?v=589';
+import { SESSION_CONFIG } from './config.js?v=590';
+import { CharacterSession } from './character-session.js?v=590';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {

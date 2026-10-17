@@ -20,8 +20,8 @@ const CONSUMABLES = {
 };
 const CONSUMABLE_LANE = 1.0;   // BIBLE §9.1 PROPOSED test value: shared food/drink lane 1 s
 const LOADOUTS = {             // ASSUMED stack sizes for a sewer trip; runes = carried stock (store runes cover the rest)
-  berserker: { food: ['ham', 25],  drink: ['mana_potion', 10],  runes: { life_rune: 30 } },   // ASSUMED stack
-  knight:   { food: ['ham', 25],   drink: ['mana_potion', 10],  runes: { fire_rune: 20 } },
+  berserker: { food: ['ham', 25],  drink: ['mana_potion', 30],  runes: { life_rune: 30 } },   // ASSUMED stack
+  knight:   { food: ['ham', 25],   drink: ['mana_potion', 30],  runes: { fire_rune: 20 } },
   paladin:  { food: ['bread', 15], drink: ['mana_potion', 12],  runes: { fire_rune: 30 } },
   sorcerer: { food: ['bread', 12], drink: ['mana_potion', 40],  runes: { fire_rune: 60, frost_rune: 60 } },
   druid:    { food: ['bread', 12], drink: ['mana_potion', 40],  runes: {} },

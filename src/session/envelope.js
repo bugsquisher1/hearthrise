@@ -27,7 +27,7 @@
 //      ('incomplete') rather than allowed to replace the record with less.
 // ════════════════════════════════════════════════════════════════════════
 
-import { residueOf } from './residue.js?v=589';
+import { residueOf } from './residue.js?v=590';
 
 /** Envelope keys that describe the answer, not the character. */
 const META = Object.freeze(['ok', 'error', 'accrued']);

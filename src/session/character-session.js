@@ -21,9 +21,9 @@
 // only thing it sends of its own is the allowlisted residue.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=589';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=589';
-import { SESSION_CONFIG } from './config.js?v=589';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=590';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=590';
+import { SESSION_CONFIG } from './config.js?v=590';
 
 export const FRAME_EVENT = 'frame';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

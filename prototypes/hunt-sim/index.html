@@ -105,13 +105,16 @@
   #tip .n { color:var(--gold-2); font-weight:700; } #tip .c { color:var(--paper); }
 
   /* ---- logs and the panels menu ---- */
-  #log { right:6px; bottom:150px; width:300px; } #lootp { left:6px; bottom:150px; width:270px; }
+  #log { right:274px; bottom:150px; width:300px; max-width:calc(100vw - 274px - 282px); } #lootp { left:6px; bottom:150px; width:270px; }
   #logBody, #lootBody { margin:4px 8px 8px; white-space:pre; max-height:24vh; overflow:auto; overflow-x:hidden; font:500 12px var(--f-ui); color:var(--paper); }
   #log b { color:var(--lit); font-weight:700; }
   /* panel scrollbars: thin charcoal track, gold thumb (Charcoal & Gold) */
   @supports not selector(::-webkit-scrollbar) { .pnl * { scrollbar-color:rgba(201,162,74,.55) #14161b; } }
   .pnl ::-webkit-scrollbar { width:8px; } .pnl ::-webkit-scrollbar-track { background:#14161b; }
   .pnl ::-webkit-scrollbar-thumb { background:rgba(201,162,74,.55); border-radius:4px; } .pnl ::-webkit-scrollbar-thumb:hover { background:#c9a24a; }
+  #builder { position:fixed; top:40px; left:8px; background:var(--plank-1); border:1px solid var(--iron); padding:6px 8px; z-index:8; font:500 13px var(--f-ui); display:flex; flex-direction:column; gap:4px; max-width:96vw; }
+  #builder .brow { display:flex; gap:5px; align-items:center; flex-wrap:wrap; } #builder .brow > b { color:var(--gold-2); width:12px; }
+  #builder .creg { display:inline-flex; gap:2px; align-items:center; color:var(--rail-ink); font:500 11px var(--f-label); } #builder input[type=color] { width:26px; height:20px; padding:0; border:1px solid var(--iron); background:none; }
   #comp { display:inline-flex; gap:6px; align-items:center; padding:0 4px; font:500 12px var(--f-ui); color:var(--ink); }
   #comp label { display:inline-flex; gap:2px; align-items:center; cursor:pointer; white-space:nowrap; }
   .hidden { display:none !important; }
@@ -131,12 +134,13 @@
   <button id="pause">Pause</button>
   <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
   <button id="restart">Restart</button>
-  <span id="comp" title="Party: tick any 1-4 heroes; the front-most leads"><label><input type="checkbox" value="knight" checked>Melee (tank)</label><label><input type="checkbox" value="berserker">Melee (dps)</label><label><input type="checkbox" value="paladin" checked>Ranger</label><label><input type="checkbox" value="sorcerer" checked>Mage</label><label><input type="checkbox" value="druid" checked>Healer</label></span>
+  <button id="partyBtn" title="Party builder: 4 slots x role x outfit (+ colours)">Party ▾</button>
   <button id="tGrid">Grid</button>
   <button id="tPath">Paths</button>
   <button id="partyCam" title="Free cam: follow the party centre (P)">Party cam</button>
   <button id="keysBtn" title="Keyboard shortcuts">Hotkeys ▾</button>
 </div>
+<div id="builder" class="hidden"></div>
 <div id="keysMenu" class="hidden">
   <div><kbd>1</kbd>–<kbd>4</kbd> View a hero (Melee, Ranger, Healer, Mage)</div>
   <div><kbd>P</kbd> Party cam (follow the group)</div>
@@ -153,11 +157,11 @@
 <div id="panelsMenu" class="hidden"></div>
 <div id="lootp" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Loot</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="lootBody"></div></div>
 <div id="log" class="pnl"><span class="cb bl"></span><span class="cb br"></span><div class="hd"><span class="ttl">Pulls</span><span class="sp"></span><button class="minb stud" title="minimize">–</button></div><div id="logBody"></div></div>
-<script src="grid.js?v=51"></script>
-<script src="combat-data.js?v=51"></script>
-<script src="vfx.js?v=51"></script>
-<script src="ambient.js?v=51"></script>
-<script src="sim.js?v=51"></script>
-<script src="ui.js?v=51"></script>
+<script src="grid.js?v=53"></script>
+<script src="combat-data.js?v=53"></script>
+<script src="vfx.js?v=53"></script>
+<script src="ambient.js?v=53"></script>
+<script src="sim.js?v=53"></script>
+<script src="ui.js?v=53"></script>
 </body>
 </html>

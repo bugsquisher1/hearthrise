@@ -7,8 +7,8 @@
 // HTML. tests/shell-renderers.mjs fails the build on a row with no renderer or
 // a renderer with no row, so a launcher can never open an empty window.
 // ════════════════════════════════════════════════════════════════════════
-import { renderLaunchers } from './launcher.js?v=589';
-import { renderHudSettings } from './hud.js?v=589';
+import { renderLaunchers } from './launcher.js?v=590';
+import { renderHudSettings } from './hud.js?v=590';
 
 export const WINDOW_RENDERERS = Object.freeze({
   hud: renderHudSettings,

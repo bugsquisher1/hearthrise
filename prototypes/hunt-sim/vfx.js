@@ -3,10 +3,10 @@
 // placeholder effects in sim.js when an effect is missing or not loaded yet.
 const VFXLIB = (() => {
   const FX = {};
-  fetch('assets/walk/vfx/manifest.json?v=48').then(r => r.ok ? r.json() : null).then(m => {
+  fetch('assets/walk/vfx/manifest.json?v=53').then(r => r.ok ? r.json() : null).then(m => {
     if (!m) return;
     for (const [name, e] of Object.entries(m.effects || {})) {
-      FX[name] = { frames: e.frames.map(p => { const i = new Image(); i.src = 'assets/walk/vfx/' + p + '?v=48'; return i; }),
+      FX[name] = { frames: e.frames.map(p => { const i = new Image(); i.src = 'assets/walk/vfx/' + p + '?v=53'; return i; }),
         fps: e.fps, anchor: e.anchor, loop: !!e.loop, additive: !!e.additive };
     }
   }).catch(() => {});

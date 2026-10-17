@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 590 — 2026-10-17 (Back soon)
+
+**Hearthrise is closed for a rebuild.** The site now shows a short "back soon" page while we rebuild the game from the ground up around the new hunts. Discord gets the reopening date first.
+
 ## v0.9.2-beta build 589 — 2026-10-15 (A new hunting engine)
 
 **Hunting runs on a brand-new engine.** Hunts now run on the server as private hunts with one steady 2-second swing, a stamina pool, and a choice of using your own supplies or the store's. The new hunt screen arrives soon; while the game is closed, the old fight view is switched off.

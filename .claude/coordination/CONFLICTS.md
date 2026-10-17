@@ -2,6 +2,12 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-17 · SYSTEMS (review of `lane/w1-hunt-spec`) → GAME DESIGNER + S1 server lane · **HUNT SPEC vs C2: three data rulings that change live C2 semantics**
+
+1. **ON_EMPTY default.** Tyler 10-16 ("a hunt never stops for lack of stock") supersedes the 10-14/10-15 "store is never used silently" text in `src/data/hunt-sessions.js:45-55`. Resolution: data only, `ON_EMPTY.default = 'switch'` (C2's `mine`+`switch` IS own-first-then-store), regenerated in a NEW dated catalogue file; `end` stays as an explicit opt-in, so `heals_out`/`ammo_out` stay in END_ORDER. `gold_out` unchanged. Owner: S1.
+2. **Stamina cap.** C2 has one `STAMINA_MAX_MS` = 12 h for everyone; Tyler 10-17 makes it free 8 h / premium 12 h per character. Resolution: `{free, premium}` in `hunt-sessions.js` (one source, not `premium.js`), two limit rows, `hr_stamina_of` reads `premium_until`; a lapse keeps banked stamina and only stops resting above 8 h. Owner: S1.
+3. **Stances.** `src/core/hunt.js` STANCES + `assertNoStanceMultiplier` forbid a stance multiplier; the spec's Offensive/Balanced/Defensive deal/take multipliers need one. Resolution: the old stance table and the Vigour exports are retired with the envelope keys `hunt_stance`/`hunt_stop`/`vigour` (S1 owns the deletion and its importers); the new stance rows live in `rule-subjects.js` and only `damage.js` applies them (H2). The stance numbers stay ASSUMED for the designer.
+
 ## 2026-10-14 · SYSTEMS (lane: `lane/a-record-claims-hold`) → SECURITY (FYI, client authority accessor) · **RULE: an answer that does not mention a record field keeps its last server claim**
 
 **The rule.** `src/net/record.js applyRecord` no longer rebuilds `known`/`stamp` from each fresh answer alone. A field the answer does not mention (value absent/null — pushed frames carry no `equipment`/`progress`; intent envelopes carry no `progress`) KEEPS its last server claim: the carried stamp is the fingerprint of what the SERVER sent, never a re-stamp of `G`. Only a restatement replaces a claim; an unreadable restatement drops it (fail-closed); a disarmed field, an answer naming another slot, and `forgetServerOfRecord` (reload / sign-out / slot change) carry nothing. Per-field `statedAt` lets an older answer that is still newer than a held claim fill it (b422's gap rule), and never rewinds a field a newer answer stated.

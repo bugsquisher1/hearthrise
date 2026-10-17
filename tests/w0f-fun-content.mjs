@@ -6,21 +6,16 @@
 //
 //   (crop)   every CROPS row grants 42x its b226 base (14 x the W0 x3), and the
 //            staged migration moves hr_crops.xp to EXACTLY those numbers.
-//   (forge)  each of the three boss materials (Void Essence, Riftmaw Husk,
-//            Elderscale Heart) is consumed by a recipe; each recipe output is
-//            bind-on-pickup body armour of its line that BEATS its Dawnsteel
-//            twin on defence and on the line's own stat, gates above it, and is
-//            valued at no more than the twin x 1.1 (no new vendor route); every
-//            input exists; the material really drops from the named dungeon.
-//   (trophy) each boss trophy exists and drops from the dungeon its wall row
-//            names (so "where from" can never lie).
+//   (trophy) each boss trophy exists and its wall line is words, not numbers.
+//            (The (forge) rule, the trophy's dungeon source and the champion's
+//            "never on the bounty board" check left with crafted gear, the
+//            dungeons and the bounty board in the 2026-10-14 demolition.)
 //   (champ)  one champion per tier 1-5, flagged champion, never a boss, the
 //            roster audit clean; its relic is the LAST row, flagged champion,
-//            in the rare band, the relic's ONLY source anywhere (no dungeon,
-//            shop, QM, boss or other monster); expected hours at the tier's
+//            in the rare band, the relic's ONLY source anywhere (no shop, boss,
+//            recipe or other monster); expected hours at the tier's
 //            loadout are in [1, 4] with no death in the measured hour; the
-//            relic adds <= 5% of the gp midpoint per kill in vendor value; the
-//            bounty board never picks a champion over 2,000 seeded boards.
+//            relic adds <= 5% of the gp midpoint per kill in vendor value.
 //   (sql)    the staged migration names every new item, slot pair, activity
 //            and bounty-monster row with the values the data derives (the
 //            literal-drift half; the executed half is the migration's own §2).
@@ -38,17 +33,14 @@ import { ITEMS } from '../src/data/items.js';
 import { CROPS } from '../src/data/gathering.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEM_DESC } from '../src/data/item-descriptions.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
-import { RAID_BOSSES } from '../src/data/raid-bosses.js';
-import { BOSS_FORGE_ITEMS, BOSS_FORGE_RECIPES, BOSS_TROPHIES, bossTrophiesHeld } from '../src/data/boss-forge.js';
+import { BOSS_TROPHIES, bossTrophiesHeld } from '../src/data/boss-forge.js';
 import { CHAMPION_ITEMS, CHAMPION_BY_TIER } from '../src/data/champions.js';
 import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
-import { pickBountyMonster } from '../src/core/bounty.js';
-import { createRng } from '../src/core/rng.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
+import { createRng } from '../src/core/rng.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   swingIntervalMs, DEFAULT_PROFILE,
@@ -68,11 +60,6 @@ const ok = (cond, rule, msg) => { if (!cond) fails.push(`(${rule}) ${msg}`); };
 const CROP_BASE = Object.freeze({ turnip: 8, carrot: 12, wheat: 18, potato: 25, tomato: 35, pumpkin: 60,
   goldenroot: 85, emberfruit: 120, moonbloom: 170 });
 const CROP_MULT = 42;
-const FORGE = Object.freeze({
-  elderscale_heart: { output: 'elderscale_platebody', twin: 'dawn_platebody', line: 'defB', dungeon: 'ancient_wyrm' },
-  riftmaw_husk:     { output: 'riftmaw_carapace',     twin: 'voidhide_body',  line: 'rangeAtkB', dungeon: 'voidbringer' },
-  void_essence:     { output: 'voidheart_robe',       twin: 'voidweave_body', line: 'magicAtkB', dungeon: 'voidbringer' },
-});
 const HOURS_MIN = 1;
 const HOURS_MAX = 4;
 const FAUCET_SHARE = 0.05;
@@ -89,7 +76,6 @@ const mentions = (v, id) => {
   return false;
 };
 const allRecipes = () => Object.values(ARTISAN_RECIPES).flat();
-const inputsOf = (r) => (r.inputs ? Object.keys(r.inputs) : [r.input].concat(Object.keys(r.secondary || {}))).filter(Boolean);
 
 function equipmentFor(tier) {
   const m = LOADOUT[tier].metal;
@@ -136,38 +122,10 @@ function checkCrops(crops, sql) {
     `CROPS has ${Object.keys(crops).length} rows, the ruling covers ${Object.keys(CROP_BASE).length} — a new crop needs a ruled base`);
 }
 
-function checkForge(items, recipes, dungeons, sql) {
-  for (const [mat, f] of Object.entries(FORGE)) {
-    const consumers = recipes.filter((r) => inputsOf(r).includes(mat));
-    ok(consumers.length >= 1, 'forge', `${mat}: no recipe consumes it — a boss material that crafts nothing`);
-    const r = recipes.find((x) => x.output === f.output);
-    ok(!!r && inputsOf(r).includes(mat), 'forge', `${f.output}: no recipe forges it from ${mat}`);
-    const it = items[f.output];
-    const tw = items[f.twin];
-    ok(!!it && !!tw, 'forge', `${f.output} or its twin ${f.twin} is missing from ITEMS`);
-    if (!it || !tw || !r) continue;
-    ok(it.bop === true, 'forge', `${f.output}: boss gear must be bind-on-pickup`);
-    ok(it.slot === tw.slot && it.armourClass === tw.armourClass, 'forge', `${f.output}: not the same slot/line as ${f.twin}`);
-    ok((it.defB || 0) > (tw.defB || 0), 'forge', `${f.output}: defB ${it.defB} does not beat ${f.twin}'s ${tw.defB}`);
-    ok((it[f.line] || 0) >= (tw[f.line] || 0), 'forge', `${f.output}: ${f.line} ${it[f.line]} is below ${f.twin}'s ${tw[f.line]}`);
-    ok(it.reqSkill === 'defense' && it.reqLv > tw.reqLv, 'forge', `${f.output}: gate ${it.reqSkill} ${it.reqLv} is not above ${f.twin}'s ${tw.reqLv}`);
-    ok(it.v <= Math.round(tw.v * 1.1), 'forge', `${f.output}: value ${it.v} is above ${f.twin} x 1.1 (${Math.round(tw.v * 1.1)})`);
-    ok(!!ITEM_DESC[f.output], 'forge', `${f.output}: no flavour line`);
-    for (const inp of inputsOf(r)) ok(!!items[inp], 'forge', `${r.id}: input ${inp} is not an item`);
-    ok(r.req >= 1 && r.req <= 99, 'forge', `${r.id}: bench level ${r.req} outside 1..99`);
-    const dg = dungeons[f.dungeon];
-    ok(!!dg && mentions(dg.loot, mat), 'forge', `${mat}: does not drop from ${f.dungeon}`);
-    ok(new RegExp(`\\["${f.output}",\\s*"[^"]+",\\s*"armor",\\s*${it.v},\\s*"defense",\\s*${it.reqLv},\\s*false\\]`).test(sql),
-      'sql', `${f.output}: the migration's hr_items row does not match the data (armor/${it.v}/defense ${it.reqLv}/untradeable)`);
-    ok(new RegExp(`\\["artisan",\\s*"${r.id}",\\s*"[a-z]+",\\s*${r.req}\\]`).test(sql), 'sql', `${r.id}: the migration has no artisan row at ${r.req}`);
-  }
-}
-
-function checkTrophies(items, dungeons) {
-  ok(BOSS_TROPHIES.length === 4, 'trophy', `the wall names ${BOSS_TROPHIES.length} boss trophies, the ruling names 4`);
-  for (const t of BOSS_TROPHIES) {
+function checkTrophies(items, trophies = BOSS_TROPHIES) {
+  ok(trophies.length === 4, 'trophy', `the wall names ${trophies.length} boss trophies, the ruling names 4`);
+  for (const t of trophies) {
     ok(!!items[t.item], 'trophy', `${t.item}: not an item`);
-    ok(!!dungeons[t.dungeon] && mentions(dungeons[t.dungeon].loot, t.item), 'trophy', `${t.item}: does not drop from ${t.dungeon}`);
     ok(typeof t.line === 'string' && t.line.length > 10 && !/\d/.test(t.line), 'trophy', `${t.item}: the wall line must be words, no numbers`);
   }
   const held = bossTrophiesHeld({ warboss_standard: 1, dragon_relic: 0 }, { dragon_relic: 2, gold: 9 });
@@ -203,10 +161,8 @@ function checkChampions(monsters, items, sql, { measure = true } = {}) {
     for (const [oid, om] of Object.entries(monsters)) {
       (om.drops || []).forEach((od) => { if (od.id === last.id && oid !== mid) ok(false, 'champ', `${last.id}: also drops from ${oid}`); });
     }
-    ok(!Object.values(DUNGEONS).some((dg) => mentions(dg.loot, last.id)), 'champ', `${last.id}: is dungeon loot`);
-    ok(!QM_STOCK.some((q) => q.id === last.id), 'champ', `${last.id}: is Quartermaster stock`);
     ok(!SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.id === last.id)), 'champ', `${last.id}: is a shop grant`);
-    ok(!mentions(BOSSES, last.id) && !mentions(RAID_BOSSES, last.id), 'champ', `${last.id}: is boss/raid loot`);
+    ok(!mentions(BOSSES, last.id), 'champ', `${last.id}: is boss loot`);
     ok(!allRecipes().some((r) => r.output === last.id), 'champ', `${last.id}: is also crafted`);
     /* FAUCET. */
     const gpMid = (m.gp[0] + m.gp[1]) / 2;
@@ -228,16 +184,6 @@ function checkChampions(monsters, items, sql, { measure = true } = {}) {
         + `${String(got.kills).padStart(4)} kills/h  ${hrs.toFixed(1)} h`);
     }
   }
-  /* THE BOARD. */
-  let picked = 0;
-  for (let s = 0; s < 2000; s++) {
-    const rng = createRng(SEED + s);
-    const tier = 1 + (s % 5);
-    const mode = ['normal', 'safe', 'interesting'][s % 3];
-    const id = pickBountyMonster(tier, mode, [], monsters, rng);
-    if (monsters[id] && monsters[id].champion) picked++;
-  }
-  ok(picked === 0, 'champ', `the bounty board picked a champion ${picked} time(s) in 2,000 boards`);
   return lines;
 }
 
@@ -246,12 +192,9 @@ function checkAll(over = {}) {
   const monsters = over.monsters || MONSTERS;
   const items = over.items || ITEMS;
   const crops = over.crops || CROPS;
-  const recipes = over.recipes || allRecipes();
-  const dungeons = over.dungeons || DUNGEONS;
   const sql = over.sql != null ? over.sql : readFileSync(SQL_FILE, 'utf8');
   checkCrops(crops, sql);
-  checkForge(items, recipes, dungeons, sql);
-  checkTrophies(items, dungeons);
+  checkTrophies(items, over.trophies);
   const lines = checkChampions(monsters, items, sql, { measure: over.measure !== false });
   return { fails: fails.slice(), lines };
 }
@@ -265,14 +208,7 @@ const cloneMonsters = () => {
 const MUTATIONS = {
   crop_back_to_x14:   { rule: 'crop',  over: () => ({ crops: { ...CROPS, turnip: { ...CROPS.turnip, xp: 112 } }, measure: false }) },
   sql_crop_stale:     { rule: 'sql',   over: () => ({ sql: readFileSync(SQL_FILE, 'utf8').replace(/\('moonbloom',\s*7140\)/g, "('moonbloom', 2380)"), measure: false }) },
-  husk_crafts_nothing:{ rule: 'forge', over: () => ({ recipes: allRecipes().filter((r) => r.id !== 'craft_riftmaw_carapace'), measure: false }) },
-  forge_not_bop:      { rule: 'forge', over: () => ({ items: { ...ITEMS, voidheart_robe: { ...ITEMS.voidheart_robe, bop: false } }, measure: false }) },
-  forge_sidegrade:    { rule: 'forge', over: () => ({ items: { ...ITEMS, elderscale_platebody: { ...ITEMS.elderscale_platebody, defB: 90 } }, measure: false }) },
-  forge_overvalued:   { rule: 'forge', over: () => ({ items: { ...ITEMS, riftmaw_carapace: { ...ITEMS.riftmaw_carapace, v: 200000 } }, measure: false }) },
-  trophy_moved:       { rule: 'trophy', over: () => {
-    const d = { ...DUNGEONS, goblin_warcamp: { ...DUNGEONS.goblin_warcamp, loot: (DUNGEONS.goblin_warcamp.loot || []).filter((x) => x.id !== 'warboss_standard') } };
-    return { dungeons: d, measure: false };
-  } },
+  trophy_line_number: { rule: 'trophy', over: () => ({ trophies: BOSS_TROPHIES.map((t, i) => (i ? t : { ...t, line: 'Hung over the door 3 times.' })), measure: false }) },
   champion_is_boss:   { rule: 'champ', over: () => { const ms = cloneMonsters(); ms.old_tusker.boss = true; return { monsters: ms, measure: false }; } },
   relic_ch_x20:       { rule: 'champ', over: () => { const ms = cloneMonsters(); const d = ms.mire_witch.drops; d[d.length - 1].ch *= 20; return { monsters: ms }; } },
   relic_second_source:{ rule: 'champ', over: () => { const ms = cloneMonsters(); ms.goblin.drops.push({ id: 'tusker_charm', ch: .0005 }); return { monsters: ms, measure: false }; } },
@@ -307,6 +243,6 @@ if (res.fails.length) {
   if (res.lines.length) console.error(res.lines.join('\n'));
   process.exit(1);
 }
-console.log(`w0f-fun-content: crops x${CROP_MULT}, 3 boss-forge recipes, ${BOSS_TROPHIES.length} wall trophies, `
+console.log(`w0f-fun-content: crops x${CROP_MULT}, ${BOSS_TROPHIES.length} wall trophies, `
   + `5 champions — every rule holds (fed hour, seed ${SEED}, Controlled)\n${res.lines.join('\n')}`);
 process.exit(0);

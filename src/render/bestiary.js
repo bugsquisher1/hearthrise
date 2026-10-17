@@ -2,8 +2,8 @@
 // src/render/bestiary.js — the Bestiary (render layer, the Journal's Bestiary tab)
 //
 // The READ-ONLY monster list: window.MONSTERS (the published catalogue) plus
-// the per-player record, painted as one row per monster with the charm strip
-// above it. It computes and mutates NOTHING authoritative. Every count on a row
+// the per-player record, painted as one row per monster (the charm strip left
+// with the charms in the 2026-10-14 demolition). It computes and mutates NOTHING authoritative. Every count on a row
 // is the SERVER's (window.HearthriseTrophies reads the mirrored server block and
 // fails safe); G.bestiary is the locally-written residue and is read for one
 // thing only, whether a row is named. The kill-tracking LOGIC that writes it
@@ -21,14 +21,9 @@
 
     G.bestiary = G.bestiary || {};
     if (!MONSTERS) return '<div class="muted">Monsters not loaded.</div>';
-    /* BESTIARY CHARMS (phase 1). Resolved at CALL TIME, unwired-safe: without
-       the ESM half this is null and every charm affordance is simply absent —
-       the list renders without them. Fail-safe, never a gate. */
-    var C = window.HearthriseCharms || null;
     /* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder,
-       resolved at CALL TIME and unwired-safe exactly like the charms above:
-       without the ESM half this is null and every trophy affordance is simply
-       absent. Fail-safe, never a gate. */
+       resolved at CALL TIME and unwired-safe: without the ESM half this is null
+       and every trophy affordance is simply absent. Fail-safe, never a gate. */
     var T = window.HearthriseTrophies || null;
     var pending = '<span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span>';
     var rows = Object.entries(MONSTERS).map(function (kv) {
@@ -38,10 +33,6 @@
       var path = window._monsterIcon && window._monsterIcon[id];
       /* was  — the monster's data emoji, in a bestiary of 111 rows. */
       var img = path ? '<img src="' + path + '" />' : window.monsterFallbackIcon(id, 26);
-      /* The element weakness, printed only once the class is STUDIED (rank ≥1)
-         — that is the charm's whole reward, and for Extra Dimensional
-         (`hiddenElement`) it is the only door. '' below rank 1. */
-      var el = (disc && C) ? C.elementLineHtml(id) : '';
       /* ⚠ THE TROPHY LINE READS THE *SERVER'S* COUNT, NOT `entry.kills`.
          `entry` is G.bestiary — the locally-written residue map the row's `×`
          figure has always come from — and gating a claim on it would put a live
@@ -73,47 +64,13 @@
       return '<div class="bestiary-row ' + (named ? 'discovered' : 'undiscovered') + '"' +
         (named ? ' data-jr-mon="' + id + '" role="button" tabindex="0" title="' + m.name + ': drop table"' : '') + '>' +
         '<div class="br-icon">' + img + '</div>' +
-        '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + trophy + '</div>' +
+        '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + trophy + '</div>' +
         '<div class="br-kills">' + (!countsKnown ? pending : (tKills > 0 ? tKills.toLocaleString() + '×' : '—')) + '</div>' + noteHtml +
       '</div>';
     }).join('');
-    return '<div id="best-charms" class="charm-strip">' + charmStripHtml(C) + '</div><div id="best-list" class="bestiary-list">' + rows + '</div>';
+    return '<div id="best-list" class="bestiary-list">' + rows + '</div>';
   }
   window.HearthriseBestiary = { html: html };
-
-  /* ── THE CHARM STRIP ────────────────────────────────────────────────────
-     One chip per monster class the SERVER has counted kills for: the class
-     name, the rank badge, and the "next charm at N kills" affordance. Classes
-     with zero server-counted kills are omitted rather than shown at zero — a
-     wall of eleven "0 kills" chips teaches nothing, and the row a player has
-     actually worked on is the one worth printing.
-
-     Reads window.HearthriseCharms, which reads `G._bestiaryCharms` (the server
-     block, scratch, `_`-prefixed) and NEVER `G.bestiary` — that is the
-     locally-written residue field, and gating a capability on it is the
-     residue-ahead bug class. No counters mirrored yet ⇒ a pending line, never "No charms". */
-  function charmStripHtml(C) {
-    if (!C) return '';
-    if (typeof C.countersKnown === 'function' && !C.countersKnown()) {
-      return '<div class="muted charm-pending" data-charm-pending="1">Charm kills not counted yet <span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span></div>';
-    }
-    /* The class list, its order and its display names are DERIVED from the
-       taxonomy + roster by C.charmClasses() — not listed here. A hardcoded
-       eleven-string list in a renderer is a third copy of the taxonomy and the
-       first one to go stale when the twelfth class lands. */
-    var rows = C.charmClasses();
-    var chips = rows.map(function (r) {
-      return '<div class="charm-chip' + (r.rank ? ' is-ranked' : '') + '">'
-        + '<span class="cc-name">' + r.name + '</span>'
-        + C.badgeHtml(r.cls)
-        + '<span class="cc-kills">' + r.kills.toLocaleString() + ' killed</span>'
-        + C.nextThresholdHtml(r.cls)
-        + '</div>';
-    });
-    return chips.length
-      ? chips.join('')
-      : '<div class="muted charm-empty">No charms yet — 25 kills in any monster class earns your first.</div>';
-  }
 
   console.log('Bestiary: loaded');
 })();

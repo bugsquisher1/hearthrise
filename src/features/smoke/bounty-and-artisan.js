@@ -29,561 +29,12 @@ export default [
      Three nets, one per test below: don't POST it, rescue an in-flight one at
      boot, and never leave a completed one hanging. Each fails without the fix.
      ══════════════════════════════════════════════════════════════════════════ */
-  () => tryRun('BOUNTY-PAY-1: under the gold arm the board posts ONLY settleable contract types — and the unlock ladder is intact', () => {
-    if (typeof window.generateBountyBoard !== 'function') return;
-    const C = window.HearthriseCore;
-    if (!C || !C.bounty || typeof C.bounty.isOfferableType !== 'function') {
-      assert(false, 'src/core/bounty.js must export the BOUNTY_TURN_IN payability filter — without it the board '
-        + 'can post a proof/weapon/streak contract that has no turn-in anywhere');
-      return;
-    }
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    try {
-      const G = window.G;
-      /* A Bounty Hunter well past every type unlock, so the ladder genuinely
-         offers proof (lv5) / weapon (10) / streak (15). Without that this test
-         would pass against a level-1 board that only ever had culls. */
-      /* b503: the second write used to be `G.bountyHunter.xp = 20000` — the
-         residue mirror. That mirror is GONE (the xp is a server-owned skill;
-         see the BOUNTY HUNTER header in legacy.js), so setting it here would
-         seed a field nothing reads and quietly imply the mirror still exists. */
-      G.skills.bountyHunter = 20000;
-      assert(window.getBountyHunterLevel() >= 15,
-        'CONTROL: the test character must be past the streak unlock, got BH ' + window.getBountyHunterLevel());
-      assert(C.bounty.unlockedTypes(window.getBountyHunterLevel()).indexOf('proof') >= 0,
-        'CONTROL: the LADDER must still contain proof — this fix gates what is POSTED, it must not delete the ladder');
 
-      // ARMED (live): the client cannot pay, so only server-settled types may post.
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
-      const armedTypes = {};
-      for (let i = 0; i < 60; i++) window.generateBountyBoard().forEach((b) => { armedTypes[b.type] = 1; });
-      const armedList = Object.keys(armedTypes).sort();
-      const unsettleable = armedList.filter((t) => !C.bounty.isOfferableType(t, false));
-      assert(!unsettleable.length,
-        'the board posted ' + unsettleable.join('/') + ' while the client may not pay and no server verb accepts it — '
-        + 'that contract can be accepted and filled and then has nowhere to turn in');
-      assert(armedList.length && armedList.indexOf('cull') >= 0, 'CONTROL: the board must still post something');
 
-      // DORMANT (client owns gold): the full ladder is still posted.
-      window.clientMayWriteRecordField = () => true;
-      const dormant = {};
-      for (let i = 0; i < 120; i++) window.generateBountyBoard().forEach((b) => { dormant[b.type] = 1; });
-      assert(dormant.proof,
-        'the client-owned position must still post proof contracts — the fix is a PAYABILITY gate, not a content cut, '
-        + 'and a filter that fires in both states has silently deleted three bounty types');
-    } finally {
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
-  () => tryRun('BOUNTY-PAY-2: a completed contract the game cannot settle is withdrawn and SAID — never left hanging (the last b411 bare return)', () => {
-    if (typeof window.handleBountyKill !== 'function' || typeof window.acceptBounty !== 'function') return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const origNotify = window.notify;
-    const toasts = [];
-    try {
-      const G = window.G;
-      window.notify = (m) => { toasts.push(String(m)); };
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
-      const monId = Object.keys(window.MONSTERS)[0];
-      const proof = (window.MONSTERS[monId].drops || [])[0] && window.MONSTERS[monId].drops[0].id;
-      if (!proof) return;
-      G.inventory[proof] = 0;
-      G.bountyHunter.active = null;
-      /* gold > 0 is what makes it unsettleable — that is the exact predicate the
-         old bare return used, so a reward of {gold:0} would not reproduce it. */
-      G.bountyHunter.board = [{ id: 'test_unsettleable', type: 'proof', target: monId, tier: 1, progress: 0,
-        proofItem: proof, required: 3, rewards: { gold: 320, marks: 6, xp: 45 } }];
-      window.acceptBounty(0);
-      assert(G.bountyHunter.active && G.bountyHunter.active.type === 'proof', 'CONTROL: the proof contract must be accepted');
-      toasts.length = 0;
-      G.inventory[proof] = 3;                       // fill it, the way a player does
-      window.handleBountyKill(monId, window.MONSTERS[monId]);
-      assert(!G.bountyHunter.active,
-        'the contract is still ACTIVE at full progress with no payout — this is the live bug: the bar reads '
-        + '3/3, nothing pays, no toast fires, and the board rail hides the reroll button while a bounty is active');
-      assert(toasts.length > 0,
-        'the withdraw said nothing to the player — a silent no-op is the b411 defect the b461 sweep was supposed to end');
-      assert(G.bountyHunter.board.length > 0, 'the board must be reposted so the player is not stranded');
-    } finally {
-      window.notify = origNotify;
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
-  () => tryRun('BOUNTY-PAY-3: an unsettleable contract already in a SAVE is withdrawn free on the first ensure of the session', () => {
-    if (typeof window.ensureBountyState !== 'function') return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const origNotify = window.notify;
-    const origLatch = window.__hrBountyBootStripped;
-    const toasts = [];
-    try {
-      const G = window.G;
-      window.notify = (m) => { toasts.push(String(m)); };
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
-      const monId = Object.keys(window.MONSTERS)[0];
-      const marksBefore = G.marks || 0;
-      G.bountyHunter.active = { id: 'stuck', type: 'streak', target: monId, tier: 1, progress: 40,
-        required: 40, streak: 40, rewards: { gold: 320, marks: 6, xp: 45 } };
-      window.__hrBountyBootStripped = false;        // this ensure IS a boot
-      window.ensureBountyState();
-      assert(!G.bountyHunter.active,
-        'a save carrying an unsettleable in-flight contract must be released at boot — otherwise every player who '
-        + 'already accepted one stays locked out of the board no matter how many times they reload');
-      assert((G.marks || 0) === marksBefore,
-        'the withdraw must be FREE — the player must not be charged the abandon fee for a contract we mis-sold');
-      assert(toasts.length > 0, 'the boot withdraw must tell the player what happened to their contract');
-      assert(G.bountyHunter.board.length > 0, 'the board must be reposted after the withdraw');
-      // …and it must not fire again on the next ensure (a per-kill toast storm).
-      toasts.length = 0;
-      window.ensureBountyState();
-      assert(toasts.length === 0, 'the rescue notice must be boot-once, not once per kill');
-    } finally {
-      window.__hrBountyBootStripped = origLatch;
-      window.notify = origNotify;
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
-  () => tryRunAsync('BOUNTY-MARKS-1 (bug_reports #46): a server-confirmed turn-in REFRESHES the balance it just credited — "completed 1 task but I got 0 marks"', async () => {
-    if (typeof window.handleBountyKill !== 'function' || typeof window.acceptBounty !== 'function') return;
-    const R = window.HearthriseRecord;
-    if (!R || typeof R.requestRecord !== 'function') return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const origClaim = window.HearthriseGoalClaim;
-    const origNotify = window.notify;
-    const toasts = [];
-    let refreshes = 0;
-    try {
-      const G = window.G;
-      window.notify = (m) => { toasts.push(String(m)); };
-      /* The LIVE arm: marks and gold are server-of-record, so finalizeBounty's
-         local credit is a no-op and the only thing that can move the number the
-         player is looking at is a fresh envelope. */
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
-      window.HearthriseGoalClaim = {
-        isSignedIn: () => true,
-        acceptBounty: () => Promise.resolve({ ok: true }),
-        creditKills: () => Promise.resolve({ ok: true, progress: 99999 }),
-        /* hr_claim_bounty SUCCEEDS — the server really did credit the Marks.
-           That is the whole point: the RPC was never the bug. */
-        claimBounty: () => Promise.resolve({ ok: true, gold: 270, marks: 5, xp: 38 }),
-      };
-      const _R = window.HearthriseRecord;
-      const origRequest = _R.requestRecord;
-      _R.requestRecord = function () { refreshes++; return Promise.resolve({ outcome: 'loaded', applied: true }); };
-      try {
-        const monId = Object.keys(window.MONSTERS)[0];
-        G.bountyHunter.active = null;
-        G.bountyHunter.board = [{ id: 'test_cull_marks', type: 'cull', target: monId, tier: 1, progress: 0,
-          difficulty: 'easy', required: 2, rewards: { gold: 270, marks: 5, xp: 38 } }];
-        window.acceptBounty(0);
-        assert(G.bountyHunter.active && G.bountyHunter.active.type === 'cull', 'CONTROL: the cull contract must be accepted');
-        toasts.length = 0; refreshes = 0;
-        /* PIN THE BONUS ROLL ON. It is a seeded chance(0.10), so an unpinned run
-           would skip the bonus 9 times in 10 and the "must not announce what it
-           cannot pay" assertion below would pass without grading anything —
-           exactly the flake b344 documents one screen up. 0.01 < 0.10 ⇒ rolls. */
-        const _C = window.HearthriseCore;
-        _C.setRng(_C.rngMod.rngFrom(() => 0.01));
-        try {
-          window.handleBountyKill(monId, window.MONSTERS[monId]);
-          window.handleBountyKill(monId, window.MONSTERS[monId]);
-          // let the two-phase credit → claim → finalize chain settle
-          for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
-        } finally { _C.setRng(null); }
-        assert(!G.bountyHunter.active, 'CONTROL: a server-confirmed turn-in must consume the contract');
-        assert(refreshes >= 1,
-          'the turn-in celebrated "+5 Marks" and never asked for the balance the server had just written — '
-          + 'gold and marks are server-of-record, so the local credit is a no-op and the counter sits on its old '
-          + 'number until some unrelated envelope happens along. That is bug_reports #46 verbatim.');
-      } finally { _R.requestRecord = origRequest; }
-      /* …and the client-only 10% bonus must not be ANNOUNCED where it cannot be
-         PAID. hr_claim_bounty's reward carries no bonus roll, so under the arm
-         that toast promised Marks nothing anywhere grants. */
-      const bonusToast = toasts.filter((t) => /Bonus turn-in/i.test(t));
-      assert(!bonusToast.length,
-        'the turn-in announced a bonus the arm cannot credit: "' + bonusToast[0] + '" — a second toast naming a '
-        + 'number the balance never shows is most of what "I got 0 marks" feels like');
-    } finally {
-      window.notify = origNotify;
-      window.HearthriseGoalClaim = origClaim;
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
-  /* ══════════════════════════════════════════════════════════════════════════
-     BOUNTY-REROLL — the board has a DAY, and a paid refresh is paid once
-     (2026-08-31, same sweep.)
-
-     `freeRerolls` and `rerollsToday` were seeded once and never moved again:
-     nothing reset them, `boardGeneratedAt` was written and never read, and the
-     shop's "+1 Free Reroll/day" (`extraRerolls`) was read by nothing. So a
-     player got ONE free reroll per ACCOUNT, and the paid price 5+N*5 ratcheted
-     forever — while hr_bounty_spend derives that same price from the PAID
-     rerolls in TODAY's ledger, which does reset. The client's affordability
-     check therefore drifted permanently above the price the server charges.
-     ══════════════════════════════════════════════════════════════════════════ */
-  () => tryRun('BOUNTY-REROLL-1: a new UTC day restores the free reroll and clears the escalating paid price', () => {
-    if (typeof window.ensureBountyState !== 'function') return;
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      window.ensureBountyState();
-      assert(typeof window.hrBountyDayKey === 'function', 'the board must have a day key to reset against');
-      const today = window.hrBountyDayKey();
-      assert(G.bountyHunter.rerollDay === today, 'ensureBountyState must stamp the current UTC day, got ' + G.bountyHunter.rerollDay);
-
-      G.bountyHunter.freeRerolls = 0;
-      G.bountyHunter.rerollsToday = 7;              // a long-lived account's ratchet
-      G.bountyHunter.rerollDay = 19700101;          // …last seen a while ago
-      window.ensureBountyState();
-      assert(G.bountyHunter.freeRerolls === 1,
-        'the free reroll must come back on a new day, got ' + G.bountyHunter.freeRerolls
-        + ' — without this a player gets exactly one free reroll for the LIFE of the account');
-      assert(G.bountyHunter.rerollsToday === 0,
-        'the paid-reroll counter must reset with the day, got ' + G.bountyHunter.rerollsToday
-        + ' — the client would demand ' + (5 + G.bountyHunter.rerollsToday * 5) + ' Marks where the server charges 5');
-
-      // The shop's "+1 Free Reroll/day" must actually be worth its 50 Marks.
-      G.bountyHunter.upgrades.extraRerolls = 2;
-      G.bountyHunter.rerollDay = 19700101;
-      window.ensureBountyState();
-      assert(G.bountyHunter.freeRerolls === 3,
-        'the extraRerolls upgrade must add its free rerolls, got ' + G.bountyHunter.freeRerolls
-        + ' — it was sold at 50 Marks and read by nothing');
-      // Same day twice must NOT top the allowance up again (a free-reroll fountain).
-      G.bountyHunter.freeRerolls = 0;
-      window.ensureBountyState();
-      assert(G.bountyHunter.freeRerolls === 0, 'a second ensure on the SAME day must not refill the allowance');
-    } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('BOUNTY-REROLL-2: a PREPAID refresh (the Reroll Token) charges nothing a second time', () => {
-    if (typeof window.rerollBountyBoard !== 'function') return;
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      window.ensureBountyState();
-      G.bountyHunter.active = null;                 // the rail only offers a reroll with no active contract
-      G.bountyHunter.freeRerolls = 1;
-      G.bountyHunter.rerollsToday = 0;
-      const before = G.bountyHunter.board.map((b) => b.id).join('|');
-      window.rerollBountyBoard(true);               // exactly what spendMarks('reroll_token') calls
-      assert(G.bountyHunter.freeRerolls === 1,
-        'a Reroll Token burned the FREE reroll as well as its 5 Marks — rerollBountyBoard ignored the argument '
-        + 'spendMarks has always passed it');
-      assert(G.bountyHunter.rerollsToday === 0, 'a prepaid refresh must not advance the paid-reroll price');
-      assert(G.bountyHunter.board.map((b) => b.id).join('|') !== before, 'CONTROL: the board must actually refresh');
-      // The free path still spends the free reroll.
-      window.rerollBountyBoard();
-      assert(G.bountyHunter.freeRerolls === 0, 'CONTROL: an unpaid reroll must still spend the free one');
-    } finally { restoreG(snap); }
-  }),
-
-  /* BOUNTY-ABANDON-1 (2026-10-04-bounty-abandon-server-fee.sql, Security P2):
-     the abandon fee was priced off a client-sent Bounty-Hunter level and reward,
-     and the call was skipped below a CLIENT level of 10. Now the server prices
-     it, so the client must always ask, send no number, name the contract, and
-     quote the server's fee — never its own formula (here it would say 0). */
-  () => tryRunAsync('BOUNTY-ABANDON-1: abandon sends no level or reward, names the contract, and quotes the SERVER fee', async () => {
-    if (typeof window.abandonBounty !== 'function' || !window.HearthriseGoalClaim) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(2);
-    const bodies = [], said = [];
-    let answer = null;
-    try {
-      window.fetch = (url, init) => {
-        if (String(url).indexOf('/rpc/hr_bounty_spend') !== -1) bodies.push(JSON.parse(init.body));
-        return Promise.resolve(new Response(JSON.stringify(answer || []), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      };
-      window.notify = (m) => { said.push(String(m)); };
-      window.ensureBountyState();
-      window.G.skills.bountyHunter = 0;               // client level 1: the old code never called
-      window.G.bountyHunter.active = { id: 'bx-abandon-1', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
-      answer = { ok: true, reason: 'abandon', fee: 7, marks: 93, bounty_id: 'bx-abandon-1' };
-      await window.abandonBounty();
-      assert(bodies.length === 1, 'abandon must ALWAYS ask the server (it owns the level); saw ' + bodies.length + ' hr_bounty_spend calls');
-      const b = bodies[0];
-      assert(!('p_bounty_level' in b) && !('p_reward_marks' in b), 'abandon sent a client number the fee could be priced from: ' + JSON.stringify(b));
-      assert(b.p_reason === 'abandon' && b.p_bounty_id === 'bx-abandon-1' && b.p_slot === 2 && !!b.p_idem,
-        'abandon must name the contract, the slot and a key: ' + JSON.stringify(b));
-      assert(window.G.bountyHunter.active === null, 'the local contract must end');
-      assert(said.some((m) => /-7 Marks/.test(m)), 'the toast must quote the SERVER fee (7); said ' + JSON.stringify(said));
-      // A refusal (no server contract) charges nothing and says so.
-      window.G.bountyHunter.active = { id: 'bx-abandon-2', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
-      answer = { ok: false, error: 'no_active_bounty' }; said.length = 0; window.G._bountyServer = null;
-      await window.abandonBounty();
-      assert(said.length === 1 && !/Marks/.test(said[0]), 'a refused abandon must not quote a fee; said ' + JSON.stringify(said));
-    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  /* BOUNTY-ABANDON-2 (Security GO-WITH-CHANGES, 2026-10-04): the server now
-     REFUSES an accept over a held contract (bounty_active) instead of replacing
-     it — that replace was a fee-free abandon. So the board must not fire an
-     accept until the abandon's answer is back: the two are separate requests
-     and an accept that lands first would be refused, leaving a local contract
-     the server never took. Fails without the in-flight wait: the accept fires
-     while the abandon is still pending. */
-  () => tryRunAsync('BOUNTY-ABANDON-2: the board waits for the abandon answer before it allows an accept', async () => {
-    if (typeof window.abandonBounty !== 'function' || typeof window.acceptBounty !== 'function' || !window.HearthriseGoalClaim) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(0);
-    const calls = [];
-    let release = null;
-    try {
-      window.fetch = (url) => {
-        const u = String(url);
-        if (u.indexOf('/rpc/hr_bounty_spend') !== -1) {
-          calls.push('abandon');
-          return new Promise((res) => { release = () => res(new Response(JSON.stringify({ ok: true, reason: 'abandon', fee: 0, marks: 0, bounty_id: 'bx-ab2-old' }), { status: 200, headers: { 'Content-Type': 'application/json' } })); });
-        }
-        if (u.indexOf('/rpc/hr_accept_bounty') !== -1) calls.push('accept');
-        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'stubbed' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      };
-      window.notify = () => {};
-      window.ensureBountyState();
-      const G = window.G;
-      G.bountyHunter.active = { id: 'bx-ab2-old', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } };
-      G.bountyHunter.board = [{ id: 'bx-ab2-new', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
-      const done = window.abandonBounty();
-      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
-      assert(typeof release === 'function', 'abandon must reach hr_bounty_spend');
-      window.acceptBounty(0);
-      await new Promise((r) => setTimeout(r, 10));
-      assert(G.bountyHunter.active && G.bountyHunter.active.id === 'bx-ab2-old' && calls.indexOf('accept') === -1,
-        'the contract must stay until the abandon answers, and no accept may fire: active=' + JSON.stringify(G.bountyHunter.active && G.bountyHunter.active.id) + ' calls=' + calls.join(','));
-      assert(G.bountyHunter.board.length === 1, 'the refused accept must leave the board row in place');
-      release();
-      await done;
-      window.acceptBounty(0);
-      assert(G.bountyHunter.active && G.bountyHunter.active.id === 'bx-ab2-new',
-        'once the abandon answered, the accept must go through; active=' + JSON.stringify(G.bountyHunter.active));
-    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  /* BOUNTY-ABANDON-3 (Security C1, 2026-10-05): an abandon that does not answer
-     ok:true must leave the contract where it was — the server still holds it, and
-     a client that dropped it would be refused bounty_active on every accept after.
-     Fails with the clear-before-answer abandon. */
-  () => tryRunAsync('BOUNTY-ABANDON-3: a failed abandon (network, rate_limited) keeps the contract', async () => {
-    if (typeof window.abandonBounty !== 'function' || !window.HearthriseGoalClaim) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(0);
-    let mode = 'network';
-    try {
-      window.fetch = (url) => (String(url).indexOf('/rpc/hr_bounty_spend') !== -1 && mode === 'network')
-        ? Promise.reject(new TypeError('Failed to fetch'))
-        : Promise.resolve(new Response(JSON.stringify({ ok: false, error: mode }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      window.notify = () => {};
-      window.ensureBountyState();
-      window.G.bountyHunter.active = { id: 'bx-ab3', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
-      for (const m of ['network', 'rate_limited', 'bounty_mismatch']) {
-        mode = m;
-        await window.abandonBounty();
-        const a = window.G.bountyHunter.active;
-        assert(a && a.id === 'bx-ab3', 'a ' + m + ' answer dropped the contract the server still holds: ' + JSON.stringify(a));
-      }
-    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  /* BOUNTY-ABANDON-4 (Security C1): Abandon waits for the ACCEPT's answer. An
-     abandon that overtakes its accept answers no_active_bounty, the accept then
-     commits, and the server holds a contract the client let go. Fails without
-     the accept tracking: the spend fires while the accept is unanswered. */
-  () => tryRunAsync('BOUNTY-ABANDON-4: Abandon is refused until the accept has answered', async () => {
-    if (typeof window.abandonBounty !== 'function' || typeof window.acceptBounty !== 'function' || !window.HearthriseBountyView) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(0);
-    const calls = [];
-    let release = null;
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    try {
-      window.fetch = (url) => {
-        const u = String(url);
-        if (u.indexOf('/rpc/hr_accept_bounty') !== -1) return new Promise((r) => { release = () => r(ok({ ok: true, bounty_id: 'bx-ab4', target: 'goblin', required: 10, tier: 1 })); });
-        if (u.indexOf('/rpc/hr_bounty_spend') !== -1) { calls.push('abandon'); return Promise.resolve(ok({ ok: true, fee: 0, bounty_id: 'bx-ab4' })); }
-        return Promise.resolve(ok({ ok: false, error: 'stubbed' }));
-      };
-      window.notify = () => {};
-      window.ensureBountyState();
-      window.G.bountyHunter.active = null;
-      window.G.bountyHunter.board = [{ id: 'bx-ab4', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
-      window.acceptBounty(0);
-      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
-      assert(typeof release === 'function' && window.HearthriseBountyView.busy().accept, 'the accept must be tracked while it is unanswered');
-      await window.abandonBounty();
-      assert(calls.length === 0 && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ab4',
-        'Abandon fired over an unanswered accept: calls=' + calls.join(','));
-      release(); await new Promise((r) => setTimeout(r, 10));
-      assert(!window.HearthriseBountyView.busy().accept, 'the accept answered, Abandon must be enabled again');
-      await window.abandonBounty();
-      assert(calls.length === 1 && window.G.bountyHunter.active === null, 'after the accept answered, the abandon must go through');
-    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  /* BOUNTY-ABANDON-5 (Security C2): the server's contract is the contract. The
-     abandon request is dropped, the reload brings back a client that holds no
-     contract (or a ghost), and the envelope names the server's — the board must
-     show it and Abandon must send ITS id, or the character is locked out of the
-     board forever (every accept: bounty_active). Fails without the rebuild. */
-  () => tryRunAsync('BOUNTY-ABANDON-5: abandon dropped, reload, the envelope contract is shown and a real abandon ends it', async () => {
-    if (typeof window.abandonBounty !== 'function' || typeof window.hrNoteServerBounty !== 'function') return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(0);
-    const ids = [];
-    let drop = true;
-    const srv = { bounty_id: 'bx-ab5-srv', b_type: 'cull', difficulty: 'normal', target: 'goblin', tier: 1, required: 12, progress: 3 };
-    try {
-      window.fetch = (url, init) => {
-        if (String(url).indexOf('/rpc/hr_bounty_spend') !== -1) {
-          if (drop) return Promise.reject(new TypeError('Failed to fetch'));
-          ids.push(JSON.parse(init.body).p_bounty_id);
-          return Promise.resolve(new Response(JSON.stringify({ ok: true, fee: 2, bounty_id: 'bx-ab5-srv' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-        }
-        return Promise.resolve(new Response('{"ok":false,"error":"stubbed"}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      };
-      window.notify = () => {};
-      window.ensureBountyState();
-      window.G.bountyHunter.active = { id: 'bx-ab5-ghost', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: {} };
-      await window.abandonBounty();                       // the request is dropped
-      window.G._bountyServer = null;
-      const vs = window.HearthriseBountyView.versions(), v = Math.max(Number(vs.seen) || 0, Number(vs.floor) || 0) + 5;
-      const r = window.hrNoteServerBounty({ version: v, state: { bounty: srv } });   // reload: the envelope names the server's
-      const a = window.G.bountyHunter.active;
-      assert(r.adopted && a && a.id === 'bx-ab5-srv' && a.required === 12 && window.hrBountyView(a).progress === 3,
-        'the envelope contract must replace the ghost: ' + JSON.stringify(a));
-      drop = false;
-      await window.abandonBounty();
-      assert(ids.length === 1 && ids[0] === 'bx-ab5-srv' && window.G.bountyHunter.active === null, 'Abandon must send the server id and end it: ' + JSON.stringify(ids));
-      window.hrNoteServerBounty({ version: v, state: { bounty: srv } });   // a stale envelope from before the abandon
-      assert(window.G.bountyHunter.active === null, 'a stale envelope must not resurrect the abandoned contract');
-    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  /* BOUNTY-ORDER-1 (C2 ordering): the server's contract replaces the client's
-     only when its envelope is at least as new as the client's last CONFIRMED
-     bounty state. Both orders: an envelope from before a confirmed accept naming
-     the old contract is refused (the accept would be silently undone), and a
-     newer envelope naming a server-held contract is adopted (else the board
-     locks on bounty_active). Fails without the version floor (first half) or with
-     a floor that never lets a newer envelope through (second half). */
-  () => tryRunAsync('BOUNTY-ORDER-1: a stale envelope never undoes a confirmed accept; a newer one adopts the server contract', async () => {
-    if (typeof window.acceptBounty !== 'function' || !window.HearthriseBountyView || !window.HearthriseBountyView.versions) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch, origNotify = window.notify;
-    const unstub = stubSignedIn(0);
-    let release = null;
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    const env = (v, id) => ({ version: v, state: { bounty: id == null ? null
-      : { bounty_id: id, b_type: 'cull', difficulty: 'normal', target: 'goblin', tier: 1, required: 8, progress: 1 } } });
-    try {
-      window.fetch = (url) => {
-        if (String(url).indexOf('/rpc/hr_accept_bounty') !== -1) return new Promise((r) => { release = () => r(ok({ ok: true, bounty_id: 'bx-ord-new', target: 'goblin', required: 10, tier: 1 })); });
-        return Promise.resolve(ok({ ok: false, error: 'stubbed' }));
-      };
-      window.notify = () => {};
-      window.ensureBountyState();
-      const vs = window.HearthriseBountyView.versions(), v0 = Math.max(Number(vs.seen) || 0, Number(vs.floor) || 0) + 10;
-      window.G.bountyHunter.active = null;
-      window.hrNoteServerBounty(env(v0, null));            // the server held nothing at v0
-      window.G.bountyHunter.board = [{ id: 'bx-ord-new', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
-      window.acceptBounty(0);
-      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
-      assert(typeof release === 'function', 'CONTROL: the accept must reach hr_accept_bounty');
-      const mid = window.hrNoteServerBounty(env(v0 + 3, 'bx-ord-other'));
-      assert(!mid.adopted && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ord-new',
-        'an envelope landing while the accept is in flight replaced it: ' + JSON.stringify(mid));
-      release(); await new Promise((r) => setTimeout(r, 10));
-      const stale = window.hrNoteServerBounty(env(v0, 'bx-ord-old'));
-      assert(!stale.adopted && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ord-new',
-        'an envelope OLDER than the confirmed accept undid it: ' + JSON.stringify(window.G.bountyHunter.active));
-      const bare = window.hrNoteServerBounty({ state: { bounty: env(0, 'bx-ord-old').state.bounty } });
-      assert(!bare.adopted && window.G.bountyHunter.active.id === 'bx-ord-new', 'an UNVERSIONED envelope replaced a confirmed accept');
-      const fresh = window.hrNoteServerBounty(env(v0 + 4, 'bx-ord-srv'));
-      const a = window.G.bountyHunter.active;
-      assert(fresh.adopted && a && a.id === 'bx-ord-srv' && a.required === 8 && window.hrBountyView(a).progress === 1,
-        'a NEWER envelope naming the server contract must be adopted: ' + JSON.stringify(fresh) + ' ' + JSON.stringify(a));
-    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
-  }),
-
-  () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {
-    if (typeof window.renderBountyTab !== 'function' || typeof window.bountyShopOffers !== 'function') return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    try {
-      const G = window.G;
-      /* Marks server-owned (the live position) and plenty of them, which is the
-         exact state that made every row look buyable: the button was gated on
-         affordability alone, so all five BOUNTY_SHOP rows rendered an enabled,
-         primary-styled "Buy" and all five answered "That upgrade is unavailable
-         right now". */
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
-      G.marks = 5000;
-      /* The balance must be KNOWN, or `canAffordMarks` fails closed on UNKNOWN
-         and every row would be disabled for a reason that has nothing to do
-         with this bug — the test would pass against the broken code. */
-      stampRecordLikeLoad(G);
-      assert(window.HearthriseMarks.canAffordMarks(G, 300),
-        'CONTROL: the marks balance must be KNOWN and ample, or affordability alone disables every row');
-      window.renderBountyTab();
-      const rows = Array.from(document.querySelectorAll('#bounty-shop-body .bounty-shop-row'));
-      assert(rows.length > 0, 'CONTROL: the Bounty Shop must render rows to grade');
-      const lying = rows.filter((r) => {
-        const id = r.dataset.offer || '';
-        const btn = r.querySelector('button');
-        if (!btn || btn.disabled) return false;
-        const def = window.bountyShopOffers().find((o) => o.id === id);
-        return def && !def.trait;                   // a non-trait row has no server spend verb
-      }).map((r) => r.dataset.offer);
-      assert(!lying.length,
-        lying.length + ' Bounty Shop row(s) render an ENABLED Buy that spendMarks refuses outright: '
-        + lying.join(', ') + '. A control the player can press and that can never succeed is a dead end, not a gate.');
-      /* …and the trait rows, which DO have a server purchase (buyTrait →
-         hr_unlock_buy), must stay live. Graded only on a row the character does
-         not already own — an OWNED trait is correctly disabled. */
-      const traitRow = rows.find((r) => {
-        const id = String(r.dataset.offer || '');
-        if (id.indexOf('trait_') !== 0) return false;
-        const def = window.bountyShopOffers().find((o) => o.id === id);
-        return def && !(typeof window.hasTrait === 'function' && window.hasTrait(def.trait));
-      });
-      assert(traitRow,
-        'CONTROL: the shop must offer at least one unowned marks-priced trait, or the check below grades nothing');
-      assert(!traitRow.querySelector('button').disabled,
-        'a marks-priced TRAIT routes through buyTrait/hr_unlock_buy and must remain buyable — '
-        + 'this fix must not disable the one kind of row in the shop that works');
-    } finally {
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-      try { window.renderBountyTab(); } catch (e) {}
-    }
-  }),
-
-  () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
-    assert(typeof window._scvResolvePlayerHp === 'function', 'the boss survival rule seam must exist');
-    // The exact tester scenario: HP already near 0, taking a lethal blow, WITH food (heal>0).
-    const afterLethal = window._scvResolvePlayerHp(5, 40, 3, 255);
-    assert(afterLethal <= 0, 'a lethal blow must leave hp<=0 even with heal-on-hit, got ' + afterLethal);
-    // A glancing blow on a living fighter still heals (sustain must keep working).
-    const sustained = window._scvResolvePlayerHp(100, 5, 3, 255);
-    assert(sustained > 100 - 5, 'a surviving fighter must still heal on hit, got ' + sustained);
-    // Heal never overflows max HP.
-    assert(window._scvResolvePlayerHp(254, 1, 50, 255) === 255, 'heal must clamp to max HP');
-  }),
 
   () => tryRun('b248: bag scroll survives an in-place re-render (paione: inventory snapped to top mid-fight)', () => {
     assert(typeof window._nearestScrollable === 'function', 'the scroll-preserving helper must exist');
@@ -635,31 +86,26 @@ export default [
     } finally { style.remove(); restoreG(snap); try { render(); } catch(e){} }
   }),
 
-  () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {
-    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
+  /* The Wave 3 RECIPES (and the orphan-drop routing they did) left with crafted
+     gear in the 2026-10-14 demolition. The 14 items stay in the catalogue until
+     the roster (catalogue-coherence AWAITING_ROSTER), so what is still true of
+     them is checked: a real slot, a wield gate, a flavour line. */
+  () => tryRun('b247: Wave 3 uniques — the 14 curated items are well-formed catalogue rows', () => {
+    const ITEMS = window.ITEMS;
     const VALID_SLOTS = new Set(['helmet','necklace','earrings','cape','weapon','ammo','ring','body','gloves','belt','pants','boots','companion']);
     const WAVE3 = ['dragonrend_greatblade','crown_of_the_fallen_king','emberfang_blade','demoncaller_staff',
       'panthers_eye_pendant','wraithsilk_shroud','widows_fang','plaguewarden_greaves','hollow_sigil_ring',
       'fangdart_recurve','alphaheart_longbow','nightstalker_pelt','warband_bulwark','chitinweave_cloak'];
-    const allRecipes = [...(R.smithing||[]), ...(R.crafting||[])];
     WAVE3.forEach((id) => {
       const it = ITEMS[id];
       assert(it, 'Wave 3 item must exist: ' + id);
       assert(VALID_SLOTS.has(it.slot), id + ' must sit in a real equip slot, got ' + it.slot);
-      // Every unique is obtainable: exactly one recipe outputs it, and every input is a known item.
-      const rec = allRecipes.find((r) => r.output === id);
-      assert(rec, id + ' must have a craft recipe (no dead boss loot)');
-      Object.keys(rec.inputs || {}).forEach((k) => assert(ITEMS[k], id + ' recipe references a real item: ' + k));
       // Endgame gear carries a real wield gate.
       const req = window.gearWieldReq(it);
       assert(req && req.lv > 0, id + ' must be level-gated to wield');
       // Flavour line surfaces in the tooltip index.
       assert(typeof window.itemDesc === 'function' && window.itemDesc(id), id + ' must have a description');
     });
-    // The marquee orphans are actually consumed by these recipes (routing, not just new content).
-    const consumed = new Set(allRecipes.filter((r) => WAVE3.includes(r.output)).flatMap((r) => Object.keys(r.inputs || {})));
-    ['war_crown','void_chitin','ancient_claw','hell_ember','wraith_veil','alpha_fang','dark_sigil','plague_ichor']
-      .forEach((orphan) => assert(consumed.has(orphan), 'orphan drop must be routed into a unique: ' + orphan));
   }),
 
   () => tryRun('b245: attack speed is a real lever — spdB shortens the swing, capped at 20%', () => {
@@ -1172,142 +618,6 @@ export default [
      §8.4 Quarry ruling actually closes the loop: if stone had no faucet, step
      one would produce nothing and every later assertion would be vacuous.
      ══════════════════════════════════════════════════════════════════════════ */
-  () => tryRun('b357 E2E: a Runecrafter starts with nothing, quarries stone, and ends up holding cast-ready runes', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const realNotify = window.notify;
-    /* -- b515 - THE XP IS RECORDED AT THE SEAM, NOT READ OFF `G.skills` -------
-       This ran client-authoritative and read `G.skills.mining` after each rung.
-       `skills` is SERVER-OF-RECORD and armed, so `window.addXp` refuses and the
-       raw map never moves - the XP assertions would have been reading a number
-       the client is right not to write.
-
-       The BAG is unchanged and is still read off `G` (inventory is client-owned
-       and the whole point of this test is a supply chain filling one), so only
-       the XP half moves: the fx already routes every grant through one call,
-       and that call is now RECORDED as well as forwarded. What is asserted is
-       what the ENGINE PAID - which is exactly what the server's copy of this
-       engine will credit - rather than what the client managed to write down. */
-    const paidXp = {};
-    const xpOfSkill = (sk) => paidXp[sk] || 0;
-    try {
-      window.notify = function () {};
-      const recipes = C.artisanRecipes();
-
-      /* Run ONE rung to completion for `actions` actions and report the bag. */
-      const work = (recipeId, actions) => {
-        const entry = C.artisanRecipe(recipeId);
-        assert(entry, 'recipe does not resolve: ' + recipeId);
-        G.activeMonster = null;
-        G.activeSkill = entry.skill;
-        G.skillTargetId = recipeId;
-        G.buffs = [];
-        G.toolCarry = {};
-        const stepMs = C.artisanSim.artisanIntervalMs(G, entry.skill, entry.recipe,
-          { items: window.ITEMS, bonus: window.getBonus });
-        return C.artisanSim.simulateArtisanSpan(G, {
-          away: true, fromMs: 0, toMs: actions * stepMs,
-          rng: C.rng, items: window.ITEMS, recipes,
-          bonus: window.getBonus,
-          fx: {
-            addItem: (id, q) => window.addItem(id, q),
-            removeItem: (id, q) => window.removeItem(id, q),
-            /* RECORDED AND FORWARDED. The forward keeps every consequence
-               `addXp` owns (PACE, the fuse, level-ups) in the loop; the record
-               is what this test reads, because the write itself is refused. */
-            addXp: (sk, amt) => { paidXp[sk] = (paidXp[sk] || 0) + amt; window.addXp(sk, amt); },
-            updateDaily: () => {}, updateQuest: () => {},
-          },
-        });
-      };
-      const have = (id) => (G.inventory && G.inventory[id]) || 0;
-
-      // A brand-new mason/runecrafter: no stone, no blanks, no runes, no levels.
-      G.inventory = {};
-      G.equipment = Object.assign({}, G.equipment, { ammo: null });
-      G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
-      G.stats = Object.assign({}, G.stats);
-      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0, mining: 0 });
-      C.reseed(0xB0A57E);
-
-      /* ── 1. THE QUARRY. Input-free, so it works with an empty bag at level 1
-         — which IS the §8.4 ruling, executed rather than asserted in a comment.
-         A mining by-product (the rejected P1) would produce ZERO here.
-         b374 (Tyler): rock GATHERING pays MINING, not Stonemason. */
-      const q = work('quarry_rubble', 200);
-      assert(q.stoppedBy === null,
-        'the quarry stopped (' + q.stoppedBy + ') — an input-free rung must never run dry');
-      assert(q.ticks === 200, 'the quarry ran ' + q.ticks + ' of 200 actions');
-      assert(have('rubble') >= 200 * 5,
-        'quarrying 200 times should yield at least 1000 rubble, got ' + have('rubble'));
-      assert(xpOfSkill('mining') > 0, 'quarrying must pay MINING XP (b374 — gathering rock is mining)');
-      assert(xpOfSkill('stonemason') === 0,
-        'quarrying must NOT pay Stonemason XP any more — refining does (got ' + xpOfSkill('stonemason') + ')');
-
-      /* ── 2. DRESS (Cut Stone Block). Stone → the common trunk every lane
-         branches off. THIS is the "refining" half, and it pays Stonemason. */
-      const rubbleBefore = have('rubble');
-      const d = work('dress_rubble', 100);
-      assert(d.ticks === 100 && d.stoppedBy === null, 'dressing stopped early: ' + d.stoppedBy);
-      assert(have('dressed_block') === 200, 'expected 200 dressed blocks, got ' + have('dressed_block'));
-      assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
-      assert(xpOfSkill('stonemason') > 0, 'dressing (refining) must pay Stonemason XP (b374)');
-
-      // ── 3. Runecrafting supplies itself: essence is MINED at a level-1 rock, then cut to blanks.
-      const node = (window.ROCKS || []).find((n) => n.prod === 'rune_essence');
-      assert(node && node.req === 1, 'Rune Essence is not a level-1 mining node: ' + JSON.stringify(node));
-      assert(!(window.ARTISAN_RECIPES.runecrafting || []).some((x) => x.output === 'rune_essence' && !Object.keys(x.inputs || {}).length),
-        'an input-free essence rung is back on the Runecrafting bench (b357: Stonemason only)');
-      window.G.inventory.rune_essence = 120;
-      const blocksBefore = have('dressed_block');
-      const b = work('cut_rune_blanks', 30);
-      assert(b.skill === 'runecrafting', 'blanks are cut on the Runecrafting bench now, got ' + b.skill);
-      assert(b.ticks === 30 && b.stoppedBy === null, 'blank-cutting stopped early: ' + b.stoppedBy);
-      assert(have('rune_blank') === 360, 'expected 360 rune blanks, got ' + have('rune_blank'));
-      assert(have('rune_essence') === 0, 'cutting must consume 4 essence per action');
-      assert(have('dressed_block') === blocksBefore, 'the level-1 blank cut must not eat Stonemason blocks');
-
-      /* ── 4. BIND EARTH — the first rung, at level 1, of a rune that is SPENT. */
-      const rcBefore = xpOfSkill('runecrafting');
-      const r = work('bind_earth_runes', 40);
-      assert(r.skill === 'runecrafting',
-        'binding runes must pay the runecrafting bench, got ' + r.skill);
-      assert(r.ticks === 40 && r.stoppedBy === null, 'binding stopped early: ' + r.stoppedBy);
-      assert(have('earth_rune') === 40 * 45, 'expected 1800 earth runes, got ' + have('earth_rune'));
-      assert(xpOfSkill('runecrafting') > rcBefore, 'binding must pay Runecrafting XP');
-      assert(have('rune_blank') === 360 - 40 * 6, 'binding must consume 6 blanks per action');
-
-      /* ── 5. THE THING IT WAS ALL FOR: the rune is equippable ammo that a
-         mage can actually socket, and that a cast actually SPENDS. */
-      const rune = window.ITEMS.earth_rune;
-      assert(rune && rune.slot === 'ammo' && rune.type === 'ammo',
-        'a bound rune must be ammo-slot equipment');
-      assert(rune.magicStrB > 0, 'a bound rune must pay the magic damage stat');
-      assert(rune.ammoPerShot > 0, 'the level-1 rune must be SPENT per cast — W0 ruling');
-      assert(window.EQUIP_SLOTS.indexOf('ammo') >= 0, 'the ammo slot must exist on the doll');
-    } finally { window.notify = realNotify; restoreG(snap); }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     b432 E2E — THE PURE RUNECRAFTER. The wall Tyler's complaint was standing
-     against, played rather than described.
-
-     Every one of Runecrafting's eleven rungs wanted a Blank Rune, and the only
-     blank in the game came out of Stonemason 8. So a player who opened
-     Runecrafting first — level 1, nothing else trained, an empty bag — met a
-     bench of eleven actions and could perform NONE of them, with no on-screen
-     hint that the answer was a different skill. The b357 E2E above could not
-     see this: it quarries and dresses and cuts blanks first, so by the time it
-     reaches the bind it has already trained the skill that was the wall.
-
-     THIS ONE TRAINS NOTHING ELSE, EVER. Its whole value is the assertions that
-     other skills are still at zero at the end. That is why they are not
-     decoration at the bottom — they ARE the test.
-     ══════════════════════════════════════════════════════════════════════════ */
-  /* RETIRED (lane C2, the closed rebuild): " E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, a" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('b432: "How do I get this?" names the bench for a craftable, and never claims a live item was removed', () => {
     const ask = (id) => {
       window.showAcquisitionTip(id);
@@ -1317,13 +627,12 @@ export default [
       window.hideAcquisitionTip();
       return txt;
     };
-    /* Craft-only items across four benches — none has a drop, node or shop row
-       to fall back on, so each one is a real test of the recipe path. */
+    /* Craft-only items — none has a drop, node or shop row to fall back on, so
+       each one is a real test of the recipe path. (dressed_block and ember_rune
+       left with the Stonemason and the enchant runes, 2026-10-14.) */
     const CASES = [
-      ['dressed_block', 'Stonemason'],
       ['rune_blank', 'Runecrafting'],   // W0: the base blank cuts moved to Runecrafting
       ['normal_plank', 'Crafting'],
-      ['ember_rune', 'Runecrafting'],
     ];
     CASES.forEach(([id, skill]) => {
       const txt = ask(id);
@@ -1357,98 +666,6 @@ export default [
       'the item flyout source line must also name the easiest recipe, got: ' + window.itemSourceLine('rune_blank'));
   }),
 
-  () => tryRunRestampingBalance('b357 E2E: a Stonemason turns quarried stone into whetstones and an Ashlar the castle actually wants', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const realNotify = window.notify;
-    try {
-      window.notify = function () {};
-      const recipes = C.artisanRecipes();
-      const work = (recipeId, actions) => {
-        const entry = C.artisanRecipe(recipeId);
-        assert(entry, 'recipe does not resolve: ' + recipeId);
-        G.activeSkill = entry.skill; G.skillTargetId = recipeId;
-        G.buffs = []; G.toolCarry = {};
-        const stepMs = C.artisanSim.artisanIntervalMs(G, entry.skill, entry.recipe,
-          { items: window.ITEMS, bonus: window.getBonus });
-        return C.artisanSim.simulateArtisanSpan(G, {
-          away: true, fromMs: 0, toMs: actions * stepMs,
-          rng: C.rng, items: window.ITEMS, recipes, bonus: window.getBonus,
-          fx: {
-            addItem: (id, q) => window.addItem(id, q),
-            removeItem: (id, q) => window.removeItem(id, q),
-            addXp: (sk, amt) => window.addXp(sk, amt),
-            updateDaily: () => {}, updateQuest: () => {},
-          },
-        });
-      };
-      const have = (id) => (G.inventory && G.inventory[id]) || 0;
-
-      G.activeMonster = null;
-      G.inventory = {};
-      G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
-      G.skills = Object.assign({}, G.skills, { stonemason: 0 });
-      C.reseed(0x570BE0);
-
-      // Quarry both grades, dress both, then take each branch.
-      work('quarry_rubble', 300);
-      work('quarry_granite', 300);
-      work('dress_rubble', 120);
-      work('dress_granite', 120);
-      assert(have('dressed_block') === 240, 'expected 240 dressed blocks, got ' + have('dressed_block'));
-      assert(have('granite_block') === 240, 'expected 240 granite blocks, got ' + have('granite_block'));
-
-      /* ── THE MELEE BRANCH. Coarse whetstones need nothing but dressed stone,
-         so the very first whetstone is reachable from an empty bag — which is
-         what makes melee's supply loop openable on day one. */
-      const w = work('grind_coarse_whetstone', 20);
-      assert(w.ticks === 20 && w.stoppedBy === null, 'grinding stopped early: ' + w.stoppedBy);
-      assert(have('coarse_whetstone') === 200, 'expected 200 whetstones, got ' + have('coarse_whetstone'));
-      const stone = window.ITEMS.coarse_whetstone;
-      assert(stone.slot === 'ammo' && stone.strB > 0,
-        'a whetstone must be an ammo-slot item that pays melee damage');
-
-      /* ── THE CASTLE BRANCH. `cut_ashlar` also needs an Iron Fitting, which is
-         Smithing's castle good — deliberately, so the property ladder is fed by
-         more than one artisan pillar. Granted here rather than smithed, because
-         this test is about the MASON's half of the chain. */
-      G.inventory.iron_fitting = 10;
-      const a = work('cut_ashlar', 8);
-      assert(a.ticks === 8 && a.stoppedBy === null, 'ashlar cutting stopped early: ' + a.stoppedBy);
-      assert(have('ashlar') === 8, 'expected 8 ashlar, got ' + have('ashlar'));
-
-      /* ── AND THE SINK IS REAL. An `ashlar` that nothing consumes would be the
-         Cellar's "+500 storage" bug in a new coat: a good with a recipe, a
-         value and a category tab, feeding nothing. It is a cost of the top
-         three property tiers, and those costs are SERVER-SIDE (they regenerate
-         into hr_unlock_offers, which hr_unlock_buy charges out of). */
-      const TIERS = window.HearthriseHomestead && window.HearthriseHomestead.TIERS;
-      assert(Array.isArray(TIERS), 'the homestead tier table must be published');
-      const wanters = TIERS.filter((t) => t.cost && t.cost.ashlar > 0);
-      assert(wanters.length === 3,
-        'exactly three property tiers should demand ashlar, got ' + wanters.length);
-      assert(wanters.every((t) => t.cost.ashlar > 0), 'an ashlar cost of 0 is not a sink');
-
-      /* ── NO DEADLOCK, AND IT IS PROVED RATHER THAN ARGUED (R8 / b213 / b227).
-         Both historical deadlocks were a property tier demanding a material
-         whose BENCH that tier unlocked. Stonemason has no workbench, so an
-         ashlar must be makeable at property tier 0 — which the whole run above
-         just did, having started from an empty bag with no rooms. */
-      const H = window.HearthriseHomestead;
-      assert(!(H.WORKBENCH || {}).stonemason,
-        'Stonemason must require NO workbench (R8) — a bench here re-opens the b227 deadlock class');
-      assert(!(H.WORKBENCH || {}).runecrafting, 'Runecrafting must require no workbench');
-    } finally { window.notify = realNotify; restoreG(snap); }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     b357 — THE SHARED CONSUMPTION PRIMITIVE (src/core/ammo.js).
-
-     R1: one field, one carry, one guard. These grade the SEAM, which is what
-     Fletching will inherit — so a break here is a break in all three skills at
-     once, and the failure should say so.
-     ══════════════════════════════════════════════════════════════════════════ */
   () => tryRun('b357 AMMO-1: running dry is FAIL-SOFT at x0.25, and melee is exempt (R2/R5)', () => {
     const A = window.HearthriseCore && window.HearthriseCore.ammo;
     assert(A && typeof A.ammoDamageMult === 'function',
@@ -1634,188 +851,10 @@ export default [
      this drives the real renderers and reads the real DOM: the Activities list
      must offer both skills, opening one must paint its tiles, and the lane
      strip must be there to navigate Stonemason's four lanes. */
-  () => tryRunRestampingBalance('b357 UI: both new skills appear in Activities and paint a working tile grid', () => {
-    const G = window.G;
-    const snap = snapshotG();
-    try {
-      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0 });
-      window.showTab('skills');
-      window.renderSkillsList();
-      const list = document.getElementById('skills-list');
-      assert(list, 'the Activities list must exist');
-      const listed = list.textContent || '';
-      assert(/Runecrafting/.test(listed), 'Runecrafting is missing from the Activities list');
-      assert(/Stonemason/.test(listed), 'Stonemason is missing from the Activities list');
 
-      ['stonemason', 'runecrafting'].forEach((skill) => {
-        window.openSkillDetail(skill);
-        window.renderSkillDetail(skill);
-        const detail = document.getElementById('skill-detail');
-        assert(detail, 'the skill detail host must exist');
-        const tiles = detail.querySelectorAll('.act-tile, .monster-row');
-        /* `> 0`, not `=== recipes.length`: the lane strip filters the grid to
-           ONE category at a time, which is the whole reason Stonemason has a
-           strip. Asserting the full count here would demand the strip not
-           work. */
-        assert(tiles.length > 0,
-          skill + ' painted no activity tiles — the bench is unreachable from the UI');
-        assert(!/No activities/.test(detail.textContent || ''),
-          skill + ' rendered the "no activities" empty state despite having '
-          + window.ARTISAN_RECIPES[skill].length + ' recipes');
-      });
 
-      /* Stonemason's four lanes need the category strip, or a mason hunting the
-         next whetstone scrolls past quarry rungs, blocks and blanks to find it.
-         Read off the SAME published helper both renderers use, so this cannot
-         pass against a strip only one of the twins builds. */
-      const cat = window.HearthriseArtisanCat;
-      assert(cat && typeof cat.strip === 'function', 'the artisan lane strip helper must be published');
-      const strip = cat.strip('stonemason') || '';
-      ['Quarry', 'Masonry', 'Blank Runes', 'Whetstones', 'Castle Stores'].forEach((label) => {
-        assert(strip.indexOf(label) >= 0, 'the Stonemason lane strip is missing "' + label + '"');
-      });
-      // And selecting a lane returns only that lane's recipes.
-      assert(cat.recipesFor('stonemason').length > 0, 'the lane filter returned no Stonemason recipes');
-    } finally { restoreG(snap); }
-  }),
 
-  () => tryRun('b357: the Quarry lane is a faucet, and it is priced like one', () => {
-    /* An input-free recipe mints from nothing at a fixed rate, which is
-       economically identical to a mining node — so its output must vendor at
-       VENDOR_RAW_RATE like ore, or Stonemason becomes a gold printer that
-       beats Mining at its own job.
 
-       DERIVED from the recipe table rather than from a hand list, which is the
-       whole point: items.js cannot import recipes.js (the cycle would leave
-       ITEMS half-built), so the `raw` flag there IS a hand list — and this is
-       what stops a future quarry rung from being added without it. */
-    const R = window.ARTISAN_RECIPES;
-    const inputsOf = (r) => r.inputs || (r.input ? { [r.input]: r.inputQty || 1 } : {});
-    const minted = [];
-    Object.keys(R).forEach((skill) => {
-      (R[skill] || []).forEach((r) => {
-        if (r.output && Object.keys(inputsOf(r)).length === 0) minted.push([skill, r]);
-      });
-    });
-    assert(minted.length >= 3,
-      'expected the three Quarry rungs to be input-free, found ' + minted.length
-      + ' — if this is 0 the assertion below proves nothing');
-    minted.forEach(([skill, r]) => {
-      const out = window.ITEMS[r.output];
-      assert(out, r.id + ' mints an item that does not exist: ' + r.output);
-      assert(out.raw === true,
-        r.id + ' mints "' + r.output + '" from NOTHING but it is not flagged raw — the vendor would '
-        + 'pay full book value for a material the player conjured, which is a gold faucet. '
-        + 'Add it to RAW_QUARRIED in src/data/items.js.');
-      assert(window.vendorPrice(r.output) < out.v,
-        'the vendor must bid less than book for ' + r.output);
-      assert(skill === 'stonemason',
-        'a new input-free lane appeared on "' + skill + '" — minting from nothing is a Quarry-lane '
-        + 'ruling (§8.4), not a pattern to copy without one');
-    });
-  }),
-
-  () => tryRun('b357: both new benches are SERVER-PAYABLE, and their lanes strand no recipe', () => {
-    const C = window.HearthriseCore;
-    const AS = C.artisanSim;
-    assert(AS && typeof AS.benchPayable === 'function', 'the bench-payability model must be published');
-
-    /* A bench is payable when every bonus key that can DESTROY value on it is
-       server-owned end to end. Cooking is the one bench that is not, because
-       `noBurn` decides whether the input becomes the dish or becomes
-       burnt_food, and the server's copy of the Kitchen rung goes stale-low.
-
-       Neither new bench has such a key: `resolveArtisanAction` rolls a burn
-       only for `skillId === 'cooking'` and craftSave only for `'crafting'`, so
-       every bonus these two can read is additive and a stale zero merely
-       UNDER-pays — the safe direction. Asserted rather than assumed, because
-       "payable by default" is exactly the kind of thing that should be a
-       DECISION on the record and not an oversight. */
-    ['runecrafting', 'stonemason'].forEach((skill) => {
-      assert(AS.benchPayable(skill) === true,
-        skill + ' is not server-payable — the accrual engine would refuse every night on it, '
-        + 'and (because a pointer that can be set and not paid is a lockout) the player could not '
-        + 'even switch away. Blocked by: ' + AS.benchBlockedBy(skill));
-      assert(AS.benchBlockedBy(skill) === null, skill + ' reports a blocking bonus key');
-      assert(!AS.BENCH_DESTRUCTIVE_KEYS[skill],
-        skill + ' declares a destructive bonus key — if that is real it must be reviewed, not added');
-    });
-    /* And every one of their recipes is settable AND payable, which is one
-       answer to two questions on purpose (see recipePayable's header). */
-    const index = C.artisanRecipes();
-    ['runecrafting', 'stonemason'].forEach((skill) => {
-      window.ARTISAN_RECIPES[skill].forEach((r) => {
-        assert(AS.recipePayable(index, r.id),
-          r.id + ' is not payable — hr_apply would stamp accrued_to on a pointer the engine refuses');
-      });
-    });
-
-    /* CATEGORY COMPLETENESS, in the same commit as the recipes (§15 item 12).
-       `uncategorized` being non-empty means a recipe the player can never find
-       through the lane strip — content made unreachable by a missing branch. */
-    ['runecrafting', 'stonemason'].forEach((skill) => {
-      const res = window.categorizeRecipes(skill, window.ARTISAN_RECIPES[skill], window.ITEMS);
-      assert(res.uncategorized.length === 0,
-        skill + ' stranded ' + res.uncategorized.length + ' recipe(s) outside every lane: '
-        + res.uncategorized.map((r) => r.id).join(', '));
-      assert(res.total > 0, skill + ' has no recipes at all');
-      // Every declared lane is filled — an empty tab is a dead end, not a lane.
-      const declared = window.ARTISAN_CATEGORIES[skill].map((d) => d.key).sort();
-      const filled = res.groups.map((g) => g.key).sort();
-      assert(declared.join(',') === filled.join(','),
-        skill + ' declares lanes it cannot fill: declared [' + declared + '] vs filled [' + filled + ']');
-    });
-
-    /* THE SPEED KEY. `speedKeyFor` falls back to `gatherSpeed` for anything it
-       does not know, so an unwired artisan bench is not merely unconfigured —
-       it runs at the GARDEN's rate, on the server as well as the client. */
-    assert(window.speedKeyFor('runecrafting') === 'craftSpeed', 'Runecrafting must run on craftSpeed');
-    assert(window.speedKeyFor('stonemason') === 'craftSpeed', 'Stonemason must run on craftSpeed');
-    assert(window.speedKeyFor('nonsense_skill') === 'gatherSpeed', 'control: the fallback still exists');
-  }),
-
-  () => tryRun('b374: rock-gathering pays Mining, refining pays Stonemason (Tyler)', () => {
-    const R = window.ARTISAN_RECIPES.stonemason;
-    const find = (id) => R.find((r) => r.id === id);
-    ['quarry_rubble', 'quarry_granite', 'quarry_basalt'].forEach((id) => {
-      const r = find(id);
-      assert(r, id + ' is missing');
-      assert(r.xpSkill === 'mining',
-        id + ' must pay Mining XP (gathering rock is mining), got xpSkill=' + r.xpSkill);
-    });
-    // Refine lanes must NOT carry an xpSkill override — they pay the bench (Stonemason).
-    ['dress_rubble', 'dress_granite', 'dress_basalt', 'grind_coarse_whetstone', 'cut_fine_blanks'].forEach((id) => {
-      const r = find(id);
-      assert(r && !r.xpSkill, id + ' (refining) must pay Stonemason, but carries xpSkill=' + (r && r.xpSkill));
-    });
-    // The engine actually honours the override.
-    const C = window.HearthriseCore;
-    const res = C.artisan.resolveArtisanAction(find('quarry_rubble'), {
-      skillId: 'stonemason', inventory: {}, unlockedRecipes: {}, items: window.ITEMS,
-      bonus: () => 0, toolCarry: {}, rng: C.rng,
-    });
-    assert(res.ok && res.xpSkill === 'mining',
-      'resolveArtisanAction must redirect quarry XP to mining, got ' + res.xpSkill);
-    // Quarry stays a supply activity: below the comparable Mining ore rung's xp/s.
-    const rubble = find('quarry_rubble');
-    assert(rubble.xp / rubble.ms < 21 / 3000,
-      'quarry rubble xp/s (' + (rubble.xp / rubble.ms).toFixed(4) + ') must stay under Copper Rock ('
-      + (21 / 3000).toFixed(4) + ') so quarrying never out-trains ore');
-  }),
-
-  () => tryRun('b374: masonry "dress" jargon is gone — Stone/Granite/Basalt Block (Tyler)', () => {
-    const R = window.ARTISAN_RECIPES.stonemason;
-    const find = (id) => R.find((r) => r.id === id);
-    assert(!/dress/i.test(find('dress_rubble').name), 'dress_rubble label still says "dress": ' + find('dress_rubble').name);
-    assert(find('dress_rubble').name === 'Cut Stone Block', 'expected "Cut Stone Block", got ' + find('dress_rubble').name);
-    assert(find('dress_granite').name === 'Cut Granite Block', 'got ' + find('dress_granite').name);
-    assert(find('dress_basalt').name === 'Cut Basalt Block', 'got ' + find('dress_basalt').name);
-    // Product display name dropped "Dressed"; the id is preserved (no catalogue re-key).
-    assert(window.ITEMS.dressed_block, 'dressed_block id must survive (no catalogue re-key)');
-    assert(window.ITEMS.dressed_block.n === 'Stone Block',
-      'dressed_block must display as "Stone Block", got ' + window.ITEMS.dressed_block.n);
-    assert(!/dressed/i.test(window.ITEMS.dressed_block.n), 'the "dressed" jargon must be gone from the name');
-  }),
 
   () => tryRun('b374: arrow batches cut to a round ×50 (Tyler: "500 is way too much")', () => {
     const fletch = window.ARTISAN_RECIPES.crafting.filter((r) => r.id.startsWith('fletch_'));
@@ -1951,44 +990,6 @@ export default [
      override that renames the recipe (tailor_leather_boots beats
      craft_leather_boots) is still seen.
      ════════════════════════════════════════════════════════════ */
-  () => tryRun('b348: no gear ladder is out of order — a higher material tier never unlocks at or below the rung beneath it', () => {
-    const L = window.GEAR_LADDERS, R = window.ARTISAN_RECIPES, ITEMS = window.ITEMS || {};
-    assert(Array.isArray(L) && L.length >= 20,
-      'GEAR_LADDERS must be published by main.js — got ' + (Array.isArray(L) ? L.length + ' lanes' : typeof L));
-    assert(L.some((l) => l.key === 'plate/platebody') && L.some((l) => l.key === 'weapon/sword'),
-      'the lane set lost a known lane — this guard is grading nothing');
-    assert(L.every((l) => Array.isArray(l.rungs) && l.rungs.length >= 7),
-      'every lane must carry its full material ladder');
-
-    // The LIVE gate for each output, whatever recipe survived the merge.
-    const live = {};
-    Object.keys(R || {}).forEach((sk) => (R[sk] || []).forEach((r) => {
-      if (!r || !r.output) return;
-      const q = Number(r.req) || 0;
-      if (live[r.output] === undefined || q < live[r.output].req) live[r.output] = { req: q, id: r.id };
-    }));
-
-    const unreachable = [], disordered = [];
-    L.forEach((lane) => {
-      let prev = null;
-      lane.rungs.forEach((rung) => {
-        const lv = live[rung.itemId];
-        // A generated rung with no surviving recipe is content the player can
-        // never make — the merge silently ate it.
-        if (!lv) { unreachable.push(lane.key + ' t' + rung.tier + ' → ' + rung.itemId); return; }
-        if (prev && lv.req <= prev.req) {
-          const statOf = (id) => (ITEMS[id] && (ITEMS[id].defB || ITEMS[id].atkB)) || 0;
-          disordered.push(lane.key + ': ' + prev.itemId + ' (tier ' + prev.tier + ', ' + statOf(prev.itemId)
-            + ') gates at ' + prev.req + ' via ' + prev.id + ', but ' + rung.itemId + ' (tier ' + rung.tier + ', '
-            + statOf(rung.itemId) + ') gates at ' + lv.req + ' via ' + lv.id);
-        }
-        prev = { req: lv.req, id: lv.id, tier: rung.tier, itemId: rung.itemId };
-      });
-    });
-    assert(unreachable.length === 0, 'generated ladder rungs with no recipe — ' + unreachable.join(' | '));
-    assert(disordered.length === 0,
-      'THE b348 BUG: gear ladders whose craft gate is out of order with the material tier — ' + disordered.join('  ||  '));
-  }),
 
   () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {
     // A deterministic reachability check: seed the "roots" a player can obtain
@@ -2006,9 +1007,6 @@ export default [
     Object.values(M || {}).forEach((m) => (m.drops || []).forEach((d) => add(d.id)));
     (window.SEED_SHOP || []).forEach((s) => add(s.id));
     (window.EQUIP_SHOP || []).forEach((s) => add(s.id || s));
-    Object.values(window.DUNGEONS || {}).forEach((d) => (d.loot || []).forEach((l) => add(l.id)));
-    // The clan Hunt's signature materials (raids.js) — obtainable via the weekly boss.
-    ['slagheart_core', 'abyssal_pearl', 'choirbone', 'warden_seal', 'wyrm_gilding', 'hollow_sigil', 'wyrm_scale', 'void_core'].forEach(add);
     /* HEARTHFIND — the fifth source class (Feature Slate §2). The four
        trophies are rolled by the ONE engine off src/data/hearthfind.js, which
        no drop table mentions, so before this block they read as four dead
@@ -2035,8 +1033,8 @@ export default [
       'hearthfind rows whose source no longer exists — the trophy is unobtainable and the roll is dead '
       + 'code: ' + hfBroken.join(', '));
 
-    // Coded drops the engine grants outside the drop tables.
-    ['farm_deed', 'hearth_token', 'dungeon_scrip'].forEach(add);  // b281: scrip awarded on dungeon clears
+    // Coded grants the engine makes outside the drop tables.
+    ['hearth_token'].forEach(add);
 
     const inputsOf = (r) => { if (r.inputs) return r.inputs; const i = {}; if (r.input) i[r.input] = r.inputQty || 1; if (r.secondary) Object.entries(r.secondary).forEach(([k, v]) => { i[k] = v; }); return i; };
     const reach = new Set(base);
@@ -2055,12 +1053,17 @@ export default [
     }
     // Exempt: currencies, companions, blueprints/keys (they drop), recipe scrolls,
     // and a few deliberately-spent-elsewhere odds. Everything else MUST be reachable.
-    const EXEMPT = new Set(['hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
+    const EXEMPT = new Set(['hearth_token', 'burnt_food']);
+    /* DEMOLITION (2026-10-14): crafted gear, the dungeons and the clan Hunt left;
+       their outputs stay in the catalogue, sourceless, until the roster — the ONE
+       shrink-only list of them is catalogue-coherence AWAITING_ROSTER. */
+    const AWAITING = new Set(((window.HearthriseCatalogue || {}).AWAITING_ROSTER) || []);
+    assert(AWAITING.size > 0, 'HearthriseCatalogue.AWAITING_ROSTER must be published — without it this guard cannot tell a held row from a dead one');
     /* W0 (2026-10-10): the self-closing 'dormant' hatches (pendingSystem, non-live
        effect kinds) are GONE with the 40 rows they exempted — nothing in the
        catalogue may be unobtainable any more. tests/catalogue-coherence.mjs is the
        standing source-and-use guard for the whole catalogue in Node. */
-    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
+    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || AWAITING.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
     const dead = Object.keys(ITEMS).filter((id) => !reach.has(id) && !isExempt(id));
     assert(dead.length === 0, 'UNREACHABLE items (no obtainable source or broken recipe chain): ' + dead.join(', '));
   }),
@@ -2070,8 +1073,11 @@ export default [
       'the item-index seams (itemDesc/itemSourceLine/itemUsedInLine) must exist');
     // Flavour descriptions authored for the whole table.
     assert(window.itemDesc('steel_sword') && window.itemDesc('steel_sword').length > 8, 'items must carry a flavour description');
-    // Source: a crafted item names its craft; a mined ore names Mining.
-    assert(/Smithing/i.test(window.itemSourceLine('steel_sword')), 'a crafted item must name its craft source, got: ' + window.itemSourceLine('steel_sword'));
+    // Source: a crafted item names its craft; a mined ore names Mining. (The gear
+    // recipes left in the 2026-10-14 demolition, so the crafted fixture is the
+    // first live smithing output rather than the steel sword.)
+    const smithed = window.ARTISAN_RECIPES.smithing[0].output;
+    assert(/Smithing/i.test(window.itemSourceLine(smithed)), 'a crafted item must name its craft source, got: ' + window.itemSourceLine(smithed));
     assert(/Mining/i.test(window.itemSourceLine('iron_ore')), 'a mined ore must name Mining, got: ' + window.itemSourceLine('iron_ore'));
     // Used-in: a common ingredient lists what it makes.
     assert(window.itemUsedInLine('iron_bar').length > 0, 'a common ingredient must list what it is used in');
@@ -2086,8 +1092,8 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('item flavour coverage — Hearthfinds and dungeon uniques explain themselves too', () => {
-    for (const id of ['dungeon_scrip', 'emberheart', 'voidmaw_scepter']) {
+  () => tryRun('item flavour coverage — Hearthfinds and boss uniques explain themselves too', () => {
+    for (const id of ['emberheart', 'voidmaw_scepter']) {   // dungeon_scrip left with the dungeons
       assert(typeof window.itemDesc(id) === 'string' && window.itemDesc(id).length > 0, `"${id}" must carry a flavour line`);
     }
   }),
@@ -2276,470 +1282,15 @@ export default [
   /* -- regression suite -- BLESSING-HONESTY (CONFLICTS.md 2026-09-28): hr-accrue's bonusFor
      has no blessing layer, so the calendar may not move getBonus and Home / the Events card may
      print no rate, yield or gold-find promise. Red on the b227 layer and its "+3% gold find" copy. */
-  () => tryRun('BLESSING-HONESTY: an active blessing promises no rate, yield or gold find', () => {
-    const E = window.HearthriseWorldEvents, H = window.HearthriseHome;
-    const PROMISE = /\d+\s*%|\bspeed\b|\byield\b|gold find|\bXP\b|pay while/i;
-    const pick = { daily: E.DAILY.find((d) => d.id === 'open_coffers'), weekly: E.WEEKLY.find((w) => w.id === 'deep_veins') };
-    const keys = ['gatherSpeed', 'goldFind', 'farmYield', 'allXP', 'cookSpeed'];
-    try {
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      const quiet = keys.map((k) => window.getBonus(k));
-      E._force(pick);
-      assert(E.isActive(), 'the blessing must be active for this test to mean anything');
-      assert(keys.every((k, i) => window.getBonus(k) === quiet[i]), 'getBonus moved with the calendar: ' + keys.map(window.getBonus));
-      const card = (document.getElementById('hr-worldevents') || {}).textContent || '';
-      assert(card.indexOf(pick.daily.name) >= 0 && !PROMISE.test(card), 'Events card promises: ' + card);
-      /* render() is a no-op off the Home tab, and an earlier test may have left another tab up:
-         then this read the card the REAL calendar drew (red on the set when today's picks were
-         The Open Coffers / The Grand Fair). Put Home up so the card is drawn from the pin. */
-      window.showTab('profile');
-      assert(document.getElementById('panel-profile').classList.contains('active'), 'Home must be the active tab to be read');
-      if (H && H.render) H.render();
-      const h3 =[...document.querySelectorAll('#panel-profile h3')].find((x) => x.textContent === 'The realm');
-      const realm = h3 ? h3.parentNode.parentNode.textContent : '';
-      assert(realm.indexOf(pick.weekly.name) >= 0 && !PROMISE.test(realm), 'Home "The realm" promises: ' + realm);
-      E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(!ev.bonus && !PROMISE.test(ev.desc), ev.id + ' promises: ' + ev.desc));
-    } finally { E._force(null); }
-  }),
 
-  () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    const NS = window.HearthriseNetStatus;
-    assert(NS && typeof NS.getMode === 'function',
-      'the connectivity oracle must be the shipped one, not a second invention');
-    const snap = snapshotG();
-    try {
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      /* The blessing pays nothing (BLESSING-HONESTY), so the CARD is the
-         surface that states the condition; the activity note no longer names it. */
-      E._force({ daily: E.DAILY[0], weekly: E.QUIET });
-      const cardText = () => { E.renderBlessing(); return (document.getElementById('hr-worldevents') || {}).textContent || ''; };
-      const liveCard = cardText();
-      assert(liveCard.indexOf('Reconnecting') < 0, 'a connected session must not claim to be reconnecting');
 
-      NS.setMode('offline');
-      assert(P.isOnline() === false, 'the gate must read the oracle, not guess');
-      assert(P.blessingsApply() === false, 'a dropped session is not blessed');
-      assert(E.isActive() === false, 'and the card must agree');
-      const dim = cardText();
-      assert(dim.indexOf('Reconnecting') >= 0, 'the card must say reconnecting, got: ' + dim);
-      assert(dim.indexOf('idle') < 0, 'and must never resurrect the retired idle state, got: ' + dim);
 
-      NS.setMode('ok');
-      assert(P.blessingsApply() === true, 'reconnecting restores the blessing');
-      assert(E.isActive() === true, 'on the card too');
-    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
-  }),
 
-  () => tryRun('b227/b560: span output is byte-identical with and without an active blessing, away AND online', () => {
-    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
-    // THE test this rework exists for, and b229 left its assertions ALONE —
-    // only the retired input-clock seam was dropped from the setup. The latch,
-    // not the gate, is what holds the offline boundary: processOffline() runs
-    // inside loadLocal(), in a live connected session with an activity set, so
-    // every "is the player here?" signal is TRUE for the whole catch-up and a
-    // gate built on any of them would pay a returning player a full night at
-    // today's blessing. (b226's own flat ×1.12 leaked into offline grants for
-    // exactly this reason.) Run the same absence twice with the blessing layer
-    // forced on and forced off; the two piles must be identical, item for item
-    // and XP for XP.
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    assert(typeof P.inOfflineReplay === 'function', 'the offline-replay latch must be published');
-    const snap = snapshotG();
-    // A blessing far stronger than anything in the shipped pools, touching
-    // every key an offline gather replay could possibly read. If ONE of them
-    // leaks, the two nights cannot come out equal.
-    const LOUD = { id: 'test_loud', name: 'Test Blessing', desc: 'everything', bonus: {
-      allXP: 0.50, combatXP: 0.50, gatherSpeed: 0.50, cookSpeed: 0.50,
-      smithSpeed: 0.50, craftSpeed: 0.50, prayerSpeed: 0.50,
-      farmYield: 5, goldFind: 0.50, noBurn: 0.50 } };
-    try {
-      /* ONE instant for BOTH nights. See setAway's header: re-reading the clock
-         per run is what let a tick boundary fall between them and produce a
-         false parity failure. The two nights must differ in exactly one thing —
-         the blessing — and the clock is not it. */
-      const anchor = Date.now();
-      /* b515 — DRIVEN ON THE SPAN, INSIDE THE LATCH. The old rig called
-         `window.processOffline()`; that engine is deleted. What is under test is
-         unchanged and is not the caller: `blessingsApply()` is
-         `!inOfflineReplay() && sessionOnline()`, and the LATCH is the whole
-         offline boundary — a gate built on connectivity or presence answers
-         "yes" for the entire catch-up, because the catch-up runs in a live,
-         connected session (b226's ×1.12 leaked into every offline grant for
-         exactly that reason).
 
-         So the same three-hour night is replayed twice through
-         `simulateSkillSpan` with the REAL `window.getBonus` chain wired in, once
-         with the calendar quiet and once with it loud, INSIDE the replay latch.
-         `bonus` is the injected seam the engine reads, so this measures the
-         blessing layer exactly where an away span would meet it — and on a plain
-         state, so an ambient `G` an earlier test left behind cannot supply the
-         equality. */
-      const runNight = () => {
-        const r = window.HearthrisePresence._withOfflineReplay(() => awayGatherSpan({
-          targetId: 'normal_tree', spanMs: 3 * 3600000, fromMs: anchor - 3 * 3600000,
-          state: { skills: { woodcutting: 0 }, inventory: {}, toolCarry: {}, equipment: {}, buffs: [] },
-          ctx: { bonus: window.getBonus },
-        }));
-        return { xp: r.paid.xp.woodcutting || 0, items: r.out.gathered || 0, ms: r.out.intervalMs,
-          blessed: r.out.blessed };
-      };
 
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      const quiet = runNight();
-      E._force({ daily: LOUD, weekly: LOUD });
-      /* Nothing reads a calendar `bonus` table any more (BLESSING-HONESTY);
-         LOUD still carries one so a reader that came back would show up here. */
-      const loud = runNight();
-      E._force(null);
 
-      assert(quiet.xp > 0, 'the away night must actually have produced something to compare');
-      assert(loud.xp === quiet.xp,
-        'away XP must not move with the blessing (' + quiet.xp + ' vs ' + loud.xp + ')');
-      assert(loud.items === quiet.items,
-        'away item yield must not move with the blessing (' + quiet.items + ' vs ' + loud.items + ')');
-      assert(loud.ms === quiet.ms,
-        'the away action interval must not move with the blessing (' + quiet.ms + ' vs ' + loud.ms + ')');
 
-      /* THE CONTROL, INVERTED (BLESSING-HONESTY). The engine pays no blessing layer, so the
-         identical span run OUTSIDE the latch must come out the SAME as well: a
-         client that paid the calendar online would predict what hr-accrue
-         never pays (CLAUDE.md §6, CONFLICTS.md 2026-09-28). */
-      E._force({ daily: LOUD, weekly: LOUD });
-      const online = awayGatherSpan({
-        targetId: 'normal_tree', spanMs: 3 * 3600000, fromMs: anchor - 3 * 3600000,
-        state: { skills: { woodcutting: 0 }, inventory: {}, toolCarry: {}, equipment: {}, buffs: [] },
-        ctx: { bonus: window.getBonus, away: false },
-      });
-      E._force(null);
-      assert((online.paid.xp.woodcutting || 0) === quiet.xp && (online.out.gathered || 0) === quiet.items,
-        'the calendar moved an ONLINE span (' + JSON.stringify({ xp: online.paid.xp.woodcutting, items: online.out.gathered })
-        + ' vs quiet ' + JSON.stringify({ xp: quiet.xp, items: quiet.items }) + ') — the server pays no blessing');
 
-      /* AND THE RECEIPT STATES IT, in data, rather than leaving a renderer to
-         infer it — AWAY-24's rule, asserted here on the span's own payload. */
-      assert(loud.blessed === false,
-        'the away span must state, in data, that it was paid at the base rate');
-      assert(P.inOfflineReplay() === false, 'the replay latch must be released after the span');
-    } finally {
-      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      E._force(null);
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('b227: the replay latch shuts the blessing even in a live, connected, active session', () => {
-    // The unit-level statement behind the test above: it is not the gate that
-    // is false during a catch-up (it is emphatically true) — it is the latch.
-    // b229 renamed the signal it interrogates (isPresent → isOnline) and
-    // changed nothing else: every assertion below is the b227 original.
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    const snap = snapshotG();
-    try {
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      assert(P.isOnline() === true, 'the test must be run in the state a catch-up actually sees');
-      assert(P.blessingsApply() === true, 'outside a replay, an online player is blessed');
-      P._withOfflineReplay(() => {
-        assert(P.isOnline() === true, 'the session is still ONLINE inside a replay — that is the trap');
-        assert(P.inOfflineReplay() === true, 'the latch must be closed');
-        assert(P.blessingsApply() === false, '…and the blessing must be off anyway');
-        assert(E.isActive() === false, 'the world-events layer must agree');
-      });
-      assert(P.blessingsApply() === true, 'and it must be restored afterwards');
-      // Nested (offline combat inside processOffline) must not clear it early.
-      P._withOfflineReplay(() => {
-        P._withOfflineReplay(() => {});
-        assert(P.blessingsApply() === false, 'a nested replay must not release the outer latch');
-      });
-      // A throw inside a replay must not strand the game permanently unblessed.
-      try { P._withOfflineReplay(() => { throw new Error('boom'); }); } catch (e) { /* expected */ }
-      assert(P.inOfflineReplay() === false, 'a throw mid-replay must still release the latch');
-    } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('b227/b229/b560: a SPEED blessing moves no interval — online, offline or in a replay', () => {
-    // The XP side of a blessing gates itself because addXp reads getBonus live.
-    // The speed side is baked into G.skillMs at startSkill, so without a
-    // re-derivation a disconnected player would keep blessed speed and — worse
-    // — carry it into the offline replay, which divides elapsed time by that
-    // number. b229 drives the gate through connectivity instead of the retired
-    // idle clock; the replay half of the test is untouched.
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    const NS = window.HearthriseNetStatus;
-    assert(typeof window.activityIntervalMs === 'function', 'the shared interval formula must be published');
-    const snap = snapshotG();
-    try {
-      G.rooms = {}; G.plotBuildings = []; G.inventory = {};
-      /* Every OTHER speed source is zeroed so this asserts the mechanism, not
-         the state an earlier test left behind. Buffs join that list now that
-         they are away-gated: a held gather_speed buff pays in the "offline
-         session" branch (the player is present, merely disconnected) and not
-         inside a replay, so leaving one in would make the two legitimately
-         differ and this assertion would be measuring the wrong thing. */
-      G.buffs = [];
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      /* The engine pays no blessing layer, so a speed blessing may not
-         move the interval ONLINE either — the old "swings faster" assertion was
-         the client predicting a rate hr-accrue never pays (BLESSING-HONESTY). */
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      const baseMs = window.activityIntervalMs();
-      E._force({
-        daily: { id: 'test_gather', name: 'Test Surge', desc: 'test', bonus: { gatherSpeed: 0.25 } },
-        weekly: E.QUIET,
-      });
-      assert(window.activityIntervalMs() === baseMs,
-        'a speed blessing must not move the online interval (' + window.activityIntervalMs() + ' vs ' + baseMs + ')');
-      NS.setMode('offline');
-      assert(window.activityIntervalMs() === baseMs, 'nor a disconnected one');
-      NS.setMode('ok');
-      P._withOfflineReplay(() => {
-        assert(window.activityIntervalMs() === baseMs,
-          'the offline replay must derive the BASE interval, got ' + window.activityIntervalMs());
-      });
-
-      // And the live loop arms and keeps the base interval across a connectivity flip.
-      window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
-      assert(G.skillMs === baseMs, 'starting under a blessing must arm the base interval, got ' + G.skillMs);
-      NS.setMode('offline');
-      assert(G.skillMs === baseMs, 'a disconnect must leave it at the base interval, got ' + G.skillMs);
-      NS.setMode('ok');
-      assert(G.skillMs === baseMs, 'and so must reconnecting, got ' + G.skillMs);
-    } finally {
-      E._force(null);
-      NS.setMode('ok');
-      try { window.stopSkill(); } catch {}
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('b227/b560: the blessing pools carry no key, and every getBonus family has a living consumer', () => {
-    // A pool entry naming a key nothing reads is a promise the engine cannot
-    // pay — the exact defect goldFind and noBurn were before b222/b225. Each
-    // key below is asserted to MOVE something, by driving the real seam.
-    const G = window.G;
-    const E = window.HearthriseWorldEvents;
-    const snap = snapshotG();
-    const realGetBonus = window.getBonus;
-    try {
-      /* The pools carry NO key at all — the engine pays no blessing layer
-         (BLESSING-HONESTY). The consumer seams below are still every getBonus
-         family's contract, so they are driven from a fixed list. */
-      E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(ev.bonus === undefined, ev.id + ' carries a bonus table'));
-      const keys = new Set(['allXP', 'goldFind', 'gatherSpeed', 'smithSpeed', 'craftSpeed', 'cookSpeed', 'noBurn', 'combatXP', 'farmYield']);
-
-      // Drive each key through its real consumer with a stubbed getBonus.
-      const withKey = (key, val, fn) => {
-        window.getBonus = function (k) { return k === key ? val : 0; };
-        try { return fn(); } finally { window.getBonus = realGetBonus; }
-      };
-      G.rooms = {}; G.plotBuildings = []; G.inventory = {};
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-
-      // gatherSpeed / the four artisan speeds → activityIntervalMs()
-      const baseGather = withKey('gatherSpeed', 0, () => window.activityIntervalMs());
-      const fastGather = withKey('gatherSpeed', 0.25, () => window.activityIntervalMs());
-      assert(fastGather < baseGather, 'gatherSpeed must shorten a gather action');
-      [['cooking', 'cookSpeed'], ['smithing', 'smithSpeed'], ['crafting', 'craftSpeed'], ['prayer', 'prayerSpeed']]
-        .forEach(([skill, key]) => {
-          const recipes = window.ARTISAN_RECIPES[skill];
-          if (!recipes || !recipes.length) return;
-          G.activeSkill = skill; G.skillTargetId = recipes[0].id;
-          const slow = withKey(key, 0, () => window.activityIntervalMs());
-          const fast = withKey(key, 0.30, () => window.activityIntervalMs());
-          assert(fast < slow, key + ' must shorten a ' + skill + ' action (' + slow + ' → ' + fast + ')');
-        });
-
-      // allXP / combatXP → addXp()
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.restedXp = 0;
-      G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
-      const xpAt = (key, v) => withKey(key, v, () => {
-        xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting');
-      });
-      assert(xpAt('allXP', 0.15) > xpAt('allXP', 0), 'allXP must raise an XP grant');
-      const cbAt = (v) => withKey('combatXP', v, () => {
-        xpZero('attack'); window.addXp('attack', 10000); return xpOf('attack');
-      });
-      assert(cbAt(0.20) > cbAt(0), 'combatXP must raise a combat XP grant');
-
-      // goldFind → applyGoldFind()
-      assert(withKey('goldFind', 0.15, () => window.applyGoldFind(1000)) >
-             withKey('goldFind', 0, () => window.applyGoldFind(1000)),
-        'goldFind must raise a monster gold drop');
-
-      // noBurn → cookBurnChance()
-      const rec = (window.ARTISAN_RECIPES.cooking || [])[0];
-      if (rec && typeof window.cookBurnChance === 'function') {
-        G.skills.cooking = 0;
-        const hot = withKey('noBurn', 0, () => window.cookBurnChance(rec));
-        const safe = withKey('noBurn', 0.25, () => window.cookBurnChance(rec));
-        assert(safe < hot, 'noBurn must reduce the burn chance (' + hot + ' → ' + safe + ')');
-      }
-
-      // farmYield → harvestPlot(), read at harvest time
-      assert(withKey('farmYield', 2, () => Math.floor(window.getBonus('farmYield'))) === 2,
-        'farmYield must be readable as the flat bonus harvestPlot adds');
-
-      // And nothing in the list names a key with no consumer.
-      const WIRED = new Set(['allXP', 'combatXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
-        'craftSpeed', 'prayerSpeed', 'farmYield', 'goldFind', 'noBurn']);
-      keys.forEach((k) => assert(WIRED.has(k),
-        'pool key "' + k + '" has no proven consumer — add the seam or drop the entry'));
-    } finally { window.getBonus = realGetBonus; restoreG(snap); }
-  }),
-
-  () => tryRun('b227: the blessing data carries no emoji, and every entry has an atlas glyph', () => {
-    const E = window.HearthriseWorldEvents;
-    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
-    E.DAILY.concat(E.WEEKLY).forEach((ev) => {
-      assert(ev.glyph === undefined, ev.id + ' must not carry an emoji glyph field (Final Directive)');
-      assert(!EMOJI.test(ev.name + ' ' + ev.desc), ev.id + ' name/desc must be free of emoji');
-      assert(E.EVENT_GLYPH[ev.id], ev.id + ' has no atlas glyph — it would render as a blank medallion');
-      assert(window.HR_GLYPHS && window.HR_GLYPHS[E.EVENT_GLYPH[ev.id]],
-        ev.id + ' maps to "' + E.EVENT_GLYPH[ev.id] + '", which is not a baked atlas key');
-    });
-  }),
-
-  () => tryRun('b227/b560: activity keys are scoped to what runs, and the note names no blessing effect', () => {
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    const NS = window.HearthriseNetStatus;
-    const snap = snapshotG();
-    try {
-      // Keys are scoped to what is running: a smithing blessing must never be
-      // offered as a reason to keep chopping.
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      const wcKeys = P.activeBonusKeys();
-      assert(wcKeys.indexOf('gatherSpeed') >= 0 && wcKeys.indexOf('smithSpeed') < 0,
-        'a woodcutting session must consider gatherSpeed and ignore smithSpeed');
-      G.activeSkill = 'cooking'; G.skillTargetId = (window.ARTISAN_RECIPES.cooking || [{}])[0].id;
-      const ckKeys = P.activeBonusKeys();
-      assert(ckKeys.indexOf('cookSpeed') >= 0 && ckKeys.indexOf('noBurn') >= 0,
-        'a cooking session must consider cookSpeed and noBurn');
-      assert(ckKeys.indexOf('gatherSpeed') < 0, 'and not gather speed');
-
-      /* The note names NO blessing and NO effect, online or not — the
-         engine pays no blessing layer (BLESSING-HONESTY). What it may still say
-         is the power budget's ceiling. */
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      E._force({ daily: E.DAILY[0], weekly: E.WEEKLY[0] });
-      const live = window.HearthriseBlessingNote();
-      NS.setMode('offline');
-      const dim = window.HearthriseBlessingNote();
-      NS.setMode('ok');
-      E._force(null);
-      [live, dim].forEach((n) => {
-        assert(n.indexOf(E.DAILY[0].name) < 0 && n.indexOf(E.WEEKLY[0].name) < 0 && !/\d+%|while online/.test(n),
-          'the activity note must not name a blessing or its effect, got: ' + n);
-      });
-      // No activity → no note at all.
-      G.activeSkill = null; G.activeMonster = null; G.activeArtisanRecipe = null;
-      assert(window.HearthriseBlessingNote() === '', 'no activity running means no note');
-    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
-  }),
-
-  () => tryRun('b229: every surface states the same rule — while online, not while focused', () => {
-    // Four surfaces tell the player when a blessing pays: the Events panel
-    // card, Home's "The realm", the live note beside the running activity, and
-    // the welcome-back offline toast. They were three different sentences, one
-    // of which said "this tab open" — the line Tyler called confusing. This
-    // asserts the shipped STRINGS, because a rule the code obeys and the copy
-    // contradicts is still a broken rule to the person reading it.
-    const G = window.G;
-    const E = window.HearthriseWorldEvents;
-    const snap = snapshotG();
-    try {
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      E._force({ daily: E.DAILY[0], weekly: E.QUIET });
-
-      // 1 — the Events-panel blessing card (rendered wherever it is hosted).
-      E.renderBlessing();
-      const card = document.getElementById('hr-worldevents');
-      assert(card, 'the blessing card must render somewhere');
-      const cardTxt = card.textContent;
-      assert(cardTxt.indexOf('active while you are online') >= 0,
-        'the blessing card must state the rule in Tyler\'s words, got: ' + cardTxt);
-
-      // 2 — Home, "The realm".
-      let homeTxt = '';
-      try {
-        if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render();
-        const panel = document.getElementById('panel-profile');
-        homeTxt = panel ? panel.textContent : '';
-      } catch (e) { /* Home is optional at this point in the suite */ }
-      if (homeTxt.indexOf('The realm') >= 0) {
-        assert(homeTxt.indexOf('active while you are online') >= 0,
-          'Home\'s "The realm" must state the same rule, got a panel without it');
-      }
-
-      // 3 — the live activity note: its blessing clause is withdrawn (BLESSING-HONESTY).
-      const note = window.HearthriseBlessingNote();
-
-      /* 4 — THE WELCOME-BACK SURFACE. b515 — THE SENTENCE MOVED SURFACES, and
-         the rule did not. It used to be captured off the TOAST processOffline
-         raised, which said "Offline 3.0h at the base rate — …"; b515 deleted
-         that toast with the local away engine and the server-path toast
-         (`accrue.js receiptSentence`) has never carried the clause (filed
-         2026-09-07, P2). The DURABLE away card does carry it, and it is the
-         surface a player can still read a minute later, so that is where the
-         fourth reading is taken.
-         MUTATION: drop the base-rate line from home-dashboard.js's away card
-         and this goes red — which is what the toast assertion did for the
-         surface it watched. */
-      const H = window.HearthriseHome;
-      assert(H && typeof H.__awayCardHtml === 'function',
-        'the away-card seam must be published, or the fourth surface is unassertable');
-      const awayCardTxt = String(H.__awayCardHtml({
-        hrs: 3, awayMs: 3 * 3600000, gainedXp: 900, gainedItems: 40, gainedGold: 12,
-        gainedKills: 0, burnt: 0, crits: 0, capped: false, blessed: false, buffsPaused: false,
-        rateMult: 1, died: false, diedAfterMs: 0, diedTo: null, combat: null, at: Date.now(),
-      })).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-      assert(/base rate/i.test(awayCardTxt),
-        'the welcome-back card must name the base rate, got: ' + awayCardTxt);
-      assert(/while you play|while you are online|while online/i.test(awayCardTxt),
-        'the card states the rate but not the RULE — the player is left to guess what pays while they play: '
-        + awayCardTxt);
-
-      // …and none of the blessing copy may say "tab", or scold an "idle"
-      // player. (Home is checked for "tab" only — the whole profile panel is
-      // scanned there, and other cards are entitled to their own vocabulary.)
-      [cardTxt, note, awayCardTxt].forEach((s) => {
-        assert(String(s).indexOf('tab') < 0, 'no blessing surface may mention a tab: ' + s);
-        assert(!/\bidle\b/.test(String(s)), 'no blessing surface may call an online player idle: ' + s);
-      });
-      assert(homeTxt.indexOf('this tab') < 0, 'Home must not mention a tab either');
-    } finally { E._force(null); restoreG(snap); }
-  }),
-
-  () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => withCap(720, () => {
-    /* This test used to assert the opposite: that the Offline+ entitlement added
-       4h to the cap. b505 removed that product (Tyler: "kill ... both offline
-       boosts") — an away-accrual boost sold for cash is pay-to-win on a shared,
-       ranked economy, and the server floors offline at 12h regardless, so it was
-       also selling nothing. The runtime property is now that a leftover or forged
-       entitlement flag does NOTHING; the catalogue half lives in the b505 guard. */
-    const G = window.G;
-    const snap = snapshotG();
-    try {
-      G.entitlements = {};
-      const base = window.offlineCapHours();
-      assert(base === 12, 'the server stated 12h (grant_min 720), got ' + base);
-      const flags = { offlinePlus: true, noAds: true, hearthHall: true };
-      (window.IAP_CATALOG || []).forEach((prod) => { if (prod.ent) flags[prod.ent] = true; });
-      G.entitlements = flags;
-      assert(window.offlineCapHours() === base,
-        'an entitlement moved the offline cap from ' + base + 'h to ' + window.offlineCapHours()
-        + 'h — away-time is not for sale; the cap is the server\'s');
-    } finally { restoreG(snap); }
-  })),
 
   () => tryRun('b226: the vendor pays VENDOR_RAW_RATE for raws and full value for the rest', () => {
     const ITEMS = window.ITEMS;
@@ -2823,57 +1374,6 @@ export default [
       'tier-1 may not out-produce tier-7 more than 5:1, got ' + (perHour(t1) / perHour(t7)).toFixed(1) + ':1');
   }),
 
-  () => tryRun('b228: renown weights came down, thresholds did NOT, and the ratchet still holds', () => {
-    /* Tyler, 2026-08-09: *"It also seems to be going way too fast."* Every W
-       weight is retuned toward Serf day 1-2 / Squire week 1 / Knight week 3-4 /
-       Baron month 2+ (see the derivation in renown.js).
-
-       b226 asserted the opposite direction — "weights only rose" — because a
-       kill-heavy veteran whose score fell could be DEMOTED. That protection is
-       real and it is unchanged; what changed is WHERE it comes from. The
-       `renownHigh` ratchet makes it structural: rank is decided on the
-       high-water mark, so a weight may now fall in any direction without
-       clawing back a single rank. Which is exactly why the safe lever is the
-       weights and never the THRESHOLDS — those are compared against the banked
-       mark, and raising one would demote everybody at once. This test pins
-       both halves. */
-    const R = window.HearthriseRenown;
-    assert(R.WEIGHTS.totalLevel === 2, 'totalLevel weight must be 2');
-    assert(R.WEIGHTS.skill99 === 100, 'skill99 weight must be 100');
-    assert(R.WEIGHTS.kill === 0.05, 'the kill weight must be 0.05');
-    assert(R.WEIGHTS.questDone === 25 && R.WEIGHTS.collection === 3 && R.WEIGHTS.streakBest === 5,
-      'the rest of the pace retune drifted');
-    // THE THRESHOLDS ARE FROZEN. They are compared against the banked ratchet,
-    // so moving one is the one edit that can demote a live player.
-    const MINS = [0, 400, 900, 2200, 4500, 8000, 13500, 21000, 32000, 48000, 72000, 120000];
-    R.RANKS.forEach((r, i) => assert(r.min === MINS[i],
-      'rank threshold ' + r.id + ' moved to ' + r.min + ' — thresholds may never move'));
-    assert(typeof R.effective === 'function', 'the ratcheted score must be published');
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      G.renownHigh = 0;
-      const live = R.compute(G);
-      const high = R.effective(G);
-      assert(high === live, 'with no history the ratchet is the live score');
-      assert(G.renownHigh === live, 'the high-water mark must persist into the save');
-
-      // Now simulate ANY future change that would lower the score — a weight
-      // edit, a recount, a lost term. The rank must not move.
-      const rankBefore = R.rankIndexFor(R.effective(G));
-      G.renownHigh = live + 50000;
-      assert(R.effective(G) === live + 50000, 'the ratchet holds the high-water mark, not the live score');
-      const rankAfter = R.rankIndexFor(R.effective(G));
-      assert(rankAfter >= rankBefore, 'a rank may never fall');
-
-      // And a collapse of the underlying score cannot pull the rank down.
-      const skills = G.skills; G.skills = {};
-      assert(R.compute(G) < live, 'the live score really did fall');
-      assert(R.effective(G) === live + 50000, 'but the ratcheted score did not');
-      assert(R.rankIndexFor(R.effective(G)) >= rankBefore, 'so the rank did not either');
-      G.skills = skills;
-    } finally { restoreG(snap); }
-  }),
 
   () => tryRun("b226: the Founder's mark is date-gated, cosmetic, and grants nothing", () => {
     const G = window.G;
@@ -2929,18 +1429,6 @@ export default [
     } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
   }),
 
-  () => tryRun('b226: the Castle Labour daily cap is still reachable in a sitting', () => {
-    // §8.5: labour is per ACTION, not per hour, so slowing actions pushes the
-    // cap further away. Confirm a level-50 member can still fill it, or the
-    // clan's "attendance beats gear" design quietly breaks on a rate change.
-    const CS = window.HearthriseClanSeat;
-    if (!CS || typeof CS.labourForAction !== 'function') return;
-    const perAction = CS.labourForAction(50, 1);
-    const actions = Math.ceil(CS.DAILY_LABOUR_CAP / perAction);
-    const minutes = actions * window.pacedActionMs(3000) / 60000;
-    assert(minutes < 45,
-      'a level-50 member must still fill the ' + CS.DAILY_LABOUR_CAP + ' labour cap in under 45 min, needs ' + minutes.toFixed(1));
-  }),
   // b227 (Tyler): "Remove the save game button as the game is solely online."
   // Autosave + cloud sync own persistence; a manual save button implies the
   // game might NOT be saving, which is now a lie. Guard both variants gone.
@@ -2959,67 +1447,19 @@ export default [
     assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 2 }) === 'bag.hidden', 'a filtered bag must not claim the items are gone');
     assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 0 }) === 'bag.weapons', 'an empty class must use its own line');
     assert(SP.door('bag.seeds').tab === 'shops', 'the seeds door must open Shops');
-    assert(/Auto-Eat/.test(SP.fill('bag.food')), 'the food line must name Auto-Eat');
+    assert(/No food/.test(SP.fill('bag.food')) && !/Auto-Eat/.test(SP.fill('bag.food')), 'the food line must say the bag is empty, and never name the demolished Auto-Eat');
   }),
 
-  /* SIGNPOST-2: the Bounty strip lists only what the generator can post. */
-  () => tryRun('SIGNPOST-2: the Bounty strip follows the generator, not a second ladder', () => {
-    const SP = window.HearthriseSignposts, B = window.HearthriseCore && window.HearthriseCore.bounty;
-    assert(SP && B, 'signposts or core bounty missing');
-    const at = (level, clientMayPay, bounty) => SP.bountyStripHtml({ level, clientMayPay, bounty: bounty || B });
-    const one = at(1, false);
-    assert(/Cull/.test(one) && /Proof/.test(one), 'level 1 strip: ' + one);
-    assert(!/Elite|Auto-Bounty II|Tier 2 Board/.test(one), 'the strip promises an unlock that does not exist: ' + one);
-    assert(/is-on"><em>15<\/em>Hard/.test(at(15, false)), 'Hard must light at Bounty Hunter 15');
-    assert(!/is-on"><em>15<\/em>Hard/.test(at(14, false)), 'Hard must stay dark at 14');
-    assert(!/not on the board/.test(at(1, true)), 'a paying client has no not-posted line');
-    const stub = Object.assign({}, B, { isOfferableType: (t, c) => t === 'proof' || B.isOfferableType(t, c) });
-    assert(!/Proof/.test(at(1, false, stub)) && /Weapon/.test(at(1, false, stub)), 'the strip ignores isOfferableType');
-  }),
-  /* BOUNTY-PENDING — "confirmed" before the credit answer reads the pending
-     dash, never "0/N confirmed" (CLAUDE.md §6). The activity-bar chip is the
-     site a player sees: renderBountyPanel's ensureBountyState strips _confirming. */
-  () => tryRun('BOUNTY-PENDING: an unanswered kill credit reads pending on the combat bounty chip, then the server\'s number', () => {
-    if (typeof window.refreshActivityBar !== 'function' || !document.getElementById('ab-meta')) return skip('no activity bar');
-    const snap = snapshotG(); const G = window.G;
-    const chip = () => { window.refreshActivityBar(); return document.querySelector('#ab-meta .ab-bounty.confirming b'); };
-    try {
-      if (typeof window.ensureBountyState === 'function') window.ensureBountyState();
-      G.bountyHunter.active = { id: 'pend_cull', type: 'cull', target: 'goblin', tier: 1, difficulty: 'easy', progress: 20, required: 20,
-        rewards: { gold: 1, marks: 1, xp: 1 }, _confirming: true };
-      G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
-      let b = chip();
-      assert(b && b.querySelector('.bal-pending') && !/\b0\/\d+ confirmed/.test(b.textContent), 'the confirming chip read ' + (b && b.textContent));
-      window.hrNoteServerBounty({ bounty: { bounty_id: 'pend_cull', target: 'goblin', required: 20, progress: 7 } });   // the one server-mirrored view
-      b = chip();
-      assert(b && !b.querySelector('.bal-pending') && /^7\/20 · verifying/.test(b.textContent), 'the answered chip read ' + (b && b.textContent));
-    } finally { restoreG(snap); delete window.G._bountyServer; try { window.refreshActivityBar(); } catch (e) {} }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     EVEN-CARDS. Tyler, on Skills → Smithing → Smelting: "there's still
-     some unevenness on these squares". Measured on the real grid: open bars
-     194px tall beside locked bars 222.6px (the lock line was an extra line and
-     the grid was `align-items:start`); three-input recipes taller still; the
-     copper sprite's ingot filled ~70% of its canvas while the iron sprite
-     filled all of its own and carried the painter's mark in the corner.
-     This paints a real row through the published tile seam — two open bars,
-     two level-locked bars, one three-input bar, one bar with no sprite at all
-     (glyph fallback), one card with an extra wear line — and MEASURES it: equal width, equal height, one art box,
-     one status line on one baseline, and padded art cropped to fill the box.
-     ══════════════════════════════════════════════════════════════════════════ */
   () => tryRunAsync('EVEN-CARDS-1: every card in a recipe grid row has one width, one height, one art box and one pinned status line — and padded sprite art fills the box', async () => {
     const T = window.HearthriseActivitiesGrid;
     const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing;
     assert(T && typeof T.__tileForArtisan === 'function' && R, 'the artisan tile seam and the smithing recipes must be published');
     const pick = (id) => { const r = R.find((x) => x.id === id); assert(r, 'smithing recipe ' + id + ' is gone — re-pick the fixture'); return r; };
-    const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_deathsteel_ingot'].map(pick);
+    const row = ['smelt_copper', 'smelt_bronze', 'smelt_iron', 'smelt_gold', 'smelt_dawn', 'smelt_rune'].map(pick);
     assert(Object.keys(row[4].inputs || {}).length >= 3, 'the long-input fixture must have three inputs');
-    /* …and one card that carries an extra line (the wear gate), so the row has
-       a genuinely taller card the grid must stretch the others to. */
-    const worn = R.find((r) => typeof window.hrWearLineHtml === 'function' && window.hrWearLineHtml(r.output));
-    assert(worn, 'no smithing recipe draws a wear line — re-pick the fixture');
-    row.push(worn);
+    /* The wear-line card (an armour output) left with the gear recipes on
+       2026-10-14; smelt_dawn and smelt_rune carry three inputs, which is the
+       genuinely taller card the grid must stretch the others to. */
     const G = window.G; const snap = snapshotG(); const realGate = window.hrGateLevel;
     const host = document.createElement('div');
     try {
@@ -3030,8 +1470,7 @@ export default [
       host.innerHTML = '<div class="act-grid">' + row.map((r) => T.__tileForArtisan(r, 'smithing')).join('') + '</div>';
       document.body.appendChild(host);
       const tiles = [...host.querySelectorAll('.act-tile')];
-      assert(tiles.length === 7, 'painted ' + tiles.length + ' tiles for 7 recipes');
-      assert(tiles[6].querySelector('.at-wear'), 'the extra-line fixture card did not draw its wear line');
+      assert(tiles.length === row.length, 'painted ' + tiles.length + ' tiles for ' + row.length + ' recipes');
       assert(tiles.filter((t) => t.classList.contains('locked')).length >= 3 && tiles.filter((t) => !t.classList.contains('locked')).length >= 2,
         'the fixture must hold open AND locked cards in one row');
       const imgs = [...host.querySelectorAll('.at-icon img')];

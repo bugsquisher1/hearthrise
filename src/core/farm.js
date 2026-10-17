@@ -108,10 +108,6 @@ export function plotUpgradeCheck(st) {
   return { ok: false, error: 'cannot_afford', price, gold, deeds };
 }
 
-export const BOUNTY_DEED_CHANCE = 0.005; // 0.5% per bounty turn-in
-export const KILL_DEED_CHANCE = 0.001;   // 0.1% per Tier 2+ kill
-export const MIN_DEED_TIER = 2;          // Tier-1 mobs stay deed-free
-
 /* b420/b428 — FINITE-PERENNIAL regrow limits. A `regrows:true` crop is NOT
    infinite: one seed buys REGROW_LIMITS[id] regrows (that many + 1 total
    harvests), then the plant withers and the plot clears. This is the ONE
@@ -203,12 +199,6 @@ export function deedsForNextLevel(plotLevel) {
   const lv = clampPlotLevel(plotLevel);
   if (lv >= MAX_PLOT_LEVEL) return 0;
   return PLOT_TIERS[lv + 1].cost;
-}
-
-/** Should this kill roll for a deed at all? Tier gate only — the roll is
-    the caller's, using an injected rng. */
-export function killDeedEligible(monster) {
-  return !!monster && ((monster.tier | 0) >= MIN_DEED_TIER);
 }
 
 // ── The growth model ─────────────────────────────────────────────────────

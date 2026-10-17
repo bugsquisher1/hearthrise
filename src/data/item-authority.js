@@ -53,14 +53,13 @@ import { MONSTERS } from './monsters.js?v=589';
 import { BOSSES } from './bosses.js?v=589';
 import { ITEMS } from './items.js?v=589';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
-   walk only the four ENGINE grant sources, so an id a shop, the Quartermaster, a
-   goal reward or a raid chest is the ONLY source of could sit in limbo — neither
-   ownable nor excluded — and nothing failed. Every one of these tables is ESM
-   data, so the completeness check can simply read them. */
-import { QM_STOCK } from './dungeons.js?v=589';
+   walk only the four ENGINE grant sources, so an id a shop or a quest reward is
+   the ONLY source of could sit in limbo — neither ownable nor excluded — and
+   nothing failed. Both tables are ESM data, so the completeness check reads them.
+   (The Quartermaster, daily-task and raid-chest partitions were deleted with
+   their systems in the 2026-10-14 demolition.) */
 import { SHOP_OFFERS } from './shops.js?v=589';
-import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=589';
-import { RAID_BOSSES } from './raid-bosses.js?v=589';
+import { QUEST_REWARDS } from './goal-catalogue.js?v=589';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
 import { BURNT_ITEM } from '../core/artisan.js?v=589';
@@ -97,7 +96,6 @@ export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',
   runecrafting: 'payable',
-  stonemason:   'payable',
   prayer:       'payable',   // buries bones for XP; outputs are null → contributes no id
   cooking:      COOKING_SETTLEMENT_ARM_ENABLED ? 'payable' : 'unmodeled',
 });
@@ -141,61 +139,6 @@ export function gatherProductIds() {
    shipped inert b423, armed pre-wipe b424, rolled back b425, armed for good in
    the b454 post-wipe cutover.) */
 export const WORKER_PRODUCTION_SERVER_BACKED = true;   // LIVE since b454 (2026-08-22 cutover) — worker production is server-settled; the client mints none of it
-
-/* ── RAID CHEST MATERIALS — UNBACKED OWNABLE MINT (2026-08-22) ───────────────
-   src/features/raids.js `grantReward` mints the raid chest MATERIALS
-   (chest.items — boss.reward.items keys) AND the signature spoil (chest.sig)
-   CLIENT-SIDE via window.addItem, with NO server write: raid_claim
-   (2026-08-11-raid-claim-authority.sql, credit added b412) authorises the claim
-   and credits gold/gems into player_state but writes NO player_inventory. Those
-   material ids classify OWNABLE (bars/logs/ores) and several signature ids are
-   OWNABLE too (verified live: hollow_sigil, abyssal_pearl). So under the inventory
-   absolute-replace flip they would be DELETED.
-
-   Unlike the muster chest, the raid chest ITEM CATALOGUE is NOT server-known: the
-   material ids come from raids.js BOSSES[*].reward.items — a CLIENT feature file,
-   not the pure src/data layer, and the DB's hr_hunt_bosses holds only sig_item,
-   hr_hunt_tiers only chest_mats (a count). A correct server mint therefore needs
-   a PREREQUISITE: extract the raid boss reward catalogue into src/data and
-   generate a DB catalogue (with a drift guard), then extend raid_claim to mint
-   from it — the clan_deposit pattern. Until that lands this flag stays FALSE, the
-   lane below is an arm-blocker (assumeOwnable), and the flip fails closed. The
-   client grantReward addItem is already gated on the inventory record seam, so no
-   raid reward is stranded by the gate — the flip simply cannot arm. Flip TRUE only
-   in the commit that makes the raid server mint live + verified.
-
-   ── BACKED (2026-08-22, LIVE) ───────────────────────────────────────────────
-   The prerequisite landed: the raid boss reward catalogue was extracted to the
-   pure data layer (src/data/raid-bosses.js, published as window.RAID_BOSSES) and
-   generated into the DB (hr_hunt_boss_reward, tools/gen-raid-boss-rewards.mjs +
-   2026-08-22-raid-boss-rewards.generated.sql, drift-guarded in run-smoke). The
-   raid_claim RPC now mints the chest MATERIALS + signature into player_inventory
-   from that server catalogue — clan AND solo paths — scaled the same way the
-   client's chestFor/grantReward did (each = round(chest_mats / n_ids), per-id qty
-   = greatest(1, floor(each × scale)); solo = first two materials at qty 1; sig ×1
-   when the server's v_sig roll lands), consume-before-credit so a replay never
-   double-mints alongside the b412 gold/gems credit, journalled on the SAME 'raid'
-   ledger row. Applied + in-tx self-check verified live (2026-08-22-raid-chest-items.sql:
-   credit-once, replay-refused, materials land, no double-mint with the gold path,
-   net-zero rolled-back probe). So this is TRUE and the raid lane is no longer an
-   arm-blocker — unbackedOwnableMintLanes() drops it. The client grantReward addItem
-   stays inventory-seam gated (b450): pre-arm it credits locally, post-arm it no-ops
-   and the server-minted items arrive via the inventory envelope. */
-export const RAID_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-raid-chest-items.sql applied + verified
-
-/* ── MUSTER ABSENCE CHEST ITEMS — SERVER-BACKED (2026-08-22, LIVE) ───────────
-   The muster ONLINE claim (world_event_claim) has written its chest items to
-   player_inventory since b422. The ABSENCE / half-honors path
-   (world_event_absence_claim) did NOT — it computed the chest and returned
-   gold/gems but minted no items server-side, so grantAbsent addItem'd OWNABLE
-   theme materials client-side with no server write. 2026-08-22-absence-chest-items.sql
-   closes that: the RPC now writes the hr_rally_chest items into player_inventory
-   after its once-per-day settle guard, journals a 'rally' ledger row, and returns
-   the item list; muster.js grantAbsent renders that list and gates its local
-   addItem on the inventory record seam. Applied + self-check verified live
-   (credit-once, replay-safe, inventory-survival, grant-hygiene). So this is TRUE
-   and the absence path is NOT an arm-blocker. */
-export const MUSTER_ABSENCE_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-absence-chest-items.sql applied + verified
 
 /* THE INVENTORY-FLIP ARM — LIVE SINCE b454 (armed 2026-08-22, 953bd626).
    THE ONE FLAG THAT TURNS THE INVENTORY ABSOLUTE-REPLACE ON FOR EVERY PLAYER, and
@@ -388,13 +331,6 @@ export function artisanOutputIds(skill) {
 /** Cooking outputs — the un-modeled artisan lane. */
 export function cookingOutputIds() { return artisanOutputIds(COOKING_SKILL); }
 
-/** Every id the Quartermaster sells (dungeon scrip stock). */
-export function qmStockIds() {
-  const s = new Set();
-  for (const row of QM_STOCK || []) if (row && row.id) s.add(row.id);
-  return s;
-}
-
 /** Every ITEM a shop offer GRANTS (kind:'item'); currency/unlock/capacity grants
  *  are not bag ids and contribute nothing. */
 export function shopGrantIds() {
@@ -406,37 +342,11 @@ export function shopGrantIds() {
   return s;
 }
 
-/** Every ITEM a goal / daily task pays out. */
+/** Every ITEM a quest pays out. */
 export function goalRewardIds() {
   const s = new Set();
-  for (const table of [QUEST_REWARDS, DAILY_TASK_REWARDS]) {
-    for (const k of Object.keys(table || {})) {
-      const items = table[k] && table[k].items;
-      if (items) for (const id of Object.keys(items)) if (id) s.add(id);
-    }
-  }
-  return s;
-}
-
-/** The raid boss SIGNATURES alone — the unique, un-modeled half of a raid chest.
- *  Kept separate from raidRewardIds because the chest MATERIALS are ordinary
- *  gather/artisan/drop ids: excluding those would strip common materials out of
- *  the ownable set and re-open the phantom class they are settled to close. */
-export function raidSignatureIds() {
-  const s = new Set();
-  for (const b of RAID_BOSSES || []) if (b && b.sig) s.add(b.sig);
-  return s;
-}
-
-/** Every id a raid chest pays: the boss SIGNATURE plus its reward items. The
- *  header used to say this set was not enumerable from the data layer; it is —
- *  src/data/raid-bosses.js is ESM and holds both halves. */
-export function raidRewardIds() {
-  const s = new Set();
-  for (const b of RAID_BOSSES || []) {
-    if (!b) continue;
-    if (b.sig) s.add(b.sig);
-    const items = (b.reward && b.reward.items) || null;
+  for (const k of Object.keys(QUEST_REWARDS || {})) {
+    const items = QUEST_REWARDS[k] && QUEST_REWARDS[k].items;
     if (items) for (const id of Object.keys(items)) if (id) s.add(id);
   }
   return s;
@@ -504,9 +414,6 @@ export function buildItemAuthority(opts) {
      class for exactly the same reason. It was neither ownable nor excluded —
      limbo — and 11 live slots hold 206 of them. */
   excluded.add(BURNT_ITEM);
-  /* RAID SIGNATURES — the same class as a dungeon boss signature, and excluded
-     for the same reason: a unique trophy the accrual engine never settles. */
-  addAll(excluded, raidSignatureIds());
 
   const modeled = new Set();
   addAll(modeled, combatDropIds());
@@ -523,16 +430,14 @@ export function buildItemAuthority(opts) {
      forever. Owning them is what lets the omission mean zero. */
   addAll(modeled, seedIds());
 
-  /* ── SHOP-ONLY AND QUARTERMASTER-ONLY IDS ARE EXCLUDED (security C3) ───────
+  /* ── SHOP-ONLY IDS ARE EXCLUDED (security C3) ─────────────────────────────
      THE BLUEPRINT-LOSS SHAPE, generalised and closed by construction. An id
-     whose ONLY grant source is a counter — a Quartermaster blueprint, a shop
-     companion — is never produced by the accrual engine, so a complete envelope
-     that has not yet been told about the purchase omits it, and an armed
-     absolute replace would delete a thing the player paid for. Computed as
-     (shop ∪ QM) MINUS `modeled`, so an id a shop merely RESELLS (an ore, a bar)
-     keeps the class its engine source gives it and stays ownable. */
+     whose ONLY grant source is a counter is never produced by the accrual
+     engine, so a complete envelope that has not yet been told about the
+     purchase omits it, and an armed absolute replace would delete a thing the
+     player paid for. Computed as shop MINUS `modeled`, so an id a shop merely
+     RESELLS (an ore, a bar) keeps the class its engine source gives it. */
   for (const id of shopGrantIds()) if (!modeled.has(id)) excluded.add(id);
-  for (const id of qmStockIds()) if (!modeled.has(id)) excluded.add(id);
 
   // EXCLUDED wins on overlap — the never-delete direction (see header).
   const ownable = new Set();
@@ -638,13 +543,11 @@ export function unclassifiedGrantIds(opts) {
   addAll(universe, cropProductIds());
   addAll(universe, dungeonRewardIds(dungeons));
   for (const skill of Object.keys(ARTISAN_RECIPES || {})) addAll(universe, artisanOutputIds(skill));
-  /* …and every NON-ENGINE grant source (security C3): shop stock, the
-     Quartermaster, goal/daily payouts, raid chests, and the seeds themselves. A
-     new row in any of those tables now has to be ruled, not discovered live. */
+  /* …and every NON-ENGINE grant source (security C3): shop stock, quest
+     payouts and the seeds themselves. A new row in any of those tables now has
+     to be ruled, not discovered live. */
   addAll(universe, shopGrantIds());
-  addAll(universe, qmStockIds());
   addAll(universe, goalRewardIds());
-  addAll(universe, raidRewardIds());
   addAll(universe, seedIds());
 
   const out = [];
@@ -694,21 +597,6 @@ export function unbackedOwnableMintLanes() {
       backedBy: 'WORKER_PRODUCTION_SERVER_BACKED (server accrual settles worker output into player_inventory)',
     });
   }
-  if (!RAID_ITEMS_SERVER_BACKED) {
-    /* The raid chest material + signature ids live in src/features/raids.js
-       BOSSES[*].reward.items / .sig — a CLIENT feature file, not importable here
-       without a DOM. So this lane cannot enumerate its ids from the data layer;
-       it is marked assumeOwnable, which makes flipArmBlockers/pendingUnbackedOwnableMints
-       treat it as an un-backed OWNABLE mint (fail closed) regardless of the id
-       set. Verified live that raid sig ids include OWNABLE members (hollow_sigil,
-       abyssal_pearl) and the chest mats are gather/artisan ownables. */
-    lanes.push({
-      source: 'src/features/raids.js grantReward -> window.addItem(chest.items / chest.sig)',
-      ids: new Set(),
-      assumeOwnable: true,
-      backedBy: 'RAID_ITEMS_SERVER_BACKED (raid_claim mints chest mats/sig into player_inventory; needs the BOSSES reward catalogue extracted to src/data first)',
-    });
-  }
   return lanes;
 }
 
@@ -754,11 +642,10 @@ if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
     WORKER_PRODUCTION_SERVER_BACKED, INVENTORY_ARM_ENABLED, workerProductIds,
     INVENTORY_ARM_STAGE, INVENTORY_ARM_STAGE_HOSTS, inventoryArmStaged,
-    RAID_ITEMS_SERVER_BACKED, MUSTER_ABSENCE_ITEMS_SERVER_BACKED,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds, seedIds,
-    qmStockIds, shopGrantIds, goalRewardIds, raidRewardIds, raidSignatureIds,
+    shopGrantIds, goalRewardIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
     serverConsumedIds, serverConsumedItem,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,

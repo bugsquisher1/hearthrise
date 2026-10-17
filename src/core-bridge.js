@@ -38,11 +38,12 @@ import * as drops from './core/drops.js?v=589';
 import * as pacing from './core/pacing.js?v=589';
 import * as rested from './core/rested.js?v=589';
 import * as tools from './core/tools.js?v=589';
+
 import * as farm from './core/farm.js?v=589';
 import * as progression from './core/progression.js?v=589';
 import * as styles from './core/styles.js?v=589';
 import * as artisan from './core/artisan.js?v=589';
-import * as bounty from './core/bounty.js?v=589';
+
 import * as away from './core/away.js?v=589';
 import * as botd from './core/botd.js?v=589';
 import * as buffs from './core/buffs.js?v=589';
@@ -270,27 +271,13 @@ function resumeTarget(kind, id) {
   return hit;
 }
 
-/* The perk stack. On the client this is a chain seven wrappers deep
-   (world-events, companions, clans, clan-seat-ui, muster + two in
-   legacy.js); core must not know that, so it only ever sees a function. */
+/* The perk stack. On the client this is a chain of wrappers (legacy.js and
+   the power budget); core must not know that, so it only ever sees a function. */
 function bonus(key) {
   try { return (typeof window.getBonus === 'function') ? (window.getBonus(key) || 0) : 0; }
   catch (e) { return 0; }
 }
 
-/* THE BESTIARY CHARM INDEX (phase 2). Reached through the published
-   `window.HearthriseCharms` seam for the same reason `bonus` and `toolSpeed`
-   are: the owner of `G._bestiaryCharms` is src/render/bestiary-charms.js (it
-   mirrors the SERVER's counters there and nothing else writes it), and a bridge
-   that dug the scratch key out itself would be a second reader of one fact.
-   Defensive on every hop — a build without the module, a tab before its first
-   envelope and a signed-out session all contribute NO charm, never a rank. */
-function charms() {
-  try {
-    const C = (typeof window !== 'undefined') ? window.HearthriseCharms : null;
-    return (C && typeof C.indexForCombat === 'function') ? (C.indexForCombat() || null) : null;
-  } catch (e) { return null; }
-}
 
 /* THE BESTIARY TROPHY INDEX. The same seam, the same reason, the same defences:
    the owner of `G._bestiaryTrophies` is src/render/bestiary-trophies.js and a
@@ -312,9 +299,10 @@ function monsterId(row) {
   try { return trophiesMod.monsterIdIn(MONSTERS(), row); } catch (e) { return null; }
 }
 
-/* Tool speed still routes through window.HearthriseTools rather than
-   straight to core, because that object is a documented public API other
-   feature modules call — and it now delegates to core itself. */
+
+/* Tool speed routes through window.HearthriseTools rather than straight to
+   core, because that object is a documented public API other feature modules
+   call — and it delegates to core itself. */
 function toolSpeed(skill) {
   try {
     return (window.HearthriseTools && window.HearthriseTools.bestToolSpeed)
@@ -336,9 +324,9 @@ function combatCtx(eq, setBonus) {
     skills: g.skills || {},
     bonus,
     setBonus,
-    /* The charm rank per class — an INPUT, derived from the server's projected
-       counters. See `charms()` above and src/core/charms.js. */
-    charms: charms(),
+    /* Bestiary charms are gone from the client (2026-10-14 demolition); the
+       argument stays null until the engine drops it. */
+    charms: null,
     /* The trophy stage per MONSTER, from the same counters. `monsterId` is NOT
        set here and must not be: this context is built once per loadout and read
        for whichever monster the caller then names, so the id travels with the
@@ -390,11 +378,8 @@ function restedRoads() {
     const rung = (lv > 0 && window.ROOMS && window.ROOMS.library) ? window.ROOMS.library.levels[lv - 1] : null;
     if (rung && rung.rested > 0) roads.library = rung.rested;
   } catch (e) {}
-  try {
-    if (window.HearthriseClanSeatUI && typeof window.HearthriseClanSeatUI.restedQuantum === 'function') {
-      roads.clan = Number(window.HearthriseClanSeatUI.restedQuantum()) || 0;
-    }
-  } catch (e) {}
+  /* `clan` stays in the shape core/rested.js reads and is 0: the clan Tavern
+     road left with the clans (2026-10-14 demolition). */
   return roads;
 }
 
@@ -430,7 +415,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, bane, elements, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
+  styles, artisan, away, botd, buffs, combatSim, skillSim, artisanSim,
   autoEat, perks, ammo, goalCatalogue, workers, hearthfind, huntSpawn,
 
   /* The session RNG. */
@@ -450,7 +435,7 @@ window.HearthriseCore = {
   },
 
   /* The adapters legacy.js calls. */
-  bonus, toolSpeed, charms, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  bonus, toolSpeed, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
   /* …and the artisan index, on the same contract, plus its reverse (item →
@@ -495,17 +480,9 @@ Object.assign(window, {
   COMBAT_XP_SKILLS: progression.COMBAT_XP_SKILLS,
 
   /* PHASE A. COMBAT_STYLES was a `window.` assignment inside legacy.js
-     block 10; the bounty tables were top-level `const`s, i.e. invisible to
-     every other file. Both are now authored in src/core and published here,
-     which is what lets the server generate a board and route kill XP from
-     the same table the client renders. */
+     block 10; it is authored in src/core now and published here, which is
+     what lets the server route kill XP from the same table the client renders. */
   COMBAT_STYLES: styles.COMBAT_STYLES,
-  BOUNTY_KILL_COUNTS: bounty.BOUNTY_KILL_COUNTS,
-  BOUNTY_BASE_REWARDS: bounty.BOUNTY_BASE_REWARDS,
-  BOUNTY_TYPE_MULT: bounty.BOUNTY_TYPE_MULT,
-  BOUNTY_DIFFICULTY_MULT: bounty.BOUNTY_DIFFICULTY_MULT,
-  BOUNTY_TYPE_LABEL: bounty.BOUNTY_TYPE_LABEL,
-  BOUNTY_DIFFICULTY_LABEL: bounty.BOUNTY_DIFFICULTY_LABEL,
 
   /* THE UNIFICATION. `BUFFS_DEF` was a `const` inside legacy.js's buff-queue
      IIFE re-published on window; it is authored in src/core/buffs.js now, so

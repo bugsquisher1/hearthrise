@@ -8,7 +8,7 @@
 // WHAT THIS IS: the read-only lifetime stats, painted in the Journal's Stats tab. Every count on it is the
 // REALM's: the lifetime `stat` rows the server projects on every envelope,
 // folded by src/features/lifetime-tally.js (window.HearthriseLifetime), plus the
-// existing server mirrors (charms, trophies, skill xp, balances, marks). A count
+// existing server mirrors (trophies, skill xp, balances). A count
 // the realm has not stated yet renders the pending dash, never 0 (CLAUDE.md §6).
 // It writes NOTHING to game state.
 //
@@ -61,19 +61,13 @@
         + (lore[loreKey] ? '<div class="muted tiny">' + esc(lore[loreKey]) + '</div>' : '')
         + '<div class="stats-list">' + rows + '</div></div>';
     };
-    var studied = ask('kindsStudied');
-    var kinds = ask('kinds');
-    var kindRows = kinds === null
-      ? row('Kinds of beast', pending())
-      : (kinds.length ? kinds.map(function (k) { return row(k.name, esc(Number(k.kills).toLocaleString())); }).join('')
-        : '<div class="muted tiny">None yet</div>');
     return '<div class="stats-grid">'
         + tile(val(ask('combatLevel')), 'Combat level')
         + tile(val(ask('totalLevel')), 'Total level')
         + tile(val(ask('totalXp')), 'Total XP')
         + tile(n('kills'), 'Monsters slain')
         + tile(n('deaths'), 'Falls')
-        + tile(n('bounty_turnins'), 'Bounties turned in')
+
         + tile(n('gathered'), 'Resources gathered')
         + tile(n('cooked'), 'Dishes cooked')
       + '</div>'
@@ -82,11 +76,7 @@
         + row('Critical hits', n('crits'))
         + row('Rare drops', n('rare_drops'))
         + row('Falls', n('deaths'))
-        + row('Bounties turned in', n('bounty_turnins'))
-        + row('Bounty Hunter level', val(ask('bhLevel')))
-        + row('Beasts on the trophy wall', val(ask('trophies')))
-        + row('Kinds studied', studied === null ? pending() : esc(studied + ' of ' + (LT.kindsTotal || 0))))
-      + section('Kills by kind', 'kinds', kindRows)
+        + row('Beasts on the trophy wall', val(ask('trophies'))))
       + section('Gathering', 'gathering',
           row('Resources gathered', n('gathered'))
         + row('Logs cut', n('chopped'))
@@ -102,21 +92,20 @@
         + row('Crafts finished', n('crafted')))
       + section('Purse', 'purse',
           row('Gold', val(ask('gold')))
-        + row('Gems', val(ask('gems')))
-        + row('Bounty Marks', val(ask('marks'))));
+        + row('Gems', val(ask('gems'))));
   }
 
   /* The live readers: every one answers null until its server mirror has spoken. */
   function liveReaders() {
     var G = window.G || {};
-    var SR = window.HearthriseSkillRecord, C = window.HearthriseCharms, T = window.HearthriseTrophies;
+    var SR = window.HearthriseSkillRecord, T = window.HearthriseTrophies;
     var known = function (id) { return !!(SR && typeof SR.isSkillXpKnown === 'function' && SR.isSkillXpKnown(G, id)); };
     var lv = function (fn) { return typeof window[fn] === 'function' ? window[fn]() : null; };
     var bal = function (field, glyph, col) {
       var f = window.balMarkup || window.balText;
       return typeof f === 'function' ? f(field) + ' ' + _lsGly(glyph, 13, col) : null;
     };
-    var countersKnown = function () { return !!(C && typeof C.countersKnown === 'function' && C.countersKnown()); };
+
     return {
       combatLevel: function () { return lv('getCombatLevel'); },
       totalLevel: function () { return lv('getTotalLevel'); },
@@ -125,22 +114,13 @@
         if (!ids.length || !ids.every(known)) return null;
         return ids.reduce(function (a, id) { return a + (Number(SR.skillXpOf(G, id).value) || 0); }, 0);
       },
-      bhLevel: function () { return known('bountyHunter') ? lv('getBountyHunterLevel') : null; },
+
       trophies: function () {
         return (T && typeof T.claimsKnown === 'function' && T.claimsKnown()) ? T.wallRows({ cap: 100000 }).rows.length : null;
       },
-      kindsStudied: function () {
-        return countersKnown() ? C.charmClasses().filter(function (k) { return C.rankOfClass(k.cls) >= 1; }).length : null;
-      },
-      kinds: function () {
-        return countersKnown() ? C.charmClasses().slice().sort(function (a, b) { return b.kills - a.kills; }) : null;
-      },
+
       gold: function () { return bal('gold', 'gold', '--gold-2'); },
       gems: function () { return bal('gems', 'gems', '--gem'); },
-      marks: function () {
-        var M = window.HearthriseMarks;
-        return (M && M.marksOf(G).known) ? esc(M.fmtMarks(G)) : null;
-      },
     };
   }
 

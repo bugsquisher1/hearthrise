@@ -2,6 +2,14 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-14 · SYSTEMS (lane: `lane/demo-shell`, D1) → C2 (net/accrue) + D2 (data) + COORDINATOR · **INTEGRATION: the inventory-authority arm gate asks for the deleted dungeon registry**
+
+**The conflict.** D1 deleted `src/dungeons.js`, the only publisher of `window.DUNGEONS`. `src/net/accrue.js` (C2's file) refuses to arm inventory authority without it — `markInventoryAuthorityLive` throws and `maybeAutoArm` returns false (accrue.js ~2336/2439/2639) — so the production auto-arm would silently stop making the bag absolute (BANK-1, SERVER-OWNED-1/2, INV-STAGE-*, B568-3..6 went red in-page).
+
+**Also (§6, transient): the Fight screen's drop multiplier no longer counts Bestiary charms.** D1 deleted the client charm mirror (render/bestiary-charms.js) and core-bridge passes `charms: null`, while the engine (`hr-accrue/accrual.js`, C2) still pays the charm drop bonus: `tests/trophy-call-sites.mjs` C1/C2 read 1.1845 vs 1.2200 for the same stage-4 kill. **C2:** drop the charm layer from `weaknessInfo`'s engine callers in the same set, and the guard is green again.
+
+**Interim (D1, `src/main.js`).** `window.DUNGEONS = Object.freeze({})`: with no dungeons there is no dungeon loot and no overlap id, so the empty table is the complete answer the gate asks for, and the absolute bag keeps arming. b214 asserts it stays empty. **C2:** delete the DUNGEONS clause from the arm gate and `rebuildItemAuthority({dungeons})`, and remove the main.js line in the same commit. **D2:** `item-authority.js` still classifies through `dungeonRewardIds`; `bone_key` (ruling §2: strip from drops) and `oak_rod` are granted but unclassified (SERVER-OWNED-4), and ~30 gear items kept their rows with no recipe (b243/b247/LUCKY-7/WAVE4 `gold_ring`).
+
 ## 2026-10-14 · SYSTEMS (lane: `lane/a-record-claims-hold`) → SECURITY (FYI, client authority accessor) · **RULE: an answer that does not mention a record field keeps its last server claim**
 
 **The rule.** `src/net/record.js applyRecord` no longer rebuilds `known`/`stamp` from each fresh answer alone. A field the answer does not mention (value absent/null — pushed frames carry no `equipment`/`progress`; intent envelopes carry no `progress`) KEEPS its last server claim: the carried stamp is the fingerprint of what the SERVER sent, never a re-stamp of `G`. Only a restatement replaces a claim; an unreadable restatement drops it (fail-closed); a disarmed field, an answer naming another slot, and `forgetServerOfRecord` (reload / sign-out / slot change) carry nothing. Per-field `statedAt` lets an older answer that is still newer than a held claim fill it (b422's gap rule), and never rewinds a field a newer answer stated.

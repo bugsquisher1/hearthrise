@@ -126,7 +126,7 @@ export function check({ read = realRead } = {}) {
   const main = read('src/main.js');
   if (!/HearthriseCatalogue/.test(main)) fails.push('C7 src/main.js no longer publishes window.HearthriseCatalogue');
 
-  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length } };
+  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, awaiting: AWAITING_ROSTER.length } };
 }
 
 /* ── THE MUTATION PROOF ──────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ function mutate() {
       ARTISAN_RECIPES[skill] = saved[skill].filter((r) => {
         const inp = Object.assign({}, r.inputs || {}, r.secondary || {});
         if (r.input) inp[r.input] = 1;
-        return !('rat_tail' in inp);
+        return !('flux_salt' in inp);
       });
     }
     return { restore: () => { Object.assign(ARTISAN_RECIPES, saved); } };
@@ -221,7 +221,7 @@ if (isMain) {
       fails.forEach((f) => console.error('  ✗ ' + f));
       process.exit(1);
     }
-    console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use, `
+    console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use (${counts.awaiting} held, sourceless, for the roster), `
       + `${counts.skills} skills each with a consumer, the shop sells starter gear only, `
       + `the Collection Log counts the obtainable catalogue (pending: ${counts.pendingUse} item uses, `
       + `${counts.pendingConsumer} skill consumer, owned by other W0 lanes)`);

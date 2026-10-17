@@ -6,20 +6,16 @@
 // like increments of 2%."*
 //
 // ── WHY THIS FILE EXISTS AT ALL ─────────────────────────────────────────────
-// `getBonus` is not a function. It is a base function plus six additive
+// `getBonus` is not a function. It is a base function plus additive
 // monkey-patch wrappers, each of which does `t += …` and calls the one below:
 //
-//   0  legacy.js       room rungs, plot buildings, renown, homestead capstone
-//   1  companions.js   the equipped pet
-//   2  legacy.js       food & drink buffs
-//   3  clans.js        clan level perks
-//   4  clan-seat-ui.js the castle: buildings + the feast
-//   5  muster.js       the live rally aura
-//   6  world-events.js (b560: withdrawn — the engine pays no blessing layer)
+//   0  legacy.js       room rungs, plot buildings, homestead capstone
+//   1  legacy.js       food & drink buffs
 //
-// Until b228 the only fuse in the game lived at layer 4 and reduced ONLY layer
-// 4's own contribution. Layers 5 and 6 — plus companions and buffs below it —
-// were added afterwards and nothing clamped the output. It also policed one
+// (Companions, clan perks, the castle and feast, the muster aura and world-event
+// blessings were wrapper layers until the 2026-10-14 demolition deleted them.)
+// Until b228 the only fuse in the game reduced ONLY one layer's own
+// contribution; later layers were added and nothing clamped the output. It also policed one
 // key, `allXP`, which is how `smithSpeed` reached +90% without anyone noticing.
 //
 // A fuse that a later wrapper escapes is worse than no fuse, because it is a
@@ -59,11 +55,10 @@
   var TEMPORARY_CAP = 0.15;
   var TOTAL_CAP     = 0.30;
 
-  /* The nine keys the budget governs. Every one of them multiplies a rate. */
+  /* The eight keys the budget governs. Every one of them multiplies a rate. */
   var GOVERNED = {
     allXP: 1, combatXP: 1, goldFind: 1,
-    gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1,
-    raidPower: 1
+    gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1
   };
 
   /* Everything deliberately OUTSIDE it, with the reason, so the next reader
@@ -86,16 +81,6 @@
 
   /* ── the temporary half, asked of each owner ──────────────────────────── */
 
-  function feastPart(key) {
-    var U = window.HearthriseClanSeatUI;
-    if (!U || typeof U.feastBonus !== 'function') return 0;
-    return Number(U.feastBonus(key)) || 0;
-  }
-  function musterPart(key) {
-    var M = window.HearthriseMuster;
-    if (!M || typeof M.liveAura !== 'function') return 0;
-    return Number(M.liveAura(key)) || 0;
-  }
   function buffPart(key) {
     if (typeof window.getBuffBonuses !== 'function') return 0;
     var b = window.getBuffBonuses();
@@ -107,8 +92,6 @@
      reason it gets its own budget rather than competing for the permanent one. */
   function temporaryFor(key) {
     var t = 0;
-    try { t += feastPart(key); } catch (e) {}
-    try { t += musterPart(key); } catch (e) {}
     try { t += buffPart(key); } catch (e) {}
     return t;
   }
@@ -158,9 +141,8 @@
 
   /* ── installation ──────────────────────────────────────────────────────── */
   //
-  // Install order is genuinely dynamic: clan-seat-ui.js retries its own hook on
-  // a 200ms timer until getBonus exists, and companions.js installs from the
-  // ESM boot after every classic script has run. So "load last" is necessary
+  // Install order is dynamic: a wrapper may install from the ESM boot after
+  // every classic script has run. So "load last" is necessary
   // and not sufficient — ensureOutermost() re-wraps whenever something else has
   // wrapped on top of us.
   //

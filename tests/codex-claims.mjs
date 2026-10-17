@@ -91,16 +91,11 @@ export async function loadWorld() {
     hunt: { ...(await imp('src/core/hunt.js')) },
     xp: { ...(await imp('src/core/xp.js')) },
     combat: { ...(await imp('src/core/combat.js')) },
-    bounty: { ...(await imp('src/core/bounty.js')) },
     workers: { ...(await imp('src/core/workers.js')) },
     farm: { ...(await imp('src/core/farm.js')) },
     huntSessions: { ...(await imp('src/data/hunt-sessions.js')) },
-    rewards: { ...(await imp('src/data/rewards.js')) },
-    ranks: { ...(await imp('src/data/renown-ranks.js')) },
-    charms: { ...(await imp('src/data/bestiary-charms.js')) },
     bestiary: { ...(await imp('src/data/bestiary.js')) },
     monsters: (await imp('src/data/monsters.js')).MONSTERS,
-    dungeons: { ...(await imp('src/data/dungeons.js')) },
     shops: (await imp('src/data/shops.js')).SHOP_OFFERS,
     milestones: (await imp('src/data/collection-milestones.js')).COLLECTION_MILESTONES,
     companions: (await imp('src/data/companions.js')).COMPANIONS,
@@ -111,8 +106,8 @@ export async function loadWorld() {
     mig: (f) => read('supabase/migrations/' + f),
     packNames: packed.files.map((x) => x.name),
     accrualJs: read('supabase/functions/hr-accrue/accrual.js'),
-    combatSimJs: read('src/core/combat-sim.js'),
     combatJs: read('src/core/combat.js'),
+    combatSimJs: read('src/core/combat-sim.js'),
     clientStateJs: read('src/net/client-state.js'),
     indexHtml: read('index.html'),
     src,
@@ -128,10 +123,8 @@ const lvXp = (w, lv) => { let x = 0; while (w.xp.levelFromXp(x) < lv) x += 50; r
 
 export const BINDS = {
   awayPaysLiveRate: (w) => need(w.away.AWAY_RATE_MULT === 1, 'AWAY_RATE_MULT is ' + w.away.AWAY_RATE_MULT + ', not 1 — away is not "the same pace"'),
-  awayScope: (w) => all(
-    need(w.away.AWAY_SCOPE.blessing === false, 'AWAY_SCOPE.blessing is no longer false — blessings no longer pause'),
-    need(Object.entries(w.away.AWAY_SCOPE).every(([k, v]) => k === 'blessing' || v === true),
-      'an AWAY_SCOPE channel other than blessing stopped paying — "keeps doing the last thing" is now partial')),
+  awayScope: (w) => need(Object.entries(w.away.AWAY_SCOPE).every(([k, v]) => k === 'blessing' || v === true),
+    'an AWAY_SCOPE channel stopped paying — "keeps doing the last thing" is now partial'),
   awayCapped: (w) => {
     const r = w.away.creditWindow({ watermarkMs: 0, nowMs: 100, capMs: 40 });
     return need(r.paidMs === 40 && r.capped === true, 'creditWindow no longer caps paidMs at capMs');
@@ -158,49 +151,6 @@ export const BINDS = {
     const s = { attack: lvXp(w, 10), fishing: lvXp(w, 5) };
     return need(w.xp.totalLevel(s) === 15, 'totalLevel is no longer the plain sum of skill levels');
   },
-  totalLevel: (w) => {
-    const b = w.fnBody('hr_renown_of');
-    return need(b && /sum\(lv\)/.test(stripSqlComments(b.text)), 'the chain-end hr_renown_of no longer counts sum(lv)');
-  },
-  daily: (w) => {
-    const R = w.rewards;
-    const golds = R.DAILY_LOGIN_CYCLE.map((d) => d.gold);
-    return all(
-      need(R.DAILY_LOGIN_CYCLE_DAYS === 7, 'the daily cycle is no longer a week'),
-      need(golds.every((g, i) => i === 0 || g > golds[i - 1]), 'the daily gold no longer climbs through the week'),
-      need(R.priceDailyLogin(8).gold > R.priceDailyLogin(1).gold, 'a finished week no longer makes the next one richer'),
-      need(R.priceDailyLogin(7, { bonus: true }).items.bone_key === 1, 'day 7 no longer pays a Bone Key'),
-      need(R.priceDailyLogin(7 * 100).mult === 3 && R.DAILY_LOGIN_MAX_WEEK_MULT === 3, 'a finished week no longer stops at three times the first'),
-      need(R.deriveLoginStreak({ last: { value: 5, gap: 2, state: 'claimed' } }) === 5, 'a missed day no longer steps back exactly one day'));
-  },
-  renownTerms: (w) => {
-    const b = w.fnBody('hr_renown_of');
-    if (!b) return 'hr_renown_of has no definition in the apply order';
-    const c = stripSqlComments(b.text);
-    const miss = ['sum(lv)', "'ev:kill_any'", 'is_boss', "'ev:loot:%'", 'streak_days', 'gold']
-      .filter((t) => !c.includes(t));
-    return all(
-      need(!miss.length, 'hr_renown_of (' + b.file + ') no longer scores: ' + miss.join(', ')),
-      need(!/quest/i.test(c), 'hr_renown_of now scores quests — the Renown entry leaves them out'));
-  },
-  rankRewards: (w) => {
-    const R = w.ranks.RENOWN_RANK_REWARDS;
-    return all(
-      need(!('peasant' in R), 'Peasant now pays a reward'),
-      need(Object.values(R).every((r) => r.gold > 0), 'a rank above Peasant pays no gold'));
-  },
-  rankRatchet: (w) => {
-    const writes = w.order.flatMap((f) => {
-      let t; try { t = stripSqlComments(w.mig(f)); } catch (e) { return []; }
-      return [...t.matchAll(/(?<![\w'])set\s+renown_high\s*=\s*([^\n]*)[\s\S]{0,400}/gi)]
-        .filter((m) => !/\bgold\s*=\s*0\b|version\s*=\s*1/.test(m[0]))   // self-check fixtures reset a probe row
-        .map((m) => ({ f, s: m[0] }));
-    });
-    const lowering = writes.filter((x) => !/greatest\s*\(/i.test(x.s) && !/renown_high[^<\n]*<\s*r\.v/i.test(x.s));
-    return all(
-      need(writes.length > 0, 'no renown_high writer found in the apply order'),
-      need(!lowering.length, 'a renown_high writer is not raise-only: ' + lowering.map((x) => x.f).join(', ')));
-  },
   prayerHalf: (w) => need(
     w.xp.combatLevel({ prayer: lvXp(w, 81) }) === w.xp.combatLevel({ defense: lvXp(w, 41) }),
     'Prayer no longer counts half toward combat level'),
@@ -212,9 +162,7 @@ export const BINDS = {
     return all(
       need(M.every((m) => m.weaponWeak), 'a monster has no weapon weakness'),
       need(M.filter((m) => m.elementWeak).length * 2 > M.length, 'fewer than half the monsters have an element weakness'),
-      need(w.combat.WEAKNESS_BONUS.damage > 1 && w.combat.WEAKNESS_BONUS.accuracy > 1, 'the feared weapon no longer lands more often and harder'),
-      need(M.some((m) => m.hiddenElement), 'no monster hides its element any more'),
-      need(w.charms.CHARM_RANKS[0].reveal === true, 'charm rank 1 no longer reveals the hidden element'));
+      need(w.combat.WEAKNESS_BONUS.damage > 1 && w.combat.WEAKNESS_BONUS.accuracy > 1, 'the feared weapon no longer lands more often and harder'));
   },
   /* Closed rebuild (lane C2): the recovery ladder, the free first fall and
      the Retreat are deleted. A fall in a hunt is the FLAT KNOCKOUT_MS, then a
@@ -227,21 +175,6 @@ export const BINDS = {
       need((sim.match(/recoverMs: KNOCKOUT_MS/g) || []).length === 1 && !/recoveryFor\(/.test(sim), 'a fall no longer costs the one flat knockout, or a ladder prices it again'),
       need(typeof A.recoveryFor !== 'function' && typeof A.retreatAtFall !== 'function', 'the fall ladder or the Retreat is back in the engine'),
       need(A.RESUME_HP_FRACTION > 0 && A.RESUME_HP_FRACTION < 1, 'a fall no longer resumes on part of your health'));
-  },
-  bounty: (w) => {
-    const B = w.bounty;
-    const bad = [];
-    for (const t of Object.keys(B.BOUNTY_BASE_REWARDS)) for (const ty of Object.keys(B.BOUNTY_TYPE_MULT))
-      for (const d of Object.keys(B.BOUNTY_DIFFICULTY_MULT)) {
-        const r = B.bountyRewards(Number(t), ty, d);
-        if (!(r.gold > 0 && r.marks >= 1 && r.xp > 0)) bad.push(t + '/' + ty + '/' + d);
-      }
-    const marks = (id) => w.shops.some((o) => o.id === id && o.cost.some((c) => c.id === 'marks' && c.amount > 0));
-    return all(
-      need(!bad.length, 'a finished bounty no longer pays gold, Marks and experience: ' + bad.slice(0, 3).join(', ')),
-      need(w.order.includes('2026-09-11-bounty-hunter-xp.sql'), 'the Bounty Hunter experience credit left the apply order'),
-      need(marks('bounty.auto_bounty_1') && marks('bounty.cosmetic_cape') && marks('bounty.reroll_token'),
-        'Auto-Accept, the Hunter Cloak or a reroll is no longer sold for Marks'));
   },
   property: (w) => {
     const t = w.mig('2026-08-16-unlock-offers.generated.sql');
@@ -263,17 +196,6 @@ export const BINDS = {
       need(w.packNames.includes('vendor/core/workers.js') && /accrueWorkers/.test(w.accrualJs), 'the server settle no longer pays hands while you are away'),
       need(w.ladders.WORKER_LADDER.every((r) => r.gold > 0), 'a hand is no longer hired with gold'));
   },
-  deeds: (w) => {
-    const D = w.dungeons.DUNGEONS;
-    const deedIn = Object.values(D).some((d) => JSON.stringify(d.loot || '').includes('farm_deed'));
-    const P = w.farm.PLOT_TIER_PRICES;
-    return all(
-      need(deedIn, 'no dungeon chest holds a Farmer\'s Deed'),
-      need(w.mig('2026-09-10-dungeon-catalogue.generated.sql').includes('farm_deed'), 'the server dungeon catalogue lost the Farmer\'s Deed'),
-      need(!/deed/i.test(w.accrualJs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')), 'the accrual engine now rolls deeds — the entry says dungeon chests only'),
-      need(Object.values(P).every((p) => p.deeds > 0 && p.gold > 0), 'a plot upgrade is no longer payable in deeds instead of gold'),
-      need(w.items.farm_deed && !w.items.farm_deed.bop, 'the Farmer\'s Deed can no longer be sold on the Market'));
-  },
   companions: (w) => {
     const C = Object.values(w.companions);
     const kinds = new Set(C.map((c) => String(c.source || '').split(':')[0]));
@@ -281,44 +203,12 @@ export const BINDS = {
       need(C.every((c) => typeof c.source === 'string' && c.source), 'a companion has no source'),
       need(['drop', 'shop', 'skill', 'boss'].every((k) => kinds.has(k)), 'a named companion source kind is gone'));
   },
-  gems: (w) => {
-    const ok = /^(character_slot|theme|cosmetic):/;
-    const bad = w.shops.filter((o) => o.cost.some((c) => c.id === 'gems'))
-      .filter((o) => !o.grant.every((g) => (g.kind === 'unlock' && ok.test(g.id)) || (g.kind === 'capacity' && g.id === 'bank_slots')));
-    return all(
-      need(w.rewards.DAILY_LOGIN_CYCLE.some((d) => d.gems > 0), 'the daily reward pays no gems'),
-      need(Object.values(w.ranks.RENOWN_RANK_REWARDS).some((r) => r.gems > 0), 'no renown rank pays gems'),
-      need(Object.values(w.milestones).some((m) => m.gems > 0), 'no collection milestone pays gems'),
-      need(!bad.length, 'gems now buy something other than slots, themes and looks: ' + bad.map((o) => o.id).join(', ')));
-  },
-  scrip: (w) => {
-    const { DUNGEONS, QM_STOCK, dungeonScripBase } = w.dungeons;
-    const qm = new Map(QM_STOCK.map((r) => [r.id, r.scrip]));
-    const keys = Object.values(DUNGEONS).map((d) => d.cost && d.cost.key);
-    return all(
-      need(Object.values(DUNGEONS).every((d) => dungeonScripBase(d.reqLv) > 0), 'a dungeon clear no longer pays scrip'),
-      need(/dungeon_scrip/.test(w.mig('2026-09-10-dungeon-settle.sql')), 'the server dungeon settle no longer credits scrip'),
-      need(keys.every((k) => k && qm.get(k) > 0), 'the quartermaster no longer sells every dungeon key for scrip'),
-      need(QM_STOCK.some((r) => /_blueprint_/.test(r.id) && r.scrip > 0), 'the quartermaster no longer sells room blueprints'),
-      need(Object.values(DUNGEONS).every((d) => !('scrip' in d.cost) && !('gold' in d.cost)), 'a dungeon door now charges scrip or gold'));
-  },
   collection: (w) => {
     const M = Object.values(w.milestones);
     const t = w.mig('2026-08-22-collection-claim.sql');
     return all(
       need(M.every((m) => (m.domain === 'items' || m.domain === 'monsters') && m.gold > 0), 'a milestone counts something other than items and monsters, or pays no gold'),
-      need(M.some((m) => m.gems > 0) && M.some((m) => !m.gems), 'the "some of them pay gems" split no longer holds'),
       need(w.order.includes('2026-08-22-collection-claim.sql') && /hr_collection_of/.test(t) && /hr_bestiary_of/.test(t), 'the milestone claim is no longer server-verified'));
-  },
-  /* Closed rebuild (lane C2, demolition safety review item 9): charms and
-     trophies are KEPT as records, but neither prices a fight any more: the
-     one fight expression (src/core/combat.js) and the settle read neither. */
-  charms: (w) => {
-    const R = w.charms.CHARM_RANKS;
-    const c = stripJs(w.combatJs), a = stripJs(w.accrualJs);
-    return all(
-      need(R.length > 0 && R[0].reveal === true, 'charm rank 1 no longer reveals'),
-      need(!/charm/i.test(c) && !/charm/i.test(a), 'a fight reads a charm again: a rank now changes drops or damage'));
   },
   trophies: (w) => {
     const S = w.bestiary.TROPHY_STAGES;
@@ -326,46 +216,6 @@ export const BINDS = {
     return all(
       need(S.length > 1 && S[0].at > 0 && S[0].trophy === true, 'the first trophy stage no longer awards a trophy'),
       need(!/troph/i.test(c) && !/troph/i.test(a), 'a trophy prices a fight again: it now changes what a monster drops'));
-  },
-  dungeonKeys: (w) => {
-    const D = Object.values(w.dungeons.DUNGEONS);
-    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
-    const rows = [...cat.matchAll(/\('([a-z_]+)', '(?:dungeon|raid|worldboss)', \d+, \d+, '([a-z_]*)', \d+\)/g)];
-    const settle = w.fnBody('hr_dungeon_settle');
-    const c = settle ? sqlCode(settle.text) : '';
-    const js = stripJs(w.src['src/dungeons.js'] || '');
-    const i = js.indexOf('function startManualRun'), g = js.indexOf('if(!_dsArmed()){', i);
-    return all(
-      need(D.every((d) => d.cost && d.cost.key && w.items[d.cost.key]), 'a dungeon door no longer names a real key item'),
-      need(rows.length === D.length && rows.every((m) => m[2]), 'a server catalogue row has no cost_key'),
-      need(c.includes('v_key := v_dun.cost_key') && c.includes('set qty = v_have - 1'), 'the server settle no longer spends the key from the bag'),
-      need(i > 0 && g > i && !js.slice(i, g).includes('removeItem(d.cost.key') && js.slice(g, g + 1200).includes('removeItem(d.cost.key, 1)'),
-        'startManualRun spends the key outside the dormant branch — armed, the key would be spent twice'));
-  },
-  dungeonChest: (w) => {
-    const b = w.fnBody('hr_dungeon_settle');
-    if (!b) return 'hr_dungeon_settle has no definition in the apply order';
-    const c = sqlCode(b.text);
-    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
-    const loot = [...cat.matchAll(/\('[a-z_]+', \d+, '([a-z0-9_]+)', \d+, \d+, ([\d.]+), (?:true|false)\)/g)].map((m) => ({ id: m[1], ch: +m[2] }));
-    const lies = ['src/dungeons.js', 'src/dungeon-scavenger.js'].flatMap((f) => jsLiterals(w.src[f]).filter((l) => /Reward multiplier|scales with boss HP|base rewards/i.test(l)));
-    return all(
-      need((c.match(/p_quality/g) || []).length === 1 && c.includes('v_q := least(greatest(coalesce(p_quality, 1), 0), 1)'),
-        'the client quality reaches hr_dungeon_settle beyond the one clamped scrip line'),
-      need(c.includes('from public.hr_dungeon_loot') && c.includes('hr_seed('), 'the chest is no longer rolled from the server loot table with the server seed'),
-      need(cat.includes('_blueprint_') && cat.includes('farm_deed') && loot.some((r) => r.ch <= 0.1 && w.items[r.id] && w.items[r.id].slot),
-        'a dungeon chest no longer holds room blueprints, rare boss gear and Farmer\'s Deeds'),
-      need(!lies.length, 'a dungeon screen promises a reward scaling the server does not pay: ' + lies.join(', ')));
-  },
-  dungeonRest: (w) => {
-    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
-    const cd = [...cat.matchAll(/\('[a-z_]+', '(?:dungeon|raid|worldboss)', \d+, (\d+), '[a-z_]*', \d+\)/g)].map((m) => +m[1]);
-    const modes = w.fnBody('hr_dungeon_cooldown_modes');
-    const div = (k) => { const m = modes && new RegExp("'" + k + "', (\\d+)").exec(sqlCode(modes.text)); return m ? +m[1] : 0; };
-    return all(
-      need(cd.length > 0 && cd.every((s) => s > 0), 'a dungeon no longer rests after a run'),
-      need(w.order.includes('2026-09-12-dungeon-cooldown.sql'), 'the dungeon cooldown left the apply order'),
-      need(['auto', 'manual', 'scavenger'].every((k) => div(k) > 0), 'a run mode no longer rests the dungeon'));
   },
   luckyRows: (w) => {
     const rows = [];
@@ -402,41 +252,6 @@ export const BINDS = {
       need(rc.includes('not coalesce(ps.presence_quiet, false)') && rc.includes('q.presence_quiet'), 'hr_town_refresh no longer leaves a quiet hero off the Common'),
       need(qc.includes('v_pruned := found'), 'going quiet no longer prunes you from the Common'),
       need((w.src['src/render/town-panel.js'] || '').includes('data-town-quiet'), 'the Go quiet control is gone'));
-  },
-  partyInviteByName: (w) => {
-    const b = w.fnBody('hr_party_invite');
-    return all(
-      need(b && /\bp_name\b/.test(stripSqlComments(b.text)), 'hr_party_invite no longer invites by name'),
-      need(/p_name:\s*String\(name/.test(w.src['src/net/party.js'] || ''), 'the client no longer sends the invitee by name'));
-  },
-  /* The party hunt (stage 2): the leader starts it with the solo pickers'
-     monster and stance, and every member reads the same per-hunt kills and
-     earnings from the one member-only view. */
-  partyHuntLeaderStarts: (w) => {
-    const st = w.fnBody('hr_party_hunt_start'), v = w.fnBody('hr_party_hunt_view');
-    const sc = st ? sqlCode(st.text) : '', vc = v ? sqlCode(v.text) : '';
-    const net = stripJs(w.src['src/net/party.js'] || ''), pp = stripJs(w.src['src/render/party-panel.js'] || '');
-    return all(
-      need(sc.includes("'not_party_leader'") && /\bp_active_id\b/.test(sc) && /\bp_stance\b/.test(sc), 'hr_party_hunt_start no longer takes a leader\'s monster and stance'),
-      need(vc.includes("'kills'") && vc.includes("'xp'") && vc.includes("'gold'") && vc.includes("'members'"), 'hr_party_hunt_view no longer gives every member the kills and each one\'s earnings'),
-      need(net.includes("'hr_party_hunt_start'") && net.includes("'hr_party_hunt_view'"), 'the client no longer starts or views a party hunt'),
-      need(pp.includes('huntStanceButtonsHtml') && pp.includes('HearthriseMonsterPick') && pp.includes('hunt-start'), 'the Party screen no longer offers the leader a monster and a stance to start a hunt'));
-  },
-  /* Camping and the rejoin: the view judges camping/rejoining on the settle's
-     own rows, and the client has NO rejoin control or verb (ruling B3). */
-  partyCampRejoinsOnReturn: (w) => {
-    const v = w.fnBody('hr_party_hunt_view'), vc = v ? sqlCode(v.text) : '';
-    const hit = Object.keys(w.src).filter((f) => /hr_party_hunt_rejoin|hunt-rejoin|Rejoin hunt/.test(stripJs(w.src[f])));
-    return all(
-      need(vc.includes("'camping'") && vc.includes("'rejoining'") && vc.includes('real_return_at'), 'hr_party_hunt_view no longer judges camping and the rejoin on return'),
-      need(!hit.length, 'a rejoin control or verb exists in ' + hit.join(', ') + ' — the return itself rejoins'));
-  },
-  partyHuntGated: (w) => {
-    const st = w.fnBody('hr_party_hunt_start'), sc = st ? sqlCode(st.text) : '';
-    const pp = w.src['src/render/party-panel.js'] || '';
-    return all(
-      need(sc.includes("'hunt_channel_disarmed'"), 'hr_party_hunt_start is no longer gated on the channel being switched on'),
-      need(pp.includes("Party hunting isn\\'t open yet") && pp.includes('channel_open'), 'the Party screen no longer says party hunting is not open yet when the view reports it closed'));
   },
 };
 
@@ -549,21 +364,17 @@ async function selftest() {
   const arms = [
     ['M1 AWAY_RATE_MULT = 0.5', 'CODEX-6', (w) => { w.away.AWAY_RATE_MULT = 0.5; }, 'awayPaysLiveRate'],
     ['M2 plant "bigger homes raise that limit"', 'CODEX-6', (w) => { const e = byId(w, 'away-time'); e.text = e.text.replace('away limit.', 'away limit, and bigger homes raise that limit.'); }, 'awayCapNoRaiser'],
-    ['M3 a digit', 'CODEX-4', (w) => { const e = byId(w, 'gems'); e.text = e.text.replace('extra hero slots', '4 extra hero slots'); }],
+    ['M3 a digit', 'CODEX-4', (w) => { const e = byId(w, 'hired-hands'); e.text = e.text.replace('a small share', 'a 5 percent share'); }],
     ['M4 "twelve"', 'CODEX-4', (w) => { const e = byId(w, 'away-time'); e.text = e.text.replace('up to your away limit', 'for up to twelve hours'); }],
     ['M5 a sentence with no claim', 'CODEX-6', (w) => { const e = byId(w, 'your-hero'); e.text += ' It is kept safe at all times.'; }],
     ['M6 a static import of data/codex.js', 'CODEX-9', (w) => { w.src['src/main.js'] = "import { CODEX_ENTRIES } from './data/codex.js" + '?' + "v=555';\n" + w.src['src/main.js']; }],
-    ['M7 a fake opener', 'CODEX-5', (w) => { byId(w, 'charms').door = { opener: 'HearthriseNoSuchThing.open' }; }],
-    ['M8 a luckyRowsExist bind (no predicate ships)', 'CODEX-6', (w) => { byId(w, 'renown').claims.push({ s: 0, bind: 'luckyRowsExist' }); }],
-    ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'charms'); e.text = e.text.replace('no rank changes', 'no double rank changes'); }],
-    ['M10 codex feature reads G', 'CODEX-10', (w) => { w.src['src/features/codex.js'] += '\nconst x = G.gold;'; }],
+    ['M7 a fake opener', 'CODEX-5', (w) => { byId(w, 'trophies').door = { opener: 'HearthriseNoSuchThing.open' }; }],
+    ['M8 a luckyRowsExist bind (no predicate ships)', 'CODEX-6', (w) => { byId(w, 'trophies').claims.push({ s: 0, bind: 'luckyRowsExist' }); }],
+    ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'trophies'); e.text = e.text.replace('never changes', 'never double changes'); }],
     ['M11 a fall ladder comes back', 'CODEX-6', (w) => { w.away.recoveryFor = () => 0; }, 'falls'],
     ['M13 a trophy prices the fight again', 'CODEX-6', (w) => { w.combatJs += '\nconst m = trophyDropMultFor(id, t);'; }, 'trophies'],
-    ['M17 a charm prices the settle again', 'CODEX-6', (w) => { w.accrualJs += '\nconst k = charmRankAt(n);'; }, 'charms'],
-    ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
+    ['M10 codex feature reads G', 'CODEX-10', (w) => { w.src['src/features/codex.js'] += '\nconst x = G.gold;'; }],
     ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
-    ['M15 the Party screen grows a Rejoin hunt button', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nvar x = '<button data-party-act=\"hunt-rejoin\">Rejoin hunt</button>';"; }, 'partyCampRejoinsOnReturn'],
-    ['M16 the Party screen loses the solo stance picker', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] = w.src['src/render/party-panel.js'].split('huntStanceButtonsHtml').join('ownStanceButtons'); }, 'partyHuntLeaderStarts'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

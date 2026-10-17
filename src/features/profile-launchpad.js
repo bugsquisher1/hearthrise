@@ -25,7 +25,6 @@
 //     kills:         <G.stats.kills at midnight>,
 //     gathered:      <G.stats.gathered at midnight>,
 //     harvested:     <G.stats.harvested at midnight>,
-//     deedsDropped:  <G.inventory.farm_deed at midnight>,  // approximate baseline
 //   }
 //
 // Public API (window.HearthriseLaunchpad):
@@ -33,7 +32,7 @@
 //   getResumePayload()         — { kind, id, label, icon, action } | null
 //   resume()                   — invokes the action; returns true on success
 //   ensureDailySnapshot()      — captures baseline at midnight rollover (idempotent)
-//   getTodayDelta()            — { xpGained, goldEarned, kills, gathered, harvested, deedsDropped }
+//   getTodayDelta()            — { xpGained, goldEarned, kills, gathered, harvested }
 //   getNextMilestone()         — { kind, label, current, target, pct, icon, deepLink } | null
 //   setDisplayName(newName)    — applies + persists + (later) Supabase sync
 //   openRename()               — opens the in-game name modal (b373); the ONLY
@@ -44,8 +43,7 @@
   'use strict';
 
   // ── Daily snapshot ────────────────────────────────────────
-  // Snapshots are keyed on the same dayString that generateDailyTasks
-  // uses (`new Date().toDateString()`). When the day rolls, we capture
+  // Snapshots are keyed on `new Date().toDateString()`. When the day rolls, we capture
   // a fresh baseline so getTodayDelta() shows ONLY today's numbers.
 
   function todayKey(){ return new Date().toDateString(); }
@@ -77,7 +75,6 @@
     // New day — capture baseline. Existing snapshot (if any) is replaced;
     // keeping yesterday's around isn't useful and bloats the save.
     var stats = (window.G.stats || {});
-    var inv = (window.G.inventory || {});
     /* ⚠ A MIDNIGHT BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN BALANCE.
        `window.G.gold | 0` recorded ZERO for a client that had simply not been
        told the balance yet, and `getTodayDelta` below then reports the FIRST
@@ -91,21 +88,11 @@
       gold:          (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (window.G.gold | 0),
       kills:         stats.kills | 0,
       gathered:      stats.gathered | 0,
-      /* b478: harvest reads cropsHarvested, NOT the dead `harvested`. Farm harvest
-         increments G.stats.cropsHarvested (companions.js/harvestPlot); the old
-         `harvested` field is never written on a crop harvest, so the Home "Harvest"
-         tile printed 0 forever — the same dead-field class as the b341 xp tile.
-         The delta key below stays `harvested` so consumers (home-dashboard.js) are
-         unchanged; only the SOURCE counter moves to the live one. */
-      harvested:     stats.cropsHarvested | 0,
-      deedsDropped:  inv.farm_deed | 0,
-      /* b228: renown joins the baseline so the Throne ladder can honestly say
-         "+N renown today" off the SAME midnight rollover every other daily
-         number uses, rather than inventing a second clock. Guarded: if the
-         renown module has not booted yet the field is absent, and the ladder
-         then prints no daily line at all rather than a wrong one. */
-      renown:        (window.HearthriseRenown && typeof window.HearthriseRenown.counted === 'function')
-                       ? window.HearthriseRenown.counted(window.G) : undefined,
+      /* Harvests read `stats.harvested`: the SERVER's ev:harvest, projected by
+         accrue.js EVENT_COUNTER_PROJECTION. The client-written cropsHarvested
+         (b478) had one writer, companions.js's harvest hook, which left with the
+         companions in the 2026-10-14 demolition. */
+      harvested:     stats.harvested | 0,
     };
     window.G.daily.snapshot = fresh;
     if(typeof window.saveLocal === 'function'){
@@ -117,10 +104,9 @@
   function getTodayDelta(){
     var snap = ensureDailySnapshot();
     if(!snap || !window.G){
-      return { xpGained: 0, goldEarned: 0, kills: 0, gathered: 0, harvested: 0, deedsDropped: 0 };
+      return { xpGained: 0, goldEarned: 0, kills: 0, gathered: 0, harvested: 0 };
     }
     var stats = (window.G.stats || {});
-    var inv = (window.G.inventory || {});
     return {
       xpGained:     Math.max(0, totalXp()        - snap.xpTotal),
       /* No figure ⇒ no delta. `0` is "nothing to report", which is what every
@@ -129,8 +115,7 @@
         ? 0 : Math.max(0, ((typeof window.balOr === 'function' ? window.balOr('gold', 0) : (window.G.gold|0))) - snap.gold),
       kills:        Math.max(0, (stats.kills|0)   - snap.kills),
       gathered:     Math.max(0, (stats.gathered|0)- snap.gathered),
-      harvested:    Math.max(0, (stats.cropsHarvested|0)-snap.harvested),
-      deedsDropped: Math.max(0, (inv.farm_deed|0) - snap.deedsDropped),
+      harvested:    Math.max(0, (stats.harvested|0)-snap.harvested),
     };
   }
 
@@ -247,7 +232,7 @@
      progress" are both `pct === 0` on the nose (a level's floor is
      `xpForLevel(lv)`, so a fresh character's every skill is EXACTLY 0.0), so
      the ruling's case IS the tie; and the tie is broken toward the more
-     finishable candidate: chain quest (2) > daily task (1) > skill (0).
+     finishable candidate: chain quest (1) > skill (0).
 
      ⚠ THERE IS DELIBERATELY NO SEPARATE started/unstarted TERM. One was
        written (`_started`: rank a 0% skill below everything before comparing
@@ -261,7 +246,7 @@
      order — `gatherer` — which is also the first row of Home's "Your first
      day" card, so the two surfaces agree by construction, not by coincidence.
      ══════════════════════════════════════════════════════════════════════ */
-  var TIER_CHAIN = 2, TIER_DAILY = 1, TIER_SKILL = 0;
+  var TIER_CHAIN = 1, TIER_SKILL = 0;
   function _outranks(cand, best){
     if(!best) return true;
     if(cand._cmp !== best._cmp) return cand._cmp > best._cmp;
@@ -309,11 +294,7 @@
       }
     }
 
-    // Quests — pick the closest open one. Daily tasks count too.
-    /* The chain and the daily slate are collected separately so each candidate
-       can carry its own tie-break tier: a QUEST_DEFS row is the first-day
-       chain (the surface Home pins above "Next up"), a daily task resets at
-       midnight. Both are "open goals"; only their tie-break rank differs. */
+    // Quests — pick the closest open one.
     /* A row with a `chain` (the Journeyman's Road) is a LATER line: it is not a
        candidate while any first-day row is still open, the same rule that keeps
        its card off Home (home-dashboard.js roadModel). Otherwise a day-one
@@ -324,19 +305,13 @@
       open = open.concat(window.G.quests.filter(q => q && !q.done && (!q.chain || !dayOpen))
         .map(q => ({ q: q, tier: TIER_CHAIN })));
     }
-    /* Daily quests: the server's list, unpaid ones only, at the server's count
-       (src/features/daily-quests.js) — never the browser's done/progress. */
-    var DQ = window.HearthriseDailyQuests;
-    if(DQ)
-      open = open.concat(DQ.tasks().filter(t => !DQ.isPaid(t))
-        .map(t => ({ q: Object.assign({}, t, { progress: DQ.serverCount(t) || 0 }), tier: TIER_DAILY })));
     for(var j = 0; j < open.length; j++){
       let q = open[j].q;                     // per-iteration binding — see above
       let qtier = open[j].tier;
       if(!q.goal) continue;
       var pq = (q.progress || 0) / q.goal;
       /* b227 (audit finding #2): this deepLink opened the Quests modal, which
-         does not contain `G.quests` / `G.daily.tasks` at all — the milestone
+         does not contain `G.quests` at all — the milestone
          said "Gather 50 resources" and its button opened a window listing
          three different quests. It now goes where the quest is PLAYED, via the
          one shared resolver. `goal` is carried on the milestone so the
@@ -357,8 +332,7 @@
         verb: (qdest && qdest.verb) || 'Go',
         deepLink: function(){
           var QN = window.HearthriseQuestNav;
-          if(QN && typeof QN.go === 'function'){ QN.go(q); return; }
-          if(typeof window.openQuestsModal === 'function') window.openQuestsModal();
+          if(QN && typeof QN.go === 'function') QN.go(q);
         },
         _cmp: pq,
         _tier: qtier,

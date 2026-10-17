@@ -79,7 +79,7 @@ const VIEWPORTS = VP_ARG
     { key: 'desktop', width: 1440, height: 900 },
     { key: 'landscape', width: 852, height: 393 },
   ];
-const ALL_SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'bounty', 'dungeons', 'farming', 'house', 'stable', 'clan', 'party', 'events', 'shops', 'market', 'social'];
+const ALL_SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'farming', 'house', 'shops', 'market', 'social'];
 const SCREENS = argOf('--screens') ? ALL_SCREENS.filter((s) => argOf('--screens').split(',').includes(s)) : ALL_SCREENS;
 
 /* Injected into the page — runs against a REAL rendered layout.
@@ -556,10 +556,12 @@ async function walk() {
    "NaN" matching the "nan" in Revenant, and `panel.textContent` reading a
    display:none subtree and gluing sibling nodes together. Narrowing a detector
    is how guards quietly die, so the narrowing is pinned here: the sweep is run
-   against the SAME booted combat screen four times, with the Boss of the Day
-   FORCED to the Revenant so the exact b536 condition is reproduced on any date.
+   against the SAME booted combat screen four times. The Boss of the Day card
+   the b536 case lived on left in the 2026-10-14 demolition, so the cases are
+   PLANTED in the live active panel (a visible card and a display:none twin),
+   the same way the scroller and hit-area rules below are proven.
 
-     control   the real screen, Revenant featured   → no broken-value
+     control   the real screen                      → no broken-value
      bite A    "NaN" planted on the VISIBLE card    → broken-value naming it
      bite B    "undefined" planted, visible         → broken-value naming it
      hole      "NaN" planted on the HIDDEN card     → silent, ON PURPOSE
@@ -575,29 +577,30 @@ async function selftest() {
   try {
     const { page, fonts } = await bootPage(browser, url, VIEWPORTS[0]);
     const ARG = { label: 'combat', fontsMissing: fonts.missing, fontStatus: fonts.after.status };
-    // Pin the rotation: the Revenant is the boss whose NAME broke the gate.
-    await page.evaluate(() => {
-      const B = window.HearthriseBossOfDay;
-      if (B) { try { Object.defineProperty(B, 'featuredId', { value: () => 'revenant', configurable: true }); } catch (e) {} }
-    });
     await page.evaluate(() => { try { window.showTab('combat'); } catch (e) {} });
     await page.waitForTimeout(1500);
     await page.evaluate(() => { try { window.__killOverlays && window.__killOverlays(); } catch (e) {} });
     await page.waitForTimeout(200);
+    /* The two planted cards: a visible one and a display:none twin. */
+    await page.evaluate(() => {
+      const host = document.querySelector('.panel.active') || document.body;
+      const card = (id, hidden) => {
+        const d = document.createElement('div');
+        d.id = id; d.className = 'hd-card';
+        d.style.cssText = 'position:relative;width:260px;padding:8px' + (hidden ? ';display:none' : '');
+        d.innerHTML = '<div class="bv-main"><b>Revenant</b></div>';
+        host.appendChild(d);
+      };
+      card('__hr_bv_fx', false); card('__hr_bv_hidden', true);
+    });
 
     /* Plant text on a chosen element, sweep, then put the text back. Returns the
        broken-value issues plus what the DOM actually offered, so a miss reports
        "the selector matched nothing" instead of a silent false green. */
     const probe = async (which, text) => {
       const planted = await page.evaluate(({ which, text }) => {
-        const pick = () => {
-          if (which === 'hidden') return document.querySelector('#hr-botd-card .botd-name');
-          const card = [...document.querySelectorAll('.wt-dest')].find((a) =>
-            /Boss of the Day/i.test((a.querySelector('.wtd-kick') || {}).textContent || ''));
-          return card ? card.querySelector('.wtd-main > b') : null;   // the name the player reads
-        };
-        const el = pick();
-        if (!el) return { ok: false, why: `no ${which} Boss-of-the-Day name element in the DOM` };
+        const el = document.querySelector(which === 'hidden' ? '#__hr_bv_hidden .bv-main > b' : '#__hr_bv_fx .bv-main > b');
+        if (!el) return { ok: false, why: `the planted ${which} card is not in the DOM` };
         window.__hrProbe = { el, was: el.textContent };
         el.textContent = text;
         const r = el.getBoundingClientRect();
@@ -619,22 +622,23 @@ async function selftest() {
       + JSON.stringify(cbv.map((i) => i.detail + ' ' + i.el)));
 
     const bite = await probe('visible', 'Gold: NaN');
-    if (bite.planted.ok && !bite.planted.visible) fails.push('SELFTEST: the War Table boss name has no box — the bite case proves nothing');
-    if (bite.planted.ok && !bite.issues.length) fails.push('SELFTEST: a VISIBLE "NaN" on the Boss-of-the-Day card was NOT flagged — the detector is blind');
-    else if (bite.issues.length && !bite.issues.some((i) => /wtd-main/.test(i.el || '')))
+    if (bite.planted.ok && !bite.planted.visible) fails.push('SELFTEST: the planted card name has no box — the bite case proves nothing');
+    if (bite.planted.ok && !bite.issues.length) fails.push('SELFTEST: a VISIBLE "NaN" on the planted card was NOT flagged — the detector is blind');
+    else if (bite.issues.length && !bite.issues.some((i) => /bv-main/.test(i.el || '')))
       fails.push('SELFTEST: the visible "NaN" was flagged but blamed ' + JSON.stringify(bite.issues.map((i) => i.el)) + ' instead of the element holding it');
 
     const biteU = await probe('visible', 'Reward undefined');
     if (biteU.planted.ok && !biteU.issues.length) fails.push('SELFTEST: a VISIBLE "undefined" was NOT flagged');
 
     const hole = await probe('hidden', 'Gold: NaN');
-    if (hole.planted.ok && hole.planted.visible) fails.push('SELFTEST: #hr-botd-card .botd-name now has a box — the retired card is no longer hidden, so this case measures the wrong thing');
+    if (hole.planted.ok && hole.planted.visible) fails.push('SELFTEST: the display:none planted card has a box, so this case measures the wrong thing');
     if (hole.issues.length) fails.push('SELFTEST: a broken value on a display:none surface was flagged — the sweep is reading text no player can see: '
       + JSON.stringify(hole.issues.map((i) => i.detail)));
 
     const word = await probe('visible', 'Revenant covenant maintenance');
     if (word.issues.length) fails.push('SELFTEST: an ordinary word containing "nan" was flagged as a broken value (the b536 red): '
       + JSON.stringify(word.issues.map((i) => i.detail)));
+    await page.evaluate(() => { ['__hr_bv_fx', '__hr_bv_hidden'].forEach((id) => document.getElementById(id)?.remove()); });
 
     /* ── the two preconditions the metric detectors rest on ──────────────────
        (a) THE FONTS. If the page is not rendering the theme's faces, the sweep
@@ -772,19 +776,29 @@ async function selftest() {
     if (tToast.n !== tap0)
       fails.push(`SELFTEST: a 44px hit area under a transient fixed toast was counted (${tap0}→${tToast.n}) — covering is not a size`);
 
-    const tags = await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('.wt-dest')];
-      return cards.map((c) => ((c.querySelector('.wtd-kick') || {}).textContent || '').trim());
+    /* THE CARD KEY, on planted identical cards (the War Table destinations it
+       was built for left in the 2026-10-14 demolition; the keying is generic).
+       Each card carries a planted NaN so the sweep MUST emit one finding per
+       card, and each finding must carry its own {kicker}. */
+    await page.evaluate(() => {
+      const host = document.querySelector('.panel.active') || document.body;
+      const box = document.createElement('div'); box.id = '__hr_key_fx';
+      ['Alpha', 'Beta', 'Gamma'].forEach((k) => {
+        const c = document.createElement('div'); c.className = 'wt-dest'; c.style.cssText = 'width:200px;padding:6px';
+        c.innerHTML = '<div class="wtd-body"><span class="wtd-kick">' + k + '</span><div class="wtd-main"><b>Gold: NaN</b></div></div>';
+        box.appendChild(c);
+      });
+      host.appendChild(box);
     });
-    if (tags.length < 2) fails.push(`SELFTEST: only ${tags.length} .wt-dest card(s) in the DOM — the key case proves nothing`);
+    const named = await page.evaluate(SWEEP, ARG);
+    await page.evaluate(() => document.getElementById('__hr_key_fx')?.remove());
+    const els = (named.issues || []).filter((i) => i.kind === 'broken-value').map((i) => i.el || '').filter((e) => e.includes('wt-dest'));
+    if (els.length < 3) fails.push('SELFTEST: three planted .wt-dest cards with a NaN produced ' + els.length + ' finding(s) — the key case proves nothing');
     else {
-      if (tags.some((t) => !t)) fails.push('SELFTEST: a War Table card has no .wtd-kick text, so its findings key collides with its siblings: ' + JSON.stringify(tags));
-      const named = await page.evaluate(SWEEP, ARG);
-      const els = (named.issues || []).map((i) => i.el || '').filter((e) => e.includes('wt-dest'));
-      if (els.length && !els.every((e) => /\{[^}]+\}$/.test(e)))
-        fails.push('SELFTEST: a .wt-dest finding carries no {kicker} tag — the six cards share one key again: ' + JSON.stringify(els.slice(0, 4)));
-      if (new Set(tags).size !== tags.length)
-        fails.push('SELFTEST: two War Table cards share a kicker, so the tag does not separate them: ' + JSON.stringify(tags));
+      if (!els.every((e) => /\{[^}]+\}$/.test(e)))
+        fails.push('SELFTEST: a .wt-dest finding carries no {kicker} tag — identical cards share one key again: ' + JSON.stringify(els.slice(0, 4)));
+      if (new Set(els).size !== els.length)
+        fails.push('SELFTEST: two .wt-dest findings share a key, so the tag does not separate them: ' + JSON.stringify(els));
     }
 
     await page.close();
@@ -793,11 +807,11 @@ async function selftest() {
     if (server) server.close();
   }
   if (fails.length) { for (const f of fails) console.error('  ✗ ' + f); return 1; }
-  console.log('✓ visual-qa --selftest: broken-value detector — control clean with the Revenant featured; '
-    + 'planted NaN and undefined on the visible Boss-of-the-Day card both flagged and attributed to it; '
-    + 'the same NaN on the display:none #hr-botd-card stays silent; "covenant/maintenance" no longer reds the gate. '
+  console.log('✓ visual-qa --selftest: broken-value detector — control clean; '
+    + 'planted NaN and undefined on a visible card both flagged and attributed to it; '
+    + 'the same NaN on a display:none twin stays silent; "covenant/maintenance" no longer reds the gate. '
     + 'Font precondition: the theme faces rendered on this page, and a missing face yields one ERR fonts-unloaded '
-    + 'with ZERO text-width findings. Card key: every .wt-dest finding carries its own {kicker}. '
+    + 'with ZERO text-width findings. Card key: three planted .wt-dest findings each carry their own {kicker}. '
     + 'Hit area: a bare 20px button counts, the same button with a 44px ::after does not, two '
     + 'overlapping hit boxes cannot both claim 44px, and a transient toast is looked through.');
   return 0;

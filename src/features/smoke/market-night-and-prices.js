@@ -106,9 +106,7 @@ export default [
      plus the two fields the accounting did not reach.
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* RETIRED (lane C2, the closed rebuild): "B354-10/11/12/13: every exit accounts for its prediction, and gems are one of them" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+
   () => tryRun('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
     /* THE RULE (b307): the cap is PER ABSENCE, not a shared daily bucket. The
        old test proved it by calling `window.processOffline()` three times and
@@ -250,198 +248,6 @@ export default [
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   /* RETIRED (lane C2, the closed rebuild): "NIGHT-1: the Tonight forecast runs the ONE engine on a clone and never touches G" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('NIGHT-2: a payable bench runs all night, or states exactly what it runs out of', () => {
-    const STN = window.HearthriseSetTheNight;
-    const SA = window.HearthriseSkillAuthority;
-    assert(SA && SA.serverAccruedSkill('cooking') === true,
-      'CONTROL: cooking must be a server-settled skill (COOKING_SETTLEMENT_ARM_ENABLED) — '
-      + 'without that this test would be asserting the wrong branch');
-    const snap = snapshotG();
-    try {
-      // A bench with more raw than a night can eat: the honest answer is "all night".
-      nightWorld({ skill: 'cooking', target: 'cook_shrimp', inventory: { shrimp: 100000 } });
-      const deep = STN.forecast(G);
-      assert(deep && deep.kind === 'bench' && deep.allNight === true,
-        'a bench with 100k inputs must run all night, got ' + JSON.stringify(deep && { k: deep.kind, a: deep.allNight }));
-      assert(STN.sentence(deep) === 'Tonight: this bench runs all night.',
-        'the payable-bench copy is the slate\'s literal string, got: ' + JSON.stringify(STN.sentence(deep)));
-
-      // And a bench that will dry out states the number, not a vibe.
-      nightWorld({ skill: 'cooking', target: 'cook_shrimp', inventory: { shrimp: 5 } });
-      const thin = STN.forecast(G);
-      assert(thin && thin.allNight === false && thin.actions === 5,
-        'a 5-input bench must forecast 5 actions and NOT all night, got '
-          + JSON.stringify(thin && { a: thin.actions, n: thin.allNight }));
-      const s = STN.sentence(thin);
-      assert(/runs out after 5\.$/.test(s) && /shrimp/i.test(s),
-        'the honest limit must name the input and the count, got: ' + JSON.stringify(s));
-
-      /* THE UNPAYABLE CASE. A skill the accrual engine does not settle must
-         never be promised as a night — this is the same `serverAccruedSkill`
-         predicate the banking row beside it reads, so the two lines on one
-         card cannot contradict each other (b388 shipped exactly that bug). */
-      const unpaid = (window.SKILLS_DEF ? Object.keys(window.SKILLS_DEF) : [])
-        .filter((id) => SA.serverAccruedSkill(id) === false)[0];
-      if (unpaid) {
-        nightWorld({ skill: unpaid, target: 'nothing_in_particular' });
-        const u = STN.forecast(G);
-        assert(u && u.banks === false && /only earns while you are here\.$/.test(STN.sentence(u)),
-          'an unsettled skill must be told it does not bank, got: ' + JSON.stringify(STN.sentence(u)));
-      }
-    } finally {
-      try { STN.forget(); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('NIGHT-3: the morning line is graded from the RECEIPT, never from the prediction', () => {
-    const STN = window.HearthriseSetTheNight;
-    const AC = window.HearthriseAccrual;
-    assert(AC && typeof AC.receiptStopClause === 'function' && typeof AC.receiptRecoveryClause === 'function',
-      'CONTROL: the receipt clauses must exist — the morning line quotes them rather than re-writing them');
-    const snap = snapshotG();
-    const setAt = Date.now() - 8 * 3600e3;
-    try {
-      STN.forget();
-      assert(STN.morningLine({ at: Date.now(), paidMs: 3600e3 }) === null,
-        'with NO remembered forecast the modal must say nothing at all — a ritual degrades to silence, never to a guess');
-
-      STN.remember({ at: setAt, kind: 'combat', spanMs: 6 * 3600e3 + 20 * 60e3, allNight: false,
-                     banks: true, targetName: 'Goblin' });
-
-      /* THE FORECAST HELD. `paidMs` is the SERVER's credited span. */
-      const held = STN.morningLine({ at: Date.now(), paidMs: 6 * 3600e3 });
-      assert(held === 'You set about 6h 20m; the night paid 6h — the forecast held.',
-        'the close-enough morning line is wrong, got: ' + JSON.stringify(held));
-
-      /* A NIGHT THAT RAN SHORT, and WHY — the why is the receipt's own clause,
-         not a sentence this module invented. */
-      const short = STN.morningLine({ at: Date.now(), paidMs: 40 * 60e3,
-        stoppedBy: 'supplies', stoppedById: 'shrimp', stoppedSkill: 'cooking' });
-      assert(/the night ran short\./.test(short),
-        'a 40m payout against a 6h20m forecast is short, got: ' + JSON.stringify(short));
-      assert(/ran out of/.test(short),
-        'the morning line must carry the receipt\'s OWN stop clause, got: ' + JSON.stringify(short));
-
-      /* A DEATH NIGHT reads the recovery clause — the receipt says the run
-         picked up, so the line must not imply the night simply ended. */
-      const fell = STN.morningLine({ at: Date.now(), paidMs: 7 * 3600e3, deaths: 4,
-        diedTo: 'slime', recoverMs: 8 * 60e3 });
-      assert(/You fell 4 times/.test(fell) && /picked up/.test(fell),
-        'a night with deaths must quote receiptRecoveryClause, got: ' + JSON.stringify(fell));
-
-      /* A RECEIPT WITH NO SPAN GRADES NOTHING. */
-      assert(STN.morningLine({ at: Date.now(), paidMs: 0 }) === null,
-        'a receipt that credited no span cannot grade a forecast');
-      /* AND A RECEIPT OLDER THAN THE FORECAST IS A DIFFERENT ABSENCE. */
-      assert(STN.morningLine({ at: setAt - 1000, paidMs: 6 * 3600e3 }) === null,
-        'a receipt written BEFORE the forecast is about another night and must not be graded against it');
-    } finally {
-      try { STN.forget(); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  /* -- regression suite -- NIGHT-11: a 12h return read "You set about
-     8h, the night paid 12h — the night ran long." The 8h was HORIZON_MS, the clamp
-     on an ALL-NIGHT forecast; the player was told "runs all night", so a long night
-     is that forecast holding. Mutation: drop the allNight branch ⇒ red. */
-  () => tryRun('NIGHT-11: an all-night forecast is graded as all night, never as "about 8h … ran long"', () => {
-    const STN = window.HearthriseSetTheNight;
-    const snap = snapshotG(), setAt = Date.now() - 12 * 3600e3, H = STN.HORIZON_MS;
-    try {
-      STN.forget();
-      STN.remember({ at: setAt, kind: 'combat', spanMs: H, allNight: true, banks: true, targetName: 'Goblin' });
-      const long = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
-      assert(long === 'You set it to run all night; the night paid 12h — the forecast held.',
-        'THE BUG: an all-night forecast on a 12h return reads ' + JSON.stringify(long));
-      const short = STN.morningLine({ at: Date.now(), paidMs: 2 * 3600e3 });
-      assert(/^You set it to run all night; the night paid 2h — the night ran short\./.test(short),
-        'an all-night forecast that paid 2h must read short, got ' + JSON.stringify(short));
-      /* CONTROL: a forecast that DID name a span still says "ran long" when the server ran past it. */
-      STN.remember({ at: setAt, kind: 'combat', spanMs: 3 * 3600e3, allNight: false, banks: true, targetName: 'Goblin' });
-      const bounded = STN.morningLine({ at: Date.now(), paidMs: 12 * 3600e3 });
-      assert(bounded === 'You set about 3h; the night paid 12h — the night ran long.',
-        'CONTROL: a bounded forecast overrun reads ' + JSON.stringify(bounded));
-    } finally { try { STN.forget(); } catch (e) {} restoreG(snap); }
-  }),
-
-  () => tryRun('NIGHT-5: the Tonight strip never speaks before the SERVER has stated the bag', () => {
-    /* THE LIVE BUG (QA account, 2026-09-09, reproduced twice).
-       On a plain reload Home read "Tonight: your 29 Cooked Shrimp carry you
-       about 26m against Goblin" for ~10 seconds, then flipped to "with nothing
-       to eat you last about 5m" when the envelope landed. The server bag had
-       held no food for hours (the away receipt said autoEat.hadFood:false).
-
-       THE 29 WAS THE FRESH-G FACTORY LITERAL: src/legacy.js seeds
-       `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` —
-       30 auto-eatable units, one already eaten by the live tick before the
-       screenshot. `loadLocal()` cannot strip it, because `inventory` is not a
-       SERVER_OF_RECORD field and `forgetServerOfRecord` deletes only those; it
-       is corrected only when `reconcileInventory` applies an envelope.
-
-       THE PROPERTY: the forecast is a SERVER-DERIVED statement, so before an
-       envelope has stated the bag the surface says NOTHING — no placeholder,
-       no number, an empty strip — and it does not REMEMBER a guess either (a
-       remembered pre-envelope forecast would go on to grade the morning line
-       against a bag that never existed). Once the envelope lands, the same
-       surface tells the truth about an empty bag. */
-    const STN = window.HearthriseSetTheNight;
-    const AC = window.HearthriseAccrual;
-    assert(AC && typeof AC.bagHydrated === 'function',
-      'HearthriseAccrual.bagHydrated is missing — the strip has no way to ask whether the bag is real');
-    const snap = snapshotG();
-    const hadStamp = window.G._bagFromServerAt;
-    const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: window.G.consecFalls };
-    try {
-      const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
-        : Object.keys(window.MONSTERS || {})[0];
-
-      // ── BOOT, PRE-ENVELOPE: the factory literal is in the bag and nothing has stated it.
-      nightWorld({ foe, inventory: { cooked_shrimp: 20, shrimp: 10 }, food: 'cooked_shrimp' });
-      STN.forget();
-      AC.__forgetBagHydrated(window.G);
-      assert(AC.bagHydrated(window.G) === false,
-        'CONTROL: the stamp must be gone, or this test is measuring a hydrated boot');
-      const early = STN.strip(window.G);
-      assert(early === '',
-        'THE b525 BUG: the Tonight strip painted a forecast before any envelope stated the bag — '
-        + 'that is the fresh-G literal being read to the player as their supplies. Got: '
-        + JSON.stringify(String(early).slice(0, 200)));
-      assert(STN.forecast(window.G) === null,
-        'the forecast itself must be null pre-envelope, not merely unrendered — every sentence in the '
-        + 'ritual is priced off the bag');
-      assert(STN.recall() === null,
-        'a pre-envelope guess was REMEMBERED. It would be graded against the server receipt in the '
-        + 'morning, turning an unhydrated boot into a wrong statement about a night that did happen.');
-
-      // ── THE ENVELOPE LANDS, AND THE BAG IS EMPTY. Same surface, now honest.
-      nightWorld({ foe, inventory: {}, food: 'cooked_shrimp' });
-      AC.reconcileFall(window.G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
-      assert(AC.bagHydrated(window.G) === true,
-        'reconcileInventory did not stamp the bag as server-stated — the strip would stay silent forever');
-      const f = STN.forecast(window.G);
-      assert(f && f.kind === 'combat' && f.foodQty === 0,
-        'after the envelope the forecast must run against the SERVER bag (empty), got '
-        + JSON.stringify(f && { k: f.kind, q: f.foodQty }));
-      const s = STN.sentence(f);
-      assert(f.deaths ? /^Tonight: (with nothing to eat you fall about |you have nothing to eat, and a whole night )/.test(s) : /^Tonight: you hold out /.test(s),
-        'an empty server bag must be priced as an empty bag, got: ' + JSON.stringify(s));
-      STN._resetMemo();
-      assert(STN.strip(window.G).indexOf('Tonight:') > 0,
-        'the strip must render once the bag is real');
-    } finally {
-      try { STN.forget(); } catch (e) {}
-      AC.reconcileFall(window.G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
-      restoreG(snap);
-      if (typeof hadStamp === 'undefined') { try { AC.__forgetBagHydrated(window.G); } catch (e) {} }
-      else window.G._bagFromServerAt = hadStamp;
-    }
-  }),
-
-  /* RETIRED (lane C2, the closed rebuild): "NIGHT-6: a fighter short of food is told how much a whole night eats, and given a door to fishing" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('NIGHT-4: exactly ONE welcome modal exists, and the retired one is DELETED not unreferenced', () => {
@@ -1438,39 +1244,6 @@ export default [
       'the flat-vector homesteadScene SVG is back inside the hearth band — it was retired in b374');
   }),
 
-  () => tryRun('b341: a LOCKED auto-eat picker offers no choice it is going to refuse', () => {
-    /* THE MEASURED BUG. setAutoEatFood() has always refused every pick without
-       the Auto-Eat trait, but the picker rendered its rows live anyway: tapping
-       one closed the overlay as if it had taken, `foodId` stayed null, and the
-       only contradiction was a toast that expires. Re-opening still showed
-       "— Off —" marked `is-on`. */
-    if (typeof window.openAutoEatPicker !== 'function') { skip('no picker'); return; }
-    const G = window.G;
-    const snap = snapshotG();
-    const realHasTrait = window.hasTrait;
-    try {
-      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
-      window.openAutoEatPicker();
-      const ov = document.getElementById('aep-overlay');
-      assert(ov, 'the picker did not open');
-      const rows = Array.from(ov.querySelectorAll('.aep-row'));
-      assert(rows.length >= 1, 'the picker rendered no rows at all');
-      const live = rows.filter((r) => !r.disabled);
-      assert(live.length === 0,
-        'THE b341 BUG: ' + live.length + ' of ' + rows.length + ' rows are still tappable while auto-eat is '
-        + 'locked — tapping one closes the overlay as if it took, and nothing is set');
-      assert(/locked/i.test(ov.textContent) && /Bounty Shop/i.test(ov.textContent),
-        'the picker does not say WHY it is refusing, so a disabled row reads as broken: ' + ov.textContent.slice(0, 160));
-      assert(!rows.some((r) => r.classList.contains('is-on')),
-        'a locked picker still marks a row as the active selection — there is no active selection');
-    } finally {
-      window.hasTrait = realHasTrait;
-      const ov = document.getElementById('aep-overlay'); if (ov) ov.remove();
-
-      restoreG(snap);
-    }
-  }),
 
   () => tryRunAsync('QUEST-100 ATTENDED: hundred_kills claims the server-credited 1,500 Hitpoints XP at the completion tick and the browser adds none', quest100('ATTENDED')),
   () => tryRunAsync('QUEST-100 AWAY: a hundred_kills completed while away is claimed by the sweep, once, and the browser adds no XP', quest100('AWAY')),
@@ -1630,109 +1403,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): " a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('b342-2: the COMBAT screen tells a fighting player what actually ends an away night, and promises nothing else', () => {
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
-    const realHasTrait = window.hasTrait;
-    const AC = window.HearthriseAccrual, STN = window.HearthriseSetTheNight, NP = window.HearthriseNightPlan;
-    const LT = window.HearthriseLifetime;
-    let parkedLifetime;
-    const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: G.consecFalls };
-    try {
-      window.showTab('combat');
-      /* The chip speaks the Night Plan's stored forecast: pending until it exists,
-         then pays away / you fall / no food. Never the rev.1 wording. */
-      nightWorld({ foe: 'slime', inventory: {} });
-      AC.reconcileFall(G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
-      /* LIFETIME is the REALM's stat row (lifetime-tally.js), never a client tally:
-         pending dash until the server states it, then exactly its number. */
-      parkedLifetime = LT.__swapView(null);
-      STN._resetMemo();
-      window.refreshActivityBar();
-      const meta = document.getElementById('ab-meta');
-      assert(meta, 'the activity bar has no meta element to assert');
-      let bar = meta.textContent.replace(/\s+/g, ' ');
-      assert(meta.querySelector('.ab-away.' + window.HearthriseBalance.PENDING_CLASS) && !/pays away|you fall/i.test(bar),
-        'the chip spoke before the forecast existed: ' + bar);
-      const tk = () => meta.querySelector('.ab-tkills');
-      assert(tk() && /Lifetime/.test(tk().textContent) && tk().querySelector('.' + window.HearthriseBalance.PENDING_CLASS) && !/\d/.test(tk().textContent),
-        'an unstated lifetime kill total must be the pending dash, never a number: ' + bar);
-      LT.noteEnvelope({ version: 1, progress_truncated: false, progress: [{ kind: 'stat', key: 'kills', value: 4812, period: '' }], state: {} });
-      window.refreshActivityBar();
-      bar = meta.textContent.replace(/\s+/g, ' ');
-      assert(/Lifetime/.test(tk().textContent) && tk().textContent.indexOf((4812).toLocaleString()) >= 0, 'the lifetime kill total is gone: ' + bar);
-      assert(!/licen[cs]e/i.test(bar), 'the retired permit copy is back on the activity bar: ' + bar);
-      const hungry = STN.memo(G);
-      window.refreshActivityBar();
-      bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
-      assert(hungry && hungry.numeric === true && hungry.foodQty === 0, 'the hungry forecast is wrong: ' + JSON.stringify(hungry));
-      assert(new RegExp(hungry.deaths || hungry.stoppedBy ? 'away: no food' : 'pays away').test(bar),
-        'the hungry chip disagrees with its forecast: ' + bar);
-      nightWorld({ foe: 'slime', inventory: { cooked_shrimp: 60 }, food: 'cooked_shrimp' });
-      STN._resetMemo();
-      const fed = STN.memo(G);
-      window.refreshActivityBar();
-      bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
-      assert(fed && bar.indexOf(NP.chipHtml(fed).replace(/<[^>]+>/g, '')) >= 0 && !/no food/.test(bar),
-        'a fed fight must read its own forecast: ' + bar);
-      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
-      G.foodSlot = 'cooked_shrimp';
-
-      /* ONE PREDICATE, shared with the monster preview and the Stats modal —
-         three surfaces answering this question from three copies of the rule
-         is how they drift apart between builds. */
-      assert(typeof window.awayFightSustains === 'function',
-        'the shared away-sustain predicate is gone; every surface will re-derive it');
-      assert(window.awayFightSustains() === true, 'the predicate disagrees with a stocked slot');
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 0 });
-      assert(window.awayFightSustains() === false,
-        'an empty food slot still reads as sustained — the count is the whole point');
-
-      /* ── the two boss cards ──────────────────────────────────────────────
-         b326's line is unconditional again, and it is true: the featured-boss
-         bonus is the ONE channel that survives an absence intact
-         (AWAY_SCOPE.botd === true) where blessings and food buffs do not.
-         MUTATION PROVEN: delete the line from the card template and this fails
-         on "no away line rendered". */
-      const B = window.HearthriseBossOfDay;
-      assert(B, 'the boss-of-the-day feature must be loaded');
-      assert(typeof B.render === 'function' && typeof B.renderWeekly === 'function',
-        'both boss cards must be repaintable, or only one of the two promises can be graded');
-      /* The cards are hidden during a fight (b292), and the copy under test is
-         read by a player choosing one — so grade them in the state they are
-         actually seen in, not through a display:none parent. */
-      G.activeMonster = null;
-      B.render(); B.renderWeekly();
-      const panel = document.getElementById('panel-combat');
-      const lines = Array.from(panel.querySelectorAll('.botd-away'));
-      assert(lines.length >= 1, 'no away line rendered on the boss cards at all');
-      const ltext = lines.map((e) => e.textContent).join(' ').replace(/\s+/g, ' ');
-      assert(/Pays while you're away/.test(ltext),
-        'the featured-boss cards lost the one line that makes "set it before bed" discoverable: ' + ltext);
-      assert(!/licen[cs]e/i.test(ltext), 'the retired permit copy is back on the boss cards: ' + ltext);
-      assert(lines.every((el) => !el.classList.contains('is-locked')),
-        'a boss card is still rendering the retired locked state');
-      assert(window.HearthriseCore.away.AWAY_SCOPE.botd === true,
-        'the boss cards claim the featured bonus survives an absence while AWAY_SCOPE says it does not');
-
-      /* And the tick still repaints on a real day rollover rather than never.
-         b343 removed a third paint watermark that only existed for the gate;
-         this asserts the removal did not take the day rollover with it. */
-      assert(typeof B.__tick === 'function', 'the boss-card tick must be assertable');
-      B.__tick();
-      assert(document.querySelectorAll('#panel-combat .botd-away').length >= 1,
-        'the tick dropped the away line off the cards');
-    } finally {
-      window.hasTrait = realHasTrait;
-      AC.reconcileFall(G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
-      if (parkedLifetime !== undefined) LT.__swapView(parkedLifetime);
-      restoreG(snap);
-      try { STN._resetMemo(); window.refreshActivityBar(); } catch (e) {}
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
   () => tryRun('b342-3: the War Table card cannot start a fight — the fastest path still meets the forecast', () => {
     /* THE MEASURED BUG. b341 removed one-tap-to-fight from every monster ROW
        and left it on `<button class="ce-next" onclick="startCombat('slime')">`
@@ -1907,7 +1577,7 @@ export default [
       assert(at(/XP earned/) >= 0 && at(/Kills/) >= 0,
         'the rev. 2 card lost the gains it was built to lead with: ' + t2.join(' | '));
       const iPickedUp = at(/picked up against the Slime after every fall/);
-      const iFix = at(/Auto-Eat was switched off|worth about/);
+      const iFix = at(/Food would have turned|worth about/);
       const iFell = at(/You fell 4 times to the Slime/);
       const iLadder = at(/Recovery grows with every fall/);
       const i40 = at(/got back up at 40% health each time/);
@@ -2299,7 +1969,8 @@ export default [
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
     const S = await import('../../data/shops.js?v=589');
-    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
+    // 86 offers after the 2026-10-14 demolition (traits, dungeons, IAP and themes left the catalogue).
+    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 50,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
 
@@ -2323,7 +1994,7 @@ export default [
        passes trivially if the live table is missing and both sides read
        `undefined`. So prove the live tables are actually here first — this is
        the assertion-that-asserts-nothing check, done before the assertions. */
-    for (const t of ['ROOMS', 'SEED_SHOP', 'EQUIP_SHOP', 'TRAITS', 'IAP_CATALOG', 'BANK_SPACE', 'DUNGEONS']) {
+    for (const t of ['ROOMS', 'SEED_SHOP', 'EQUIP_SHOP', 'BANK_SPACE']) {
       assert(window[t] && (Array.isArray(window[t]) ? window[t].length : Object.keys(window[t]).length),
         'window.' + t + ' is missing or empty at runtime, so comparing prices against it would '
         + 'assert nothing');
@@ -2362,54 +2033,15 @@ export default [
       assert(goldOf('equip.' + s.id) === s.cost, 'equip.' + s.id + ' price disagrees with EQUIP_SHOP');
     }
 
-    /* TRAITS and the bank gem rung — the two non-gold player currencies that
-       the server has no column for and one it does. */
-    for (const id of Object.keys(window.TRAITS)) {
-      const t = window.TRAITS[id];
-      const cur = t.currency === 'marks' ? 'marks' : 'gold';
-      assert(anyOf('trait.' + id, 'currency', cur) === t.cost,
-        'trait.' + id + ' price disagrees with TRAITS');
-    }
-    assert(anyOf('bank.gems', 'currency', 'gems') === window.BANK_SPACE.gem.cost,
-      'bank.gems price disagrees with BANK_SPACE');
+    // (The bank gem rung left the catalogue with the gems, ruling 2026-10-14 §4.)
 
-    /* DUNGEONS — the item-priced class, and the one whose spend code has a
-       live `hearth_token` branch that debits G.inventory rather than the
-       currency column. If a dungeon ever gains a gold or token cost, this
-       catches a catalogue that still thinks entry is a key. */
-    for (const id of Object.keys(window.DUNGEONS)) {
-      const d = window.DUNGEONS[id];
-      const o = byId.get('dungeon.' + id);
-      assert(o, 'the catalogue has no offer for dungeon "' + id + '"');
-      const want = [];
-      if (d.cost && d.cost.gold) want.push('currency:gold:' + d.cost.gold);
-      if (d.cost && d.cost.hearth_token) want.push('item:hearth_token:' + d.cost.hearth_token);
-      if (d.cost && d.cost.key) want.push('item:' + d.cost.key + ':1');
-      const got = o.cost.map((l) => l.kind + ':' + l.id + ':' + l.amount);
-      assert(JSON.stringify(want.sort()) === JSON.stringify(got.sort()),
-        'dungeon.' + id + ' entry fee is ' + JSON.stringify(want) + ' live but '
-        + JSON.stringify(got) + ' in the catalogue');
-      assert(o.reqLv === (d.reqLv | 0),
-        'dungeon.' + id + ' gate is Lv ' + d.reqLv + ' live but ' + o.reqLv + ' in the catalogue — '
-        + 'a server that authorises the spend re-checks this');
-    }
-
-    /* IAP — money in CENTS. A float or a string here is a billing bug. */
-    for (const p of window.IAP_CATALOG) {
-      const cents = anyOf('iap.' + p.sku, 'money', 'usd');
-      assert(Number.isSafeInteger(cents) && cents > 0,
-        'iap.' + p.sku + ' price ' + cents + ' is not a positive integer number of cents');
-      assert('$' + (cents / 100).toFixed(2) === String(p.price).replace('/mo', ''),
-        'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
-    }
-
-    /* The catalogue must never be mistaken for complete. Six spend sites
+    /* The catalogue must never be mistaken for complete. Four spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
        no catalogue at all. */
-    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
+    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 4,
       'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
-      + 'known set is 6, and dropping one hides a price the server cannot compute');
+      + 'known set is 4 since the 2026-10-14 demolition, and dropping one hides a price the server cannot compute');
     for (const d of S.DERIVED_PRICES) {
       assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
       assert(d.where && d.formula && d.server_needs,
@@ -2442,7 +2074,7 @@ export default [
             reverted data row would never show up in a DOM sweep of a save that
             has not reached that quest.
          B. STATE-DEPENDENT RENDERERS — the away card, the activity bar, the
-            boss cards, the monster preview. Every one of them carried the word
+            monster preview. Every one of them carried the word
             in EXACTLY ONE of its branches, so a sweep of whatever state the
             suite happens to be in would miss it. Both branches are driven.
          C. THE ACTUAL SCREENS — every tab, rendered, including tooltips
@@ -2460,7 +2092,6 @@ export default [
     const G = window.G;
     const snap = snapshotG();
     const prevTab = window.activeTab;
-    const realHasTrait = window.hasTrait;
     const found = [];
     const scan = (where, text) => {
       const s = String(text == null ? '' : text);
@@ -2473,10 +2104,6 @@ export default [
       const steps = (window.HearthriseCoach && window.HearthriseCoach.steps) || [];
       assert(steps.length > 0, 'no First Steps rows were scanned — pass A would be vacuous');
       steps.forEach((s) => scan('COACH[' + s.id + ']', (s.title || '') + ' ' + (s.body || '') + ' ' + (s.primary || '')));
-      Object.keys(window.TRAITS || {}).forEach((k) => {
-        const t = window.TRAITS[k];
-        scan('TRAITS[' + k + ']', (t.name || '') + ' ' + (t.desc || ''));
-      });
 
       // ── B. BOTH BRANCHES OF EVERY STATE-DEPENDENT RENDERER ────────────────
       const H = window.HearthriseHome;
@@ -2494,7 +2121,6 @@ export default [
 
       window.showTab('combat');
       [false, true].forEach((sustains) => {
-        window.hasTrait = function (id) { return id === 'auto_eat' ? sustains : realHasTrait.apply(this, arguments); };
         G.foodSlot = sustains ? 'cooked_shrimp' : null;
         if (sustains) G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 40 });
         G.activeMonster = 'slime'; G.stats = Object.assign({}, G.stats, { kills: sustains ? 4000 : 3 });
@@ -2502,9 +2128,6 @@ export default [
         const meta = document.getElementById('ab-meta');
         scan('activityBar(sustains=' + sustains + ')', meta ? meta.innerHTML : '');
         G.activeMonster = null;
-        try { window.HearthriseBossOfDay.render(); window.HearthriseBossOfDay.renderWeekly(); } catch (e) {}
-        Array.from(document.querySelectorAll('#panel-combat .botd-away'))
-          .forEach((el, i) => scan('bossCard#' + i + '(sustains=' + sustains + ')', el.innerHTML));
         try {
           window.openMobPreview('slime');
           const mp = document.getElementById('mp-modal');
@@ -2514,7 +2137,7 @@ export default [
 
       // ── C. THE RENDERED SCREENS, TOOLTIPS INCLUDED ────────────────────────
       const TABS = ['home', 'profile', 'character', 'combat', 'skills', 'farming', 'house',
-        'social', 'clan', 'shop', 'market', 'bounty', 'stable', 'events', 'dungeons', 'inventory'];
+        'social', 'shop', 'market', 'inventory'];
       let scanned = 0;
       TABS.forEach((t) => {
         try { window.showTab(t); } catch (e) { return; }
@@ -2531,7 +2154,6 @@ export default [
         'the retired permit wording is back in ' + found.length + ' player-facing place(s):\n  '
         + found.slice(0, 6).join('\n  '));
     } finally {
-      window.hasTrait = realHasTrait;
       restoreG(snap);
       try { window.refreshActivityBar(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -2815,61 +2437,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): "B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('DAILY-ESC-1: a hidden or covered daily sheet never steals Escape from the sheet on top', () => {
-    const G = window.G;
-    const D = window.HearthriseDaily;
-    assert(D && typeof D.open === 'function', 'the daily-reward feature must be loaded');
-    assert(window.HearthriseSheet && typeof window.HearthriseSheet.closeTop === 'function', 'the Escape seam must be loaded');
-    const prevDaily = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : null;
-    const realNotify = window.notify;
-    const kill = () => { const s = document.getElementById('hr-dl-modal'); if (s) s.remove(); };
-    const tops = [];
-    const topSheet = (z) => {
-      const s = document.createElement('div');
-      s.className = 'hr-scrim esc-probe-top';
-      s.style.cssText = 'position:fixed;inset:0;z-index:' + z + ';display:flex';
-      s.innerHTML = '<div class="hr-sheet"><button type="button" data-hr-dismiss>Done</button></div>';
-      s.addEventListener('click', (e) => { if (e.target.closest('[data-hr-dismiss]')) s.remove(); });
-      document.body.appendChild(s); tops.push(s);
-      return s;
-    };
-    const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    try {
-      const toasts = [];
-      window.notify = function (m) { toasts.push(String(m)); };
-      G.dailyReward = { lastClaimDay: 0 };                 // claimable
-      /* (a) HIDDEN: the state a harness or a future sweep leaves — connected, display:none. */
-      kill(); D.open();
-      const daily = document.getElementById('hr-dl-modal');
-      assert(daily, 'the daily sheet did not open');
-      daily.style.setProperty('display', 'none', 'important');
-      let top = topSheet(9998);
-      esc();
-      assert(!top.isConnected, 'Escape did not close the open sheet: a HIDDEN daily sheet took the key');
-      assert(daily.isConnected, 'Escape dismissed a daily sheet the player could not see');
-      assert(!toasts.some((t) => /still waiting/i.test(t)), 'a hidden sheet answered Escape: ' + toasts.join(' | '));
-      /* (b) COVERED: a sheet stacked above the daily sheet closes first; the daily goes on the next press. */
-      daily.style.removeProperty('display');
-      top = topSheet(Number(getComputedStyle(daily).zIndex || 0) + 1);
-      esc();
-      assert(!top.isConnected, 'Escape did not close the sheet stacked ABOVE the daily sheet');
-      assert(daily.isConnected, 'one Escape closed two layers: the daily sheet underneath went too');
-      esc();
-      assert(!daily.isConnected, 'Escape no longer closes the daily sheet once it is on top');
-    } finally {
-      window.notify = realNotify;
-      kill();
-      tops.forEach((s) => s.remove());
-      if (prevDaily) G.dailyReward = prevDaily; else delete G.dailyReward;
-    }
-  }),
-
-  /* ASYNC on purpose: openSkillDetail() defers the repaint by a macrotask
-     (`setTimeout(() => renderSkillDetail(id), 0)`), so a synchronous test
-     reads whatever the PREVIOUS test left on screen — which is how the first
-     draft of this one compared a mining tile to a woodcutting rate. Driving
-     the player's actual entry point and waiting for the paint is the honest
-     shape; calling renderSkillDetail directly would skip the hop. */
   () => tryRunAsync('B345-3: an activity tile quotes the XP the ENGINE pays, not a number it made up', async () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
@@ -3082,48 +2649,6 @@ export default [
      with 260 rubble read it as "Stonemason gets no XP". Surface contract, so
      it reads the rendered DOM through the real renderer (the b342/b345 rule),
      and both directions: cross-skill names the skill, same-skill stays bare. */
-  () => tryRunAsync('XP-ROUTE-LABEL: a cross-skill lane names its XP skill on the tile (Quarry → "Mining XP"); a same-skill lane stays bare', async () => {
-    const snap = snapshotG();
-    const prevTab = window._activeTab;
-    try {
-      if (typeof window.setLevel === 'function') window.setLevel('stonemason', 10);
-      else { G.skills = G.skills || {}; G.skills.stonemason = Math.max(G.skills.stonemason || 0, 1200); }
-      window._actLastRender = { skillId: null, activeKey: null };
-      window.showTab('skills');
-      window.openSkillDetail('stonemason');
-      await new Promise((r) => setTimeout(r, 60));
-      const tiles = Array.from(document.querySelectorAll('#skill-detail .act-tile'));
-      assert(tiles.length, 'no tiles rendered on the Stonemason detail page');
-      const metaOf = (name) => {
-        const t = tiles.find((x) => ((x.querySelector('.at-name') || {}).textContent || '').trim() === name);
-        return t ? ((t.querySelector('.at-meta') || {}).textContent || '').trim() : null;
-      };
-      const quarry = metaOf('Quarry Rubble');
-      assert(quarry !== null, 'no "Quarry Rubble" tile on the Stonemason page — on screen: ['
-        + tiles.map((t) => ((t.querySelector('.at-name') || {}).textContent || '').trim()).join(', ') + ']');
-      assert(/\bMining XP\b/.test(quarry),
-        'THE CONFUSION: the quarry tile does not say its XP pays MINING — meta reads "' + quarry + '"');
-      /* Direction 2: a lane whose XP stays home must NOT grow a skill label. */
-      const same = tiles.map((t) => ((t.querySelector('.at-meta') || {}).textContent || '').trim())
-        .find((m) => m && !/Mining XP/.test(m) && /\bXP\b/.test(m));
-      if (same) assert(/\d+\s+XP\b/.test(same),
-        'a same-skill lane grew an unexpected label — meta reads "' + same + '"');
-    } finally {
-      restoreG(snap);
-      window._actLastRender = { skillId: null, activeKey: null };
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════
-     b348 — XARN'S REPORTS #2, #3 AND #4
-
-     All three are SURFACE contracts, so every assertion below reads a rendered
-     surface rather than a field. That is this file's own hard-won rule (b342:
-     a guard that asserted `G._awayLicence` EXISTS could not tell that the card
-     meant to read it had never been built) and it is exactly the shape of #2 —
-     the data was always correct, and a stylesheet was eating it.
-     ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRun('b348: every combat style SAYS which skills its XP goes to, and no stylesheet may hide it', () => {
     const S = window.COMBAT_STYLES || {};
@@ -3419,38 +2944,26 @@ export default [
         'the item detail modal states no wear requirement for ' + probe + ' — "' + modalText.slice(0, 200) + '"');
       if (typeof window.closeInvDetail === 'function') window.closeInvDetail();
 
-      /* (3) THE CRAFTING TILE — "what def requirements we need to wear those
-         too". The craft gate and the wear gate are different numbers on
-         different skills (Smithing 40 to forge, Defence 30 to wear). */
-      const rec = window.ARTISAN_RECIPES.smithing.find((r) => r.output === probe);
-      assert(rec, 'no smithing recipe produces ' + probe);
+      /* (3) THE CRAFTING TILE's wear line: the shared helper states the gate, and
+         every LIVE recipe output gets exactly the line the authority implies. */
       assert(typeof window.hrWearLineHtml === 'function', 'the shared wear-line helper must be published');
       const line = window.hrWearLineHtml(probe);
       assert(/at-wear/.test(line) && line.indexOf('' + req.lv) >= 0,
         'the wear line does not state the requirement: "' + line + '"');
       assert(window.hrWearLineHtml('normal_log') === '',
         'a non-wearable output must produce no wear line');
+      Object.keys(window.ARTISAN_RECIPES || {}).forEach((sk) => (window.ARTISAN_RECIPES[sk] || []).forEach((r) => {
+        if (!r || !r.output) return;
+        const gated = !!window.gearWieldReq(window.ITEMS[r.output]);
+        assert(/at-wear/.test(window.hrWearLineHtml(r.output)) === gated,
+          r.id + ': the wear line must appear exactly when the output carries a wield gate');
+      }));
 
-      // Painted, through whichever tile builder is actually wired.
-      G.skills.smithing = 1e7;
-      window._actLastRender = { skillId: null, activeKey: null };
-      window.showTab('skills');
-      window.openSkillDetail('smithing');
-      await new Promise((r) => setTimeout(r, 80));
-      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'armour');
-      await new Promise((r) => setTimeout(r, 80));
-      const plate = [...document.querySelectorAll('#skill-detail .act-tile')]
-        .find((t) => t.getAttribute('data-prod') === probe);
-      assert(plate, 'the ' + probe + ' recipe tile did not render on the Armour lane');
-      const wearEl = plate.querySelector('.at-wear');
-      assert(wearEl && wearEl.textContent.indexOf('' + req.lv) >= 0,
-        'the crafting tile does not say what you need to WEAR the output — "' + plate.innerText.replace(/\s+/g, ' ') + '"');
-
-      /* (4) AND THE ESM TWIN, which paints nothing today and therefore drifts
-         (b345's lesson). Graded through its published builder. */
+      /* (4) THE ESM TWIN tile builder carries it too (a probe recipe). */
       const AG = window.HearthriseActivitiesGrid;
       assert(AG && typeof AG.__tileForArtisan === 'function', 'the activities-grid test seam is gone');
-      assert(/at-wear/.test(AG.__tileForArtisan(rec, 'smithing')),
+      const probeRec = { id: '__probe_' + probe, name: 'Probe', icon: '', inputs: { iron_bar: 1 }, output: probe, xp: 1, req: 1, ms: 1000 };
+      assert(/at-wear/.test(AG.__tileForArtisan(probeRec, 'smithing')),
         'the activities-grid TWIN does not carry the wear line — the two tile builders have drifted');
     } finally {
       G.inventory = saved.inv; G.skills = saved.skills;
@@ -3476,22 +2989,6 @@ export default [
 
   () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
     const snap = snapshotG();
-    /* PIN THE CALENDAR TO A QUIET SEASON FIRST.
-       This test measures what a ROOM RUNG pays, but `getBonus` is additively
-       wrapped by world-events.js, so an active blessing lands in the same
-       number. That made the assertions silently date-dependent: on a `feast_day`
-       (`+0.04 cookSpeed`) the Kitchen-5 row reads 0.14 instead of 0.10, and on a
-       `steady_fire` (`+0.25 noBurn`) EVERY noBurn row goes red — two of the
-       eleven daily events, so this was a ~1-in-6 chance of a red suite that had
-       nothing to do with the code under test. `QUIET` exists in world-events.js
-       for exactly this ("the 'no calendar' control every gate test needs, so an
-       assertion never depends on today's date"); this test simply never took it.
-       Caught on 2026-08-16 when the daily rotated into feast_day mid-session:
-       the same tree ran green three times, then red three times, with no edit in
-       between — and b363 reproduced it identically, which is what proved it was
-       the calendar and not the change under review. */
-    const WE = window.HearthriseWorldEvents;
-    if (WE && typeof WE._force === 'function') WE._force({ daily: WE.QUIET, weekly: WE.QUIET });
     try {
       /* MEASURED EXPECTATIONS, not restated from the table under test:
          src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
@@ -3532,12 +3029,10 @@ export default [
       assert(Math.abs((window.getBonus('cookSpeed') - base) - 0.10) < 1e-9,
         'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
         + 'half is not reaching getBonus');
-      assert(Math.abs((window.getBonus('yield_cooking') - baseY) - 0.08) < 1e-9,
-        'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ', expected +0.08');
+      assert(Math.abs(window.getBonus('yield_cooking') - baseY) < 1e-9,
+        'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ' — a home grants no yield (§9)');
     } finally {
       restoreG(snap);
-      // Hand the calendar back to the real date for every test after this one.
-      if (WE && typeof WE._force === 'function') WE._force(null);
     }
   }),
   /* ══════════════════════════════════════════════════════════════════════
@@ -3614,15 +3109,8 @@ export default [
       'the whenSignedIn test seams are gone — a test that could only observe "it did not run" would '
       + 'pass against an implementation that threw the callback away');
 
-    /* ── THE CALLER, by name. The suite boots with no session, so muster.js's
-       clock+pledge chain must still be SITTING here waiting. Counting alone
-       would pass the day some other module started deferring and muster
-       stopped, so the label is the assertion.
-       MUTATION: call syncClock() directly from muster's boot() again → RED. */
-    assert(gate._signedInWaiting().indexOf('muster:clock+pledge') !== -1,
-      'muster.js is not holding its clock sync behind a session — it is back to firing hr_server_now '
-      + '420ms after DOMContentLoaded, which is before auth.js can publish a token, which is 3,196 '
-      + 'refused calls a day. Waiting: [' + gate._signedInWaiting().join(', ') + ']');
+    /* The named caller (muster.js's clock+pledge chain) left with the Muster in
+       the 2026-10-14 demolition; the seam's own behaviour is asserted below. */
 
     const Auth = window.HearthriseAuth;
     /* account-gate reads HearthriseAuth.isSignedIn() — not getSession() — so
@@ -3668,207 +3156,6 @@ export default [
     } finally {
       Auth.isSignedIn = realIsSignedIn;
       try { gate._drainSignedIn(TAG); } catch (e) {}
-    }
-  }),
-
-  () => tryRunAsync('B349-R3: muster\'s OWN transport refuses to send an authenticated RPC with no session', async () => {
-    const M = window.HearthriseMuster;
-    assert(M && typeof M.syncClock === 'function', 'muster.js is not loaded');
-    const Auth = window.HearthriseAuth;
-    const realGetSession = Auth.getSession;
-    const realFetch = window.fetch;
-    const sent = [];
-    try {
-      window.fetch = function (u, o) {
-        const url = typeof u === 'string' ? u : (u && u.url) || '';
-        if (url.indexOf('/rest/v1/rpc/') !== -1) {
-          const h = (o && o.headers) || {};
-          sent.push({ url: url, auth: h.Authorization || h.authorization || '' });
-          return Promise.resolve(new Response(JSON.stringify({ ok: true, epoch_ms: Date.now() }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }));
-        }
-        return realFetch.apply(this, arguments);
-      };
-
-      /* ── THE BUG, driven through the real caller. MUTATION: delete the
-         mayCall() refusal from muster.js's rpc() → this goes RED, because the
-         request is exactly what production logged 3,196 times a day. */
-      Auth.getSession = () => null;
-      await M.syncClock();
-      assert(sent.length === 0,
-        'THE b349 BUG: muster.js sent ' + sent.length + ' RPC(s) with no session — '
-        + sent.map((s) => s.url.split('/rpc/')[1]).join(', ') + '. Postgres answers 42501 and the '
-        + 'client cannot tell that apart from a healthy call it forgot to read');
-
-      /* THE CONTROL, and it is the whole test. "Zero calls" passes trivially
-         against a broken fetch stub, a renamed function, or a syncClock that
-         was deleted. The SAME stub must record a real, correctly-signed call
-         the moment a session exists — otherwise the assertion above is
-         measuring nothing. */
-      Auth.getSession = () => ({ access_token: 'real-token-abc', user: { id: 'u1' } });
-      await M.syncClock();
-      // Count is the contract; NAMES are the diagnostic — "2 call(s)" alone cannot say whose.
-      const seen = sent.map((c) => c.url.split('/rpc/')[1] || c.url).join(' + ');
-      assert(sent.length === 1 && sent[0].url.indexOf('/rpc/hr_server_now') !== -1,
-        'with a session the clock did NOT sync (' + sent.length + ' call(s): ' + seen + ') — the '
-        + 'guard above is passing against a dead path and proves nothing');
-      assert(sent[0].auth === 'Bearer real-token-abc',
-        'the clock went out signed with something other than the player\'s token ("' + sent[0].auth
-        + '") — the `|| anonKey` fallback in headers() is still downgrading the call');
-    } finally {
-      window.fetch = realFetch;
-      Auth.getSession = realGetSession;
-      try { M._setSkew(0); } catch (e) {}
-    }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════
-     b354 — AUTO-EAT IS SOLD WHERE THE MARKS ARE.
-
-     Tyler ruled (2026-08-09) that auto-eat costs 100 Bounty Marks. It was
-     reachable only from the Shop tab's trait strip — a screen a player who
-     spends marks never opens — so the currency and the only thing worth
-     buying with it lived on two different tabs.
-
-     The interesting risk in adding it is NOT the row. It is that a second
-     storefront becomes a second OWNER: a bounty row that set its own upgrades
-     key would make `hasTrait('auto_eat')` and `upgrades.autoEat` two answers
-     to one question, and a row that charged its own marks before delegating
-     would take 200 for a 100-mark trait. Both are asserted below, in the
-     direction that fails if the delegation is ever unpicked.
-
-     The panel's offer list is COMPOSED (`bountyShopOffers()`) — the board's own
-     upgrades plus everything in the game priced in marks — rather than a second
-     authored row, so there is exactly one offer id for one purchase and the
-     generated server catalogue is untouched.
-     ══════════════════════════════════════════════════════════════════════ */
-  // Auto-Eat I is granted at creation, so the purchasable trait row is Auto-Eat II.
-  () => tryRunAsync('b354/W0: the Bounty Shop sells Auto-Eat II (never the starter tier), through the ONE writer of the trait', async () => {
-    assert(typeof window.bountyShopOffers === 'function',
-      'bountyShopOffers() is not published — this test must read the REAL offer list the panel '
-      + 'renders from, never a copy of it');
-    const SHOP = window.bountyShopOffers();
-    assert(Array.isArray(SHOP) && SHOP.length >= 6, 'the composed offer list is ' + SHOP.length + ' long');
-
-    /* (0) W0 REGRESSION: the starter tier every hero already owns is not sold. */
-    assert(window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.starter === true,
-      'TRAITS.auto_eat must be marked starter — every character is granted it at creation');
-    assert(!SHOP.some((r) => r.trait === 'auto_eat'),
-      'the Bounty Shop still offers Auto-Eat I, which every hero starts owning — a row that can only '
-      + 'ever read Owned is a shop selling the player their own boots');
-
-    /* (1) THE ROW, in the real list, at the ruled price. */
-    const row = SHOP.filter((r) => r.trait === 'auto_eat_2')[0];
-    assert(row, 'the Bounty Shop has no Auto-Eat II offer — a player with marks has nothing to '
-      + 'spend them on that they came for');
-    /* b459: the designer re-ruled the 2026-08-09 price — Auto-Eat I is the
-       15-Mark entry tier (auto_eat_2 carries the old 100). The contract is now
-       "the row charges the trait's OWN price", derived, not a literal. */
-    assert(row.cost === ((window.TRAITS && window.TRAITS.auto_eat_2 && window.TRAITS.auto_eat_2.cost) || 100),
-      'the Auto-Eat II row must charge TRAITS.auto_eat_2.cost, the row says ' + row.cost);
-    assert(!row.flag, 'a delegating row must not also carry a `flag` — that is the second owner');
-    assert(!row.repeatable, 'a permanent trait is not a repeatable purchase');
-    assert(window.BOUNTY_SHOP.every((r) => !r.trait),
-      'the marks-priced trait was COPIED into BOUNTY_SHOP as well — that is a second offer id for '
-      + 'one purchase, and it is what the composition exists to avoid');
-
-    /* (2) THE PRICE HAS ONE SOURCE — the row IS the trait's own price, so the
-       shop cannot advertise 100 and charge 250. Asserted against TRAITS
-       directly, because the composition is exactly what would hide a drift. */
-    const T = (window.TRAITS || {}).auto_eat_2;
-    assert(T && T.currency === 'marks' && T.cost === row.cost,
-      'TRAITS.auto_eat_2 charges ' + (T && T.cost) + ' ' + (T && T.currency)
-      + ' while the Bounty Shop advertises ' + row.cost + ' marks');
-    /* THE RULE, not the row: every marks-priced trait reaches this screen. A
-       future one that did not would repeat the whole bug. */
-    Object.keys(window.TRAITS).forEach((id) => {
-      if (window.TRAITS[id].currency !== 'marks' || window.TRAITS[id].starter) return;
-      assert(SHOP.some((r) => r.trait === id),
-        'TRAITS.' + id + ' is priced in Bounty Marks but is not sold on the Bounty Shop');
-    });
-
-    /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
-       purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../../data/shops.js?v=589');
-    const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat_2')).map((o) => o.id);
-    assert(ids.length === 1 && ids[0] === 'trait.auto_eat_2',
-      'trait:auto_eat_2 is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
-      + 'storefront must not become a second offer id the server would have to bookkeep separately');
-    const off = S.SHOP_OFFERS.filter((o) => o.id === 'trait.auto_eat_2')[0];
-    assert(off.cost.length === 1 && off.cost[0].kind === 'currency'
-      && off.cost[0].id === 'marks' && off.cost[0].amount === row.cost,
-      'trait.auto_eat_2 is priced ' + JSON.stringify(off.cost) + ' in the catalogue, not '
-      + row.cost + ' marks');
-
-    /* (4) THE PLAYER'S PATH, driven end to end.
-
-       ⚠ b456 — DRIVEN WITH MARKS IN THE CLIENT-OWNED POSITION, and the reason is
-       a documented live gap rather than a harness gap. `spendMarks`/`buyTrait`
-       have NO server spend verb (only reroll/abandon moved to hr_bounty_spend), so
-       under the marks arm they FAIL CLOSED — legacy.js refuses with "That upgrade
-       is unavailable right now". That refusal is CORRECT (a raw client debit on a
-       server-owned balance would be reconciled away while the trait stayed
-       granted) and it is asserted by the b227 buyTrait test. It also means a
-       100-mark shop item cannot currently be bought by anyone — filed for the
-       Game Designer / Systems Engineer as a post-arm follow-up (build the
-       hr_bounty_spend sibling).
-       What THIS test is about is the shop's own contract — one offer id, one
-       price, one owner of the trait flag, charged exactly once — which is the
-       arithmetic the server verb will have to reproduce. So it runs where that
-       arithmetic executes. Sections (1)-(3) above are pure data and are asserted
-       at the shipping default. */
-    const snap = snapshotG();
-    const _R = window.HearthriseRecord;
-    try {
-      if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(false);
-      window.G.traits = { auto_eat: true };
-      window.ensureBountyState && window.ensureBountyState();
-      /* b459: the price is DATA (TRAITS.auto_eat_2.cost), so every phase derives
-         from it instead of hardcoding a literal. */
-      const _aeC = (window.TRAITS && window.TRAITS.auto_eat_2 && window.TRAITS.auto_eat_2.cost) || 100;
-      window.G.marks = _aeC - 5;   // top-level record-field home; too poor by 5
-      window.showTab('bounty');
-      window.renderBountyTab();
-
-      const node = document.querySelector('#bounty-shop-body .bounty-shop-row[data-offer="' + row.id + '"]');
-      assert(node, 'the Auto-Eat row is not on the Bounty Shop panel');
-      assert(/Auto-Eat/.test(node.textContent), 'the row must name what it sells');
-      assert(new RegExp(String(_aeC)).test(node.querySelector('.price').textContent),
-        'the row must PRINT the price (' + _aeC + '), got "' + node.querySelector('.price').textContent + '"');
-      assert(node.querySelector('button').disabled,
-        'below the price the Buy button must be disabled — a control that cannot act must not look like it can');
-
-      // Too poor: nothing is taken and nothing is granted.
-      window.spendMarks(row.id);
-      assert(window.G.marks === _aeC - 5,
-        'a refused purchase took marks anyway (' + window.G.marks + ')');
-      assert(!window.hasTrait('auto_eat_2'), 'a refused purchase granted the trait');
-
-      // Affordable: charged EXACTLY once, and by the trait's own price.
-      window.G.marks = _aeC + 37;
-      window.spendMarks(row.id);
-      assert(window.hasTrait('auto_eat_2'), 'buying Auto-Eat II in the Bounty Shop did not unlock it');
-      assert(window.G.marks === 37,
-        'the purchase debited ' + (_aeC + 37 - window.G.marks) + ' marks, not ' + _aeC + ' — the shop '
-        + 'row is charging on top of buyTrait()');
-      assert(!(window.G.bountyHunter.upgrades || {}).auto_eat_2
-        && !(window.G.bountyHunter.upgrades || {}).autoEat,
-        'the bounty shop wrote its own ownership key — hasTrait() and upgrades are now two answers');
-
-      // …and the panel says so without being told twice.
-      window.renderBountyTab();
-      const after = document.querySelector('#bounty-shop-body .bounty-shop-row[data-offer="' + row.id + '"]');
-      assert(/Owned/.test(after.querySelector('button').textContent),
-        'an owned trait must read Owned in the Bounty Shop, got "'
-        + after.querySelector('button').textContent + '"');
-      assert(after.querySelector('button').disabled, 'an owned trait must not be buyable again');
-
-      // Buying it twice must not cost a second 100.
-      window.spendMarks(row.id);
-      assert(window.G.marks === 37, 'a second purchase of an owned trait charged again');
-    } finally {
-      if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(null);
-      restoreG(snap);
     }
   }),
 ];

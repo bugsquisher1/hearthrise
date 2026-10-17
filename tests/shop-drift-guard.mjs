@@ -116,7 +116,7 @@ mutation('a cost item id typo\'d (an unknown id would silently price nothing)',
 // that stopped matching would produce an empty table, which diffs clean
 // against an empty committed file and reports "in sync" forever.
 mutation('a table EMPTIED (the empty-table tripwire)',
-  LEGACY, 'const BOUNTY_SHOP = [', 'const BOUNTY_SHOP = []; const _OLD_BOUNTY_SHOP = [');
+  LEGACY, 'const EQUIP_SHOP=[', 'const EQUIP_SHOP=[]; const _OLD_EQUIP_SHOP=[');   // BOUNTY_SHOP left with the bounty board (2026-10-14)
 
 rmSync(WORK, { recursive: true, force: true });
 

@@ -45,31 +45,6 @@
       /* (a base plinth was tried and cut: at 34px the horizontal bar turned the
          rune into a coat-stand, and none of its neighbours in the rail sit on a
          ground line. The mark floats, like `magic` and `crafting` do.) */
-
-    /* stonemason — a dressed ashlar block being cut, plus the chisel that cut
-       it. Three faces make the block read as STONE (volume + a cut face)
-       rather than as a crate; the chisel is the verb. Deliberately NOT a
-       hammer (uiHammer / uiAnvil own that shape) and NOT a pickaxe (`mining`
-       owns that) — this skill DRESSES stone, it does not extract it. */
-    /* FACE-SEPARATION NOTE (revised after looking at it at 128px): the first cut
-       drew the three faces of the block EDGE TO EDGE. With one fill colour and
-       no strokes available, adjacent faces merge — the block read as a single
-       flat polygon, i.e. as a "note" or a "flag", not as stone with volume.
-       The faces are now separated by ~14 units of background, which is the only
-       way a single-fill glyph can describe a solid. */
-    stonemason:
-      'M32 300h250v180H32z' +                                    /* block, front face */
-      'M46 282l62-60h250l-62 60z' +                              /* block, top face */
-      'M296 286l62-60v180l-62 60z' +                             /* block, right face */
-      'M78 352h150v28H78z' +                                     /* the cut course line */
-      /* the chisel is dropped so its edge sits AGAINST the stone rather than
-         floating in the opposite corner — the glyph should read as an action
-         (this tool cuts this block), which is how `mining` and `smithing`
-         next to it are composed. */
-      'M386 60h96v128h-96z' +                                    /* chisel handle */
-      'M374 188h120v36H374z' +                                   /* ferrule */
-      'M392 224h84l-20 78h-44z' +                                /* tapering blade */
-      'M400 302h68v30h-68z'                                      /* cutting edge */
   };
 
   window.HR_GLYPHS = window.HR_GLYPHS || {};

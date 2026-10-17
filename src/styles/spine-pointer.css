@@ -69,8 +69,7 @@
 .sp-part.is-met { color: var(--ink-3); }
 .sp-part.is-met b { color: var(--green); }
 .sp-reward { color: var(--gold-2); font-weight: 600; white-space: nowrap; }
-.sp-go,
-.sp-daily {
+.sp-go {
   flex: 0 0 auto;
   align-self: center;
   height: 32px;
@@ -88,13 +87,6 @@
   color: var(--bg-0);
 }
 .sp-go:hover { filter: brightness(1.08); }
-.sp-daily {
-  border: 1px solid var(--line);
-  background: var(--surf-sunken);
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-.sp-daily.is-claim { border-color: var(--gold); color: var(--gold-2); }
 
 /* Home's card reuses the dashboard's milestone row; this adds the parts line,
    the reward line and the button column. */
@@ -124,8 +116,8 @@
   .sp-in { gap: 8px; }
   .sp-bar .sp-reward,
   .sp-bar .sp-step { display: none; }
-  .sp-go, .sp-daily { padding: 0 10px; }
+  .sp-go { padding: 0 10px; }
   .hd-spine .sp-acts { flex-direction: row; }
-  /* Home's card has the room: its buttons keep the 44px touch floor. */
-  .hd-spine .sp-go, .hd-spine .sp-daily { height: var(--tap, 44px); min-height: var(--tap, 44px); }
+  /* Home's card has the room: its button keeps the 44px touch floor. */
+  .hd-spine .sp-go { height: var(--tap, 44px); min-height: var(--tap, 44px); }
 }

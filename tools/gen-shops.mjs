@@ -24,17 +24,19 @@
 //   still correct on every push. The guard is the deliverable; the data is
 //   the by-product.
 //
-// WHAT IT READS  (seven files — every table is asserted present and non-empty)
-//   src/legacy.js            ROOMS · PLOT_BUILDINGS · HOUSE_THEMES ·
-//                            SEED_SHOP · EQUIP_SHOP · BOUNTY_SHOP · TRAITS ·
-//                            BANK_SPACE · IAP_CATALOG · the inline cosmetics
-//                            array inside renderShop()
+// WHAT IT READS  (every table is asserted present and non-empty)
+//   src/legacy.js            ROOMS · PLOT_BUILDINGS · SEED_SHOP · EQUIP_SHOP ·
+//                            BANK_SPACE (the gold rung, a DERIVED price)
 //   src/features/homestead.js  property TIERS
 //   src/features/workers.js    HIRE_COSTS
-//   src/multi-character.js     SLOT_COSTS_GEMS
-//   src/data/companions.js     'shop:<gold>[:<skill><lv>]' source strings
-//   src/core/farm.js           PLOT_TIERS deed costs
-//   src/dungeons.js            DUNGEONS entry fees
+//   src/multi-character.js     SLOT_COSTS_GOLD
+//   src/screens/shop-counter.js  the vendor rates (DERIVED prices)
+//
+//   src/data/companions.js     'shop:<gold>[:<skill><lv>]' source strings (HELD)
+//
+//   Demolition (2026-10-14): the theme, cosmetic, IAP, bank-gem, bounty, trait,
+//   farm-plot-deed and dungeon-entry tables were deleted with their
+//   systems, and character slots are priced in gold (designer ruling).
 //
 // HOW IT READS legacy.js
 //   Not by regex over the price. Anchors are located, the literal is SLICED
@@ -130,30 +132,18 @@ const GRANT_KINDS = new Set([
 //   gold                     → player_state.gold (per hero; 2026-08-11-player-state.sql)
 //   gems/hearth_tokens       → account_wallet (ONE balance per account since
 //                              2026-10-19-account-wallet.sql)
-//   marks                    → Bounty Marks. G.bountyHunter.marks, and it has
-//                              NO server home at all today. Extracted anyway
-//                              and flagged, because a price in a currency the
-//                              server cannot debit is a finding, not an
-//                              omission.
 const CURRENCIES = {
   gold: { server: 'player_state.gold' },
   gems: { server: 'account_wallet.gems' },
   hearth_tokens: { server: 'account_wallet.hearth_tokens' },
-  marks: { server: null },
   usd: { server: null },
 };
 
 const line = (kind, id, amount) => ({ kind, id, amount });
-const money = (str) => {
-  const m = /^\$(\d+)\.(\d{2})(\/mo)?$/.exec(String(str));
-  if (!m) die(`IAP price ${JSON.stringify(str)} is not $N.NN — the parser must not guess at money`);
-  return { cents: Number(m[1]) * 100 + Number(m[2]), period: m[3] ? 'month' : null };
-};
 
 // ── 3. Extract ───────────────────────────────────────────────────────────
 const { ITEMS } = await imp('src/data/items.js');
 const { COMPANIONS } = await imp('src/data/companions.js');
-const { PLOT_TIERS } = await imp('src/core/farm.js');
 
 const legacy = await read('src/legacy.js');
 const homesteadSrc = await read('src/features/homestead.js');
@@ -164,33 +154,18 @@ const L = (anchor) => sliceLiteral(legacy, anchor, 'src/legacy.js');
 
 const ROOMS = L('const ROOMS={');
 const PLOT_BUILDINGS = L('const PLOT_BUILDINGS={');
-const HOUSE_THEMES = L('const HOUSE_THEMES=[');
 const SEED_SHOP = L('const SEED_SHOP=[');
 const EQUIP_SHOP = L('const EQUIP_SHOP=[');
-const IAP_CATALOG = L('const IAP_CATALOG=[');
-const TRAITS = L('const TRAITS={');
-const BOUNTY_SHOP = L('const BOUNTY_SHOP = [');
 const BANK_SPACE = L('var BANK_SPACE = {');
-// The cosmetics table is an array literal INSIDE renderShop(), not a
-// top-level const — the only priced table in the game that is not even a
-// declaration. It is extracted the same way; the anchor uniqueness check is
-// what makes that safe. renderShop() (and this literal with it) was extracted
-// out of legacy.js to src/render/shop.js in the render-layer strangler-fig
-// (task #129 Phase 3.5), so the slice now reads from that file.
-const shopRenderSrc = await read('src/render/shop.js');
-const COSMETICS = sliceLiteral(shopRenderSrc, 'const cosmetics=[', 'src/render/shop.js');
 // The vendor bid left legacy.js for the shop SCREEN CONTROLLER with the rest of
 // the counter (task #129 phase 2, 2026-09-14) — same slice, new file.
 const shopCounterSrc = await read('src/screens/shop-counter.js');
 const VENDOR_RAW_RATE = sliceNumber(shopCounterSrc, 'const VENDOR_RAW_RATE', 'src/screens/shop-counter.js');
 const SHOP_BUYBACK_RATE = sliceNumber(shopCounterSrc, 'const SHOP_BUYBACK_RATE', 'src/screens/shop-counter.js');
 
-const dungeonsSrc = await read('src/dungeons.js');
-const DUNGEONS = sliceLiteral(dungeonsSrc, 'var DUNGEONS = {', 'src/dungeons.js');
-
 const PROPERTY_TIERS = sliceLiteral(homesteadSrc, 'var TIERS = [', 'src/features/homestead.js');
 const HIRE_COSTS = sliceLiteral(workersSrc, 'var HIRE_COSTS = [', 'src/features/workers.js');
-const SLOT_COSTS_GEMS = sliceLiteral(multiCharSrc, 'const SLOT_COSTS_GEMS = [', 'src/multi-character.js');
+const SLOT_COSTS_GOLD = sliceLiteral(multiCharSrc, 'const SLOT_COSTS_GOLD = [', 'src/multi-character.js');
 
 // A room/property/plot `cost` object: `gold` is the currency, every other key
 // is an item id consumed from the bag (legacy.js upgradeRoom:4714 —
@@ -206,7 +181,7 @@ const costObject = (obj, where) => Object.keys(obj).sort().map((k) => (
 // Canonical line order, so a reorder in the source (which is not a price
 // change) cannot make the guard cry wolf: currencies first in a fixed order,
 // then items alphabetically.
-const CURRENCY_ORDER = ['gold', 'gems', 'hearth_tokens', 'marks', 'usd'];
+const CURRENCY_ORDER = ['gold', 'gems', 'hearth_tokens', 'usd'];
 function costOrder(a, b) {
   const rank = (l) => (l.kind === 'money' ? 0 : l.kind === 'currency' ? 1 : 2);
   if (rank(a) !== rank(b)) return rank(a) - rank(b);
@@ -253,22 +228,6 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   }, offers);
 }
 
-// ── HOUSE_THEMES — `price` + an optional `currency:'gem'` flag ───────────
-// buyTheme() branches on currency==='gem' and otherwise spends GOLD, so a
-// themeless entry is a gold price, not an unpriced one. `default` is 0 gold.
-{
-  const offers = HOUSE_THEMES.map((t) => ({
-    id: `theme.${t.id}`,
-    name: t.name,
-    cost: [line('currency', t.currency === 'gem' ? 'gems' : 'gold', t.price | 0)],
-    grant: [line('unlock', `theme:${t.id}`, 1)],
-  }));
-  addTable({
-    table: 'theme', origin: 'src/legacy.js', anchor: 'const HOUSE_THEMES=[',
-    spends_at: 'legacy.js buyTheme()',
-  }, offers);
-}
-
 // ── SEED_SHOP — a BUNDLE price: `cost` gold buys `qty` seeds ─────────────
 {
   const offers = SEED_SHOP.map((s) => {
@@ -303,94 +262,6 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   addTable({
     table: 'equip', origin: 'src/legacy.js', anchor: 'const EQUIP_SHOP=[',
     spends_at: 'legacy.js buyShopItem(id, qty, cost)',
-  }, offers);
-}
-
-// ── BOUNTY_SHOP — priced in Bounty Marks ─────────────────────────────────
-{
-  const offers = BOUNTY_SHOP.map((b) => ({
-    id: `bounty.${b.id}`,
-    name: b.name,
-    cost: [line('currency', 'marks', b.cost)],
-    grant: [line('unlock', `bounty:${b.id}`, 1)],
-    repeatable: !!b.repeatable,
-  }));
-  addTable({
-    table: 'bounty', origin: 'src/legacy.js', anchor: 'const BOUNTY_SHOP = [',
-    spends_at: 'legacy.js spendMarks()',
-  }, offers);
-}
-
-// ── TRAITS — `cost` + `currency` ─────────────────────────────────────────
-{
-  const offers = Object.keys(TRAITS).sort().map((id) => ({
-    id: `trait.${id}`,
-    name: TRAITS[id].name,
-    cost: [line('currency', TRAITS[id].currency === 'marks' ? 'marks' : 'gold', TRAITS[id].cost)],
-    grant: [line('unlock', `trait:${id}`, 1)],
-  }));
-  addTable({
-    table: 'trait', origin: 'src/legacy.js', anchor: 'const TRAITS={',
-    spends_at: 'legacy.js buyTrait()',
-  }, offers);
-}
-
-// ── COSMETICS — gem-priced, and the only table with no declaration ───────
-{
-  const offers = COSMETICS.map((c) => ({
-    id: `cosmetic.${c.id}`,
-    name: c.name,
-    cost: [line('currency', 'gems', c.price)],
-    grant: [line('unlock', `cosmetic:${c.id}`, 1)],
-  }));
-  addTable({
-    table: 'cosmetic', origin: 'src/render/shop.js', anchor: 'const cosmetics=[',
-    spends_at: 'legacy.js buyCosmetic(id, price)',
-    note: 'array literal inside renderShop() (extracted to src/render/shop.js), not a top-level declaration',
-  }, offers);
-}
-
-// ── BANK_SPACE — the gem rung only. The GOLD rung is a formula; see
-//    DERIVED_PRICES below. ─────────────────────────────────────────────────
-{
-  const offers = [{
-    id: 'bank.gems',
-    name: `Bank space +${BANK_SPACE.gem.slots}`,
-    cost: [line('currency', 'gems', BANK_SPACE.gem.cost)],
-    grant: [line('capacity', 'bank_slots', BANK_SPACE.gem.slots)],
-    repeatable: true,
-  }];
-  addTable({
-    table: 'bank', origin: 'src/legacy.js', anchor: 'var BANK_SPACE = {',
-    spends_at: 'legacy.js buyBankSpaceGem()',
-    note: 'the GOLD rung is escalating and lives in DERIVED_PRICES',
-  }, offers);
-}
-
-// ── IAP_CATALOG — real money. The PLATFORM authorises these, never us. ────
-{
-  const offers = IAP_CATALOG.map((p) => {
-    const { cents, period } = money(p.price);
-    const grant = [];
-    if (p.tokens) grant.push(line('currency', 'hearth_tokens', p.tokens));
-    if (p.gems) grant.push(line('currency', 'gems', p.gems));
-    if (p.gold) grant.push(line('currency', 'gold', p.gold));
-    for (const u of (p.unlocks || [])) grant.push(line('unlock', `theme:${u}`, 1));
-    if (p.ent) grant.push(line('unlock', `entitlement:${p.ent}`, 1));
-    if (!grant.length) die(`IAP ${p.sku} grants nothing the shape can express`);
-    return {
-      id: `iap.${p.sku}`,
-      name: p.title,
-      cost: [line('money', 'usd', cents)],
-      grant: grant.sort(costOrder),
-      period,
-      authority: 'platform',
-    };
-  });
-  addTable({
-    table: 'iap', origin: 'src/legacy.js', anchor: 'const IAP_CATALOG=[',
-    spends_at: 'IAP.buy() → platform billing',
-    note: 'money in CENTS; the store, not hr_apply, authorises the charge',
   }, offers);
 }
 
@@ -431,25 +302,27 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   }, offers);
 }
 
-// ── CHARACTER SLOTS — gems, indexed by slot. Slot 0 is free. ─────────────
+// ── CHARACTER SLOTS — gold, indexed by slot. Slot 0 is free. ─────────────
 {
   const offers = [];
-  SLOT_COSTS_GEMS.forEach((gems, i) => {
-    if (!gems) return;
+  SLOT_COSTS_GOLD.forEach((gold, i) => {
+    if (!gold) return;
     offers.push({
       id: `character_slot.${i}`,
       name: `Character slot ${i + 1}`,
-      cost: [line('currency', 'gems', gems)],
+      cost: [line('currency', 'gold', gold)],
       grant: [line('unlock', `character_slot:${i}`, 1)],
     });
   });
   addTable({
-    table: 'character_slot', origin: 'src/multi-character.js', anchor: 'const SLOT_COSTS_GEMS = [',
+    table: 'character_slot', origin: 'src/multi-character.js', anchor: 'const SLOT_COSTS_GOLD = [',
     spends_at: 'multi-character.js unlockSlot()',
-    note: 'Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price',
   }, offers);
 }
 
+/* The companion table stays while companions are HELD (their engine leaves with
+   lane C2): the edge companion catalogue still sells these four, and the unlock
+   offers derive from this file. */
 // ── COMPANIONS — the price is inside a colon-delimited SOURCE STRING,
 //    'shop:<gold>[:<skill><lv>]', parsed at render time by parseSource() and
 //    handed to _buyCompanion(id, price) through the DOM. ────────────────────
@@ -479,68 +352,9 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   }, offers);
 }
 
-// ── FARM PLOT TIERS — priced in farm_deed ITEMS, not currency. ────────────
-{
-  const offers = [];
-  PLOT_TIERS.forEach((t, i) => {
-    if (!t || !t.cost) return;
-    offers.push({
-      id: `farm_plot.${i}`,
-      name: `Farm plot tier ${i}`,
-      cost: [line('item', 'farm_deed', t.cost)],
-      grant: [line('unlock', 'farm_plot_tier', i)],
-    });
-  });
-  if (!ITEMS.farm_deed) die('PLOT_TIERS costs farm_deed, which is not in src/data/items.js');
-  addTable({
-    table: 'farm_plot', origin: 'src/core/farm.js', anchor: 'export const PLOT_TIERS',
-    spends_at: 'farm-progression.js upgradePlot()',
-    note: 'the only offer table priced purely in items',
-  }, offers);
-}
-
-// ── DUNGEON ENTRY — an entry fee, paid in a key ITEM. ────────────────────
-// `cost` here has THREE branches in the spending code (dungeons.js:336-343 and
-// dungeon-scavenger.js:574-582): `key` (one item), `gold`, and `hearth_token`.
-// Only `key` is used by any dungeon today, but the other two are live code
-// paths, so they are mapped rather than assumed absent — and the mapping is
-// read off the spend, not guessed: `hearth_token` is debited from
-// G.inventory, i.e. as an ITEM, not from the account_wallet.hearth_tokens
-// balance. That is the exact ambiguity `kind` exists to remove, appearing in
-// the one currency the Final Directive protects.
-{
-  const offers = Object.keys(DUNGEONS).sort().map((id) => {
-    const d = DUNGEONS[id];
-    const cost = [];
-    if (d.cost?.gold) cost.push(line('currency', 'gold', d.cost.gold));
-    if (d.cost?.hearth_token) cost.push(line('item', 'hearth_token', d.cost.hearth_token));
-    if (d.cost?.key) {
-      if (!ITEMS[d.cost.key]) die(`DUNGEONS.${id} costs key "${d.cost.key}", which is not an item`);
-      cost.push(line('item', d.cost.key, 1));
-    }
-    if (!cost.length) cost.push(line('currency', 'gold', 0));
-    return {
-      id: `dungeon.${id}`,
-      name: d.name,
-      cost: cost.sort(costOrder),
-      grant: [line('unlock', `dungeon_run:${id}`, 1)],
-      repeatable: true,
-      // The entry GATE, carried because a server that authorises the spend
-      // must re-check it. `combat` is the derived combat level, not a skill
-      // in SKILLS_DEF — named explicitly rather than left implicit.
-      reqSkill: 'combat', reqLv: d.reqLv | 0,
-    };
-  });
-  addTable({
-    table: 'dungeon', origin: 'src/dungeons.js', anchor: 'var DUNGEONS = {',
-    spends_at: 'dungeons.js runDungeon() · dungeon-scavenger.js',
-    note: 'entry fee; the gold and hearth_token branches are live code with no data using them yet',
-  }, offers);
-}
-
 // ── 4. THE HARD CASES — declared, never invented ─────────────────────────
 // A price that a regex cannot see is not a price that stops existing. These
-// six spend sites compute their cost at call time. They are emitted as DATA,
+// spend sites compute their cost at call time. They are emitted as DATA,
 // with the formula written out, so a server implementer reading shops.js is
 // told plainly that these are missing rather than being handed a catalogue
 // that looks complete. hr_shop_buy() must REFUSE an offer id it cannot find;
@@ -555,16 +369,6 @@ const DERIVED_PRICES = [
     params: { base: BANK_SPACE.gold.base, growth: BANK_SPACE.gold.growth, slots: BANK_SPACE.gold.slots },
     server_needs: 'player_state must hold the purchase COUNT; the server recomputes the price from it. '
       + 'Unbounded — the client has no cap, so the server needs one before it authorises this.',
-  },
-  {
-    id: 'bounty.reroll',
-    name: 'Bounty board reroll',
-    where: 'src/legacy.js rerollBountyBoard()',
-    currency: 'marks',
-    formula: '5 + 5 * G.bountyHunter.rerollsToday   (free while freeRerolls remain)',
-    params: { base: 5, step: 5 },
-    server_needs: 'a per-UTC-day reroll counter, plus the free-reroll grant from bounty.free_reroll_2. '
-      + 'Marks have no server column at all today.',
   },
   {
     id: 'vendor.sell',
@@ -587,17 +391,6 @@ const DERIVED_PRICES = [
     server_needs: 'a server-side buyback ledger. The price is a property of a past transaction, '
       + 'not of the catalogue, so it can never be a static row — and a client-supplied unit '
       + 'price is a mint.',
-  },
-  {
-    id: 'clan_building.*',
-    name: 'Clan seat building costs',
-    where: 'src/features/clan-seat-ui.js BUILDINGS + materialScale()',
-    currency: 'gold',
-    formula: 'ceil(BUILDINGS[id].gold * materialScale(targetLevel))',
-    params: {},
-    server_needs: 'paid from clans.treasury, not player gold, so it belongs to the clan-authority '
-      + 'track (clan_deposit / clan_work_supply), not to hr_shop_buy. Listed here so it is not '
-      + 'mistaken for extracted.',
   },
   {
     id: 'market.*',
@@ -683,11 +476,11 @@ const file = `// ═════════════════════
 // Hearthrise — THE PRICE CATALOGUE  (GENERATED — DO NOT EDIT BY HAND)
 //
 //   Generated by tools/gen-shops.mjs from the shop tables in their CURRENT
-//   homes — seven files, listed below. Any hand edit here is reverted by the
+//   homes — the files listed below. Any hand edit here is reverted by the
 //   next generation and FAILS \`node tools/gen-shops.mjs --check\`, which is a
 //   preflight in tests/run-smoke.mjs.
 //
-//   ⚠ THE SOURCE OF TRUTH IS STILL src/legacy.js (and the six modules).
+//   ⚠ THE SOURCE OF TRUTH IS STILL src/legacy.js (and the modules listed below).
 //   To change a price, change it THERE and re-run the generator. This file is
 //   a second copy that exists because legacy.js is a classic script and cannot
 //   be imported by ESM or by Deno — the server needs the prices and cannot
@@ -718,7 +511,7 @@ ${byTable.join('\n').replace(/^--/gm, '//')}
 //   debit every cost line, credit every grant line, one transaction. The
 //   client sends an OFFER ID and never a price.
 //
-// ⚠ DERIVED_PRICES IS NOT DECORATION. Six spend sites compute their price at
+// ⚠ DERIVED_PRICES IS NOT DECORATION. These spend sites compute their price at
 //   call time and are NOT in SHOP_OFFERS. A consumer that cannot find an
 //   offer id must REFUSE, never default — a server that invents a price is
 //   worse than a server that has none.
@@ -727,7 +520,6 @@ ${byTable.join('\n').replace(/^--/gm, '//')}
 //   gold           player_state.gold
 //   gems           account_wallet.gems            (one per ACCOUNT)
 //   hearth_tokens  account_wallet.hearth_tokens   (one per ACCOUNT; IAP-only; never PvE-minted)
-//   marks          NOWHERE — Bounty Marks have no server column today
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 

@@ -106,26 +106,6 @@ export async function runSmokeTest(opts = {}) {
      their own fixture. Identical shape to the property-record park above. */
   let _pctMirrorWasParked = false;
   try { if (_Auto && typeof _Auto._parkAutoEatMirror === 'function') _pctMirrorWasParked = _Auto._parkAutoEatMirror(true); } catch (e) {}
-  /* ── AND THE COMPANION GRANT LADDER, for exactly the same reason (b499) ───
-     `b202: pets` drives a FORCED skill/boss roll. Under the live capstone arm
-     that dispatches a real hr_companion_grant; the suite is signed out,
-     `not_signed_in` is retryable, and the ladder then sleeps 3/10/30/60 s —
-     ~100 s of timers running THROUGH the rest of the suite, ending in a
-     notify() toast and a possible G.companions write long after that test's
-     `finally` restored everything. TWO ladders, from one test, measured. No
-     amount of care inside the individual tests closes that: the leak IS the
-     ladder outliving them. HATCH-REFUSE-1..3 unpark inside their own bodies. */
-  const _Comp = window.HearthriseCompanions;
-  let _grantsWereParked = false;
-  try { if (_Comp && typeof _Comp.__parkGrants === 'function') _grantsWereParked = _Comp.__parkGrants(true); } catch (e) {}
-  /* ── AND THE QUEST STRIP'S GESTURE-LESS hr_tally_state READ ─────────
-     renderStrip() rides Events.on('*'); its session is Auth.getSession(), which
-     tests stub to hand THEMSELVES one, so the read would land in their fetch
-     stub (B349-R3 measured the same for the retired hr_goal_state). Gesture
-     reads (opening the sheet, a claim) are untouched. */
-  let _ambientGoalsWereParked = false;
-  const _TL = window.HearthriseTally;
-  try { if (_TL && _TL.__park) _ambientGoalsWereParked = _TL.__park(true); } catch (e) {}
   /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
      With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
      vouches for it — the provenance stamp that in production `hr_load` writes
@@ -154,18 +134,6 @@ export async function runSmokeTest(opts = {}) {
      state it explicitly inside their own bodies and restore it, exactly as
      before. Restored from the captured pair in the finally, so a live session
      never loses a rung a real envelope had already delivered. */
-  /* ── AND THE RENOWN RANK-UP WATCHER, for the same reason (2026-09-07) ────
-     `HearthriseRenown` polls every 4 s and, on a rank boundary, appends a
-     FULL-SCREEN celebration scrim that closes only on a click. The suite hands
-     `G` kills, gold and levels by the dozen, so a fixture crosses a rank the
-     account never earned, the scrim goes up, and nothing in the suite ever
-     clicks it — it then covers every later screen. MEASURED on b513: "b221: the
-     shop renders the counter scene" failed on
-     `something is covering the buy control COVER=<div>.hr-rn-cele`, ~340 tests
-     after whichever battery moved the score, intermittently, because it depends
-     on where the 4 s poll lands. Same class as the settle loop and the autosave
-     above; same answer. RENOWN tests that are ABOUT the celebration call
-     `celebrate()` directly, which the park does not touch. */
   /* ── AND THE SCREEN PRIMERS (Pack 1) ──────────────────────────────────
      The suite boots with empty localStorage, so every first visit to one of
      eight panels would prepend a note and move the layout under that screen's
@@ -173,22 +141,6 @@ export async function runSmokeTest(opts = {}) {
   const _SP = window.HearthriseScreenPrimers;
   let _primersWereParked = false;
   try { if (_SP && typeof _SP._park === 'function') _primersWereParked = _SP._park(true); } catch (e) {}
-  const _Rn = window.HearthriseRenown;
-  let _rnPollWasOn = true;
-  try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _rnPollWasOn = _Rn.__setPollEnabled(false); } catch (e) {}
-  /* Same class, the once-a-day sheet: its auto-open waits for NO open overlay,
-     and between tests there is none, so it would land on the next test that waits. */
-  const _Dl = window.HearthriseDaily;
-  let _dlAutoWasOn = true;
-  try { if (_Dl && typeof _Dl.__setAutoOpenEnabled === 'function') _dlAutoWasOn = _Dl.__setAutoOpenEnabled(false); } catch (e) {}
-  /* Same class, the charm moment: the suite rewrites the charm counters. */
-  const _HL = window.HearthriseHuntersLedger;
-  let _hlWasOn = true;
-  try { if (_HL && typeof _HL.__setPollEnabled === 'function') _hlWasOn = _HL.__setPollEnabled(false); } catch (e) {}
-  /* Same class, the deed toast: the suite feeds the tally and the skill record. */
-  const _Dd = window.HearthriseDeeds;
-  let _ddWasOn = true;
-  try { if (_Dd && typeof _Dd.__setPollEnabled === 'function') _ddWasOn = _Dd.__setPollEnabled(false); } catch (e) {}
   /* Same class, the level moments: the suite feeds the skill record. */
   const _CM = window.HearthriseClimbMarks;
   let _cmWasOn = true;
@@ -281,14 +233,7 @@ export async function runSmokeTest(opts = {}) {
     } catch (e) {}
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
     try { if (_Auto && typeof _Auto._parkAutoEatMirror === 'function') _Auto._parkAutoEatMirror(_pctMirrorWasParked); } catch (e) {}
-    try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
-    try { if (_TL && _TL.__park) _TL.__park(_ambientGoalsWereParked); } catch (e) {}
-    try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
-    try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
     try { if (_SP && typeof _SP._park === 'function') _SP._park(_primersWereParked); } catch (e) {}
-    try { if (_Dl && typeof _Dl.__setAutoOpenEnabled === 'function') _Dl.__setAutoOpenEnabled(_dlAutoWasOn); } catch (e) {}
-    try { if (_HL && typeof _HL.__setPollEnabled === 'function') _HL.__setPollEnabled(_hlWasOn); } catch (e) {}
-    try { if (_Dd && typeof _Dd.__setPollEnabled === 'function') _Dd.__setPollEnabled(_ddWasOn); } catch (e) {}
     try { if (_CM && typeof _CM.__setPollEnabled === 'function') _CM.__setPollEnabled(_cmWasOn); } catch (e) {}
     try {
       /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the

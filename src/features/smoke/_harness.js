@@ -17,10 +17,6 @@ import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=589';
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
 import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=589';
-/* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
-   table, never retyped: a designer re-pricing a rung must re-price the
-   expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=589';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -59,7 +55,6 @@ on('*', () => {});
 export function closeOverlays() {
   const t = (fn) => { try { fn(); } catch (e) {} };
   t(() => window.closeAllModals && window.closeAllModals());
-  t(() => window.closeQuestsModal && window.closeQuestsModal());
   t(() => window.HearthriseDeathSheet && window.HearthriseDeathSheet.close());
   t(() => window.HearthriseAccrual && window.HearthriseAccrual.hideReplacementSheet
     && window.HearthriseAccrual.hideReplacementSheet());
@@ -147,7 +142,7 @@ export function overlayResidue() {
        role=dialog. A node that paints nothing covers nothing, and counting it
        would make the correct teardown look like a dirty one. */
     document.querySelectorAll('.modal.show,.modal.open,.ach-overlay.show,'
-      + '#quests-modal-overlay,dialog[open],[role=dialog]:not([hidden])')
+      + 'dialog[open],[role=dialog]:not([hidden])')
       .forEach((e) => {
         const cs = getComputedStyle(e);
         if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return;
@@ -405,99 +400,6 @@ export const assert = (cond, msg) => { __assertCount++; if (!cond) throw new Err
    was not run", not "this was checked". */
 export const skip = (reason) => { __skipReason = String(reason == null ? '' : reason); };
 
-/* Shared rig for the bounty-envelope battery: one target, one save/restore of
-   bountyHunter, one GoalClaim stub that LOGS its calls and HOLDS the claim, one
-   envelope builder. `credit` is overridable; the claim is always held, so no
-   test built on this can reach finalizeBounty's celebration path. */
-export function bountyRig(opts) {
-  const G = window.G, o = opts || {};
-  const savedBh = JSON.parse(JSON.stringify(G.bountyHunter || {}));
-  const savedGC = window.HearthriseGoalClaim;
-  const calls = [], saved = {};
-  window.HearthriseGoalClaim = Object.assign({}, savedGC, {
-    isSignedIn: () => true,
-    creditKills: (t, c) => { calls.push({ fn: 'credit', claimed: c }); return Promise.resolve(o.credit || { ok: false, error: 'held' }); },
-    claimBounty: () => { calls.push({ fn: 'claim' }); return Promise.resolve({ ok: false, error: 'held' }); },
-  });
-  const target = (window.MONSTERS && window.MONSTERS.goblin) ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
-  return {
-    calls, target,
-    armed: typeof window.clientMayWriteRecordField === 'function' && window.clientMayWriteRecordField('gold') === false,
-    set(b) { if (window.ensureBountyState) window.ensureBountyState(); delete G._bountyServer; G.bountyHunter.active = b; return b; },
-    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it);
-    // `version` (optional) is the envelope's frame version, as hr_load/hr_apply stamp it.
-    envelope(id, progress, version) {
-      const a = G.bountyHunter.active || {};
-      const e = { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
-        kills_now: 100 + progress, progress } };
-      if (version !== undefined) e.version = version;
-      return e;
-    },
-    /* A frame version newer than anything the bounty seam has seen or confirmed. */
-    nextVersion(k) {
-      const BV = window.HearthriseBountyView, s = (BV && BV.versions) ? BV.versions() : {};
-      return Math.max(Number(s.seen) || 0, Number(s.floor) || 0) + (k || 1);
-    },
-    fight(t) { if (!('mon' in saved)) saved.mon = G.activeMonster; G.activeMonster = t; },
-    combatTab(on) {
-      const p = document.getElementById('panel-combat');
-      if (p && !('tab' in saved)) saved.tab = p.classList.contains('active');
-      if (p) p.classList.toggle('active', !!on);
-    },
-    /* Every surface that prints the contract figure, parsed: {set, claim, badge, pill, chip}. */
-    async figures() {
-      const out = { set: new Set(), claim: false, badge: false, pill: '', chip: '', wt: '' };
-      const add = (s) => { const m = /(\d+|—)\s*\/\s*(\d+)/.exec(String(s || '')); if (m) out.set.add(m[1]); return String(s || ''); };
-      this.combatTab(false); window.renderBountyTab();
-      const bb = document.querySelector('#bounty-board-body');
-      add(bb && bb.querySelector('.bb-prog-t') && bb.querySelector('.bb-prog-t').textContent);
-      out.claim = /hrTurnInBounty\(\)/.test(bb ? bb.innerHTML : '');
-      this.combatTab(true);
-      out.pill = add(String(window.renderBountyPanel() || '').replace(/<[^>]*>/g, ' '));
-      const d = window.HearthriseCombatScreens._destinations()[0];
-      out.wt = add(d.meta) + ' ' + add(d.counter);
-      this.fight(target); window.refreshActivityBar();
-      const chip = document.querySelector('#ab-meta .ab-bounty b');
-      out.chip = add(chip && chip.textContent);
-      window.updateTopbar(); await new Promise((r) => setTimeout(r, 0));
-      out.badge = !!(window.HearthriseNav && window.HearthriseNav.badgeOf('bounty'));
-      return out;
-    },
-    /* A RELOAD'S IDLE BOOT (retreatReload's shape): a fresh G holding only this
-       contract, hr_load stubbed to answer with a top-level `bounty`, the real
-       requestRecord. Returns the verdict and what the fresh G ended up holding. */
-    async boot(bounty) {
-      const R = window.HearthriseRecord, realFetch = window.fetch, act = G.bountyHunter.active;
-      window.G = { inventory: {}, offlineBudget: {}, playerHp: 5, playerMaxHp: 13, activeMonster: null,
-        skills: {}, stats: {}, combatLog: [], bountyHunter: { active: act, board: [] } };
-      window.fetch = function (u) {
-        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
-        const now = new Date().toISOString();
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, version: 9, now, skills: {}, inventory: {}, bounty,
-          state: { slot: 0, accrued_to: now, hp: 5, max_hp: 13, active_kind: 'idle' } }), { status: 200 }));
-      };
-      try {
-        R.resetRecord();
-        R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
-        const v = await R.requestRecord();
-        return { v, mirror: window.G._bountyServer || null, view: window.hrBountyView(act) };
-      } finally {
-        window.fetch = realFetch;
-        try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
-        window.G = G;
-      }
-    },
-    restore() {
-      window.HearthriseGoalClaim = savedGC;
-      const ab = G.bountyHunter && G.bountyHunter.active;
-      if (ab && window.hrClearBountyRetry) { try { window.hrClearBountyRetry(ab); } catch (e) {} }
-      if ('mon' in saved) G.activeMonster = saved.mon;
-      const p = document.getElementById('panel-combat');
-      if (p && 'tab' in saved) p.classList.toggle('active', saved.tab);
-      G.bountyHunter = savedBh; delete G._bountyServer;
-    },
-  };
-}
 /* SA-013 (increment 2): a "this must not throw" contract, as a COUNTED
    assertion. The interactive tests used to wrap each call in try/catch and
    re-throw — a guard that only ran (and only counted) when the call actually
@@ -755,16 +657,17 @@ export const withClientOwnedSlots = (fn) => {
   const G = window.G;
   const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
   const prev = had ? G._heroSlots : undefined;
-  /* AND IT HAS TO SAY WHO OWNS THE GEMS, which is what "client-owned" means:
+  /* AND IT HAS TO SAY WHO OWNS THE PAYMENT, which is what "client-owned" means:
      residueCount() now fails safe to slot 0 unless `clientMayWriteRecordField
-     ('gems')` is TRUE, because "no projection AND the server owns the gems" is
+     ('gold')` is TRUE (hero slots are gold since 2026-10-14), because "no
+     projection AND the server owns the balance" is
      the boot state a stale residue was opening slots in — the defect itself, not
      a state to test in. Other fields pass through (a blanket `() => true` would
      hand four unrelated subsystems a client writer). */
   const origMay = window.clientMayWriteRecordField;
   try {
     if (G) delete G._heroSlots;
-    window.clientMayWriteRecordField = (f) => (f === 'gems' ? true
+    window.clientMayWriteRecordField = (f) => (f === 'gold' ? true
       : (typeof origMay === 'function' ? origMay(f) : true));
   } catch (e) {}
   try { return fn(); } finally {
@@ -1209,18 +1112,6 @@ export const withClaimServer = (answer, fn) => {
      is the whole idiom, and it is the same three placements hr_state_of uses. */
 const serverGrants = (state) => stampRecordLikeLoad(window.G, { state: state || {} });
 
-/* -- withCompanionRoster - THE ROSTER ARRIVES THE WAY THE SERVER SENDS IT ----
-   Under the capstone the starter fox is NOT seeded by the client: companions.js
-   `ensureState` fails CLOSED to an empty roster and `accrue.js
-   reconcileCompanions` rebuilds it from `res.companions` on every envelope
-   (seeding fox locally before that envelope lands would silently reset a player
-   who owns more). Six tests in this file were passing only because an EARLIER
-   test had left a fox in the ambient `G.companions` - order-dependent, and
-   invisible until the tests that seeded it were retired.
-
-   So the roster is installed the one honest way: through the real
-   `reconcileCompanions`, from an envelope shaped like the server's. Restored
-   afterwards, because `G.companions` is ambient state the next test inherits. */
 /* -- awaySpan - THE AWAY ENGINE, DRIVEN WHERE IT ACTUALLY LIVES (b515) ------
    THE PROBLEM. Thirty-one tests in this file measured "an absence pays" by
    calling `window.processOffline()` and reading `G`. b515 deleted the ~500-line
@@ -1430,23 +1321,6 @@ export const applyAwayEnvelope = (away, opts) => {
   return { toasts, last: toasts[toasts.length - 1] || '', rec: G.lastOfflineSummary, env };
 };
 
-export const withCompanionRoster = (owned, equipped, fn) => {
-  const G = window.G;
-  const A = window.HearthriseAccrual;
-  const prev = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
-  const xp = {};
-  const ids = [];
-  for (const e of (owned || [])) {
-    if (typeof e === 'string') ids.push(e);
-    else if (e && e.id) { ids.push(e.id); if (e.xp) xp[e.id] = e.xp; }
-  }
-  if (A && typeof A.reconcileCompanions === 'function') {
-    A.reconcileCompanions(G, { companions: { owned: ids, xp, equipped: equipped || null } });
-  }
-  try { return fn(); } finally {
-    if (prev === undefined) { try { delete G.companions; } catch (e) {} } else G.companions = prev;
-  }
-};
 
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
    From b369 the absolute envelope arms on ONE fact: the server acknowledged an
@@ -1691,7 +1565,6 @@ export const snapshotG = () => {
     farmPlots: G.farmPlots,
     rooms: G.rooms,
     quests: G.quests,
-    clanName: G.clanName,
     skills: G.skills,
     stats: G.stats,
     plotBuildings: G.plotBuildings,
@@ -2002,7 +1875,7 @@ export const cameFromArc = async (cfg, body) => {
    successor, so no 2 s chain outlives the arm — including one an earlier test
    started. Returns the restore, which puts the sheet away through its own
    dismiss and both flags back exactly as found. */
-export const firstRunAnswered = (name) => {
+const firstRunAnswered = (name) => {
   const I = window.HearthriseIdentity;
   /* ASSERTED, not shrugged at: a hook that quietly goes missing would turn this
      into a no-op and hand the sheets back their opening, which is the whole bug. */
@@ -2106,7 +1979,7 @@ export const stubSignedIn = (slot, name) => {
          suite-wide by smoke-test.js.
      Regression: STUB-ORIGIN-1. */
   const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive,
-    window.HearthriseMuster, window.HearthriseHearthfind];
+    window.HearthriseHearthfind];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
@@ -2207,7 +2080,6 @@ export const residuePurgeSnap = (G) => {
   return out;
 };
 export const residuePurgeRestore = (G, snap) => {
-  try { window.HearthriseRenown.__resetClaimState(); } catch (e) {}
   RESIDUE_PURGE_KEYS.forEach((k) => { if (snap[k] === undefined) delete G[k]; else G[k] = snap[k]; });
 };
 
@@ -2347,9 +2219,6 @@ export const TYPE_FLOOR = 14.5;
    exemption that outlives its handoff is just a hole in the guard. */
 const TYPE_PENDING_HANDOFF = [
   { file: 'src/features/home-dashboard.js', region: '#panel-profile [class*="hd-"]' },
-  { file: 'src/features/world-events.js',   region: '#panel-events' },
-  { file: 'src/features/companions.js',     region: '#panel-stable' },
-  { file: 'src/styles/clan-seat.css',       region: '.clan-empty, .soc-signpost, .soc-signpost-txt' },
 ];
 export const typeHandoffOwner = (el) => {
   for (const h of TYPE_PENDING_HANDOFF) {
@@ -2743,18 +2612,9 @@ export async function hfPoll() {
    Written once, on the test-file ratchet's own terms: two tests that each rebuilt
    the roster search and the envelope driver cost twice the scaffolding and gave
    one of them a chance to drift into testing something subtly different.
-   `hrCharmFixture` finds a REAL monster whose class is nameable and whose table
-   has a ROLLABLE row — a guaranteed row (ch >= 1) is untouched by design, so it
-   would make every rate assertion vacuous. `hrCharmDriver` answers the accrual
+   `hrCharmDriver` answers the accrual
    funnel with the idle envelope a reloading player actually gets, which is the
    only response the charm mirror rides. */
-export function hrCharmFixture() {
-  const C = window.HearthriseCharms; const M = window.MONSTERS || {};
-  const id = Object.keys(M).find((k) => C && C.classOfMonsterId(k)
-    && Array.isArray(M[k].drops) && M[k].drops.some((d) => d.ch > 0 && d.ch < 1));
-  return { id: id || null, cls: id ? C.classOfMonsterId(id) : null, m: id ? M[id] : null };
-}
-
 export function hrCharmDriver() {
   const A = window.HearthriseAccrual; const realFetch = window.fetch;
   return {
@@ -2789,16 +2649,14 @@ export const withCap = (min, fn) => {
   if (out && typeof out.then === 'function') return out.finally(back);
   back(); return out;
 };
-/* A fight the night can carry: Auto-Eat, a stocked slot, a foe on the board. */
+/* A fight the night can carry: a stocked food slot and a foe on the board. */
 export const withStockedFight = (fn) => {
-  const G = window.G, snap = snapshotG(), has = window.hasTrait, food = window.autoEatFoodId;
+  const G = window.G, snap = snapshotG();
   try {
-    window.hasTrait = function (id) { return id === 'auto_eat' || has.apply(this, arguments); };
-    window.autoEatFoodId = () => 'cooked_shrimp';
     G.activeMonster = 'slime'; G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 100000 });
     return fn();
-  } finally { window.hasTrait = has; window.autoEatFoodId = food; restoreG(snap); }
+  } finally { restoreG(snap); }
 };
 
 /* Re-exported for the domain modules: one seam, not four. */
-export { on, snapshot, findUiOverlaps, watchUiOverlaps, decideRestore, decideSessionEvent, decideLocalOwnership, CHARM_RANKS };
+export { on, snapshot, findUiOverlaps, watchUiOverlaps, decideRestore, decideSessionEvent, decideLocalOwnership };

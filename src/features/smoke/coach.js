@@ -246,15 +246,15 @@ export default [
   /* -- interactive coverage -- THE ADVENTURES WINDOW. Tabs, a lock that
      says why, a star that survives the residue round trip, and the Hunt button's
      intent: start-hunt when the server takes it, the first spawn until then. */
-  () => tryRunAsync('ADV-1: the Adventures window renders its four tabs and each pane', async () => {
+  () => tryRunAsync('ADV-1: the Adventures window renders its two tabs and each pane', async () => {
     const CS = window.HearthriseCombatScreens, snap = snapshotG();
     try {
       try { window.stopCombat(); } catch (e) {}
       window.G.activeMonster = null;
       window.showTab('combat'); CS.setView('table');
       const tabs = [...document.querySelectorAll('#wt-tabs .wt-tab')].map((b) => b.textContent);
-      assert(tabs.join() === 'Hunts,Bosses,Dungeons,Monsters', 'the tabs read ' + tabs.join());
-      const want = { hunts: '#wt-hunts .wt-hunt', bosses: '#wt-bosses .wt-row', dungeons: '#wt-dungeons .wt-row', training: '#wt-grid .wt-card' };
+      assert(tabs.join() === 'Hunts,Monsters', 'the tabs read ' + tabs.join());
+      const want = { hunts: '#wt-hunts .wt-hunt', training: '#wt-grid .wt-card' };
       for (const k of Object.keys(want)) {
         document.querySelector('#wt-tabs [data-wtab="' + k + '"]').click();
         await sleep(30);
@@ -342,72 +342,6 @@ export default [
      MUTATION: spine-reveal serverRecord back to recordValue-only → RED (shape 2);
      record.js `last` rebuilt per fresh envelope → RED (shape 1b, reveal and gate);
      record.js claims rebuilt per fresh envelope → RED (shape 1, the claim). */
-  () => tryRunAsync('ADV-5 regression: a Combat-56 hero keeps Ridge Camp, the Boss card and the gate level while the skills record cannot vouch', async () => {
-    const CS = window.HearthriseCombatScreens, R = window.HearthriseRecord, RV = window.HearthriseReveal, C = window.HearthriseCore;
-    const G = window.G, snap = snapshotG(), rec0 = G._record;
-    const pin0 = RV.__pin('live');
-    const view0 = RV.__swapView({ counts: RV.FULL.counts, countsComplete: true, property: 6, workers: 6, companions: 6,
-      bag: RV.FULL.bag, claimed: RV.FULL.claimed });
-    try {
-      try { window.stopCombat(); } catch (e) {}
-      G.activeMonster = null;
-      const combat = Object.keys(window.SKILLS_DEF).filter((k) => window.SKILLS_DEF[k].cat === 'combat');
-      let lo = 0, hi = 13034431;
-      while (lo < hi) { const mid = (lo + hi) >> 1; const m = {}; combat.forEach((k) => { m[k] = mid; }); if (C.xp.combatLevel(m) >= 56) hi = mid; else lo = mid + 1; }
-      const skills = {};
-      Object.keys(window.SKILLS_DEF).forEach((k) => { skills[k] = { xp: combat.indexOf(k) >= 0 ? lo : 0 }; });
-      const v0 = (G._record && Number(G._record.version)) || 0;
-      const full = (v) => ({ ok: true, version: v, now: new Date().toISOString(), state: { gold: 1000, gems: 0 }, skills, inventory: {} });
-      R.applyRecord(G, full(v0 + 1));
-      const lv = RV.combatLevel();
-      assert(R.recordValue(G, 'skills').known && lv >= 56 && lv < 66, 'CONTROL: the fixture is not a vouched Combat-56 hero (reveal level ' + lv + ')');
-      window.showTab('combat'); CS.setView('table'); CS.setTab('hunts');
-      const read = () => {
-        CS.render();
-        return {
-          hunts: [...document.querySelectorAll('#wt-hunts .wt-hunt')].map((e) => e.dataset.hunt).join(),
-          more: (document.querySelector('#wt-hunts .wt-more') || {}).textContent || '',
-          dests: CS._destinations().map((d) => d.rid + (d.locked ? '/' + d.locked : '')).join(),
-          gate: window.hrGateLevel('attack'), level: RV.combatLevel(),
-        };
-      };
-      const before = read();
-      assert(before.hunts.split(',').indexOf('ridge_camp') >= 0, 'CONTROL: Ridge Camp (Combat 15+) is not on the grid for a vouched Combat-56 hero: ' + before.hunts);
-      const B = window.HearthriseBossOfDay, did = B && B.featuredId && B.featuredId(), dm = did && window.MONSTERS[did];
-      const botdIn = !!(dm && ((dm.tier || 1) - 1) * 15 <= lv + 10);
-      if (botdIn) assert(/war:botd/.test(before.dests), 'CONTROL: the Boss of the Day card is missing for a vouched hero: ' + before.dests);
-      const same = (shape) => {
-        const after = read();
-        assert(after.level === before.level, shape + ': the reveal level fell from ' + before.level + ' to ' + after.level + ' — the war table drew a fresh character');
-        assert(after.hunts === before.hunts, shape + ': the hunt grid flipped from [' + before.hunts + '] to [' + after.hunts + '] ' + after.more);
-        assert(after.dests === before.dests, shape + ': the destinations flipped from [' + before.dests + '] to [' + after.dests + ']');
-        assert(after.gate === before.gate, shape + ': the attack gate level fell from ' + before.gate + ' to ' + after.gate + ' — a known level dropped to the fail-safe');
-      };
-      /* SHAPE 1 — a fresh answer that does not restate the skills map. Since
-         lane a-record-claims-hold the record HOLDS the claim it did not restate. */
-      R.applyRecord(G, { ok: true, version: v0 + 2, now: new Date().toISOString(), state: { gold: 1001, gems: 0 } });
-      assert(R.recordValue(G, 'skills').known, 'a skills-less answer un-vouched the map: ' + R.recordValue(G, 'skills').source);
-      same('a skills-less answer');
-      /* SHAPE 1b — …then a write between stamps: the record cannot vouch, and the
-         held readers fall to `last`, which must have survived that answer. */
-      G.skills = Object.assign({}, G.skills, { attack: Number(G.skills.attack) + 1 });
-      assert(R.recordValue(G, 'skills').source === 'client-overwrote', 'CONTROL: the write after the skills-less answer did not un-vouch the record');
-      same('a write after a skills-less answer');
-      /* SHAPE 2 — a write between two stamps (the record reads client-overwrote). */
-      R.applyRecord(G, full(v0 + 3));
-      G.skills = Object.assign({}, G.skills, { attack: Number(G.skills.attack) + 1 });
-      assert(R.recordValue(G, 'skills').source === 'client-overwrote', 'CONTROL: the write between stamps did not un-vouch the record');
-      same('a write between stamps');
-    } finally {
-      RV.__swapView(view0); RV.__pin(pin0);
-      restoreG(snap); window.G._record = rec0;
-      CS.render(); window.showTab('profile');
-    }
-  }),
-
-  /* -- interactive coverage -- THE "BIG CHANGES" NOTICE AND THE MONSTERS TAB.
-     The notice shows once, its Open Monsters button lands on the full monster
-     list, Got it hides it, and the dismissal rides the residue across a reload. */
   () => tryRunAsync('ADV-6: the notice shows, opens the Monsters list, stays dismissed after a reload, and meets the tap floor', async () => {
     const CS = window.HearthriseCombatScreens, G = window.G, snap = snapshotG();
     const had = Object.prototype.hasOwnProperty.call(G, 'noticesSeen'), was = G.noticesSeen;

@@ -69,12 +69,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
  *  anonymously, before a session can exist, and a session guard there would
  *  close the front door. */
 export const KNOWN_COPIES = [
-  'src/features/clan-seat-ui.js',
-  'src/features/clans.js',
   'src/features/identity.js',
   'src/features/leaderboards.js',
-  'src/features/muster.js',
-  'src/features/raids.js',
 ];
 
 const RPC_FN = /async\s+function\s+rpc\s*\(\s*name\s*,\s*body\s*\)\s*\{/;
@@ -90,9 +86,11 @@ function bodyFrom(src, at) {
 }
 
 /** How many copies consult mayCall() BEFORE their fetch today. It may rise; it
- *  may not fall. muster.js is the one, and it is the worked example the adoption
- *  work item will copy — deleting it would erase the only live proof. */
-export const GUARD_FLOOR = 1;
+ *  may not fall. It was 1 (muster.js) until 2026-10-14, when the Muster was
+ *  demolished WITH its guarded copy — the count fell because a guarded copy was
+ *  deleted, not because a copy lost its guard. Adopting mayCall in identity.js /
+ *  leaderboards.js is the open work item (Security GO); raise this when one lands. */
+export const GUARD_FLOOR = 0;
 
 export function auditSources(sources, known = KNOWN_COPIES, floor = GUARD_FLOOR) {
   const findings = [];

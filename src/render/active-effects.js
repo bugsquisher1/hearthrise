@@ -97,7 +97,7 @@
      infer, so it is STATED, on the food itself and on this panel. ONE string,
      published, because a tooltip and a panel that word it differently is how a rule
      becomes folklore. */
-  const BUFF_GESTURE_NOTE = 'Buff applies when you eat it yourself — auto-eating only heals.';
+  const BUFF_GESTURE_NOTE = 'Buff applies when you eat it yourself.';
   window.BUFF_GESTURE_NOTE = BUFF_GESTURE_NOTE;
   /* The same sentence as a tooltip row, so legacy.js's item flyout states the rule
      without growing the monolith or owning a second copy of the wording. Full-width
@@ -257,21 +257,7 @@
       out.push('<div class="eff-empty">No house buffs yet.</div>');
     }
 
-    /* 3. Clan placeholder — only show this section once clans actually ship.
-       Until then, the row was just exposing work-in-progress to players. */
-    if (window.__clansEnabled) {
-      out.push('<div class="eff-section-h">Clan Buffs</div>');
-      var cb = window.getClanBlessing && window.getClanBlessing();
-      if (cb) {
-        out.push('<div class="eff-row">' +
-          '<div class="eicon">' + _hrIcon('uiShield') + '</div>' +
-          '<div><b>' + cb.name + '</b><div class="eff-effect">' + cb.effect + '</div></div>' +
-          '<div class="eff-time">' + (cb.expiresLabel || 'Active') + '</div>' +
-          '</div>');
-      } else {
-        out.push('<div class="eff-empty">Join a clan to receive blessings.</div>');
-      }
-    }
+    /* (The clan-blessing section left with the clans, 2026-10-14.) */
 
     window.HearthrisePaint.html(el, out.join(''));
   }

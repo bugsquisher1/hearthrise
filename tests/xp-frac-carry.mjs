@@ -23,7 +23,9 @@
 //       exactly floor((remainder0 + sum of grants) / 1e-6 units), computed
 //       independently of grantXp.
 //   X2  +2% PAYS ON THE WEAKEST MONSTER. 100 kills of the slime (8 HP), a maxed
-//       hitter: Trophy rung 2 pays, per skill, at least floor(2% of the bare XP).
+//       hitter: a +2% combat_xp buff pays, per skill, at least floor(2% of the bare XP).
+//       (The Trophy Room's rung 2 was the source until a home stopped granting XP,
+//       Master Design Reference §9, 2026-10-14.)
 //   X3  AWAY-1 PARITY, XP AND REMAINDER, on the GATHER pointer (lane C2: a fight
 //       is a hunt session, its split-settle parity is hunt-sessions-settle
 //       TICK-1). One span (computeAccrual) == the WORLD TICK (shadowTick, the
@@ -80,7 +82,7 @@ const PRE_CHANGE_DRAWS = { n: 4765, hash: '29651c1', kills: 703,
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2846, hash: '81c8474' };   // re-measured at 2.0 s (was 2360 / 5d791d1f at 2.4 s)
+const PRE_CHANGE_DRAWS_L5 = { n: 2840, hash: '7a2d23c4' };   // re-measured 2026-10-15: §9 took the Trophy Room's +2% combat XP out of the fixture, so levels land on other swings (was 2846 / 81c8474)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',
@@ -132,13 +134,14 @@ async function load(base) {
     at('src/core/xp.js'), at('src/core/styles.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
+  const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
   return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, tick, tg, gatherFixture, residueSrc, GATHER_NODES: cat.GATHER_NODES };
+    xp, styles, pacing, buffs, tick, tg, gatherFixture, residueSrc, GATHER_NODES: cat.GATHER_NODES };
 }
 
 async function mutantBase(m) {
@@ -164,7 +167,8 @@ const FROM = Date.UTC(2026, 2, 15, 0, 0, 0);
 const SEED = 0x5eed1234;
 const UID = '00000000-0000-4000-8000-0000000f7ac1';
 const F0 = { attack: 0.7, strength: 0.3, defense: 0.123456, hitpoints: 0.999999 };
-const RUNG2 = { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } };
+const BOOST = Object.freeze([{ type: 'combat_xp', magnitude: 2,
+  from: new Date(FROM - 1000).toISOString(), until: new Date(FROM + 48 * 3600000).toISOString() }]);
 
 function maxed(L) {
   const x = L.xp.xpForLevel(99);
@@ -186,13 +190,13 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
 /* The ATTENDED context: the pieces computeAccrual derives for a bare character,
    built here from the same exported core functions, so the attended column is
    an independent second construction of the same fight. */
-function attendedCtx(L, { skills, perks, rng, xpState, onGrant }) {
+function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
   const { cmb, acc, styles, MONSTERS, ITEMS } = L;
   const eq = cmb.equipmentStats({}, ITEMS, {});
   const setBonus = cmb.armorSetBonus({}, ITEMS);
   const profile = acc.deriveProfile(eq.weaponType);
   const style = styles.resolveStyle(eq.weaponType, styles.normaliseStyleKeys({}));
-  const bonus = acc.bonusFor(perks || null, null);
+  const bonus = acc.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
   return {
     tickMs: acc.deriveTickMs({}, ITEMS, style),
     ctx: {
@@ -291,10 +295,10 @@ async function runArms(L) {
   {
     const m = L.MONSTERS.slime;
     ok('X2', m && m.hp === 8, `the slime is not the 8-HP monster this arm is about (${m && m.hp})`);
-    const run = (perks) => {
+    const run = (boost) => {
       const skills = maxed(L);
       const xs = { skills: { ...skills }, xpFrac: {} };
-      const { ctx } = attendedCtx(L, { skills, perks, rng: L.rng.createRng(SEED), xpState: xs });
+      const { ctx } = attendedCtx(L, { skills, boost, rng: L.rng.createRng(SEED), xpState: xs });
       const st = { activeMonster: 'slime', monsterHp: 8, monsterMaxHp: 8, playerHp: 990, playerMaxHp: 990,
         stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
       let kills = 0;
@@ -308,7 +312,7 @@ async function runArms(L) {
       return { kills, gained };
     };
     const bare = run(null);
-    const rung2 = run(RUNG2);
+    const rung2 = run(BOOST);
     ok('X2', bare.kills === 100 && rung2.kills === 100, `the fixtures ran ${bare.kills}/${rung2.kills} kills, not 100`);
     let tested = 0;
     for (const k of Object.keys(bare.gained)) {
@@ -333,7 +337,7 @@ async function runArms(L) {
       userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
       activeKind: 'gather', activeId: g.activeId, capMs: 12 * 3600000, seed: seed ?? SEED,
       hp: g.hp, maxHp: g.maxHp, gold: 0, skills: { ...g.skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
-      equipment: {}, inventory: {}, perks: RUNG2, toolCarry: null,
+      equipment: {}, inventory: {}, perks: null, toolCarry: null,
       items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES,
     });
     const away = L.acc.computeAccrual(gatherInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }));
@@ -372,7 +376,7 @@ async function runArms(L) {
       const env = { state: { accrued_to: new Date(mark).toISOString(), active_since: new Date(FROM).toISOString(),
         active_kind: 'gather', active_id: g.activeId, hp: g.hp, max_hp: g.maxHp, gold: 0 },
         skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 1, frac: db.frac[k] || 0 }])) };
-      const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: RUNG2,
+      const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: null,
         items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES, ...L.env.engineInputsFromEnvelope(env, to),
         accruedToMs: mark, activeSinceMs: FROM });
       ok('X3', t.accrued === true && a.accrued === true, `window ${w}: tick ${t.reason} / accrue ${a.reason}`);
@@ -535,7 +539,7 @@ function drawDigest(L, sink, level) {
   };
   const rng = L.rng.rngFrom(src);
   const xs = { skills: { ...skills }, xpFrac: {} };
-  const { ctx, tickMs } = attendedCtx(L, { skills, perks: RUNG2, rng, xpState: xs });
+  const { ctx, tickMs } = attendedCtx(L, { skills, perks: null, rng, xpState: xs });
   if (sink !== 'carry') {
     ctx.fx.addXp = sink === 'none' ? () => {} : (sk, amt) => {
       xs.skills[sk] = (xs.skills[sk] || 0) + Math.floor(Number(amt) || 0);

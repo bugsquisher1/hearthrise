@@ -232,7 +232,7 @@ const MUTANTS = {
   madeLater: ['SP3', (w) => { w.itemRoute.normal_plank = 'craft'; w.rows[4].parts.unshift({ need: { fact: 'item', id: 'normal_plank', min: 1 }, go: 'mine', act: false }); }],
   rungSkipped: ['SP3', (w) => { w.rows[4] = Object.assign({}, w.rows[4], { need: [{ fact: 'property', min: 2 }] }); w.rows[9] = Object.assign({}, w.rows[9], { need: [{ fact: 'property', min: 1 }] }); }],
   noUnlock: ['SP4', (w) => { w.rows[0] = Object.assign({}, w.rows[0], { opens: null }); }],
-  momentEarly: ['SP6', (w) => { const a = w.rows[6].opens; w.rows[6] = Object.assign({}, w.rows[6], { opens: w.rows[7].opens }); w.rows[7] = Object.assign({}, w.rows[7], { opens: a }); }],
+  momentEarly: ['SP6', (w) => { const a = w.rows[0].opens; w.rows[0] = Object.assign({}, w.rows[0], { opens: w.rows[1].opens }); w.rows[1] = Object.assign({}, w.rows[1], { opens: a }); }],
   momentSilent: ['SP6', (w) => { w.rows[2] = Object.assign({}, w.rows[2], { opens: { title: 'Well done', line: 'On to the next thing.' } }); }],
   neverDone: ['SP5', (w) => { w.rows[3] = Object.assign({}, w.rows[3], { need: [] }); }],
 };

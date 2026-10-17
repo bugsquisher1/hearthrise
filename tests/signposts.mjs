@@ -184,9 +184,9 @@ export function check(w) {
 const MUTATIONS = {
   unreferencedKey: ['SIGN-1', (w) => { w.lines['zz.orphan'] = { text: 'A line nobody in the game ever shows to a player.' }; }],
   badTab: ['SIGN-2', (w) => { w.lines['bag.all'].door.tab = 'nope'; }],
-  paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'stable'); }],
+  paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'shops'); }],
   digit: ['SIGN-3', (w) => { w.lines['farm.noSeeds'].text += ' Costs 5 gold.'; }],
-  missingBagTools: ['SIGN-4', (w) => { delete w.lines['bag.tools']; }],
+  missingBagSeeds: ['SIGN-4', (w) => { delete w.lines['bag.seeds']; }],
   undeclaredVar: ['SIGN-5', (w) => { w.lines['chronicle.recentEmpty'].text += ' {x}'; }],
   coreImport: ['SIGN-7', (w) => { w.sources['src/core/zz-planted.js'] = "import { SIGNPOSTS } from '../data/signposts.js';\n"; }],
   packCarries: ['SIGN-7', (w) => { w.packOrigins.push('src/data/signposts.js'); }],
@@ -195,8 +195,8 @@ const MUTATIONS = {
   foeCoreImport: ['SIGN-7', (w) => { w.sources['src/data/zz-planted.js'] = "import { facts } from '../features/know-your-foe.js';\n"; }],
   axisUnlabelled: ['SIGN-9', (w) => { delete w.weaponTypes.hammer; }],
   firstRankHidden: ['SIGN-9', (w) => { w.firstRankReveals = false; }],
-  foeKeyNotLiteral: ['SIGN-9', (w) => { w.sources['src/features/know-your-foe.js'] = w.sources['src/features/know-your-foe.js'].split("'foe.elementHidden'").join("'foe.' + 'elementHidden'"); }],
-  nightKeyUnused: ['SIGN-1', (w) => { for (const p of Object.keys(w.sources)) w.sources[p] = w.sources[p].split("'night.retreat'").join("'zz'"); }],
+  foeKeyNotLiteral: ['SIGN-9', (w) => { w.sources['src/features/know-your-foe.js'] = w.sources['src/features/know-your-foe.js'].split("'foe.weakHeld'").join("'foe.' + 'weakHeld'"); }],
+  nightKeyUnused: ['SIGN-1', (w) => { for (const p of Object.keys(w.sources)) w.sources[p] = w.sources[p].split("'night.statsFall'").join("'zz'"); }],
 };
 
 async function main() {

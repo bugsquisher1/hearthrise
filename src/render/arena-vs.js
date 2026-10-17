@@ -48,23 +48,6 @@ function ensureArenaVs() {
 const byId = (id) => document.getElementById(id);
 const hud = () => { if (window.HearthriseCombatHud) window.HearthriseCombatHud.refresh(); };
 
-function paintPet(pp, G) {
-  /* b278: the equipped companion perches beside the hero; the data-pet guard
-     makes the 200 ms refresh a no-op once drawn. */
-  let petHost = byId('arena-player-pet');
-  if (!petHost) { petHost = document.createElement('div'); petHost.id = 'arena-player-pet'; petHost.className = 'arena-pet'; pp.appendChild(petHost); }
-  const petId = (G.companions && G.companions.equipped) || null;
-  if (petId && window.COMPANIONS && window.COMPANIONS[petId] && typeof window.companionIconHtml === 'function') {
-    const want = 'pet:' + petId;
-    if (petHost.getAttribute('data-pet') !== want) {
-      petHost.innerHTML = window.companionIconHtml(petId, 30);
-      petHost.setAttribute('data-pet', want);
-      petHost.title = (window.COMPANIONS[petId].n || 'Companion') + ' — fighting with you';
-    }
-    petHost.style.display = '';
-  } else petHost.style.display = 'none';
-}
-
 function refreshArenaVs() {
   const G = window.G;
   const inCombat = !!(G && G.activeMonster);
@@ -106,7 +89,6 @@ function refreshArenaVs() {
   const pPct = G.playerMaxHp ? Math.max(0, (G.playerHp / G.playerMaxHp) * 100) : 0;
   if (php) php.style.width = pPct.toFixed(1) + '%';
   if (phpt) phpt.textContent = (G.playerHp || 0) + ' / ' + (G.playerMaxHp || 0);
-  if (pp) paintPet(pp, G);
   /* b227: the action slots ride the same tick as the HP bars, so "Eat · +8 HP"
      can never disagree with the HP printed above it. */
   hud();

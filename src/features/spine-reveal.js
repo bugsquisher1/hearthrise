@@ -33,7 +33,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { SPINE_STEPS } from '../data/spine.js?v=589';
-import { REVEALS, DUNGEON_KEYS } from '../data/reveals.js?v=589';
+import { REVEALS } from '../data/reveals.js?v=589';
 import { SKILLS_DEF } from '../data/skills.js?v=589';
 import { QUEST_REWARDS } from '../data/goal-catalogue.js?v=589';
 import { START_SKILL_XP, START_INVENTORY } from '../data/start-kit.js?v=589';
@@ -61,7 +61,6 @@ export function fold(prev, res) {
     countsComplete: !!(base && base.countsComplete),
     property: base ? base.property : null,
     workers: base ? base.workers : null,
-    companions: base ? base.companions : null,
     bag: base && base.bag ? Object.assign({}, base.bag) : null,
     claimed: base && base.claimed ? Object.assign({}, base.claimed) : null,
   };
@@ -84,13 +83,6 @@ export function fold(prev, res) {
     if (tier !== null && !(next.property >= tier)) next.property = tier;
   }
   if (Array.isArray(res.workers)) next.workers = res.workers.length;
-  /* `owned` omits the starter fox (it is owned by grammar), so its length is
-     the companions actually earned. */
-  const comp = res.companions;
-  if (comp && typeof comp === 'object' && Array.isArray(comp.owned)) {
-    const n = comp.owned.filter((id) => typeof id === 'string' && id && id !== 'fox').length;
-    if (!(next.companions >= n)) next.companions = n;
-  }
   const inv = res.inventory;
   if (inv && typeof inv === 'object' && !Array.isArray(inv)) {
     const bag = res.inventory_complete === true ? {} : (next.bag || {});
@@ -111,18 +103,30 @@ const COUNT_KEYS = (() => {
   REVEALS.forEach((r) => r.uses.forEach(add));
   return [...keys].sort();
 })();
+/* Every item a spine step or a reveal use names, derived from the data so a row
+   added or removed there needs no edit here. */
+const ITEM_KEYS = (() => {
+  const ids = new Set();
+  const add = (n) => {
+    if (n && n.fact === 'item' && n.id) ids.add(n.id);
+    if (n && n.fact === 'holds' && Array.isArray(n.ids)) n.ids.forEach((id) => ids.add(id));
+  };
+  SPINE_STEPS.forEach((s) => s.need.forEach(add));
+  REVEALS.forEach((r) => r.uses.forEach(add));
+  return [...ids].sort();
+})();
 export const FULL = Object.freeze({
   counts: Object.freeze(Object.fromEntries(COUNT_KEYS.map((k) => [k, 1e9]))), countsComplete: true,
   skills: Object.freeze(Object.fromEntries(Object.keys(SKILLS_DEF).map((id) => [id, MAX_XP]))),
-  property: 6, workers: 6, companions: 6,
-  bag: Object.freeze(Object.fromEntries(DUNGEON_KEYS.map((k) => [k, 1]))),
-  products: Object.freeze({ clans: true, world: true }),
+  property: 6, workers: 6,
+  bag: Object.freeze(Object.fromEntries(ITEM_KEYS.map((k) => [k, 1e9]))),
+  products: Object.freeze({ world: true }),
   gold: 1e9, equipment: Object.freeze({ boots: 'leather_boots' }),
   claimed: Object.freeze(Object.fromEntries(Object.keys(QUEST_REWARDS).map((q) => [q, true]))),
 });
 export const FRESH = Object.freeze({
   counts: Object.freeze({}), countsComplete: true,
-  skills: START_SKILL_XP, property: 0, workers: 0, companions: 0, bag: START_INVENTORY,
+  skills: START_SKILL_XP, property: 0, workers: 0, bag: START_INVENTORY,
   products: Object.freeze({}),
   gold: 0, equipment: Object.freeze({}), claimed: Object.freeze({}),
 });
@@ -157,10 +161,8 @@ function serverGold() {
 
 /** Which unreleased features are live: shipping switches, not player state. */
 function liveProducts() {
-  const C = typeof window !== 'undefined' ? window.HearthriseClans : null;
   const W = typeof window !== 'undefined' ? window.HearthriseWorld : null;
   return {
-    clans: !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()),
     world: !!(W && typeof W.launched === 'function' && W.launched()),
   };
 }
@@ -174,7 +176,7 @@ export function facts() {
     counts: v.counts || {}, countsComplete: !!v.countsComplete,
     skills: serverRecord('skills'), property: fin(v.property) ? v.property : null,
     workers: fin(v.workers) ? v.workers : null, bag: v.bag || null,
-    companions: fin(v.companions) ? v.companions : null, products: liveProducts(),
+    products: liveProducts(),
     gold: serverGold(), equipment: serverRecord('equipment'), claimed: v.claimed || null,
   };
 }

@@ -170,22 +170,17 @@
   <!-- b217: art direction — type scale, shape language, surface + button
        hierarchy. Loads after the three legacy sheets by design (see header). -->
   <link rel="stylesheet" href="src/styles/art-direction.css?v=589">
-  <!-- b221: the bounty board and the shop as physical places (noticeboard /
-       shopfront counter). Loads last — see the file header for why the
-       three-id selectors in it exist. -->
+  <!-- b221: the shop as a physical place (shopfront counter). Loads last — see
+       the file header for why the three-id selectors in it exist. -->
   <link rel="stylesheet" href="src/styles/board-and-shop.css?v=589">
-  <!-- b223 #10 Wave 3b: the Clan Seat. Third in-world screen after the bounty
-       board and the shopfront, and the same deal: `.hr-cs` is carved out of the
-       b174 readability blankets in theme-cozy.css, so this sheet owns its whole
-       colour story and needs no !important and no stacked panel id. Loads last
-       for the same reason board-and-shop.css does. -->
-  <link rel="stylesheet" href="src/styles/clan-seat.css?v=589">
+  <!-- The shared room modal (src/render/room-modal.js), in the cascade slot the
+       demolished clan-seat.css held. -->
+  <link rel="stylesheet" href="src/styles/room-modal.css?v=589">
   <!-- b227: the combat stage's own controls (Eat beside your champion, Loot /
-       Stats beside the foe) and the two modals they open. Loads last, after
-       clan-seat.css, because it reconciles one class it deliberately reuses
-       from legacy.css inside the shared room modal. See the file header. -->
+       Stats beside the foe) and the two modals they open. Loads after
+       room-modal.css, because it reconciles one class it reuses inside the
+       shared room modal. See the file header. -->
   <link rel="stylesheet" href="src/styles/combat-hud.css?v=589">
-  <link rel="stylesheet" href="src/styles/spoils.css?v=589">
   <!-- b227: the House screen's room grid + the homestead's themes on the
        [data-room-theme] values that sheet's component reads; it deliberately
        restyles none of that component. -->
@@ -198,12 +193,12 @@
   <link rel="stylesheet" href="src/styles/combat-screens.css?v=589">
   <link rel="stylesheet" href="src/styles/codex.css?v=589">
   <link rel="stylesheet" href="src/styles/primers.css?v=589">
-  <link rel="stylesheet" href="src/styles/hunters-ledger.css?v=589">
+
   <link rel="stylesheet" href="src/styles/lucky-finds.css?v=589">
   <link rel="stylesheet" href="src/styles/climb-marks.css?v=589">
   <link rel="stylesheet" href="src/styles/spine-pointer.css?v=589">
   <link rel="stylesheet" href="src/styles/coach.css?v=589">
-  <link rel="stylesheet" href="src/styles/night-plan.css?v=589">
+
   <link rel="stylesheet" href="src/styles/menu-journal.css?v=589">
   <link rel="stylesheet" href="src/styles/market.css?v=589">
 </head>
@@ -256,8 +251,6 @@
     <button class="nav-btn" data-tab="homestead"><span class="ic"></span><span class="lbl">Homestead</span></button>
 
     <div class="nav-group-label">Realm</div>
-    <button class="nav-btn" data-tab="clan"><span class="ic"></span><span class="lbl">Clan</span></button>
-    <button class="nav-btn" data-tab="events"><span class="ic"></span><span class="lbl">Events</span></button>
     <button class="nav-btn" data-tab="shops"><span class="ic"></span><span class="lbl">Market</span></button>
     <button class="nav-btn" data-tab="social"><span class="ic"></span><span class="lbl">Social</span></button>
 
@@ -302,11 +295,7 @@
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
-            <!-- b225 (#18): the clan tag is the one place the player's hold is
-                 named on every screen, so it is the natural second door to it.
-                 A button, not a span, so it is reachable by keyboard and
-                 announces itself; styled to stay the quiet tag it always was. -->
-            <button type="button" id="clan-tag" class="clan-tag hide" title="Open the Clan Seat" onclick="showTab('clan')"></button>
+
             <!-- The earned Hearthfind title, beside the name. Ships EMPTY and
                  hidden: it is filled only by src/features/hearthfind.js from
                  hr_state_of's `hearthfind_titles` projection, so a client with
@@ -327,12 +316,12 @@
         <div class="t-stat" title="Total level"><span class="ic"></span><span id="top-total" class="bal-pending">—</span><span class="lab">TL</span></div>
         <div class="t-stat gold" title="Gold"><span class="ic"></span><span id="top-gold" class="bal-pending">—</span><span class="lab">Gold</span></div>
         <div class="t-stat gem" id="top-gem-btn" title="Gems — premium currency"><span class="ic"></span><span id="top-gems" class="bal-pending">—</span><span class="lab">Gems</span></div>
-        <div class="streak-badge" title="Days played in a row"><span class="flame"></span><span id="top-streak-count" class="bal-pending">—</span></div><div class="notif-bell-wrap"><button class="icon-btn notif-bell" id="btn-notif" title="Notifications"><span class="nb-dot hide" id="nb-dot">0</span></button></div><!-- b227: save button removed — online realm, the game saves itself (Tyler) -->
+        <div class="notif-bell-wrap"><button class="icon-btn notif-bell" id="btn-notif" title="Notifications"><span class="nb-dot hide" id="nb-dot">0</span></button></div><!-- b227: save button removed — online realm, the game saves itself (Tyler) -->
         <button class="icon-btn" id="btn-settings" title="Settings"></button>
       </div>
     </header>
 
-    <!-- The open door's panes (Character | Bag | Journal, Farm | House | Stable,
+    <!-- The open door's panes (Character | Bag | Journal, Farm | House,
          ...). Drawn by src/nav-consolidation.js from HUBS; empty and hidden on a
          one-pane door. -->
     <nav class="hub-tabs" id="hub-tabs" aria-label="Sections" hidden></nav>
@@ -371,7 +360,7 @@
       <div class="card dash-objectives" id="dash-objectives">
         <div class="card-head">
           <div class="card-title">Objectives</div>
-          <span class="card-sub" id="dash-obj-sub">Daily</span>
+          <span class="card-sub" id="dash-obj-sub">Quests</span>
         </div>
         <div class="card-body" id="dash-objectives-body"></div>
       </div>
@@ -487,7 +476,6 @@
         <div class="chips">
           <button class="chip active" data-house="rooms">Rooms</button>
           <button class="chip" data-house="plot">Farm</button>
-          <button class="chip" data-house="themes">Themes</button>
         </div>
         <div class="card-body" id="house-panel"></div>
       </div>
@@ -513,55 +501,17 @@
         <div class="chips" id="lb-boards"></div>
         <div class="card-body" id="leaderboard"></div>
       </div>
-      <!-- b225 (#18): this card used to be "Clan + Friends" and held the entire
-           Clan Seat. The hold moved to its own top-level destination; what is
-           left here is what actually belongs to the wider world — your friends,
-           plus a signpost to the hold for anyone who still comes looking. -->
       <div class="card layout-2col-b">
         <div class="card-head"><div class="card-title">Friends</div></div>
         <div class="card-body" id="social-panel"></div>
       </div>
     </section>
 
-    <!-- ── CLAN SEAT (b225 #18) ──
-         The shared progression pillar, out of Social and into its own room. No
-         card head: the hold band at the top of `.hr-cs` already carries the
-         clan's name, tier, role and member count, so a "Clan Seat" title above
-         it would be the same words twice. The card frame stays because the band
-         bleeds to it (`.hr-cs-hold` uses a -12px margin against the card's own
-         12px padding) and because the find-or-found flow needs a surface. -->
-    <section class="panel" id="panel-clan">
-      <div class="card" id="clan-seat-card">
-        <div class="card-body" id="clan-panel"></div>
-      </div>
-      <!-- Clan Activity followed the hold out of Social: its subject is your
-           members and its audience is your hold. Shown only when you are in one
-           — an activity feed above a recruitment list is furniture. -->
-      <div class="card" id="clan-activity-card">
-        <div class="card-head"><div class="card-title">Clan Activity</div></div>
-        <div class="card-body" id="clan-activity"></div>
-      </div>
-    </section>
-
-    <!-- ── PARTY (M8 slice 1) ──
-         MEMBERSHIP ONLY. Every row in here is painted from what the server
-         answered — src/net/party.js reads it, src/render/party-panel.js draws
-         it, and nothing between them holds a roster of its own. -->
-    <section class="panel" id="panel-party">
-      <!-- NO CARD HEAD, for the Clan Seat's reason one card up: the rail entry
-           says "Party", the panel's own first line says "Your party", and a
-           third "Party" between them is the same word three times inside 80px
-           — which on a 423px-tall landscape phone is most of a member row. -->
-      <div class="card" id="party-card">
-        <div class="card-body" id="party-panel"></div>
-      </div>
-    </section>
 
     <!-- ── SHOPS ──────────────────────────────────────────────────────────
          The Market door's two panes are Local Shop (this section) and Player
          Market (#panel-market); the pane strip above the screen switches them
-         (src/nav-consolidation.js). The Premium pane stays in the markup but has
-         no door for Early Access: the web build cannot sell it. -->
+         (src/nav-consolidation.js). -->
     <section class="panel" id="panel-shop" data-shops-pane="local">
       <div class="card shops-pane" id="shops-pane-local">
         <!-- b217: the sub-tab labels carried raw emoji. icon-set.js used to
@@ -574,13 +524,8 @@
                of the shop a new Runecrafter is sent to. -->
           <button class="chip active" data-shop="seeds">Supplies</button>
           <button class="chip" data-shop="equip">Equipment</button>
-          <button class="chip" data-shop="cosmetics">Cosmetics</button>
         </div>
         <div class="card-body" id="shop-panel"></div>
-      </div>
-      <div class="card shops-pane" id="shops-pane-premium">
-        <div class="card-head"><div class="card-title">Premium Store</div><span class="card-sub">Real-money packs</span></div>
-        <div class="card-body" id="iap-panel"></div>
       </div>
     </section>
 
@@ -594,8 +539,6 @@
       <div id="market-root"></div>
     </section>
 
-    <!-- ── DUNGEONS (a Combat pane) ── rendered by src/dungeons.js -->
-    <section class="panel" id="panel-dungeons"></section>
 
     <!-- ── JOURNAL (a Character pane): every record of your own history,
          four tabs, drawn by src/features/journal.js ── -->
@@ -618,8 +561,7 @@
   <button class="bn-btn" data-tab="skills"><span class="ic"></span><span>Skills</span></button>
   <button class="bn-btn" data-tab="combat"><span class="ic"></span><span>Combat</span></button>
   <button class="bn-btn" data-tab="homestead"><span class="ic"></span><span>Homestead</span></button>
-  <button class="bn-btn" data-tab="clan"><span class="ic"></span><span>Clan</span></button>
-  <button class="bn-btn" data-tab="events"><span class="ic"></span><span>Events</span></button>
+
   <button class="bn-btn" data-tab="shops"><span class="ic"></span><span>Market</span></button>
   <button class="bn-btn" data-tab="social"><span class="ic"></span><span>Social</span></button>
   <button class="bn-btn more" data-tab="more"><span class="ic">⋯</span><span>More</span></button>
@@ -662,16 +604,6 @@
   </div>
 </div>
 
-<!-- IAP confirm -->
-<div class="modal" id="iap-modal">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div class="modal-title">Confirm Purchase</div>
-      <button class="btn btn-sm" data-close-modal="iap-modal">Cancel</button>
-    </div>
-    <div id="iap-modal-body"></div>
-  </div>
-</div>
 
 <div class="notifs" id="notifs"></div>
 
@@ -808,17 +740,7 @@
 <!-- moved script#29 (smoke-test-js) -->
 
 <!-- ====== END SMOKE TEST HARNESS v1 ====== -->
-<!-- ====== COMPANIONS A: DATA ====== -->
-<!-- moved script#30 (companions-data) -->
-<!-- ====== END COMPANIONS A ====== -->
-<!-- ====== COMPANIONS B: HOOKS ====== -->
-<!-- moved script#31 (companions-hooks) -->
-<!-- ====== END COMPANIONS B ====== -->
-<!-- ====== COMPANIONS C: UI ====== -->
-<!-- moved style#25 (companions-ui-css) -->
 
-<!-- moved script#32 (companions-ui-js) -->
-<!-- ====== END COMPANIONS C ====== -->
 
 <!-- ====== VISUAL POLISH v1 ====== -->
 
@@ -839,10 +761,7 @@
 <!-- moved script#34 (character-rebuild-js) -->
 <!-- ====== END CHARACTER REBUILD v1 ====== -->
 
-<!-- ====== COMPANIONS D: ACQUISITION ====== -->
 
-<!-- moved script#35 (companions-acquisition-js) -->
-<!-- ====== END COMPANIONS D ====== -->
 <!-- ====== BUFF QUEUE v1 ====== -->
 
 <!-- moved style#29 (buff-queue-css) -->
@@ -910,8 +829,8 @@
        there is no monkey-patch race. safe.js's wrapShowTab delegates here. -->
   <script src="src/utils/showtab-registry.js?v=589"></script>
   <!-- b340: the ONE home for "does this server RPC exist yet?". Dependency-free
-       and loaded early because both a classic script (features/clans.js) and an
-       ESM module (net/supabase-market-backend.js) read it, and the strangler-fig
+       and loaded early because classic scripts and an ESM module
+       (net/supabase-market-backend.js) read it, and the strangler-fig
        migration off client-authored tables cannot have three copies of the
        predicate that decides whether the narrowing is in effect. -->
   <!-- b373: THE ONE WAY THE GAME ASKS A QUESTION. window.confirm/prompt/alert
@@ -924,20 +843,16 @@
        in art-direction.css). Before legacy.js, whose global Escape listener calls it. -->
   <script src="src/render/modal-sheet.js?v=589"></script>
   <script src="src/net/server-rpc.js?v=589"></script>
-  <!-- b414: the daily-task / quest gold-claim transport. Classic IIFE (window
-       global) like server-rpc.js above; legacy.js calls HearthriseGoalClaim to
-       fire hr_claim_daily / hr_claim_quest, the server-authoritative payout. -->
+  <!-- b414: the quest gold-claim transport. Classic IIFE (window global) like
+       server-rpc.js above; legacy.js calls HearthriseGoalClaim to fire
+       hr_claim_quest, the server-authoritative payout. -->
   <script src="src/net/goal-claim.js?v=589"></script>
   <!-- worker-settlement slice: the hired-crew hire/assign transport. Classic IIFE
        (window global) like goal-claim.js above; src/features/workers.js calls
        HearthriseWorkersNet to fire hr_worker_hire / hr_worker_assign once the
        crew is server-owned. Must load before features/workers.js. -->
   <script src="src/net/workers.js?v=589"></script>
-  <!-- M8 slice 1 — PARTY MEMBERSHIP. Classic IIFE (window global) like the two
-       above; render/party-panel.js is the only caller. It reads hr_party_view
-       by POST and never with { get: true }, and never at the envelope's
-       cadence — SEC_PARTIES_M8_2026-09-23.md findings B7 and B8. -->
-  <script src="src/net/party.js?v=589"></script>
+
   <!-- THE VIGOUR REFILL — one gold verb (hr_vigour_refill); the price is the
        meter's own next_refill_gold. render/hunt-panel.js draws the bar only
        while the projected meter states refills (Security C-1 / condition 5). -->
@@ -1022,7 +937,7 @@
   <script src="src/screens/inventory.js?v=589"></script>
   <!-- b372: every ITEM REQUIREMENT is a link to the bag's own item flyout.
        Loads right after legacy.js because it wraps openInvDetail and because
-       every requirement renderer below (homestead, clan seat, dungeons)
+       every requirement renderer below (the homestead and the bench tiles)
        splices window.hrInspectAttrs() into its chips. -->
   <script src="src/features/item-inspect.js?v=589"></script>
   <!-- b219 (#7): the toast queue. Loads right after legacy.js — notify() in
@@ -1053,25 +968,18 @@
   <!-- Render layer (strangler-fig extraction out of legacy.js). Loads AFTER
        legacy.js so its globals (G, balText, getCombatLevel, showTab) exist when
        this self-installs its trigger button. See docs/design/render-extraction-pattern.md -->
-  <!-- The topbar play-streak flame — 21st render-layer extraction out of
-       legacy.js block 16. Owns the device counter, the SERVER-first reader every
-       play-streak surface asks, and the paint. -->
-  <script src="src/render/streak-chip.js?v=589"></script>
+
   <script src="src/render/lifetime-stats.js?v=589"></script>
   <!-- Active Effects panel (Profile card) — 2nd render-layer extraction out of
        legacy.js block 8; self-installs its card + live timer after legacy.js loads -->
   <script src="src/render/active-effects.js?v=589"></script>
-  <!-- Achievements presentation (the unlock toast + the Journal's deeds list) -->
-  <script src="src/render/achievements.js?v=589"></script>
+
   <!-- The Bestiary list (the Journal's Bestiary tab); kill tracking stays in legacy.js -->
   <script src="src/render/bestiary.js?v=589"></script>
   <!-- The Hunt panel (docs/design/HUNT_ANALYZER_UI.md). Renders ONLY the
        server's projection; nothing on it is computed or predicted client-side. -->
   <script src="src/render/hunt-panel.js?v=589"></script>
-  <!-- The Party screen (M8 slice 1: MEMBERSHIP only). Draws src/net/party.js's
-       projection and nothing else — no client-held roster, no predicted join.
-       Must load after it; both are classic scripts, so source order is enough. -->
-  <script src="src/render/party-panel.js?v=589"></script>
+
   <!-- Equipment bonuses — 5th render-layer extraction out of legacy.js; the
        renderEquipmentStatsHTML markup + openEquipmentBonuses modal moved out,
        the getEquipmentTotals/getArmorSetBonus logic stayed. Re-exports both onto
@@ -1101,7 +1009,7 @@
   <script src="src/render/objectives-popout.js?v=589"></script>
   <!-- Shop / IAP store controller — 9th render-layer extraction out of
        legacy.js (task #129 Phase 3.5). Re-exports window.renderShop; paints
-       #iap-panel + #shop-panel from G/catalogue data. Purchase handlers stay
+       #shop-panel from G/catalogue data. Purchase handlers stay
        global in legacy.js; shop tab-state is window.shopTab. -->
   <script src="src/render/shop.js?v=589"></script>
   <!-- Vendor Buy Back modal — 10th render-layer extraction out of legacy.js
@@ -1113,11 +1021,7 @@
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
   <script src="src/features/home-dashboard.js?v=589"></script>
-  <script src="src/features/set-the-night.js?v=589"></script>
-  <!-- meta-spine: "Rise to Jarl" Renown ladder (loads after legacy for XP_TABLE/getCombatLevel) -->
-  <script src="src/features/renown.js?v=589"></script>
-  <!-- retention: escalating daily login reward (built on the streak counter) -->
-  <script src="src/features/daily-reward.js?v=589"></script>
+
   <!-- completionism: Collection Log (bestiary + items, milestone rewards) -->
   <script src="src/features/collection-log.js?v=589"></script>
   <!-- b186: item rarity system (border colours: gray→green→blue→purple→gold→red) -->
@@ -1132,55 +1036,26 @@
   <script src="src/features/lucky-finds.js?v=589"></script>
   <script src="src/render/luck-ledger.js?v=589"></script>
   <!-- b201 SYS 1-3: the progression spine — tools ladder, homestead→castle
-       property tiers (rooms are workbenches), idle workers. Order matters:
-       tools (no deps) → homestead (gates) → workers (needs homestead slots). -->
+       property tiers (rooms are workbenches), idle workers. Order matters: tools
+       and the room modal (no deps) → homestead (gates) → workers (needs homestead
+       slots). -->
   <script src="src/features/tools.js?v=589"></script>
+  <script src="src/render/room-modal.js?v=589"></script>
   <script src="src/features/homestead.js?v=589"></script>
   <script src="src/features/workers.js?v=589"></script>
   <!-- b225: the campfire ruling — cooking is never gated on the Kitchen; the
        open fire burns instead. Pure burn math, no deps (legacy.js reads it at
        cook time, not at parse time). -->
   <script src="src/features/cooking-fire.js?v=589"></script>
-  <!-- b202 SYS-4: skilling + boss pets (rolls 'skill:'/'boss:' companion sources) -->
-  <script src="src/features/pets.js?v=589"></script>
-  <!-- b204 SYS-5: deterministic daily/weekly world events (date-seeded, serverless-shared) -->
-  <script src="src/features/world-events.js?v=589"></script>
-  <!-- b254: Featured "Boss of the Day" — solo daily boss on the shared world-events
-       clock. Loads AFTER world-events.js (needs its _hash/utcDayKey). -->
-  <script src="src/features/boss-of-the-day.js?v=589"></script>
-  <!-- b206 SYS-9/10: real clans + leaderboards (Supabase backbone, replaces NetClient mocks) -->
-  <script src="src/features/clans.js?v=589"></script>
-  <!-- b209 SYS-6: weekly async clan raids (shared boss HP pool, real combat-roll strikes) -->
-  <script src="src/features/raids.js?v=589"></script>
-  <!-- b220 #15/#14: the Muster — 2x/day joinable world-event windows, topbar
-       countdown pill, and the top-level Events destination. Loads AFTER
-       world-events.js (shared clock) and raids.js (owns the raid card). -->
-  <script src="src/features/muster.js?v=589"></script>
-  <!-- b222 #11: the 21 leaderboards + the pinned self block. Loads AFTER
-       clans.js (which wraps renderSocial for the clan half) and renown.js
-       (whose rank ladder supplies the Throne board's titles). -->
+  <!-- b222 #11: the leaderboards + the pinned self block. -->
   <script src="src/features/leaderboards.js?v=589"></script>
-  <!-- b222 #10 Wave 3a: the Clan Seat FOUNDATION — pure formulas + RPC
-       reducers only (docs/design/clan-overhaul.md v2). No UI, no panel, no
-       fetch; inert until supabase/migrations/2026-08-08-clan-seat.sql is run
-       and the castle modals land. Loads after clans.js so it can never be
-       mistaken for the panel's dependency. -->
-  <script src="src/features/clan-seat.js?v=589"></script>
-  <!-- b223 #10 Wave 3b: the VISIBLE Clan Seat — the hold band, the five modals,
-       Work Orders, the Tavern and the castle's perk flow into getBonus. Loads
-       AFTER clan-seat.js (every formula it draws comes from that module's
-       tested reducers, never re-derived here) and after clans.js (whose
-       renderSocial wrapper hands it the panel). Feature-detects both castle
-       migrations: with neither run it renders the hold read-only and honest. -->
-  <script src="src/features/clan-seat-ui.js?v=589"></script>
   <script src="src/item-ux.js?v=589"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can
        suppress item-ux's qty-slider handler. -->
   <script src="src/features/inv-context-menu.js?v=589"></script>
   <script src="src/features/loot-filter.js?v=589"></script>
-  <script src="src/dungeons.js?v=589"></script>
-  <script src="src/dungeon-scavenger.js?v=589"></script>
+
   <script src="src/multi-character.js?v=589"></script>
   <script src="src/market.js?v=589"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
@@ -1217,16 +1092,13 @@
        killMonster, celebrate etc., and every seam must exist first. -->
   <script src="src/features/chronicle.js?v=589"></script>
   <script src="src/features/journal.js?v=589"></script>
-  <!-- b269 — equipped-pet session-impact tracker + topbar chip. Reads
-       getCompanionBonus + HearthrisePowerBudget at call time, so load order is
-       not critical; its record hooks are called from addXp / rollProc later. -->
-  <script src="src/features/pet-session.js?v=589"></script>
+
   <!-- b228 — THE PER-KEY POWER BUDGET (docs/design/bonus-rebase.md §4.1).
        This MUST be the last thing that wraps window.getBonus: it clamps the
        whole chain, and anything installed after it would be added outside the
        clamp — which is exactly the escaped-fuse bug it replaces. Loading last
-       is necessary but not sufficient (clan-seat-ui retries on a timer and the
-       ESM boot installs after every classic script), so the module also
+       is necessary but not sufficient (the ESM boot installs after every
+       classic script), so the module also
        re-wraps itself whenever it detects it is no longer outermost. -->
   <script src="src/features/power-budget.js?v=589"></script>
 </body>

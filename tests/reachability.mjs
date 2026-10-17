@@ -146,13 +146,6 @@ export const CTAS = [
     sel: '#char-skills > *:last-child',
   },
   {
-    id: 'bounty/LAST-ACCEPT',
-    why: 'the bottom notice on the board; a board whose last bounty cannot be accepted is half a board',
-    open: ['tab:bounty'],
-    sel: '#panel-bounty .bb-foot .btn',
-    last: true,   // the BOTTOM one — the first is never the one that falls off
-  },
-  {
     id: 'market/LIST',
     why: 'the only way to put an item on the market — the economy surface\'s primary control',
     open: ['tab:market'],
@@ -235,19 +228,6 @@ export const MODALS = [
     primary: '.hr-confirm [data-hrc=yes]',
     closed: 'return !document.querySelector(".hr-confirm");',
     cleanup: 'const no = document.querySelector(".hr-confirm [data-hrc=no]"); if (no) no.click();',
-  },
-  {
-    id: 'modal/spoils',
-    why: 'the Auto clear\'s spoils — Done is its only way back to the Dungeons tab',
-    open: 'document.querySelectorAll(".ftue-root").forEach((e) => e.remove());'
-      + ' const items = {}; Object.keys(window.ITEMS).slice(0, 60).forEach((id) => { items[id] = 1; });'
-      + ' window.HearthriseSpoils.open({ outcome: "settled", body: { settled: { dungeon: "ancient_wyrm", mode: "auto",'
-      + ' scrip: 40, items, key_spent: "dragonsbane_key" }, state: { dungeon_scrip: 120 }, inventory: {} } });',
-    sheet: '.spoils-sheet',
-    head: '#spoils-title',
-    primary: '.spoils-sheet [data-hr-dismiss]',
-    closed: 'return !document.querySelector(".spoils-scrim");',
-    cleanup: 'document.querySelectorAll(".spoils-scrim").forEach((e) => e.remove());',
   },
 ];
 
@@ -1232,10 +1212,11 @@ const MUTATIONS = [
        pre-b371 44px rhythm only shrinks the spacer (to 126px) and Settings stays
        at y=756 — the mutant ESCAPED on origin/main and nothing ran it. The
        defect class is unchanged (a rail rhythm that pushes the last destination
-       below the fold); the plant is sized to TODAY's slack: 72px rows put
-       Settings at y=910 on a 768px screen. */
+       below the fold); the plant is sized to TODAY's slack. RE-SIZED 2026-10-14:
+       the demolition took the rail from nine destinations to seven, so 72px rows
+       left Settings above the fold again; 104px rows push it past 768. */
     name: 'M2 — re-inflate the nav rail past its slack (Settings below the fold at 768)',
-    css: '.sidebar{gap:4px !important}.nav-btn{min-height:72px !important;padding:8px 10px !important}'
+    css: '.sidebar{gap:4px !important}.nav-btn{min-height:104px !important;padding:8px 10px !important}'
        + '.nav-group-label{padding:9px 12px 3px !important;margin-top:3px !important;padding-top:8px !important}'
        + '.brand{padding:8px 10px 10px !important;margin-bottom:6px !important}',
     viewports: [{ w: 1366, h: 768 }],

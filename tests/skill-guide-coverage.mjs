@@ -16,8 +16,8 @@
 //   SKG-6   no < > & (the text is painted into HTML)
 //   SKG-7   no trailing full stop
 //   SKG-8   every line is unique
-//   SKG-9   the ten catalogue-backed skills derive at least one rung (integer
-//           level 1-99, non-empty name); strength, hitpoints and bountyHunter
+//   SKG-9   the nine catalogue-backed skills derive at least one rung (integer
+//           level 1-99, non-empty name); strength and hitpoints
 //           derive none
 //   SKG-10  no `gated` recipe (needs a recipe scroll, gateOk in
 //           src/core/artisan.js) appears in any ladder — a level alone never
@@ -56,8 +56,8 @@ const read = (rel) => { try { return readFileSync(join(ROOT, rel), 'utf8'); } ca
 
 const NEW_FILES = ['src/data/skill-guide.js', 'src/render/skill-guide.js'];
 const LADDER_SKILLS = ['woodcutting', 'mining', 'fishing', 'farming', 'cooking', 'smithing',
-  'crafting', 'prayer', 'runecrafting', 'stonemason'];
-const RUNGLESS_SKILLS = ['strength', 'hitpoints', 'bountyHunter'];
+  'crafting', 'prayer', 'runecrafting'];
+const RUNGLESS_SKILLS = ['strength', 'hitpoints'];
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 /** Body of the first `function NAME(` in src, up to the next column-0 line
@@ -238,7 +238,7 @@ async function selftest() {
     ['SKG-12', (c) => { c.origins.push('src/data/skill-guide.js'); }],
     ['SKG-13', (c) => { c.src.legacy = c.src.legacy.replace(/HearthriseSkillGuide\.headHtml\(skillId,lv\)/, "''"); }],
     ['SKG-14', (c) => { c.twinExists = true; }],
-    ['SKG-15', (c) => { delete c.guide.stonemason.title; }],
+    ['SKG-15', (c) => { delete c.guide.runecrafting.title; }],
     ['SKG-15', (c) => { c.heroClass = (xpOf) => { // the pre-fix 15-key literal
       const top = c.skillIds.reduce((a, b) => (xpOf(b) > xpOf(a) ? b : a));
       const cn = { attack: 'Warrior', strength: 'Berserker', defense: 'Guardian', hitpoints: 'Brawler',

@@ -195,72 +195,14 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + '`G.gems -= cost; G.bank.gemBuys++` with no server call of any kind. Under the armed record '
       + 'the rung was granted and the gems came back. Now refuses under the arm.',
   },
-  /* ⚠ `src/legacy.js#buyTheme` AND `src/legacy.js#buyCosmetic` ARE NOT ROWS ANY
-     MORE, and their absence is the WHOLE POINT rather than an omission
-     (2026-09-14). This census declares GEM WRITE SITES — places this client
-     moves `.gems` — and those two functions no longer contain one. They send
-     hr_buy_gem_unlock (src/net/goal-claim.js buyGemUnlock) and render the
-     server's answer; the local debit and the `ownedThemes`/`ownedCosmetics`
-     residue pushes are deleted, and both fields left RESIDUE_FIELDS in the same
-     build. A row here for a site that does not exist is exactly what L2 fails
-     on, so re-adding one would be a lie the guard catches.
+  /* The house themes, cosmetics, IAP packs, the Hearth Token redeem and every
+     earned-gem payout (renown, muster, raids, daily login) were DEMOLISHED on
+     2026-10-14; their rows went in the same commit. An undeclared `G.gems`
+     write anywhere is L1 red (tests/gem-site-census.mjs M1 plants one). */
 
-     THE WAY BACK IS THE WAY OUT: if a future edit reintroduces `G.gems -=` in
-     either function, L1 reports an UNDECLARED site and the build goes red —
-     which is `tests/gem-site-census.mjs` M1, re-pointed at exactly that
-     mutation. That is the guard this pair leaves behind.
+  /* The hero slot is GOLD-priced since 2026-10-14 (designer ruling §4) and debits nothing locally. */
 
-     THE FREE DEFAULT is still not a purchase and must never become one:
-     `theme.default` is `currency !== 'gem'` and is the `free` row in
-     public.hr_gem_unlocks — hr_buy_gem_unlock refuses it `not_for_sale`, so
-     there is no zero-gem code path on either side of the wire. */
-
-  /* ── THE FOURTH TWIN, FOUND IN THE SAME SWEEP, POINTING THE OTHER WAY ──── */
-  {
-    id: 'src/legacy.js#redeemHearthToken',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: 'gemSpendIsClientAuthored' },
-    blockedBy: 'an `hr_redeem_token`-shaped verb — the same migration as the purchase twins. It '
-      + 'must consume the token and credit the gems in ONE server transaction; a client that does '
-      + 'either half alone can only lose value for the player.',
-    why: 'THE ONLY SITE IN THIS CLASS THAT COSTS THE PLAYER RATHER THAN THE HOUSE. It burns a '
-      + 'hearth_token — the IAP-only bond, the most valuable object in the game — with a local '
-      + 'removeItem, then credits 150 gems the next envelope erases. The inventory absolute arm is '
-      + 'dormant, so the token does not come back either. Net: the bond is destroyed for nothing. '
-      + 'Refuses under the arm, because keeping the token is the only non-lossy outcome available '
-      + 'to a client that cannot record the trade.',
-  },
-
-  /* ── THE FIFTH: THE HERO SLOT. ALREADY CORRECT — KEPT SO IT STAYS THAT WAY ── */
-  {
-    id: 'src/multi-character.js#unlockSlot',
-    kind: 'spend', status: 'deferred',
-    armGuard: { gated: 'clientMayWriteRecordField', where: 'buySlot' },
-    blockedBy: 'supabase/migrations/2026-09-08-hero-slot-buy.sql — WRITTEN, REVIEW-ONLY, NOT '
-      + 'APPLIED. The client half already landed: buySlot() forks to serverBuySlot() and '
-      + 'goal-claim.js buyHeroSlot() calls hr_buy_hero_slot, which answers `rpc_missing` until the '
-      + 'migration is applied.',
-    why: 'THE ROW THAT PROVES THE `where` FIELD EARNS ITS KEEP. The debit is here, in unlockSlot, '
-      + 'and the arm check is in its ONLY caller, buySlot — deliberately: that module\'s header '
-      + 'calls unlockSlot "the PRE-ARM path and only the pre-arm path" and says "Do NOT wire a new '
-      + 'caller to this". Probing unlockSlot\'s own body would report a false RED on correct code; '
-      + 'probing nothing would let the whole class through. So the row names the caller and the '
-      + 'census verifies THAT body instead. ⚠ If a second caller is ever added, this row becomes a '
-      + 'lie and nothing will catch it — which is why the module says not to.',
-  },
-
-  /* ── GRANTS: value appears. All four already gated, all four deferred ──── */
-  {
-    id: 'src/legacy.js#grant',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: 'clientMayWriteRecordField' },
-    blockedBy: 'a server-side IAP receipt verb. A purchase made with real money is the platform\'s '
-      + 'authority, not ours, and it must be credited from a verified receipt rather than from the '
-      + 'client that claims to have made it.',
-    why: 'The IAP product grant (`p.gems`). Already fail-closed behind the record seam, so under '
-      + 'the arm it grants nothing rather than granting something the envelope erases — but that '
-      + 'means a real-money gem pack currently cannot land at all without the verb.',
-  },
+  /* ── GRANTS: value appears. Gated and deferred ──── */
   {
     id: 'src/features/collection-log.js#msGrantLocally',
     kind: 'grant', status: 'deferred',
@@ -270,31 +212,6 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'retires with the flag, not with a new verb.',
     why: 'Collection-milestone reward. Gated per field, so under the arm the server number is the '
       + 'only one that lands.',
-  },
-  {
-    id: 'src/features/renown.js#grantLocally',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: 'mayWrite' },
-    blockedBy: 'nothing for the VALUE — hr_claim_rank credits gold+gems server-side. This is the '
-      + 'switch-OFF display path.',
-    why: 'Renown-rank reward. Same shape and same gate as the collection milestone.',
-  },
-  {
-    id: 'src/features/muster.js#payChest',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: '_mayGems' },
-    blockedBy: 'world_event_claim crediting gems into player_state atomically with consuming the '
-      + 'claim — the same deferral the gold half of this exact function carries in gold-sites.js.',
-    why: 'The daily muster chest. The gem half of a payout whose gold half is already catalogued; '
-      + 'listing only one of them is how a reader concludes the other is safe.',
-  },
-  {
-    id: 'src/features/raids.js#grantReward',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: '_mayGems' },
-    blockedBy: 'the raid/hunt claim RPC crediting chest gold+gems into player_state atomically with '
-      + 'the raid_claims once-guard — again the twin of the gold row already in gold-sites.js.',
-    why: 'Weekly raid / clan-hunt chest.',
   },
 
   /* ── NOT MOVEMENTS ─────────────────────────────────────────────────────── */
@@ -324,14 +241,6 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'the envelope\'s own value landing on the client. This is not a site to be wired; it is the '
       + 'mechanism every other row in this file is measured against, and it is the reason an '
       + 'undeclared spend is refunded rather than merely untidy.',
-  },
-  {
-    id: 'src/features/daily-reward.js#rewardFor',
-    kind: 'false-positive', status: 'none',
-    why: 'NOT A BALANCE. `out.gems = p.gems` builds the reward DESCRIPTOR the sheet renders; `out` '
-      + 'is a local object literal that never touches G. The scanner matches any receiver on '
-      + 'purpose (narrowing to `G` would miss `window.G.gems` and every alias), so a row like this '
-      + 'is the expected cost of that choice and is cheaper than the miss.',
   },
 
   /* ── DEV FAUCETS. These must NEVER acquire a server path. ───────────────── */

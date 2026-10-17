@@ -198,11 +198,6 @@ img,svg{display:block;max-width:100%}
   font-family:var(--f-display);font-weight:700;font-size:calc(17px * var(--ui-scale, 1));
   color:var(--gold-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.clan-tag{
-  font-size:calc(14.5px * var(--ui-scale, 1));padding:2px 7px;border-radius:99px;
-  background:var(--aqua-bg);color:var(--aqua-2);
-  border:1px solid rgba(201,162,74,.28);font-weight:700;
-}
 .top-stats{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
 .t-stat{
   display:flex;align-items:center;gap:5px;
@@ -476,32 +471,9 @@ img,svg{display:block;max-width:100%}
 .stat b{display:block;font-size:calc(17px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2)}
 .stat span{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
 
-
-/* ─── Bounty Hunter ─── */
-.bounty-card{
-  background:linear-gradient(135deg,rgba(226,184,78,.12),rgba(201,162,74,.05));
-  border:1px solid rgba(229,189,108,.24);
-  border-radius:var(--r);padding:10px;margin-bottom:10px;
-}
-.bounty-title{font-family:var(--f-display);font-size:calc(16px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2);letter-spacing:.04em;text-transform:uppercase}
-/* R1/R5 — a cull turn-in awaiting the server's confirmation. Calm, held full. */
-.bounty-card.confirming{border-color:rgba(243,209,129,.45)}
 .ab-bounty.confirming b{color:var(--gold-2);font-style:italic}
-.bounty-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);margin-top:2px}
 .bounty-progress{display:grid;gap:5px;margin:8px 0}
 .bounty-board{display:grid;gap:6px;margin-top:8px}
-.bounty-option{
-  background:rgba(255,255,255,.035);border:1px solid var(--line-soft);
-  border-radius:var(--r-sm);padding:8px;display:grid;gap:5px;
-}
-.bounty-option:hover{border-color:rgba(226,184,78,.34)}
-.bounty-reward{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2);font-weight:700}
-.bounty-chip{
-  display:inline-flex;align-items:center;gap:4px;
-  font-size:calc(14.5px * var(--ui-scale, 1));padding:2px 6px;border-radius:99px;
-  background:rgba(255,255,255,.045);border:1px solid var(--line-soft);
-  color:var(--ink-2);font-weight:800;text-transform:uppercase;letter-spacing:.04em;
-}
 
 /* ─── SKILLS / INVENTORY / SHOP shared item grid ─── */
 .item-grid{
@@ -536,36 +508,6 @@ img,svg{display:block;max-width:100%}
 .shop-row .price{font-weight:800;color:var(--gold-2);font-size:calc(16px * var(--ui-scale, 1));flex-shrink:0;text-align:right;min-width:62px}
 .shop-row .price.gem{color:var(--gem)}
 .shop-row .price.real{color:var(--ink)}
-
-/* premium store featured cards */
-.iap-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px;
-}
-.iap-card{
-  position:relative;
-  /* b371 (F24): the same retired cyan, on the card itself. */
-  background:linear-gradient(160deg,var(--gem-bg,rgba(82,98,179,.18)),rgba(201,162,74,.04));
-  border:1px solid var(--sc-prem-line,rgba(120,136,220,.34));
-  border-radius:var(--r);padding:13px;
-  display:flex;flex-direction:column;gap:8px;
-}
-.iap-card.gold{background:linear-gradient(160deg,rgba(229,189,108,.16),rgba(229,189,108,.04));border-color:rgba(229,189,108,.32)}
-.iap-card.purple{background:linear-gradient(160deg,rgba(139,92,246,.16),rgba(139,92,246,.04));border-color:rgba(139,92,246,.32)}
-.iap-card .ribbon{
-  position:absolute;top:8px;right:8px;
-  font-size:calc(14.5px * var(--ui-scale, 1));padding:2px 8px;border-radius:99px;font-weight:800;
-  background:var(--gold);color:#1a1100;letter-spacing:.06em;
-}
-.iap-card .iap-icon{font-size:calc(36px * var(--ui-scale, 1))}
-/* The purchase-confirmation plate. It used to print `p.icon`, a field no
-   IAP_CATALOG row has ever carried (they carry `glyph`), so this slot rendered
-   the literal word "undefined" at 54px above every product title. It now draws
-   the same gilt glyph as the store card it was opened from. */
-.iap-confirm-art{display:flex;align-items:center;justify-content:center;min-height:52px}
-.iap-card h3{font-family:var(--f-display);font-size:calc(18px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2);letter-spacing:.04em}
-.iap-card .desc{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);flex:1}
-.iap-card .iap-price{font-weight:800;font-size:calc(21.5px * var(--ui-scale, 1));color:var(--ink)}
-.iap-card .iap-price small{font-weight:600;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);display:block}
 
 /* ─── leaderboard ─── */
 .lb-row{
@@ -741,21 +683,6 @@ img,svg{display:block;max-width:100%}
   .bn-btn.active{color:var(--aqua-2)}
   .bn-btn.more{color:var(--gold-2)}
 
-  /* topbar simplifies */
-  .clan-tag{display:none}
-
-  /* b371 (F24): this said `grid-template-columns:1fr` for the whole breakpoint,
-     and the breakpoint's SECOND clause — (max-height:540px) and
-     (max-width:1024px) — catches a LANDSCAPE PHONE. So a 922x423 device got a
-     single 794px-wide product card filling the entire screen, and reaching the
-     ninth pack meant nine full-screen scrolls. CLAUDE.md's mobile ruling is
-     explicit that a wide landscape phone gets the SCALED-DESKTOP layout, not
-     the portrait one; the store was not honouring it. A portrait phone (<=540)
-     still stacks, because there 220px really is the whole screen. */
-  .iap-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
-}
-@media (max-width: 540px) {
-  .iap-grid{grid-template-columns:1fr}
 }
 
 /* ─── tiny phone (<=380px) ─── */
@@ -810,7 +737,6 @@ img,svg{display:block;max-width:100%}
 .inv-slot.empty{border-style:dashed;color:var(--ink-3);font-size:calc(19px * var(--ui-scale, 1));background:rgba(255,255,255,.02);opacity:.55}
 .inv-slot small{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;line-height:1}
 .inv-slot .tier{position:absolute;top:1px;right:2px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);background:rgba(0,0,0,.7);padding:0 3px;border-radius:99px;line-height:11px}
-
 
 /* Equipment card no-scroll, dimensions fit content */
 #panel-inventory .card:first-child > .card-body{overflow:visible !important}
@@ -906,12 +832,6 @@ img,svg{display:block;max-width:100%}
    one signal the player is scanning for. Lift it, don't repaint it. */
 [data-inspect-item].is-met:hover,[data-inspect-item].is-short:hover,
 [data-inspect-item].is-full:hover,[data-inspect-item].short:hover{color:inherit;filter:brightness(1.25)}
-/* The dungeon entry key carries its painted art beside the name (b372 replaced
-   the raw data emoji here), so it needs to be a flex line rather than a run of
-   inline text — and the underline moves to the `.hr-si` name for the same
-   flex-propagation reason as everywhere else. */
-.dgn-key-nm{display:inline-flex;align-items:center;gap:5px;vertical-align:-3px}
-.dgn-key-nm img{width:16px;height:16px;object-fit:contain}
 
 /* b224: the Combat screen's food controls — Eat first, auto-eat second,
    one line of plain English underneath. */
@@ -1009,22 +929,6 @@ img,svg{display:block;max-width:100%}
   .nav-group-label:first-of-type{padding-top:3px;margin-top:2px}
   .nav-foot{padding:5px 10px}
 }
-
-/* ─── Bounty panel layout ─── */
-#panel-bounty.active{
-  grid-template-columns:minmax(0,1fr) minmax(280px,360px);
-  grid-template-rows:minmax(0,1fr);gap:var(--gap);
-}
-#panel-bounty .bounty-main{display:flex;flex-direction:column;gap:10px}
-.bounty-shop-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r-sm);background:rgba(255,255,255,.035);border:1px solid var(--line-soft);margin-bottom:5px}
-.bounty-shop-row .info{flex:1}
-.bounty-shop-row .info b{font-size:calc(16px * var(--ui-scale, 1));display:block}
-.bounty-shop-row .info span{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
-.bounty-shop-row .price{color:#f3d181;font-weight:800;font-size:calc(16px * var(--ui-scale, 1));min-width:60px;text-align:right}
-.bh-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
-.bh-stats .kpi{padding:8px 10px;border-radius:var(--r-sm);background:rgba(229,189,108,.10);border:1px solid rgba(229,189,108,.28)}
-.bh-stats .kpi b{display:block;font-size:calc(21.5px * var(--ui-scale, 1));font-weight:800;color:#f3d181;line-height:1}
-.bh-stats .kpi span{font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700}
 
 /* ─── Monster detail modal (.mon-detail*) — REMOVED b393: the modal was dead
    code (see legacy.js). Its .mon-loot-row/.mli/.mln/.mlc + .mon-detail-tags
@@ -1378,16 +1282,6 @@ body[data-theme="lane1"] .monster-row{
   color:#4d2613;
 }
 body[data-theme="lane1"] .monster-row:hover{border-color:#e8a838;background:linear-gradient(180deg,#fff5d6,#fdde98)}
-body[data-theme="lane1"] .monster-row .mn{color:#4d2613;font-weight:700}
-
-/* ─── Bounty cards ─── */
-body[data-theme="lane1"] .bounty-card,
-body[data-theme="lane1"] .bnt-card{
-  background:linear-gradient(180deg,#fdde98,#f8d878);
-  border:3px solid #5b2618;border-radius:10px;
-  box-shadow:inset 0 0 0 2px #f9c54e,inset 0 0 0 3px #3a1812,3px 3px 0 #3a1812;
-  color:#4d2613;
-}
 
 /* ─── Stat tags ─── */
 body[data-theme="lane1"] .tag{
@@ -1531,9 +1425,6 @@ body[data-theme="lane1"] .obj{color:#7a4623 !important}
 body[data-theme="lane1"] .obj b{color:#4d2613 !important}
 body[data-theme="lane1"] .obj.done{color:#5e9f4a !important;text-decoration:line-through;text-decoration-color:rgba(94,159,74,.5)}
 body[data-theme="lane1"] .obj.done b{color:#5e9f4a !important}
-body[data-theme="lane1"] .bounty-option{background:linear-gradient(180deg,#fdde98,#f8d878);border:2px solid #5b2618;color:#4d2613}
-body[data-theme="lane1"] .bounty-option:hover{background:#fff5d6;border-color:#e8a838}
-body[data-theme="lane1"] .bounty-reward{color:#5b2618 !important;font-weight:800}
 body[data-theme="lane1"] .skill-tile{color:#4d2613}
 body[data-theme="lane1"] .skill-tile:hover{color:#4d2613}
 body[data-theme="lane1"] .skill-tile small{color:#a07045}
@@ -1541,10 +1432,6 @@ body[data-theme="lane1"] .lb-row,
 body[data-theme="lane1"] .lb-rank,
 body[data-theme="lane1"] .lb-name{color:#4d2613 !important}
 body[data-theme="lane1"] .lb-row.you{background:linear-gradient(180deg,#fff5d6,#fdde98);color:#5b2618 !important}
-body[data-theme="lane1"] .iap-card{background:linear-gradient(180deg,#fdde98,#f8d878);color:#4d2613}
-body[data-theme="lane1"] .iap-card.gold{background:linear-gradient(180deg,#fff5d6,#f9c54e);color:#5b2618}
-body[data-theme="lane1"] .iap-card.purple{background:linear-gradient(180deg,#e8d8ff,#c4a8e8);color:#5b2618}
-body[data-theme="lane1"] .iap-card .ribbon{color:#fff}
 body[data-theme="lane1"] .loadout-slot:hover{color:#4d2613 !important}
 body[data-theme="lane1"] .loadout-slot small{color:#a07045}
 body[data-theme="lane1"] .btn-danger{background:linear-gradient(180deg,#c44a2c,#8b3a1c) !important;color:#fff !important;border-color:#5b2618 !important;text-shadow:1px 1px 0 #5b2618 !important}
@@ -1578,13 +1465,6 @@ body[data-theme="lane1"] .card label,
 body[data-theme="lane1"] .modal,
 body[data-theme="lane1"] .modal p,
 body[data-theme="lane1"] .modal span:not(.gpi){color:#4d2613}
-body[data-theme="lane1"] .bh-stats .kpi{background:linear-gradient(180deg,#fdde98,#f8d878);border-color:#5b2618}
-body[data-theme="lane1"] .bh-stats .kpi b{color:#5b2618 !important;text-shadow:1px 1px 0 rgba(255,255,255,.4)}
-body[data-theme="lane1"] .bh-stats .kpi span{color:#7a4623 !important}
-body[data-theme="lane1"] .bounty-shop-row{background:linear-gradient(180deg,#fdde98,#f8d878);border-color:#5b2618;color:#4d2613}
-body[data-theme="lane1"] .bounty-shop-row .info b{color:#4d2613}
-body[data-theme="lane1"] .bounty-shop-row .info span{color:#7a4623}
-body[data-theme="lane1"] .bounty-shop-row .price{color:#5b2618 !important;font-weight:800}
 body[data-theme="lane1"] .calc{background:linear-gradient(180deg,#fdde98,#f8d878);border:2px solid #5b2618;color:#4d2613}
 body[data-theme="lane1"] .calc div{color:#4d2613}
 body[data-theme="lane1"] .calc b{color:#5b2618 !important;font-weight:800}
@@ -1800,16 +1680,6 @@ body[data-theme="dark"] .monster-row{
   color:#fdde98;
 }
 body[data-theme="dark"] .monster-row:hover{border-color:#f9c54e;background:linear-gradient(180deg,#7a3320,#5b2618)}
-body[data-theme="dark"] .monster-row .mn{color:#f9c54e;font-weight:700}
-
-/* ─── Bounty cards ─── */
-body[data-theme="dark"] .bounty-card,
-body[data-theme="dark"] .bnt-card{
-  background:linear-gradient(180deg,#4d2418,#3a1812);
-  border:3px solid #2a1306;border-radius:10px;
-  box-shadow:inset 0 0 0 2px #c8881e,inset 0 0 0 3px #2a1306,3px 3px 0 #2a1306;
-  color:#fdde98;
-}
 
 /* ─── Stat tags ─── */
 body[data-theme="dark"] .tag{background:#3a1812;border:1px solid #2a1306;border-radius:5px;color:#fdde98;font-weight:700;box-shadow:inset 0 0 0 1px #c8881e}
@@ -1848,15 +1718,12 @@ body[data-theme="dark"] .notif.kill{color:#e8746a}
 body[data-theme="dark"] .notif.loot{color:#8bc26a}
 body[data-theme="dark"] .notif.info{color:#a49a86}
 
-/* ─── Shop rows ─── */
-body[data-theme="dark"] .shop-row,
-body[data-theme="dark"] .bounty-shop-row{
+body[data-theme="dark"] .shop-row {
   background:linear-gradient(180deg,#4d2418,#3a1812);
   border:2px solid #2a1306;border-radius:6px;
   box-shadow:inset 0 0 0 1px #c8881e;color:#fdde98;
 }
-body[data-theme="dark"] .shop-row .price,
-body[data-theme="dark"] .bounty-shop-row .price{color:#f9c54e;font-weight:800}
+body[data-theme="dark"] .shop-row .price {color:#f9c54e;font-weight:800}
 
 /* ─── Tabs / pills ─── */
 body[data-theme="dark"] .pill,
@@ -1897,9 +1764,6 @@ body[data-theme="dark"] .obj.done b{color:#8bc26a !important}
 /* ─── KPI / stat tiles ─── */
 body[data-theme="dark"] .kpi{background:linear-gradient(180deg,#4d2418,#3a1812);border-color:#2a1306}
 body[data-theme="dark"] .kpi b{color:#f9c54e !important}
-body[data-theme="dark"] .kpi span{color:#e8c896 !important}
-body[data-theme="dark"] .bh-stats .kpi b{color:#f9c54e !important;text-shadow:1px 1px 0 #2a1306}
-body[data-theme="dark"] .bh-stats .kpi span{color:#e8c896 !important}
 
 /* ─── Inventory text ─── */
 body[data-theme="dark"] .inv-item .qty,
@@ -2011,7 +1875,6 @@ body[data-theme="dark"] .lane1-toggle{
 /* ===== block 14: poneti-v3-css ===== */
 .fighter .portrait{display:flex;align-items:center;justify-content:center;width:64px;height:64px;font-size:0!important;overflow:hidden;border-radius:var(--r-portrait,6px);background:rgba(0,0,0,.2)}
 .fighter .portrait img{width:100%;height:100%;object-fit:contain}
-.bounty-option .row b img{width:24px;height:24px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px}
 
 /* ===== block 15: character-page-css ===== */
 /* ─── Character panel layout ─── */
@@ -2067,17 +1930,6 @@ body[data-theme="dark"] .lane1-toggle{
   grid-column:1 / -1;order:-1;margin:0 0 8px;
 }
 
-/* ===== block 16: ui-overhaul-css ===== */
-/* ─── Topbar streak counter ─── */
-.streak-badge{
-  display:inline-flex;align-items:center;gap:4px;padding:5px 9px;
-  background:linear-gradient(180deg,rgba(255,140,40,.18),rgba(255,80,40,.10));
-  border:1px solid rgba(255,140,40,.45);border-radius:6px;
-  color:#ffb380;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:default;
-  text-shadow:1px 1px 0 rgba(0,0,0,.3);
-}
-.streak-badge .flame{font-size:calc(17px * var(--ui-scale, 1));filter:drop-shadow(0 0 4px rgba(255,120,40,.6))}
-.streak-badge.hot{animation:streak-pulse 2s ease-in-out infinite}
 @keyframes streak-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,40,.4)}50%{box-shadow:0 0 8px 2px rgba(255,140,40,.5)}}
 
 /* ─── Notification bell + badges ─── */
@@ -2185,32 +2037,6 @@ body[data-theme="dark"] .lane1-toggle{
    clamped to two lines so a discovered card stays close to an undiscovered one. */
 .bestiary-row.discovered{flex-wrap:wrap;row-gap:2px}
 .bestiary-row .br-note{flex:1 0 100%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;font-size:var(--t-micro);line-height:1.3;font-style:italic;color:var(--ink-3)}
-
-/* ─── Bestiary charms (phase 1, display only) ───
-   One chip per monster class the SERVER has counted kills for, above the roster.
-   Every colour is a token; the badge/threshold/element marks are atlas glyphs
-   (uiMedal / uiTarget / uiSpark), never emoji. The four rank tints all resolve
-   through --gold-2 / --ink so a theme change moves them together.
-   EVERY text size here is the 14.5px floor (b227): a badge or a threshold line
-   is not "chrome" — it is the sentence that tells a player what they earned and
-   what is next, and the first draft of this block shipped four rules between 12
-   and 13.5px. Compactness is bought with PADDING and GLYPH SIZE, never by
-   shrinking the words. */
-.charm-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;margin:0 0 10px}
-.charm-strip .charm-empty{grid-column:1/-1;font-size:calc(14.5px * var(--ui-scale, 1))}
-.charm-chip{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:5px;background:color-mix(in srgb, var(--ink) 3%, transparent)}
-.charm-chip.is-ranked{border-color:color-mix(in srgb, var(--gold-2) 35%, transparent);background:color-mix(in srgb, var(--gold-2) 5%, transparent)}
-.charm-chip .cc-name{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--ink)}
-.charm-chip .cc-kills{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
-.charm-badge{display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:999px;border:1px solid var(--line-soft);font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}
-.charm-badge b{font-weight:800}
-.charm-badge.charm-r1{color:var(--ink-2)}
-.charm-badge.charm-r2{color:var(--ink);border-color:color-mix(in srgb, var(--gold-2) 30%, transparent)}
-.charm-badge.charm-r3{color:var(--gold-2);border-color:color-mix(in srgb, var(--gold-2) 50%, transparent)}
-.charm-badge.charm-r4{color:var(--gold-2);border-color:var(--gold-2);font-weight:800}
-.charm-next{flex:1 0 100%;display:inline-flex;align-items:center;gap:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
-.charm-next.is-max{color:var(--gold-2)}
-.bestiary-row .charm-element{display:inline-flex;align-items:center;gap:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2)}
 
 /* ─── Bestiary TROPHIES (docs/design/BESTIARY_LADDER.md) ───
    The LONG ladder's row furniture. Every colour is a token and the badge
@@ -2731,7 +2557,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .invc-bonus-card .invc-bonus-stats span b{color:var(--ink);font-weight:800;font-size:calc(16px * var(--ui-scale, 1))}
 .invc-bonus-card .invc-bonus-stats span{display:inline-flex;align-items:baseline;gap:3px}
 
-
 /* Mobile paper-doll sizing.
    b369: this block used to say `grid-template-columns:130px 130px 130px` —
    THREE columns for a doll whose slots are placed in FOUR, and 130px cells on
@@ -2979,63 +2804,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   width:80% !important;height:80% !important;
 }
 
-/* ===== block 25: companions-ui-css ===== */
-.stable-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:10px;
-}
-.stable-card{
-  background:var(--bg-card);
-  border:1px solid var(--line);
-  border-radius:8px;
-  padding:12px;
-  display:flex;flex-direction:column;gap:8px;
-  position:relative;
-  cursor:pointer;
-  transition:all .15s;
-}
-.stable-card:hover{transform:translateY(-2px);border-color:var(--gold-2);box-shadow:0 4px 12px rgba(243,209,129,.2)}
-.stable-card.equipped{border-color:#7f9a4f;background:linear-gradient(180deg,rgba(127,154,79,.12),rgba(127,154,79,.04))}
-.stable-card.locked{opacity:.55;filter:grayscale(.5)}
-/* b225: `.sc-lvl` is absolutely positioned top-right and the name row never
-   reserved space for it. At the 13.5px floor the chip grew ~6px and the longest
-   names ("Rock Golem", "Phoenix Chick", "Dragonling") ran underneath it. The
-   row now keeps the chip's gutter clear and the name wraps into it rather than
-   colliding — the type does not shrink back. */
-.stable-card .sc-row{display:flex;align-items:center;gap:10px;padding-right:48px}
-.stable-card .sc-row > div{min-width:0}
-.stable-card .sc-icon{font-size:calc(36px * var(--ui-scale, 1));line-height:1}
-/* Wraps at spaces only. Breaking inside a word ("HONEYBE / E") is worse than a
-   name leaning a few px into the gutter, which is empty below the chip. */
-.stable-card .sc-name{font-family:var(--f-display);font-weight:800;font-size:calc(18px * var(--ui-scale, 1));color:var(--gold-2);line-height:1.16;overflow-wrap:normal}
-.stable-card .sc-role{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
-.stable-card .sc-lvl{position:absolute;top:8px;right:8px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink);font-weight:700;background:rgba(0,0,0,.4);padding:3px 8px;border-radius:10px}
-.stable-card .sc-bar{height:5px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden;margin-top:2px}
-.stable-card .sc-bar i{display:block;height:100%;background:linear-gradient(90deg,#7f9a4f,#7f9a4f);transition:width .3s}
-.stable-card .sc-lore{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic;line-height:1.4}
-.stable-card .sc-bonuses{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);line-height:1.5}
-.stable-card .sc-bonuses b{color:var(--gold-2)}
-.stable-card .sc-equip{
-  margin-top:auto;padding:6px 10px;border-radius:5px;
-  background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);
-  color:#e3c77e;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;cursor:pointer;
-}
-.stable-card.equipped .sc-equip{background:rgba(198,58,58,.18);border-color:rgba(198,58,58,.35);color:#e88a8a}
-.stable-card .sc-source{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic;margin-top:auto}
-
-.companion-card{
-  display:flex;align-items:center;gap:12px;
-  padding:10px 14px;background:linear-gradient(180deg,rgba(127,154,79,.10),rgba(0,0,0,0));
-  border:1px solid rgba(127,154,79,.3);border-radius:8px;
-}
-.companion-card .cc-icon{font-size:calc(33px * var(--ui-scale, 1))}
-.companion-card .cc-info{flex:1;min-width:0}
-.companion-card .cc-name{font-family:var(--f-display);font-weight:800;color:var(--gold-2);font-size:calc(16px * var(--ui-scale, 1))}
-.companion-card .cc-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-top:2px}
-.companion-card .cc-bar{height:4px;background:rgba(0,0,0,.3);border-radius:2px;margin-top:4px;overflow:hidden}
-.companion-card .cc-bar i{display:block;height:100%;background:linear-gradient(90deg,#7f9a4f,#7f9a4f)}
-
 /* ===== block 26: visual-polish-v1 ===== */
 /* Activity tile icons: the box and the fit are owned by art-direction.css
    (one fixed art box per card); the old 78%/!important sizing that lived
@@ -3051,11 +2819,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 .skill-tile .sicon{
   font-size:calc(33px * var(--ui-scale, 1));
-}
-
-/* Stable card icons — give the companion sprite real estate */
-.stable-card .sc-icon{
-  font-size:calc(48px * var(--ui-scale, 1)) !important;
 }
 
 /* Bag tile icons — fill their box (were floating small in a big square) */
@@ -3358,141 +3121,16 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   display:flex;flex-direction:column;overflow:hidden;
   box-shadow:0 24px 64px rgba(0,0,0,.5), 0 0 80px rgba(243,209,129,.15);
 }
-.qm-tabs{display:flex;border-bottom:1px solid var(--line);background:rgba(0,0,0,.3)}
-.qm-tab{
-  flex:1;padding:14px 20px;background:transparent;border:none;color:var(--ink-2);
-  font-family:var(--f-display);font-weight:700;font-size:calc(16px * var(--ui-scale, 1));letter-spacing:.06em;text-transform:uppercase;
-  cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;
-}
-.qm-tab:hover{color:var(--ink)}
-.qm-tab.active{color:var(--gold-2);border-bottom-color:var(--gold-2);background:rgba(243,209,129,.05)}
-.qm-tab .qm-tab-count{background:rgba(243,209,129,.18);color:var(--gold-2);padding:2px 7px;border-radius:10px;font-size:calc(14.5px * var(--ui-scale, 1));margin-left:6px}
 .qm-close{position:absolute;top:14px;right:14px;background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--ink-2);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:calc(17px * var(--ui-scale, 1))}
 .qm-close:hover{background:rgba(198,58,58,.3);border-color:rgba(198,58,58,.5);color:#fff}
 
-.qm-body{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:0;flex:1;min-height:0;overflow:hidden}
-.qm-list{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-.qm-quest{
-  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;
-  padding:12px 14px;display:flex;align-items:center;gap:12px;
-}
-.qm-quest.done{background:rgba(127,154,79,.08);border-color:rgba(127,154,79,.35)}
-.qm-quest.claimable{background:rgba(243,209,129,.08);border-color:var(--gold-2);box-shadow:0 0 0 1px var(--gold-2) inset}
-.qm-quest .qm-q-icon{
-  width:48px;height:48px;flex-shrink:0;
-  background:rgba(0,0,0,.3);border-radius:6px;
-  display:flex;align-items:center;justify-content:center;font-size:calc(28px * var(--ui-scale, 1));
-}
-.qm-quest .qm-q-info{flex:1;min-width:0}
-.qm-quest .qm-q-name{font-weight:800;color:var(--ink);font-size:calc(16px * var(--ui-scale, 1))}
-.qm-quest .qm-q-desc{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));margin-top:2px}
-.qm-quest .qm-q-progbar{
-  height:6px;background:rgba(0,0,0,.4);border-radius:3px;margin-top:6px;overflow:hidden;
-}
-.qm-quest .qm-q-progbar i{display:block;height:100%;background:linear-gradient(90deg,#c63a3a,#e88a8a);transition:width .3s}
-.qm-quest.done .qm-q-progbar i{background:linear-gradient(90deg,#7f9a4f,#e3c77e)}
-.qm-quest .qm-q-progtext{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-top:3px;font-family:monospace}
-.qm-quest .qm-q-reward{
-  flex-shrink:0;text-align:right;
-}
-.qm-quest .qm-q-reward .qm-r-label{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
-.qm-quest .qm-q-reward .qm-r-val{font-weight:800;color:var(--gold-2);font-size:calc(16px * var(--ui-scale, 1));line-height:1.2}
-.qm-quest .qm-q-claim{
-  margin-left:8px;padding:8px 14px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;
-  background:linear-gradient(180deg,#f3d181,#c9a040);color:#3a2a10;
-  border:1px solid #c9a040;border-radius:5px;cursor:pointer;
-  text-transform:uppercase;letter-spacing:.04em;
-  animation:qm-glow 1.4s ease-in-out infinite;
-}
 @keyframes qm-glow{0%,100%{box-shadow:0 0 0 0 rgba(243,209,129,.6)}50%{box-shadow:0 0 0 6px rgba(243,209,129,0)}}
-.qm-quest .qm-q-claim:hover{transform:translateY(-1px)}
-.qm-quest .qm-q-claimed{padding:6px 12px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic}
-/* R1 — CONFIRMING chip: full bar, no claim yet, non-alarming. */
-.qm-quest.confirming{background:rgba(243,209,129,.05);border-color:rgba(243,209,129,.28)}
-.qm-quest .qm-q-confirming{padding:6px 12px;min-width:104px;text-align:center;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2);font-style:italic}
-/* b227 — "Go" takes you to where the quest is played. Quiet by design: the
-   only urgent thing on a quest row is a claimable reward, so Claim keeps the
-   lit gilt slab and Go is the secondary affordance beside it. Token-derived
-   colours (this rule is new; the hardcoded gilt above it is pre-token debt). */
-/* One action column, one width. "Go fish" and "Go to the board" are different
-   lengths, so without this the right edge of the quest list is ragged and Claim
-   sits at a third x again. The buttons differ by FILL (Claim is lit, Go is
-   quiet) — never by size. */
-.qm-quest .qm-q-go,.qm-quest .qm-q-claim{min-width:104px;text-align:center}
-.qm-quest .qm-q-go{
-  margin-left:8px;padding:8px 14px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--gold-2) 10%,transparent),transparent);
-  color:var(--ink-2);border:1px solid var(--line);border-radius:5px;cursor:pointer;
-  text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;
-  transition:color .12s,border-color .12s,background .12s;
-}
-.qm-quest .qm-q-go:hover{
-  color:var(--gold-2);border-color:var(--gold-2);
-  background:color-mix(in srgb,var(--gold-2) 14%,transparent);
-}
-.qm-quest[data-goto]{cursor:pointer}
-
-.qm-aside{
-  background:rgba(0,0,0,.25);border-left:1px solid var(--line);
-  padding:18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;
-}
-.qm-aside h4{margin:0;font-family:var(--f-display);font-size:calc(16px * var(--ui-scale, 1));color:var(--gold-2);text-transform:uppercase;letter-spacing:.08em}
-.qm-summary{display:flex;flex-direction:column;gap:6px}
-.qm-sum-row{display:flex;justify-content:space-between;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}
-.qm-sum-row b{color:var(--ink);font-weight:800}
-.qm-sum-row.claimable b{color:var(--gold-2)}
-.qm-info-text{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6}
-.qm-reset{margin-top:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-family:monospace;text-align:center;padding-top:10px;border-top:1px dashed var(--line)}
-
-@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
-  .qm-body{grid-template-columns:1fr}
-  .qm-aside{border-left:none;border-top:1px solid var(--line)}
-}
 
 /* ── Boss of the Day card (b254) — the featured solo boss surface. ──
    Token-only so it themes with everything else. Sits atop the Combat panel. */
 .hr-botd{border:1px solid var(--line);border-left:3px solid var(--gold-2);padding:10px 12px}
 /* Wave 6: the weekly boss reads as the bigger event — a gilt wash + heavier rule. */
 .hr-weekly{border-left-width:4px;background:linear-gradient(90deg,rgba(201,162,74,.10),transparent 60%)}
-.hr-weekly .botd-kicker{color:var(--gold-1,var(--gold-2))}
-.hr-botd .botd-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.hr-botd .botd-kicker{text-transform:uppercase;letter-spacing:.09em;font-size:calc(14.5px * var(--ui-scale,1));font-weight:700;color:var(--gold-2)}
-.hr-botd .botd-timer{font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
-.hr-botd .botd-body{display:flex;align-items:center;gap:10px}
-/* b362 HOTFIX — the icon slot is a fixed BOX, not a font-size. The renderer
-   puts an `<img style="width:100%;height:100%">` inside this span; with only a
-   font-size here, 100% resolved against the CARD, so a 256px wave-1 portrait
-   rendered at full card width and crushed the entire combat layout (live,
-   Tyler-reported, b361). An emoji fallback still centres in the same box.
-   The latent form of this was flagged two passes ago and left as a note —
-   an image slot without a size box is a defect, not a nitpick. */
-.hr-botd .botd-icon{font-size:calc(30px * var(--ui-scale,1));line-height:1;flex:0 0 auto;
-  display:flex;align-items:center;justify-content:center;
-  width:calc(72px * var(--ui-scale,1));height:calc(72px * var(--ui-scale,1));overflow:hidden}
-.hr-botd .botd-icon img{width:100%;height:100%;object-fit:contain;display:block}
-.hr-botd .botd-main{min-width:0;flex:1}
-.hr-botd .botd-name{font-weight:700;font-size:calc(16px * var(--ui-scale,1));color:var(--ink)}
-.hr-botd .botd-sub{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
-.hr-botd .botd-bonus{font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2);margin-top:2px}
-/* b326: the away promise. Subordinate to the bonus line above it — the
-   percentages are the offer, this is the CONDITION under which they still pay
-   — so it takes the hint ink, not a second gilt line competing with the first. */
-.hr-botd .botd-away{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);
-  margin-top:8px;display:flex;align-items:baseline;gap:6px;line-height:1.35}
-/* A short gilt rule marks it as a property of the offer above, not a caption
-   on the portrait. Full card width (it sits OUTSIDE .botd-main on purpose —
-   inside the 145px text column this sentence wrapped three ways). */
-.hr-botd .botd-away::before{content:"";flex:0 0 14px;height:1px;background:var(--gold);opacity:.55;
-  align-self:center}
-/* b343: `.botd-away.is-locked` is gone with the away-combat gate that was the
-   only thing that emitted it. The line is unconditional again. */
-.hr-botd .botd-loot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
-.hr-botd .botd-loot-lab{text-transform:uppercase;letter-spacing:.06em;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);margin-right:2px}
-.hr-botd .botd-drop{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line-soft);border-radius:999px;background:rgba(255,255,255,.03);font-size:calc(14.5px * var(--ui-scale,1))}
-.hr-botd .botd-drop b{color:var(--ink);font-weight:600}
-.hr-botd .botd-drop em{color:var(--gold-2);font-style:normal;font-variant-numeric:tabular-nums}
-.hr-botd .botd-drop.muted b,.hr-botd .botd-drop.muted{color:var(--ink-3)}
-.hr-botd .botd-foot{display:flex;justify-content:flex-end}
 
 /* ── b259: Landscape-only portrait gate ──────────────────────────────────
    Hidden by default (desktop + landscape). Shown ONLY on a touch phone held
@@ -3549,40 +3187,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   align-items:center; justify-content:center;
   background:rgba(8,6,4,.62); padding:16px;
 }
-.aep-modal{
-  width:min(420px,92vw); max-height:82vh; display:flex; flex-direction:column;
-  background:var(--bg-card,#1b160f); border:1px solid var(--line-strong,rgba(201,162,74,.5));
-  border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.5); overflow:hidden;
-}
-.aep-head{
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 14px; border-bottom:1px solid var(--line);
-  font-family:var(--f-display,'Cinzel',serif); font-weight:700; letter-spacing:.04em;
-  color:var(--gold-2); text-transform:uppercase; font-size:calc(15px * var(--ui-scale,1));
-}
-.aep-x{ background:none; border:none; color:var(--ink-3); cursor:pointer; font-size:calc(16px * var(--ui-scale,1)); padding:2px 6px; }
-.aep-x:hover{ color:var(--ink); }
-.aep-body{ overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:4px; }
-.aep-row{
-  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
-  padding:9px 10px; border:1px solid var(--line-soft); border-radius:8px;
-  background:rgba(255,255,255,.03); color:var(--ink); cursor:pointer;
-  font-size:calc(14.5px * var(--ui-scale,1));
-}
-.aep-row:hover{ border-color:var(--gold-2); background:rgba(226,184,78,.10); }
-/* b341: the picker disables its rows when the Auto-Eat trait is not owned (it
-   used to offer them live and then silently refuse the pick). A disabled row
-   that still lights up on hover reads as a working control that broke, so the
-   state has to be visible: dimmed, no pointer, no hover lift. */
-.aep-row[disabled]{ opacity:.45; cursor:not-allowed; }
-.aep-row[disabled]:hover{ border-color:var(--line-soft); background:rgba(255,255,255,.03); }
-.aep-row.is-on{ border-color:var(--gold-2); background:var(--gold-bg,rgba(201,162,74,.14)); }
-.aep-row .aep-ic{ font-size:calc(20px * var(--ui-scale,1)); width:24px; text-align:center; flex:0 0 auto; }
-.aep-row .aep-nm{ flex:1; min-width:0; font-weight:600; }
-.aep-row .aep-heal{ color:#7f9a4f; font-variant-numeric:tabular-nums; }
-.aep-row .aep-q{ color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.aep-empty{ color:var(--ink-3); padding:14px 10px; line-height:1.5; }
-.aep-note{ padding:8px 14px; border-top:1px solid var(--line); color:var(--ink-3); font-size:calc(14.5px * var(--ui-scale,1)); line-height:1.5; }
 
 /* ════════════════════════════════════════════════════════════════════════
    THE HUNT PANEL (2026-09-22) — docs/design/HUNT_ANALYZER_UI.md
@@ -3728,169 +3332,11 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    a different x. A party of four is a small thing and it should look like one.
    The column is capped and everything inside it aligns to that measure. */
 .party-panel { display: flex; flex-direction: column; gap: 14px; max-width: 640px; }
-/* A primary action hugs its label. Only the panel's OWN children — a button
-   inside the invite row or the confirm row is a flex item there and must keep
-   its row's cross-axis alignment. */
-.party-panel > .party-btn { align-self: flex-start; }
 
-/* A. THE HEAD — who you are with, how many, and whether it is yours to run. */
-.party-head { display: flex; align-items: baseline; gap: 10px; }
-.party-sub {
-  margin: 0; font-family: var(--f-display); font-size: var(--t-h3);
-  color: var(--ink); font-weight: normal;
-}
-.party-count { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.party-role {
-  margin-left: auto; font-size: var(--t-micro); letter-spacing: .08em;
-  text-transform: uppercase; color: var(--gold); background: var(--gold-bg);
-  border-radius: var(--r-sm); padding: 2px 8px;
-}
-
-/* B. THE ROSTER. */
-.party-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.party-member {
-  display: grid; grid-template-columns: 1fr 58px 92px;
-  grid-template-areas: "line lvl kick" "hp hp kick";
-  align-items: center; gap: 4px 10px;
-  padding: 10px 12px; border-radius: var(--r-sm);
-  background: var(--surf-sunken); border: 1px solid var(--line-soft);
-}
-/* YOUR OWN ROW IS MARKED, NOT PROMOTED. The roster's order is the server's
-   (tenure, then user id) and re-sorting it to float yourself to the top would
-   make two players describe the same party differently. */
-.party-member.is-you { border-color: var(--line-strong); }
-.party-m-line { grid-area: line; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.party-m-name { font-size: var(--t-lead); color: var(--ink); }
-.party-m-you { font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .06em; }
-.party-m-doing {
-  flex-basis: 100%; font-size: var(--t-small); color: var(--ink-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.party-m-lvl {
-  grid-area: lvl; text-align: right; font-size: var(--t-small); color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-.party-m-tag {
-  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
-  color: var(--red); background: var(--red-bg); border-radius: var(--r-sm); padding: 1px 7px;
-}
-.party-hp { grid-area: hp; display: flex; align-items: center; gap: 8px; }
-.party-hp-track {
-  flex: 1 1 auto; height: 8px; border-radius: var(--r-sm); overflow: hidden;
-  background: var(--bg-1); border: 1px solid var(--line);
-}
-.party-hp-fill { display: block; height: 100%; background: var(--green); }
-.party-member.is-recovering .party-hp-fill { background: var(--red); }
-.party-hp-num {
-  font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums;
-  min-width: 58px; text-align: right;
-}
-.party-m-kick {
-  grid-area: kick; justify-self: end; font: inherit; font-size: var(--t-small);
-  min-height: var(--tap); min-width: var(--tap); padding: 0 12px;
-  border-radius: var(--r-sm); cursor: pointer;
-  background: var(--bg-2); color: var(--ink-3); border: 1px solid var(--line);
-}
-.party-m-kick:hover { color: var(--red); border-color: var(--red-line); }
-
-/* C. THE CONTROLS. One button shape, three roles — every one at the tap floor,
-   because a 28px "Remove" next to a name is how the wrong person gets removed. */
-.party-btn {
-  font: inherit; font-size: var(--t-small); min-height: var(--tap); padding: 0 16px;
-  border-radius: var(--r-sm); cursor: pointer;
-  background: var(--bg-2); color: var(--ink); border: 1px solid var(--line);
-}
-.party-btn.is-primary { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); }
-.party-btn.is-quiet { color: var(--ink-3); }
-.party-btn.is-danger { color: var(--red); border-color: var(--red-line); background: var(--red-bg); }
-.party-btn:disabled { opacity: .5; cursor: default; }
 /* A verb is in flight: the controls stop taking clicks rather than queueing a
    second intent behind the first. Opacity only — no spinner, because a gesture
    this small resolves faster than a spinner reads as anything but a stutter. */
 .party-panel.is-busy button, .party-panel.is-busy input { pointer-events: none; opacity: .6; }
-
-.party-invite { display: flex; flex-direction: column; gap: 6px; }
-.party-invite-lab { font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .06em; }
-.party-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.party-invite-in {
-  flex: 1 1 180px; min-width: 0; min-height: var(--tap); padding: 0 12px;
-  font: inherit; font-size: var(--t-small); border-radius: var(--r-sm);
-  background: var(--field-sunk); color: var(--ink); border: 1px solid var(--line);
-}
-.party-invite-in::placeholder { color: var(--ink-3); }
-
-.party-foot { display: flex; }
-.party-confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.party-confirm-q { font-size: var(--t-small); color: var(--ink-2); }
-
-/* D. THE INBOX — only ever shown when you are in no party, because an invite
-   you cannot accept is a button that lies. */
-.party-inbox { display: flex; flex-direction: column; gap: 8px; }
-.party-inv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.party-inv {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 10px 12px; border-radius: var(--r-sm);
-  background: var(--surf-sunken); border: 1px solid var(--line-soft);
-}
-.party-inv-line { display: flex; flex-direction: column; gap: 2px; flex: 1 1 160px; }
-.party-inv-what { font-size: var(--t-small); color: var(--ink); }
-.party-inv-when { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-
-/* E. THE SENTENCES. The refusal, the empty state, and the one honest line about
-   what slice 1 is not. `.party-later` is never omitted in either state. */
-.party-notice {
-  margin: 0; font-size: var(--t-small); color: var(--ink);
-  background: var(--red-bg); border: 1px solid var(--red-line);
-  border-radius: var(--r-sm); padding: 8px 12px;
-}
-.party-empty { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.5; }
-.party-later { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
-
-/* G. THE HUNT CARD (stage 2). One section under the roster: the leader's Start
-   (the solo monster list and the solo stance buttons), or the live hunt — a
-   header line, one row per member, and the five-line event strip. Camping is
-   MUTED, never red: making camp is not a failure. Tokens only. */
-.party-hunt {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 10px 12px; border-radius: var(--r-sm);
-  background: var(--surf-sunken); border: 1px solid var(--line-soft);
-}
-.party-hunt.is-busy button, .party-hunt.is-busy select { pointer-events: none; opacity: .6; }
-.party-h-head { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.party-h-start { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.party-h-select {
-  flex: 1 1 160px; min-width: 0; min-height: var(--tap); padding: 0 10px;
-  font: inherit; font-size: var(--t-small); border-radius: var(--r-sm);
-  background: var(--field-sunk); color: var(--ink); border: 1px solid var(--line);
-}
-/* The solo stance buttons keep their look and gain the tap floor here, where
-   they sit beside the party's other controls. */
-.party-h-stances .hunt-stance-btn { min-height: var(--tap); }
-.party-h-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.party-h-member {
-  display: grid; grid-template-columns: 1fr auto;
-  grid-template-areas: "line split" "hp hp" "earn earn" "today today";
-  align-items: center; gap: 3px 10px;
-  padding: 8px 10px; border-radius: var(--r-sm);
-  background: var(--bg-1); border: 1px solid var(--line-soft);
-}
-.party-h-member.is-you { border-color: var(--line-strong); }
-.party-h-member.is-camping, .party-h-member.is-camping_today { opacity: .7; }
-.party-h-split { grid-area: split; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.party-h-earn { grid-area: earn; font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: tabular-nums; }
-.party-h-tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
-  color: var(--ink-3); background: var(--bg-2); border-radius: var(--r-sm); padding: 1px 7px;
-}
-.party-h-tag.is-rejoining { color: var(--gold); background: var(--gold-bg); }
-.party-camp-ic { display: inline-flex; }
-.party-h-when { font-size: var(--t-micro); color: var(--ink-3); }
-.party-h-today { grid-area: today; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
-.party-h-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.party-h-ev { display: flex; gap: 8px; font-size: var(--t-micro); color: var(--ink-2); }
-.party-h-ev-at { margin-left: auto; color: var(--ink-3); white-space: nowrap; }
-.party-h-foot { display: flex; }
 
 /* F. THE LANDSCAPE PHONE. The rail layout is already the desktop one at scale
    (§7 — phones are landscape-only and never get the bottom nav), so this is a
@@ -3908,10 +3354,4 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
      member put one and a half members above the fold. The tap floor does not
      move — the controls are all still `--tap`. */
   .party-panel { gap: 9px; }
-  .party-roster, .party-inv-list { gap: 6px; }
-  .party-member { grid-template-areas: "line lvl kick" "hp hp hp"; padding: 7px 10px; gap: 2px 8px; }
-  .party-inv { padding: 7px 10px; }
-  .party-invite-row { flex-wrap: nowrap; }
-  .party-hunt { padding: 7px 10px; gap: 6px; }
-  .party-h-member { padding: 6px 8px; gap: 2px 8px; }
 }

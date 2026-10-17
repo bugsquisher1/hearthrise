@@ -567,8 +567,8 @@ export const MUTATIONS = {
     why: 'the ledger keeps a row for a site that no longer exists. A census describing code nobody '
       + 'runs is worse than none, because it is READ as one.',
     file: LEDGER_FILE,
-    find: "  'src/legacy.js#buyTrait': {",
-    repl: "  'src/legacy.js#buyTraitTypo': {",
+    find: "  'src/legacy.js#buildPlot': {",
+    repl: "  'src/legacy.js#buildPlotTypo': {",
   },
   wired_to_a_verb_that_does_not_exist: {
     why: 'a wired row names a verb the server\'s own parser does not accept. Every real gesture '
@@ -625,13 +625,11 @@ export const MUTATIONS = {
     why: 'F10 — a deferred row whose kind has no flip behaviour. On flip day nobody could say '
       + 'whether that site erases the player\'s gold or refunds it.',
     file: LEDGER_FILE,
-    /* b46x: re-anchored. buyTrait's row grew a `site:` note and a flipGuard when
-       hr_trait_buy took over the purchase, so the old single-line anchor named a
-       row that no longer exists — a planted bug that was never planted. The
-       property under test is unchanged: a deferred row whose KIND has no flip
-       behaviour must fail. */
-    find: "  'src/legacy.js#buyTrait': {\n    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
-    repl: "  'src/legacy.js#buyTrait': {\n    kind: 'mystery', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
+    /* 2026-10-14: re-anchored on buildPlot when the trait shop (buyTrait) was
+       demolished. The property under test is unchanged: a deferred row whose
+       KIND has no flip behaviour must fail. */
+    find: "  'src/legacy.js#buildPlot': {\n    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
+    repl: "  'src/legacy.js#buildPlot': {\n    kind: 'mystery', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
   },
   deferred_with_no_blocker: {
     why: '"not yet" with no named dependency is indistinguishable from "forgotten" — which is the '
@@ -671,8 +669,10 @@ export const MUTATIONS = {
        nothing and planted nothing. Anchored on the END of that row's own comment
        — text that belongs to this row and no other — so the flipGuard line it
        deletes is still the clan transfer's. */
-    find: "server-of-record, whatever CLAN_LAUNCHED says. */\n    flipGuard: { gated: 'clientMayWriteRecordField' },",
-    repl: "server-of-record, whatever CLAN_LAUNCHED says. */",
+    /* 2026-10-14: re-anchored on cancelBuyOffer when the clan transfer was
+       demolished — still a deferred, gated transfer, so the class is not empty. */
+    find: "  'src/market.js#cancelBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n    flipGuard: { gated: 'clientMayWriteRecordField' },",
+    repl: "  'src/market.js#cancelBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,",
   },
   transfer_flip_guard_gate_absent_in_code: {
     why: 'a deferred transfer CLAIMS a code gate whose token is nowhere in the site. The annotation '

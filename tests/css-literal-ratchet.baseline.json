@@ -1,27 +1,23 @@
 {
   "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
-  "measured": "2026-10-14",
+  "measured": "2026-10-15",
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
-      "literals": 235,
+      "literals": 220,
       "important": 53
     },
     "audit-overrides.css": {
-      "literals": 426,
-      "important": 124
+      "literals": 340,
+      "important": 122
     },
     "away-ledger.css": {
       "literals": 0,
       "important": 0
     },
     "board-and-shop.css": {
-      "literals": 50,
-      "important": 36
-    },
-    "clan-seat.css": {
-      "literals": 22,
-      "important": 0
+      "literals": 17,
+      "important": 11
     },
     "climb-marks.css": {
       "literals": 0,
@@ -47,13 +43,9 @@
       "literals": 7,
       "important": 2
     },
-    "hunters-ledger.css": {
-      "literals": 0,
-      "important": 0
-    },
     "legacy.css": {
-      "literals": 815,
-      "important": 160
+      "literals": 720,
+      "important": 152
     },
     "lucky-finds.css": {
       "literals": 0,
@@ -67,25 +59,21 @@
       "literals": 0,
       "important": 0
     },
-    "night-plan.css": {
+    "primers.css": {
       "literals": 0,
       "important": 0
     },
-    "primers.css": {
-      "literals": 0,
+    "room-modal.css": {
+      "literals": 12,
       "important": 0
     },
     "spine-pointer.css": {
       "literals": 0,
       "important": 0
     },
-    "spoils.css": {
-      "literals": 0,
-      "important": 0
-    },
     "theme-cozy.css": {
-      "literals": 129,
-      "important": 547
+      "literals": 117,
+      "important": 507
     },
     "tokens.css": {
       "literals": 0,
@@ -103,9 +91,6 @@
     "src/bug-report.js": {
       "literals": 20
     },
-    "src/dungeons.js": {
-      "literals": 1
-    },
     "src/error-boundary.js": {
       "literals": 5
     },
@@ -119,7 +104,7 @@
       "literals": 2
     },
     "src/features/chronicle.js": {
-      "literals": 13
+      "literals": 8
     },
     "src/features/collection-log.js": {
       "literals": 18
@@ -127,17 +112,11 @@
     "src/features/combat-screens.js": {
       "literals": 1
     },
-    "src/features/companions.js": {
-      "literals": 5
-    },
-    "src/features/daily-reward.js": {
-      "literals": 19
-    },
     "src/features/death-sheet.js": {
       "literals": 14
     },
     "src/features/home-dashboard.js": {
-      "literals": 10
+      "literals": 8
     },
     "src/features/homestead.js": {
       "literals": 1
@@ -151,23 +130,11 @@
     "src/features/inv-context-menu.js": {
       "literals": 2
     },
-    "src/features/muster.js": {
-      "literals": 2
-    },
-    "src/features/pet-session.js": {
-      "literals": 3
-    },
-    "src/features/raids.js": {
-      "literals": 2
-    },
     "src/features/rarity.js": {
       "literals": 7
     },
     "src/features/recipe-book.js": {
       "literals": 3
-    },
-    "src/features/renown.js": {
-      "literals": 43
     },
     "src/features/smoke/cooking-core-and-save.js": {
       "literals": 2

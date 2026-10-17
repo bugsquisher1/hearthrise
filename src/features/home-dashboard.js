@@ -50,8 +50,6 @@
       R + '.hd-wrap{max-width:1120px;margin:0 auto;padding:0 4px}',
       /* Set the Night. Same measure and rhythm as `.hd-bank-txt` beside it —
          one sentence, no second tone, colour from tokens only. */
-      R + '.hd-night .hd-night-txt{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);line-height:1.4}',
-      R + '.hd-night{align-items:flex-start}',
 
       /* ── THE HEARTH BAND ──────────────────────────────────────────────────
          Every `.panel` paints an opaque surface, so the global backdrop scene
@@ -198,22 +196,9 @@
       R + '.hd-mile-title{font-size:15.5px;font-weight:600;color:var(--ink) !important;line-height:1.25}',
       R + '.hd-mile.is-title .hd-mile-title{font-family:var(--f-display);font-size:17px;font-weight:600;letter-spacing:.01em}',
       R + '.hd-mile-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;margin:3px 0 8px;font-variant-numeric:tabular-nums}',
-      R + '.hd-rn-eyebrow{font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.02em;',
-      'color:var(--ink-3) !important;font-weight:700;margin-bottom:2px}',
       R + '.hd-rn-claimdot{font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));background:var(--gold) !important;',
       'color:#1b1305 !important;border-radius:2px;padding:2px 7px;font-weight:700;vertical-align:middle;margin-left:8px;white-space:nowrap}',
 
-      /* THE one lit object on the screen. A claimable reward is the only thing
-         that is genuinely urgent, so it is the only thing that glows. */
-      R + '.hd-daily{cursor:pointer;padding:15px 16px;border-radius:var(--r) !important;',
-      'background:var(--lit-wash) !important;',
-      'border:1px solid rgba(201,162,74,.55) !important;',
-      'box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 16%, transparent),0 0 22px -12px rgba(201,162,74,.8);transition:box-shadow .18s}',
-      R + '.hd-daily:hover{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 22%, transparent),0 0 26px -8px rgba(201,162,74,.9)}',
-      R + '.hd-daily .hd-mile-badge{border-color:rgba(227,199,126,.75) !important;animation:hd-daily-pulse 2.6s ease-in-out infinite}',
-      R + '.hd-daily .hd-mile-title{color:var(--gold-2) !important}',
-      '@keyframes hd-daily-pulse{0%,100%{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 0 rgba(201,162,74,.34)}' +
-        '50%{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--hl) 13%, transparent),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 7px rgba(201,162,74,0)}}',
 
       /* Gauge, not a hairline. Recessed channel + lit fill. */
       R + '.hd-bar{height:7px;border-radius:1px;background:rgba(0,0,0,.42) !important;overflow:hidden;',
@@ -415,10 +400,7 @@
      payload and NOTHING is inferred: a renderer that infers a bonus will
      eventually quote one nobody paid, which is the failure being fixed.
 
-     Two conditional clauses are deliberately conditional:
-       • the Boss-of-the-Day line prints `featuredMs`, NOT the whole absence,
-         because the featured boss is resolved per UTC-day segment and an
-         8h featured stretch inside a 14h night must not read as 14h;
+     A conditional clause is deliberately conditional:
        • the paused-buff line only appears when a buff was actually HELD
          (`buffsPaused` is false when there were none) — "your buffs were
          paused" beside an empty buff list is a lie in the other direction.
@@ -434,7 +416,7 @@
     var h = Math.floor(mins / 60), m = mins % 60;
     return m ? (h + 'h ' + m + 'm') : (h + 'h');
   }
-  /* Short form for the featured-boss stretch — "8h", "45m". Rounded DOWN to
+  /* Short span — "8h", "45m". Rounded DOWN to
      the hour once past one, so the line never claims a minute it did not pay. */
   function fmtSpanShort(ms) {
     var mins = Math.max(0, Math.floor((Number(ms) || 0) / 60000));
@@ -442,7 +424,6 @@
     var h = Math.floor(mins / 60), m = mins % 60;
     return m >= 5 ? (h + 'h ' + m + 'm') : (h + 'h');
   }
-  function pctOver(mult) { return Math.round(((Number(mult) || 1) - 1) * 100); }
   /* "6:00" / "1:04:30". A buff's preserved time is read as a clock, and a
      clock is the whole point of clause 3 — it must be legible at a glance and
      identical to the number the engine is holding. */
@@ -751,32 +732,6 @@
       notes.push({ tone: 'base', icon: 'uiInfo',
         text: 'At the base rate — food buffs pay while you play.' });
     }
-    /* b343: A MINUTE, not a millisecond. `fmtSpanShort` floors to whole
-       minutes, so `featuredMs > 0` printed "0m on the Boss of the Day (+100%
-       drops)" — a bonus line boasting about nothing — on exactly the night
-       this card exists to explain. MEASURED on a fresh character who died 2.4s
-       into an eight-hour absence, which was unreachable while away combat was
-       gated (the span was never simulated) and is now the FIRST card a new
-       player sees. Same one-minute slack the death line above uses. */
-    if (off.featuredMs >= 60000) {
-      /* The multiplier is PRINTED ONLY IF THE PAYLOAD CARRIES IT. A summary
-         written before b326 has no `featuredDropMult`, and defaulting to the
-         daily x1.5 would state a number nobody verified — on a weekly boss it
-         would understate the night by half. No field, no percentage. */
-      var lift = (typeof off.featuredDropMult === 'number') ? pctOver(off.featuredDropMult) : 0;
-      notes.push({ tone: 'good', icon: 'uiSkull',
-        text: fmtSpanShort(off.featuredMs) + ' on the Boss of the Day' +
-          (lift > 0 ? ' (+' + lift + '% drops)' : '') });
-    }
-    /* THE BESTIARY CHARM THE NIGHT WAS PRICED WITH (phase 2). The charm module
-       owns the sentence (class label + rank name); this card owns placement and
-       tone. Same rule as the Boss line above — PRINTED ONLY IF THE RECEIPT
-       CARRIES IT, never guessed. Security 2026-09-13 item 6. */
-    try {
-      var CH = window.HearthriseCharms;
-      var charmLine = CH && typeof CH.awayLine === 'function' ? CH.awayLine(off) : '';
-      if (charmLine) notes.push({ tone: 'good', icon: 'uiMedal', text: charmLine });
-    } catch (e) { /* a card line is never load-bearing */ }
     try { var SG = window.HearthriseSkillGuide; var t = SG ? SG.awayLevelsLine(off.levelUps) : ''; if (t) notes.push({ tone: 'good', icon: 'uiXp', text: t }); } catch (e) { /* never load-bearing */ }
     /* W0 — WHAT THE HAUL UNLOCKS: the bag turned into the next goal, from the
        server's own holdings (render/haul-unlocks.js). Only a server receipt's
@@ -828,17 +783,6 @@
         text: (atCap ? 'Capped at your ' + capH + 'h away limit' : 'Capped at your away limit') + unpaid });
     }
 
-    /* THE PARTY BLOCK (party-hunt spec §5): ONE line, from the hunt read taken
-       once for THIS receipt (keyed on its `at`), never a poll. Muted, never red
-       — making camp is not a failure. '' for a player in no party. */
-    try {
-      var PH = window.HearthriseParty;
-      var partyView = (PH && typeof PH.huntForReceipt === 'function') ? PH.huntForReceipt(off.at) : null;
-      var partyLine = (partyView && typeof window.partyReceiptLine === 'function')
-        ? window.partyReceiptLine(partyView, off, Date.now()) : '';
-      if (partyLine) notes.push({ tone: 'base', icon: 'uiSword', text: partyLine });
-    } catch (e) { /* never load-bearing */ }
-
     var noteHtml = notes.map(function (n) {
       return '<div class="hd-away-note is-' + n.tone + '">' +
         '<span class="ic">' + gly(n.icon, 13, '', 'currentColor') + '</span>' +
@@ -852,9 +796,6 @@
        reuses the dashboard's own `.hd-cta` (tokens only, no new colour) and
        routes through the same delegated `data-hd` handler every other Home
        button uses. */
-    var NP = window.HearthriseNightPlan;
-    var nightDoors = (NP && window.G && (Number(off.deaths) >= 2 || off.stoppedBy === 'retreat'))
-      ? NP.doorsHtml(NP.ctxNow(window.G)) : '';
     var ctaHtml = quiet
       ? '<button class="hd-cta hd-away-cta" data-hd="trainskill">Train a skill</button>'
       : '';
@@ -886,7 +827,7 @@
             srcHtml + ledgerHtml +
           '</div>' +
         '</div>' +
-        '<div class="hd-away-notes">' + noteHtml + nightDoors + ctaHtml + '</div>' +
+        '<div class="hd-away-notes">' + noteHtml + ctaHtml + '</div>' +
       '</div></div>';
   }
 
@@ -957,12 +898,6 @@
   var HOLDING_GLYPH = {
     camp: 'uiCamp', homestead: 'uiHome', farmstead: 'uiBarn',
     manor: 'uiBanner', keep: 'uiCastle', castle: 'uiCrown'
-  };
-  var EVENT_GLYPH = {
-    gather_surge: 'uiPickaxe', forge_fires: 'uiFlame', harvest_fest: 'uiWheat',
-    scholars_day: 'uiScroll', hunters_moon: 'uiBow', feast_day: 'uiPot',
-    quiet_vigil: 'prayer', grand_fair: 'uiBanner', deep_veins: 'uiOre',
-    war_drums: 'uiSword', guild_works: 'uiHammer'
   };
   // Item ids in an upgrade cost read as `normal_log`; the player sees names.
   // `ITEMS[id].n` is the display name (not `.name`) — same source homestead.js
@@ -1063,43 +998,14 @@
     // day's ledger rides the dark corner. The five stat pills that used to sit
     // here (Total Lv / Combat / Gold / Gems / Log) stay gone — they are pinned
     // in the topbar 40px above and two of them disagreed with it.
-    var rankLine = '';
-    try {
-      var _RN0 = window.HearthriseRenown;
-      var _rn = (!pending && _RN0) ? _RN0.getState(G) : null;
-      if (pending) {
-        var _HBr = window.HearthriseBalance;
-        rankLine = _HBr ? _HBr.pendingMarkup({ label: 'Renown not loaded yet', hint: 'Waiting for the realm — your rank will appear in a moment.' })
-          : '<span class="bal-pending">—</span>';
-      } else if (_rn) {
-        /* THE headline: `rank · N Renown`, and nothing under it (Tyler,
-           2026-09-12). The one place the settle lag is explained is this
-           figure's tooltip — plain words, opt-in. '' → the old bare markup. */
-        var _lag0 = (_RN0.lagTip ? _RN0.lagTip(_rn) : '');
-        var _fig = num(_rn.renown) + ' Renown';
-        rankLine = '<b>' + esc(_rn.rank.name) + '</b><span class="sep">·</span>' +
-          (_lag0 ? '<span data-hr-renown-hint title="' + esc(_lag0) + '">' + _fig + '</span>' : _fig);
-      }
-    } catch (e) {}
-
     /* getTodayDelta() names the field `xpGained` (profile-launchpad.js). */
     var xp = today && (today.xpGained != null ? today.xpGained
       : (today.xp != null ? today.xp : today.totalXp));
-    /* XP today is still a device baseline (a local-midnight snapshot); it shows
-       the pending dash until the balance is known. The two realm cells are the
-       server's UTC-day counters (HearthriseThisWeek), pending when unknown. */
+    /* XP today is a device baseline (a local-midnight snapshot); it shows
+       the pending dash until the balance is known. */
     var pend = function () { var HB = window.HearthriseBalance; return HB ? HB.countMarkup(null) : '<span class="bal-pending">—</span>'; };
     var xpLed = '<div class="hd-led"><b>' + ((pending || !today || (typeof window.balKnown === 'function' && !window.balKnown('gold')))
       ? pend() : num(xp)) + '</b><span>XP today</span></div>';
-    function realmLeds() {
-      var TW = window.HearthriseThisWeek;
-      var cells = (TW && typeof TW.todayCells === 'function') ? TW.todayCells(TW.live())
-        : [{ label: 'Kills today' }, { label: 'Gold earned' }];
-      return cells.map(function (c) {
-        return '<div class="hd-led" title="' + esc(c.title || 'Since midnight UTC, as the realm counts it') + '"><b>' +
-          ((!pending && c.html) || pend()) + '</b><span>' + esc(c.label) + '</span></div>';
-      }).join('');
-    }
 
     /* b374 — the hearth band is now the PAINTED holding, not a flat-vector
        silhouette. It shares the login's dawn plate (assets/brand/
@@ -1135,8 +1041,7 @@
     } catch (e) {}
     html += '<div class="hd-name">' + esc(playerName()) + heroChip +
       '<button class="hd-rename" title="Change your account name" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
-    html += '<div class="hd-sub">' + rankLine +
-      (rankLine ? '<span class="sep">·</span>' : '') +
+    html += '<div class="hd-sub">' +
       /* b224: see legacy.js updateNetStatus — with accounts required, the
          un-synced state is a connection problem, not an offer. */
       /* b371: the save claim is derived from the last CONFIRMED game_saves
@@ -1154,12 +1059,12 @@
            what to do about it. */
         : 'Offline · reconnect to keep playing') + '</span></div>';
     html += '</div></div>';
-    html += '<div class="hd-ledger">' + xpLed + realmLeds() +
+    html += '<div class="hd-ledger">' + xpLed +
       '</div>';
     html += '</div></div>';
     // Mobile-only copy of the daily ledger (in-band .hd-ledger is hidden on
     // phones by the media query above); keeps the same three cells visible.
-    html += '<div class="hd-ledger-m">' + xpLed + realmLeds() +
+    html += '<div class="hd-ledger-m">' + xpLed +
       '</div>';
 
     /* PENDING: the band above (name, dashes) and ONE honest card. No
@@ -1233,35 +1138,12 @@
 
     html += '<div class="hd-grid"><div class="hd-col">';
 
-    /* THE STEP leads the column, above even the daily reward: the pointer
+    /* THE STEP leads the column: the pointer
        bar's step with its reason (src/features/spine-pointer.js; the bar
        itself steps aside on Home). */
     var SP = window.HearthriseSpine;
     html += (SP && typeof SP.homeCard === 'function') ? call(SP.homeCard) || '' : '';
 
-    // Daily reward — top priority when a reward is waiting to be claimed
-    var DL = window.HearthriseDaily;
-    if (DL && DL.isClaimable && DL.isClaimable(G)) {
-      try {
-        var dlrw = DL.rewardFor(G);
-        var dlt = [];
-        if (dlrw.gold) dlt.push(gly('gold', 13, '', 'var(--gold-2)') + ' ' + num(dlrw.gold) + (gly('gold', 1) ? '' : ' gold'));
-        if (dlrw.gems) dlt.push(gly('gems', 13, '', 'var(--gem)') + ' ' + num(dlrw.gems) + (gly('gems', 1) ? '' : ' gems'));
-        Object.keys(dlrw.items || {}).forEach(function (id) {
-          var it = window.ITEMS && window.ITEMS[id];
-          dlt.push(num(dlrw.items[id]) + ' ' + esc((it && (it.n || it.name)) || id.replace(/_/g, ' ')));
-        });
-        html += '<div class="hd-card hd-mile hd-daily is-title" data-hd="daily">' +
-          '<div class="hd-mile-badge">' + gly('uiGift', 22, '', '#f0dfb8') + '</div>' +
-          '<div class="hd-mile-body">' +
-            '<div class="hd-rn-eyebrow">Daily reward · Day ' + DL.cycleDay(G) + '</div>' +
-            '<div class="hd-mile-title">Reward ready</div>' +
-            '<div class="hd-mile-sub">' + dlt.join(' · ') + ' waiting to claim</div>' +
-          '</div>' +
-          '<button class="hd-cta">Claim</button>' +
-        '</div>';
-      } catch (e) { /* daily optional */ }
-    }
 
     /* W0 — "you have enough to build your Hearthside Homestead": the standing
        Home line, from the server's holdings. Not drawn when the away card above
@@ -1353,7 +1235,7 @@
             return '<div class="hd-card hd-duo">' +
               '<div class="mi">' + gly('uiLock', 20, '', 'var(--ink-3)') + '</div>' +
               '<div class="bd"><div class="t">Hero slot ' + (r.slotId + 1) + '</div>' +
-                '<div class="s">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div></div>' +
+                '<div class="s">' + (Number(r.cost).toLocaleString() + ' gold') + '</div></div>' +
               /* A BUTTON THAT CANNOT WORK IS NEVER LIT — the ruling on
                  slotRows().afford in multi-character.js. A lit "Buy" beside
                  "200 gems" on an account holding one gem is the first thing a
@@ -1371,8 +1253,8 @@
                     + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
                   : (r.afford === false
                     ? '<button class="hd-cta ghost" disabled title="You have ' + num(r.cost - r.shortBy)
-                      + ' of ' + num(r.cost) + ' gems">Needs ' + num(r.shortBy) + ' more gems</button>'
-                    : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'))
+                      + ' of ' + num(r.cost) + ' gold">Needs ' + num(r.shortBy) + ' more gold</button>'
+                    : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">Buy</button>'))
                 : '<div class="when">unlock slot ' + r.slotId + ' first</div>') +
             '</div>';
           }).join('');
@@ -1412,66 +1294,8 @@
        cap by hitting it. Truthful: combat / gathering / crafting bank the whole
        time you are away; cooking, farming and an idle camp do not. */
     html += awayBankingRow(G);
-    /* Set the Night (slate §3): advisory strip, same `serverAccruedSkill` predicate as the banking row; authors nothing. */
-    try {
-      var STN = window.HearthriseSetTheNight;
-      if (STN && typeof STN.strip === 'function') html += STN.strip(G);
-    } catch (e) { /* a forecast is never worth a broken Home */ }
     html += '</div>';
     try { var CBK = window.HearthriseComeBack; if (CBK && typeof CBK.card === 'function' && shown('card:come-back')) html += CBK.card(G); } catch (e) {}
-
-    // Renown — the long game. Status, so it lives in the status rail.
-    var RN = window.HearthriseRenown;
-    if (RN && RN.getState && shown('card:renown')) {
-      try {
-        var rs = RN.getState(G);
-        var claimN = (RN.getClaimable ? RN.getClaimable(G) : []).length;
-        var rpct = Math.round((rs.progress || 0) * 100);
-        var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' to ' + esc(rs.next.name));
-        html += '<div><div class="hd-h"><h3>Rise to the throne</h3><a data-hd="renown">Ladder →</a></div>' +
-          '<div class="hd-card hd-mile is-title" data-hd="renown" style="cursor:pointer;padding-left:0">' +
-            '<div class="hd-mile-badge">' + gly('totalLvl', 22, '', '#e6d6b4') + '</div>' +
-            '<div class="hd-mile-body">' +
-              '<div class="hd-mile-title">' + esc(rs.rank.name) +
-                (claimN ? '<span class="hd-rn-claimdot">' + claimN + ' ready</span>' : '') + '</div>' +
-              '<div class="hd-mile-sub">' + num(rs.renown) + ' Renown · ' + nextTxt + '</div>' +
-              '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + rpct + '%"></i></div>' +
-            '</div>' +
-          '</div></div>';
-      } catch (e) { /* renown optional */ }
-    }
-
-    // The realm — world events: the day's and the week's blessing, named and
-    // described in the realm's words. b560: no rate, yield or gold figure — the
-    // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
-    var WE = window.HearthriseWorldEvents;
-    if (WE && WE.daily && shown('card:realm')) {
-      try {
-        var wd = WE.daily(), ww = WE.weekly && WE.weekly();
-        // b227: read the world-events module's own glyph map when it has one,
-        // so Home and the Events panel cannot disagree about what an event
-        // looks like. The local copy stays as the pre-boot fallback.
-        var GLY = (WE.EVENT_GLYPH || EVENT_GLYPH);
-        var evLive = !!(WE.isActive && WE.isActive());
-        var evRow = function (e, when) {
-          return '<div class="hd-card hd-duo"' + (evLive ? '' : ' style="opacity:.62"') + '>' +
-            '<div class="mi">' + gly(GLY[e.id] || 'uiEvent', 20, '', 'var(--gold-2)') + '</div>' +
-            '<div class="bd"><div class="t">' + esc(e.name) + '</div>' +
-              '<div class="s">' + esc(e.desc) + '</div></div>' +
-            '<div class="when">' + when + '</div></div>';
-        };
-        // b227/b229: the condition is stated where the blessing is — being in
-        // the game; the only mid-session way to lose it is a real disconnection.
-        html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
-          evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') +
-          '<div class="hd-card hd-mini"><div class="mi">' + gly('uiInfo', 20, '', 'var(--ink-2)') + '</div>' +
-            '<div>' + (evLive
-              ? 'Blessings remain active while you are online.'
-              : 'Reconnecting — blessings resume when you are back online.') + '</div>' +
-          '</div>' +
-          '</div></div>';
-      } catch (e) { /* world events optional */ }
-    }
 
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
@@ -1597,8 +1421,6 @@
             if (lp && lp.openRename) lp.openRename();
             else if (window.HearthriseIdentity && window.HearthriseIdentity.openNameModal) window.HearthriseIdentity.openNameModal();
           } else if (kind === 'collection') { if (window.HearthriseJournal) window.HearthriseJournal.open('collection'); }
-          else if (kind === 'daily') { if (window.HearthriseDaily) window.HearthriseDaily.open(); }
-          else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }

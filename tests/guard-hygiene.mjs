@@ -243,7 +243,7 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist }
   for (const [name, src] of Object.entries(sources)) {
     if (name === 'run-smoke.mjs') continue;
     /* THIS FILE'S OWN mutation catalogue names other guards in string literals
-       ("run: node tests/enchant-intent.mjs"), and a meta-guard that made every
+       ("run: node tests/gold-intents.mjs"), and a meta-guard that made every
        file it mentions look reachable would switch off the rule it exists to
        enforce. Skip self. */
     if (name === 'guard-hygiene.mjs') continue;
@@ -400,8 +400,8 @@ const MUTATIONS = [
     why: 'the cheapest way to silence rule 1 is a one-word reason. The allowlist is where the debt is '
        + 'written down; "TODO" is a quieter orphan, not a decision',
     mutate: (t) => ({ ...t, allowlist: { ...t.allowlist,
-      guards: { ...t.allowlist.guards, 'market-offers-guard.mjs': { reason: 'later' } } } }),
-    expect: /UNREASONED: tests\/market-offers-guard\.mjs/,
+      guards: { ...t.allowlist.guards, 'gold-intents.mjs': { reason: 'later' } } } }),
+    expect: /UNREASONED: tests\/gold-intents\.mjs/,
   },
   {
     id: 'M4-a-registered-guard-file-is-deleted',
@@ -426,8 +426,8 @@ const MUTATIONS = [
     why: 'somebody registers an allowlisted guard and forgets to remove the entry. The list then '
        + 'over-reports the debt, which is how a list stops being trusted and then stops being pruned',
     mutate: (t) => ({ ...t,
-      workflowText: t.workflowText + '\n      - name: adopted\n        run: node tests/market-offers-guard.mjs\n' }),
-    expect: /STALE ALLOWLIST ENTRY: tests\/market-offers-guard\.mjs/,
+      workflowText: t.workflowText + '\n      - name: adopted\n        run: node tests/gold-intents.mjs\n' }),
+    expect: /STALE ALLOWLIST ENTRY: tests\/gold-intents\.mjs/,
   },
   {
     id: 'M7-a-header-comment-is-not-an-implementation',
@@ -447,8 +447,8 @@ const MUTATIONS = [
        + 'exit 0, with nothing in CI running the plain body that was red',
     mutate: (t) => ({ ...t,
       workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n' }),
-    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/enchant-intent\.mjs ONLY with a mutation flag/,
+        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n' }),
+    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/gold-intents\.mjs ONLY with a mutation flag/,
   },
   {
     id: 'M9-the-floor-exemption-with-no-argument-in-it',
@@ -456,10 +456,10 @@ const MUTATIONS = [
        + 'plain run cannot gate is just an unregistered guard with paperwork',
     mutate: (t) => ({ ...t,
       workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n',
+        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n',
       allowlist: { ...t.allowlist,
-        proof_baseline: { ...(t.allowlist.proof_baseline || {}), 'enchant-intent.mjs': { reason: 'slow' } } } }),
-    expect: /UNREASONED FLOOR EXEMPTION: tests\/enchant-intent\.mjs/,
+        proof_baseline: { ...(t.allowlist.proof_baseline || {}), 'gold-intents.mjs': { reason: 'slow' } } } }),
+    expect: /UNREASONED FLOOR EXEMPTION: tests\/gold-intents\.mjs/,
   },
   {
     id: 'M10-a-run-smoke-spawn-that-passes-the-proof-flag',
@@ -467,10 +467,10 @@ const MUTATIONS = [
        + 'the same one-sided proof in a different file, and counting it would reopen the hole',
     mutate: (t) => ({ ...t,
       workflowText: t.workflowText
-        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n',
+        + '\n      - name: brand new proof, no floor\n        run: node tests/gold-intents.mjs --selftest\n',
       runSmokeSrc: t.runSmokeSrc
-        + "\nawait spawn('node', [join(ROOT, 'tests', 'enchant-intent.mjs'), '--selftest']);\n" }),
-    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/enchant-intent\.mjs ONLY with a mutation flag/,
+        + "\nawait spawn('node', [join(ROOT, 'tests', 'gold-intents.mjs'), '--selftest']);\n" }),
+    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/gold-intents\.mjs ONLY with a mutation flag/,
   },
 ];
 

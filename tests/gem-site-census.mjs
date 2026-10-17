@@ -474,23 +474,20 @@ async function selftest() {
          REGRESSION — somebody putting the client-authored debit back — and the
          control that must bite is L1, which fails on a gem write site no ledger
          row declares. Same function, same bug, one layer out. */
-      name: 'M1 — buyTheme reacquires a raw `G.gems -=` (THE SHIPPED BUG, reinstated)',
-      why: 'this is the exact line that made a premium theme free: a local debit on a SERVER_OF_RECORD '
-        + 'balance, refunded by the next envelope while the goods stayed. It is now a server verb, so '
-        + 'if the census stays green when the debit comes back, L1 is decorative and the whole class '
-        + 'can walk back in through the function it walked out of.',
+      /* 2026-10-14: re-pointed when the theme shop was demolished (buyTheme is
+         gone). The defect is the same class — a raw client debit on the
+         SERVER_OF_RECORD gem balance in a function no ledger row declares — so
+         it is planted into a kept House-screen function instead. */
+      name: 'M1 — a House gesture reacquires a raw `G.gems -=` (the shipped bug class, reinstated)',
+      why: 'this is the line shape that made a premium theme free: a local debit on a SERVER_OF_RECORD '
+        + 'balance, refunded by the next envelope while the goods stayed. If the census stays green '
+        + 'when it comes back, L1 is decorative and the whole class can walk back in.',
       apply: async () => {
         const p = at('src/legacy.js');
         const s = await readFile(p, 'utf8');
-        /* The call is `window.buyGemUnlock(…)` — legacy.js is a classic script
-           and names the seam through window. The anchor shipped without the
-           receiver, so M1 threw "buyTheme has moved" instead of planting the
-           debit: the arm that guards the exact line that made a premium theme
-           free had never once been red. Fixed here rather than re-pointed,
-           because the anchor was wrong, not stale. */
-        const anchor = "  return window.buyGemUnlock('theme:'+id,'that theme',function(){\n";
-        if (!s.includes(anchor)) throw new Error('M1 anchor not found — buyTheme has moved');
-        await writeFile(p, s.replace(anchor, '  G.gems-=t.price;\n' + anchor), 'utf8');
+        const anchor = 'function setHouseTab(t){houseTab=t;';
+        if (!s.includes(anchor)) throw new Error('M1 anchor not found — setHouseTab has moved');
+        await writeFile(p, s.replace(anchor, 'function setHouseTab(t){G.gems-=1;houseTab=t;'), 'utf8');
         return () => writeFile(p, s, 'utf8');
       },
     },

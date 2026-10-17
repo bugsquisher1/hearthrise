@@ -27,9 +27,12 @@ import { normalisePerkState, permanentBonus } from '../src/core/perks.js';
 /* The ruling's tables, restated as literals. They are NOT derived from
    ROOM_PERKS — a ladder read out of the file it is grading proves nothing. */
 const LADDERS = {
-  forge:    ['yield_smithing', [0.01, 0.02, 0.04, 0.06, 0.08]],
   workshop: ['craftSave',      [0.01, 0.02, 0.04, 0.06, 0.08]],
 };
+/* The Forge's extra bar (yield_smithing) left with every other home-granted
+   resource advantage (Master Design Reference §9, 2026-10-14): no Forge rung
+   may pay it, and no room may pay a yield proc at all. */
+const RETIRED = ['yield_smithing', 'yield_cooking', 'farmYield', 'allXP', 'combatXP'];
 
 export async function roomIdentityPerksGuard() {
   const problems = [];
@@ -64,8 +67,11 @@ export async function roomIdentityPerksGuard() {
   if (permanentBonus('craftSave', normalisePerkState({ rooms: { forge: 5 } })) !== 0) {
     fail('the Forge pays craftSave — the crafting bench\'s mechanic is not the forge\'s to sell');
   }
-  if (permanentBonus('yield_smithing', normalisePerkState({ rooms: { workshop: 5 } })) !== 0) {
-    fail('the Workshop pays yield_smithing');
+  for (const k of RETIRED) {
+    for (const id of ['forge', 'kitchen', 'garden', 'library', 'trophy', 'workshop', 'cellar', 'shrine']) {
+      const v = permanentBonus(k, normalisePerkState({ rooms: { [id]: 5 } }));
+      if (v !== 0) fail(`${id} rung 5 pays ${v} ${k} — a home never grants XP or a resource advantage`);
+    }
   }
 
   return problems;
@@ -78,6 +84,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     for (const p of ps) console.log('  x ' + p);
     process.exit(1);
   }
-  console.log('Room identity perks — the Forge\'s extra bar and the Workshop\'s free craft '
-    + 'reach a rung-1 owner through src/core/perks.js; the 8% ceiling is unmoved.');
+  console.log('Room identity perks — the Workshop\'s free craft reaches a rung-1 owner through '
+    + 'src/core/perks.js, the 8% ceiling is unmoved, and no room pays XP or a yield proc.');
 }

@@ -194,6 +194,9 @@ export async function catalogueLiteralDrift(opts = {}) {
       scenario in the finding. */
 const DEEP = '2026-09-13-deep-seam.sql';
 const GEN = '2026-08-11-catalogue.generated.sql';
+/* The chain-end owner of hr_items / hr_item_slots since the 2026-10-14 demolition
+   regen: a literal moved in DEEP or GEN no longer reaches the chain end. */
+const DEMO = '2026-10-23-demolition-catalogue.generated.sql';
 
 async function selftest() {
   const arms = [
@@ -212,11 +215,9 @@ async function selftest() {
     //     disagree with src/data is the honest shape of the finding, and it is
     //     invisible to `gen-catalogues --check`.
     ['(a) a price literal drifts in the deep-seam migration only', {
-      patches: new Map([[DEEP, [
-        ['["verdite_bar",       "Verdite Bar",        null,     320,  null,      null],',
-         '["verdite_bar",       "Verdite Bar",        null,     260,  null,      null],'],
-        ["('verdite_bar',      'Verdite Bar',       null,       320,          null,       null),",
-         "('verdite_bar',      'Verdite Bar',       null,       260,          null,       null),"],
+      patches: new Map([[DEMO, [
+        ["  ('verdite_bar','Verdite Bar',true,null,320,null,null,null,false),",
+         "  ('verdite_bar','Verdite Bar',true,null,260,null,null,null,false),"],
       ]]]),
     }, true],
 
@@ -241,7 +242,7 @@ async function selftest() {
     //     miss). A pair only ONE file in the chain seeds is what a drop can
     //     actually remove, and `trollhide_cape/cape` is such a pair.
     ['(c) a slot pair is dropped from a seeding migration', {
-      patches: new Map([[GEN, [[
+      patches: new Map([[DEMO, [[
         "  ('trollhide_cape','cape'),\n", '',
       ]]]]),
     }, true],

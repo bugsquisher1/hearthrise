@@ -57,8 +57,8 @@ function atStep(R, k) {
 
 const ROUTE_KINDS = ['fl', 'q', 'mile', 'cook', 'trainskill', 'house', 'active', 'collection'];
 
-/** Click every route on Home and in the Quests modal with navigation stubbed;
-    returns every place a click tried to take the player. */
+/** Click every route on Home with navigation stubbed; returns every place a
+    click tried to take the player. (The Quests modal left with the dailies.) */
 async function walkRoutes() {
   const W = window, saved = { showTab: W.showTab, skill: W.openSkillDetail };
   const went = [];
@@ -71,20 +71,6 @@ async function walkRoutes() {
     homeEls.forEach((el) => { try { el.click(); } catch (e) {} });
   } finally {
     W.showTab = saved.showTab; W.openSkillDetail = saved.skill;
-  }
-  if (typeof W.openQuestsModal === 'function') {
-    W.openQuestsModal(); await tick();
-    const ids = [...document.querySelectorAll('#quests-modal-overlay button[data-goto]')].map((b) => [b.dataset.goto, b.dataset.weekly]);
-    W.closeQuestsModal();
-    for (const [id, wk] of ids) {
-      W.openQuestsModal(); await tick();
-      const btn = document.querySelector('#quests-modal-overlay button[data-goto="' + id + '"][data-weekly="' + wk + '"]');
-      try {
-        W.showTab = (t) => { went.push({ from: 'quests ' + id, tab: t }); };
-        W.openSkillDetail = (sid) => { went.push({ from: 'quests ' + id, skill: sid }); };
-        if (btn) btn.click();
-      } finally { W.showTab = saved.showTab; W.openSkillDetail = saved.skill; W.closeQuestsModal(); }
-    }
   }
   return { went, clicked: homeEls.length };
 }
@@ -119,11 +105,11 @@ export default [
       /* Locked, never hidden: every other door is on the rail and says which step opens it. */
       assert(s.lockedDoors.combat === 'Opens when you catch and cook five fish (Step 2).', 'Combat door reason: ' + s.lockedDoors.combat);
       assert(s.lockedDoors.homestead === 'Opens when you win five fights (Step 3).', 'Homestead door reason: ' + s.lockedDoors.homestead);
-      assert(s.lockedDoors.clan && s.lockedDoors.events && s.lockedDoors.social, 'a door is hidden instead of locked: ' + JSON.stringify(s.lockedDoors));
-      assert(s.lockedSkills.indexOf('Fishing: Opens when you chop fifteen logs (Step 1).') >= 0 && s.lockedSkills.length >= 8,
+      assert(s.lockedDoors.social, 'a door is hidden instead of locked: ' + JSON.stringify(s.lockedDoors));
+      assert(s.lockedSkills.indexOf('Fishing: Opens when you chop fifteen logs (Step 1).') >= 0 && s.lockedSkills.length >= 7,   // 15 skills since stonemason and bountyHunter left
         'locked skills are missing or unexplained: ' + s.lockedSkills.join(' | '));
       assert(s.lockedStrip.indexOf('mining') >= 0 && s.lockedStrip.indexOf('woodcutting') < 0, 'the phone activity strip does not lock unreached skills: ' + s.lockedStrip);
-      assert(s.lockedChar >= 15, 'the Character grid hides skills instead of locking them: ' + s.lockedChar);
+      assert(s.lockedChar >= 14, 'the Character grid hides skills instead of locking them: ' + s.lockedChar);
       /* A locked door does not open: the click is the reason card, with a way to the current step. */
       const before = document.querySelector('main .panel.active').id;
       document.querySelector('.nav-btn[data-tab="combat"]').click();
@@ -148,7 +134,8 @@ export default [
       assert(JSON.stringify(full[k]) === JSON.stringify(off[k]),
         `full account "${k}" differs from the unrevealed game: ${JSON.stringify(full[k])} vs ${JSON.stringify(off[k])}`);
     }
-    assert(full.doors.length === 9 && full.tiers.length === 6, 'the full account lost doors or tiers: ' + full.doors + ' / ' + full.tiers);
+    // Seven doors since the Clan and Events doors left (2026-10-14 demolition).
+    assert(full.doors.length === 7 && full.tiers.length === 6, 'the full account lost doors or tiers: ' + full.doors + ' / ' + full.tiers);
   }),
 
   () => tryRunAsync('SPINE-REVEAL-3: a client-only flag cannot reveal anything', async () => {
@@ -191,17 +178,16 @@ export default [
             { kind: 'unlock', period: '', key: 'property:homestead', value: 1 }] });
         assert(R.shows('skill:fishing') && R.shows('pane:house') && R.shows('card:workers'),
           'a server envelope did not reveal what it confirms: ' + [...R.state().shown].join(','));
-        assert(!R.shows('pane:bounty'), 'an envelope revealed a step it did not reach');
       } finally { R.__swapView(view); window.G._record = rec0; }
     });
   }),
 
   () => tryRunAsync('SPINE-REVEAL-4: an unknown fact never hides a door the server confirms', async () => {
     const R = window.HearthriseReveal;
-    await withPin({ counts: {}, countsComplete: false, skills: null, property: 1, workers: null, bag: { bone_key: 1 } }, async () => {
+    await withPin({ counts: {}, countsComplete: false, skills: null, property: 1, workers: null, bag: {} }, async () => {
       const s = await surfaces();
       assert(s.doors.indexOf('homestead') >= 0, 'the Homestead door is hidden from a player the server says owns a Homestead: ' + s.doors);
-      assert(s.doors.indexOf('combat') >= 0 && R.shows('pane:dungeons'), 'a held dungeon key did not reveal the Dungeons pane');
+      assert(R.shows('pane:house'), 'the House pane is hidden from a player the server says owns a Homestead');
     });
   }),
 
@@ -212,7 +198,7 @@ export default [
     assert(!VM.worthSaying(m(626)) && VM.worthSaying(m(500)) && VM.worthSaying(m(0)), 'the half-day line is wrong');
     assert(VM.worthSaying(null) && VM.worthSaying({ remaining_min: 5 }), 'an unreadable meter must keep the chip');
     await withPin(window.HearthriseReveal.FRESH, async (R) => {
-      assert(!R.shows('card:vigour') && !R.shows('pane:bounty'), 'Vigour or the Bounty Board shows before step 9');
+      assert(!R.shows('card:vigour'), 'Vigour shows before its step');
     });
   }),
 
@@ -224,45 +210,7 @@ export default [
     });
   }),
 
-  () => tryRunAsync('SPINE-REVEAL-7: the Stable opens on an owned companion or at step 10', async () => {
-    const R = window.HearthriseReveal;
-    await withPin(Object.assign({}, R.FRESH, { property: 1 }), async () => {
-      assert(!R.shows('pane:stable'), 'the Stable opened with the Homestead and no companion');
-    });
-    await withPin(Object.assign({}, R.FRESH, { companions: 1 }), async () => {
-      assert(R.shows('pane:stable') && window.HearthriseNav.doorShown('homestead'), 'a server-owned companion did not open the Stable');
-    });
-    await withPin(atStep(R, 10), async () => { assert(R.shows('pane:stable'), 'step 10 did not open the Stable'); });
-    await withPin('live', async () => {
-      const view = R.__swapView(null);
-      try {
-        R.noteEnvelope({ state: { slot: 1 }, companions: { owned: ['fox'], equipped: null, xp: {} } });
-        assert(!R.shows('pane:stable'), 'the starter fox counted as an earned companion');
-        R.noteEnvelope({ state: { slot: 1 }, companions: { owned: ['owl'], equipped: 'owl', xp: {} } });
-        assert(R.shows('pane:stable'), 'an envelope companion did not open the Stable');
-      } finally { R.__swapView(view); }
-    });
-  }),
 
-  () => tryRunAsync('SPINE-REVEAL-8: Clan stays shut until clans are live; Party and Social open at step 10', async () => {
-    const R = window.HearthriseReveal;
-    const shut = Object.assign({}, R.FULL, { products: {} });
-    await withPin(shut, async () => {
-      assert(!R.shows('pane:clan') && !R.shows('war:clanhunt'), 'a shut product showed its door or war card');
-      assert(R.shows('pane:party') && R.shows('pane:social'), 'Party / Social did not open at step 10');
-      window.showTab('combat'); await tick();
-      const kicks = window.HearthriseCombatScreens._destinations().map((d) => d.rid);
-      assert(kicks.indexOf('war:clanhunt') < 0, 'the Clan Hunt card shows while clans are shut');
-      assert(window.HearthriseNav.resolve('clan') === 'party', 'the Clan door does not open on Party');
-    });
-    await withPin(atStep(R, 9), async () => {
-      assert(!R.shows('pane:party') && !R.shows('pane:social'), 'Party / Social opened before step 10');
-    });
-    const C = window.HearthriseClans;
-    await withPin('live', async () => {
-      assert(R.facts().products.clans === !!(C && C.clanLaunched()), 'the live product switch is not read from HearthriseClans');
-    });
-  }),
 
   () => tryRunAsync('SPINE-REVEAL-9: a door opens when its step becomes current, never earlier, and no step waits behind a shut door', async () => {
     const R = window.HearthriseReveal;
@@ -270,7 +218,7 @@ export default [
     skip2.counts['ev:cooked'] = 0;
     await withPin(skip2, async () => {
       assert(R.state().progress.current === 2, 'step 2 is not current with only it open');
-      assert(!R.shows('pane:bounty') && !R.shows('card:vigour'), 'a later step opened its doors out of order');
+      assert(!R.shows('card:vigour'), 'a later step opened its doors out of order');
       assert(R.shows('pane:market'), 'the Player Market is hidden at step 2 — it is open from minute 0 for every hero');
     });
     for (let k = 1; k <= R.steps.length; k++) {
@@ -287,7 +235,7 @@ export default [
     });
   }),
 
-  () => tryRunAsync('SPINE-REVEAL-10: every Go route on Home and in the Quests modal leads through an open door', async () => {
+  () => tryRunAsync('SPINE-REVEAL-10: every Go route on Home leads through an open door', async () => {
     const R = window.HearthriseReveal;
     const mid = { counts: { chopped: 20, fished: 6, 'ev:cooked': 6, 'ev:kill_any': 8, 'ev:planted': 2 }, countsComplete: true,
       skills: { hitpoints: 2000, attack: 600, woodcutting: 900 }, property: 1, workers: 0, companions: 0, bag: {}, products: {} };

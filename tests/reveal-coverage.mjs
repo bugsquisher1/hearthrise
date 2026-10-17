@@ -11,7 +11,10 @@
 // owners of each surface and checks, in both directions:
 //   R1  every pane in src/nav-consolidation.js HUBS has a `pane:` row
 //   R2  every war card pushed by combat-screens.js destinations() carries a
-//       `rid` with a `war:` row
+//       `rid` with a `war:` row, and every `war:` row (bar war:next, the fold
+//       line) is pushed by a card. Zero cards is legal (2026-10-14: the bounty,
+//       Boss of the Day, dungeon, clan hunt and world event cards were
+//       demolished); a destinations() the parser cannot find is not.
 //   R3  every src/data/skills.js skill has a `skill:` row
 //   R4  every `card:` id named under src/ has a row, and every card row is named
 //   R5  every row and step uses a known step number and fact kind
@@ -62,6 +65,7 @@ function hubPanes(navText) {
 
 function warPushes(combatText) {
   const a = combatText.indexOf('function destinations()');
+  if (a < 0) return null;
   const b = combatText.indexOf('\nfunction ', a + 10);
   const block = combatText.slice(a, b);
   return block.split('out.push({').slice(1).map((chunk) => {
@@ -122,11 +126,13 @@ export function check(inp) {
   const nSteps = inp.steps.length;
   inp.panes.forEach((t) => { if (!ids.has('pane:' + t)) problems.push(`R1 pane '${t}' (nav-consolidation HUBS) has no pane:${t} row`); });
   if (!inp.panes.length) problems.push('R1 read no panes from HUBS — the parser no longer matches nav-consolidation.js');
-  inp.wars.forEach((rid, i) => {
+  if (!inp.wars) problems.push('R2 found no destinations() in combat-screens.js — the parser no longer matches');
+  (inp.wars || []).forEach((rid, i) => {
     if (!rid) problems.push(`R2 war card #${i + 1} in destinations() carries no rid`);
     else if (!ids.has(rid)) problems.push(`R2 war card rid '${rid}' has no row`);
   });
-  if (!inp.wars.length) problems.push('R2 read no war cards from destinations()');
+  inp.rows.filter((r) => r.id.startsWith('war:') && r.id !== 'war:next' && !(inp.wars || []).includes(r.id))
+    .forEach((r) => problems.push(`R2 row '${r.id}' is pushed by no war card (dead row)`));
   inp.skills.forEach((s) => { if (!ids.has('skill:' + s)) problems.push(`R3 skill '${s}' has no skill:${s} row`); });
   for (const [id, file] of inp.cards) if (!ids.has(id)) problems.push(`R4 '${id}' named in ${file} has no row`);
   inp.rows.filter((r) => r.id.startsWith('card:') && !inp.cards.has(r.id))
@@ -214,7 +220,9 @@ function mutants(base) {
   return [
     ['a skill loses its row', () => Object.assign(clone(), { rows: base.rows.filter((r) => r.id !== 'skill:mining') })],
     ['a new pane is added to HUBS', () => Object.assign(clone(), { panes: base.panes.concat('vault') })],
-    ['a war card is pushed with no rid', () => Object.assign(clone(), { wars: base.wars.concat(null) })],
+    ['a war card is pushed with no rid', () => Object.assign(clone(), { wars: (base.wars || []).concat(null) })],
+    ['a war row loses its card (dead row)', () => Object.assign(clone(), { rows: base.rows.concat({ id: 'war:ghost', step: 3, uses: [] }) })],
+    ['destinations() can no longer be found', () => Object.assign(clone(), { wars: null })],
     ['a surface names an unknown card', () => { const c = clone(); c.cards.set('card:ghost', 'src/x.js'); return c; }],
     ['a card row loses its surface', () => { const c = clone(); c.cards.delete('card:upkeep'); return c; }],
     ['a row uses an unknown fact kind', () => Object.assign(clone(), { rows: base.rows.concat({ id: 'skill:zz', step: 1, uses: [{ fact: 'clientFlag' }] }) })],
@@ -259,4 +267,4 @@ if (problems.length) {
   console.log('✗ reveal-coverage: ' + problems.length + ' problem(s)\n  ' + problems.join('\n  '));
   process.exit(1);
 }
-console.log(`✓ reveal-coverage: ${base.panes.length} panes, ${base.wars.length} war cards, ${base.skills.length} skills, ${base.cards.size} cards — every one has a reveal row; fresh/full/unknown/monotonic hold`);
+console.log(`✓ reveal-coverage: ${base.panes.length} panes, ${(base.wars || []).length} war cards, ${base.skills.length} skills, ${base.cards.size} cards — every one has a reveal row; fresh/full/unknown/monotonic hold`);

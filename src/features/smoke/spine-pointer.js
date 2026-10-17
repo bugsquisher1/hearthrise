@@ -26,7 +26,7 @@ async function onBar(f, body, tab) {
     return await body(document.getElementById('hr-spine-bar'), SP);
   } finally { R.__pin(was); SP.__forget(); restoreG(snap); window.showTab('profile'); }
 }
-const text = (bar) => [...bar.querySelectorAll('.sp-step, .sp-title, .sp-part, .sp-reward, .sp-daily, .sp-go')]
+const text = (bar) => [...bar.querySelectorAll('.sp-step, .sp-title, .sp-part, .sp-reward, .sp-go')]
   .map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' ');
 
 export default [
@@ -125,52 +125,16 @@ export default [
     }, 'profile');
   }),
 
-  () => tryRunAsync('SPINE-POINTER-6: the daily chip counts the server\'s finished quests', async () => {
-    const TL = window.HearthriseTally;
-    const ids = ['daily_kill', 'daily_gather', 'daily_cook'];
-    await onBar(facts({ counts: FIRST4 }), async (bar, SP) => {
-      try {
-        const pool = window.DAILY_TASK_POOL.map((fn) => fn());
-        window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: ids.map((id) => pool.find((t) => t.id === id)) };
-        TL.__feed({ day: { 'ev:kill_any': 25, 'ev:gather': 3 }, week: {}, paid: ['daily_cook'], offered: ids });
-        SP.render();
-        const chip = bar.querySelector('.sp-daily');
-        assert(chip && chip.textContent === 'Daily 2/3' && chip.classList.contains('is-claim'),
-          'one paid + one counted out of three, with a claim waiting: ' + (chip && chip.textContent));
-        assert(!document.getElementById('hr-quests-btn'), 'the topbar Quests button is back beside the chip');
-        chip.click();
-        assert(document.getElementById('quests-modal-overlay'), 'the daily chip did not open the daily sheet');
-      } finally { TL.__feed(null); if (window.closeQuestsModal) window.closeQuestsModal(); }
-    });
-  }),
 
-  /* -- regression suite -- the one daily list may not offer Go through a door
-     the reveal keeps shut: quest-nav refuses the walk, so a drawn button would
-     be dead. Mutation: drop `dest.open !== false` in daily-quests.js rowHtml. */
-  () => tryRunAsync('SPINE-POINTER-8: a daily quest row never draws Go to a hidden door', async () => {
-    const R = window.HearthriseReveal, TL = window.HearthriseTally;
-    const pool = window.DAILY_TASK_POOL.map((fn) => fn());
-    const row = async () => { window.openQuestsModal(); await tick(); const r = document.querySelector('#quests-modal-overlay .qm-quest'); const go = r && r.querySelector('.qm-q-go'); window.closeQuestsModal(); return { r, go }; };
-    const snap = snapshotG(), was = R.__pin(R.FRESH);
-    try {
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [pool.find((t) => t.id === 'daily_kill')] };
-      TL.__feed({ day: { 'ev:kill_any': 3 }, week: {}, paid: [], offered: ['daily_kill'] });
-      let got = await row();
-      assert(got.r && !R.shows('pane:combat'), 'CONTROL: a fresh character with the kill quest on the sheet and Combat shut');
-      assert(!got.go, 'the daily row offers "' + (got.go && got.go.textContent) + '" through the shut Combat door');
-      R.__pin(R.FULL);
-      got = await row();
-      assert(got.go && got.go.textContent === 'Go fight', 'CONTROL: with Combat open the row must offer Go fight');
-    } finally { R.__pin(was); TL.__feed(null); restoreG(snap); }
-  }),
-
-  () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the boots on your feet; the unlock moment speaks once per newly finished step', async () => {
+  /* The wear-the-boots rung left the spine with the 2026-10-14 demolition; step 7
+     is the first craft, and step 8 the first harvest. */
+  () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the first craft; the unlock moment speaks once per newly finished step', async () => {
     const six = Object.assign({}, FIRST4, { crafted: 1 });
-    await onBar(facts({ counts: six, property: 1, workers: 1, bag: { leather_boots: 1 } }), async (bar) => {
-      assert(/^Step 7/.test(text(bar)) && bar.querySelector('.sp-go').textContent === 'Wear', 'crafted but not worn: ' + text(bar));
+    await onBar(facts({ counts: FIRST4, property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 7/.test(text(bar)) && /Craft your first item/.test(text(bar)), 'step 7 is not the first craft: ' + text(bar));
     });
-    await onBar(facts({ counts: six, property: 1, workers: 1, equipment: { boots: 'leather_boots' } }), async (bar) => {
-      assert(/^Step 8/.test(text(bar)), 'boots worn did not finish step 7: ' + text(bar));
+    await onBar(facts({ counts: six, property: 1, workers: 1 }), async (bar) => {
+      assert(/^Step 8/.test(text(bar)), 'a first craft did not finish step 7: ' + text(bar));
     });
     const SP = window.HearthriseSpine;
     const was = SP.__park(true);

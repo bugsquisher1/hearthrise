@@ -90,16 +90,18 @@ await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp,
                  'gather', '${NODE}', now() - interval '2 hours')`);
 await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                values ('${U}', 0, 'woodcutting', 302288)`);
+/* Two Toolsheds (gatherSpeed, a KEPT perk). The Library's allXP was the probe
+   until a home stopped granting XP (Master Design Reference §9, 2026-10-14). */
 await db.exec(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
-               values ('${U}', 0, 'unlock', 'room:library', '', 5)`);
+               values ('${U}', 0, 'stat', 'plot:toolshed', '', 2)`);
 await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                values ('${U}', 0, 'gather', true, '${holder}', now() + interval '1 hour')`);
 
 // P0 — the fixture carries a perk the server itself reports.
 const perkEnv = (await one('select public.hr_perks_of($1::uuid, 0) as p', [U])).p;
-judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.rooms || {}).library) === 5,
-  `hr_perks_of reports the Library at rung ${perkEnv && perkEnv.rooms && perkEnv.rooms.library} (allXP +5%)`,
-  `hr_perks_of did not report the planted Library: ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
+judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.plots || {}).toolshed) === 2,
+  `hr_perks_of reports ${perkEnv && perkEnv.plots && perkEnv.plots.toolshed} Toolsheds (gatherSpeed)`,
+  `hr_perks_of did not report the planted Toolsheds: ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
 
 // The envelope and the label, read BEFORE the fire (shadow moves neither).
 const [row] = (await db.query(

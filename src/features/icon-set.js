@@ -34,11 +34,11 @@
   // economy + everything else. Nothing else gets to introduce a hue.
   var ACCENT = {
     attack: '--red', strength: '--red', defense: '--red', hitpoints: '--red',
-    ranged: '--red', bountyHunter: '--red',
+    ranged: '--red',
     magic: '--gem', prayer: '--gem', gems: '--gem',
     // hand-authored glyphs (src/data/glyphs-extra.js). Runecrafting is arcane;
     // Stonemason is an artisan craft and sits with cooking/crafting/smithing.
-    runecrafting: '--gem', stonemason: '--gold',
+    runecrafting: '--gem',
     woodcutting: '--green', mining: '--green', fishing: '--green',
     farming: '--green', foraging: '--green',
     cooking: '--gold', crafting: '--gold', smithing: '--gold', gold: '--gold'
@@ -213,7 +213,7 @@
   var NAV_MAP = {
     profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
     skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
-    house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable',
+    house: 'navHouse', social: 'navSocial', more: 'navMore',
     market: 'navMarket', dungeons: 'navDungeons', events: 'uiEvent',
     // b225 (#18): the Clan Seat's own nav entry. `uiCastle` and not a banner or
     // a shield — the destination is a keep you build, and it has to read as a
@@ -269,11 +269,6 @@
         if (sg) railSet.innerHTML = sg;
       }
     });
-    var flame = document.querySelector('.streak-badge .flame');
-    if (flame && paths.uiFlame && !flame.querySelector('.hr-glyph')) {
-      var fg = glyph('uiFlame', 14, '--red');
-      if (fg) flame.innerHTML = fg;
-    }
   }
 
   // Last-resort sweep for legacy render sites not yet migrated to HR.icon().
@@ -282,7 +277,7 @@
   var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
   function stripChromeEmoji() {
     document.querySelectorAll(
-      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button, .card-title, #panel-bounty .si, #panel-bounty .price, #panel-bounty .ic'
+      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button, .card-title'
     ).forEach(function (el) {
       if (el.dataset.hrDeemoji) return;
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);

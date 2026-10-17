@@ -496,12 +496,9 @@ async function run(mutate) {
       `G0: no offer was refused for granting something other than an item (families: ${[...families]}). `
       + 'Unlocks are player_progress rows and are deliberately absent from hr_apply\'s delta '
       + 'allowlist — 99 of the 128 offers are that shape, so this family cannot be empty.');
-    ok(families.has('unpayable_cost'),
-      `G0: no offer was refused for a non-gold cost (families: ${[...families]}) — gems, Bounty `
-      + 'Marks and USD are all authored, and Marks have no server column at all');
-    ok(families.size >= 2,
-      `G0: the eligibility predicate produced ${families.size} distinct refusal family — a single `
-      + 'catch-all reason is indistinguishable from a predicate that stopped discriminating');
+    /* The non-gold costs (gems, Bounty Marks, USD) left the authored catalogue in
+       the 2026-10-14 demolition, so the census can no longer see the
+       'unpayable_cost' family; it is driven directly below, after `base`. */
 
     ok(cat.ALL_OFFER_IDS.length === shops.SHOP_OFFERS.length,
       'G0: ALL_OFFER_IDS does not cover every authored offer');
@@ -527,6 +524,18 @@ async function run(mutate) {
     ok(cat.offerIneligibility(base) === null,
       `G0-CONTROL: a plain gold->item offer is refused (${cat.offerIneligibility(base)}) — every `
       + 'assertion below would then pass for the wrong reason');
+    /* A NON-GOLD COST IS REFUSED BY NAME — gems, Bounty Marks and real money, none
+       of which this verb can debit (Marks never had a server column at all). */
+    for (const c of [{ kind: 'currency', id: 'gems', amount: 5 }, { kind: 'currency', id: 'marks', amount: 5 },
+      { kind: 'money', id: 'usd', amount: 499 }]) {
+      const why = String(cat.offerIneligibility({ ...base, cost: [c] }));
+      ok(why.startsWith('unpayable_cost'),
+        `G0: an offer costing ${c.amount} ${c.id} was judged '${why}' — a non-gold cost must be refused as unpayable_cost`);
+      families.add(why.split(':')[0]);
+    }
+    ok(families.size >= 2,
+      `G0: the eligibility predicate produced ${families.size} distinct refusal family — a single `
+      + 'catch-all reason is indistinguishable from a predicate that stopped discriminating');
     for (const [field, value] of [['reqSkill', 'fletching'], ['reqLv', 60], ['max', 1],
       ['period', 'month'], ['authority', 'platform'], ['note', 'x']]) {
       const why = cat.offerIneligibility({ ...base, [field]: value });

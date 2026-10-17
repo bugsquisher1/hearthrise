@@ -2,10 +2,9 @@
 // src/render/bestiary-trophies.js — the CLIENT half of the Bestiary TROPHY
 // ladder (docs/design/BESTIARY_LADDER.md).
 //
-// The sibling of src/render/bestiary-charms.js, and deliberately its mirror:
-// same scratch-key rule, same fail-safe, same "computes no authoritative
-// number". Where that file mirrors per-CLASS totals for the short ladder, this
-// one mirrors per-MONSTER totals and the CLAIMED trophy rows for the long one.
+// It computes no authoritative number: it mirrors the server's per-MONSTER
+// totals and the CLAIMED trophy rows (the per-class charm ladder it once
+// mirrored was deleted in the 2026-10-14 demolition).
 //
 // Three jobs and nothing else:
 //   1. MIRROR the server's `bestiary.kills_by_monster` and `bestiary.trophies`
@@ -41,7 +40,7 @@
 // for an idle character is `accrued:false, reason:'idle'` — so a mirror sited
 // there would be invisible to exactly the player who reloads and opens the
 // Bestiary. src/net/accrue.js `settle()` is the one funnel every answered
-// accrual passes, accrued or not. The charm mirror learned this first.
+// accrual passes, accrued or not.
 //
 // ── PRESENTATION IS TOKENS AND ATLAS GLYPHS ONLY ────────────────────────────
 // No hardcoded colour and no emoji: the badge is `uiMedal`, the threshold
@@ -74,7 +73,7 @@ function claimKey(monsterId, stage) { return monsterId + ':' + stage; }
  * rather than clearing it: the intent responses (equip, shop_buy, …) carry no
  * bestiary block, and treating their silence as "zero kills" would make a badge
  * flicker off every time the player bought a loaf of bread. Absence is not a
- * claim — the same rule the skills merge and the charm mirror follow.
+ * claim — the same rule the skills merge follows.
  *
  * Ids are validated against the roster the client actually has and values
  * coerced to non-negative integers, so a malformed or hostile block cannot put
@@ -154,8 +153,7 @@ function mirror() {
  * `{monsterId: stage}`, DERIVED on every read from the server's own counters —
  * the same `trophyIndex` the Edge engine calls on the same rows. Published on
  * `window.HearthriseTrophies` so src/core-bridge.js can reach it without
- * importing a renderer (it reaches `getBonus`, `HearthriseTools` and
- * `HearthriseCharms` the same way). Keeping the read here keeps
+ * importing a renderer (it reaches `getBonus` the same way). Keeping the read here keeps
  * `G._bestiaryTrophies` owned by exactly one module.
  *
  * ⚠ DISPLAY PREDICTION ONLY. It feeds `weaknessInfo` on the client so the loot
@@ -174,8 +172,8 @@ export function indexForCombat() {
 
 /** Has the SERVER stated the per-monster kill counts at all? killsOfMonster
  *  answers 0 for "no mirror", so a grade that must tell 0 from unknown (the
- *  Dragon Slayer deed) gates on this — never on the charm mirror's
- *  countersKnown(), which is a different envelope key. */
+ *  Dragon Slayer deed) gates on this — never on any other
+ *  mirror's known-flag. */
 export function countsKnown() { return mirror() !== null; }
 
 /** Lifetime kills against one monster, per the SERVER. 0 when unknown. */

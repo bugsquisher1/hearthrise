@@ -125,37 +125,31 @@ export default [
 
   /* HOUSE-SERVER-BAG-2 — EACH item-gate reader counts the server's bag, asserted at
      its own seam: HOUSE-SERVER-BAG-1 drives heldOf + upgradeRoom and cannot see
-     canPayCost (the room/plot grid button), _costPart (the cost chip) or
-     roomRungItemGate (the blueprint line). Three states each: UNSTATED (pending,
-     never a figure), the server holds NONE, and the CONTROL where it holds them.
-     MUTATION: point canPayCost, _costPart or roomRungItemGate back at G.inventory → red. */
-  () => tryRun('HOUSE-SERVER-BAG-2: canPayCost, the cost chip and the blueprint gate each count the server\'s bag', () => {
+     canPayCost (the room/plot grid button) or _costPart (the cost chip). Three
+     states each: UNSTATED (pending, never a figure), the server holds NONE, and
+     the CONTROL where it holds them. (The blueprint gate left with the dungeon
+     blueprints in the 2026-10-14 demolition.)
+     MUTATION: point canPayCost or _costPart back at G.inventory → red. */
+  () => tryRun('HOUSE-SERVER-BAG-2: canPayCost and the cost chip each count the server\'s bag', () => {
     const G = window.G, snap = snapshotG(), bag = serverBagFixture();
-    assert(typeof window.canPayCost === 'function' && typeof window._costPart === 'function'
-      && typeof window.roomRungItemGate === 'function', 'CONTROL: an item-gate reader is unpublished');
-    const bp = Object.keys(window.ITEMS).find((k) => window.ITEMS[k] && window.ITEMS[k].unlocks === 'kitchen.2');
-    assert(!!bp, 'CONTROL: no blueprint unlocks kitchen.2, so the item gate cannot be measured');
+    assert(typeof window.canPayCost === 'function' && typeof window._costPart === 'function',
+      'CONTROL: an item-gate reader is unpublished');
+    assert(typeof window.roomRungItemGate === 'undefined', 'the demolished blueprint gate is back');
     try {
-      G.inventory = Object.assign({}, G.inventory, { normal_log: 9999, [bp]: 5 });   // the display bag holds plenty
+      G.inventory = Object.assign({}, G.inventory, { normal_log: 9999 });   // the display bag holds plenty
       delete G._serverBag;                                                           // (1) no envelope has stated the bag
       assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost paid from an UNSTATED server bag');
       const p0 = window._costPart('normal_log', 1);
       assert(/is-short/.test(p0) && /no figure yet/.test(p0), 'the cost chip counted the display bag before the server spoke: ' + p0);
-      const g0 = window.roomRungItemGate('kitchen', 2);
-      assert(g0 && g0.ok === false && g0.known === false && g0.have === -1,
-        'the blueprint gate read an unstated bag as a figure (pending is not 0): ' + JSON.stringify(g0));
       bag.agree({});                                                                 // (2) the realm holds none
       assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost counted the display bag over the server\'s empty one');
       const p1 = window._costPart('normal_log', 1);
       assert(/is-short/.test(p1) && /you have 0/.test(p1), 'the cost chip counted the display bag: ' + p1);
-      const g1 = window.roomRungItemGate('kitchen', 2);
-      assert(g1.ok === false && g1.known === true && g1.have === 0, 'the blueprint gate counted the display bag: ' + JSON.stringify(g1));
-      bag.agree({ normal_log: 3, [bp]: 1 });                                         // (3) CONTROL: the realm holds them
+      bag.agree({ normal_log: 3 });                                                  // (3) CONTROL: the realm holds them
       assert(window.canPayCost({ normal_log: 3 }) === true && window.canPayCost({ normal_log: 4 }) === false,
         'canPayCost must count the server\'s 3, exactly');
       const p2 = window._costPart('normal_log', 3);
       assert(/is-met/.test(p2) && /you have 3/.test(p2), 'the cost chip must show the server\'s 3: ' + p2);
-      assert(window.roomRungItemGate('kitchen', 2).ok === true, 'a blueprint the server holds must meet the gate');
     } finally { restoreG(snap); bag.restore(); }
   }),
 
@@ -165,7 +159,7 @@ export default [
      Kitchen Blueprint II" / "You have none" — a claim about a bag nobody had read.
      The bar, the gate line and the authority's toast now all say "still being counted".
      MUTATION: restore the `m.id + ' balance not loaded yet'` branch in the modal
-     builder, or `?? 0` in roomRungItemGate → red. */
+     builder → red. (The blueprint half left with the dungeon blueprints, 2026-10-14.) */
   () => tryRun('HOUSE-SERVER-BAG-3: before the bag is stated the House says "still being counted", never "none"', () => {
     const G = window.G, H = window.HearthriseHomestead, RM = window.HearthriseRoomModal, snap = snapshotG(), bag = serverBagFixture();
     assert(H && typeof H.modalDescriptor === 'function' && RM, 'CONTROL: the room modal is unpublished');
@@ -179,16 +173,10 @@ export default [
       assert(btn && btn.disabled, 'a Build against an unstated bag must be disabled: ' + JSON.stringify(btn));
       assert(/Normal Log still being counted/.test(btn.why) && !/balance not loaded yet/.test(btn.why),
         'an unstated ITEM must read "still being counted", never currency words: ' + btn.why);
-      assert(/Kitchen Blueprint II still being counted/.test(btn.why) && !/Needs Kitchen Blueprint II/.test(btn.why),
-        'the blueprint must read pending, not "Needs": ' + btn.why);
+      assert(!/Blueprint/.test(btn.why), 'the demolished blueprint gate is back on the Build bar: ' + btn.why);
       assert(!/Missing [^·]*still being counted/.test(btn.why), 'an unstated count is pending, not "Missing": ' + btn.why);
       H.openRoom('kitchen');
-      const line = document.querySelector('.hr-room-body .hr-room-gate');
-      assert(line && line.classList.contains('is-pending') && /Still being counted/.test(line.textContent)
-        && !/You have none/.test(line.textContent), 'the gate line claimed a figure: ' + (line && line.outerHTML));
-      /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
-      const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
-      assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
+      assert(!document.querySelector('.hr-room-body .hr-room-gate'), 'the demolished blueprint gate line is back in the room modal');
       /* Visual gate: the modal's uncounted cost chip ("—/20 Normal Log") rendered in the red "short" colour.
          MUTATION: drop `is-pending` from costChip's known:false branch → red. */
       const qty = [...document.querySelectorAll('.hr-room-wrap .hr-cs-qty')].find((c) => c.querySelector('.bal-pending') && /Normal Log/.test(c.textContent));
@@ -200,17 +188,11 @@ export default [
       /* …and the House card's chips are neither met nor short: no red "none" for a count nobody has read. */
       const host = document.createElement('div'); H.renderRoomGrid(host);
       const cost = host.querySelector('.hh-room[data-room="kitchen"] .hh-room-cost');
-      const gateChip = cost && cost.querySelector('.hh-cost-gate'), logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
-      assert(gateChip && gateChip.classList.contains('is-pending') && !gateChip.classList.contains('is-short'),
-        'the pending blueprint chip must be is-pending, not is-short: ' + (gateChip && gateChip.outerHTML));
+      const logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
       assert(logChip && logChip.classList.contains('is-pending'), 'the pending cost chip must be is-pending: ' + (logChip && logChip.outerHTML));
       window.notify = (m) => { said.push(String(m)); };
       assert(window.upgradeRoom('kitchen') === false, 'the authority must refuse against an unstated bag');
-      assert(said.some((m) => /Kitchen Blueprint II still being counted/.test(m)) && !said.some((m) => /^Requires a/.test(m)),
-        'the authority\'s toast must say pending, not "Requires a": ' + JSON.stringify(said));
-      bag.agree();                                                                  // CONTROL: stated, no blueprint
-      said.length = 0; window.upgradeRoom('kitchen');
-      assert(said.some((m) => /^Requires a Kitchen Blueprint II/.test(m)), 'CONTROL: a stated bag without the blueprint must say "Requires a": ' + JSON.stringify(said));
+      assert(!said.some((m) => /Blueprint/.test(m)), 'the authority named the demolished blueprint: ' + JSON.stringify(said));
     } finally { window.notify = realNotify; restoreG(snap); bag.restore(); RM.close(); }
   }),
 
@@ -328,118 +310,7 @@ export default [
       'a malformed offer id must refuse locally as bad_offer, not go to the server; got ' + JSON.stringify(r));
   }),
 
-  () => tryRunAsync('hr_trait_buy client transport: a trait id crosses, a price never does', async () => {
-    /* THE SLICE (b46x). A permanent TRAIT is now bought through hr_trait_buy —
-       a direct PostgREST RPC, not a gold verb, because it moves no gold and
-       returns no envelope. The load-bearing client properties are the same two
-       unlock_buy's are: the wire carries a NAME and never a NUMBER, and a
-       malformed gesture is refused locally instead of spending a real player's
-       rate budget to be told so. The server half is tests/trait-buy.mjs. */
-    const S = window.HearthriseGold;
-    if (!S || typeof S.buildTraitBuyRequest !== 'function') {
-      assert(false, 'HearthriseGold.buildTraitBuyRequest is missing — legacy.js buyTrait() has '
-        + 'nothing to route to under the marks arm and every trait is unbuyable');
-      return;
-    }
 
-    // 1. THE BYTES. Exactly {p_trait_id, p_slot, p_idem} and nothing else.
-    const req = S.buildTraitBuyRequest({ trait: 'auto_eat', slot: 0, intentId: 'k',
-      url: 'https://x.example', apiKey: 'a', token: 't' });
-    const body = JSON.parse(req.init.body);
-    assert(body.p_trait_id === 'auto_eat' && body.p_slot === 0 && body.p_idem === 'k',
-      'the trait-buy body must carry the trait id, the slot and the idempotency key; got '
-      + JSON.stringify(body));
-    assert(Object.keys(body).length === 3,
-      'the trait-buy body grew a field: ' + JSON.stringify(body) + '. Price, currency and '
-      + 'prerequisite live in public.hr_traits — a number added here is a client authoring a '
-      + 'permanent capability, which is exactly what this verb was written to make impossible.');
-    assert(!('p_cost' in body) && !('p_price' in body) && !('p_currency' in body)
-      && !('p_marks' in body) && !('p_gold' in body),
-      'the trait-buy wire must carry NO price/currency/balance; got ' + JSON.stringify(body));
-    assert(/\/rest\/v1\/rpc\/hr_trait_buy$/.test(req.url),
-      'the trait-buy request must POST to the hr_trait_buy RPC; got ' + req.url);
-
-    // 2. A REFUSAL ARRIVES AS HTTP 200. PostgREST returns 200 for any function
-    //    that RETURNS a value, so classifying on status alone would read
-    //    {ok:false,error:'insufficient_marks'} as a purchase and grant it free.
-    const C = S.classifyTraitResponse;
-    assert(C(200, { ok: true, trait_id: 'auto_eat' }).outcome === 'applied',
-      'a successful purchase must classify as applied');
-    assert(C(200, { ok: true, replayed: true }).outcome === 'replayed',
-      'a replayed purchase must classify as replayed (the original landed — the trait IS owned)');
-    const refused = C(200, { ok: false, error: 'insufficient_marks' });
-    assert(refused.outcome === 'refused' && refused.reason === 'insufficient_marks',
-      'a 200 carrying ok:false is a REFUSAL, not a purchase; got ' + JSON.stringify(refused));
-    assert(C(429, null).outcome === 'rate-limited' && C(404, null).reason === 'rpc_missing'
-      && C(503, null).outcome === 'unavailable' && C(401, null).outcome === 'not-signed-in',
-      'the transport must name each transport-level failure separately');
-    assert(S.isTraitOwnedOutcome('applied') && S.isTraitOwnedOutcome('replayed')
-      && !S.isTraitOwnedOutcome('refused') && !S.isTraitOwnedOutcome('unavailable'),
-      'ownership must follow applied/replayed only');
-
-    // 3. A MALFORMED TRAIT ID IS REFUSED LOCALLY — no rate slot burned.
-    const bad = S.buyTrait('not a trait!!', S.newIntentKey ? (S.newIntentKey() || 'k') : 'k');
-    assert(bad && typeof bad.then === 'function', 'buyTrait must return a promise');
-    const r = await bad;
-    assert(r && r.outcome === 'unsendable' && r.reason === 'bad_trait',
-      'a malformed trait id must refuse locally as bad_trait, not go to the server; got '
-      + JSON.stringify(r));
-    // …and so is a missing idempotency key: a purchase with no key cannot be
-    // replayed safely, so it must never leave the client.
-    const noKey = await S.buyTrait('auto_eat', 'not-a-uuid');
-    assert(noKey && noKey.outcome === 'unsendable' && noKey.reason === 'no_intent_key',
-      'a purchase with no valid idempotency key must not be sent; got ' + JSON.stringify(noKey));
-  }),
-
-  () => tryRun('b536: the trait ownership hydration MIRRORS the server, both directions', () => {
-    /* This shipped as a UNION — add-only — for players who bought Auto-Eat
-       before hr_trait_buy existed. The wipe removed them (§1) and the rule
-       outlived its reason: add-only means a trait the server never sold gates
-       every surface as "owned" forever (§6). The projection is UNFILTERED and
-       `[]` is KNOWN (2026-08-23-trait-buy.sql): it is the set. */
-    const A = window.HearthriseAccrual;
-    if (!A || typeof A.reconcileTraits !== 'function') {
-      assert(false, 'HearthriseAccrual.reconcileTraits is missing — nothing hydrates trait '
-        + 'ownership from the server envelope, so a purchase would not survive a device change');
-      return;
-    }
-    const g = { traits: { legacy_local: true } };
-    const r1 = A.reconcileTraits(g, { traits: ['auto_eat'] });
-    assert(g.traits.auto_eat === true, 'a server-owned trait must be hydrated onto the client');
-    assert(!('legacy_local' in g.traits) && r1 && r1.removed === 1,
-      'THE BUG: a trait the server does not project survived the hydration — a client-only flag '
-      + 'that keeps gating a server capability as owned is the residue-ahead class');
-
-    // FAIL-CLOSED on absence: no `traits` key changes nothing (never evict on
-    // uncertainty — absence is not "you own nothing").
-    const g2 = { traits: { auto_eat: true } };
-    const res = A.reconcileTraits(g2, { state: {} });
-    assert(res && res.mode === 'absent' && g2.traits.auto_eat === true,
-      'an envelope that does not project traits must not be read as "you own nothing"');
-
-    // An EMPTY server set is a valid known state: grants nothing, and takes back
-    // anything the client invented.
-    const g3 = { traits: {} };
-    A.reconcileTraits(g3, { traits: [] });
-    assert(Object.keys(g3.traits).length === 0, 'an empty owned set must grant nothing');
-    const g4 = { traits: { auto_eat: true, auto_eat_2: true } };
-    A.reconcileTraits(g4, { traits: [] });
-    assert(Object.keys(g4.traits).length === 0,
-      'an empty PROJECTED set is the server saying "this character owns nothing" — it must clear');
-
-    /* THE ONE EXCEPTION, on the EXISTING optimistic/answer seam: buyTrait parks
-       `G._traitBuying[id]` for a purchase; an envelope predating it must not
-       un-paint it — until the server answers. */
-    const g5 = { traits: { auto_eat: true }, _traitBuying: { auto_eat: true } };
-    const r5 = A.reconcileTraits(g5, { traits: [] });
-    assert(g5.traits.auto_eat === true && r5.held === 1 && r5.removed === 0,
-      'a purchase IN FLIGHT must hold its optimistic trait until the server answers');
-    g5._traitBuying.auto_eat = false;                      // the answer landed
-    A.reconcileTraits(g5, { traits: [] });
-    assert(!('auto_eat' in g5.traits),
-      'once the purchase is no longer in flight the server set is the set — the optimistic paint '
-      + 'must not become a second source of truth');
-  }),
 
   () => tryRun('P0 (Paione): the combat style is the SERVER\'s, and the picker tells it', () => {
     /* THE BUG. "When training combat, Strength/Defense/HP exp is not saving —
@@ -1602,320 +1473,17 @@ export default [
      The price fixture comes from the AUTHORED table — a hardcoded 500 goes green
      on the day a Designer reprices Forest Lodge and silently stops testing that
      the gesture matches the quote. */
-  () => tryRunAsync('GEM-BUY-1: buying a theme sends ONE intent carrying no price, debits nothing locally, and takes ownership from the envelope', async () => {
-    if (typeof window.buyTheme !== 'function' || typeof window.ownsGemUnlock !== 'function') return;
-    const snap = snapshotG();
-    const prevGC = window.HearthriseGoalClaim, prevRec = window.HearthriseRecord;
-    const origNotify = window.notify, origSave = window.saveLocal;
-    const origTop = window.updateTopbar, origHouse = window.renderHouse;
-    const sent = [], said = [];
-    try {
-      const theme = (window.HOUSE_THEMES || []).find(function (t) { return t.currency === 'gem'; });
-      assert(theme, 'the fixture needs a gem-priced theme in HOUSE_THEMES (window.HOUSE_THEMES)');
-      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
-      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderHouse = function () {};
-      window.HearthriseRecord = Object.assign({}, prevRec, { requestRecord: function () { return Promise.resolve(null); } });
-      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
-        buyGemUnlock: function () {
-          sent.push(Array.prototype.slice.call(arguments));
-          return Promise.resolve({
-            ok: true, unlock_id: 'theme:' + theme.id, name: theme.name, currency: 'gems',
-            cost: theme.price, gems: 4242, version: 9, slot: 0,
-            gem_unlocks: ['theme:default', 'theme:' + theme.id]
-          });
-        }
-      });
-
-      window.G.gems = 100000;
-      stampBalanceLikeLoad(window.G);
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      window.G.houseTheme = 'default';
-      const gems0 = window.G.gems;
-
-      await window.buyTheme(theme.id);
-
-      assert(sent.length === 1, 'exactly ONE purchase intent per gesture — saw ' + sent.length
-        + '. Two keys for one tap costs a rate spend and reads to the player as a failure.');
-      /* NO PRICE CROSSES. The server reads the cost from public.hr_gem_unlocks
-         under the character lock; a number on the wire would be a client
-         authoring a permanent capability, which is the thing the verb exists to
-         make impossible. */
-      assert(sent[0].length === 1 && typeof sent[0][0] === 'string',
-        'the transport takes an unlock id and nothing else — got ' + JSON.stringify(sent[0]));
-      assert(sent[0][0] === 'theme:' + theme.id,
-        'the intent must name the catalogue id `<namespace>:<id>`, got ' + sent[0][0]);
-      assert(!sent[0].some(function (a) { return typeof a === 'number'; }),
-        'THE CLASS: a NUMBER crossed the wire on a premium purchase — ' + JSON.stringify(sent[0]));
-
-      assert(window.G.gems === gems0,
-        'THE CLASS: the client debited ' + (gems0 - window.G.gems) + ' gems itself. gems are '
-        + 'SERVER_OF_RECORD and armed, so that is a prediction the next envelope refunds while the '
-        + 'theme stays — the b371 dupe.');
-      assert(window.ownsGemUnlock('theme', theme.id) === true,
-        'ownership must arrive in the ENVELOPE (gem_unlocks) and be adopted — the client no longer '
-        + 'has a bag to write, so if the reconcile is skipped the purchase is invisible');
-      assert(window.G.houseTheme === theme.id, 'a bought theme equips itself — that is the gesture');
-      assert(window.activeHouseTheme() === theme.id,
-        'the equipped pointer must survive the fail-closed read: it is owned, so it paints');
-      assert(said.some(function (x) { return x.k === 'levelup'; }),
-        'a completed purchase must say so: ' + JSON.stringify(said));
-      assert(!said.some(function (x) { return x.k === 'kill'; }),
-        'a completed purchase raised a failure toast: ' + JSON.stringify(said));
-    } finally {
-      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
-      if (prevRec) window.HearthriseRecord = prevRec; else delete window.HearthriseRecord;
-      window.notify = origNotify; window.saveLocal = origSave;
-      window.updateTopbar = origTop; window.renderHouse = origHouse;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── THE SAME CONTRACT ON THE OTHER SURFACE, PLUS THE REFUSAL THAT MATTERS ──
-     `already_owned` is the answer that makes the ACCOUNT-WIDE ruling real: Hero 2
-     opening the shop before its first envelope sees a Buy button, presses it,
-     and the realm says "you already have this" and hands back the whole owned
-     set. Nothing is charged, and the stale view heals in that one round trip.
-     If this test ever goes red the way it can — by that path charging a gem —
-     the bug is a 1,200-gem Phoenix Pet sold twice to one person. */
-  () => tryRunAsync('GEM-BUY-2: a cosmetic the ACCOUNT already owns is refused, charges nothing, and the refusal heals the view', async () => {
-    if (typeof window.buyCosmetic !== 'function' || typeof window.ownsGemUnlock !== 'function') return;
-    const snap = snapshotG();
-    const prevGC = window.HearthriseGoalClaim, prevRec = window.HearthriseRecord;
-    const origNotify = window.notify, origSave = window.saveLocal;
-    const origTop = window.updateTopbar, origShop = window.renderShop;
-    const sent = [], said = [];
-    try {
-      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
-      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderShop = function () {};
-      window.HearthriseRecord = Object.assign({}, prevRec, { requestRecord: function () { return Promise.resolve(null); } });
-      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
-        buyGemUnlock: function () {
-          sent.push(Array.prototype.slice.call(arguments));
-          /* The shape hr_buy_gem_unlock returns when the widened (account-wide)
-             owned-set read catches a re-buy: an error, WITH the set. */
-          return Promise.resolve({
-            ok: false, error: 'already_owned', unlock_id: 'cosmetic:pet_phoenix',
-            gem_unlocks: ['theme:default', 'cosmetic:pet_phoenix']
-          });
-        }
-      });
-
-      window.G.gems = 100000;
-      stampBalanceLikeLoad(window.G);
-      /* A character that has NOT heard about the purchase — hero 2's first paint. */
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      const gems0 = window.G.gems;
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
-        'the fixture needs the cosmetic to look UNOWNED before the gesture, or it proves nothing');
-
-      await window.buyCosmetic('pet_phoenix', 1200);
-
-      assert(sent.length === 1, 'the gesture must reach the realm — the client cannot know the '
-        + 'account owns it, and guessing is the residue-ahead class');
-      assert(window.G.gems === gems0, 'THE CLASS: an already-owned cosmetic charged ' + (gems0 - window.G.gems)
-        + ' gems. Account-wide ownership exists precisely so hero 2 is not billed twice.');
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === true,
-        'the refusal carries the owned set and must HEAL the stale view in the same round trip');
-      assert(said.some(function (x) { return /already yours/i.test(x.m); }),
-        'the player must be told what happened, in plain words: ' + JSON.stringify(said));
-      assert(!said.some(function (x) { return x.k === 'kill'; }),
-        '"you already own it" is not a failure and must not be shouted as one: ' + JSON.stringify(said));
-    } finally {
-      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
-      if (prevRec) window.HearthriseRecord = prevRec; else delete window.HearthriseRecord;
-      window.notify = origNotify; window.saveLocal = origSave;
-      window.updateTopbar = origTop; window.renderShop = origShop;
-      restoreG(snap);
-    }
-  }),
-
-  /* THE FREE DEFAULT. The unlock catalogue's own warning is that a zero-priced
-     offer is an infinite faucet, so `theme.default` stays a FREE EQUIP and must
-     never become a purchase — on either side of the wire. The server refuses the
-     free row `not_for_sale`; this pins that the client never posts it at all. */
-  () => tryRunAsync('GEM-FREE-1: the default theme is a FREE EQUIP — it posts no purchase and spends nothing', async () => {
-    if (typeof window.buyTheme !== 'function') return;
-    const snap = snapshotG();
-    const prevGC = window.HearthriseGoalClaim;
-    const origNotify = window.notify, origSave = window.saveLocal;
-    const origTop = window.updateTopbar, origHouse = window.renderHouse;
-    const sent = [];
-    try {
-      window.notify = function () {}; window.saveLocal = function () {};
-      window.updateTopbar = function () {}; window.renderHouse = function () {};
-      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
-        buyGemUnlock: function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ ok: false, error: 'not_for_sale' }); }
-      });
-      window.G.gems = 0; window.G.gold = 12345;
-      stampBalanceLikeLoad(window.G);
-      /* The projection ALWAYS carries the free rows (hr_gem_unlocks_of unions
-         `where g.free`), which is what keeps the starter cottage equippable. */
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      window.G.houseTheme = 'forest';
-      const gold0 = window.G.gold, gems0 = window.G.gems;
-
-      await window.buyTheme('default');
-
-      assert(window.G.houseTheme === 'default',
-        'the free default must equip — it is the only theme every player owns, and gating it would '
-        + 'break the one surface the arm is live on');
-      assert(sent.length === 0,
-        'THE CLASS: the client posted a PURCHASE for a free row. A zero-priced offer is an infinite '
-        + 'faucet (the unlock catalogue says so in those words), which is why there is no zero-gem '
-        + 'path on either side — ' + JSON.stringify(sent));
-      assert(window.G.gold === gold0, 'the free default must spend no gold (slice 6)');
-      assert(window.G.gems === gems0, 'the free default must spend no gems');
-    } finally {
-      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
-      window.notify = origNotify; window.saveLocal = origSave;
-      window.updateTopbar = origTop; window.renderHouse = origHouse;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── OWNERSHIP: THE SERVER, AND NOTHING ELSE ────────────────────────────────
-     The residue-ahead class with a wardrobe on: a client-held bag asserting
-     ownership of a server-sold capability. Before 2026-09-14 a forged
-     `G.ownedThemes` entry WAS ownership — it drew "Apply", it passed setTheme,
-     and hr_put_client_state stored it verbatim for ever. Both bags are gone, and
-     this is the arm that keeps them gone: planting one confers nothing. */
-  () => tryRun('GEM-OWN-1: ownership comes ONLY from the server set — a client-held bag confers nothing, and silence is not ownership', () => {
-    if (typeof window.ownsGemUnlock !== 'function' || typeof window.setTheme !== 'function') return;
-    const snap = snapshotG();
-    const origNotify = window.notify, origHouse = window.renderHouse;
-    try {
-      window.notify = function () {}; window.renderHouse = function () {};
-
-      // 1. NO SERVER ANSWER YET → nothing is owned. "Unknown" renders a live Buy
-      //    offer, which the realm heals in one round trip (already_owned). The
-      //    other direction — granting on silence — cannot be undone by one.
-      delete window.G._gemUnlocks;
-      assert(window.ownsGemUnlock('theme', 'forest') === false,
-        'an unheard-from projection conferred ownership. Fail to UNKNOWN, never to OWNED.');
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false, 'same for cosmetics');
-      assert(window.gemUnlocksKnown() === false,
-        'gemUnlocksKnown() must be able to tell "not heard" from "heard, and you own nothing" — '
-        + 'a surface that cannot make that distinction has to guess');
-
-      /* 2. A CLIENT-HELD BAG IS NOT AN ANSWER. These fields no longer exist in
-            the game; a console (or a stale cloud blob) can still type them.
-            ⚠ WRITTEN THROUGH A COMPUTED KEY ON PURPOSE, twice over: the field
-            names are RETIRED, so a literal `G.ownedThemes =` here would be a
-            forgery the arm-homing census reads as the game re-acquiring an
-            un-homed field — and the `finally` deletes them, because snapshotG
-            no longer carries what no longer exists. */
-      const forged = ['ownedThemes', 'ownedCosmetics'];
-      window.G[forged[0]] = ['forest', 'volcanic'];
-      window.G[forged[1]] = ['pet_phoenix'];
-      assert(window.ownsGemUnlock('theme', 'forest') === false,
-        'THE CLASS: a client-written bag still conferred ownership of a server-sold capability. '
-        + 'That is the b371 dupe\u2019s sticking half and the residue-ahead class in one line.');
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
-        'THE CLASS: a forged cosmetic bag conferred ownership');
-
-      // 3. THE SERVER HAS SPOKEN → its set is the answer, both ways.
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      assert(window.ownsGemUnlock('theme', 'default') === true, 'a theme the server DOES carry is owned');
-      assert(window.ownsGemUnlock('theme', 'forest') === false, 'and one it does not carry is not');
-      assert(window.gemUnlocksKnown() === true, 'the projection arrived, so ownership is KNOWN');
-
-      // 4. AND THE GATE IS LOAD-BEARING: equipping reads the same one seam.
-      window.G.houseTheme = 'default';
-      window.setTheme('forest');
-      assert(window.G.houseTheme === 'default',
-        'setTheme equipped a theme the realm does not record as owned — ownership must be read '
-        + 'through ONE seam, not re-derived per caller');
-      window.setTheme('default');
-      assert(window.G.houseTheme === 'default', 'a server-owned theme must still equip');
-    } finally {
-      delete window.G.ownedThemes; delete window.G.ownedCosmetics;   // forged above; they are not real fields
-      window.notify = origNotify; window.renderHouse = origHouse;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── AND THE PROJECTION NEVER NARROWS ───────────────────────────────────────
-     The security condition of this build, and the one failure mode that would
-     look to a paying player exactly like theft: an envelope that does not carry
-     `gem_unlocks` (an older server body, a partial, a body shaped for another
-     verb) must NOT be read as "you own nothing". Absence leaves the last known
-     set standing; only a real, present array replaces it. */
-  () => tryRun('GEM-NARROW-1: an envelope with no (or garbage) gem_unlocks leaves the owned set exactly as it was', () => {
-    const A = window.HearthriseAccrual;
-    if (!A || typeof A.reconcileGemUnlocks !== 'function') return;
-    const snap = snapshotG();
-    try {
-      const G = { _gemUnlocks: { owned: ['theme:default', 'theme:forest'], at: 1 } };
-      const held = function () { return (G._gemUnlocks.owned || []).join(','); };
-
-      assert(A.reconcileGemUnlocks(G, { ok: true }).mode === 'absent', 'a body with no key is ABSENT, not empty');
-      assert(held() === 'theme:default,theme:forest', 'THE CLASS: a body carrying no gem_unlocks de-owned a paid theme');
-      A.reconcileGemUnlocks(G, { gem_unlocks: null });
-      assert(held() === 'theme:default,theme:forest', 'a null projection de-owned a paid theme');
-      A.reconcileGemUnlocks(G, { gem_unlocks: 'theme:forest' });
-      assert(held() === 'theme:default,theme:forest', 'a STRING is not the array shape and must be ignored, not parsed');
-      A.reconcileGemUnlocks(G, { gem_unlocks: {} });
-      assert(held() === 'theme:default,theme:forest', 'an object is not the array shape');
-
-      /* PRESENT AND WELL-FORMED → absolute. The server always projects the free
-         rows, so a shorter set is a real revoke and the client does not vote. */
-      A.reconcileGemUnlocks(G, { gem_unlocks: ['theme:default'] });
-      assert(held() === 'theme:default',
-        'a REAL projection is absolute — a union would keep a revoked or refunded unlock alive for ever');
-      /* And a malformed entry inside a real array is dropped rather than carried:
-         it can never match `kind:id`, so keeping it would only inflate the set. */
-      A.reconcileGemUnlocks(G, { gem_unlocks: ['theme:default', 'nonsense', 42, 'theme:forest'] });
-      assert(held() === 'theme:default,theme:forest', 'entries that are not `<namespace>:<id>` must be dropped: ' + held());
-    } finally { restoreG(snap); }
-  }),
-
-  /* ── THE EQUIPPED POINTER FAILS CLOSED ──────────────────────────────────────
-     `houseTheme` stays residue — it is a per-character display pointer the server
-     has no column for — so it is the one field in this lane a player (or a stale
-     cloud blob) can still author. It must therefore be READ through a fail-closed
-     seam: a pointer at a theme the owned set does not carry paints `default`,
-     silently, and re-grants nothing. */
-  () => tryRun('THEME-CLOSED-1: an equipped theme the realm does not record renders `default`, silently, and is never re-granted', () => {
-    if (typeof window.activeHouseTheme !== 'function') return;
-    const snap = snapshotG();
-    const said = [], origNotify = window.notify;
-    try {
-      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      window.G.houseTheme = 'volcanic';           // forged, or paid for on a server that revoked it
-      assert(window.activeHouseTheme() === 'default',
-        'THE CLASS: a forged `houseTheme` painted a theme the realm never sold — the residue gating '
-        + 'a server-sold capability, one field over from the Forge deadlock');
-      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
-        'and the fail-closed READ must not quietly become a GRANT');
-      assert(window.G.houseTheme === 'volcanic',
-        'the read fails closed; it does not rewrite the player\u2019s pointer. A theme they own again '
-        + 'tomorrow must come back by itself.');
-      assert(said.length === 0,
-        'silently — the player did nothing wrong and there is nothing they can act on: ' + JSON.stringify(said));
-      // And the moment the realm carries it, the same pointer paints.
-      window.G._gemUnlocks = { owned: ['theme:default', 'theme:volcanic'], at: Date.now() };
-      assert(window.activeHouseTheme() === 'volcanic', 'an owned theme must paint from the very same pointer');
-    } finally { window.notify = origNotify; restoreG(snap); }
-  }),
-
-  /* ── THE RESIDUE ALLOWLIST IS THE CONTRACT ──────────────────────────────────
-     Three fields left it in this build and one stayed. Pinning the list itself is
-     what stops the easy regression: re-adding `ownedThemes` "so it survives a
-     reload" would restore the forgeable bag AND give ownership two sources again,
-     and it would do it in a file nobody re-reads. */
-  () => tryRun('RESIDUE-CUT-1: ownedThemes / ownedCosmetics / unlockedRecipes are OFF the residue allowlist; houseTheme is on it', () => {
+  () => tryRun('RESIDUE-CUT-1: ownedThemes / ownedCosmetics / unlockedRecipes / houseTheme are OFF the residue allowlist', () => {
     const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
     assert(Array.isArray(RF) && RF.length > 0, 'RESIDUE_FIELDS is not published — this test would pass vacuously');
-    ['ownedThemes', 'ownedCosmetics', 'unlockedRecipes'].forEach(function (f) {
+    /* houseTheme left with the house themes (2026-10-14 demolition): a pointer
+       to a theme that no longer exists is a dead residue field. */
+    ['ownedThemes', 'ownedCosmetics', 'unlockedRecipes', 'houseTheme'].forEach(function (f) {
       assert(RF.indexOf(f) < 0,
         'THE CLASS: `' + f + '` is back on the residue allowlist. It is a client-written bag the '
         + 'server stores verbatim, and it asserts ownership of a SERVER-SOLD capability — themes and '
         + 'cosmetics are hr_buy_gem_unlock\u2019s, recipes are hr_recipe_learn\u2019s. Ownership has one source.');
     });
-    assert(RF.indexOf('houseTheme') >= 0,
-      '`houseTheme` must STAY residue: it is the equipped pointer, a per-character display preference '
-      + 'the server has no column for, and it is read fail-closed (activeHouseTheme)');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -2082,30 +1650,6 @@ export default [
      costs the PLAYER. redeemHearthToken burns the IAP-only bond with a local
      removeItem and credits 150 gems the next envelope erases — the inventory
      absolute arm is dormant, so the token does not come back either. */
-  () => tryRun('GEM-TOKEN-1: an ARMED Hearth Token redemption keeps the token rather than burning it for nothing', () => {
-    if (typeof window.redeemHearthToken !== 'function' || !window.ITEMS || !window.ITEMS.hearth_token) return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
-    const origSave = window.saveLocal, origTop = window.updateTopbar, origShop = window.renderShop;
-    try {
-      window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
-      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
-      window.renderShop = function () {};
-      window.G.inventory = Object.assign({}, window.G.inventory, { hearth_token: 1 });
-      window.G.gems = 0;
-      stampBalanceLikeLoad(window.G);
-      window.redeemHearthToken();
-      assert((window.G.inventory.hearth_token || 0) === 1,
-        'THE CLASS, POINTING AT THE PLAYER: an armed redemption consumed the Hearth Token — the '
-        + 'IAP-only bond — for gems the next envelope erases. The token does not come back; the '
-        + 'inventory absolute arm is dormant.');
-      assert(window.G.gems === 0, 'a refused redemption must not credit gems either');
-    } finally {
-      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
-      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderShop = origShop;
-      restoreG(snap);
-    }
-  }),
 
   () => tryRunAsync('PLOT-REFUSE-1 (b500): a server-REFUSED farm plot is NOT added to plotBuildings and says why', async () => {
     if (typeof window.buildPlot !== 'function' || !window.HearthriseHomestead) return;
@@ -2308,28 +1852,6 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('slice 6: buyTheme has no gold branch — the default equips free, gem themes never touch gold', () => {
-    if (typeof window.buyTheme !== 'function') return;
-    const snap = snapshotG();
-    try {
-      // The free default (currency !== 'gem', price 0) is a FREE EQUIP, not a gold buy.
-      window.G.gold = 12345; window.G.gems = 0;
-      /* Ownership is the realm's set since 2026-09-14, and the projection always
-         carries the free rows — which is exactly what keeps the starter cottage
-         equippable for a character who has bought nothing. */
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
-      const goldBefore = window.G.gold;
-      window.buyTheme('default');
-      assert(window.G.gold === goldBefore, 'equipping the free default theme must spend no gold; got -' + (goldBefore - window.G.gold));
-      assert(window.G.houseTheme === 'default', 'the default theme should be equipped');
-      // A gem theme with no gems is refused and — the whole point of slice 6 — never touches gold.
-      window.G.gems = 0;
-      const g0 = window.G.gold;
-      window.buyTheme('forest');
-      assert(window.G.gold === g0, 'a gem theme must never debit gold; got -' + (g0 - window.G.gold));
-      assert(window.G.houseTheme !== 'forest', 'a gem theme must not equip without gems');
-    } finally { restoreG(snap); }
-  }),
 
   () => tryRun('slice 7: buyback is gated on the record seam — works UNARMED, fails CLOSED when gold is armed', () => {
     if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
@@ -2367,141 +1889,9 @@ export default [
     }
   }),
 
-  () => tryRun('slice 4: buying a shop companion sends offer companion.<id> (offer-id only) and debits via the seam', () => {
-    // With the accrual switch ON (pristine default), _buyCompanion fires
-    // HearthriseGold.buyUnlock(offer, key). Stub it to capture the exact offer id
-    // the site sends and prove it is offer-id-only — no price crosses the wire.
-    const S = window.HearthriseGold;
-    if (typeof window._buyCompanion !== 'function' || !S || typeof S.buyUnlock !== 'function'
-      || !S.isGoldIntentEnabled || !S.isGoldIntentEnabled() || !window.COMPANIONS) return;
-    const snap = snapshotG();
-    const origBuy = S.buyUnlock;
-    const origMay = window.clientMayWriteRecordField;
-    const sent = [];
-    try {
-      window.clientMayWriteRecordField = function () { return true; }; // UNARMED (today)
-      S.buyUnlock = function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ sent: false }); };
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      window.G.gold = 100000;
-      stampBalanceLikeLoad(window.G);   // armed: _buyCompanion gates on the affordability read before firing buyUnlock
-      window._buyCompanion('sparrow', 5000);
-      const call = sent.find((a) => a[0] === 'companion.sparrow');
-      assert(call, '_buyCompanion must send offer companion.sparrow; sent ' + JSON.stringify(sent));
-      assert(call.length === 2 && S.isIntentKey(call[1]), 'buyUnlock takes ONLY (offer, key) — no price arg; got ' + JSON.stringify(call));
-      assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'the companion must be granted locally as a prediction');
-    } finally {
-      S.buyUnlock = origBuy;
-      window.clientMayWriteRecordField = origMay;
-      try { S.resetGold(); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
 
-  () => tryRun('b420: shop-companion buy is NO LONGER arm-gated — buyable both UNARMED and when gold is armed', () => {
-    // The b410 clientMayWriteRecordField('gold') defer in _buyCompanion is LIFTED:
-    // the pet EFFECT is server-owned now (hr_companion_equip owns the equipped id,
-    // hr_perks_of prices the passive bonus), so buying under arm is no longer "pay
-    // gold, get nothing". This test proves the buy grants + debits in BOTH arm
-    // states — the inverse of the old fails-CLOSED assertion.
-    if (typeof window._buyCompanion !== 'function' || !window.COMPANIONS || !window.COMPANIONS.sparrow) return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const S = window.HearthriseGold;
-    // Stub buyUnlock so the (signed-out) transport does not immediately roll back
-    // the seam prediction — this test measures the un-gate + the local debit.
-    const origBuy = S && S.buyUnlock;
-    try {
-      if (S && typeof S.buyUnlock === 'function') S.buyUnlock = function () { return Promise.resolve({ sent: false }); };
-      // UNARMED: the buy works.
-      window.clientMayWriteRecordField = function () { return true; };
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      window.G.gold = 100000;
-      /* armed: the affordability read is registry-first — stamp it the way hr_load
-         does so the (write-gate-open) unarmed path can debit. The ARMED half below
-         is left UNSTAMPED so the genuine fail-closed refusal is measured. */
-      stampBalanceLikeLoad(window.G);
-      const before = window.G.gold;
-      window._buyCompanion('sparrow', 5000);
-      assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'unarmed buy must grant the companion');
-      assert(window.G.gold === before - 5000, 'unarmed buy must debit the price once; got -' + (before - window.G.gold));
 
-      // ARMED: gold on SERVER_OF_RECORD → the buy STILL works (no longer gated).
-      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      window.G.gold = 100000;
-      const g2 = window.G.gold;
-      window._buyCompanion('honeybee', 8000);
-      assert(window.G.companions.ownedIds.indexOf('honeybee') >= 0, 'ARMED buy must grant the companion — the gate is lifted (pet effect is server-owned)');
-      assert(window.G.gold === g2 - 8000, 'ARMED buy must debit the price once; got -' + (g2 - window.G.gold));
-    } finally {
-      window.clientMayWriteRecordField = origMay;
-      if (S && origBuy) S.buyUnlock = origBuy;
-      try { S && S.resetGold(); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
 
-  () => tryRun('b420: equipping a companion fires hr_companion_equip with the companion id; unequip fires p_unequip', () => {
-    // The equip transport tells the server which companion is equipped so
-    // hr_perks_of can price its passive bonus. Stub HearthriseGoalClaim to capture
-    // the RPC the equip/unequip gestures send.
-    if (typeof window.equipCompanion !== 'function' || typeof window.unequipCompanion !== 'function') return;
-    const GC = window.HearthriseGoalClaim;
-    if (!GC || typeof GC.equipCompanion !== 'function' || typeof GC.unequipCompanion !== 'function') {
-      assert(false, 'HearthriseGoalClaim.equipCompanion/unequipCompanion transport must exist');
-    }
-    const snap = snapshotG();
-    const origEquip = GC.equipCompanion;
-    const origUnequip = GC.unequipCompanion;
-    const sent = [];
-    try {
-      GC.equipCompanion = function (id) { sent.push(['equip', id]); return Promise.resolve({ ok: true }); };
-      GC.unequipCompanion = function () { sent.push(['unequip']); return Promise.resolve({ ok: true }); };
-      window.G.companions = { ownedIds: ['fox', 'sparrow'], xp: { fox: 0, sparrow: 0 }, equipped: null };
-      window.equipCompanion('sparrow');
-      const eq = sent.find((a) => a[0] === 'equip');
-      assert(eq && eq[1] === 'sparrow', 'equipCompanion must fire the transport with the companion id; sent ' + JSON.stringify(sent));
-      window.unequipCompanion();
-      assert(sent.some((a) => a[0] === 'unequip'), 'unequipCompanion must fire the unequip transport; sent ' + JSON.stringify(sent));
-    } finally {
-      GC.equipCompanion = origEquip;
-      GC.unequipCompanion = origUnequip;
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('slice 4: non-shop companion acquisition is UNAFFECTED by the gold arm-gate', () => {
-    // unlockCompanion is the acquisition path for drop/quest/skill/boss/hatch
-    // companions. It moves NO gold, so arming gold must not touch it — a player
-    // who earns a companion from a drop still gets it while gold is armed.
-    if (typeof window.unlockCompanion !== 'function' || !window.COMPANIONS) return;
-    // Pick a companion that is NOT a shop companion (no `shop:` source).
-    const nonShop = Object.keys(window.COMPANIONS).find((k) => !String(window.COMPANIONS[k].source || '').startsWith('shop'));
-    if (!nonShop) return;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const Cap = window.HearthriseCapstone;
-    try {
-      /* b499: PIN THE CAPSTONE OFF. This test's subject is the GOLD arm-gate,
-         and it asserted the SYNCHRONOUS local add — which is only the dormant
-         contract now that a non-shop acquisition is server-confirmed under the
-         blob-retire arm (HATCH-REFUSE-1..4 below own the armed path). The
-         coupling was accidental and unstated; pinning it makes the test measure
-         what its name says. */
-      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(false);
-      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; }; // gold ARMED
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      const g0 = window.G.gold;
-      const r = window.unlockCompanion(nonShop);
-      assert(r === true, 'unlockCompanion must grant a non-shop companion even with gold armed');
-      assert(window.G.companions.ownedIds.indexOf(nonShop) >= 0, 'the non-shop companion must be owned');
-      assert(window.G.gold === g0, 'unlockCompanion must move no gold');
-    } finally {
-      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
   () => tryRun('SKILLGUIDE-1: every skill says what it is for and names only an unlock the server will honour', () => {
     const SG = window.HearthriseSkillGuide;

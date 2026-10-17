@@ -122,14 +122,13 @@
 #panel-journal .hd-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 18px 0 8px; }
 #panel-journal .hd-h h3 { margin: 0; font-family: var(--f-label, var(--f-ui)); font-size: calc(15.5px * var(--ui-scale, 1)); letter-spacing: .06em; color: var(--gold-2); }
 #panel-journal .hd-h a { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); cursor: pointer; }
-#panel-journal .hd-rows, #panel-journal .hl-rows { display: flex; flex-direction: column; }
+#panel-journal .hd-rows { display: flex; flex-direction: column; }
 #panel-journal .hd-card { padding: 9px 2px; border-top: 1px solid var(--line-soft); }
 #panel-journal .hd-card:first-child { border-top: 0; }
 #panel-journal .hd-duo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #panel-journal .hd-duo .t { font-weight: 700; color: var(--ink); }
 #panel-journal .hd-duo .s, #panel-journal .hd-mini { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); }
 #panel-journal .hd-duo .when { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 700; }
-#panel-journal .hl-rows { gap: 12px; padding: 4px 2px; }
 #panel-journal .hd-mile-title { font-weight: 700; color: var(--ink); }
 #panel-journal .hd-mile-sub { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); margin-top: 2px; }
 #panel-journal .hd-bar { height: 6px; margin-top: 6px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }

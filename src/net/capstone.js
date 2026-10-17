@@ -41,10 +41,7 @@
 // server bag is written STRAIGHT INTO G (client-state.js hydrateInto), so every
 // existing `G.<residue>` read is already server-truth with ZERO per-site
 // changes — the ~1,001-site read sweep disappears. clientField remains a thin
-// optional helper; it is not required at call sites. There is no longer any
-// nested-ownership carve-out: marks migrated to the top-level record field
-// `G.marks`, so bountyHunter is wholly residue and hydrateInto/buildResiduePatch
-// merely DROP any stray nested `marks` defensively (see those functions).
+// optional helper; it is not required at call sites.
 //
 // ── THE MASTER-SWITCH COUPLING IS GONE (b515) ──────────────────────────────
 // isBlobRetired() used to AND isServerAccrualEnabled() — the b353 kill switch —
@@ -81,7 +78,7 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField, BOUNTY_TRANSIENT_KEYS } from './client-state.js?v=589';
+import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField } from './client-state.js?v=589';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
@@ -119,12 +116,7 @@ export function __setBlobRetired(v) {
    boundary that must not trust an arbitrary bag key. Re-exported for callers /
    the guard. See client-state.js for the full rationale.
 
-   AUDIT — NESTED FIELDS PARTIALLY OWNED ELSEWHERE: NONE remain. `bountyHunter`
-   used to hold the nested authority `bountyHunter.marks`; marks migrated to the
-   top-level record field `G.marks` (like gold), so bountyHunter is now wholly
-   residue. buildResiduePatch still DROPS any `marks` key on the way OUT and
-   hydrateInto on the way IN — purely defensive, so a forged/legacy nested marks can
-   never shadow the top-level record. Everything on the list is wholly self-only.
+   AUDIT — NESTED FIELDS PARTIALLY OWNED ELSEWHERE: only `autoActions.eat` (below).
 
    PLAYERNAME: the cross-player AUTHORITATIVE display name is derived server-side
    from `display_names`; the hr_load/hr_state_of envelope does NOT carry it. So the
@@ -139,32 +131,7 @@ export function buildResiduePatch(G) {
   const out = {};
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(G, f) || typeof G[f] === 'undefined') continue;
-    if (f === 'bountyHunter') {
-      // ⚠ bountyHunter MINUS marks AND xp — both are AUTHORITY (server-owned:
-      // marks via the record's top-level G.marks, and xp via player_skills,
-      // credited by hr_claim_bounty and read as the `bountyHunter` skill). Neither
-      // may ride in the self-only client_state bag, or the client would re-author a
-      // server-owned value (the two-sources bug). `xp` added b503, when the server
-      // finally started crediting it — a residue mirror of a server-owned number is
-      // the SA-002 class that deadlocked the property tier.
-      const bh = G.bountyHunter;
-      if (bh && typeof bh === 'object' && !Array.isArray(bh)) {
-        const copy = {};
-        for (const k in bh) {
-          if (!Object.prototype.hasOwnProperty.call(bh, k)) continue;
-          if (k === 'marks' || k === 'xp') continue;
-          copy[k] = bh[k];
-        }
-        if (copy.active && typeof copy.active === 'object' && !Array.isArray(copy.active)) {
-          copy.active = { ...copy.active };
-          for (const k of BOUNTY_TRANSIENT_KEYS) delete copy.active[k];
-        }
-        out[f] = copy;
-      } else {
-        out[f] = bh;
-      }
-      continue;
-    }
+
     /* ── `autoActions` RIDES WITHOUT ITS `eat` BRANCH (2026-09-14) ──────────
        The other two branches (`trainGoal`, `farmReplant`) are genuine client-only
        preferences. The `eat` branch is not: enabled / threshold / foodId ARE

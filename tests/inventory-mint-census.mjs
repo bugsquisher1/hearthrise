@@ -76,18 +76,10 @@ const FILES = [
   //    counter is the first, and every later screen adds its row HERE, not a
   //    second census. ──
   'src/screens/shop-counter.js',
-  'src/features/muster.js',
-  'src/features/raids.js',
-  'src/features/renown.js',
   'src/features/workers.js',
   'src/features/farm-progression.js',
-  // ── 2026-09-02: THE DUNGEON REWARD ECONOMY, previously unscanned. This
-  //    omission is the whole reason scrip/keys minted client-side, unseen, and
-  //    vanished on reload once BLOB_RETIRED went live. Both files mint via
-  //    addItem AND the direct G.inventory[x] += idiom; every token they surface
-  //    must land in the census baseline AND in BLOB_RETIRE_UNSAFE_LANES below. ──
-  'src/dungeons.js',
-  'src/dungeon-scavenger.js',
+  /* The muster/raid/renown chests and the dungeon reward economy (dungeons.js,
+     dungeon-scavenger.js) were DEMOLISHED on 2026-10-14 with their mint sites. */
 ];
 
 // ── THE FROZEN BASELINE: for each file, the SET of distinct first-arg tokens the
@@ -148,7 +140,7 @@ const BASELINE = {
      `addItem(kv[0], kv[1])` — the goals board's switch-OFF item payout. The
      board is cut (2026-10-16-goal-board-retire.sql) and the function with it. */
   'src/legacy.js': [
-    "'hearth_token'", 'cur', 'id',
+    'cur', 'id',
     'r.item', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
@@ -166,25 +158,8 @@ const BASELINE = {
      envelope overwrites the bag either way — the same standing as sellReceipt's
      `addItem(id, back)` restore, which `id` already covers. Not a mint lane. */
   'src/screens/shop-counter.js': ['b.id', 'id', 'l.item'],
-  'src/features/muster.js': ['it.id'],
-  'src/features/raids.js': ['chest.sig', 'id'],
-  'src/features/renown.js': ['rw.item'],
   'src/features/workers.js': ['act.prod'],
   'src/features/farm-progression.js': ["'farm_deed'", 'id'],
-  // ── THE DUNGEON REWARD ECONOMY (blob-retire-unsafe; see BLOB_RETIRE_UNSAFE_LANES).
-  //    'dungeon_scrip' = awardDungeonScrip; roll.id/inv:roll.id = awardLoot (run
-  //    loot); id/inv:id = buyFromQuartermaster (keys/blueprints/weapons for scrip).
-  //    ── increment 1 (docs/design/dungeon-settlement.md §3): the BoP key-drop
-  //    mint (formerly entry.keyId / inv:entry.keyId, the killMonster wrapper) is
-  //    GONE — folded into MONSTERS[*].drops (src/data/monsters.js), so keys now
-  //    settle server-side through the accrual engine like every combat drop.
-  //    Its tokens are removed from this baseline AND from BLOB_RETIRE_UNSAFE_LANES;
-  //    the fold is guarded by tests/dungeon-key-drops.mjs.
-  'src/dungeons.js': ["'dungeon_scrip'", 'id', 'inv:id', 'inv:roll.id', 'roll.id'],
-  //    a.id/inv:a.id = the scavenger's per-node loot grant (scrip rides
-  //    awardDungeonScrip, a function call the mint regex does not match — it is
-  //    covered by the dungeons.js 'dungeon_scrip' lane, one implementation).
-  'src/dungeon-scavenger.js': ['a.id', 'inv:a.id'],
 };
 
 // ── THE BLOB-RETIRE-UNSAFE REGISTRY (2026-09-02) ────────────────────────────
@@ -217,29 +192,10 @@ const BASELINE = {
 //   tests/quest-reward-parity.mjs makes unreachable. Widening (4) to cover all of
 //   legacy.js still requires classifying every one of its tokens (a real audit,
 //   its own commit) and remains OWED.
-const BLOB_RETIRE_UNSAFE_LANES = {
-  'src/dungeons.js': [
-    { tokens: ["'dungeon_scrip'"], mints: 'Dungeon Scrip (awardDungeonScrip)',
-      owedIntent: 'hr_dungeon_settle — server computes + credits scrip into player_inventory on a clear intent (shop_buy/clan_deposit pattern; scrip catalogue in src/data)' },
-    // ── increment 1 SHIPPED: the BoP dungeon-key lane is CLOSED. Keys were folded
-    //    into MONSTERS[*].drops (src/data/monsters.js §3 of the settlement design),
-    //    so they settle server-side via the accrual engine → hr_apply →
-    //    player_inventory on both live and away kills, and item-authority.js now
-    //    classifies them serverOwnedItem. The client killMonster wrapper is deleted,
-    //    so entry.keyId / inv:entry.keyId are no longer minted here. The completeness
-    //    of the fold is asserted by tests/dungeon-key-drops.mjs. (Removing the lane
-    //    is required: a STALE entry — declared unsafe but no longer minted — fails
-    //    this guard by design.)
-    { tokens: ['roll.id', 'inv:roll.id'], mints: 'dungeon run loot (awardLoot)',
-      owedIntent: 'hr_dungeon_settle — server rolls the loot table (server RNG, server catalogue) and credits into player_inventory' },
-    { tokens: ['id', 'inv:id'], mints: 'Quartermaster purchases — keys/blueprints/weapons bought with scrip (buyFromQuartermaster)',
-      owedIntent: 'quartermaster_buy intent — the offer catalogue is QM_STOCK (move to src/data), price + item both server-owned; the item-ledger (pendingItemSpends) drains itself the day it ships (src/net/item-ledger.js §end-state)' },
-  ],
-  'src/dungeon-scavenger.js': [
-    { tokens: ['a.id', 'inv:a.id'], mints: 'scavenger per-node loot grants',
-      owedIntent: 'same hr_dungeon_settle path as the run loot lane above (scavenger is a dungeon completion path)' },
-  ],
-};
+/* Empty since 2026-10-14: the only registered lanes were the dungeon reward
+   economy, demolished with dungeons.js / dungeon-scavenger.js. A new client mint
+   the server does not settle registers here again. */
+const BLOB_RETIRE_UNSAFE_LANES = {};
 
 // Every mint call: addItem( or window.addItem( or fx.addItem(, capturing the
 // first argument token up to the comma/paren.
@@ -316,9 +272,6 @@ export async function inventoryMintCensusGuard(opts) {
   // (2) GATE REGRESSION — the known side-reward OWNABLE mint sites must stay gated.
   const seam = "clientMayWriteRecordField('inventory')";
   const gateChecks = [
-    ['src/features/muster.js', 'muster chest (online + absence)'],
-    ['src/features/raids.js', 'raid chest mats + signature'],
-    ['src/features/renown.js', 'renown rank item reward'],
   ];
   for (const [rel, what] of gateChecks) {
     const src = srcByFile[rel];
@@ -397,7 +350,7 @@ export async function inventoryMintCensusGuard(opts) {
       + 'client mints across reloads and the dungeon-reward lanes are not currently reload-losing. '
       + 'The registry stays enforced regardless (the flag is armed in prod and this is a live guard).');
   }
-  const DUNGEON_FILES = ['src/dungeons.js', 'src/dungeon-scavenger.js'];
+  const DUNGEON_FILES = Object.keys(BLOB_RETIRE_UNSAFE_LANES);
   for (const rel of DUNGEON_FILES) {
     if (!observed[rel]) {
       // NOT a skip. `observed[rel]` is populated only when `rel` is in FILES and
@@ -438,14 +391,8 @@ export async function inventoryMintCensusGuard(opts) {
       }
     }
   }
-  // The registry must actually cover the dungeon files — an empty registry with a
-  // populated census is the coverage hole reopening under a different name.
-  const totalDeclared = Object.values(BLOB_RETIRE_UNSAFE_LANES)
-    .reduce((n, lanesArr) => n + lanesArr.reduce((k, l) => k + (l.tokens || []).length, 0), 0);
-  if (totalDeclared === 0) {
-    fail('BLOB_RETIRE_UNSAFE_LANES is EMPTY. The dungeon reward economy mints client-side with no server '
-      + 'settlement and is lost on reload under BLOB_RETIRED; an empty registry means that debt is unseen again.');
-  }
+  /* The "registry must not be empty" rule retired on 2026-10-14 with the dungeon
+     reward economy it watched: no dungeon-reward mint file exists to cover. */
 
   return problems;
 }

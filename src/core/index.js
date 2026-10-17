@@ -36,7 +36,6 @@ export * as farm from './farm.js?v=589';
 export * as progression from './progression.js?v=589';
 export * as styles from './styles.js?v=589';
 export * as artisan from './artisan.js?v=589';
-export * as bounty from './bounty.js?v=589';
 /* b357 — THE CONSUMPTION SEAM. Authored ahead of its consumers on purpose:
    Fletching, Runecrafting and Stonemason are all specified against one field
    (`ammoPerShot`) and are being built by different agents at different times,

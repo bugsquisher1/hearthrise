@@ -2,7 +2,7 @@
  * src/styles/combat-hud.css — b227
  *
  * The controls that live ON the fighting stage, and nothing else. Loads last,
- * after clan-seat.css, for the same reason board-and-shop.css does: everything
+ * after room-modal.css, for the same reason board-and-shop.css does: everything
  * here is scoped to `#panel-combat`, `.arena-*` or `.hr-room-combat`, so it
  * needs no `!important` to win against the three legacy sheets — except in the
  * one place noted at the bottom, where it is undoing an existing `!important`.

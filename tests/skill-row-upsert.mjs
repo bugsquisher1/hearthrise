@@ -66,7 +66,7 @@ const UID = '000000cd-0000-4000-a000-0000000000cd';
 /* The skill that actually produced the incident. Any catalogue skill would do
    — what matters is that the row is missing — but naming the real one keeps
    the guard readable next to hr_rejections. */
-const LATE_SKILL = 'stonemason';
+const LATE_SKILL = 'runecrafting';   // the incident skill (stonemason) was cut in the 2026-10-14 demolition; runecrafting joined the catalogue in the same lane
 /* A skill whose row is LEFT ALONE, so the "existing row" arm is graded against
    a row that got there the ordinary way. */
 const SEEDED_SKILL = 'mining';

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=589';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=589';
 import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=589';
 import { fitBar, xpChip } from '../../render/bar-fit.js?v=589';
 import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=589';
@@ -41,466 +41,15 @@ function dwBench(skill, lv, nodeId, fn) {
 
 export default [
 
-  // ══ b223 · THE HUNT (backlog #16) ═══════════════════════════
-  // docs/design/clan-boss-events.md §8 lists twelve required tests. Nine of
-  // them are statements about SERVER behaviour (the day gate, the anti-hop
-  // rule, the Standing-once guard) and a browser cannot prove a server rule —
-  // supabase/migrations/2026-08-08-hunt.sql carries its own DO-block self
-  // checks for those. What these guard is the half that lives here: the maths
-  // the card previews with, the ladder the client and the server must agree
-  // on, the reducers that decide whether a response is a chest, and the six
-  // signature materials that would otherwise ship as vendor trash.
 
-  () => tryRun('b223: the Hunt ladder — pools scale to the roster, exactly as specced', () => {
-    const R = window.HearthriseRaids;
-    assert(R && Array.isArray(R.HUNT_TIERS) && R.HUNT_TIERS.length === 5, 'five Hunt tiers');
-    // §3.3's own table. If these drift the server's hr_hunt_tiers must drift
-    // with them, or a clan is shown a pool it is not fighting.
-    const table = [
-      [1, 'Warband Hunt',  5000,  3000,  35000], [2, 'Keep Hunt',     15000, 7500,  90000],
-      [3, 'Fortress Hunt', 30000, 12500, 155000], [4, 'Citadel Hunt',  50000, 16000, 210000],
-      [5, 'Crown Hunt',    80000, 21000, 290000],
-    ];
-    table.forEach(([t, name, base, per, at10]) => {
-      const d = R.tierDef(t);
-      assert(d.name === name, 'tier ' + t + ' should be ' + name + ', got ' + d.name);
-      assert(d.base === base && d.perMember === per, 'tier ' + t + ' ladder numbers drifted');
-      assert(R.poolFor(t, 10) === at10, 'tier ' + t + ' @ n=10 should be ' + at10 + ', got ' + R.poolFor(t, 10));
-    });
-    // §8.4 — the spec's own worked assertion.
-    assert(R.poolFor(2, 5) === 52500, 'Tier II @ n=5 must be 52,500, got ' + R.poolFor(2, 5));
-    assert(R.poolFor(2, 25) === 202500, 'Tier II @ n=25 must be 202,500, got ' + R.poolFor(2, 25));
-    // §3.3's headroom check, and the whole reason the flat pool was replaced.
-    assert(R.poolFor(5, 40) === 920000, 'Tier V @ n=40 must be 920,000');
-    // The point of the whole ladder: the flat 250,000 the game shipped with is
-    // HARDER than the top Phase-A tier at a ten-member roster — it was tuned
-    // for a large endgame clan and served to everyone, which is why it has
-    // never been downed (§2.3). Every tier a real clan can declare is now
-    // easier than what they were being handed.
-    assert(R.CLAN_POOL_HP > R.poolFor(4, 10),
-      'the legacy flat pool must be harder than Tier IV at n=10 — that was the bug');
-    assert(R.poolFor(1, 10) < R.CLAN_POOL_HP / 5,
-      'a small clan must now face a pool it can actually finish');
-    // §5.5 — the clamp is self-scaling, so a new tier never needs a new number.
-    assert(R.strikeClamp(35000) === 5000, 'the clamp floor is 5,000');
-    assert(R.strikeClamp(920000) === 92000, 'the clamp is a tenth of the pool');
-    assert(R.strikeClamp(0) > 0, 'an unknown pool must still clamp');
-  }),
 
-  () => tryRun('b223: the Hunt tier ceiling is the castle, never clan level', () => {
-    const R = window.HearthriseRaids;
-    const S = window.HearthriseClanSeat;
-    // max_hunt_tier = min(castle_tier, 1 + floor(war_room/3)) — §3.3.
-    assert(R.maxHuntTier(1, 12) === 1, 'the Great Hall caps the Hunt regardless of the War Room');
-    assert(R.maxHuntTier(5, 0) === 1, 'no War Room means Tier I, however grand the hall');
-    assert(R.maxHuntTier(3, 6) === 3, 'War Room 6 + castle 3 → Tier III');
-    assert(R.maxHuntTier(4, 6) === 3, 'War Room 6 caps at Tier III even at castle 4');
-    assert(R.maxHuntTier(5, 12) === 5, 'castle 5 + War Room 12 → Tier V');
-    assert(R.maxHuntTier(0, 0) === 1, 'a founding hold still fields Tier I — never a locked door');
-    // ONE implementation, shared with the castle. Two copies of a gate is how
-    // the card and the castle panel end up disagreeing about what is legal.
-    assert(S && typeof S.maxHuntTier === 'function' && S.maxHuntTier(4, 9) === R.maxHuntTier(4, 9),
-      'the Hunt ceiling must come from HearthriseClanSeat, not a second copy');
-    // The castle is READ, never owned — an absent clan reads as the floor.
-    const st = R.castleState();
-    assert(st && st.castleTier >= 1 && st.warRoom >= 0, 'castle state reads defensively');
-    assert(R.tierCeiling() >= 1 && R.tierCeiling() <= 5, 'the ceiling is always a legal tier');
-  }),
 
-  /* REPLACES the b223 median test. That test was the CONTRACT for the median
-     ladder, so retuning the ladder without rewriting it would have been
-     disabling a failing test to unblock a push. The rule it guarded is gone —
-     see 2026-08-12-raid-band-fairness.sql for why, and
-     tests/raid-band-denial.mjs for the executed proof that the old rule let
-     one member's honest good week pay a teammate nothing. */
-  () => tryRun('b331: bands are measured against the boss, and there is no unpaid band', () => {
-    const R = window.HearthriseRaids;
-    // Tier I declared by a clan of ten: pool 5,000 + 3,000×10 = 35,000,
-    // so one head of it is 3,500. Mirrors the server's hr_hunt_share.
-    const share = R.shareFor(R.poolFor(1, 10), 10);
-    assert(share === 3500, 'a Tier I pool for ten members is 3,500 a head, got ' + share);
-    assert(R.shareFor(35000, 0) === 35000, 'a zero roster must not divide by zero');
-    assert(R.shareFor(0, 10) === 1, 'a zero pool floors at 1, never 0');
 
-    // The ladder.
-    assert(R.bandFor(5250, share, 4).key === 'champion', '1.5× your share is a Champion');
-    assert(R.bandFor(5249, share, 4).key === 'full', 'just under 1.5× is a Full share');
-    assert(R.bandFor(3500, share, 4).key === 'full', 'exactly your share is a Full share');
-    assert(R.bandFor(1750, share, 4).key === 'full', 'half your share is a Full share');
-    assert(R.bandFor(1749, share, 4).key === 'partisan', 'just under half is a Partisan share');
 
-    /* THE REGRESSION THIS EXISTS FOR. Under the median rule a contributor at
-       13% of the bar was refused outright — and the bar was other players'
-       damage, so a clanmate having a good week moved it. There is no longer
-       any damage above zero that earns nothing. */
-    assert(R.bandFor(100, share, 4).key === 'partisan', '100 of a 3,500 share is still a share');
-    assert(R.bandFor(1, share, 7).key === 'partisan', 'one point of damage over seven days still pays');
-    assert(R.BANDS.every((b) => b.scale > 0), 'no band may pay zero');
 
-    // The anti-freeload gates are ABSOLUTE, and they are the only refusals.
-    assert(R.bandFor(0, share, 7) === null, 'no damage is no chest, however many strikes');
-    assert(R.bandFor(99999, share, 1) === null, 'one strike is not turning up, however big the number');
-    assert(R.bandFor(99999, share, 2).key === 'champion', 'two strikes qualify');
-    assert(R.MIN_STRIKES_FOR_CHEST === 2, 'the strike minimum is 2');
 
-    /* THE PROPERTY, stated as a property: the band is a function of YOUR
-       damage and THE BOSS. bandFor has no argument through which another
-       player's number could arrive — sweep every legal teammate week and the
-       victim's verdict cannot move, because there is nowhere to put it. */
-    assert(R.bandFor.length === 4, 'bandFor takes (damage, share, strikes, partial) — nothing else');
-    const victim = R.bandFor(1200, share, 3).key;
-    for (let mate = 0; mate <= 35000; mate += 2500) {
-      const again = R.previewScale({ damage: 1200, strikes: 3, pool: 35000, members: 10,
-                                     downed: true, clanDamage: 1200 + mate });
-      assert(again.band === victim,
-        'a clanmate dealing ' + mate + ' moved an unchanged player from ' + victim + ' to ' + again.band);
-    }
 
-    // A partial week is penalised once, by the factor — not twice, by the band.
-    assert(R.bandFor(100, share, 4, true).key === 'full',
-      'a week the boss survived does not ALSO step the band down');
-    assert(R.bandFor(5250, share, 4, true).key === 'champion',
-      'champion is still earnable on a week that fell short');
-  }),
 
-  () => tryRun('b223: partial credit has no all-or-nothing cliff, and is capped at 0.6', () => {
-    const R = window.HearthriseRaids;
-    // §8.7 — the spec's worked case.
-    assert(R.partialFactor(40000, 100000) === 0.4, '40% of the pool pays 0.4×');
-    assert(R.partialFactor(90000, 100000) === R.PARTIAL_CAP, '90% is capped at 0.6×');
-    assert(R.PARTIAL_CAP === 0.6, 'the partial cap is 0.6');
-    assert(R.partialFactor(0, 100000) === 0, 'an untouched pool pays nothing');
-    assert(R.partialFactor(5000, 0) === 0, 'a zero pool cannot be divided by');
-    // The kill must stay strictly better than the best possible partial —
-    // otherwise a clan is rewarded for stopping short.
-    const kill = R.previewScale({ damage: 1000, share: 1000, strikes: 5, downed: true });
-    const near = R.previewScale({ damage: 1000, share: 1000, strikes: 5, downed: false,
-                                 clanDamage: 99000, pool: 100000 });
-    assert(kill.scale === 1 && near.scale === 0.6 && kill.scale > near.scale,
-      'a kill must beat the best partial week');
-    assert(near.partial === true && kill.partial === false, 'the preview must say which it is');
-    // Two strikes and a Champion share, partially credited, still beats nothing.
-    const champ = R.previewScale({ damage: 5000, share: 1000, strikes: 3, downed: false,
-                                   clanDamage: 50000, pool: 100000 });
-    assert(Math.abs(champ.scale - 1.3 * 0.5) < 1e-9, 'band × factor, got ' + champ.scale);
-  }),
-
-  () => tryRun('b223: the Lone Hunt calibrates to the player, and cannot be one-tapped', () => {
-    const R = window.HearthriseRaids;
-    // §8.8 — the spec's worked assertions.
-    assert(R.soloPoolFor(1200) === 20000, 'a 1,200 first strike floors the pool at 20,000');
-    assert(R.soloPoolFor(8000) === 40000, 'an 8,000 first strike sets a 40,000 pool');
-    assert(R.soloPoolFor(60000) === R.SOLO_POOL_MAX, 'the pool is capped at 200,000');
-    assert(R.soloPoolFor(0) === R.SOLO_POOL_MIN, 'a zero reading still yields the floor');
-    // The clamp makes a one-tap arithmetically impossible at every level —
-    // this is the correction to the old "solo pool one-tap chest" note: the
-    // real bug was the opposite, honest players could not finish either pool.
-    [1200, 3000, 8000, 40000].forEach((first) => {
-      const pool = R.soloPoolFor(first);
-      const clamp = Math.floor(pool * R.SOLO_CLAMP_FRAC);
-      assert(clamp * 4 <= pool, 'no single solo strike may exceed a quarter of the pool');
-      assert(pool / clamp >= 4, 'the Lone Hunt must take at least four strikes');
-    });
-    assert(R.SOLO_SCALE === 0.4, 'solo still pays 0.4× — joining a clan is the social pull');
-  }),
-
-  () => tryRun('b223: raidPower reaches the strike — the War Room finally buffs something', () => {
-    const R = window.HearthriseRaids;
-    const saved = window.getBonus;
-    try {
-      // The key has been declared-but-unread since the buff registry shipped
-      // (CONFLICTS 2026-08-08). simulateStrike is its ONE consumer, so the
-      // perk can never be wired half-way.
-      window.getBonus = (k) => (k === 'raidPower' ? 0 : 0);
-      assert(R.raidPower() === 0 && R.raidPowerMult() === 1, 'no War Room means no multiplier');
-      // b228: the War Room ladder rebased to +1% at levels 4, 7 and 10.
-      window.getBonus = (k) => (k === 'raidPower' ? 0.03 : 0);
-      assert(Math.abs(R.raidPowerMult() - 1.03) < 1e-9, 'War Room L10 is +3%');
-      // A negative contributor must never make an honest strike weaker.
-      window.getBonus = () => -5;
-      assert(R.raidPowerMult() === 1, 'raidPower is clamped at >= 0');
-      // And it must actually reach the damage. Deterministic rolls so the
-      // assertion is about the multiplier, not about variance.
-      const savedRolls = window.getPlayerCombatRolls;
-      const savedRandom = Math.random;
-      try {
-        window.getPlayerCombatRolls = () => ({ accuracy: 1, maxHit: 10 });
-        Math.random = () => 0.5;                      // every tick lands 6
-        window.getBonus = () => 0;
-        const base = R.simulateStrike({ def: 55, weak: 'hammer' });
-        window.getBonus = (k) => (k === 'raidPower' ? 0.5 : 0);
-        const buffed = R.simulateStrike({ def: 55, weak: 'hammer' });
-        assert(buffed === Math.floor(base * 1.5),
-          'raidPower must scale the strike total: ' + base + ' → ' + buffed);
-        // ...but never past the clamp, at any tier.
-        const capped = R.simulateStrike({ def: 55, weak: 'hammer' }, { clamp: 100 });
-        assert(capped === 100, 'the pool-scaled clamp wins over raidPower, got ' + capped);
-      } finally {
-        if (savedRolls) window.getPlayerCombatRolls = savedRolls;
-        Math.random = savedRandom;
-      }
-    } finally {
-      if (saved) window.getBonus = saved; else delete window.getBonus;
-    }
-  }),
-
-  () => tryRun('b223: six tiered bosses, and every signature material has a recipe', () => {
-    const R = window.HearthriseRaids;
-    const ITEMS = window.ITEMS, RECIPES = window.ARTISAN_RECIPES;
-    assert(R.BOSSES.length === 6, 'six Hunt bosses, got ' + R.BOSSES.length);
-    // Every tier must have somewhere to send a declaration.
-    for (let t = 1; t <= 5; t++) {
-      assert(R.bossesForTier(t).length > 0, 'tier ' + t + ' has no legal boss');
-      const b = R.bossOfWeek(R.weekKey(), t);
-      assert(b.tiers.indexOf(t) >= 0, 'tier ' + t + ' rotated in an illegal boss: ' + b.id);
-      assert(R.bossOfWeek(R.weekKey(), t).id === b.id, 'the tier rotation must be deterministic');
-    }
-    // THE CONFLICTS REQUIREMENT (2026-08-08, Game Designer → Systems): the six
-    // signature materials must ship WITH recipes, or they become the 35th-40th
-    // recipe-less vendor-trash drops — the exact problem b222's castle routing
-    // had just closed. A routing promise nobody checks quietly becomes false.
-    const inputs = new Set();
-    Object.keys(RECIPES).forEach((skill) => {
-      (RECIPES[skill] || []).forEach((r) => {
-        if (r.input) inputs.add(r.input);
-        Object.keys(r.inputs || {}).forEach((id) => inputs.add(id));
-        Object.keys(r.secondary || {}).forEach((id) => inputs.add(id));
-      });
-    });
-    const seat = window.HearthriseClanSeat;
-    R.BOSSES.forEach((b) => {
-      assert(b.sig, b.id + ' has no signature material');
-      assert(ITEMS[b.sig], b.id + "'s signature material " + b.sig + ' is not in ITEMS');
-      const routed = seat && seat.spoilRoute && seat.spoilRoute(b.sig);
-      assert(inputs.has(b.sig) || routed,
-        b.sig + ' is vendor trash — it needs a recipe or a castle route');
-      assert(b.reward && b.reward.gold > 0 && b.def > 0, b.id + ' needs real stats + reward');
-      assert(!/^[\uD800-\uDBFF]/.test(b.glyph || ''), b.id + ' uses an emoji as art');
-    });
-    // The Hunt-forged kit is the recipe side of that promise, and it must be
-    // reachable: every input of every new recipe has to exist.
-    ['regent_helm', 'slagheart_platebody', 'abyssal_greaves',
-     'choirbone_gauntlets', 'warden_girdle', 'wyrmgilt_mantle'].forEach((id) => {
-      assert(ITEMS[id] && ITEMS[id].type === 'armor', id + ' is missing from the Hunt-forged kit');
-      assert(ITEMS[id].rarity === 'unique', id + ' should read as the rarest band');
-    });
-    /* Designer ruling, clan-boss-events.md §3.4a — the ladder must not invert.
-       Three of the six shipped BELOW the Dawnsteel rung they replace (helm 92
-       vs 93, legs 93 vs 96, body 95 vs 98) and the girdle tied at 91, so a
-       player at Smithing 95 could forge the best platebody in the game but not
-       the second-best. Each Hunt-forged piece is now pinned strictly above its
-       Dawnsteel counterpart, derived from gear-tiers.js rather than hardcoded,
-       so a future lvOff change can never silently re-open the inversion. */
-    (function () {
-      const all = RECIPES.smithing.concat(RECIPES.crafting);
-      const reqOf = (rid) => { const r = all.find((x) => x.id === rid); return r ? r.req : null; };
-      // Dawnsteel's own generated rungs are the comparison — read live, never
-      // hardcoded, so a gear-tiers.js lvOff change moves both sides together.
-      [['forge_choirbone_gauntlets', 'forge_dawn_gauntlets'],
-       ['forge_warden_girdle',       'forge_dawn_belt'],
-       ['forge_regent_helm',         'forge_dawn_helm'],
-       ['forge_abyssal_greaves',     'forge_dawn_platelegs'],
-       ['forge_slagheart_platebody', 'forge_dawn_platebody']].forEach(([mineId, dawnId]) => {
-        const mine = reqOf(mineId), below = reqOf(dawnId);
-        assert(mine != null, mineId + ' is missing from the recipe tables');
-        assert(below != null, dawnId + ' is missing — the Dawnsteel rung it sits above');
-        assert(mine > below || below >= 99,
-          mineId + ' (' + mine + ') must gate ABOVE the Dawnsteel rung it replaces (' + below + ')');
-        assert(mine <= 99, mineId + ' asks for a level that does not exist');
-      });
-      const cape = reqOf('craft_wyrmgilt_mantle');
-      const topCraft = RECIPES.crafting.filter((r) => r.id !== 'craft_wyrmgilt_mantle')
-                          .reduce((m, r) => Math.max(m, r.req || 0), 0);
-      assert(cape >= topCraft, 'the Wyrmgilt Mantle must be the top crafting rung (' + cape + ' vs ' + topCraft + ')');
-    })();
-    Object.keys(RECIPES).forEach((skill) => {
-      (RECIPES[skill] || []).forEach((r) => {
-        Object.keys(r.inputs || {}).forEach((id) => {
-          assert(ITEMS[id], 'recipe ' + r.id + ' consumes an item that does not exist: ' + id);
-        });
-        if (r.output) assert(ITEMS[r.output], 'recipe ' + r.id + ' outputs a missing item');
-      });
-    });
-  }),
-
-  () => tryRun('b223: the Hunt chest comes from the server, and the tier decides its size', () => {
-    const R = window.HearthriseRaids;
-    // §5.4 + §10.4 — the chest table, including the Standing column that is
-    // paid FLAT PER KILL. A per-claimer Standing payment would let a 40-member
-    // clan pay itself 40× for one boss, which is why the server guards it with
-    // clan_raids.standing_paid and why the number lives in exactly one place.
-    const expected = [[1, 7000, 12, 1200], [2, 14000, 20, 3000], [3, 28000, 30, 7000],
-                      [4, 50000, 45, 15000], [5, 90000, 60, 32000]];
-    expected.forEach(([t, gold, gems, standing]) => {
-      const c = R.chestFor(t);
-      assert(c.gold === gold && c.gems === gems, 'tier ' + t + ' chest drifted');
-      assert(c.standing === standing, 'tier ' + t + ' Standing drifted');
-      assert(c.sig, 'tier ' + t + ' chest must name a signature material');
-    });
-    // Tier II sits on today's shipped chest, deliberately, so the ladder
-    // extends in both directions from a known anchor (§5.4).
-    assert(R.chestFor(2).gold === 14000, 'Tier II must stay the anchor');
-    // §5.4 — Tier V is guaranteed; Tier I never drops one; Tier II is Champion-only.
-    assert(R.chestFor(1).sigChance === 0, 'Tier I drops no signature material');
-    assert(R.chestFor(5).sigChance === 1, 'Tier V guarantees it');
-    assert(R.chestFor(2).sigChampionOnly === true, 'Tier II is Champion-only');
-    // No Hearth Tokens at any tier or band (Final Directive: IAP-only).
-    for (let t = 1; t <= 5; t++) {
-      const c = R.chestFor(t);
-      assert(!c.items.hearth_token && c.sig !== 'hearth_token',
-        'tier ' + t + ' mints a Hearth Token — the IAP bond is never PvE-minted');
-    }
-    assert(!R.soloChestFor().items.hearth_token, 'the Lone Hunt must not mint a Hearth Token');
-  }),
-
-  () => tryRun('b223: the declare contract — feature-detected, never a silent failure', () => {
-    const R = window.HearthriseRaids;
-    assert(typeof R._reduceDeclare === 'function', 'the declare reducer is missing');
-    // The migration may not have been run yet. That is 'unsupported' — "the
-    // War Room isn't built on this realm" — and it must never read as an error.
-    assert(R._reduceDeclare(404, { code: 'PGRST202' }, 0).action === 'unsupported',
-      'a missing clan_hunt_declare RPC must fall back, not break the card');
-    assert(R._reduceDeclare(200, { code: '42883' }, 0).action === 'unsupported',
-      'an undefined-function error is also "not built yet"');
-    // Every refusal gets its own honest sentence and none invite a retry loop.
-    ['not_officer', 'already_declared', 'tier_too_high', 'bad_tier', 'not_member'].forEach((e) => {
-      const d = R._reduceDeclare(200, { ok: false, error: e }, 0);
-      assert(d.action === 'fail', e + ' must refuse');
-      assert(d.message && d.message !== R._declareErrorText('__unknown__'),
-        e + ' needs its own message, not the generic one');
-    });
-    assert(R._reduceDeclare(200, { ok: false, error: 'week_mismatch', week: 'w9999' }, 0).action === 'retry',
-      'a clock disagreement re-syncs once');
-    assert(R._reduceDeclare(200, { ok: false, error: 'week_mismatch', week: 'w9999' }, 1).action === 'fail',
-      'and exactly once — never a loop');
-    assert(R._reduceDeclare(401, { code: 'PGRST301' }, 0).action === 'fail',
-      'an auth error must never read as a declaration');
-    assert(R._reduceDeclare(500, null, 0).action === 'fail', 'a server error must never declare');
-    const ok = R._reduceDeclare(200, { ok: true, tier: 3, pool_hp: 155000, members: 10, boss_id: 'maw_below' }, 0);
-    assert(ok.action === 'accept' && ok.tier === 3 && ok.pool === 155000 && ok.members === 10,
-      'a real declaration must carry the tier, the pool and the snapshotted roster');
-
-    // The strike reducer's new cases, and its OLD ones unchanged.
-    const undeclared = R._reduceStrike({ ok: false, error: 'no_hunt', tier_ceiling: 3 }, 0);
-    assert(undeclared.action === 'undeclared' && undeclared.ceiling === 3,
-      'an undeclared week must be its own state, not a generic failure');
-    const hit = R._reduceStrike({ ok: true, hp_remaining: 8000, max_hp: 90000, damage: 2900,
-                                 tier: 2, members: 10, my_damage: 5800, strikes: 2 }, 0);
-    assert(hit.action === 'accept' && hit.tier === 2 && hit.max === 90000 && hit.mine === 5800,
-      'a Hunt strike must carry its tier and the pool it was fought against');
-    // §4.1 The Faltering — derived, so an older server produces it too.
-    assert(hit.faltering === true, 'below 10% the boss is faltering');
-    assert(R._reduceStrike({ ok: true, hp_remaining: 50000, max_hp: 90000 }, 0).faltering === false,
-      'a healthy boss is not faltering');
-    // The claim reducer must carry the band, and must still refuse everything
-    // it refused in b219 — the hardening is not allowed to regress.
-    const paid = R._reduceClaim(200, { ok: true, scale: 1.3, band: 'champion', tier: 4,
-                                       median: 1000, sig: true, standing: 15000 }, 0);
-    assert(paid.action === 'accept' && paid.band === 'champion' && paid.tier === 4 && paid.sig === true,
-      'the server dictates the band, the tier and the signature roll');
-    ['too_few_strikes', 'below_band', 'joined_after_declare', 'grace_expired'].forEach((e) => {
-      const d = R._reduceClaim(200, { ok: false, error: e }, 0);
-      assert(d.action === 'fail' && d.message !== R._claimErrorText('__unknown__'),
-        e + ' needs its own honest refusal');
-    });
-    assert(R._reduceClaim(200, { ok: false, error: 'joined_after_kill' }, 0).action === 'fail',
-      'the b219 anti-chest-hop refusal must still refuse');
-    assert(R._reduceClaim(200, { ok: false, error: 'already_claimed' }, 0).action === 'spent',
-      'the b219 claim ledger must still be honoured');
-    assert(R._reduceClaim(401, { code: 'PGRST301' }, 0).action === 'fail',
-      'b219: an auth error must never award a chest');
-  }),
-
-  () => tryRun('b223: the blueprint gate and the 24h grace are derived, never stored', () => {
-    const R = window.HearthriseRaids;
-    const now = Date.UTC(2026, 7, 8);
-    const iso = (d) => new Date(now - d * 86400000).toISOString();
-    // §10.2 — castle tiers 4 and 5 require a Hunt clear at the matching tier
-    // inside 28 days. This is the client's read of the rule clan_tier_up
-    // enforces, so the castle panel can grey a button and say WHY.
-    assert(R.huntGateMet([], 0, now) === true, 'tiers with no Hunt requirement are always open');
-    assert(R.huntGateMet([], 2, now) === false, 'no clears at all cannot satisfy the gate');
-    assert(R.huntGateMet([{ tier: 2, downed_at: iso(5) }], 2, now) === true, 'a recent Tier II clear opens tier 4');
-    assert(R.huntGateMet([{ tier: 2, downed_at: iso(30) }], 2, now) === false, 'a 30-day-old clear has expired');
-    assert(R.huntGateMet([{ tier: 1, downed_at: iso(5) }], 2, now) === false, 'a Tier I clear is not a Tier II clear');
-    assert(R.huntGateMet([{ tier: 4, downed_at: iso(5) }], 2, now) === true, 'a higher clear satisfies a lower gate');
-    assert(R.huntGateMet([{ tier: 2, downed_at: null }], 2, now) === false, 'an undowned Hunt is not a clear');
-    // A pre-Hunt row carries no tier; it must read as Tier I, which is the
-    // SAFE reading — no historical row can accidentally unlock castle tier 4.
-    assert(R.huntGateMet([{ downed_at: iso(1) }], 2, now) === false,
-      'a pre-Hunt clear must not satisfy a Tier II gate');
-    // §5.3's grace window, derived from the week key on both sides.
-    const wk = R.weekKey();
-    const start = R.weekStartMs(wk);
-    assert(R.prevWeekKey(wk) === 'w' + (+wk.slice(1) - 1), 'the previous week key is arithmetic');
-    assert(R.graceOpen(start + 1000) === true, 'the grace window opens as the week rolls');
-    assert(R.graceOpen(start + R.GRACE_MS + 1000) === false, 'and closes 24h later');
-    assert(R.graceOpen(start - 1000) === false, 'it never reaches back before the boundary');
-    // The claim mirror keeps exactly two weeks: the current one and the one
-    // the grace window can still pay for. Never more — it lives in the save.
-    const G = window.G;
-    const saved = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
-    try {
-      const st = R.ensureState();
-      const cur = +R.weekKey().slice(1);
-      st.claimed['w' + (cur - 5)] = true;
-      st.claimed['w' + (cur - 1)] = true;
-      st.claimed['w' + cur] = true;
-      R.ensureState();
-      assert(!st.claimed['w' + (cur - 5)], 'stale weekly claim keys must be pruned from the save');
-      assert(st.claimed['w' + (cur - 1)] === true, 'the grace week must survive the prune');
-      assert(st.claimed['w' + cur] === true, 'the current week must survive the prune');
-    } finally {
-      if (saved === undefined) delete G.raids; else G.raids = saved;
-    }
-  }),
-
-  () => tryRun('b223: the Hunt card shows the tier, your share and a way to declare', () => {
-    const R = window.HearthriseRaids;
-    const prevTab = window.activeTab;
-    const G = window.G;
-    const savedRaids = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
-    const savedClans = window.HearthriseClans;
-    try {
-      window.showTab('events');
-      // Offline / signed-out is the DEGRADED path, and it must be a real card
-      // rather than an error: the Lone Hunt is playable with no server at all.
-      const p = R.render(); if (p && p.catch) p.catch(() => {});
-      const card = document.getElementById('hr-raid-card');
-      assert(card && card.parentElement && card.parentElement.id === 'hr-events-raid',
-        'the Hunt card must live in its own Events section');
-      // b385: the weekly clan boss is a gated clan surface while CLAN_LAUNCHED is
-      // false — the DOM card reads coming-soon, not the functional Lone Hunt. The
-      // functional-card assertions below only hold once the flag flips (the b385
-      // gate test pins the coming-soon state); the pure declare/ceiling contract
-      // that follows is independent of the render and always runs.
-      const _CL0 = window.HearthriseClans;
-      const _launched0 = _CL0 && typeof _CL0.clanLaunched === 'function' && _CL0.clanLaunched();
-      if (_launched0) {
-        assert(/Lone Hunt/.test(card.innerHTML), 'signed out, the card must offer the Lone Hunt');
-        assert(/Unmeasured/.test(card.innerHTML),
-          'an unstruck solo pool must say so, not invent a number it has not measured');
-        assert(!/NaN|undefined|\[object/.test(card.innerHTML), 'the card rendered a hole');
-        assert(card.getBoundingClientRect().height > 60,
-          'the Hunt card collapsed again — this is the b220 grid bug recurring');
-      } else {
-        assert(card.querySelector('.clan-soon'),
-          'the gated weekly clan boss must render the coming-soon card, not a functional Hunt');
-      }
-      // The tier ceiling must be readable from castle state without importing
-      // any of the castle's render code.
-      window.HearthriseClans = { myClan: () => ({ castle_tier: 4, upgrades: { war_room: 6 }, myRole: 'officer' }) };
-      assert(R.tierCeiling() === 3, 'the ceiling must follow the War Room, got ' + R.tierCeiling());
-      assert(R.canDeclare() === true, 'an officer may declare');
-      window.HearthriseClans = { myClan: () => ({ castle_tier: 4, upgrades: { war_room: 6 }, myRole: 'member' }) };
-      assert(R.canDeclare() === false, 'a rank-and-file member may not declare');
-    } finally {
-      if (savedClans) window.HearthriseClans = savedClans; else delete window.HearthriseClans;
-      if (savedRaids === undefined) delete G.raids; else G.raids = savedRaids;
-      try { const q = R.render(); if (q && q.catch) q.catch(() => {}); } catch (e) {}
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
 
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
     // b221 widened this deliberately. The bug it guards is "the portrait seam
@@ -638,69 +187,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): " daily login reward claims once per day + escalates with streak" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRunAsync('b164: Renown ladder scores, ranks up, claims, and perks apply', async () => {
-    const R = window.HearthriseRenown;
-    assert(R && typeof R.compute === 'function' && typeof R.getState === 'function', 'HearthriseRenown missing');
-    // ladder thresholds strictly increase
-    for (let i = 1; i < R.RANKS.length; i++) assert(R.RANKS[i].min > R.RANKS[i - 1].min, 'rank thresholds must increase at ' + R.RANKS[i].id);
-    const G = window.G;
-    const rn0 = R.compute(G);
-    assert(typeof rn0 === 'number' && rn0 >= 0, 'renown should be a non-negative number');
-    const st = R.getState(G);
-    assert(st.rank && typeof st.rank.name === 'string', 'getState.rank missing');
-    assert(st.progress >= 0 && st.progress <= 1, 'progress must be 0..1');
-    // claim + perk flow — snapshot & restore everything we touch
-    const sKills = (G.stats && G.stats.kills) || 0;
-    const sRenown = G.renown ? JSON.parse(JSON.stringify(G.renown)) : undefined;
-    const sGold = G.gold;
-    try {
-      G.renown = { claimed: [], seenRank: 0 };
-      if (!G.stats) G.stats = {};
-      G.stats.kills = 60000;                 // → very high renown, top ranks reached
-      const claimables = R.getClaimable(G);
-      assert(claimables.length > 0, 'high renown should expose claimable rewards');
-      const before = goldOf();
-      /* b515 — THE REWARD IS THE SERVER'S. `claimRank` tests each component and
-         takes the armed branch when any is server-owned: it awaits the verdict
-         and writes NOTHING but the once-guard mark. So the assertions are the
-         three that are actually true of the shipping path — the intent went, the
-         mark landed, and the client paid nothing itself. */
-      const granted = await withClaimServer({ ok: true }, async (rig) => {
-        const g = await R.claimRank(claimables[0].id, G);
-        assert(rig.calls.length === 1 && rig.calls[0].verb === 'claimRank',
-          'the claim sent ' + JSON.stringify(rig.calls) + ' — one hr_claim_rank intent');
-        assert(rig.calls[0].args[0] === claimables[0].id,
-          'the claim named the wrong rank: ' + rig.calls[0].args[0]);
-        assert(goldOf() === before,
-          'the client PAID a server-owned reward itself (' + before + ' -> ' + goldOf() + ') — the next '
-          + 'envelope takes it straight back and the player watches it vanish');
-        return g;
-      });
-      assert(granted, 'a confirmed claim must report the reward it was granted');
-      assert(R.getClaimable(G).length < claimables.length, 'a claimed reward should no longer be claimable');
-      /* AND A REFUSAL MARKS NOTHING — the half the old client-authoritative
-         shape could not express at all, because there was no verdict to refuse.
-         MUTATION: mark the rank claimed before awaiting the verdict → red. */
-      const stillOpen = R.getClaimable(G);
-      if (stillOpen.length) {
-        await withClaimServer({ ok: false, error: 'rate_limited' }, async (rig) => {
-          await R.claimRank(stillOpen[0].id, G);
-          assert(rig.calls.length === 1, 'the refused claim did not reach the wire');
-        });
-        assert(R.getClaimable(G).some((c) => c.id === stillOpen[0].id),
-          'a REFUSED claim was marked claimed — the reward is gone and nothing was ever paid for it');
-      }
-      const perks = R.getPerks(G);
-      assert(typeof perks.allXP === 'number' && perks.allXP > 0, 'top ranks should aggregate an allXP perk');
-      if (typeof window.getBonus === 'function') {
-        assert(window.getBonus('allXP') >= perks.allXP - 1e-9, 'renown allXP perk should flow into getBonus');
-      }
-    } finally {
-      G.stats.kills = sKills;
-      G.gold = sGold;
-      if (sRenown === undefined) delete G.renown; else G.renown = sRenown;
-    }
-  }),
   () => tryRun('b163: platform Storage seam present + round-trips', () => {
     // Architecture layer 4: all local persistence routes through one swappable
     // facade so Steam/mobile can change the backend without touching game logic.
@@ -786,7 +272,7 @@ export default [
     // screen's Skills sub-tab (asserted separately below). It's out of this
     // real-panel loop precisely because showTab('skills') now activates
     // #panel-character, not #panel-skills.
-    const tabs = ['profile', 'character', 'combat', 'bounty', 'inventory', 'shop', 'farming', 'house', 'social'];
+    const tabs = ['profile', 'character', 'combat', 'inventory', 'shop', 'farming', 'house', 'social'];
     for (const t of tabs) {
       try { window.showTab(t); }
       catch (e) { throw new Error(`showTab("${t}") threw: ${e.message || e}`); }
@@ -929,68 +415,6 @@ export default [
                  'panel-skills', 'panel-inventory', 'panel-farming', 'panel-house'];
     for (const id of ids) assert(document.getElementById(id), 'missing #' + id);
   }),
-  () => tryRun('companions: data + state — the starter fox is GRAMMAR, and it arrives from the server', () => {
-    assert(typeof window.COMPANIONS === 'object' && Object.keys(window.COMPANIONS).length >= 12, 'expected 12+ companions');
-    assert(window.G.companions, 'G.companions missing');
-    /* b515 — THE FOX IS NOT SEEDED BY THE CLIENT, and this test was passing on
-       residue. `companions.js ensureState` fails CLOSED to an EMPTY roster under
-       the capstone, deliberately: seeding the starter fox before the envelope
-       lands would silently reset a player who owns more. So a bare
-       `G.companions.ownedIds` contains whatever an earlier test happened to
-       leave — this assertion was order-dependent and only surfaced when the
-       tests that seeded it were retired.
-
-       The property is real and worth keeping, so it is asserted where it is
-       actually decided: `accrue.js reconcileCompanions` unions the fox into
-       EVERY roster ("OWNED = server's unlock set ∪ the grammar-owned starter
-       fox"), which is what makes it grammar rather than a row. A server that
-       lists nothing must still produce a fox; a server that lists more must
-       keep both.
-       MUTATION: drop `'fox'` from the `new Set([...])` seed in
-       reconcileCompanions → red on the first assertion. */
-    const A = window.HearthriseAccrual;
-    assert(A && typeof A.reconcileCompanions === 'function',
-      'accrue.js must export reconcileCompanions — it is the only writer of the roster now');
-    const empty = {};
-    A.reconcileCompanions(empty, { companions: { owned: [], xp: {}, equipped: null } });
-    assert(empty.companions && empty.companions.ownedIds.indexOf('fox') >= 0,
-      'a server roster listing NOTHING did not produce the starter fox — it is owned by grammar, not by '
-      + 'a row, and a new player would have no companion at all: ' + JSON.stringify(empty.companions));
-    const some = {};
-    A.reconcileCompanions(some, { companions: { owned: ['beaver'], xp: { beaver: 40 }, equipped: 'beaver' } });
-    assert(some.companions.ownedIds.indexOf('fox') >= 0 && some.companions.ownedIds.indexOf('beaver') >= 0,
-      'the union dropped one of them: ' + JSON.stringify(some.companions.ownedIds));
-    assert(some.companions.equipped === 'beaver' && some.companions.xp.beaver === 40,
-      'the server-owned equip/xp did not land: ' + JSON.stringify(some.companions));
-    /* AND THE CLIENT DOES NOT INVENT ONE. The fail-closed direction is the half
-       that protects a real player: an envelope that says nothing about
-       companions must leave the roster ALONE, not rebuild it. */
-    const untouched = { companions: { ownedIds: ['beaver'], xp: {}, equipped: 'beaver' } };
-    A.reconcileCompanions(untouched, {});
-    assert(untouched.companions.ownedIds.length === 1 && untouched.companions.ownedIds[0] === 'beaver',
-      'a partial envelope rebuilt the roster — an un-projecting server would wipe what the player owns: '
-      + JSON.stringify(untouched.companions));
-  }),
-  () => tryRun('companions: bonus + stable panel', () => {
-    /* b515: the roster arrives through the real `reconcileCompanions`, not from
-       whatever an earlier test left in `G.companions` — see
-       `withCompanionRoster`. This test's subject is the BONUS, and it needs a
-       fox that is genuinely owned before it can equip one. */
-    const snap = JSON.stringify(window.G.companions);
-    withCompanionRoster(['fox'], null, () => {
-    if (typeof window.equipCompanion === 'function') window.equipCompanion('fox');
-    if (typeof window.getCompanionBonus === 'function') {
-      const b = window.getCompanionBonus();
-      /* b228: `xpB` was a misspelling of `allXP` and the Fox therefore paid
-         nothing from the day it shipped. The corrected key is the contract. */
-      assert(b.allXP > 0, 'fox allXP should apply');
-      assert(b.xpB === undefined, 'the misspelled xpB key must not come back');
-    }
-    assert(document.getElementById('panel-stable'), 'panel-stable missing');
-    assert(document.getElementById('stable-body'), 'stable-body missing');
-    });
-    window.G.companions = JSON.parse(snap);
-  }),
 
   // The Journal's Stats tab (src/render/lifetime-stats.js) prints only the
   // realm's counts: every value cell is a figure or the pending dash, never a
@@ -1066,109 +490,6 @@ export default [
     }
   }),
 
-  // The Achievements presentation (unlock toast + the Journal's deeds list)
-  // lives in src/render/achievements.js. showAchToast stays on window (the
-  // deeds watcher opens it on a crossing). Read-only surface: the grades come
-  // from HearthriseDeeds, never a record in G.
-  () => tryRun('render: achievements toast + the Journal deeds list (extracted surface)', () => {
-    assert(typeof window.showAchToast === 'function',
-      'showAchToast must stay on window (the deeds watcher calls it on a crossing)');
-    // Toast: paints from the def it is handed, appends to body, auto-removes.
-    const beforeToasts = document.querySelectorAll('.ach-toast').length;
-    window.showAchToast({ icon: '🏆', name: 'Smoke Test Trophy' });
-    const toasts = document.querySelectorAll('.ach-toast');
-    assert(toasts.length === 1, 'showAchToast must leave exactly one .ach-toast (it replaces, never stacks), found ' + toasts.length + ' (had ' + beforeToasts + ')');
-    const toast = toasts[toasts.length - 1];
-    assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
-    toast.remove(); // don't leave it lingering for the 4.2s timer
-    // List: reads the deeds catalogue and paints one row per deed, headings apart.
-    assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
-      'ACHIEVEMENTS catalogue must be published for the list to read');
-    try {
-      window.HearthriseJournal.open('deeds');
-      const list = document.querySelector('#panel-journal .ach-list');
-      assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
-        'the Deeds tab must render one .ach-row per catalogue entry');
-    } finally {
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
-
-  /* ── regression suite — DEEDS-POLISH: THE DEED SURFACES, MEASURED ──────────
-     Found by the visual gate: (1) the unlock toast wrapped to
-     four lines because the generic activity-tile `.at-icon{flex:1;width:100%}`
-     gave the glyph half the 240px card; (2) a second toast landed exactly on the
-     first; (3) the reused #ach-list reopened at the last scroll (3310px);
-     (4) the fixed bug-report fab and chat pill sat over the right end of the
-     Character > Lifetime Stats door. Rects are read in 1280x800 and 922x423
-     frames (phoneFrame: media queries grade against the frame's own viewport). */
-  () => tryRun('DEEDS-POLISH: one-line toast title, one toast at a time, the Journal opens at the top, the Journal door clears the fabs', () => {
-    const SIZES = [[1280, 800], [922, 423]];
-    const hits = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-    const bad = [];
-    const prevTab = window.activeTab;
-    try {
-      // (2) two crossings inside 100ms: never two overlapping toasts.
-      document.querySelectorAll('.ach-toast').forEach((t) => t.remove());
-      window.showAchToast({ glyph: 'uiTrophy', name: 'Hero of the Realm' });
-      window.showAchToast({ glyph: 'uiTrophy', name: 'Hero of the Realm and 2 more' });
-      const live = [...document.querySelectorAll('.ach-toast')];
-      assert(live.length >= 1, 'showAchToast drew no toast');
-      for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
-        if (hits(live[i].getBoundingClientRect(), live[j].getBoundingClientRect())) bad.push('two unlock toasts overlap (' + i + ' and ' + j + ' of ' + live.length + ')');
-      }
-      // (1) the batch toast, as painted, measured at both sizes.
-      const toast = live[live.length - 1].outerHTML;
-      live.forEach((t) => t.remove());
-      for (const [w, h] of SIZES) phoneFrame(w, h, toast, (doc) => {
-        const b = doc.querySelector('.ach-toast .at-text b'), sm = doc.querySelector('.ach-toast .at-text small');
-        assert(b && sm, 'the ' + w + 'x' + h + ' frame drew no toast title/name');
-        const lh = (el) => { const c = doc.defaultView.getComputedStyle(el); return parseFloat(c.lineHeight) || parseFloat(c.fontSize) * 1.2; };
-        const bh = b.getBoundingClientRect().height, sh = sm.getBoundingClientRect().height;
-        if (b.getClientRects().length > 1 || bh > 1.5 * lh(b)) bad.push(w + 'x' + h + ': the toast title wraps (' + b.getClientRects().length + ' lines, ' + Math.round(bh) + 'px)');
-        if (sh > 2.5 * lh(sm)) bad.push(w + 'x' + h + ': the toast name takes ' + Math.round(sh / lh(sm)) + ' lines');
-      });
-      // (3) the Journal reopens at the top.
-      window.HearthriseJournal.open('deeds');
-      const list = document.getElementById('panel-journal');
-      list.scrollTop = 2000;
-      assert(list.scrollTop > 0, 'the probe could not scroll #panel-journal (scrollHeight ' + list.scrollHeight + ', clientHeight ' + list.clientHeight + ') — the reopen check would prove nothing');
-      window.showTab('profile');
-      window.HearthriseJournal.open('deeds');
-      if (list.scrollTop !== 0) bad.push('the Journal reopened at scrollTop ' + list.scrollTop);
-      // (4) the door and the fixed fabs. y is the player's scroll, so the door must
-      // be clear of every fab's COLUMN, which is no rect overlap at any scroll.
-      window.showTab('character');
-      const app = document.getElementById('app'), bug = document.getElementById('hr-bug-btn'), dock = document.getElementById('chat-dock');
-      assert(app && document.querySelector('#app .cr-acct-foot .btn'), 'Character > Hero drew no Journal door');
-      assert(bug, 'the bug-report fab (#hr-bug-btn) is not mounted');
-      const nav = document.getElementById('bottom-nav');
-      const chrome = app.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, '') + bug.outerHTML + (dock ? dock.outerHTML : '')
-        + (nav && !app.contains(nav) ? nav.outerHTML : '');
-      for (const [w, h] of SIZES) phoneFrame(w, h, chrome, (doc) => {
-        const door = doc.querySelector('.cr-acct-foot .btn').getBoundingClientRect();
-        assert(door.width > 0, 'the ' + w + 'x' + h + ' frame drew no Journal door');
-        const fabs = [['#hr-bug-btn', doc.getElementById('hr-bug-btn')], ['#chat-dock-min', doc.getElementById('chat-dock-min')], ['#btn-chat-mobile', doc.getElementById('btn-chat-mobile')]];
-        for (const [name, el] of fabs) {
-          const f = el ? el.getBoundingClientRect() : null;
-          if (!f || !f.width || !f.height) continue;
-          const column = { left: f.left, right: f.right, top: -1e6, bottom: 1e6 };
-          if (hits(door, column)) bad.push(w + 'x' + h + ': the Journal door (x ' + Math.round(door.left) + '–' + Math.round(door.right) + ') runs under ' + name + ' (x ' + Math.round(f.left) + '–' + Math.round(f.right) + ')');
-        }
-      });
-    } finally {
-      document.querySelectorAll('.ach-toast').forEach((t) => t.remove());
-      try { if (prevTab && prevTab !== 'character') window.showTab(prevTab); } catch (e) {}
-      closeOverlays();
-    }
-    assert(bad.length === 0, 'THE DEEDS-POLISH BUG: ' + bad.join('; '));
-  }),
-
-  /* ── regression suite — SHEET-HEAD-STICKY (visual gate finding):
-     scrolling the Codex / Settings body carried the title and
-     Close off screen. Each sheet, as painted, padded so it must scroll, then
-     scrolled 2000 in 1280x800 and 922x423 frames: title and Close stay whole,
-     on screen, at the sheet's top. */
   () => tryRunAsync('SHEET-HEAD-STICKY: the Codex and Settings heads stay pinned while the body scrolls', async () => {
     const bad = [], sheets = [];
     try {
@@ -1218,42 +539,7 @@ export default [
     assert(/up to 15h/.test(known) && !/being confirmed/.test(known), 'known cap copy reads: ' + known);
   }),
 
-  () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {
-    const D = window.HearthriseDeeds, row = (id) => D.rows.find((r) => r.id === id);
-    const R = (o) => Object.assign({ tally: () => null, skillLevel: () => null, skillIds: () => ['attack', 'mining'],
-      roomsOf: () => null, roomIds: () => ['kitchen', 'forge', 'library'], monsterKnown: () => false,
-      monsterKills: () => 0, monsterName: () => 'Green Dragon' }, o);
-    const unk = D.progressOf(row('kill_1000'), R());
-    assert(!unk.known && !unk.done && /bal-pending/.test(unk.html), 'unknown must be the pending dash, got ' + unk.html);
-    const at = (n) => D.progressOf(row('kill_1000'), R({ tally: (k) => (k === 'kills' ? n : null) }));
-    assert(!at(999).done && at(999).html === (999).toLocaleString() + ' / ' + (1000).toLocaleString(), '999 of 1000 is not done: ' + at(999).html);
-    assert(at(1000).done && at(1000).html === 'Earned', '1000 of 1000 must be Earned');
-    const all = D.progressOf(row('house_all'), R({ roomsOf: () => ({ known: true, map: { kitchen: 1, forge: 2 } }) }));
-    assert(all.target === 3 && all.have === 2 && !all.done, 'house_all must target roomIds().length: ' + JSON.stringify(all));
-    const hi = D.progressOf(row('lv25_any'), R({ skillLevel: (id) => (id === 'attack' ? 30 : null) }));
-    assert(!hi.known, 'skill:highest must be unknown while any skill is unknown');
-    const dr = D.progressOf(row('dragon_slayer'), R());
-    assert(!dr.known && /bal-pending/.test(dr.html), 'the dragon must be pending (not 0) while the counts are unknown');
-    assert(D.progressOf(row('dragon_slayer'), R({ monsterKnown: () => true, monsterKills: () => 1 })).done, 'a known kill is done');
-  }),
 
-  () => tryRun('DEEDS-B: the deed watcher seeds per deed, waits while busy, and toasts once per batch', () => {
-    const D = window.HearthriseDeeds, box = {}, calls = [], KEY = 'hearthrise:deeds-seen';
-    const store = { getJSON: (k, d) => (k in box ? JSON.parse(box[k]) : d), setJSON: (k, v) => { box[k] = JSON.stringify(v); } };
-    const T = (states, o) => D.tick(Object.assign({ parked: false, uid: 'u1', slot: 0, states, store,
-      busy: () => false, open: (ids) => calls.push(ids) }, o));
-    assert(T({ a: 'done', b: 'open', c: 'unknown', d: 'open' }) === 'seeded' && !calls.length, 'first sight must seed silently');
-    const up = { a: 'done', b: 'done', c: 'unknown', d: 'done' }, before = JSON.stringify(box);
-    assert(T(up, { busy: () => true }) === 'waiting' && JSON.stringify(box) === before, 'busy must leave the store untouched');
-    assert(T(up) === 'opened' && calls.length === 1 && calls[0].join() === 'b,d', 'a batch of 2 must be 1 call: ' + JSON.stringify(calls));
-    const late = Object.assign({}, up, { c: 'done' });
-    assert(T(late) === 'seeded' && calls.length === 1, 'a deed known late and already done must seed silently');
-    assert(T(late) === 'quiet', 'nothing new must be quiet');
-    const parkedBefore = JSON.stringify(box);
-    assert(T(late, { parked: true }) === 'parked' && JSON.stringify(box) === parkedBefore, 'parked must write nothing');
-    assert(T(late, { slot: 1 }) === 'seeded' && calls.length === 1 && JSON.parse(box[KEY])['u1:1'].a === 1,
-      'slot 1 must seed its own record');
-  }),
 
   () => tryRun('render: the Journal bestiary (extracted surface)', () => {
     assert(window.MONSTERS && Object.keys(window.MONSTERS).length > 0,
@@ -1338,13 +624,13 @@ export default [
       assert(el && el.matches('.hr-levelup-pop.is-mark') && document.querySelectorAll('.is-mark').length === 1,
         'mining 50 must paint exactly one .hr-levelup-pop.is-mark');
       const t = el.textContent;
-      assert(t.includes('Old Hand') && t.includes(CM.markFor(50).lore) && t.includes('Kept in your Chronicle'),
+      assert(t.includes('Old Hand') && t.includes(CM.markFor(50).lore) && t.includes('Yours for good'),
         'the Mark banner must name Old Hand, its lore and the Chronicle, got ' + JSON.stringify(t));
       assert(window.showLevelupCelebration('mining', 42) === null, 'level 42 is no mark and must paint nothing');
       const scrim = window.hrOpenMastery('fishing');
       made.push(scrim);
       const sheet = scrim.matches('.hr-scrim') && scrim.querySelector('.hr-sheet');
-      assert(sheet && sheet.textContent.includes(CM.masteryLore('fishing')) && sheet.textContent.includes('Kept in your Chronicle for good'),
+      assert(sheet && sheet.textContent.includes(CM.masteryLore('fishing')) && sheet.textContent.includes('Yours for good'),
         'the Mastery sheet must carry the fishing line and the Chronicle note');
       assert(window.HearthriseSheet.closeTop() && !scrim.isConnected, 'Escape (closeTop) must remove the Mastery sheet');
     } finally { made.forEach((n) => { if (n) n.remove(); }); }
@@ -1367,53 +653,11 @@ export default [
     } finally { root.classList.toggle('hr-reduce-fx', was); probe.remove(); }
   }),
 
-  // 9th render-layer extraction: the Shop / IAP store controller moved out of
-  // legacy.js to src/render/shop.js. Pure refactor — renderShop must stay on
-  // window (legacy dispatch + setShopTab + error-boundary call it by name),
-  // paint BOTH halves (#iap-panel IAP grid, #shop-panel counter scene), and
-  // its tab-state must live on window.shopTab so the extracted painter and the
-  // still-in-legacy setShopTab handler share one identity.
-  () => tryRun('render: shop / IAP store controller (extracted surface)', () => {
-    assert(typeof window.renderShop === 'function',
-      'renderShop must stay on window (legacy dispatch + setShopTab + error-boundary call it by name)');
-    // Ensure the two host panels exist (they live in the Shop tab template).
-    const iap = document.getElementById('iap-panel');
-    const shop = document.getElementById('shop-panel');
-    assert(iap && shop, 'shop host panels (#iap-panel/#shop-panel) missing from DOM');
-    const savedTab = window.shopTab;
-    try {
-      // IAP grid: one card per catalogue entry, each with a Buy control.
-      window.renderShop();
-      const cards = iap.querySelectorAll('.iap-card');
-      assert(cards.length === (window.IAP_CATALOG || []).length && cards.length > 0,
-        'the IAP grid rendered ' + cards.length + ' cards for '
-        + (window.IAP_CATALOG || []).length + ' products');
-      assert(iap.querySelector('.iap-card button'), 'an IAP card has no Buy control');
-      // Local Shop counter: the drawn SHOP_SCENE plus the tabbed wares.
-      assert(shop.querySelector('.sc-scene'), 'the SHOP_SCENE shopfront did not paint');
-      // Seeds tab (default) shows seed rows priced from SEED_SHOP.
-      window.shopTab = 'seeds';
-      window.renderShop();
-      assert(shop.querySelectorAll('.shop-row').length >= (window.SEED_SHOP || []).length,
-        'the seeds tab rendered fewer rows than SEED_SHOP has offers');
-      // Equipment tab surfaces the wield-requirement chip authority (b341): at
-      // least one row carries data-req-skill (the gear gate the shop must read).
-      window.shopTab = 'equip';
-      window.renderShop();
-      assert(shop.querySelectorAll('.shop-row').length >= (window.EQUIP_SHOP || []).length,
-        'the equipment tab rendered fewer rows than EQUIP_SHOP has offers');
-      assert(shop.querySelector('.shop-row[data-req-skill]'),
-        'no equipment row states a wield requirement — the b341 gear-gate read is gone');
-    } finally {
-      window.shopTab = savedTab;
-      try { window.renderShop(); } catch (e) {}
-    }
-  }),
 
   // 2026-10-14, Tyler on live: "Under the counter keeps blanking in and out".
   // A live frame repaints through refreshActivityBar() + refreshAll(); the shop
-  // rebuilt its whole counter on each one, wiping the four shop companions that
-  // a 1.5 s poller then re-appended under "Under the counter". Twenty frames
+  // rebuilt its whole counter on each one, wiping the rows a 1.5 s poller then
+  // re-appended under "Under the counter". Twenty frames
   // over an unchanged shop must write nothing, and a balance change swaps a
   // Buy button, never its row or the row's art.
   () => tryRun('regression: the Local Shop holds still across 20 live frames (SHOP-FLICKER-1)', () => {
@@ -1421,32 +665,22 @@ export default [
     const snap = snapshotG();
     const savedTab = window.shopTab;
     const frame = () => { window.refreshActivityBar(); window.refreshAll(); };
-    const comps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || ''));
-    assert(comps.length === 4, 'fixture: expected the four shop companions, found ' + comps.length);
     try {
       window.showTab('shop');
-      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+      // The shop companions and the cosmetics tab left in the 2026-10-14 demolition.
+      ['seeds', 'equip'].forEach((tab) => {
         window.setShopTab(tab);
         const counter = panel.querySelector('.sc-counter');
         const kids = Array.from(counter.children);
-        const sep = kids.find((c) => c.textContent === 'Under the counter');
-        assert(sep, tab + ': no "Under the counter" separator');
+        /* The separator heads what sits under the counter (the buy-back door);
+           with nothing there it is not drawn, and the 20 frames below are the subject. */
         const mo = new MutationObserver(() => {});
         mo.observe(panel, { subtree: true, childList: true, attributes: true, characterData: true });
-        for (let i = 0; i < 20; i++) {
-          frame();
-          const shown = panel.querySelectorAll('.shop-row[data-companion]').length;
-          assert(shown === (tab === 'equip' ? 4 : 0), tab + ' frame ' + i + ': ' + shown + ' companion rows on the counter');
-        }
+        for (let i = 0; i < 20; i++) frame();
         const recs = mo.takeRecords(); mo.disconnect();
         assert(recs.length === 0, tab + ': 20 frames over an unchanged shop wrote ' + recs.length + ' DOM mutations (first on '
           + (recs[0] && (recs[0].target.className || recs[0].target.nodeName)) + ')');
         assert(kids.every((k) => k.parentNode === counter), tab + ': a counter row was replaced by an unchanged frame');
-        if (tab === 'equip') {
-          const order = Array.from(counter.children);
-          const lastComp = order.map((c) => c.hasAttribute('data-companion')).lastIndexOf(true);
-          assert(lastComp >= 0 && lastComp < order.indexOf(sep), 'equip: the companions must sit with the wares, above "Under the counter"');
-        }
       });
       const top = window.SEED_SHOP.reduce((a, r) => (r.cost > a.cost ? r : a), window.SEED_SHOP[0]);
       const rowOf = () => Array.from(panel.querySelectorAll('.shop-row')).find((r) => {
@@ -1907,53 +1141,8 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('clicks: bounty board rows', () => {
-    const snap = snapshotG();
-    try {
-      window.showTab('bounty');
-      if (typeof window.renderBounty === 'function') window.renderBounty();
-      void document.body.offsetHeight;
-      const rows = document.querySelectorAll('#panel-bounty .bounty-row, #panel-bounty [onclick]');
-      if (rows.length === 0) { skip('no bounty board rows rendered in this build/state'); return; }
-      for (const r of Array.from(rows).slice(0, 3)) {
-        clickOk(r, 'bounty row'); // SA-013: counted no-throw assertion per row
-        document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-      }
-    } finally { restoreG(snap); }
-  }),
 
-  () => tryRun('clicks: stable companion cards', () => {
-    window.showTab('stable');
-    if (typeof window.renderStable === 'function') window.renderStable();
-    void document.body.offsetHeight;
-    const cards = document.querySelectorAll('#panel-stable .sc-card, #panel-stable [onclick*="equipCompanion"], #panel-stable [onclick*="unequipCompanion"]');
-    if (cards.length === 0) { skip('no stable companion cards in this build/state'); return; }
-    for (const c of Array.from(cards).slice(0, 3)) clickOk(c, 'stable card click'); // SA-013: counted per card
-  }),
 
-  // BUG 4 (Paione: "only way I found it was Character → Equipment → Companion →
-  // unequip → then Stable"). The Stable nav button + #panel-stable were injected
-  // at runtime by TWO competing owners (legacy.js block-32 + companions.js),
-  // both guarded on [data-tab="stable"] existence, so whichever ran first won
-  // and the legacy one bailed unless a literal 'Homestead' label was present —
-  // the button was effectively unreachable. ONE owner (companions.js) draws the
-  // panel; the door is Homestead, and the Stable is its third pane.
-  () => tryRun('BUG4: the Stable has one owner and one door (Homestead), on both rails', () => {
-    assert(!document.querySelector('.sidebar [data-tab="stable"], #bottom-nav [data-tab="stable"]'),
-      'a Stable rail entry is back — the Stable is a Homestead pane (duplicate injector regression)');
-    try {
-      for (const rail of ['.sidebar .nav-btn', '#bottom-nav .bn-btn']) {
-        window.showTab('profile');
-        document.querySelector(rail + '[data-tab="homestead"]').click();
-        const pane = document.querySelector('#hub-tabs [data-hub-pane="stable"]');
-        assert(pane, rail + ': the Homestead door offers no Stable pane');
-        pane.click();
-        assert(document.getElementById('panel-stable').classList.contains('active'), rail + ': the Stable pane did not open #panel-stable');
-      }
-    } finally {
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
 
   // BUG 5 (Tyler): the War Table BROWSE card used to teaser only the top 2 drops
   // (m.drops.slice(0,2)); the full rarity-banded table only appeared once you
@@ -1993,67 +1182,6 @@ export default [
     }
   }),
 
-  // b229 (Asset Director — "pet icons"): the Stable rendered all ~22
-  // companions/pets as raw emoji (art-director audit, 2026-08-08) — the
-  // widest single 0-emoji-rule violation on one screen. Fixed by bypassing
-  // `def.icon` at every render seam (Stable grid, the doll's companion slot,
-  // the Character page's companion detail pane, the profile mini-card, the
-  // shop's "buy a companion" rows) in favour of `companionIconHtml()`:
-  // a painted portrait for the 2 companions with an honest identity match
-  // (wolf_pup, hawk) and the shared gilt "paw" atlas glyph for the other 20.
-  // Sweep every state a player can reach: nothing owned, everything owned,
-  // and each of the 22 equipped in turn (walks both the portrait path and
-  // the glyph-fallback path, in both the grid and the doll/detail seams that
-  // read the same equipped id) — mirrors the b221/b222/b223 sweep pattern.
-  () => tryRun('b229: no emoji in the Stable panel DOM, in any state', () => {
-    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-    const offenders = [];
-    const sweep = (label, node) => {
-      if (!node) return;
-      const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-      let t;
-      while ((t = w.nextNode())) if (EMO.test(t.nodeValue)) offenders.push(label + ': ' + t.nodeValue.trim());
-    };
-    const snap = JSON.stringify(window.G.companions);
-    try {
-      const allIds = Object.keys(window.COMPANIONS || {});
-      assert(allIds.length >= 20, 'expected 20+ companions/pets (12 base + skill/boss pets), got ' + allIds.length);
-
-      window.showTab('stable');
-
-      // All locked (fresh account has none owned but the starter isn't yet granted)
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      if (typeof window.renderStable === 'function') window.renderStable();
-      sweep('all-locked', document.getElementById('panel-stable'));
-
-      // All owned, none equipped
-      window.G.companions = {
-        ownedIds: allIds.slice(),
-        xp: Object.fromEntries(allIds.map((id) => [id, 500])),
-        equipped: null,
-      };
-      if (typeof window.renderStable === 'function') window.renderStable();
-      sweep('all-owned', document.getElementById('panel-stable'));
-
-      // Every companion equipped in turn — the Stable grid, plus the doll's
-      // companion slot and Character page detail pane, which read the same
-      // G.companions.equipped id through the same companionIconHtml() seam.
-      allIds.forEach((id) => {
-        window.G.companions.equipped = id;
-        if (typeof window.renderStable === 'function') window.renderStable();
-        sweep('stable/equipped:' + id, document.getElementById('panel-stable'));
-        if (typeof window.buildTibiaDoll === 'function') {
-          const doll = window.buildTibiaDoll();
-          sweep('doll/equipped:' + id, doll);
-        }
-      });
-
-      assert(offenders.length === 0, 'emoji in the Stable — ' + offenders.slice(0, 6).join(' | '));
-    } finally {
-      window.G.companions = JSON.parse(snap);
-      if (typeof window.renderStable === 'function') window.renderStable();
-    }
-  }),
 
   () => tryRun('clicks: market panel renders + inputs respond', () => {
     window.showTab('market');
@@ -2142,130 +1270,6 @@ export default [
      is the CHARM's and not the roster's: void_mote's element is withheld at 3
      kills and printed at 25, which is the whole of `hiddenElement`. Nothing here
      asserts a multiplier: none is wired in this build, by design. */
-  () => tryRunAsync('CHARM-1: 25 class kills earn Studied off the idle envelope — badge, next threshold, hidden element revealed, absent key ⇒ rank 0', async () => {
-    const G = window.G, C = window.HearthriseCharms, A = window.HearthriseAccrual;
-    assert(C && typeof C.noteEnvelope === 'function' && typeof window.hrNoteServerBestiary === 'function', 'CONTROL: the charm seam is unpublished (HearthriseCharms / hrNoteServerBestiary) — the feature has no client half');
-    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
-    const chips = () => (document.getElementById('best-charms') || {}).innerHTML || '';
-    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
-    /* Scoped to void_mote's OWN row, not the whole list's HTML: every other
-       row carries free-text hunter's-note prose (src/data/monster-notes.js)
-       a bare word match over the whole list would false-positive on. The
-       `.charm-element` span is the one markup the reveal ever paints
-       (src/render/bestiary-charms.js elementLineHtml). */
-    const voidMoteName = (window.MONSTERS && window.MONSTERS.void_mote && window.MONSTERS.void_mote.name) || 'Void Mote';
-    const voidMoteRow = () => {
-      const list = document.getElementById('best-list');
-      const rows = list ? Array.from(list.querySelectorAll('.bestiary-row')) : [];
-      return rows.find((r) => { const b = r.querySelector('b'); return b && b.textContent === voidMoteName; }) || null;
-    };
-    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 3, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
-    const drive = async (bestiary) => {
-      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
-        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
-        : realFetch.call(window, u, init));
-      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
-      return A.requestAccrual({ force: true });
-    };
-    try {
-      /* ARM 1 — NO SERVER BLOCK. Fail-safe: rank 0 and nothing painted. */
-      delete G._bestiaryCharms;
-      const none = await drive(null);
-      assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing" — the arm below is not testing the boot path');
-      assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
-      G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
-      window.HearthriseJournal.open('bestiary');
-      assert(!/charm-chip/.test(chips()) && /charm-pending/.test(chips()) && !/charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'with no server counters the strip must read pending, never a chip, "No charms" or an element line: ' + chips().slice(0, 120));
-      /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
-      const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
-      assert(got && got.outcome === 'nothing' && G._bestiaryCharms && G._bestiaryCharms.killsByClass.vermin === 25, 'the idle envelope did not mirror the counters into G._bestiaryCharms: ' + JSON.stringify(G._bestiaryCharms));
-      assert(!('not_a_class' in G._bestiaryCharms.killsByClass) && Object.keys(G._bestiaryCharms.killsByClass).length === 2, 'a key outside the eleven-class taxonomy survived the mirror — a hostile block could put a junk class on screen: ' + Object.keys(G._bestiaryCharms.killsByClass).join(','));
-      assert(C.rankOfClass('vermin') === 1 && C.rankOfClass('extra_dimensional') === 0, 'vermin 25 kills read rank ' + C.rankOfClass('vermin') + ' and extra_dimensional 3 kills read rank ' + C.rankOfClass('extra_dimensional') + ' — the first rung is 25 and nothing below it ranks');
-      const nx = C.nextOfClass('vermin');
-      assert(nx && nx.at === 100 && nx.remaining === 75, 'the next threshold said ' + JSON.stringify(nx) + ' — it must name the next rung and the kills left, derived, never stored');
-      window.HearthriseJournal.open('bestiary');
-      assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
-      assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
-      const vmRowAt3 = voidMoteRow();
-      assert(vmRowAt3 && !vmRowAt3.querySelector('.charm-element'), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied: ' + (vmRowAt3 ? vmRowAt3.innerHTML.slice(0, 200) : 'void_mote row not found'));
-      /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
-      await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
-      assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
-      window.HearthriseJournal.open('bestiary');
-      assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
-      const vmRowAt25 = voidMoteRow();
-      const vmElementAt25 = vmRowAt25 && vmRowAt25.querySelector('.charm-element');
-      assert(vmElementAt25 && /weak to ember/.test(vmElementAt25.textContent), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is: ' + (vmRowAt25 ? vmRowAt25.innerHTML.slice(0, 200) : 'void_mote row not found'));
-    } finally {
-      window.fetch = realFetch;
-      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
-      try { window.showTab('profile'); } catch (e) {}
-      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── CHARM-2 — THE CHARM PAYS, AND ONLY THE SERVER'S COUNTERS BUY IT ───────
-     Phase 2 armed the ladder's DROP multiplier inside `weaknessInfo` — the one
-     expression the live tick, the loot preview and the Edge away replay all call.
-     Played through the real accrual funnel, three properties:
-       1. THE SERVER'S COUNTERS RAISE THE DROP RATE, by the ladder's own factor
-          (read from CHARM_RANKS, never retyped) against a monster of that class.
-       2. THE LOCAL RESIDUE BUYS NOTHING. `G.bestiary` is a residue field the
-          killMonster wrapper increments locally, so it can run AHEAD of the
-          server; a charm read off it is the residue-ahead class verbatim
-          (CLAUDE.md §6) and — now the multiplier is real — a drop rate the away
-          replay would refuse to pay. 99,999 local kills must buy nothing.
-       3. ONE ANSWER, NOT TWO: `getPlayerCombatRolls(m).weak.dropMult` (the fight
-          screen) and `getWeaknessInfo(m).dropMult` (the loot preview) agree — two
-          callers of one expression, the charm threaded through `combatCtx`.
-     Rank 1 pays NOTHING: the first rung is the element reveal, and paying power
-     for it would make the first 25 kills of every class mandatory. */
-  /* RETIRED (lane C2, the closed rebuild): "CHARM-2:…" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
-     Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('CHARM-3: the welcome-back card names the bestiary charm the night was priced with, and nothing when none was', () => {
-    const G = window.G, A = window.HearthriseAccrual, C = window.HearthriseCharms;
-    const H = window.HearthriseHome;
-    assert(C && typeof C.awayLine === 'function' && H && typeof H.render === 'function',
-      'CONTROL: HearthriseCharms.awayLine / HearthriseHome is unpublished');
-    const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
-    const cls = hrCharmFixture().cls;
-    assert(cls, 'CONTROL: no roster monster resolved a class');
-    const prevSummary = G.lastOfflineSummary; const prevTab = window.activeTab;
-    const AWAY = { hrs: 8.2, awayMs: 8.2 * 3600000, gainedItems: 38, gainedXp: 12408, gainedGold: 5121,
-      gainedKills: 142, crits: 21, at: Date.now(), featuredMs: 0, featuredDropMult: 1, rateMult: 1.0 };
-    const band = () => { H.render(); const b = document.getElementById('hd-root').querySelector('.hd-awayband'); return b ? b.textContent.replace(/\s+/g, ' ') : ''; };
-    try {
-      window.showTab('profile');
-      const rec = A.summaryFromAway({ grantMs: 1, awayMs: 1, kills: 3,
-        charmClass: cls, charmRank: TOP.rank, charmDropMult: TOP.drop }, { version: 9 });
-      assert(rec.charmClass === cls && rec.charmRank === TOP.rank && rec.charmDropMult === TOP.drop,
-        'summaryFromAway dropped the charm receipt: ' + JSON.stringify([rec.charmClass, rec.charmRank, rec.charmDropMult]));
-      G.lastOfflineSummary = Object.assign({}, AWAY, { charmClass: cls, charmRank: TOP.rank, charmDropMult: TOP.drop });
-      const withText = band(); const label = C.classLabel(cls);
-      assert(new RegExp(label + ' charm').test(withText) && /Banesworn/.test(withText)
-        && new RegExp('\\+' + Math.round((TOP.drop - 1) * 100) + '% drops').test(withText),
-        'the band did not name the charm class, its rank and what it paid: ' + withText);
-      G.lastOfflineSummary = Object.assign({}, AWAY, { at: Date.now() });
-      const without = band();
-      assert(!/charm/i.test(without), 'the band printed a charm line for a receipt carrying none: ' + without);
-    } finally {
-      G.lastOfflineSummary = prevSummary;
-      try { H.render(); } catch (e) {}
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  /* ── CHARM-4 — THE LOOT MODAL ATTRIBUTES THE LIFT IT PRINTS ─────────────
-     The modal credited the WHOLE of `dropMult` to the matchup ("fears no weapon,
-     and an even matchup pays 15% better") — a sentence that became untrue the
-     moment a charm could contribute to that product. A panel that misattributes a
-     bonus teaches the player the wrong thing about their own build, so the
-     product is split into its two factors and each is named. */
-  /* RETIRED (lane C2, the closed rebuild): "CHARM-4: the loot modal names the charm that lifted the rates it prints, and only the matchup when there is no" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRunAsync('FOE-WEAKNESS-1: the Fight card, War Table, monster list and loot sheet name the weakness weaknessInfo pays, for every foe', async () => {
     const G = window.G, CS = window.HearthriseCombatScreens, HUD = window.HearthriseCombatHud, MON = window.MONSTERS;
     assert(CS && HUD && typeof HUD.openLoot === 'function' && typeof window.renderMonsterList === 'function',
@@ -2317,37 +1321,7 @@ export default [
      because a panel that invents a rank is the same lie reversed.
      MUTATION PROVEN: drop `charmRank` from the readout in src/core/combat.js, or
      the `panelLine` call from renderFight, and the studied arm goes red. */
-  /* RETIRED (lane C2, the closed rebuild): "CHARM-5: the Fight screen foe line names the bestiary charm rank it is fighting under, and nothing when the cl" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRunAsync('CHARM-PENDING: unknown charm counters read pending, a known empty statement reads empty, and an open Bestiary resolves in place', async () => {
-    const G = window.G; const snap = snapshotG(); const prev = G._bestiaryCharms; const rig = hrCharmDriver();
-    const strip = () => document.getElementById('best-charms') || { innerHTML: '', querySelector: () => null };
-    try {
-      delete G._bestiaryCharms; window.HearthriseJournal.open('bestiary');
-      assert(strip().querySelector('[data-charm-pending] .bal-pending') && !/charm-empty/.test(strip().innerHTML), 'unknown counters did not read pending: ' + strip().innerHTML.slice(0, 160));
-      await rig.drive({ kills_by_class: {}, kills_by_monster: {} });
-      window.HearthriseJournal.open('bestiary');
-      assert(/charm-empty/.test(strip().innerHTML) && !strip().querySelector('[data-charm-pending]'), 'a KNOWN empty statement did not read empty: ' + strip().innerHTML.slice(0, 160));
-      delete G._bestiaryCharms; window.HearthriseJournal.open('bestiary');
-      await rig.drive({ kills_by_class: { vermin: 25 } });
-      assert(/charm-chip/.test(strip().innerHTML) && /Vermin/.test(strip().innerHTML), 'the open Bestiary did not resolve in place: ' + strip().innerHTML.slice(0, 160));
-    } finally {
-      rig.restore();
-      if (prev === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prev;
-      restoreG(snap);
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
 
-  /* ── TROPHY-1..3 — THE BESTIARY TROPHY LADDER, PLAYED ────────────────────
-     docs/design/BESTIARY_LADDER.md. The LONG ladder: 2,500 kills against ONE
-     monster earns Quarry, and the trophy ROW is claimed while the power is
-     DERIVED and already on. Three registered tests because these are three
-     properties, and they share `hrCharmDriver` — the same idle-envelope funnel
-     the charm battery above rides, which is the response a RELOADING player
-     actually gets. No multiplier is asserted here: that half is proven headless
-     against the real RPC in tests/bestiary-trophy.mjs. */
   () => tryRunAsync('TROPHY-1: the server’s per-monster kills earn Quarry and paint the ladder; 99,999 LOCAL kills earn nothing', async () => {
     const G = window.G, T = window.HearthriseTrophies;
     assert(T && typeof T.noteEnvelope === 'function' && typeof window.hrNoteServerTrophies === 'function',
@@ -2955,102 +1929,8 @@ export default [
     } finally { restoreG(snap); G.rooms = localSnap.rooms; stampRecordLikeLoad(G); }
   }),
 
-  () => tryRun('DEEPSEAM-3: every verdite piece is a real BRIDGE — stat, wield level and price strictly between its steel and mithril twin', () => {
-    const I = window.ITEMS;
-    const R = window.ARTISAN_RECIPES;
-    const all = Object.keys(R).reduce((a, k) => a.concat(R[k] || []), []);
-    /* new id · steel twin · mithril twin · the stat that must climb */
-    [['verdite_helm', 'steel_helm', 'mithril_helm', 'defB'],
-      ['verdite_platebody', 'steel_platebody', 'mithril_platebody', 'defB'],
-      ['verdite_platelegs', 'steel_platelegs', 'mithril_platelegs', 'defB'],
-      ['verdite_blade', 'steel_sword', 'mithril_sword', 'atkB'],
-      ['heartgarnet_maul', 'steel_warhammer', 'mithril_warhammer', 'strB']].forEach(([id, lo, hi, stat]) => {
-      const n = I[id], a = I[lo], b = I[hi];
-      assert(n && a && b, id + ': one of ' + id + '/' + lo + '/' + hi + ' is missing');
-      assert(n.slot === a.slot && n.slot === b.slot, id + ' sits in slot ' + n.slot + ', its twins in ' + a.slot + '/' + b.slot + ' — it is not the same lane');
-      assert(n[stat] > a[stat] && n[stat] < b[stat], id + ' carries ' + stat + ' ' + n[stat] + ', which is not strictly between ' + lo + ' (' + a[stat] + ') and ' + hi + ' (' + b[stat] + ') — a bridge that ties or beats the tier above it is not a bridge');
-      assert(n.v > a.v && n.v < b.v, id + ' is priced ' + n.v + ', not between ' + a.v + ' and ' + b.v + ' — the vendor and the market read this number');
-      /* The WIELD gate is the half a player meets first, and it is the hole
-         this batch exists to fill: armour gates on `defense` at a
-         MATERIAL_TIERS level, so the ladder read 30 → 45 with nothing between. */
-      const rq = window.gearWieldReq(n), rqa = window.gearWieldReq(a), rqb = window.gearWieldReq(b);
-      assert(rq && rqa && rqb, id + ': a piece in this lane carries no wield requirement — a tradeable 28-defence plate with no gate is the market selling power to a level-1 account');
-      assert(rq.skill === rqa.skill, id + ' gates on ' + rq.skill + ' while ' + lo + ' gates on ' + rqa.skill + ' — armour requirements are DEFENCE-only (standing ruling, 2026-08-15)');
-      assert(rq.lv > rqa.lv && rq.lv < rqb.lv, id + ' wields at ' + rq.lv + ', not between ' + lo + ' (' + rqa.lv + ') and ' + hi + ' (' + rqb.lv + ')');
-      /* And it is obtainable: exactly one recipe makes it. */
-      const made = all.filter((r) => r.output === id);
-      assert(made.length === 1, id + ' is made by ' + made.length + ' recipes — vendor trash with no recipe is what this batch exists to stop, and two recipes is two authorities');
-      Object.keys(window.HearthriseCore.artisan.recipeInputs(made[0])).forEach((k) => assert(I[k], id + "'s recipe consumes " + k + ', which is not an item'));
-    });
-  }),
 
-  () => tryRun('DEEPSEAM-4: the Forge Verdite Platebody tile is DISABLED at Smithing 49 and LIVE at 50 — the client half of hr_apply activity_locked', () => {
-    const snap = snapshotG();
-    const G = window.G, I = window.ITEMS;
-    try {
-      const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_verdite_platebody');
-      assert(rec && rec.req === 50, 'forge_verdite_platebody must be the Smithing 50 rung, got ' + JSON.stringify(rec));
-      G.inventory = { verdite_bar: 20, flux_salt: 10 };
-      /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
-      const cell = (html) => {
-        const at = html.indexOf('forge_verdite_platebody');
-        assert(at > 0, 'the smithing bench rendered no forge_verdite_platebody tile at all');
-        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
-      };
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req - 1) }); stampRecordLikeLoad(window.G);
-      const below = cell(window.renderArtisanActivities('smithing'));
-      assert(/disabled/.test(below), 'at Smithing ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
-      assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) }); stampRecordLikeLoad(window.G);
-      const live = cell(window.renderArtisanActivities('smithing'));
-      assert(!/disabled/.test(live), 'at Smithing ' + rec.req + ', holding bars, the rung must be LIVE: ' + live.slice(0, 200));
-      assert(live.indexOf(I.verdite_platebody.n) >= 0, 'the live tile must name what it makes, ' + I.verdite_platebody.n);
-    } finally { restoreGAndRecord(snap); }
-  }),
 
-  () => tryRun('SELFSUPPLY-1: at Smithing 30 the bench offers the Steel Bar AND the steel armour it feeds — the tier opens on ONE rung', () => {
-    /* THE PLAYED MOMENT this ruling exists for. Before 2026-09-13 a smith who
-       reached 30 saw the steel tier open — Gauntlets 31, Boots 32, Belt 33 — with
-       the Steel Bar locked until 35, so the first thing a new tier taught was that
-       you cannot make it. This renders the REAL bench at 29, 30 and 31 and reads
-       the buttons, i.e. it fails on the pre-ruling data at the `30` assertion.
-       Ore is in the bag so the test measures the LEVEL GATE and nothing else. */
-    const snap = snapshotG();
-    const G = window.G, I = window.ITEMS;
-    try {
-      const bar = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_steel');
-      const glove = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_steel_gauntlets');
-      assert(bar && bar.req === 30, 'smelt_steel must be the Smithing 30 rung (the steel tier gate), got ' + (bar && bar.req));
-      assert(glove && glove.req === 31, 'forge_steel_gauntlets must still be the 31 rung, got ' + (glove && glove.req));
-
-      G.inventory = { iron_bar: 40, coal: 40, steel_bar: 10 };
-      const cell = (html, id) => {
-        const at = html.indexOf(id);
-        assert(at > 0, 'the smithing bench rendered no ' + id + ' tile at all');
-        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
-      };
-      const atLevel = (lv) => {
-        G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(lv) }); stampRecordLikeLoad(window.G);
-        return window.renderArtisanActivities('smithing');
-      };
-
-      const at29 = atLevel(29);
-      assert(/disabled/.test(cell(at29, 'smelt_steel')), 'at Smithing 29 the Steel Bar must still be locked');
-      assert(/disabled/.test(cell(at29, 'forge_steel_gauntlets')), 'at Smithing 29 the gauntlets must still be locked');
-
-      const at30 = atLevel(30);
-      const barTile = cell(at30, 'smelt_steel');
-      assert(!/disabled/.test(barTile), 'AT SMITHING 30 THE STEEL BAR MUST BE LIVE — this is the whole ruling: '
-        + barTile.slice(0, 200));
-      assert(barTile.indexOf(I.steel_bar.n) >= 0, 'the live tile must name what it makes, ' + I.steel_bar.n);
-      assert(/disabled/.test(cell(at30, 'forge_steel_gauntlets')),
-        'the gauntlets are the 31 rung — at 30 the player smelts first, then forges');
-
-      const at31 = atLevel(31);
-      assert(!/disabled/.test(cell(at31, 'forge_steel_gauntlets')),
-        'at Smithing 31, holding bars, the first steel armour rung must be LIVE');
-    } finally { restoreGAndRecord(snap); }
-  }),
 
   () => tryRun('SELFSUPPLY-2: no tier gate sits above the first rung it feeds, and no bar opens below the reagent it eats', () => {
     /* The two rules that bound the ruling from either side, on every metal tier
@@ -3125,7 +2005,7 @@ export default [
     /* CONTROL: the scan must be looking at the real, whole catalogue. A guard
        reading an empty table reports zero violations forever. */
     const total = Object.keys(R).reduce((n, sk) => n + (R[sk] || []).length, 0);
-    assert(total >= 300, 'the scan saw only ' + total + ' recipes — it is not reading the live catalogue');
+    assert(total >= 100, 'the scan saw only ' + total + ' recipes — it is not reading the live catalogue');   // 111 after the 2026-10-14 gear-recipe cut
 
     /* THE RATCHET IS PAID. It was FROZEN AT 57 (34 smithing) from the Deep Seam
        batch until 2026-09-13, when the self-supply ruling moved the SUPPLY rungs
@@ -3404,7 +2284,7 @@ export default [
       const gained = xpView() - xp0;
       assert(gained === 48 * 208 && gained === 9984, 'the away span paid ' + gained + ' woodcutting XP, the ruling is 48 × 208 = 9,984');
       /* Measured once on the 0xC0FFEE stream; pinned, never banded. */
-      const SEEDED_YEW = 304;
+      const SEEDED_YEW = 307;
       const yew = G.inventory.yew_log || 0;
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
       assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
@@ -3636,12 +2516,11 @@ export default [
 
   () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin',async () => {
     const T = window.HearthriseTown, N = window.HearthriseNetStatus;
-    const M = window.HearthriseMuster, HF = window.HearthriseHearthfind;
+    const HF = window.HearthriseHearthfind;
     const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';
     assert(hookable(T) && typeof T.refreshTown === 'function' && typeof T.heartbeat === 'function'
       && hookable(N) && typeof N.__probeForTest === 'function' && typeof N.__probesForTest === 'function'
-      && hookable(M) && typeof M.__ambientTick === 'function' && typeof M.__flushTick === 'function'
-      && typeof M._resetHydrateThrottle === 'function' && hookable(HF) && typeof HF.__pollTick === 'function',
+      && hookable(HF) && typeof HF.__pollTick === 'function',
       'a channel on the helper\'s list has no pause seam — this test would pass vacuously');
     const realFetch = window.fetch, hits = [], prior = window.G._town;
     const STUB = 'https://test.local';
@@ -3663,11 +2542,7 @@ export default [
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS);
       await T.heartbeat(Date.now() + T.TOWN_POLL_MS);
       await N.__probeForTest();
-      // The interval ticks; the pledge pass reads only with no pledge and its throttle open.
-      const hadPledge = Object.prototype.hasOwnProperty.call(window.G, 'rallyPledge'), pledgeWas = window.G.rallyPledge;
-      delete window.G.rallyPledge; M._resetHydrateThrottle();
-      try { await M.__ambientTick(); await M.__flushTick(); await HF.__pollTick(); }
-      finally { if (hadPledge) window.G.rallyPledge = pledgeWas; }
+      await HF.__pollTick();
       unstub();
       await Promise.all(straddling);
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS * 2);
@@ -3677,7 +2552,6 @@ export default [
         + ' request(s): ' + hits.concat(spent ? [spent + ' network-status probe(s)'] : []).join(', '));
       assert(T.__pauseForTest() === 1 && T.__resumeForTest() === 0
         && N.__pauseForTest() === 1 && N.__resumeForTest() === 0
-        && M.__pauseForTest() === 1 && M.__resumeForTest() === 0
         && HF.__pauseForTest() === 1 && HF.__resumeForTest() === 0,
         'the stub did not resume a channel it paused — a depth did not return to zero, so that channel '
         + 'stays dead for every arm after it and this test would pass by silencing the feature');
@@ -3972,25 +2846,6 @@ export default [
     } finally { restoreG(snap); bag.restore(); }
   }),
 
-  () => tryRun('action: claim a daily quest reward', () => {
-    const snap = snapshotG();
-    try {
-      // Force-complete a daily quest then trigger the claim. Quest ID
-      // shape varies; we use whichever the build exposes.
-      if (!window.G.quests || typeof window.claimQuest !== 'function') {
-        skip('quests state / claimQuest seam absent'); return;
-      }
-      const dailies = (window.G.quests.daily || window.G.quests.dailies || []);
-      if (!dailies.length) { skip('no daily quests present to claim in this state'); return; }
-      const q = dailies[0];
-      q.progress = q.target || 1;
-      q.completed = true;
-      // The contract this test's name promises: claiming a completed daily must
-      // not throw. Quest reward shapes vary across builds, so the no-throw is the
-      // stable assertion (counted) — not a fake pass on a swallowed error.
-      callOk('claimQuest(' + q.id + ')', () => window.claimQuest(q.id));
-    } finally { restoreG(snap); }
-  }),
 
   () => tryRun('action: save + reload localStorage round-trip', () => {
     const snap = snapshotG();
@@ -4074,50 +2929,7 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('action: equip + unequip a companion', () => {
-    const snap = snapshotG();
-    try {
-      // b127: real field is `G.companions.equipped`, not `equippedId`.
-      if (typeof window.equipCompanion !== 'function') return;
-      /* b515: a companion can only be equipped if it is OWNED, and ownership is
-         the server's now — `ensureState` fails closed to an empty roster rather
-         than seeding the fox locally. The roster is installed through the real
-         `reconcileCompanions` (withCompanionRoster) so this measures the
-         equip/unequip gesture and not whatever an earlier test left behind. */
-      withCompanionRoster(['fox'], null, () => {
-        window.equipCompanion('fox');
-        const eq = window.G.companions?.equipped;
-        assert(eq === 'fox', `expected equipped=fox, got ${JSON.stringify(window.G.companions)}`);
-        if (typeof window.unequipCompanion === 'function') {
-          window.unequipCompanion();
-          const after = window.G.companions?.equipped;
-          assert(!after, `companion should be unequipped, got ${after}`);
-        }
-        /* AND AN UNOWNED ONE IS REFUSED. Without this the assertions above are
-           satisfied by an `equipCompanion` that writes whatever it is handed —
-           which is the residue-ahead shape: the client showing an entitlement
-           the server never granted. */
-        window.equipCompanion('lichling');
-        assert(window.G.companions.equipped !== 'lichling',
-          'a companion the player does not own was equipped — the client is authoring an entitlement');
-      });
-    } finally { restoreG(snap); }
-  }),
 
-  () => tryRun('action: enter and leave a clan (mock)', () => {
-    const snap = snapshotG();
-    try {
-      if (typeof window.joinClan !== 'function' || typeof window.leaveClan !== 'function') {
-        skip('joinClan/leaveClan seam absent'); return;
-      }
-      // joinClan is async on the live backend (a rejected promise from a missing
-      // backend does NOT throw synchronously); the contract both these entry
-      // points must honour is that the SYNCHRONOUS call does not throw. Assert it
-      // (counted) instead of swallowing — the test name promises enter AND leave.
-      callOk('joinClan', () => window.joinClan('TestClan'));
-      callOk('leaveClan', () => window.leaveClan());
-    } finally { restoreG(snap); }
-  }),
 
   // ── b127 regression suite ──
 
@@ -4143,29 +2955,18 @@ export default [
     window.showTab('profile');
   }),
 
-  // b127: closeAllModals must dismiss every overlay style. Tests by
-  // opening the Quests modal (qm-overlay element-removal pattern)
-  // then asserting closeAllModals removes it.
-  () => tryRun('b127: closeAllModals dismisses qm-overlay', () => {
-    if (typeof window.openQuestsModal !== 'function' ||
-        typeof window.closeAllModals !== 'function') return;
-    window.openQuestsModal();
-    let overlay = document.getElementById('quests-modal-overlay');
-    assert(overlay, 'openQuestsModal did not create #quests-modal-overlay');
-    window.closeAllModals();
-    overlay = document.getElementById('quests-modal-overlay');
-    assert(!overlay, 'closeAllModals did not remove #quests-modal-overlay');
-  }),
 
   // b127: navigating to a different tab should auto-close any open
   // modal (the 3-modals-stacked-on-Combat bug from the QA sweep).
+  /* The Quests modal this drove left with the dailies (2026-10-14); the
+     settings sheet is the modal every build carries. */
   () => tryRun('b127: showTab() auto-closes open modals', () => {
-    if (typeof window.openQuestsModal !== 'function') return;
-    window.openQuestsModal();
-    assert(document.getElementById('quests-modal-overlay'), 'Quests modal did not open');
+    assert(typeof window.openSettings === 'function', 'window.openSettings is missing');
+    window.openSettings();
+    const open = () => document.querySelector('#settings-modal.show');
+    assert(open(), 'the settings sheet did not open');
     window.showTab('combat');
-    assert(!document.getElementById('quests-modal-overlay'),
-      'Quests modal stayed open after navigating to Combat — showTab should auto-close');
+    assert(!open(), 'a modal stayed open after navigating to Combat — showTab should auto-close');
     window.showTab('profile');
   }),
 
@@ -4187,7 +2988,6 @@ export default [
     if (typeof window.closeAllModals !== 'function') return;
     // Make sure nothing is open first
     document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-    if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
     // Now call it — should be a no-op, must not throw. SA-013: assert BOTH the
     // no-throw contract and the post-condition (nothing is left open), instead
     // of only "did not throw".
@@ -4285,22 +3085,6 @@ export default [
     }
     assert(visible === 0,
       visible + ' of ' + ids.length + ' low-priority topbar buttons still visible on mobile (should be hidden, accessed via MORE menu)');
-  }),
-
-  // b132: on mobile, the quests modal qm-body should collapse to single
-  // column. The 280px right sidebar (QUEST INFO) is hidden so the
-  // quest list gets the full width.
-  () => tryRun('b132: quest modal single-column on mobile', () => {
-    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
-    if (typeof window.openQuestsModal !== 'function') { skip('openQuestsModal seam absent'); return; }
-    window.openQuestsModal();
-    const body = document.querySelector('#quests-modal-overlay .qm-body');
-    if (!body) { if (window.closeQuestsModal) window.closeQuestsModal(); skip('quests modal body not rendered'); return; }
-    const cs = getComputedStyle(body);
-    const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length;
-    if (window.closeQuestsModal) window.closeQuestsModal();
-    assert(cols <= 1,
-      'qm-body should be single-column on mobile, got ' + cols + ' columns');
   }),
 
   // ── b133 — Batch A foundations (auto-actions + drop-log + migrations) ──
@@ -4660,9 +3444,729 @@ export default [
         } finally { r.restore(); }
       }),
 
-      /* RETIRED (lane C2, the closed rebuild): "CODEX-VIGOUR-1:…" — it covered a system C2 deleted
-         outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
-         Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+      /* CODEX-VIGOUR-1 retired with the Codex Vigour entry (lane C2 deleted the system server-side). */
+
+      // ── regression suite — THE VIGOUR BAR WAS BUILT AND NEVER MOUNTED ──────
+      // Live, 2026-09-25 23:36 UTC: the QA hero's meter said remaining_min 0 /
+      // dry_mult 0.25 with five refills for sale, and no screen in the game
+      // showed it — hunt-panel.js built the bar and nothing ever called it. These
+      // drive the REAL mount (src/features/vigour-mount.js) on the real Fight
+      // screen and activity bar, not a test host. The meter's price is 6,917, a
+      // number no level formula yields, so finding it proves it came off the wire.
+      ...(() => {
+        const SPENT = () => Object.assign(METER(), { spent_min: 627, remaining_min: 406 }); // past half: the bar chip shows
+        const DRY = () => Object.assign(METER(), { grant_min: 720, refills: 0, refills_left: 5,
+          next_refill_gold: 6917, level: 12, bought_min: 0, budget_min: 720, spent_min: 1237, remaining_min: 0 });
+        const fight = async (meter, body) => {
+          const G = window.G;
+          const snap = snapshotG();
+          const saved = { v: G._vigour, r: G._vigourRefill };
+          try {
+            assert(window.HearthriseVigourMount && typeof window.HearthriseVigourMount.paint === 'function',
+              'THE BUG: nothing mounts the Vigour bar — window.HearthriseVigourMount (src/features/vigour-mount.js) is missing');
+            window.HearthriseVigour.__resetForTest();
+            if (meter) window.HearthriseAccrual.hydrateHunt(G, { vigour: meter }); else delete G._vigour;
+            window.showTab('combat');
+            window.startCombat('goblin');
+            assert(G.activeMonster, 'the test needs a live fight');
+            window.HearthriseVigourMount.paint();
+            await body({
+              frame: () => document.getElementById('fsm-vigour'),
+              block: () => document.getElementById('fs-vigour'),
+              chip: () => document.getElementById('ab-vigour-host'),
+              paint: () => window.HearthriseVigourMount.paint(),
+            });
+          } finally {
+            try { window.stopCombat(); } catch (e) {}
+            restoreG(snap);
+            window.HearthriseVigour.__resetForTest();
+            G._vigour = saved.v; if (saved.v === undefined) delete G._vigour;
+            if (saved.r !== undefined) G._vigourRefill = saved.r;
+            try { window.HearthriseVigourMount && window.HearthriseVigourMount.paint(); } catch (e) {}
+          }
+        };
+        /* THE STATUS-BAR FIXTURE (FIGHT-STATUS-VERB-1, BAR-FIT-1, BAR-FIT-2): a
+           fight on the long-named foe carrying the UPPER BAND a late-game player
+           does - 123,456 this fight, STR 98 with 1,228,825 to go (the widest
+           to-go there is, 98 -> 99, built by the real chip builder) and a Lifetime
+           of 12,345,678 -
+           visited in a phoneFrame at 922x423 and 1280x800, in the theme face and
+           in Verdana/DejaVu (what a player with blocked webfonts and CI see).
+           The foe is SET, never fought, so no swing can leave a death sheet. */
+        const statusBar = async (states, perFrame, perLive) => {
+          const G = window.G, LT = window.HearthriseLifetime, D = window.HearthriseDeathSheet;
+          assert(LT && typeof LT.__swapView === 'function', 'the Lifetime seam is not published');
+          assert(window.HearthriseBarFit && window.HearthriseBarFit.xpChip === xpChip && typeof window.xpForLevel === 'function', 'the XP chip builder (render/bar-fit.js) is not what legacy.js reaches');
+          const xp98 = () => xpChip({ skill: 'strength', name: 'Strength', level: 98, toGo: window.xpForLevel(99) - window.xpForLevel(98), glyph: window.HR.icon('strength', 13, 'currentColor') });
+          const hp = G.playerHp, parked = LT.__swapView(null);
+          const kind = { stated: SPENT, dry: DRY };
+          const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          try {
+            for (const state of states) {
+              const meterOf = kind[state];
+              await fight(meterOf(), async (m) => {
+                const crowd = () => {
+                  LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
+                  G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 123456;
+                  m.paint(); window.refreshActivityBar();
+                  // No away chip: the Night Plan chip that stood in that slot left on 2026-10-14.
+                  const meta = document.getElementById('ab-meta'), xp = meta.querySelector('.ab-xp');
+                  if (xp) xp.outerHTML = xp98();
+                  return meta;
+                };
+                const meta0 = crowd();
+                const html = document.getElementById('app').outerHTML, cls = document.body.className;
+                if (perFrame) for (const [w, h] of [[922, 423], [1280, 800]]) for (const face of ['theme', 'fallback']) {
+                  phoneFrame(w, h, html, (doc) => {
+                    doc.body.className = cls;
+                    if (face === 'fallback') {
+                      const st = doc.createElement('style');
+                      st.textContent = '#activity-bar, #activity-bar * { font-family: Verdana, "DejaVu Sans", sans-serif !important; }';
+                      doc.head.appendChild(st);
+                    }
+                    fitBar(doc.getElementById('activity-bar')); // the frame runs no scripts; the live bar's observer does this
+                    perFrame(doc, state + ' ' + w + 'x' + h + ' ' + face + ': ', { state, face, meta0: w === 922 && face === 'theme' ? meta0 : null });
+                  });
+                }
+                if (!perLive) return;
+                const bar = document.getElementById('activity-bar');
+                const steps = () => (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean).length;
+                const settle = async (pred) => { for (let i = 0; i < 30 && !pred(); i++) await frames(); return pred(); };
+                await frames(); await frames();
+                await perLive({ state, bar, steps, settle, crowd });
+              });
+            }
+          } finally {
+            LT.__swapView(parked); G.playerHp = hp;
+            // Whatever a fixture opens, it puts away: a knockout here would sit over every later test.
+            if (D && typeof D.__resetForTest === 'function') D.__resetForTest();
+          }
+        };
+        return [
+          () => tryRunAsync('vigour mount: with no priced meter the Fight screen and activity bar show no Vigour', async () => {
+            for (const meter of [null, PROD_METER()]) {
+              await fight(meter, async (m) => {
+                const f = m.frame(), b = m.block(), c = m.chip();
+                assert(f && b && c, 'the mount built no hosts (frame ' + !!f + ', block ' + !!b + ', chip ' + !!c + ')');
+                assert(f.hidden && b.innerHTML === '', 'the Fight rail drew a Vigour block off meter ' + JSON.stringify(meter));
+                assert(c.hidden && c.innerHTML === '', 'the activity bar drew a Vigour chip off meter ' + JSON.stringify(meter));
+                assert(!/vigour|refill/i.test(document.getElementById('activity-bar').textContent),
+                  'the activity bar mentions Vigour with no priced meter');
+              });
+            }
+          }),
+
+          // `#panel-combat .fsm-block { display: flex }` beat the block's
+          // [hidden], so an absent meter left a bare VIGOUR header above Loadout.
+          () => tryRunAsync('VIGOUR-MOUNT-HIDDEN-1: an absent meter leaves no Vigour header on the Fight rail', async () => {
+            await fight(null, async (m) => {
+              const f = m.frame();
+              assert(f && f.hidden, 'the Fight rail\'s Vigour block is not hidden with no meter');
+              const h = f.getBoundingClientRect().height;
+              assert(h === 0 && f.offsetParent === null, 'THE BUG: a hidden Vigour block still takes ' + h + 'px (its header shows above Loadout)');
+            });
+            await fight(DRY(), async (m) => {
+              const f = m.frame();
+              assert(f && !f.hidden && f.getBoundingClientRect().height > 0, 'a priced meter left the Vigour block collapsed');
+            });
+          }),
+
+          () => tryRunAsync('vigour mount: a DRY meter is on the Fight screen and the activity bar, price verbatim', async () => {
+            await fight(DRY(), async (m) => {
+              const f = m.frame(), b = m.block();
+              assert(f && !f.hidden, 'THE BUG: a dry hunter\'s Fight screen shows no Vigour block');
+              assert(f.closest('#panel-combat .fs-view'), 'the Vigour block is not on the Fight screen');
+              const t = b.textContent;
+              assert(b.querySelector('.hunt-vigour.is-dry'), 'the dry meter is not drawn as dry: ' + t);
+              assert(/1,237 \/ 720 min today/.test(t), 'the bar is not the server\'s spent/budget: ' + t);
+              assert(/hunts pay ×0\.25/.test(t), 'the dry line does not state the server\'s 25% rate: ' + t);
+              const btn = b.querySelector('[data-vigour-refill]');
+              assert(btn, 'no Refill button beside a dry meter with refills for sale');
+              assert(/6,917 gold/.test(btn.textContent) && /\+120 min/.test(btn.textContent),
+                'the Refill price is not next_refill_gold verbatim: ' + btn.textContent);
+              const chip = m.chip();
+              assert(chip && !chip.hidden && /Out of Vigour/.test(chip.textContent) && /×0\.25/.test(chip.textContent),
+                'the activity bar does not say the hunter is out of Vigour: ' + (chip && chip.textContent));
+              assert(chip.closest('#activity-bar'), 'the Vigour chip is not in the activity bar');
+              // …and the chip leaves with the fight: Vigour is the HUNTING limiter.
+              window.stopCombat(); m.paint();
+              assert(chip.hidden && chip.textContent === '', 'the Vigour chip outlived the fight');
+            });
+          }),
+
+          () => tryRunAsync('vigour mount: Refill calls HearthriseVigour.refill once and repaints from the receipt', async () => {
+            const after = Object.assign(DRY(), { refills: 1, refills_left: 4, next_refill_gold: 10371,
+              bought_min: 120, budget_min: 840, spent_min: 707, remaining_min: 133 });
+            const realFetch = window.fetch, realRecord = window.HearthriseRecord, V = window.HearthriseVigour;
+            const realRefill = V.refill;
+            let calls = 0, posts = 0;
+            window.fetch = (url) => {
+              if (String(url).indexOf('/rpc/hr_vigour_refill') !== -1) {
+                posts++;
+                return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, nth: 1,
+                  cost: 6917, minutes: 120, currency: 'gold', level: 12, gold: 3141, version: 7, slot: 0, vigour: after }) });
+              }
+              return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+            };
+            window.HearthriseRecord = Object.assign({}, realRecord || {}, { requestRecord: () => Promise.resolve(null) });
+            V.refill = function () { calls++; return realRefill.apply(this, arguments); };
+            const unstub = stubSignedIn(0, 'Wren');
+            try {
+              await fight(DRY(), async (m) => {
+                const btn = m.block().querySelector('[data-vigour-refill]');
+                assert(btn, 'no Refill button to press');
+                btn.click();
+                await drain(); await drain();
+                assert(calls === 1 && posts === 1, 'one tap made ' + calls + ' refill call(s) and ' + posts + ' request(s)');
+                const t = m.block().textContent;
+                assert(/707 \/ 840 min today/.test(t), 'the bar did not repaint from the receipt\'s meter: ' + t);
+                const btn2 = m.block().querySelector('[data-vigour-refill]');
+                assert(btn2 && /10,371 gold/.test(btn2.textContent),
+                  'the button did not move to the receipt\'s next_refill_gold: ' + (btn2 && btn2.textContent));
+                assert(/Bought 120 min for 6,917 gold — 3,141 gold left/.test(t), 'the receipt is not shown: ' + t);
+                assert(!m.block().querySelector('.hunt-vigour.is-dry'), 'the bar stayed dry after the receipt said 133 min left');
+                assert(/Vigour 133 min/.test(m.chip().textContent),
+                  'the activity-bar chip did not follow the receipt in the same turn: ' + m.chip().textContent);
+              });
+            } finally {
+              V.refill = realRefill;
+              window.fetch = realFetch; window.HearthriseRecord = realRecord;
+              unstub();
+            }
+          }),
+
+          // THE PHONE (the 44px tap floor): at 922x423 the Refill is a 44px thumb on both axes and
+          // nothing in the block runs past the rail. Same iframe method as the bag's
+          // chips: the media queries evaluate against the frame, so 922x423 IS the device.
+          () => tryRunAsync('vigour mount: at 922x423 the Refill takes a 44px thumb and nothing clips', async () => {
+            await fight(DRY(), async (m) => {
+              const panel = document.getElementById('panel-combat');
+              let css = '';
+              for (const sheet of document.styleSheets) {
+                let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+                for (const r of rules) css += r.cssText + '\n';
+              }
+              const frame = document.createElement('iframe');
+              frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+              document.body.appendChild(frame);
+              let out;
+              try {
+                const doc = frame.contentDocument;
+                doc.open();
+                doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>'
+                  + '<body class="' + document.body.className + '" data-theme="' + (document.body.dataset.theme || 'hearthlight') + '">'
+                  + '<div id="app" class="app"><main class="main">' + panel.outerHTML + '</main></div></body></html>');
+                doc.close();
+                const btn = doc.querySelector('#fs-vigour [data-vigour-refill]');
+                const block = doc.querySelector('#fs-vigour .hunt-vigour-block');
+                const rail = doc.getElementById('fs-manage');
+                assert(btn && block && rail, 'the frame lost the mounted block');
+                btn.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+                const b = btn.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+                const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+                const hits = (x, y) => { const e = doc.elementFromPoint(x, y); return !!e && (e === btn || btn.contains(e)); };
+                const reach = (dx, dy) => { let n = 0; while (n < 44 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++; return n; };
+                out = { box: Math.round(b.width) + 'x' + Math.round(b.height), centre: hits(cx, cy),
+                  w: reach(-1, 0) + reach(1, 0) + 1, h: reach(0, -1) + reach(0, 1) + 1,
+                  right: Math.round(b.right), railRight: Math.round(rr.right), left: Math.round(b.left), railLeft: Math.round(rr.left),
+                  over: [...block.querySelectorAll('*')].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'visible')
+                    .map((e) => e.className) };
+              } finally { frame.remove(); }
+              assert(out.centre, 'the Refill button is covered at its own centre at 922x423 (' + out.box + ')');
+              assert(out.w >= 44 && out.h >= 44, 'the Refill takes a ' + out.w + 'x' + out.h + 'px thumb at 922x423 (painted ' + out.box + ') — the floor is --tap, 44px');
+              assert(out.left >= out.railLeft && out.right <= out.railRight,
+                'the Refill button runs out of the rail at 922x423: ' + out.left + '..' + out.right + ' vs ' + out.railLeft + '..' + out.railRight);
+              assert(!out.over.length, 'text clips inside the Vigour block at 922x423: ' + out.over.join(', '));
+            });
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY (the visual gate) ───────────
+          // Four defects of one class, all on the Fight screen, all from its
+          // density on a landscape phone: (1) a stated Vigour meter HID the
+          // Lifetime chip everywhere (and the away chip, before the 2026-10-14 demolition retired it) at 922; (2) at
+          // 922 the stage was clamped to the card, so its auto rows shrank and the
+          // metrics strip and session tally printed over each other under Eat;
+          // (3) four nowrap stance buttons in a 291px column ran their labels
+          // together ("AccurateAggressiveDefensiveControlled"); (4) at 1280 the
+          // LOADOUT totals were cut after "+0 str ·". The ruling: a chip the player
+          // acts on is never hidden to make room — chips get SHORTER, not fewer.
+          // Measured in phoneFrame at the device size (media queries evaluate
+          // against the frame) from the live #app, in both meter states, with the
+          // realm's Lifetime stated and the away chip at its widest wording.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY: every combat-bar chip shows in both Vigour states, the stances keep a gap, the food row clears the session lines, the Loadout header is whole', async () => {
+            const LT = window.HearthriseLifetime;
+            assert(LT && typeof LT.__swapView === 'function', 'the Lifetime view seam is not published');
+            const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
+            const bad = [];
+            try {
+              for (const [state, meter] of [['stated', SPENT()], ['dry', DRY()]]) {
+                await fight(meter, async (m) => {
+                  m.paint();
+                  window.refreshActivityBar();
+                  assert(/1,284,905/.test(document.getElementById('ab-meta').textContent), 'the realm Lifetime is not on the bar');
+                  const app = document.getElementById('app');
+                  assert(app && document.querySelector('#panel-combat[data-combat-view="fight"]'), 'the Fight view is not up');
+                  const html = app.outerHTML, cls = document.body.className;
+                  for (const [w, h] of [[922, 423], [1280, 800]]) {
+                    const at = state + ' @ ' + w + 'x' + h + ': ';
+                    phoneFrame(w, h, html, (doc) => {
+                      doc.body.className = cls;
+                      fitBar(doc.getElementById('activity-bar')); // the frame runs no scripts; the live bar's observer does this
+                      const R = (e) => e.getBoundingClientRect();
+                      const q = (sel) => doc.querySelector(sel);
+                      const bar = q('#activity-bar'), meta = q('#ab-meta'), stop = q('#ab-stop');
+                      assert(bar && meta && stop, 'the frame lost the activity bar');
+                      const b = R(bar), mr = R(meta), sr = R(stop);
+                      // (1) EVERY CHIP, whole, inside the bar and not clipped by the meta.
+                      for (const sel of ['.ab-vigour', '.ab-kills', '.ab-xp', '.ab-tkills']) {
+                        const e = q('#activity-bar ' + sel);
+                        const r = e && R(e);
+                        if (!r || r.width < 1 || r.height < 1) { bad.push(at + sel + ' is not drawn (' + (r ? Math.round(r.width) + 'x' + Math.round(r.height) : 'absent') + ')'); continue; }
+                        if (r.left < b.left - 0.5 || r.right > b.right + 0.5) bad.push(at + sel + ' runs out of the bar: ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs ' + Math.round(b.left) + '..' + Math.round(b.right));
+                        if (meta.contains(e) && r.right > mr.right + 0.5) bad.push(at + sel + ' is clipped by the meta at ' + Math.round(mr.right) + ' (chip ends ' + Math.round(r.right) + ')');
+                      }
+                      if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > w) bad.push(at + 'Stop is pushed off the bar (' + Math.round(sr.left) + '..' + Math.round(sr.right) + ')');
+                      if (w === 922) {
+                        // (3) THE STANCES: separated by 4px on some axis, and every label inside its button.
+                        const btns = [...doc.querySelectorAll('#panel-combat .fs-style .csb-btn')];
+                        if (btns.length !== 4) bad.push(at + btns.length + ' stance buttons, want 4');
+                        const rs = btns.map(R);
+                        for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+                          const a = rs[i], c = rs[j];
+                          const gx = Math.max(c.left - a.right, a.left - c.right), gy = Math.max(c.top - a.bottom, a.top - c.bottom);
+                          if (Math.max(gx, gy) < 4 - 0.01) bad.push(at + 'stances ' + i + ' and ' + j + ' touch (gap ' + Math.max(gx, gy).toFixed(1) + 'px)');
+                        }
+                        btns.forEach((e) => { if (e.scrollWidth > e.clientWidth + 1) bad.push(at + '"' + e.textContent.trim() + '" runs out of its button (' + e.scrollWidth + ' > ' + e.clientWidth + ')'); });
+                        // (2) THE FOOD ROW, THE METRICS LINE AND THE SESSION LINE are three rows.
+                        const rows = [['food row', q('#arena-act-player')], ['metrics line', q('#fs-metrics')], ['session line', q('#fs-session')]];
+                        // The idle session sentence is prose and may be hidden at this size (VG4 ruling); numbers may not.
+                        rows.forEach(([n, e]) => { if (!e || (R(e).height < 1 && !(e.id === 'fs-session' && e.querySelector('.fs-sess-idle')))) bad.push(at + 'the ' + n + ' is not drawn'); });
+                        for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+                          if (!rows[i][1] || !rows[j][1]) continue;
+                          const a = R(rows[i][1]), c = R(rows[j][1]);
+                          const ov = Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top);
+                          if (ov > 0.5 && Math.min(a.right, c.right) - Math.max(a.left, c.left) > 0.5)
+                            bad.push(at + 'the ' + rows[i][0] + ' (' + Math.round(a.top) + '..' + Math.round(a.bottom) + ') overlaps the ' + rows[j][0] + ' (' + Math.round(c.top) + '..' + Math.round(c.bottom) + ')');
+                        }
+                        const eat = q('#arena-act-player'), card = q('#panel-combat .combat-arena');
+                        if (eat && card && (R(eat).bottom > R(card).bottom + 0.5 || R(eat).bottom > h)) bad.push(at + 'the food row leaves the card or the screen (' + Math.round(R(eat).bottom) + ' vs card ' + Math.round(R(card).bottom) + ')');
+                      }
+                      // (4) THE LOADOUT HEADER is whole, at both sizes.
+                      const tot = q('#fsm-totals'), head = tot && tot.parentElement, rail = q('#fs-manage');
+                      if (!tot || !head || !rail) bad.push(at + 'the Loadout header is missing');
+                      else {
+                        if (head.scrollWidth > head.clientWidth + 1) bad.push(at + 'the Loadout header is clipped (' + head.scrollWidth + ' > ' + head.clientWidth + '): "' + head.textContent.trim() + '"');
+                        if (R(tot).right > rail.getBoundingClientRect().left + rail.clientWidth + 0.5) bad.push(at + 'the Loadout totals run out of the rail');
+                      }
+                    });
+                  }
+                });
+              }
+            } finally { LT.__swapView(parked); }
+            assert(bad.length === 0, 'THE b560 FIGHT-PHONE-DENSITY BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-2 (visual gate 4, defect 2) ──
+          // At 922x423 the metrics line and the session sentence drew 17px and
+          // 34px BELOW the arena card, the second past the screen. The ruling: a
+          // row carrying a measurement is never hidden, prose may be, and every
+          // row lies inside the card and the viewport. 1280x800 must hold too.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-2: the metrics line (and the session line, if drawn) lie inside the arena card and the screen at 922x423 and 1280x800', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => {
+              m.paint();
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const card = doc.querySelector('#panel-combat .combat-arena'), met = doc.getElementById('fs-metrics');
+                if (!card || !met) { bad.push(w + 'x' + h + ': the arena card or the metrics line is missing'); return; }
+                if (!/you last/.test(met.textContent)) bad.push(w + 'x' + h + ': the metrics line lost its measurement: "' + met.textContent.trim() + '"');
+                const c = card.getBoundingClientRect();
+                for (const e of [met, doc.getElementById('fs-session')]) {
+                  const r = e && e.getBoundingClientRect();
+                  if (!r || (r.width < 1 && r.height < 1)) { if (e === met) bad.push(w + 'x' + h + ': the metrics line is not drawn'); continue; }
+                  if (r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.bottom > h)
+                    bad.push(w + 'x' + h + ': #' + e.id + ' [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] leaves the card [' + [c.left, c.top, c.right, c.bottom].map(Math.round) + '] or the screen');
+                }
+              });
+            });
+            assert(bad.length === 0, 'THE VG4 FIGHT-CARD-ROWS BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-3 (visual gate 5, defect 1) ──
+          // With a stocked food row, the action bar scrolled 783 > 650 at 922x423: Loot/
+          // Stats and History sat past the card and the screen, History out of
+          // reach (and past both at 1280x800). Ruling: every control in the arena
+          // card is reachable without scrolling; labels shorten before controls hide.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-3: with food stocked, every action-bar button lies inside the arena card and the screen at 922x423 and 1280x800, clear of the food row', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const at = w + 'x' + h + ': ', R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
+                const card = doc.querySelector('#panel-combat .combat-arena'), bar = doc.getElementById('fs-actionbar'), food = doc.getElementById('arena-act-player');
+                if (!card || !bar || !food) { bad.push(at + 'the arena card, the action bar or the food row is missing'); return; }
+                const c = R(card), f = R(food);
+                if (bar.scrollWidth > bar.clientWidth + 1) bad.push(at + 'the action bar scrolls (' + bar.scrollWidth + ' > ' + bar.clientWidth + ')');
+                const btns = [...bar.querySelectorAll('button')].filter((b) => R(b).width > 0);
+                if (!btns.some((b) => b.closest('.fs-act-ref'))) bad.push(at + 'no Loot/Stats/History button is drawn');
+                for (const b of btns) {
+                  const r = R(b), n = '"' + b.textContent.trim() + '" ' + box(r);
+                  if (r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.right > w) bad.push(at + n + ' leaves the card ' + box(c) + ' or the screen');
+                  if (!food.contains(b) && Math.min(r.right, f.right) - Math.max(r.left, f.left) > 0.5 && Math.min(r.bottom, f.bottom) - Math.max(r.top, f.top) > 0.5) bad.push(at + n + ' overlaps the food row ' + box(f));
+                }
+              });
+            }));
+            assert(bad.length === 0, 'THE VG5 FIGHT-ACTIONBAR BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-4 (visual gate 7, defect 1) ──
+          // The log row drew past the arena card: 775–871 against a card ending
+          // at 790 at 1280x800, 383–473 against 405 at 922x423. Ruling: the card
+          // contains the log, or at the phone size the row hides and the Log
+          // door (the same log) stays in reach.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-4: the combat log row lies inside the arena card and the screen at 1280x800, and at 922x423 or hides behind a visible Log door', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const at = w + 'x' + h + ': ', R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
+                const card = doc.querySelector('#panel-combat .combat-arena'), row = doc.querySelector('#panel-combat .fs-logrow');
+                if (!card || !row) { bad.push(at + 'the arena card or the log row is missing'); return; }
+                const c = R(card), r = R(row), hidden = doc.defaultView.getComputedStyle(row).display === 'none';
+                if (hidden) {
+                  if (w > 1024) bad.push(at + 'the log row is hidden at the desktop size');
+                  const door = doc.querySelector('#fs-actionbar .fs-history'), d = door && R(door);
+                  if (!d || d.width < 1 || d.height < 1) bad.push(at + 'the log row hides and no Log door is drawn');
+                } else if (r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.bottom > h + 0.5 || r.right > w + 0.5) {
+                  bad.push(at + 'the log row ' + box(r) + ' leaves the card ' + box(c) + ' or the screen');
+                }
+                if (card.scrollHeight > card.clientHeight + 1) bad.push(at + 'the card clips its content (' + card.scrollHeight + ' > ' + card.clientHeight + ')');
+              });
+            }));
+            assert(bad.length === 0, 'THE VG7 FIGHT-LOGROW BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-5 (visual gate 8, defect 1) ──
+          // The bug button and the chat pill sat over the log's right 8–22px at
+          // 1280x800, so a long line ran under them. The measured box is where log
+          // text can paint: the padding box, since a scrolled line paints there.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-5: no fixed FAB covers the combat log\'s text box at 1280x800 or 922x423', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              const fabs = ['hr-bug-btn', 'chat-dock'].map((id) => document.getElementById(id)).filter(Boolean);
+              assert(fabs.length === 2, 'the test needs both FABs on the page');
+              const body = document.getElementById('app').outerHTML + fabs.map((e) => e.outerHTML).join(''), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, body, (doc) => {
+                doc.body.className = cls;
+                const row = doc.querySelector('#panel-combat .fs-logrow'), log = row && row.querySelector('.combat-log');
+                if (!log) { bad.push(w + 'x' + h + ': the log is missing'); return; }
+                if (doc.defaultView.getComputedStyle(row).display === 'none') return;
+                const b = log.getBoundingClientRect(), L = b.left + log.clientLeft, T = b.top + log.clientTop;
+                const text = { left: L, top: T, right: L + log.clientWidth, bottom: T + log.clientHeight };
+                for (const id of ['hr-bug-btn', 'chat-dock']) {
+                  const f = doc.getElementById(id).getBoundingClientRect();
+                  if (f.width && f.height && f.left < text.right && f.right > text.left && f.top < text.bottom && f.bottom > text.top) {
+                    bad.push(w + 'x' + h + ': #' + id + ' [' + [f.left, f.top, f.right, f.bottom].map(Math.round) + '] over the log text ['
+                      + [text.left, text.top, text.right, text.bottom].map(Math.round) + ']');
+                  }
+                }
+              });
+            }));
+            assert(bad.length === 0, 'THE VG8 FAB-OVER-LOG BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-METRICS-COPY-1 (visual gate 7, defect 2) ──
+          // A non-finite survival forecast printed "measuring… · you last —": a
+          // dash inside a sentence. Not measurable yet is said in words.
+          () => tryRunAsync('FIGHT-METRICS-COPY-1: a non-finite survival forecast reads as words, never a dash; a finite one reads "you last"', async () => {
+            const HUD = window.HearthriseCombatHud, CS = window.HearthriseCombatScreens, real = HUD._forecast;
+            const text = () => { CS.renderFight(); const e = document.getElementById('fs-metrics'); return e ? e.textContent : ''; };
+            try {
+              await fight(METER(), async () => {
+                for (const f of [{ survivesAnHour: true, survivalSeconds: Infinity, survivalKills: Infinity },
+                  { survivesAnHour: false, survivalSeconds: NaN, survivalKills: NaN }]) {
+                  HUD._forecast = (m) => Object.assign({}, real(m), f);
+                  const t = text();
+                  assert(!/[—–]/.test(t) && /measuring/.test(t), 'a non-finite forecast printed "' + t.trim() + '"');
+                }
+                HUD._forecast = (m) => Object.assign({}, real(m), { survivesAnHour: true, survivalSeconds: 600, survivalKills: 40 });
+                const t = text();
+                assert(/you last/.test(t) && !/[—–]/.test(t), 'a finite forecast printed "' + t.trim() + '"');
+              });
+            } finally { HUD._forecast = real; }
+          }),
+
+          // ── regression suite — FIGHT-COUNTS-1 (found on the live play gate) ──
+          // The Eat button read "+8 HP · 100000 left" beside a rail reading
+          // "100,000 held", the strip "≈1 kills". Every
+          // count on the bar and the strip is the house format, and a singular
+          // reads as one.
+          () => tryRunAsync('FIGHT-COUNTS-1: the Eat button and the metrics strip print every count in the house format', async () => {
+            const G = window.G, HUD = window.HearthriseCombatHud, real = HUD._forecast;
+            const raw = (t) => (String(t).match(/\d{4,}/g) || []);
+            try {
+              await fight(METER(), async (m) => withStockedFight(() => {
+                G.activeMonster = 'goblin';
+                const id = window.bestProvisionId();
+                assert(id, 'the stocked fight has no provision to eat');
+                G.inventory = Object.assign({}, G.inventory, { [id]: 100000 });
+                G.playerHp = 1;
+                HUD._forecast = (mm) => Object.assign({}, real(mm), { survivesAnHour: false, survivalSeconds: 40, survivalKills: 1 });
+                m.paint(); HUD.refresh(); window.refreshActivityBar(); window.HearthriseCombatScreens.renderFight();
+                const eat = document.querySelector('#arena-act-player .arena-eat');
+                const met = document.getElementById('fs-metrics');
+                assert(eat && /left/.test(eat.textContent), 'the Eat button is not in its eat state: "' + (eat ? eat.textContent : 'absent') + '"');
+                assert(!raw(eat.textContent).length && /100,000 left/.test(eat.textContent), 'the Eat button printed a raw count: "' + eat.textContent.trim() + '"');
+                assert(met && /≈1 kill\b/.test(met.textContent) && !/1 kills/.test(met.textContent), 'the strip printed "' + (met ? met.textContent.trim() : 'absent') + '"');
+              }));
+            } finally { HUD._forecast = real; }
+          }),
+
+          // ── regression suite — FIGHT-STATUS-VERB-1 (found on the live play gate) ──
+          // In the fallback face at 922x423 a crowded bar trimmed the status to
+          // "Figh…". The verb is whole at both sizes in any face; only the foe's
+          // name gives way, no chip folds onto a clipped second line, and no chip
+          // is clipped by the meta - the LAST chip ends inside #ab-meta's visible
+          // box. Numbers are the UPPER BAND (statusBar above), in both Vigour
+          // states, so the Game Designer's worst case - 922x423, Verdana,
+          // stated Vigour - is one of the eight frames. Every chip's
+          // title keeps its full figure however short its face has gone, and at
+          // `short` the XP chip's "STR" is the skill's own glyph (rulings,
+          // 2026-10-03). The LIVE bar is then narrowed and widened to prove the
+          // observer steps up on overflow and back down when room returns.
+          () => tryRunAsync('FIGHT-STATUS-VERB-1: "Fighting" is never cut and no bar chip wraps or is clipped, at 922x423 and 1280x800, in the theme face and a wide fallback, with upper-band numbers', async () => {
+            const bad = [];
+            await statusBar(['stated', 'dry'], (doc, at, { meta0 }) => {
+              if (meta0) {
+                const said = meta0.textContent.replace(/\s+/g, ' ');
+                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678']) {
+                  if (said.indexOf(want) < 0) bad.push(at + 'the fixture bar does not say "' + want + '": ' + said);
+                }
+                for (const [sel, title] of [['.ab-kills', 'Kills this fight: 123,456'], ['.ab-xp', 'Strength 98 · 1,228,825 XP to go'], ['.ab-tkills', 'Lifetime kills: 12,345,678']]) {
+                  const e = meta0.querySelector(sel);
+                  if (!e || e.title !== title) bad.push(at + sel + ' is titled "' + (e && e.title) + '", want "' + title + '" (a compacted chip keeps its full figure)');
+                }
+                const xl = meta0.querySelector('.ab-xp');
+                if (!xl || xl.getAttribute('aria-label') !== 'Strength 98 · 1,228,825 XP to go') bad.push(at + 'the XP chip is labelled "' + (xl && xl.getAttribute('aria-label')) + '"');
+                if (!/Carnivorous Plant/.test(document.getElementById('ab-name').textContent)) bad.push(at + 'the bar is not on the long-named foe');
+              }
+              const name = doc.getElementById('ab-name'), meta = doc.getElementById('ab-meta'), bar = doc.getElementById('activity-bar'), stop = doc.getElementById('ab-stop');
+              if (!name || !meta || !bar || !stop) { bad.push(at + 'the frame lost the activity bar'); return; }
+              const t = doc.createTreeWalker(name, 4).nextNode();
+              if (!t || !/^Fighting/.test(t.data)) { bad.push(at + 'the status does not open on "Fighting": "' + name.textContent + '"'); return; }
+              const rg = doc.createRange(); rg.setStart(t, 0); rg.setEnd(t, 8);
+              const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
+              if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
+              const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
+              if (chips.length < 3) bad.push(at + 'the meta draws ' + chips.length + ' chips, want 3 (this fight, XP, Lifetime)');
+              const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
+              chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
+              // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
+              const mr = meta.getBoundingClientRect(), last = chips[chips.length - 1], fit = ' [fit: ' + (bar.getAttribute('data-fit') || 'none') + ']';
+              chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.left < mr.left - 0.5 || r.right > mr.right + 0.5) bad.push(at + '"' + e.innerText.trim() + '"' + (e === last ? ' (the last chip)' : '') + ' is clipped by the meta: chip ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs visible ' + Math.round(mr.left) + '..' + Math.round(mr.right) + fit); });
+              if (meta.scrollWidth > meta.clientWidth + 1) bad.push(at + 'the meta overflows its box (' + meta.scrollWidth + ' > ' + meta.clientWidth + ')' + fit);
+              // THE XP CHIP AT `short`: the skill's own glyph stands for "STR"; the level stays.
+              const xp = meta.querySelector('.ab-xp');
+              if (xp && (bar.getAttribute('data-fit') || '').split(' ').indexOf('short') >= 0) {
+                const g = xp.querySelector(':scope > .hr-glyph'), said = xp.innerText.replace(/\s+/g, ' ').trim();
+                if (!g || g.getBoundingClientRect().width < 1) bad.push(at + 'the XP chip at `short` draws no skill glyph' + fit);
+                if (/STR/.test(said) || !/^98\b/.test(said)) bad.push(at + 'the XP chip at `short` reads "' + said + '", want the glyph then "98 · …"' + fit);
+              }
+              const sr = stop.getBoundingClientRect(), b = bar.getBoundingClientRect();
+              const vg = doc.querySelector('#activity-bar .ab-vigour'), vr = vg && vg.getBoundingClientRect();
+              if (!vr || vr.width < 1 || vr.left < b.left - 0.5 || vr.right > mr.left + 0.5) bad.push(at + 'the Vigour chip is missing or overlaps the meta');
+              if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > doc.defaultView.innerWidth) bad.push(at + 'Stop is pushed off the bar');
+            }, async ({ state, bar, steps, settle }) => {
+              if (state !== 'stated') return;
+              // THE LIVE OBSERVER, both directions: squeeze the real bar, then give the room back.
+              const roomy = steps();
+              try {
+                bar.style.maxWidth = '560px';
+                if (!(await settle(() => steps() > roomy))) bad.push('live: the bar was narrowed to 560px and took no fit step (still ' + roomy + ')');
+                const squeezed = steps();
+                bar.style.maxWidth = '';
+                if (!(await settle(() => steps() < squeezed))) bad.push('live: the bar got its width back and stayed at ' + squeezed + ' steps (was ' + roomy + ' with room)');
+              } finally { bar.style.maxWidth = ''; }
+            });
+            assert(bad.length === 0, 'THE STATUS-VERB BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — BAR-FIT-1 (review of the measured fit, 9e2030bc) ──
+          // A fit step is a loss (a word, a digit of precision), so it is taken
+          // ONLY on real overflow: in every frame, undo the LAST step the fit
+          // took and the meta must overflow again. A fit that shortens a chip
+          // the bar had room for - the 'always take short first' mutant - fails
+          // here by name. Overflow is measured here, not by bar-fit.js's probe.
+          () => tryRunAsync('BAR-FIT-1: the bar takes a fit step only on real overflow - undo the last step and the meta overflows, in every frame', async () => {
+            const bad = [], seen = [];
+            const earned = (bar, meta, at) => {
+              const took = (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean);
+              seen.push(at + (took.join(' ') || 'none'));
+              if (!took.length) return;
+              const keep = took.join(' '), fewer = took.slice(0, -1).join(' ');
+              if (fewer) bar.setAttribute('data-fit', fewer); else bar.removeAttribute('data-fit');
+              const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
+              const lastR = chips.length ? chips[chips.length - 1].getBoundingClientRect().right : 0;
+              const over = meta.scrollWidth > meta.clientWidth || lastR > meta.getBoundingClientRect().right + 0.5;
+              bar.setAttribute('data-fit', keep);
+              if (!over) bad.push(at + 'the fit took "' + took[took.length - 1] + '" while the bar had room without it [fit: ' + keep + ']');
+            };
+            await statusBar(['stated', 'dry'], (doc, at) => {
+              const bar = doc.getElementById('activity-bar'), meta = doc.getElementById('ab-meta');
+              if (!bar || !meta) { bad.push(at + 'the frame lost the activity bar'); return; }
+              earned(bar, meta, at);
+            }, async ({ state, bar, crowd }) => {
+              // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
+              if (state !== 'stated') return;
+              const meta = document.getElementById('ab-meta');
+              try {
+                // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
+                window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
+                window.G.combatKillsThisFoe = 5;
+                window.refreshActivityBar(); fitBar(bar);
+                earned(bar, meta, 'live sparse full width: ');
+                // Crowd, fit and measure in ONE task so the game's repaint cannot land between (BAR-FIT-2 owns the observer).
+                for (const px of [760, 680, 620, 560, 480, 420, 360]) {
+                  bar.style.maxWidth = px + 'px'; crowd(); fitBar(bar);
+                  earned(bar, meta, 'live ' + px + 'px: ');
+                }
+                const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();
+                await new Promise((r) => setTimeout(r, 350));
+                if (meta.textContent.indexOf(toGo) < 0) bad.push('the 100 ms repaint was not held: the crowded XP chip (' + toGo + ' to go) is gone, so a case could be measured on the sparse meta');
+              } finally { window.refreshActivityBar = realRefresh; bar.style.maxWidth = ''; }
+            });
+            // Not vacuous: some case keeps every word, and the reserve steps were reached.
+            if (!seen.some((x) => /: none$/.test(x)) || !seen.some((x) => / streak$/.test(x))) bad.push('the cases do not span "room" to "streak": ' + seen.join('; '));
+            assert(bad.length === 0, 'THE UNEARNED FIT STEP: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — BAR-FIT-2 (review of the measured fit, 9e2030bc) ──
+          // The fit re-runs on CONTENT, not only on width: a bar held at 420px
+          // goes from crowded to sparse (a new foe, a small
+          // Lifetime) and must step back DOWN, then crowded again and step back
+          // UP. The width never changes, so the ResizeObserver never fires - only
+          // the MutationObserver and a key that reads the bar's text can see it.
+          // The 'observer removed' and 'textContent dropped from the key' mutants
+          // both fail here by name.
+          () => tryRunAsync('BAR-FIT-2: at a held width the fit follows the content - crowded to sparse steps down, sparse to crowded steps back up', async () => {
+            const bad = [], G = window.G, LT = window.HearthriseLifetime;
+            await statusBar(['stated'], null, async ({ bar, steps, settle, crowd }) => {
+              try {
+                bar.style.maxWidth = '420px';
+                crowd();
+                await settle(() => steps() > 0);
+                const crowded = steps();
+                if (!crowded) { bad.push('the crowded bar at 420px took no fit step - nothing to step down from'); return; }
+                LT.__swapView({ counts: { kills: { n: 5, exact: true } } });
+                G.combatKillsThisFoe = 5;
+                window.refreshActivityBar();
+                if (!(await settle(() => steps() < crowded))) bad.push('at 420px a sparse bar kept ' + crowded + ' steps (the content change did not re-fit)');
+                const sparse = steps();
+                crowd();
+                if (!(await settle(() => steps() > sparse))) bad.push('at 420px the crowded bar came back and stayed at ' + sparse + ' steps');
+              } finally { bar.style.maxWidth = ''; }
+            });
+            assert(bad.length === 0, 'THE CONTENT-BLIND FIT: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — BAR-XP-CHIP-1 (Security review of the fit lane, GO-WITH-CHANGES) ──
+          // legacy.js is a classic script and runs before main.js publishes
+          // window.HearthriseBarFit; the XP chip was built only when the builder
+          // was there, so an early paint drew NO chip. Without the builder the
+          // chip falls back to the letters form ("STR 98 · n to go"). And the
+          // REAL chip (not xpChip() on fixtures) titles name, level, XP to go; carries its glyph.
+          () => tryRunAsync('BAR-XP-CHIP-1: the real XP chip is titled and labelled from SKILLS_DEF with the skill glyph, and still draws in letters before HearthriseBarFit is published', async () => {
+            const bad = [], BF = window.HearthriseBarFit;
+            assert(BF, 'window.HearthriseBarFit is not published');
+            await fight(METER(), async (m) => {
+              m.paint(); window.refreshActivityBar();
+              const st = window.getActiveCombatStyle && window.getActiveCombatStyle();
+              assert(st && st.xp, 'the fight has no active combat style');
+              const sk = Object.keys(st.xp).sort((a, b) => st.xp[b] - st.xp[a])[0], x = window.skillXp(sk);
+              const lv = window.levelFromXp(x), lvS = lv >= 99 ? 99 : lv, name = window.SKILLS_DEF[sk].name;
+              const said = name + ' ' + lvS + (lv >= 99 ? '' : ' · ' + window.xpToNext(x).toLocaleString() + ' XP to go');
+              const real = document.querySelector('#ab-meta .ab-xp');
+              if (!real) bad.push('the live bar draws no XP chip');
+              else {
+                if (real.title !== said) bad.push('the real XP chip is titled "' + real.title + '", want "' + said + '"');
+                if (real.getAttribute('aria-label') !== said) bad.push('the real XP chip is labelled "' + real.getAttribute('aria-label') + '", want "' + said + '"');
+                const g = real.querySelector(':scope > .hr-glyph'), want = window.HR.icon(sk, 13, 'currentColor');
+                const w = document.createElement('div'); w.innerHTML = want || '';
+                if (!g || !w.firstElementChild || g.outerHTML !== w.firstElementChild.outerHTML) bad.push('the real XP chip does not carry the ' + sk + ' atlas glyph');
+              }
+              try {
+                delete window.HearthriseBarFit;
+                window.refreshActivityBar();
+                const early = document.querySelector('#ab-meta .ab-xp'), lbl = sk.slice(0, 3).toUpperCase();
+                const txt = early ? early.textContent.replace(/\s+/g, ' ').trim() : '';
+                if (!early) bad.push('THE HIDDEN CHIP: with no HearthriseBarFit the bar draws no XP chip');
+                else {
+                  if (txt.indexOf(lbl + ' ' + lvS) !== 0) bad.push('the fallback XP chip reads "' + txt + '", want "' + lbl + ' ' + lvS + ' …"');
+                  if (early.title !== said || early.getAttribute('aria-label') !== said) bad.push('the fallback XP chip is titled "' + early.title + '", want "' + said + '"');
+                }
+              } finally { window.HearthriseBarFit = BF; window.refreshActivityBar(); }
+            });
+            assert(window.HearthriseBarFit === BF, 'window.HearthriseBarFit was not restored');
+            assert(bad.length === 0, 'THE XP CHIP: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — COMPACT-ROLLOVER-1 (Game Designer ruling 2c) ──
+          // compactNumber chose its unit BEFORE rounding, so 999,500-999,999
+          // printed "1000K" and anything just under a billion "1000M" - now on
+          // the bar's three compact steps. The unit is chosen on the rounded
+          // figure; below 10,000 the figure stays exact.
+          () => tryRun('COMPACT-ROLLOVER-1: compactNumber rolls 999,500 over to "1M" and 999.5M to "1B", never "1000K" or "1000M"', () => {
+            const cn = window.HearthriseBalance && window.HearthriseBalance.compactNumber;
+            assert(typeof cn === 'function', 'window.HearthriseBalance.compactNumber is not published');
+            const want = [[9999, '9,999'], [10000, '10K'], [123456, '123K'], [999499, '999K'], [999500, '1M'], [999999, '1M'],
+              [1000000, '1M'], [1228825, '1.2M'], [9999999, '10M'], [12345678, '12M'], [999499999, '999M'], [999500000, '1B'],
+              [999999999, '1B'], [1e9, '1B'], [1.5e9, '1.5B']];
+            const bad = want.filter(([n, w]) => cn(n) !== w).map(([n, w]) => n + ' -> "' + cn(n) + '", want "' + w + '"');
+            assert(bad.length === 0, 'THE 1000K BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-EVENTS-SHORTCUT-1 (the FIGHT-PHONE-DENSITY "flake") ──
+          // ~1 fresh load in 4, FIGHT-PHONE-DENSITY found the food row 5px below
+          // the arena card at 922x423. Measured: on those loads the stance block
+          // carried an extra 44px "Events" row - nav-consolidation.js injected
+          // the War-Table-retired shortcut into the style ribbon whenever its boot
+          // pass ran before the combat views were built, and KEPT a ribbon copy
+          // once they were. Replayed here on a stand-in panel: the slow boot
+          // (ribbon up, views not), then the views arriving.
+          () => tryRunAsync('FIGHT-EVENTS-SHORTCUT-1: a boot that reaches the stance ribbon before the combat views leaves no retired Events shortcut on the Fight screen', async () => {
+            const real = document.getElementById('panel-combat');
+            assert(real, 'the combat panel is missing');
+            const stand = document.createElement('div');
+            stand.hidden = true;
+            stand.innerHTML = '<div class="combat-style-block"></div><i data-tab=""></i>';
+            const tab = stand.querySelector('[data-tab]'), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+            let early = false, late = null;
+            real.id = 'panel-combat-parked'; stand.id = 'panel-combat'; document.body.appendChild(stand);
+            try {
+              tab.click();              // a boot pass with the ribbon up and the views not yet built
+              await wait(250);
+              early = !!stand.querySelector('#hr-dungeons-link');
+              const views = document.createElement('div'); views.className = 'cbt-views';
+              stand.appendChild(views);
+              tab.click();              // the next pass, once the views exist
+              await wait(250);
+              late = stand.querySelector('#hr-dungeons-link');
+            } finally { stand.remove(); real.id = 'panel-combat'; }
+            assert(!late, 'THE SLOW-BOOT EVENTS ROW: the retired Events shortcut ' + (early ? 'was injected before the views and ' : '')
+              + 'is still in .' + (late && late.parentElement ? late.parentElement.className : '?') + ' after them - on the Fight screen it pushes the food row out of the arena card at 922x423');
+            assert(!early, 'THE SLOW-BOOT EVENTS ROW: a boot pass before the views injected the retired Events shortcut (it flashes, then is swept)');
+          }),
+        ];
+      })(),
     ];
   })(),
 
@@ -4707,26 +4211,6 @@ export default [
     }
   }),
 
-  // ── regression suite — BOTD-ROW-1: THE BOSS ROWS SAY WHAT THE ENGINE PAYS ──
-  // The rows read 'bonus drops & XP while featured' and the cards '+25% combat
-  // XP', but the featured bonus scales drop CHANCE and KILL XP only (hit XP is
-  // untouched), and on an overlap day the daily boss pays the WEEKLY bonus.
-  () => tryRun('BOTD-ROW-1: the Boss of the Day rows and cards state killBonuses: drop odds and kill XP', () => {
-    const B = window.HearthriseBossOfDay, CS = window.HearthriseCombatScreens, lvl = window.getCombatLevel;
-    assert(B && typeof B.killBonuses === 'function' && CS && typeof CS._destinations === 'function', 'the boss rows are not published');
-    try {
-      window.getCombatLevel = () => 999;
-      const rows = CS._destinations();
-      for (const [kick, id] of [['Boss of the Day', B.featuredId()], ['Weekly Boss', B.weeklyId()]]) {
-        const row = rows.find((d) => d.kick === kick), b = B.killBonuses(id);
-        assert(row && row.meta === `drop odds ×${b.dropMult} · kill XP ×${b.xpMult} · away too`, kick + ' row is not killBonuses: ' + (row && row.meta));
-        assert(!/combat XP|Loot ×/.test(row.meta), kick + ' row overclaims: ' + row.meta);
-      }
-      B.render();
-      const card = document.querySelector('.botd-bonus');
-      assert(card && /kill XP/.test(card.textContent) && !/combat XP/.test(card.textContent), 'the Boss of the Day card overclaims: ' + (card && card.textContent));
-    } finally { window.getCombatLevel = lvl; }
-  }),
 
   // THE STOP SENTENCE never promises a stop the server cannot deliver.
   // This game has NO bag capacity, so the bag_full rule cannot fire; the field

@@ -13,7 +13,8 @@ import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, st
 const benchSwitchArc = async (body) => {
   const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual;
   const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
-  const a = R.find((x) => x.id === 'forge_iron_helm'), b = R.find((x) => x.id === 'forge_iron_platebody');
+  // The iron helm/platebody pair left with the gear recipes (2026-10-14); the iron axe/pickaxe pair has the same inputs.
+  const a = R.find((x) => x.id === 'forge_iron_axe'), b = R.find((x) => x.id === 'forge_iron_pickaxe');
   assert(a && b, 'the fixture needs two smithing recipes');
   const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
   const sent = [], probe = [], log = [], said = [];
@@ -1649,23 +1650,17 @@ export default [
 
   /* B431-1 — THE features/* READ-SITE SWEEP (the second stage of the client
      skill-xp read surface; b429 did legacy.js). activities-grid / character-page /
-     profile-launchpad / renown / chronicle / auto-actions / combat-screens /
+     profile-launchpad / chronicle / auto-actions / combat-screens /
      homestead / lifetime-stats now read a skill's xp through the accessor
      (window.HearthriseSkillRecord.skillXpOr) rather than off G.skills directly.
      Like the gold balanceOf sweep before gold armed, a faithful sweep must change
      NOTHING while dormant — so (A) asserts the accessor those sites all call is
-     byte-for-byte the classic raw read, and (B) that renown (a swept SCORE read)
-     still tracks the local map dormant. (C) is the property the sweep ADDS for the
-     armed future: a forged local xp cannot cross into the renown score — armed +
-     UNKNOWN floors every skill to level 1, identical to genuinely-zero skills.
-     MUTATION: revert renown.js:163 back to G.skills[sk] → (C) reads the forged
-     999999 as level 99 and the equality goes red; break skillXpOr's dormant
+     byte-for-byte the classic raw read. (The renown arms B and C left with renown
+     in the 2026-10-14 demolition.) MUTATION: break skillXpOr's dormant
      passthrough → (A) goes red. */
-  () => tryRun('B431-1: the features/* skill-xp read sweep is behavior-identical while DORMANT; renown fail-closes when ARMED+UNKNOWN', () => {
+  () => tryRun('B431-1: the features/* skill-xp read sweep is behavior-identical while DORMANT', () => {
     const R = window.HearthriseRecord;
     const S = window.HearthriseSkillRecord;
-    const A = window.HearthriseAccrual;
-    const RN = window.HearthriseRenown;
     assert(R && typeof R.__setSkillsRecordArm === 'function', 'record.js did not load with the skills arm seam');
     assert(S && typeof S.skillXpOr === 'function', 'the skill-record accessor is not attached');
     const G = window.G;
@@ -1683,44 +1678,8 @@ export default [
         assert(S.skillXpOr(G, id, 0) === raw,
           'dormant skillXpOr diverged from the raw read for "' + id + '": ' + S.skillXpOr(G, id, 0) + ' vs ' + raw);
       }
-      // (B) DORMANT FUNCTIONAL — renown.compute (renown.js:163 swept) tracks the
-      // LOCAL map while dormant: adding a trained skill raises the score, exactly as
-      // the classic read did.
-      if (RN && typeof RN.compute === 'function') {
-        const savedSkills = G.skills;
-        try {
-          G.skills = { attack: 5000, mining: 3000 };
-          const base = RN.compute(G);
-          G.skills = { attack: 5000, mining: 3000, strength: 8000 };
-          const more = RN.compute(G);
-          assert(more > base, 'dormant renown did not track the local skills map (more=' + more + ' base=' + base + ')');
-        } finally { G.skills = savedSkills; }
-      }
     } finally {
       R.__setSkillsRecordArm(null);
-    }
-    // (C) ARMED + UNKNOWN — a forged local xp must not cross into the renown score.
-    // With no record the accessor reads UNKNOWN → skillXpOr floors to 0 → level 1,
-    // so a map of two skills at 999999 scores IDENTICALLY to two genuinely-zero
-    // skills. If the sweep were reverted, the forged xp would read as level 99.
-    if (RN && typeof RN.compute === 'function') {
-      const wasA = A.isServerAccrualEnabled();
-      try {
-        const gForged = { skills: { attack: 999999, mining: 999999 } };
-        // control: the SAME shape but skills genuinely at 0 (level 1), read dormant.
-        R.__setSkillsRecordArm(null);
-        if (A.isServerAccrualEnabled()) A.setServerAccrualEnabled(false);
-        const control = RN.compute({ skills: { attack: 0, mining: 0 } });
-        // armed + UNKNOWN over the forged map.
-        A.setServerAccrualEnabled(true);
-        R.__setSkillsRecordArm(true);
-        const armed = RN.compute(gForged);
-        assert(armed === control,
-          'armed+UNKNOWN renown was not identical to level-1 skills — forged local xp leaked into the score: armed=' + armed + ' control=' + control);
-      } finally {
-        R.__setSkillsRecordArm(null);
-        A.setServerAccrualEnabled(wasA);
-      }
     }
   }),
 
@@ -2619,17 +2578,14 @@ export default [
      on exactly that classification.
 
      LEFT ALONE IT IS AN EXPLOIT, NOT A DISPLAY BUG. The kill total goes to
-     lifetime `stats.kills`, the this-fight streak, `updateQuest`, and
-     `updateDaily('kill_any')` — the wrapper chain the Muster hangs off
-     (src/features/muster.js), which turns the count into
-     `world_event_contribute(p_event_key, p_points)` with CLIENT-SUPPLIED points
-     against a SHARED world-event meter. Reload, switch activity, repeat: last
-     night's kills re-credited into a live leaderboard every time.
+     lifetime `stats.kills`, the this-fight streak and `updateQuest`. Reload,
+     switch activity, repeat: last night's kills re-credited every time. (The
+     daily/Muster half of this seam left in the 2026-10-14 demolition.)
 
      BOTH HALVES ARE ASSERTED, and so is the CONTROL — without the control, a
      build where `creditServerAwayKills` credited NOTHING AT ALL would pass this
      test while silently reopening the Paione 2026-08-18 regression.
-     Fails without the fix: the restored receipt moves all four counters. */
+     Fails without the fix: the restored receipt moves all three counters. */
   () => tryRun('F1: a server-RESTORED away receipt renders the card and reaches NO crediting seam', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.reconcileAwayReceipt === 'function',
@@ -2641,8 +2597,6 @@ export default [
       active: G.activeMonster,
       quests: G.quests,
       los: G.lastOfflineSummary,
-      muster: G.muster,
-      updateDaily: window.updateDaily,
     };
     /* The stored receipt is in the SERVER's `away` payload shape (flat `kills`),
        which is what hr_state_of projects raw — not the client's card shape. */
@@ -2650,22 +2604,13 @@ export default [
       at: Date.now() - 40 * 60000, gold: 1234, kills: 42, crits: 3,
       xp: { attack: 5000 }, items: { oak_log: 40 }, died: false, deaths: 0 };
     const BOOT = { ok: true, version: 7, state: { last_away_receipt: STORED } };
-    let dailyCalls = [];
     try {
       G.stats = G.stats || {};
       G.stats.kills = 100;
       G.combatKillsThisFoe = 3;
       G.activeMonster = 'slime';
       G.quests = [{ id: '__restored_probe', type: 'kill_any', progress: 0, goal: 1000, done: false }];
-      G.muster = { dayKey: null, eventKey: null, slot: null, startMs: 0, endMs: 0,
-                   points: 0, claimed: false, server: false };
       G.lastOfflineSummary = null;
-
-      /* WATCH THE SEAM ITSELF, not only its effects. `updateDaily` is the single
-         call that reaches the Muster's pending queue and therefore the wire; a
-         test that only checked G.muster.pending would pass on a build where the
-         wrapper chain happened to be unwired in the harness. */
-      window.updateDaily = function (type, amt) { dailyCalls.push([type, amt]); };
 
       // ── (1) THE BOOT SEED RENDERS THE CARD ──────────────────────────────
       const seeded = A.reconcileAwayReceipt(G, BOOT);
@@ -2685,11 +2630,6 @@ export default [
       assert((G.stats.kills || 0) === 100, 'a restored receipt moved lifetime stats.kills');
       assert((G.combatKillsThisFoe || 0) === 3, 'a restored receipt moved the this-fight streak');
       assert(G.quests[0].progress === 0, 'a restored receipt advanced a kill quest');
-      assert(dailyCalls.length === 0,
-        'a restored receipt called updateDaily(' + JSON.stringify(dailyCalls) + ') — that is the seam the Muster '
-        + 'wraps, so this is a world_event_contribute on a SHARED meter');
-      assert((G.muster.points || 0) === 0,
-        'a restored receipt moved the rally mirror to ' + G.muster.points + ' (rally points are server-derived)');
 
       // ── (3) THE CONTROL: THE SAME NIGHT, PAID NOW, STILL CREDITS ────────
       const paid = Object.assign({}, seeded); delete paid.restored;
@@ -2697,8 +2637,7 @@ export default [
       assert(n === 42, 'a genuine away receipt stopped crediting (' + n + ') — the Paione 2026-08-18 regression '
         + 'is reopened and away kills reach no counter at all');
       assert((G.stats.kills || 0) === 142, 'the control did not move lifetime kills, got ' + G.stats.kills);
-      assert(dailyCalls.length === 1 && dailyCalls[0][0] === 'kill_any' && dailyCalls[0][1] === 42,
-        'the control did not reach updateDaily(kill_any, 42), got ' + JSON.stringify(dailyCalls));
+      assert(G.quests[0].progress === 42, 'the control did not advance the kill quest by 42, got ' + G.quests[0].progress);
 
       // ── (4) THE SEED YIELDS TO THIS SESSION'S RECEIPT ───────────────────
       G.lastOfflineSummary = { gainedKills: 7, marker: 'this session' };
@@ -2711,8 +2650,6 @@ export default [
       G.activeMonster = saved.active;
       G.quests = saved.quests;
       G.lastOfflineSummary = saved.los;
-      G.muster = saved.muster;
-      window.updateDaily = saved.updateDaily;
     }
   }),
 
@@ -3038,50 +2975,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): "B495-3: a fresh character survives a first away night instead of dying in seconds" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('B495-4: a filled starting foodSlot arms auto-eat WITHOUT bypassing the trait gate', () => {
-    /* THE COUPLING b495 INTRODUCED, pinned so it cannot rot in either
-       direction. Giving a fresh character a foodSlot makes auto-actions.js's
-       b163 migration branch fire (`if (G.foodSlot) aa.eat.enabled = true`), so
-       the trait now WORKS the moment it is bought instead of needing the player
-       to also find the settings toggle. That is the wanted half.
-       The dangerous half is the other one: `DEFAULTS.eat.enabled` is false with
-       the comment "never accidentally start auto-eating someone's food", and an
-       enabled config must still eat NOTHING until Auto-Eat is owned. */
-    const A = window.HearthriseAuto;
-    if (!A || typeof A.maybeAutoEat !== 'function') { skip('HearthriseAuto unavailable'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      /* a fresh-shaped character, hurt, carrying food, with NO trait. */
-      delete G.autoActions;
-      G.foodSlot = window.__FRESH_START.foodSlot;
-      G.traits = {};
-      G.playerMaxHp = 10; G.playerHp = 1;
-      G.inventory = Object.assign({}, G.inventory, { [G.foodSlot]: 20 });
-
-      const cfg = (typeof A._ensureShape === 'function') ? A._ensureShape() : null;
-      assert(!A.maybeAutoEat(),
-        'auto-eat fired for a character who owns NO Auto-Eat tier — the trait gate in '
-        + 'resolveAutoEat({owned}) has been bypassed, and a filled foodSlot is now spending food '
-        + 'nobody paid for the right to spend');
-      assert(G.inventory[G.foodSlot] === 20 && G.playerHp === 1,
-        'nothing may be consumed or healed without the trait');
-
-      /* …and the moment the entry tier is owned it works, with no settings trip. */
-      G.traits = { auto_eat: true };
-      assert(A.maybeAutoEat() === true,
-        'a character who has just bought Auto-Eat I, is at 10% HP and is carrying 20 Cooked Shrimp '
-        + 'did NOT auto-eat. Buying the trait must be sufficient — needing to also toggle a setting '
-        + 'and nominate a food is the b495 defect this default removes.');
-      assert(G.playerHp > 1 && G.inventory[G.foodSlot] === 19,
-        'the eat did not apply: hp ' + G.playerHp + ', food ' + G.inventory[G.foodSlot]);
-      if (cfg && cfg.eat) {
-        assert(cfg.eat.enabled === true && cfg.eat.foodId === window.__FRESH_START.foodSlot,
-          'the migrated eat config is ' + JSON.stringify(cfg.eat) + ' — it must adopt the kit food');
-      }
-    } finally { restoreG(snap); }
-  }),
-
   () => tryRun('B338-2: the intent carries ONE integer to hr_create_character, and no way to name another player', () => {
     const C = window.HearthriseCharacter;
     assert(C, 'src/net/character.js did not publish — the b337 switch can never credit anybody');
@@ -4394,123 +4287,17 @@ export default [
     }
   }),
 
-  // F5 — the clan browser. `clan_leaderboard` stayed anon-readable for one line.
-  () => tryRun('b340/F5: the clan browser reads the hr_clan_browser RPC, not the anon-readable view', () => {
-    const C = window.HearthriseClans;
-    assert(C && typeof C.listClans === 'function', 'HearthriseClans.listClans must be published');
-    const R = window.HearthriseRpc;
 
-    const calls = [];
-    const realFetch = window.fetch;
-    const sb = window.HearthriseSupabase;
-    const realGetConfig = sb && sb.getConfig;
-    try {
-      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        return Promise.resolve({
-          ok: true, status: 200,
-          json: () => Promise.resolve({ ok: true, clans: [{ id: 'c1', name: 'Ashfell', level: 4, members: 2 }] }),
-        });
-      };
-
-      R.reset('hr_clan_browser');
-      let p = C.listClans();
-      if (p && p.catch) p.catch(() => {});
-      assert(calls.length === 1, `listClans must issue exactly one request, saw ${calls.length}`);
-      let c = calls[0];
-      /* The control substring: this read is the reason two advisor ERRORs are
-         still open, and it answers to an anon key. */
-      assert(c.url.indexOf('/rest/v1/clan_leaderboard') === -1,
-        'the client must not read clan_leaderboard directly — anon can read that view: ' + c.url);
-      assert(c.url.indexOf('/rest/v1/rpc/hr_clan_browser') !== -1,
-        'the browser must go through hr_clan_browser: ' + c.url);
-      assert(String(c.opts.method).toUpperCase() === 'POST', 'a PostgREST RPC call must be POST');
-      assert(JSON.parse(c.opts.body || '{}').p_limit === 25, 'the browser asks for 25 (the server clamps at 50)');
-
-      // A REFUSAL IS NOT AN ABSENCE. A 401 must not silently reopen the view.
-      R.reset('hr_clan_browser');
-      calls.length = 0;
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'JWT expired' }) });
-      };
-      p = C.listClans();
-      if (p && p.catch) p.catch(() => {});
-      assert(calls.length === 1 && calls[0].url.indexOf('/rest/v1/rpc/') !== -1,
-        'an expired token must NOT fall back to the world-readable view: ' + JSON.stringify(calls.map((x) => x.url)));
-
-      // CONTROL: a server that genuinely has no such function still gets a
-      // working clan browser, because the migration is staged and production
-      // has not had it applied.
-      R.reset('hr_clan_browser');
-      calls.length = 0;
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        if (/\/rpc\//.test(String(url))) {
-          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ code: 'PGRST202' }) });
-        }
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
-      };
-      p = C.listClans();
-      if (p && p.catch) p.catch(() => {});
-      assert(calls[0].url.indexOf('/rest/v1/rpc/hr_clan_browser') !== -1,
-        'the RPC must be tried first even on an un-migrated server');
-    } finally {
-      window.fetch = realFetch;
-      if (sb && realGetConfig) sb.getConfig = realGetConfig;
-      window.HearthriseRpc.reset('hr_clan_browser');
-    }
-  }),
-
-  // F5 — the other view. clans.js kept a SECOND leaderboard transport alive.
-  () => tryRun('b340/F5: NetClient.leaderboard goes through hr_leaderboard, never the `leaderboard` view', () => {
-    assert(typeof NetClient !== 'undefined' && typeof NetClient.leaderboard === 'function',
-      'NetClient.leaderboard must exist — src/features/clans.js patches it');
+  /* F5 — the other view. clans.js kept a SECOND leaderboard transport alive by
+     patching NetClient.leaderboard; with the clans gone (2026-10-14) the mock it
+     patched over (eight fabricated players, a direct view read) was deleted too.
+     The one transport is HearthriseLeaderboards.fetchBoard. */
+  () => tryRun('b340/F5: there is one leaderboard transport, and no NetClient mock to fall back on', () => {
+    assert(typeof window.NetClient === 'undefined', 'window.NetClient is back — the pre-Supabase mock carried eight invented players');
     const LB = window.HearthriseLeaderboards;
     assert(LB && typeof LB.fetchBoard === 'function',
-      'leaderboards.js must publish fetchBoard — it is now the ONE leaderboard transport');
-
-    const calls = [];
-    const realFetch = window.fetch;
-    const sb = window.HearthriseSupabase;
-    const realGetConfig = sb && sb.getConfig;
-    try {
-      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
-      LB._resetProbe();
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        return Promise.resolve({
-          ok: true, status: 200,
-          headers: { get: () => null },
-          json: () => Promise.resolve({
-            ok: true, board: 'total_level', total: 2, rank: null, near: [],
-            top: [{ rank: 1, id: 'u1', name: 'Aldric', clan: 'Ash', score: 812 }],
-          }),
-        });
-      };
-
-      const p = NetClient.leaderboard('total');
-      if (p && p.catch) p.catch(() => {});
-      assert(calls.length >= 1, 'NetClient.leaderboard must issue at least one request');
-      /* The control substring: this exact read is what kept the view alive and
-         is what an anon key could call. */
-      const leaked = calls.filter((c) => /\/rest\/v1\/leaderboard\?/.test(c.url));
-      assert(leaked.length === 0,
-        'the client must not read the `leaderboard` view directly: ' + leaked.map((c) => c.url).join(' | '));
-      assert(calls.every((c) => c.url.indexOf('/rest/v1/rpc/hr_leaderboard') !== -1),
-        'every board read must go through hr_leaderboard: ' + calls.map((c) => c.url).join(' | '));
-      /* Lv / CL / gold are three different boards, and the fallback renderer
-         prints all three on every row. Filling two of them with zeroes would be
-         fabricated data about other players. */
-      const boards = calls.map((c) => JSON.parse(c.opts.body || '{}').p_board).sort();
-      assert(boards.join(',') === 'combat_level,total_level,wealth',
-        'all three stat boards must be read, not one padded with zeroes: ' + boards.join(','));
-    } finally {
-      window.fetch = realFetch;
-      if (sb && realGetConfig) sb.getConfig = realGetConfig;
-      LB._resetProbe();
-    }
+      'leaderboards.js must publish fetchBoard — it is the ONE leaderboard transport');
+    assert(!/NetClient/.test(String(window.renderSocial)), 'renderSocial still reaches for a NetClient fallback');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -5203,9 +4990,7 @@ export default [
       'the boot read must fire whether the ensure resolved OR rejected');
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "B564-1: before the record hydrates, Home + topbar draw PENDING and the daily Claim cannot send an intent" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
+
   () => tryRun('B492-4: the boot veil shows "Connecting your character" instead of a fresh account, and never lies', () => {
     const V = window.HearthriseBootVeil;
     assert(V && typeof V.shouldVeil === 'function', 'src/features/boot-hydration.js did not load');
@@ -6417,7 +6202,7 @@ export default [
   () => tryRunAsync('QA-B549-3: A→B→C taps during a held conflict converge on C, with one gesture on the wire at a time', async () => {
     await benchSwitchArc(async (t) => {
       const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
-      const c = R.find((x) => x.id === 'forge_steel_helm') || R.find((x) => x.id !== t.a.id && x.id !== t.b.id);
+      const c = R.find((x) => x.id === 'forge_steel_axe') || R.find((x) => x.id !== t.a.id && x.id !== t.b.id);
       if (!c) { skip('the fixture needs a third smithing recipe'); return; }
       /* The arc seeds only iron_bar/oak_plank; a third recipe the bench cannot
          AFFORD never starts locally and the tap would never reach the wire —
@@ -7091,7 +6876,10 @@ export default [
     const M = window.HearthriseActivity;
     const C = window.HearthriseCore;
     const G = window.G;
-    const RID = 'quarry_granite';
+    /* quarry_granite (input-free) left with the Stonemason in the 2026-10-14
+       demolition and no bench recipe is input-free now, so the fixture is the
+       first sawmill rung and the envelope's bag carries its log. */
+    const RID = 'saw_normal';
     const hit = (C && typeof C.artisanRecipe === 'function') ? C.artisanRecipe(RID) : null;
     assert(hit && hit.skill && hit.recipe,
       'the recipe this bug was reported against (`' + RID + '`) is not in this build\'s artisan index, so '
@@ -7137,7 +6925,7 @@ export default [
           active_kind: 'artisan', active_id: RID,
         },
         skills,
-        inventory: { ...(G.inventory || {}) },
+        inventory: { ...(G.inventory || {}), normal_log: 500 },
         equipment: { ...(G.equipment || {}) },
       };
       window.fetch = function (u) {
@@ -7551,155 +7339,6 @@ export default [
      (W0: driven through the one daily list, hr_claim_daily; the goals board
      this was first written against is retired.)
      ══════════════════════════════════════════════════════════════════════ */
-  () => tryRunAsync('goal-claim regression: a credited claim ends in the server\'s balance, not the click', async () => {
-    const A = window.HearthriseAccrual;
-    const R = window.HearthriseRecord;
-    const G = window.G;
-    const GC = window.HearthriseGoalClaim;
-    const DQ = window.HearthriseDailyQuests, TL = window.HearthriseTally;
-    assert(GC && typeof GC.claimDaily === 'function',
-      'src/net/goal-claim.js did not load — the transport this guard watches is absent');
-    assert(DQ && typeof DQ.claim === 'function',
-      'the daily list\'s claim is gone — this guard drives the REAL Claim path, not a stub');
-    assert(TL && typeof TL.__feed === 'function',
-      'the tally test seam is gone, so the fixture cannot make the row claimable deterministically');
-    const cell = document.getElementById('top-gold');
-    assert(cell, 'there is no #top-gold in the page — the surface this guard watches is gone');
-    const shown = () => {
-      const t = String(cell.textContent || '').replace(/[,\s]/g, '');
-      return /^\d+$/.test(t) ? Number(t) : null;
-    };
-
-    const realFetch = window.fetch;
-    const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
-    const origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
-    const origNotify = window.notify, origCfg = R.getRecordConfig();
-    const save = { gold: G.gold, gems: G.gems, daily: G.daily };
-    const said = [], seen = [];
-
-    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
-    const cadences = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive, window.HearthriseMuster, window.HearthriseHearthfind]
-      .filter((m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function');
-    try {
-      A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
-      assert(window.clientMayWriteRecordField('gold') === false,
-        'CONTROL: gold is not armed in this fixture, so the claim takes a DORMANT branch and '
-        + 'the server path under test never runs');
-      cadences.forEach((m) => m.__pauseForTest());   // the stub-origin class (STUB-ORIGIN-1): no 25 s heartbeat into the probe
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'qa' }, access_token: 'jwt' }) };
-      R.configureRecord({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
-      window.notify = (m) => { said.push(String(m)); };
-      /* TODAY'S SLATE, FORCED to carry the quest under test — the draw takes
-         three of eight by day, so a test that hoped for `daily_kill` would be
-         green some days and mean nothing on the rest. */
-      const task = window.DAILY_TASK_POOL.map((fn) => fn()).find((t) => t.id === 'daily_kill');
-      G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task)] };
-      G.gold = 42128; G.gems = 13;
-      stampBalanceLikeLoad(G);
-      window.updateTopbar();
-      assert(shown() === 42128,
-        'CONTROL: the top bar reads ' + JSON.stringify(cell.textContent) + ' before the claim, not 42,128 — '
-        + 'the fixture never reached the surface, so every assertion below would pass for free');
-
-      /* Strictly newer than the stamp above, or applyRecord reads the load as
-         stale and gap-fills nothing (the balance is already KNOWN). */
-      const LOAD_VERSION = ((G._record && Number(G._record.version)) || 0) + 1;
-      const SERVER_GOLD = 12345, SERVER_GEMS = 14;
-      window.fetch = function (u, init) {
-        const s = String(u);
-        if (/rpc\/hr_claim_daily/.test(s)) {
-          seen.push('claim');
-          /* THE SHAPE PRODUCTION RETURNS — a grant RECEIPT, not an envelope:
-             hr_claim_daily answers {ok, task, gold, day_key, slot, credited}
-             and carries no state/version at all. 777 is deliberately NOT the
-             600 the client's slate prices, so a toast built from the client
-             table cannot pass. */
-          return Promise.resolve(new Response(JSON.stringify({
-            ok: true, task: 'daily_kill', gold: 777, day_key: '2026-10-16', slot: 0, credited: true,
-          }), { status: 200 }));
-        }
-        if (/rpc\/hr_load/.test(s)) {
-          seen.push('load');
-          const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
-          return Promise.resolve(new Response(JSON.stringify({
-            ok: true, version: LOAD_VERSION, now: new Date().toISOString(),
-            state: { gold: SERVER_GOLD, gems: SERVER_GEMS, active_kind: 'idle', active_id: null, accrued_to: null },
-            skills, inventory: Object.assign({}, G.inventory),
-          }), { status: 200 }));
-        }
-        if (/rpc\/hr_tally_state/.test(s)) {
-          return Promise.resolve(new Response(JSON.stringify({ ok: true, day: { 'ev:kill_any': 25 }, week: {},
-            gold_day: 777, gold_week: 777, paid: ['daily_kill'], offered: ['daily_kill'] }), { status: 200 }));
-        }
-        return realFetch.apply(this, arguments);
-      };
-      /* Claimable ONLY because the server's tally says so (CLAIM-FROM-SERVER). */
-      TL.__feed({ day: { 'ev:kill_any': 25 }, week: {}, paid: [], offered: ['daily_kill'] });
-
-      await DQ.claim('daily_kill');
-      await drain(); await drain();
-
-      assert(seen.indexOf('claim') !== -1,
-        'CONTROL: the Claim path never reached hr_claim_daily (' + JSON.stringify(seen) + ') — the fixture '
-        + 'did not make the row claimable, so nothing below is being tested');
-      assert(G.gold === SERVER_GOLD,
-        'THE CLAIM WAS PAID AND THE CLIENT NEVER HEARD. `G.gold` is ' + G.gold + ' and the realm says '
-        + SERVER_GOLD + '. The server credited, journalled and once-guarded this claim; the client marked '
-        + 'the row ✓ Claimed and reconciled nothing, so the player is shown — and spends against — a '
-        + 'balance that is theirs no longer. §6: a claim\'s payout exists ONLY in the server\'s answer, so '
-        + 'the claim transport must end in an envelope apply, not in a row repaint.');
-      assert(G.gems === SERVER_GEMS,
-        'gems are ' + G.gems + ' and the realm says ' + SERVER_GEMS + ' — the reconcile landed gold and '
-        + 'left the premium balance on the pre-claim figure');
-      assert(shown() === SERVER_GOLD,
-        'THE BROWSER SAYS ' + JSON.stringify(cell.textContent) + ' AND THE REALM SAYS ' + SERVER_GOLD
-        + '. `G.gold` is ' + G.gold + ', so the apply landed and the header did not follow it.');
-      assert(said.some((m) => /\b777 gold\b/.test(m)),
-        'THE TOAST QUOTED THE CLIENT\'S PRICE LIST, NOT THE RECEIPT: ' + JSON.stringify(said) + '. The '
-        + 'server said it paid 777 gold; the slate says 600. A figure the client authors for a payout '
-        + 'the server owns reads right only while the two catalogues agree — and on the day they do not, '
-        + 'the player is told a number their balance never moved by.');
-    } finally {
-      window.fetch = realFetch;
-      window.notify = origNotify;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      R.configureRecord(origCfg);
-      TL.__feed(null);
-      A.acknowledgeReplacement(wasAck);
-      restoreAccrualSwitch(wasOn);
-      Object.assign(G, save);
-      stampBalanceLikeLoad(G);
-      try { window.updateTopbar(); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      bagHeld.restore();
-      cadences.forEach((m) => m.__resumeForTest());
-    }
-  }),
-
-  /* B354-5 IS RETIRED (b515), and it is the clearest case in the batch. Every
-     one of its assertions was about the DARK position: with the b353 kill
-     switch off, no gold verb may reach hr-accrue, the daily claim and the
-     vendor sale pay LOCALLY byte-for-byte as they did pre-seam, and `settle()`
-     records no prediction because nothing will ever retire one. That client
-     does not exist: the switch is retired, `isGoldIntentEnabled()` is a
-     constant, and a local payment of a server-owned balance is exactly the
-     client-authored fallback CLAUDE.md §1 forbids.
-
-     The LIT position — one payment, the SERVER's number, applied absolutely,
-     with the prediction retired, rolled back or abandoned according to what the
-     server actually said — is B354-1 through B354-4 immediately above, and the
-     prediction LIFECYCLE is B354-6 onward. Nothing it covered is uncovered. */
-
-  /* b373: the sweep's confirmation moved off window.confirm (which blocks the
-     renderer) onto the shared modal, so the quote is no longer observable by
-     stubbing the global. It is observable as a VALUE instead — quoteJunk() —
-     which is a stronger assertion than reading a sentence: settleJunk() pays
-     the quote it is handed and computes no second price. The dialog half (the
-     modal states that same number, and cancelling pays nothing) is B373-2. */
   () => tryRun('B354-6: the sell-junk quote is the one vendor bid on the server\'s bag', () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;

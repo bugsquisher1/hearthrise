@@ -30,7 +30,6 @@ import { ITEMS } from './items.js?v=589';
 import { ARTISAN_RECIPES } from './recipes.js?v=589';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=589';
 import { SKILLS_DEF } from './skills.js?v=589';
-import { DUNGEONS, QM_STOCK } from './dungeons.js?v=589';
 import { SHOP_OFFERS } from './shops.js?v=589';
 import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=589';
 import { HEARTHFIND_ITEMS } from './hearthfind.js?v=589';
@@ -38,7 +37,7 @@ import { EFFECT_KINDS } from './item-effects.js?v=589';
 import { MONSTERS } from './monsters.js?v=589';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-  qmStockIds, shopGrantIds, goalRewardIds, raidRewardIds, dungeonRewardIds,
+  shopGrantIds, goalRewardIds,
 } from './item-authority.js?v=589';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
@@ -52,14 +51,15 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
 export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
   /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
-     supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused). */
-  hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/legacy.js', needle: "addItem('hearth_token'" }),
+     supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused).
+     hearth_token's row left with the client IAP code (the demolition); it waits
+     on AWAITING_ROSTER below. */
 });
 
 /* ── USES AN ENGINE HARD-CODES ──────────────────────────────────────────────
    Same contract as CODED_SOURCES. */
 export const CODED_USES = Object.freeze({
-  hearth_token: Object.freeze({ label: 'redeemed for gems or traded on the Market', file: 'src/legacy.js', needle: 'hearth_token' }),
+  /* (hearth_token's redeem and IAP grant left with the IAP store, 2026-10-14.) */
 });
 
 /* ── VENDOR TRASH — the one use that is selling ──────────────────────────────
@@ -68,18 +68,74 @@ export const CODED_USES = Object.freeze({
    burnt cook is the price of a missed one. An explicit, named list so a NEW
    dead end fails the guard instead of quietly joining it. Was legacy.js
    window.__DROP_SINK_EXEMPT; this is now its only home. */
-export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_totem', 'burnt_food']);
+export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_totem', 'burnt_food',
+  /* DEMOLITION (2026-10-14): crafted gear, its recipes and the dungeon chests
+     were deleted, and these lost every consumer they had. They still drop
+     (or, for the two bars and heartgarnet, are still made or mined),
+     so until the new roster gives them a job they are sold, nothing more.
+     rat_tail and small_fang are also the coach's sell-loot step (coach.js
+     COACH_LOOT). Heartgarnet's Mining node is a dead end awaiting a designer
+     ruling. Shrink this list as the roster lands. */
+  'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'small_fang', 'night_fang', 'dark_sigil',
+  'venom_sac', 'spider_eye', 'brute_plate', 'dire_fang', 'alpha_fang', 'plague_ichor',
+  'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
+  'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
+  'heartgarnet',
+]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
-   (The same shrink-only list lane D1 introduces for the demolition; its
-   integration replaces this one.) Each id below has NO source today: lane C2
-   deleted the dungeon settle that paid dungeon_scrip, and the ITEMS row goes
-   with the dungeon data in D1. The Collection Log's denominator
-   (obtainableItemIds) leaves them out, so 100% is still reachable.
-   SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that gains a source or
-   leaves ITEMS, and an id may never be added — a new item with no source is a
-   C1 failure, not a candidate for this list. */
-export const AWAITING_ROSTER = Object.freeze(['dungeon_scrip']);
+   DEMOLITION (2026-10-14). Crafted gear, the dungeons and their chests were
+   deleted; the ITEMS rows they produced stay until Tyler's new roster replaces
+   the catalogue (demolition plan §4). Each id below has NO source today. The
+   Collection Log's denominator (obtainableItemIds) leaves them out, so 100% is
+   still reachable. SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that
+   gains a source or leaves ITEMS, and an id may never be added — a new item
+   with no source is a C1 failure, not a candidate for this list. */
+export const AWAITING_ROSTER = Object.freeze([
+  'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
+  'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
+  'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
+  'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
+  'bronze_boots', 'bronze_hammer', 'bronze_helm', 'bronze_knife',
+  'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
+  'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
+  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
+  'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
+  'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
+  'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
+  'dragon_relic', 'dragonfang_pike', 'dragonhide_belt', 'dragonhide_body', 'dragonhide_boots',
+  'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'dragonrend_greatblade',
+  'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
+  'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
+  'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
+  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak', 'iron_helm',
+  'iron_platebody', 'iron_platelegs', 'leather_body', 'leather_pants', 'lexarch_seal',
+  'longbow', 'maple_rod', 'maple_staff', 'mithril_helm',
+  'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
+  'nightstalker_pelt', 'oak_staff', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
+  'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
+  'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
+  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
+  'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
+  'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
+  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
+  'steel_needle', 'steel_platebody', 'steel_platelegs', 'steel_warhammer',
+  'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
+  'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
+  'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
+  'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',
+  'voidweave_helmet', 'voidweave_pants', 'voidwoven_sigil', 'warband_bulwark',
+  'warboss_standard', 'warden_girdle', 'warden_seal', 'warlock_body', 'warlock_pants',
+  'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
+  'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
+  'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
+  'wyvernhide_body', 'wyvernhide_helmet', 'wyvernhide_pants', 'yew_rod',
+  /* The Hearth Token (IAP bond): its redeem, IAP grant and store left with the
+     client in the same demolition; the row stays because hr_items and
+     account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
+  'hearth_token',
+]);
+
 
 const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });
 
@@ -108,11 +164,8 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  addSet(m, qmStockIds(), 'Quartermaster');
   addSet(m, shopGrantIds(), 'shop');
-  addSet(m, goalRewardIds(), 'quest or daily reward');
-  addSet(m, raidRewardIds(), 'clan hunt chest');
-  addSet(m, dungeonRewardIds(DUNGEONS), 'dungeon');
+  addSet(m, goalRewardIds(), 'quest reward');
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');
@@ -132,20 +185,14 @@ export function itemUses() {
   for (const o of SHOP_OFFERS) {
     for (const c of (o && o.cost) || []) if (c && c.kind === 'item') push(m, c.id, 'pays for ' + o.id);
   }
-  if (QM_STOCK.length) push(m, 'dungeon_scrip', 'spent at the Quartermaster');
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
-  const roomOffer = new Set(SHOP_OFFERS.map((o) => o && o.id).filter(Boolean));
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');
   for (const id of Object.keys(ITEMS)) {
     const it = ITEMS[id] || {};
     if (EQUIP_TYPES[it.type] || it.slot) push(m, id, 'worn');
     if (it.type === 'tool' && it.toolSkill && SKILLS_DEF[it.toolSkill]) push(m, id, it.toolSkill + ' tool');
     if (Number(it.heals) > 0 || it.buff) push(m, id, 'eaten');
-    if (it.unlocks && DUNGEONS[it.unlocks]) push(m, id, 'opens ' + it.unlocks);
-    if (it.unlocks && roomOffer.has('room.' + it.unlocks)) push(m, id, 'opens room rung ' + it.unlocks);
-    if (it.tag === 'rune' && it.element) push(m, id, 'enchants a weapon (' + it.element + ')');
-    if (it.tag === 'castle') push(m, id, 'clan castle stores');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
   return m;
@@ -167,7 +214,6 @@ export const ENGINE_SKILL_CONSUMERS = Object.freeze({
   hitpoints:    Object.freeze({ label: 'max HP (accrual engine)', file: 'supabase/functions/hr-accrue/accrual.js', needle: "ev.skill === 'hitpoints'" }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
-  bountyHunter: Object.freeze({ label: 'contract boards (bounty engine)', file: 'src/core/bounty.js', needle: 'bountyHunter' }),
 });
 
 /** skill -> [consumer labels]: who uses what the skill makes. */

@@ -1,15 +1,14 @@
 // ============================================================================
-// src/net/goal-claim.js — CLIENT TRANSPORT FOR THE DAILY/QUEST GOLD CLAIM RPCs.
+// src/net/goal-claim.js — CLIENT TRANSPORT FOR THE QUEST/CLAIM RPCs.
 //
-// `window.HearthriseGoalClaim.claimDaily(taskId)` / `.claimQuest(questId)` post
-// to the two SECURITY DEFINER RPCs added in
-// supabase/migrations/2026-08-20-goal-reward-rpc-credit.sql. The server VERIFIES
-// completion from its own ev:<type> counters and CREDITS the server-owned gold
-// into player_state; the client only fires the intent and lets the accrual
-// envelope reconcile the balance (see the gold-sites.js rows for updateDaily /
-// completeQuest — serverCredits mode).
+// `window.HearthriseGoalClaim.claimQuest(questId)` posts to the SECURITY DEFINER
+// RPC added in supabase/migrations/2026-08-20-goal-reward-rpc-credit.sql. The
+// server VERIFIES completion from its own ev:<type> counters and CREDITS the
+// server-owned gold into player_state; the client only fires the intent and lets
+// the accrual envelope reconcile the balance. (The daily, renown, bounty, gem
+// unlock and companion verbs left with their systems, 2026-10-14.)
 //
-// Same transport shape as src/features/muster.js: cfg()/session()/headers(),
+// Transport shape: cfg()/session()/headers(),
 // the shared HearthriseRpc.mayCall() session guard (so a pre-auth boot call is
 // refused as {ok:false,error:'not_signed_in'} rather than firing a 42501), and a
 // ten-minute negative probe so a session open across a deploy self-heals.
@@ -46,7 +45,7 @@
 
   /* The active character slot, server-authoritatively derived from the profile
      and clamped to [0,5] — never a client value that could cross to another
-     player. Mirrors src/features/muster.js activeSlot(). */
+     player. */
   function activeSlot() {
     try {
       var P = window.HearthriseProfile;
@@ -117,9 +116,7 @@
      silent — the settle still comes — and never turns a paid claim into an
      error the player sees. */
   var CREDIT_VERBS = {
-    hr_claim_daily: 1, hr_claim_quest: 1,
-    hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1,
-    hr_claim_discord_gift: 1
+    hr_claim_quest: 1, hr_claim_milestone: 1, hr_claim_discord_gift: 1
   };
 
   /* ONLY WHEN THE SERVER OWNS THE BALANCE. In the dormant position (signed
@@ -195,8 +192,8 @@
      (src/net/settle-first.js): wait for the server's settle, re-send the SAME
      body (same key) once. Absent the module, the call goes out once, as before. */
   var SETTLE_GATED = {
-    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_milestone: 1,
-    hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1
+    hr_claim_quest: 1, hr_claim_milestone: 1,
+    hr_credit_kills: 1, hr_set_auto_eat: 1
   };
   function call(name, body) {
     var SF = window.HearthriseSettleFirst;
@@ -295,10 +292,6 @@
     });
   }
 
-  function spendLatch() {   // the bounty-reroll latch (bountyRerollOnce), page-wide by name
-    var L = window.HearthriseIntentLatch;
-    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('bounty-spend') : null;
-  }
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
@@ -311,34 +304,11 @@
     /* Test seam (tests/attended-fall.mjs ST-5): shorten the RPC deadline. */
     __setCallTimeoutMs: function (ms) { callTimeoutMs = Number(ms) > 0 ? Number(ms) : CALL_TIMEOUT_MS; },
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
-    claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
-    /* THE ONE READ OF THE SERVER'S PERIOD COUNTERS —
-       supabase/migrations/2026-10-16-goal-board-retire.sql. {ok, day_key,
-       week_key, day:{ev:<type>:n}, week:{ev:<type>:n}, gold_day, gold_week,
-       paid:[task ids], offered:[task ids]}. src/features/daily-quests.js is its
-       one caller (the daily-quest sheet and Home's Your week card read its
-       cache); the old goals board and its hr_claim_goal / hr_goal_state are
-       retired. */
-    tallyState: function () { return call('hr_tally_state', { p_slot: activeSlot() }); },
     /* Collection-Log MILESTONE credit — supabase/migrations/2026-08-22-collection-claim.sql.
        The server re-derives the DISTINCT count from hr_bestiary_of / hr_collection_of and
        credits the server-owned gold+gems once-guarded per milestone. Fire-and-forget. */
     claimMilestone: function (milestoneId) { return call('hr_claim_milestone', { p_milestone_id: String(milestoneId || ''), p_slot: activeSlot() }); },
-    /* Renown RANK credit — supabase/migrations/2026-08-22-renown-claim.sql. The server
-       ratchets a high-water off hr_renown_of, maps it to the rank via a server-owned
-       catalogue, and credits gold+gems once-guarded per rank.
-
-       ⚠ NOT fire-and-forget (it was, and that was a P1 silent loss). The server
-       decides on ITS OWN score and can answer `not_reached`; `G.renown.claimed`
-       is RESIDUE, so a fire-and-forget claim marked a REFUSED rank claimed
-       forever and the player permanently lost a rank worth real gold+gems.
-       src/features/renown.js claimRank AWAITS this verdict and writes nothing
-       until ok — never fire-and-forget. Envelope: {ok, rank, gold,
-       gems, renown_high, credited} or {ok:false, error: not_reached |
-       already_claimed | unknown_rank | rate_limited | no_character |
-       not_signed_in, renown_high?, min?}. */
-    claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); },
     /* Discord GIFT — supabase/migrations/2026-10-18-discord-gift.sql. The code and
        the ACTIVE character cross; the amount is the server's. Once per ACCOUNT:
        a second character is refused already_claimed. AWAITED by
@@ -346,37 +316,6 @@
        {ok:false, error: wrong_code | code_expired | gift_unavailable | already_claimed |
        rate_limited | no_character | bad_slot | not_signed_in}. */
     claimDiscordGift: function (code) { return call('hr_claim_discord_gift', { p_slot: activeSlot(), p_code: String(code || '') }); },
-    /* Bounty ACCEPT — supabase/migrations/2026-08-23-bounty.sql. The server derives
-       the tier from hr_bounty_monsters, owns the reward + required-count, and
-       SNAPSHOTS the target's current kill count as the baseline into active_bounty so
-       the turn-in requires NEW kills. Only the ids/type/difficulty cross the wire; the
-       reward never does. 'cull' only (proof/weapon/streak are refused server-side).
-
-       ⚠ THE ANSWER IS NOT OPTIONAL (b497 · Security F2). `p_required` below is a
-       REQUEST: hr_accept_bounty CLAMPS it into a server-computed range and the
-       envelope reports what it actually stored — {ok, required, tier, gold,
-       marks, xp, baseline, first_contract}. This call used to be
-       fire-and-forget, so a clamp stayed invisible until the turn-in refused
-       forever with the bar full (the dead-claims class). `hrAdoptAcceptedBounty`
-       in src/legacy.js now adopts required/tier/rewards from it — a caller must
-       keep reading this promise, not drop it. */
-    acceptBounty: function (b) {
-      b = b || {};
-      return call('hr_accept_bounty', {
-        p_slot: activeSlot(),
-        p_bounty_id: String(b.id || ''),
-        p_target: String(b.target || ''),
-        p_type: String(b.type || ''),
-        p_difficulty: String(b.difficulty || 'normal'),
-        p_required: Math.max(0, Math.floor(Number(b.required) || 0))
-      });
-    },
-    /* Bounty TURN-IN — the once-guarded credit. The server reads the target's CURRENT
-       kill count, subtracts the accept-time baseline, and credits server-owned gold +
-       Bounty Marks only if (current - baseline) >= required; the active_bounty row IS
-       the once-guard (deleted under a row lock). Fire-and-forget: a replay returns
-       no_active_bounty with no second credit. */
-    claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); },
     /* Bounty KILL CREDIT — supabase/migrations/2026-08-30-bounty-kill-credit.sql
        (bug #5). The server bounty counter (ev:kill_monster:<target>) is written
        only by the away/span-sim, which re-simulates the window UNATTENDED and
@@ -430,42 +369,6 @@
       }
       return creditWithCombatRedeclare(function () {
         return call('hr_credit_combat_xp', { p_slot: activeSlot(), p_xp: clean, p_idem: newIdem() });
-      });
-    },
-    /* Bounty MARKS spend — supabase/migrations/2026-10-04-bounty-abandon-server-fee.sql.
-       ONE server-authoritative debit for reroll + abandon, and NO NUMBER CROSSES:
-       the reroll cost (5 + paid-rerolls-today*5) comes from the ledger, the
-       abandon fee from the server's own active_bounty.marks_reward and its own
-       Bounty-Hunter level (player_skills). The abandon NAMES the contract
-       (p_bounty_id) so an abandon that lands after the next accept is refused
-       (bounty_mismatch) instead of deleting the new contract. p_idem makes a
-       retry a no-op. The answer's `fee` is the only figure a caller may quote.
-       In-flight model: a reroll is held by the 'bounty-spend' latch below; the
-       accept and the abandon are held by render/bounty-progress.js (busy()),
-       which also reads bountyRerollHeld so all three answer one question. */
-    bountyReroll: function (key) {
-      return call('hr_bounty_spend', {
-        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_id: null, p_idem: key || newIdem()
-      });
-    },
-    /* ONE PAID REROLL IN FLIGHT (net/intent-latch.js). The server prices a
-       reroll 5 + 5 × paid rerolls today, so a double-click on the board's "New
-       notices" paid 5 AND 10 for one refresh. bountyRerollOnce returns the
-       call's promise, or null while a reroll is held (or the latch is absent):
-       the caller then does nothing at all. A re-tap after a timeout re-sends
-       the same p_idem, which hr_bounty_spend replays without a second debit. */
-    bountyRerollHeld: function () { var l = spendLatch(); return !!(l && l.held('reroll:' + activeSlot())); },
-    bountyRerollOnce: function () {
-      var l = spendLatch(), k = 'reroll:' + activeSlot();
-      if (!l || l.held(k)) return null;
-      return l.run(k, function (idem) { return window.HearthriseGoalClaim.bountyReroll(idem); });
-    },
-    /* Test teardown only: drop every held spend. */
-    __resetSpendLatch: function () { var l = spendLatch(); if (l) l.reset(); },
-    bountyAbandon: function (bountyId) {
-      return call('hr_bounty_spend', {
-        p_slot: activeSlot(), p_reason: 'abandon', p_bounty_id: String(bountyId || ''),
-        p_idem: newIdem()
       });
     },
     /* ══════════════════════════════════════════════════════════════════════
@@ -530,57 +433,6 @@
       });
     },
     /* ══════════════════════════════════════════════════════════════════════
-       GEM UNLOCK PURCHASE — supabase/migrations/2026-09-14-gem-unlock-buy.sql.
-       ══════════════════════════════════════════════════════════════════════
-       The theme/cosmetic twin of buyHeroSlot, and it closes the same defect in
-       the same shape: `ownedThemes` / `ownedCosmetics` were RESIDUE, so
-       `G.gems -= price` was refunded by the next envelope while the thing bought
-       stayed — a free, repeatable premium purchase. hr_unlock_buy cannot serve
-       it (hr_unlock_offers has a gold column and no other, and
-       unlock-catalogue.js refuses the theme/cosmetic namespaces by name), which
-       is why there is a gem verb at all.
-
-       ⚠ ONE STRING AND A UUID CROSS. Which unlock ('<namespace>:<id>'), which of
-         your OWN characters pays, and an idempotency key. No price, no currency,
-         no "free" flag: the cost is read from public.hr_gem_unlocks under the
-         character lock, and a `free` row is refused `not_for_sale` — there is no
-         zero-gem code path to find.
-
-       ⚠ WHICH WALLET. `p_slot` is the ACTIVE character, deliberately: gems live
-         on player_state per (user_id, slot) and the topbar chip shows the active
-         character's balance, so charging any other row would take gems the
-         player cannot see. The ENTITLEMENT it buys is ACCOUNT-WIDE (designer
-         ruling, 2026-09-14) — hr_gem_unlocks_of unions the account's rows across
-         every slot — so Hero 2 is refused `already_owned` rather than charged
-         again.
-
-       NOT fire-and-forget and NOT a prediction: the caller awaits the verdict
-       (legacy.js buyTheme/buyCosmetic) because a premium spend that silently
-       failed is the whole bug, and nothing local is debited, so there is nothing
-       to retire.
-
-       Envelope: {ok:true, unlock_id, offer_id, name, currency, cost, gems,
-       version, slot, gem_unlocks} or {ok:false, error: bad_unlock_id |
-       unknown_unlock | not_for_sale | already_owned (carries gem_unlocks) |
-       insufficient_gems (carries cost/have/short_by) | gem_unlock_daily_cap |
-       no_character | intent_mismatch | rate_limited | not_signed_in}, plus
-       {error:'rpc_missing'} from call() when the migration is not applied. */
-    buyGemUnlock: function (unlockId) {
-      var id = String(unlockId || '');
-      if (!/^[a-z_]+:[A-Za-z0-9_.-]+$/.test(id) || id.length > 64) {
-        /* Refused LOCALLY on SHAPE only, so a malformed gesture does not spend a
-           real player's rate budget to be told bad_unlock_id. Every rule about a
-           ROW — is it catalogued, is it free, is it owned, can you afford it —
-           is left to the RPC, under the lock, where it can be answered truly. */
-        return Promise.resolve({ ok: false, error: 'bad_unlock_id', refused: true });
-      }
-      return call('hr_buy_gem_unlock', {
-        p_unlock_id: id,
-        p_slot: activeSlot(),
-        p_idem: newIdem()
-      });
-    },
-    /* ══════════════════════════════════════════════════════════════════════
        READING A RECIPE SCROLL — supabase/migrations/2026-09-14-recipe-learn.sql.
        ══════════════════════════════════════════════════════════════════════
        The price is the SCROLL, and the scroll is a real server-held item
@@ -605,54 +457,6 @@
       return call('hr_recipe_learn', {
         p_item: id,
         p_slot: activeSlot(),
-        p_idem: newIdem()
-      });
-    },
-    /* Companion EQUIP / UNEQUIP — supabase/migrations/2026-08-20-companion-model.sql.
-       hr_companion_equip(slot, companion, unequip) sets the SERVER-OWNED
-       player_state.companion_equipped AFTER an ownership check (a companion:<id>
-       unlock row or the starter fox), and hr_perks_of prices the equipped
-       companion's passive bonus at accrual. Only the id crosses the wire; the
-       server owns the ownership test, the bonus and the version bump.
-
-       Fire-and-forget, DISPLAY-PREDICTION shape like the claim transports: the
-       client sets G.companions.equipped optimistically for responsiveness and the
-       server reconciles on the next envelope. A refusal (not_owned / collect_first /
-       rate_limited) costs nothing the client authored — the equipped id is a
-       display preference, not a value that crosses to another player; the passive
-       bonus it unlocks is priced SERVER-SIDE off the server's own equipped id, so a
-       forged local equip pays nothing until the server accepts it. */
-    equipCompanion: function (id) {
-      return call('hr_companion_equip', { p_slot: activeSlot(), p_companion: String(id || ''), p_unequip: false });
-    },
-    unequipCompanion: function () {
-      return call('hr_companion_equip', { p_slot: activeSlot(), p_companion: null, p_unequip: true });
-    },
-    /* NON-SHOP companion GRANT — supabase/migrations/2026-08-22-companion-grant.sql.
-       hr_companion_grant(slot, companion, source, idem) writes a server-owned
-       companion:<id> unlock row when a legitimate NON-shop acquisition happens
-       (drop / quest / hatch / skill / boss), so that under the blob-retire capstone
-       arm accrue.js reconcileCompanions (which rebuilds G.companions from the
-       server owned-set) does NOT drop a companion obtained without a server row.
-
-       The server GATES on its own allowlist (hr_companion_grants): a SHOP companion
-       (bought with gold via hr_unlock_buy) and an unknown/forged id are refused
-       'not_grantable', so a forged grant mints no server-owned perk. Where the
-       acquisition has a server-verifiable cost (the dragon_egg hatch) the RPC
-       consumes it server-side. Only the id/source cross the wire; the ownership
-       decision, the version bump and any consume are the server's.
-
-       Fire-and-reconcile, DISPLAY-PREDICTION shape like the equip/claim transports:
-       the client already wrote G.companions.ownedIds locally for responsiveness and
-       the server owned-set reconciles on the next envelope. A refusal costs nothing
-       the client authored. p_idem makes a retry of the same acquisition a no-op
-       (the grant is owned-once regardless). Fired ONLY under the capstone arm (see
-       src/features/companions.js maybeServerGrant) so dormant behaviour is unchanged. */
-    grantCompanion: function (id, source) {
-      return call('hr_companion_grant', {
-        p_slot: activeSlot(),
-        p_companion: String(id || ''),
-        p_source: String(source || ''),
         p_idem: newIdem()
       });
     },

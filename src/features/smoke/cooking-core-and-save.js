@@ -131,12 +131,6 @@ export default [
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const CF = window.HearthriseCookingFire;
-    /* NO CALENDAR — same reason as b222 SEAM 1 above. `steady_fire` is a daily
-       blessing worth noBurn 0.25, and the burn curve is SUBTRACTIVE, so on the
-       days it is dealt an open fire is 0% rather than 25% and this test's
-       rigged worst-case roll stops being a burn at all. Date-dependent, and it
-       would have gone red on 2026-08-29. */
-    const E = window.HearthriseWorldEvents;
     const saved = {
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
@@ -151,7 +145,6 @@ export default [
        It never surfaced before because the broken hash could only reach a few
        of the nine dailies; with the draw fixed, every calendar-sensitive test
        has to say so. QUIET is the no-calendar control. */
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       G.rooms = {};                                   // open fire
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -205,10 +198,8 @@ export default [
       assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      E._force(null);
       Math.random = saved.random;
       window.HearthriseCore.setRng(null);
-      if (E) E._force(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
@@ -245,14 +236,12 @@ export default [
 
   () => tryRun('b225: the burn risk is on the screen before the player presses the tile', () => {
     const G = window.G;
-    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const saved = {
       rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
     };
     const cook = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     const smith = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });   // b332: see the burn test above
     try {
       assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -284,19 +273,7 @@ export default [
       stampRecordLikeLoad(G);
       if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
 
-      /* b560 inverted the calendar's claim: The Steady Fire is a name and a
-         line of copy, and the engine pays no blessing layer — so it must NOT
-         move the number on the tile, online or not (BLESSING-HONESTY). */
-      const STEADY = E.DAILY.find((d) => d.id === 'steady_fire');
-      assert(STEADY && STEADY.bonus === undefined, 'The Steady Fire must carry no burn-chance table');
-      G.rooms = {};
-      stampRecordLikeLoad(G);
-      const plain = window.cookBurnChance(cook);
-      E._force({ daily: STEADY, weekly: E.QUIET });
-      assert(window.cookBurnChance(cook) === plain,
-        'The Steady Fire moved the burn curve ' + plain + ' → ' + window.cookBurnChance(cook) + ' — the server pays no blessing');
     } finally {
-      if (E) E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
       stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
     }
@@ -310,10 +287,8 @@ export default [
   () => tryRun('b225: building a Kitchen repaints the cooking screen (the risk is never stale)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
-    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const prevTab = window.activeTab;
     const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), inv: G.inventory, skills: JSON.parse(JSON.stringify(G.skills || {})) };
-    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       if (typeof window.renderSkillDetail !== 'function') return;
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
@@ -338,7 +313,6 @@ export default [
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
-      if (E) E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
       stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
       try { window.showTab(prevTab || 'profile'); } catch {}
@@ -682,11 +656,8 @@ export default [
       ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
       ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
       ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
-      /* Phase A. ⚠ DELIBERATELY A LIST, not `Object.keys(C.bounty)`: deriving it found `BOUNTY_BOARD_TIER_BY_LEVEL` on window as a COPY of the core value rather than the core object — a real defect of this test's own class, owned by the bounty board and NOT fixed in the lane that found it (widening the pin here would red the suite for an unrelated lane). CONFLICTS.md 2026-09-12. */
+      /* Phase A. (The bounty constants left with the bounty board in the 2026-10-14 demolition.) */
       ['COMBAT_STYLES', C.styles.COMBAT_STYLES],
-      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS], ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
-      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT], ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
-      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL], ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
     ];
     for (const [name, coreValue] of pairs) {
       assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
@@ -752,298 +723,9 @@ export default [
        3. the delegation is BEHAVIOUR-PRESERVING at runtime, in the browser,
           through the real wrapped functions — not just in Node.            */
 
-  () => tryRun('Phase A: the artisan bench, bounty board and XP routing all delegate to the core', () => {
-    const C = window.HearthriseCore;
-    assert(C.artisan && C.bounty && C.styles, 'the Phase A core modules are not published on HearthriseCore');
 
-    /* Only the functions the engine actually publishes — getInputs/hasInputs/
-       gateOk live inside the artisan block's scope and are not reachable from
-       here, but doArtisanAction is the single caller of all three and it is
-       checked below. */
-    const delegates = ['isMaterialOutput', 'cookBurnChance',
-      'doArtisanAction', 'generateBountyBoard', 'getActiveCombatStyle'];
-    for (const name of delegates) {
-      const fn = window[name];
-      assert(typeof fn === 'function', name + ' is missing from the engine');
-      assert(/HearthriseCore/.test(String(fn)),
-        name + '() no longer routes through the shared core — a second implementation is back in legacy.js');
-    }
 
-    /* The three bare Math.random() calls the extraction existed to remove.
-       A source scan is crude but it is the only thing that catches a
-       re-introduction, and re-introducing one silently un-replays every
-       future server-side accrual of that bench. */
-    const src = String(window.doArtisanAction);
-    assert(!/Math\s*\.\s*random/.test(src),
-      'doArtisanAction reaches for Math.random again — the craftSave / burn / yield rolls must take the injected RNG');
 
-    /* The cooking-fire module is now a face over the core, not a second copy. */
-    const CF = window.HearthriseCookingFire;
-    assert(CF.BASE === C.artisan.BURN_BASE, 'HearthriseCookingFire.BASE is a COPY of the core burn rate');
-    assert(CF.KITCHEN_NO_BURN === C.artisan.KITCHEN_NO_BURN, 'the Kitchen noBurn ladder exists twice');
-    assert(CF.BURNT_ITEM === C.artisan.BURNT_ITEM, 'the burnt-food item id exists twice');
-  }),
-
-  () => tryRun('Phase A: the bounty board is REPLAYABLE — the same seed offers the same three bounties', () => {
-    /* Before the extraction every bounty id carried Date.now() and a bare
-       Math.random(), so no two generations could ever agree. That made the
-       board impossible to generate server-side and prove. */
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const G = window.G;
-    const gen = (seed) => {
-      C.reseed(seed);
-      /* Pin the clock too: the id embeds it, and this test is about the
-         RANDOM half being seeded, not about freezing time. */
-      const realNow = Date.now;
-      Date.now = () => 1700000000000;
-      try {
-        return JSON.stringify(window.generateBountyBoard());
-      } finally { Date.now = realNow; }
-    };
-    try {
-      window.ensureBountyState();
-      const a = gen(777001);
-      const b = gen(777001);
-      const c = gen(777002);
-      assert(a === b, 'the same seed produced a different board — bounty generation is not replayable\n  ' + a + '\n  ' + b);
-      assert(a !== c, 'a different seed produced the same board — the seed is being ignored');
-      const board = JSON.parse(a);
-      assert(board.length === 3, 'the board must always offer three bounties, got ' + board.length);
-      for (const bt of board) {
-        assert(bt.required > 0, 'a bounty with no target count would complete instantly');
-        assert(window.MONSTERS[bt.target], 'a bounty targets a monster that does not exist: ' + bt.target);
-        assert(!window.MONSTERS[bt.target].boss, 'a board bounty must never target a boss');
-        assert(bt.rewards && bt.rewards.marks >= 1, 'every bounty must pay at least one Mark');
-      }
-      assert(G.bountyHunter.boardGeneratedAt === 1700000000000,
-        'generateBountyBoard must still stamp boardGeneratedAt — the reroll timer reads it');
-    } finally {
-      C.randomSeed();
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('b497: bounty difficulty scales the KILL COUNT, and the pay-per-kill rises with it', () => {
-    /* THE b489 INVERSION. bountyCount read (type, tier) and nothing else, so
-       the board's EASY slot and its NORMAL slot drew from the SAME range while
-       bountyRewards already paid easy 0.85x. Identical work, less gold: "Easy"
-       was strictly the best-paying contract on the board.
-
-       This asserts the RULE (a monotonic gold-per-kill ladder) and the two
-       numbers the ruling actually names, not a table nobody would notice
-       drifting. The SQL half — hr_bounty_kill_range(tier, difficulty), which
-       CLAMPS what the server will accept — is bound to these same values by
-       tests/bounty-drift.mjs and driven against a real Postgres by
-       tests/bounty-difficulty-count.mjs; a client-only change would have the
-       board offer 72 kills and the turn-in demand 80. */
-    const B = window.HearthriseCore.bounty;
-    assert(B && typeof B.bountyCountRange === 'function', 'the bounty core is not published');
-
-    const t1 = ['easy', 'normal', 'hard', 'elite'].map((d) => {
-      const r = B.bountyCountRange('cull', 1, 2, d);
-      return { d, lo: r[0], hi: r[1], gpk: B.bountyRewards(1, 'cull', d).gold / ((r[0] + r[1]) / 2) };
-    });
-    assert(t1[0].lo === 72 && t1[0].hi === 108,
-      'tier-1 EASY draws ' + t1[0].lo + '-' + t1[0].hi + ', the ruling says 72-108');
-    assert(t1[1].lo === 80 && t1[1].hi === 120,
-      'tier-1 NORMAL must be the identity (80-120), got ' + t1[1].lo + '-' + t1[1].hi);
-    assert(t1[3].lo === 120 && t1[3].hi === 180,
-      'tier-1 ELITE draws ' + t1[3].lo + '-' + t1[3].hi + ', the ruling says 120-180');
-
-    for (let t = 1; t <= 6; t++) {
-      let prev = null;
-      for (const d of ['easy', 'normal', 'hard', 'elite']) {
-        const r = B.bountyCountRange('cull', t, 2, d);
-        const gpk = B.bountyRewards(t, 'cull', d).gold / ((r[0] + r[1]) / 2);
-        /* `prev` is null on the first difficulty of each tier, and an assert
-           MESSAGE is evaluated eagerly in JavaScript — `prev.toFixed()` here
-           threw on every run rather than asserting anything. Caught by the
-           suite itself on the first assembled run, which is the only reason
-           this monotonicity check is real. */
-        assert(prev === null || gpk > prev,
-          'tier ' + t + ': gold-per-kill is not monotonic — ' + d + ' pays ' + gpk.toFixed(3)
-          + ' and the easier difficulty paid ' + (prev === null ? 'n/a' : prev.toFixed(3))
-          + '. The b489 inversion ("Easy is the best contract on the board") is back.');
-        prev = gpk;
-      }
-    }
-
-    /* AN ABSENT DIFFICULTY IS THE IDENTITY. Every call site written before this
-       ruling must keep today's numbers exactly rather than silently drawing a
-       different contract — the failure that turns a UX ruling into an economy
-       change. (The SERVER does the opposite and fails CLOSED; the asymmetry is
-       deliberate and is asserted in bounty-difficulty-count.mjs.) */
-    const bare = B.bountyCountRange('cull', 3, 2);
-    assert(bare[0] === B.BOUNTY_KILL_COUNTS.cull[3][0] && bare[1] === B.BOUNTY_KILL_COUNTS.cull[3][1],
-      'a call with no difficulty no longer returns the tier table: ' + bare.join('-'));
-    assert(B.bountyCountMult('nonsense') === 1 && B.bountyCountMult(undefined) === 1,
-      'an unknown difficulty must be the identity on the client');
-
-    /* THE FIRST-CONTRACT BRACKET SCALES TOO — the board's first slot is always
-       EASY, and the server clamps against the scaled floor. */
-    const first = B.bountyCountRange('cull', 1, 1, 'easy');
-    assert(first[0] === 14 && first[1] === 23,
-      'the b487 first-contract bracket did not scale for the easy slot: ' + first.join('-'));
-
-    /* THE SEEDED STREAM IS UNCHANGED. rng.int consumes exactly one draw per
-       call whatever range it is handed, so scaling the RANGE (rather than the
-       drawn value) leaves generateBountyBoard's draw order and count identical
-       — the property the replayability test above depends on. */
-    const C = window.HearthriseCore;
-    C.reseed(497001);
-    const a = B.bountyCount('cull', 1, C.rng, 2, 'hard');
-    C.reseed(497001);
-    const b = B.bountyCount('cull', 1, C.rng, 2, 'easy');
-    C.randomSeed();
-    assert(a >= 96 && a <= 144, 'a hard tier-1 draw landed outside 96-144: ' + a);
-    assert(b >= 72 && b <= 108, 'an easy tier-1 draw landed outside 72-108: ' + b);
-  }),
-
-  () => tryRun('b497/F2: the accept ENVELOPE becomes the contract (the dead-bounty class)', () => {
-    /* THE GAP THIS COVERS, stated because it is the whole point of the test
-       existing HERE rather than beside the other two bounty guards:
-       tests/bounty-drift.mjs and tests/bounty-difficulty-count.mjs bind SQL to
-       src/core — FILE TO FILE. Neither can see whether the server's answer ever
-       reaches client state. `hr_accept_bounty` CLAMPS the client's `required`
-       and returns what it actually wrote; until b497 nothing read that, so a
-       disagreement was invisible until the turn-in refused forever with the bar
-       full. Boards persist across a deploy (ensureBountyState only regenerates
-       an EMPTY board), so a `hard` slot drawn pre-b497 carries a required in
-       [80,95] and the post-deploy server demands 96. */
-    const snap = snapshotG();
-    const G = window.G;
-    try {
-      window.ensureBountyState();
-      assert(typeof window.hrAdoptAcceptedBounty === 'function',
-        'hrAdoptAcceptedBounty is not published — the accept envelope is unread again');
-      const mk = () => ({ id: 'cull_goblin_1700_7', type: 'cull', target: 'goblin',
-        difficulty: 'hard', tier: 1, progress: 0, required: 88,
-        rewards: { gold: 420, marks: 8, xp: 59 } });
-      /* `env` builds the SUCCESS envelope only — the shape
-         hr_accept_bounty__ungated's final jsonb_build_object actually returns.
-         ⚠ IT MUST NEVER BE USED TO BUILD A REFUSAL (Security F7, and the third
-         time this program has been bitten by a fixture assembled from a base
-         object instead of from the producer's real output): NOT ONE of the
-         twelve refusal envelopes the system can emit carries `bounty_id`.
-         `Object.assign({…, bounty_id}, {ok:false})` therefore produces a shape
-         the server cannot make, and a refusal test built from it tests the
-         fixture. `refusal()` below is the real vocabulary. */
-      const env = (over) => Object.assign({ ok: true, bounty_id: 'cull_goblin_1700_7',
-        target: 'goblin', tier: 1, required: 96, gold: 420, marks: 8, xp: 59 }, over || {});
-      /* THE REAL REFUSAL SHAPES, transcribed from the producers — the server's
-         hr_accept_bounty / __ungated bodies and goal-claim.js `call()`. No
-         bounty_id in any of them; `unknown_monster` carries a target and still
-         no id. Each entry is exactly what the client would receive. */
-      const REFUSALS = [
-        { ok: false, error: 'rate_limited' },                                   // the rate wrapper
-        { ok: false, error: 'tier_locked', tier: 3, unlocked_tier: 1, combat_level: 8 },
-        { ok: false, error: 'bad_difficulty', difficulty: 'elite', tier: 1 },
-        { ok: false, error: 'no_character', slot: 0 },
-        { ok: false, error: 'not_signed_in' },
-        { ok: false, error: 'type_not_server_verifiable', type: 'proof' },
-        { ok: false, error: 'unknown_monster', target: 'goblin' },              // target, no id
-        { ok: false, error: 'network' },                                        // goal-claim.js call()
-        { ok: false, error: 'bad_response', status: 500 },
-        { ok: false, error: 'rpc_missing' },
-      ];
-
-      // ── 1. THE DEAD CASE. Client drew 88; the server stored 96.
-      G.bountyHunter.active = mk();
-      const r1 = window.hrAdoptAcceptedBounty(env());
-      assert(r1.adopted === true, 'the envelope was not adopted: ' + JSON.stringify(r1));
-      assert(G.bountyHunter.active.required === 96,
-        'the client still shows ' + G.bountyHunter.active.required + ' kills while the server '
-        + 'demands 96 — the bar fills, the turn-in refuses, and the failure is silent');
-      assert(G.bountyHunter.active._serverContract === true,
-        'an adopted contract is not marked as server-owned');
-
-      // ── 2. REWARD DRIFT closes on the same path. A player shown 420 gold and
-      //      paid 300 is the same defect in the other currency.
-      G.bountyHunter.active = mk();
-      window.hrAdoptAcceptedBounty(env({ gold: 300, marks: 5, xp: 38, tier: 2 }));
-      const rw = G.bountyHunter.active.rewards;
-      assert(rw.gold === 300 && rw.marks === 5 && rw.xp === 38,
-        'the rewards were not adopted: ' + JSON.stringify(rw));
-      assert(G.bountyHunter.active.tier === 2, 'the tier was not adopted');
-
-      // ── 3. AN AGREEING ENVELOPE CHANGES NOTHING (the common case). A repaint
-      //      on every accept would churn the DOM for no reason.
-      G.bountyHunter.active = mk();
-      const r3 = window.hrAdoptAcceptedBounty(env({ required: 88 }));
-      assert(r3.adopted === true && r3.changed.length === 0,
-        'an agreeing envelope reported changes: ' + JSON.stringify(r3.changed));
-
-      /* ── 4. EVERY REAL REFUSAL adopts NOTHING and stops being silent. There
-            is no active_bounty row, so the contract can never settle.
-            ⚠ THIS IS THE ASSERTION THAT WOULD HAVE CAUGHT F7, and it only
-            works because the fixtures are the PRODUCER'S shapes. The version
-            in 66709733 used `env({ok:false, error:'tier_locked'})` — a
-            success base with a `bounty_id` bolted on — which the server cannot
-            emit. It passed against a refusal branch that was DEAD CODE: with
-            the pair check ahead of the ok check, a real (id-less) refusal
-            returned `mismatch` and never reached it. Driving all ten shapes
-            also means a future refusal that grows an id cannot silently
-            re-order this. */
-      for (const ref of REFUSALS) {
-        assert(!('bounty_id' in ref),
-          'a REFUSAL fixture carries bounty_id — no producer emits that, so this test would be '
-          + 'testing the fixture (the F7 defect, re-introduced): ' + JSON.stringify(ref));
-        G.bountyHunter.active = mk();
-        const r = window.hrAdoptAcceptedBounty(ref);
-        assert(r.adopted === false && r.reason === 'refused:' + ref.error,
-          'the refusal "' + ref.error + '" was not reported as a refusal — got '
-          + JSON.stringify(r) + '. If this reads "mismatch", the ok check has been moved back '
-          + 'behind the id/target pair and the whole branch is dead again (F7).');
-        assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.tier === 1,
-          'the refusal "' + ref.error + '" moved the contract');
-        assert(G.bountyHunter.active._acceptError === ref.error,
-          'the refusal "' + ref.error + '" was swallowed — nothing records that this bounty is dead');
-      }
-      /* The two a player meets by ordinary play, named so a future reviewer can
-         see the reachability claim rather than infer it. */
-      assert(REFUSALS.some((r) => r.error === 'tier_locked')
-        && REFUSALS.some((r) => r.error === 'rate_limited'),
-      'the two player-reachable refusals are no longer covered');
-
-      // ── 5. A LATE REPLY FOR AN ABANDONED CONTRACT touches nothing. This is
-      //      the race the identity guard exists for: writing a stale `required`
-      //      onto a live bounty would MANUFACTURE the desync being fixed.
-      const sent = mk();
-      G.bountyHunter.active = mk();            // a different object, same fields
-      const r5 = window.hrAdoptAcceptedBounty(env({ required: 144 }), sent);
-      assert(r5.reason === 'superseded' && G.bountyHunter.active.required === 88,
-        'a reply for a superseded contract was adopted: ' + JSON.stringify(r5));
-
-      /* ── 6. A SUCCESS REPLY FOR A DIFFERENT BOUNTY is refused on the pair.
-            PRODUCER-REAL: the server echoes the p_bounty_id it was given, so
-            this is literally the envelope from the player's OTHER accept
-            arriving late. */
-      G.bountyHunter.active = mk();
-      const r6 = window.hrAdoptAcceptedBounty(env({ bounty_id: 'cull_wolf_1_2', required: 144 }));
-      assert(r6.reason === 'mismatch' && G.bountyHunter.active.required === 88,
-        'a reply for another bounty was adopted: ' + JSON.stringify(r6));
-      /* ⚠ SYNTHETIC, and labelled so nobody reads it as a producer shape: the
-         server echoes p_bounty_id and p_target from the SAME request, so an
-         id that matches while the target does not cannot occur in the wild.
-         It exists to prove the TARGET half of the pair check is present at
-         all — a guard probe, not a scenario. */
-      const r6b = window.hrAdoptAcceptedBounty(env({ target: 'wolf', required: 144 }));
-      assert(r6b.reason === 'mismatch', 'the TARGET half of the identity check is missing');
-
-      /* ── 7. A MALFORMED FIELD leaves the client's value alone rather than
-            stamping NaN onto the bar the player is watching.
-            ⚠ ALSO SYNTHETIC: no producer emits `required: null` or a
-            non-numeric gold. This is a defensive probe of the re-derive step,
-            deliberately hostile, and is not a claim about what the server
-            sends. */
-      G.bountyHunter.active = mk();
-      window.hrAdoptAcceptedBounty(env({ required: null, gold: 'lots' }));
-      assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.rewards.gold === 420,
-        'a malformed envelope corrupted the contract: '
-        + JSON.stringify(G.bountyHunter.active.rewards));
-    } finally { restoreG(snap); }
-  }),
 
   () => tryRun('Phase A: kill XP is routed by the SAME table the live hit uses (and BotD scales it)', () => {
     /* The routing table used to be four copies of one walk. The away loop
@@ -1110,160 +792,8 @@ export default [
     assert(window.HearthriseFarm.KILL_DEED_CHANCE === F.KILL_DEED_CHANCE, 'the deed chance is a copy again');
   }),
 
-  // ══════════════════════════════════════════════════════════════════════
-  // b227 — THE CALENDAR IS THE ONLINE BONUS
-  // (DECISIONS 2026-08-09 "Presence rework"; replaces b226's flat ×1.12)
-  //
-  // The b226 test below this comment used to assert `presence multiplies the
-  // grant by 1.12`. That contract was retired by the product owner, so the
-  // test is rewritten to the NEW contract rather than loosened: being here is
-  // now a GATE (worth nothing by itself) and the blessing is what it gates.
-  // The rewritten pair is deliberately stricter than the original — an
-  // exact-equality "an online player with no blessing earns EXACTLY base"
-  // is a stronger statement than the old ratio check ever made.
-  //
-  // b229 — "THE TAB SHOULDN'T NEED TO BE OPEN, THEY JUST NEED TO BE ONLINE"
-  // Tyler narrowed the gate to SESSION-ONLINE: game open + connected. The
-  // tests below drive that through the real connectivity oracle
-  // (HearthriseNetStatus) and, where they used to drive the idle clock, they
-  // now drive the retired *visibility* seam on purpose — to prove it no
-  // longer moves anything. The offline-replay latch tests are untouched in
-  // substance: the latch, not the gate, is what holds the offline boundary.
-  // ══════════════════════════════════════════════════════════════════════
 
-  () => tryRun('b229: being online pays NOTHING by itself — the flat ×1.12 is gone', () => {
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const NS = window.HearthriseNetStatus;
-    assert(P && typeof P.isOnline === 'function', 'window.HearthrisePresence must publish isOnline()');
-    assert(P.MULT === undefined && typeof P.mult !== 'function',
-      'the flat presence multiplier must be removed from the API, not merely set to 1');
-    // b229: the attention-era API is GONE, not deprecated — nothing may ask
-    // "have they clicked lately?" any more, because that is not the rule.
-    assert(typeof P.isPresent !== 'function', 'isPresent() must be retired, not left as an alias');
-    assert(P.IDLE_MS === undefined && typeof P._setLastInput !== 'function',
-      'the idle clock and its test seam must be gone with it');
-    const E = window.HearthriseWorldEvents;
-    const snap = snapshotG();
-    try {
-      G.rooms = {}; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
-      G.restedXp = 0; G.plotBuildings = [];
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      // Silence the calendar so this measures THE GATE ALONE, whatever today's
-      // blessing happens to be. Asserting against a date-derived pool pick
-      // would make the test's meaning drift with the wall clock.
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
 
-      const grant = () => { xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting'); };
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-
-      NS.setMode('offline');
-      assert(P.isOnline() === false, 'a genuinely disconnected session is not online');
-      const away = grant();
-      NS.setMode('ok');
-      assert(P.isOnline() === true, 'a connected session IS online');
-      const here = grant();
-
-      // The headline assertion, and it is an exact equality rather than the
-      // ratio b226 checked: with no blessing live, being here is worth
-      // exactly nothing. That is what "the flat ×1.12 is gone" means.
-      assert(away > 0, 'the grant must land somewhere for the comparison to mean anything');
-      assert(here === away,
-        'an online grant with no blessing must EQUAL an offline one (' + away + ' vs ' + here + ')');
-      // …and the rate readouts must quote the same thing.
-      const tree = window.TREES.find((t) => t.id === 'normal_tree');
-      const rHere = window.actionRate('woodcutting', tree).xpPerAction;
-      NS.setMode('offline');
-      const rAway = window.actionRate('woodcutting', tree).xpPerAction;
-      NS.setMode('ok');
-      assert(rHere === rAway, 'actionRate must not carry a presence multiplier either');
-    } finally {
-      E._force(null);
-      NS.setMode('ok'); restoreG(snap);
-    }
-  }),
-
-  () => tryRun('b229/b560: no blessing rides getBonus — loud or quiet, connected or not', () => {
-    const G = window.G;
-    const E = window.HearthriseWorldEvents;
-    const NS = window.HearthriseNetStatus;
-    const snap = snapshotG();
-    try {
-      G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-
-      /* b560: the blessing no longer rides getBonus AT ALL — hr-accrue's bonusFor
-         has no blessing layer (BLESSING-HONESTY). Every family must read the
-         same with the calendar loud or quiet, connected or not. */
-      const keys = ['allXP', 'combatXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed', 'craftSpeed', 'farmYield', 'goldFind', 'noBurn'];
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
-      const quiet = {}; keys.forEach((k) => { quiet[k] = window.getBonus(k); });
-      E._force({ daily: E.DAILY[0], weekly: E.WEEKLY[0] });
-      ['ok', 'offline', 'degraded'].forEach((mode) => {
-        NS.setMode(mode);
-        keys.forEach((k) => assert(Math.abs(window.getBonus(k) - quiet[k]) < 1e-9,
-          'getBonus("' + k + '") moved with the calendar in mode ' + mode + ' (' + quiet[k] + ' → ' + window.getBonus(k) + ')'));
-      });
-      NS.setMode('ok');
-    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
-  }),
-
-  () => tryRun('b229: a hidden, unfocused, untouched tab is STILL blessed — the tab need not be open', () => {
-    // Tyler's actual sentence, as an executable statement: "The tab shouldn't
-    // need to be open, they just need to be online." This drives the exact
-    // seams the retired gate was built on — document.visibilityState and
-    // document.hidden — and proves they no longer move the blessing. If a
-    // future refactor reintroduces an attention check, this fails.
-    const G = window.G;
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    const snap = snapshotG();
-    const dVis = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
-    const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
-    try {
-      G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
-      G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      // Both halves of a blessing at once: the XP side (read live inside addXp)
-      // and the SPEED side (re-derived by activityIntervalMs). If backgrounding
-      // moved either one, one of the two equalities below breaks.
-      E._force({
-        daily: { id: 'test_scholar', name: 'Test Scholar', desc: '+15% all XP · +25% gather speed',
-                 bonus: { allXP: 0.15, gatherSpeed: 0.25 } },
-        weekly: E.QUIET,
-      });
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-      const grant = () => { xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting'); };
-      const visible = grant();
-      const visibleMs = window.activityIntervalMs();
-
-      // Background the tab for real, as far as every API the old gate read.
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
-      document.dispatchEvent(new Event('visibilitychange'));
-      assert(document.visibilityState === 'hidden', 'the seam must actually be driven for this test to mean anything');
-
-      assert(P.isOnline() === true, 'a backgrounded tab is still an online session');
-      assert(P.blessingsApply() === true, 'a backgrounded tab must still be blessed');
-      assert(E.isActive() === true, 'the world-events layer must agree');
-      const hiddenGrant = grant();
-      const hiddenMs = window.activityIntervalMs();
-      assert(hiddenGrant === visible,
-        'a hidden-tab grant must equal a visible-tab grant (' + visible + ' vs ' + hiddenGrant + ')');
-      assert(hiddenMs === visibleMs,
-        'and the speed side must not change either (' + visibleMs + ' vs ' + hiddenMs + ')');
-
-      // The live hint must not call this player idle — there is no idle state.
-      const note = window.HearthriseBlessingNote();
-      assert(note.indexOf('idle') < 0, 'the note must not scold a backgrounded tab as idle, got: ' + note);
-    } finally {
-      E._force(null);
-      if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else delete document.visibilityState;
-      if (dHid) Object.defineProperty(document, 'hidden', dHid); else delete document.hidden;
-      try { document.dispatchEvent(new Event('visibilitychange')); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
 
   () => tryRunAsync('b230: returning to a backgrounded tab ASKS for the frozen span (paione — mobile "logs off, stops collecting ore")', async () => {
     /* THE BUG, unchanged: on a phone "logging off" means backgrounding the app
@@ -2519,29 +2049,6 @@ export default [
      The RECEIPT half it also asserted (`lastOfflineSummary.combat` exists) is
      `b341` and `AWAY-HONEST-2`, both driven through the real envelope. */
 
-  () => tryRun('b254: Boss of the Day — deterministic daily pick + featured kill bonus', () => {
-    const B = window.HearthriseBossOfDay;
-    assert(B && typeof B.featuredId === 'function', 'Boss of the Day module must load');
-    // Deterministic: same day key → same boss, and it is a real MONSTER.
-    const a = B.featuredId('2026-1-1'), b = B.featuredId('2026-1-1');
-    assert(a && a === b, 'the daily pick must be deterministic for a given day');
-    assert(window.MONSTERS[a], 'the featured boss must be a real monster: ' + a);
-    // Different days can differ; across a week it must not be a single stuck id.
-    const week = ['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7'].map(B.featuredId);
-    assert(new Set(week).size >= 2, 'the rotation must vary across a week, got ' + JSON.stringify(week));
-    // Kill bonus applies to the featured boss only.
-    const today = B.featuredId();
-    const feat = B.killBonuses(today);
-    assert(feat.dropMult > 1 && feat.xpMult > 1, 'featured boss must grant a drop + XP bonus');
-    const other = Object.keys(window.MONSTERS).find(id => id !== today);
-    const none = B.killBonuses(other);
-    assert(none.dropMult === 1 && none.xpMult === 1, 'non-featured monsters get no bonus');
-    // The card renders into the Combat panel with a title + a fight/lock button.
-    B.render();
-    const card = document.getElementById('hr-botd-card');
-    assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
-    assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
-  }),
 
   // b309: the bug report used to misread the data shapes — skills reported as 0
   // (read .level off an XP number) and inventory as 0 (Array.isArray on an
@@ -2575,145 +2082,7 @@ export default [
     assert(typeof m.desktopMode === 'boolean' || m.desktopMode === null, 'desktopMode must be boolean/null');
   }),
 
-  // b313 (paione): a companion LEVEL-UP must refresh the doll so the Companion
-  // pane's stats stop lagging behind inventory/combat. Refresh fires only on an
-  // actual level change, never on an ordinary XP tick.
-  () => tryRun('b313: companion level-up refreshes the doll; a plain XP tick does not', () => {
-    if(typeof window.awardCompanionXp !== 'function' || typeof window.companionXpToReach !== 'function'
-       || typeof window.companionLevelFromXp !== 'function' || !window.COMPANIONS){ skip('no companion api'); return; }
-    const G = window.G;
-    const savedComp = G.companions;
-    const origRefresh = window.refreshAllDolls;
-    /* ── b456: THE ARMED CONTRACT FIRST — awardCompanionXp IS A NO-OP ─────────
-       Companion XP is a server-owned aggregate (player_progress
-       kind='stat' key='companion_xp:<id>') that reconcileCompanions rebuilds from
-       every envelope, so under the blob-retire capstone the local award is gated
-       OFF: authoring it would make the bar climb and then snap back to server
-       truth. That gate is worth its own assertion, because a regression that
-       re-opened it would look like this test passing. */
-    const C = window.HearthriseCapstone;
-    if (C && C.isBlobRetired()) {
-      const idA = Object.keys(window.COMPANIONS)[0];
-      G.companions = { ownedIds: [idA], equipped: idA, xp: { [idA]: 0 } };
-      window.awardCompanionXp(999999);
-      assert((G.companions.xp[idA] || 0) === 0,
-        'ARMED: the client authored companion XP while the blob is retired — the accrual engine owns that '
-        + 'aggregate, so this number is written and then discarded on the next envelope');
-    }
-    G.companions = savedComp;
-    /* ── b515 — THE WRITER MOVED, AND THE REPAINT DID NOT FOLLOW IT ──────────
-       This half drove `awardCompanionXp` with the capstone pinned OFF, on the
-       premise that the client is still the writer in that position. There is no
-       such position: `companions.js blobRetired()` is the literal `true`, so
-       `awardCompanionXp` returns on its first line for every caller — the
-       level-up branch inside it, including its `refreshAllDolls()` call, is
-       UNREACHABLE. Driving it through a seam that selects nothing would have
-       graded dead code and called it a pass.
 
-       WHAT IS LIVE, and what is asserted instead:
-         (a) the LEVEL IS THE SERVER'S and arrives through `reconcileCompanions`;
-             the READ path (`companionLevelFromXp`, `getCompanionBonus`) must
-             follow it, because that is what inventory and combat show.
-         (b) the client still authors nothing (asserted above).
-
-       ⚠ AND THE b313 DEFECT IS BACK, ON THE PATH THAT RUNS. paione's report was
-         "companion stats mismatch": the equipment doll's Companion pane is only
-         rebuilt when the doll is, so after a pet LEVELS UP it kept showing the
-         old level while inventory and combat — which read the live bonus every
-         call — already showed the higher numbers. The fix was a
-         `refreshAllDolls()` on the level change inside `awardCompanionXp`. That
-         function no longer runs, and `reconcileCompanions` does NOT repaint:
-         `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar` +
-         the active tab's renderer and never touches the dolls. So a pet that
-         levels up server-side leaves a stale doll exactly as before.
-         FIXED (b313 rev.2): the detector and the two repaints moved to
-         `accrue.js reconcileCompanions` / announceCompanionLevelUps, reading
-         only envelope values. Asserted in the third block below. */
-    try {
-      const A = window.HearthriseAccrual;
-      const id = Object.keys(window.COMPANIONS)[0];
-      assert(id, 'need at least one companion');
-      const l2 = window.companionXpToReach(2);
-
-      // (a) one XP shy of level 2, stated by the server.
-      A.reconcileCompanions(G, { companions: { owned: [id], xp: { [id]: Math.max(0, l2 - 1) }, equipped: id } });
-      assert(window.companionLevelFromXp(G.companions.xp[id]) === 1,
-        'the fixture is not one XP shy of level 2: ' + G.companions.xp[id]);
-      const bonus1 = window.getCompanionBonus();
-
-      // …and then over it, stated by the server on the next envelope.
-      A.reconcileCompanions(G, { companions: { owned: [id], xp: { [id]: l2 + 5 }, equipped: id } });
-      assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2,
-        'a server-stated companion XP total did not reach level 2: ' + G.companions.xp[id]);
-      const bonus2 = window.getCompanionBonus();
-
-      /* THE READ PATH FOLLOWED IT. `getCompanionBonus` scales +5% per level
-         above 1, so every non-zero channel must have grown — this is what
-         inventory and combat show, and it is the half of b313 that still works.
-         MUTATION: make reconcileCompanions drop `xp` → both bonuses come out
-         equal and this goes red. */
-      const moved = Object.keys(bonus2).some((k) => (bonus2[k] || 0) > (bonus1[k] || 0));
-      assert(moved,
-        'a server-stated companion level-up did not move the live bonus — inventory and combat would show '
-        + 'the OLD numbers: ' + JSON.stringify({ lv1: bonus1, lv2: bonus2 }));
-
-      /* ── b313 rev.2 REGRESSION — THE DOLL FOLLOWS THE ENVELOPE ────────────
-         The repaint is the reconcile's job now, so it is driven through the
-         reconcile: a server-stated level 3 → 4 must refresh the doll and say so
-         ONCE; a second envelope at the SAME level must say nothing (an envelope
-         arrives every settle, and a notice per settle is noise); and two levels
-         crossed in one envelope are one notice naming the level the player is
-         NOW, because that is what the doll will show.
-         MUTATION: delete announceCompanionLevelUps' call in reconcileCompanions
-         → the first assertion goes red; drop the `to > from` guard → the
-         same-level assertion goes red. */
-      let dolls = 0;
-      const seen = [];
-      window.refreshAllDolls = () => { dolls++; };
-      const off = window.HearthriseEvents.on('companionLevelUp', (p) => seen.push(p));
-      try {
-        const at = (L) => window.companionXpToReach(L);
-        const env = (xpv) => ({ companions: { owned: [id], xp: { [id]: xpv }, equipped: id } });
-
-        // Prior mirror: level 3, stated by the server.
-        A.reconcileCompanions(G, env(at(3)));
-        dolls = 0; seen.length = 0;
-
-        // (1) 3 → 4: one notice, one repaint.
-        A.reconcileCompanions(G, env(at(4)));
-        assert(dolls === 1, 'a server-stated companion level-up did not refresh the doll (b313: the '
-          + 'Companion pane keeps the old level while inventory and combat show the new one) — refreshAllDolls x' + dolls);
-        assert(seen.length === 1 && seen[0].id === id && seen[0].level === 4,
-          'expected exactly one companionLevelUp naming level 4, got ' + JSON.stringify(seen));
-
-        // (2) same level again: silence.
-        dolls = 0; seen.length = 0;
-        A.reconcileCompanions(G, env(at(4) + 3));
-        assert(dolls === 0 && seen.length === 0,
-          'an envelope that did NOT change the level announced one anyway — every settle would celebrate: '
-          + JSON.stringify({ dolls, seen }));
-
-        // (3) two levels in one envelope: ONE notice, naming the final level.
-        A.reconcileCompanions(G, env(at(6)));
-        assert(seen.length === 1 && seen[0].level === 6,
-          'two levels crossed in one envelope must be ONE notice naming the level the player is now, got '
-          + JSON.stringify(seen));
-        assert(dolls === 1, 'two levels in one envelope must repaint the doll once, got x' + dolls);
-      } finally {
-        if (typeof off === 'function') off();
-      }
-    } finally {
-      window.refreshAllDolls = origRefresh;
-      G.companions = savedComp;
-    }
-  }),
-
-  // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.
-  () => tryRun('b306: IAP.grant is not exposed on window (console gem/token mint closed)', () => {
-    assert(window.IAP && typeof window.IAP === 'object', 'window.IAP must exist for platform wrappers');
-    assert(typeof window.IAP.grant === 'undefined', 'IAP.grant must NOT be exposed — it mints currency/entitlements with no validation');
-    assert(typeof window.IAP.buy === 'function', 'IAP.buy must still be available');
-  }),
 
   // b306 SECURITY: the admin cheat panel must be owner/dev-only, never openable by
   // a random player on the live host via ?admin=1.
@@ -2956,12 +2325,12 @@ export default [
   // it cannot come back. All four are RED against pre-b319 code.
 
   // (2b-i) The allowlist. The five loop-driven types must never reach the upload
-  // buffer or the POST body; the five low-frequency ones must.
+  // buffer or the POST body; the allowlisted low-frequency ones must.
   () => tryRun('b319: high-frequency events NEVER reach the network; allowlisted ones do', () => {
     const S = window.HearthriseSync, E = window.HearthriseEvents;
     assert(S && typeof S.getEventBuffer === 'function' && typeof S.buildEventRows === 'function', 'b319 telemetry seam must be exposed');
     const HI = ['kill', 'gather', 'eat', 'buffApply', 'companionProc'];
-    const LO = ['companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const LO = ['questClaim', 'boot_probe', 'inv_flip_drift'];
     const saved = S.getEventBuffer();          // the suite must not pollute real telemetry
     const wasEnabled = S.isEventLogEnabled();
     try {
@@ -3000,7 +2369,7 @@ export default [
   // regressed, the fix would have silently broken gameplay instead of the DB.
   () => tryRun('b319: the in-process bus still delivers every event, including the un-uploaded ones', () => {
     const E = window.HearthriseEvents;
-    const ALL = ['kill', 'gather', 'eat', 'buffApply', 'companionProc', 'companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const ALL = ['kill', 'gather', 'eat', 'buffApply', 'companionProc', 'questClaim', 'boot_probe', 'inv_flip_drift'];
     const S = window.HearthriseSync;
     const saved = S.getEventBuffer();
     const seen = {}, offs = [];
@@ -3056,7 +2425,7 @@ export default [
     try {
       S.resetEventLimiter(); S.restoreEventBuffer([]);
       assert(S.setEventLogEnabled(false) === false && S.isEventLogEnabled() === false, 'the switch must actually turn off');
-      ['companionLevelUp', 'questClaim', 'dungeonClear'].forEach((t) => E.emit(t, { smoke: true }));
+      ['questClaim', 'boot_probe', 'inv_flip_drift'].forEach((t) => E.emit(t, { smoke: true }));
       assert(S.getEventBuffer().length === 0, 'no event may be uploaded while logging is off');
       assert(S.getEventStats().dropped.disabled === 3, 'events dropped by the switch are counted');
       // THE POINT: the save path is untouched by the telemetry switch.
@@ -3814,36 +3183,6 @@ export default [
       + 'src/features/toasts.js; do not invent an offset, the module computes it.');
   }),
 
-  () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {
-    if(typeof window.openAutoEatPicker !== 'function' || typeof window.closeAutoEatPicker !== 'function'){ skip('no picker'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5, cooked_trout: 3 });
-      window.openAutoEatPicker();
-      const ov = document.getElementById('aep-overlay');
-      assert(ov && getComputedStyle(ov).display !== 'none', 'the picker overlay must open');
-      assert(ov.querySelectorAll('.aep-row').length >= 1, 'the picker must render at least the Off row');
-      assert(/Off/.test(ov.textContent), 'the picker must offer an Off option');
-      // b294 regression: the picker MUST list the Provisions actually in the bag.
-      // The old helper `_autoEatOk` was a const scoped to the combat-render fn,
-      // out of scope here, so the filter silently rejected every item and the
-      // picker always claimed "No Provisions in your bag" (tester report).
-      // This assertion (was previously behind `if(foodRow)`) fails without the fix.
-      assert(!/No Provisions/i.test(ov.textContent), 'picker wrongly reports no Provisions despite owned cooked food');
-      const foodRow = [...ov.querySelectorAll('.aep-row')].find(r => /Shrimp|Trout/i.test(r.textContent));
-      assert(foodRow, 'the picker must list owned Provisions (Cooked Shrimp/Trout)');
-      foodRow.click();   // sets it + closes
-      const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-      assert(cfg && cfg.foodId, 'picking a food must set the auto-eat food');
-      // Close is reliable regardless.
-      window.closeAutoEatPicker();
-      assert(getComputedStyle(document.getElementById('aep-overlay')).display === 'none', 'close must hide the picker');
-    } finally {
-      const ov = document.getElementById('aep-overlay'); if(ov) ov.remove();
-      restoreG(snap);
-    }
-  }),
 
   () => tryRun('b266: combat activity bar shows trained-skill XP to next level (tester: see Strength XP while fighting)', () => {
     if(typeof window.refreshActivityBar !== 'function' || typeof window.getActiveCombatStyle !== 'function'){ skip('no fn'); return; }
@@ -4081,94 +3420,8 @@ export default [
     }
   }),
 
-  () => tryRun('b264: auto-accept bounty switches combat to the new target (tester: left grinding the old monster)', () => {
-    if(typeof window.completeBounty !== 'function' || typeof window.bountyAutoSwitch !== 'function'){ skip('seam absent'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
-      G.skills = Object.assign({}, G.skills, { attack: 500000, strength: 500000, defense: 500000, hitpoints: 500000 });
-      G.bountyHunter.autoBounty = 1;
-      // Completing a goblin bounty; the board's next is a WOLF bounty.
-      G.bountyHunter.active = { id:'a', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:5, required:5, rewards:{gold:10,marks:2,xp:5} };
-      G.bountyHunter.board = [{ id:'b', type:'cull', target:'wolf', tier:2, difficulty:'easy', progress:0, required:5, rewards:{gold:20,marks:3,xp:8} }];
-      G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15; G.playerHp = 200; G.playerMaxHp = 200;
-      // Turn in the goblin bounty → auto-accept should take the wolf bounty.
-      window.completeBounty();
-      assert(G.bountyHunter.active && G.bountyHunter.active.target === 'wolf', 'auto-accept must take the next bounty (wolf), got ' + (G.bountyHunter.active && G.bountyHunter.active.target));
-      // Before the switch, combat is still on the OLD monster (the reported bug).
-      assert(G.activeMonster === 'goblin', 'precondition: combat is still on the old target');
-      // The deferred switch (setTimeout target) moves combat to the new bounty target.
-      window.bountyAutoSwitch('wolf');
-      assert(G.activeMonster === 'wolf', 'auto-bounty must switch combat to the new target, still on ' + G.activeMonster);
-    } finally {
-      // Reset the bounty fields this test set, so nothing leaks even if
-      // snapshotG ever stops covering bountyHunter.
-      try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch(e){}
-      if(typeof window.stopCombat === 'function') window.stopCombat();
-      restoreG(snap);
-    }
-  }),
 
-  /* ═══════════════════════════════════════════════════════════════════════
-     b344 — THE TWO BOUNTY-TURN-IN DEFECTS, AND WHY NEITHER HAD A TEST.
 
-     The b264 test directly above is the reason the first one survived. It
-     asserts the switch by CALLING `bountyAutoSwitch('wolf')` itself, which
-     proves the switch function works and says nothing about whether anything
-     ever calls it — and it runs live, where a `setTimeout(…,0)` genuinely does
-     fire. Away, the whole night is one synchronous pass, so that callback
-     cannot run until the absence is already over. A live-play test passes with
-     the bug present; that is the entire reason it lasted from b264 to b344.
-
-     So the test below drives the AWAY path and reads the fight state
-     SYNCHRONOUSLY, before any timer can flush. There is no `await`, no
-     `setTimeout`, and it asserts on the monster's HIT POINTS as well as its
-     name, because the failure the b264 defer existed to avoid (switching
-     before resolveKill's respawn line) leaves the new foe wearing the old
-     foe's hit points and would otherwise read as a pass.
-     ═══════════════════════════════════════════════════════════════════════ */
-  /* b456: driven with the local blob LIVE. The "and it must be ON DISK" leg is
-     about the local save being written before the drain, and the b455 capstone
-     retires that file entirely — so under the shipping default there is no disk
-     to read and the assertion would be measuring the capstone rather than the
-     drain ordering. The ordering bug it guards (the save still naming `goblin`
-     after a night that switched to `wolf`) is real and the code is still there.
-     ⚠ KNOWN LIMITATION, stated rather than papered over: under the capstone the
-       durable record of the switch is the SERVER's (the activity intent), and
-       this test cannot reach that seam. tests/activity-seam.mjs owns it. */
-  /* RETIRED (lane C2, the closed rebuild): " an away night switches to the auto-accepted bounty target MID-NIGHT deferred the switch past the w" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): " the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.rand" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): " the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one " — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {
-    if(typeof window.refreshActivityBar !== 'function'){ skip('no activity-bar fn'); return; }
-    const meta = document.getElementById('ab-meta');
-    if(!meta){ skip('activity bar not mounted in harness'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
-      G.bountyHunter.active = { id:'t', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:3, required:10, rewards:{gold:1,marks:1,xp:1} };
-      G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
-      window.refreshActivityBar();
-      const b0 = document.querySelector('#ab-meta .ab-bounty b');   // the pending dash (bal-pending), never a local 3
-      assert(b0 && b0.querySelector('.bal-pending') && /^—\/10$/.test(b0.textContent), 'before the server names it the chip reads —/10 as the pending dash, got: ' + (b0 && b0.innerHTML));
-      window.hrNoteServerBounty({ bounty: { bounty_id: 't', target: 'goblin', required: 10, progress: 3 } });
-      window.refreshActivityBar();
-      const html = document.getElementById('ab-meta').innerHTML;
-      assert(/ab-bounty/.test(html) && /3\/10/.test(html), 'combat activity bar must show the active bounty progress, got: ' + html.slice(0, 140));
-      // No chip when the bounty targets a DIFFERENT monster than the one you're fighting.
-      G.activeMonster = 'rat';
-      window.refreshActivityBar();
-      assert(!/ab-bounty/.test(document.getElementById('ab-meta').innerHTML), 'no bounty chip when fighting a non-target monster');
-    } finally { restoreG(snap); delete window.G._bountyServer; }
-  }),
 
   () => tryRunAsync('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', async () => {
     /* THE BUG: on Android a backgrounded tab keeps firing the 90s autosave and
@@ -4411,106 +3664,7 @@ export default [
     }
   }),
 
-  () => tryRun('b257: renderCombat leaves the auto-eat dropdown alone while it is open (paione: menu closes every few ticks)', () => {
-    const el = document.getElementById('combat-area');
-    if(!el || typeof window.renderCombat !== 'function'){ skip('combat area absent'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15;
-      G.playerHp = 30; G.playerMaxHp = 30;
-      // Simulate the player having opened the auto-eat <select> (it holds focus).
-      el.innerHTML = '<select id="__ae_test"><option>a</option></select>';
-      const sel = document.getElementById('__ae_test');
-      sel.focus();
-      if(document.activeElement !== sel){ skip('focus not honoured here — skip'); return; }
-      window.renderCombat();
-      assert(document.getElementById('__ae_test'), 'render must NOT tear down the focused dropdown mid-pick');
-      // Once the menu is closed (focus leaves), rendering resumes normally.
-      sel.blur();
-      window.renderCombat();
-      assert(!document.getElementById('__ae_test'), 'render rebuilds normally once the dropdown is closed');
-    } finally { restoreG(snap); }
-  }),
 
-  () => tryRun('b256: Boss of the Day card lives with the picker + hides during a fight (paione: popped up mid-combat)', () => {
-    const B = window.HearthriseBossOfDay;
-    if(!B || typeof B.render !== 'function'){ skip('boss module absent'); return; }
-    const panel = document.getElementById('panel-combat');
-    if(!panel){ skip('no combat panel'); return; }
-    B.render();
-    const card = document.getElementById('hr-botd-card');
-    assert(card && card.parentElement === panel, 'the card must be a child of #panel-combat');
-    /* b362 — THE CARD'S PLACEMENT CLAIM IS RETIRED, ITS BEHAVIOUR CLAIM IS NOT.
-       "sits just before the monster picker" was an ordering rule for a screen
-       where three cards shared one grid. The picker is now inside the War Table
-       view (so it is not even a sibling), and the featured boss has a real front
-       door: a DESTINATION CARD on the War Table (COMBAT-UI-05), which is where a
-       destination belongs. What paione actually reported — the boss card
-       appearing on top of a live fight — is asserted below, unchanged, plus the
-       replacement surface, so the entry point cannot silently vanish. */
-    const CS = window.HearthriseCombatScreens;
-    if (CS) {
-      CS.setView('table'); CS.render();
-      const dests = document.getElementById('wt-dests');
-      assert(dests && /Boss of the Day/i.test(dests.textContent),
-        'the War Table has no Boss of the Day destination — the featured boss lost its front door');
-    }
-    const hadActive = panel.classList.contains('active');
-    const hadCombat = document.body.classList.contains('in-combat');
-    panel.classList.add('active'); document.body.classList.add('in-combat');
-    try {
-      assert(getComputedStyle(card).display === 'none', 'the card must be hidden during an active fight');
-      document.body.classList.remove('in-combat');
-      /* With the two-screen split the legacy card is retired outright on the
-         combat panel (combat-screens.css); the destination row replaced it.
-         What must never happen is the b290/b292 report: it drawing over a
-         fight. Assert the strong form — it is not on the fighting screen —
-         and let the destination assertion above own "it is still reachable". */
-      assert(getComputedStyle(card).display === 'none' || CS == null,
-        'the retired boss card is drawing on the combat panel beside its own destination card');
-    } finally {
-      if(!hadActive) panel.classList.remove('active');
-      if(hadCombat) document.body.classList.add('in-combat'); else document.body.classList.remove('in-combat');
-    }
-  }),
-
-  /* ── regression suite — THE DESTINATION RAIL THAT HUNG OFF THE PANEL ───────
-     `.wt-dests { min-width: min-content }` sized the row to the widest card's
-     intrinsic content — 217px x 6 = 1340px inside a 1240px rail — so the sixth
-     destination lived past the panel edge behind a scroll no player would find,
-     while the names that did fit were ellipsised anyway. Two properties, both
-     measured off the LIVE layout rather than the sheet: a name is never trimmed
-     (the catalogue holds "Elderscale, the Great Wyrm", which no card width
-     fitting six across can hold on one line, so it must WRAP), and the row fits
-     the rail it is drawn in. The landscape chip rail scrolls sideways on
-     purpose and is held out by the viewport guard, not by an exception. */
-  /* ── regression suite — "Board Board" ────────────────────────────────
-     The no-contract Bounty card read "Take one at the Bounty Board" and then a
-     button reading "Board ▸" — visual-qa's duplicate-word finding on the combat
-     panel at both viewports. Asserted on the RENDERED card text, in the state
-     that produced it (no active contract), for every destination, so the next
-     card whose prose and verb collide is caught too. */
-  () => tryRun('b554: no War Table destination card doubles a word ("Board Board")', () => {
-    const CS = window.HearthriseCombatScreens;
-    if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }
-    const snap = snapshotG();
-    try {
-      const g = window.G;
-      if (g.bountyHunter) g.bountyHunter.active = null;
-      CS.setView('table'); CS.render();
-      const dests = document.getElementById('wt-dests');
-      const cards = dests ? [...dests.querySelectorAll('.wt-dest')] : [];
-      assert(cards.some((c) => /Bounty/.test((c.querySelector('.wtd-kick') || {}).textContent || '')),
-        'the no-contract Bounty destination did not render — the state that read "Board Board" is not under test');
-      cards.forEach((c) => {
-        const text = (c.textContent || '').replace(/\s+/g, ' ').trim();
-        const dup = text.match(/\b(\w{3,})\s+\1\b/i);
-        assert(!dup, 'THE b554 BUG: the ' + ((c.querySelector('.wtd-kick') || {}).textContent || '?')
-          + ' destination reads "' + (dup && dup[0]) + '" — "' + text.slice(0, 90) + '"');
-      });
-    } finally { restoreG(snap); try { CS.render(); } catch (e) {} }
-  }),
 
   () => tryRun('b548: War Table destinations fit their rail and never trim a name', () => {
     const CS = window.HearthriseCombatScreens;
@@ -4740,6 +3894,17 @@ export default [
     const dests = document.getElementById('wt-dests');
     const priorMax = rail.style.maxWidth;
     const priorWrap = dests ? dests.style.cssText : '';
+    /* The war cards left in the 2026-10-14 demolition, so the rail can be empty;
+       the scroll cue is the subject here, so fixture cards give it a row. */
+    const fixtureCards = [];
+    if (dests && dests.children.length < 2) {
+      for (let i = 0; i < 6; i++) {
+        const c = document.createElement('div');
+        c.className = 'wt-dest'; c.setAttribute('data-test-fixture', '1');
+        c.style.cssText = 'flex:0 0 160px;width:160px;height:40px';
+        dests.appendChild(c); fixtureCards.push(c);
+      }
+    }
     try {
       rail.style.maxWidth = '240px';                 // force the overflow at any viewport
       if (dests) { dests.style.flexWrap = 'nowrap'; dests.style.minWidth = 'min-content'; }
@@ -4754,6 +3919,7 @@ export default [
       assert(rail.dataset.scroll === 'end', 'a rail at its far end must read "end", got ' + rail.dataset.scroll);
       rail.scrollLeft = 0; rail.dispatchEvent(new Event('scroll'));
     } finally {
+      fixtureCards.forEach((c) => c.remove());
       rail.style.maxWidth = priorMax;
       if (dests) dests.style.cssText = priorWrap;
       dispatchEvent(new Event('resize'));
@@ -4846,102 +4012,5 @@ export default [
       clear(); G.activeAction = { kind:'cook', targetId:'shrimp' };
       assert(window.__activityBarTarget().id === 'cooking', 'action-loop cook → cooking');
     } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('b251: proof bounty does not auto-complete from a pre-existing stack (paione: marks with no kills)', () => {
-    if(typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function'){ skip('bounty system absent'); return; }
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
-      // Pick a monster + a drop it yields; give the player a big pre-existing stack.
-      const monId = Object.keys(window.MONSTERS)[0];
-      const proof = (window.MONSTERS[monId].drops||[])[0] && window.MONSTERS[monId].drops[0].id;
-      if(!proof){ skip('no proof drop to test'); return; }
-      G.inventory[proof] = 999;                         // huge stack from earlier play
-      // Craft a proof bounty on the board and accept it.
-      const b = { id:'test_proof', type:'proof', target:monId, tier:1, progress:0,
-                  proofItem:proof, required:3, rewards:{gold:0,marks:5,xp:0} };
-      G.bountyHunter.active = null;
-      G.bountyHunter.board = [b];
-      const marksBefore = G.marks||0;
-      window.acceptBounty(0);
-      const a = G.bountyHunter.active;
-      assert(a && a.type==='proof', 'proof bounty must be accepted');
-      assert(a.proofBaseline === 999, 'accept must snapshot the current stack as baseline, got ' + a.proofBaseline);
-      // A kill fires the hook — but with no NEW proof items, it must NOT complete.
-      window.handleBountyKill(monId, window.MONSTERS[monId]);
-      assert(G.bountyHunter.active, 'bounty must still be active after a kill that yielded no new proof items');
-      assert((G.marks||0) === marksBefore, 'no marks may be paid before real progress, got +' + ((G.marks||0)-marksBefore));
-      assert(window.bountyProofHave(a) === 0, 'progress must read 0 right after accept, got ' + window.bountyProofHave(a));
-      // Collect the required NEW items → it completes.
-      G.inventory[proof] = 999 + 3;
-      /* completeBounty() rolls a 10% BONUS-marks turn-in — real game behaviour,
-         but it makes this exact-marks assertion a coin flip, so the roll is
-         pinned rather than tolerated.
-         b344: it is pinned through the RNG SEAM now, not by assigning
-         Math.random. That roll used to read the global; when it moved to the
-         seeded stream (because completeBounty runs inside the away replay and
-         a night has to be replayable) this stub silently stopped suppressing
-         anything and this test went ~10% flaky — the b330 lesson, in the one
-         test that had already been bitten by this exact roll. A stub that no
-         longer stubs the thing it names is worse than no stub. */
-      const _C = window.HearthriseCore;
-      _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // 0.99 > 0.10 → no bonus, deterministically
-      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
-      assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
-      /* ── b456: WHO PAYS THE MARKS DEPENDS ON THE ARM, AND BOTH ARE ASSERTED ──
-         Marks are server-of-record. `completeBounty` gates its marks credit on
-         clientMayWriteRecordField('marks'), so under the arm the client must NOT
-         credit them — a raw debit/credit on a server-owned balance is reconciled
-         away by the next envelope and is a self-mint in the meantime. (A CULL
-         bounty is credited server-side by hr_claim_bounty; proof/weapon/streak
-         have no server turn-in verb yet — see the report.) */
-      const marksArmed = typeof window.clientMayWriteRecordField === 'function'
-        && window.clientMayWriteRecordField('marks') === false;
-      if (marksArmed) {
-        assert((G.marks || 0) === marksBefore,
-          'ARMED: the client credited ' + ((G.marks || 0) - marksBefore) + ' Marks for a bounty turn-in — marks '
-          + 'are server-of-record and this number would be reconciled away while the bounty stayed spent');
-      } else {
-        assert((G.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
-      }
-    } finally { restoreG(snap); }
-  }),
-
-  /* b456 — THE DORMANT TWIN OF THE ABOVE: the turn-in ARITHMETIC. Still shipped
-     code (the kill-switch position), and the numbers the server verb has to
-     match. Driven through the marks seam and restored. */
-  () => tryRun('b251b: a proof turn-in pays exactly its marks reward (client-owned position)', () => {
-    if (typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function') return;
-    const R = window.HearthriseRecord;
-    if (!R || typeof R.__setMarksRecordArm !== 'function') return;
-    const snap = snapshotG();
-    try {
-      R.__setMarksRecordArm(false);
-      const G = window.G;
-      if (typeof window.ensureBountyState === 'function') window.ensureBountyState();
-      const monId = Object.keys(window.MONSTERS)[0];
-      const proof = (window.MONSTERS[monId].drops || [])[0] && window.MONSTERS[monId].drops[0].id;
-      if (!proof) return;
-      G.inventory[proof] = 999;
-      G.bountyHunter.active = null;
-      G.bountyHunter.board = [{ id: 'test_proof_b', type: 'proof', target: monId, tier: 1, progress: 0,
-        proofItem: proof, required: 3, rewards: { gold: 0, marks: 5, xp: 0 } }];
-      const marksBefore = G.marks || 0;
-      window.acceptBounty(0);
-      G.inventory[proof] = 999 + 3;
-      const _C = window.HearthriseCore;
-      _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // no bonus roll
-      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
-      assert(!G.bountyHunter.active, 'the bounty must complete once the required NEW proof items are collected');
-      assert((G.marks || 0) === marksBefore + 5,
-        'the turn-in must pay exactly its marks reward, got +' + ((G.marks || 0) - marksBefore));
-      assert((G.inventory[proof] || 0) === 999,
-        'the turn-in must consume exactly the required proof items, left ' + G.inventory[proof]);
-    } finally {
-      R.__setMarksRecordArm(null);
-      restoreG(snap);
-    }
   }),
 ];

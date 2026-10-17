@@ -13,7 +13,8 @@ import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampB
    text of each row, not the markup, so an icon path or cache bump cannot move
    it). Goblin is a seeded-fixture monster and carries no salvage row, so a pack
    that touched it would show here first. */
-const GOBLIN_PANEL = 'Goblin Ear50% | BonesAlways | Bronze Sword3% | Goblin Totem1% | Goblin Seal2%';
+// The Goblin Seal (a dungeon key) left the goblin's drops in the 2026-10-14 demolition (ruling §2).
+const GOBLIN_PANEL = 'Goblin Ear50% | BonesAlways | Bronze Sword3% | Goblin Totem1%';
 
 export default [
 
@@ -32,110 +33,6 @@ export default [
      tall desktop viewport while the phone stayed broken, which is exactly the
      bug it is meant to catch.
      ══════════════════════════════════════════════════════════════════════ */
-  // gold-arm: the room Build click deducts gold via a clientMayWriteRecordField-
-  // gated path (switch-OFF position); the stamps make the affordability reads known.
-  () => tryRunAsync('b354: the Build button renders above the scrollable details (homestead room + castle wing)', async () => {
-    const RM = window.HearthriseRoomModal, H = window.HearthriseHomestead;
-    if (!RM || !H || typeof H.openRoom !== 'function') { skip('seam absent'); return; }
-
-    /* The pin pass itself, driven directly — it is the rule, and the two
-       renders below are the proof it reaches the screen. */
-    const probe = RM._hoistPin([
-      { kind: 'note', html: 'x' },
-      { kind: 'actions', buttons: [{ label: 'Build', action: 'build', pin: true },
-                                   { label: 'Go', action: 'go' }] }
-    ]);
-    assert(probe.pin && probe.pin.action === 'build', 'hoistPin did not lift the pinned button');
-    assert(probe.sections[1].buttons.length === 1 && probe.sections[1].buttons[0].action === 'go',
-      'the pinned button must be REMOVED from the body — two buttons for one action is worse than one '
-      + 'in the wrong place');
-    const none = RM._hoistPin([{ kind: 'actions', buttons: [{ label: 'Go', action: 'go' }] }]);
-    assert(!none.pin && none.sections.length === 1,
-      'a descriptor with nothing pinned must be rendered exactly as before');
-
-    const above = (what) => {
-      const wrap = document.querySelector('.hr-room-wrap');
-      const bar = wrap && wrap.querySelector(':scope > .hr-room-build');
-      const body = wrap && wrap.querySelector(':scope > .hr-room-body');
-      assert(bar, what + ': no build bar was rendered');
-      assert(body, what + ': the modal has no body');
-      assert(!bar.closest('.hr-room-body'),
-        what + ': the build bar is INSIDE the scroll container, which is the whole bug');
-      assert(bar.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
-        what + ': the details are not after the build button in the DOM');
-      assert(getComputedStyle(body).overflowY === 'auto',
-        what + ': .hr-room-body is not the scroll container, so "outside it" proves nothing');
-      const btn = bar.querySelector('button');
-      assert(btn, what + ': the build bar has no button');
-      assert(body.querySelectorAll('[data-cs="build"],[data-cs="post"],[data-cs="tier-up"]').length === 0,
-        what + ': the build control is ALSO still in the scrolling body');
-      return { bar: bar, btn: btn, body: body };
-    };
-
-    const snap = snapshotG(), bag = serverBagFixture();
-    try {
-      // ── PILLAR 1: a homestead room ────────────────────────────────────
-      window.G.homestead = { tier: 3 };
-      window.G.rooms = {};
-      window.G.gold = 500000;
-      stampBalanceLikeLoad(window.G);   // armed: the Build bar's affordability reads gold
-      window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 999, normal_plank: 999 });
-      bag.agree();   // the server holds the stock: the pinned bar is the subject
-      H.openRoom('kitchen');
-      let seen = above('homestead kitchen');
-      assert(/Build/.test(seen.btn.textContent), 'an unbuilt room offers Build, got "' + seen.btn.textContent + '"');
-      assert(!seen.btn.disabled, 'an affordable rung must be buildable from the bar');
-      assert(/Gold/i.test(seen.bar.textContent) && /\d+\s*\/\s*\d+/.test(seen.bar.textContent),
-        'the cost must travel WITH the button — a price on the other side of a scroll is the same bug: "'
-        + seen.bar.textContent.replace(/\s+/g, ' ') + '"');
-      /* It really ACTS from up there. b515: the rung is the server's — the click
-         sends `room.kitchen.1` and advances nothing locally — so the press is
-         answered before it is read. What this pillar owns is the BUTTON (it is
-         pinned, priced, and its click reaches the gesture); the rung landing is
-         b227's subject and is asserted here only so "the click did nothing" and
-         "the click worked" stay distinguishable. */
-      await withRoomServer({ kitchen: 1 }, window.G.gold - 1, async (rig) => {
-        seen.btn.click();
-        await rig.drain();
-        assert(rig.sent.length === 1 && rig.sent[0].offer === 'room.kitchen.1',
-          'clicking Build in the bar sent ' + JSON.stringify(rig.sent) + ' — the pinned button is not '
-          + 'wired to the gesture, which is the bug wearing a different hat');
-        assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
-      });
-
-      // Unaffordable: still pinned, still priced, and it NAMES what is short.
-      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {}; bag.agree();
-      RM.refresh();
-      seen = above('homestead kitchen, unaffordable');
-      assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
-      assert(/Missing/.test(seen.bar.textContent),
-        'a disabled build must say what is short, in the bar: "' + seen.bar.textContent.replace(/\s+/g, ' ') + '"');
-      RM.close();
-
-      // ── PILLAR 2: a clan castle wing ──────────────────────────────────
-      const UI = window.HearthriseClanSeatUI;
-      if (UI && typeof UI.roomDescriptor === 'function') {
-        try {
-          UI._reset();
-          UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'open', myRole: 'leader' });
-          UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'leader', members: 2,
-                        member_cap: 10, stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
-          const d = UI.roomDescriptor('treasury');
-          const lad = d.sections.filter((s) => s.kind === 'ladder')[0];
-          assert(lad && lad.rows[0] && lad.rows[0].action && lad.rows[0].action.pin,
-            'the castle wing\'s next rung must pin its Commission button');
-          RM.open(function () { return UI.roomDescriptor('treasury'); });
-          const cs = above('clan castle treasury');
-          assert(/Commission/.test(cs.btn.textContent),
-            'the castle bar must carry the wing\'s own verb, got "' + cs.btn.textContent + '"');
-          assert(/\d+\s*\/\s*\d+/.test(cs.bar.textContent),
-            'the wing\'s bundle must be shown with the button: "' + cs.bar.textContent.replace(/\s+/g, ' ') + '"');
-          assert(cs.bar.querySelector('[data-b="treasury"]'),
-            'the pinned button must carry its action data, or pressing it does nothing');
-        } finally { UI._reset(); }
-      }
-    } finally { restoreGAndRecord(snap); bag.restore(); RM.close(); }
-  }),
 
   // ══════════════════════════════════════════════════════════════════════
   // b356 regression suite — THE MONSTER ROSTER WAVE
@@ -155,11 +52,11 @@ export default [
     assert(typeof window.remapMonsterFamilies === 'function', 'remapMonsterFamilies must exist');
   }),
 
-  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, bounty, chronicle, resume)', () => {
+  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, resume, the fight)', () => {
     const G = window.G;
     const snap = {
-      bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
-      chronicle: G.chronicle, lastActivity: G.lastActivity, activeMonster: G.activeMonster,
+      bestiary: G.bestiary, dropLog: G.dropLog,
+      lastActivity: G.lastActivity, activeMonster: G.activeMonster,
     };
     const alias = window.MONSTER_ALIAS;
     try {
@@ -168,11 +65,6 @@ export default [
       window.MONSTER_ALIAS = { old_wyrm_id: 'dragon' };
       G.bestiary = { old_wyrm_id: { kills: 40, first: 5 }, dragon: { kills: 2, first: 9 } };
       G.dropLog = { old_wyrm_id: { kills: 40, drops: { dragon_bones: 12 } } };
-      G.bountyHunter = {
-        board: [{ id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' }],
-        active: { id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' },
-      };
-      G.chronicle = { entries: [{ id: 'boss:old_wyrm_id', kind: 'boss', text: 'First kill — Green Dragon' }] };
       G.lastActivity = { kind: 'monster', id: 'old_wyrm_id' };
       G.activeMonster = 'old_wyrm_id';
 
@@ -183,13 +75,6 @@ export default [
         'bestiary kills must MERGE (40+2), not overwrite — got ' + JSON.stringify(G.bestiary.dragon));
       assert(G.bestiary.dragon.first === 5, 'the earlier first-kill timestamp must win');
       assert(G.dropLog.dragon && G.dropLog.dragon.drops.dragon_bones === 12, 'dropLog must fold');
-      assert(G.bountyHunter.board[0].target === 'dragon', 'the bounty target must fold');
-      assert(G.bountyHunter.board[0].id === 'cull_dragon_1700_42',
-        'the id STRING embeds the monster id — an accepted bounty can never complete otherwise; got '
-        + G.bountyHunter.board[0].id);
-      assert(G.bountyHunter.active.target === 'dragon', 'the active bounty must fold too');
-      assert(G.chronicle.entries[0].id === 'boss:dragon',
-        'the chronicle idempotency key embeds the id — a re-kill writes a SECOND "First kill" row otherwise');
       assert(G.lastActivity && G.lastActivity.id === 'dragon', 'Resume must fold, not be dropped');
       assert(G.activeMonster === 'dragon', 'the in-flight fight must fold');
     } finally {
@@ -200,17 +85,15 @@ export default [
 
   () => tryRun('MON-ALIAS-3: a RETIRED id (aliased to null) is dropped, never left dangling', () => {
     const G = window.G;
-    const snap = { bestiary: G.bestiary, bountyHunter: G.bountyHunter, activeMonster: G.activeMonster };
+    const snap = { bestiary: G.bestiary, activeMonster: G.activeMonster };
     const alias = window.MONSTER_ALIAS;
     try {
       window.MONSTER_ALIAS = { cut_monster: null };
       G.bestiary = { cut_monster: { kills: 9 }, slime: { kills: 1 } };
-      G.bountyHunter = { board: [{ id: 'cull_cut_monster_1_2', target: 'cut_monster' }], active: null };
       G.activeMonster = 'cut_monster';
       window.remapMonsterIds(G);
       assert(!G.bestiary.cut_monster, 'a retired id must not survive in the bestiary');
       assert(G.bestiary.slime, 'unrelated entries must be untouched');
-      assert(G.bountyHunter.board.length === 0, 'a bounty for a retired monster must be removed from the board');
       assert(G.activeMonster === null, 'the fight against a retired monster must stop, not crash the loop');
     } finally { window.MONSTER_ALIAS = alias; Object.assign(G, snap); }
   }),
@@ -269,13 +152,12 @@ export default [
     });
 
     const G = window.G;
-    const snap = { bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+    const snap = { bestiary: G.bestiary, dropLog: G.dropLog,
       activeMonster: G.activeMonster, lastActivity: G.lastActivity };
     try {
       G.bestiary = { barn_rat: { kills: 204, first: 5 }, rat: { kills: 12, first: 9 },
         jackal: { kills: 30 }, cultist: { kills: 7 } };
       G.dropLog = { barn_rat: { kills: 204, drops: { rat_tail: 88 } } };
-      G.bountyHunter = { board: [], active: { id: 'cull_barn_rat_1700_42', target: 'barn_rat', type: 'cull' } };
       G.activeMonster = 'jackal';
       G.lastActivity = { kind: 'monster', id: 'cultist' };
 
@@ -289,9 +171,6 @@ export default [
       assert(G.bestiary.wolf && G.bestiary.wolf.kills === 30, 'jackal kills must land on wolf');
       assert(G.bestiary.dark_wizard && G.bestiary.dark_wizard.kills === 7, 'cultist kills must land on dark_wizard');
       assert(G.dropLog.rat && G.dropLog.rat.drops.rat_tail === 88, 'the drop history must fold too');
-      assert(G.bountyHunter.active.target === 'rat' && G.bountyHunter.active.id === 'cull_rat_1700_42',
-        'an accepted bounty for a merged monster must fold, or it can never be completed: '
-        + JSON.stringify(G.bountyHunter.active));
       assert(G.activeMonster === 'wolf', 'a fight in flight against a merged monster must fold, not stop');
       assert(G.lastActivity.id === 'dark_wizard', 'Resume must fold to the surviving id');
     } finally { Object.assign(G, snap); }
@@ -1434,281 +1313,7 @@ export default [
      asserting the recipe is in Runecrafting would still pass if a copy were
      also left in Crafting, and a duplicate recipe is precisely the failure this
      whole change exists to remove. */
-  () => tryRun('ELEM-1/b432: Runecrafting owns every rune — the three binds live there at 25, nowhere else, and lane into Weapon Enchants', () => {
-    const ITEMS = window.ITEMS;
-    const EL = window.HearthriseCore && window.HearthriseCore.elements;
-    assert(EL && typeof EL.runeElement === 'function', 'core must expose the elements module');
-    ['ember', 'frost', 'poison'].forEach((e) => {
-      const ess = ITEMS[e + '_essence']; const rune = ITEMS[e + '_rune'];
-      assert(ess && ess.tag === 'reagent', e + '_essence must exist as a reagent');
-      assert(rune && rune.tag === 'rune' && rune.element === e, e + '_rune must carry element:"' + e + '"');
-      assert(!rune.bop && !ess.bop, 'essences and runes must be tradeable (no bop)');
-      /* runeElement reads the element off the rune, and null for a non-rune. */
-      assert(EL.runeElement(e + '_rune', ITEMS) === e, 'runeElement(' + e + '_rune) must be ' + e);
-      assert(EL.runeElement('bronze_sword', ITEMS) === null, 'runeElement of a non-rune must be null');
-    });
-    const R = window.HearthriseRecipes || window;
-    const ALL = window.ARTISAN_RECIPES || {};
-    ['ember', 'frost', 'poison'].forEach((e) => {
-      /* WHICH SKILLS MAKE THIS RUNE? Exactly one, and it is Runecrafting. */
-      const makers = Object.keys(ALL).filter((s) => (ALL[s] || []).some((r) => r.output === e + '_rune'));
-      assert(makers.length === 1 && makers[0] === 'runecrafting',
-        e + '_rune must be made by RUNECRAFTING and by nothing else — made by: '
-        + (makers.join(', ') || '(nothing)'));
-      const rec = ALL.runecrafting.find((r) => r.output === e + '_rune');
-      assert(rec && rec.req === 25, 'bind_' + e + '_rune must sit at Runecrafting 25 (the Crafting 25 gate, moved not raised)');
-      /* The essence inputs are UNCHANGED by the move — nobody's supply chain
-         shifted — and the blank is the new common grammar of the bench. */
-      assert(rec.inputs && rec.inputs[e + '_essence'] === 4 && rec.inputs.magic_essence === 1,
-        'bind_' + e + '_rune must keep its {' + e + '_essence:4, magic_essence:1} cost across the move');
-      assert(rec.inputs.rune_blank > 0,
-        'bind_' + e + '_rune must be bound onto a rune_blank — every rune on this bench starts as a blank');
-      if (typeof R.recipeCategory === 'function') {
-        assert(R.recipeCategory('runecrafting', rec, ITEMS) === 'enchant',
-          'bind_' + e + '_rune must lane into Weapon Enchants, got ' + R.recipeCategory('runecrafting', rec, ITEMS));
-      }
-    });
-    /* THE TWO LANES BOTH FILL, and nothing is stranded in either skill. An
-       empty declared lane is a dead tab; an uncategorized recipe is invisible. */
-    if (typeof R.categorizeRecipes === 'function') {
-      const rc = R.categorizeRecipes('runecrafting');
-      assert(rc.uncategorized.length === 0,
-        'a Runecrafting recipe landed in no lane: ' + rc.uncategorized.map((r) => r.id).join(', '));
-      const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
-      assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
-      assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder (W0: air is kit + shop only), got ' + laneOf('staff').length);
-      assert(laneOf('essence').length === 2, 'Essence & Blanks must hold the two cuts (essence is mined at the Essence Rock), got ' + laneOf('essence').length);
-      /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
-         groups is the proof that the strip is a real choice and not a label. */
-      assert(rc.groups.length === 3,
-        'the Runecrafting strip must show all three lanes (W0 adds Essence & Blanks), got: ' + rc.groups.map((g) => g.label).join(' | '));
-      assert(R.categorizeRecipes('crafting').uncategorized.length === 0,
-        'moving the runes out must not strand a crafting recipe uncategorized');
-    }
-    /* And Crafting no longer declares the lane it no longer fills. */
-    assert(!(window.ARTISAN_CATEGORIES.crafting || []).some((d) => d.key === 'runes'),
-      'crafting still declares a Runes tab it can never fill — an empty tab is a dead end');
-  }),
 
-  /* RETIRED (lane C2, the closed rebuild): "ELEM-2: a matched enchant pays x1.15 through weaknessInfo; immune/neutral pay x1.00 (mutation-proved by flippi" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "ELEM-3: weapon-weakness x bane x element clamps to MAX_TOTAL_DAMAGE_MULT (1.90)" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRunAsync('ELEM-4: the enchant intent sends only slot+rune names, applies its envelope, and reuses its key when unanswered', () => {
-    const E = window.HearthriseEnchant;
-    assert(E && typeof E.sendEnchant === 'function', 'the enchant transport must be published');
-    /* (a) THE BYTES ON THE WIRE — a slot number, an intent id, and {slot:'weapon',rune}. Nothing else. */
-    const req = E.buildEnchantRequest({ url: 'https://x.co', token: 't', apiKey: 'k', slot: 0, intentId: 'id', rune: 'ember_rune' });
-    const body = JSON.parse(req.init.body);
-    assert(body.verb === 'enchant' && body.enchant.slot === 'weapon' && body.enchant.rune === 'ember_rune',
-      'the wire body must carry verb enchant + {slot:weapon, rune}');
-    assert(!('element' in body.enchant) && !('mult' in body.enchant) && !('ok' in body.enchant),
-      'the client must NEVER send an element, a magnitude or a success bit');
-    /* (b) HAPPY PATH — a 200 envelope carrying state.enchant is applied. */
-    const realFetch = window.fetch;
-    E.resetEnchant();
-    E.configureEnchant({ url: 'https://x.co/functions/v1/hr-accrue', apiKey: 'k', authToken: 't' });
-    let applied = null;
-    E.setEnchantHooks({ onEnvelope: (res) => { applied = res && res.state && res.state.enchant; return true; } });
-    return (async () => {
-      try {
-        window.fetch = () => Promise.resolve(new Response(
-          JSON.stringify({ ok: true, verb: 'enchant', version: 2, state: { enchant: { weapon: 'ember' } }, inventory: {}, equipment: {}, skills: {} }),
-          { status: 200 }));
-        const v = await E.sendEnchant('ember_rune', {});
-        assert(v.outcome === 'enchanted', 'a 200 ok:true must classify as enchanted, got ' + v.outcome);
-        assert(applied && applied.weapon === 'ember', 'the envelope hook must receive the server-authored enchant');
-        /* (c) IDEMPOTENCY — an unreachable answer returns the SAME key so a retry
-           cannot debit the rune twice. */
-        window.fetch = () => Promise.reject(new Error('offline'));
-        const v2 = await E.sendEnchant('ember_rune', { key: v.key });
-        assert(v2.outcome === 'unreachable' && v2.key === v.key, 'an unanswered retry must reuse the key');
-      } finally {
-        window.fetch = realFetch; E.resetEnchant();
-      }
-    })();
-  }),
-
-  /* ── REGRESSION (2026-09-14) — THE ENCHANT IS A TOP-LEVEL ENVELOPE KEY ─────
-     hr_state_of builds `'enchant', coalesce(v_st.enchant,'{}')` as a SIBLING of
-     `'state'` (executed against the replayed chain, not read off a comment), and
-     hr_apply returns hr_state_of's envelope verbatim. applyEnvelopeState read
-     `res.state.enchant`, which is `undefined` on every envelope the game has ever
-     applied — so the block never ran, and since `G.enchant` is not on
-     RESIDUE_FIELDS the enchant the player paid for vanished from the browser on
-     the next reload while the server kept computing away combat with it.
-     This fails without the fix: `top` is the shape the realm actually sends. */
-  /* RETIRED (lane C2, the closed rebuild): "ELEM-5b:…" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
-     Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('ELEM-5: changing the weapon clears the enchant (client reflect of the cross-verb coupling)', () => {
-    const G = window.G; const snap = snapshotG();
-    try {
-      G.enchant = { weapon: 'ember' };
-      G.skills = Object.assign({}, G.skills, { attack: 4000000, strength: 4000000, defense: 4000000 }); stampRecordLikeLoad(window.G);
-      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
-      G.inventory = Object.assign({}, G.inventory, { iron_sword: 1 });
-      // The levels above meet the wield gate; the client-only key is gone.
-      window.equipItem('iron_sword');   // a real weapon swap
-      assert(!G.enchant.weapon, 'equipping a different weapon must clear the enchant, still had ' + JSON.stringify(G.enchant));
-      /* Re-equipping the SAME weapon does not clear an enchant. */
-      G.enchant = { weapon: 'frost' };
-      window.clearEnchantOnWeaponChange('weapon', 'iron_sword', 'iron_sword');
-      assert(G.enchant.weapon === 'frost', 'a no-op re-equip must NOT clear the enchant');
-      /* A non-weapon slot change never touches it. */
-      window.clearEnchantOnWeaponChange('helmet', null, 'steel_helm');
-      assert(G.enchant.weapon === 'frost', 'a non-weapon slot change must never clear the enchant');
-    } finally { restoreGAndRecord(snap); }
-  }),
-
-  /* RETIRED (lane C2, the closed rebuild): "ELEM-6: the enchant persists (in the snapshot, absent from NO_SYNC) and the applier authors it" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('ELEM-7: essences and runes each have a faucet and a use, and mint no protected currency', () => {
-    const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
-    /* b432: scans EVERY artisan lane, not just Crafting. The faucet/use
-       question is about the item web, and pinning it to one skill made the
-       guard go red on a recipe MOVE — which is a relocation, not a hole. */
-    const recipes = Object.values(window.ARTISAN_RECIPES || {}).reduce((a, l) => a.concat(l || []), []);
-    ['ember', 'frost', 'poison'].forEach((e) => {
-      const ess = e + '_essence'; const rune = e + '_rune';
-      /* FAUCET: at least one monster drops the essence. */
-      const drops = Object.keys(MONSTERS).some((id) => (MONSTERS[id].drops || []).some((d) => d.id === ess));
-      assert(drops, ess + ' has no faucet — no monster drops it');
-      /* USE: the essence is consumed by its bind recipe. */
-      const used = recipes.some((r) => r.inputs && r.inputs[ess]);
-      assert(used, ess + ' has no use — no recipe consumes it');
-      /* FAUCET for the rune: its bind recipe. USE: the enchant intent consumes
-         it (it is the only thing tagged 'rune', which openEnchantPicker offers). */
-      assert(recipes.some((r) => r.output === rune), rune + ' has no faucet — no recipe makes it');
-      assert(ITEMS[rune].tag === 'rune', rune + ' must be tagged rune so the enchant picker offers it');
-    });
-    /* No essence/rune drop mints the IAP-only currencies. */
-    const bad = Object.keys(MONSTERS).filter((id) => (MONSTERS[id].drops || [])
-      .some((d) => d.id === 'hearth_token'));
-    assert(bad.length === 0, 'a monster mints a protected currency: ' + bad.join(', '));
-  }),
-
-  () => tryRun('ELEM-DISC-1 (b385): renderLoadout shows an enchant call-to-action with a weapon, and the "equip a weapon first" prompt without one (no silent-empty gap)', () => {
-    const G = window.G; const snap = snapshotG();
-    const panel = document.getElementById('loadout-panel');
-    assert(panel, 'no #loadout-panel to render into — the affordance cannot be verified');
-    try {
-      /* Weapon on, no enchant → a real CTA. */
-      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
-      stampRecordLikeLoad(G);   // b456: the worn weapon reaches renderLoadout via equipmentMap
-      G.enchant = { weapon: null };
-      window.renderLoadout();
-      let html = panel.innerHTML;
-      assert(/Enchant weapon/.test(html), 'a weapon with no enchant must render the "Enchant weapon" call-to-action, got: ' + html.slice(0, 400));
-      /* No weapon → the discoverable prompt, NEVER nothing (the bug being fixed). */
-      G.equipment = Object.assign({}, G.equipment, { weapon: null });
-      stampRecordLikeLoad(G);
-      window.renderLoadout();
-      html = panel.innerHTML;
-      assert(/equip a weapon first/.test(html), 'with no weapon the loadout must still teach the mechanic with "equip a weapon first", got: ' + html.slice(0, 400));
-    } finally { restoreG(snap); window.renderLoadout(); }
-  }),
-
-  () => tryRun('ELEM-DISC-2 (b385): the ember_rune item detail offers "Enchant a weapon with this" (the recipe index is blind to enchanting)', () => {
-    const G = window.G; const snap = snapshotG();
-    try {
-      window.openInvDetail('ember_rune');
-      const ov = document.getElementById('inv-detail-overlay');
-      assert(ov, 'the item-detail overlay did not open');
-      assert(/Enchant a weapon with this/.test(ov.innerHTML), 'a rune popup must offer the explicit enchant action, got: ' + ov.innerHTML.slice(0, 500));
-      if (typeof closeInvDetail === 'function') closeInvDetail();
-    } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('ELEM-DISC-3 (b385): the enchant picker empty-state names Crafting 25 when the player holds essences but no rune', () => {
-    const G = window.G; const snap = snapshotG();
-    try {
-      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
-      stampRecordLikeLoad(G);   // b456: openEnchantPicker needs a KNOWN worn weapon
-      G.inventory = { ember_essence: 3 };   // essences, and crucially NO rune
-      window.openEnchantPicker();
-      const ov = document.getElementById('enchant-overlay');
-      assert(ov, 'the enchant picker did not open');
-      const html = ov.innerHTML;
-      assert(/Crafting 25/.test(html), 'the empty-state must point at Crafting 25, got: ' + html.slice(0, 500));
-      assert(/Ember Essence/.test(html), 'the enriched empty-state must name the specific essence held, got: ' + html.slice(0, 500));
-      if (typeof closeEnchantPicker === 'function') closeEnchantPicker();
-    } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('ELEM-DISC-4 (b392): the Inventory gear surface mounts the enchant affordance (Tyler "I don\'t see an enchant option" — it was Combat-only, absent where the loadout note sends players)', () => {
-    const G = window.G; const snap = snapshotG();
-    assert(typeof window.enchantAffordanceHtml === 'function', 'the shared enchant affordance helper must be published so every gear surface renders one entry point');
-    const host = document.getElementById('invc-doll-host');
-    assert(host, 'no #invc-doll-host — the Inventory gear surface cannot be verified');
-    try {
-      /* Weapon on, no enchant → the Inventory paper-doll must carry the CTA. */
-      /* b456: a CLEAN worn set, then stamped. `decodeEquipment` condemns the whole
-         map on a single cell it cannot parse, so inheriting whatever the ~800 tests
-         before this one left in `G.equipment` risks a set that reads UNKNOWN (i.e.
-         naked) for a reason that has nothing to do with the enchant affordance. */
-      G.equipment = { weapon: 'bronze_sword' };
-      stampRecordLikeLoad(G);   // the Inventory doll reads the worn set off the record
-      assert(window.equippedItemG('weapon') === 'bronze_sword',
-        'FIXTURE: the worn weapon did not survive the stamp (equippedItemG=' + window.equippedItemG('weapon')
-        + ', known=' + (window.HearthriseEquipRead && window.HearthriseEquipRead.equipmentOf(G).known)
-        + ') — everything below would assert the "equip a weapon first" branch for the wrong reason');
-      G.enchant = { weapon: null };
-      window.renderInvFancy();
-      /* ⚠ b456 — RE-QUERY THE HOST AFTER THE RENDER. `renderInvFancy` REPLACES
-         `#panel-inventory`'s innerHTML, so the `host` captured at the top of this
-         test is a DETACHED node carrying the mount from whatever the PREVIOUS
-         render saw. That was invisible for as long as the ambient worn set
-         happened to contain a weapon; under the equipment arm the ambient set is
-         UNKNOWN, the stale node reads "equip a weapon first", and the test failed
-         while the live DOM was correct. MEASURED: equippedItemG='bronze_sword',
-         known=true, mounts=1 — on a node no longer in the document. */
-      const liveHost = document.getElementById('invc-doll-host');
-      assert(liveHost, 'the Inventory gear surface lost its doll host on re-render');
-      const mount = liveHost.querySelector('.invc-enchant-mount');
-      assert(mount, 'the Inventory doll host must mount an enchant affordance under the paper-doll, found none');
-      assert(liveHost.querySelectorAll('.invc-enchant-mount').length === 1,
-        'the enchant affordance is mounted ' + liveHost.querySelectorAll('.invc-enchant-mount').length
-        + ' times — a re-render is appending rather than replacing, so the player sees a stale duplicate');
-      assert(/Enchant weapon/.test(mount.innerHTML), 'the Inventory enchant mount must show the "Enchant weapon" call-to-action, got: '
-        + mount.innerHTML.slice(0, 300)
-        + ' [diag: equippedItemG=' + window.equippedItemG('weapon')
-        + ' known=' + (window.HearthriseEquipRead && window.HearthriseEquipRead.equipmentOf(G).known) + ']');
-      assert(/openEnchantPicker/.test(mount.innerHTML), 'the Inventory enchant CTA must open the picker');
-    } finally { restoreG(snap); if (typeof window.renderInvFancy === 'function') window.renderInvFancy(); }
-  }),
-
-  () => tryRun('ELEM-DISC-5 (b392): the no-rune picker teaches the whole path (essences → Crafting 25 → bind), never a dead empty picker, even with an empty bag', () => {
-    const G = window.G; const snap = snapshotG();
-    try {
-      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
-      stampRecordLikeLoad(G);   // b456: openEnchantPicker needs a KNOWN worn weapon
-      G.enchant = { weapon: null };
-      G.inventory = {};   // NO rune AND no essence — the coldest first-timer
-      window.openEnchantPicker();
-      const ov = document.getElementById('enchant-overlay');
-      assert(ov, 'the enchant picker did not open');
-      const html = ov.innerHTML;
-      assert(/no runes/i.test(html), 'the no-rune state must say plainly the player has no runes, got: ' + html.slice(0, 500));
-      assert(/<ol/.test(html), 'the no-rune state must teach the path as explicit steps, got: ' + html.slice(0, 500));
-      assert(/essence/i.test(html) && /Crafting 25/.test(html), 'the steps must name essences AND Crafting 25 so the path is followable without a wiki, got: ' + html.slice(0, 500));
-      /* b393: the teaching copy must use the game's ELEMENT vocabulary — the
-         element is "ember" everywhere (Ember Essence → Ember Rune, monster
-         weaknesses read `ember`), never "fire". A player told to hunt "fire"
-         will never see that word in-game. Guard the copy against regressing. */
-      assert(/ember/i.test(html), 'the element example must name "ember" (the in-game element), got: ' + html.slice(0, 500));
-      assert(!/\bfire\b/i.test(html), 'the enchant teaching copy must NOT say "fire" — the element is "ember"; got: ' + html.slice(0, 500));
-      assert(/tradeable|Market/i.test(html), 'the no-rune state must mention runes are tradeable (a second acquisition path), got: ' + html.slice(0, 500));
-      if (typeof closeEnchantPicker === 'function') closeEnchantPicker();
-    } finally { restoreG(snap); }
-  }),
-
-  /* RETIRED (lane C2, the closed rebuild): "ELEM-AWAY: a seeded fight with an enchanted weapon pays identically live vs away, and the enchant is engaged" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('MON-ART-1: every wired portrait points at a real monster in a shipped folder', () => {
     const mi = window._monsterIcon || {};
     const ids = Object.keys(mi);
@@ -1784,54 +1389,6 @@ export default [
       'the weekly slot must now be mostly real bosses: ' + bosses.length + ' vs ' + nonBoss.length);
   }),
 
-  () => tryRun('MON-CONSUMER-2: dungeon keys, bounties and muster all still resolve on the new roster', () => {
-    /* KEY_DROPS binds 16 monster ids to dungeon keys, and `dragonsbane_key`
-       has EXACTLY ONE source. If any of those ids stopped existing, a dungeon
-       becomes permanently unreachable. No id was renamed in this wave — this
-       asserts that stays true. */
-    ['weak_skeleton', 'skeleton', 'zombie', 'goblin', 'hobgoblin', 'goblin_brute', 'goblin_warlord',
-      'dark_wizard', 'warlock', 'archmage', 'death_knight', 'warband_captain',
-      'plague_swarm', 'void_parasite', 'dragon'].forEach((id) => {
-      assert(window.MONSTERS[id], 'KEY_DROPS source "' + id + '" vanished — a dungeon is now unreachable');
-    });
-    /* Muster contribution is 10 x tier, so a re-tier changes clan rates. */
-    Object.keys(window.MONSTERS).forEach((id) => {
-      const t = window.MONSTERS[id].tier;
-      assert(t >= 1 && t <= 6, id + ' has tier ' + t + ' — muster pays 10 x tier and would mis-price it');
-    });
-    /* Bounty generation must produce a real, completable weapon requirement
-       for every monster it can pick — `neutral` no longer exists to fall back on. */
-    const B = window.HearthriseCore && window.HearthriseCore.bounty;
-    if (B && B.makeBounty) {
-      const rng = { int: (a) => a, chance: () => false };
-      const b = B.makeBounty('weapon', 'goblin', 'normal', { monsters: window.MONSTERS, items: window.ITEMS, rng, now: 0 });
-      assert(b.requiredWeaponType === 'sword',
-        'a weapon bounty must name a real weapon type, got ' + b.requiredWeaponType);
-    }
-  }),
-
-  /* B359-1 — THE ENVELOPE MAY NOT DELETE WHAT IT DOES NOT MENTION.
-     The live P0 of 2026-08-17, reported by a player: `applyEnvelopeState`
-     REPLACED G.skills and G.inventory wholesale, so every server round trip
-     erased anything the server had not been told about. He farmed 14 Dragon
-     Scales and watched them decay 14 -> 2 -> 1, and Stonemason — shipped hours
-     earlier, so absent server-side by construction — reset to level 1 each time.
-     Live drops and XP are still client-authored, so "absent from the envelope"
-     means UNKNOWN, not zero.
-     This test fails against the replace in either direction: it proves omitted
-     keys SURVIVE, and it proves named keys still WIN, including downward, so a
-     future "fix" that simply stops trusting the server also goes red.
-
-     ⏳ RETIREMENT (live-settlement.md §8, §5.4). THIS TEST INVERTS AT PHASE 2 —
-     it is the one place the spec asks a test to reverse its assertion, and that
-     is legitimate only because the CONTRACT inverts with it. At the flip,
-     "omission leaves a key alone" becomes "omission DELETES the key", because
-     the envelope will name every key it owns and absence stops being ambiguous.
-     It must invert in the SAME COMMIT that puts `skills`/`inventory` on
-     SERVER_OF_RECORD, never before, and that commit must state §5.3's measured
-     gate (`describeReplacement().destructive === false` across a full day of
-     live beta play). Phase 1 does NOT touch it: SETTLE-2 below closes only the
-     consumption hole, and re-asserts this test's protections while doing so. */
   () => tryRun('B359-1: an envelope overwrites the keys it names and preserves the ones it omits', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
@@ -2284,83 +1841,6 @@ export default [
 
      MUTATION: delete either `itemLedger.reconcile` call in applyEnvelopeState
      → RED (the merge branch on assertion 2, the absolute branch on the last). */
-  () => tryRun('B372-SCRIP-1: a Quartermaster purchase is not half-reverted by the settle envelope', () => {
-    const A = window.HearthriseAccrual;
-    const L = window.__itemLedger;
-    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
-    assert(L && typeof L.record === 'function', 'the item ledger must be published (src/net/dungeon-purchase.js)');
-
-    /* The player had 200 scrip and bought a tier-3 blueprint for 160. The bag
-       below is what the client looks like AFTER the gesture. */
-    const G = { inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 } };
-    L.record(G, { dungeon_scrip: 160 }, { kitchen_blueprint_t3: 1 }, 'quartermaster');
-
-    /* The envelope the server produces: it still holds the PRE-purchase 200
-       scrip and has never heard of the blueprint. This is the exact shape that
-       produced the report. */
-    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
-
-    /* THE BUG, NAMED: scrip back AND blueprint kept. Either leg alone is fine;
-       the pair is the exploit. */
-    const refunded = (G.inventory.dungeon_scrip || 0) >= 200;
-    const kept = (G.inventory.kitchen_blueprint_t3 || 0) >= 1;
-    assert(!(refunded && kept),
-      'FREE BLUEPRINT: the envelope refunded the scrip (' + G.inventory.dungeon_scrip
-      + ') AND left the blueprint (' + G.inventory.kitchen_blueprint_t3 + ')');
-    assert(!kept,
-      'the scrip came back, so the blueprint must go back too — got '
-      + G.inventory.kitchen_blueprint_t3);
-    assert((G.pendingItemSpends || []).length === 0, 'the resolved trade must retire from the ledger');
-
-    /* AND IT MUST NOT DRIFT ON REPEAT. The settle runs ~320 times a day, so a
-       correction that re-applied itself would march a stack to zero or mint one
-       per envelope. The ledger is empty by now, but assert the property. */
-    const before = JSON.stringify(G.inventory);
-    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
-    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
-    assert(JSON.stringify(G.inventory) === before,
-      'repeat settles must be idempotent — bag drifted to ' + JSON.stringify(G.inventory));
-
-    /* THE TRADE THE SERVER CONFIRMS IS LEFT ALONE. This is the clause that
-       drains the whole mechanism the day a real `quartermaster_buy` verb ships:
-       the server names the goods, so the ledger stops caring. */
-    const G3 = { inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 } };
-    L.record(G3, { dungeon_scrip: 160 }, { kitchen_blueprint_t3: 1 }, 'quartermaster');
-    A.applyEnvelopeState(G3, {
-      state: {}, skills: {}, inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 },
-    });
-    assert(G3.inventory.kitchen_blueprint_t3 === 1,
-      'a trade the server CONFIRMS must survive untouched — got ' + G3.inventory.kitchen_blueprint_t3);
-    assert((G3.pendingItemSpends || []).length === 0, 'a confirmed trade must retire too');
-
-    /* THE OTHER BRANCH — absolute (b366) replaces the bag wholesale. It must
-       reach the SAME end state, or the two branches are two behaviours. */
-    const G2 = { inventory: { dungeon_scrip: 40, forge_blueprint_t3: 1 } };
-    L.record(G2, { dungeon_scrip: 160 }, { forge_blueprint_t3: 1 }, 'quartermaster');
-    A.applyEnvelopeState(G2, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
-    assert(!(G2.inventory.forge_blueprint_t3 >= 1 && G2.inventory.dungeon_scrip >= 200),
-      'the absolute branch must not leave a free blueprint either');
-    assert((G2.pendingItemSpends || []).length === 0, 'absolute branch must resolve the trade too');
-  }),
-
-  /* B362-DUPE-1 — EQUIPPING A WEAPON MUST NOT MINT A SECOND ONE.
-     The live P0 of 2026-08-18, reported by a T6 player who swaps weapons per
-     monster weakness: "every time I am using the corresponding weapon type it
-     gets duplicated when I equip it." Weapons are tradeable on the server
-     market, so this is an economy bug, one dupe per equip round trip.
-
-     THE MODEL, proved from the migrations, not assumed: BOTH sides hold gear
-     disjointly from the bag (hr_apply's equip op is a transfer; the bootstrap
-     asserts no starting item is in both), and NOTHING tells the server about a
-     client equip — there is no equip verb in src/net/*. So the server's
-     inventory figure still counts the worn copy, the client correctly counts
-     zero, and b359's max hands the stale figure back into the bag beside the
-     copy in the slot.
-
-     Fails in both directions: it proves the worn copy is not resurrected, AND
-     that the deduction is not applied twice when the server AGREES the item is
-     worn — a fix that blindly subtracted the local equipment would go red on
-     the second block, and reverting the fix goes red on the first. */
   () => tryRun('B362-DUPE-1: an envelope may not resurrect a bag copy that is now equipped', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
@@ -3231,7 +2711,8 @@ export default [
 
     // (b) EVERY grant source is ruled ownable-or-excluded, including the
     //     non-engine ones the universe used to miss.
-    for (const fn of ['shopGrantIds', 'qmStockIds', 'goalRewardIds', 'raidRewardIds', 'seedIds']) {
+    // (qmStockIds and raidRewardIds left with the Quartermaster and the raids, 2026-10-14.)
+    for (const fn of ['shopGrantIds', 'goalRewardIds', 'seedIds']) {
       assert(typeof IA[fn] === 'function' && IA[fn]().size > 0,
         fn + ' must be published and non-empty, or the completeness check is walking an empty set');
     }
@@ -3472,12 +2953,11 @@ export default [
       'a cooking output must classify excluded and never be owned');
 
     /* OVERLAP SAFETY — an id granted by BOTH a modeled and an un-modeled path is
-       EXCLUDED (the never-delete direction). `wheat` is a crop AND a rat drop;
-       `magic_essence` is a monster drop AND dungeon loot. */
+       EXCLUDED (the never-delete direction). `wheat` is a crop AND a rat drop. */
     assert(IA.classifyItem('wheat') === 'excluded' && IA.serverOwnedItem('wheat') === false,
       'wheat is a crop AND a drop — it must be EXCLUDED so a harvested copy is never deleted');
-    assert(IA.classifyItem('magic_essence') === 'excluded' && IA.serverOwnedItem('magic_essence') === false,
-      'magic_essence is a drop AND dungeon loot — it must be EXCLUDED (never-delete on overlap)');
+    assert(IA.classifyItem('magic_essence') === 'ownable',
+      'magic_essence is now only a monster drop — it must classify OWNABLE');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -4358,15 +3838,14 @@ export default [
      crafted since (and still toasted ✓). MUTATION: fund from gateItemCount → (a)
      red; toast before routeEquipGesture answers → (c) red. */
   () => tryRunAsync('LOADOUT-SRV-BAG: a loadout equips a piece crafted since the last envelope, names every skipped slot, and says ✓ only on the server\'s answer', async () => {
-    const G = window.G, Auto = window.HearthriseAuto;
+    const G = window.G;
     const snap = snapshotG(), bag = serverBagFixture();
-    const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
+    const real = { notify: window.notify, route: window.routeEquipGesture,
       loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
-    const said = [], eats = []; let answer = 'equipped';
+    const said = []; let answer = 'equipped';
     try {
       window.notify = (m) => { said.push(String(m)); };
       window.routeEquipGesture = () => Promise.resolve({ outcome: answer });   // the wire is EQUIP-BATCH's subject; the ANSWER is this one's
-      if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
       const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
       const wear = (eq, inv) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.inventory = Object.assign({}, inv); G.loadouts = [kit]; said.length = 0; };
       const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -4389,7 +3868,6 @@ export default [
       wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
       window.applyLoadout(0); await settle();
       assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
-      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
 
       // (d) the retried equip is NEVER ANSWERED: the tap still gets an answer — the house failure line, never a ✓.
       // MUTATION: drop the unanswered branch in applyLoadout's verdict → (d) red (the tap says nothing).
@@ -4402,7 +3880,6 @@ export default [
       }
     } finally {
       window.notify = real.notify; window.routeEquipGesture = real.route;
-      if (Auto) Auto.setEat = real.setEat;
       G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
       bag.restore(); restoreG(snap);
     }
@@ -4747,203 +4224,7 @@ export default [
     }
   }),
 
-  () => tryRun('EAT-RESTOCK-5: AUTO-eat must tell the server, and must stay silent during an away replay', () => {
-    /* The deterministic half of the report. `window.eatFood` has sent the `eat`
-       intent since the Paione P0; `HearthriseAuto.maybeAutoEat()` — the path that
-       actually fires during a fight, through COMBAT_FX.autoEat — only healed and
-       decremented locally. The server therefore still held every auto-eaten
-       Provision, which is why it came back on the next envelope AND after a
-       reload. Nothing here talks to a server: it asserts that the consumption
-       reaches the ONE seam, which is what owns the hold and the intent. */
-    const Auto = window.HearthriseAuto;
-    if (!Auto || typeof Auto.maybeAutoEat !== 'function') return;
-    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
-    assert(typeof window.noteItemConsumed === 'function',
-      'legacy.js must publish the consumption seam window.noteItemConsumed');
 
-    const snap = snapshotG();
-    const eatBefore = Auto.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    const realNote = window.noteItemConsumed;
-    const realReplay = window.inOfflineReplay;
-    const seen = [];
-    try {
-      window.noteItemConsumed = function (id, qty, opts) { seen.push({ id, qty, opts }); return true; };
-      window.G.traits = { auto_eat: true, auto_eat_2: true };
-      window.G.playerMaxHp = 10;
-      window.G.playerHp = 3;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.cooked_shrimp = 5;
-      window.G.combatLog = window.G.combatLog || [];
-      Auto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
-
-      assert(Auto.maybeAutoEat() === true, 'the fixture must actually auto-eat');
-      assert(seen.length === 1, 'an auto-eat must reach the consumption seam exactly once — got ' + seen.length);
-      assert(seen[0].id === 'cooked_shrimp', 'the seam must be told WHICH food — got ' + seen[0].id);
-      assert(seen[0].qty === 1, 'one unit per auto-eat — got ' + seen[0].qty);
-      assert(seen[0].opts && seen[0].opts.auto === true,
-        'the auto path must be marked so its intents are paced against the shared rate bucket');
-
-      /* AND THE AWAY GATE, on the REAL seam: during an offline replay the SERVER
-         ate the food and states the debit in `away.items`, so a second intent
-         would debit it twice and a hold would double-subtract. Driven with a
-         probe id no other test or content row uses, against the live G, because
-         legacy.js closes over its own `G` binding and cannot be handed another. */
-      window.noteItemConsumed = realNote;
-      window.inOfflineReplay = function () { return true; };
-      assert(window.noteItemConsumed('probe_away_food', 1, { auto: true }) === false,
-        'the seam must be a no-op during an away replay');
-      assert(!(window.G._pendingConsume && window.G._pendingConsume.probe_away_food),
-        'an away replay must record no hold — the server already stated the debit');
-
-      /* …and OUT of the replay it does hold (so the gate is the away flag, not a
-         dead call). `send:false` keeps the assertion off the network entirely. */
-      window.inOfflineReplay = function () { return false; };
-      assert(window.noteItemConsumed('probe_away_food', 1, { send: false }) === true,
-        'outside an away replay the seam must record the consumption');
-      assert(window.HearthrisePendingConsume.pendingFor(window.G, 'probe_away_food') === 1,
-        'the unit must be held once recorded');
-    } finally {
-      window.noteItemConsumed = realNote;
-      window.inOfflineReplay = realReplay;
-      Auto.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      try { if (window.G._pendingConsume) delete window.G._pendingConsume.probe_away_food; } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('EAT-RESTOCK-6: the client sends an auto-eat intent ONLY when the SERVER is not eating', () => {
-    /* THE DIRECTION THAT WOULD BE WORSE THAN THE BUG. The accrual engine eats
-       for the character when `player_state.auto_eat_enabled` is true and states
-       the debit in `away.items`; a client `eat` intent for the same auto-eat
-       would then debit the food TWICE — item LOSS, not a restock. So the send is
-       gated on the SERVER'S OWN answer, observed off `state.auto_eat_enabled`
-       (hr_state_of projects it on every envelope), and it fails CLOSED.
-
-       Measured premise, not an assumption: 2026-08-29-auto-eat-tiers.sql records
-       "0 rows on production (no character has auto_eat_enabled)", and
-       hr_set_auto_eat is that column's only writer — which is why the server
-       kept every auto-eaten Provision, and why the client had to send.
-       ⚠ b497 FLIPS THAT PREMISE, and the gate is correct on the other side of it
-       too: 2026-09-04-auto-eat-at-creation.sql sets `auto_eat_enabled = true` at
-       character creation, so the LIVE answer becomes block 2, not block 3, and
-       the client send retires itself with no flag to flip.
-
-       ⚠⚠ "THE SERVER EATS" IS ABOUT THE CHARACTER, NOT ABOUT BEING AWAY. Block 2
-       runs with `inOfflineReplay()` FALSE — i.e. an ATTENDED auto-eat — on
-       purpose: `computeAccrual` has no away input and no presence input, prices
-       whatever elapsed since `accrued_to`, and gates `fx.autoEat()` on
-       `autoEatEnabled` alone, while this client settles on a ~90 s cadence with
-       the tab visible. Measured server-side by tests/accrual-engine.mjs
-       `attendedSettleAutoEatGuard` (a fresh 10-HP goblin fight eats 2 meals over
-       60 s, 3 over 90 s, each with the matching negative item delta).
-       So the proposal to re-shape the gate as "attended ⇒ always send, away
-       excluded by inOfflineReplay()" — 2026-09-04-auto-eat-at-creation.sql's
-       header claims "the server's sim only eats during AWAY accrual" — is a
-       DOUBLE DEBIT on every attended meal. Block 2 is where it goes red.
-
-       MUTATION: drop the `opts.auto && !_clientOwnsAutoEatDebit()` guard in
-       legacy.js noteItemConsumed → block 3 goes red.
-       MUTATION: replace it with `opts.auto && inOfflineReplay()` → block 2 goes
-       red. Return BEFORE `P.noteConsumed` → block 2b goes red. */
-    const A = window.HearthriseAccrual;
-    assert(typeof A.serverAutoEats === 'function' && typeof A.clientOwnsAutoEatDebit === 'function'
-      && typeof A.__resetServerAutoEat === 'function', 'the auto-eat ownership observation must be published');
-    assert(typeof window.__eatQueueState === 'function' && typeof window.__eatQueueReset === 'function',
-      'the eat-queue seams must be published for this test');
-
-    const realActive = window.serverAccrualActive;
-    const realReplay = window.inOfflineReplay;
-    const M = window.HearthriseEat;
-    const realSend = M.sendEat;
-    let sent = 0;
-    /* Count RAISED INTENTS, not queue depth: an intent may go straight out or
-       wait out the pacing gap, and the property under test is "was the server
-       told", not "how fast". */
-    const raised = () => sent + window.__eatQueueState().queued.length;
-    const reset = () => { window.__eatQueueReset(); sent = 0; };
-    try {
-      window.serverAccrualActive = function () { return true; };
-      window.inOfflineReplay = function () { return false; };
-      M.sendEat = function () { sent++; return Promise.resolve({ outcome: 'eaten' }); };
-
-      /* 1. NEVER OBSERVED ⇒ FAIL CLOSED. Unknown must mean "leave it to the
-         server", because the unknown-and-wrong case destroys an item. */
-      A.__resetServerAutoEat();
-      assert(A.serverAutoEats() === null, 'a fresh device has observed nothing');
-      assert(A.clientOwnsAutoEatDebit() === false, 'unknown must fail CLOSED — the client does not send');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 0, 'with the server unknown, an auto-eat must NOT be sent — got ' + raised());
-
-      /* 2. THE SERVER SAYS IT EATS ⇒ STILL NO SEND. This is the double-debit
-         guard, and it must survive whichever path observed the flag: the boot
-         hr_load settle reaches it through reconcileInventory, exactly like the
-         live envelope does. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === true, 'the observation must take the server\'s word');
-      assert(A.clientOwnsAutoEatDebit() === false, 'when the server eats, the client must not');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 0, 'THE DOUBLE-DEBIT GUARD: no client intent while the server eats the same food');
-
-      /* 2b. …AND THE HOLD IS STILL RECORDED. "The server owns the debit" is a
-         statement about the INTENT, never about the hold, and the difference is
-         the whole restock bug: the client has ALREADY decremented G.inventory,
-         and the settle that will state the same debit is up to ~90 s away. For
-         those 90 s every envelope names the pre-eat count, and without a hold
-         `reconcileInventory` ratchets it straight back — the b467→b479 P0, with
-         auto-eat now on for every new character (b497) instead of nobody.
-         The hold DRAINS on evidence: when the settle's figure comes down, the
-         entry's `drop` covers it and the entry is deleted. So this is not a
-         second debit — it is the seam that keeps the display honest until the
-         one real debit lands.
-         MUTATION: return from noteItemConsumed before `P.noteConsumed` when the
-         server owns the debit → this goes red and block 2 stays green. */
-      const PC = window.HearthrisePendingConsume;
-      assert(PC && typeof PC.pendingFor === 'function' && typeof PC.releaseConsumed === 'function',
-        'the pending-consumption seam must be published for this test');
-      PC.releaseConsumed(window.G, 'cooked_shrimp');          // start from a known zero
-      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 0, 'the fixture must start with no hold');
-      reset();
-      assert(window.noteItemConsumed('cooked_shrimp', 1, { auto: true }) === true,
-        'an attended auto-eat must be RECORDED even when the server owns the debit');
-      assert(raised() === 0, 'still no intent — block 2b must not weaken the double-debit guard');
-      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 1,
-        'THE RESTOCK GUARD: the locally-eaten unit must be HELD until the settle states the debit, '
-        + 'or the next envelope ratchets it back — got ' + PC.pendingFor(window.G, 'cooked_shrimp'));
-
-      /* 3. THE SERVER SAYS IT DOES NOT ⇒ THE CLIENT OWNS THE DEBIT. Today's live
-         answer, and the half of the P0 that makes auto-eaten food stay eaten. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: false }, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === false, 'a definite no must be recorded');
-      assert(A.clientOwnsAutoEatDebit() === true, 'a definite no hands the debit to the client');
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
-      assert(raised() === 1,
-        'THE BUG: with the server not eating, the client MUST send the debit — got ' + raised());
-
-      /* 4. A MANUAL eat is never gated by any of this — the server has never
-         eaten one, and eatFood has sent that intent since the Paione P0. */
-      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
-      reset();
-      window.noteItemConsumed('cooked_shrimp', 1);   // manual
-      assert(sent === 1, 'a manual eat must always send, whatever the server does about auto-eat');
-
-      /* 5. AN ENVELOPE THAT DOES NOT CARRY THE FIELD MUST NOT CHANGE THE ANSWER
-         — absence is not a claim, the same rule the bag follows. */
-      A.reconcileInventory({ inventory: {} }, { state: {}, inventory: {} }, false, false);
-      assert(A.serverAutoEats() === true, 'an envelope omitting the field leaves the last answer alone');
-    } finally {
-      window.__eatQueueReset();
-      M.sendEat = realSend;
-      window.serverAccrualActive = realActive;
-      window.inOfflineReplay = realReplay;
-      A.__resetServerAutoEat();
-      try { if (window.G && window.G._pendingConsume) delete window.G._pendingConsume.cooked_shrimp; } catch (e) {}
-    }
-  }),
 
   () => tryRun('SETTLE-3: `below_min_span` is a NON-EVENT — no sheet, no receipt reset, no halt', () => {
     /* §3.4. Today `accrued:false` is outcome `nothing`; under live settlement it
@@ -6063,100 +5344,7 @@ export default [
          that moved the pointer restarted the foe at full health.
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('F7-1: Settings must not offer an operative auto-eat threshold without the trait', () => {
-    const realHasTrait = window.hasTrait;
-    const snap = snapshotG();
-    try {
-      /* UNOWNED. The screen may describe auto-eat; it may not offer a control
-         for it. A range input here is the bug verbatim — a persisted setting
-         that governs nothing, on a paid feature the player has not bought. */
-      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
-      window.openSettings();
-      const body = document.getElementById('settings-body');
-      assert(body, 'the settings modal did not render');
-      const lockedHtml = body.innerHTML;
-      const lockedTxt = body.textContent.replace(/\s+/g, ' ');
-      assert(!/data-set="autoEatPct"/.test(lockedHtml),
-        'THE F7 BUG: the auto-eat threshold slider is live for a character without the trait');
-      assert(!/data-autoeat=/.test(lockedHtml),
-        'an auto-eat ON/OFF switch is offered for a trait the character does not own');
-      assert(/ss-locked-tag/.test(lockedHtml), 'the auto-eat row is not marked locked');
-      /* Dimmed alone is a bug report. It must say WHERE to get it and WHAT to
-         do meanwhile — the same sentence renderCombat() already prints. */
-      assert(/Bounty Marks|gold/.test(lockedTxt) && /Store/.test(lockedTxt),
-        'the locked row never names the price or the shop: ' + lockedTxt.slice(0, 400));
-      assert(/manual|by hand|press .?Eat/i.test(lockedTxt),
-        'the locked row never tells the player how to heal instead: ' + lockedTxt.slice(0, 400));
 
-      /* OWNED. Both controls appear, and the switch is a real one.
-         b459: the tiered settings row derives the tier from G.traits itself
-         (autoEatTier), not through hasTrait — so ownership must be REAL state,
-         not just the mocked predicate. */
-      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
-      window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true });
-      window.openSettings();
-      const owned = document.getElementById('settings-body');
-      assert(/data-set="autoEatPct"/.test(owned.innerHTML),
-        'the threshold slider is missing for a character who OWNS auto-eat');
-      const sw = owned.querySelector('[data-autoeat="enabled"]');
-      assert(sw, 'the auto-eat ON/OFF switch is missing — `enabled` is unreachable from the UI again');
-      assert(!/ss-locked-tag/.test(owned.innerHTML), 'auto-eat still reads as locked for an owner');
-    } finally {
-      window.hasTrait = realHasTrait;
-      try { document.getElementById('settings-modal').classList.remove('show'); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRun('F7-2: the Settings switch drives the ENGINE, and the whole eat chain fires', () => {
-    const A = window.HearthriseAuto;
-    assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto is not published');
-    const snap = snapshotG();
-    const eatBefore = A.getEat();
-    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
-    const realHasTrait = window.hasTrait;
-    try {
-      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
-      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
-      /* Start from the state the audit found: the trait owned, the switch OFF.
-         Before b372 this state was unreachable from the UI — which is why a
-         grandfathered save could sit in it forever. */
-      A.setEat({ enabled: false, threshold: 0.5, foodId: null });
-      window.G.playerMaxHp = 10; window.G.playerHp = 3;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.cooked_shrimp = 4;
-      window.G.combatLog = [];
-      assert(A.maybeAutoEat() === false, 'auto-eat fired while switched off');
-
-      /* Now flip it THROUGH THE SCREEN — the click path, not the API. */
-      window.openSettings();
-      const sw = document.getElementById('settings-body').querySelector('[data-autoeat="enabled"]');
-      assert(sw, 'the switch is not on the Gameplay panel');
-      sw.checked = true;
-      sw.dispatchEvent(new Event('change', { bubbles: true }));
-      assert(A.getEat().enabled === true,
-        'the Settings switch did not reach the engine — `autoActions.eat.enabled` is still '
-        + A.getEat().enabled);
-
-      /* THRESHOLD CROSSED → FOOD CONSUMED → HP UP. The whole chain, in one go. */
-      const preHp = window.G.playerHp, preQty = window.G.inventory.cooked_shrimp;
-      assert(A.maybeAutoEat() === true, 'auto-eat still did not fire with the trait owned and the switch on');
-      assert(window.G.playerHp > preHp, 'HP did not rise: ' + preHp + ' -> ' + window.G.playerHp);
-      assert(window.G.inventory.cooked_shrimp === preQty - 1, 'no food was consumed');
-
-      /* And the trait gate is still unbypassable — the switch is not a way in. */
-      window.G.playerHp = 3;
-      window.G.traits = {};
-      assert(A.maybeAutoEat() === false,
-        'auto-eat fired WITHOUT the purchased trait — the 100-mark gate is gone');
-    } finally {
-      window.hasTrait = realHasTrait;
-      try { document.getElementById('settings-modal').classList.remove('show'); } catch (e) {}
-      A.setEat(eatBefore);
-      window.G.traits = traitsBefore;
-      restoreG(snap);
-    }
-  }),
 
 
   () => tryRun('F18-1: fightOf() reads the server carry, and refuses everything it is unsure of', () => {
@@ -6427,72 +5615,6 @@ export default [
   /* F20 — the Stable printed raw ids at the player ("Locked · shop:8000:
      cooking25"). Every source kind must resolve to a sentence, and no rendered
      hint may still contain a colon-delimited id. */
-  () => tryRun('b371 (F20): companion lock hints are copy, never raw ids', () => {
-    const L = window.HearthriseCompanions && window.HearthriseCompanions.sourceLabel;
-    assert(typeof L === 'function', 'companionSourceLabel is not published');
-    const cases = {
-      'starter': /start/i, 'drop:small_wolf': /^Rare drop from Wolf Cub$/, 'shop:5000': /^Stable shop · 5,000 gold$/,
-      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/, 'quest:harvest100': /100 crops/,
-      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/, 'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
-      'boss:dragon:200': /1 in 200 .* kills/,
-    };
-    Object.keys(cases).forEach((src) => {
-      const out = L(src);
-      assert(cases[src].test(out), src + ' renders as "' + out + '"');
-      assert(!/[a-z]+:[a-z0-9_]+/i.test(out), src + ' still leaks an id: "' + out + '"');
-      assert(!/_/.test(out), src + ' still leaks a snake_case id: "' + out + '"');
-    });
-    // Every source actually authored in the data must resolve.
-    const C = window.COMPANIONS || {};
-    Object.keys(C).forEach((id) => {
-      const out = L(C[id].source);
-      assert(!/^Locked · /.test(out), id + '\'s source "' + C[id].source + '" has no human copy');
-    });
-  }),
-
-  /* F19 — twenty of twenty-two companions rendered the same paw. The medallion
-     must differ BY ROLE, and it must never fall back to the emoji in the data. */
-  () => tryRun('b371 (F19): companion medallions distinguish the four roles', () => {
-    assert(typeof window.companionIconHtml === 'function', 'companionIconHtml missing');
-    const C = window.COMPANIONS || {};
-    const byRole = {};
-    Object.keys(C).forEach((id) => {
-      const html = window.companionIconHtml(id, 44);
-      assert(html && html.length, id + ' renders no companion art at all');
-      assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(html), id + ' renders an emoji as art');
-      if (/<img/.test(html)) return;                    // painted portrait wins
-      const m = /<path fill="[^"]*" d="([^"]{12})/.exec(html);
-      assert(m, id + ' medallion carries no glyph path');
-      byRole[C[id].role] = byRole[C[id].role] || m[1];
-      assert(byRole[C[id].role] === m[1], id + ' does not share its role\'s silhouette');
-    });
-    const shapes = Object.keys(byRole).map((r) => byRole[r]);
-    assert(new Set(shapes).size === shapes.length,
-      'two roles share one silhouette — the Stable is a wall of identical discs again');
-    assert(shapes.length >= 3, 'only ' + shapes.length + ' role silhouettes exist');
-  }),
-
-  /* F25 — the Dungeon destination offered a lit "Enter ▸" while the list it led
-     to gated at Combat Lv 25. The two boss cards beside it already used the
-     `locked` field; the dungeon card is the one that did not. */
-  () => tryRun('b371 (F25): the dungeon destination reflects its own combat gate', () => {
-    const CS = window.HearthriseCombatScreens;
-    assert(CS && typeof CS._destinations === 'function', 'combat-screens _destinations is not published');
-    const d = CS._destinations().filter((x) => x.kick === 'Dungeon')[0];
-    assert(d, 'there is no Dungeon destination');
-    const gated = /opens at/.test(d.meta || '');
-    if (gated) {
-      assert(d.locked, 'the dungeon card says "' + d.meta + '" and STILL offers a live Enter button');
-      assert(/Combat Lv \d+/.test(d.locked), 'the locked chip does not name the level: ' + d.locked);
-    } else {
-      assert(!d.locked, 'a runnable dungeon is showing a locked chip: ' + d.locked);
-    }
-  }),
-
-  /* F23 — filed as "Replay tutorial does nothing"; NOT REPRODUCED at HEAD (the
-     tour mounts and is topmost). What was true is that the row had no failure
-     state, so a dead handler and a working one looked identical. Guard the
-     wiring itself, which is the thing the report was really about. */
   () => tryRun('b371 (F23): the Replay guide row starts First Steps', () => {
     const C = window.HearthriseCoach;
     assert(C && typeof C.replay === 'function', 'window.HearthriseCoach.replay is missing; the row cannot work');
@@ -6516,51 +5638,10 @@ export default [
   /* F24 — the store's Buy button and product cards carried literal hexes (a
      periwinkle #5f6fc4 and a retired cyan #7dd3fc), and a theme blanket painted
      --bg-2 slabs behind every product icon. Both are structural. */
-  () => tryRun('b371 (F24): the premium store is token-driven and its icons are unslabbed', () => {
-    showTab('premium');
-    const card = document.querySelector('#iap-panel .iap-card');
-    assert(card, 'the premium store rendered no product cards');
-    const icon = card.querySelector('.iap-icon');
-    assert(icon, 'a product card has no icon slot');
-    const r = icon.getBoundingClientRect();
-    assert(Math.abs(r.width - r.height) <= 2,
-      'the product mark is ' + Math.round(r.width) + 'x' + Math.round(r.height)
-      + ' — it is a full-width slab again, not a struck medallion');
-    /* The slab was an OPAQUE `--bg-2` painted by a theme blanket whose
-       `:not(.iap-card)` excluded the card but not its children. A recess is a
-       translucent black well; an opaque fill means the blanket is back. */
-    const iconBg = getComputedStyle(icon).backgroundColor;
-    const alpha = /rgba?\(([^)]+)\)/.exec(iconBg);
-    const parts = alpha ? alpha[1].split(',').map((x) => parseFloat(x)) : [];
-    assert(parts.length === 4 && parts[3] < 0.95,
-      'the product mark sits on an opaque plate (' + iconBg + ') — the theme '
-      + 'blanket is painting inside .iap-card again');
-    const btn = card.querySelector('.btn-gem');
-    assert(btn, 'the product card has no gem-priced action');
-    const bg = getComputedStyle(btn).backgroundImage;
-    assert(/gradient/.test(bg), 'the Buy button lost its face: ' + bg);
-    // The tokens must resolve — a var() that resolves to nothing is how the
-    // "no hardcoded colours" rule turns into an invisible button.
-    ['--gem-face-0', '--gem-face-1', '--gem-face-2', '--gem-rim', '--gem-face-ink'].forEach((t) => {
-      const v = getComputedStyle(document.documentElement).getPropertyValue(t).trim();
-      assert(v, 'the premium token ' + t + ' does not resolve');
-    });
-    // And the literals are gone from the sheets that owned them.
-    assert(!/#5f6fc4|#7dd3fc|#38bdf8/i.test(
-      Array.from(document.styleSheets).map((s) => {
-        try { return Array.from(s.cssRules).map((x) => x.cssText).join(''); } catch (e) { return ''; }
-      }).join('')),
-      'a retired blue literal is still authored in a stylesheet');
-  }),
-
-  /* The leaderboard rebuild ships boards with no server source as
-     {ok:true, available:false, top:[]}. Flattened into an ordinary accepted
-     board that rendered "No one has ranked on this board yet. Be first." —
-     an invitation to grind for a board nothing writes to. */
   () => tryRun('b371: a leaderboard with available:false withdraws its chip', () => {
     const LB = window.HearthriseLeaderboards;
     assert(LB && typeof LB._reduceBoard === 'function', 'leaderboards reducers are not published');
-    const off = LB._reduceBoard(200, { ok: true, board: 'renown', available: false, top: [], total: 0 });
+    const off = LB._reduceBoard(200, { ok: true, board: 'wealth', available: false, top: [], total: 0 });
     assert(off.action === 'accept', 'an unavailable board should still be an accepted answer');
     assert(off.available === false, 'reduceBoard dropped available:false');
     const on = LB._reduceBoard(200, { ok: true, board: 'overall', top: [], total: 0 });
@@ -6569,25 +5650,25 @@ export default [
     /* ⚠ PIN THE AVAILABILITY MAP (b499) — see the note in the b222 picker test.
        This test DRIVES _markAvailability itself, so it needs a known starting
        point; without one the very first assertion below is measuring whether a
-       real render happened to have answered `available:false` for renown
-       earlier in the run, which production currently does. */
+       real render happened to have answered `available:false` for a board
+       earlier in the run. (It drove the renown board until the 2026-10-14 demolition.) */
     const _avail = LB._availabilitySnapshot();
     LB._restoreAvailability(null);
 
     // The picker is data-driven off the same flag.
-    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0, 'renown is not in the throne category');
+    assert(LB._boardsIn('overall', 'full').indexOf('wealth') >= 0, 'wealth is not in the overall category');
     try {
-      LB._markAvailability('renown', false);
-      assert(LB._available('renown', 'full') === false, 'available() ignores the unavailable flag');
-      assert(LB._boardsIn('throne', 'full').indexOf('renown') < 0,
-        'the renown chip is still offered after the server said it has no source');
+      LB._markAvailability('wealth', false);
+      assert(LB._available('wealth', 'full') === false, 'available() ignores the unavailable flag');
+      assert(LB._boardsIn('overall', 'full').indexOf('wealth') < 0,
+        'the wealth chip is still offered after the server said it has no source');
       // A normal board is untouched by another board's state.
-      assert(LB._available('overall', 'full') === true, 'marking renown unavailable disabled overall too');
+      assert(LB._available('total_level', 'full') === true, 'marking wealth unavailable disabled total_level too');
     } finally {
-      LB._markAvailability('renown', true);
+      LB._markAvailability('wealth', true);
     }
-    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0,
-      'renown did not come back when the server said it was available again');
+    assert(LB._boardsIn('overall', 'full').indexOf('wealth') >= 0,
+      'wealth did not come back when the server said it was available again');
     LB._restoreAvailability(_avail);
   }),
 
@@ -6682,57 +5763,6 @@ export default [
     assert(/Local Shop/.test(empty.tip), 'the empty-bag tip never names where to buy: ' + empty.tip);
   }),
 
-  () => tryRun('b525: a level-1 smith can reach bronze armour without a level-30 mining grind', () => {
-    /* THE PLAYED MOMENT (live, QA account, 2026-09-09 03:00 UTC): Combat 14 with
-       no armour, following the game's own teaching order — mine copper, smelt,
-       forge bronze. Bronze Bar wanted 1 coal, and the ONLY gatherable coal in the
-       game is Coal Rock at MINING 30. The starter tier was unreachable, and Iron
-       (Mining 15) sat BELOW Bronze on the real ladder. The ruling made coal a
-       tier-3 reagent whose first sink is Steel (Smithing 35, beside Coal Rock's
-       Mining 30) and dropped Bronze to req 1.
-       This test PLAYS the ruled path as a level-1 character: it closes over the
-       set of things a Mining-1 / Smithing-1 / Woodcutting-1 player can actually
-       obtain, and walks the chain forward. It fails on the pre-ruling data
-       because bronze_bar's coal input has no producer in that reachable set. */
-    const R = window.ARTISAN_RECIPES, ROCKS = window.ROCKS, TREES = window.TREES;
-    assert(R && R.smithing && Array.isArray(ROCKS) && Array.isArray(TREES), 'the recipe/gather tables are not published');
-    /* Every cost shape, one reader — the same fold src/core/artisan.js does. */
-    const costOf = (r) => Object.assign({}, r.input ? { [r.input]: r.inputQty || 1 } : {}, r.inputs || {}, r.secondary || {});
-
-    /* WHAT A LEVEL-1 CHARACTER HAS: no shop, no drop, no bank — if the chain
-       needs it, a req-1 node produces it. Then smelt forward to a fixpoint. */
-    const bag = new Set(ROCKS.concat(TREES).filter((n) => n.req <= 1).map((n) => n.prod));
-    assert(bag.has('copper_ore'), 'no Mining-1 node produces copper ore any more');
-    for (let pass = 0, grew = true; grew && pass < 8; pass++) {
-      grew = R.smithing.filter((r) => r.req <= 1 && !bag.has(r.output)
-        && Object.keys(costOf(r)).every((k) => bag.has(k))).map((r) => bag.add(r.output)).length > 0;
-    }
-    assert(bag.has('bronze_bar'), 'a Smithing-1 character cannot make a bronze bar from Mining-1 ore — the tier-1 chain is walled: '
-      + JSON.stringify(costOf(R.smithing.find((r) => r.output === 'bronze_bar') || {})));
-
-    /* FORGE. The armour is the POINT of the bar: reachable at its own level. */
-    for (const out of ['bronze_helm', 'bronze_platebody', 'bronze_platelegs']) {
-      const r = R.smithing.find((x) => x.output === out);
-      assert(r && r.req <= 15, out + ' is missing or forged outside the starter band: ' + (r && r.req));
-      const missing = Object.keys(costOf(r)).filter((k) => !bag.has(k) && k !== out);
-      assert(!missing.length, out + ' needs ' + missing + ', which a starter cannot obtain on the ruled path');
-    }
-
-    /* THE RULING AS A RULE, not a number: nothing reachable before coal is
-       minable may demand coal — every skill, so a low bar cannot regrow one. */
-    const coalNode = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req)[0];
-    assert(coalNode, 'nothing mines coal at all');
-    for (const skill of Object.keys(R)) for (const r of R[skill]) {
-      assert(!costOf(r).coal || r.req >= coalNode.req, skill + '/' + r.id + ' demands coal at level ' + r.req
-        + ' but the first coal node (' + coalNode.id + ') is Mining ' + coalNode.req);
-    }
-
-    /* AND STILL A CHOICE: bronze beats copper on xp/sec AND costs more ore. */
-    const rate = (r) => r.xp / (r.ms / 1000), ore = (r) => costOf(r).copper_ore || 0;
-    const cu = R.smithing.find((r) => r.id === 'smelt_copper'), br = R.smithing.find((r) => r.id === 'smelt_bronze');
-    assert(rate(br) > rate(cu), 'bronze bar is not faster xp than copper bar');
-    assert(ore(br) > ore(cu), 'bronze bar is strictly better than copper bar in every way — copper is dead');
-  }),
 
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
     const D = window.HearthriseDeathSheet;
@@ -7351,15 +6381,6 @@ export default [
         try { window.showTab(tab); } catch (e) { /* a tab that will not open is another test's problem */ }
         SURFACES.forEach(([label, sel]) => sweep(label, document.querySelector(sel)));
       });
-      /* The Quests modal is the site the sweep was commissioned for — its rows
-         carried 🩸 / 📈 / ⛏️ in 48px icon plates. It is a modal, so no tab
-         switch reaches it. */
-      if (typeof window.openQuestsModal === 'function') {
-        window.openQuestsModal();
-        sweep('quests-modal', document.getElementById('quests-modal-overlay'));
-        if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-        else { const o = document.getElementById('quests-modal-overlay'); if (o) o.remove(); }
-      }
     } finally {
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -8018,20 +7039,20 @@ export default [
       assert(A.maybeAutoArm() === true, 'CONTROL: the bag did not arm');
       G.inventory = {};
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: true });
-      window.addItem('goblin_seal', 1);                  // the attended kill's client-rolled drop
-      assert(G.inventory.goblin_seal === 1, 'CONTROL: the predicted drop does not display');
+      window.addItem('goblin_ear', 1);                   // the attended kill's client-rolled drop (goblin_seal left with the dungeon keys)
+      assert(G.inventory.goblin_ear === 1, 'CONTROL: the predicted drop does not display');
       const noGate = (when) => {
-        assert(A.gateItemCount(G, 'goblin_seal') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_seal'));
-        assert(window.sellableCount('goblin_seal') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_seal'));
+        assert(A.gateItemCount(G, 'goblin_ear') === 0, when + ': the dungeon/spend gate counted ' + A.gateItemCount(G, 'goblin_ear'));
+        assert(window.sellableCount('goblin_ear') === 0, when + ': a sell gesture would size from ' + window.sellableCount('goblin_ear'));
       };
       noGate('predicted');
       // a mid-window envelope (equip answer, window open) that has not settled the kill
       A.reconcileInventory(G, { inventory: { bones: 3 }, inventory_complete: false });
-      assert(!('goblin_seal' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
+      assert(!('goblin_ear' in G.inventory), 'the mid-window envelope did not wipe the prediction: ' + JSON.stringify(G.inventory));
       noGate('wiped');
       // the settle credits the server's own roll
-      A.reconcileInventory(G, { inventory: { bones: 3, goblin_seal: 1 }, inventory_complete: true });
-      assert(G.inventory.goblin_seal === 1 && A.gateItemCount(G, 'goblin_seal') === 1, 'the credited drop did not land in both layers');
+      A.reconcileInventory(G, { inventory: { bones: 3, goblin_ear: 1 }, inventory_complete: true });
+      assert(G.inventory.goblin_ear === 1 && A.gateItemCount(G, 'goblin_ear') === 1, 'the credited drop did not land in both layers');
     } finally {
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);
@@ -8631,7 +7652,6 @@ export default [
 
       window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
       window.ensureRetentionState();
       const first = window.G.quests.find((q) => !q.done);
       assert(first, 'CONTROL: the fixture must leave a chain quest open');
@@ -8674,9 +7694,6 @@ export default [
      the tour is the FIRST place a player hears either rule. This guard pins the
      retired sentences out and binds the replacement to the constants it quotes,
      so the copy cannot drift away from the engine again in silence. */
-  /* RETIRED (lane C2, the closed rebuild): "FIRST-LIGHT-4: First Steps teaches the LIVE death rule and hands off to the pointer bar" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('FIRST-LIGHT-5: the empty-night note names every channel that actually banks — bound to the cooking arm', () => {
     const H = window.HearthriseHome;
     const AS = window.HearthriseCore && window.HearthriseCore.artisanSim;
@@ -8733,7 +7750,7 @@ export default [
     try {
       window.notify = function (m, k) { said.push(String(m)); };
       // A REAL id from the report; bag and log are restored in the finally.
-      const HELD = 'granite';                 // ITEMS.granite === 'Granite Stone'
+      const HELD = 'oak_log';                 // the report's granite left with the Stonemason (2026-10-14); any held id is the same class
       const UNSEEN = 'bones';                 // held by nobody here, logged by nobody here
       assert(window.ITEMS && window.ITEMS[HELD] && window.ITEMS[UNSEEN],
         'setup: this build does not know ' + HELD + ' / ' + UNSEEN + ' — the test would pass vacuously');
@@ -9043,9 +8060,9 @@ export default [
     }
   }),
 
-  () => tryRun('LUCKY-4: every drop-table surface states a lucky row as "1 in N", never "0.0%" (collection log <1%, fight screen, BotD card, monster panel)', () => {
-    const G = window.G, C = window.HearthriseCore, HUD = window.HearthriseCombatHud;
-    assert(typeof window.__lootRowHtml === 'function' && HUD && window.HearthriseBossOfDay, 'setup: a drop-table surface is unpublished');
+  () => tryRun('LUCKY-4: every drop-table surface states a lucky row as "1 in N", never "0.0%" (collection log <1%, fight screen, monster panel)', () => {
+    const G = window.G, HUD = window.HearthriseCombatHud;
+    assert(typeof window.__lootRowHtml === 'function' && HUD, 'setup: a drop-table surface is unpublished');
     const wolf = window.MONSTERS.small_wolf.drops.find((d) => d.lucky);
     const devil = window.MONSTERS.fire_devil.drops.find((d) => d.lucky);
     assert(wolf && devil && devil.ch === 0.0004, 'setup: the lucky rows moved: ' + JSON.stringify([wolf, devil]));
@@ -9057,7 +8074,6 @@ export default [
     /* Fight screen (the loot modal). */
     const { restore } = combatScreen();
     const snap = snapshotG();
-    const realBotd = C.botd;
     try {
       G.activeMonster = 'small_wolf';
       assert(HUD.openLoot(), 'the loot modal did not open');
@@ -9071,16 +8087,8 @@ export default [
       const dt = (document.querySelector('.hr-room-scrim') || {}).textContent || '';
       assert(/1 in 2,500/.test(dt) && !/0\.0%/.test(dt), 'the fight screen prints fire_devil\'s .0004 row as: ' + dt.slice(0, 400));
       HUD.close();
-      /* Boss of the Day card, rendered with small_wolf featured. */
-      C.botd = Object.assign({}, realBotd, { botdFor: function (at, ms) { return Object.assign({}, realBotd.botdFor(at, ms), { dailyId: 'small_wolf' }); } });
-      window.HearthriseBossOfDay.render();
-      const card = document.getElementById('hr-botd-card');
-      const ct = card ? card.textContent : '';
-      assert(/Wolfbone Torc/.test(ct) && /1 in 1,250/.test(ct) && !/0\.0%/.test(ct), 'the BotD card does not state Wolfbone Torc as 1 in 1,250: ' + ct.slice(0, 400));
     } finally {
-      C.botd = realBotd;
       try { HUD.close(); } catch (e) {}
-      try { window.HearthriseBossOfDay.render(); } catch (e) {}
       restoreG(snap);
       restore();
     }
@@ -9156,7 +8164,11 @@ export default [
       const rows = box.querySelectorAll('[data-luck-row="' + id + '"]');
       assert(rows.length === 1 && rows[0].textContent.indexOf(R[id]) >= 0 && rows[0].querySelector('.bal-pending'), id + ': expected one row with its rumour and the pending mark: ' + (rows[0] ? rows[0].innerHTML : 'none'));
     }
-    assert(/Also made at the bench/.test(box.querySelector('[data-luck-row="maple_bow"]').textContent), 'maple_bow is crafted too, and its row does not say so');
+    const crafted = new Set(Object.values(window.ARTISAN_RECIPES || {}).flat().map((r) => r && r.output).filter(Boolean));
+    for (const [id] of ids) {
+      const says = /Also made at the bench/.test(box.querySelector('[data-luck-row="' + id + '"]').textContent);
+      assert(says === crafted.has(id), id + (crafted.has(id) ? ' is crafted too, and its row does not say so' : ' is not crafted, yet its row says it is'));
+    }
     box.innerHTML = L.html({ named: () => false, count: () => 0 });
     for (const [id, mid] of ids) {
       const t = box.querySelector('[data-luck-row="' + id + '"]').textContent;
@@ -9263,162 +8275,6 @@ export default [
       if (k.dropLog === null) delete G.dropLog; else G.dropLog = k.dropLog;
       C.randomSeed();
       restore();
-    }
-  }),
-
-  /* ══════════════════════════════════════════════════════════════════════
-     THE HUNTER'S LEDGER (content b4 pack 3) — every input is passed in; no G seed.
-     HLEDGER-5's slot arm is the pack's G.name bug: a record keyed on a constant
-     'who' replays slot A's ranks as rank-ups on slot B after a switch.
-     ══════════════════════════════════════════════════════════════════════ */
-  () => tryRun('HLEDGER-1: the nearest charm names the kills to the next rung, singular at one', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    assert(HL.charmRow({ undead: 88 }).sub === '12 kills to Marked', 'undead 88: ' + HL.charmRow({ undead: 88 }).sub);
-    assert(/the last charm there is/.test(HL.charmRow({ undead: 2000 }).sub), 'undead 2000 is not the last charm');
-    const r = HL.charmRow({ undead: 120, vermin: 24 });
-    assert(r.cls === 'vermin' && r.sub === '1 kill to Studied', 'nearest of undead 120 / vermin 24: ' + JSON.stringify(r));
-  }),
-  () => tryRun('HLEDGER-2: rank-ups are rises only, in bane order, keyed extra_dimensional', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    assert(HL.rankUpsBetween(null, { undead: 2 }).length === 0, 'no record must mean no rank-up');
-    const up = HL.rankUpsBetween({ undead: 1 }, { undead: 2 });
-    assert(JSON.stringify(up) === JSON.stringify([{ cls: 'undead', from: 1, rank: 2 }]), 'undead 1→2: ' + JSON.stringify(up));
-    assert(HL.rankUpsBetween({ undead: 3 }, { undead: 1 }).length === 0, 'a decrease was returned as a rank-up');
-    assert(HL.rankUpsBetween({}, { extra_dimensional: 1 })[0].cls === 'extra_dimensional', 'extra_dimensional rank-up lost');
-  }),
-  () => tryRun('HLEDGER-3: the moment carries the class lore and effects derived from the ladder', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    const esc = (t) => t.replace(/'/g, '&#39;');
-    const u = HL.momentHtml([{ cls: 'undead', from: 1, rank: 2 }], { undead: 100 });
-    assert(u.includes(esc(CHARM_CLASS_LORE.undead)), 'undead 1→2 lacks the undead lore');
-    assert(u.includes('a little more often, watching or away'), 'undead 1→2 lacks the drop line');
-    assert(CHARM_CLASS_LORE.extra_dimensional, 'CHARM_CLASS_LORE.extra_dimensional is empty');
-    const x = HL.momentHtml([{ cls: 'extra_dimensional', from: 0, rank: 1 }], { extra_dimensional: 25 });
-    assert(x.includes(esc(CHARM_CLASS_LORE.extra_dimensional)), 'extra_dimensional 0→1 lacks its lore');
-    assert(x.includes('what they are weak to'), 'extra_dimensional 0→1 lacks the reveal line');
-    assert(!/undefined/.test(u + x), 'the moment printed undefined');
-  }),
-  () => tryRun('HLEDGER-6: the moment sets the rank lore and the class lore in two blocks, never one run', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    const box = document.createElement('div');
-    box.innerHTML = HL.momentHtml([{ cls: 'undead', from: 1, rank: 2 }], { undead: 100 });
-    const blockOf = (t) => [...box.querySelectorAll('p, div')].find((e) => e.textContent.includes(t));
-    const rank = blockOf(CHARM_RANK_LORE.marked), cls = blockOf(CHARM_CLASS_LORE.undead);
-    assert(rank && cls && rank !== cls, 'the rank lore and the class lore share one block');
-    const run = CHARM_RANK_LORE.marked.split(' ').pop() + ' ' + CHARM_CLASS_LORE.undead.split(' ')[0];
-    assert(!box.textContent.includes(run), 'the sheet reads "' + run + '"');
-  }),
-  () => tryRun('HLEDGER-4: the Bestiary head is pending while unknown, never 0, and absent when empty', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    const unk = HL.cardHtml(null);
-    assert(unk.includes('bal-pending'), 'unknown card has no pending mark');
-    assert(!/\b0 kills?\b/.test(unk), 'unknown card printed 0 kills');
-    assert(HL.cardHtml({ known: true, classes: {}, monsters: {}, readyId: null }) === '', 'known-empty card is not blank');
-  }),
-  () => tryRun('HLEDGER-5: the charm watcher seeds, waits, opens once, parks, and keys on uid:slot', () => {
-    const HL = window.HearthriseHuntersLedger;
-    if (!HL) { skip('seam absent'); return; }
-    const mem = {}; let sets = 0, opens = 0;
-    const store = { getJSON: (k, d) => (k in mem ? JSON.parse(mem[k]) : d), setJSON: (k, v) => { sets++; mem[k] = JSON.stringify(v); } };
-    const d = (o) => Object.assign({ parked: false, known: true, uid: 'u1', slot: 0, ranks: { undead: 1 }, store,
-      busy: () => false, open: () => { opens++; } }, o);
-    assert(HL.tick(d({})) === 'seeded' && opens === 0, 'first sight must seed silently');
-    const before = mem['hearthrise:charm-seen'];
-    assert(HL.tick(d({ ranks: { undead: 2 }, busy: () => true })) === 'waiting' && mem['hearthrise:charm-seen'] === before, 'busy must wait untouched');
-    assert(HL.tick(d({ ranks: { undead: 2 } })) === 'opened' && opens === 1, 'a rise must open once');
-    assert(JSON.parse(mem['hearthrise:charm-seen'])['u1:0'].undead === 2, 'the record was not updated');
-    const s0 = sets;
-    assert(HL.tick(d({ parked: true, ranks: { undead: 3 } })) === 'parked' && sets === s0, 'a parked watcher wrote');
-    assert(HL.tick(d({ slot: 1, ranks: { undead: 3, vermin: 2 } })) === 'seeded' && opens === 1, 'slot switch replayed another slot\'s ranks');
-  }),
-  /* SPOILS-1: the settle rows carry the catalogue's odds, rarest last; the Auto
-     sheet reads purse, key and re-entry from the ONE answer and mounts once. */
-  () => tryRun('SPOILS-1: the settle rows show odds rarest-last, and the Spoils sheet mounts once from the answer', () => {
-    const SP = window.HearthriseSpoils, rows = window.dungeonSettleRowHtml, S = window.HearthriseSheet;
-    assert(SP && typeof rows === 'function' && S, 'HearthriseSpoils / dungeonSettleRowHtml / HearthriseSheet must be published');
-    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { wartusk_cleaver: 1, goblin_totem: 5 }, key_spent: 'goblin_seal' };
-    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 }, inventory: { goblin_seal: 2, goblin_totem: 5, wartusk_cleaver: 1 },
-      dungeon_cooldowns: { goblin_warcamp: { auto: new Date(Date.now() + 4 * 3600e3).toISOString() } } } };
-    const h = rows(v);
-    assert(h.indexOf('Goblin Totem') >= 0 && h.indexOf('Goblin Totem') < h.indexOf('Wartusk Cleaver'), 'Goblin Totem must sort before Wartusk Cleaver');
-    for (const w of ['6% a clear', 'Unique', 'data-inspect-item="wartusk_cleaver"']) assert(h.includes(w), 'rows lack ' + w);
-    const miss = rows({ outcome: 'settled', body: { settled: Object.assign({}, settled, { items: { goblin_totem: 5 } }) } });
-    assert(miss.includes('Still in the chest: Wartusk Cleaver') && miss.includes('Quartermaster') && !miss.includes('150'), 'chase line wrong or priced: ' + miss);
-    assert(S.anyOpen() === false, 'a sheet is already open before SPOILS-1 — the suite left one up');
-    const count = () => document.querySelectorAll('.spoils-scrim').length;
-    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
-    try {
-      ftue.forEach(([n]) => n.remove());   // open() declines under the tutorial by design
-      SP.open(v);
-      const box = document.querySelector('.spoils-scrim');
-      assert(count() === 1 && box, 'open(v) must mount exactly one .spoils-scrim (got ' + count() + ')');
-      const lore = box.querySelector('.spoils-lore'); assert(lore && /Grimtusk.*Goblin Warcamp/.test(lore.textContent) && box.querySelector('.spoils-rare'), 'the sheet lacks Grimtusk\'s lore line or .spoils-rare');
-      for (const w of ['2 left', '57', 'Opens to you again in']) assert(box.textContent.includes(w), 'the sheet lacks ' + w);
-      SP.open(v);
-      assert(count() === 1, 'a second open(v) mounted another sheet');
-      assert(S.closeTop() && count() === 0, 'closeTop() must remove the Spoils sheet');
-      SP.open({ outcome: 'refused' }); SP.open({ outcome: 'replayed', body: { settled: null } });
-      assert(count() === 0, 'a refused or replayed verdict mounted a sheet');
-    } finally {
-      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
-      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
-    }
-  }),
-  /* SPOILS-2 (VG5 defect 1): "The realm is slow…" (fixed, top 8px) painted over the
-     Spoils head at 922x423 — the banner-under-sheet rule named only .modal/.stats-modal. */
-  () => tryRun('SPOILS-2: the slow-realm banner paints beneath an open Spoils sheet at 1280x800 and 922x423', () => {
-    const SP = window.HearthriseSpoils, S = window.HearthriseSheet, N = window.HearthriseNetStatus, bad = [];
-    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { wartusk_cleaver: 1, goblin_totem: 5 }, key_spent: 'goblin_seal' };
-    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 }, inventory: { goblin_seal: 2, goblin_totem: 5, wartusk_cleaver: 1 },
-      dungeon_cooldowns: { goblin_warcamp: { auto: new Date(Date.now() + 4 * 3600e3).toISOString() } } } };
-    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
-    try {
-      ftue.forEach(([n]) => n.remove());
-      N.setMode('degraded'); SP.open(v);
-      const box = document.querySelector('.spoils-scrim'), nb = document.getElementById('hr-net-banner');
-      assert(box && nb, 'the Spoils sheet or the net banner did not mount');
-      for (const [w, h] of [[1280, 800], [922, 423]]) phoneFrame(w, h, nb.outerHTML + box.outerHTML, (doc) => {
-        const b = doc.getElementById('hr-net-banner'); b.style.pointerEvents = 'auto';
-        const t = doc.getElementById('spoils-title').getBoundingClientRect(), br = b.getBoundingClientRect();
-        assert(t.width > 0 && br.width > 0, w + 'x' + h + ': the title or banner drew nothing');
-        for (const x of [t.left + 2, (t.left + t.right) / 2, t.right - 2]) { const hit = doc.elementFromPoint(x, t.top + 2);
-          if (!hit || !hit.closest('.spoils-sheet')) bad.push(w + 'x' + h + ': the title at x ' + Math.round(x) + ' hits ' + (hit ? hit.id || hit.className : 'nothing') + ' (title [' + [t.left, t.top, t.right].map(Math.round) + '], banner [' + [br.left, br.top, br.right, br.bottom].map(Math.round) + '])'); }
-      });
-    } finally {
-      try { S.closeTop(); } catch (e) {}
-      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
-      N.setMode('ok'); const nb = document.getElementById('hr-net-banner'); if (nb) nb.style.opacity = '0';
-      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
-    }
-    assert(bad.length === 0, 'THE BANNER OVER THE SPOILS: ' + bad.join('; '));
-  }),
-  /* SPOILS-3 (VG5 defect 2, Game Designer ruling): the sheet IS the announcement — the
-     loot toast covered its Done button at 922x423. An Auto clear that opens the sheet
-     does not toast; a manual summary (no sheet) still does. note and open share willOpen. */
-  () => tryRun('SPOILS-3: an Auto clear that opens the Spoils sheet does not also toast; a manual clear still toasts', () => {
-    const SP = window.HearthriseSpoils, S = window.HearthriseSheet, prev = window.notify, prevC = window.HearthriseChronicle, toasts = [];
-    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { goblin_totem: 5 } };
-    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 } } };
-    const count = () => document.querySelectorAll('.spoils-scrim').length;
-    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
-    try {
-      ftue.forEach(([n]) => n.remove());
-      window.notify = (msg, kind) => toasts.push([msg, kind]); window.HearthriseChronicle = { record() {} };
-      SP.note(v); SP.open(v);
-      assert(toasts.length === 0 && count() === 1, 'auto: ' + toasts.length + ' toast(s) and ' + count() + ' sheet(s), want 0 and 1');
-      S.closeTop();
-      SP.note({ outcome: 'settled', body: { settled: Object.assign({}, settled, { mode: 'manual' }) } });
-      assert(toasts.length === 1 && toasts[0][1] === 'loot' && count() === 0, 'manual: ' + toasts.length + ' toast(s) and ' + count() + ' sheet(s), want 1 and 0');
-    } finally {
-      window.notify = prev; window.HearthriseChronicle = prevC;
-      try { if (count()) S.closeTop(); } catch (e) {}
-      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
-      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
     }
   }),
 ];

@@ -264,20 +264,6 @@ export function companyHtml(view, mine, youName, nowMs) {
 }
 
 /**
- * One named peer's doing, as plain text (the caller escapes it), or ''. Only a
- * fresh view and exactly one peer by that name.
- */
-export function doingOf(view, name, canonFn, nowMs) {
-  if (!fresh(view, nowMs) || !name || typeof canonFn !== 'function' || !Array.isArray(view.peers)) return '';
-  const c = canonFn(name);
-  const hits = view.peers.filter((p) => p && p.name && canonFn(p.name) === c);
-  if (hits.length !== 1) return '';
-  const p = hits[0];
-  const act = (p.kind === 'combat' || p.kind === 'gather' || p.kind === 'artisan') ? activityName(p.kind, p.activityId, p.label) : '';
-  return groupLabel(p.kind, p.label) + (act ? ' · ' + act : '') + (p.away ? ' · away' : '');
-}
-
-/**
  * The whole row, or ''. `view` is `G._town`, `place` is `G._place`, and `nowMs`
  * is passed in so the suite pins the clock.
  *
@@ -429,7 +415,7 @@ export function ensureTownStyle() {
  */
 export function setupTownPanel() {
   if (typeof window === 'undefined') return;
-  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, bandText, companyOf, companyHtml, doingOf, MAX_NAMES, CRIER_SHOWN };
+  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, bandText, companyOf, companyHtml, MAX_NAMES, CRIER_SHOWN };
   if (typeof document === 'undefined') return;
   document.addEventListener('click', (e) => {
     const el = e.target && e.target.closest && e.target.closest('[data-town-quiet]');

@@ -15,7 +15,7 @@
 //     swaps in Supabase Realtime — the public API on `backend`
 //     stays the same, only the implementation changes.
 //   • Privacy-respectful. Whisper permission is opt-in narrowing
-//     (everyone / clan / no one). Block list is honored locally.
+//     (everyone / no one). Block list is honored locally.
 //   • Profanity filter on by default, off via Settings → Chat.
 //
 // Production roadmap (Phase 2):
@@ -24,7 +24,7 @@
 //
 //     create table chat_messages (
 //       id          uuid primary key default gen_random_uuid(),
-//       channel     text not null,                 -- 'global' | 'trade' | 'clan:<id>' | 'whisper:<a>:<b>'
+//       channel     text not null,                 -- 'global' | 'trade' | 'whisper:<a>:<b>'
 //       from_id     uuid not null references profiles(id),
 //       from_name   text not null,
 //       body        text not null check (length(body) between 1 and 240),
@@ -34,11 +34,6 @@
 //     create index on chat_messages (channel, created_at desc);
 //     create policy "global readable by anyone" on chat_messages
 //       for select using (channel in ('global', 'trade'));
-//     create policy "clan readable by members" on chat_messages
-//       for select using (
-//         channel like 'clan:%'
-//         and substring(channel from 6) in (select clan_id from profiles where id = auth.uid())
-//       );
 //     create policy "whisper readable by participants" on chat_messages
 //       for select using (
 //         channel like 'whisper:%'
@@ -78,7 +73,6 @@
   var DEFAULT_CHANNELS = [
     { id:'global', label:'Global' },
     { id:'trade',  label:'Trade'  },
-    { id:'clan',   label:'Clan'   },
   ];
 
   // ── Settings ────────────────────────────────────────────────
@@ -86,7 +80,7 @@
     profanityFilter:   true,
     showTimestamps:    true,
     soundOnMention:    true,
-    whisperPermission: 'all',         // 'all' | 'clan' | 'none'
+    whisperPermission: 'all',         // 'all' | 'none'
     minimized:         true,           // start collapsed so we don't take over the screen
   };
   function loadSettings(){
@@ -120,7 +114,10 @@
     try {
       var raw = store.getJSON(STATE_KEY, {});
       return {
-        active: raw.active || 'global',
+        /* A channel this build no longer has (the clan channel, deleted
+           2026-10-14) falls back to Global rather than opening a dead tab. */
+        active: (raw.active && (raw.active === 'global' || raw.active === 'trade'
+          || String(raw.active).indexOf('whisper:') === 0)) ? raw.active : 'global',
         whispers: raw.whispers || {},      // { otherId: { name, lastSeen } }
         unread:   raw.unread   || {},      // { channelId: count }
       };
@@ -175,24 +172,15 @@
           || ('local-' + (profile && profile.activeSlot != null ? profile.activeSlot : 0));
     return { id: id, name: name };
   }
-  function clanOf(){ return (window.G && window.G.clanName) ? window.G.clanName : null; }
-
   // ── Wire-channel translation (b205) ─────────────────────────
-  // The UI keeps friendly local keys ('clan', 'whisper:<otherId>') but the
+  // The UI keeps friendly local keys ('whisper:<otherId>') but the
   // Supabase schema + RLS route on canonical WIRE ids:
-  //   'clan'              → 'clan:<clanId>'            (per-clan isolation)
   //   'whisper:<otherId>' → 'whisper:<a>:<b>' (sorted) (both parties land
   //                          on the SAME conversation channel — the old
   //                          one-sided id meant cross-client whispers
   //                          never met each other)
   // Everything else ('global', 'trade') passes through unchanged.
-  function clanWireId(){
-    var G = window.G || {};
-    var id = G.clanId || (G.clanName ? String(G.clanName).toLowerCase().replace(/[^a-z0-9]+/g, '-') : null);
-    return id ? ('clan:' + id) : 'clan:none';
-  }
   function wireChannel(localCh){
-    if(localCh === 'clan') return clanWireId();
     if(localCh.indexOf('whisper:') === 0){
       var otherId = localCh.slice('whisper:'.length);
       var mine = me().id;
@@ -583,10 +571,6 @@
       var otherId = ch.slice('whisper:'.length);
       var w = state.whispers[otherId];
       inputEl.placeholder = w ? ('Whisper to ' + w.name + '…') : 'Whisper…';
-    } else if(ch === 'clan'){
-      var c = clanOf();
-      inputEl.placeholder = c ? ('Clan chat — ' + c) : 'Join a clan to chat here';
-      inputEl.disabled = !c;
     } else {
       inputEl.placeholder = 'Send to ' + (ch.charAt(0).toUpperCase() + ch.slice(1)) + '…';
       inputEl.disabled = false;
@@ -605,27 +589,7 @@
   function renderMessages(channel, msgs){
     if(state.active !== channel) return;
     if(!msgs || msgs.length === 0){
-      /* b225 (#18): a player who opens the clan channel with no clan is asking
-         for a clan. Telling them to join one and then not saying where is the
-         same dead end the Clan Seat used to be. The dock minimises itself on
-         the way out — the destination is behind it. */
-      /* b465: "Join a clan to unlock this channel" + "Find a clan" is a dead end
-         while CLAN_LAUNCHED is down — there is no clan to find, and the button
-         landed on a coming-soon card. Say when instead of where. */
-      var _clanShut = false;
-      try { var _C = window.HearthriseClans;
-        _clanShut = !!(_C && typeof _C.clanLaunched === 'function' && !_C.clanLaunched()); } catch(e){}
-      msgsEl.innerHTML = (channel === 'clan' && !clanOf())
-        ? (_clanShut
-          ? '<div class="chat-empty">Clan chat opens with clans, in Open Beta 1.'
-            + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
-            + 'onclick="if(window.Chat)window.Chat.close();'
-            + 'if(window.showTab)window.showTab(\'clan\')">See what’s coming</button></div></div>'
-          : '<div class="chat-empty">Join a clan to unlock this channel.'
-            + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
-            + 'onclick="if(window.Chat)window.Chat.close();'
-            + 'if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div></div>')
-        : '<div class="chat-empty">No messages yet — be the first.</div>';
+      msgsEl.innerHTML = '<div class="chat-empty">No messages yet — be the first.</div>';
       return;
     }
     var meId = me().id;
@@ -864,10 +828,6 @@
     }
     lastSentAt = now;
     var channel = state.active;
-    if(channel === 'clan' && !clanOf()){
-      if(typeof window.notify === 'function') window.notify('Join a clan first.', 'kill');
-      return;
-    }
     var p = me();
     var mentions = extractMentions(v);
     var msg = {

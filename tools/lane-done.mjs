@@ -94,10 +94,8 @@ const STEPS = [
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
-  // The goals surface (WEEK-1..9) and the quest/goal reward catalogue parity — CI-only
-  // until a merged lane went red on WEEK-9 (next@dd9b3a7a, 2026-09-28). Seconds, no network.
-  ['node', ['tests/this-week.mjs']],
-  ['node', ['tests/this-week.mjs', '--selftest']],
+  // The quest/goal reward catalogue parity. Seconds, no network. (The goals-surface
+  // WEEK-1..9 guard left with the this-week card, 2026-10-14 demolition.)
   ['node', ['tests/quest-reward-parity.mjs']],
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
   // W0: the goals board stays cut and the one daily list reads the server. Milliseconds.

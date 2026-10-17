@@ -99,13 +99,8 @@ const MUTATIONS = {
     find: '    if coalesce(v_off.req_property_tier, 0) > 0 then',
     repl: '    if false then',
   },
-  prereq_blueprint_off: {
-    migration: '2026-08-19-companion-unlocks.sql',
-    why: 'the dungeon blueprint stops being required, so the server sells rungs 2-3 strictly '
-       + 'cheaper than the client charges for them',
-    find: '    if v_off.req_item is not null then\n      select coalesce(qty, 0) into v_have',
-    repl: '    if false then\n      select coalesce(qty, 0) into v_have',
-  },
+  /* prereq_blueprint_off retired 2026-10-14: the room blueprints were deleted
+     (designer ruling §2) and no offer carries a req_item to gate on. */
   // ── VALUE ──────────────────────────────────────────────────────────────
   gold_not_debited: {
     migration: '2026-08-19-companion-unlocks.sql',
@@ -802,12 +797,9 @@ async function run(mutate) {
       `U8: a Kitchen was sold at property tier 0: ${JSON.stringify(r.body)} — the homestead gate is `
       + 'the only thing between a rich player and every room in the game');
 
-    // The blueprint arm, on a character that HAS the tier and the gold and the
-    // materials but not the blueprint.
-    const bp = (await db.query(
-      "select * from public.hr_unlock_offers where refusal is null and req_item is not null "
-      + 'order by offer_id limit 1')).rows[0];
-    ok(bp, 'U8: no offer requires a blueprint — the arm cannot run');
+    /* The blueprint arm (prereq_item) left with the room blueprints in the
+       2026-10-14 demolition; no offer carries a req_item. UID2 is still raised to
+       the top property tier and stocked, because U16 runs on that character. */
     await db.exec(`
       insert into public.player_progress (user_id, slot, kind, key, period_key, value)
       select distinct '${UID2}'::uuid, 0, 'unlock', u.unlock_id, '', u.max_value
@@ -818,31 +810,9 @@ async function run(mutate) {
         from public.hr_unlock_offers o, jsonb_object_keys(coalesce(o.items,'{}'::jsonb)) k
        where o.refusal is null
       on conflict (user_id, slot, item_id) do update set qty = 10000;`);
-    // Climb to the rung below the blueprint one, so `rung_skipped` cannot be
-    // the reason this call is refused.
-    await db.query(
-      "insert into public.player_progress (user_id, slot, kind, key, period_key, value) "
-      + "values ($1, 0, 'unlock', $2, '', $3)"
-      + ' on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value',
-      [UID2, bp.unlock_id, Number(bp.value) - 1]);
-    await clearGate();
-    const r2 = await doBuy2({ intentId: uuid(), offer: bp.offer_id });
-    ok(r2.body.ok === false && r2.body.error === 'prereq_item',
-      `U8: ${bp.offer_id} was sold without its ${bp.req_item}: ${JSON.stringify(r2.body)} — the `
-      + 'server would sell rungs 2-3 strictly cheaper than the client charges for them');
-
-    // CONTROL: with the blueprint in the bag the SAME call succeeds, and the
-    // blueprint is CONSUMED.
-    await db.query(
-      'insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1) '
-      + 'on conflict (user_id, slot, item_id) do update set qty = 1', [UID2, bp.req_item]);
-    const r3 = await doBuy2({ intentId: uuid(), offer: bp.offer_id });
-    ok(r3.body.ok === true,
-      `U8 CONTROL FAILED: with the blueprint held, the purchase was still refused: `
-      + `${JSON.stringify(r3.body)}`);
-    ok(await invOf(db, UID2, bp.req_item) === 0,
-      'U8: the blueprint was NOT consumed — src/legacy.js upgradeRoom consumes it, so the server '
-      + 'would be strictly cheaper');
+    const noBp = (await db.query(
+      'select count(*)::int as n from public.hr_unlock_offers where refusal is null and req_item is not null')).rows[0].n;
+    ok(noBp === 0, 'U8: ' + noBp + ' sellable offer(s) still require an item to be consumed — the blueprints were retired');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U9 · POVERTY, AND HOSTILE BODIES ───────────────────────────────────
@@ -869,7 +839,7 @@ async function run(mutate) {
       'room.kitchen.1 ', ' room.kitchen.1', 'ROOM.KITCHEN.1',
       "room.kitchen.1'; drop table player_state; --",
       'room.kitchen.99', 'room.not_a_room.1', 'x'.repeat(500),
-      'theme.winter', 'equip.bronze_sword', 'plot.scarecrow',
+      'equip.bronze_sword', 'plot.scarecrow',
     ];
     for (const h of hostile) {
       await clearGate();
@@ -882,14 +852,14 @@ async function run(mutate) {
     }
     ok(Number((await db.query('select count(*) as n from public.player_state')).rows[0].n) >= 2,
       'U9: player_state did not survive the hostile bodies');
-
-    /* AND THE REAL-BUT-UNSELLABLE ONES ARE NAMED. `theme.winter` is a real
-       purchase; telling a player it does not exist sends them to the wrong bug
-       report. */
+    /* AND THE REAL-BUT-UNSELLABLE ONES ARE NAMED. `theme.winter` was the probe
+       until the house themes left (2026-10-14); `worker.1` is a real offer that
+       this verb cannot sell (hiring is its own verb), so telling a player it does
+       not exist would send them to the wrong bug report. */
     await clearGate();
-    const themed = await doBuy({ intentId: uuid(), offer: 'theme.winter' });
-    ok(themed.body.error === 'offer_unsupported' && themed.body.reason,
-      `U9: a real offer this build cannot sell answered ${JSON.stringify(themed.body)} — it must `
+    const named = await doBuy({ intentId: uuid(), offer: 'worker.1' });
+    ok(named.body.error === 'offer_unsupported' && named.body.reason,
+      `U9: a real offer this build cannot sell answered ${JSON.stringify(named.body)} — it must `
       + 'be refused BY NAME with the reason attached');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 

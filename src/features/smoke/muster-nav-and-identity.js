@@ -309,809 +309,25 @@ export default [
     } finally { restoreG(snap); try { window.renderFarm(); } catch (e) {} }
   }),
 
-  // ── b220 regression suite (backlog #15 the Muster + #14 discoverability) ──
 
-  // #15a: the schedule IS the feature. Everything else — the pill, the join,
-  // the chest — is downstream of "is a muster live right now", so the window
-  // boundaries get frozen-clock coverage at every edge that matters.
-  () => tryRun('b220: muster schedule — fixed 01:00/13:00 UTC windows, 45 minutes, exclusive at the edge', () => {
-    const M = window.HearthriseMuster;
-    assert(M, 'HearthriseMuster missing');
-    assert(String(M.SLOT_UTC_HOURS) === '1,13' && M.WINDOW_MIN === 45,
-      'schedule constants drifted: ' + M.SLOT_UTC_HOURS + ' / ' + M.WINDOW_MIN);
-    const at = (h, m) => Date.UTC(2026, 7, 8, h, m, 0);
-    const live = (h, m) => !!M.liveWindow(at(h, m));
-    assert(!live(0, 59), '00:59 UTC must be closed');
-    assert(live(1, 0), '01:00 UTC must open the first muster');
-    assert(live(1, 44), '01:44 UTC must still be live');
-    assert(!live(1, 45), '01:45 UTC must be closed — the window is 45 minutes, end-exclusive');
-    assert(!live(12, 59), '12:59 UTC must be closed');
-    assert(live(13, 44), '13:44 UTC must be live');
-    // The next window never points backwards and never skips a slot.
-    const n = M.nextWindow(at(1, 46));
-    assert(n && n.slot === 13 && n.startMs === at(13, 0), 'next window after slot 1 should be slot 13');
-    const n2 = M.nextWindow(at(13, 46));
-    assert(n2 && n2.slot === 1 && n2.startMs === at(24 + 1, 0) - 0 || n2.slot === 1,
-      'next window after the last slot should roll to tomorrow 01:00');
-    // Both slots of a day are DIFFERENT musters — that is what makes
-    // "one join per day" a decision instead of a restriction.
-    for (let d = 1; d <= 30; d++) {
-      const key = '2026-8-' + d;
-      assert(M.eventFor(key, 1).id !== M.eventFor(key, 13).id,
-        'both slots picked the same muster on ' + key + ' — the choice is fake');
-    }
-    // Deterministic: same key, same event, on every client on earth.
-    assert(M.eventFor('2026-3-14', 1).id === M.eventFor('2026-3-14', 1).id, 'slot pick is not deterministic');
-    const spread = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((d) => M.eventFor('2026-5-' + d, 1).id));
-    assert(spread.size >= 3, 'slot picks should spread across the pool, got ' + spread.size);
-  }),
 
-  // #15b: the topbar pill. A pure state machine, so every state in the spec —
-  // including the boring ones — is driven directly instead of by waiting for
-  // 01:00 UTC. The precedence rules are the part that actually breaks.
-  () => tryRun('b220: muster pill drives all seven states, in the right precedence, with no "missed it"', () => {
-    const M = window.HearthriseMuster;
-    const S = M._computeState;
-    const base = { nowMs: 1000, todayKey: 'D', signedIn: true, rewardReady: false,
-                   joinedDayKey: null, joinedEventKey: null, live: null, next: null };
-    const LIVE = { eventKey: 'D#1', slot: 1, startMs: 0, endMs: 1000 + 41 * 60000 };
-    const mk = (o) => S(Object.assign({}, base, o));
 
-    const s1 = mk({ next: { startMs: 1000 + 3 * 3600000 } });
-    assert(s1.state === 'upcoming' && /Rally in 3:00:00/.test(s1.copy), '1 upcoming: ' + JSON.stringify(s1)); // b225: renamed Muster→Rally (Tyler)
-    const s2 = mk({ next: { startMs: 1000 + 14 * 60000 } });
-    assert(s2.state === 'imminent' && s2.tone === 'warm' && /14:00/.test(s2.copy), '2 imminent: ' + JSON.stringify(s2));
-    const s3 = mk({ live: LIVE });
-    assert(s3.state === 'live' && s3.tone === 'gold-pulse' && /^LIVE · 41:00 left$/.test(s3.copy), '3 live: ' + JSON.stringify(s3));
-    const s4 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#1' });
-    assert(s4.state === 'mustered' && /^Rallied · 41:00$/.test(s4.copy), '4 mustered: ' + JSON.stringify(s4)); // b225: Muster→Rally
-    const s5 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#13', joinedStartMs: Date.UTC(2026, 7, 8, 9, 0) });
-    assert(s5.state === 'joined_earlier' && s5.tone === 'muted', '5 joined earlier: ' + JSON.stringify(s5));
-    assert(s5.copy.indexOf('joined') === 5 || /joined/.test(s5.copy), '5 should say you already joined');
-    const s6 = mk({ rewardReady: true, next: { startMs: 1000 + 3 * 3600000 } });
-    assert(s6.state === 'reward' && s6.cta === 'claim', '6 reward: ' + JSON.stringify(s6));
-    const s7 = mk({ signedIn: false, requireSignIn: true, next: { startMs: 1000 + 3 * 3600000 } });
-    assert(s7.state === 'signedout' && !/\d\d:\d\d/.test(s7.copy), '7 signed out must carry no countdown urgency');
 
-    // Precedence, verbatim from the spec: 3 > 6 > 1.
-    assert(mk({ live: LIVE, rewardReady: true }).state === 'live', 'a live joinable muster must outrank a waiting chest');
-    assert(mk({ rewardReady: true, next: { startMs: 1000 + 9e6 } }).rank >
-           mk({ next: { startMs: 1000 + 9e6 } }).rank, 'a waiting chest must outrank the plain countdown');
-    // Deliberately absent: a "you missed it" state. Guilt is a churn mechanic.
-    const everyState = [s1, s2, s3, s4, s5, s6, s7].map((s) => s.state + '|' + s.copy).join(' ');
-    assert(!/missed/i.test(everyState), 'a "missed it" state was reintroduced');
-    // The clock formatter is the pill's whole content — it must not lie.
-    assert(M._fmtClock(0) === '00:00' && M._fmtClock(-5000) === '00:00', 'negative time must clamp, not go backwards');
-    assert(M._fmtClock(3 * 3600000 + 61000) === '3:01:01', 'hh:mm:ss formatting drifted: ' + M._fmtClock(3 * 3600000 + 61000));
-  }),
 
-  // #15c: once per UTC day. The real rule is a Postgres primary key; what the
-  // browser can prove is that the client mirror refuses what the server
-  // refuses, that it never invents a chest out of an error, and that it keeps
-  // working against a server WITHOUT the migration (client ships first).
-  () => tryRun('b220: muster join is once per UTC day, and survives an un-migrated server', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    const saved = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
-    try {
-      M._resetProbes();
-      delete G.muster;
-      const st = M.ensureState();
-      assert(st.eventKey === null && st.points === 0, 'a fresh day starts unjoined');
 
-      // Joining slot A must close slot B for the rest of the UTC day.
-      const day = M.todayKey();
-      const slots = M.todaysWindows();
-      Object.assign(G.muster, { dayKey: day, eventKey: slots[0].eventKey, slot: slots[0].slot,
-                                startMs: slots[0].startMs, endMs: slots[0].endMs, points: 300 });
-      assert(G.muster.eventKey === slots[0].eventKey, 'join mirror did not record slot A');
-      const second = M._reduceJoin(200, { ok: false, error: 'already_joined', day_key: day,
-                                          event_key: slots[0].eventKey, points: 300 }, 0);
-      assert(second.action === 'spent' && /already answered/i.test(second.message),
-        'a second join the same UTC day must be refused: ' + JSON.stringify(second));
 
-      // The day roll clears the mirror — it must not grow a record per day
-      // inside a save file that is already fragile.
-      G.muster.dayKey = '1999-1-1';
-      assert(M.ensureState().eventKey === null, 'yesterday’s muster must be pruned at the day roll');
 
-      // A stale event_key earns exactly ONE re-sync, never a retry loop.
-      assert(M._reduceJoin(200, { ok: false, error: 'stale_event', event_key: 'X#1' }, 0).action === 'retry',
-        'the server telling us the real live slot should be adopted once');
-      assert(M._reduceJoin(200, { ok: false, error: 'stale_event', event_key: 'X#1' }, 1).action === 'fail',
-        'a second stale_event must give up, not loop');
-      // Nothing that is not the RPC's own envelope may read as a join.
-      assert(M._reduceJoin(200, null, 0).action === 'fail', 'a null body must never read as a join');
-      assert(M._reduceJoin(401, { code: 'PGRST301' }, 0).action === 'fail', 'an auth error must never read as a join');
-      // A missing RPC (404/PGRST202) reads as 'unsupported' — W0: the muster then
-      // says it needs the realm and pays nothing (no solo path).
-      assert(M._reduceJoin(404, { code: 'PGRST202' }, 0).action === 'unsupported',
-        'a missing world_event_join RPC must degrade, not break the feature');
-      assert(M._reduceClaim(404, { code: 'PGRST202' }, 0).action === 'unsupported',
-        'a missing world_event_claim RPC must degrade, not break claiming');
-      assert(M._reduceContribute(404, { code: 'PGRST202' }, 0).action === 'unsupported',
-        'a missing world_event_contribute RPC must degrade, not break play');
 
-    } finally {
-      M._resetProbes();
-      if (saved === undefined) delete G.muster; else G.muster = saved;
-    }
-  }),
 
-  // b568 (2026-10-10-rally-points-server.sql): RALLY POINTS ARE THE SERVER'S.
-  // The browser used to score its own play (updateDaily -> pointsFor) and SEND
-  // the number (world_event_contribute p_points), and a one-shot "Rally" rolled
-  // a strike locally and sent that too — the band, and so the chest's gold and
-  // XP, rode a client value. Now the call carries no number and the mirror is
-  // REPLACED by the server's tally. Fails without the fix: the old flush sends
-  // p_points, keeps its local 6000 when the server says 37, and a kill moves
-  // G.muster.points.
-  () => tryRunAsync('b568: rally points are the server tally — no number is sent, the mirror is replaced, play scores nothing locally', async () => {
-    const M = window.HearthriseMuster;
-    assert(M && typeof M.refresh === 'function', 'HearthriseMuster.refresh is missing');
-    assert(M._addPoints === undefined && M._pointsFor === undefined && M.rally === undefined && M.flush === undefined,
-      'a client scoring path is exported again (addPoints / pointsFor / rally / flush)');
-    // Pure reducer: zero is a real tally, and a body with no number is a refusal.
-    const z = M._reduceContribute(200, { ok: true, points: 0, added: -6000, progress: 0, goal: 6000, met: false });
-    assert(z.action === 'accept' && z.points === 0, 'a server tally of 0 must replace the mirror: ' + JSON.stringify(z));
-    assert(M._reduceContribute(200, { ok: true }).action === 'fail', 'a body without a tally read as one');
-    assert(M._reduceContribute(200, { ok: true, points: '6000' }).action === 'fail', 'a string tally read as a number');
 
-    const G = window.G;
-    const saved = G.muster;
-    const origFetch = window.fetch;
-    let unstub = () => {};
-    let body = null, calls = 0;
-    try {
-      unstub = stubSignedIn(0);
-      window.fetch = function (url, init) {
-        if (String(url).indexOf('world_event_contribute') !== -1) {
-          calls++;
-          try { body = JSON.parse(init && init.body); } catch (e) { body = null; }
-          return Promise.resolve(new Response(JSON.stringify({ ok: true, points: 37, added: -5963,
-            progress: 37, goal: 6000, met: false, closed: false }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }));
-        }
-        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      };
-      // A joined, server-backed rally whose mirror holds a number the server
-      // never said (what the old client kept locally).
-      const t = M.now();
-      G.muster = { dayKey: M.todayKey(), eventKey: M.todayKey() + '#13', slot: 13,
-                   startMs: t - 60000, endMs: t + 60000, points: 6000, claimed: false, server: true };
-      // Play: the daily counter fires, the mirror does not move.
-      if (typeof window.updateDaily === 'function') window.updateDaily('kill_any', 5);
-      assert(G.muster.points === 6000, 'a kill moved the rally mirror locally (' + G.muster.points + ')');
-      await M.refresh();
-      assert(calls === 1, 'refresh must ask the server exactly once; saw ' + calls);
-      assert(body && Object.keys(body).join(',') === 'p_event_key' && body.p_event_key === G.muster.eventKey,
-        'the contribute call carried more than the event key: ' + JSON.stringify(body));
-      assert(G.muster.points === 37, 'the mirror was not REPLACED by the server tally (6000 -> 37), got ' + G.muster.points);
-      // FIXED bands (designer ruling): no chest below Answered, and the copy
-      // names where the player stands.
-      assert(/Silver band/.test(M.bandLine(1600)) && /No chest yet/.test(M.bandLine(37))
-        && /Gold band/.test(M.bandLine(M.BANDS.gold)), 'the band copy is wrong: ' + M.bandLine(1600));
-      G.muster.endMs = M.now() - 1;
-      assert(M.rewardReady() === false, 'a tally below Answered (' + G.muster.points + ') offers a chest');
-      G.muster.points = M.BANDS.answered;
-      assert(M.rewardReady() === true, 'a tally at Answered offers no chest');
-      // A claimed rally stops asking.
-      G.muster.claimed = true; calls = 0;
-      await M.refresh();
-      assert(calls === 0, 'a claimed rally still polls the server');
-    } finally {
-      window.fetch = origFetch;
-      unstub();
-      M._resetProbes();
-      if (saved === undefined) delete G.muster; else G.muster = saved;
-    }
-  }),
 
-  // W0 (2026-10-10): the Rally Seal was CUT (it had no spend). This keeps the
-  // economy half of the old #15d guard — no band mints the IAP-only Hearth
-  // Token, the ceiling is mirrored client-side — and proves the Seal is gone
-  // from the catalogue AND from the reward shape, whatever the server sends.
-  () => tryRun('W0: the Rally Seal is gone, and no muster band mints a Hearth Token', () => {
-    const M = window.HearthriseMuster;
-    assert(!(window.ITEMS || {}).muster_seal, 'muster_seal is back in ITEMS — the cut currency returned');
-    assert(!('muster_seal' in ((window._itemPath) || {})), 'muster.js still registers Rally Seal art');
-    const greedy = M._reduceClaim(200, { ok: true, band: 'gold', held: true, gold: 9e9, gems: 9e9, seals: 9e9 });
-    assert(greedy.gold === 7500 && greedy.gems === 10,
-      'the daily chest ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
-    assert(!('seals' in greedy), 'a server `seals` field still reaches the payout shape: ' + JSON.stringify(greedy));
-    assert(!('seals' in M.themedChest('forge_levy', 7500, 10)), 'themedChest still carries a seals field');
-    assert(M.chestSummary ? M.chestSummary({ gold: 1, seals: 1 }).indexOf('Seal') === -1 : true,
-      'the chest summary still names a Rally Seal');
-    assert(JSON.stringify(greedy).indexOf('hearth_token') === -1,
-      'a muster chest must never reference the IAP-only Hearth Token');
-    assert(M._reduceClaim(200, { ok: false, error: 'already_claimed' }).action === 'spent', 'a replayed claim must be refused');
-    assert(M._reduceClaim(500, null).action === 'fail', 'a server error must never award a chest');
-  }),
 
-  // W0: the offline 'solo muster' is gone. Signed out (no server), a join is
-  // refused with a sentence and a claim pays NOTHING — before W0 the claim
-  // fell through to grant(SOLO_BAND) and minted a client-computed chest.
-  // MUTATION: restore `grant(SOLO_BAND)` at the end of claim() -> the bag
-  // assertion goes red; restore the solo adopt() in join() -> the join one does.
-  () => tryRunAsync('W0: the muster is online-only — a signed-out join and claim pay nothing', async () => {
-    const M = window.HearthriseMuster, G = window.G;
-    const snap = snapshotG();
-    const inv0 = JSON.stringify(G.inventory || {});
-    const origAdd = window.addItem, origXp = window.addXp;
-    let minted = 0;
-    try {
-      window.addItem = function () { minted++; };
-      window.addXp = function () { minted++; };
-      assert(!(window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()),
-        'CONTROL: the suite is signed in, so this cannot measure the signed-out path');
-      const w = M.liveWindow() || M.todaysWindows()[0];
-      const before = M.ensureState().eventKey;
-      if (M.liveWindow()) {
-        const joined = await M.join(true);
-        assert(joined === false, 'a signed-out join was ACCEPTED — the solo muster is back');
-        assert(M.ensureState().eventKey === before, 'a signed-out join still adopted a muster locally');
-      }
-      /* A day already joined, window closed, contribution made: the shape that
-         used to fall through to the solo chest. */
-      Object.assign(M.ensureState(), { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0,
-        endMs: 1, points: 1600, claimed: false, server: false });
-      const paid = await M.claim();
-      assert(paid === false, 'a signed-out claim returned true — a chest was paid with no server');
-      assert(minted === 0, 'a signed-out claim minted ' + minted + ' item/XP grant(s) client-side');
-      assert(JSON.stringify(G.inventory || {}) === inv0, 'a signed-out claim moved the bag');
-    } finally {
-      window.addItem = origAdd; window.addXp = origXp;
-      restoreG(snap);
-    }
-  }),
-
-  // ── b228 regression suite (rally pre-selection + the 50% absence band) ──
-  //
-  // Tyler: "allow users to choose which rally they plan to join that day; if
-  // they are offline, they will get 50% participation reward during the event."
-  // Two things can break badly here and both are guarded below: the pre-select
-  // could become a way to pay twice, or it could quietly become better than
-  // showing up. Neither is allowed to regress silently.
-
-  // #1: the rule — ONE answer per UTC day, changeable only until the rally you
-  // chose actually opens. Driven through the pure gate with a frozen clock, so
-  // every edge is exercised without waiting for 01:00 UTC.
-  () => tryRun('b228: rally pre-select — one per UTC day, changeable only until that rally opens', () => {
-    const M = window.HearthriseMuster;
-    assert(typeof M.canPledge === 'function', 'canPledge is missing — the pre-selection gate IS the feature');
-    const DAY = '2026-8-9';
-    const A = { eventKey: DAY + '#1',  dayKey: DAY, slot: 1,  startMs: Date.UTC(2026, 7, 9, 1, 0) };
-    const B = { eventKey: DAY + '#13', dayKey: DAY, slot: 13, startMs: Date.UTC(2026, 7, 9, 13, 0) };
-    const TOM = { eventKey: '2026-8-10#1', dayKey: '2026-8-10', slot: 1, startMs: Date.UTC(2026, 7, 10, 1, 0) };
-    const ctx = (o) => Object.assign({ nowMs: Date.UTC(2026, 7, 9, 0, 0), todayKey: DAY,
-                                       windows: [A, B, TOM], pledge: null, joinedToday: false }, o);
-    const why = (key, o) => { const r = M.canPledge(key, ctx(o)); return r.ok ? 'ok' : r.error; };
-
-    assert(why(A.eventKey) === 'ok', 'an unpledged upcoming rally must be answerable');
-    // Changeable — the whole point of "plan to join", since a day's two rallies
-    // are always different content.
-    assert(why(B.eventKey, { pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'ok',
-      'the answer must be changeable while neither window has opened');
-    // …until YOUR rally opens. Then the day is committed.
-    assert(why(B.eventKey, { nowMs: Date.UTC(2026, 7, 9, 1, 5), pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'locked',
-      'once the chosen rally has opened the answer must lock');
-    assert(why(A.eventKey, { nowMs: Date.UTC(2026, 7, 9, 1, 5) }) === 'window_open',
-      'a rally that has already begun is joined, not pre-selected');
-    assert(why(A.eventKey, { pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'already_pledged',
-      'answering the same rally twice must be a no-op, not a second pledge');
-    assert(why(TOM.eventKey) === 'not_today',
-      'only TODAY’s two rallies may be answered — one per UTC day is a rule about a day the server can name');
-    assert(why(A.eventKey, { joinedToday: true }) === 'already_answered',
-      'a player who already joined live today must never be offered a pledge that could not pay');
-    assert(why('9999-1-1#7') === 'unknown_slot', 'an invented slot must be refused');
-
-    // The topbar pill's upcoming state stops asking once the choice is made,
-    // without changing state or precedence — pre-selecting is a plan, not an event.
-    const S = M._computeState;
-    const answering = S({ nowMs: 0, todayKey: 'D', next: { startMs: 3 * 3600000, eventKey: 'D#13' },
-                          pledgedEventKey: 'D#13' });
-    assert(answering.state === 'upcoming' && answering.answering === true &&
-           /^Answering in 3:00:00$/.test(answering.copy), 'pledged pill copy: ' + JSON.stringify(answering));
-    const plain = S({ nowMs: 0, todayKey: 'D', next: { startMs: 3 * 3600000, eventKey: 'D#13' } });
-    assert(/^Rally in 3:00:00$/.test(plain.copy) && !plain.answering,
-      'an unpledged countdown must read exactly as before: ' + JSON.stringify(plain));
-    assert(answering.rank === plain.rank && answering.state === plain.state,
-      'pre-selecting must not change the pill’s precedence');
-  }),
-
-  // #2: the economy. 50% of the BASE band and nothing else —
-  // never the community share, never twice, and never before the day is over.
-  // gold-arm: the half-honors payout credits gold client-side via a
-  // clientMayWriteRecordField-gated grant — switch-OFF position.
-  () => tryRun('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    assert(M.ABSENT_SHARE === 0.5, 'the consolation share drifted: ' + M.ABSENT_SHARE);
-    assert(M.ABSENT_BAND.gold === Math.round(M.BASE_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
-      'half honors must be 750g against the 1,500g base band, got ' + M.ABSENT_BAND.gold);
-    assert(M.ABSENT_BAND.gems === 1, 'half honors must be 1 gem against the base band’s 2, got ' + M.ABSENT_BAND.gems);
-    // Presence has to keep winning, or this quietly becomes "log in every other
-    // day". 750g is half the FLOOR and a tenth of the 7,500g ceiling.
-    assert(M.ABSENT_BAND.gold * 2 === M.BASE_BAND.gold, 'absence must be worth exactly half of live participation');
-    assert(M.ABSENT_BAND.gold <= 7500 * 0.2, 'absence must stay far under the live ceiling');
-
-    // The day closes at the END of the LAST window — 13:45 UTC, not 01:45.
-    // Paying earlier could stack with a live join in the second slot.
-    assert(M.dayCloseMs('2026-8-9') === Date.UTC(2026, 7, 9, 13, 45),
-      'the day must close at 13:45 UTC, got ' + new Date(M.dayCloseMs('2026-8-9')).toISOString());
-    assert(!isFinite(M.dayCloseMs('rubbish')), 'a malformed day key must not produce a payout window');
-
-    const O = M._pledgeOutcome;
-    const P = { dayKey: '2026-8-9', eventKey: '2026-8-9#1', slot: 1 };
-    const close = M.dayCloseMs('2026-8-9');
-    assert(O(P, { nowMs: close - 1, joinedThatDay: false }).action === 'hold',
-      'nothing is owed while the day can still be joined');
-    const paid = O(P, { nowMs: close, joinedThatDay: false });
-    assert(paid.action === 'pay' && paid.gold === 750 && paid.gems === 1 && !('seals' in paid),
-      'the absent payout drifted: ' + JSON.stringify(paid));
-    assert(O(P, { nowMs: close + 9e8, joinedThatDay: true }).action === 'forfeit',
-      'a pledge answered live must forfeit the consolation, not add to it');
-    assert(O(null, { nowMs: close }).action === 'none', 'no pledge, no payout');
-
-    // The wire contract. A greedy or confused server cannot mint.
-    const A = M._reduceAbsence;
-    const greedy = A(200, { ok: true, gold: 9e9, gems: 9e9, seals: 9e9 });
-    assert(greedy.action === 'accept' && greedy.gold === 750 && greedy.gems === 1 && !('seals' in greedy),
-      'the half-honors ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
-    assert(JSON.stringify(greedy).indexOf('hearth_token') === -1,
-      'the absence band must never reference the IAP-only Hearth Token');
-    assert(A(200, { ok: false, error: 'day_open' }).action === 'hold', 'day_open must wait, not fail');
-    assert(A(500, null).action === 'fail' && A(200, null).action === 'fail',
-      'a server error must never pay half honors');
-
-    // End to end on a PROVISIONAL (local-only) pledge. W0: there is no server
-    // answer behind one, so it closes and pays NOTHING — before W0 it paid half
-    // honors out of a client-computed chest. settlePledge() is async, but that
-    // path contains no await, so its whole body runs before it returns.
-    const snap = snapshotG();
-    const origAdd = window.addItem, origXp = window.addXp;
-    let minted = 0;
-    try {
-      window.addItem = function () { minted++; };
-      window.addXp = function () { minted++; };
-      delete G.muster; M.ensureState();
-      const past = new Date(M.now() - 3 * 86400000);
-      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
-      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
-                       at: 0, joined: false, provisional: true });
-      const goldKnown0 = goldOf(), gemsKnown0 = gemsOf();
-      M.settlePledge();
-      assert(M.getPledge() === null, 'a settled pledge must be cleared, or it is re-asked on every boot');
-      assert(minted === 0, 'a provisional pledge minted ' + minted + ' client-side grant(s) — the solo half-honors path is back');
-      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0, 'a provisional pledge moved a server-owned balance');
-      // And the server-registered half of the same function is still the ceiling-mirrored one above.
-      const expect = M.absentChest(pastKey + '#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
-      assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
-    } finally {
-      window.addItem = origAdd; window.addXp = origXp;
-      restoreG(snap);
-    }
-  }),
-
-  // #3: THE no-double-pay test. A pre-selection that becomes a live join must
-  // upgrade into that join and pay nothing extra — including days later, after
-  // the muster mirror has been pruned at the UTC day roll.
-  () => tryRun('b228: a pre-selection that becomes a live join never double-pays', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const gold0 = G.gold, gems0 = G.gems;
-    try {
-      const past = new Date(M.now() - 3 * 86400000);
-      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
-      delete G.muster; M.ensureState();
-      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
-                       at: 0, joined: false, provisional: true });
-      // Answer it live. adopt() latches the join onto the PLEDGE, because the
-      // muster mirror is pruned at the day roll and settlement can be days later.
-      M._adopt({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, server: false });
-      assert(M.getPledge() && M.getPledge().joined === true,
-        'joining the pledged rally must latch onto the pledge — the mirror will not remember');
-      // Now roll the day: the mirror forgets, the pledge does not.
-      G.muster.dayKey = '1999-1-1'; M.ensureState();
-      assert(M.ensureState().eventKey === null, 'the mirror should have been pruned');
-      M.settlePledge();
-      assert(G.gold === gold0 && G.gems === gems0,
-        'a rally answered live paid half honors on top of its chest — that is the double-pay bug');
-      assert(M.getPledge() === null, 'the forfeited pledge must be closed, not left pending');
-
-      // The server says the same thing, through the b220 join primary key.
-      assert(M._reduceAbsence(200, { ok: false, error: 'answered_live' }).action === 'forfeit',
-        'the server finding a live join must close the pledge, not fail loudly at the player');
-      assert(M._reduceAbsence(200, { ok: false, error: 'already_settled' }).action === 'forfeit',
-        'a replayed consolation claim must pay nothing');
-
-      // Ownership rule: what the SERVER holds, only the server settles. A
-      // client that paid a server-registered pledge locally would pay twice the
-      // moment that account signed in anywhere else.
-      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
-                       at: 0, joined: false, provisional: false });
-      M.settlePledge();
-      assert(G.gold === gold0 && G.gems === gems0,
-        'a server-registered pledge was settled by the client — that is a cross-device double-pay');
-      assert(M.getPledge() !== null, 'a server-owned pledge must be held, not discarded');
-    } finally {
-      G.gold = gold0; G.gems = gems0;
-      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
-    }
-  }),
-
-  // #4: the wire contract, and what happens when the server cannot hold a
-  // pledge at all. b231 replaced the old "provisional, this device only"
-  // degradation — Tyler: an answer the server cannot keep is not a feature, it
-  // is a rumour — so an un-migrated project HIDES the affordance instead.
-  () => tryRun('b231: with no migration the pledge affordance hides — no half-kept promise', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    assert(M._reducePledge(404, { code: 'PGRST202' }).action === 'unsupported',
-      'a missing world_event_pledge RPC must degrade, not break the feature');
-    assert(M._reduceAbsence(404, { code: 'PGRST202' }).action === 'unsupported',
-      'a missing world_event_absence_claim RPC must degrade, not break settlement');
-    assert(M._reducePledge(200, null).action === 'fail', 'a null body must never read as an accepted answer');
-    assert(M._reducePledge(401, { code: 'PGRST301' }).action === 'fail',
-      'an auth error must never read as an accepted answer');
-    assert(M._reducePledge(200, { ok: false, error: 'locked' }).message.length > 0,
-      'every refusal must carry copy a player can act on');
-
-    // A signed-out or un-migrated session must not claim pledge support.
-    M._forceSupport(null);
-    assert(M.pledgeSupported() === false,
-      'a session with no server must never offer to hold a pledge');
-
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const prevTab = window.activeTab;
-    try {
-      // Dated FORWARD on purpose: a pledge whose day cannot have closed can
-      // never be settled out from under the assertions by the settle pass.
-      const soon = new Date(M.now() + 86400000);
-      const dayKey = soon.getUTCFullYear() + '-' + (soon.getUTCMonth() + 1) + '-' + soon.getUTCDate();
-      M._writePledge({ dayKey, eventKey: dayKey + '#1', slot: 1, startMs: M.now() + 9e6,
-                       at: M.now(), joined: false, provisional: false });
-      window.showTab('events');
-
-      // b385: the muster is a gated clan surface while CLAN_LAUNCHED is false —
-      // the rendered card reads coming-soon and shows no pledge/rally affordance
-      // (which is also, trivially, "no pledge button offered"). The pledge-copy
-      // assertions only hold once the flag flips; the pure pledge-reduce contract
-      // above is independent of the render and always runs. The b385 gate test
-      // pins the coming-soon state.
-      const _CLm = window.HearthriseClans;
-      const _launchedM = _CLm && typeof _CLm.clanLaunched === 'function' && _CLm.clanLaunched();
-
-      // 1 — un-migrated: no buttons at all. Not a greyed one, not a "coming
-      // soon", and above all not a promise recorded nowhere.
-      M._forceSupport(false);
-      M.render();
-      const card = document.getElementById('hr-muster-card');
-      assert(card, 'the rally card is missing from Events');
-      assert(!card.querySelector('[data-mu="pledge"]'),
-        'an un-migrated project still offered a pledge button');
-
-      if (_launchedM) {
-        // 2 — supported: the affordance is there and states the real numbers.
-        M._forceSupport(true);
-        M.render();
-        const text = document.getElementById('hr-muster-card').textContent || '';
-        assert(/half honors/i.test(text),
-          'the rally card never tells the player what answering in absence is worth');
-        assert(/\d/.test(text.split('half honors')[1] || ''),
-          'the card must state the actual reward, not a vague promise');
-        assert(/automatically/i.test(text),
-          'the card must state the auto-join rule — it is the reason to mark a rally');
-      } else {
-        assert(card.querySelector('.clan-soon'),
-          'the gated muster must render the coming-soon card, not a functional rally');
-      }
-    } finally {
-      M._forceSupport(null);
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
-      try { window.showTab(prevTab || 'profile'); } catch {}
-    }
-  }),
-
-  /* ── b231 regression suite (rally pledges v2) ──────────────────
-     Tyler, 2026-08-09: (1) pledged + online during the window = full
-     participation automatically; (2) a visible "Switch to <the other rally>"
-     until the pledged window opens; (3) chests THEMED to the event; (4) no
-     implementation-state copy, ever.
-
-     The two things that can go badly wrong here are the two that are tested
-     hardest: auto-join must never become a second payout on top of half
-     honors, and theming must never become a stealth buff. */
-
-  () => tryRun('b231: auto-join — pledged + online joins once, and never doubles with half honors', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    const D = M.autoJoinDecision;
-    const DAY = '2026-8-9';
-    const live = { eventKey: DAY + '#1', dayKey: DAY, slot: 1 };
-    const base = { live, pledge: { dayKey: DAY, eventKey: DAY + '#1' }, todayKey: DAY,
-                   joinedDayKey: null, joinedEventKey: null, online: true };
-    const why = (o) => { const r = D(Object.assign({}, base, o)); return r.action === 'join' ? 'join' : r.reason; };
-
-    // THE happy path: the window opened, they are here, they are in.
-    assert(why() === 'join', 'a pledged, online player must be entered automatically');
-    // Every branch that must NOT auto-join.
-    assert(why({ online: false }) === 'offline',
-      'an offline player must fall through to half honors, never be auto-joined');
-    assert(why({ live: null }) === 'no_window', 'nothing happens outside a window');
-    assert(why({ pledge: null }) === 'no_pledge',
-      'an un-pledged player keeps the manual join — auto-join must never fire for them');
-    assert(why({ pledge: { dayKey: DAY, eventKey: DAY + '#13' } }) === 'other_rally',
-      'a pledge for the OTHER rally must not be answered by this one');
-    assert(why({ joinedDayKey: DAY, joinedEventKey: DAY + '#1' }) === 'already_joined',
-      'the join is idempotent — a 1Hz tick must not re-join every second');
-    assert(why({ joinedDayKey: DAY, joinedEventKey: DAY + '#13' }) === 'day_spent',
-      'a day already spent on the other rally must not be spent again');
-
-    // The online oracle is the blessing gate's oracle, not a second opinion.
-    assert(typeof M._sessionOnline === 'function' && typeof M._sessionOnline() === 'boolean',
-      'auto-join must read a real online signal');
-    const P = window.HearthrisePresence;
-    assert(P && typeof P.isOnline === 'function', 'HearthrisePresence.isOnline is the one oracle');
-    assert(M._sessionOnline() === P.isOnline(),
-      'auto-join and the blessing must never disagree about whether the player is here');
-
-    // NO DOUBLE PAY, end to end on the real functions: pledge → auto-join →
-    // the day rolls (the muster mirror is pruned) → settlement pays nothing.
-    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const gold0 = G.gold, gems0 = G.gems;
-    try {
-      const past = new Date(M.now() - 3 * 86400000);
-      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
-      delete G.muster; M.ensureState();
-      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
-                       at: 0, joined: false, provisional: true });
-      // What auto-join does is adopt() the join — the same call the manual path
-      // makes — so the latch is exercised, not simulated.
-      M._adopt({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, server: false });
-      assert(M.getPledge().joined === true, 'auto-join must latch onto the pledge');
-      G.muster.dayKey = '1999-1-1'; M.ensureState();
-      M.settlePledge();
-      assert(G.gold === gold0 && G.gems === gems0,
-        'an auto-joined rally paid half honors on top of its chest — that is the double-pay bug');
-      assert(M.getPledge() === null, 'the answered pledge must be closed, not left pending');
-      // And the server says the same thing independently, through the join PK.
-      assert(M._reduceAbsence(200, { ok: false, error: 'answered_live' }).action === 'forfeit',
-        'the server must forfeit the consolation for a day that was answered live');
-    } finally {
-      G.gold = gold0; G.gems = gems0;
-      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
-    }
-  }),
-
-  () => tryRun('b231: the pledged card offers "Switch to <the other rally>" until its window opens', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
-    const prevTab = window.activeTab;
-    const CL = window.HearthriseClans;
-    const savedLaunched = CL ? CL.clanLaunched : null;
-    try {
-      M._forceSupport(true);
-      /* ── PIN THE CLOCK (QA, 2026-09-07) ───────────────────────────────────
-         This test used to read the wall clock: it took `todaysWindows()` and
-         pledged into a real slot. The two slots are 01:00 and 13:00 UTC, so
-         BOTH are still ahead only between 00:00 and 01:00 UTC — for the other
-         23 hours the test fell into a weak early-return that asserted a pure
-         seam and never rendered anything, and inside that one hour it asserted
-         DOM that b385/b465 had already removed. Result: green in every daytime
-         run and red at 00:02 UTC on 2026-09-07, with the real rendering path
-         effectively untested. `_setSkew` is the module's one clock seam — it
-         moves now(), dayKeyAt, windowsAround, canPledge and the render
-         together, so nothing can disagree about which UTC day this is. Pinning
-         to 00:30 UTC of the CURRENT day (not a hardcoded date, so the offset
-         stays inside the |0 int32 `_setSkew` takes) makes the full path run in
-         every run, at every hour, with no assertion weakened. */
-      const _n = new Date();
-      const pinned = Date.UTC(_n.getUTCFullYear(), _n.getUTCMonth(), _n.getUTCDate(), 0, 30, 0);
-      M._setSkew(pinned - Date.now());
-      /* The muster SURFACE is behind the CLAN_LAUNCHED product gate (b385 for
-         the card, b465 for the pill and modal), so while clans are unlaunched
-         nothing renders a slot at all — that is why the DOM half of this test
-         could only ever be red. The gate has its own test; this one is about
-         what the card does once the gate opens, and it must not rot while the
-         gate is shut. Lift the flag for the render only, restore in `finally`. */
-      if (CL && typeof CL.clanLaunched === 'function') CL.clanLaunched = function () { return true; };
-      const open = M.todaysWindows().filter((w) => M.now() < w.startMs);
-      assert(open.length === 2,
-        'the pinned instant (00:30 UTC) must have both of the day’s rallies still ahead, got ' +
-        open.length + ' — the slot schedule moved and this test needs re-pinning');
-      const mine = open[0], other = open[1];
-      M._writePledge({ dayKey: mine.dayKey, eventKey: mine.eventKey, slot: mine.slot,
-                       startMs: mine.startMs, at: M.now(), joined: false, provisional: false });
-      window.showTab('events'); M.render();
-      const card = document.getElementById('hr-muster-card');
-      // Anti-vacuity: if the gate lift or the pin failed, the card is the
-      // coming-soon panel and every assertion below would be about nothing.
-      assert(card && card.querySelector('.mu-slots'),
-        'the muster card rendered no slots — the clan gate is still shut, so the switch assertions below would be vacuous');
-      const btn = card.querySelector('[data-mu="pledge"]');
-      assert(btn, 'a pledged card must still offer the switch');
-      assert(btn.getAttribute('data-key') === other.eventKey,
-        'the switch must point at the OTHER rally, got ' + btn.getAttribute('data-key'));
-      assert(btn.textContent.indexOf('Switch to ') === 0 &&
-             btn.textContent.indexOf(other.event.name) > 0,
-        'the switch must name the rally it moves to, got: ' + btn.textContent);
-      // Exactly one pledge control on the card — the choice lives where it is
-      // held, not duplicated onto every slot.
-      assert(card.querySelectorAll('[data-mu="pledge"]').length === 1,
-        'a pledged player must be offered one switch, not a second pledge button');
-
-      // Once YOUR window has opened the day is committed and the switch is gone.
-      const ctxOpen = Object.assign(M._pledgeContext(), { nowMs: mine.startMs + 60000 });
-      assert(M._switchTarget(ctxOpen) === null,
-        'the switch must disappear once the pledged rally has begun');
-      // The invariant the old post-13:00 branch used to be the only carrier of,
-      // kept and now asserted in EVERY run: whatever the card offers as a
-      // switch must be something the pledge gate would actually accept.
-      const ctxNow = M._pledgeContext();
-      const tgt = M._switchTarget(ctxNow);
-      assert(tgt === null || M.canPledge(tgt.eventKey, ctxNow).ok,
-        'a switch target must always be one the pledge gate would actually accept');
-    } finally {
-      M._setSkew(0);
-      M._forceSupport(null);
-      if (CL && savedLaunched) CL.clanLaunched = savedLaunched;
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
-      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
-      try { window.showTab(prevTab || 'profile'); } catch {}
-    }
-  }),
-
-  () => tryRun('b231: every rally has a themed chest, and theming never inflates the band', () => {
-    const M = window.HearthriseMuster;
-    const ITEMS = window.ITEMS || {};
-    assert(M.EVENTS.length === Object.keys(M.THEMES).length,
-      'every rally needs a reward table — ' + M.EVENTS.length + ' rallies, ' +
-      Object.keys(M.THEMES).length + ' tables');
-
-    M.EVENTS.forEach((ev) => {
-      const t = M.THEMES[ev.id];
-      assert(t, 'rally ' + ev.id + ' has no reward table');
-      assert(t.skills.length > 0, ev.id + ' pays no XP — the theme is the whole point');
-      assert(t.items.length > 0, ev.id + ' pays no materials');
-      // The inline vendor values must match the economy, or a price change
-      // silently unbalances a rally chest.
-      t.items.forEach((it) => {
-        assert(ITEMS[it.id], ev.id + ' pays an item that does not exist: ' + it.id);
-        assert(ITEMS[it.id].v === it.v,
-          ev.id + ' prices ' + it.id + ' at ' + it.v + ' but the game says ' + ITEMS[it.id].v);
-      });
-      // The weights are a split of one budget, not a multiplier on it.
-      const w = t.items.reduce((a, b) => a + b.w, 0);
-      assert(Math.abs(w - 1) < 1e-9, ev.id + ' item weights must total 1, got ' + w);
-
-      // THE CEILING, at the floor band, the ceiling band and half honors.
-      [750, 1500, 3000, 7500].forEach((band) => {
-        const c = M.themedChest(ev.id, band, 2, 0);
-        assert(M.chestValue(c) <= band,
-          ev.id + ' at ' + band + 'g is worth ' + M.chestValue(c) + ' — theming must convert value, not add it');
-        assert(c.gold <= band && c.gold >= 0, ev.id + ' gold out of range at ' + band);
-        assert(c.items.length > 0, ev.id + ' paid no materials at ' + band + 'g');
-        assert(c.xp.length === t.skills.length && c.xp.every((x) => x.amount > 0),
-          ev.id + ' paid no XP at ' + band + 'g');
-        assert(JSON.stringify(c).indexOf('hearth_token') === -1,
-          'a rally chest must never reference the IAP-only Hearth Token');
-      });
-    });
-
-    // Tyler's own example, spelled out: the Forge Levy pays the forge.
-    const forge = M.themedChest('forge_levy', 7500, 10);
-    assert(forge.xp.map((x) => x.skill).join() === 'smithing,crafting',
-      'the Forge Levy must pay smithing and crafting XP, got ' + JSON.stringify(forge.xp));
-    assert(forge.items.map((i) => i.id).join() === 'iron_bar,coal',
-      'the Forge Levy must pay forge materials, got ' + JSON.stringify(forge.items));
-    assert(forge.gems === 10,
-      'theming must leave gems exactly as the band set them');
-    assert(M.themedChest('forge_levy', 9e9, 9e9, 9e9).gold <= 7500,
-      'the 7,500g ceiling must survive theming');
-    assert(M.themedChest('forge_levy', 7500, 9e9).gems === 10,
-      'the gem ceiling must survive theming');
-
-    // Half honors is 50% of the SAME table, not a different reward.
-    const half = M.absentChest('2026-8-9#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
-    const full = M.themedChest(half.eventId, M.BASE_BAND.gold, M.BASE_BAND.gems);
-    assert(half.eventId === full.eventId,
-      'absence must draw on the same rally table');
-    assert(M.chestValue(half) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
-    assert(M.chestValue(half) * 2 <= M.BASE_BAND.gold + 1,
-      'half honors must stay at half the floor band');
-    assert(half.xp.map((x) => x.skill).join() === full.xp.map((x) => x.skill).join(),
-      'half honors must pay the same domain as the rally it was pledged to');
-
-    // An unknown rally degrades to plain gold — poorer, never emptier.
-    const unknown = M.themedChest('no_such_rally', 1500, 2);
-    assert(unknown.gold === 1500 && unknown.items.length === 0 && unknown.xp.length === 0,
-      'an unknown rally must fall back to plain gold, got ' + JSON.stringify(unknown));
-
-    // XP must be granted, never injected: the chest names skills and amounts
-    // and the payout hands them to addXp, so PACE and the fuse apply.
-    assert(typeof window.addXp === 'function', 'the themed chest needs addXp to exist');
-    assert(M.XP_PER_GOLD > 0 && M.CHEST_XP_SHARE + M.CHEST_ITEM_SHARE < 1,
-      'the conversion shares must leave gold in the chest');
-  }),
-
-  () => tryRun('b231: no implementation-state copy anywhere in the rally surfaces', () => {
-    const M = window.HearthriseMuster, G = window.G;
-    // Tyler: "provisional / recorded on this device" and anything like it is
-    // banned outright. A player must never be told about our plumbing.
-    const BANNED = [/provisional/i, /recorded on this device/i, /this device only/i,
-                    /device only/i, /local(?:ly)? (?:only|saved|stored)/i,
-                    /not (?:yet )?synced/i, /un-?migrated/i, /migration/i, /rpc/i];
-    const sweep = (label, s) => BANNED.forEach((re) => assert(!re.test(String(s || '')),
-      label + ' leaks implementation-state copy (' + re + '): ' + s));
-
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const prevTab = window.activeTab;
-    const realNotify = window.notify;
-    const toasts = [];
-    try {
-      window.notify = (msg) => { toasts.push(String(msg)); };
-      window.showTab('events');
-
-      // Every state the rally card can be in, swept.
-      [[true, true], [true, false], [false, true], [false, false]].forEach(([supported, pledged]) => {
-        M._forceSupport(supported);
-        if (pledged) {
-          const soon = new Date(M.now() + 86400000);
-          const dayKey = soon.getUTCFullYear() + '-' + (soon.getUTCMonth() + 1) + '-' + soon.getUTCDate();
-          M._writePledge({ dayKey, eventKey: dayKey + '#1', slot: 1, startMs: M.now() + 9e6,
-                           at: M.now(), joined: false, provisional: false });
-        } else { M._writePledge(null); }
-        M.render();
-        const card = document.getElementById('hr-muster-card');
-        sweep('the rally card (supported=' + supported + ', pledged=' + pledged + ')',
-              card ? card.textContent : '');
-      });
-
-      // The degraded sentence is the ONLY thing a server-less session may say,
-      // and it says nothing about why.
-      M._forceSupport(false); M._writePledge(null); M.render();
-      const degraded = document.getElementById('hr-muster-card').textContent || '';
-      assert(degraded.indexOf('unavailable') < 0 || degraded.indexOf(M.UNAVAILABLE) >= 0,
-        'the degraded state may only use the one approved sentence');
-      assert(M.UNAVAILABLE === 'Rally pledges are unavailable right now.',
-        'the degraded sentence drifted: ' + M.UNAVAILABLE);
-      sweep('the degraded sentence', M.UNAVAILABLE);
-
-      // The half-honors toast, captured at source.
-      toasts.length = 0;
-      const gold0 = G.gold, gems0 = G.gems;
-      try {
-        M._grantAbsent({ dayKey: '2026-8-9', eventKey: '2026-8-9#1', provisional: true },
-                       { gold: M.ABSENT_BAND.gold, gems: M.ABSENT_BAND.gems });
-      } finally { G.gold = gold0; G.gems = gems0; }
-      assert(toasts.length > 0, 'half honors must tell the player it happened');
-      toasts.forEach((t) => sweep('a half-honors toast', t));
-
-      // And every refusal sentence the pledge can produce.
-      ['window_open', 'locked', 'not_today', 'unknown_slot', 'already_answered',
-       'already_pledged', 'not_signed_in', 'network', ''].forEach((e) => {
-        sweep('pledge refusal "' + e + '"', M._reducePledge(200, { ok: false, error: e }).message);
-      });
-    } finally {
-      window.notify = realNotify;
-      M._forceSupport(null);
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
-      try { window.showTab(prevTab || 'profile'); } catch {}
-    }
-  }),
-
-  /* ══ NAV-DOORS — the menu is nine doors (coherence audit 2026-10-09) ══════
-     Home · Character · Skills · Combat · Homestead · Clan · Events · Market ·
-     Social. Every old destination is a PANE of exactly one door, drawn by the
-     pane strip from HUBS (src/nav-consolidation.js). The b220 lesson still
-     stands: every door is static markup that nothing hides. */
-  () => tryRun('NAV-DOORS-1: the menu is nine static doors in the audit\'s order, on both rails', () => {
+  /* The Clan and Events doors left with their systems in the 2026-10-14 demolition. */
+  () => tryRun('NAV-DOORS-1: the menu is seven static doors in the audit\'s order, on both rails', () => {
     const N = window.HearthriseNav;
     assert(N && Array.isArray(N.hubs), 'window.HearthriseNav is not published');
-    const want = ['profile', 'character', 'skills', 'combat', 'homestead', 'clan', 'events', 'shops', 'social'];
-    const labels = ['Home', 'Character', 'Skills', 'Combat', 'Homestead', 'Clan', 'Events', 'Market', 'Social'];
+    const want = ['profile', 'character', 'skills', 'combat', 'homestead', 'shops', 'social'];
+    const labels = ['Home', 'Character', 'Skills', 'Combat', 'Homestead', 'Market', 'Social'];
     assert(N.hubs.map((h) => h.id).join() === want.join(), 'HUBS order is ' + N.hubs.map((h) => h.id).join());
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
     for (const [host, cls] of [['#sidebar', 'nav-btn'], ['#bottom-nav', 'bn-btn']]) {
@@ -1147,14 +363,8 @@ export default [
       ['Inventory', 'character', 'inventory', '#panel-inventory > *'],
       ['Skills', 'skills', 'skills', '#panel-skills > *'],
       ['Combat', 'combat', 'combat', '#panel-combat .combat-picker'],
-      ['Bounty', 'combat', 'bounty', '#panel-bounty > *'],
-      ['Dungeons', 'combat', 'dungeons', '#panel-dungeons .dgn-section'],
       ['Farm', 'homestead', 'farming', '#farm-panel'],
       ['House', 'homestead', 'house', '#house-panel'],
-      ['Stable', 'homestead', 'stable', '#stable-body'],
-      ['Clan', 'clan', 'clan', '#clan-panel'],
-      ['Party', 'clan', 'party', '#party-panel'],
-      ['Events', 'events', 'events', '#hr-muster-card'],
       ['Shops: Local Shop', 'shops', 'shop', '#shop-panel'],
       ['Shops: Market', 'shops', 'market', '#market-root > *'],
       ['Social', 'social', 'social', '#leaderboard'],
@@ -1234,14 +444,13 @@ export default [
      content is reached from the menu by gestures alone. */
   () => tryRunAsync('NAV-DOORS-3: every old record screen is in the Journal, reached from the menu', async () => {
     const tick = () => new Promise((r) => setTimeout(r, 40));
-    const ST = window.HearthriseStandings, HL = window.HearthriseHuntersLedger;
+    const ST = window.HearthriseStandings;
     const ids = Object.keys(window.MONSTERS || {});
     const snap = snapshotG(), putBack = keepServerMirrors();
     try {
-      // Standings and the Hunter's Ledger draw nothing when the realm has nothing
-      // to say (signed out / known-empty); prove the tabs ask them.
+      // Standings draws nothing when the realm has nothing to say (signed out /
+      // known-empty); prove the tab asks it.
       if (ST) window.HearthriseStandings = Object.assign({}, ST, { card: () => '<div data-test-standings>standings</div>' });
-      if (HL) window.HearthriseHuntersLedger = Object.assign({}, HL, { card: () => '<div class="hl-card" data-test-ledger>ledger</div>' });
       // The realm counts one kill, so the row is named and opens its drop table.
       window.HearthriseTrophies.noteEnvelope({ bestiary: { kills_by_monster: { [ids[0]]: 1 } } });
       document.querySelector('#sidebar .nav-btn[data-tab="character"]').click(); await tick();
@@ -1252,10 +461,7 @@ export default [
         ['luck ledger', 'collection', '#best-luck summary'],
         ['Hearthfinds', 'collection', '.hr-hf-cl'],
         ['Bestiary', 'bestiary', '.bestiary-list .bestiary-row'],
-        ['charms', 'bestiary', '.charm-strip'],
-        ["Hunter's Ledger", 'bestiary', '[data-test-ledger]'],
-        ['Chronicle', 'deeds', '.jr-chronicle .hr-ch-sec'],
-        ['Deeds', 'deeds', '.ach-list .ach-row'],
+        ['Chronicle', 'recent', '.jr-chronicle'],
         ['lifetime stats', 'stats', '.stats-grid .stat-tile'],
         ['lifetime tally', 'stats', '.stats-section'],
         ['your week', 'stats', '.jr-week'],
@@ -1277,9 +483,9 @@ export default [
       // The bell opens the Chronicle where it now lives.
       window.showTab('profile');
       document.getElementById('btn-notif').click(); await tick();
-      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="deeds"]'), 'the bell did not open the Journal on Deeds');
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="recent"]'), 'the bell did not open the Journal on Recent');
       // Every old record route still lands.
-      for (const [route, tab] of [['achievements', 'deeds'], ['bestiary', 'bestiary'], ['collection', 'collection'], ['chronicle', 'deeds']]) {
+      for (const [route, tab] of [['bestiary', 'bestiary'], ['collection', 'collection'], ['chronicle', 'recent']]) {
         window.showTab('profile');
         window.showTab(route); await tick();
         assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="' + tab + '"]'), 'showTab("' + route + '") did not land on Journal ' + tab);
@@ -1290,7 +496,6 @@ export default [
         assert(typeof window[fn] !== 'function', 'window.' + fn + ' is back — the Journal replaced it'));
     } finally {
       if (ST) window.HearthriseStandings = ST;
-      if (HL) window.HearthriseHuntersLedger = HL;
       restoreG(snap); putBack();
       try { window.showTab('profile'); } catch (e) {}
     }
@@ -1327,131 +532,8 @@ export default [
     }
   }),
 
-  () => tryRun('b220: the Clan Hunt card renders at full height in Events, and Events holds no dungeons', () => {
-    const R = window.HearthriseRaids;
-    try {
-      window.showTab('events');
-      const p = R.render(); if (p && p.catch) p.catch(() => {});
-      const card = document.getElementById('hr-raid-card');
-      assert(card, 'the Clan Hunt card is missing');
-      assert(card.parentElement && card.parentElement.id === 'hr-events-raid',
-        'the Clan Hunt card drifted out of its own section, into ' + (card.parentElement && card.parentElement.id));
-      assert(/Clan Hunt/.test(document.getElementById('hr-events-raid').textContent), 'the Events section does not call it the Clan Hunt');
-      assert(!/raid|weekly clan boss/i.test(card.textContent), 'the Clan Hunt card still says raid / weekly clan boss');
-      const box = card.getBoundingClientRect();
-      assert(box.height > 60, 'the Clan Hunt card collapsed — height ' + Math.round(box.height) + 'px');
-      assert(getComputedStyle(document.getElementById('panel-events')).display === 'block',
-        'the Events panel must be a block column, not a grid');
-      assert(!document.querySelector('#panel-events #panel-dungeons, #hr-events-dungeons'),
-        'the dungeons are back inside Events — they are a Combat pane');
-    } finally {
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
 
-  () => tryRunAsync('NAV-NAMES-1: one word per thing — dungeons are dungeons, the Hunt is the clan\'s', async () => {
-    try {
-      window.showTab('dungeons');
-      await new Promise((r) => setTimeout(r, 80));
-      const heads = [...document.querySelectorAll('#panel-dungeons .dgn-section h3')].map((h) => h.textContent.trim());
-      assert(heads.length >= 3, 'the dungeon list rendered ' + heads.length + ' sections');
-      heads.forEach((h) => assert(/Dungeons$/.test(h) && !/hunt|raid|boss/i.test(h), 'a dungeon section is called "' + h + '"'));
-      window.showTab('combat');
-      const kicks = [...document.querySelectorAll('#wt-dests .wtd-kick')].map((k) => k.textContent.trim());
-      assert(!kicks.some((k) => /raid/i.test(k)), 'a combat destination still says raid: ' + kicks.join(', '));
-      if (window.HearthriseRaids) assert(kicks.includes('Clan Hunt'), 'the combat destinations do not name the Clan Hunt: ' + kicks.join(', '));
-    } finally {
-      try { window.showTab('profile'); } catch (e) {}
-    }
-  }),
 
-  /* ── b225 regression suite (backlog #18 — the Clan Seat's own destination) ──
-     The castle is one of the two ULTIMATE progression pillars and it shipped as
-     a card at the bottom of Social, underneath the leaderboards. These two
-     guards are the tripwires that failure never had: one for the entry, one for
-     every route that leads to it. */
-  () => tryRun('b225: the Clan Seat is a real top-level destination and nothing hides it', () => {
-    const nav = document.querySelector('.nav-btn[data-tab="clan"]');
-    assert(nav, 'the top-level Clan nav entry is missing');
-    assert(getComputedStyle(nav).display !== 'none',
-      'something is hiding the Clan nav entry — this is backlog #18 recurring');
-    assert(/clan/i.test(nav.textContent), 'the Clan nav entry lost its label');
-    // b220's lesson: an injected-then-hidden entry is how a feature vanishes.
-    assert(!nav.hasAttribute('data-injected'), 'the Clan entry must be static markup');
-    // No emoji anywhere in the chrome this feature added (Final Directive).
-    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
-    assert(!EMOJI.test(nav.textContent), 'the Clan nav entry contains emoji');
-    // The landscape rail carries every door, the Clan among them.
-    const rail = document.querySelector('#bottom-nav .bn-btn[data-tab="clan"]');
-    assert(rail, 'the landscape rail has no Clan door');
-    assert(!EMOJI.test(rail.textContent), 'the landscape Clan door contains emoji');
-    // The panel and its host exist in the markup, not at the mercy of a boot order.
-    const panel = document.getElementById('panel-clan');
-    assert(panel, '#panel-clan was never built');
-    const host = document.getElementById('clan-panel');
-    assert(host, 'the Clan Seat has no render host (#clan-panel)');
-    assert(host.closest('#panel-clan'), 'the castle host is not inside the Clan panel');
-    // And it is NOT back inside Social.
-    assert(!document.querySelector('#panel-social #clan-panel'),
-      'the Clan Seat drifted back into Social — this is backlog #18 recurring');
-    const social = document.getElementById('panel-social');
-    assert(social && document.querySelector('.nav-btn[data-tab="social"]'),
-      'Social lost its own entry while the clan moved out');
-    assert(social.querySelector('#leaderboard'), 'Social lost its leaderboards');
-    assert(social.querySelector('#social-panel'), 'Social lost its friends host');
-  }),
-
-  () => tryRun('b225: every route to the hold resolves, and Social still opens', () => {
-    const prevTab = window.activeTab;
-    try {
-      const panel = document.getElementById('panel-clan');
-      // The direct route.
-      window.showTab('clan');
-      assert(panel.classList.contains('active'), 'showTab("clan") did not open the Clan panel');
-      // A picture-led screen in a fixed grid row is what collapsed the raid
-      // card in b220. This one is a block column that scrolls as a page.
-      const cs = getComputedStyle(panel);
-      assert(cs.display === 'block', 'the Clan panel must be a block column, not a ' + cs.display);
-      assert(cs.overflowY === 'auto', 'the Clan panel must scroll as a page');
-      // Clan Activity moved here with the hold, and only exists for a member.
-      const act = document.getElementById('clan-activity-card');
-      assert(act && act.closest('#panel-clan'), 'Clan Activity did not move to the Clan panel');
-      if (!(window.clanDisplayName && window.clanDisplayName())) {
-        assert(getComputedStyle(act).display === 'none',
-          'Clan Activity is showing to a player with no clan');
-      }
-      // Every legacy name for this screen still lands on it.
-      ['castle', 'clanseat', 'clan-seat', 'clans'].forEach((alias) => {
-        window.showTab('profile');
-        window.showTab(alias);
-        assert(panel.classList.contains('active'), 'showTab("' + alias + '") no longer reaches the hold');
-      });
-      // The old deep link is untouched: Social still opens, and it signposts.
-      window.showTab('social');
-      const soc = document.getElementById('panel-social');
-      assert(soc.classList.contains('active'), 'showTab("social") stopped resolving');
-      const sign = document.querySelector('#social-panel .soc-signpost [onclick*="clan"]');
-      assert(sign, 'Social has no signpost to the hold for players arriving on muscle memory');
-      // The topbar clan tag is the second door.
-      const tag = document.getElementById('clan-tag');
-      assert(tag && /clan/.test(tag.getAttribute('onclick') || ''),
-        'the topbar clan tag no longer routes to the Clan Seat');
-      // The hold's renderer looks for its host in the new home.
-      assert(typeof window.renderClan === 'function', 'renderClan() is missing');
-    } finally {
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  /* b316: Settings must be REACHABLE FROM THE RAIL. The only two doors were
-     the topbar gear (clips off a narrow landscape phone's right edge) and the
-     More sheet's button (does not exist in the left-rail layout a landscape
-     phone uses) — so Settings was unreachable on a landscape phone. This guard
-     asserts a rail control that OPENS the settings UI, is present + visible in
-     the sidebar (not display:none), carries the atlas gear glyph and no emoji,
-     and — because Settings is a modal — is deliberately NOT a data-tab nav
-     (a data-tab would blank the panel via showTab). Proved red by deleting the
-     #btn-settings-rail button: "no reachable Settings control in the rail". */
   () => tryRun('b316: Settings is reachable from the nav rail (desktop sidebar + landscape bottom-nav)', () => {
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
     // A landscape phone uses the bottom-nav rotated into a left rail (b310/b312),
@@ -2095,81 +1177,7 @@ export default [
     }
   }),
 
-  // ── b221 regression suite (backlog #5 — the board is a board, the shop is a
-  //    shop). These guard STRUCTURE and CONTENT, not taste: one notice per
-  //    bounty with nothing clipped, every offer reachable and clickable, and
-  //    zero emoji in either screen's DOM in any state.
 
-  // The board must post exactly as many notices as the board data holds, at a
-  // usable size, with no notice clipped out of the frame. A grid with a
-  // hardcoded column count silently drops the fourth bounty when the tier-2
-  // board unlocks; `auto-fill` does not, and this is the tripwire for it.
-  () => tryRun('b221: the bounty board renders one notice per bounty, none clipped', () => {
-    const prevTab = window.activeTab;
-    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
-    try {
-      window.G.bountyHunter.active = null;
-      window.G.bountyHunter.board = window.generateBountyBoard();
-      window.showTab('bounty');
-      const board = document.querySelector('#panel-bounty .bb-board');
-      assert(board, 'the bounty screen has no board object — it is a list again');
-      const notices = board.querySelectorAll('.bb-notice');
-      assert(notices.length === window.G.bountyHunter.board.length,
-        'board holds ' + window.G.bountyHunter.board.length + ' bounties but posted '
-        + notices.length + ' notices');
-      const frame = board.getBoundingClientRect();
-      notices.forEach((n, i) => {
-        const r = n.getBoundingClientRect();
-        assert(r.width > 120 && r.height > 90,
-          'notice ' + i + ' collapsed to ' + Math.round(r.width) + 'x' + Math.round(r.height));
-        assert(r.bottom <= frame.bottom + 1 && r.right <= frame.right + 1,
-          'notice ' + i + ' hangs outside the board frame — it is clipped');
-        assert(n.querySelector('.bb-nail'), 'notice ' + i + ' is not pinned to anything');
-        assert(n.querySelector('button'), 'notice ' + i + ' has no way to accept it');
-      });
-      // Paper is light in both themes, so type on it must NOT resolve --ink.
-      // This is the guard for the theme-cozy `#panel-bounty * { color: --ink
-      // !important }` blanket coming back and blanking the notices.
-      const name = board.querySelector('.bb-name');
-      const ink = getComputedStyle(name).color.match(/\d+/g).map(Number);
-      assert(ink[0] + ink[1] + ink[2] < 330,
-        'notice type is rendering light-on-paper (' + name.style.color + ' -> rgb('
-        + ink.join(',') + ')) — a colour blanket is overriding the paper ink role');
-    } finally {
-      window.G.bountyHunter.active = prevActive || null;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  // A claimed bounty must still be ON the board and visibly settled — the
-  // "where did my bounty go" failure mode is a blank card.
-  () => tryRun('b221: an accepted bounty stays on the board, stamped', () => {
-    const prevTab = window.activeTab;
-    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
-    const prevBoard = (window.G.bountyHunter.board || []).slice();
-    try {
-      if (!window.G.bountyHunter.board.length) window.G.bountyHunter.board = window.generateBountyBoard();
-      window.acceptBounty(0);
-      window.showTab('bounty');
-      const notice = document.querySelector('#panel-bounty .bb-notice.is-taken');
-      assert(notice, 'the accepted bounty left the board entirely');
-      assert(notice.querySelector('.bb-stamp'), 'a taken notice carries no claimed stamp');
-      assert(notice.querySelector('.bb-bar'), 'a taken notice shows no progress');
-      assert(/abandon/i.test(notice.textContent), 'no way to give the contract back');
-    } finally {
-      window.G.bountyHunter.active = prevActive || null;
-      window.G.bountyHunter.board = prevBoard;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  // The shop is a scene now. A scene that swallows its own offers is worse
-  // than the list it replaced, so: the counter renders, every catalogue entry
-  // reaches it, and every Buy control is on screen and hit-testable.
-  /* ══ THE RATCHET OVER THE WHOLE SNAPSHOT LIST — THREE PROPERTIES, THREE REDS ═══
-     The earlier form pinned FIVE named fields; these prove the property over every field
-     the snapshot names, whatever it names tomorrow, and split by PROPERTY so a red says
-     which half of the seal broke. Probe: `snapRoundTrip()` above. */
   () => tryRun('SNAP-2a: snapshotG produces a KEY for every field it names, even on a character that owns none of them', () => {
     const r = snapRoundTrip();
     assert(r.fields.length >= 55, 'CONTROL: snapshotG named ' + r.fields.length + ' field(s) — it is not snapshotting the live character, so SNAP-2a/b/c are all vacuous');
@@ -2304,25 +1312,19 @@ export default [
     veiled.forEach(({ el }) => { el.style.display = 'none'; });
     try {
       window.showTab('shop');
-      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+      ['seeds', 'equip'].forEach((tab) => {
         window.setShopTab(tab);
         const panel = document.getElementById('shop-panel');
         assert(panel.querySelector('.sc-scene svg'), tab + ': the shopfront scene is missing');
         assert(panel.querySelector('.sc-counter'), tab + ': the offers are not on a counter');
-        // The equip tab renders the shop companions with its wares (render/shop.js).
-        const shopComps = Object.keys(window.COMPANIONS || {}).filter((id) => /^shop:/.test(window.COMPANIONS[id].source || '')).length;
-        const expect = tab === 'seeds' ? window.SEED_SHOP.length
-          : tab === 'equip' ? window.EQUIP_SHOP.length + shopComps : 4;
+        const expect = tab === 'seeds' ? window.SEED_SHOP.length : window.EQUIP_SHOP.length;
         const rows = panel.querySelectorAll('.sc-counter .shop-row');
         // Name what the counter PAINTED: "got 15, wanted 14" cost a session on its own.
-        const _want = expect + Object.keys(window.TRAITS).length;
-        assert(rows.length === _want,
-          tab + ': expected ' + expect + ' offers + ' + Object.keys(window.TRAITS).length
-          + ' trait(s) = ' + _want + ', got ' + rows.length + ' — rows: '
+        assert(rows.length === expect,
+          tab + ': expected ' + expect + ' offers, got ' + rows.length + ' — rows: '
           + Array.from(rows).map((r) => {
             const b = r.querySelector('.info b');
-            return (b ? b.textContent : r.textContent).trim().slice(0, 28)
-              + (r.hasAttribute('data-companion') ? '[companion]' : '');
+            return (b ? b.textContent : r.textContent).trim().slice(0, 28);
           }).join(' | '));
         rows.forEach((row, i) => {
           const btn = row.querySelector('button');
@@ -2353,61 +1355,7 @@ export default [
     }
   }),
 
-  // Real money is sapphire and only sapphire (art-direction.css §6). Before
-  // b221 the store's Buy button was the same struck-gilt control that spends
-  // in-game gold one card lower on the same screen.
-  () => tryRun('b221: the real-money surface is sapphire, not gilt', () => {
-    const prevTab = window.activeTab;
-    try {
-      window.showTab('shop');
-      const buys = document.querySelectorAll('#iap-panel .iap-card .btn');
-      assert(buys.length === window.IAP_CATALOG.length,
-        'store rendered ' + buys.length + ' buy controls for ' + window.IAP_CATALOG.length + ' products');
-      buys.forEach((b) => {
-        assert(b.classList.contains('btn-gem') && !b.classList.contains('btn-primary'),
-          'a real-money Buy button is wearing the in-game gold primary style');
-      });
-    } finally {
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
 
-  // Zero emoji as art, in EVERY state of both screens. The old sweep in
-  // icon-set.js only covered `#panel-bounty .si/.price/.ic`, which is why four
-  // cosmetics (✨🐲🦅😎) and the active-bounty 🎯 shipped for months.
-  () => tryRun('b221: no emoji in the bounty or shop DOM, in any state', () => {
-    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-    const prevTab = window.activeTab;
-    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
-    const prevBoard = (window.G.bountyHunter.board || []).slice();
-    const offenders = [];
-    const scan = (id, label) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      let n;
-      while ((n = w.nextNode())) {
-        if (EMO.test(n.nodeValue)) offenders.push(label + ': "' + n.nodeValue.trim().slice(0, 40) + '"');
-      }
-    };
-    try {
-      window.showTab('shop');
-      ['seeds', 'equip', 'cosmetics'].forEach((t) => { window.setShopTab(t); scan('panel-shop', 'shop/' + t); });
-      window.setShopTab('seeds');
-      window.G.bountyHunter.active = null;
-      window.G.bountyHunter.board = window.generateBountyBoard();
-      window.showTab('bounty');
-      scan('panel-bounty', 'bounty/board');
-      window.acceptBounty(0);
-      window.showTab('bounty');
-      scan('panel-bounty', 'bounty/active');
-      assert(offenders.length === 0, 'emoji rendered as art — ' + offenders.join(' | '));
-    } finally {
-      window.G.bountyHunter.active = prevActive || null;
-      window.G.bountyHunter.board = prevBoard;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
 
   // ── b222 regression suite (backlog #11 — leaderboards) ──────────────────
   //    The contract these guard: every board answers "where am I?", the board
@@ -2486,33 +1434,6 @@ export default [
     assert((html.match(/lb-row you/g) || []).length === 1, 'exactly one row is you');
   }),
 
-  // The board namespace is shared with supabase/migrations/2026-08-08-leaderboards.sql
-  // (hr_lb_boards / hr_lb_skills). A skill renamed on one side and not the
-  // other produces a board that silently returns nothing, so both sides assert
-  // the same numbers: 6 + 15 = 21.
-  () => tryRun('b222: the board namespace matches the migration — 23 boards, 17 skills', () => {
-    const LB = window.HearthriseLeaderboards;
-    const ids = Object.keys(LB.BOARDS);
-    /* b357: 21 → 23. Runecrafting and Stonemason are skills, and every skill
-       gets a board — the client half is here, the server half is the staged
-       migration `2026-08-17-leaderboard-skills.sql` (which asserts 23 from its
-       own side). The equality below against SKILLS_DEF is what makes the two
-       halves impossible to ship apart. */
-    assert(ids.length === 23, 'expected 23 boards, got ' + ids.length);
-
-    const skillBoards = ids.filter((i) => i.indexOf('skill:') === 0).map((i) => i.slice(6)).sort();
-    const defs = Object.keys(window.SKILLS_DEF).sort();
-    assert(skillBoards.length === 17, 'expected 17 skill boards, got ' + skillBoards.length);
-    assert(skillBoards.join(',') === defs.join(','),
-      'skill boards must be exactly SKILLS_DEF — got ' + skillBoards.join(',') + ' vs ' + defs.join(','));
-    assert(ids.indexOf('skill:bountyHunter') >= 0, 'the camelCase skill id must survive');
-
-    // The flagship exists and belongs to its own category.
-    assert(LB.BOARDS.renown && LB.BOARDS.renown.cat === 'throne', 'Renown must be the Throne board');
-    // Every board declares a category that the picker actually offers.
-    const cats = LB.CATEGORIES.map((c) => c.id);
-    ids.forEach((id) => assert(cats.indexOf(LB.BOARDS[id].cat) >= 0, id + ' has an orphan category'));
-  }),
 
   // Client-first: this module ships before the migration is applied. Degraded,
   // it must offer ONLY the boards the pre-existing view can answer — not dead
@@ -2533,17 +1454,17 @@ export default [
     try {
 
     const legacyCats = LB._categoriesFor('legacy').map((c) => c.id);
-    assert(legacyCats.indexOf('throne') < 0, 'Throne needs snapshot.renown — hide it until then');
     assert(legacyCats.indexOf('skills') < 0, 'per-skill boards need the migration');
-    assert(legacyCats.indexOf('clans') < 0, 'the clan board needs the migration');
     assert(legacyCats.indexOf('overall') >= 0 && legacyCats.indexOf('combat') >= 0,
       'the three pre-existing boards must survive un-migrated');
     assert(LB._boardsIn('overall', 'legacy').join(',') === 'total_level,wealth', 'degraded Overall');
     assert(LB._boardsIn('combat', 'legacy').join(',') === 'combat_level', 'degraded Combat');
 
+    /* The Throne (renown) and Clans categories left in the 2026-10-14 demolition. */
     const fullCats = LB._categoriesFor('full').map((c) => c.id);
-    assert(fullCats.length === 5, 'migrated, all five categories are offered');
-    assert(LB._boardsIn('skills', 'full').length === 17, 'migrated, all 17 skill boards appear');
+    assert(fullCats.join(',') === 'overall,skills,combat', 'migrated, the three categories are offered: ' + fullCats.join(','));
+    assert(LB._boardsIn('skills', 'full').length === LB.SKILL_ORDER.length,
+      'migrated, every skill board appears (' + LB.SKILL_ORDER.length + ')');
 
     // A selection is always resolved onto a board that exists — this is what
     // stops a player who picked "Mining" pre-migration from staring at a board
@@ -2557,100 +1478,8 @@ export default [
     } finally { LB._restoreAvailability(_avail); }
   }),
 
-  // §3.2 hand-off: the Throne board cannot exist unless the client writes the
-  // renown integer into the snapshot it already uploads. Same for combatLevel
-  // (which the leaderboard view has read since b205 with nothing ever writing
-  // it) and bossKills (which the server cannot compute — it has no MONSTERS).
-  () => tryRun('b222: renown, combatLevel and bossKills are stamped and survive save→load', () => {
-    const S = window.HearthriseSync;
-    assert(S && S.derivedSnapshotFields, 'sync must expose the derived-field seam');
 
-    const fake = {
-      G: { skills: { mining: 100 }, gold: 5, bestiary: { dragon: { kills: 3 }, rat: { kills: 90 } } },
-      MONSTERS: { dragon: { boss: true }, rat: {} },
-      getTotalLevel: () => 240,
-      getCombatLevel: () => 77,
-      HearthriseRenown: { compute: () => 15731.9 }
-    };
-    const d = S.derivedSnapshotFields(null, fake);
-    assert(d.totalLevel === 240, 'totalLevel must still be stamped (b146 contract)');
-    assert(d.combatLevel === 77, 'combatLevel must be stamped — the Combat board sorted on null before this');
-    assert(d.renown === 15731, 'renown must be stamped, floored to an integer');
-    assert(d.bossKills === 3, 'bossKills must count bosses only, not the 90 rats');
 
-    // Absent data is ABSENT, never a fabricated zero — a player with no
-    // bestiary must not appear on the Bosses board ranked above nobody.
-    const bare = S.derivedSnapshotFields(null, { G: { skills: {} }, MONSTERS: {} });
-    assert(!('bossKills' in bare), 'no bestiary → no bossKills field');
-    assert(!('renown' in bare), 'no renown module → no renown field');
-
-    // An explicit config provider wins over the globals, and a throwing
-    // provider degrades to omission instead of taking the save down with it.
-    const cfgd = S.derivedSnapshotFields({ renown: () => 42, combatLevel: () => { throw new Error('x'); } }, fake);
-    assert(cfgd.renown === 42, 'a config provider must win');
-    assert(!('combatLevel' in cfgd), 'a throwing provider must omit, not throw');
-
-    // Round trip: the fields survive the exact request body the uploader sends,
-    // and JSON.parse(JSON.stringify(...)) — which is what Postgres stores and
-    // pullLatest() hands back.
-    const snap = Object.assign(snapshot(window.G) || {}, S.derivedSnapshotFields(null, window));
-    assert(typeof snap.renown === 'number', 'the live snapshot must carry renown');
-    assert(typeof snap.combatLevel === 'number', 'the live snapshot must carry combatLevel');
-    const req = S.buildSnapshotRequest({ snapshotEndpoint: '/x', slot: 0 }, 'u1', snap, Date.now());
-    const restored = JSON.parse(JSON.stringify(req.body)).snapshot;
-    assert(restored.renown === snap.renown, 'renown must survive save→load');
-    assert(restored.combatLevel === snap.combatLevel, 'combatLevel must survive save→load');
-    assert(restored.totalLevel === snap.totalLevel, 'totalLevel must still survive save→load');
-  }),
-
-  // The bug the Throne board found. `const` at the top level of a classic
-  // script is global-LEXICAL, not window — so `window.XP_TABLE` was undefined
-  // and renown.js scored every skill as level 1. A fresh save's 24 total levels
-  // scored as 15, i.e. 220 Renown instead of 310. The flagship board's score
-  // was wrong for every player in the game.
-  () => tryRun('b222: window.XP_TABLE is published, so Renown scores the real total level', () => {
-    assert(Array.isArray(window.XP_TABLE), 'window.XP_TABLE must exist for cross-module consumers');
-    assert(window.XP_TABLE.length === 99, 'the table must reach level 99');
-    assert(window.XP_TABLE[98] === 13034431, 'the level-99 threshold must be intact');
-
-    const R = window.HearthriseRenown;
-    assert(R && R.compute, 'renown module missing');
-    const probe = { skills: { mining: 13034431, cooking: 0 }, stats: {}, gold: 0 };
-    /* b456: renown scores through the AUTHORITY accessor (skillXpOr), which is the
-       whole point of the b431 sweep — a forged local xp must not reach a
-       leaderboard. So a bare probe object reads UNKNOWN → every skill floors to
-       level 1 and the score collapses to 10, which is the fail-closed answer
-       working correctly, not the table being broken. Stamp the probe through the
-       real record path so the 99 is one the SERVER stated. */
-    stampRecordLikeLoad(probe);
-    // With a working table this is 99 + 1 = 100 levels and one maxed skill;
-    // with the broken one it collapsed to 2 levels and zero maxed skills.
-    const score = R.compute(probe);
-    assert(score >= 100 * R.WEIGHTS.totalLevel + R.WEIGHTS.skill99,
-      'a 99 must score as a 99 — got ' + score);
-  }),
-
-  // The Throne board reads as a hierarchy, not a spreadsheet: the third column
-  // is the rank title from the renown ladder (leaderboards.md §4).
-  () => tryRun('b222: the Throne board shows rank titles, and each board reads in its own units', () => {
-    const LB = window.HearthriseLeaderboards;
-    const R = window.HearthriseRenown;
-    const king = R.RANKS[R.RANKS.length - 1];
-
-    assert(LB._contextText('renown', { score: king.min + 10 }) === king.title,
-      'the top of the ladder must read as its title');
-    assert(LB._contextText('renown', { score: 0 }) === R.RANKS[0].title, 'rank 0 has a title too');
-
-    assert(LB._scoreText('total_level', 1842) === 'Lv 1,842', 'total level reads as a level');
-    assert(LB._scoreText('combat_level', 115) === 'CL 115', 'combat level reads as CL');
-    assert(LB._scoreText('wealth', 2500000) === '2,500,000g', 'wealth reads as gold');
-    assert(LB._scoreText('skill:mining', 13034431) === 'Lv 99', 'a skill board reads as a level');
-    assert(LB._contextText('skill:mining', { score: 13034431 }) === '13,034,431 xp', 'with xp beside it');
-    // Clan Power is one composite integer so clans share the rank machinery —
-    // it must decode back into the two numbers a player understands.
-    assert(LB._scoreText('clan_power', 4 * 1000000000 + 250000) === 'Castle 4', 'castle tier decodes');
-    assert(LB._contextText('clan_power', { score: 4 * 1000000000 + 250000 }) === '250,000g', 'treasury decodes');
-  }),
 
   // Final Directive: rank is prestige, never payment. There is no claim, no
   // ledger and no currency anywhere in this feature — and rendering a board
@@ -2670,15 +1499,15 @@ export default [
     const view = LB._buildView({
       top: [{ rank: 1, id: 'a', name: 'Aldric', score: 142300 }], rank: 1, total: 1, near: []
     }, 'a');
-    const html = LB._boardHtml('renown', view);
+    const html = LB._boardHtml('total_level', view);
     assert(html.indexOf('Hearth Token') < 0 && html.indexOf('gems') < 0, 'no currency in the board');
     assert(window.G.gold === goldBefore && window.G.gems === gemsBefore, 'rendering must move nothing');
 
     // Rank 1 earns a cosmetic title. It is honest because the rank behind it
     // came from the server, and it is the ONLY thing ranking grants.
-    assert(LB._crownFor('renown') === 'the Throne', 'the flagship crown');
+    assert(LB._crownFor('total_level') === 'the Peerless', 'the flagship crown');
     assert(LB._crownFor('skill:mining') === 'the Veinfinder', 'per-skill crowns are named');
-    assert(html.indexOf('the Throne') >= 0, 'rank 1 wears its title on the board');
+    assert(html.indexOf('the Peerless') >= 0, 'rank 1 wears its title on the board');
   }),
 
   // THE STANDINGS: Home's sentence and the Social note read one server answer;
@@ -2739,9 +1568,9 @@ export default [
     assert(offenders.length === 0, 'emoji in the board — ' + offenders.slice(0, 4).join(' | '));
 
     // Every state says something true; none of them is blank.
-    assert(LB._boardHtml('renown', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
-    assert(LB._boardHtml('renown', states.anon).indexOf('Sign in') >= 0 ||
-           LB._boardHtml('renown', states.anon).indexOf('no place on the') >= 0,
+    assert(LB._boardHtml('total_level', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
+    assert(LB._boardHtml('total_level', states.anon).indexOf('Sign in') >= 0 ||
+           LB._boardHtml('total_level', states.anon).indexOf('no place on the') >= 0,
       'an anonymous board must point at the action that puts you on it');
   }),
 
@@ -2812,21 +1641,5 @@ export default [
     assert(!document.querySelector('#codex-modal.show'), 'close() left the Codex up');
     assert(document.querySelector('#more-modal #more-codex'), 'the More sheet has no Codex button');
     assert(document.querySelector('#tb-codex, .feat-buttons [onclick*="HearthriseCodex"]'), 'the profile toolbar has no Codex button');
-  }),
-  /* STREAK-PENDING — before the server states a streak the flame reads the
-     pending dash, never the static "1" or a 0 (CLAUDE.md §6). */
-  () => tryRun('STREAK-PENDING: the topbar flame reads pending until the server states a streak', () => {
-    const SC = window.HearthriseStreakChip, el = document.getElementById('top-streak-count'), G = window.G;
-    if (!SC || typeof SC.paint !== 'function' || !el) return skip('no streak chip');
-    const had = Object.prototype.hasOwnProperty.call(G, '_serverStreak'), was = G._serverStreak;
-    try {
-      delete G._serverStreak; SC.paint(G);
-      assert(el.textContent === '—' && el.classList.contains('bal-pending'), 'unknown streak read "' + el.textContent + '"');
-      G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() }; SC.paint(G);
-      assert(el.textContent === '3' && !el.classList.contains('bal-pending') && el.parentElement.classList.contains('hot'), 'known streak read "' + el.textContent + '"');
-    } finally {
-      if (had) G._serverStreak = was; else delete G._serverStreak;
-      try { SC.paint(G); } catch (e) {}
-    }
   }),
 ];

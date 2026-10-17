@@ -87,10 +87,12 @@ const EXPECT_ROOMS = 8;
 const EXPECT_RUNGS = 5;
 // Every bonus key any rung may pay. A NEW key reaching the server without
 // anyone deciding what it means is how a ghost key becomes a live faucet.
+/* Master Design Reference §9 (2026-10-14): a home never grants XP or a
+   resource advantage, so allXP, combatXP, farmYield and the two yield procs
+   (and the Library's Rested payload) left the rooms. */
 const EXPECT_KEYS = [
-  'allXP', 'buffDuration', 'combatXP', 'cookSpeed', 'craftSave', 'craftSpeed',
-  'farmYield', 'noBurn', 'prayerSpeed', 'smithSpeed', 'yield_cooking',
-  'yield_smithing',
+  'buffDuration', 'cookSpeed', 'craftSave', 'craftSpeed',
+  'noBurn', 'prayerSpeed', 'smithSpeed',
 ];
 
 // ── EXTRACT ──────────────────────────────────────────────────────────────

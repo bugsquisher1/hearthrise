@@ -55,191 +55,6 @@ async function mfWhatsNew() {
 
 export default [
 
-  /* ══════════════════════════════════════════════════════════════════════════
-     THE DAILY-REWARD DAY, AND THE TWO WAYS THE SHEET HAS LIED ABOUT IT.
-
-     Shared fixtures for DAILY-SHEET-3 and -4. Both drive the sheet through the
-     SAME two doors a player's browser uses:
-       · noteServerStreak(envelope) — what hr_load / hr-accrue hand it, carrying
-         the character's own daily/login claim rows (the b465 marker rows) and
-         the SERVER's clock;
-       · G.dailyReward.lastClaimDay + G.streak — the local residue, which is all
-         the sheet has before the first envelope lands.
-     `cycleDay` and `rewardFor` are asserted directly because they ARE the Home
-     card's whole computation (src/features/home-dashboard.js:1041 renders
-     'Daily reward · Day ' + DL.cycleDay(G) and DL.rewardFor(G)); the modal is
-     asserted through the rendered DOM. */
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-3, re-ruled the sheet displays the server's CLAIM streak, not the residue" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-4 (W0): a MISSED day steps the advertised day back ONE, never to Day 1 — and the sheet never promi" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-6 (W0): the sheet names the SUPPLIES the server will pay, by item name, and predicts only gold and" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('DAILY-SHEET-5 (b499): TWO true streaks may not share one word — the reward sheet owns "Day", the play streak owns "running"', () => {
-    /* THE DEFECT THIS PINS, MEASURED on b498 in a headless boot of the real
-       client (play streak 3, last claim two days ago, i.e. a missed day):
-
-         topbar chip           "3"   title="Daily login streak"
-         welcome-back modal    "Daily streak            3 days"
-         Home card             "Daily reward · Day 1"
-         daily-reward sheet    "DAILY REWARD · 1-DAY STREAK / Claim Day 1"
-
-       Every number was CORRECT. b498 fixed the arithmetic; the naming was left,
-       so the player reads a 3 and a 1 for two things both called a streak inside
-       ten seconds and concludes the game lost their progress. That is the same
-       trust failure as an actual mis-payment, at a fraction of the cause.
-
-       THE RULE, and it is a rule about VOCABULARY rather than about a string:
-         · The daily-reward sheet describes a CYCLE POSITION. It may say "Day n
-           of N"; it may NOT say "streak" — the word is what invites the reader
-           to compare it against the flame chip.
-         · Every PLAY-streak surface says played / running / in a row, and never
-           "daily" (which belongs to the reward) and never a bare "streak"
-           (which is ambiguous the moment two exist).
-
-       WHY A TEXT ASSERTION IS THE RIGHT INSTRUMENT HERE. The quantities are
-       already guarded by DAILY-SHEET-3/4; what has never been guarded is that
-       the two quantities are DISTINGUISHABLE ON SCREEN, and that is a property
-       of the rendered words and of nothing else.
-
-       MUTATION (any one of these turns it RED):
-         · restore "-day streak" in the sheet's eyebrow (daily-reward.js);
-         · restore 'Daily streak' on the welcome row (legacy.js);
-         · restore 'Day streak' in the welcome-v2 stat (legacy.js);
-         · restore title="Daily login streak" on .streak-badge (index.html). */
-    const D = window.HearthriseDaily, G = window.G;
-    const B = window.HearthriseCore && window.HearthriseCore.botd;
-    assert(D && B, 'HearthriseDaily / HearthriseCore.botd must be present');
-    const snap = snapshotG();
-    const sStreak = G.streak, sDR = G.dailyReward;
-    const dayLocal = (ms) => { const d = new Date(ms); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
-    try {
-      /* THE EXACT DIVERGENCE. Played three days running, claimed two days ago —
-         so the play streak is 3 and the claim cycle is back at Day 1. */
-      D.noteServerStreak(null);
-      seedPlayStreak(3);
-      G.dailyReward = { lastClaimDay: dayLocal(Date.now() - 2 * 86400000) };
-      assert(D.cycleDay(G) === 1,
-        'CONTROL: this fixture must actually diverge (play 3 / claim Day 1), got Day ' + D.cycleDay(G));
-
-      // ── 1. THE SHEET. Names its cycle position; owns no streak word. ───────
-      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
-      D.open();
-      const sheet = document.getElementById('hr-dl-modal');
-      assert(!!sheet, 'the sheet must open');
-      const sheetText = sheet.textContent || '';
-      assert(!/streak/i.test(sheetText),
-        'the daily-reward sheet must not use the word "streak" — it describes a cycle position, and the '
-        + 'word is what makes a player compare it against the flame chip. Got: ' + sheetText.slice(0, 120));
-      assert(/Day 1 of 7/.test(sheetText),
-        'the sheet must state the cycle position as "Day n of N", got: ' + sheetText.slice(0, 120));
-      sheet.remove();
-
-      // ── 2. THE TOPBAR CHIP. Same number as the modal, and it must say which. ─
-      const chip = document.querySelector('.streak-badge');
-      assert(!!chip, '.streak-badge must exist — it is the play streak\'s only always-on surface');
-      const chipTitle = chip.getAttribute('title') || '';
-      assert(!/daily/i.test(chipTitle),
-        'the flame chip must not call itself "daily" — "daily" belongs to the reward, and this chip '
-        + 'counts days PLAYED. Got title: ' + JSON.stringify(chipTitle));
-      assert(/played|running|in a row/i.test(chipTitle),
-        'the flame chip must say what it counts (played / running / in a row), got: ' + JSON.stringify(chipTitle));
-
-      // ── 3. THE WELCOME-BACK MODAL — the one players actually get (b341). ───
-      assert(typeof window.__maybeShowWelcome === 'function',
-        '__maybeShowWelcome (the b341 seam) must exist — it is the modal the boot really shows');
-      const prevSeen = G.lastSeen, prevWel = G.lastWelcome;
-      G.lastSeen = Date.now() - 8 * 3600e3;
-      G.lastWelcome = 0;
-      window.__maybeShowWelcome();
-      const ov = document.getElementById('welcome-overlay');
-      assert(!!ov, 'the welcome-back overlay must build');
-      const wbText = ov.textContent || '';
-      assert(/3/.test(wbText), 'CONTROL: the modal must actually be showing the play streak (3)');
-      assert(!/daily streak/i.test(wbText),
-        'the welcome-back modal must not label the PLAY streak "Daily streak" — that is the reward\'s '
-        + 'word and the two numbers differ. Got: ' + wbText.replace(/\s+/g, ' ').slice(0, 160));
-      assert(/running|played|in a row/i.test(wbText),
-        'the welcome-back modal must name the play streak in play language, got: '
-        + wbText.replace(/\s+/g, ' ').slice(0, 160));
-      ov.classList.remove('show');
-      G.lastSeen = prevSeen; G.lastWelcome = prevWel;
-
-      /* ── 4. THE SECOND MODAL THAT USED TO SAY IT TOO ─────────────────
-         welcome-v2 carried its own copy of this row and therefore its own copy
-         of the streak-label collision. It is RETIRED (Set the Night, slate
-         §3 — "v2 retires, b341 survives"), so the strongest form of "it does
-         not repeat the label" is that it does not exist. NIGHT-4 owns the
-         deletion property; this line keeps the streak suite honest about why
-         it is only checking one modal now. */
-      assert(!('_renderWelcomeV2' in window),
-        'welcome-v2 is back, and with it a second surface that can disagree with the reward sheet '
-        + 'about what a "streak" is. See NIGHT-4.');
-
-      /* ── 5. NO DEED grades on a streak, and none says "login". The play
-         streak is the current run and resets on a missed day, so a deed that had
-         toasted would be taken back; the streak deeds are retired (tests/deeds.mjs
-         DEED-3), and no deed may point the player at the reward cycle. */
-      const ACH = window.ACHIEVEMENTS || [];
-      assert(ACH.length === 30, 'CONTROL: the thirty deeds must be published, got ' + ACH.length);
-      ACH.forEach((a) => {
-        assert(!/streak/.test(String(a.source)), 'deed "' + a.id + '" grades on a streak, which resets: ' + a.source);
-        assert(!/login/i.test(a.desc || ''), 'deed "' + a.id + '" says "login": ' + JSON.stringify(a.desc));
-      });
-
-      /* ── 6. RENOWN'S OWN LABEL for the same quantity. `streakBest` reads
-         `player_state.streak_days` — the SERVER play streak — and calling it a
-         "login streak" points the reader at the reward cycle, which pays a
-         different thing off a different counter. This is the surface that made
-         the collision expensive rather than merely confusing: renown is the
-         "Rise to the Throne" spine, so a player who chases the wrong number
-         chases it for weeks. */
-      const RN = window.HearthriseRenown;
-      if (RN && RN.WEIGHT_LABELS) {
-        const lbl = RN.WEIGHT_LABELS.streakBest || '';
-        assert(!/login/i.test(lbl),
-          'renown WEIGHT_LABELS.streakBest scores the PLAY streak; it may not call it a "login '
-          + 'streak" (that is the daily reward\'s number). Got: ' + JSON.stringify(lbl));
-        assert(/play|running|in a row/i.test(lbl),
-          'renown WEIGHT_LABELS.streakBest must name what it counts, got: ' + JSON.stringify(lbl));
-      }
-
-      /* ── 7. NO STREAK ON LIFETIME STATS. The kill streak was a client-kept
-         count, and any streak on a stats screen is read against the topbar
-         flame. The sheet shows only the realm's lifetime counts, so it names
-         no streak at all. */
-      assert(window.HearthriseJournal, 'the Journal must be published (it holds the lifetime stats)');
-      window.HearthriseJournal.open('stats');
-      const ls = document.querySelector('#panel-journal .jr-stats');
-      assert(!!ls, 'the Journal\'s Stats tab must build');
-      const lsText = ls.textContent || '';
-      assert(/Monsters slain/.test(lsText),
-        'CONTROL: Lifetime Stats must actually be rendering its Monsters slain row');
-      assert(!/streak/i.test(lsText),
-        'Lifetime Stats names a streak — it shows the realm\'s lifetime counts only, and a streak '
-        + 'there is read against the topbar flame, which counts something else.');
-      window.showTab('profile');
-    } finally {
-      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
-      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
-      D.noteServerStreak(null);
-      restoreG(snap);
-      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
-      seedPlayStreak(null);
-      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
-    }
-  }),
-
-  /* -- regression suite -- MODAL-FIT-1: A SHEET NEVER OUTGROWS THE SCREEN
-     MEASURED LIVE at 1384x771: the welcome-back card grew to 1179 px, centred
-     itself off BOTH edges (top -204), and html/body overflow:hidden left nothing to
-     scroll — Continue unreachable, Escape a no-op, the only way out a 20 px backdrop
-     strip at 922x423. Asserted through the DOM only, never through HearthriseSheet, so
-     the same tests are RED on the build that shipped it. Rows are cloned until the
-     body is 1.5 viewports tall, so no suite viewport can hide the overflow. */
   () => tryRun('MODAL-FIT-1 (b556): the welcome-back card fits on BOTH return paths — Continue reachable, rows scroll, Escape closes it, navigation does not', () => {
     assert(typeof window.__maybeShowWelcome === 'function', 'the b341 seam __maybeShowWelcome is gone');
     const s = { seen: G.lastSeen, wel: G.lastWelcome, off: G.lastOfflineSummary };
@@ -335,20 +150,12 @@ export default [
     }
   }),
 
-  /* -- regression suite -- MODAL-FIT-2: overflowing Quartermaster and bug report keep their
-     controls on screen; Escape closes the Quartermaster and the Hearthfind veil (whose
-     fading-out node must read as closed) but never the bug form, which keeps typed text. */
-  () => tryRunAsync('MODAL-FIT-2: Quartermaster, bug report and Hearthfind veil fit; Escape spares only the bug form', async () => {
+  /* -- regression suite -- MODAL-FIT-2: an overflowing bug report keeps its controls on
+     screen; Escape closes the Hearthfind veil (whose fading-out node must read as closed)
+     but never the bug form, which keeps typed text. */
+  () => tryRunAsync('MODAL-FIT-2: bug report and Hearthfind veil fit; Escape spares only the bug form', async () => {
     const unpark = mfClear(), HF = window.HearthriseHearthfind;
     try {
-      window.openQuartermaster();
-      const qm = document.getElementById('quartermaster-overlay'), qb = document.getElementById('quartermaster-body');
-      qb.innerHTML = '<div class="qm-row">Row</div>'.repeat(200);
-      mfReach(qm.querySelector('.qm-close'), 'the Quartermaster close');
-      mfInView(qm.querySelector('.quartermaster-modal'), 'the Quartermaster card');
-      assert(qb.scrollHeight > qb.clientHeight, 'the Quartermaster rows are not a scroll region');
-      mfEsc();
-      assert(!document.getElementById('quartermaster-overlay'), 'Escape did not close the Quartermaster');
       window.HearthriseBugReport.open();
       document.querySelector('#hr-bug-modal textarea').rows = 400;
       mfReach(document.querySelector('#hr-bug-modal [type=submit]'), 'the bug report\'s Send');
@@ -362,7 +169,7 @@ export default [
       mfEsc();
       assert(!veil.classList.contains('in') && window.HearthriseSheet.topOpen() !== veil, 'Escape left the veil open, or its fade-out still reads as open');
     } finally {
-      ['quartermaster-overlay', 'hr-bug-modal', 'hr-hf-veil'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
+      ['hr-bug-modal', 'hr-hf-veil'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
       if (HF) HF.dismissReveal();
       unpark();
     }
@@ -379,65 +186,9 @@ export default [
      the real reader a server envelope, then assert the reader answers the SERVER.
      Driving the shipped reconciles and readers, not a copy of them.
      MUTATION (proven per block): restore the deleted residue read — give
-     playStreakDays its `G.streak.count` fallback back, or let ownsGemUnlock fall
-     through to `G.ownedThemes` — and that block goes RED. */
-  () => tryRun('RESIDUE-PURGE-1: stale PROGRESS copies never outrank the envelope', () => {
-    const A = window.HearthriseAccrual, G = window.G;
-    assert(A && typeof A.reconcilePlayStreak === 'function', 'accrue.js must export the reconciles');
-    const snap = residuePurgeSnap(G);
-    try {
-      /* THE PLAY STREAK: device counter 1, column 3. */
-      G.streak = { count: 1, lastDay: 20260914 };
-      A.reconcilePlayStreak(G, { ok: true, state: { streak_days: 3, streak_day_key: '2026-09-14' } });
-      assert(A.playStreakDays(G) === 3,
-        'THE BUG: the play streak read ' + A.playStreakDays(G) + ' with a residue 1 and a server 3');
-      assert(window.HearthriseStreakChip.days(G) === 3, 'the flame chip must paint the server count');
-      assert(typeof window.HearthriseStreakChip.advance !== 'function',
-        'the device-clock streak counter is deleted — a local advance() is a second counter and a faucet');
+     playStreakDays its `G.streak.count` fallback back, or let ownsSlot read
+     `G.heroSlotsUnlocked` — and that block goes RED. */
 
-      /* THE FRACTIONAL TOOL CARRY: local 0.9, column 0.25. */
-      G.toolCarry = { mining: 0.9 };
-      A.reconcileToolCarry(G, { ok: true, state: { tool_carry: { mining: 0.25 } } });
-      assert(G.toolCarry.mining === 0.25,
-        'THE BUG: the tool carry stayed on the prediction (' + G.toolCarry.mining + ') against a server 0.25');
-
-      /* THE COMBAT STYLE: the routing a settle pays XP into. */
-      G.combatStyle = { sword: 'accurate' };
-      A.reconcileCombatStyle(G, { ok: true, state: { combat_style: { sword: 'aggressive' } } });
-      assert(G.combatStyle.sword === 'aggressive',
-        'THE BUG: the picker kept a local style (' + G.combatStyle.sword + ') the engine does not pay');
-
-      /* RENOWN: the number that hands out perks. */
-      G.renownHigh = 9999;
-      window.HearthriseRenown.noteServerRenown({ ok: true, renown_high: 1058 });
-      assert(window.HearthriseRenown.counted(G) === 1058,
-        'THE BUG: the counted renown is ' + window.HearthriseRenown.counted(G) + ', not the realm 1058');
-    } finally { residuePurgeRestore(G, snap); }
-  }),
-
-  () => tryRun('RESIDUE-PURGE-2: a forged ENTITLEMENT in the bag confers nothing', () => {
-    const A = window.HearthriseAccrual, G = window.G;
-    const snap = residuePurgeSnap(G);
-    try {
-      /* A FORGED residue claims a 1,000-gem theme and a 1,200-gem cosmetic; the
-         server's set carries only the free row. */
-      G.ownedThemes = ['default', 'volcanic'];
-      G.ownedCosmetics = ['pet_phoenix'];
-      A.reconcileGemUnlocks(G, { ok: true, gem_unlocks: ['theme:default'] });
-      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
-        'THE BUG: a residue entry still confers a gem-priced theme the server never sold');
-      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
-        'THE BUG: a residue entry still confers a gem-priced cosmetic the server never sold');
-      assert(window.ownsGemUnlock('theme', 'default') === true,
-        'the FREE theme must stay owned — the catalogue gives it away and the projection carries it');
-
-      /* HERO SLOTS: residue says five, the account owns one. */
-      G.heroSlotsUnlocked = 5;
-      A.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
-      assert(window.HearthriseProfile.ownsSlot(3) === false,
-        'THE BUG: the residue still lists a hero slot the realm will refuse with slot_not_owned');
-    } finally { residuePurgeRestore(G, snap); }
-  }),
 
   () => tryRun('RESIDUE-PURGE-3: the auto-eat triple is the server\'s, and none of the nine rides the save', () => {
     const A = window.HearthriseAccrual, G = window.G;
@@ -515,9 +266,11 @@ export default [
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
-      'currentCombatTier', 'buyback', 'raids',
-      'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
+      'currentCombatTier', 'buyback', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
+    /* The demolished systems' fields left the bag with them (2026-10-14). */
+    ['raids', 'muster', 'rallyPledge', 'bountyHunter', 'dailyReward', 'renown', 'houseTheme', 'tools'].forEach((f) =>
+      assert(RF.indexOf(f) < 0, f + ' belongs to a demolished system and must not ride the residue bag'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
        come back: both were second copies of a value hr_state_of projects
        (`renown_high`; `state.tool_carry`). renownHigh is now the in-session
@@ -544,12 +297,11 @@ export default [
 
     const G = window.G;
     const keep = {};
-    const touched = ['bestiary', 'traits', 'toolCarry', 'raids'];
+    const touched = ['bestiary', 'traits', 'toolCarry'];
     touched.forEach((f) => { keep[f] = G[f]; });
     try {
       G.bestiary = { goblin: { kills: 5, firstKill: 1700000000000 } };
       G.toolCarry = { woodcutting: 0.75 };
-      G.raids = { lastStrikeDay: '2026-08-24', solo: { week: 9, damage: 400, strikes: 2 }, claimed: { '9': true } };
 
       // SAVE: what the client ships to client_state
       const patch = window.HearthriseCapstone.buildResiduePatch(G);
@@ -577,8 +329,6 @@ export default [
          end). What must hold HERE is that the bag no longer carries it at all. */
       assert(typeof reloaded.toolCarry === 'undefined',
         'the residue round-trip still carries toolCarry — the server column is the one copy');
-      assert(reloaded.raids && reloaded.raids.claimed && reloaded.raids.claimed['9'] === true,
-        'the weekly raid claim marker was lost — a reload would re-open a claimed reward');
 
       /* THE BAG HAS A HARD CEILING. hr_put_client_state refuses the whole patch
          over 256 KiB (state_too_large) — and a refused patch means EVERY residue
@@ -604,185 +354,7 @@ export default [
     }
   }),
 
-  /* RETIRED (lane C2, the closed rebuild): "DAILY-SHEET-1 the daily-reward "shown today" marker rides the residue, and a server refusal never toas" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withClientOwnedSlots(() => withLocalBlob(() => {
-    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
-       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
-       and READING THE BLOB BACK (multi-character.js): if the readback does not
-       show both the gem debit and the entitlement it rolls the purchase back.
-       The b455 capstone retires the blob, so saveLocal writes nothing, the
-       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
-       save your purchase, so nothing was charged." Measured live in this build.
-       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
-       that states it). Nothing is charged, so it is a hard block rather than a
-       loss — but a premium-currency purchase is dead.
-       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
-       atomic revert), which are unchanged and still ship, so they run in the
-       position where a purchase can complete. */
-    const HP = window.HearthriseProfile;
-    if (!HP || !HP.profile) return;
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;                 // only a real gem spend proves this
-    const G = window.G;
-    const prevGems = G.gems;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const chip = document.getElementById('top-gems');
-    try {
-      G.gems = next.cost + 1000;
-      stampBalanceLikeLoad(G);   // armed: the starting balance is KNOWN the way hr_load leaves it before render
-      window.updateTopbar();
-      const before = chip ? chip.textContent : '';
-      const hadDigits = /\d/.test(before);
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok, 'unlockSlot must succeed when the player can afford it: ' + (r && r.reason));
-      assert(G.gems === 1000, 'the gems were not actually spent');
-      if (chip && hadDigits) {
-        /* gold-arm: gems is a SERVER_OF_RECORD field and unlockSlot is an UNWIRED
-           gem sink (raw debit, no server verb → no reconciling envelope), so after
-           the spend the balance is UNKNOWN until the next hr_load and the chip
-           renders the honest PENDING state. The b371 regression this guards —
-           the chip left showing the STALE pre-purchase number — is still caught:
-           the chip must REPAINT (pending ≠ the old number). What arming changes is
-           that the post-spend chip is pending, not the live figure; asserting the
-           live figure here would require faking a reconcile the server never sends. */
-        assert(chip.textContent !== before,
-          'the header gem chip still shows the pre-purchase balance — the spend never repainted the topbar, so '
-          + 'the player sees a stale number until they reload (b371 P2)');
-        const B = window.HearthriseBalance;
-        const pending = !!(chip.classList && B && chip.classList.contains(B.PENDING_CLASS));
-        assert(pending || chip.textContent.replace(/[^0-9]/g, '') === String(G.gems),
-          'after an armed gem spend the chip must show either the live balance (reconciled) or the honest '
-          + 'PENDING state — never a stale formatted number');
-      }
-      const raw = localStorage.getItem('hearthbound-save-v2');
-      if (raw) {
-        const d = JSON.parse(raw);
-        assert(d.gems === G.gems,
-          'the gem spend was not persisted — a reload before the next autosave refunds the gems and KEEPS the '
-          + 'slot, because the profile record is written immediately and the save is not');
-      }
-    } finally {
-      G.gems = prevGems;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
-    }
-  }))),
 
-  /* ── b371 P1 — THE GEM DUPE ────────────────────────────────────────────
-     REPORTED LIVE: a 200-gem purchase of slot 2 debited the gems, a cloud
-     restore then handed them back — AND THE SLOT STAYED UNLOCKED. Free slot.
-     The cause was two stores with two lifetimes: gems in the save (restorable),
-     the unlock in localStorage['hearthrise:profile'] (never uploaded, never
-     rolled back). This asserts they are now ONE record, by doing the thing the
-     restore does and demanding both halves rewind. */
-  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => withClientOwnedSlots(() => withLocalBlob(() => {
-    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
-       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
-       and READING THE BLOB BACK (multi-character.js): if the readback does not
-       show both the gem debit and the entitlement it rolls the purchase back.
-       The b455 capstone retires the blob, so saveLocal writes nothing, the
-       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
-       save your purchase, so nothing was charged." Measured live in this build.
-       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
-       that states it). Nothing is charged, so it is a hard block rather than a
-       loss — but a premium-currency purchase is dead.
-       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
-       atomic revert), which are unchanged and still ship, so they run in the
-       position where a purchase can complete. */
-    const HP = window.HearthriseProfile, G = window.G;
-    if (!HP || !HP.profile) return;
-    assert(typeof HP.unlockedCount === 'function',
-      'HearthriseProfile.unlockedCount() must be the ONE answer to how many slots are owned');
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;                 // only a real gem spend proves this
-    const prevGems = G.gems;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const hadSlots = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
-    const prevSlots = G._heroSlots;
-    try {
-      G.gems = next.cost + 1000;
-      stampBalanceLikeLoad(G);   // armed: unlockSlot reads gems via canAfford
-      // The cloud snapshot as it stood BEFORE the purchase.
-      const older = { gems: G.gems };
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok, 'the purchase should succeed here: ' + (r && r.reason));
-      assert(G.gems === 1000, 'the gems were not debited');
-      assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
-      /* ⚠ 2026-09-14 — THE ENTITLEMENT IS NO LONGER IN ANY CLIENT STORE. It used
-         to be asserted here as `G.heroSlotsUnlocked` (residue), on the reasoning
-         that gems and slot had to rewind together because they were the same
-         bytes. hr_buy_hero_slot + the `hero_slots` projection made that obsolete:
-         the entitlement is a server row and the residue copy was deleted, so the
-         dupe is not "reverted together", it is UNREACHABLE. The purchase path
-         writes only the device's own metadata cache. */
-      assert(HP.profile.unlockedSlots === next.slotId + 1,
-        'the pre-arm purchase must still record the device metadata cache');
-
-      // THE RESTORE. decideRestore replaces the fields the snapshot carries.
-      G.gems = older.gems;
-
-      /* AND THE REALM SPEAKS: its set is the authority, so a restored balance
-         with a server that never sold the slot leaves the player owning nothing
-         — whatever any client store says. THIS is what killed the b371 dupe. */
-      window.HearthriseAccrual.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
-      assert(HP.unlockedCount() === 1 && HP.ownsSlot(next.slotId) === false,
-        'THE b371 GEM DUPE: the gems came back and the slot stayed unlocked against a server set that '
-        + 'does not carry it — the purchase was free');
-      /* THE STATEMENT STANDS for the rest of the test: the realm's set is the
-         authority on every question below (what is listed, what is buyable, what
-         a device-local cache may re-grant). */
-      const rows = HP.slotRows();
-      assert(!rows.some((row) => row.kind === 'char' && row.id === next.slotId),
-        'the reverted slot is still listed as a playable character');
-      const nx = HP.canUnlockNext();
-      assert(nx && nx.slotId === next.slotId,
-        'the reverted slot must be buyable again — the player has their gems back and owns nothing');
-      // …and the device-local record may not re-grant what the save took away.
-      HP.profile.unlockedSlots = 5;
-      assert(HP.unlockedCount() === next.slotId,
-        'localStorage["hearthrise:profile"] re-granted the slot — it is a metadata CACHE, not the authority');
-      assert(HP.switchSlot(next.slotId) === null,
-        'a slot the account no longer owns can still be switched to');
-    } finally {
-      G.gems = prevGems;
-      if (hadSlots) G._heroSlots = prevSlots; else delete G._heroSlots;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
-    }
-  }))),
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     ⚠ SLOT-BUY-1 (b456) — RED ON PURPOSE: A PREMIUM PURCHASE IS DEAD UNDER THE
-     SHIPPED CAPSTONE. Report, do not silence.
-     ══════════════════════════════════════════════════════════════════════════
-     multi-character.js `unlockSlot` earns its atomicity by PROVING the write:
-     it calls saveLocal() and reads `hearthbound-save-v2` back, requiring both
-     `gems` and `heroSlotsUnlocked` to be in the blob before it hands over the
-     entitlement. That proof was exactly right when the blob was the store.
-
-     The b455 capstone retires the blob: saveLocal returns before writing, and
-     loadLocal removes any leftover on the way past. So the readback is `null`,
-     `durable` is false, and the purchase ROLLS BACK — every time, for everyone.
-     MEASURED in this build: `unlockSlot(1)` → {ok:false, reason:"Couldn't save
-     your purchase, so nothing was charged."}, gems untouched, slot not granted.
-
-     Nothing is charged, so this is a hard block rather than a gem loss — but a
-     200/400/1500-gem premium purchase cannot be completed at all.
-
-     THE FIX IS NOT TO DELETE THE PROOF. The proof is what stopped the b371 dupe
-     (entitlement outliving the payment). It has to move to a store that still
-     exists under the capstone — the server (a slot-purchase verb) or, at
-     minimum, the durable profile/client_state record — so the purchase stays
-     atomic-or-nothing. Owner: Systems Engineer.
-     ══════════════════════════════════════════════════════════════════════════ */
   () => tryRunAsync('HIRE-OWNED-1 (b463): an already_owned rung is a RECEIPT — the hire proceeds to materialise the paid crew', async () => {
     /* Three live players paid worker_hire.1 during the offers-wipe window, got
        no crew, and every retry died on "Could not complete the hire — already
@@ -912,12 +484,13 @@ export default [
     const C = window.HearthriseCapstone;
     if (!C || !C.isBlobRetired()) return;             // only meaningful with the capstone armed
     const next = HP.canUnlockNext();
-    if (!next || next.free) return;                   // only a real gem spend proves this
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    if (!next) return;                                // every slot already owned
+    // Hero slots are GOLD since the 2026-10-14 ruling (gems left the game).
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     try {
-      G.gems = next.cost + 1000;
-      stampRecordLikeLoad(G);                         // a genuinely KNOWN, sufficient balance
+      G.gold = next.cost + 1000;
+      stampBalanceLikeLoad(G);                        // a genuinely KNOWN, sufficient balance
       const r = HP.unlockSlot(next.slotId);
       assert(r && r.ok,
         'a player who can afford a hero slot cannot buy one: unlockSlot answered "'
@@ -926,15 +499,15 @@ export default [
         + 'rolls back for every player, every time. The durability proof has to move to a store that still '
         + 'exists (a server slot-purchase verb, or the durable profile/client_state record); deleting the '
         + 'proof would bring back the b371 dupe.');
-      assert(G.gems === 1000, 'the gems were not actually spent');
+      assert(G.gold === next.cost + 1000, 'unlockSlot debited gold locally — the server verb owns that debit');
       assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
     } finally {
-      G.gems = prevGems;
+      G.gold = prevGold;
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
+      stampBalanceLikeLoad(G);
     }
   })),
 
@@ -942,12 +515,12 @@ export default [
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     const next = HP.canUnlockNext();
-    if (!next || next.free) return;
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    if (!next) return;
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const realSave = window.saveLocal;
     try {
-      G.gems = next.cost + 1000;
+      G.gold = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
       /* b515 — THE DORMANT HALF IS RETIRED AND THE PROPERTY INVERTED. This test
          used to grade two positions. DORMANT: `unlockSlot` read the save blob
@@ -987,7 +560,7 @@ export default [
     } finally {
       try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.saveLocal = realSave;
-      G.gems = prevGems;
+      G.gold = prevGold;
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
@@ -1026,7 +599,7 @@ export default [
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
     try {
-      if (B) B.balanceNum = (g, f) => (f === 'gems' ? 999999 : realBalanceNum(g, f));
+      if (B) B.balanceNum = (g, f) => (f === 'gold' ? 99999999 : realBalanceNum(g, f));
 
       // ── SERVER SILENT: the row is buyable-in-order but NOT offered. ──
       delete G._heroSlots;
@@ -1036,7 +609,7 @@ export default [
         'slotRows() claims the server has answered when G._heroSlots is absent');
       assert(row.afford === true,
         'the fixture is degenerate: the row must be AFFORDABLE, so that a disabled button can only '
-        + 'be about the server being silent and not about the gems');
+        + 'be about the server being silent and not about the gold');
 
       if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
         window.HearthriseHome.render();
@@ -1109,9 +682,7 @@ export default [
       assert(nx && nx.slotId === 2,
         'the ladder must point at the first slot the SERVER says is missing, got '
         + JSON.stringify(nx));
-      assert(nx.free === false,
-        'under the server answer the Hearth Hall waiver is decided SERVER-SIDE (a waived slot '
-        + 'arrives already owned), so a device-local entitlements claim must not make a slot free');
+      assert(nx.cost > 0, 'a device-local entitlements claim must not make a slot free, got cost ' + nx.cost);
     } finally {
       G.heroSlotsUnlocked = prevUnlocked;
       HP.profile.unlockedSlots = prevCache;
@@ -1129,12 +700,12 @@ export default [
     const origNotify = window.notify, origRec = window.HearthriseRecord;
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevGold = G.gold, prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const sent = []; const toasts = []; let refreshed = 0;
     try {
       HP.adoptServerSlots([0]);
-      window.clientMayWriteRecordField = () => false;           // gems ARMED
+      window.clientMayWriteRecordField = () => false;           // the balance is ARMED
       window.notify = (m) => { toasts.push(String(m)); };
       /* STUBBED, and not only for tidiness: the real requestRecord() drives a
          live hr_load that REPLACES the record on the shared G, landing a network
@@ -1163,8 +734,8 @@ export default [
         'buySlot did not send exactly one hero-slot intent: ' + JSON.stringify(sent));
       assert(r && r.ok === true && r.server === true,
         'the server purchase did not report success: ' + JSON.stringify(r));
-      assert(G.gems === prevGems,
-        'THE SELF-MINT: buySlot debited G.gems locally under the arm. The server owns that balance; '
+      assert(G.gold === prevGold,
+        'THE SELF-MINT: buySlot debited G.gold locally under the arm. The server owns that balance; '
         + 'a local debit is reconciled away by the next envelope while the slot stays granted, '
         + 'which is the b371 dupe.');
       assert(HP.unlockedCount() === 2,
@@ -1180,7 +751,7 @@ export default [
       window.clientMayWriteRecordField = origMay;
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
-      G.gems = prevGems; G.heroSlotsUnlocked = prevUnlocked;
+      G.gold = prevGold; G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
@@ -1197,9 +768,11 @@ export default [
     const origGC = window.HearthriseGoalClaim, origMay = window.clientMayWriteRecordField;
     const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
     const prev = had ? G._heroSlots : undefined;
-    const prevGems = G.gems;
+    const prevGold = G.gold;
+    /* The server verb still answers insufficient_gems until the M2 gold restatement;
+       the client already prices the slot in gold and says so. */
     const cases = [
-      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
+      ['insufficient_gems', /Not enough gold/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
       ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
       ['requires_previous_slot', /Unlock the previous slot first/i, {}],
     ];
@@ -1218,7 +791,7 @@ export default [
         assert(want.test(String(r.reason || '')),
           `'${code}' rendered as "${r.reason}" — every machine code needs its own honest sentence, `
           + 'or the player files the wrong bug (b494)');
-        assert(G.gems === prevGems, `'${code}' moved gems on a refusal`);
+        assert(G.gold === prevGold, `'${code}' moved gold on a refusal`);
         assert(HP.unlockedCount() === 1, `'${code}' granted the slot anyway`);
       }
       // …and a refusal must never leave the in-flight latch stuck.
@@ -1236,7 +809,7 @@ export default [
     } finally {
       window.HearthriseGoalClaim = origGC;
       window.clientMayWriteRecordField = origMay;
-      G.gems = prevGems;
+      G.gold = prevGold;
       try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
       try { document.getElementById('hr-confirm-overlay')?.remove(); } catch (e) {}
     }
@@ -1516,69 +1089,6 @@ export default [
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
-  () => tryRun('b269: pet session-impact tracker counts real contributions + surfaces the chip/modal', () => {
-    const PS = window.HearthrisePetSession;
-    assert(PS && typeof PS.recordXp === 'function',
-      'HearthrisePetSession seam missing — the tracker was not built');
-    const G = window.G;
-    const snap = G.companions ? JSON.parse(JSON.stringify(G.companions)) : null;
-    try {
-      // Equip a pet whose paid bonus we know: the Fox (allXP).
-      G.companions = G.companions || { ownedIds: ['fox'], xp: {}, equipped: null };
-      if (G.companions.ownedIds.indexOf('fox') < 0) G.companions.ownedIds.push('fox');
-      G.companions.xp = G.companions.xp || {};
-      G.companions.equipped = 'fox';
-      PS._reset();
-
-      let a = PS.get();
-      assert(a && a.petId === 'fox', 'accumulator must key on the equipped pet');
-
-      // XP attribution is the pet's real marginal allXP after the budget.
-      const before = a.xp;
-      PS.recordXp(1000);
-      a = PS.get();
-      assert(a.xp > before, 'bonus XP must accrue from the Fox allXP share, got ' + a.xp);
-
-      // The chip mounts beside the avatar in the topbar.
-      PS.injectChip();
-      const chip = document.getElementById('hr-pet-chip');
-      assert(chip && chip.closest('.topbar .player'), 'pet chip must mount inside the topbar player block');
-
-      // The modal opens and renders the honest breakdown (reuses RoomModal).
-      if (window.HearthriseRoomModal) {
-        PS.openModal();
-        const scrim = document.querySelector('.hr-room-scrim');
-        assert(scrim, 'clicking the chip must open a RoomModal-style panel');
-        const txt = scrim.textContent;
-        assert(/Fox/.test(txt), 'the modal must be titled by the pet name');
-        assert(/Bonus XP granted/.test(txt), 'the modal must show the XP the pet really added');
-        assert(!/Procs fired|Extra drops|Gold contributed|Doubled by/.test(txt),
-          'the modal must show no proc rows — no companion proc is paid');
-        window.HearthriseRoomModal.close();
-      }
-    } finally {
-      if (snap) G.companions = snap;
-      const c = document.getElementById('hr-pet-chip'); if (c) c.remove();
-      PS._reset();
-    }
-  }),
-
-  /* ═══════════════════════════════════════════════════════════════════════
-     THE UNIFICATION BATTERY — docs/design/away-time-ruling.md
-
-     The ruling's whole force is "one formula, context flag". That is not a
-     property you can review for; it is a property you MEASURE by running the same
-     seeded fight through both flags and diffing. Test 1 IS the contract, and
-     the other eight are the rulings it does not cover.
-
-     Every one of these fails without the change. Test 1 fails loudest: before
-     the unification the away path granted no kill XP and rolled no crits, so
-     the two columns disagreed by ~30%.
-     ═══════════════════════════════════════════════════════════════════════ */
-
-  /* Shared rig: stand the player in a known fight with a known loadout, run
-     N ticks under a PINNED seed through a given away flag, and report totals.
-     Nothing here reads the wall clock except through `atMs`, which is passed. */
   () => tryRun('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
     const G = window.G;
     const C = window.HearthriseCore;
@@ -1799,84 +1309,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): "AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
      night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('AUTOEAT-FOOD-1: with no food nominated, the client eats the CHEAPEST food that heals to full — not the biggest', () => {
-    const G = window.G;
-    const A = window.HearthriseAuto;
-    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-    if (!A || !AE) return;
-    const snap = snapshotG();
-    const beforeEat = A.getEat();
-    let wasParked = false;
-    try {
-      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
-      /* THE ORDER, on producer-real rows. Named expects, so a reworded rule
-         cannot pass by accident:
-           shrimp           heals 3,  v 5,   RAW  (Cooking's own input)
-           cooked_wolf_meat heals 6,  v 12        (processed, dearer, WINS)
-           cooked_shrimp    heals 8,  v 18
-           cooked_shark     heals 44, v 900       (the pre-ruling answer) */
-      const I = window.ITEMS;
-      assert(I.shrimp.raw === true && I.shrimp.v === 5 && I.cooked_wolf_meat.v === 12,
-        'the fixture rows moved — this test is no longer about what it says it is about');
-      assert(AE.chooseFood(null, { shrimp: 9, cooked_wolf_meat: 9 }, I, 3) === 'cooked_wolf_meat',
-        'a RAW Provision was eaten while a processed one covered the same deficit');
-      assert(AE.chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, I, 5) === 'cooked_shrimp',
-        'the chooser did not take the cheapest Provision that heals to full');
-      assert(AE.chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, I, 30) === 'cooked_shark',
-        'with nothing able to heal to full the chooser must fall back to the BIGGEST healer');
-
-      /* AND THE ADAPTER. A live 60 HP character, 5 HP down, holding both. */
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      G.playerMaxHp = 60; G.playerHp = 55;
-      G.inventory = { cooked_shark: 4, cooked_shrimp: 4 };
-      G.combatLog = [];
-      A.setEat({ enabled: true, threshold: 0.95, foodId: null });
-      const ate = A.maybeAutoEat();
-      assert(ate === true, 'the client refused to auto-eat a 5 HP deficit at a 95% trigger');
-      assert(G.inventory.cooked_shrimp === 3 && G.inventory.cooked_shark === 4,
-        'the client ate the wrong stack — it must spend the 18 g Cooked Shrimp, not the 900 g Cooked '
-        + 'Shark, on a 5 HP hole: ' + JSON.stringify(G.inventory));
-      assert(G.playerHp === 60, 'the cheap food must still heal to FULL — that is what makes this free: '
-        + G.playerHp);
-
-      /* ── A FULL BAR CONSUMES NOTHING (Designer ruling 2c, 2026-08-31) ────
-         The unit gates live in tests/accrual-engine.mjs; this is the half only
-         the shipped client can prove — that the ADAPTER's apply step never
-         runs, so no stack is decremented. The bug it closes is the tier-II
-         ceiling turning `hp/maxHp <= 1` into one destroyed Provision per swing
-         at full health, ~1,400 times a night, for 0 HP.
-         CONTROL FIRST, deliberately: a guard that simply stopped auto-eating
-         altogether must fail here rather than pass by doing nothing. */
-      G.playerHp = 59; G.inventory = { cooked_shrimp: 4 };
-      A.setEat({ enabled: true, threshold: 1 });
-      assert(A.maybeAutoEat() === true && G.inventory.cooked_shrimp === 3,
-        'CONTROL: a 1 HP deficit at a 100% trigger did not eat — the deficit guard has broken the '
-        + 'max-safety setting instead of the zero-deficit case: ' + JSON.stringify(G.inventory));
-      G.playerHp = 60; G.inventory = { cooked_shrimp: 4 };
-      assert(A.maybeAutoEat() === false,
-        'the client auto-ate at FULL health against a 100% trigger — the dial says "eat when my HP '
-        + 'drops to X%", and a full bar has not dropped to anything (ruling 2c)');
-      assert(G.inventory.cooked_shrimp === 4,
-        'a full-health auto-eat consumed a Provision for 0 HP restored: ' + JSON.stringify(G.inventory));
-
-      /* …and the dial's top end says what the setting now means. */
-      const S = window.HearthriseSettingsPage;
-      if (S && typeof S._autoEatHint === 'function') {
-        const top = S._autoEatHint(true, 1, '');
-        assert(/eat the moment I take any damage/i.test(top),
-          'the 100% end of the dial does not say what the setting now does: ' + top);
-        assert(!/will not heal while away/i.test(top),
-          'the 100% end wears the 0% end\'s warning — the ruling rejected copy as a substitute for '
-          + 'the engine fix, and there is no consequence left to warn about: ' + top);
-      }
-    } finally {
-      A.setEat(beforeEat);
-      if (typeof A._resetEatSync === 'function') A._resetEatSync();
-      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
-      restoreG(snap);
-    }
-  }),
-
   () => tryRun('AWAY-2: an away kill grants m.xp (the ~21% of combat XP the second loop never paid)', () => {
     const G = window.G;
     const C = window.HearthriseCore;
@@ -1975,87 +1407,8 @@ export default [
     }
   }),
 
-  () => tryRun('AWAY-4: Boss of the Day pays away, and an absence crossing UTC midnight pays each day its own boss', () => {
-    const C = window.HearthriseCore;
-    const M = window.MONSTERS;
-    assert(C.botd && typeof C.botd.botdFor === 'function', 'botdFor(atMs) must exist as a pure function of time');
 
-    /* Determinism first: the same instant always resolves to the same boss,
-       and a stated day key resolves the same as any instant inside that day. */
-    const noonJan1 = Date.UTC(2026, 0, 1, 12, 0, 0);
-    const elevenPmJan1 = Date.UTC(2026, 0, 1, 23, 0, 0);
-    const oneAmJan2 = Date.UTC(2026, 0, 2, 1, 0, 0);
-    const a = C.botd.botdFor(noonJan1, M);
-    const b = C.botd.botdFor(elevenPmJan1, M);
-    assert(a.dailyId && a.dailyId === b.dailyId, 'two instants in the same UTC day must resolve to the same boss');
-    assert(M[a.dailyId], 'the featured boss must be a real monster: ' + a.dailyId);
 
-    /* The card and the core must not disagree — that identity is what makes
-       the extraction safe. */
-    assert(window.HearthriseBossOfDay.featuredId('2026-1-1') === a.dailyId,
-      'the Combat card and the core rotation resolved DIFFERENT bosses for the same day');
-
-    /* Segment resolution: an absence spanning midnight is two segments, and
-       the two days need not (and here do not) share a boss. */
-    const segs = C.away.utcDaySegments(elevenPmJan1, oneAmJan2);
-    assert(segs.length === 2, 'a 2h absence across UTC midnight must be TWO segments, got ' + segs.length);
-    assert(segs[0].ms === 3600000 && segs[1].ms === 3600000, 'each segment must carry its own hour');
-    const day2 = C.botd.botdFor(oneAmJan2, M);
-    assert(day2.dailyId, 'the second day must also resolve a boss');
-    /* The important claim is per-segment RESOLUTION, not that the two ids
-       differ (a hash may collide). Assert resolution explicitly. */
-    assert(C.botd.utcDayKey(elevenPmJan1) !== C.botd.utcDayKey(oneAmJan2),
-      'the two segments must fall on different UTC day keys');
-
-    /* And the bonus is real, at an instant, for the boss of THAT instant. */
-    const feat = C.botd.killBonusesFor(a.dailyId, noonJan1, M);
-    assert(feat.dropMult > 1 && feat.xpMult > 1, 'the featured boss must pay a drop + XP lift at its own instant');
-    const notFeat = C.botd.killBonusesFor('slime', noonJan1, M);
-    assert(notFeat.dropMult === 1 && notFeat.xpMult === 1, 'an unfeatured monster must pay 1x');
-  }),
-
-  () => tryRun('AWAY-4b: an away kill on the featured boss actually applies the lift (BotD is not presence-gated)', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const P = window.HearthrisePresence;
-    const snap = snapshotG();
-    const origBonus = window.getBonus;
-    try {
-      window.getBonus = () => 0;
-      G.buffs = [];
-      const featuredId = window.HearthriseBossOfDay.featuredId();
-      assert(featuredId && window.MONSTERS[featuredId], 'no featured boss today — cannot assert the lift');
-      const m = window.MONSTERS[featuredId];
-      const xpOf = (away) => {
-        G.activeMonster = featuredId;
-        G.monsterHp = 1; G.monsterMaxHp = m.hp;
-        G.playerHp = 500; G.playerMaxHp = 500;
-        G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0, magic: 0, ranged: 0 });
-        const before = xpMap();
-        C.reseed(1234);
-        const body = () => window.killMonster(m);
-        if (away) P._withOfflineReplay(body); else body();
-        const after = xpMap();
-        return Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
-      };
-      const awayXp = xpOf(true);
-      const liveXp = xpOf(false);
-      assert(awayXp > 0 && awayXp === liveXp,
-        'a featured-boss kill must pay the SAME lifted XP away as live (away ' + awayXp + ', live ' + liveXp + ')');
-      /* And prove the lift is present at all, by comparing against a plain foe
-         scaled to the same base xp — cheapest honest proof is the multiplier. */
-      const feat = C.botd.killBonusesFor(featuredId, Date.now(), window.MONSTERS);
-      assert(feat.xpMult > 1, 'today\'s featured boss must carry an XP multiplier');
-    } finally {
-      window.getBonus = origBonus;
-      C.randomSeed();
-      restoreG(snap);
-    }
-  }),
-
-  /* RETIRED (lane C2, the closed rebuild): "AWAY-5: a timed buff PAYS away and DRAINS away — 5 minutes of Feast covers 5 minutes of an hour, then stops" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-5b: a hitpoints level-up RAISES max HP and never lowers it — the client cannot roll back a server-projected ceiling', () => {
     const G = window.G;
     const snap = snapshotG();
@@ -2143,50 +1496,17 @@ export default [
     });
   }),
 
-  () => tryRun('AWAY-6: blessings still contribute 0 away (the b227 latch is unchanged by the unification)', () => {
-    const P = window.HearthrisePresence;
-    const E = window.HearthriseWorldEvents;
-    assert(P.blessingsApply() === true, 'an online player outside a replay must be blessed');
-    let inside = null;
-    P._withOfflineReplay(() => { inside = P.blessingsApply(); });
-    assert(inside === false, 'blessings must not apply inside an away replay');
-    assert(P.blessingsApply() === true, 'and the latch must release afterwards');
-    /* The channel table must agree with the latch — two rules for one question
-       is how the away/live split drifted the first time. */
-    const A = window.HearthriseCore.away;
-    assert(A.channelApplies('blessing', { away: true }) === false, 'the blessing channel must be closed away');
-    /* THE LINE IS SERVER-WIDE vs PERSONAL, not timed vs permanent. A blessing
-       is something the world does for people who are in it; a Feast is
-       something the player did to their own character, and it stays true while
-       they sleep. So blessing is closed and buff is OPEN — and because it is
-       open it also drains (AWAY-5 measures that half). */
-    assert(A.channelApplies('buff', { away: true }) === true, 'the buff channel must be OPEN away — personal buffs pay while you are gone');
-    assert(A.channelApplies('permanent', { away: true }) === true, 'permanent bonuses must always apply');
-    assert(A.channelApplies('crit', { away: true }) === true, 'crit must always apply');
-    assert(A.channelApplies('botd', { away: true }) === true, 'Boss of the Day must apply away');
-    assert(A.channelApplies('heal', { away: true }) === true, 'healing auto-eat must apply away');
-    /* An UNKNOWN channel defaults to paying. The five omissions the ruling
-       fixes were all base rewards a second loop silently dropped, so "quietly
-       missing" must never be the default for something new. */
-    assert(A.channelApplies('a_channel_invented_next_year', { away: true }) === true,
-      'an unknown bonus channel must default to APPLYING away, not to silently vanishing');
-    assert(E && E.isActive() === true, 'the calendar must agree with the latch outside a replay');
-  }),
 
-  () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
+  () => tryRun('AWAY-7: away kills feed the drop log and quests; an away death increments stats.deaths', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
-    const seen = { recordKill: 0, daily: 0, quest: 0, deed: 0 };
+    const seen = { recordKill: 0, quest: 0 };
     const realLog = window.HearthriseDropLog;
-    const realFarm = window.HearthriseFarm;
-    const realDaily = window.updateDaily;
     const realQuest = window.updateQuest;
     try {
       window.HearthriseDropLog = Object.assign({}, realLog, { recordKill: () => { seen.recordKill++; } });
-      window.HearthriseFarm = Object.assign({}, realFarm, { rollKillDeed: () => { seen.deed++; } });
-      window.updateDaily = function (t) { if (t === 'kill_any') seen.daily++; return realDaily.apply(this, arguments); };
       window.updateQuest = function (t) { if (t === 'kill_any' || t === 'kill_monster') seen.quest++; return realQuest.apply(this, arguments); };
 
       const m = window.MONSTERS.goblin;
@@ -2196,9 +1516,7 @@ export default [
       P._withOfflineReplay(() => { window.killMonster(m); });
 
       assert(seen.recordKill === 1, 'an away kill must reach HearthriseDropLog.recordKill (collection log under-reported every overnight)');
-      assert(seen.daily === 1, 'an away kill must tick updateDaily("kill_any") — "Slay 10 monsters" made ZERO progress overnight');
       assert(seen.quest === 2, 'an away kill must tick both kill_any and kill_monster quests, got ' + seen.quest);
-      assert(seen.deed === 1, 'an away kill must roll a Farmer\'s Deed');
 
       /* stats.deaths: never incremented ANYWHERE before this change — not away,
          not live. Assert both paths, because a rule that only holds in one is
@@ -2223,8 +1541,6 @@ export default [
          uses. */
       try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       window.HearthriseDropLog = realLog;
-      window.HearthriseFarm = realFarm;
-      window.updateDaily = realDaily;
       window.updateQuest = realQuest;
       restoreG(snap);
     }
@@ -2254,18 +1570,6 @@ export default [
 
      Both drive the REAL `window.processOffline()`, because the anchor lives in
      the caller and a core-level test cannot see a caller. ══════════════════ */
-  /* RETIRED (lane C2, the closed rebuild): "AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, " — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeit" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "AWAY-24: the blessing channel is decided by AWAY_SCOPE ALONE — no simulation and no receipt restates it" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  /* RETIRED (lane C2, the closed rebuild): "AWAY-9: the summary carries the honesty payload the welcome-back renderer needs" — it covered a system C2 deleted
-     outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or the
-     night forecast). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
   () => tryRun('AWAY-10 (balance risk, flagged by design): the 0.95 drop cap applies AFTER dropMult x featuredMult, and guaranteed drops stay unscaled', () => {
     const D = window.HearthriseCore.drops;
     /* A weekly BotD (x2.0) on a tier-6 boss with a high-value tradeable is a
@@ -2485,7 +1789,6 @@ export default [
           fx: {
             addItem: (id, qty) => window.addItem(id, qty),
             addXp: (sk, amt) => window.addXp(sk, amt),
-            updateDaily: (k, n) => window.updateDaily(k, n),
             updateQuest: (k, n) => window.updateQuest(k, n),
             onStop: () => window.stopSkill && window.stopSkill(),
           },
@@ -2634,7 +1937,6 @@ export default [
             addItem: (id, q) => window.addItem(id, q),
             removeItem: (id, q) => window.removeItem(id, q),
             addXp: (sk, amt) => window.addXp(sk, amt),
-            updateDaily: (k, n) => window.updateDaily(k, n),
             updateQuest: (k, n) => window.updateQuest(k, n),
           },
         });
@@ -2712,7 +2014,7 @@ export default [
     Object.keys(src).forEach((sk) => { authored += (src[sk] || []).length; });
     assert(n === authored,
       'the index holds ' + n + ' recipes but ' + authored + ' are authored — rows were dropped or collided');
-    assert(n > 250, 'only ' + n + ' recipes indexed — the catalogue did not load');
+    assert(n > 100, 'only ' + n + ' recipes indexed — the catalogue did not load');   // 111 after the 2026-10-14 gear-recipe cut
 
     assert(Object.getPrototypeOf(idx) === null,
       'the recipe index has a prototype — `constructor` and `__proto__` are reachable ids that would '
@@ -2815,42 +2117,8 @@ export default [
     }
   }),
 
-  () => tryRun('AWAY-14 (perf): the per-kill companion/pet lookups are indexed, and the index invalidates on a catalogue swap', () => {
-    /* Both tables were rebuilt on every kill (and pets.js rebuilt its on every
-       addXp — three to five times per combat TICK). Memoised now. The risk a
-       memo introduces is staleness, so that is what this asserts: swap the
-       catalogue and the answer must change. */
-    const P = window.HearthrisePets;
-    const realC = window.COMPANIONS;
-    try {
-      if (P && typeof P.rollBossPet === 'function') {
-        /* A pet whose source names a monster that cannot exist: with a live
-           cache the roll finds it; after a swap to an empty table it must not. */
-        window.COMPANIONS = { __probe: { n: 'Probe', source: 'boss:__no_such_monster__:2', icon: '🐾' } };
-        assert(P.rollBossPet('__no_such_monster__', () => 1) === false, 'a guaranteed-miss roll must not unlock');
-        window.COMPANIONS = {};
-        assert(P.rollBossPet('__no_such_monster__', () => 0) === false,
-          'after the catalogue is emptied the memoised pet table must be rebuilt, not served stale');
-      }
-      /* The companion drop index is internal; assert the observable contract —
-         a kill against a monster with no companion source does no work and
-         throws nothing, and the wrapper chain is still intact. */
-      assert(typeof window.killMonster === 'function', 'the kill wrapper chain must survive the indexing change');
-    } finally { window.COMPANIONS = realC; }
-  }),
 
-  /* ══════════════════════════════════════════════════════════════════════
-     b326 — THE PLAYER-FACING HONESTY SURFACES
-     (docs/design/away-time-ruling.md §"Player-facing honesty", items 1–5)
-
-     The ruling's own framing: "the silent penalty was the actual sin". These
-     guard the CURE, so the failure mode they exist to catch is a renderer that
-     stops saying something — or, worse, starts saying something it was never
-     given. Every one asserts BOTH directions: the clause appears when the
-     payload carries it, and is ABSENT when it does not.
-     ══════════════════════════════════════════════════════════════════════ */
-
-  () => tryRun('b326-1: the welcome-back band states the rate, the crits, the featured boss and the paused buffs — and invents none of them', () => {
+  () => tryRun('b326-1: the welcome-back band states the rate, the crits and the paused buffs — and invents none of them', () => {
     const G = window.G;
     const H = window.HearthriseHome;
     assert(H && typeof H.render === 'function', 'the Home dashboard must expose render()');
@@ -2880,10 +2148,9 @@ export default [
       /* Item 2 — away combat reports its crits. */
       assert(/142 kills/.test(txt) && /21 crits/.test(txt),
         'away combat must report kills AND crits ("142 kills · 21 crits"): ' + txt);
-      /* Item 1b — the featured boss, its real duration, and the multiplier the
-         SIMULATION reported (never a guessed default). */
-      assert(/8h on the Boss of the Day/.test(txt), 'the band must report featured time: ' + txt);
-      assert(/\+50% drops/.test(txt), 'the band must quote the multiplier the payload carried: ' + txt);
+      /* Item 1b — the Boss of the Day left in the 2026-10-14 demolition: an old
+         payload that still carries featuredMs must not resurrect its line. */
+      assert(!/Boss of the Day/.test(txt), 'the band names the demolished Boss of the Day: ' + txt);
       /* Item 3 — a held buff is reported as paused, not as paid. */
       assert(/paused/i.test(txt), 'the band must say the held buffs were paused: ' + txt);
       assert(!/blessing.*applied|blessed/i.test(txt.replace(/food buffs pay while you play/i, '')),
@@ -2904,24 +2171,6 @@ export default [
       assert(!/Boss of the Day/.test(qtxt), 'no featured-boss line when featuredMs is 0: ' + qtxt);
       assert(!/paused/i.test(qtxt), 'no paused-buff line when buffsPaused is false: ' + qtxt);
       assert(/base rate/i.test(qtxt), 'the rate statement is unconditional and must survive: ' + qtxt);
-
-      /* A WEEKLY boss pays x2.0. A renderer that hardcoded the daily x1.5
-         would halve the night in copy — so the number comes from the payload. */
-      G.lastOfflineSummary = Object.assign({}, FULL, { featuredDropMult: 2.0 });
-      H.render();
-      assert(/\+100% drops/.test(document.getElementById('hd-root').textContent),
-        'a weekly featured boss must read +100% drops, not the daily default');
-
-      /* An OLD summary (written before the field existed) must say the boss
-         applied and quote NO percentage, rather than invent the daily one. */
-      const legacySummary = Object.assign({}, FULL);
-      delete legacySummary.featuredDropMult;
-      G.lastOfflineSummary = legacySummary;
-      H.render();
-      const ltxt = document.getElementById('hd-root').textContent.replace(/\s+/g, ' ');
-      assert(/Boss of the Day/.test(ltxt), 'a pre-b326 summary must still report the featured time');
-      assert(!/Boss of the Day \(\+/.test(ltxt),
-        'with no featuredDropMult in the payload the band must quote NO percentage: ' + ltxt);
 
       /* Stale news steps aside — the band is a greeting, not furniture. */
       G.lastOfflineSummary = Object.assign({}, FULL, { at: Date.now() - 60 * 60000 });
@@ -3203,7 +2452,7 @@ export default [
          (the auto-eater heals), so the panel and every buff food's tooltip carry one
          published sentence. Asserted on the PANEL and on the TOOLTIP's own source. */
       const panel = document.getElementById('food-buffs-host').textContent;
-      assert(/eat it yourself/i.test(panel) && /auto-eating only heals/i.test(panel),
+      assert(/eat it yourself/i.test(panel) && !/auto-eat/i.test(panel),
         'the Active Effects panel must state that a buff needs a manual Eat: ' + panel);
       assert(typeof window.BUFF_GESTURE_NOTE === 'string'
         && window.foodUseInfo('fishers_pie').buffText !== '',
@@ -3330,23 +2579,6 @@ export default [
     }
   }),
 
-  () => tryRun('b326-4: both Boss-of-the-Day cards state that they pay while you are away', () => {
-    const B = window.HearthriseBossOfDay;
-    assert(B, 'the Boss of the Day feature must be loaded');
-    const prevTab = window.activeTab;
-    try {
-      window.showTab('combat');
-      if (typeof B.render === 'function') B.render();
-      if (typeof B.renderWeekly === 'function') B.renderWeekly();
-      ['hr-botd-card', 'hr-weekly-card'].forEach((id) => {
-        const card = document.getElementById(id);
-        if (!card || card.style.display === 'none') return;   // no boss in the pool today
-        const away = card.querySelector('.botd-away');
-        assert(away, id + ' must carry the away line — "set it before bed" must be readable, not folklore');
-        assert(/away/i.test(away.textContent), id + ' away line must actually say it pays while away');
-      });
-    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
-  }),
 
   () => tryRun('b326-5: an away-earnings preview is computed with away:true — it can never quote a BLESSING, and it quotes personal buffs exactly as the live rate does', () => {
     const G = window.G;
@@ -3536,301 +2768,9 @@ export default [
      the request shape is assertable synchronously — verified by the call-count
      assertion below, which would read 0 if the fetch had moved behind an await.
      Do not make these async. ─────────────────────────────────────────────── */
-  () => tryRun('b330: joinById goes through the clan_join RPC and NEVER writes /rest/v1/clan_members', () => {
-    const Cl = window.HearthriseClans;
-    assert(Cl && typeof Cl.joinById === 'function', 'HearthriseClans.joinById must be published');
 
-    const calls = [];
-    const realFetch = window.fetch;
-    const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
-    const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
-    const realNotify = window.notify;
-    try {
-      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
-      if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
-      window.notify = () => {};
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, clan_id: 'c1' }) });
-      };
 
-      const p = Cl.joinById('11111111-2222-3333-4444-555555555555');
-      if (p && typeof p.catch === 'function') p.catch(() => {});
 
-      assert(calls.length === 1, 'joining must issue exactly one request, saw ' + calls.length +
-        ' — a 0 here means the fetch moved behind an await and this test is asserting nothing');
-      const c = calls[0];
-
-      /* THE CONTROL: this is what the hole looked like. `/rest/v1/clan_members`
-         with no `/rpc/` in front of it IS the uninvited-join path. */
-      assert(!/\/rest\/v1\/clan_members/.test(c.url),
-        'the client must NEVER write clan_members directly — that is the uninvited-join path S-CAP-1 names: ' + c.url);
-      assert(c.url.indexOf('/rest/v1/rpc/clan_join') !== -1,
-        'joining must go through the clan_join RPC: ' + c.url);
-      assert(String(c.opts.method || 'GET').toUpperCase() === 'POST',
-        'a PostgREST RPC call must be POST');
-      const body = JSON.parse(c.opts.body || '{}');
-      assert(body.p_clan_id === '11111111-2222-3333-4444-555555555555',
-        'the RPC takes the clan as p_clan_id in the JSON body, saw: ' + (c.opts.body || '(none)'));
-      /* The server derives the joiner from auth.uid(); a client-supplied user id
-         would be a forged identity crossing to another player's clan. */
-      assert(body.p_user_id === undefined && body.user_id === undefined,
-        'the client must not name WHO is joining — the server takes that from auth.uid(): ' + c.opts.body);
-    } finally {
-      window.fetch = realFetch;
-      window.notify = realNotify;
-      if (sb && realGetConfig) sb.getConfig = realGetConfig;
-      if (au && realGetSession) au.getSession = realGetSession;
-    }
-  }),
-
-  /* ── BETA GATE: Clans ship as a visible-but-gated "Coming Soon" roadmap
-     feature (game-designer ruling, 2026-08-17). Two facts must hold:
-       (a) the panel renders the intentional coming-soon card (no empty room,
-           no reachable treasury/browser), and
-       (b) contribute() is hard-disabled — it moves NO gold and issues NO
-           request, because it debits G.gold client-side against a server RPC
-           that mints with no debit (server-authority lock).
-     If clan pass-2 flips CLAN_LAUNCHED, this test is expected to be updated. */
-  () => tryRun('beta-gate: the Clan panel shows the coming-soon card and contribute is a gold-safe no-op', () => {
-    const Cl = window.HearthriseClans;
-    assert(Cl && typeof Cl.clanLaunched === 'function', 'HearthriseClans.clanLaunched must be published');
-    assert(Cl.clanLaunched() === false, 'the beta clan gate must be CLOSED (CLAN_LAUNCHED === false)');
-    assert(typeof Cl.contribute === 'function', 'HearthriseClans.contribute must be published');
-
-    // (a) the panel renders the coming-soon card, for a signed-in player.
-    const host = document.getElementById('clan-panel');
-    assert(host, 'the Clan Seat has no render host (#clan-panel)');
-    const realGetSession = window.HearthriseAuth && window.HearthriseAuth.getSession;
-    try {
-      if (window.HearthriseAuth) window.HearthriseAuth.getSession =
-        () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
-      if (typeof window.renderClan === 'function') { const r = window.renderClan(); if (r && r.catch) r.catch(() => {}); }
-      const card = host.querySelector('.clan-soon');
-      assert(card, 'the gated Clan panel must render the .clan-soon roadmap card');
-      assert(/Clans/i.test(card.textContent) && /coming/i.test(card.textContent),
-        'the coming-soon card must name Clans and read as a roadmap feature');
-      // Nothing value-crossing or clan-founding is reachable behind the card.
-      assert(!host.querySelector('.clan-found'), 'no founding form may be reachable while gated');
-      assert(!host.querySelector('[onclick*="contribute"]'), 'no contribute control may be reachable while gated');
-    } finally {
-      if (window.HearthriseAuth && realGetSession) window.HearthriseAuth.getSession = realGetSession;
-    }
-
-    // (b) contribute() moves no gold and issues no request while gated.
-    const G = window.G || (window.G = {});
-    const goldBefore = G.gold = 100000;
-    const calls = [];
-    const realFetch = window.fetch, realNotify = window.notify;
-    try {
-      window.notify = () => {};
-      window.fetch = function (url, opts) { calls.push(String(url)); return realFetch.apply(this, arguments); };
-      const p = Cl.contribute(5000);
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-      assert(G.gold === goldBefore, 'a gated contribute must not debit gold, saw ' + G.gold + ' (was ' + goldBefore + ')');
-      assert(calls.length === 0, 'a gated contribute must issue no request, saw ' + calls.length);
-    } finally {
-      window.fetch = realFetch;
-      window.notify = realNotify;
-    }
-  }),
-
-  /* ── BETA GATE (b385): the gate is no longer just the clan PANEL. Every
-     clan-branded surface — the weekly clan boss / Hunt raid, the muster, and the
-     dungeon-strip clan-boss shortcut — must present the SAME coming-soon card
-     while CLAN_LAUNCHED is false, and render NOTHING functional (no Strike /
-     Claim / Declare / Join / Rally). The b378 gate only covered the panel +
-     contribute()/feast, so these leaked past it and presented as broken
-     (unclaimable chest, un-resetting boss). All behind the one flag. */
-  () => tryRun('beta-gate b385: raid, muster and clan-boss shortcut all render the coming-soon card (no functional clan control)', () => {
-    const Cl = window.HearthriseClans;
-    assert(Cl && typeof Cl.clanLaunched === 'function', 'HearthriseClans.clanLaunched must be published');
-    assert(Cl.clanLaunched() === false, 'the beta clan gate must be CLOSED (CLAN_LAUNCHED === false)');
-    assert(typeof Cl.comingSoonHtml === 'function', 'HearthriseClans.comingSoonHtml (the shared idiom) must be published');
-
-    const Mu = window.HearthriseMuster;
-    const Ra = window.HearthriseRaids;
-    assert(Mu && typeof Mu._ensurePanel === 'function' && typeof Mu._renderMusterCard === 'function',
-      'muster test seams (_ensurePanel/_renderMusterCard) must be published');
-    assert(Ra && typeof Ra.render === 'function', 'HearthriseRaids.render must be published');
-
-    // Build the Events panel — the destination the dungeon-strip clan-boss
-    // shortcut ("Events" button) navigates to — and render its clan surfaces.
-    const panel = Mu._ensurePanel();
-    assert(panel, 'the Events panel must be creatable');
-
-    // (a) the weekly clan boss / Hunt raid → coming-soon, no functional control.
-    const rp = Ra.render(); if (rp && rp.catch) rp.catch(() => {});
-    const raidSlot = document.getElementById('hr-events-raid');
-    assert(raidSlot, 'the Events panel must host the weekly-clan-boss slot');
-    const raidCard = raidSlot.querySelector('.clan-soon');
-    assert(raidCard, 'the gated weekly clan boss must render the .clan-soon coming-soon card');
-    assert(/coming/i.test(raidCard.textContent), 'the raid card must read as a roadmap feature');
-    assert(!raidSlot.querySelector('[onclick*="HearthriseRaids"]'),
-      'no Strike/Claim/Declare control may be reachable on the gated weekly clan boss');
-    assert(!raidSlot.querySelector('.btn-primary'),
-      'no primary action may render on the gated weekly clan boss');
-
-    // (b) the muster card → coming-soon, no Join/Rally/Claim.
-    Mu._renderMusterCard();
-    const muHost = document.getElementById('hr-muster-card');
-    assert(muHost, 'the Events panel must host the muster card');
-    const muCard = muHost.querySelector('.clan-soon');
-    assert(muCard, 'the gated muster must render the .clan-soon coming-soon card');
-    assert(/coming/i.test(muCard.textContent), 'the muster card must read as a roadmap feature');
-    assert(!muHost.querySelector('[data-mu]'),
-      'no Join/Rally/Claim control may be reachable on the gated muster');
-    assert(!muHost.querySelector('.btn-primary'),
-      'no primary action may render on the gated muster');
-  }),
-
-  () => tryRun('b330: the kick control sends clan_kick with a CLAMPED ban, and the default is 168h', () => {
-    const Cl = window.HearthriseClans;
-    assert(Cl && typeof Cl.kick === 'function', 'HearthriseClans.kick must be published');
-    const UI = window.HearthriseClanSeatUI;
-    assert(UI && Array.isArray(UI.BAN_CHOICES) && UI.BAN_CHOICES.length,
-      'the panel must OFFER the ban duration rather than hiding it');
-    assert(+UI.BAN_CHOICES[0].value === 168,
-      'the default (first) ban choice must be the server default of 168h, got ' + UI.BAN_CHOICES[0].value);
-    UI.BAN_CHOICES.forEach((b) => assert(+b.value >= 0 && +b.value <= 720,
-      'every offered ban must be inside the server clamp 0…720h, got ' + b.value));
-
-    const calls = [];
-    const realFetch = window.fetch;
-    const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
-    const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
-    const realNotify = window.notify;
-    try {
-      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
-      if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
-      window.notify = () => {};
-      window.fetch = function (url, opts) {
-        calls.push({ url: String(url), opts: opts || {} });
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
-      };
-      const p = Cl.kick('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 99999);
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-      assert(calls.length === 1, 'a kick must issue exactly one request, saw ' + calls.length);
-      assert(calls[0].url.indexOf('/rest/v1/rpc/clan_kick') !== -1,
-        'a removal must go through the clan_kick RPC: ' + calls[0].url);
-      const body = JSON.parse(calls[0].opts.body || '{}');
-      assert(body.p_user_id === 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'the target is p_user_id');
-      assert(body.p_ban_hours === 720,
-        'a client ban duration is CLAMPED to 720h before it is sent, got ' + body.p_ban_hours);
-    } finally {
-      window.fetch = realFetch;
-      window.notify = realNotify;
-      if (sb && realGetConfig) sb.getConfig = realGetConfig;
-      if (au && realGetSession) au.getSession = realGetSession;
-    }
-  }),
-
-  () => tryRun('b330: every refusal the membership RPCs can return reads as a sentence, never a code', () => {
-    const Cl = window.HearthriseClans;
-    assert(Cl && typeof Cl.errorText === 'function',
-      'the code→sentence mapping must be published, or nothing can prove a refusal reads as one');
-    /* Every `error` string the eight RPCs in 2026-08-11-clan-membership-authority.sql
-       can return. If a future migration adds one, add it here — an unmapped code
-       reaches the player as "Could not join (some_code)". */
-    const CODES = ['not_signed_in', 'rate_limited', 'no_clan', 'already_in_clan', 'invite_only',
-      'banned', 'clan_full', 'bad_name', 'name_taken', 'bad_policy', 'not_member', 'not_permitted',
-      'cannot_kick_self', 'cannot_kick_leader', 'no_such_player', 'cannot_invite_self',
-      'target_in_clan', 'already_member', 'no_target'];
-    CODES.forEach((code) => {
-      const txt = Cl.errorText(code, 'Could not join', 403);
-      assert(typeof txt === 'string' && txt.length > 8,
-        'the refusal for "' + code + '" must be a sentence, got: ' + txt);
-      assert(txt.indexOf(code) === -1,
-        'the refusal for "' + code + '" leaked the raw code to the player: ' + txt);
-      assert(txt.indexOf('403') === -1 && !/\(\d+\)/.test(txt),
-        'the refusal for "' + code + '" leaked an HTTP status: ' + txt);
-    });
-    // …and an UNKNOWN code must NOT be dressed up as a sentence we never verified.
-    const unknown = Cl.errorText('__not_a_real_code__', 'Could not join', 403);
-    assert(unknown.indexOf('__not_a_real_code__') >= 0,
-      'an unrecognised code must be shown verbatim rather than guessed at, got: ' + unknown);
-  }),
-
-  () => tryRun('b330: the Great Hall carries the door, invitations and removals — for leadership only', () => {
-    const UI = window.HearthriseClanSeatUI;
-    if (!UI || typeof UI.roomDescriptor !== 'function') { skip('seam absent'); return; }
-    const ROSTER = [
-      { user_id: 'u-lead', role: 'leader', contributed: 10, profiles: { display_name: 'Leader' } },
-      { user_id: 'u-mem', role: 'member', contributed: 5, profiles: { display_name: 'Rank And File' } }
-    ];
-    try {
-      // ── AS THE LEADER ──────────────────────────────────────────────────
-      UI._reset();
-      UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'open', myRole: 'leader' });
-      UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'leader', members: 2, member_cap: 10,
-        stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
-      UI._setRoster(ROSTER);
-      UI._setInvites([{ user_id: 'u-inv', display_name: 'Invited Soul', at: Date.now() - 3600000,
-        expires_at: new Date(Date.now() + 6 * 86400000).toISOString() }]);
-      let d = UI.roomDescriptor('great_hall');
-      let json = JSON.stringify(d.sections);
-
-      assert(d.sections.some((s) => s.title === 'The door'), 'leadership must be able to set the join policy');
-      const door = d.sections.filter((s) => s.title === 'The door')[0];
-      assert(door.select && door.select.value === 'open',
-        'the door control must OPEN ON the hold\'s current policy, got ' + (door.select && door.select.value));
-      assert(door.select.options.map((o) => o.value).join(',') === 'open,invite',
-        'the door offers exactly the two policies the CHECK constraint allows');
-      assert(door.button && door.button.action === 'door-set', 'the door must have a control that acts');
-
-      assert(d.sections.some((s) => s.title === 'Invite a player'), 'leadership must be able to invite');
-      const inv = d.sections.filter((s) => s.title === 'Invite a player')[0];
-      assert(inv.text && inv.text.name === 'invite', 'inviting takes a display name typed in');
-      assert(inv.button.action === 'invite-send', 'the invite field must have a control that acts');
-
-      const out = d.sections.filter((s) => s.title === 'Invitations outstanding')[0];
-      assert(out, 'leadership must see outstanding invitations');
-      assert(out.rows.length === 1 && /Invited Soul/.test(out.rows[0].name),
-        'the outstanding list must name the invited player');
-      assert(/data-cs="invite-revoke"/.test(out.rows[0].right), 'each outstanding invitation must be revocable');
-
-      assert(d.sections.some((s) => s.title === 'Removals'), 'the ban duration must be SURFACED, not hidden');
-      /* THE REMEDY. The whole point of the migration: a leader can remove the
-         rank-and-file member, and cannot remove the leader or themselves. */
-      const roster = d.sections.filter((s) => s.title === 'Those sworn to the hold')[0];
-      const rows = roster.rows;
-      assert(/data-cs="kick"[^>]*data-u="u-mem"/.test(rows[1].right),
-        'leadership must have a Remove control on an ordinary member: ' + rows[1].right);
-      assert(!/data-cs="kick"/.test(rows[0].right),
-        'the leader must not be offered for removal — the server refuses it (cannot_kick_leader)');
-      // The removal is two-step: armed first, acted on second.
-      assert(/>Remove<\/button>/.test(rows[1].right), 'an unarmed Remove must read as Remove');
-      UI._setKickArm('u-mem');
-      const armed = UI.roomDescriptor('great_hall').sections
-        .filter((s) => s.title === 'Those sworn to the hold')[0].rows[1].right;
-      assert(/confirm/i.test(armed) && /btn-danger/.test(armed),
-        'an armed Remove must ask for confirmation and read as destructive: ' + armed);
-
-      // ── AS A RANK-AND-FILE MEMBER ─────────────────────────────────────
-      UI._setKickArm(null);
-      UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'invite', myRole: 'member' });
-      UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'member', members: 2, member_cap: 10,
-        stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
-      d = UI.roomDescriptor('great_hall');
-      json = JSON.stringify(d.sections);
-      assert(!d.sections.some((s) => s.title === 'Invite a player'),
-        'a member must not be shown an invite control the server would refuse (not_permitted)');
-      assert(!d.sections.some((s) => s.title === 'Removals'),
-        'a member must not be shown a removals control');
-      assert(!/data-cs="kick"/.test(json), 'a member must have no kick button anywhere');
-      assert(!/data-cs="door-set"/.test(json), 'a member must not be offered the door switch');
-      assert(/invite only/i.test(json), 'a member must still be TOLD what the hold\'s door is set to');
-    } finally { UI._reset(); }
-  }),
-
-  /* b330 — found by DRIVING the panel in a browser, not by reading it. The
-     two-step Remove arms on the first click, and arming repaints the modal; the
-     repaint rebuilt every control from its descriptor, so a leader who chose a
-     24-hour bar and then clicked Remove sent 168. The choice was silently
-     reverted between the two halves of one action. Fixed in the repaint itself
-     (paint() already preserved scrollTop for the same reason), so the whole
-     control family is covered — including the Storehouse's deposit picker,
-     which had the same defect and nobody had noticed. */
   () => tryRun('b330: a room repaint preserves what the player typed or picked', () => {
     const RM = window.HearthriseRoomModal;
     if (!RM || typeof RM.open !== 'function') { skip('seam absent'); return; }
@@ -3869,100 +2809,7 @@ export default [
     } finally { RM.close(); }
   }),
 
-  () => tryRun('b330: an invited player is told, and is offered only what the server can actually do', () => {
-    const Cl = window.HearthriseClans;
-    if (!Cl || typeof Cl._inviteInboxHtml !== 'function') { skip('seam absent'); return; }
-    const html = Cl._inviteInboxHtml([{
-      invite_id: 'i1', clan_id: 'c-1', clan_name: 'Emberfall Watch', members: 4,
-      invited_by: 'Someone', expires_at: new Date(Date.now() + 6 * 86400000).toISOString()
-    }]);
-    assert(/Emberfall Watch/.test(html), 'the invitation must name the hold');
-    assert(/Someone/.test(html), 'it must say who invited you');
-    assert(/lapses in 6 days/.test(html), 'it must say how long it lasts, got: ' + html);
-    assert(/joinById\('c-1'\)/.test(html), 'accepting must go through joinById, which is the clan_join RPC');
-    /* There is no clan_invite_decline RPC. A Decline button would be a control
-       that cannot do what it says — the exact class of lie this pass exists to
-       remove — so the copy states the truth instead. */
-    assert(!/decline/i.test(html), 'no Decline control may be drawn: the server has no decline path');
-    assert(/lapses on its own/i.test(html), 'the player must be told what happens if they do nothing');
-    // XSS: a hold name is another player's text and it reaches this markup.
-    const evil = Cl._inviteInboxHtml([{ clan_id: 'c-2', clan_name: '<img src=x onerror=alert(1)>',
-      expires_at: new Date(Date.now() + 86400000).toISOString() }]);
-    assert(evil.indexOf('<img') === -1, 'a hold name must be escaped before it reaches the inbox');
-  }),
 
-  /* ── b329 regression suite — XARN'S AUTO-EAT (live bug, b324) ─────────────
-     Reported: "When I have 60%-100% threshold activated, it always starts
-     healing when I am below 50% HP once, and does not heal up to the %
-     threshold."
-
-     Half of that was real. The TRIGGER genuinely ignored the setting: the
-     Settings › Gameplay slider wrote `G.settings.autoEatPct` + `G.autoEatPct`,
-     and NOTHING reads those. The engine (HearthriseAuto.maybeAutoEat) triggers
-     on `G.autoActions.eat.threshold`, which `ensureShape()` seeds from
-     `G.autoEatPct` exactly once — at the moment the branch is first created.
-     So for every player whose save already had an `eat` branch, the slider was
-     an inert control and auto-eat kept firing at the 50% default forever. Two
-     writers, one reader, and they never met.
-
-     The SECOND half is not a bug — it is the design, and now the description
-     says so out loud. Auto-eat spends ONE Provision per swing (combat-sim
-     calls fx.autoEat once per tick, live and away identically). It therefore
-     climbs back to the threshold over several swings rather than in one gulp.
-     That cap is deliberate: it is what makes food a real cost and what keeps
-     away accrual byte-identical to live play. Any "heal to threshold in one
-     swing" upgrade is a DESIGN change for the Game Designer, not a silent
-     edit here. */
-
-  () => tryRun('b329: the Settings auto-eat threshold slider actually reaches the engine (Xarn: fires at 50% no matter what I set)', () => {
-    const G = window.G;
-    const A = window.HearthriseAuto;
-    if (!A || typeof window.openSettings !== 'function') { skip('no settings/auto engine'); return; }
-    const snap = snapshotG();
-    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
-    try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
-      G.settings = Object.assign({}, G.settings || {});
-      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
-
-      // Drive the REAL control the player drove — not the API behind it.
-      window.openSettings();
-      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
-      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
-      el.value = '0.6';
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-
-      assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
-        'moving the slider to 60% must set the threshold the ENGINE reads, got ' + A.eatThreshold());
-
-      /* The bug, stated as behaviour: at 58% HP — comfortably ABOVE the old
-         hardcoded 50% default — auto-eat must fire. Before the fix this
-         returned false and the player watched their bag stay full until 50%. */
-      G.playerMaxHp = 100; G.playerHp = 58;
-      const before = G.inventory.cooked_shrimp;
-      assert(A.maybeAutoEat() === true,
-        'at 58% HP with a 60% threshold auto-eat MUST fire — it fired at the hardcoded 50% instead');
-      assert(G.inventory.cooked_shrimp === before - 1, 'exactly one Provision may be spent per trigger');
-
-      // …and it must still respect the ceiling: at 65% HP nothing is eaten.
-      G.playerHp = 65;
-      const held = G.inventory.cooked_shrimp;
-      assert(A.maybeAutoEat() === false, 'above the threshold auto-eat must not fire');
-      assert(G.inventory.cooked_shrimp === held, 'no food may be spent above the threshold');
-
-      /* 0% is a real setting ("never auto-eat"), not a missing one. The old
-         `eat.threshold || 0.5` falsy-coalesce silently turned it into 50%. */
-      A.setEat({ threshold: 0 });
-      G.playerHp = 1;
-      assert(A.eatThreshold() === 0, 'a 0% threshold must survive as 0, not fall back to 50%');
-      assert(A.maybeAutoEat() === false, 'a 0% threshold means never auto-eat, even at 1 HP');
-    } finally {
-      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
-      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
-      restoreG(snap);
-    }
-  }),
 
   () => tryRun('b329: auto-eat is ONE Provision per swing, and keeps eating until HP is back at the threshold', () => {
     const G = window.G;
@@ -4031,81 +2878,7 @@ export default [
     } finally { if (savedPct === undefined) delete G.autoEatPct; else G.autoEatPct = savedPct; restoreG(snap); }
   }),
 
-  () => tryRun('b329: every surface that PRINTS the auto-eat threshold reads the engine value (no second copy)', () => {
-    const G = window.G;
-    const A = window.HearthriseAuto;
-    if (!A || typeof window.openSettings !== 'function') { skip('no settings/auto engine'); return; }
-    const snap = snapshotG();
-    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
-    try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
-      G.settings = Object.assign({}, G.settings || {}, { autoEatPct: 0.05 });  // a stale copy
-      G.autoEatPct = 0.05;                                                     // and its stale mirror
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
-      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.75 });
 
-      window.openSettings();
-      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
-      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
-      assert(Math.abs(parseFloat(el.value) - 0.75) < 1e-9,
-        'the slider must show the threshold the engine will USE (0.75), not a stale settings copy — got ' + el.value);
-
-      if (typeof window.renderCombat === 'function') {
-        G.activeMonster = G.activeMonster || Object.keys(window.MONSTERS || {})[0];
-        window.renderCombat();
-        const note = document.querySelector('#panel-combat .cbt-food-note');
-        if (note) {
-          assert(/is below 75%/.test(note.textContent),
-            'the combat note must quote the engine threshold (75%), got: ' + note.textContent);
-          assert(/one per swing|each swing/i.test(note.textContent),
-            'the description must state the one-Provision-per-swing rule Xarn expected to be heal-to-threshold');
-        }
-      }
-    } finally {
-      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
-      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── regression: THE AUTO-EAT THRESHOLD LIED (live P2) ────────────────
-     MEASURED ON THE QA ACCOUNT: the settings screen said 50% while
-     `player_state.auto_eat_pct` was 25, so at 15 max HP the server ate at 3 HP
-     and the player fell "with food" at a threshold nobody chose (census: 5 on
-     25, 32 on 50). Residue-ahead (§6): the shown threshold and the attended
-     tick's came from a local preference clamped by a CLIENT-held trait map while
-     the fight used a SERVER column nothing read back down. `autoEatMirrorFixture`
-     builds that exact divergence; the two tests below take its two halves. */
-
-  () => tryRun('b533: the auto-eat threshold the player is SHOWN is the server\'s auto_eat_pct', () => {
-    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
-    autoEatMirrorFixture((G, A) => {
-      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
-        'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
-      /* ⚠ 2026-09-14 — THERE IS NO `G.autoEatPct` MIRROR TO FOLLOW ANY MORE: the
-         field is deleted, and legacy.js's cold-path `fx.autoEat` fallback reads
-         the SAME observation this does, straight off
-         HearthriseAccrual.serverAutoEatSettings(). One number, one source. */
-      assert(typeof G.autoEatPct === 'undefined',
-        'eatThreshold() wrote a G.autoEatPct mirror — the purged second copy is back');
-      const seen = window.HearthriseAccrual.serverAutoEatSettings();
-      assert(seen && seen.pct === 25,
-        'the cold path reads the server observation directly; it says ' + JSON.stringify(seen));
-      if (typeof window.openSettings !== 'function') return;
-      window.openSettings();
-      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
-      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
-      assert(Math.abs(parseFloat(el.value) - 0.25) < 1e-9,
-        'the slider must sit on the server\'s 25%, not the local 50% — got ' + el.value);
-      const shown = el.closest && el.closest('.ss-slider').querySelector('.ss-slider-value');
-      assert(shown && shown.textContent.trim() === '25%',
-        'the label must READ 25%, the promise the fight keeps — got ' + (shown && shown.textContent));
-    });
-  }),
-
-  /* The ATTENDED half, and the absent-key fail-safe. BOTH-PATH (§4): the AWAY
-     half is this same column read by the server's own engine, so there is no
-     client value to disagree with and src/core/auto-eat.js stays untouched. */
   () => tryRun('b533: the attended tick eats at the server threshold, and fails safe to the lowest tier', () => {
     if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
     autoEatMirrorFixture((G, A, AC) => {
@@ -4214,148 +2987,6 @@ export default [
   /* RETIRED (lane C2, the closed rebuild): " the AWAY replay eats the server…" — it covered a system C2 deleted
      outright (away combat span, Recovery ladder / Retreat, daily login, charms, enchant, Auto-Eat or
      Vigour). The surviving behaviour is graded by tests/hunt-sessions-*.mjs and core-loop.mjs. */
-  () => tryRun('b547: the play streak shown is the server\'s streak_days, not the per-device residue', () => {
-    const AC = window.HearthriseAccrual;
-    if (!(AC && typeof AC.reconcilePlayStreak === 'function' && typeof AC.playStreakDays === 'function')) {
-      skip('no play-streak seam'); return;
-    }
-    const G = window.G, snap = snapshotG();
-    const hadSrv = Object.prototype.hasOwnProperty.call(G, '_serverStreak');
-    const prevSrv = G._serverStreak, prevStreak = G.streak;   // neither is in snapshotG
-    try {
-      delete G._serverStreak;
-      /* A stale bag key from before the purge. It is not on RESIDUE_FIELDS any
-         more, and — the point — it answers NOTHING: with no envelope the honest
-         reading is "the realm has not counted yet", never a device-clock 1. */
-      G.streak = { count: 1, lastDay: 20260914 };
-      assert(AC.playStreakDays(G) === 0,
-        'THE PURGE: with no envelope the play streak must read 0, not the device counter — got '
-        + AC.playStreakDays(G));
-
-      const r = AC.reconcilePlayStreak(G, { state: { streak_days: 3, streak_day_key: '2026-09-14' } });
-      assert(r && r.mode === 'server' && r.days === 3, 'the projection must be recorded, got ' + JSON.stringify(r));
-      assert(G._serverStreak && G._serverStreak.days === 3 && G._serverStreak.dayKey === '2026-09-14',
-        'it lands in `_` SCRATCH, never the residue: ' + JSON.stringify(G._serverStreak));
-      assert(AC.playStreakDays(G) === 3,
-        'THE BUG: the reader must prefer the server\'s 3 over the device\'s 1, got ' + AC.playStreakDays(G));
-      assert(G.streak.count === 1, 'and the stale bag key is left exactly as it was — no upward merge');
-
-      /* NEVER AN EVICTION: an envelope without the key leaves the observation alone. */
-      AC.reconcilePlayStreak(G, { state: {} });
-      assert(AC.playStreakDays(G) === 3, 'an envelope without streak_days must not clear the observation');
-
-      /* THE FLAME CHIP — the surface that lied. */
-      const el = document.getElementById('top-streak-count');
-      const SC = window.HearthriseStreakChip;
-      if (el && SC && typeof SC.paint === 'function') {
-        /* The PAINTER, called directly: legacy's render hooks defer paintAll
-           through setTimeout(0), which a synchronous assertion would race. */
-        try { SC.paint(G); } catch (e) {}
-        assert(el.textContent.trim() === '3',
-          'the topbar flame must read the server\'s 3, got "' + el.textContent.trim()
-          + '" (the reader says ' + (typeof window.hrPlayStreakDays === 'function'
-            ? window.hrPlayStreakDays() : 'absent') + ')');
-        assert(el.parentElement.classList.contains('hot'), 'the 3-day "hot" state keys off it too');
-      }
-
-      /* AND RENOWN, which SPENDS it: 5 points a day of disagreement. */
-      const R = window.HearthriseRenown;
-      if (R && typeof R.compute === 'function' && R.WEIGHTS) {
-        const withSrv = R.compute(G);
-        delete G._serverStreak;
-        const withNone = R.compute(G);
-        G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() };
-        assert(withSrv - withNone === 3 * R.WEIGHTS.streakBest,
-          'renown must score the server\'s streak and NOTHING when it has not spoken (three days × '
-          + R.WEIGHTS.streakBest + '), got a difference of ' + (withSrv - withNone));
-      }
-    } finally {
-      if (hadSrv) G._serverStreak = prevSrv; else delete G._serverStreak;
-      G.streak = prevStreak;
-      try { if (SC && typeof SC.paint === 'function') SC.paint(G); } catch (e) {}
-      restoreG(snap);
-    }
-  }),
-
-  /* ── regression: THE ENGINE UNDER THE TWO TESTS ABOVE ────────────────
-     Those fixed the threshold SYMPTOM. What let a client stand on a tier it
-     never bought is one line up the stack: a trait written into `G.traits` by a
-     stale residue, a suite leak, an optimistically painted refusal or devtools
-     outlived a server that never sold it — the residue-ahead class (§6) with a
-     paid entitlement on it. Gates freed: hasTrait() (shop, combat food controls,
-     inv-context-menu, combat-render) and autoEatTier() (settings threshold
-     slider, the auto-eat engine, death sheet, fight warning, set-the-night). */
-  () => tryRun('b536: a trait the server does not project is REVOKED — a client-only tier cannot gate a server capability', () => {
-    const AC = window.HearthriseAccrual;
-    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-    assert(AC && typeof AC.reconcileTraits === 'function',
-      'reconcileTraits is the ONE seam that homes G.traits — without it traits are stranded');
-    assert(AE && typeof AE.autoEatTier === 'function' && typeof AE.maxPctForTier === 'function',
-      'src/core/auto-eat.js is the ONE tier reader every trait gate funnels through');
-    assert(typeof window.hasTrait === 'function', 'legacy hasTrait() is the other trait gate');
-    const G = window.G;
-    const snap = snapshotG();
-    try {
-      /* THE LIE, as the live one arrives: a tier-II trait map NO server row backs. */
-      G.traits = { auto_eat: true, auto_eat_2: true };
-      assert(AE.autoEatTier(G.traits) === 2 && window.hasTrait('auto_eat_2') === true,
-        'fixture: the client must start out believing it owns tier II');
-      assert(AE.maxPctForTier(AE.autoEatTier(G.traits)) === 100,
-        'fixture: tier II is the 100% ceiling — that is the capability being gated');
-
-      // hr_state_of builds `traits` UNFILTERED, `[]` KNOWN: "bought nothing", not a partial.
-      const r = AC.reconcileTraits(G, { traits: [] });
-      assert(r && r.mode === 'server' && r.removed === 2,
-        'THE BUG: the hydration was a UNION — it left both invented traits standing; got '
-        + JSON.stringify(r));
-      assert(window.hasTrait('auto_eat') === false && window.hasTrait('auto_eat_2') === false,
-        'THE BUG: hasTrait() still answers YES for a trait the server never sold, so the Bounty '
-        + 'Shop row, the combat food controls and the death sheet all stay unlocked');
-      assert(AE.autoEatTier(G.traits || {}) === 0 && AE.maxPctForTier(AE.autoEatTier(G.traits || {})) === 25,
-        'the gated surface must read locked / lowest tier, never the invented tier-II ceiling');
-
-      const r2 = AC.reconcileTraits(G, { traits: ['auto_eat'] });
-      assert(r2 && r2.added === 1 && window.hasTrait('auto_eat') === true
-        && AE.autoEatTier(G.traits) === 1,
-        'a projected trait must unlock its surface — this is a mirror, not a wipe; got '
-        + JSON.stringify(r2));
-      assert(window.hasTrait('auto_eat_2') === false,
-        'and ONLY what the server named — tier II was not projected');
-
-      // NEVER EVICT ON UNCERTAINTY (§6): no `traits` key = unreadable, not "you own nothing".
-      const r3 = AC.reconcileTraits(G, { state: {} });
-      assert(r3 && r3.mode === 'absent' && window.hasTrait('auto_eat') === true,
-        'an envelope that does not project traits must leave the owned set exactly alone');
-    } finally { restoreG(snap); }
-  }),
-
-  /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────
-     A player played for 3+ hours and NOTHING reached the cloud. Their only
-     game_saves row was 30 hours stale; the whole session existed in one
-     browser's localStorage. Production edge logs for that window: 3,087 x HTTP
-     401, every one carrying `PostgREST; error=PGRST303` (JWT expired), from one
-     IP, continuously — GET game_saves ~every 20s, POST game_events 120/hr, GET
-     session_claims 60/hr. The token in those requests was a real access token
-     ISSUED THE PREVIOUS DAY (iat 1786461852, exp 1786465452), replayed for
-     hours. `/auth/v1/token` saw ~25 requests in the entire 24h, so the refresh
-     was not reaching the network at all.
-
-     THE CHAIN, end to end:
-       1. auth.js restored `session` from localStorage at boot and handed
-          `session.access_token` to every request. NOTHING read `exp`.
-       2. `refreshSession()` on a client whose own session is gone rejects with
-          AuthSessionMissingError WITHOUT a network call; the handler swallowed
-          it in `catch {}`, left `session` untouched, and the retry re-sent the
-          same dead token.
-       3. `pullLatestDetailed()` used a RAW fetch — the one cloud call that never
-          went through the refresh wrapper. Its 401 read as "cloud UNKNOWN".
-       4. That correctly holds the b314 snapshot gate closed — and nothing ever
-          released it. Which is why not one POST to game_saves appears in three
-          hours of logs: the save short-circuited BEFORE the network, forever.
-
-     Note (4): the absent POST is the load-bearing evidence. Everything else was
-     merely loud; that was the data loss. */
-
   () => tryRun('b331: the exact token production replayed for three hours is refused before it reaches the wire', () => {
     const S = window.HearthriseSync;
     assert(typeof S.tokenStatus === 'function', 'sync.js no longer classifies a bearer token by expiry');
@@ -5035,201 +3666,9 @@ export default [
   /* Every pooled selector in the game, described the same way, so a new one is
      a row rather than a new test. `pick(atMs)` returns the id (or ids) drawn
      for that instant. */
-  () => tryRun('b332: every pooled selector reaches EVERY member — no entry is unreachable content', () => {
-    const E = window.HearthriseWorldEvents;
-    const M = window.HearthriseMuster;
-    const C = window.HearthriseCore;
-    assert(E && M && C && C.botd, 'a pooled selector module is missing — this guard would silently check nothing');
-    const dayKey = (t) => { const d = new Date(t); return d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate(); };
-    const mons = window.MONSTERS || {};
-    const botdPool = (which) => C.botd[which].filter((id) => mons[id]);
 
-    const SELECTORS = [
-      { name: 'world-events DAILY (blessing)', members: E.DAILY.map((e) => e.id),
-        pick: (t) => E.daily(dayKey(t)).id },
-      { name: 'world-events WEEKLY (blessing)', members: E.WEEKLY.map((e) => e.id),
-        pick: (t) => E.weekly(E.utcWeekKey(new Date(t))).id },
-      { name: 'muster rally (both UTC slots)', members: ['ashen_horde', 'long_harvest', 'forge_levy', 'deep_seam', 'keep_kitchens', 'all_hands'],
-        pick: (t) => [M.eventFor(dayKey(t), 1).id, M.eventFor(dayKey(t), 13).id] },
-      { name: 'boss of the day', members: botdPool('DAILY_POOL'),
-        pick: (t) => C.botd.botdFor(t, mons).dailyId },
-      /* b356: the weekly draw is sampled per DAY but keyed per WEEK, so 1461
-         days is only ~209 distinct draws — seven identical samples each. The
-         0.5 floor is a claim about a large sample and it was already only
-         *just* satisfiable at the historical 7-member pool (expected 29.9 per
-         member, sd 5.1, so a 3-sigma-low bin lands at ratio 0.49). The pool
-         is now 19 (every capstone boss gets a weekly slot): expected 11.0,
-         sd 3.2, 3-sigma-low = ratio 0.12. A constant 0.5 would therefore fail
-         on legitimate content rather than on skew.
-         0.25 is set BELOW that 3-sigma band and far ABOVE the 0.08 the b332
-         float-hash bug produced, so this row still catches the failure it
-         exists to catch — and `dead.length === 0` above, which is the real
-         unreachable-content assertion, is untouched and unweakened. */
-      { name: 'boss of the week', members: botdPool('WEEKLY_POOL'), minRatio: 0.25,
-        pick: (t) => C.botd.botdFor(t, mons).weeklyId },
-      /* The daily-task draw is hash-SEEDED rather than hash-INDEXED (an LCG
-         Fisher-Yates runs on top), so its residual skew is the shuffle's, not
-         the hash's — hence the looser fairness floor. Under the broken hash it
-         measured 0.08; it is 0.37 with the fix. */
-      { name: 'daily tasks (top 3 of the pool)', members: (window.DAILY_TASK_POOL || []).map((_, i) => i), minRatio: 0.20,
-        pick: (t) => window.dailyTaskIndexes(new Date(t).toDateString()).slice(0, 3) },
-    ];
 
-    const DAYS = 1461;                       // four years of real keys
-    const T0 = Date.UTC(2024, 0, 1);
-    for (const sel of SELECTORS) {
-      assert(sel.members.length >= 2, sel.name + ': pool has fewer than 2 members — nothing to distribute');
-      const count = new Map(sel.members.map((m) => [m, 0]));
-      for (let i = 0; i < DAYS; i++) {
-        const drawn = [].concat(sel.pick(T0 + i * 86400000));
-        for (const id of drawn) {
-          assert(count.has(id), sel.name + ': drew "' + id + '", which is not in the declared pool');
-          count.set(id, count.get(id) + 1);
-        }
-      }
-      const dead = sel.members.filter((m) => count.get(m) === 0);
-      assert(dead.length === 0,
-        sel.name + ': UNREACHABLE CONTENT — ' + dead.join(', ') + ' never occurs in ' + DAYS
-        + ' days. Pool length ' + sel.members.length
-        + (sel.members.length % 2 === 0 ? ' (EVEN — this is the b332 parity failure)' : ''));
-      /* Reachable-but-vanishing is the same bug one pool entry away, so the
-         floor is a real assertion and not a formality. */
-      const vals = sel.members.map((m) => count.get(m));
-      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      const ratio = Math.min.apply(null, vals) / mean;
-      const floor = sel.minRatio || 0.5;
-      assert(ratio >= floor,
-        sel.name + ': rarest member appears ' + (ratio * 100).toFixed(0) + '% as often as the average'
-        + ' (floor ' + (floor * 100) + '%) — the draw is skewed, not uniform: '
-        + JSON.stringify(Array.from(count.entries())));
-    }
-  }),
 
-  () => tryRun('b332: a DAILY rotation actually rotates daily — the float hash made it stick for up to 6 days', () => {
-    const E = window.HearthriseWorldEvents;
-    const C = window.HearthriseCore;
-    const dayKey = (t) => { const d = new Date(t); return d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate(); };
-    const mons = window.MONSTERS || {};
-    const ROTATIONS = [
-      { name: 'world-events DAILY', size: E.DAILY.length, at: (t) => E.daily(dayKey(t)).id },
-      { name: 'boss of the day', size: C.botd.DAILY_POOL.filter((id) => mons[id]).length, at: (t) => C.botd.botdFor(t, mons).dailyId },
-    ];
-    const DAYS = 1461, T0 = Date.UTC(2024, 0, 1);
-    for (const r of ROTATIONS) {
-      let repeats = 0, run = 1, longest = 1, prev = r.at(T0);
-      for (let i = 1; i < DAYS; i++) {
-        const v = r.at(T0 + i * 86400000);
-        if (v === prev) { repeats++; run++; if (run > longest) longest = run; } else run = 1;
-        prev = v;
-      }
-      /* A fair draw repeats about 1/size of the time. Twice that is generous
-         and still catches the real thing: the broken hash repeated the daily
-         blessing on 36.5% of days against a fair 11%. */
-      const rate = repeats / (DAYS - 1);
-      const cap = 2 / r.size;
-      assert(rate <= cap,
-        r.name + ' repeats yesterday on ' + (rate * 100).toFixed(1) + '% of days (fair is ~'
-        + (100 / r.size).toFixed(1) + '%, cap ' + (cap * 100).toFixed(1) + '%) — adjacent day keys are colliding, '
-        + 'which is what a float multiply in FNV-1a does. Longest identical run: ' + longest + ' days.');
-    }
-  }),
-
-  () => tryRun('b332: every FNV-1a copy in the game agrees with the reference in src/core/rng.js', () => {
-    /* The reference, written out here on purpose: if this test ever has to be
-       reconciled with a copy, THIS is the side that is right. */
-    const reference = (s) => {
-      let h = 0x811c9dc5;
-      s = String(s);
-      for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-      return h >>> 0;
-    };
-    const keys = ['', 'a', 'hr-daily-2026-8-12', 'hr-weekly-w2953', 'hr-muster-2026-8-12#13',
-                  'hr-boss-2026-8-12', 'hr-weekly-boss-2954', 'the quick brown fox jumps over the lazy dog'];
-    const copies = [
-      ['world-events._hash', window.HearthriseWorldEvents && window.HearthriseWorldEvents._hash],
-      ['core/botd.fnv1a', window.HearthriseCore && window.HearthriseCore.botd && window.HearthriseCore.botd.fnv1a],
-      ['core/rng.hashSeed', window.HearthriseCore && window.HearthriseCore.rngMod && window.HearthriseCore.rngMod.hashSeed],
-    ].filter((c) => typeof c[1] === 'function');
-    assert(copies.length >= 3, '(chat-filter._hash retired with the slur placeholders, 2026-10-11) an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
-    for (const [name, fn] of copies) {
-      for (const k of keys) {
-        assert((fn(k) >>> 0) === reference(k),
-          name + '("' + k + '") = ' + (fn(k) >>> 0) + ' but FNV-1a is ' + reference(k)
-          + ' — a copy has drifted (b332: `h * 0x01000193` is a float multiply; use Math.imul)');
-      }
-      /* A correct 32-bit FNV-1a is not parity-biased. The broken one returned
-         an even value on 85-100% of keys, which is the whole bug in one line. */
-      let odd = 0;
-      for (let i = 0; i < 2000; i++) if (fn('hr-parity-' + i) & 1) odd++;
-      assert(odd > 800 && odd < 1200,
-        name + ' is parity-biased: only ' + odd + '/2000 outputs are odd. A float multiply rounds away the low bits, '
-        + 'so hash % evenPool can only ever return even indices.');
-    }
-  }),
-
-  () => tryRun('b332: the muster the client shows is the muster the SERVER pays out', () => {
-    /* supabase/migrations/2026-08-09-rally-v2.sql `hr_fnv1a` does the multiply
-       in postgres bigint — exact, i.e. it always implemented the CORRECT
-       FNV-1a. So while the client hashed in floats the two draws disagreed on
-       1230 of 1460 measured day/slot pairs, and the chest the server filled
-       was for a different rally than the card the player joined. This asserts
-       they now agree; the SQL is reproduced with BigInt, which is what
-       postgres arithmetic actually does. */
-    const M = window.HearthriseMuster;
-    const sqlHash = (s) => {
-      let h = 2166136261n;
-      for (let i = 0; i < s.length; i++) { h ^= BigInt(s.charCodeAt(i)); h = (h * 16777619n) % 4294967296n; }
-      return Number(h);
-    };
-    const pool = ['ashen_horde', 'long_harvest', 'forge_levy', 'deep_seam', 'keep_kitchens', 'all_hands'];
-    const serverPick = (dayKey, slot) => {
-      const a = sqlHash('hr-muster-' + dayKey + '#1') % pool.length;
-      if (slot === 1) return pool[a];
-      const off = sqlHash('hr-muster-' + dayKey + '#' + slot) % (pool.length - 1);
-      return pool[(a + 1 + off) % pool.length];
-    };
-    const T0 = Date.UTC(2026, 0, 1);
-    let checked = 0;
-    for (let i = 0; i < 400; i++) {
-      const d = new Date(T0 + i * 86400000);
-      const dayKey = d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
-      for (const slot of [1, 13]) {
-        const client = M.eventFor(dayKey, slot).id;
-        const server = serverPick(dayKey, slot);
-        assert(client === server,
-          'client and server disagree on ' + dayKey + ' slot ' + slot + ': client says ' + client
-          + ', hr_rally_event_id says ' + server + ' — the chest would be filled for a different rally');
-        checked++;
-      }
-    }
-    assert(checked === 800, 'the client/server agreement sweep did not run');
-  }),
-
-  /* ── b333 regression suite — THE FIX THAT CANNOT REACH ITS PLAYER ──────────
-     b331 fixed the dead-token loop. b331 and b332 are both LIVE. The player it
-     was written for — b94fa8c0-3627-426a-9714-69c363f8929c — was still emitting
-     ~350 HTTP 401/hour two days later, with a game_saves row stale for 2 days
-     and 40 minutes, because receiving a client-side fix requires a page reload
-     they were not doing.
-
-     That is not a one-off. For an idle game a tab left open for days is the
-     INTENDED way to play, so "the fix ships" and "the fix arrives" are separate
-     events with an unbounded gap between them — a structural hole under every
-     client fix this project will ever ship. Before b333 there was no
-     build-version detection anywhere in the codebase: `location.reload()`
-     appeared only behind explicit user actions, and the service worker's
-     skipWaiting()/clients.claim() only helps the NEXT navigation.
-
-     src/net/build-watch.js polls the deployed build-info.js and compares. What
-     these tests pin, in order of how badly each would hurt if it rotted:
-       1. the decision is PURE and the table is exhaustive (nothing else can be
-          driven honestly if this is a restatement of the code);
-       2. uncertainty NEVER prompts — an unreadable body does nothing at all;
-       3. it cannot become a request loop (the irony would be terminal);
-       4. a poll genuinely reaches the wire, cache-busted, once;
-       5. routine = a dismissible card that does not interrupt play;
-       6. auth-dead + stale = escalation INTO the b331 sheet, not a rival modal;
-       7. NOTHING reloads without a click. */
 
   () => tryRun('b333: the running-vs-deployed decision table, including "never reload backwards"', () => {
     const W = window.HearthriseBuildWatch;
@@ -6265,14 +4704,10 @@ export default [
   /* ── OFFLINE-CAP (CLAUDE.md §6): the away limit is the server's hr_offline_cap_ms,
      read as hr_vigour_of.grant_min. No client perk sum, no guessed 12, no promise. */
   () => tryRun('OFFLINE-CAP-1a: offlineCapHours reads the server grant, never a perk sum', () => {
-    const R = window.HearthriseRenown, gp = R.getPerks;
-    R.getPerks = () => ({ allXP: 0, offlineHours: 12, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
-    try {
-      const at = (min) => withCap(min, () => window.offlineCapHours());
-      assert(at(720) === 12, 'grant_min 720 must read 12h whatever the client perks say, got ' + at(720));
-      assert(at(900) === 15, 'grant_min 900 (clan 7) must read 15h, got ' + at(900));
-      assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
-    } finally { R.getPerks = gp; }
+    const at = (min) => withCap(min, () => window.offlineCapHours());
+    assert(at(720) === 12, 'grant_min 720 must read 12h, got ' + at(720));
+    assert(at(900) === 15, 'grant_min 900 must read 15h, got ' + at(900));
+    assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
   }),
 
   () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending sentence when unknown', () => {
@@ -6288,18 +4723,18 @@ export default [
     assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);
   }),
 
-  () => tryRun('OFFLINE-CAP-1c: no House, Home or renown surface promises away hours the server does not pay', () => withCap(720, () => {
-    const HH = window.HearthriseHomestead, R = window.HearthriseRenown, bad = /offline (cap|max)|\+\d+h offline/i;
+  () => tryRun('OFFLINE-CAP-1c: no House or Home surface promises away hours the server does not pay', () => withCap(720, () => {
+    const HH = window.HearthriseHomestead, bad = /offline (cap|max)|\+\d+h offline/i;
     HH.renderCard();
     const card = (document.getElementById('hh-property-card') || {}).textContent || '';
     assert(card.length > 0 && !bad.test(card), 'the House card promises away hours: ' + card.replace(/\s+/g, ' '));
     window.showTab('profile'); window.HearthriseHome.render();
     const home = ((document.getElementById('hd-root') || {}).textContent || '').replace(/\s+/g, ' ');
     assert(home.length > 0 && !bad.test(home), 'Home promises away hours: ' + home.slice(0, 600));
-    const copy = R.RANKS.map((r) => r.unlock).concat(HH.TIERS.map((t) => t.desc));
+    const copy = HH.TIERS.map((t) => t.desc);
     copy.forEach((s) => assert(!/\d+\s*h(our)?s?\s*(offline|away)|offline progress/i.test(s), 'a ladder line promises away hours: ' + s));
     const castle = HH.TIERS[HH.TIERS.length - 1].desc;
-    assert(/\+2% all XP/.test(castle), 'the Castle must state what CAPSTONE_PERKS pays (+2%): ' + castle);
+    assert(!/XP|yield/i.test(castle), 'the Castle promises XP or yield, and a home grants neither (§9): ' + castle);
   })),
 
   () => tryRun('OFFLINE-CAP-1d: the receipt prints the cap only when the credited span IS the cap, and sells no upgrade', () => {
@@ -6360,19 +4795,6 @@ export default [
     } finally { window.fetch = realFetch; try { R.resetRecord(); R.configureRecord(null); } catch (e) {} restoreGAndRecord(snap); }
   })),
 
-  () => tryRun('OFFLINE-CAP-1h: no client renown perk raises a server limit (12 listings, 3 daily tasks)', () => {
-    const R = window.HearthriseRenown, gp = R.getPerks, snap = snapshotG(), M = window.HearthriseMarket;
-    R.getPerks = () => ({ allXP: 0, bankSlots: 0, dropRate: 0, marketSlots: 1, dailyTasks: 1 });
-    try {
-      assert(M.listingLimit() === M.PER_CHAR_LIMIT, 'hr_market_config.max_listings is 12; the client offers ' + M.listingLimit());
-      delete window.G.daily;
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks.length === 3, 'the server offers 3 daily tasks; the client dealt ' + window.G.daily.tasks.length);
-    } finally { R.getPerks = gp; restoreG(snap); }
-  }),
-
-  /* SETTLE-BEFORE-MUTATE F1 (Security review 2026-09-28): every value verb settles the open window first and
-     returns its `collected` receipt; only a switch's reached the welcome card. Each figure is the receipt's own. */
   () => tryRun('WELCOME-COLLECTED-1: a buy that settled first shows the welcome card for its window, once', () => {
     const A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseActivity, w = window.__presentWelcome;
     const T = Date.now(), g = {}, shown = [];

@@ -15,8 +15,8 @@
 //
 // ── HOW THIS FILE IS ORGANISED, AND WHY IT IS ONE FILE ─────────────────────
 // It follows the shape wave3-uniques.js and slot-ladders.js established: a data
-// module that exports items + recipes + flavour, spread into ITEMS /
-// ARTISAN_RECIPES / ITEM_DESC by their owning modules. One file rather than
+// module that exports items + flavour, spread into ITEMS / ITEM_DESC by their
+// owning modules (its gear recipes were deleted in the 2026-10-14 demolition). One file rather than
 // six because these ~86 rows were approved as ONE decision and share one power
 // budget; splitting them would put the budget argument in no file at all.
 //
@@ -206,10 +206,8 @@ const ARMOUR_SETS = {
   // ITEM-NEW-43 · Deathsteel Ingot — gives `death_steel` (live orphan, Death
   // Knight 25%) its first recipe. Material tier 5, priced on the bar curve
   // (rune_bar 1200) because that is what it competes with at the forge.
-  deathsteel_bar: { n: 'Deathsteel Ingot', icon: '⚙️', v: 1500, tier: 5, tag: 'crafting-mat', rarity: 'epic' },
 
   // ITEM-NEW-44 · Void-Chitin Weave — one endgame target for three orphans.
-  voidchitin_weave: { n: 'Void-Chitin Weave', icon: '🕸️', v: 4200, tier: 6, tag: 'crafting-mat', rarity: 'legendary' },
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -224,9 +222,9 @@ const ARMOUR_SETS = {
    second authority for one fact.
 
    ⚠ LANE NOTE (parallel work, 2026-08-16): the SKILLS workstream owns the
-   Runecrafting and Stonemason RECIPES in src/data/recipes.js and the
+   Runecrafting RECIPES in src/data/recipes.js and the
    SKILLS_DEF rows. This file lands the ITEM rows only — no recipe below
-   produces any of them. When `stonemason` / `runecrafting` / `fletching` enter
+   produces any of them. When `runecrafting` / `fletching` enter
    SKILLS_DEF, the `pendingSkill` exemption expires automatically and the
    reachability guard will demand the recipes. That is the handshake.
 
@@ -257,31 +255,15 @@ const whet = (id, name, i, v) => [id, {
   n: name, icon: '🪨', v, type: 'ammo', slot: 'ammo', tier: i + 1,
   rarity: AMMO_RARITY[i], reqSkill: 'attack', reqLv: AMMO_REQ[i],
   strB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 0.02,
-  pendingSkill: 'stonemason',
+  pendingSkill: 'smithing',
 }];
 
 const SUPPLY_CHAINS = Object.fromEntries([
-  /* ITEM-PLAN-04 · stone raws (Mining by-product, §8.4 P1) + blocks + blanks.
-     `raw: true` is set explicitly — the RAW_MATERIAL_IDS derivation in items.js
-     walks `prod` on the gathering rows, and a by-product is not a `prod`. That
-     gap is exactly the faucet §8.4 warned about (vendoring at 100% instead of
-     20%), so it is closed at the point of authorship. */
-  ['rubble',  { n: 'Rubble',  icon: '🪨', v: 6,  tier: 1, raw: true, pendingSkill: 'stonemason' }],
-  ['granite', { n: 'Granite', icon: '🪨', v: 22, tier: 3, raw: true, pendingSkill: 'stonemason' }],
-  ['basalt',  { n: 'Basalt',  icon: '🪨', v: 60, tier: 5, raw: true, pendingSkill: 'stonemason' }],
-  ['dressed_block', { n: 'Stone Block', icon: '🧱', v: 20,  tier: 1, pendingSkill: 'stonemason' }],
-  ['granite_block', { n: 'Granite Block', icon: '🧱', v: 120, tier: 3, pendingSkill: 'stonemason' }],
-  ['basalt_block',  { n: 'Basalt Block',  icon: '🧱', v: 300, tier: 5, pendingSkill: 'stonemason' }],
-  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'stonemason' }],
-  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'stonemason' }],
-  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'stonemason' }],
-
-  /* ITEM-PLAN-05 · the castle good. `keystone` already exists (items.js, b222)
-     and is NOT re-declared here — it is adopted by Stonemason, recipe and cost
-     unchanged (§8.2). Ashlar is the PERSONAL sink (property tiers 4-6 + room
-     rungs L4). The clan twin, Vaultstone, was cut in W0 (2026-10-10): it waited
-     on castle tiers that were never tuned, so it had no source and no use. */
-  ['ashlar',     { n: 'Ashlar',     icon: '🧱', v: 1200, tier: 4, tag: 'castle', pendingSkill: 'stonemason' }],
+  /* ITEM-PLAN-04 · the graded blanks, cut at Runecrafting. (Quarried stone,
+     blocks and ashlar were deleted with Stonemason in the 2026-10-14 demolition.) */
+  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'runecrafting' }],
+  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'runecrafting' }],
+  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'runecrafting' }],
 
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
@@ -304,78 +286,11 @@ const SUPPLY_CHAINS = Object.fromEntries([
   /* W0 (2026-10-10): the six elemental arrow/whetstone variants and the two
      artisan tool ladders (fletching knives, mason's rules) were CUT. Their
      transfer recipes and their skills never landed, so they had no source and
-     no use; the wipe made removing them free. Elements live on the three
-     enchanting runes (ember_rune / frost_rune / poison_rune, items.js). */
+     no use; the wipe made removing them free. */
 ]);
 
 export const LIB2_ITEMS = {
   ...BANE_GEAR, ...ARMOUR_SETS, ...SUPPLY_CHAINS,
-};
-
-/* ══════════════════════════════════════════════════════════════════════════
-   5 · THE FAUCETS — recipes for the PLAYABLE rows, and only those.
-   Merged into ARTISAN_RECIPES by src/data/recipes.js. Every input is an item a
-   player can already obtain today; the b243 reachability guard proves it rather
-   than being asked to trust it.
-   ══════════════════════════════════════════════════════════════════════════ */
-export const LIB2_RECIPES = {
-  smithing: [
-    { id: 'forge_bramble_blade', name: 'Forge Bramble Blade', icon: '⚔️',
-      inputs: { iron_bar: 2, oak_plank: 2 }, output: 'bramble_blade', xp: 260, req: 23, ms: 3600 },
-    { id: 'forge_rat_stick', name: 'Forge Rat Stick', icon: '🔨',
-      inputs: { steel_bar: 2, willow_plank: 2, rat_tail: 25 }, output: 'rat_stick', xp: 640, req: 38, ms: 4000 },
-    { id: 'forge_lazlos_maul', name: "Forge Lazlo's Maul", icon: '🔨',
-      inputs: { mithril_bar: 3, grave_dust: 20, big_bones: 10 }, output: 'lazlos_maul', xp: 1150, req: 53, ms: 4400 },
-    /* ITEM-NEW-43 — death_steel finally has somewhere to go.
-       SELF-SUPPLY RULING (2026-09-13): req 62 → 60. The Watchknight Shell's own
-       entry piece is the gauntlets at 61, so the ingot every piece eats sat ABOVE
-       the first rung that consumes it — the same defect the seven bars carried.
-       60 is the rung the whole band belongs to (MATERIAL_TIERS.rune.smith), so the
-       bridge now opens the way every tier does: the bar, then the set. xp and ms
-       are untouched, and the rung is still drop-limited (2 death_steel a swing)
-       rather than a trainable faucet. */
-    { id: 'smelt_deathsteel_ingot', name: 'Smelt Deathsteel Ingot', icon: '⚙️',
-      inputs: { death_steel: 2, coal: 6 }, output: 'deathsteel_bar', xp: 380, req: 60, ms: 3400 },
-    /* ITEM-NEW-33 — the Watchknight Shell, plate T5, the ingot's only sink. */
-    { id: 'forge_watchknight_helmet', name: 'Forge Watchknight Helm', icon: '⛑️',
-      inputs: { deathsteel_bar: 2 }, output: 'watchknight_helmet', xp: 700, req: 65, ms: 4000 },
-    { id: 'forge_watchknight_body', name: 'Forge Watchknight Cuirass', icon: '🛡️',
-      inputs: { deathsteel_bar: 5 }, output: 'watchknight_body', xp: 1750, req: 70, ms: 4600 },
-    { id: 'forge_watchknight_pants', name: 'Forge Watchknight Greaves', icon: '🦿',
-      inputs: { deathsteel_bar: 4 }, output: 'watchknight_pants', xp: 1400, req: 68, ms: 4400 },
-    { id: 'forge_watchknight_boots', name: 'Forge Watchknight Boots', icon: '🥾',
-      inputs: { deathsteel_bar: 2 }, output: 'watchknight_boots', xp: 700, req: 62, ms: 3800 },
-    { id: 'forge_watchknight_gloves', name: 'Forge Watchknight Gauntlets', icon: '🧤',
-      inputs: { deathsteel_bar: 1 }, output: 'watchknight_gloves', xp: 350, req: 61, ms: 3600 },
-    { id: 'forge_watchknight_belt', name: 'Forge Watchknight Belt', icon: '🟫',
-      inputs: { deathsteel_bar: 1 }, output: 'watchknight_belt', xp: 350, req: 63, ms: 3600 },
-  ],
-  crafting: [
-    { id: 'craft_void_censer', name: 'Craft Void Censer', icon: '🪔',
-      inputs: { yew_plank: 2, void_chitin: 2, magic_essence: 10 }, output: 'void_censer', xp: 1400, req: 66, ms: 4400 },
-    { id: 'craft_dragonrib_bow', name: 'Craft Dragonrib Bow', icon: '🏹',
-      inputs: { dragon_bones: 5, runewood_plank: 3, silk_thread: 20 }, output: 'dragonrib_bow', xp: 2100, req: 80, ms: 4800 },
-    /* ITEM-NEW-32 — the second leather supply chain: chitin, not pelts. */
-    { id: 'craft_chitin_helmet', name: 'Craft Chitin Coif', icon: '🪲',
-      inputs: { void_chitin: 1, silk_thread: 4 }, output: 'chitin_helmet', xp: 420, req: 47, ms: 3600 },
-    { id: 'craft_chitin_body', name: 'Craft Chitin Body', icon: '🪲',
-      inputs: { void_chitin: 3, silk_thread: 10 }, output: 'chitin_body', xp: 1050, req: 55, ms: 4200 },
-    { id: 'craft_chitin_pants', name: 'Craft Chitin Chaps', icon: '🪲',
-      inputs: { void_chitin: 2, silk_thread: 8 }, output: 'chitin_pants', xp: 840, req: 53, ms: 4000 },
-    { id: 'craft_chitin_boots', name: 'Craft Chitin Boots', icon: '🪲',
-      inputs: { void_chitin: 1, silk_thread: 3 }, output: 'chitin_boots', xp: 420, req: 47, ms: 3400 },
-    { id: 'craft_chitin_gloves', name: 'Craft Chitin Vambraces', icon: '🪲',
-      inputs: { void_chitin: 1, silk_thread: 2 }, output: 'chitin_gloves', xp: 380, req: 46, ms: 3400 },
-    { id: 'craft_chitin_belt', name: 'Craft Chitin Belt', icon: '🪲',
-      inputs: { void_chitin: 1, silk_thread: 3 }, output: 'chitin_belt', xp: 420, req: 48, ms: 3400 },
-    /* ITEM-NEW-44 — one recipe, three orphans closed: void_chitin (Shadow
-       Creeper / Void Parasite), hell_ember (Lesser Demon) and war_crown
-       (War King, the only 8% drop in the game with no use whatsoever). */
-    { id: 'weave_voidchitin', name: 'Weave Void-Chitin', icon: '🕸️',
-      inputs: { void_chitin: 4, hell_ember: 2, war_crown: 1 }, output: 'voidchitin_weave', xp: 1800, req: 82, ms: 4600 },
-    { id: 'craft_quiet_coat', name: 'Craft Quiet Coat', icon: '🧥',
-      inputs: { voidchitin_weave: 2, shadow_thread: 8 }, output: 'quiet_coat', xp: 2600, req: 86, ms: 5000 },
-  ],
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -406,20 +321,11 @@ export const LIB2_DESC = {
   watchknight_belt: 'A deathsteel warbelt, buckled once and rarely undone',
 
   quiet_coat: 'A long coat of void-chitin weave that makes no sound at all — not the cloth, not the buckles, not the man inside it',
-  deathsteel_bar: 'Death Knight steel, smelted down and poured honest, still holding the cold of wherever it was dug up',
-  voidchitin_weave: 'Chitin, ember and gold beaten into one dark cloth — three trophies nobody knew what to do with, made into something',
 
-  rubble: 'Broken stone struck loose alongside the ore, worth carrying only in quantity',
-  granite: 'Hard speckled granite, the stone that outlasts the mason who cut it',
-  basalt: 'Black basalt, dense and close-grained, cooled from something that was once moving',
-  dressed_block: 'A rough block squared on all six faces — the mason\'s first honest day',
-  granite_block: 'A dressed granite block, heavy enough that two men set it and one man regrets it',
-  basalt_block: 'A dressed basalt block, dark as a well and twice as cold',
   rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
   rune_blank: 'A blank stone chip, cut square and waiting for a mark',
   fine_rune_blank: 'A finely cut blank of granite, smooth enough to take a small and complicated mark',
   deep_rune_blank: 'A basalt blank cut deep, for marks that must not wear away',
-  ashlar: 'Squared facing stone, laid so precisely that no mortar shows',
 
   /* ── STAFF RUNES: SAY THE MECHANIC, THEN THE FLAVOUR (b432) ──────────────
      These were pure atmosphere, on the one screen where a player is looking at
@@ -443,10 +349,6 @@ export const LIB2_DESC = {
   chaos_rune: 'Socketed for Magic strength; its mark will not stay quite the same shape between glances',
   death_rune: 'Socketed for Magic strength; cold, and cut on a blank taken from beneath a barrow',
   blood_rune: 'The deepest binding a staff will take — deep-cut, dark in the groove, and never quite dry',
-  /* b432: the three `rune_of_*` lines retired with their items. The surviving
-     wording moved to the LIVE ids in item-descriptions.js (ember_rune /
-     frost_rune / poison_rune) rather than being thrown away — "aching cold
-     through a glove" was good and the duplicate item was not. */
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
   copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',

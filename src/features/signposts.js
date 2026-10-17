@@ -3,8 +3,8 @@
 // Pure helpers plus one publisher: setupSignposts() puts them on
 // window.HearthriseSignposts for the classic-script screens (bag, farm, home,
 // chronicle) and legacy.js, which read it at call time. No top-level window or
-// DOM access. Every fact a line names is read from its owner at call time: the
-// bounty ladder from core/bounty.js, item sources from the item index.
+// DOM access. Every fact a line names is read from its owner at call time:
+// item sources from the item index.
 
 import { SIGNPOSTS } from '../data/signposts.js?v=589';
 import { ITEMS } from '../data/items.js?v=589';
@@ -39,22 +39,6 @@ function bagEmptyKey({ catId, heldInCat }) {
   return heldInCat > 0 ? 'bag.hidden' : 'bag.' + catId;
 }
 
-function listText(names) {
-  return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names.join('');
-}
-
-function bountyStripHtml({ level, clientMayPay, bounty }) {
-  let hardLv = 0;
-  for (let lv = 1; lv <= 120 && !hardLv; lv++) if (bounty.unlockedTypes(lv).indexOf('streak') >= 0) hardLv = lv;
-  const notPosted = Object.keys(bounty.BOUNTY_TURN_IN)
-    .filter((t) => !bounty.isOfferableType(t, clientMayPay))
-    .map((t) => bounty.BOUNTY_TYPE_LABEL[t] || t);
-  const chip = (lv, text, on) => `<span class="bh-unlock${on ? ' is-on' : ''}"><em>${lv}</em>${esc(text)}</span>`;
-  const note = notPosted.length ? `<div class="muted">${esc(fill('bounty.notPosted', { types: listText(notPosted) }))}</div>` : '';
-  return `<div class="bh-unlocks-h">${esc(label('bounty.heading'))}</div>`
-    + `<div class="bh-unlocks">${chip(1, label('bounty.cull'), true)}${hardLv ? chip(hardLv, label('bounty.hard'), level >= hardLv) : ''}</div>`
-    + note;
-}
 
 function doorHtml(d) {
   if (!d) return '';
@@ -70,6 +54,6 @@ function go(d) {
 
 export function setupSignposts() {
   window.HearthriseSignposts = Object.freeze({
-    SIGNPOSTS, fill, label, door, stallLine, bagEmptyKey, bountyStripHtml, doorHtml, go,
+    SIGNPOSTS, fill, label, door, stallLine, bagEmptyKey, doorHtml, go,
   });
 }

@@ -68,6 +68,10 @@ const cases = {
     M.damage.landHit(inst, sc, k, m, 9, null, null);
     if (m.alive || m.hp !== 0 || m.deadMs !== 0) return 'the monster did not fall';
     if (!sc.events.some((e) => e.type === 'kill' && e.u === 1 && e.t === 3)) return 'no kill event';
+    const d = sc.events.find((e) => e.type === 'dmg' && e.u === 1);
+    if (!d || d.ability !== 'basic' || d.element !== null) return 'the dmg event does not name its ability and element: ' + JSON.stringify(d);
+    M.damage.landHit(inst, sc, k, E(M, 9, 0, 14, 3, 1, { hp: 50, maxHp: 50 }), 5, 'frost', { id: 'frost_lance' });
+    if (!sc.events.some((e) => e.type === 'dmg' && e.t === 9 && e.ability === 'frost_lance' && e.element === 'frost')) return 'an ability hit lost its ability or element';
     M.damage.landHit(inst, sc, m, r, 9, null, null);
     return !r.alive && r.downMs === M.sessions.KNOCKOUT_MS ? null : 'the hero is not knocked out for KNOCKOUT_MS (' + r.downMs + ')';
   },
@@ -105,6 +109,7 @@ const mutants = [
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },
   { name: 'no minimum', case: 'min-1', edits: [[D, '  n = Math.max(1, n);', '  n = Math.max(0, n);']] },
+  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null }));", '      element: element || null }));']] },
   { name: 'a fallen hero is not knocked out', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', '  u.downMs = KNOCKOUT_MS;', '  u.downMs = 0;']] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, '  u.swingLeftMs = COMBAT_BALANCE.tickMs;', '  u.swingLeftMs = 0;']] },

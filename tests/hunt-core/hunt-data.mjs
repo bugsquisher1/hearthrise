@@ -24,8 +24,8 @@ const cases = {
 };
 
 const mutants = [
-  { name: 'a swing that is not a whole number of sub-steps', case: 'tuning-valid',
-    edits: [['src/data/hunt-tuning.js', '  swingMs: 2000,', '  swingMs: 2050,']] },
+  { name: 'a clock that is not a whole number of sub-steps', case: 'tuning-valid',
+    edits: [['src/data/hunt-tuning.js', '  stepMs: 100,', '  stepMs: 300,']] },
   { name: 'spawns are not checked against their room', case: 'grounds-refuse-bad-rows',
     edits: [['src/data/hunt-grounds.js', ' || !inRect(r, s.x, s.y)) bad(', ') bad(']] },
 ];

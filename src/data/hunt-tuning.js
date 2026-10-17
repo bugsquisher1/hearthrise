@@ -14,10 +14,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUNT_TUNING = Object.freeze({
-  /* One swing = swingMs / stepMs sub-steps (engine contract #2). */
+  /* One sub-step. A swing (COMBAT_BALANCE.tickMs, the one basic-attack interval) is a
+     whole number of them (engine contract #2; world-step.substepsOf refuses one that is not). */
   stepMs: 100,
-  /* The universal basic swing (DM-13) until S3's generated swing_interval_ms replaces it. */
-  swingMs: 2000,
   /* Path step costs in millitiles; also the length of a straight / diagonal move. */
   stepCost: Object.freeze({ straight: 1000, diagonal: 1414 }),
   /* A* stops after this many expanded nodes and answers "no path" (GR-03). */
@@ -52,12 +51,11 @@ export function validate() {
   const out = [];
   const T = HUNT_TUNING;
   const posInt = (k, v) => { if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v); };
-  for (const k of ['stepMs', 'swingMs', 'pathNodeCap', 'blockedRepathMs', 'blockedAvoidRadius', 'trailLen',
+  for (const k of ['stepMs', 'pathNodeCap', 'blockedRepathMs', 'blockedAvoidRadius', 'trailLen',
     'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes']) posInt(k, T[k]);
   posInt('stepCost.straight', T.stepCost.straight);
   posInt('stepCost.diagonal', T.stepCost.diagonal);
   if (!Number.isInteger(T.leashMarginDefault) || T.leashMarginDefault < 0) out.push('leashMarginDefault must be an integer >= 0');
-  if (T.swingMs % T.stepMs !== 0) out.push('swingMs ' + T.swingMs + ' is not a whole number of ' + T.stepMs + ' ms sub-steps');
   for (const k of ['blockedRepathMs', 'followRepathMs', 'corpseMs', 'regroupMs']) {
     if (T[k] % T.stepMs !== 0) out.push(k + ' is not a whole number of sub-steps');
   }

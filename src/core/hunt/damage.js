@@ -29,6 +29,7 @@ import { atRest, unitById } from './movement.js?v=589';
 import { makeEvent } from './events.js?v=589';
 import { roleOf, elementOn, inRange, peel } from './targeting.js?v=589';
 import { fallen } from './pull-cycle.js?v=589';
+import { shareKillXp } from './xp-share.js?v=589';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
@@ -63,15 +64,21 @@ export function hurt(inst, target, amount, source, element, ability) {
 
 /**
  * Land a blow and tell the client: the one place a `dmg` / `immune` / `kill` event
- * is made, and the kill hand-off (pull-cycle.fallen). abilities.js lands its hits here too.
+ * is made, and the kill hand-off (pull-cycle.fallen, then xp-share.shareKillXp for a
+ * monster). `dmg` names its ability ('basic' for a swing) and element (null for none),
+ * which the analyzer tally reads. abilities.js lands its hits here too.
  */
 export function landHit(inst, sc, source, target, amount, element, ability) {
   const r = hurt(inst, target, amount, source, element, ability);
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u: source.id, t: target.id }));
-  else sc.emit(makeEvent('dmg', sc.atMs, { u: source.id, t: target.id, amount: r.dmg }));
+  else {
+    sc.emit(makeEvent('dmg', sc.atMs, { u: source.id, t: target.id, amount: r.dmg,
+      ability: (ability && ability.id) || 'basic', element: element || null }));
+  }
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u: source.id, t: target.id }));
     fallen(inst, target, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u: source.id, xp: MONSTERS[target.kind].xp }, sc);
   }
   return r;
 }

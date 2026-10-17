@@ -98,7 +98,7 @@ function use(u, hero, kind, line, sc) {
   u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.tickMs, ticks] : null;
   u.laneAt = sc.atMs + R.laneMs;
   sc.emit(makeEvent(kind === 'drink' ? 'drink' : 'eat', sc.atMs,
-    { u: u.id, item: line.id, source: line.source, price: line.price, amount, landed }));
+    { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed }));
   return true;
 }
 

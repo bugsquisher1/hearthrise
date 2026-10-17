@@ -66,7 +66,8 @@ const cases = {
     if (hs.tally.supplies.fire_rune !== 1 || hs.purse !== 50) return 'the first cast did not spend the carried rune, free';
     sc.atMs = M.AD.ABILITIES.flame_strike.cdMs;
     M.abilities.castAbilities(inst, sc);
-    if (casts(sc).length !== 2 || hs.tally.bought.plain_fire_rune !== 1 || hs.purse !== 48) return 'the empty rune line did not fall to the store: ' + JSON.stringify(hs.tally);
+    if (casts(sc).length !== 2 || hs.tally.bought.plain_fire_rune !== 1 || hs.purse !== 48
+      || JSON.stringify(sc.events.filter((e) => e.type === 'cast').map((e) => [e.source, e.gold])) !== '[["own",0],["store",2]]') return 'the empty rune line did not fall to the store: ' + JSON.stringify(hs.tally);
     const dry = supplySession(M, { bag: { fire_rune: { loaded: 0 } }, onEmpty: 'end' });
     const d = melee(M, ['flame_strike'], {}, { hs: dry });
     M.abilities.castAbilities(d.inst, d.sc);

@@ -198,7 +198,10 @@ export function fire(inst, u, pick, sc) {
   u.mana = int(u.mana) - row.mana;
   u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs });
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
-  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult }));
+  /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. */
+  const gold = pick.lines.reduce((a, l) => a + l.price, 0);
+  const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
+  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult, source, gold }));
   effect(inst, u, row, pick.target, sc);
   return true;
 }

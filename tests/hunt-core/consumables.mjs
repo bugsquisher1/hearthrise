@@ -46,12 +46,12 @@ const cases = {
     const { h, inst, sc } = oneHero(M, { hp: 10 }, { hs });
     M.consumables.consume(inst, sc);
     const first = eats(sc)[0];
-    if (!first || first.source !== 'own' || first.item !== 'cooked_shrimp' || hs.purse !== 1000) return 'the own stack was not eaten first, free: ' + JSON.stringify(first);
+    if (!first || first.source !== 'own' || first.gold !== 0 || first.item !== 'cooked_shrimp' || hs.purse !== 1000) return 'the own stack was not eaten first, free: ' + JSON.stringify(first);
     h.otHp = null; h.hp = 10;
     sc.atMs = 5000;
     M.consumables.consume(inst, sc);
     const second = eats(sc)[1];
-    if (!second || second.source !== 'store' || second.item !== STORE_FOOD) return 'an empty own stack did not fall to the store: ' + JSON.stringify(second);
+    if (!second || second.source !== 'store' || second.gold !== 15 || second.item !== STORE_FOOD) return 'an empty own stack did not fall to the store: ' + JSON.stringify(second);
     if (hs.purse !== 1000 - 15 || hs.tally.bought[STORE_FOOD] !== 1 || hs.tally.supplies.cooked_shrimp !== 1) return 'the ledger split is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
   },

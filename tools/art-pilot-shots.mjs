@@ -26,7 +26,7 @@ async function boot({ width, height, theme }) {
     // The first-time-user tour dims the whole screen — useless for an art review.
     try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {}
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G && !!window._itemPath, null, { timeout: 30000 });
   await page.waitForTimeout(2500);   // let the deferred icon remap + refreshAll run
   if (theme) await page.evaluate((t) => { try { window.applyTheme && window.applyTheme(t); } catch(e){} document.body.setAttribute('data-theme', t); }, theme);

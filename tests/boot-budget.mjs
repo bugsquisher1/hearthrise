@@ -48,7 +48,7 @@
 //   localhost   esm-boot 546 → 503 ms          (nothing: 11 MB over loopback)
 //   4G 12 Mbps  esm-boot 12990 → 10344 ms      (-2.6 s, -20%)
 //   bytes       JS 10304 → 6508 KiB            (-3796 KiB, -37%)
-// `gate` and `core` did NOT move and were never going to: index.html paints the
+// `gate` and `core` did NOT move and were never going to: old-client.html paints the
 // account wall and publishes HearthriseCore from scripts ABOVE main.js. Quoting
 // those two as the win would be a lie that the next author would inherit.
 //
@@ -87,7 +87,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       try {
         const p = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, p === '/' ? '/index.html' : p));
+        let f = normalize(join(ROOT, p === '/' ? '/old-client.html' : p));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const info = await stat(f).catch(() => null);
         if (info?.isDirectory()) f = join(f, 'index.html');
@@ -113,7 +113,7 @@ const MARKERS = () => {
       }
       if (window.__bb.core == null && window.HearthriseCore) window.__bb.core = performance.now();
       /* THE MARKER THE SUITE ACTUALLY MOVED. `gate` and `core` are painted and
-         published by scripts that sit ABOVE main.js in index.html, so neither
+         published by scripts that sit ABOVE main.js in old-client.html, so neither
          ever waited for the suite — quoting them as the win would be a lie.
          main.js's body runs only once EVERY static import in its graph has been
          fetched and evaluated, and __esmBoot is the first thing it writes. */
@@ -417,7 +417,7 @@ async function selftest(browser, url) {
 
 (async () => {
   const { server, port } = await serve();
-  const url = `http://127.0.0.1:${port}/index.html`;
+  const url = `http://127.0.0.1:${port}/old-client.html`;
   let browser;
   try { browser = await chromium.launch(); }
   catch (e) { console.error('boot-budget: no Chromium (npx playwright install chromium):', e.message); server.close(); process.exit(2); }

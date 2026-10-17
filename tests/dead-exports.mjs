@@ -33,7 +33,7 @@
 // those files moves payload_sha256 and the in-page payload guard goes red until
 // the function is redeployed. Edge-vendored files are a lane-C concern.
 //
-// The corpus is everything that can reach client code: src/**, index.html,
+// The corpus is everything that can reach client code: src/**, old-client.html,
 // tests/**, tools/**, supabase/**, .github/** and docs/**. SQL and markdown
 // count: a name mentioned only in a migration comment is still evidence a human
 // believes it is live, and this guard would rather keep such a line.
@@ -50,7 +50,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const SCAN_DIRS = ['src', 'tests', 'tools', 'supabase', '.github', 'docs'];
-const SCAN_ROOT_FILES = ['index.html'];
+const SCAN_ROOT_FILES = ['index.html', 'old-client.html'];
 const SCAN_EXT = new Set(['.js', '.mjs', '.ts', '.tsx', '.html', '.json', '.sql', '.yml', '.yaml', '.md', '.css', '.sh']);
 const SKIP_DIR = new Set(['node_modules', '.git', '.legacy', 'dist', 'build', 'icons3', 'raw-bundle']);
 

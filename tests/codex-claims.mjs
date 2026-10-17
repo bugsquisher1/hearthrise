@@ -27,7 +27,7 @@
 //   CODEX-3   every text is 80-320 characters and ends with a full stop
 //   CODEX-4   no digits, emoji, < > &; no number words from two upward, no
 //             "half"/"twice"/"double" except "half" in combat-level (bound)
-//   CODEX-5   every door is a data-tab in index.html or an assigned window opener
+//   CODEX-5   every door is a data-tab in old-client.html or an assigned window opener
 //   CODEX-6   every sentence carries a claim; every bind exists and holds
 //   CODEX-7   every term is unique
 //   CODEX-8   the hr-accrue pack carries no codex file
@@ -114,7 +114,7 @@ export async function loadWorld() {
     combatSimJs: read('src/core/combat-sim.js'),
     combatJs: read('src/core/combat.js'),
     clientStateJs: read('src/net/client-state.js'),
-    indexHtml: read('index.html'),
+    indexHtml: read('old-client.html'),
     src,
     groups: codex.CODEX_GROUPS.map((g) => ({ ...g })),
     entries: codex.CODEX_ENTRIES.map((e) => ({ ...e, claims: e.claims.map((c) => ({ ...c })) })),
@@ -470,7 +470,7 @@ export function check(w) {
     }
   }
 
-  // A door is a rail entry (index.html), a pane of one (the menu's HUBS rows) or a
+  // A door is a rail entry (old-client.html), a pane of one (the menu's HUBS rows) or a
   // Journal tab (the showTab record routes): every one of them is a showTab name.
   const tabs = new Set([
     ...[...w.indexHtml.matchAll(/data-tab="([a-z_-]+)"/g)].map((m) => m[1]),
@@ -481,7 +481,7 @@ export function check(w) {
   for (const e of E) {
     const d = e.door;
     if (!d) continue;
-    if (d.tab) { if (!tabs.has(d.tab)) bad('CODEX-5', e.id + ': no data-tab="' + d.tab + '" in index.html'); continue; }
+    if (d.tab) { if (!tabs.has(d.tab)) bad('CODEX-5', e.id + ': no data-tab="' + d.tab + '" in old-client.html'); continue; }
     const [head, tail] = String(d.opener || '').split('.');
     const home = allSrc.find(([, s]) => new RegExp('window\\.' + head + '\\s*=').test(s));
     const ok = home && (!tail || new RegExp('\\b' + tail + '\\s*:|\\.' + tail + '\\s*=').test(home[1]));

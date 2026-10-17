@@ -43,7 +43,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOOR = 'src/net/signup-door.js';
 const AUTH = 'src/net/auth.js';
 const GATE = 'src/net/account-gate.js';
-const INDEX = 'index.html';
+const INDEX = 'old-client.html';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────
    Each entry is a defect a reasonable person could write — several of them

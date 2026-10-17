@@ -296,7 +296,7 @@ async function main() {
   let refMode = false;
   let mutateNow = false;
   const { server, port } = await serve(() => refMode, () => mutateNow);
-  const url = `http://127.0.0.1:${port}/index.html`;
+  const url = `http://127.0.0.1:${port}/old-client.html`;
   const browser = await chromium.launch({ args: ['--force-color-profile=srgb'] });
   let code = 0;
   try {

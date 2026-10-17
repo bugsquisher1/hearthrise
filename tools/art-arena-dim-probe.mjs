@@ -21,7 +21,7 @@ const { s, port } = await new Promise((res) => { const sv = createServer(async (
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })).newPage();
 await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {} });
-await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.G && !!window._monsterIcon, null, { timeout: 30000 });
 await page.waitForTimeout(2600);
 await page.evaluate(() => { try { window.showTab('combat'); } catch (e) {} });

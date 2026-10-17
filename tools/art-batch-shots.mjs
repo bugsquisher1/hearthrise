@@ -49,7 +49,7 @@ async function boot({ width, height, theme, tag }) {
     window.__HR_TEST_HARNESS__ = true;
     try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {}
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G && !!window._itemPath, null, { timeout: 30000 });
   await page.waitForTimeout(2600);   // deferred icon remap + refreshAll
   if (theme) await page.evaluate((t) => { try { window.applyTheme && window.applyTheme(t); } catch(e){} document.body.setAttribute('data-theme', t); }, theme);

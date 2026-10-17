@@ -50,7 +50,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       try {
         const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-        let filePath = normalize(join(ROOT, urlPath === '/' ? '/index.html' : urlPath));
+        let filePath = normalize(join(ROOT, urlPath === '/' ? '/old-client.html' : urlPath));
         if (!filePath.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const info = await stat(filePath).catch(() => null);
         if (info?.isDirectory()) filePath = join(filePath, 'index.html');
@@ -70,7 +70,7 @@ function serve() {
 const BATTERIES = ONLY ? [ONLY] : ['DOOR-', 'b46x OPEN-'];
 
 const { server, port } = await serve();
-const url = `http://127.0.0.1:${port}/index.html`;
+const url = `http://127.0.0.1:${port}/old-client.html`;
 const browser = await chromium.launch({ headless: !HEADED });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await ctx.newPage();

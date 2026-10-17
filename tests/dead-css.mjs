@@ -16,7 +16,7 @@
 // DEFINITION OF DEAD (deliberately conservative — a false positive is an
 // invisible visual regression, which is the most expensive kind here):
 //   a class name C used in a selector is DEAD when
-//     (a) C appears in NO src/**/*.js, src/**/*.html or index.html as a token,
+//     (a) C appears in NO src/**/*.js, src/**/*.html or old-client.html as a token,
 //         AND
 //     (b) C is not produced by string concatenation. A class built as
 //         'scv-tier-' + n never appears whole in any source file, so ANY
@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// Every stylesheet index.html actually loads, plus the ones under src/styles.
+// Every stylesheet old-client.html actually loads, plus the ones under src/styles.
 function sheets() {
   const dir = path.join(ROOT, 'src', 'styles');
   const out = [];
@@ -66,7 +66,7 @@ function consumerFiles() {
   };
   walk(path.join(ROOT, 'src'), 'src');
   walk(path.join(ROOT, 'tests'), 'tests');
-  if (fs.existsSync(path.join(ROOT, 'index.html'))) out.push('index.html');
+  for (const n of fs.readdirSync(ROOT)) if (n.endsWith('.html')) out.push(n);
   return out;
 }
 

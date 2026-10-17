@@ -16,11 +16,11 @@
 // and the night plan, Enchant v1, and the Auto-Eat client surface. This guard is
 // what keeps them gone: re-adding any name below to shipped code is RED.
 //
-//   DA-1  no CODE under src/**, index.html or supabase/functions/** names a
+//   DA-1  no CODE under src/**, index.html, old-client.html or supabase/functions/** names a
 //         demolished global, constant or intent verb (comments are not code;
 //         string literals are, because a verb is a string)
-//   DA-2  every demolished file stays deleted, and index.html loads none of them
-//   DA-3  index.html carries no door or panel for a demolished screen
+//   DA-2  every demolished file stays deleted, and old-client.html loads none of them
+//   DA-3  old-client.html carries no door or panel for a demolished screen
 //   DA-4  src/data/skills.js declares neither bountyHunter nor stonemason
 //   DA-5  THE ALLOWLIST ONLY SHRINKS. The engine/edge files C2 and B1 still own
 //         (combat-sim, accrue, record, the hr-accrue edge, death-sheet, combat
@@ -138,7 +138,7 @@ function walk(dir, out = []) {
 
 export function loadWorld() {
   const files = new Map();
-  for (const p of [...walk(join(ROOT, 'src')), ...walk(join(ROOT, 'supabase', 'functions')), join(ROOT, 'index.html')]) {
+  for (const p of [...walk(join(ROOT, 'src')), ...walk(join(ROOT, 'supabase', 'functions')), join(ROOT, 'index.html'), join(ROOT, 'old-client.html')]) {
     files.set(relative(ROOT, p).replace(/\\/g, '/'), readFileSync(p, 'utf8'));
   }
   const exists = new Set(DELETED_FILES.filter((f) => existsSync(join(ROOT, f))));
@@ -163,15 +163,15 @@ export function check(w, opts = {}) {
     }
   }
   for (const f of w.exists) add('DA-2', `${f} is a demolished file and exists again`);
-  const html = w.files.get('index.html') || '';
+  const html = w.files.get('old-client.html') || '';
   for (const f of DELETED_FILES) {
     const tail = f.replace(/^src\//, 'src/');
-    if (html.includes('"' + tail + '?v=') || html.includes('"' + tail + '"')) add('DA-2', `index.html still loads ${f}`);
+    if (html.includes('"' + tail + '?v=') || html.includes('"' + tail + '"')) add('DA-2', `old-client.html still loads ${f}`);
   }
   const htmlCode = html.replace(/<!--[\s\S]*?-->/g, '');
   for (const s of SCREENS) {
-    if (new RegExp('data-tab="' + s + '"').test(htmlCode)) add('DA-3', `index.html has a door to the demolished '${s}' screen`);
-    if (new RegExp('id="panel-' + s + '"').test(htmlCode)) add('DA-3', `index.html has a panel for the demolished '${s}' screen`);
+    if (new RegExp('data-tab="' + s + '"').test(htmlCode)) add('DA-3', `old-client.html has a door to the demolished '${s}' screen`);
+    if (new RegExp('id="panel-' + s + '"').test(htmlCode)) add('DA-3', `old-client.html has a panel for the demolished '${s}' screen`);
   }
   const skillsCode = stripComments(w.skills);
   for (const k of ['bountyHunter', 'stonemason']) {
@@ -202,8 +202,8 @@ function selftest(w) {
     ['a demolished verb is sent again (\'claim_reward\' in a feature)', 'DA-1', (x) => { x.files.set('src/features/x.js', "send({ verb: 'claim_reward' });\n"); }],
     ['a demolished constant returns (DAILY_TASK_POOL)', 'DA-1', (x) => { x.files.set('src/features/y.js', 'export const DAILY_TASK_POOL = [];\n'); }],
     ['a demolished file is restored (src/features/clans.js)', 'DA-2', (x) => { x.exists.add('src/features/clans.js'); }],
-    ['index.html loads a demolished script again', 'DA-2', (x) => { x.files.set('index.html', x.files.get('index.html') + '\n<script src="src/features/muster.js?v=1"></script>\n'); }],
-    ['index.html grows the Clan door back', 'DA-3', (x) => { x.files.set('index.html', x.files.get('index.html') + '\n<button class="nav-btn" data-tab="clan"></button>\n'); }],
+    ['old-client.html loads a demolished script again', 'DA-2', (x) => { x.files.set('old-client.html', x.files.get('old-client.html') + '\n<script src="src/features/muster.js?v=1"></script>\n'); }],
+    ['old-client.html grows the Clan door back', 'DA-3', (x) => { x.files.set('old-client.html', x.files.get('old-client.html') + '\n<button class="nav-btn" data-tab="clan"></button>\n'); }],
     ['the Bounty Hunter skill is declared again', 'DA-4', (x) => { x.skills += "\nexport const X = { bountyHunter: { name: 'Bounty Hunter' } };\n"; }],
     ['the allowlist grows past its cap', 'DA-5', (x) => { x.allow['src/legacy.js'] = ['HearthriseClans']; x.files.set(legacy, x.files.get(legacy) + '\nwindow.HearthriseClans;\n'); }],
     ['an allowlist entry goes stale (its file dropped the name)', 'DA-5', (x) => { const f = Object.keys(x.allow)[0]; x.allow[f] = x.allow[f].concat('HearthriseSpoils'); x.allowMax += 1; }],

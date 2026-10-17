@@ -1315,7 +1315,8 @@ export async function runAll() {
 
    A guard nothing has ever seen fail is a guard nobody knows works. Each entry
    plants a REAL defect — the shape somebody would actually write — in the real
-   file, re-runs this guard AND tests/activity-seam.mjs in CHILD PROCESSES (the
+   file, re-runs this guard, tests/activity-seam.mjs (the set_activity
+   refusal) and the accrual sweep in CHILD PROCESSES (the
    ESM module cache makes an in-process re-import useless), and restores the
    file. A mutation nothing catches is reported SLIPPED and exits 1.
 
@@ -1326,7 +1327,6 @@ export async function runAll() {
 const ENGINE = 'supabase/functions/hr-accrue/accrual.js';
 const INTENT = 'supabase/functions/hr-accrue/set-activity.js';
 const CORE = 'src/core/artisan-sim.js';
-const CLIENT = 'src/net/activity.js';
 const SWEEP = 'tests/accrual-engine.mjs';
 const BUDGET = 'supabase/migrations/2026-08-16-day-budget-artisan.sql';
 const LADDER = 'src/data/slot-ladders.js';
@@ -1386,9 +1386,6 @@ export const MUTATIONS = [
     [CORE, '    stepMs: () => { lastStep = artisanIntervalMs(state, skill, recipe, c); return lastStep; },',
       '    stepMs: () => { lastStep = 3000; return lastStep; },'],
   ], "b347's bug, on this bench: a ten-minute buff pays for a whole night"],
-  ['M10 the client stops downgrading an unpayable recipe', [
-    [CLIENT, "  if (kind === 'artisan'", "  if (false && kind === 'artisan'"],
-  ], 'a cooking gesture earns a 409 and leaves the server paying for the previous activity'],
   /* ── SECURITY C1. THE DEFECT AS IT SHIPPED: the ladder halves the SPAN. On a
      bag-bound artisan night that changes nothing, so the rung is spent for
      nothing and the night is one step closer to the forfeit that pays zero. */

@@ -396,30 +396,25 @@ async function boot(mutate, gateBlind, extra) {
 }
 
 /* ── THE REAL CLIENT READER ────────────────────────────────────────────────
-   src/features/renown.js is a classic script (window.HearthriseRenown), so it is
-   evaluated with the four globals it touches at load. Loading the REAL file is
-   the point: a guard that re-implements `pickServerRenown` would agree with
-   itself while the shipped reader looked at a key nobody projects. */
+   Since the client reset (2026-10-17) the client keeps each envelope WHOLE
+   (src/session/envelope.js); the headline reads record.data.renown_high. This
+   drives the REAL applier with the REAL envelope — a reader re-implemented here
+   would agree with itself while the shipped one looked at a key nobody projects. */
 async function loadRenownReader() {
-  const src = await readFile(new URL('src/features/renown.js', ROOT), 'utf8');
-  const win = {};
-  const stub = {
-    window: win,
-    document: { readyState: 'complete', addEventListener() {} },
-    setTimeout: () => 0,
-    setInterval: () => 0,
-    clearInterval: () => {},
-    console: { log() {}, warn() {}, error() {} },
+  const E = await import(new URL('src/session/envelope.js', ROOT).href);
+  let rec = null;
+  const high = () => (rec && Number.isFinite(Number(rec.data.renown_high)) ? Number(rec.data.renown_high) : null);
+  return {
+    __resetClaimState() { rec = null; },
+    noteServerRenown(env) {
+      const before = high() || 0;
+      const r = E.applyEnvelope(rec, env);
+      if (!r.applied) return null;
+      rec = r.record;
+      return high() === null ? null : { mode: 'server', raised: high() > before };
+    },
+    serverRenownHigh: high,
   };
-  // eslint-disable-next-line no-new-func
-  new Function(...Object.keys(stub), src)(...Object.values(stub));
-  const R = win.HearthriseRenown;
-  if (!R || typeof R.noteServerRenown !== 'function' || typeof R.serverRenownHigh !== 'function') {
-    const e = new Error('src/features/renown.js did not expose noteServerRenown/serverRenownHigh — '
-      + 'the CLIENT half of this guard cannot run and a pass would be meaningless');
-    e.harness = true; throw e;
-  }
-  return R;
 }
 
 const one = async (db, sql, params) => (await db.query(sql, params)).rows[0];

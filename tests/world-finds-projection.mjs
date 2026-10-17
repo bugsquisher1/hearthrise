@@ -80,7 +80,7 @@
 // Exit: 0 green · 1 an assertion failed · 2 the harness is not measurable.
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
@@ -595,24 +595,23 @@ async function runAll(db) {
   ok(idx.n === 1,
     'world_finds_item_idx is missing — both ordinal counts would seq-scan the board on every poll');
 
-  // ── (12) THE CLIENT HALF ACTUALLY MOVED ─────────────────────────────────
-  //    Text, not execution, and it is the only thing here that is: the defect
-  //    was a line of JavaScript, so the absence of that line is the property. A
-  //    server that is correct while the shipped client still joins display_names
-  //    off the board has closed nothing.
-  const hf = readFileSync(join(ROOT, 'src', 'features', 'hearthfind.js'), 'utf8');
-  /* Comments stripped PROPERLY (block comments first, then line comments). A
-     line-prefix filter is not enough: this file documents the defect it fixed in
-     a multi-line block, and a naive strip left the quoted old request behind and
-     failed the clean baseline. Measured. */
-  const code = hf.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-  ok(code.indexOf('hr_world_finds_of') !== -1,
-    'src/features/hearthfind.js does not call hr_world_finds_of — the client half did not move');
-  ok(!/select=[^'"]*user_id/.test(code),
-    'src/features/hearthfind.js still asks world_finds for user_id');
-  ok(code.indexOf('display_names?select') === -1,
-    'src/features/hearthfind.js still resolves names through the public display_names table — that '
-    + 'request IS the de-anonymisation');
+  // ── (12) NO CLIENT DE-ANONYMISES THE BOARD ───────────────────────────────
+  //    Text, not execution: the defect was a line of JavaScript (the old
+  //    src/features/hearthfind.js, deleted with that client on 2026-10-17), so
+  //    its absence anywhere under src/ is the property.
+  const walkJs = (dir, out = []) => {
+    for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + '/' + e.name;
+      if (e.isDirectory()) { if (e.name !== 'vendor') walkJs(rel, out); } else if (rel.endsWith('.js')) out.push(rel);
+    }
+    return out;
+  };
+  for (const rel of walkJs('src')) {
+    const code = readFileSync(join(ROOT, rel), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    ok(!/world_finds\?select=[^'"]*user_id/.test(code), `${rel} asks world_finds for user_id`);
+    ok(code.indexOf('display_names?select') === -1,
+      `${rel} resolves names through the public display_names table — that request IS the de-anonymisation`);
+  }
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────

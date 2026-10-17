@@ -33,7 +33,7 @@
 //       assertion and is stated as such: it checks WIRING, which is textual,
 //       and it is not a substitute for C1, which checks behaviour.
 //   C3  ALLOWLIST DRIFT. The origins in cors.js must be exactly the hosts
-//       src/net/account-gate.js already calls PLAYER_HOSTS. Two hand-kept
+//       src/session/config.js lists as playerHosts. Two hand-kept
 //       copies of one list is the drift this repo has been burned by; a
 //       comment is not a guard.
 //   C4  THE DEPLOYED FUNCTION, over the network, when HR_ACCRUE_URL is set —
@@ -244,12 +244,12 @@ async function allowlistChecks() {
   const problems = [];
   let src;
   try {
-    src = await readFile(join(ROOT, 'src', 'net', 'account-gate.js'), 'utf8');
+    src = await readFile(join(ROOT, 'src', 'session', 'config.js'), 'utf8');
   } catch {
-    return ['C3: could not read src/net/account-gate.js — the allowlist has nothing to be compared against'];
+    return ['C3: could not read src/session/config.js — the allowlist has nothing to be compared against'];
   }
-  const m = src.match(/PLAYER_HOSTS\s*=\s*\[([^\]]*)\]/);
-  if (!m) return ['C3: PLAYER_HOSTS is gone from src/net/account-gate.js — this guard is now checking nothing'];
+  const m = src.match(/playerHosts:\s*Object\.freeze\(\[([^\]]*)\]\)/);
+  if (!m) return ['C3: playerHosts is gone from src/session/config.js — this guard is now checking nothing'];
   const hosts = [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
   if (!hosts.length) return ['C3: PLAYER_HOSTS parsed as empty — this guard is now checking nothing'];
 
@@ -259,7 +259,7 @@ async function allowlistChecks() {
     if (!have.has(o)) problems.push(`C3: the game is served from ${o} but hr-accrue/cors.js does not allow it — the browser will be blocked`);
   }
   for (const o of have) {
-    if (!want.has(o)) problems.push(`C3: hr-accrue/cors.js trusts ${o}, which is not a PLAYER_HOSTS origin — an origin the server trusts and the game does not serve from is a surface, not a convenience`);
+    if (!want.has(o)) problems.push(`C3: hr-accrue/cors.js trusts ${o}, which is not a playerHosts origin — an origin the server trusts and the game does not serve from is a surface, not a convenience`);
   }
   return problems;
 }

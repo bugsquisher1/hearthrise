@@ -40,7 +40,7 @@
 //   RPS-6  a pre-column join (char_slot null) names its character on refresh.
 //   RPS-7  grants and surface.
 //   RPS-8  a weight smuggled in a request header changes nothing.
-//   RPS-9  DRIFT: hr_rally_point_rules sources/bands/cap == muster.js;
+//   RPS-9  DRIFT: (the muster.js display mirror retired 2026-10-17);
 //          hr_rally_action_s == tools/gen-rally-action-times.mjs rows().
 //   RPS-10 PACE: a fighter, a gatherer, a crafter on split_rune_blanks (20 per
 //          action) and a stonemason, each 45 min of focused play, score within
@@ -54,8 +54,6 @@
 //   · The browser half: in-page "b568: rally points are the server tally".
 // ════════════════════════════════════════════════════════════════════════
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { rows as actionRows } from '../tools/gen-rally-action-times.mjs';
 import { TREES } from '../src/data/gathering.js';
@@ -191,18 +189,6 @@ for (const id of Object.keys(MUTATIONS)) {
 const N = (v) => Number(v ?? 0);
 const paced = (ms) => Math.max(1, Math.round((ms * PACE.actionMs) / 1000));
 
-/* Load src/features/muster.js (a classic-script IIFE) in a sandbox and read the
-   display mirrors it exports. Nothing boots: the stubbed timers never fire. */
-function musterCatalogue() {
-  const src = readFileSync(`${ROOT}/src/features/muster.js`, 'utf8');
-  const window = {};
-  const document = { readyState: 'complete', addEventListener() {}, querySelector() { return null; },
-    getElementById() { return null; }, createElement() { return {}; }, head: { appendChild() {} } };
-  vm.runInNewContext(src, { window, document, setTimeout: () => 0, setInterval: () => 0, console });
-  const M = window.HearthriseMuster;
-  if (!M || !M.BANDS || !Array.isArray(M.EVENTS)) throw Object.assign(new Error('muster.js exports no BANDS/EVENTS'), { harness: true });
-  return M;
-}
 
 export async function run(mutate) {
   const problems = [];
@@ -532,17 +518,8 @@ export async function run(mutate) {
 
   // ── RPS-9 DRIFT ───────────────────────────────────────────────────────────
   {
-    const M = musterCatalogue();
-    const sorted = (o) => JSON.stringify(Object.keys(o || {}).sort().map((k) => [k, o[k]]));
-    for (const ev of M.EVENTS) {
-      const rules = (await q('select public.hr_rally_point_rules($1) as r', [ev.id]))[0].r;
-      ok(sorted(rules.sources) === sorted(ev.sources),
-        `RPS-9: ${ev.id} sources drifted — server ${JSON.stringify(rules.sources)}, muster.js ${JSON.stringify(ev.sources)}`);
-      ok(sorted(rules.bands) === sorted(M.BANDS), `RPS-9: bands drifted — server ${JSON.stringify(rules.bands)}, muster.js ${JSON.stringify(M.BANDS)}`);
-      ok(N(rules.cap) === M.TOTAL_CAP, `RPS-9: cap ${rules.cap} vs muster.js TOTAL_CAP ${M.TOTAL_CAP}`);
-    }
-    const pool = (await q('select public.hr_rally_pool() as p'))[0].p;
-    ok(JSON.stringify(pool) === JSON.stringify(M.EVENTS.map((e) => e.id)), `RPS-9: the rally pool drifted ${JSON.stringify(pool)}`);
+    /* (The sources/bands/cap/pool drift against the old client's muster.js display
+       mirror retired with that client on 2026-10-17; the server rules are the only copy.) */
     const dbRows = (await q('select kind, activity_id, paced_s from public.hr_rally_action_s order by kind, activity_id'))
       .map((r) => `${r.kind}:${r.activity_id}:${r.paced_s}`);
     const genRows = actionRows().map(([k, id, s]) => `${k}:${id}:${s}`).sort();

@@ -101,9 +101,9 @@ const MUTATIONS = {
     why: 'combatStyle goes back into RESIDUE_FIELDS, so the client persists its own copy of '
        + 'player_state.combat_style again and the picker can outlive — and disagree with — the '
        + 'routing the engine pays.',
-    file: 'client-state.js',
-    find: "  'loadouts',",
-    replace: "  'combatStyle',\n  'loadouts',",
+    file: 'residue.js',
+    find: '  hudLayout: sanitizeHudLayout,',
+    replace: '  hudLayout: sanitizeHudLayout,\n  combatStyle: (v) => v,',
   },
   style_ignored: {
     why: 'THE ORIGINAL P0: the engine goes back to resolveStyle(weaponType, null), so every '
@@ -190,9 +190,7 @@ const FILES = {
   'envelope.js': join(ROOT, 'supabase', 'functions', 'hr-accrue', 'envelope.js'),
   'index.ts':    join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'),
   'set-activity.js': join(ROOT, 'supabase', 'functions', 'hr-accrue', 'set-activity.js'),
-  'accrue.js':   join(ROOT, 'src', 'net', 'accrue.js'),
-  'goal-claim.js': join(ROOT, 'src', 'net', 'goal-claim.js'),
-  'legacy.js':   join(ROOT, 'src', 'legacy.js'),
+  'residue.js':  join(ROOT, 'src', 'session', 'residue.js'),
   'migration':   MIG,
 };
 
@@ -685,41 +683,19 @@ function sectionD(raw) {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// E. THE CLIENT HALF IS WIRED
+// E. THE CLIENT KEEPS NO COPY OF THE STYLE
 // ════════════════════════════════════════════════════════════════════════
+/* The style is the SERVER's (player_state.combat_style, routed by the engine).
+   The rebuilt client (2026-10-17) reads it off the envelope and keeps no copy:
+   its residue allowlist (src/session/residue.js) must never carry combatStyle,
+   or a persisted client pick could disagree with the routing the engine pays —
+   the "only Attack saves" report this file exists for. (The old client's wiring
+   checks — the hr_set_style transport, the reconcile and its adopt back-fill —
+   retired with that client; the new client sends no style intent yet.) */
 function sectionE(src) {
-  ok(/hr_set_style/.test(src['goal-claim.js']),
-    'E: no client transport calls hr_set_style — the server would never learn the choice and '
-    + 'the P0 stays live however good the migration is');
-  ok(/settleBeforeIntent/.test(src['goal-claim.js']),
-    'E: setStyle does not settle first — under live settlement (~90s) the server\'s 60s grace '
-    + 'means most flips would be refused collect_first and silently dropped');
-  ok(/HearthriseGoalClaim[\s\S]{0,400}setStyle|setStyle/.test(src['legacy.js']),
-    'E: applyCombatStyle — the ONE writer of G.combatStyle — does not tell the server');
-  ok(/reconcileCombatStyle/.test(src['accrue.js']),
-    'E: nothing reconciles the style off the envelope, so the picker can disagree with what '
-    + 'the engine pays and the choice still dies on a device change');
-  /* ⚠ INVERTED 2026-09-14, and the inversion is the point rather than a
-     relaxation. This used to pin `combatStyle` INSIDE RESIDUE_FIELDS, with the
-     reason "display continuity for anyone whose server row has not been written
-     yet" — true on the day hr_set_style shipped, when no character had a
-     combat_style row. Three weeks later every played character has one, and what
-     covers a character that does NOT is the reconcile's own one-shot back-fill
-     (the `adopt` list, asserted below), not a persisted second copy. Keeping the
-     copy is what makes the picker able to disagree with the routing the engine
-     pays — the "only Attack saves" report, the exact bug this file exists for.
-     So the pin now runs the other way: the style is the SERVER's, and the guard
-     fails if a client-persisted copy comes back. */
-  ok(!/^\s*'combatStyle',/m.test(src['client-state.js'] || ''),
-    'E: `combatStyle` is back on RESIDUE_FIELDS — a persisted client copy of '
-    + 'player_state.combat_style is a second answer to which skill a settle pays, and the client '
-    + 'one is what a cloud restore rewinds');
-  /* AND THE CONTINUITY THE OLD PIN WAS PROTECTING IS STILL COVERED: a family the
-     server has no opinion about keeps the local pick and is SENT, once. Without
-     this the inversion above would be a silent downgrade. */
-  ok(/adopt/.test(src['accrue.js']),
-    'E: reconcileCombatStyle no longer reports an `adopt` back-fill — a pre-migration pick would '
-    + 'be silently reset to the family default now that nothing persists it client-side');
+  ok(!/\bcombatStyle\s*:/.test(src['residue.js'] || ''),
+    'E: `combatStyle` is on the client residue allowlist — a persisted client copy of '
+    + 'player_state.combat_style is a second answer to which skill a settle pays');
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -732,8 +708,6 @@ async function loadSources(mutation) {
   }
   src['request.js'] = (await readFile(
     join(ROOT, 'supabase', 'functions', 'hr-accrue', 'request.js'), 'utf8')).replace(/\r\n/g, '\n');
-  src['client-state.js'] = (await readFile(
-    join(ROOT, 'src', 'net', 'client-state.js'), 'utf8')).replace(/\r\n/g, '\n');
   if (mutation) {
     const m = MUTATIONS[mutation];
     if (!m) throw new Error(`unknown mutation "${mutation}"`);

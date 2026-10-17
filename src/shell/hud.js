@@ -8,14 +8,14 @@
 // v1.1, and it will write the same three fields).
 //
 // THE LAYOUT IS A DISPLAY PREFERENCE. It is stored per size class in the residue
-// field `hudLayout` ({desktop:{id:{...}}, phone:{...}}; src/net/client-state.js),
+// field `hudLayout` ({desktop:{id:{...}}, phone:{...}}; src/session/residue.js),
 // so a phone layout never breaks the desktop one. Nothing may gate an action or
 // spend anything on it: tests/hud-layout-display-only.mjs confines every read
 // of the name to this file and the residue store.
 //
-// PURE except for `gStore`, the adapter that reads and writes the residue on G.
+// PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=587';
+import { escapeHtml as esc } from '../utils/dom.js?v=589';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -94,18 +94,15 @@ export function placeWidget(L, box, size) {
 }
 
 /**
- * The residue adapter: reads and writes `G.hudLayout`, then asks the game to
- * persist (window.saveLocal rides the residue put). Display-only by contract.
+ * The residue adapter for ONE character: reads its record's `hudLayout` and
+ * writes through CharacterSession.setResidue (which persists it, debounced).
+ * Display-only by contract.
+ * @param {{record: object|null, setResidue(f: string, v: object): boolean}} character
  */
-export function gStore(root) {
+export function residueStore(character) {
   return {
-    read() { const g = root && root.G; return g && isObj(g.hudLayout) ? g.hudLayout : null; },
-    write(next) {
-      const g = root && root.G;
-      if (!g) return;
-      g.hudLayout = next;
-      try { if (typeof root.saveLocal === 'function') root.saveLocal(); } catch (e) { /* the residue rides the next put */ }
-    },
+    read() { const r = character && character.record; const v = r && r.residue && r.residue.hudLayout; return isObj(v) ? v : null; },
+    write(next) { if (character) character.setResidue('hudLayout', next); },
   };
 }
 

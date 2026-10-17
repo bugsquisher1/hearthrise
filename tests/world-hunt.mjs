@@ -6,7 +6,7 @@
 //   node tests/world-hunt.mjs --selftest  every planted defect must be caught
 //
 // The World pane's hunt (src/world/{choreo,hunt-scene,hunt-chrome}.js) is fed
-// by the one swing observer (src/render/combat-observer.js). These run the REAL
+// by beats (src/world/beat.js: one per swing, a fight diff). These run the REAL
 // engine's attended tick (src/core/combat-sim.js simulateTick, the same code
 // the live tick calls) against the Mill Cellar map and assert the plan's
 // choreography and fences (world-slice-plan §2):
@@ -27,8 +27,8 @@
 //   H6 CAMERA: the cellar at the one density (x2, never a fitted zoom); on each
 //      axis the room is centred with darkness around it when it fits and the
 //      camera follows the hero inside the room when it does not
-//   H7 ONE ENGINE (AWAY-12, extended): the observer and the hunt modules name
-//      no engine entry point; the observer only diffs the tick it wraps
+//   H7 ONE ENGINE (AWAY-12, extended): the beat and the hunt modules name
+//      no engine entry point
 //   H8 FACING: every monster (bystander, foe, leaving, fallen; standing or
 //      walking) faces east or west, never the camera (a rat's head-on frame
 //      reads as a spider at 48 px)
@@ -48,7 +48,7 @@ const V = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(ROOT, 'src/build-info
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [sim, rng, obs, scene, chrome, camera, mapc, maps, terrain, hunts, monsters, items, sets, bookm] = await Promise.all([
-    'src/core/combat-sim.js', 'src/core/rng.js', 'src/render/combat-observer.js', 'src/world/hunt-scene.js', 'src/world/hunt-chrome.js',
+    'src/core/combat-sim.js', 'src/core/rng.js', 'src/world/beat.js', 'src/world/hunt-scene.js', 'src/world/hunt-chrome.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/data/world/maps/index.js', 'src/data/world/terrain.js',
     'src/data/hunts.js', 'src/data/monsters.js', 'src/data/items.js', 'src/data/world/atlas-sets.js', 'src/world/core/book.js',
   ].map(imp));
@@ -60,10 +60,10 @@ async function load(base) {
   const row = maps.WORLD_MAPS.find((m) => m.id === 'mill_cellar');
   const src = (p) => readFileSync(join(base, p), 'utf8');
   return { sim, rng, obs, scene, chrome, camera, map: mapc.compileMap(row, tables), row, hunts, MON: monsters.MONSTERS, ITEMS: items.ITEMS,
-    sources: { observer: src('src/render/combat-observer.js'), choreo: src('src/world/choreo.js'), scene: src('src/world/hunt-scene.js'), chrome: src('src/world/hunt-chrome.js') } };
+    sources: { beat: src('src/world/beat.js'), choreo: src('src/world/choreo.js'), scene: src('src/world/hunt-scene.js'), chrome: src('src/world/hunt-chrome.js') } };
 }
 
-/** A real attended fight: the engine's own tick, wrapped the way the observer wraps it. */
+/** A real attended fight: the engine's own tick, diffed into beats. */
 function fight(M, o) {
   const G = { activeMonster: o.foe, monsterHp: M.MON[o.foe].hp, monsterMaxHp: M.MON[o.foe].hp, playerHp: 1e6, playerMaxHp: 1e6,
     combatKillsThisFoe: 0, stats: {}, gold: 0, inventory: {} };
@@ -252,7 +252,6 @@ function check(M) {
       const code = s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       ok('H7', !engine.test(code), k + ' names an engine entry point (' + (code.match(engine) || [''])[0] + '): the world draws the engine\'s tick, it never runs one');
     }
-    ok('H7', /orig\.apply\(this, arguments\)/.test(M.sources.observer), 'the observer must wrap the tick it observes, not replace it');
   }
 
   // H8 — monsters face a side, never the camera: a rat's head-on frame reads as a spider at 48 px.
@@ -280,12 +279,12 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data', 'src/core', 'src/render/combat-observer.js', 'src/build-info.js', 'assets/world'];
+const COPY = ['src/world', 'src/data', 'src/core', 'src/build-info.js', 'assets/world'];
 const MUTANTS = [
   ['H1', 'the approach outlasts the swing', 'src/world/choreo.js', [['const reach = Math.max(0, tickMs - WINDUP_MS);', 'const reach = tickMs * 3;'], ['export const STEP_MS = 320;', 'export const STEP_MS = 2000;']]],
   ['H2', 'floats drawn while knocked out', 'src/world/choreo.js', [['floats: down ? [] : floats.map(', 'floats: floats.map('], ['const quiet = down || b.downAfter;', 'const quiet = false;']]],
   ['H3', 'a swap kills the shown foe', 'src/world/choreo.js', [['else if (foe.id !== f.foe) { breakOff(t);', 'else if (foe.id !== f.foe) { kill({ tickMs: 0, next: null }, t);']]],
-  ['H3', 'kills read off the G.stats residue', 'src/render/combat-observer.js', [['kills: n(g.combatKillsThisFoe),', 'kills: n(g.stats && g.stats.kills),']]],
+  ['H3', 'kills read off the G.stats residue', 'src/world/beat.js', [['kills: n(g.combatKillsThisFoe),', 'kills: n(g.stats && g.stats.kills),']]],
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
   ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H5', 'nothing settled reads as zero', 'src/world/hunt-chrome.js', [['const num = (v) => (v != null && Number.isFinite(Number(v))', 'const num = (v) => (Number.isFinite(Number(v))']]],

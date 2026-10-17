@@ -382,94 +382,44 @@ function grade(o) {
   return new Map((o.catalogue || []).map((r) => [r.trait_id, r]));
 }
 
-/* ── (A)↔(B): the authored TRAITS ↔ the server catalogue, no database ──── */
+/* ── (A)↔(B): the authored trait offers ↔ the server catalogue, no database ──
+   The authored side is src/data/shops.js's `trait` offers since the client reset
+   (2026-10-17) deleted the old client's TRAITS copy in src/legacy.js. */
 async function bindGuard(cat) {
-  const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
-
-  /* Parsed out of legacy.js rather than duplicated: a second copy of game data
-     is the failure this repo has been burned by (src/main.js unifyObject). */
-  const at = legacy.indexOf('const TRAITS={');
-  ok(at >= 0, 'BIND: `const TRAITS={` could not be located in legacy.js — the authored side is unreadable');
-  if (at < 0) return;
-  const open = legacy.indexOf('{', at);
-  let depth = 0; let body = null;
-  for (let i = open; i < legacy.length; i++) {
-    if (legacy[i] === '{') depth++;
-    else if (legacy[i] === '}' && --depth === 0) { body = legacy.slice(open, i + 1); break; }
-  }
-  ok(!!body, 'BIND: the TRAITS object literal is unbalanced — cannot read the authored prices');
-  if (!body) return;
-
-  /* Each row is `id:{ … }` with no nested braces. `req` is optional. */
-  const rows = [...body.matchAll(/(^|[,{\s])([a-z0-9_]+)\s*:\s*\{([^{}]*)\}/g)].map((m) => {
-    const b = m[3];
-    const s = (k) => (b.match(new RegExp(`${k}\\s*:\\s*'([^']*)'`)) || [])[1] ?? null;
-    const n = (k) => {
-      const v = (b.match(new RegExp(`${k}\\s*:\\s*(-?\\d+)`)) || [])[1];
-      return v === undefined ? null : Number(v);
-    };
-    return { id: m[2], name: s('name'), cost: n('cost'), currency: s('currency'), req: s('req') };
+  const { SHOP_OFFERS } = await import(new URL('../src/data/shops.js', import.meta.url).href);
+  const rows = (SHOP_OFFERS || []).filter((o) => o.table === 'trait').map((o) => {
+    const line = (o.cost || []).find((l) => l.kind === 'currency') || {};
+    return { id: String(o.id).replace(/^trait\./, ''), name: o.name, cost: line.amount ?? null, currency: line.id ?? null };
   });
-  ok(rows.length >= 2, `BIND: TRAITS yielded ${rows.length} rows, expected at least 2 `
+  ok(rows.length >= 2, `BIND: src/data/shops.js yielded ${rows.length} trait offers, expected at least 2 `
     + '(auto_eat, auto_eat_2)');
 
   for (const r of rows) {
     const c = cat.get(r.id);
-    ok(!!c, `BIND: authored trait '${r.id}' is ABSENT from public.hr_traits, so its Buy button is `
-      + 'DEAD under the marks arm — the exact defect this migration exists for');
+    ok(!!c, `BIND: authored trait '${r.id}' is ABSENT from public.hr_traits, so it cannot be bought — `
+      + 'the exact defect this migration exists for');
     if (!c) continue;
     ok(Number(c.cost) === r.cost,
-      `BIND: '${r.id}' costs ${r.cost} in legacy.js but ${c.cost} in hr_traits — the shop would `
-      + 'advertise one price and the server would charge another');
+      `BIND: '${r.id}' costs ${r.cost} in src/data/shops.js but ${c.cost} in hr_traits — the catalogue `
+      + 'would advertise one price and the server would charge another');
     ok(c.currency === r.currency,
-      `BIND: '${r.id}' is priced in '${r.currency}' on screen and '${c.currency}' on the server`);
-    ok((c.req_trait || null) === (r.req || null),
-      `BIND: '${r.id}' requires '${r.req || 'nothing'}' on screen and '${c.req_trait || 'nothing'}' `
-      + 'on the server — one of the two ladders is not a ladder');
+      `BIND: '${r.id}' is priced in '${r.currency}' in the catalogue and '${c.currency}' on the server`);
     ok(c.name === r.name,
-      `BIND: '${r.id}' is named '${r.name}' on screen and '${c.name}' in the receipt`);
+      `BIND: '${r.id}' is named '${r.name}' in the catalogue and '${c.name}' in the receipt`);
+    ok(!c.req_trait || cat.has(c.req_trait),
+      `BIND: '${r.id}' requires '${c.req_trait}', which hr_traits does not carry — the ladder is not a ladder`);
   }
   for (const id of cat.keys()) {
     ok(rows.some((r) => r.id === id),
-      `BIND: hr_traits carries '${id}', which legacy.js TRAITS does not offer — the server would `
+      `BIND: hr_traits carries '${id}', which src/data/shops.js does not offer — the server would `
       + 'sell a trait the player can never see');
   }
 
-  /* auto_enable is a BEHAVIOURAL claim about the client's own rule, so it is
-     bound to that rule rather than asserted: legacy.js enables auto-eat for the
-     `auto_eat` id and no other. */
+  /* auto_enable: the ruling is that buying Auto-Eat I switches auto-eat on, and
+     no other trait does (the old client's buyTrait special-cased exactly that id). */
   const enables = [...cat.values()].filter((c) => c.auto_enable === true).map((c) => c.trait_id);
   ok(JSON.stringify(enables) === JSON.stringify(['auto_eat']),
-    `BIND: hr_traits auto-enables ${JSON.stringify(enables)}; legacy.js buyTrait enables exactly `
-    + "['auto_eat'] (`if(id==='auto_eat')`). A disagreement means the two halves of one purchase "
-    + 'leave the player in different states.');
-  ok(/id===['"]auto_eat['"]/.test(legacy),
-    'BIND: legacy.js buyTrait no longer special-cases auto_eat — re-derive hr_traits.auto_enable');
-
-  /* The client transport must exist and must send NO price. Read the REQUEST
-     BUILDER's own body rather than the whole file — the file's header names the
-     forbidden fields in prose, and a scan that cannot tell a warning from a bug
-     is a scan somebody deletes. */
-  const goldJs = await readFile(join(ROOT, 'src', 'net', 'gold.js'), 'utf8');
-  ok(/export\s+(?:async\s+)?function\s+buyTrait\s*\(/.test(goldJs),
-    'BIND: src/net/gold.js has no buyTrait transport — legacy.js buyTrait() would still fail closed '
-    + 'under the marks arm and every trait in the game would stay unbuyable');
-  ok(/hr_trait_buy/.test(goldJs), 'BIND: the client transport does not name hr_trait_buy');
-  const bAt = goldJs.indexOf('export function buildTraitBuyRequest(');
-  ok(bAt >= 0, 'BIND: src/net/gold.js has no buildTraitBuyRequest — the wire bytes are unreadable, '
-    + 'so nothing can assert what crosses');
-  if (bAt >= 0) {
-    const bEnd = goldJs.indexOf('\n}', bAt);
-    const fn = goldJs.slice(bAt, bEnd < 0 ? goldJs.length : bEnd);
-    ok(!/p_cost|p_price|p_currency|p_marks|p_gold/.test(fn),
-      'BIND: buildTraitBuyRequest puts a PRICE, a CURRENCY or a BALANCE on the wire. It may send a '
-      + 'trait id, a slot and an idempotency key and NOTHING else — the server owns every number '
-      + `in this transaction. Body builder:\n${fn}`);
-    for (const f of ['p_trait_id', 'p_slot', 'p_idem']) {
-      ok(fn.includes(f), `BIND: buildTraitBuyRequest does not send ${f} — PostgREST resolves an RPC `
-        + 'by its named arguments, so a missing one is PGRST202 and a dead button');
-    }
-  }
+    `BIND: hr_traits auto-enables ${JSON.stringify(enables)}; the ruling is exactly ['auto_eat'].`);
 }
 
 /**

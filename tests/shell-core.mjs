@@ -7,7 +7,7 @@
 //
 // docs/design/WORLD_SHELL.md §2 and §4, on src/shell/window-manager.js and
 // src/shell/hud.js (both pure: the host supplies size class, World size and a
-// scheduler) plus the `hudLayout` residue bound in src/net/client-state.js.
+// scheduler) plus the `hudLayout` residue bound in src/session/residue.js.
 //   W  windows: the cap of three (oldest closes), the 60% dock, Esc (top window,
 //      then the escape row), focus order, the phone's single sheet, keys
 //      (B/C/K/H/L/M/Enter on the spec catalogue; ignored while typing or chorded),
@@ -275,20 +275,18 @@ async function runTests(mods) {
       gold: 9, phone: [1],
     };
     eq(CS.sanitizeResidueField('hudLayout', forged), { desktop: { vitals: { dx: 4096, opacity: 0.4 } } }, 'a forged bag is shaped and clamped');
-    const g = {};
-    CS.hydrateInto(g, { hudLayout: { phone: { log: { visible: false } } } });
-    eq(g.hudLayout, { phone: { log: { visible: false } } }, 'a clean bag hydrates verbatim');
+    eq(CS.residueOf({ hudLayout: { phone: { log: { visible: false } } }, gold: 1 }), { hudLayout: { phone: { log: { visible: false } } } }, 'a clean bag arrives verbatim, and only the allowlist');
     const many = { desktop: {} };
     for (let i = 0; i < 500; i++) many.desktop['w' + i] = { visible: false };
     ok(Object.keys(CS.sanitizeResidueField('hudLayout', many).desktop).length <= 48, 'the widget count is bounded');
   });
-  t('R2 the residue round-trip: G.hudLayout written by the HUD rides the put', () => {
-    const root = { G: {}, saveLocal() { root.saved = (root.saved || 0) + 1; } };
-    const hud = HUD.createHud({ widgets: SPEC_WIDGETS, sizeClass: () => 'desktop', store: HUD.gStore(root) });
+  t("R2 the residue round-trip: the HUD writes its character's hudLayout through setResidue", () => {
+    const character = { record: { residue: {} }, writes: [], setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: { [f]: v } }; return true; } };
+    const hud = HUD.createHud({ widgets: SPEC_WIDGETS, sizeClass: () => 'desktop', store: HUD.residueStore(character) });
     hud.setVisible('vitals', false);
-    eq(root.G.hudLayout, { desktop: { vitals: { visible: false } } }, 'the HUD writes G.hudLayout');
-    ok(root.saved === 1, 'and asks the game to persist');
-    eq(CS.sanitizeResidueField('hudLayout', root.G.hudLayout), root.G.hudLayout, 'what the HUD writes survives the bound unchanged');
+    eq(character.writes, [['hudLayout', { desktop: { vitals: { visible: false } } }]], 'the HUD writes hudLayout on its own character, once');
+    eq(HUD.residueStore(character).read(), { desktop: { vitals: { visible: false } } }, 'and reads it back from that character');
+    eq(CS.sanitizeResidueField('hudLayout', character.writes[0][1]), character.writes[0][1], 'what the HUD writes survives the bound unchanged');
   });
 
   return fails;
@@ -299,7 +297,7 @@ async function load(base) {
   return {
     WM: await import(u(WM_FILE)),
     HUD: await import(u(HUD_FILE)),
-    CS: await import(u('src/net/client-state.js')),
+    CS: await import(u('src/session/residue.js')),
   };
 }
 
@@ -314,7 +312,8 @@ const MUTANTS = [
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
-  { test: 'R1', file: 'src/net/client-state.js', from: "if (field === 'hudLayout') return sanitizeHudLayout(v);", to: '' },
+  { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
+  { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
 ];
 
 async function selftest() {
@@ -323,9 +322,8 @@ async function selftest() {
   try {
     for (const m of MUTANTS) {
       const base = join(tmp, String(caught) + '-' + m.test);
-      /* The import closure of the three modules (client-state reaches into net/,
-         core/ and data/); the stylesheets and the in-page suite are not in it. */
-      const skip = new Set(['features', 'styles', 'vendor', 'legacy.js'].map((n) => join(ROOT, 'src', n)));
+      /* The import closure of the three modules; the stylesheets and the vendored bundles are not in it. */
+      const skip = new Set(['styles', 'vendor'].map((n) => join(ROOT, 'src', n)));
       mkdirSync(join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
       const p = join(base, m.file);

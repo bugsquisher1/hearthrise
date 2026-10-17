@@ -106,26 +106,8 @@ const EXTRA = [
    of them turns the run RED. A patch whose anchor does not match, or which
    produces identical text, is a HARNESS failure: a planted bug that was never
    planted is decoration. */
-const CLIENT = (f) => join(ROOT, 'src', 'net', f);
 
 const MUTATIONS = {
-  /* ACT-CREDIT (client half, src/net/activity.js). Leaving a fight closes its
-     window; the attended XP and kills still buffered then must reach the server
-     first, or they strand in the pending maps and on the display. */
-  no_credit_before_switch: {
-    file: CLIENT('activity.js'),
-    why: 'a switch away from combat no longer flushes the attended credits first, so the tail of '
-       + 'the fight is stranded when the collect closes the window',
-    find: "    if (!o.force && confirmed && confirmed.kind === 'combat') {",
-    repl: '    if (false) {',
-  },
-  preflush_on_force: {
-    file: CLIENT('activity.js'),
-    why: 'the forced re-declare (which the credit itself sends from INSIDE the flush) pre-flushes '
-       + 'too — a cycle the settle latch then has to time out of',
-    find: "    if (!o.force && confirmed && confirmed.kind === 'combat') {",
-    repl: "    if (confirmed && confirmed.kind === 'combat') {",
-  },
   no_collect: {
     file: FN('set-activity.js'),
     why: 'the switch stops collecting first — the elapsed window is confiscated. (Distinct from '
@@ -2127,65 +2109,6 @@ async function run(mutate) {
     ok(control.body.error === 'unknown_activity' && control.stmts === 0,
       `A21-CONTROL: a genuinely unknown id issued ${control.stmts} statement(s) — the count is not `
       + 'discriminating');
-  }
-
-  // ── ACT-CREDIT. THE ATTENDED TAIL REACHES THE SERVER BEFORE THE SWITCH ─────
-  // Client half (src/net/activity.js, the one that ran — the staged copy under
-  // --mutate). Leaving a fight collects its window; the XP and kills still in
-  // the 60 s credit buffers then were stranded (live b555, QA slot 0:
-  // _combatXpPending {attack:2,…} and _killCreditPending {slime:1} after a stop).
-  {
-    const { pathToFileURL } = await import('node:url');
-    const actSrc = await readFile(join(srcDir, 'net', 'activity.js'), 'utf8');
-    const v = (actSrc.match(/accrue\.js\?v=(\d+)/) || [])[1];
-    const act = await import(pathToFileURL(join(srcDir, 'net', 'activity.js')).href + `?t=${Date.now()}${Math.random()}`);
-    const acc = await import(pathToFileURL(join(srcDir, 'net', 'accrue.js')).href + (v ? `?v=${v}` : ''));
-    const prevWindow = globalThis.window;
-    const prevFetch = globalThis.fetch;
-    const within = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r('HUNG'), 1000))]);
-    const order = [];
-    const credit = (name) => (force) => {
-      order.push(name + ':' + (force === true ? 'force' : 'soft'));
-      return new Promise((r) => setImmediate(() => { order.push(name + ':done'); r(null); }));
-    };
-    const declare = async (kind, id, opts) => {
-      order.length = 0;
-      act.resetActivity();
-      act.setConfirmedActivity({ kind: 'combat', id: 'goblin' });
-      act.setLastServerActivity({ kind: 'combat', id: 'goblin' });
-      return within(act.declareActivity(kind, id, opts));
-    };
-    try {
-      globalThis.window = { G: {}, hrCreditCombatXpFlush: credit('xp'), hrKillCreditFlush: credit('kill') };
-      globalThis.fetch = async (u, init) => {
-        order.push('fetch:' + ((JSON.parse(init.body || '{}').verb) || 'accrue'));
-        return { status: 200, ok: true, json: async () => ({ ok: true }) };
-      };
-      act.setActivityHooks({ onEnvelope: () => null, onReconcile: (a) => a, onNotify: () => true, onOutcome: () => null });
-      act.configureActivity({ url: 'https://example.invalid', apiKey: 'k', authToken: 't', slot: 0 });
-      acc.configureAccrual({ url: 'https://example.invalid', apiKey: 'k', authToken: 't', slot: 0 });
-
-      const r1 = await declare('idle', null);
-      const at = (k) => order.indexOf(k);
-      const wire = order.findIndex((x) => x.startsWith('fetch:'));
-      ok(r1 !== 'HUNG' && wire >= 0, `ACT-CREDIT-1: the stop never reached the wire (${JSON.stringify(order)})`);
-      ok(at('xp:force') >= 0 && at('kill:force') >= 0 && at('xp:done') < wire && at('kill:done') < wire,
-        'ACT-CREDIT-1: a stop after a confirmed fight declared before the attended credits landed '
-        + `(order ${JSON.stringify(order)}). The collect closes the window and the tail of the fight — `
-        + 'XP and kills still in the 60 s buffers — is stranded on the display and in the pending maps.');
-
-      const r2 = await declare('combat', 'goblin', { force: true });
-      ok(r2 !== 'HUNG' && !order.some((x) => x.startsWith('xp:') || x.startsWith('kill:')),
-        `ACT-CREDIT-2: a {force:true} declaration pre-flushed the credits (${JSON.stringify(order)}). The `
-        + 'credit\'s own not_in_combat re-declare is forced and runs INSIDE the flush — that is a cycle.');
-    } finally {
-      act.setActivityHooks({ onEnvelope: null, onReconcile: null, onNotify: null, onOutcome: null });
-      act.configureActivity(null);
-      acc.configureAccrual(null);
-      act.resetActivity();
-      globalThis.window = prevWindow;
-      globalThis.fetch = prevFetch;
-    }
   }
 
   await db.close();

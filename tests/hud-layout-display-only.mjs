@@ -5,12 +5,12 @@
 //   node tests/hud-layout-display-only.mjs             the guard
 //   node tests/hud-layout-display-only.mjs --selftest  plants reads and calls; must go red
 //
-// `hudLayout` is a residue field (src/net/client-state.js RESIDUE_FIELDS): the
+// `hudLayout` is a residue field (src/session/residue.js RESIDUE_FIELDS): the
 // player's own copy, restorable and forgeable, which is why CLAUDE.md §6 allows
 // it only for display. The World shell's widget layout is exactly that. This
 // guard keeps it that way mechanically:
 //   D1  the name `hudLayout` appears (outside comments) only in the residue
-//       store (src/net/client-state.js) and the HUD (src/shell/hud.js); the
+//       store (src/session/residue.js) and the HUD (src/shell/hud.js); the
 //       in-page suite (src/features/smoke/**) may read it to test it
 //   D2  src/shell/hud.js imports nothing from src/net, src/core or the engine,
 //       and calls no intent, RPC, fetch or server client
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HUD = 'src/shell/hud.js';
-const STORE = 'src/net/client-state.js';
+const STORE = 'src/session/residue.js';
 const ALLOWED = new Set([HUD, STORE]);
 const TEST_DIR = 'src/features/smoke/';
 const NAME = /\bhudLayout\b/;

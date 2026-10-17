@@ -92,21 +92,14 @@ async function main() {
       `JS mirror: ${label} → ${expect}`);
   }
 
-  // ── (2b) THE RELEASE GATE — nobody arms against a server that does not stamp
-  //         the flag. Static, so it runs even where the replay DB cannot boot.
-  //         `markInventoryAuthorityLive` MUST refuse (throw) when no complete
-  //         envelope has been observed, and `envelopeBaselineComplete` MUST accept
-  //         ONLY a literal true. If either guard is deleted, the flip could arm
-  //         against a non-emitting server and wipe the bag — so this test is the
-  //         thing that fails first. */
-  const accrueSrc = (await readFile(join(ROOT, 'src', 'net', 'accrue.js'), 'utf8')).replace(/\r\n/g, '\n');
-  ok(/if\s*\(\s*!baselineCompleteSeen\s*\)\s*\{[\s\S]*?throw new Error/.test(accrueSrc),
-    'RELEASE GATE: markInventoryAuthorityLive throws unless a complete envelope was observed');
-  ok(accrueSrc.includes('res.inventory_complete === true'),
-    'RELEASE GATE: envelopeBaselineComplete accepts ONLY a literal inventory_complete === true (fail-closed)');
-  // And the flip is still DORMANT — this step must not have armed anything.
-  ok(/let\s+inventoryAuthorityLive\s*=\s*false/.test(accrueSrc),
-    'RELEASE GATE: inventory authority still defaults OFF (the flip stays dormant)');
+  // ── (2b) THE CLIENT GATE — a pushed frame may carry the bag only when the
+  //         frame itself stamps the flag. The rebuilt client (src/session/
+  //         envelope.js, 2026-10-17) refuses a partial bag outright; the old
+  //         client's dormant inventory flip retired with it. Static, so it runs
+  //         even where the replay DB cannot boot. */
+  const envSrc = (await readFile(join(ROOT, 'src', 'session', 'envelope.js'), 'utf8')).replace(/\r\n/g, '\n');
+  ok(/BAG_KEYS\.some\(\(k\) => k in f\.patch\) && f\.patch\.inventory_complete !== true\) return keep\('bag_incomplete'\)/.test(envSrc),
+    'CLIENT GATE: src/session/envelope.js applies a bag frame without inventory_complete === true');
 
   // ── (3) DRIVEN AGAINST THE REAL hr_state_of ───────────────────────────────
   const { db } = await bootReplay({});

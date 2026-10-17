@@ -400,20 +400,8 @@ async function runAll(db) {
   ok(worldBoss.scavenger_ok === false,
     'the longest-cooldown dungeon (the world boss) is NOT scavenger-runnable — the string cannot reach it');
 
-  // ── (9c) THE CATALOGUE FLAG MATCHES THE AUTHORED SOURCE (drift guard) ────
-  //    scavenger_ok is ⟦DERIVED⟧ from SCAVENGER_CONFIGS in src/dungeon-scavenger.js
-  //    (the generator cannot import it — it lives in a browser IIFE, not src/data),
-  //    so the parity that keeps game data out of SQL is asserted HERE, both ways.
-  const scavSrc = await readFile(new URL('../src/dungeon-scavenger.js', import.meta.url), 'utf8');
-  const cfgBlock = scavSrc.slice(scavSrc.indexOf('var SCAVENGER_CONFIGS = {'));
-  const authored = [...cfgBlock.matchAll(/^ {4}([a-z_][a-z0-9_]*):\s*\{/gm)].map((m) => m[1]).sort();
-  const flagged = (await db.query(
-    'select dungeon_id from public.hr_dungeons where scavenger_ok order by dungeon_id')).rows
-    .map((r) => r.dungeon_id);
-  ok(authored.length > 0, 'the authored SCAVENGER_CONFIGS block parsed (the drift guard is not vacuous)');
-  ok(JSON.stringify(authored) === JSON.stringify(flagged),
-    `hr_dungeons.scavenger_ok matches the authored configs (authored ${JSON.stringify(authored)}, `
-    + `flagged ${JSON.stringify(flagged)})`);
+  // (9c, the drift check against the client's SCAVENGER_CONFIGS, retired with
+  //  src/dungeon-scavenger.js on 2026-10-17: hr_dungeons is the only copy now.)
 
   // ── (6)+(8) AFTER THE WINDOW: absent from the projection, and admitted ───
   const B = uidFor('b2');

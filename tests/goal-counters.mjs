@@ -58,7 +58,7 @@ import {
 } from '../src/core/goals.js';
 /* W0: quest types that read a server STATE (not an ev: counter) — client-only, so
    they live in the data catalogue rather than the edge-packed goals module. */
-import { STATE_GOAL_TYPES } from '../src/data/goal-catalogue.js';
+import { STATE_GOAL_TYPES, QUEST_REWARDS, DAILY_TASK_REWARDS } from '../src/data/goal-catalogue.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
@@ -292,56 +292,35 @@ async function runOn(db, patches) {
         + 'moves. See src/core/goals.js.');
     }
 
-    // The authored side: legacy.js's QUEST_DEFS + DAILY_TASK_POOL.
-    const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
-    const block = (name) => {
-      const at = legacy.indexOf(`const ${name}=`);
-      if (at < 0) return null;
-      const open = legacy.indexOf('[', at);
-      let depth = 0;
-      for (let i = open; i < legacy.length; i++) {
-        if (legacy[i] === '[') depth++;
-        else if (legacy[i] === ']' && --depth === 0) return legacy.slice(open, i + 1);
-      }
-      return null;
-    };
-    for (const name of ['QUEST_DEFS', 'DAILY_TASK_POOL']) {
-      const body = block(name);
-      ok(!!body, `G2 CONTROL: ${name} could not be located in src/legacy.js by balanced-bracket `
-        + 'scan. The authored side of the contract is unreadable, so (b) proves nothing. The '
-        + 'declaration moved — find it and fix this anchor.');
-      if (!body) continue;
-      const types = [...body.matchAll(/\btype:\s*'([a-z_]+)'/g)].map((m) => m[1]);
-      ok(types.length >= 4,
-        `G2 CONTROL: ${name} yielded ${types.length} authored types, expected at least 4`);
-      const stateTypes = (stateGoalTypes && typeof stateGoalTypes === 'object') ? stateGoalTypes : {};
-      for (const t of types) {
-        /* A STATE goal (goal-catalogue.js STATE_GOAL_TYPES) reads a server fact instead of an
-           `ev:` counter — legal only when legacy.js SERVER_QUEST_COUNTS reads it, so
-           the step cannot sit at 0 for want of a reader either. */
+    /* The authored side: the server catalogue the claims grade against
+       (src/data/goal-catalogue.js QUEST_REWARDS checkKey / DAILY_TASK_REWARDS
+       type). It was the old client's QUEST_DEFS + DAILY_TASK_POOL until the
+       client reset (2026-10-17); the catalogue is the only authored copy now. */
+    const authored = [
+      ['QUEST_REWARDS', Object.values(QUEST_REWARDS).map((r) => String(r.checkKey || ''))],
+      ['DAILY_TASK_REWARDS', Object.values(DAILY_TASK_REWARDS).map((r) => 'ev:' + String(r.type || ''))],
+    ];
+    const stateTypes = (stateGoalTypes && typeof stateGoalTypes === 'object') ? stateGoalTypes : {};
+    for (const [name, keys] of authored) {
+      ok(keys.length >= 4, `G2 CONTROL: ${name} yielded ${keys.length} authored goals, expected at least 4`);
+      for (const k of keys) {
+        const t = k.startsWith('ev:') ? k.slice(3) : k;
         const isState = Object.prototype.hasOwnProperty.call(stateTypes, t);
         ok(G.GOAL_EVENTS.includes(t) || isState,
-          `G2(b): ${name} authors a goal of type '${t}', which is NOT in GOAL_EVENTS — the server `
+          `G2(b): ${name} authors a goal counted by '${k}', which is NOT in GOAL_EVENTS — the server `
           + 'can never mint a counter for it, so that goal would sit at 0 forever on an away '
           + 'night. Add it to src/core/goals.js (and check an emit site exists).');
-        if (isState) {
-          ok(new RegExp('const SERVER_QUEST_COUNTS=\\{[^}]*\\b' + t + ':').test(legacy),
-            `G2(b): '${t}' is a STATE goal type but legacy.js SERVER_QUEST_COUNTS has no reader for it — `
-            + 'hrQuestServerCount would answer null forever and the step could never complete.');
-        }
       }
-      // No authored goal may be target-scoped: the counter key carries no
-      // target, so a targeted goal would read a number that counts every foe.
-      ok(!/\btarget:\s*'/.test(body),
-        `G2(c): ${name} now authors a goal with a \`target:\` — the counter key shape is 'ev:<type>' `
-        + 'and carries no target, so that goal would read a count of EVERY kill. This is the '
-        + 'decision UNCOUNTED_EVENTS records for kill_monster, and it is now re-opened by name. '
-        + 'Extend the key shape before shipping the goal.');
     }
-    // The negative control: a sentinel that appears in no file must not match.
-    ok(!legacy.includes('hr353_negative_control_this_type_is_not_authored'),
-      'G2 NEGATIVE CONTROL: a sentinel that appears in no file matched — the scan matches '
-      + 'everything and cannot see a failure');
+    // No authored goal may be target-scoped: the counter key carries no target.
+    for (const [id, r] of [...Object.entries(QUEST_REWARDS), ...Object.entries(DAILY_TASK_REWARDS)]) {
+      ok(!('target' in r),
+        `G2(c): '${id}' authors a goal with a \`target\` — the counter key shape is 'ev:<type>' and `
+        + 'carries no target, so that goal would read a count of EVERY kill. Extend the key shape first.');
+    }
+    // The negative control: an unknown counter must not pass as a goal event.
+    ok(!G.GOAL_EVENTS.includes('hr353_negative_control_this_type_is_not_authored'),
+      'G2 NEGATIVE CONTROL: a sentinel matched GOAL_EVENTS — the check cannot see a failure');
   }
 
   // ── G3 · A COMBAT NIGHT ADVANCES 'SLAY N' BY EXACTLY THE KILL COUNT ───
@@ -1041,11 +1020,9 @@ const MUTATIONS = [
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
     file: 'accrual', from: "      bag[id] = (bag[id] || 0) + n;\n      collection.record(id, n);\n",
     to: "      bag[id] = (bag[id] || 0) + n;\n" },
-  /* W0: a STATE goal type is legal only while goal-catalogue.js declares it. Drop
-     the declaration and the authored 'property' step must turn G2(b) red. */
-  { name: 'M14 catalogue: the property STATE goal type is undeclared',
-    file: 'catalogue', from: "  property: 'the server property rung",
-    to: "  propertyX: 'the server property rung" },
+  /* (M14, the STATE goal-type mutant, retired with the client on 2026-10-17: the only
+     state goal — the property step — was authored by the old client, so no authored
+     goal reads a STATE type and the exemption pins nothing.) */
   /* G2(b) still bites for an EVENT goal: drop 'harvest' from GOAL_EVENTS and the
      authored farmhand step (type 'harvest', not a STATE type) must be caught. */
   { name: 'M15 goals: an authored event type (harvest) is missing from GOAL_EVENTS',

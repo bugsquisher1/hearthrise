@@ -22,9 +22,7 @@
 // the SAME hazard the gold half already has, one system over: THREE copies of
 // the same authored number.
 //   (1) src/data/goal-catalogue.js   QUEST_REWARDS[id].items   — the source
-//   (2) src/legacy.js                QUEST_DEFS reward.item/qty — what the
-//                                     player is SHOWN (and the tooltip they
-//                                     believe)
+//   (2) [retired 2026-10-17: the old client's QUEST_DEFS, deleted with it]
 //   (3) the CHAIN-END seed — the LAST file in tests/schema-apply-order.json
 //                                     `order` that refills hr_quest_rewards
 //                                     (2026-09-28-journeymans-road.sql today;
@@ -58,7 +56,6 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const LEGACY = join(ROOT, 'src', 'legacy.js');
 
 /* ── THE CHAIN END ───────────────────────────────────────────────────────────
    The LAST file in schema-apply-order.json `order` whose text matches `re` —
@@ -99,104 +96,10 @@ export function parseXpSeed(sql) {
   }
   return out;
 }
-/* QUEST_DEFS reward.xp — `xp:{skill:N,...}` inside the row's reward. */
-export function parseQuestDefsXp(legacySrcRaw) {
-  const legacySrc = stripComments(legacySrcRaw);
-  const at = legacySrc.indexOf('const QUEST_DEFS=');
-  if (at < 0) return null;
-  const open = legacySrc.indexOf('[', at);
-  let depth = 0; let body = null;
-  for (let i = open; i < legacySrc.length; i++) {
-    if (legacySrc[i] === '[') depth++;
-    else if (legacySrc[i] === ']' && --depth === 0) { body = legacySrc.slice(open, i + 1); break; }
-  }
-  if (!body) return null;
-  const out = new Map();
-  for (const row of splitTopLevelObjects(body)) {
-    const id = (row.match(/\bid:\s*'([a-z0-9_]+)'/) || [])[1];
-    if (!id) continue;
-    const m = row.match(/reward:\s*\{[^{}]*\bxp:\s*\{([^{}]*)\}/);
-    const xp = {};
-    if (m) for (const e of m[1].matchAll(/([a-z_]+)\s*:\s*(\d+)/g)) xp[e[1]] = Number(e[2]);
-    out.set(id, xp);
-  }
-  return out;
-}
 async function seedMigration() {
   const end = await chainEndMigration(SEED_RE);
   if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards');
   return end;
-}
-
-/* ── (2) legacy.js QUEST_DEFS ────────────────────────────────────────────────
-   Parsed from TEXT, never imported: legacy.js is a classic script that needs a
-   DOM.
-
-   ⚠ THE ROW SPLIT IS DEPTH-AWARE, AND THAT IS NOT A STYLE CHOICE. The obvious
-   `\{[^{}]*\}` — which tests/goal-catalogue-drift.mjs uses — cannot match a
-   quest row at all, because every row CONTAINS a nested `reward:{…}`. Run over
-   QUEST_DEFS it returns the six REWARD objects, none of which carries an `id:`,
-   so that guard's per-quest loop `continue`s on all six and asserts nothing
-   about any quest. Its `rows.length >= 5` control passes on the reward objects
-   and hides it. Reported to the Coordinator; this guard does not inherit the
-   defect. Depth tracking also means a quest row may grow an `items:{…}` map
-   without silently falling out of the guard's view. */
-/* COMMENTS ARE STRIPPED FIRST, because QUEST_DEFS is 80% prose and that prose
-   contains braces — `{authored:true}` in the hundred_kills header, for one. An
-   unbalanced brace inside a comment desynchronises the depth counter and drops
-   every row after it, silently. */
-export function stripComments(src) {
-  let out = ''; let i = 0; let quote = null;
-  while (i < src.length) {
-    const c = src[i]; const d = src[i + 1];
-    if (quote) {
-      out += c;
-      if (c === '\\') { out += d ?? ''; i += 2; continue; }
-      if (c === quote) quote = null;
-      i++; continue;
-    }
-    if (c === "'" || c === '"' || c === '`') { quote = c; out += c; i++; continue; }
-    if (c === '/' && d === '*') { const end = src.indexOf('*/', i + 2); i = end < 0 ? src.length : end + 2; continue; }
-    if (c === '/' && d === '/') { const end = src.indexOf('\n', i); i = end < 0 ? src.length : end; continue; }
-    out += c; i++;
-  }
-  return out;
-}
-
-export function splitTopLevelObjects(body) {
-  const out = [];
-  let depth = 0; let start = -1; let quote = null;
-  for (let i = 0; i < body.length; i++) {
-    const c = body[i];
-    if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; continue; }
-    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
-    if (c === '{') { if (depth++ === 0) start = i; }
-    else if (c === '}') { if (--depth === 0 && start >= 0) { out.push(body.slice(start, i + 1)); start = -1; } }
-  }
-  return out;
-}
-
-export function parseQuestDefs(legacySrcRaw) {
-  const legacySrc = stripComments(legacySrcRaw);
-  const at = legacySrc.indexOf('const QUEST_DEFS=');
-  if (at < 0) return null;
-  const open = legacySrc.indexOf('[', at);
-  let depth = 0; let body = null;
-  for (let i = open; i < legacySrc.length; i++) {
-    if (legacySrc[i] === '[') depth++;
-    else if (legacySrc[i] === ']' && --depth === 0) { body = legacySrc.slice(open, i + 1); break; }
-  }
-  if (!body) return null;
-  const out = new Map();
-  for (const row of splitTopLevelObjects(body)) {
-    const id = (row.match(/\bid:\s*'([a-z0-9_]+)'/) || [])[1];
-    if (!id) continue;
-    const reward = (row.match(/reward:\s*\{([^{}]*)\}/) || [])[1] || '';
-    const item = (reward.match(/\bitem:\s*'([a-z0-9_]+)'/) || [])[1] || null;
-    const qty = item ? Number((reward.match(/\bqty:\s*(\d+)/) || [])[1] ?? 1) : 0;
-    out.set(id, item ? { [item]: qty } : {});
-  }
-  return out;
 }
 
 /* ── (3) the migration seed ──────────────────────────────────────────────────
@@ -235,12 +138,7 @@ export async function questRewardParityGuard(over = {}) {
 
   if (over.QUEST_REWARDS) QUEST_REWARDS = over.QUEST_REWARDS;
 
-  const legacySrc = over.legacy ?? await readFile(LEGACY, 'utf8');
   const sql = over.sql ?? (await seedMigration()).sql;
-
-  const defs = parseQuestDefs(legacySrc);
-  if (!defs) return ['CONTROL: QUEST_DEFS could not be located in src/legacy.js — the authored side is unreadable.'];
-  if (defs.size < 5) problems.push(`CONTROL: QUEST_DEFS yielded ${defs.size} rows, expected >= 5`);
 
   const seed = parseSeed(sql);
   if (!seed) return ['CONTROL: the hr_quest_rewards INSERT could not be found in the migration — the anchor moved.'];
@@ -256,15 +154,6 @@ export async function questRewardParityGuard(over = {}) {
   if (cat.size === 0) problems.push('CONTROL: no QUEST_REWARDS row authors an item — either the catalogue was gutted or the shape changed.');
   if (seed.size === 0) problems.push('CONTROL: the migration seeds 0 rows — the anchor matched but parsed nothing.');
 
-  // ── COMPLETENESS: an authored QUEST_DEFS item must be server-credited ──
-  for (const [id, items] of defs) {
-    if (!Object.keys(items).length) continue;
-    if (!cat.has(id)) {
-      problems.push(`QUEST_DEFS '${id}' pays ${show(items)} but has NO items in goal-catalogue.js QUEST_REWARDS — `
-        + 'the server cannot credit it, so completeQuest would client-mint it and the next envelope would erase it. '
-        + 'This is the phantom-reward bug being re-authored.');
-    }
-  }
   // ── COMPLETENESS, the other direction: catalogue -> seed ──
   for (const [id, items] of cat) {
     if (!seed.has(id)) {
@@ -279,15 +168,8 @@ export async function questRewardParityGuard(over = {}) {
     }
   }
 
-  // ── VALUE PARITY across all three ──
+  // ── VALUE PARITY, catalogue <-> seed ──
   for (const [id, items] of cat) {
-    const fromDefs = defs.get(id);
-    if (fromDefs === undefined) {
-      problems.push(`goal-catalogue.js authors items for '${id}' but QUEST_DEFS has no such quest — a reward nobody can earn.`);
-    } else if (!same(items, fromDefs)) {
-      problems.push(`'${id}': QUEST_DEFS shows ${show(fromDefs)} but goal-catalogue.js authors ${show(items)} — `
-        + 'the player is promised one thing and the server pays another.');
-    }
     const fromSeed = seed.get(id);
     if (fromSeed && !same(items, fromSeed)) {
       problems.push(`'${id}': goal-catalogue.js authors ${show(items)} but the migration seeds ${show(fromSeed)} — `
@@ -326,22 +208,13 @@ export async function questRewardParityGuard(over = {}) {
   const xseed = parseXpSeed(xpSql);
   if (!xseed) return [...problems, 'CONTROL: the hr_quest_rewards (quest_id, xp) INSERT could not be found — the anchor moved.'];
   if (xseed.__bad) return [...problems, `CONTROL: ${xseed.__bad}`];
-  const xdefs = parseQuestDefsXp(legacySrc) || new Map();
   const xcat = new Map();
   for (const [id, row] of Object.entries(QUEST_REWARDS)) {
     const xp = questRewardXp(row);
     if (Object.keys(xp).length) xcat.set(id, xp);
   }
   if (xcat.size === 0) problems.push('CONTROL: no QUEST_REWARDS row authors XP — hundred_kills lost its server credit.');
-  for (const [id, xp] of xdefs) {
-    if (!Object.keys(xp).length) continue;
-    if (!xcat.has(id)) problems.push(`QUEST_DEFS '${id}' shows ${JSON.stringify(xp)} XP but goal-catalogue.js authors none — `
-      + 'the server never credits it, and the client no longer mints XP.');
-  }
   for (const [id, xp] of xcat) {
-    const d = xdefs.get(id);
-    if (d === undefined) problems.push(`goal-catalogue.js authors XP for '${id}' but QUEST_DEFS has no such quest.`);
-    else if (!same(xp, d)) problems.push(`'${id}': QUEST_DEFS shows XP ${JSON.stringify(d)} but goal-catalogue.js authors ${JSON.stringify(xp)}.`);
     const sx = xseed.get(id);
     if (!sx) problems.push(`goal-catalogue.js authors XP for '${id}' but the chain-end xp seed has no row — hr_claim_quest pays no XP.`);
     else if (!same(xp, sx)) problems.push(`'${id}': goal-catalogue.js authors XP ${JSON.stringify(xp)} but the migration seeds ${JSON.stringify(sx)} — the SQL is what gets credited.`);
@@ -364,16 +237,15 @@ export async function questRewardParityGuard(over = {}) {
 // ── --list ──────────────────────────────────────────────────────────────────
 async function list() {
   const { QUEST_REWARDS, questRewardItems } = await import('../src/data/goal-catalogue.js');
-  const defs = parseQuestDefs(await readFile(LEGACY, 'utf8'));
   const end = await seedMigration();
   process.stdout.write(`chain-end seed: ${end.file}\n`);
   const seed = parseSeed(end.sql);
-  const ids = new Set([...Object.keys(QUEST_REWARDS), ...(defs ? defs.keys() : []), ...(seed ? seed.keys() : [])]);
-  process.stdout.write('quest        QUEST_DEFS (legacy.js)   QUEST_REWARDS (data)     hr_quest_rewards (sql)\n');
+  const ids = new Set([...Object.keys(QUEST_REWARDS), ...(seed ? seed.keys() : [])]);
+  process.stdout.write('quest        QUEST_REWARDS (data)     hr_quest_rewards (sql)\n');
   for (const id of [...ids].sort()) {
-    const a = defs?.get(id); const b = QUEST_REWARDS[id] ? questRewardItems(QUEST_REWARDS[id]) : undefined;
+    const b = QUEST_REWARDS[id] ? questRewardItems(QUEST_REWARDS[id]) : undefined;
     const c = seed?.get(id);
-    process.stdout.write(`${id.padEnd(13)}${show(a).padEnd(25)}${show(b).padEnd(25)}${show(c)}\n`);
+    process.stdout.write(`${id.padEnd(13)}${show(b).padEnd(25)}${show(c)}\n`);
   }
 }
 
@@ -383,13 +255,6 @@ async function list() {
    three sources and requires the guard to catch it. The base run must be clean
    first: a mutation proof on an already-red tree proves nothing. */
 const MUTATIONS = [
-  { name: 'legacy qty drift (player promised 5, server pays 30)',
-    apply: (s) => ({ legacy: s.legacy.replace("item:'shrimp',qty:30", "item:'shrimp',qty:5") }) },
-  { name: 'legacy item deleted (the reward silently disappears from the UI)',
-    apply: (s) => ({ legacy: s.legacy.replace("reward:{gold:200,item:'shrimp',qty:30}", 'reward:{gold:200}') }) },
-  { name: 'legacy authors an item the catalogue does not know (phantom re-authored)',
-    apply: (s) => ({ legacy: s.legacy.replace("{id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false}",
-      "{id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150,item:'logs',qty:9},done:false}") }) },
   { name: 'sql seed qty drift (the number that actually gets credited)',
     apply: (s) => ({ sql: s.sql.replace("('first_cook',  '{\"shrimp\": 30}')", "('first_cook',  '{\"shrimp\": 3}')") }) },
   { name: 'sql seed row removed (server pays gold only)',
@@ -404,8 +269,6 @@ const MUTATIONS = [
   { name: 'catalogue qty drift against both other sides',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, first_cook: { ...cat.first_cook, items: { shrimp: 31 } } } }) },
   /* ── Journeyman's Road (content pack 7) — the road rows are bound the same way */
-  { name: 'road: legacy bone_key qty drift (road_hunt shows 2 keys, the server pays 1)',
-    apply: (s) => ({ legacy: s.legacy.replace("reward:{gold:1500,item:'bone_key',qty:1}", "reward:{gold:1500,item:'bone_key',qty:2}") }) },
   { name: 'road: chain-end seed potato_seed drift (the number that actually gets credited)',
     apply: (s) => ({ sql: s.sql.replace("('road_harvest', '{\"potato_seed\": 10}')", "('road_harvest', '{\"potato_seed\": 1}')") }) },
   { name: 'road: catalogue iron_pickaxe qty drift against both other sides',
@@ -417,8 +280,6 @@ const MUTATIONS = [
     apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('nobody', '{}')") }) },
   { name: 'xp: chain-end seed names a skill that does not exist',
     apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('hundred_kills', '{\"combat\": 1500}')") }) },
-  { name: 'xp: legacy shows a different skill than the server pays',
-    apply: (s) => ({ legacy: s.legacy.replace('reward:{xp:{hitpoints:1500}}', 'reward:{xp:{attack:1500}}') }) },
   { name: 'xp: catalogue XP emptied (the client stops claiming hundred_kills)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, hundred_kills: { ...cat.hundred_kills, xp: {} } } }) },
   { name: 'road: chain-end seed row removed (road_cook pays gold only)',
@@ -428,7 +289,7 @@ const MUTATIONS = [
 async function selftest() {
   const end = await seedMigration();
   process.stdout.write(`  chain-end seed: ${end.file}\n`);
-  const base = { legacy: await readFile(LEGACY, 'utf8'), sql: end.sql, xpSql: (await xpSeedMigration()).sql };
+  const base = { sql: end.sql, xpSql: (await xpSeedMigration()).sql };
   const { QUEST_REWARDS } = await import('../src/data/goal-catalogue.js');
 
   const clean = await questRewardParityGuard();
@@ -442,7 +303,7 @@ async function selftest() {
   let missed = 0;
   for (const m of MUTATIONS) {
     const over = { ...base, ...m.apply(base, QUEST_REWARDS) };
-    if (over.legacy === base.legacy && over.sql === base.sql && over.xpSql === base.xpSql && !over.QUEST_REWARDS) {
+    if (over.sql === base.sql && over.xpSql === base.xpSql && !over.QUEST_REWARDS) {
       process.stdout.write(`  FAIL  "${m.name}" — the mutation changed NOTHING; its anchor moved and it is proving nothing.\n`);
       missed++; continue;
     }
@@ -463,11 +324,11 @@ if (process.argv[1]?.endsWith('quest-reward-parity.mjs')) {
       : questRewardParityGuard().then((problems) => {
         if (problems.length) {
           for (const p of problems) process.stdout.write(`  FAIL  ${p}\n`);
-          process.stdout.write(`\n${problems.length} quest-reward drift(s). The three sides are src/data/goal-catalogue.js, `
-            + 'src/legacy.js QUEST_DEFS and the chain-end hr_quest_rewards seed (schema-apply-order.json).\n');
+          process.stdout.write(`\n${problems.length} quest-reward drift(s). The two sides are src/data/goal-catalogue.js `
+            + 'and the chain-end hr_quest_rewards seed (schema-apply-order.json).\n');
           return 1;
         }
-        process.stdout.write('  ok    every quest item reward agrees across data, client and server, and every id is real.\n\nin sync.\n');
+        process.stdout.write('  ok    every quest item and XP reward agrees between data and server, and every id is real.\n\nin sync.\n');
         return 0;
       });
   run.then((code) => process.exit(code)).catch((e) => { process.stderr.write(`ERROR: ${e.stack || e.message}\n`); process.exit(2); });

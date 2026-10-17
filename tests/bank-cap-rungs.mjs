@@ -9,7 +9,7 @@
 //   node tests/bank-cap-rungs.mjs --mutate=<id>
 //
 // Ships with: supabase/migrations/2026-09-06-bank-cap-tracks-rungs.sql
-//             src/data/gold-ladders.js · src/data/start-kit.js · src/legacy.js BANK_SPACE
+//             src/data/gold-ladders.js · src/data/start-kit.js
 //
 // ── THE DEFECT ──────────────────────────────────────────────────────────
 // hr_unlock_buy sells bank space as a 30-rung MAX ladder and files the purchase
@@ -23,7 +23,7 @@
 // A real character on a fully replayed PGlite chain (real PostgreSQL, in
 // process — no Docker, no credentials, production untouched):
 //   B1  THE LADDER IS THE DATA'S. hr_bank_cap_for_rungs is measured back
-//       against src/data/start-kit.js bankCap, src/legacy.js BANK_SPACE.BASE_CAP
+//       against src/data/start-kit.js bankCap
 //       and src/data/gold-ladders.js BANK_STACKS_PER_RUNG / BANK_RUNGS. The `20`
 //       typed in the SQL is the one magnitude no server catalogue carries, so
 //       this arm is what stops it drifting from the number the client charges.
@@ -250,27 +250,16 @@ async function boot({ mutate, upTo } = {}) {
   return { db, q, asEngine, uid, mkChar, capOf, verOf, ladder, buyRung, buyRungs, apply, itemIds, freshIds, seedTo, stacks };
 }
 
-/** BANK_SPACE.BASE_CAP, read out of the monolith rather than restated here. */
-async function legacyBaseCap() {
-  const src = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
-  const m = src.match(/BASE_CAP:\s*(\d+)/);
-  return m ? Number(m[1]) : null;
-}
-
 // ════════════════════════════════════════════════════════════════════════
 async function run(mutate) {
   problems.length = 0;
   const A = await boot({ mutate });
   const base = await A.ladder(0);
-  const legacyBase = await legacyBaseCap();
 
   // ── B1 · THE LADDER IS THE DATA'S ──────────────────────────────────────
   ok(base === START_CURRENCY.bankCap,
     `B1: hr_bank_cap_for_rungs(0) = ${base} but src/data/start-kit.js bankCap = ${START_CURRENCY.bankCap}. `
     + 'The server BASE must come from the generated catalogue, not from a number typed in SQL.');
-  ok(legacyBase !== null && base === legacyBase,
-    `B1: the server base cap ${base} disagrees with src/legacy.js BANK_SPACE.BASE_CAP ${legacyBase} — the `
-    + 'client would draw a bag the server does not enforce.');
   const perRung = (await A.ladder(1)) - base;
   ok(perRung === BANK_STACKS_PER_RUNG,
     `B1: a rung is worth ${perRung} stacks server-side and ${BANK_STACKS_PER_RUNG} in `

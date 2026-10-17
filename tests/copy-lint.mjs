@@ -26,9 +26,6 @@
 //   double-space  two spaces between words         → one
 //   dot-spacing   "·" touching a word on one side  → " · "
 //   spelling      "Defence" — the skill catalogue says "Defense"
-// plus a RUNTIME check on the one article helper (src/render/article.js):
-// withArticle(<every plural item name>) must not answer "a …"/"an …".
-//
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
 // in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
@@ -208,17 +205,6 @@ export async function scan(root, opts = {}) {
       }
     }
   }
-  // Runtime: the article helper must not put "a"/"an" before a plural name.
-  const artPath = opts.article || join(root, 'src', 'render', 'article.js');
-  try {
-    const mod = await import(pathToFileURL(artPath).href + '?t=' + Date.now());
-    for (const p of plurals) {
-      const s = mod.withArticle(p);
-      if (/^an? /i.test(s)) { findings.push({ file: 'src/render/article.js', line: 0, rule: 'article', text: `withArticle('${p}') -> '${s}'` }); break; }
-    }
-  } catch (e) {
-    findings.push({ file: 'src/render/article.js', line: 0, rule: 'harness', text: String(e && e.message || e) });
-  }
   if (!opts.files) for (const w of WAIVERS) if (!usedWaivers.has(w)) findings.push({ file: w.file, line: 0, rule: 'stale-waiver', text: w.text });
   usedWaivers.clear();
   return { files: files.length, plurals: plurals.length, findings };
@@ -345,13 +331,6 @@ async function selftest() {
     const staleHit = stale.some((f) => f.rule === 'stale-name' && f.text.startsWith('Forgotten Ghoul'));
     console.log(`  ${staleHit ? 'caught' : 'MISSED'}  stale-name (baseline row with no name behind it)`);
     if (!staleHit) bad++;
-    // The runtime article rule: the vowel-only helper this build replaced.
-    const art = join(tmp, 'article-mutant.mjs');
-    writeFileSync(art, "export function withArticle(name){ const s=String(name||'').trim(); return (/^[aeiou]/i.test(s)?'an ':'a ')+s; }\n");
-    const r2 = await scan(HERE_ROOT, { files: [], article: art });
-    const hit2 = r2.findings.some((f) => f.rule === 'article' && f.file === 'src/render/article.js');
-    console.log(`  ${hit2 ? 'caught' : 'MISSED'}  article helper (vowel-only mutant)`);
-    if (!hit2) bad++;
   } finally { rmSync(tmp, { recursive: true, force: true }); }
   console.log(bad ? `copy-lint selftest: ${bad} FAILED` : 'copy-lint selftest: every rule bites');
   return bad ? 1 : 0;

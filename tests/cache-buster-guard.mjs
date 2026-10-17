@@ -235,33 +235,25 @@ export async function cacheBusterMutationGuard() {
     }
   }
 
-  /* THE ON-DISK HALF. Four real files, each carrying a shape that MUST NOT be
-     reported. `trigger` keeps the check from going vacuous: if the line these
-     exist to protect is ever removed, the control says so instead of passing
-     because there was nothing left to find. */
+  /* THE IGNORABLE SHAPES. These were four real files until the client reset
+     (2026-10-17) deleted them; the shapes they carried are kept as fixtures so
+     the patterns stay proven NOT to report them. */
   const frozen = [
-    /* SPEC_RE cases: the file may hold ordinary versioned imports, which the
-       pattern is RIGHT to match. What it must never report is the pinned
-       version — so the assertion is on the number, not on the hit count. */
-    { file: 'src/icon-swap.js', re: SPEC_RE, trigger: 'v=88', forbidVersion: '88',
-      why: "icon-swap's sprite pin is a bare query concatenated onto a filename, not a module specifier" },
-    { file: 'src/legacy.js', re: SPEC_RE, trigger: 'v=111', forbidVersion: '111',
-      why: "legacy.js's kill-switch prose is an unquoted example in a comment" },
-    /* MISSING_RE cases: these two files must yield NO hit at all. Both were real
-       false positives of the first cut. */
-    { file: 'src/net/build-watch.js', re: MISSING_RE, trigger: 'BUILD_INFO_URL',
-      why: 'build-watch resolves a runtime URL; it is not an import and is correctly unversioned' },
-    { file: 'src/utils/showtab-registry.js', re: MISSING_RE, trigger: 'wrapShowTab',
+    { file: 'a sprite pin', re: SPEC_RE, forbidVersion: '88',
+      text: "const url = BASE + filename + '" + Q + "88';",
+      why: 'a sprite pin is a bare query concatenated onto a filename, not a module specifier' },
+    { file: 'kill-switch prose', re: SPEC_RE, forbidVersion: '111',
+      text: '// e.g. a browser stuck on legacy.js' + Q + '111 after a bad deploy',
+      why: 'kill-switch prose is an unquoted example in a comment' },
+    { file: 'a runtime URL', re: MISSING_RE,
+      text: "export const BUILD_INFO_URL = (() => new URL('../build-info.js', import.meta.url))();",
+      why: 'a runtime URL resolution is not an import and is correctly unversioned' },
+    { file: 'backtick prose', re: MISSING_RE,
+      text: '// see `./x.js` for wrapShowTab',
       why: 'prose that names a module inside backticks is not an import' },
   ];
   for (const f of frozen) {
-    let text;
-    try { text = await readFile(join(ROOT, f.file), 'utf8'); }
-    catch { problems.push(`the control cannot read ${f.file} — it is proving nothing`); continue; }
-    if (!text.includes(f.trigger)) {
-      problems.push(`${f.file} no longer contains "${f.trigger}" — this control is now vacuous, re-point or retire it`);
-      continue;
-    }
+    const text = f.text;
     f.re.lastIndex = 0;
     let hit;
     while ((hit = f.re.exec(text)) !== null) {
@@ -275,5 +267,5 @@ export async function cacheBusterMutationGuard() {
       problems.push(`the guard false-positives in ${f.file} on "${got}" — ${f.why}`);
     }
   }
-  return { problems, note: `${cases.length} mutations caught, ${frozen.length} real-file pins left alone` };
+  return { problems, note: `${cases.length} mutations caught, ${frozen.length} ignorable shapes left alone` };
 }

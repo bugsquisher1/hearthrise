@@ -434,7 +434,7 @@ export function scopedProofs(root = ROOT, { changed = null, base = undefined } =
   const errors = entries.flatMap((e) => e.errors.map((x) => `${e.guard} ${x}`));
   /* HR_SCOPED_GUARDS narrows the run to named guards — set ONLY by this file's own
      end-to-end arm, which must not re-enter itself (its selftest plants into
-     src/net/gold.js, which it anchors on) and needs one guard, not the fan-out. */
+     src/session/envelope.js, which it anchors on) and needs one guard, not the fan-out. */
   const only = (process.env.HR_SCOPED_GUARDS || '').split(',').filter(Boolean);
   const anchorSteps = triggered(entries, ch).flatMap((e) => e.arms.map((arm) => ({
     guard: e.guard, arm, solo: e.solo, because: e.because, anchors: e.anchors,
@@ -461,29 +461,34 @@ async function selftest() {
     ok(L.strings.includes("x's"), 'L4 quote alignment survives an apostrophe in a comment');
   }
 
-  /* A0 — THE INCIDENT ANCHOR, DERIVED. The first draft of this proof hard-coded
-     envelope-frame-gate's gold.js anchor and went stale the first time main moved
-     both files — the very failure this file exists to catch. So it is read from the
-     guard: its longest one-line literal that occurs exactly once in gold.js. */
-  const GOLD = readFileSync(join(ROOT, 'src/net/gold.js'), 'utf8');
-  const goldAnchor = lex(readFileSync(join(ROOT, 'tests/envelope-frame-gate.mjs'), 'utf8')).strings
+  /* A0 — THE INCIDENT ANCHOR, DERIVED. The b569 incident was a guard whose mutant
+     literal (envelope-frame-gate on the old client's gold.js) silently stopped
+     matching. The old client is gone (2026-10-17); the same shape lives on in
+     no-client-copy-of-projection, whose --selftest plants into the rebuilt
+     envelope apply. A hard-coded copy of the anchor would go stale the first time
+     both files move, so it is read from the guard: its longest one-line literal
+     that occurs exactly once in src/session/envelope.js. */
+  const ENV_FILE = 'src/session/envelope.js';
+  const INCIDENT_GUARD = 'tests/no-client-copy-of-projection.mjs';
+  const GOLD = readFileSync(join(ROOT, ENV_FILE), 'utf8');
+  const goldAnchor = lex(readFileSync(join(ROOT, INCIDENT_GUARD), 'utf8')).strings
     .filter((s) => s.length >= 30 && !/\n/.test(s) && GOLD.split(s).length === 2)
     .sort((a, b) => b.length - a.length)[0] || null;
-  ok(!!goldAnchor, `A0 envelope-frame-gate holds a literal anchored once in src/net/gold.js (${String(goldAnchor).slice(0, 50)}…)`);
+  ok(!!goldAnchor, `A0 ${INCIDENT_GUARD} holds a literal anchored once in ${ENV_FILE} (${String(goldAnchor).slice(0, 50)}…)`);
   if (!goldAnchor) { for (const f of fails) console.log('  x  ' + f); process.exit(1); }
 
   /* M — the map, against the real tree: the incident guard must list the incident file. */
   const entries = catalogue(ROOT);
-  const efg = entries.find((e) => e.guard === 'tests/envelope-frame-gate.mjs');
-  ok(efg && efg.anchors.includes('src/net/gold.js'), 'M1 envelope-frame-gate anchors on src/net/gold.js (the b569 incident)');
-  const aa = entries.find((e) => e.guard === 'tests/artisan-accrual.mjs');
-  ok(aa && aa.anchors.includes('src/net/activity.js') && aa.solo, 'M2 artisan-accrual anchors on src/net/activity.js and runs SOLO (it plants into the tree)');
+  const efg = entries.find((e) => e.guard === INCIDENT_GUARD);
+  ok(efg && efg.anchors.includes(ENV_FILE), `M1 ${INCIDENT_GUARD} anchors on ${ENV_FILE} (the b569 shape)`);
+  const aa = entries.find((e) => e.guard === 'tests/session-core.mjs');
+  ok(aa && aa.anchors.includes(ENV_FILE) && aa.solo, `M2 session-core anchors on ${ENV_FILE} and runs SOLO (its --mutate plants into the tree)`);
   ok(entries.every((e) => !e.errors.length), 'M3 every proof-capable guard has a derivable or declared anchor set'
     + (entries.some((e) => e.errors.length) ? ': ' + entries.filter((e) => e.errors.length).map((e) => e.guard).join(', ') : ''));
 
   /* X — a MISSING declaration is a failure, a declared one is not, a ghost path is.
      D — the base: an edit that DELETES the anchor must still trigger. A probe guard
-     names two files and anchors once in each; a reader serves gold.js WITHOUT its
+     names two files and anchors once in each; a reader serves envelope.js WITHOUT its
      anchor at HEAD, and with it only at the base. */
   {
     const tmpRel = 'tests/__guard-anchors-probe.mjs';
@@ -497,20 +502,20 @@ async function selftest() {
       ok(!guardEntry(ROOT, tmpRel).errors.length, 'X2 `mutant-anchors: none — <reason>` is accepted');
       write(join(ROOT, tmpRel), '// mutant-anchors: src/net/no-such-file.js\n' + body);
       ok(guardEntry(ROOT, tmpRel).errors.some((e) => /does not exist/.test(e)), 'X3 a declared ghost path FAILS');
-      write(join(ROOT, tmpRel), '// mutant-anchors: src/net/\n' + body);
-      const t = triggered([guardEntry(ROOT, tmpRel)], ['src/net/gold.js']);
+      write(join(ROOT, tmpRel), '// mutant-anchors: src/session/\n' + body);
+      const t = triggered([guardEntry(ROOT, tmpRel)], [ENV_FILE]);
       ok(t.length === 1, 'X4 a declared directory anchor covers its subtree');
       const anchor = goldAnchor;
-      write(join(ROOT, tmpRel), "const F = ['src/net/gold.js', 'src/net/accrue.js'];\n"
-        + `const M = [${JSON.stringify(anchor)}, 'export function applyEnvelope(G, res) {'];\n` + body);
+      write(join(ROOT, tmpRel), "const F = ['src/session/envelope.js', 'src/session/residue.js'];\n"
+        + `const M = [${JSON.stringify(anchor)}, 'export const RESIDUE_FIELDS = Object.freeze('];\n` + body);
       const gold = GOLD;
       const stripped = gold.split(anchor).join('/* anchor deleted by the lane */');
       const real = (f) => [readFileSync(join(ROOT, f), 'utf8')];
-      const headOnly = (f) => (f === 'src/net/gold.js' ? [stripped] : real(f));
-      const both = (f) => (f === 'src/net/gold.js' ? [stripped, gold] : real(f));
+      const headOnly = (f) => (f === ENV_FILE ? [stripped] : real(f));
+      const both = (f) => (f === ENV_FILE ? [stripped, gold] : real(f));
       const a = guardEntry(ROOT, tmpRel, { contentOf: headOnly });
       const b = guardEntry(ROOT, tmpRel, { contentOf: both });
-      ok(gold.includes(anchor) && !a.anchors.includes('src/net/gold.js') && b.anchors.includes('src/net/gold.js'),
+      ok(gold.includes(anchor) && !a.anchors.includes(ENV_FILE) && b.anchors.includes(ENV_FILE),
         'D1 an anchor the lane DELETED is found at the base (HEAD alone would have lost the edge)');
     } finally { rm(join(ROOT, tmpRel), { force: true }); }
   }
@@ -534,25 +539,25 @@ async function selftest() {
       'G2 a migration that alters clans re-runs tests/clan-economy-sinks.mjs (plain; it seeds clans — tests/vigour.mjs left with Vigour, lane C2)');
     ok(st.some((s) => s.guard === 'tests/no-client-copy-of-projection.mjs' && s.arm === '--execute'),
       'G3 a migration that rewrites hr_state_of runs no-client-copy-of-projection --execute');
-    ok(!migrationSteps(ROOT, ['src/net/gold.js'], read).length, 'G4 no migration in the diff, no replay steps');
+    ok(!migrationSteps(ROOT, [ENV_FILE], read).length, 'G4 no migration in the diff, no replay steps');
   }
 
   /* E — END TO END: plant an anchor-breaking edit, lane-done's scoped step goes RED;
      restore it, the same step goes green (the control). The plant is one byte of
-     whitespace inside envelope-frame-gate's gold_copy_restored anchor — the exact
+     whitespace inside the incident guard's envelope.js anchor — the exact
      shape of the incident — snapshotted by tests/mutation-safety.mjs, which restores
      on every exit path and verifies by sha256. */
   {
     const { snapshot, assertNoResidue, finish } = await import('../tests/mutation-safety.mjs');
     const { writeFileSync } = await import('node:fs');
-    const file = 'src/net/gold.js';
+    const file = ENV_FILE;
     const from = goldAnchor;
     const to = goldAnchor.replace(' ', '  ');
     assertNoResidue([{ file, from, to }]);
     const orig = snapshot(file);
     const lane = (extra) => spawnSync(process.execPath, [join(ROOT, 'tools/lane-done.mjs'), '--scoped-only', '--no-cache', '--changed', file, ...extra],
       { cwd: ROOT, encoding: 'utf8', maxBuffer: 1e8,
-        env: { ...process.env, HR_SCOPED_GUARDS: 'tests/envelope-frame-gate.mjs' } });
+        env: { ...process.env, HR_SCOPED_GUARDS: INCIDENT_GUARD } });
     let planted = null; let control = null;
     try {
       writeFileSync(join(ROOT, file), orig.split(from).join(to));
@@ -560,9 +565,9 @@ async function selftest() {
     } finally { writeFileSync(join(ROOT, file), orig); }
     control = lane([]);
     const plantedOut = (planted.stdout || '') + (planted.stderr || '');
-    ok(planted.status !== 0 && /RED\s+node tests\/envelope-frame-gate\.mjs --selftest/.test(plantedOut),
-      `E1 an anchor-breaking edit to ${file} turns lane-done RED on envelope-frame-gate --selftest (exit ${planted.status})`);
-    ok(control.status === 0 && /ok\s+node tests\/envelope-frame-gate\.mjs --selftest/.test(control.stdout || ''),
+    ok(planted.status !== 0 && /RED\s+node tests\/no-client-copy-of-projection\.mjs --selftest/.test(plantedOut),
+      `E1 an anchor-breaking edit to ${file} turns lane-done RED on ${INCIDENT_GUARD} --selftest (exit ${planted.status})`);
+    ok(control.status === 0 && /ok\s+node tests\/no-client-copy-of-projection\.mjs --selftest/.test(control.stdout || ''),
       `E2 CONTROL: the same scoped run on the unplanted tree is green (exit ${control.status})`);
     if (fails.length) { for (const f of fails) console.log('  x  ' + f); console.log(plantedOut.split('\n').slice(-12).join('\n')); finish(1); }
     console.log(`\nguard-anchors --selftest: all proofs held (${entries.length} proof-capable guards catalogued).`);

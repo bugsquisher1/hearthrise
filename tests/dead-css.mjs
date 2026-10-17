@@ -193,7 +193,7 @@ function main() {
 }
 
 function selftest() {
-  const target = path.join(ROOT, 'src', 'styles', 'audit-overrides.css');
+  const target = path.join(ROOT, 'src', 'styles', 'world.css');
   const before = fs.readFileSync(target, 'utf8');
   if (census().length !== 0) { console.error('SELFTEST INCONCLUSIVE: baseline already red.'); return 1; }
   // Assembled, not spelled: this file is not in the consumer corpus, but the

@@ -16,7 +16,8 @@
 //   palette   an opaque pixel outside the locked palette
 //   alpha     a partially transparent pixel (the world's art has none)
 //   empty     an icon with no pixels at all
-//   switch    src/data/item-art.js lost its one switch, or main.js stopped wiring it
+//   switch    src/data/item-art.js lost its one switch (the client that wired it was
+//             deleted 2026-10-17; the new screens wire it again)
 //
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
@@ -69,9 +70,7 @@ export function checkIcons(dir, ids) {
 export function checkSwitch(root) {
   const out = [];
   const art = readFileSync(join(root, 'src/data/item-art.js'), 'utf8');
-  const main = readFileSync(join(root, 'src/main.js'), 'utf8');
   if (!/export const ITEM_ART_SET = '(pixel|painted)';/.test(art)) out.push({ rule: 'switch', id: 'item-art.js', detail: "ITEM_ART_SET must be exactly 'pixel' or 'painted'" });
-  if (!/ItemArt\.activeIconMap\(/.test(main)) out.push({ rule: 'switch', id: 'main.js', detail: 'main.js no longer wires ItemArt.activeIconMap()' });
   return out;
 }
 
@@ -114,7 +113,6 @@ async function selftest(ids) {
   const sroot = mkdtempSync(join(tmp, 's-'));
   mkdirSync(join(sroot, 'src/data'), { recursive: true });
   writeFileSync(join(sroot, 'src/data/item-art.js'), 'export const OTHER = 1;');
-  writeFileSync(join(sroot, 'src/main.js'), '// nothing');
   const sw = checkSwitch(sroot).some((f) => f.rule === 'switch');
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;

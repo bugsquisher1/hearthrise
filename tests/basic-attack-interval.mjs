@@ -46,7 +46,7 @@ const LITERAL_RES = [
   /\b(tickMs|TICK_MS)\b[^;\n]{0,40}\|\|\s*\d{3,}/,
 ];
 const SCAN_DIRS = ['src', 'supabase/functions/hr-accrue', 'services'];
-const SKIP = (rel) => rel.startsWith('src/features/smoke/') || rel === OWNER;
+const SKIP = (rel) => rel === OWNER;
 
 function walk(dir, acc) {
   let names = [];
@@ -122,10 +122,10 @@ function mutate() {
   const plant = (rel, extra) => { const m = new Map(base); m.set(rel, (m.get(rel) || '') + '\n' + extra + '\n'); return m; };
   const MUTANTS = [
     ['the constant back at 2.4 s', { CB: { ...COMBAT_BALANCE, tickMs: 2400 } }, 'I1'],
-    ['a dead config copy of the interval', { files: plant('src/config.js', '  TICK_MS: 2000,') }, 'I3'],
+    ['a dead config copy of the interval', { files: plant('src/session/config.js', '  TICK_MS: 2000,') }, 'I3'],
     ['an engine-side fallback literal', { files: plant('supabase/functions/hr-accrue/accrual.js', "const t = (ctx.tickMs) || 2400;") }, 'I3'],
-    ['a client fallback literal', { files: plant('src/features/combat-render.js', '  return (window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400;') }, 'I3'],
-    ['a hard-coded legacy tick', { files: plant('src/legacy.js', '    var tickMs = 2400; /* default combat tick */') }, 'I3'],
+    ['a client fallback literal', { files: plant('src/app/world-view.js', '  return (window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400;') }, 'I3'],
+    ['a hard-coded client tick', { files: plant('src/app/boot.js', '    var tickMs = 2400; /* default combat tick */') }, 'I3'],
   ];
   let escaped = 0;
   for (const [name, opts, want] of MUTANTS) {

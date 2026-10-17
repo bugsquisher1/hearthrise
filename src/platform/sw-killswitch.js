@@ -42,7 +42,7 @@
     if (regs.length) { nuke('a service worker is still registered'); return; }
     return caches.keys().then(function (keys) {
       var stale = keys.some(function (k) { return k !== EXPECTED && (/^hearthrise-/.test(k) || /^hearthbound-/.test(k)); });
-      if (stale) nuke('stale cache(s): ' + keys.join(', ') + ' (expected ' + EXPECTED + ')');
+      if (stale) nuke('stale caches: ' + keys.join(', ') + ' (expected ' + EXPECTED + ')');
     });
   }).catch(function () {});
 })();

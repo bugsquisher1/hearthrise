@@ -53,13 +53,13 @@ export const CODED_SOURCES = Object.freeze({
   burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
   /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
      supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused). */
-  hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/legacy.js', needle: "addItem('hearth_token'" }),
+  hearth_token:  Object.freeze({ label: 'platform purchase only (never PvE)', file: 'src/data/shops.js', needle: 'iap.hearth_tokens_3' }),
 });
 
 /* ── USES AN ENGINE HARD-CODES ──────────────────────────────────────────────
    Same contract as CODED_SOURCES. */
 export const CODED_USES = Object.freeze({
-  hearth_token: Object.freeze({ label: 'redeemed for gems or traded on the Market', file: 'src/legacy.js', needle: 'hearth_token' }),
+  hearth_token: Object.freeze({ label: 'traded on the player Market (its listing is proven by the market self-check)', file: 'supabase/migrations/2026-08-11-live-market-rls.sql', needle: "'hearth_token'" }),
 });
 
 /* ── VENDOR TRASH — the one use that is selling ──────────────────────────────

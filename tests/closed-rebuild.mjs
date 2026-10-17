@@ -32,8 +32,9 @@
 //   T-TOOL    tools/access-allow.mjs's generated add file admits an account and
 //             its remove file shuts it out again; an email note and a malformed
 //             id are refused before anything is written.
-//   D-CLIENT  old-client.html loads src/features/closed-screen.js once; the module
-//             recognises exactly the server's code and status.
+//   D-CLIENT  play.html loads the client (src/app/boot.js) once, the client's
+//             server link (src/session/server.js) recognises exactly the server's
+//             code and status, and the app turns that answer into the notice.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -270,16 +271,18 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
 async function clientScan(over = {}) {
   const get = async (p) => (p in over ? over[p] : await read(p));
   const out = [];
-  const html = await get('old-client.html');
-  const inc = html.match(/<script src="src\/features\/closed-screen\.js\?v=\d+"><\/script>/g) || [];
-  if (inc.length !== 1) out.push(`D-CLIENT: old-client.html includes closed-screen.js ${inc.length} time(s), expected 1`);
-  const js = await get('src/features/closed-screen.js');
-  const code = (js.match(/var CODE\s*=\s*'([a-z_]+)';/) || [])[1];
+  const html = await get('play.html');
+  const inc = html.match(/<script type="module" src="src\/app\/boot\.js\?v=\d+"><\/script>/g) || [];
+  if (inc.length !== 1) out.push(`D-CLIENT: play.html loads src/app/boot.js ${inc.length} time(s), expected 1`);
+  const js = await get('src/session/server.js');
+  const code = (js.match(/export const CLOSED_CODE\s*=\s*'([a-z_]+)';/) || [])[1];
   const sqlCode = (CLOSED.match(/"code":"([a-z_]+)"/) || [])[1];
   if (!code || code !== sqlCode) out.push(`D-CLIENT: the client matches code ${code}, the server raises ${sqlCode}`);
-  const status = (js.match(/var STATUS\s*=\s*(\d+);/) || [])[1];
+  const status = (js.match(/export const CLOSED_STATUS\s*=\s*(\d+);/) || [])[1];
   const sqlStatus = (CLOSED.match(/"status":(\d+)/) || [])[1];
   if (!status || status !== sqlStatus) out.push(`D-CLIENT: the client matches status ${status}, the server answers ${sqlStatus}`);
+  const boot = await get('src/app/boot.js');
+  if (!/if \(why === 'closed-game'\) showClosed\(\)/.test(boot)) out.push('D-CLIENT: src/app/boot.js no longer shows the closed notice on the closed-game answer');
   return out;
 }
 
@@ -301,7 +304,7 @@ if (!MUTATE) {
   console.log('  ✓ W-WIPE    every player table empty; accounts, allowlist, catalogues, ledger triggers intact');
   console.log('  ✓ W-ONCE    a re-apply after the rebuild started wipes nothing');
   console.log('  ✓ T-TOOL    the generated allowlist add file admits an account; the remove file shuts it out');
-  console.log('  ✓ D-CLIENT  closed-screen.js included once; matches the server\'s code and status');
+  console.log('  ✓ D-CLIENT  play.html loads the client once; it matches the server code and status and shows the notice');
   console.log('closed-rebuild: green');
   process.exit(0);
 }
@@ -361,11 +364,11 @@ const scanOrig = await clientScan();
 if (scanOrig.length) { console.error(`harness: the unmutated client scan is red: ${scanOrig[0]}`); process.exit(2); }
 const control = await scenario(CLOSED, WIPE);
 if (control) { console.error(`harness: the unmutated files are red: ${control}`); process.exit(2); }
-const js = await read('src/features/closed-screen.js');
-const html = await read('old-client.html');
+const js = await read('src/session/server.js');
+const html = await read('play.html');
 const SCAN = [
-  { name: 'clientCodeDrifts', why: 'the client listens for a different code', over: { 'src/features/closed-screen.js': js.replace("'hr_closed';   // bound", "'closed';   // bound") } },
-  { name: 'clientNotIncluded', why: 'old-client.html never loads the module', over: { 'old-client.html': html.replace(/\s*<script src="src\/features\/closed-screen\.js\?v=\d+"><\/script>/, '') } },
+  { name: 'clientCodeDrifts', why: 'the client listens for a different code', over: { 'src/session/server.js': js.replace("export const CLOSED_CODE = 'hr_closed';", "export const CLOSED_CODE = 'closed';") } },
+  { name: 'clientNotIncluded', why: 'play.html never loads the client', over: { 'play.html': html.replace(/\s*<script type="module" src="src\/app\/boot\.js\?v=\d+"><\/script>/, '') } },
 ];
 console.log(`\nclosed-rebuild --mutate: every mutant must go RED on its named arm\n[mutants] ${MUTANTS.length + SCAN.length}`);
 let survived = 0;

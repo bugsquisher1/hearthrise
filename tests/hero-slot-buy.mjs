@@ -213,24 +213,20 @@ const MUTATIONS = {
 
 const UUID = () => crypto.randomUUID();
 
-/* ── (A) THE AUTHORED LADDER, PARSED OUT OF ITS OWN FILE ─────────────────
-   Parsed rather than duplicated: a second copy of game data is the failure this
-   repo has been burned by (src/main.js unifyObject). Returns
-   {costs:[0,200,…], maxSlots:5, premiumHi:3}. */
+/* ── (A) THE AUTHORED LADDER ───────────────────────────────────────────────
+   src/data/shops.js's character_slot offers are the authored ladder since the
+   client reset (2026-10-17) deleted src/multi-character.js and its
+   SLOT_COSTS_GEMS copy. Returns {costs:[0, gems for slot 1, …]}. The premium
+   waiver lives only in the server's hr_hero_slots now (asserted by the run). */
 async function authoredLadder() {
-  const src = await readFile(join(ROOT, 'src', 'multi-character.js'), 'utf8');
-  const m = /const\s+SLOT_COSTS_GEMS\s*=\s*\[([^\]]*)\]/.exec(src);
-  const cap = /const\s+MAX_SLOTS\s*=\s*(\d+)/.exec(src);
-  /* The premium waiver's authored rule, read from the one expression that owns
-     it rather than assumed: `free = hasPremium && nextId >= 1 && nextId <= 3`. */
-  const prem = /hasPremium\s*&&\s*\w+\s*>=\s*1\s*&&\s*\w+\s*<=\s*(\d+)/.exec(src);
-  return {
-    costs: m ? m[1].split(',').map((s) => Number(s.trim())) : null,
-    maxSlots: cap ? Number(cap[1]) : null,
-    premiumHi: prem ? Number(prem[1]) : null,
-    hasBuySlot: /HearthriseProfile[\s\S]*buySlot/.test(src),
-    src,
-  };
+  const shops = await import(new URL('../src/data/shops.js', import.meta.url).href);
+  const costs = [0];
+  for (const o of (shops.SHOP_OFFERS || []).filter((x) => x.table === 'character_slot')) {
+    const i = Number(String(o.id).split('.')[1]);
+    const line = (o.cost || []).find((l) => l.kind === 'currency' && l.id === 'gems');
+    if (Number.isInteger(i) && i > 0) costs[i] = line ? line.amount : null;
+  }
+  return { costs: costs.length > 1 ? costs : null };
 }
 
 /** One end-to-end run against a freshly replayed database. */
@@ -673,12 +669,9 @@ function grade(o) {
 async function bindGuard(cat) {
   const A = await authoredLadder();
   ok(Array.isArray(A.costs) && A.costs.length >= 2,
-    'BIND: `const SLOT_COSTS_GEMS = [` could not be read out of src/multi-character.js — the '
-    + 'authored ladder is unreadable, so nothing below asserts anything');
+    'BIND: src/data/shops.js carries no character_slot offers — the authored ladder is '
+    + 'unreadable, so nothing below asserts anything');
   if (!Array.isArray(A.costs)) return;
-  ok(A.maxSlots === A.costs.length,
-    `BIND: MAX_SLOTS is ${A.maxSlots} but SLOT_COSTS_GEMS has ${A.costs.length} rungs — the client `
-    + 'itself disagrees about how many hero slots exist');
   ok(A.costs[0] === 0, `BIND: slot 0 is priced at ${A.costs[0]} gems; it must be free`);
 
   // (A) ↔ (C)
@@ -688,17 +681,12 @@ async function bindGuard(cat) {
       + 'so its Buy button is DEAD under the gems arm — the exact defect this migration exists for');
     if (!c) continue;
     ok(Number(c.cost) === A.costs[i],
-      `BIND: slot ${i} costs ${A.costs[i]} gems in src/multi-character.js but ${c.cost} in `
-      + 'hr_hero_slots — the drawer would advertise one price and the server would charge another');
-    const wantWaived = A.premiumHi != null && i >= 1 && i <= A.premiumHi;
-    ok(c.premium_waived === wantWaived,
-      `BIND: slot ${i} is ${wantWaived ? '' : 'NOT '}waived by Hearth Hall on screen and `
-      + `${c.premium_waived ? '' : 'NOT '}waived on the server — one of the two is selling a slot `
-      + 'the other gives away');
+      `BIND: slot ${i} costs ${A.costs[i]} gems in src/data/shops.js but ${c.cost} in `
+      + 'hr_hero_slots — the catalogue would advertise one price and the server would charge another');
   }
   for (const id of cat.keys()) {
     ok(id < A.costs.length && A.costs[id] > 0,
-      `BIND: hr_hero_slots carries slot ${id}, which src/multi-character.js does not offer — the `
+      `BIND: hr_hero_slots carries slot ${id}, which src/data/shops.js does not offer — the `
       + 'server would sell a slot the player can never see');
   }
 
@@ -707,14 +695,14 @@ async function bindGuard(cat) {
   const offers = (shops.SHOP_OFFERS || []).filter((o) => o.table === 'character_slot');
   ok(offers.length === A.costs.length - 1,
     `BIND: src/data/shops.js carries ${offers.length} character_slot offers, the authored ladder `
-    + `has ${A.costs.length - 1} paid rungs. Re-run \`node tools/gen-shops.mjs\`.`);
+    + `has ${A.costs.length - 1} paid rungs. Fix the hero-slot rows in src/data/shops.js.`);
   for (const off of offers) {
     const i = Number(String(off.id).split('.')[1]);
     const line = (off.cost || []).find((l) => l.kind === 'currency' && l.id === 'gems');
     ok(!!line, `BIND: generated offer ${off.id} is not priced in gems`);
     ok(line && line.amount === A.costs[i],
       `BIND: generated offer ${off.id} costs ${line && line.amount} gems, the authored ladder says `
-      + `${A.costs[i]} — src/data/shops.js is stale; re-run \`node tools/gen-shops.mjs\``);
+      + `${A.costs[i]} — src/data/shops.js disagrees with the server ladder`);
     const c = cat.get(i);
     ok(c && Number(c.cost) === (line && line.amount),
       `BIND: generated offer ${off.id} and public.hr_hero_slots disagree (${line && line.amount} `
@@ -724,40 +712,6 @@ async function bindGuard(cat) {
       + 'server writes and the one the catalogue names have drifted`);
   }
 
-  /* ── THE CLIENT HALF must exist, must send NO price, and must not be able to
-     author ownership under the arm. Read the specific functions rather than the
-     whole file: a scan that cannot tell a comment from a bug is a scan somebody
-     deletes. */
-  const gc = await readFile(join(ROOT, 'src', 'net', 'goal-claim.js'), 'utf8');
-  ok(/buyHeroSlot:\s*function/.test(gc),
-    'BIND: src/net/goal-claim.js has no buyHeroSlot transport — multi-character.js buySlot() would '
-    + 'have nothing to call under the gems arm and every hero slot stays unbuyable');
-  ok(/hr_buy_hero_slot/.test(gc), 'BIND: the client transport does not name hr_buy_hero_slot');
-  const bAt = gc.indexOf('buyHeroSlot: function');
-  if (bAt >= 0) {
-    const fn = gc.slice(bAt, gc.indexOf('\n    /*', bAt + 10) < 0 ? bAt + 900
-      : gc.indexOf('\n    /*', bAt + 10));
-    ok(!/p_cost|p_price|p_currency|p_gems|p_free/.test(fn),
-      'BIND: buyHeroSlot puts a PRICE, a CURRENCY, a BALANCE or a FREE flag on the wire. It may '
-      + 'send a slot id, a character slot and an idempotency key and NOTHING else — the server owns '
-      + `every number in this transaction. Body:\n${fn}`);
-    for (const f of ['p_slot_id', 'p_slot', 'p_idem']) {
-      ok(fn.includes(f), `BIND: buyHeroSlot does not send ${f} — PostgREST resolves an RPC by its `
-        + 'named arguments, so a missing one is PGRST202 and a dead button');
-    }
-  }
-
-  const mc = A.src;
-  ok(/HearthriseGoalClaim[\s\S]{0,400}buyHeroSlot/.test(mc),
-    'BIND: src/multi-character.js buySlot() does not route through the server transport — the '
-    + 'purchase would still be the client-side G.gems debit the envelope reconciles away');
-  ok(/adoptServerSlots/.test(mc),
-    'BIND: src/multi-character.js exposes no adoptServerSlots seam, so the hr_state_of projection '
-    + 'has no reader and G.heroSlotsUnlocked stays the authority — the b371 store a restore rewinds');
-  const rec = await readFile(join(ROOT, 'src', 'net', 'accrue.js'), 'utf8');
-  ok(/export function reconcileHeroSlots\(/.test(rec) && /hero_slots/.test(rec),
-    'BIND: src/net/accrue.js does not reconcile the envelope\'s hero_slots — the projection would '
-    + 'arrive on every envelope and nothing would read it');
 }
 
 /**
@@ -816,6 +770,6 @@ if (RUN_DIRECTLY) {
     + 'the player can see, entitlement on the account row, idempotent on replay, already_owned '
     + 'refused, refusals not cached, grandfathered characters kept, the premium waiver expressed as '
     + 'ownership rather than a free price, the free-character mint closed, and the ladder bound to '
-    + 'src/multi-character.js and src/data/shops.js in every direction.');
+    + 'src/data/shops.js in every direction.');
   if (mutateArg) { console.error('the mutation was NOT caught'); process.exit(1); }
 }

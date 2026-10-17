@@ -177,7 +177,7 @@ function selftest() {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-bp-'));
   try {
     cpSync(join(ROOT, 'src', 'styles'), join(tmp, 'src', 'styles'), { recursive: true });
-    const victim = join(tmp, 'src', 'styles', 'combat-hud.css');
+    const victim = join(tmp, 'src', 'styles', 'world.css');
     const orig = readFileSync(victim, 'utf8');
     const newSpellings = () => build(tmp).filter((r) => !known.has(r.query)).map((r) => r.query);
 

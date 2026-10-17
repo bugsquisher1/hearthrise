@@ -1,9 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/world-boot.js — THE WORLD PANE'S RUNTIME (loaded on first open).
 //
-// src/features/world-panel.js imports this lazily the first time the World
-// pane opens, so a player who never opens it never downloads any of src/world
-// (BOOT-5, tests/boot-budget.mjs).
+// src/app/world-pane.js boots this for ONE CharacterSession: every read goes
+// through opts.view() (that character's view, src/app/world-view.js), never a
+// global, so two characters on one screen never share a scene.
 //
 // THE LOOP runs on requestAnimationFrame ONLY while #panel-world is the active
 // panel AND the page is visible: switching tab or hiding the page stops it on
@@ -32,6 +32,7 @@ import { BUILD } from '../build-info.js?v=589';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=589';
 import { WORLD_MAPS } from '../data/world/maps/index.js?v=589';
 import { HUNT_INDEX } from '../data/hunts.js?v=589';
+import { MONSTERS } from '../data/monsters.js?v=589';
 import { compileMap } from './core/map-compile.js?v=589';
 import { STUB_SPRITE } from './core/book.js?v=589';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=589';
@@ -148,9 +149,15 @@ function createEnvReader(win) {
  *   setInset({left, right, top, bottom})  CSS px of the stage a docked window covers
  *   destroy()
  * @param {HTMLElement} panel
+ * @param {object} opts
+ * @param {() => object} opts.view  the ONE character's view this pane shows, read every frame
+ *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
+ *        character's own `_world` display scratch. There is no global state to fall back to.
  */
-export async function bootWorld(panel) {
+export async function bootWorld(panel, opts) {
   const win = window, doc = document;
+  if (!opts || typeof opts.view !== 'function') throw new TypeError('bootWorld needs opts.view: the character this pane shows');
+  const view = () => opts.view() || {};
   const stage = panel.querySelector('.world-stage');
   const chrome = panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
@@ -204,7 +211,7 @@ export async function bootWorld(panel) {
       const a = G._huntAnalyzer;
       hunt = createHuntScene(map, {
         huntId: h ? h.id : sc.map, since: (a && a.started_at) || '', spawns: h ? h.spawns : [],
-        nameOf: (id) => (win.MONSTERS && win.MONSTERS[id] && win.MONSTERS[id].name) || id,
+        nameOf: (id) => (MONSTERS[id] && MONSTERS[id].name) || id,
       });
       huntMap = sc.map;
     }
@@ -243,9 +250,9 @@ export async function bootWorld(panel) {
      word on screen): sync() steps once on every open, tab switch and visibility
      change, and every frame routes again, so the banner follows the activity. */
   let lastBanner = null;
-  const monsterName = (id) => (win.MONSTERS && win.MONSTERS[id] && win.MONSTERS[id].name) || id;
+  const monsterName = (id) => (MONSTERS[id] && MONSTERS[id].name) || id;
   function route() {
-    const G = win.G || {};
+    const G = view();
     const P = win.HearthriseProperty;
     const sc = readScene(G, homeMapFor(P && typeof P.serverPropertyTier === 'function' ? P.serverPropertyTier() : null));
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
@@ -261,7 +268,7 @@ export async function bootWorld(panel) {
   }
 
   function step(dt) {
-    const G = win.G || {};
+    const G = view();
     const sc = route();
     const map = mapOf(sc.map);
     const I = win.HearthriseIdentity;
@@ -309,7 +316,7 @@ export async function bootWorld(panel) {
       win.showTab('house');
       return true;
     },
-    scene(choice) { setChoice(win.G || {}, choice); if (running) step(0); return true; },
+    scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },
   };
 
   function onTap(e) {
@@ -382,7 +389,7 @@ export async function bootWorld(panel) {
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');
     if (!b) return;
-    setChoice(win.G || {}, b.getAttribute('data-world-choice'));
+    setChoice(view(), b.getAttribute('data-world-choice'));
     if (running) step(0);
   }
   chrome.addEventListener('click', onChoice);

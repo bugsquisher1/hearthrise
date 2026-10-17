@@ -90,8 +90,8 @@ const JS_MUTANTS = [
   { name: 'frac unclamped', arm: 'X5', file: 'src/core/progression.js',
     edits: [['  if (!Number.isFinite(n) || n <= 0) return 0;\n  return Math.min(XP_FRAC_SCALE - 1, Math.round(n * XP_FRAC_SCALE));',
       '  if (!Number.isFinite(n)) return 0;\n  return Math.round(n * XP_FRAC_SCALE);']] },
-  { name: 'frac client-writable (residue)', arm: 'X5', file: 'src/net/client-state.js',
-    edits: [["export const RESIDUE_FIELDS = Object.freeze([\n", "export const RESIDUE_FIELDS = Object.freeze([\n  '_xpFrac',\n"]] },
+  { name: 'frac client-writable (residue)', arm: 'X5', file: 'src/session/residue.js',
+    edits: [['  hudLayout: sanitizeHudLayout,', '  hudLayout: sanitizeHudLayout,\n  xpFrac: (v) => v,']] },
   { name: 'PACE.xp rescaled', arm: 'X7', file: 'src/core/pacing.js',
     edits: [['export const PACE = { xp: 0.39,', 'export const PACE = { xp: 0.34,']] },
   { name: 'HIT_HP_XP_PER_DAMAGE rescaled', arm: 'X7', file: 'src/core/styles.js',
@@ -136,9 +136,9 @@ async function load(base) {
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
-  const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
+  const { RESIDUE_FIELDS: residueFields } = await import(pathToFileURL(join(base, 'src', 'session', 'residue.js')).href + '?t=' + Date.now());
   return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, tick, tg, gatherFixture, residueSrc, GATHER_NODES: cat.GATHER_NODES };
+    xp, styles, pacing, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
 }
 
 async function mutantBase(m) {
@@ -428,8 +428,7 @@ async function runArms(L) {
     ok('X5', e1.xpFrac === null, `the engine took a remainder from somewhere other than skills.<id>.frac: ${JSON.stringify(e1.xpFrac)}`);
     const e2 = L.env.engineInputsFromEnvelope({ state: {}, skills: { attack: { xp: 5, level: 1, frac: 0.25 } } }, FROM);
     ok('X5', e2.xpFrac && e2.xpFrac.attack === 0.25, `the projected frac did not reach the engine: ${JSON.stringify(e2.xpFrac)}`);
-    const block = L.residueSrc.split('export const RESIDUE_FIELDS = Object.freeze([')[1] || '';
-    const fields = (block.split(']);')[0].match(/^\s*'([^']+)'/gm) || []).map((x) => x.trim().slice(1, -1));
+    const fields = Array.isArray(L.residueFields) ? L.residueFields : [];
     ok('X5', fields.length > 0, 'could not read RESIDUE_FIELDS — the residue arm asserts nothing');
     ok('X5', !fields.some((f) => /frac/i.test(f) || f === 'skills'),
       `the client residue carries ${fields.filter((f) => /frac/i.test(f) || f === 'skills')} — the remainder must be server-only`);

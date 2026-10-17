@@ -157,26 +157,8 @@ export async function dungeonKeyDropsGuard() {
     }
   }
 
-  // ── (3) NO CLIENT-SIDE KEY MINT: the killMonster wrapper must stay deleted.
-  //        COMMENTS ARE STRIPPED before the scan — the pointer comment left in
-  //        dungeons.js legitimately names the retired symbols for a human reader;
-  //        only re-introduced CODE is a regression. ────────────────────────────
-  let dungeonsSrc = '';
-  try {
-    dungeonsSrc = await readFile(join(ROOT, 'src', 'dungeons.js'), 'utf8');
-  } catch (e) {
-    fail('could not read src/dungeons.js — cannot verify the client key mint is gone: ' + (e && e.message));
-  }
-  const codeOnly = dungeonsSrc
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')   // block comments
-    .replace(/(^|[^:])\/\/[^\n]*/g, '$1'); // line comments (skip :// in urls)
-  for (const banned of ['setupKeyDrops', 'trySpawnKeyDrop', 'hookKillMonster', '__keyDropsHooked', 'KEY_DROPS']) {
-    if (codeOnly.includes(banned)) {
-      fail(`src/dungeons.js still has CODE referencing "${banned}" — the client-side key mint (the `
-        + `killMonster wrapper) is back. It DOUBLES the live drop (m.drops + wrapper) and DIVERGES from `
-        + `the away path (accrual never calls the wrapper): an AWAY-1 parity break. Keys drop via monsters.js now.`);
-    }
-  }
+  // (3, the scan for a client-side key mint in src/dungeons.js, retired with the
+  //  client on 2026-10-17: there is no client mint path to come back.)
 
   // ── (4) SERVER-OWNED: the fold's payoff — keys settle + survive the flip. ───
   rebuildItemAuthority();   // fresh partition over the current monsters.js

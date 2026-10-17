@@ -153,9 +153,9 @@ async function loadEdge(root) {
     REQ: await import(u(join(FN, 'request.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
-    /* The client reader is read from the REAL tree (the mutant copies hold only
-       the edge, src/core and src/data). */
-    NET: await import(pathToFileURL(join(ROOT, 'src', 'net', 'accrue.js')).href),
+    /* The client's envelope applier is read from the REAL tree (the mutant copies
+       hold only the edge, src/core and src/data). */
+    ENV: await import(pathToFileURL(join(ROOT, 'src', 'session', 'envelope.js')).href),
     HUNTS: await import(u('src/data/hunts.js')),
     AR: await import(u('src/core/action-rules.js')),
     XP: await import(u('src/core/xp.js')),
@@ -530,14 +530,16 @@ const ENGINE_ARMS = {
     if (h.stamina !== 0) problems.push(`the emptied pool reads ${h.stamina}, not 0`);
     if (h.down_ms === 0 && h.paid_ms !== 5 * tick) problems.push(`a pool of five swings hunted ${h.paid_ms / tick} swings`);
     if (h.down_ms !== 0) problems.push('CONTROL: the strong probe was knocked out');
-    /* The client reader: the server's value, replaced; garbage is "unknown". */
-    const G = { _stamina: { ms: 1 } };
-    M.NET.hydrateHunt(G, { stamina: { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap, hunting: true } });
-    if (!G._stamina || G._stamina.ms !== 1234 || G._stamina.atMs !== T0 || G._stamina.maxMs !== cap || G._stamina.hunting !== true) {
-      problems.push(`hydrateHunt did not take the server's pool: ${JSON.stringify(G._stamina)}`);
+    /* The client (src/session/envelope.js): the server's pool, REPLACED by each
+       envelope — never kept past one that no longer states it. */
+    const pool = { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap, hunting: true };
+    const r1 = M.ENV.applyEnvelope({ version: 0, data: { stamina: { ms: 1 } }, residue: {} },
+      { ok: true, version: 1, state: {}, stamina: pool }).record;
+    if (!r1 || JSON.stringify(r1.data.stamina) !== JSON.stringify(pool)) {
+      problems.push(`the client did not take the server's pool: ${JSON.stringify(r1 && r1.data.stamina)}`);
     }
-    M.NET.hydrateHunt(G, { stamina: { ms: 'x' } });
-    if (G._stamina !== null) problems.push('hydrateHunt kept a value the envelope replaced with garbage');
+    const r2 = M.ENV.applyEnvelope(r1, { ok: true, version: 2, state: {} }).record;
+    if (r2 && 'stamina' in r2.data) problems.push('the client kept a pool the next envelope no longer states');
     return problems;
   },
 

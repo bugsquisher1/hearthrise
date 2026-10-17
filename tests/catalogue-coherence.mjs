@@ -119,13 +119,6 @@ export function check({ read = realRead } = {}) {
   // C7 — the Collection Log counts what can be got, and that is everything.
   const ob = obtainableItemIds();
   if (ob.size + awaiting.size !== ids.length) fails.push(`C7 obtainableItemIds() has ${ob.size} of ${ids.length} items (${awaiting.size} awaiting the roster) — the Collection Log would be unfinishable`);
-  const log = read('src/features/collection-log.js');
-  if (!/HearthriseCatalogue/.test(log) || !/obtainable/.test(log)) {
-    fails.push('C7 src/features/collection-log.js no longer reads HearthriseCatalogue.obtainable — it is counting raw ITEMS again');
-  }
-  const main = read('src/main.js');
-  if (!/HearthriseCatalogue/.test(main)) fails.push('C7 src/main.js no longer publishes window.HearthriseCatalogue');
-
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length } };
 }
 
@@ -195,9 +188,10 @@ function mutate() {
       grant: [{ kind: 'item', id: 'iron_platebody', amount: 1 }], repeatable: true });
     return { restore: () => { SHOP_OFFERS.pop(); } };
   });
-  run('the Collection Log counts raw ITEMS', 'C7', () => ({
-    read: (rel) => (rel === 'src/features/collection-log.js' ? realRead(rel).split('HearthriseCatalogue').join('ITEMS_ALL') : realRead(rel)),
-  }));
+  run('an item nobody can obtain', 'C7', () => {
+    ITEMS.__c7_probe = { name: 'Probe', type: 'material' };
+    return { restore: () => { delete ITEMS.__c7_probe; } };
+  });
 
   let bad = 0;
   for (const [name, hit] of results) {

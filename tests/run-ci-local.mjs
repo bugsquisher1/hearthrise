@@ -97,9 +97,9 @@ export const SKIP = [
     'environment setup, not a gate: `npm install` in every non-browser job of the matrix. A dev '
     + 'machine already has node_modules; re-installing it four times per local run would cost '
     + 'more than the guards do.'],
-  ['Smoke suite (headless)',
-    'the ONE step that already runs locally today (node tests/run-smoke.mjs) and the one this '
-    + 'file exists to complement. Pass --all to include it and run the whole workflow.'],
+  ['Client boot (play.html, index.html)',
+    'the browser step (a real Chromium boots the client). Pass --all to include it and run the '
+    + 'whole workflow.'],
 ];
 
 // ── the parser ───────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ function runCommand(cmd) {
  */
 export function buildPlan(jobs, { all = false, job = null } = {}) {
   const skipNames = new Set(
-    SKIP.filter(([n]) => !(all && n === 'Smoke suite (headless)')).map(([n]) => n));
+    SKIP.filter(([n]) => !(all && n === 'Client boot (play.html, index.html)')).map(([n]) => n));
   const plan = [];
   for (const s of flatSteps(jobs)) {
     if (job && s.job !== job) continue;
@@ -456,8 +456,18 @@ async function main() {
   const ALL = argv.includes('--all');
   const LIST = argv.includes('--list');
   if (argv.includes('--selftest')) {
-    const wf = await readFile(WORKFLOW, 'utf8');
+    let wf = await readFile(WORKFLOW, 'utf8');
     console.log('run-ci-local --selftest: soft (continue-on-error) steps must equal the yml\'s, exactly');
+    /* The workflow may legitimately carry NO soft step (none since the client reset
+       retired the census that was one, 2026-10-17). The parity proof still needs a
+       soft step to bite on, so one is planted IN MEMORY on the first named step. */
+    if (!softTruth(wf).length) {
+      const lines = wf.split('\r\n').join('\n').split('\n');
+      const at = lines.findIndex((l, i) => i > lines.findIndex((x) => /^jobs:\s*$/.test(x)) && /^ {6}- name: /.test(l));
+      lines.splice(at + 1, 0, '        continue-on-error: true');
+      wf = lines.join('\n');
+      console.log('  (no soft step in smoke.yml today; one planted in memory on: ' + lines[at].trim() + ')');
+    }
     const fails = selftest(wf);
     /* NON-VACUITY: the same checks against two broken parsers — the flag carried
        onto every later step, and the flag landing on the NEXT step — must fail. */

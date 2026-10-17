@@ -50,7 +50,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const SCAN_DIRS = ['src', 'tests', 'tools', 'supabase', '.github', 'docs'];
-const SCAN_ROOT_FILES = ['index.html', 'old-client.html'];
+const SCAN_ROOT_FILES = ['index.html', 'play.html'];
 const SCAN_EXT = new Set(['.js', '.mjs', '.ts', '.tsx', '.html', '.json', '.sql', '.yml', '.yaml', '.md', '.css', '.sh']);
 const SKIP_DIR = new Set(['node_modules', '.git', '.legacy', 'dist', 'build', 'icons3', 'raw-bundle']);
 

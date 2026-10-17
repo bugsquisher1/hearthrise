@@ -251,10 +251,10 @@ function selftest() {
   const cssOnly = (m) => ({ css: m.css, js: base.js || {} });
   try {
     cpSync(join(ROOT, 'src', 'styles'), join(tmp, 'src', 'styles'), { recursive: true });
-    const victim = join(tmp, 'src', 'styles', 'combat-hud.css');
+    const victim = join(tmp, 'src', 'styles', 'world.css');
     const orig = readFileSync(victim, 'utf8');
     const caught = (metric) => compare(cssOnly(measure(tmp)), base)
-      .fails.some((f) => f.includes('combat-hud.css') && f.includes(metric));
+      .fails.some((f) => f.includes('world.css') && f.includes(metric));
 
     const cases = [
       ['a raw hex on a component rule', '\n.hr-ratchet-selftest { color: #ff00ff; }\n', 'literals'],
@@ -280,18 +280,16 @@ function selftest() {
     writeFileSync(victim, orig + '\n.hr-ratchet-selftest { color: transparent; background: currentColor; }\n');
     if (caught('literals')) fails.push('SELFTEST: transparent/currentColor were counted as palette decisions');
 
-    // PAYING the debt must be a note, not a failure. audit-overrides.css is the
-    // victim here because combat-hud.css's own !importants all live in comments
-    // (which is exactly why the comment-stripped count is 12 and grep says 19).
+    // PAYING the debt must be a note, not a failure. No sheet carries debt any
+    // more (the client reset deleted every one that did), so the debt is PLANTED
+    // into a baseline measured from the victim, and then paid back down.
+    writeFileSync(victim, orig + '\n.hr-ratchet-selftest { color: #abcdef !important; }\n');
+    const owed = cssOnly(measure(tmp));
     writeFileSync(victim, orig);
-    const payer = join(tmp, 'src', 'styles', 'audit-overrides.css');
-    const payerOrig = readFileSync(payer, 'utf8');
-    writeFileSync(payer, payerOrig.replace(/!\s*important/gi, '').replace(HEX_RE, 'var(--ink)'));
-    const down = compare(cssOnly(measure(tmp)), base);
-    writeFileSync(payer, payerOrig);
+    const down = compare(cssOnly(measure(tmp)), owed);
     if (down.fails.length) fails.push('SELFTEST: paying the debt produced a FAILURE, not a ratchet-down note: ' + down.fails[0]);
-    if (!down.downs.some((d) => d.includes('audit-overrides.css') && d.includes('important'))) fails.push('SELFTEST: removing every !important produced no ratchet-down note');
-    if (!down.downs.some((d) => d.includes('audit-overrides.css') && d.includes('literals'))) fails.push('SELFTEST: tokenising every hex produced no ratchet-down note');
+    if (!down.downs.some((d) => d.includes('world.css') && d.includes('important'))) fails.push('SELFTEST: removing the !important produced no ratchet-down note');
+    if (!down.downs.some((d) => d.includes('world.css') && d.includes('literals'))) fails.push('SELFTEST: tokenising the hex produced no ratchet-down note');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 
   // the JS half, on synthetic sources

@@ -225,7 +225,7 @@ selftest() {
 
   run_case "B2-stale-esm-specifier" \
     "THE b493 DOUBLE-LOAD: a specifier two builds stale is a DIFFERENT module key, so the module is fetched and evaluated twice with two copies of its state (six modules ran as doubles on 492->493)" \
-    "sed -i \"0,/\\.js?v=${cur}/s//.js?v=1/\" src/main.js" \
+    "sed -i \"0,/\\.js?v=${cur}/s//.js?v=1/\" src/app/boot.js" \
     "src/**/*.js has stale versions"
 
   run_case "B3-bare-quoted-version-pin" \
@@ -235,7 +235,7 @@ selftest() {
 
   run_case "B4-relative-import-loses-its-version" \
     "an unversioned relative import serves the previous build's module after deploy — the gap b148 closed, and the one a bump cannot repair because there is no number to rewrite" \
-    "sed -i \"0,/\\.js?v=${cur}'/s//.js'/\" src/main.js" \
+    "sed -i \"0,/\\.js?v=${cur}'/s//.js'/\" src/app/boot.js" \
     "relative imports with no ?v="
 
   run_case "B5-build-info-moved-alone" \

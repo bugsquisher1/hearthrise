@@ -103,8 +103,8 @@ const MUTATIONS = {
   // ── the price is the server's ───────────────────────────────────────────
   vendor_rate_drift: {
     file: FN('catalogue.js'),
-    why: 'the vendor rate drifts away from src/legacy.js VENDOR_RAW_RATE — the server pays 25% for '
-       + 'raws while the shop UI promises 20%, silently, on every sale in the game',
+    why: 'the vendor rate drifts off the ruled 20% — the server pays 25% for raws, silently, on '
+       + 'every sale in the game',
     find: 'export const VENDOR_RAW_RATE = 0.20;',
     repl: 'export const VENDOR_RAW_RATE = 0.25;',
   },
@@ -122,16 +122,9 @@ const MUTATIONS = {
     find: '  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;',
     repl: '  return bid;',
   },
-  counter_bids_before_index: {
-    file: join(ROOT, 'src', 'screens', 'shop-counter.js'),
-    why: 'the bag bids an UNCAPPED price before window.SHOP_UNIT_PRICE is published — a number the '
-       + 'server never pays (CLAUDE.md §6)',
-    find: '  if(!U) return 0;',
-    repl: '  if(!U) return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
-  },
   buyback_rate_drift: {
     file: FN('catalogue.js'),
-    why: 'b565 — the server buy-back rate drifts from the shop counter\'s SHOP_BUYBACK_RATE',
+    why: 'b565 — the server buy-back rate drifts off the ruled 0.5',
     find: 'export const SHOP_BUYBACK_RATE = 0.5;',
     repl: 'export const SHOP_BUYBACK_RATE = 0.6;',
   },
@@ -546,82 +539,17 @@ async function run(mutate) {
       + 'not enforced is not a cap');
   }
 
-  // ── G1. THE VENDOR BID IS legacy.js's, NOT A SECOND OPINION ─────────────
-  // src/data/shops.js exists BECAUSE legacy.js cannot be imported by ESM, and it
-  // is defensible only because a guard proves the copy has not diverged. The
-  // vendor formula is the same bargain — one more number that lives in two
-  // places — so it gets the same treatment.
+  // ── G1. THE VENDOR BID IS THE RULING'S ──────────────────────────────────
+  // Until the client reset (2026-10-17) the shop counter carried its own copy of
+  // the two rates and the bid formula, and this pinned the copy to the server's.
+  // The copy is gone with that client; the server's catalogue.js is the only
+  // place the bid lives, so it is pinned to the ruled numbers directly.
   {
-    /* 2026-09-14: the vendor counter moved out of the monolith into the shop
-       SCREEN CONTROLLER (task #129 phase 2). The path follows the code — the two
-       CONTROLs below go red on a blind scan, which is how this pin was found
-       rather than passing quietly over a file that no longer holds the rate. */
-    const counterPath = join(fnDir, '..', '..', '..', 'src', 'screens', 'shop-counter.js');   // the source that RAN
-    const legacy = (await readFile(counterPath, 'utf8')).replace(/\r\n/g, '\n');
-    const rate = /const VENDOR_RAW_RATE\s*=\s*([0-9.]+)\s*;/.exec(legacy);
-    ok(!!rate,
-      'G1-CONTROL: no `const VENDOR_RAW_RATE = …` in src/screens/shop-counter.js — this scan is '
-      + 'blind, so a green run says nothing about whether the server pays what the shop promises');
-    ok(Number(rate[1]) === cat.VENDOR_RAW_RATE,
-      `G1: the shop counter pays raws at ${rate[1]} and the server pays ${cat.VENDOR_RAW_RATE}. The `
-      + 'client renders one number in the bag and the server credits another — on every sale in '
-      + 'the game, silently. Change it in the screen AND here, or move the rate into src/data.');
-
-    /* b565 — the shop buy-back cap: the same pin, for the second rate. */
-    const buyRate = /const SHOP_BUYBACK_RATE\s*=\s*([0-9.]+)\s*;/.exec(legacy);
-    ok(!!buyRate, 'G1-CONTROL: no `const SHOP_BUYBACK_RATE = …` in src/screens/shop-counter.js — the scan is blind');
-    ok(Number(buyRate[1]) === cat.SHOP_BUYBACK_RATE,
-      `G1: the shop counter caps buy-back at ${buyRate[1]} of the shop price and the server at `
-      + `${cat.SHOP_BUYBACK_RATE} — the bag shows one number and the server pays another (CLAUDE.md §6)`);
-
-    const body = /function vendorPrice\(id\)\{([\s\S]*?)\n\}/.exec(legacy);
-    ok(!!body, 'G1-CONTROL: could not read vendorPrice() out of src/screens/shop-counter.js — the scan is blind');
-    ok(/it\.raw\s*\?\s*Math\.max\(1,\s*Math\.floor\(v\s*\*\s*VENDOR_RAW_RATE\)\)\s*:\s*v/.test(body[1]),
-      'G1: the shop counter\'s vendorPrice() formula has changed shape. The server\'s vendorPriceOf mirrors '
-      + '`raw ? max(1, floor(v * rate)) : v`; if the client\'s has moved, one of them is now wrong.');
-    ok(/unit\s*>\s*0\s*\?\s*Math\.min\(bid,\s*Math\.max\(1,\s*Math\.floor\(SHOP_BUYBACK_RATE\s*\*\s*unit\)\)\)\s*:\s*bid/.test(body[1]),
-      'G1: the shop counter\'s buy-back cap has changed shape. The server caps '
-      + '`min(bid, max(1, floor(SHOP_BUYBACK_RATE * unit)))`; if the client\'s has moved, one of them is now wrong.');
-
-    /* BEHAVIOURAL PARITY over the whole catalogue, computed from the legacy
-       formula rather than restated: every one of the 426 items, not a sample. */
+    ok(cat.VENDOR_RAW_RATE === 0.20,
+      `G1: the server pays raws at ${cat.VENDOR_RAW_RATE} of book value; the ruling (b226) is 0.20`);
+    ok(cat.SHOP_BUYBACK_RATE === 0.5,
+      `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
     const { ITEMS } = await import('../src/data/items.js');
-    /* The unit prices the BROWSER uses: the same pure derivation src/main.js
-       publishes as window.SHOP_UNIT_PRICE, run here over the generated catalogue
-       — not the server's exported index, so the two derivations are compared. */
-    const { cheapestShopUnitPrice } = await import('../src/core/shop-buyback.js');
-    const { SHOP_OFFERS } = await import('../src/data/shops.js');
-    const U = cheapestShopUnitPrice(SHOP_OFFERS);
-    ok(U.stone_maul === 140 && Object.keys(U).length > 20,
-      `G1-CONTROL: the client unit-price index is vacuous (${Object.keys(U).length} items) — the cap comparison proves nothing`);
-    const legacyPrice = (id) => {
-      const item = ITEMS[id];
-      if (!item) return 0;
-      const v = Number(item.v) || 0;
-      if (v <= 0) return 0;
-      const bid = item.raw ? Math.max(1, Math.floor(v * Number(rate[1]))) : v;
-      const unit = Object.prototype.hasOwnProperty.call(U, id) ? U[id] : 0;
-      return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(Number(buyRate[1]) * unit))) : bid;
-    };
-    /* FAIL-CLOSED BEFORE BOOT: the real vendorPrice(), run with no unit index
-       published, must bid NOTHING for a shop-sold item — an uncapped bid there is
-       a price the server never pays. Then, published, it must bid the server's. */
-    {
-      const vm = await import('node:vm');
-      const win = { addEventListener() {} };
-      const ctx = vm.createContext({ window: win, ITEMS, console: { log() {}, info() {}, warn() {} } });
-      vm.runInContext(legacy, ctx);
-      ok(typeof win.vendorPrice === 'function', 'G1-CONTROL: shop-counter.js did not publish vendorPrice in the vm');
-      let pre;
-      try { pre = win.vendorPrice('stone_maul'); } catch (e) { pre = `a throw (${e.message})`; }
-      ok(pre === 0,
-        `G1: vendorPrice('stone_maul') answered ${pre} with no SHOP_UNIT_PRICE `
-        + 'published — before boot the bag must bid nothing, not an uncapped price the server never pays');
-      win.SHOP_UNIT_PRICE = U;
-      ok(win.vendorPrice('stone_maul') === cat.vendorPriceOf(ITEMS, 'stone_maul'),
-        `G1-CONTROL: the vm vendorPrice bid ${win.vendorPrice('stone_maul')} once published, the server `
-        + `${cat.vendorPriceOf(ITEMS, 'stone_maul')} — the fail-closed check is measuring the wrong function`);
-    }
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
@@ -637,11 +565,6 @@ async function run(mutate) {
       .filter((id) => cat.vendorPriceOf(ITEMS, id) !== BUYBACK_EXPECT[id])
       .map((id) => `${id}: server ${cat.vendorPriceOf(ITEMS, id)}, ruling ${BUYBACK_EXPECT[id]}`);
     ok(offRuling.length === 0, `G1: the server buy-back is off the b565 ruling — ${offRuling.join('; ')}`);
-    const wrong = Object.keys(ITEMS)
-      .filter((id) => cat.vendorPriceOf(ITEMS, id) !== legacyPrice(id)).slice(0, 5);
-    ok(wrong.length === 0,
-      `G1: the server and the client disagree on the vendor bid for [${wrong}] — e.g. ${wrong[0]}: `
-      + `server ${cat.vendorPriceOf(ITEMS, wrong[0])}, client ${legacyPrice(wrong[0])}`);
     /* THE DISCOUNT IS ACTUALLY BEING APPLIED. Sampled at v >= 10 deliberately:
        below that the `max(1, …)` floor makes the discounted price equal the book
        value, so a cheap raw is a control that cannot fail. Found the hard way —
@@ -1531,7 +1454,7 @@ async function run(mutate) {
     for (const f of clean) console.log('  ✗ ' + f);
     process.exit(1);
   }
-  console.log('gold-intents: OK — catalogue derivation, vendor-price parity with legacy.js, hostile '
+  console.log('gold-intents: OK — catalogue derivation, the ruled vendor price, hostile '
     + 'bodies, buy/sell happy paths, the no-confiscation invariant, replay, one-key-one-purchase, '
     + 'insufficient gold, unknown vs unsupported, prototype names, unowned stock, budget-free shape '
     + 'refusals, the rate bucket, the registry, the taxonomy, clamp headroom, catalogue containment, '

@@ -1,1222 +1,146 @@
-// Supabase auth scaffold — drop-in module that handles sign-in / sign-up flows
-// and wires the resulting session into the cloud-sync adapter.
+// ════════════════════════════════════════════════════════════════════════
+// src/net/auth.js — SIGN IN, CREATE AN ACCOUNT, RESET A PASSWORD, SIGN OUT.
 //
-// Tyler hasn't created the Supabase project yet, so this module is INERT until
-// he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
-// become live, and cloud-sync auto-upgrades from offline to live.
+// createAuth wraps one supabase-js client (src/net/supabase-bootstrap.js). It
+// owns the account's sign-in and nothing about characters. Every answer is
+// { ok, message } in plain English, never a throw.
+//
+// HONEST COPY, AND NO ACCOUNT PROBING. Creating an account with an email that
+// already has one gets the same answer as a new one ("check your email … if you
+// already have an account, sign in"), and a reset request always answers "if
+// that email has an account, a link is on its way". The copy is true in every
+// case and never says which emails exist.
+//
+// SIGN-OUT CLEARS EVERY COPY: supabase-js forgets the session, then every key
+// that can hold a token on this device — the auth key in BOTH the device and
+// the tab store, any `sb-*` key, the retired pre-reset keys — and the tab's
+// session id, so the next sign-in is a new session.
+//
+// THE RECOVERY LINK: a password-reset email opens the client with a recovery
+// token in the URL; supabase-js signs the link in and reports PASSWORD_RECOVERY,
+// which the app turns into the set-new-password screen (onChange 'recovery').
+// ════════════════════════════════════════════════════════════════════════
 
-/* b519 — `pullLatestDetailed` used to be imported here and is not called: the
-   post-cutover boot restores from the hr_load envelope (record.js), not from a
-   `game_saves` row, so the reference was left over from the pre-cutover restore
-   gate. Dropped rather than kept "in case" — an unused import of a retired
-   table's reader is how a retired path finds its way back. */
-import { setupSync, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=589';
+import { SESSION_CONFIG } from '../session/config.js?v=589';
 
-let supabase = null;       // lazy-loaded supabase client
-let authConfig = null;     // {url, anonKey}
-let session = null;        // current session
+export const MIN_PASSWORD = 8;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const LOCAL_KEY = 'hearthrise:supabaseSession';
-/** The platform storage seam (src/platform/storage.js); absent under Node = no storage. */
-const store = () => globalThis.HearthriseStorage || null;
+export const AUTH_COPY = Object.freeze({
+  badEmail: 'Enter the email address for your account.',
+  shortPassword: 'Use at least ' + MIN_PASSWORD + ' characters for your password.',
+  mismatch: 'The two passwords do not match.',
+  signInFailed: 'That email and password do not match an account.',
+  signUpSent: 'Check your email for a link to finish creating your account. If you already have an account, sign in instead.',
+  signUpFailed: 'The account could not be created. Try again in a minute.',
+  resetSent:'If that email has an account, a link to reset your password is on its way.',
+  passwordSet: 'Your new password is saved. You are signed in.',
+  passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
+  network: 'Could not reach the server. Check your connection and try again.',
+});
+
+const fail = (message) => ({ ok: false, message });
+const isNetwork = (e) => !!e && (e.status === 0 || /fetch|network/i.test(String(e.message || '')));
 
 /**
- * WHAT AN AUTH EVENT MEANS FOR THE CACHED SESSION — pure, and exported so the
- * suite can prove it (b226).
- *
- * The cached session under LOCAL_KEY is not a convenience: src/net/account-gate.js
- * opens the front door on it, so deleting it is equivalent to signing the
- * player out of the product. Before b226 the handler cleared it on ANY event
- * that arrived without a session, and supabase-js emits several — an
- * INITIAL_SESSION replay, a TOKEN_REFRESHED that has not resolved yet, a
- * transient network blip during refresh. One of those and a signed-in player
- * met the wall on their next load and had to sign in again. That is the
- * "logging in doesn't seem very seamless" report, in one line.
- *
- *   'persist' — an event carrying a session. Always wins.
- *   'clear'   — an EXPLICIT end of the account's session on this device.
- *   'ignore'  — a null we cannot interpret as an intentional sign-out. Keep
- *               the cache; supabase-js keeps retrying, and if the session
- *               really is dead the gate's lapsed-session sheet asks — beside a
- *               running game, which is the behaviour the account ruling
- *               requires.
- * @returns {'persist'|'clear'|'ignore'}
+ * @param {object} o
+ * @param {object} o.client      the supabase-js client
+ * @param {object} o.device      HearthriseStorage (device store)
+ * @param {object} o.tab         HearthriseStorage.session (tab store)
+ * @param {string} o.redirectTo  where a reset or confirmation email sends the player back
+ * @param {object} [o.config]    defaults to SESSION_CONFIG
  */
-export function decideSessionEvent(event, newSession) {
-  if (newSession) return 'persist';
-  return (event === 'SIGNED_OUT' || event === 'USER_DELETED') ? 'clear' : 'ignore';
-}
+export function createAuth(o) {
+  const cfg = o.config || SESSION_CONFIG;
+  const auth = o.client.auth;
+  let session = null;
 
-/* ── b331: THE OTHER HALF OF THAT RULE ───────────────────────────────────────
-   'ignore' is right — a transient null must not sign a player out — but it was
-   the ONLY thing standing between "supabase-js lost its session" and "this
-   module keeps handing out a dead access token forever". Production proof: a
-   player's requests on 2026-08-12 carried a token ISSUED ON 2026-08-11, replayed
-   for three hours against 3,087 PGRST303s. `decideSessionEvent` protects the
-   CACHE; nothing protected the TOKEN. The recovery ladder below is that half:
-   recover over the real network, or terminate into a state the player can act on.
-   The one thing it must never do is settle. */
-
-let recoverInFlight = null;
-let syncDownSince = 0;
-let refreshTimer = null;
-
-/* ── THE TOKEN ACCESSOR THE SERVER INTENTS ARE GIVEN (b492) ──────────────────
-   `() => session?.access_token` was handed to accrue / character / record /
-   activity / gold / equip / eat, and it would cheerfully return a JWT whose
-   `exp` passed hours ago. sync.js has refused to do that since b331 ("a request
-   is only put on the wire if we have a token we have no reason to believe is
-   dead") — the INTENT modules never got the same rule, so on a cold start they
-   spent the boot 401ing while sync.js sat the round out.
-
-   This is that rule, for them. Three deliberate properties:
-
-     • It answers `null` rather than a dead token. Every intent module treats a
-       missing token as `unconfigured/no_token` and does NOT burn a request —
-       and, since b492, record.js's ladder RETRIES that, so the honest "not yet"
-       costs 800ms instead of a guaranteed 401.
-     • It KICKS the recovery — otherwise "no token" would be a state nothing
-       ever left. `recoverSession` is single-flight, so a burst of intents in one
-       tick is one refresh; the 5s floor below covers the OTHER shape, a hard
-       auth failure where each attempt completes and the retry ladder asks again
-       800ms later. sync.js has a full backoff gate for this
-       (nextAuthBackoffMs); a token accessor cannot reach it, so it gets a floor
-       rather than an unthrottled loop against /auth/v1/token.
-     • It only condemns a token on a TRUSTED clock. A device whose clock runs
-       fast would otherwise report every token expired forever and lock itself
-       out of its own account — the same reason the b331 proactive-refresh timer
-       checks isClockTrusted(). An untrusted clock sends the token and lets the
-       server be the judge, which is the safe direction. */
-const TOKEN_RECOVERY_FLOOR_MS = 5000;
-let lastTokenRecoveryAt = 0;
-export function liveAccessToken(now) {
-  const tok = session && session.access_token;
-  if (!tok) return null;
-  const t = Number.isFinite(Number(now)) ? Number(now) : Date.now();
-  let dead = false;
-  try { dead = isClockTrusted() && tokenStatus(tok, t, 0) === 'expired'; }
-  catch (e) { dead = false; }
-  if (!dead) return tok;
-  if (t - lastTokenRecoveryAt >= TOKEN_RECOVERY_FLOOR_MS) {
-    lastTokenRecoveryAt = t;
-    try { recoverSession(); } catch (e) {}   // single-flight; fire-and-forget
+  async function refresh() {
+    try { const { data } = await auth.getSession(); session = (data && data.session) || null; } catch (e) { session = null; }
+    return session;
   }
-  return null;
-}
 
-function readCachedSession() {
-  const s = store();
-  return s ? s.getJSON(LOCAL_KEY, null) : null;
-}
-
-function adoptSession(s) {
-  session = s;
-  store()?.setJSON(LOCAL_KEY, s);
-  try { resetAuthGate(); } catch (e) {}          // the breaker may open again
-  syncDownSince = 0;
-  hideAuthExpiredGate();
-}
-
-/**
- * THE RECOVERY LADDER. Returns true only if a LIVE access token now exists.
- *
- * Step 1 is what the old handler did, and on its own it is the bug: when
- * supabase-js has dropped its own session, `refreshSession()` rejects with
- * AuthSessionMissingError WITHOUT MAKING A NETWORK CALL — which is exactly what
- * the edge logs showed (~25 `/auth/v1/token` requests in a day against 3,087
- * 401s). Steps 2 and 3 re-arm the library from the refresh token we hold in
- * LOCAL_KEY, which forces a real POST to the token endpoint.
- *
- * Single-flight: six failing requests a minute must not become six refreshes.
- */
-export async function recoverSession() {
-  if (recoverInFlight) return recoverInFlight;
-  recoverInFlight = (async () => {
-    if (!supabase) return false;
-    try {
-      const { data } = await supabase.auth.refreshSession();
-      if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
-    } catch (e) { /* AuthSessionMissingError lands here, silently and offline */ }
-
-    const cached = readCachedSession();
-    const rt = cached && cached.refresh_token;
-    if (rt) {
-      try {
-        const { data } = await supabase.auth.setSession({
-          access_token: (cached && cached.access_token) || '', refresh_token: rt });
-        if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
-      } catch (e) {}
-      try {
-        const { data } = await supabase.auth.refreshSession({ refresh_token: rt });
-        if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
-      } catch (e) {}
+  /** Every key on this device that can hold a token or a tab session. */
+  function clearCopies() {
+    for (const store of [o.device, o.tab]) {
+      if (!store) continue;
+      for (const k of store.keys()) if (k === cfg.authKey || k.startsWith(cfg.authKey + '-') || k.startsWith('sb-')) store.remove(k);
+      for (const k of cfg.retiredAuthKeys) store.remove(k);
     }
-    console.warn('[Auth] the session could not be refreshed — this token is dead; the player must sign in again.');
-    return false;                                  // DEFINITIVE: sync stops asking
-  })();
-  try { return await recoverInFlight; } finally { recoverInFlight = null; }
-}
-
-/**
- * What the player is told when sync is down. Pure, so the escalation is provable.
- *
- * "⚠️ Reconnecting… your progress is saved locally" is honest for a network
- * blip. It is a LIE after twenty minutes of dead auth: nothing is reconnecting,
- * and "saved locally" is one cache-clear from gone. So a definitively-expired
- * session, or auth failure that has persisted past ESCALATE_AFTER_MS, says so.
- */
-export const ESCALATE_AFTER_MS = 180000;   // 3 minutes
-export function syncFailureMessage(reason, downMs) {
-  if (reason === 'auth-expired' || (reason === 'auth' && Number(downMs) >= ESCALATE_AFTER_MS)) {
-    return '🔒 Your sign-in has expired — nothing is reaching the cloud. Sign in again to save your progress.';
-  }
-  return '⚠️ Reconnecting… actions are not reaching the realm yet.';
-}
-
-/**
- * Initialise auth + cloud sync.
- * @param {{url: string, anonKey: string}} config
- */
-export async function setupAuth(config) {
-  authConfig = config;
-  if (!config?.url || !config?.anonKey) {
-    console.log('[Auth] no config — staying in offline mode');
-    return;
-  }
-  // ── THE SDK IS SELF-HOSTED. THERE IS NO CDN FALLBACK, DELIBERATELY. ───────
-  // This used to be `await import('https://cdn.skypack.dev/@supabase/
-  // supabase-js')`. That is the module the player's email and password are
-  // handed to and the module that holds the session token, and it was fetched
-  // UNPINNED from a third party with no integrity check — a dynamic import()
-  // cannot carry one. Measured 2026-08-23: two requests to that URL seconds
-  // apart resolved to two different library versions, and it fanned out to five
-  // more skypack fetches. A compromise there is a compromise of every account.
-  // It is now `src/vendor/supabase-js-<ver>.umd.js`, served from our own origin
-  // and loaded by a classic <script> in index.html (classic scripts run before
-  // deferred modules, so the global is up by the time setupAuth runs).
-  //
-  // NO FALLBACK to the CDN on failure: a fallback that fires when the local copy
-  // is unreachable hands the attacker the whole fix by making the local copy
-  // unreachable. If our own origin cannot serve this file, nothing else on the
-  // page loaded either.
-  const sdk = (typeof window !== 'undefined') ? window.supabase : null;
-  if (!sdk || typeof sdk.createClient !== 'function') {
-    console.error('[Auth] the vendored supabase-js bundle did not load — staying offline. '
-      + 'Check the <script src="src/vendor/supabase-js-*.umd.js"> tag in index.html.');
-    return;
-  }
-  try {
-    // Explicit auth options so we don't rely on library defaults: keep the
-    // access token auto-refreshing in the background (tokens expire ~1h) and
-    // persisted, so long play sessions don't silently stop syncing (b149).
-    /* ── THE TWO OPTIONS THE CONFIRM LINK DEPENDS ON, NOW STATED ────────────
-       Both match supabase-js 2.103's current defaults, so this changes no
-       behaviour today. They are written down because the whole email-confirm
-       funnel rests on them and a library bump is one line:
-
-       · detectSessionInUrl — the confirm link lands here as
-         `#access_token=…`, and THIS is what turns that fragment into a live
-         session. With it off, a correctly-configured redirect still deposits
-         the player on a sign-in form, which is the dead end wearing a
-         different hat.
-       · flowType 'implicit' — deliberately NOT pkce for this product. PKCE
-         requires the code verifier written at signUp to still be in the SAME
-         browser profile's storage when the link is opened, and a confirmation
-         link is opened from a mail client: routinely a different browser, an
-         in-app webview, or a phone when the sign-up happened on a desktop.
-         Implicit works across all of those. The cost — the access token rides
-         in a URL fragment for one navigation — is real and is the right trade
-         for a link whose entire job is to work somewhere else. */
-    supabase = sdk.createClient(config.url, config.anonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'implicit',
-      },
-    });
-  } catch (e) {
-    console.warn('[Auth] failed to construct the supabase client:', e.message);
-    return;
+    if (o.tab) o.tab.remove(cfg.tabKey);
   }
 
-  // Restore prior session if present
-  /* ── b492: THE EXPIRED-TOKEN BOOT RACE, CLOSED AT ITS SOURCE ───────────────
-     This block used to read:
-         session = JSON.parse(cached);
-         await supabase.auth.setSession(session);
-     — and THREW THE ANSWER AWAY. `setSession` returns the refreshed session
-     when the cached access_token has expired (which it has on every cold start
-     after ~1h away: a PC restart, an overnight gap, a frozen tab). Discarding it
-     left `session` pointing at the DEAD token, and the whole boot then ran on
-     that: `authToken: () => session?.access_token` (enableLiveSync /
-     wireServerIntents) handed the expired JWT to hr_create_character and hr_load,
-     both 401'd as `not-signed-in`, the failure was a console.warn, and the client
-     rendered the factory-default character. The library did refresh a moment
-     later and fired onAuthStateChange — but by then the boot reads had already
-     failed, and before b492 nothing ever asked again.
-
-     So: ADOPT what setSession returns, and if the token is STILL not live, spend
-     one awaited recovery BEFORE enableLiveSync wires the intents. That is the
-     "awaited-on-auth" half; record.js's ladder is the "and retried" half, and
-     both are needed — this one removes the guaranteed first failure, the ladder
-     covers every failure this cannot foresee. */
-  const cached = store()?.get(LOCAL_KEY);
-  if (cached) {
-    try {
-      session = JSON.parse(cached);
-      const cachedTok = session && session.access_token;
-      const { data } = await supabase.auth.setSession(session);
-      const fresh = data && data.session;
-      /* ⚠ ONLY WHEN THE TOKEN ACTUALLY CHANGED, and that narrowness is load-
-         bearing rather than timid. supabase-js `setSession` returns a session on
-         the healthy path too — one it has re-derived, and whose `user` it
-         populates by calling /auth/v1/user. Adopting THAT wholesale replaces a
-         cached session that has a user id with one that may not (measured: the
-         save-slot guard's cloud READ stopped happening, because
-         `userId: () => session?.user?.id` went undefined and sync had nobody to
-         pull for). A DIFFERENT access_token is the unambiguous signal that a
-         real refresh happened, which is the only case this line exists for; an
-         identical one means nothing needed fixing and the cached session — the
-         one every other part of this module has been using — stands. */
-      if (fresh && fresh.access_token && fresh.access_token !== cachedTok) session = fresh;
-    } catch (e) {
-      /* b492 catch-audit — GUARDED, BUT NOT SILENT. This was `catch {}`, and it
-         covers both `JSON.parse(cached)` and `setSession`. A throw here leaves
-         the player with NO session while src/net/account-gate.js — which reads
-         the same cache independently — has already opened the door. That is a
-         signed-in player booting into a signed-out client, which is the same
-         "the failure had no voice" class as the boot read this build fixes.
-         Not changed behaviourally (recovering here would need its own design);
-         named, so the next incident starts with a sentence instead of a hunt. */
-      console.warn('[Auth] the cached session could not be restored — this device will boot signed out '
-        + 'even though a session is cached:', (e && e.message) || e);
-    }
-    /* A trusted clock that says the token is dead is a request we KNOW will 401,
-       so start the refresh NOW rather than letting the first hr_load discover it.
-       ⚠ DELIBERATELY NOT AWAITED. An `await` here reads better and is a worse
-       idea: it puts `enableLiveSync()` — and therefore the whole save path,
-       `pullAndMaybeRestore` included — behind a network call with no timeout of
-       its own, which is a fresh instance of the exact wedge class this build
-       exists to remove. (Measured: awaiting it turned the save-slot guard red —
-       the cloud read simply never happened inside the boot window.) Racing it is
-       correct and sufficient, because the other half of the fix makes the race
-       safe: `liveAccessToken()` refuses to put the dead token on the wire, so the
-       boot reads decline politely, and record.js's ladder re-asks in 800ms — by
-       which time this refresh has normally landed.
-       `isClockTrusted()` keeps a device with a fast clock from looping: an
-       untrusted clock may not condemn a token. */
-    try {
-      if (session && isClockTrusted()
-          && tokenStatus(session.access_token, Date.now(), 0) === 'expired') {
-        recoverSession();
-      }
-    } catch (e) {}
-  }
-
-  // Auth state listener — keep the session cached + reconfigure sync.
-  // The rule itself is decideSessionEvent() below, so it can be proved.
-  supabase.auth.onAuthStateChange((event, newSession) => {
-    const act = decideSessionEvent(event, newSession);
-    if (act === 'ignore') return;                    // transient null — keep what we have
-    if (act === 'persist') {
-      session = newSession;
-      store()?.setJSON(LOCAL_KEY, newSession);
-      enableLiveSync();
-    } else {
-      session = null;
-      store()?.remove(LOCAL_KEY);
-    }
-    renderAuthUi();
-    // Trigger a full panel re-render so the Profile sheet's
-    // "Offline play / Sign in" subtitle + button update to
-    // reflect the new session state.
-    try {
-      // b334: this called window.render(), which has never been a global —
-      // the typeof guard meant the "full panel re-render" silently never
-      // happened, and the guard made that invisible. refreshAll() is the
-      // engine's actual full repaint.
-      if (typeof window.refreshAll === 'function') window.refreshAll();
-      if (typeof window.renderProfile === 'function') window.renderProfile();
-    } catch {}
-  });
-
-  if (session) enableLiveSync();
-  renderAuthUi();
-}
-
-function enableLiveSync() {
-  if (!authConfig || !session) return;
-  setupSync({
-    ...buildSaveWiring(authConfig),
-    authToken: () => session?.access_token,
-    userId: () => session?.user?.id,
-    // G has no stored totalLevel — it's summed from skills. Feed it in so the
-    // snapshot carries it (populates game_saves.total_level + the restore gate).
-    totalLevel: () => (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0),
-    // b149 — token expiry hardening. If a save fails on an expired token, sync
-    // asks us to refresh + retries once; and we surface sync health to the UI
-    // so a player knows when their progress isn't reaching the cloud.
-    // b331: returns TRUE only when a live token now exists. sync.js uses that
-    // answer to decide whether retrying is worth a request at all.
-    onAuthError: async () => recoverSession(),
-    // b331: the breaker has declared this session unrecoverable. Stop pretending
-    // we are "reconnecting" and give the player the one control that fixes it.
-    onAuthExpired: (info) => { showAuthExpiredGate(info); },
-    onSyncFailure: (reason) => {
-      if (!syncDownSince) syncDownSince = Date.now();
-      const msg = syncFailureMessage(reason, Date.now() - syncDownSince);
-      if (typeof window.notify === 'function') window.notify(msg, 'kill');
-      const pill = document.getElementById('status-pill') || document.getElementById('hr-auth-banner');
-      const label = (pill && pill.querySelector('span:last-child')) || pill;
-      if (label) label.textContent = (reason === 'auth-expired') ? 'Sign in to save' : 'Reconnecting…';
-      if (pill) pill.classList.add('off');
-    },
-    /* b371: the save-health verdict changed (one upsert succeeded or failed).
-       Repaint the surfaces that quote it, so a player who is sitting on the
-       Home tab watching "cloud save active" sees it stop being true rather
-       than only finding out on their next navigation. At most one call per
-       save attempt (60s cadence), so this is not a repaint loop. */
-    onSaveHealth: () => {
-      try { if (typeof window.renderProfile === 'function') window.renderProfile(); } catch (e) {}
-      try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (e) {}
-    },
-    onSyncRecovered: () => {
-      syncDownSince = 0;
-      hideAuthExpiredGate();
-      if (typeof window.notify === 'function') window.notify('✅ Back online — progress synced.', 'info');
-      renderAuthUi();
-    },
-    // b301: another device is signed into this account and actively saving. We
-    // can't force it out, but we warn — two devices at once clobber each other's
-    // saves (last writer wins). Fired once per session.
-    onConcurrentDevice: () => {
-      if (typeof window.notify === 'function') {
-        /* b366: this now fires ONLY when another instance holds the session
-           claim with a live heartbeat (sync.js decideConcurrent) — i.e. the
-           account really is being played in two places right now, not merely
-           "some other device saved recently", which was true on every clean
-           handoff and is what made this warning noise. */
-        window.notify('⚠️ Hearthrise is open on another device right now. Two at once can overwrite each other — close one to keep your progress safe.', 'kill');
-      }
-    },
-    // b302: this device LOST the single-active-session claim — the account was
-    // opened on another device (new device wins). Stop everything that could
-    // clobber the new device's save, and lock this one out with a clear notice.
-    onEvicted: () => { showEvictedGate(); },
-    batchIntervalMs: 5000,
-    snapshotIntervalMs: 60000,
-  });
-  /* b337/b338, restructured in b339 — see wireServerIntents(). Both server
-     intents get their credentials from the SAME place sync.js does, at the same
-     moment, through ONE function the suite can drive with spies. */
-  wireServerIntents(window, {
-    url: authConfig.url,
-    anonKey: authConfig.anonKey,
-    /* b492 — NOT `() => session?.access_token`. See liveAccessToken(): a token
-       whose `exp` has passed is not sent, it is refreshed, and the caller is
-       told "not yet" (which record.js's ladder retries) instead of being handed
-       a guaranteed 401. sync.js has had this rule since b331; the intents that
-       load the character had not. */
-    authToken: () => liveAccessToken(),
-    userId: () => currentUserId(),
-  });
-  // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
-  // (autoRefreshToken:true), and in the incident it demonstrably stopped without
-  // saying so. A token five minutes from death is refreshed here, so the whole
-  // expired-token class costs zero failed requests in the normal case.
-  if (refreshTimer) clearInterval(refreshTimer);
-  // The 5-minute `skewMs` lead is why this fires BEFORE the token dies rather
-  // than after. It is skipped entirely once sync has caught this device's clock
-  // lying, because on a fast clock this condition is permanently true and would
-  // otherwise refresh on every tick forever.
-  refreshTimer = setInterval(() => {
-    const tok = session && session.access_token;
-    if (!tok || !isClockTrusted()) return;
-    if (tokenStatus(tok, Date.now(), 300000) === 'expired') recoverSession();
-  }, 60000);
-  // Pull cloud snapshot on first connection if local save is older
-  pullAndMaybeRestore();
-}
-
-/* ── WHERE THIS ACCOUNT'S SAVE LIVES (b342) ─────────────────────────────────
-   The three table addresses, plus the key, as ONE named thing a test can drive
-   — because this was the THIRD caller of the b339 slot bug and the only silent
-   one. accrue.js and character.js were fixed then; the save blob was not.
-
-   NO `slot` KEY, and that omission is now the whole point. sync.js's write
-   (buildSnapshotRequest) and read (pullLatestDetailed) both resolve the ACTIVE
-   character from src/multi-character.js when no slot is pinned, so leaving it
-   out is what addresses the live character. Adding `slot: 0` back here sends
-   every autosave to character 1 again, silently, on a 60s cadence.
-
-   It is deliberately NOT resolved here and passed down. A slot captured at
-   sign-in is a slot that is wrong the moment the player switches character —
-   the same rule the token and the user id follow, and for the same reason.
-
-   Mutation-checked twice over: `slot: 0` anywhere in the setupSync config turns
-   B342-1 red (this function) AND the save-slot guard in tests/run-smoke.mjs
-   red (the whole literal, read off the wire). */
-export function buildSaveWiring(cfg) {
-  const base = String((cfg && cfg.url) || '').replace(/\/+$/, '');
   return {
-    endpoint: `${base}/rest/v1/game_events`,
-    snapshotEndpoint: `${base}/rest/v1/game_saves`,
-    claimEndpoint: `${base}/rest/v1/session_claims`,   // b302 single-active-device
-    apiKey: cfg && cfg.anonKey,
+    refresh,
+    session: () => session,
+    userId: () => (session && session.user && session.user.id) || null,
+    email: () => (session && session.user && session.user.email) || null,
+    token: () => (session && session.access_token) || null,
+
+    async signIn(email, password) {
+      const e = String(email || '').trim();
+      if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
+      if (!password) return fail(AUTH_COPY.signInFailed);
+      try {
+        const { data, error } = await auth.signInWithPassword({ email: e, password });
+        if (error) return fail(isNetwork(error) ? AUTH_COPY.network : AUTH_COPY.signInFailed);
+        session = data.session || null;
+        return { ok: !!session, message: session ? '' : AUTH_COPY.signInFailed };
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    async signUp(email, password, confirm) {
+      const e = String(email || '').trim();
+      if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
+      if (String(password || '').length < MIN_PASSWORD) return fail(AUTH_COPY.shortPassword);
+      if (password !== confirm) return fail(AUTH_COPY.mismatch);
+      try {
+        const { error } = await auth.signUp({ email: e, password, options: { emailRedirectTo: o.redirectTo } });
+        if (error && isNetwork(error)) return fail(AUTH_COPY.network);
+        /* An email that already has an account gets the same words as a new one. */
+        if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);
+        return { ok: true, message: AUTH_COPY.signUpSent };
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    async requestReset(email) {
+      const e = String(email || '').trim();
+      if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
+      try {
+        const { error } = await auth.resetPasswordForEmail(e, { redirectTo: o.redirectTo });
+        if (error && isNetwork(error)) return fail(AUTH_COPY.network);
+        return { ok: true, message: AUTH_COPY.resetSent };
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    async setNewPassword(password, confirm) {
+      if (String(password || '').length < MIN_PASSWORD) return fail(AUTH_COPY.shortPassword);
+      if (password !== confirm) return fail(AUTH_COPY.mismatch);
+      try {
+        const { error } = await auth.updateUser({ password });
+        if (error) return fail(isNetwork(error) ? AUTH_COPY.network : AUTH_COPY.passwordFailed);
+        await refresh();
+        return { ok: true, message: AUTH_COPY.passwordSet };
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    /** Forget the session everywhere on this device. Resolves after the copies are gone. */
+    async signOut() {
+      try { await auth.signOut({ scope: 'local' }); } catch (e) { /* the copies below are the guarantee */ }
+      session = null;
+      clearCopies();
+    },
+
+    /** fn('signed-in' | 'signed-out' | 'recovery' | 'refreshed') on every auth event. */
+    onChange(fn) {
+      const { data } = auth.onAuthStateChange((event, s) => {
+        session = s || null;
+        if (event === 'PASSWORD_RECOVERY') fn('recovery');
+        else if (event === 'SIGNED_OUT') fn('signed-out');
+        else if (event === 'TOKEN_REFRESHED') fn('refreshed');
+        else if (s && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) fn('signed-in');
+      });
+      return () => { try { data.subscription.unsubscribe(); } catch (e) { /* gone */ } };
+    },
   };
 }
-
-/* ── HOW THE TWO SERVER INTENTS ARE WIRED (b339) ────────────────────────────
-   This used to be two inline object literals inside enableLiveSync(), which is
-   unreachable from a test without a live session — so a test could prove that
-   accrue.js RESOLVES the active slot while auth.js quietly went on pinning
-   `slot: 0`, which is exactly the bug S6 found and exactly the "proof of the
-   adjacent thing" family this program keeps meeting. Mutation-checked: putting
-   `slot: 0` back anywhere below turns B339-3b red.
-
-   `authToken` and `userId` are ACCESSORS, never captured values. A token
-   refreshed five minutes from now must reach hr-accrue too (a captured one is
-   how the b331 dead-token loop started), and the user id must be the one
-   signed in NOW or the character latch stops being an identity.
-
-   NO `slot`. It is resolved per call from src/multi-character.js, the module
-   that owns which character is live.
-
-   Wiring is not enabling: the b337 kill switch is separate and defaults OFF. */
-export function buildIntentWiring(cfg) {
-  const c = cfg || {};
-  const base = { url: c.url, apiKey: c.anonKey, authToken: c.authToken };
-  /* b340 — the record read (`hr_load`) is wired from the SAME base as the other
-     two. Three copies of a url would be three things to drift; the b332 lesson
-     about five copies of one hash is recent enough not to need restating. */
-  /* b347 — the ACTIVITY intent is wired from the same base for the same reason.
-     Four copies of a url would be four things to drift. */
-  /* b354 — the three economy verbs ride the same base. Five copies of a url
-     would be five things to drift; the b332 lesson about five copies of one
-     hash is recent enough not to need restating. */
-  /* b366 — the EQUIP intent rides the same base for the same reason. NOTE what
-     is NOT here: `gestureWired`. That flag is not a credential, it is an
-     ASSERTION that the player's equip gesture routes to the server, and it is
-     made in wireServerIntents() below by LOOKING for the routing function
-     rather than by a constant somebody has to remember to keep true. */
-  return { accrual: { ...base }, character: { ...base, userId: c.userId },
-    record: { ...base }, activity: { ...base }, gold: { ...base }, equip: { ...base },
-    /* MANUAL EAT (2026-08-25). Same base as the other value intents — url,
-       apiKey, a re-read authToken and NO pinned slot (resolved per call). */
-    eat: { ...base },
-    /* THE DUNGEON-SCRIP ECONOMY (dungeon-settlement.md). One base feeds both the
-       dungeon_settle and quartermaster_buy transports (they share src/net/
-       dungeon-settle.js and one endpoint). Same shape as the others; NO pinned
-       slot. Configured always so the transport KNOWS its endpoint — it stays
-       SILENT until DUNGEON_SETTLE_ARM_ENABLED flips (isDungeonSettleEnabled()
-       gates every send), so wiring it dark changes nothing on the wire. */
-    dungeon: { ...base },
-    /* THE TROPHY CLAIM (docs/design/BESTIARY_LADDER.md §4). Same base as every
-       other intent — url, apiKey, a re-read authToken and NO pinned slot
-       (resolved per call). It carries no arm flag: the verb mints nothing, so
-       there is no value for a dark period to protect. */
-    trophy: { ...base } };
-}
-
-/* ── IS THE EQUIP GESTURE ACTUALLY ROUTED ON THIS CLIENT? (b366) ────────────
-   The single condition `isEnvelopeAbsolute()` reads, answered MECHANICALLY.
-   `window.routeEquipGesture` is published by the block in legacy.js that every
-   equip path (equip button, paper-doll drag, unequip, loadout apply) calls
-   after its local swap. If that block is deleted, renamed or fails to load, the
-   answer becomes false and every envelope falls back to b359 merge semantics —
-   which is the safe direction: a merge can only over-credit, while an absolute
-   envelope on a client that still equips locally is the b362 dupe at settle
-   cadence. Arming on a constant would survive exactly that deletion. */
-/* ⚠ b369 — THE b368 INCIDENT HOLD IS GONE, AND IT IS GONE BECAUSE THE ARMING
-   CONDITION WAS REPLACED RATHER THAN RE-TRUSTED.
-
-   The b368 hold (`EQUIP_FLIP_HELD = true`) was a constant that forced this
-   function to answer false for everyone. It was the right emergency lever and
-   the wrong permanent shape: a boolean somebody has to remember to flip back
-   is the same class of instruction as the arming condition it was holding.
-
-   What this function answers has NOT changed — "does the player's equip
-   gesture route to the transport on this client?" — and it is still a
-   NECESSARY condition for the flip. What changed is that it is no longer a
-   SUFFICIENT one. `src/net/equip.js` now arms `markEquipAuthorityLive()` only
-   after the SERVER has acknowledged an equip round trip in this session, so
-   the b367 state — gesture present, transport configured, nothing ever
-   delivered, flip armed — is unreachable by construction. Read the arming
-   block in src/net/equip.js before changing either half. */
-export function equipGestureWired(win) {
-  const w = win || (typeof window !== 'undefined' ? window : null);
-  return !!(w && typeof w.routeEquipGesture === 'function');
-}
-
-/** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
- *  test asserts the LITERAL configuration rather than that code exists which
- *  might produce it. Each side is independently guarded: a throw in one must
- *  not leave the other unwired. */
-export function wireServerIntents(win, cfg) {
-  const w = buildIntentWiring(cfg);
-  try { if (win && win.HearthriseAccrual) win.HearthriseAccrual.configureAccrual(w.accrual); }
-  catch (e) { console.warn('[auth] accrual wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseCharacter) win.HearthriseCharacter.configureCharacter(w.character); }
-  catch (e) { console.warn('[auth] character wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseRecord) win.HearthriseRecord.configureRecord(w.record); }
-  catch (e) { console.warn('[auth] record wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseActivity) win.HearthriseActivity.configureActivity(w.activity); }
-  catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseGold) win.HearthriseGold.configureGold(w.gold); }
-  catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseEat) win.HearthriseEat.configureEat(w.eat); }
-  catch (e) { console.warn('[auth] eat wiring skipped:', e && e.message); }
-  try { if (win && win.HearthriseTrophyClaim) win.HearthriseTrophyClaim.configureTrophyClaim(w.trophy); }
-  catch (e) { console.warn('[auth] trophy-claim wiring skipped:', e && e.message); }
-  /* THE DUNGEON-SCRIP ECONOMY (dungeon-settlement.md). Teaches the settle +
-     quartermaster transport where to send. It stays DORMANT (isDungeonSettleEnabled
-     gates every send on DUNGEON_SETTLE_ARM_ENABLED, shipped false), so this only
-     records the endpoint for the day the Coordinator arms it. */
-  try { if (win && win.HearthriseDungeonSettle) win.HearthriseDungeonSettle.configureDungeonSettle(w.dungeon); }
-  catch (e) { console.warn('[auth] dungeon-settle wiring skipped:', e && e.message); }
-  /* ⚠ b369 — THIS CALL NO LONGER ARMS ANYTHING. It states a NECESSARY
-     condition (the gesture routes here) and configures the transport; the flip
-     arms in src/net/equip.js on the server's first `ok:true`. The returned
-     wiring still records the answer so a test asserts the LITERAL
-     configuration rather than that code exists which might produce it. */
-  w.equip = { ...w.equip, gestureWired: equipGestureWired(win) };
-  try { if (win && win.HearthriseEquip) win.HearthriseEquip.configureEquip(w.equip); }
-  catch (e) { console.warn('[auth] equip wiring skipped:', e && e.message); }
-  return w;
-}
-
-/* ── b340: THE CLOUD OVERLAY IS A CACHE READ, AND IT IS STRIPPED ────────────
-   Exported because the strip that matters is the one AT THE CALL SITE. B339's
-   post-mortem is the reason: a test drove accrue.js's slot resolver, proved it
-   correct, and auth.js went on pinning `slot: 0` — a mutation in the CALLER
-   slipped past a test of the callee. So this is a named function a test can
-   drive, and B340-4 mutates it rather than record.js.
-
-   FAILS LOUD, NEVER SILENT. If the switch is on and record.js did not load,
-   this throws instead of returning the blob: returning it would read a
-   server-owned field back out of a client-authored save, which is the exact
-   two-sources bug the seam exists to prevent, and it would do it invisibly. The
-   throw is caught by pullAndMaybeRestore's own handler, which holds the
-   snapshot gate and retries — i.e. it degrades into "we did not restore", never
-   into "we restored a forgeable value". */
-export function stripRecordFieldsForOverlay(snap, win) {
-  const w = win || (typeof window !== 'undefined' ? window : null);
-  /* b515: this opened by reading the b353 kill switch from accrue.js (never
-     from record.js — a missing record.js would have read as "switch off" and the
-     strip would silently not happen, which is the failure this function guards).
-     The switch is retired, so the strip is unconditional and a missing record.js
-     is the loud error below rather than a silent pass-through. */
-  const R = w && w.HearthriseRecord;
-  if (!R || typeof R.stripServerOfRecord !== 'function') {
-    throw new Error('server accrual is ON but src/net/record.js did not load — refusing to overlay a '
-      + 'cloud save that still carries server-owned fields');
-  }
-  return R.stripServerOfRecord(snap).blob;
-}
-
-/* ── b347: THE WHOLE CLOUD→G SEAM, IN ONE FUNCTION A TEST CAN DRIVE ─────────
-   This used to be five inline statements inside pullAndMaybeRestore(), which
-   needs a live Supabase session to reach — and two of them undid each other:
-   `stripRecordFieldsForOverlay` deleted `offlineBudget` from the snapshot, and
-   three lines later the watermark was re-stamped to the snapshot's OWN save
-   time out of `cloudAt`. The strip removed the field from the blob and the very
-   next statement put a blob-derived number back into G under the server's name.
-   Measured with a control: server 06:00Z, this line 09:30Z.
-
-   So the whole seam is one named export and pullAndMaybeRestore holds no blob→G
-   statement of its own. That is B339's lesson applied as far as it goes here: a
-   test cannot reach pullAndMaybeRestore, but it CAN drive every line that
-   touches G, and the remaining untested surface is a single call expression
-   rather than five statements nobody can see.
-
-   `lastSeen` is NOT on the registry and stays client-owned; the watermark is,
-   and asks. Returns what it did, so the test asserts the effect rather than
-   that code exists which might produce it. */
-export function applyCloudOverlay(G, snap, cloudAt, win) {
-  const w = win || (typeof window !== 'undefined' ? window : null);
-  const overlay = stripRecordFieldsForOverlay(snap, w);
-  Object.assign(G, overlay);
-  // Reset the offline watermark to the cloud's save time so the returning-
-  // player catch-up credits the gap since the account was LAST active anywhere,
-  // not since this (possibly long-idle) device last saved.
-  G.lastSeen = cloudAt;
-  const A = w && w.HearthriseAccrual;
-  /* FAIL CLOSED, and through accrue.js's single implementation. A missing
-     accrue.js means the switch cannot be on, which is why `true` is the right
-     answer to an absent module here and `false` is the right answer to an absent
-     record.js inside it. */
-  const mayWrite = !A || typeof A.mayClientWrite !== 'function'
-    ? true : A.mayClientWrite('offlineBudget', w) !== false;
-  const restamped = !!(mayWrite && G.offlineBudget && typeof G.offlineBudget === 'object');
-  if (restamped) G.offlineBudget.at = cloudAt;
-  return { stripped: overlay !== snap, restampedWatermark: restamped, lastSeen: cloudAt };
-}
-
-/**
- * THE SAVE-CONFLICT RULE, pure and exported so it can be tested without a
- * network, a session, or a live G.
- *
- * b300 — CLOUD IS AUTHORITATIVE (Tyler). The old rule compared TOTAL LEVEL and
- * prompted when cloud was ahead. That was wrong twice over: total level ignores
- * everything non-level (gold, items, kills gained since), and a level TIE kept
- * local — so a stale local save could silently overwrite newer cloud progress.
- * In an online-only, account-walled game the cloud is the single source of
- * truth and local is a cache; the correct question is not "who has more levels"
- * but "which save is NEWER". So we compare timestamps and the freshest wins,
- * with cloud as the canonical store.
- *
- *   'restore' — the cloud save is NEWER than local. Cloud wins: the caller
- *               overlays it and reloads. (No prompt — auto-newest, per Tyler.)
- *   'adopt'   — local is same-age-or-newer (offline play, a failed prior sync,
- *               or a same-device reopen where they match). Local stays live and
- *               sync.js uploads it. Ties favour local so a same-device reopen
- *               never needlessly reloads.
- *   'none'    — no cloud snapshot at all (first sign-in on an account). Local
- *               is adopted; reported separately from 'adopt' for clarity.
- *
- * SAFETY GUARD: a cloud save only wins if it is newer AND not obviously thin /
- * corrupt — its total level must be at least half of local's. Total level only
- * ever grows, so a newer cloud that is dramatically smaller is a partial or
- * damaged save (e.g. a pre-b288 thin snapshot with a fresh timestamp), and must
- * never be allowed to roll a real save back. When in doubt, keep local.
- *
- * SYMMETRIC ANTI-CLOBBER GUARD (b314): the mirror of the thin-cloud guard. That
- * one stops a newer-but-tiny CLOUD from rolling back a real LOCAL. This one stops
- * a fresh/empty LOCAL from clobbering a real CLOUD even though local wins on time.
- * It closes the hole that reset a live account: a freshly-added iOS Home Screen
- * PWA gets its OWN empty storage sandbox, boots an EMPTY character with a current
- * lastSeen (so local is "newer"), then uploads that emptiness over a substantial
- * cloud. Total level only ever grows, so a local still at the fresh-character
- * FLOOR while the cloud holds real, much larger progress is not "newer play" — it
- * is a fresh/cleared/corrupt local and must NEVER win. We key on LOCAL's OWN total
- * (which this device can trust) sitting at the floor, NOT on the cloud's
- * (self-forgeable) size being large — so it cannot be tripped by a garbage-inflated
- * cloud level, and it cannot regress the anti-rollback invariant for a genuinely
- * progressed local (a real save sits far above FRESH_FLOOR, so that branch is
- * never entered). Known limitation: two BOTH-near-floor saves (local & cloud each
- * ≤ FRESH_FLOOR) still resolve by time — an intentionally conservative choice, as
- * a sub-floor save is worth only minutes and we refuse to risk a false restore.
- *
- * @param {{lastSeen:number, totalLevel:number}} local  local freshness + size
- * @param {object|null} snap  cloud snapshot; reads snap.__cloudSavedAt (ms) with
- *                            snap.lastSeen as a fallback, and snap.totalLevel.
- * @returns {{action:'none'|'adopt'|'restore', localAt:number, cloudAt:number,
- *            localTotalLv:number, cloudTotalLv:number, reason:string}}
- */
-// A brand-new Hearthrise character's total level: 12 skills at level 1 plus
-// hitpoints seeded to level 10 (1154 xp) = 22. A save still at or below this
-// floor has effectively no progress; a real save climbs far past it quickly. We
-// leave headroom above the true floor so a few minutes of first-session play is
-// still treated as "fresh" for the anti-clobber guard.
-const FRESH_FLOOR = 40;
-
-/**
- * WHO OWNS THE LOCAL SAVE (b318 — V2 cross-account clobber). Pure.
- *
- * THE HOLE: signOut() cleared only the session, never SAVE_KEY. Account B signs
- * in on a device where account A played; loadLocal() reads A's save into G;
- * decideRestore compares A's local against B's cloud on TIMESTAMP alone, A is
- * newer, verdict 'adopt' → the next snapshot uploads A's character over B's
- * cloud save. B's progress is destroyed and B is playing A's character. Neither
- * existing guard fires: A's save is substantial, so the b314 thin/fresh-floor
- * guards see two perfectly healthy saves and let time decide.
- *
- * The fix is identity, not size: a local save is only a candidate to upload if
- * it BELONGS to the signed-in account.
- *
- *   'same'    — stamped with the signed-in user. Normal freshness rules apply.
- *   'foreign' — stamped with a DIFFERENT user. Never adoptable, never uploadable.
- *   'unstamped'      — a pre-b318 install. See the legacy policy below.
- *   'unknown-session' — we cannot tell who is signed in (auth not up yet, offline
- *                       boot). Never accuse a save of being foreign on a guess;
- *                       fall through to the normal rules, which are unchanged.
- *
- * LEGACY POLICY (unstamped → treated as 'same', stamped on first save): every
- * existing player's save predates the stamp, and discarding those would wipe the
- * entire live beta on upgrade — categorically worse than the bug being fixed.
- * It is safe against the V2 scenario because the stamp is written on the FIRST
- * save after upgrade, i.e. by the account that is actually playing: the window
- * in which a save can be mistaken for someone else's is one boot on a device
- * that has ALREADY had two accounts on it before ever running b318. From the
- * first stamped save onward the device is protected forever. And the stamp is
- * only ever written when ABSENT (legacy.js saveLocal), so a foreign save can
- * never be re-labelled as the current user's on the way past the guard.
- */
-export function decideLocalOwnership(localOwner, currentUser) {
-  if (!currentUser || typeof currentUser !== 'string') return 'unknown-session';
-  if (!localOwner || typeof localOwner !== 'string') return 'unstamped';
-  return localOwner === currentUser ? 'same' : 'foreign';
-}
-
-export function decideRestore(local, snap, ownership) {
-  local = local || {};
-  // Ownership may be passed explicitly (tests, callers that already resolved it)
-  // or derived from the local descriptor. Absent both, it is 'unknown-session'
-  // and behaviour is byte-for-byte what it was before b318.
-  const own = ownership || decideLocalOwnership(local.owner, local.currentUser);
-  if (own === 'foreign') {
-    // A save belonging to another account. It is not "older" or "smaller" — it
-    // is NOT THIS PLAYER'S, so freshness is meaningless and it must never reach
-    // the cloud. The caller parks it and starts this account clean.
-    return {
-      action: 'foreign', reason: 'local-owned-by-another-account', ownership: own,
-      localAt: Number(local.lastSeen) || 0, cloudAt: Number(snap && (snap.__cloudSavedAt || snap.lastSeen)) || 0,
-      localTotalLv: Number(local.totalLevel) || 0, cloudTotalLv: Number(snap && snap.totalLevel) || 0,
-    };
-  }
-  const localAt = Number(local.lastSeen) || 0;
-  const localTL = Number(local.totalLevel) || 0;
-  const base = { localAt, cloudAt: 0, localTotalLv: localTL, cloudTotalLv: 0, ownership: own };
-  if (!snap || typeof snap !== 'object') return { action: 'none', reason: 'no-cloud', ...base };
-  const cloudAt = Number(snap.__cloudSavedAt) || Number(snap.lastSeen) || 0;
-  const cloudTL = Number(snap.totalLevel) || 0;
-  const full = { ...base, cloudAt, cloudTotalLv: cloudTL };
-  // Cloud must be strictly newer to win; ties keep local (no needless reload).
-  if (cloudAt > localAt) {
-    // Thin/corrupt guard: don't let a newer-but-tiny cloud roll a real save back.
-    if (localTL > 0 && cloudTL < localTL * 0.5) return { action: 'adopt', reason: 'cloud-newer-but-thin', ...full };
-    return { action: 'restore', reason: 'cloud-newer', ...full };
-  }
-  // Local wins on time — but a fresh/empty local (fresh-storage sandbox: a
-  // re-added PWA, cleared cache, corrupt save) must NEVER upload over a real,
-  // substantial cloud. See the SYMMETRIC ANTI-CLOBBER GUARD note above.
-  if (localTL <= FRESH_FLOOR && cloudTL > FRESH_FLOOR && cloudTL >= localTL * 2) {
-    return { action: 'restore', reason: 'local-fresh-vs-substantial-cloud', ...full };
-  }
-  return { action: 'adopt', reason: 'local-fresh', ...full };
-}
-
-async function pullAndMaybeRestore() {
-  /* ── THERE IS NOTHING TO RECONCILE, AND SINCE b515 THERE IS NO OTHER CASE ───
-     The SERVER is the sole source of the character: authority arrives via
-     record.js (applyRecord) and the residue via client_state (applyClientState).
-     There is no rival local authored save, so the pull → decideRestore → overlay
-     → reload dance — and the device-handoff "this will replace your local
-     progress" prompt it drove — must not run. Release the upload hold (the save
-     path ships residue via putClientState, which the hold does not gate) and
-     return before any local-vs-cloud comparison.
-
-     Until b515 this was `if (isBlobRetired()) { …this… }` with ~100 lines of
-     blob reconcile after it. isBlobRetired() ANDed the b353 kill switch, so that
-     reconcile was live on any device holding `hr:serverAccrual=off` — it pulled
-     `game_saves`, overlaid a client-authored blob onto G and reloaded. The
-     switch is retired; the reconcile is deleted.
-
-     `decideRestore`, `applyCloudOverlay` and `stripRecordFieldsForOverlay` stay
-     EXPORTED and tested: decideRestore is the b305 anti-rollback rule and the
-     battery drives it directly. They have no production caller any more, which
-     is named in the report as debt for the seam-deletion slice — not silently
-     left looking live. */
-  console.log('[Auth] server is the sole source of the character; no blob reconcile, no handoff prompt.');
-  try { releaseSnapshots(); } catch (e) {}
-}
-
-// ── Public actions ──
-
-/**
- * Where a confirmation email should send the player back to: THIS game, at
- * whatever origin it is currently being served from. The rule itself lives in
- * src/net/signup-door.js (pure, and graded by tests/signup-door.mjs); this is
- * only the lookup, guarded so a missing door module degrades to "no redirect"
- * rather than to a thrown sign-up.
- *
- * @returns {string|null} null when there is no http(s) origin to return to.
- */
-export function signupRedirectTo(loc) {
-  try {
-    const D = (typeof window !== 'undefined') ? window.HearthriseSignupDoor : null;
-    if (!D || typeof D.signupRedirectTarget !== 'function') return null;
-    const where = loc || ((typeof location !== 'undefined') ? location : null);
-    return D.signupRedirectTarget(where);
-  } catch (e) { return null; }
-}
-
-/**
- * THE GoTrue SIGN-UP BODY, built in one place so it can be graded.
- *
- * Two properties, and the second is the one that will bite whoever edits this
- * next:
- *
- *  1. `options.emailRedirectTo` is present whenever we have an origin worth
- *     returning to. Without it GoTrue redirects the confirm link at the
- *     project's SITE URL — which is `http://localhost:3000` on a fresh
- *     Supabase project — and the player confirms their account into a dead
- *     tab. That is the mechanism behind the beta-2 email wall.
- *
- *  2. ⚠ `options.data` IS OMITTED ENTIRELY when there is no metadata. Not
- *     `{}`, not `{invite_code: ''}`. The beta invite gate reads
- *     `raw_user_meta_data->>'invite_code'` and treats SQL NULL (no code
- *     offered) differently from the empty string (a code offered and blank);
- *     `{}` would send `data: {}` and the gate's meaning changes underneath it.
- *     Adding the redirect must NOT smuggle a `data` key in — which is exactly
- *     what the obvious refactor (`options: { data: metadata ?? {} , … }`)
- *     does. Guarded by DOOR-2.
- *
- * @param {string} email
- * @param {string} password
- * @param {object|null} metadata
- * @param {string|null} redirectTo
- */
-export function buildSignUpArgs(email, password, metadata, redirectTo) {
-  const options = {};
-  if (metadata) options.data = metadata;
-  if (typeof redirectTo === 'string' && redirectTo) options.emailRedirectTo = redirectTo;
-  const args = { email, password };
-  if (Object.keys(options).length) args.options = options;
-  return args;
-}
-
-/**
- * The sign-up itself, with the Supabase client INJECTED — so a guard can read
- * exactly what reached `client.auth.signUp` while running the shipped function
- * rather than a re-implementation of it. `signUp()` below is the one-line
- * production caller.
- */
-export async function signUpWith(client, email, password, metadata, redirectTo) {
-  if (!client) throw new Error('Auth not configured');
-  const { data, error } = await client.auth.signUp(
-    buildSignUpArgs(email, password, metadata, redirectTo));
-  if (error) throw error;
-  return data;
-}
-
-export async function signUp(email, password, metadata) {
-  return signUpWith(supabase, email, password, metadata, signupRedirectTo());
-}
-
-/**
- * Re-send the sign-up confirmation email. Client injected for the same reason
- * as signUpWith.
- *
- * ⚠ RESOLVES ON FAILURE. supabase-js `auth.resend()` returns `{ data, error }`
- * and does not throw, so this returns the envelope rather than swallowing it —
- * `src/net/signup-door.js resendOutcome()` is what turns it into words, and it
- * is the only thing allowed to say "Sent". A caller that treats "the promise
- * resolved" as success tells a rate-limited player to wait for a mail that was
- * never dispatched.
- *
- * The SAME `emailRedirectTo` as sign-up: a resent link that returns somewhere
- * else would be a second, differently-broken door.
- *
- * @returns {{data:object|null, error:object|null}}
- */
-export async function resendSignupEmailWith(client, email, redirectTo) {
-  if (!client) return { data: null, error: { message: 'Auth not configured' } };
-  const opts = { type: 'signup', email };
-  if (typeof redirectTo === 'string' && redirectTo) opts.options = { emailRedirectTo: redirectTo };
-  try {
-    return await client.auth.resend(opts);
-  } catch (e) {
-    // A network-level throw is still a failure envelope, never a success.
-    return { data: null, error: { message: (e && e.message) || 'Network error' } };
-  }
-}
-
-export async function resendSignupEmail(email) {
-  return resendSignupEmailWith(supabase, email, signupRedirectTo());
-}
-
-export async function signIn(email, password) {
-  if (!supabase) throw new Error('Auth not configured');
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data;
-}
-
-export async function signOut() {
-  // b318 (V2): signing out used to remove ONLY the session key, leaving this
-  // account's SAVE_KEY blob live in localStorage. The next account to sign in on
-  // this device booted the PREVIOUS player's character and — if it was newer —
-  // uploaded it over their own cloud save. Park the save (never destroy it: a
-  // same-owner sign-in un-parks it, so unsynced offline progress survives) and
-  // stop uploads so nothing can be written after the session ends.
-  try { holdSnapshots(); } catch (e) {}
-  /* b339 — character.js has documented `resetCharacterIntent()` as "the thing
-     auth.js calls on sign-out" since b338, and grep found NO caller anywhere in
-     src/. The latch key now carries the live user id, so a stale latch can no
-     longer match a different account on its own; this drops the in-flight
-     request and the stop latch too, which the key cannot do. A documented
-     collaborator with no call site is a comment, not a seam. */
-  try { window.HearthriseCharacter?.resetCharacterIntent?.(); } catch (e) {}
-  try { window.HearthriseAccrual?.resetAccrualGate?.(); } catch (e) {}
-  /* …and the identity-scoped half of that module: a deferred combat-XP snapshot,
-     the away-settle latch, the pending fall and the arrival span all belong to
-     the account that just left. Sign-out does NOT reload, so without this they
-     are live module state when the next account signs in on this tab. */
-  try { window.HearthriseAccrual?.resetAccrualIdentity?.(); } catch (e) {}
-  if (!supabase) { session = null; store()?.remove(LOCAL_KEY); return; }
-  await supabase.auth.signOut();
-  session = null;
-  store()?.remove(LOCAL_KEY);
-}
-
-/** The user id carried by a supabase session object, or null. Pure. */
-export function readUserIdFromSession(s) {
-  const id = s && s.user && s.user.id;
-  return (typeof id === 'string' && id) ? id : null;
-}
-
-/**
- * The signed-in user id, readable at ANY point in boot — from the live session
- * if setupAuth() has run, otherwise from the cached session blob. legacy.js
- * needs this inside loadLocal()/saveLocal(), which run before this module's
- * session variable is necessarily populated, so it must not depend on init order.
- */
-export function currentUserId() {
-  const live = readUserIdFromSession(session);
-  if (live) return live;
-  return readUserIdFromSession(readCachedSession());
-}
-
-export function getSession() {
-  return session;
-}
-
-export function isSignedIn() {
-  return !!session?.access_token;
-}
-
-// Expose the shared Supabase client so other backends (chat, market, etc.)
-// can reuse it instead of each calling createClient() and tripping the
-// "Multiple GoTrueClient instances detected" warning. Returns null until
-// setupAuth() has finished — callers should fall through to createClient
-// in that case.
-export function getClient() {
-  return supabase;
-}
-
-// ── UI: replace the topbar Sign In button with a real flow ──
-
-function renderAuthUi() {
-  const banner = document.getElementById('status-pill') || document.getElementById('hr-auth-banner');
-  if (banner) {
-    /* b217: this wrote the whole pill as textContent with a 🟢/⚪ emoji in
-       front — which also blew away the styled `.dot` span the markup ships,
-       replacing a themed status light with a system pictograph. Set the LABEL
-       and let the class drive the light. */
-    const label = banner.querySelector('span:last-child') || banner;
-    if (session?.user) {
-      banner.classList.remove('off');
-      /* b241 (paione): this printed the raw account EMAIL on the topbar status
-         pill — long enough to overlap the stat chips on a phone, and it leaked
-         the address into every screenshot. The pill is a CONNECTION indicator
-         (the green dot is the signal); the player's name is already shown beside
-         it. So it reads "Online", not an email. */
-      label.textContent = 'Online';
-    } else {
-      banner.classList.add('off');
-      /* b224: was "Offline · sign in to sync" / "Offline play" — a standing
-         invitation to play without an account, which the product no longer
-         offers. Inside a session this state means the token lapsed or the
-         network went, not that account-less play is on the menu. */
-      label.textContent = authConfig ? 'Signed out' : 'Offline';
-    }
-  }
-  // Replace the "Sign in" button on the profile dashboard if it exists
-  document.querySelectorAll('button').forEach((b) => {
-    if (b.textContent.trim() === 'Sign in' && !b._authPatched) {
-      b._authPatched = true;
-      b.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAuthModal();
-      });
-    }
-  });
-}
-
-function showAuthModal() {
-  if (!authConfig) {
-    // b373: in-game modal, never window.alert — a native dialog blocks the
-    // renderer main thread (src/utils/dialog.js).
-    const D = window.HearthriseDialog;
-    const msg = 'Cloud sync isn\'t configured yet. Talk to your developer to set up Supabase.';
-    if (D && D.alert) D.alert({ title: 'Cloud sync unavailable', body: msg });
-    else if (typeof window.notify === 'function') window.notify(msg, 'kill');
-    return;
-  }
-  const overlay = document.createElement('div');
-  overlay.className = 'hr-scrim';   // position, inset, gutter and the height cap: art-direction.css
-  overlay.style.cssText = 'background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `
-    <form class="hr-sheet" style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">
-      <h3 class="hr-sheet-head" style="margin:0;color:#f3d181">Sign in to Hearthrise</h3>
-      <div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">
-      <p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">Join the realm: clans, chat, market and leaderboards.</p>
-      <input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />
-      <input type="password" name="password" placeholder="Password" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />
-      </div>
-      <div class="hr-sheet-foot" style="display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button type="submit" data-action="signin" style="flex:1;padding:8px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Sign In</button>
-        <button type="button" data-action="signup" style="flex:1;padding:8px;background:#5fcc7c;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Create Account</button>
-      </div>
-      <button type="button" data-action="cancel" data-hr-dismiss style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel</button>
-      <div data-status style="font-size:calc(14.5px * var(--ui-scale, 1));color:#e88a8a;min-height:14px;text-align:center"></div>
-      </div>
-    </form>
-  `;
-  const form = overlay.querySelector('form');
-  const status = overlay.querySelector('[data-status]');
-  const close = () => overlay.remove();
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  overlay.querySelector('[data-action="cancel"]').onclick = close;
-
-  async function attempt(fn) {
-    status.textContent = 'Working…';
-    try {
-      const email = form.email.value.trim();
-      const password = form.password.value;
-      const data = await fn(email, password);
-      status.style.color = '#5fcc7c';
-      status.textContent = '✓ Signed in. Syncing…';
-      setTimeout(close, 800);
-    } catch (e) {
-      status.style.color = '#e88a8a';
-      status.textContent = e.message || 'Sign in failed';
-    }
-  }
-  overlay.querySelector('[data-action="signin"]').onclick = (e) => { e.preventDefault(); attempt(signIn); };
-  overlay.querySelector('[data-action="signup"]').onclick = (e) => { e.preventDefault(); attempt(signUp); };
-  document.body.appendChild(overlay);
-}
-
-// b302: this device was kicked (account opened elsewhere). Stop everything that
-// could overwrite the new device's save, then show a blocking, self-contained
-// lock screen. Inline styles + max z-index on purpose — it must render even if
-// the game's own CSS is mid-teardown. "Use here instead" re-claims for this
-// device and reloads (which then evicts the other one on its next poll).
-/* ── b331: THE SIGN-IN-EXPIRED SHEET ─────────────────────────────────────────
-   The honest version of "⚠️ Reconnecting…". By the time this shows, the breaker
-   has proved the token cannot be refreshed, so there is nothing to reconnect to
-   and no amount of waiting will help. It states where the progress actually is,
-   what would destroy it, and offers the single control that fixes it.
-
-   It does NOT stop the game and does NOT clear LOCAL_KEY — that key is what the
-   account gate opens on, and the refresh token inside it is the only thing that
-   can still recover this session. Deliberately DISMISSIBLE, unlike the b302
-   eviction gate: eviction protects another device's save (blocking), this one
-   protects this device's, and locking a player out of a running game because
-   their token lapsed would be a worse bug than the one it reports.
-
-   Coordination with b302: eviction is the stronger state. This sheet never draws
-   over the eviction gate, and the eviction gate removes it on the way up. */
-export function showAuthExpiredGate(info) {
-  if (typeof document === 'undefined' || !document.body) return null;
-  if (document.getElementById('hr-evicted-gate')) return null;   // b302 wins
-  const existing = document.getElementById('hr-auth-expired-gate');
-  if (existing) return existing;
-  const el = document.createElement('div');
-  el.id = 'hr-auth-expired-gate';
-  el.setAttribute('role', 'dialog');
-  el.style.cssText = [
-    'position:fixed', 'left:50%', 'transform:translateX(-50%)', 'bottom:18px',
-    'z-index:2147483646', 'max-width:440px', 'width:calc(100% - 24px)',
-    'background:rgba(9,12,17,.96)', 'color:#f2e9d8', 'border:1px solid #d9a441',
-    'border-radius:12px', 'padding:16px 18px', 'box-sizing:border-box',
-    'font:400 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
-    'box-shadow:0 10px 30px rgba(0,0,0,.5)'
-  ].join(';');
-  el.innerHTML =
-    '<div style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:6px">🔒 Your sign-in expired</div>' +
-    '<p style="margin:0 0 6px">Nothing you do here reaches the realm until you sign in again. '
-    + 'Your running activity keeps going on the realm.</p>' +
-    '<p style="margin:0 0 12px;opacity:.75">Sign in again to pick up where the realm has you.</p>' +
-    '<div style="display:flex;gap:8px">' +
-    '<button id="hr-authexp-signin" style="flex:1;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Sign in again</button>' +
-    '<button id="hr-authexp-later" style="font:500 14px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Not now</button>' +
-    '</div>';
-  document.body.appendChild(el);
-  const go = el.querySelector('#hr-authexp-signin');
-  if (go) go.addEventListener('click', () => { try { showAuthModal(); } catch (e) {} });
-  const later = el.querySelector('#hr-authexp-later');
-  if (later) later.addEventListener('click', () => hideAuthExpiredGate());
-  return el;
-}
-
-export function hideAuthExpiredGate() {
-  if (typeof document === 'undefined') return;
-  const el = document.getElementById('hr-auth-expired-gate');
-  if (el) el.remove();
-}
-
-function showEvictedGate() {
-  hideAuthExpiredGate();                                     // b331: eviction outranks it
-  try { if (window.HearthriseSync && window.HearthriseSync.pauseSync) window.HearthriseSync.pauseSync(); } catch (e) {}
-  try { if (typeof window.stopCombat === 'function') window.stopCombat(); } catch (e) {}
-  try { if (typeof window.stopSkill === 'function') window.stopSkill(); } catch (e) {}
-  if (document.getElementById('hr-evicted-gate')) return;
-  const el = document.createElement('div');
-  el.id = 'hr-evicted-gate';
-  el.setAttribute('role', 'dialog');
-  el.style.cssText = [
-    'position:fixed', 'inset:0', 'z-index:2147483647',
-    'background:rgba(9,12,17,.94)', 'color:#f2e9d8',
-    'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
-    'text-align:center', 'padding:24px', 'box-sizing:border-box',
-    'font:400 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
-    'backdrop-filter:blur(3px)'
-  ].join(';');
-  el.innerHTML =
-    '<div style="max-width:460px">' +
-    /* b366 — SAY WHAT HAPPENED, NOT WHAT WENT WRONG. The old copy ("Signed out
-       here", 🔒, "this will sign the other device out") described a punishment
-       for a thing the player did on purpose: they picked up their phone. Same
-       mechanism, same single-session rule — but framed as the move it is, so
-       coming back to the desktop later is one obvious tap rather than a
-       standoff between two devices each offering to evict the other. */
-    '<div style="font-size:44px;margin-bottom:8px">📱</div>' +
-    '<h2 style="font-family:Cinzel,serif;font-size:24px;margin:0 0 10px">Your session moved</h2>' +
-    '<p style="margin:0 0 6px">Hearthrise is now open on your other device.</p>' +
-    '<p style="margin:0 0 20px;opacity:.8">It runs in one place at a time, so this one is paused. Nothing is lost — your progress is with the device you moved to.</p>' +
-    '<button id="hr-evicted-usehere" style="font:600 16px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:10px;padding:14px 22px;cursor:pointer">Bring it back here</button>' +
-    '<div style="margin-top:14px;font-size:13px;opacity:.6">Tap to continue playing on this device instead.</div>' +
-    '</div>';
-  (document.body || document.documentElement).appendChild(el);
-  const btn = el.querySelector('#hr-evicted-usehere');
-  if (btn) btn.addEventListener('click', async () => {
-    btn.disabled = true; btn.textContent = 'Moving your session…';
-    try { if (window.HearthriseSync && window.HearthriseSync.claimSession) await window.HearthriseSync.claimSession(); } catch (e) {}
-    location.reload();
-  });
-}
-
-// Expose for legacy callers
-window.HearthriseAuth = {
-  setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
-  /* THE SIGN-UP DOOR. `signUp`/`resendSignupEmail` are the production callers;
-     the `…With` pair take the Supabase client as a parameter so a guard can run
-     the SHIPPED function against an injected client and read what left, instead
-     of asserting against a re-implementation. `buildSignUpArgs` is the payload
-     rule itself — it is what keeps `options.data` absent for a codeless signup
-     while the redirect is added. */
-  signupRedirectTo, buildSignUpArgs, signUpWith,
-  resendSignupEmail, resendSignupEmailWith,
-  decideLocalOwnership, buildIntentWiring, wireServerIntents, buildSaveWiring,
-  // b340 — the cloud half of the record strip, exported so the test drives the
-  // CALLER rather than re-deriving what the caller ought to do (B339's lesson).
-  stripRecordFieldsForOverlay,
-  // b347 — the whole cloud→G seam, exported for the same reason: the strip and
-  // the watermark re-stamp were undoing each other and no test could see either.
-  applyCloudOverlay,
-  // b331 — expired-session recovery + the sheet that tells the player the truth
-  recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
-  // b492 — the token the server intents are actually given (never a dead JWT)
-  liveAccessToken,
-  showAuthExpiredGate, hideAuthExpiredGate,
-  // b368 — the incident hold and its gate, published so the suite grades them.
-  equipGestureWired,
-  /* b366 — exported so the release visual gate can render the eviction sheet
-     without staging a real eviction; the copy changed and rendered surfaces
-     get looked at before they ship. */
-  showEvictedGate,
-};
-
-// Auto-render banner state once on load (in case the user is already signed in)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(renderAuthUi, 500));
-} else {
-  setTimeout(renderAuthUi, 500);
-}
-

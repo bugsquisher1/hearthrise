@@ -89,31 +89,12 @@ export const MAX_UNCLASSIFIED_SITES = 0;
    still match at least one real call site (XP-2) — an entry that has gone stale
    is widening the ratchet in silence. */
 export const ALLOWED = [
-  // ── (a) PREDICTION, RECONCILED TO THE ENVELOPE ────────────────────────────
-  ['src/legacy.js', 'doArtisanAction', '(a)',
-    'the LIVE tick of a DECLARED artisan run (startArtisan → declareActivity("artisan", recipeId)). '
-    + 'Prayer/smithing/crafting/runecrafting/stonemason/cooking are payable lanes '
-    + '(ARTISAN_SETTLEMENT), so serverAccruedSkill() lets the settle assign the server number '
-    + 'ABSOLUTELY over this prediction — including downward. Three sites: the base definition and '
-    + 'the two branches of the inputs-aware override (burnt / normal).'],
-
-  // ── (b) APPLYING A SERVER-CREDITED VALUE ──────────────────────────────────
-  // A (b) entry MUST name, as its fifth field, the server RPC(s) that credit the
-  // XP it applies — and XP-5 PROVES, on the replay chain
-  // (tests/schema-apply-order.json), that each one's final body writes
-  // public.player_skills, directly or through a public.* callee. A (b) label
-  // with no RPC behind it is how payChest sat here for 50+ builds as
-  // "server-credited" while no server code ever wrote the XP (b567).
-  ['src/net/farm-sync.js', 'reconcileFarmResult', '(b)',
-    'copies plant_xp / water_xp / xp out of the hr_farm_* RESPONSE exactly once. '
-    + 'Proven by tests/farm-sync.mjs; the gesture half is proven by tests/no-client-farm-mint.mjs.',
-    ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest']],
-
-  // ── (c) CLIENT-AUTHORED — A DEBT REGISTER, NOT AN ENDORSEMENT ─────────────
-  // EMPTY since 2026-10-10-quest-xp-absence-pay.sql. The last entry was
-  // completeQuest (hundred_kills' 1,500 combat XP, minted by the browser); the
-  // XP is now credited by hr_claim_quest and completeQuest has no addXp at all.
-  // A new (c) entry is a §1 violation: XP-6 refuses it while the ratchet is 0.
+  // EMPTY since the client reset (2026-10-17): the rebuilt client (src/app, src/session)
+  // has no addXp at all — XP reaches it only inside a server envelope. The three
+  // classes stay defined so a future entry is classified, never waved through:
+  //   (a) a prediction for a DECLARED, server-settled activity, reconciled to the envelope;
+  //   (b) applying a server-credited value — fifth field names the RPC(s), XP-5 proves them;
+  //   (c) client-authored — a §1 violation, refused by XP-6 while the ratchet is 0.
 ];
 
 /* ── XP-6: THE CLIENT-AUTHORED DEBT RATCHET ─────────────────────────────────
@@ -127,24 +108,11 @@ export const MAX_CLIENT_AUTHORED_DEBT = 0;
    exist and none is a GRANT; each is named here with its disposition so the
    fourth is loud. This list is a debt register, not an endorsement. */
 export const DIRECT_ALLOWED = [
-  ['src/admin.js', 'setSkillLevel',
-    'the admin console\'s Set Level. A LOCAL display write on a dev surface: prayer/attack/etc. are '
-    + 'serverAccruedSkill(), so the next envelope assigns the server number back over it ABSOLUTELY '
-    + '— it cannot become progression. DEBT: it should call a server RPC or nothing at all.'],
-  ['src/legacy.js', 'testerBoost',
-    'the tester cheat button, same shape and the same fate: overwritten by the next settle. '
-    + 'DEBT: it predates the cutover and wants deleting with the rest of the dev surface.'],
-  ['src/legacy.js', 'migrate',
-    'NOT A GRANT — `if(typeof G.skills.ranged !== "number") G.skills.ranged = 0` initialises an '
-    + 'absent key so the style normaliser has a number to read. It writes 0, never a gain. The '
-    + 'in-place comment already books the follow-up: route raw G.skills reads through '
-    + 'src/net/skill-record.js, THEN gate this on clientMayWriteRecordField("skills").'],
+  // EMPTY since the client reset (2026-10-17): no client module writes a skill.
 ];
 
 /* Files/dirs never scanned, each with the reason (see the header). */
 export const EXCLUDED = [
-  'src/features/smoke-test.js',   // the suite drives addXp to assert on it
-  'src/features/smoke/',          // …and its domain modules, since the 2026-09-14 split
   'src/core/',                    // pure, dual-runtime; takes an fx.addXp seam
 ];
 
@@ -254,21 +222,21 @@ export function directWritesIn(file, src) {
   }));
 }
 
-export function audit(sources) {
+export function audit(sources, allowList = ALLOWED, directList = DIRECT_ALLOWED) {
   const sites = [];
   const writes = [];
   for (const [file, src] of Object.entries(sources)) {
     sites.push(...sitesIn(file, src));
     writes.push(...directWritesIn(file, src));
   }
-  const allowed = ALLOWED.map(([f, fn, cls, why, rpcs]) => ({ f, fn, cls, why, rpcs, hits: 0 }));
+  const allowed = allowList.map(([f, fn, cls, why, rpcs]) => ({ f, fn, cls, why, rpcs, hits: 0 }));
   const unclassified = [];
   for (const s of sites) {
     const a = allowed.find((x) => x.f === s.file && x.fn === s.fn);
     if (a) { a.hits++; continue; }
     unclassified.push(s);
   }
-  const writesAllowed = DIRECT_ALLOWED.map(([f, fn, why]) => ({ f, fn, why, hits: 0 }));
+  const writesAllowed = directList.map(([f, fn, why]) => ({ f, fn, why, hits: 0 }));
   const direct = [];
   for (const w of writes) {
     const a = writesAllowed.find((x) => x.f === w.file && x.fn === w.fn);
@@ -443,15 +411,18 @@ async function selftest() {
   }
   // XP-2: a stale allowlist entry is a failure, not a free pass.
   {
-    const { stale } = audit({ 'src/net/farm-sync.js': '// nothing here any more\n' });
+    const { stale } = audit({ 'src/net/farm-sync.js': '// nothing here any more\n' },
+      [['src/net/farm-sync.js', 'reconcileFarmResult', '(b)', 'a planted entry', ['hr_farm_plant']]]);
     check('bites: an allowlist entry that has stopped matching (XP-2)',
       stale.some((s) => s.f === 'src/net/farm-sync.js'), JSON.stringify(stale.map((s) => s.f + ' ' + s.fn)));
   }
   // The vacuity controls: the REAL tree must actually be read, by BOTH scans.
   {
-    const { sites, writes } = audit(loadSrc());
-    check(`not vacuous: ${sites.length} real addXp call site(s) located in src/`, sites.length >= 5);
-    check(`not vacuous: ${writes.length} real G.skills write(s) located in src/`, writes.length >= 3);
+    /* Zero call sites is the goal now, so the floor is on what was READ: the
+       real client tree, through the same loader the plain run uses. */
+    const real = loadSrc();
+    const n = Object.keys(real).length;
+    check(`not vacuous: ${n} real client file(s) read from src/`, n >= 20 && Object.keys(real).some((f) => f.startsWith('src/app/')));
   }
 
   // ── XP-5 / XP-6 controls ────────────────────────────────────────────────

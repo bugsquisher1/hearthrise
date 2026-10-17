@@ -16,21 +16,21 @@
 // and the target in the uncovered part. World-layer widgets centre in the same
 // uncovered rect.
 //
-// Published as window.HearthriseShell = { mount }. Nothing in the game mounts it
-// yet: the cutover lane wires it (docs/design/WORLD_SHELL.md §6).
+// Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=587';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=587';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=587';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=587';
-import { createHud, gStore, placeWidget } from './hud.js?v=587';
-import { keyLabel, glyphSvg } from './launcher.js?v=587';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=587';
-import { escapeHtml as esc } from '../utils/dom.js?v=587';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=589';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=589';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=589';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=589';
+import { createHud, residueStore, placeWidget } from './hud.js?v=589';
+import { keyLabel, glyphSvg } from './launcher.js?v=589';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=589';
+import { escapeHtml as esc } from '../utils/dom.js?v=589';
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it
  * @param {object} [o]
+ * @param {object} o.character   the CharacterSession this shell belongs to (its HUD layout is that character's residue)
  * @param {HTMLElement} [o.screen]    the whole-screen box (strip included) for screen widgets; default body
  * @param {() => boolean} [o.inHunt]   true while a hunt runs ('hunt' widgets)
  * @param {Window} [o.host]            defaults to window
@@ -41,7 +41,7 @@ export function mountShell(root, o) {
   const doc = host.document;
   const phoneMq = host.matchMedia(MOBILE_QUERY);
   const motionMq = host.matchMedia('(prefers-reduced-motion: reduce)');
-  const reducedMotion = () => motionMq.matches || !!(host.G && host.G.settings && host.G.settings.reduceFx);
+  const reducedMotion = () => motionMq.matches;
 
   const shell = doc.createElement('div');
   shell.className = 'hs-shell';
@@ -67,11 +67,11 @@ export function mountShell(root, o) {
   const hud = createHud({
     widgets: HUD_WIDGETS,
     sizeClass: () => (phoneMq.matches ? 'phone' : 'desktop'),
-    store: gStore(host),
+    store: residueStore(opts.character),
     inHunt: opts.inHunt,
   });
   const insetListeners = new Set();
-  const ctx = { wm, hud, refresh, get glyphs() { return host.HR_GLYPHS || {}; }, get G() { return host.G; } };
+  const ctx = { wm, hud, refresh, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null };
 
   /* ── Windows, reconciled by id ── */
   function frame(row) {
@@ -230,4 +230,3 @@ export function mountShell(root, o) {
   };
 }
 
-if (typeof window !== 'undefined') window.HearthriseShell = Object.freeze({ mount: mountShell });

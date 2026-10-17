@@ -27,7 +27,7 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, d
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR', String(e).slice(0, 160)));
 await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {} });
-await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.G && !!window._itemPath, null, { timeout: 30000 });
 await page.waitForTimeout(2600);
 /* Clear the beta gate ("I understand — let me play") and any daily-login card

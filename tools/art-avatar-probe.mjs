@@ -69,7 +69,7 @@ page.on('requestfailed', (r) => missing.add('FAILED ' + new URL(r.url()).pathnam
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 240)); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e).slice(0, 240)));
 
-const URLB = `http://127.0.0.1:${port}/index.html`;
+const URLB = `http://127.0.0.1:${port}/old-client.html`;
 
 /** FIRST PAINT: what the header holds the instant the document is parsed —
  *  before identity's deferred boot() could possibly have run. This is the

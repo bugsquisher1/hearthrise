@@ -11,7 +11,7 @@
 // failure mode: a false sentence renders exactly as well as a true one. So
 // each rule below ties a sentence to the source fact that makes it true.
 //
-//   G1  every key is a real panel id (index.html + `.id = 'panel-…'` in src/**)
+//   G1  every key is a real panel id (old-client.html + `.id = 'panel-…'` in src/**)
 //   G2  title 4-32 chars; body 80-260 chars, ending in '.'
 //   G3  no digits, emoji, <, > or & (a number in copy is a number that drifts)
 //   G4  bodies are unique
@@ -50,7 +50,7 @@ function jsFiles(dir, out = []) {
 
 function panelIds(root) {
   const ids = new Set();
-  for (const m of readFileSync(join(root, 'index.html'), 'utf8').matchAll(/id="(panel-[a-z-]+)"/g)) ids.add(m[1]);
+  for (const m of readFileSync(join(root, 'old-client.html'), 'utf8').matchAll(/id="(panel-[a-z-]+)"/g)) ids.add(m[1]);
   for (const f of jsFiles(join(root, 'src'))) {
     for (const m of readFileSync(f, 'utf8').matchAll(/\.id\s*=\s*['"](panel-[a-z-]+)['"]/g)) ids.add(m[1]);
   }
@@ -75,7 +75,7 @@ async function check(root, origins) {
   if (keys.length === 0) fail('G0', 'the table is empty — every rule below would pass vacuously');
 
   const ids = panelIds(root);
-  for (const k of keys) if (!ids.has(k)) fail('G1', `${k} is not a panel id anywhere in index.html or src/**`);
+  for (const k of keys) if (!ids.has(k)) fail('G1', `${k} is not a panel id anywhere in old-client.html or src/**`);
 
   const bodies = new Set();
   for (const k of keys) {
@@ -130,7 +130,7 @@ async function selftest() {
   const out = [];
   try {
     cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true });
-    cpSync(join(ROOT, 'index.html'), join(tmp, 'index.html'));
+    cpSync(join(ROOT, 'old-client.html'), join(tmp, 'old-client.html'));
     const clean = await check(tmp, origins);
     if (clean.length) out.push('SELFTEST: the clean copy is not green — ' + clean[0]);
     const edit = (rel, fn) => { const p = join(tmp, rel); const o = readFileSync(p, 'utf8'); writeFileSync(p, fn(o)); return () => writeFileSync(p, o); };

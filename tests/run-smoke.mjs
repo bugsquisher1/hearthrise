@@ -4,7 +4,7 @@
 // The 168-test suite in src/features/smoke-test.js is genuinely good, but it
 // only ever ran when a human pressed Ctrl+Shift+T in a browser — so it could
 // not gate a push, and by the team's own workflow note it typically ran AFTER
-// a bug was already live. This script loads the real index.html in headless
+// a bug was already live. This script loads the real old-client.html in headless
 // Chromium, calls window.__smokeTest(), and exits non-zero on any failure,
 // which turns those existing tests into an actual merge gate. No test rewrites.
 //
@@ -188,7 +188,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       try {
         const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-        let filePath = normalize(join(ROOT, urlPath === '/' ? '/index.html' : urlPath));
+        let filePath = normalize(join(ROOT, urlPath === '/' ? '/old-client.html' : urlPath));
         if (!filePath.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const info = await stat(filePath).catch(() => null);
         if (info?.isDirectory()) filePath = join(filePath, 'index.html');
@@ -611,7 +611,7 @@ async function showTabOwnershipGuard() {
 // → 200, same directory, same commit.
 //
 // Two claims, because either one alone would have missed it:
-//   1. EXISTENCE — every `assets/...` path referenced by index.html or src/**
+//   1. EXISTENCE — every `assets/...` path referenced by old-client.html or src/**
 //      resolves to a real file in the repo. (Catches a rename or a typo.)
 //   2. NO LEADING UNDERSCORE in any shipped path segment. (Catches the class:
 //      a file that exists here and cannot exist on the deploy.) `.nojekyll`
@@ -623,7 +623,7 @@ async function showTabOwnershipGuard() {
 // would rot into a skip.
 async function avatarAssetGuard() {
   const problems = [];
-  const files = [join(ROOT, 'index.html')];
+  const files = [join(ROOT, 'old-client.html'), join(ROOT, 'index.html')];
   const walk = async (dir) => {
     for (const e of await readdir(dir, { withFileTypes: true })) {
       const p = join(dir, e.name);
@@ -676,7 +676,7 @@ async function avatarAssetGuard() {
 // Deleting the constant does not stop this recurring; a guard does. This is the
 // real deliverable of that fix. Two rules, both cheap:
 //
-//   A. ZERO TOLERANCE in shipped client source (src/**, index.html, sw.js and
+//   A. ZERO TOLERANCE in shipped client source (src/**, old-client.html, sw.js and
 //      any root-level .js). Not even a commented-out or blank one — a blank
 //      placeholder is an invitation to paste a real value back in.
 //   B. REPO-WIDE, credential-shaped only: a webhook URL with a real snowflake
@@ -717,7 +717,7 @@ async function secretGuard() {
   // Client source is everything the browser downloads.
   const isClientSource = (f) => {
     const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
-    return rel.startsWith('src/') || rel === 'index.html' || rel === 'sw.js'
+    return rel.startsWith('src/') || rel === 'old-client.html' || rel === 'index.html' || rel === 'sw.js'
       || (!rel.includes('/') && rel.endsWith('.js'));
   };
 
@@ -801,7 +801,7 @@ async function supplyChainGuard() {
     }
   }
   await walk(join(ROOT, 'src'));
-  files.push(join(ROOT, 'index.html'));
+  files.push(join(ROOT, 'old-client.html'), join(ROOT, 'index.html'));
 
   // THE CONTROL. This guard has to be able to say it looked at something. A
   // walk that silently found nothing is the always-null probe this repo has
@@ -1243,7 +1243,7 @@ async function authResilienceGuard(browser, url) {
 // be defeated by putting `slot: 0` in the half of enableLiveSync()'s setupSync
 // literal that was not extracted. Any test of a partial extraction can.
 //
-// So this one reads the BYTES. It boots the real index.html, drives a player
+// So this one reads the BYTES. It boots the real old-client.html, drives a player
 // through the real multi-character API onto character 3, signs in for real, and
 // asserts on the actual outgoing HTTP request. The only stub is the
 // third-party supabase-js SDK, which is fetched from a CDN and is not the thing

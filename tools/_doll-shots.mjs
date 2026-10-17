@@ -46,7 +46,7 @@ async function boot({ width, height, tag }) {
     try { localStorage.setItem('hearthrise:inventory-mobile-subtab', 'equip'); } catch (e) {}
     window._charPane = 'equip';
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G, null, { timeout: 30000 });
   await page.waitForTimeout(2400);
   return { ctx, page };

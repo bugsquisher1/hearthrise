@@ -14,7 +14,7 @@
 // was fixed one at a time and the class came back, so this is the class guard.
 //
 // WHAT IS SCANNED: shipped src/**/*.js (not src/features/smoke/**, src/vendor/**)
-// plus index.html. Comments are stripped; STRINGS ARE KEPT (they are the copy),
+// plus old-client.html. Comments are stripped; STRINGS ARE KEPT (they are the copy),
 // adjacent 'a' + 'b' literals are joined, console.*( arguments are skipped.
 // Phrase-level rules only: the bare word 'offline' is legitimate (away accrual).
 //
@@ -133,7 +133,7 @@ export async function loadFiles(root) {
   const files = await walk(join(root, 'src'));
   const out = [];
   for (const f of files) out.push({ rel: relative(root, f).split(sep).join('/'), text: await readFile(f, 'utf8') });
-  out.push({ rel: 'index.html', text: await readFile(join(root, 'index.html'), 'utf8') });
+  for (const n of (await readdir(root)).filter((x) => x.endsWith('.html')).sort()) out.push({ rel: n, text: await readFile(join(root, n), 'utf8') });
   return out;
 }
 

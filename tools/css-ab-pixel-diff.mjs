@@ -114,7 +114,7 @@ function encodePng({ width, height, data }) {
 }
 
 /* ── reference sheets ──────────────────────────────────────────────────── */
-const sheetNames = () => [...readFileSync(join(ROOT, 'index.html'), 'utf8')
+const sheetNames = () => [...readFileSync(join(ROOT, 'old-client.html'), 'utf8')
   .matchAll(/<link[^>]+href="src\/styles\/([\w-]+\.css)\?/g)].map((m) => m[1]);
 
 function materialiseReference(names) {
@@ -161,7 +161,7 @@ const MID_GAME = () => {
 
 async function main() {
   const names = sheetNames();
-  if (!names.length) { console.error('css-ab: no stylesheet links found in index.html'); return 2; }
+  if (!names.length) { console.error('css-ab: no stylesheet links found in old-client.html'); return 2; }
   const missing = materialiseReference(names);
   if (missing.length) console.log(`  note: ${missing.join(', ')} does not exist at ${REF} — the reference serves an empty sheet in its slot`);
 
@@ -175,7 +175,7 @@ async function main() {
 
   await mkdir(OUT, { recursive: true });
   const { server, port } = await serve();
-  const url = `http://127.0.0.1:${port}/index.html`;
+  const url = `http://127.0.0.1:${port}/old-client.html`;
   const browser = await chromium.launch({ args: ['--force-color-profile=srgb'] });
   const results = [];
   let harnessError = null;

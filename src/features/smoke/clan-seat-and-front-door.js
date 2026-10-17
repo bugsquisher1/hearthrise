@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=589';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=590';
 
 
 export default [
@@ -1869,7 +1869,7 @@ export default [
     /* The PAGE's fetch chain reaches the watcher: later scripts wrap fetch
        around it, so the proof is a real request counted on the way back. */
     const seen0 = C.observed();
-    await window.fetch('index.html?closed-probe=1', { cache: 'no-store' }).catch(() => null);
+    await window.fetch('old-client.html?closed-probe=1', { cache: 'no-store' }).catch(() => null);
     assert(C.observed() > seen0, 'a page request never reached the closed-screen watcher');
     const base = 'https://nezapsylztqbbwuwembx.supabase.co';
     const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

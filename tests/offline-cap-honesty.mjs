@@ -72,7 +72,7 @@ export function loadWorld() {
   for (const f of order) { try { sql[f] = read('supabase/migrations/' + f); } catch (e) { /* not on disk */ } }
   const files = {};
   for (const p of walk('src')) files[p] = read(p);
-  files['index.html'] = read('index.html');
+  files['old-client.html'] = read('old-client.html');
   return { order, sql, files };
 }
 
@@ -122,7 +122,7 @@ export function check(w) {
     if (got !== want(src)) fail('OCH-2', src + ' offline hours client [' + got + '] != server [' + want(src) + ']');
   }
   for (const [p, text] of Object.entries(w.files)) {
-    if (p === 'index.html' || /features\/homestead\.js$/.test(p)) continue;
+    if (p === 'old-client.html' || /features\/homestead\.js$/.test(p)) continue;
     if (/offlineHours\s*:\s*[1-9]/.test(text)) fail('OCH-2', p + ' carries an offlineHours value no server term backs');
   }
 
@@ -130,9 +130,9 @@ export function check(w) {
   for (const [p, text] of Object.entries(w.files)) {
     const lines = text.split('\n');
     lines.forEach((line, i) => {
-      const hits = (p === 'index.html' ? [line] : (line.match(LITERAL) || [])).filter((s) => PROMISE.some((re) => re.test(s)));
+      const hits = (p === 'old-client.html' ? [line] : (line.match(LITERAL) || [])).filter((s) => PROMISE.some((re) => re.test(s)));
       if (!hits.length) return;
-      if (p !== 'index.html') {                // CODE line only: classify's own verdict on this line
+      if (p !== 'old-client.html') {                // CODE line only: classify's own verdict on this line
         const before = classify(lines.slice(0, i).join('\n')).code, upto = classify(lines.slice(0, i + 1).join('\n')).code;
         if (upto === before) return;
       }

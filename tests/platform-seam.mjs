@@ -19,7 +19,7 @@
 //         (src/features/smoke/, src/features/smoke-test.js), which must reach
 //         beneath the seam to prove it — plant what the device holds, refuse a
 //         write, spy on the backend.
-//   PS-2  the seam loads first: in index.html, src/platform/storage.js is a plain
+//   PS-2  the seam loads first: in old-client.html, src/platform/storage.js is a plain
 //         classic script (no defer/async/module) ahead of every other src/ script
 //         but src/vendor/.
 //   PS-3  the tab id stays a TAB id (CLAUDE.md §6): src/net/sync.js touches
@@ -60,7 +60,7 @@ function walk(dir, out) {
 export function loadTree() {
   const files = {};
   for (const abs of walk(join(ROOT, 'src'), [])) files[relative(ROOT, abs).split(sep).join('/')] = readFileSync(abs, 'utf8');
-  return { files, html: readFileSync(join(ROOT, 'index.html'), 'utf8') };
+  return { files, html: readFileSync(join(ROOT, 'old-client.html'), 'utf8') };
 }
 
 const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
@@ -87,10 +87,10 @@ function ps2(html, problems) {
     .map((m) => ({ attrs: m[1], src: (m[1].match(/\bsrc="([^"?]+)/) || [])[1] }))
     .filter((t) => t.src && t.src.startsWith('src/'));
   const at = tags.findIndex((t) => t.src === SEAM);
-  if (at < 0) { problems.push(`PS-2 index.html does not load ${SEAM}`); return; }
+  if (at < 0) { problems.push(`PS-2 old-client.html does not load ${SEAM}`); return; }
   if (/\b(?:defer|async)\b|type="module"/.test(tags[at].attrs)) problems.push(`PS-2 ${SEAM} must be a plain classic script — every classic script after it reads it at parse time`);
   const early = tags.slice(0, at).filter((t) => !t.src.startsWith('src/vendor/'));
-  for (const t of early) problems.push(`PS-2 index.html loads ${t.src} before ${SEAM}`);
+  for (const t of early) problems.push(`PS-2 old-client.html loads ${t.src} before ${SEAM}`);
 }
 
 function bodyOf(src, name) {

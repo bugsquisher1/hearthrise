@@ -9,11 +9,11 @@
 // sword), and only once the equipment record is known. (The element line left
 // with the bestiary charms and Enchant v1, 2026-10-14.)
 
-import { weaknessInfo } from '../core/combat.js?v=589';
-import { weaknessWords } from '../render/foe-weakness.js?v=589';
-import { MONSTER_NOTES } from '../data/monster-notes.js?v=589';
-import { SIGNPOSTS } from '../data/signposts.js?v=589';
-import { fill } from './signposts.js?v=589';
+import { weaknessInfo } from '../core/combat.js?v=590';
+import { weaknessWords } from '../render/foe-weakness.js?v=590';
+import { MONSTER_NOTES } from '../data/monster-notes.js?v=590';
+import { SIGNPOSTS } from '../data/signposts.js?v=590';
+import { fill } from './signposts.js?v=590';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const own = (o, k) => !!o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);

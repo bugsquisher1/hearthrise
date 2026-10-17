@@ -32,7 +32,7 @@
 //   T-TOOL    tools/access-allow.mjs's generated add file admits an account and
 //             its remove file shuts it out again; an email note and a malformed
 //             id are refused before anything is written.
-//   D-CLIENT  index.html loads src/features/closed-screen.js once; the module
+//   D-CLIENT  old-client.html loads src/features/closed-screen.js once; the module
 //             recognises exactly the server's code and status.
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -270,9 +270,9 @@ async function scenario(closedSql, wipeSql, tool = allowSql) {
 async function clientScan(over = {}) {
   const get = async (p) => (p in over ? over[p] : await read(p));
   const out = [];
-  const html = await get('index.html');
+  const html = await get('old-client.html');
   const inc = html.match(/<script src="src\/features\/closed-screen\.js\?v=\d+"><\/script>/g) || [];
-  if (inc.length !== 1) out.push(`D-CLIENT: index.html includes closed-screen.js ${inc.length} time(s), expected 1`);
+  if (inc.length !== 1) out.push(`D-CLIENT: old-client.html includes closed-screen.js ${inc.length} time(s), expected 1`);
   const js = await get('src/features/closed-screen.js');
   const code = (js.match(/var CODE\s*=\s*'([a-z_]+)';/) || [])[1];
   const sqlCode = (CLOSED.match(/"code":"([a-z_]+)"/) || [])[1];
@@ -362,10 +362,10 @@ if (scanOrig.length) { console.error(`harness: the unmutated client scan is red:
 const control = await scenario(CLOSED, WIPE);
 if (control) { console.error(`harness: the unmutated files are red: ${control}`); process.exit(2); }
 const js = await read('src/features/closed-screen.js');
-const html = await read('index.html');
+const html = await read('old-client.html');
 const SCAN = [
   { name: 'clientCodeDrifts', why: 'the client listens for a different code', over: { 'src/features/closed-screen.js': js.replace("'hr_closed';   // bound", "'closed';   // bound") } },
-  { name: 'clientNotIncluded', why: 'index.html never loads the module', over: { 'index.html': html.replace(/\s*<script src="src\/features\/closed-screen\.js\?v=\d+"><\/script>/, '') } },
+  { name: 'clientNotIncluded', why: 'old-client.html never loads the module', over: { 'old-client.html': html.replace(/\s*<script src="src\/features\/closed-screen\.js\?v=\d+"><\/script>/, '') } },
 ];
 console.log(`\nclosed-rebuild --mutate: every mutant must go RED on its named arm\n[mutants] ${MUTANTS.length + SCAN.length}`);
 let survived = 0;

@@ -8,7 +8,7 @@
 // class, a stalled bench, a locked card). Six rules, text and data only:
 //   SIGN-1  every line and label key is used: bag.<id> through the bag's CATEGORIES ids,
 //           every other key as a literal string somewhere in src/ (not smoke)
-//   SIGN-2  a door opens a real tab (index.html data-tab or a HUBS pane in
+//   SIGN-2  a door opens a real tab (old-client.html data-tab or a HUBS pane in
 //           src/nav-consolidation.js) or a real skill
 //   SIGN-3  lines 30-200 chars, labels 3-40; no digits, emoji or < > &
 //   SIGN-4  every CATEGORIES id but recipes has bag.<id>, plus bag.hidden
@@ -66,11 +66,11 @@ async function world() {
     lines: JSON.parse(JSON.stringify(SIGNPOSTS.lines)),
     labels: { ...SIGNPOSTS.labels },
     categoryIds: [...catBlock.matchAll(/\{id:'(\w+)'/g)].map((m) => m[1]),
-    // A door opens a real screen: a rail button (index.html data-tab) or a
+    // A door opens a real screen: a rail button (old-client.html data-tab) or a
     // pane of the nine-door menu (HUBS in src/nav-consolidation.js, w0d) —
     // panes like the Stable have no rail button of their own any more.
     tabs: [...new Set([
-      ...[...readFileSync(join(ROOT, 'index.html'), 'utf8').matchAll(/data-tab="([\w-]+)"/g)].map((m) => m[1]),
+      ...[...readFileSync(join(ROOT, 'old-client.html'), 'utf8').matchAll(/data-tab="([\w-]+)"/g)].map((m) => m[1]),
       ...hubPanes(readFileSync(join(ROOT, 'src/nav-consolidation.js'), 'utf8')),
     ])],
     skills: Object.keys(SKILLS_DEF),

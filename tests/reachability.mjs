@@ -787,7 +787,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       try {
         const p = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, p === '/' ? '/index.html' : p));
+        let f = normalize(join(ROOT, p === '/' ? '/old-client.html' : p));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const info = await stat(f).catch(() => null);
         if (info?.isDirectory()) f = join(f, 'index.html');
@@ -1431,7 +1431,7 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
   const mutate = process.argv.includes('--mutate');
   const { server, port } = await serve();
   const browser = await chromium.launch(launchOptions());
-  const url = `http://127.0.0.1:${port}/index.html`;
+  const url = `http://127.0.0.1:${port}/old-client.html`;
   if (mutate) {
     let escaped = 0;
     for (const m of MUTATIONS) {

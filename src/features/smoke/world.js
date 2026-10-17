@@ -6,8 +6,8 @@
 // it DRAWS, the frame loop runs only while the pane is in front of a visible
 // page, and the only thing it writes is the G._world display scratch.
 // ══════════════════════════════════════════════════════════════════════
-import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=589';
-import { buildResiduePatch } from '../../net/capstone.js?v=589';
+import { tryRunAsync, assert, snapshotG, restoreGAndRecord, stampRecordLikeLoad } from './_harness.js?v=590';
+import { buildResiduePatch } from '../../net/capstone.js?v=590';
 
 /** Tap the World stage over tile (x, y) the way a pointer does. */
 function tapTile(rt, x, y) {

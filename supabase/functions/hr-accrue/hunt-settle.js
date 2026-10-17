@@ -155,6 +155,8 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  * @param o.project   answer with the caller's post-settle envelope (player doors)
  * @param o.minWindowMs  the floor below which nothing is settled
  * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
+ * @param o.atMs     test seam: end the window here instead of at the server's now
+ *                    (clamped to it; production passes none)
  * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended? }}
  */
 export async function settleHunt(o) {
@@ -213,7 +215,10 @@ async function settleOnce(o, mode) {
     if (!m.hero) return { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') };
   }
 
-  let toMs = nowMs;
+  let toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  if (!(toMs > fromMs)) {
+    return { outcome: 'nothing', reason: 'not_due', status: 200, body: { ok: true, settled: false, reason: 'not_due', ...env } };
+  }
   let degraded = 0;
   for (;;) {
     const out = accrueHunt({

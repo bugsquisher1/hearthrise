@@ -151,11 +151,10 @@ export const VERBS = Object.freeze(
        different intent. The wire carries `lines: [{item, qty}]` — NAMES and
        COUNTS, never a price (readLines). */
     'vendor_sell_many',
-    /* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). `hunt_settle` carries the
-       slot and nothing else; `hunt_use` adds `bar_slot`, an action-bar INDEX
-       (readBarSlot) — never an item, a time, an HP or a count. Both run the ONE
-       hunt settle the world tick runs (./hunt-settle.js). */
-    'hunt_settle', 'hunt_use']);
+    /* HUNT SESSIONS (ruling HR-2026-10-14, lanes C2 / S1). `hunt_settle`
+       carries the slot and nothing else, and runs the ONE hunt settle the world
+       tick runs (./hunt-settle.js). Hunts are idle: no press verb. */
+    'hunt_settle']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -206,10 +205,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'listing', 'ask', 'equip', 'auto', 'trophy', 'lines',
-    /* lane C2: the action-bar INDEX a `hunt_use` presses (readBarSlot) — a
-       selector into the character's own preset, never a value. */
-    'barSlot'],
+    'listing', 'ask', 'equip', 'auto', 'trophy', 'lines'],
 );
 
 /** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
@@ -285,30 +281,7 @@ export function parseIntent(body) {
   out.auto = readAuto(body);
   out.trophy = readTrophy(body);
   out.lines = readLines(body);
-  out.barSlot = readBarSlot(body);
   return out;
-}
-
-/* The highest action-bar index (src/data/rule-subjects.js ACTION_SET_LIMITS.slots
-   is 10). A bound on a SELECTOR; the database re-validates the slot exists. */
-/* The last index of Huntera's bar: src/data/rule-subjects.js
-   ACTION_SET_LIMITS.slots - 1 (20 slots since 2026-10-14). This module imports
-   nothing, so the number is restated and tests/hunt-sessions-settle.mjs
-   ACTIONBAR-RULE pins it equal to the data. */
-export const MAX_BAR_SLOT = 19;
-
-/**
- * The ACTION-BAR SLOT a `hunt_use` presses: an own property, a real JSON
- * integer in [0, MAX_BAR_SLOT]. Anything else is `null`, which the verb refuses
- * BY NAME as `bad_bar_slot`. It SELECTS a slot of the character's own preset;
- * what the slot fires, and whether it may, is decided server-side.
- */
-export function readBarSlot(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  if (!Object.prototype.hasOwnProperty.call(body, 'bar_slot')) return null;
-  const v = body.bar_slot;
-  if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
-  return v >= 0 && v <= MAX_BAR_SLOT ? v : null;
 }
 
 /**

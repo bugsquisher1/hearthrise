@@ -1317,9 +1317,12 @@ export async function runTick(opts) {
     }
   }
 
-  /* ── THE HUNTS (lane C2). Each one is ONE settle of one open session through
-     the one hunt settle, from its settled_to to the server's now; a session
-     further behind than HUNT_MAX_WINDOW_MS is caught up over successive fires.
+  /* ── THE HUNTS (lanes C2 / S1). Each selector is ONE settle of the INSTANCE its
+     session hunts in, through the one hunt settle, from the instance's
+     settled_to to the server's now (a second member of an instance already
+     settled this fire answers not_due); an instance further behind than
+     HUNT_MAX_WINDOW_MS is caught up over successive fires. `opts.grounds` is
+     the test seam hunt-settle.js documents; production passes none.
      NO SESSION'S FAILURE COSTS ANOTHER ONE ITS SETTLE. Reported under its own
      key, present only on a fire that carried hunts, so every other fire's
      summary is byte-identical. */
@@ -1329,7 +1332,7 @@ export async function runTick(opts) {
     for (const sel of body.hunts) {
       let v;
       try {
-        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session });
+        v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds });
       } catch (e) {
         v = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
       }

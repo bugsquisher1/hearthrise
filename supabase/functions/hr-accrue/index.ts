@@ -574,13 +574,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return await reply(out.body, out.status);
     }
 
-    /* ── THE HUNT VERBS (lane C2) ───────────────────────────────────────────
-       `hunt_settle` ("bring my hunt up to date") and `hunt_use` (press an
-       action-bar slot). The request carries the slot and, for a press, a
-       BAR-SLOT INDEX — nothing else: no time, no HP, no count, no item. Both
-       run the ONE hunt settle (./hunt-settle.js) the world tick runs, through
-       hr_hunt_apply. */
-    if (intent.verb === 'hunt_settle' || intent.verb === 'hunt_use') {
+    /* ── THE HUNT VERB (lanes C2 / S1) ──────────────────────────────────────
+       `hunt_settle` ("bring my hunt up to date"). The request carries the slot
+       and nothing else: no time, no HP, no count, no item. It runs the ONE hunt
+       settle (./hunt-settle.js) the world tick runs, through
+       hr_hunt_apply_instance. Hunts are idle: there is no press verb. */
+    if (intent.verb === 'hunt_settle') {
       const out = await runHuntVerb({
         exec,
         user,                       // the VERIFIED subject, never a body field
@@ -588,7 +587,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         verb: intent.verb,
         bucket: rateBucketFor(intent.verb),
         intentId: intent.intentId,
-        barSlot: intent.barSlot,
       });
       return await reply(out.body, out.status);
     }

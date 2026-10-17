@@ -568,20 +568,16 @@ export const INTENT_REGISTRY = Object.freeze({
      The delta carries `gold` and `items` only; guardStampKeys re-checks that on
      the delta actually built. */
   vendor_sell_many: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lane C2) ─────────────────────────
+  /* ── HUNT SESSIONS (ruling HR-2026-10-14, lanes C2 / S1) ───────────────────
      `hunt_settle` — "bring my hunt up to date". The `accrue` bucket, because it
      IS the accrue verb's job for a hunter (the accrue verb answers `hunt_open`
-     for one), and the same floor: a settle asked for inside ACCRUE_MIN_MS of
-     the last one writes nothing unless a leave/change is pending. No key: the
-     settle derives its own (session, swing, version, secret), so two racing
-     settles of one window land once.
-     `hunt_use` — a manual action-bar press, settled AT ONCE through the first
-     swing boundary at or after it. The `activity` bucket (the character's own
-     state is one surface — eat, equip, enchant); the player's key, because a
-     retried press must not fire twice.
-     `collectsFirst: false` for both: they ARE the settle. */
+     for one), and the same floor: a settle asked for inside the floor of the
+     last one writes nothing unless a leave/change is pending. No key: the
+     settle derives one per member (instance, world swing, session, swing,
+     version, secret), so two racing settles of one window land once.
+     `collectsFirst: false`: it IS the settle. Hunts are idle (Tyler
+     2026-10-16): the C2 `hunt_use` press verb was retired with the bar. */
   hunt_settle: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
-  hunt_use: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -704,15 +700,13 @@ export const INTENT_ERRORS = Object.freeze({
        hunt_open      409 — the character is on a hunt: its pointer belongs to
                       the session (hr_hunt_leave / hr_hunt_change move it).
        no_hunt        409 — a hunt verb for a character with no open session.
-       bad_bar_slot   400 — `hunt_use` without a readable action-bar index.
-       hunt_leaving   409 — a press while a leave/change is pending.
-       hunt_walking   409 — a press before the walk to the hunt is over. */
+       no_ground      409 — the hunt has no ground to step (src/data/hunt-grounds.js).
+       no_role        409 — a member's weapon plays no role (hunt-roles.js WEAPON_ROLES). */
   HUNT_REQUIRED: 'hunt_required',
   HUNT_OPEN: 'hunt_open',
   NO_HUNT: 'no_hunt',
-  BAD_BAR_SLOT: 'bad_bar_slot',
-  HUNT_LEAVING: 'hunt_leaving',
-  HUNT_WALKING: 'hunt_walking',
+  NO_GROUND: 'no_ground',
+  NO_ROLE: 'no_role',
 
   /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
      Read the pairs. Each one exists because collapsing it into its neighbour
@@ -900,10 +894,8 @@ export const STATELESS_REFUSALS = Object.freeze([
      answered from src/core/hunt.js before the rate gate and before any database
      work, so reading a state envelope for one would be exactly the database work
      the shape check exists to avoid. */
-  /* hunt_required is answered on SHAPE (a `combat` declaration), and
-     bad_bar_slot from the parsed request — both before any database work. */
+  /* hunt_required is answered on SHAPE (a `combat` declaration), before any database work. */
   INTENT_ERRORS.HUNT_REQUIRED,
-  INTENT_ERRORS.BAD_BAR_SLOT,
   INTENT_ERRORS.RATE_LIMITED,
   /* closed is the rate gate's refusal, renamed: the same no-state read. */
   INTENT_ERRORS.CLOSED,

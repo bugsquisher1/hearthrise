@@ -49,7 +49,7 @@ function serve() {
 }
 
 const { server, port } = await serve();
-const url = `http://127.0.0.1:${port}/index.html`;
+const url = `http://127.0.0.1:${port}/old-client.html`;
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();

@@ -306,7 +306,7 @@ if (process.argv[1]?.replace(/\\/g, '/').endsWith('tests/icon-boot-order.mjs')) 
     const s = createServer(async (req, res) => {
       try {
         const p = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, p === '/' ? '/index.html' : p));
+        let f = normalize(join(ROOT, p === '/' ? '/old-client.html' : p));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const i = await stat(f).catch(() => null);
         if (i?.isDirectory()) f = join(f, 'index.html');
@@ -316,7 +316,7 @@ if (process.argv[1]?.replace(/\\/g, '/').endsWith('tests/icon-boot-order.mjs')) 
     });
     s.listen(0, '127.0.0.1', () => resolve({ server: s, port: s.address().port }));
   });
-  const url = `http://127.0.0.1:${port}/index.html`;
+  const url = `http://127.0.0.1:${port}/old-client.html`;
   const load = process.argv.includes('--load');
   const browser = await chromium.launch();
   let exit = 0;

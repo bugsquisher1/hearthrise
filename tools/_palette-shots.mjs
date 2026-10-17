@@ -214,7 +214,7 @@ await page.addInitScript(() => {
   window.__HR_TEST_HARNESS__ = true;
   try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {}
 });
-await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load', timeout: 60000 });
+await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load', timeout: 60000 });
 await page.waitForFunction(() => typeof window.G !== 'undefined', null, { timeout: 60000 });
 await page.evaluate(() => { try { if (window.HearthriseGate) window.HearthriseGate.isOpen = () => true; } catch (e) {} });
 await page.evaluate(MID_GAME);

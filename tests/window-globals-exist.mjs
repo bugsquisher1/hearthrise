@@ -14,7 +14,7 @@
 // makes it loud: every `window.Hearthrise<Name>` READ under src/** must have a
 // matching ASSIGNMENT (`HearthriseName =` on any receiver, or `HearthriseName:` as a
 // publish-map key — main.js publishes several through Object.assign(window, {...}))
-// somewhere in src/** or index.html. Comments and the KNOWN_ABSENT allowlist are the
+// somewhere in src/** or old-client.html. Comments and the KNOWN_ABSENT allowlist are the
 // only exemptions, and each allowlist entry carries its reason.
 //
 // Run GREEN:  node tests/window-globals-exist.mjs
@@ -70,7 +70,7 @@ function walk(dir, out = []) {
 }
 
 export function census(overlay = {}) {
-  const files = [...walk(join(ROOT, 'src')), join(ROOT, 'index.html')];
+  const files = [...walk(join(ROOT, 'src')), join(ROOT, 'old-client.html')];
   const reads = new Map();       // name -> [ 'file:line', ... ]
   const assigns = new Map();     // name -> [ 'file:line', ... ]
   for (const f of files) {
@@ -141,12 +141,12 @@ if (argv.includes('--list')) {
   }
 }
 
-console.log(`window-globals-exist: ${reads.size} names READ, ${assigns.size} names ASSIGNED across src/** + index.html`
+console.log(`window-globals-exist: ${reads.size} names READ, ${assigns.size} names ASSIGNED across src/** + old-client.html`
   + ` (${Object.keys(KNOWN_ABSENT).length} intentional absences allowlisted).`);
 
 if (bad.length) {
   for (const d of bad) {
-    console.error(`x window.${d.name} is READ but never assigned anywhere in src/** or index.html`);
+    console.error(`x window.${d.name} is READ but never assigned anywhere in src/** or old-client.html`);
     for (const s of d.sites.slice(0, 6)) console.error(`    ${s}`);
   }
   console.error(`\n${bad.length} dangling window global(s). A misspelt global is silently undefined — the`

@@ -47,7 +47,7 @@ async function boot({ width, height, tag }) {
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(`[${tag}] ${m.text().slice(0, 200)}`); });
   page.on('pageerror', (e) => consoleErrors.push(`[${tag}] pageerror: ${String(e).slice(0, 200)}`));
   await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {} });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G && !!window._monsterIcon, null, { timeout: 30000 });
   await page.waitForTimeout(2600);
   return { ctx, page };

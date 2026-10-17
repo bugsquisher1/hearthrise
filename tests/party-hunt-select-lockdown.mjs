@@ -13,7 +13,7 @@
 //            policies, no client/engine privilege, no client invoker reads it,
 //            a live member is refused 42501 and still reads via the view)
 //   P-IDEM   a second apply is byte-identical
-//   P-GREP   no client (src/**, index.html) or edge (supabase/functions/**)
+//   P-GREP   no client (src/**, old-client.html) or edge (supabase/functions/**)
 //            CODE names party_hunt as a table: no .from('party_hunt'), no
 //            /rest/v1/party_hunt, no bare `party_hunt` outside comments
 //
@@ -52,7 +52,7 @@ async function walk(dir, out = []) {
   return out;
 }
 async function grepProof() {
-  const files = [...await walk(join(ROOT, 'src')), ...await walk(join(ROOT, 'supabase', 'functions')), join(ROOT, 'index.html')];
+  const files = [...await walk(join(ROOT, 'src')), ...await walk(join(ROOT, 'supabase', 'functions')), join(ROOT, 'old-client.html'), join(ROOT, 'index.html')];
   const hits = [];
   for (const f of files) {
     for (const h of tableReads(await readFile(f, 'utf8'))) hits.push(`${f.slice(ROOT.length + 1)}: …${h.replace(/\s+/g, ' ')}…`);

@@ -173,19 +173,23 @@ export async function cacheBusterGuard() {
   }
   problems.unshift(...dupes);
 
-  /* index.html's tags, held to the same current-build rule. */
-  const html = await readFile(join(ROOT, 'index.html'), 'utf8');
-  HTML_RE.lastIndex = 0;
-  let h;
+  /* Every root page's tags (index.html and the client page beside it), held to
+     the same current-build rule. */
+  const pages = (await readdir(ROOT)).filter((n) => n.endsWith('.html')).sort();
   let tags = 0;
-  while ((h = HTML_RE.exec(html)) !== null) {
-    tags++;
-    if (h[2] !== cache) {
-      problems.push(`STALE  index.html:${lineAt(html, h.index)} — "${h[1]}?v=${h[2]}" but the build is ${cache}`);
+  for (const page of pages) {
+    const html = await readFile(join(ROOT, page), 'utf8');
+    HTML_RE.lastIndex = 0;
+    let h;
+    while ((h = HTML_RE.exec(html)) !== null) {
+      tags++;
+      if (h[2] !== cache) {
+        problems.push(`STALE  ${page}:${lineAt(html, h.index)} — "${h[1]}?v=${h[2]}" but the build is ${cache}`);
+      }
     }
   }
 
-  const note = `build ${cache}; ${specifiers} module specifier(s) + ${tags} index.html tag(s) all current, `
+  const note = `build ${cache}; ${specifiers} module specifier(s) + ${tags} tag(s) in ${pages.length} root page(s) all current, `
     + `${byModule.size} distinct module(s), none double-loaded`;
   return { problems, note, cache, specifiers };
 }

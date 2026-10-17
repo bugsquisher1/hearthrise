@@ -569,7 +569,7 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`
     const s = createServer(async (req, res) => {
       try {
         const p = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, p === '/' ? '/index.html' : p));
+        let f = normalize(join(ROOT, p === '/' ? '/old-client.html' : p));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const i = await stat(f).catch(() => null);
         if (i?.isDirectory()) f = join(f, 'index.html');
@@ -581,7 +581,7 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`
   });
   const mutate = process.argv.includes('--mutate');
   const browser = await chromium.launch();
-  const problems = await slotSwitchGuard(browser, `http://127.0.0.1:${port}/index.html`, { root: ROOT, mutate });
+  const problems = await slotSwitchGuard(browser, `http://127.0.0.1:${port}/old-client.html`, { root: ROOT, mutate });
   await browser.close();
   server.close();
   if (problems.length) {

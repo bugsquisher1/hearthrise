@@ -44,7 +44,7 @@ async function boot({ width, height, tag }) {
     window.__HR_TEST_HARNESS__ = true;
     try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {}
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G, null, { timeout: 30000 });
   await page.waitForTimeout(2400);
   return { ctx, page };

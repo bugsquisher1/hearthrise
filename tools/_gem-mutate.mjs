@@ -72,7 +72,7 @@ async function runSuite(browser, port) {
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
   try {
-    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load', timeout: 60000 });
+    await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load', timeout: 60000 });
     await page.waitForFunction(() => window.__smokeTestSource === 'esm' && typeof window.__smokeTest === 'function', { timeout: 60000 });
     await page.waitForTimeout(6000);
     return await page.evaluate(async () => {

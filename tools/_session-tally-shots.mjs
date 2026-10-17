@@ -57,7 +57,7 @@ async function boot({ width, height, tag }) {
     try { localStorage.setItem('hearthrise:ftue:completed', '1'); } catch (e) {}
     try { localStorage.setItem('hearthrise:beta-ack', '1'); } catch (e) {}
   });
-  await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${port}/old-client.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.G, null, { timeout: 30000 });
   await page.waitForTimeout(2400);
   return { ctx, page };

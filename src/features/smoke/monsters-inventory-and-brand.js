@@ -5845,7 +5845,7 @@ export default [
   // that panel may not be mounted.
   () => tryRunAsync('b371: every portrait render site is enrolled in the registry', async () => {
     const SITES = [
-      ['index.html', /class="player-avatar"[\s\S]{0,200}?data-hr-avatar/],
+      ['old-client.html', /class="player-avatar"[\s\S]{0,200}?data-hr-avatar/],
       ['src/features/home-dashboard.js', /hd-ava[\s\S]{0,400}?data-hr-avatar/],
       ['src/features/character-page.js', /cr-hero-portrait[\s\S]{0,120}?data-hr-avatar/],
       ['src/features/character-page.js', /csk-hero-portrait[\s\S]{0,120}?data-hr-avatar/],

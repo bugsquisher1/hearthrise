@@ -97,8 +97,16 @@ check_invariant() {
   # build, extension-anchored or not. Unquoted prose in comments still doesn't
   # count (that's how index.html:12 and legacy.js's kill-switch example survive).
   local bad_html bad_js bad_lit missing ok
-  bad_html="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9]+' index.html || true; } \
-    | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+  # Every page at the repo root is a served entry (index.html and the client
+  # page beside it), so every one is held to the rule — not a list to forget.
+  local page b
+  bad_html=""
+  for page in *.html; do
+    [[ -f "$page" ]] || continue
+    b="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9]+' "$page" || true; } \
+      | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+    if [[ -n "$b" ]]; then bad_html="${bad_html}  FAIL ${page} has stale versions: ${b}"$'\n'; fi
+  done
   bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
     | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
   bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9]+" src --include='*.js' || true; } \
@@ -109,7 +117,7 @@ check_invariant() {
 
   echo "cache-buster check — build-info says ${cur}"
   ok=0
-  if [[ -n "$bad_html" ]]; then echo "  FAIL index.html has stale versions: ${bad_html}" >&2; ok=1; fi
+  if [[ -n "$bad_html" ]]; then printf '%s' "$bad_html" >&2; ok=1; fi
   if [[ -n "$bad_js"   ]]; then
     echo "  FAIL src/**/*.js has stale versions: ${bad_js}" >&2
     { grep -rnE "['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
@@ -130,7 +138,7 @@ check_invariant() {
     echo "$missing" >&2
     ok=1
   fi
-  if [[ "$ok" == "0" ]]; then echo "  OK — index.html + every ESM import are all at ?v=${cur}"; fi
+  if [[ "$ok" == "0" ]]; then echo "  OK — every root *.html page + every ESM import are all at ?v=${cur}"; fi
   return "$ok"
 }
 
@@ -165,7 +173,7 @@ selftest() {
     local id="$1" why="$2" mutate="$3" want="$4" out rc
     scratch="$(mktemp -d)"
     cp -r "$orig/src" "$scratch/src"
-    cp "$orig/index.html" "$scratch/index.html"
+    cp "$orig"/*.html "$scratch/"
     ( cd "$scratch" && eval "$mutate" )
     set +e
     out="$( cd "$scratch" && check_invariant 2>&1 )"; rc=$?
@@ -187,7 +195,7 @@ selftest() {
   # THE CLEAN CONTROL. A rule that is red at rest is red for everything, and
   # every "caught" below would be an artefact rather than a proof.
   scratch="$(mktemp -d)"
-  cp -r "$orig/src" "$scratch/src"; cp "$orig/index.html" "$scratch/index.html"
+  cp -r "$orig/src" "$scratch/src"; cp "$orig"/*.html "$scratch/"
   set +e; ( cd "$scratch" && check_invariant >/dev/null 2>&1 ); local crc=$?; set -e
   rm -rf "$scratch"
   if [[ "$crc" == "0" ]]; then
@@ -202,6 +210,18 @@ selftest() {
     "a merge brings index.html in at the branch's build number; the browser then loads that file stale for ~10 min after deploy" \
     "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9]+\"/s//\\1=\"\\2?v=1\"/' index.html" \
     "index.html has stale versions"
+
+  # A page BESIDE index.html (the client entry) is served too.
+  local second
+  second="$(cd "$orig" && for p in *.html; do [[ "$p" != "index.html" ]] && echo "$p"; done | head -1)"
+  if [[ -n "$second" ]]; then
+    run_case "B1b-stale-second-page-tag" \
+      "the client page beside index.html is a served entry; a check that reads only index.html lets it ship stale" \
+      "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9]+\"/s//\\1=\"\\2?v=1\"/' ${second}" \
+      "${second} has stale versions"
+  else
+    echo "  FAIL  B1b — no second root page to plant into"; bad=$((bad+1))
+  fi
 
   run_case "B2-stale-esm-specifier" \
     "THE b493 DOUBLE-LOAD: a specifier two builds stale is a DIFFERENT module key, so the module is fetched and evaluated twice with two copies of its state (six modules ran as doubles on 492->493)" \
@@ -235,7 +255,7 @@ selftest() {
   stay_green() {
     local id="$1" why="$2" mutate="$3" out rc
     scratch="$(mktemp -d)"
-    cp -r "$orig/src" "$scratch/src"; cp "$orig/index.html" "$scratch/index.html"
+    cp -r "$orig/src" "$scratch/src"; cp "$orig"/*.html "$scratch/"
     ( cd "$scratch" && eval "$mutate" )
     set +e; out="$( cd "$scratch" && check_invariant 2>&1 )"; rc=$?; set -e
     rm -rf "$scratch"
@@ -262,7 +282,7 @@ selftest() {
     echo "bump-version --selftest FAILED — ${bad} unproven" >&2
     return 1
   fi
-  echo "bump-version --selftest PASSED — clean control green, 6/6 mutations caught, 2/2 ignorable shapes ignored."
+  echo "bump-version --selftest PASSED — clean control green, 7/7 mutations caught, 2/2 ignorable shapes ignored."
   return 0
 }
 
@@ -304,8 +324,8 @@ fi
 # 1. build-info.js
 sed -i -E "s/(cache:[[:space:]]*)${old},/\1${new},/" src/build-info.js
 
-# 2. index.html script/link tags
-sed -i "s/?v=${old}/?v=${new}/g" index.html
+# 2. every root page's script/link tags (index.html and the client page)
+for page in *.html; do if [[ -f "$page" ]]; then sed -i "s/?v=${old}/?v=${new}/g" "$page"; fi; done
 
 # 3. Every ?v= on ESM import specifiers under src/
 find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old}/?v=${new}/g"
@@ -337,10 +357,10 @@ if ! check_invariant; then
   exit 1
 fi
 
-new_html="$({ grep -oE "\?v=${new}\b" index.html || true; } | wc -l | tr -d ' ')"
+new_html="$({ cat ./*.html | grep -oE "\?v=${new}\b" || true; } | wc -l | tr -d ' ')"
 new_js="$({ grep -roE "\?v=${new}\b" src --include='*.js' || true; } | wc -l | tr -d ' ')"
 
 echo "  build-info.cache : $(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js)"
-echo "  index.html ?v=${new} : ${new_html} tags"
+echo "  *.html ?v=${new}     : ${new_html} tags"
 echo "  src ?v=${new}        : ${new_js} import specifiers"
 echo "OK. Now: bump the date in src/build-info.js, add a CHANGELOG.md entry, then commit & push."

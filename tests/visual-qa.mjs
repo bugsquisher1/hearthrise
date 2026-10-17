@@ -58,7 +58,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       try {
         const p = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, p === '/' ? '/index.html' : p));
+        let f = normalize(join(ROOT, p === '/' ? '/old-client.html' : p));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
         const info = await stat(f).catch(() => null);
         if (info?.isDirectory()) f = join(f, 'index.html');
@@ -502,7 +502,7 @@ async function bootPage(browser, url, vp) {
 
 async function walk() {
   const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
-  const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
+  const url = EXTERNAL_URL || `http://127.0.0.1:${port}/old-client.html`;
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch(launchOptions());
   const findings = [];
@@ -570,7 +570,7 @@ async function walk() {
 async function selftest() {
   const fails = [];
   const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
-  const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
+  const url = EXTERNAL_URL || `http://127.0.0.1:${port}/old-client.html`;
   const browser = await chromium.launch(launchOptions());
   try {
     const { page, fonts } = await bootPage(browser, url, VIEWPORTS[0]);

@@ -8,7 +8,7 @@
 // that was somebody ELSE's damage, under a label that explained nothing.
 //
 // This drives the REAL raids.js in REAL headless Chromium against the REAL
-// index.html, with only the two PostgREST reads stubbed (clan_raids and
+// old-client.html, with only the two PostgREST reads stubbed (clan_raids and
 // raid_contributions -- world-readable rows the card fetches), and asserts on
 // the rendered card's own text. Nothing is reimplemented.
 //
@@ -34,7 +34,7 @@ let MUTATION = null;
 
 const server = createServer(async (req, res) => {
   const p = decodeURIComponent(req.url.split('?')[0]);
-  const file = join(ROOT, p === '/' ? 'index.html' : p);
+  const file = join(ROOT, p === '/' ? 'old-client.html' : p);
   if (!normalize(file).startsWith(ROOT)) { res.writeHead(403).end(); return; }
   try {
     let body = await readFile(file);
@@ -51,7 +51,7 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404).end('not found'); }
 });
 await new Promise((r) => server.listen(0, r));
-const url = `http://localhost:${server.address().port}/index.html`;
+const url = `http://localhost:${server.address().port}/old-client.html`;
 
 const browser = await chromium.launch({ headless: !process.argv.includes('--headed') });
 

@@ -4351,7 +4351,7 @@ export default [
     /* The PAGE's fetch chain reaches the watcher: later scripts wrap fetch
        around it, so the proof is a real request counted on the way back. */
     const seen0 = C.observed();
-    await window.fetch('index.html?closed-probe=1', { cache: 'no-store' }).catch(() => null);
+    await window.fetch('old-client.html?closed-probe=1', { cache: 'no-store' }).catch(() => null);
     assert(C.observed() > seen0, 'a page request never reached the closed-screen watcher');
     const base = 'https://nezapsylztqbbwuwembx.supabase.co';
     const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

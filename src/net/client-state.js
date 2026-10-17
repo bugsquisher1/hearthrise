@@ -379,6 +379,9 @@ export const RESIDUE_FIELDS = Object.freeze([
                        // (an ordering hint, nothing reads it to gate or pay; bounded by sanitizeResidueField)
   'noticesSeen',       // client-only display state: {noticeId:true} for the notices this hero has dismissed
                        // (the Adventures 'big changes' line); gates nothing, bounded by sanitizeResidueField
+  'hudLayout',         // client-only DISPLAY preference: the World shell's widget show/hide, opacity and anchor
+                       // per size class ({desktop:{id:{…}}, phone:{…}}; src/shell/hud.js). Gates and spends
+                       // nothing (tests/hud-layout-display-only.mjs); bounded by sanitizeResidueField
   /* ⚠ `toolCarry` WAS HERE and is DELETED (2026-09-14). `player_state.tool_carry`
      is a real server column (2026-08-15-tool-carry.sql), hr_apply accepts the
      engine's `tool_carry` delta key, and hr_state_of projects it at
@@ -580,7 +583,36 @@ function handleForbiddenField(body) {
 const LOOT_FILTER_MAX = 32;   // the bag has 10 filterable classes; the cap is headroom, not a design limit
 const HUNT_FAVS_MAX = 16;     // a star per hunt; the cap is headroom over the hunt table
 const NOTICES_SEEN_MAX = 32;  // one key per dismissed notice; headroom, not a design limit
+const HUD_LAYOUT = Object.freeze({ classes: 4, widgets: 48, offset: 4096 });   // headroom over the spec's 2 x 8
+/* Shape and size only; hud.js merges what survives over the widget rows (meaning). */
+function sanitizeHudLayout(v) {
+  const out = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  let classes = 0;
+  for (const cls of Object.keys(v)) {
+    const rows = v[cls];
+    if (!/^[a-z]{1,16}$/.test(cls) || !rows || typeof rows !== 'object' || Array.isArray(rows)) continue;
+    const kept = {};
+    let n = 0;
+    for (const id of Object.keys(rows)) {
+      const r = rows[id];
+      if (!/^[a-z0-9_-]{1,32}$/.test(id) || !r || typeof r !== 'object' || Array.isArray(r)) continue;
+      const e = {};
+      if (typeof r.anchor === 'string' && /^[tmb][lcr]$/.test(r.anchor)) e.anchor = r.anchor;
+      for (const k of ['dx', 'dy']) if (Number.isFinite(r[k])) e[k] = Math.max(-HUD_LAYOUT.offset, Math.min(HUD_LAYOUT.offset, Math.round(r[k])));
+      if (Number.isFinite(r.opacity)) e.opacity = Math.max(0.4, Math.min(1, r.opacity));
+      if (typeof r.visible === 'boolean') e.visible = r.visible;
+      if (!Object.keys(e).length) continue;
+      kept[id] = e;
+      if (++n >= HUD_LAYOUT.widgets) break;
+    }
+    out[cls] = kept;
+    if (++classes >= HUD_LAYOUT.classes) break;
+  }
+  return out;
+}
 export function sanitizeResidueField(field, v) {
+  if (field === 'hudLayout') return sanitizeHudLayout(v);
   if (field === 'noticesSeen') {
     const out = {};
     if (!v || typeof v !== 'object' || Array.isArray(v)) return out;

@@ -3948,6 +3948,37 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-town-home.mjs
 
+      # The World shell (src/shell/*, not mounted until the cutover): the window
+      # manager (cap of 3, 60% dock, Esc, focus, phone sheet, keys, motion, inset)
+      # and the HUD contract (defaults, per-size-class layout, reset) on the pure
+      # modules; --selftest plants 11 defects into a temp copy.
+      - name: World shell core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/shell-core.mjs --selftest
+
+      - name: World shell core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-core.mjs
+
+      # Every shell window/widget row has a renderer and every renderer a row.
+      - name: World shell renderers - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/shell-renderers.mjs --selftest
+
+      - name: World shell renderers - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-renderers.mjs
+
+      # The `hudLayout` residue is display-only: read by the HUD and the residue
+      # store alone, and the HUD talks to no server.
+      - name: HUD layout display-only - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/hud-layout-display-only.mjs --selftest
+
+      - name: HUD layout display-only - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hud-layout-display-only.mjs
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs --selftest

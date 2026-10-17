@@ -70,7 +70,7 @@ export function hurt(inst, target, amount, source, element, ability) {
  * which the analyzer tally reads. abilities.js lands its hits here too.
  */
 export function landHit(inst, sc, source, target, amount, element, ability) {
-  if (!target || !target.alive) return { dmg: 0, killed: false };
+  if (!target || !target.alive) return { dmg: 0, absorbed: 0, killed: false };
   const r = hurt(inst, target, amount, source, element, ability);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;

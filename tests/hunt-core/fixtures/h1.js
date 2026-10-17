@@ -24,6 +24,7 @@ export async function loadCore(root) {
   const M = Object.fromEntries(names.map((n, i) => [n.replace('-', ''), mods[i]]));
   M.hunt = Object.fromEntries(names.map((n, i) => [n, mods[i]]));
   M.cs = await imp('src/core/combat-sim.js');
+  M.spawn = await imp('src/core/hunt-spawn.js');
   M.AR = await imp('src/core/action-rules.js');
   M.rng = await imp('src/core/rng.js');
   M.tuning = await imp('src/data/hunt-tuning.js');
@@ -117,46 +118,55 @@ export function move(M, inst, n, sc, each) {
   }
 }
 
-/* ── THE SPAN FIXTURE: a hunt session whose instance carries a world ── */
+/* ── THE SPAN FIXTURE: a hunt INSTANCE (lane S1: a solo hunt is a party of one) ── */
 export const T0 = Date.UTC(2026, 9, 17, 12, 0, 0);
 
-/** A hero hunting mill_cellar, with a world in which the leader walks out of the east room. */
-export function spanFixture(M, seed) {
-  const hs = M.AR.newHuntSession({ id: 'h1-span', huntFromMs: T0, bag: { cooked_shrimp: { loaded: 40 } },
-    slots: M.RS.DEFAULT_PRESET.slots, pull: { size: 2, respawnMs: 20000, left: 0, respawnAtMs: T0 } });
-  const lead = hero(M, 1, 12, 3, { goal: null });
-  const follower = hero(M, 2, 13, 3);
-  const w = world(M, [lead, follower, mon(M, 3, 0, 11, 2, { hp: 4, target: 1, home: [14, 3] }),
-    mon(M, 4, 0, 11, 5, { hp: 6, target: 1, home: [15, 4] })],
-    { leader: 1, packs: [{ aggro: true, holder: 1 }, { aggro: false, holder: null }, { aggro: false, holder: null }] });
-  hs.world = w;
-  const state = { activeMonster: 'rat', playerHp: 40, playerMaxHp: 40, huntSession: hs, stats: {}, inventory: {},
-    deathsTodayBefore: 0, deathsLifetimeBefore: 0 };
+/** One member of an instance: a hero of `role` whose unit is `unitId` (null: arrives at `fromMs`). */
+export function member(M, key, o) {
+  const x = o || {};
+  const hs = M.AR.newHuntSession({ id: 'h1-' + key, instanceId: 'h1-span', huntFromMs: x.fromMs ?? T0, nextSwingAtMs: x.fromMs ?? T0,
+    bag: x.bag || { cooked_shrimp: { loaded: 40 } } });
+  const state = { skills: {}, playerHp: x.hp ?? 40, playerMaxHp: x.maxHp ?? 40, stats: {}, gold: 0, recoveringUntilMs: 0 };
+  return {
+    key, seat: x.seat || 0, unitId: x.unitId ?? null, hs, state, style: null,
+    bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+    snapshot: () => ({ acc: x.acc ?? 900, maxHit: x.maxHit ?? 9, def: x.def ?? 1 }),
+    fx: x.fx || {},
+    hero: { role: x.role || 'melee_dps', maxMana: 60, element: '', settings: null, bar: x.bar || [], actionSet: 'hunt', range: 1,
+      ammo: null },
+  };
+}
+
+/** A two-hero party on the h1 ground: a real cycling world (hunt-spawn.newHuntWorld: packs spawned, phase travel). */
+export function spanFixture(M, seed, o) {
   const ground = groundRow();
   const grid = gridOf(M);
-  /* The leader's walk: east room → the door → the west room → the corridor (set once, before the span). */
-  M.movement.setGoal({ world: w, ground, grid, occ: null }, lead, 2, 8);
-  const ctx = { tickMs: 2000, swingSeed: (i) => M.rng.hashSeed('h1', seed, i), monsters: M.MONSTERS, items: M.ITEMS,
-    hunt: M.HUNTS.mill_cellar, bonus: () => 0, weakness: () => ({ dropMult: 1 }), ground, grid,
-    playerRolls: () => ({ accuracy: 0.9, maxHit: 9, critChance: 0.05 }), monsterRolls: () => ({ accuracy: 0.5, maxHit: 2 }) };
-  return { state, ctx, spanMs: 60000 };
+  const x = o || {};
+  const members = x.members || [member(M, 'a', { unitId: 1, seat: 0 }), member(M, 'b', { unitId: 2, seat: 1 })];
+  const w = M.spawn.newHuntWorld(ground, grid, members.filter((m) => m.unitId !== null)
+    .map((m) => Object.assign({ role: m.hero.role, maxHp: m.state.playerMaxHp, maxMana: m.hero.maxMana }, m.snapshot(m.state))));
+  const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('h1', seed, d, i), monsters: M.MONSTERS, ground, grid,
+    ...(x.xpMultOf ? { xpMultOf: x.xpMultOf } : {}) };
+  return { inst: { world: w, nextSwingAtMs: T0, members }, ctx, spanMs: x.spanMs || 60000 };
 }
 
 /** Run the span fixture over [T0, T0 + spanMs) cut at `cuts`, decoding the world from JSON at every cut. */
 export function runSpan(M, fx, cuts) {
-  const { state, ctx, spanMs } = fx;
+  const { inst, ctx, spanMs } = fx;
   const edges = [T0, ...cuts.filter((c) => c > T0 && c < T0 + spanMs).sort((a, b) => a - b), T0 + spanMs];
-  const track = []; const events = []; const worldEvents = [];
+  const track = []; const events = []; const memberEvents = [];
+  let world = inst.world; let next = inst.nextSwingAtMs;
   for (let i = 1; i < edges.length; i++) {
-    const hs = state.huntSession;
-    hs.world = M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(hs.world))));
-    const r = M.cs.simulateSpan(state, Object.assign({}, ctx, { fromMs: edges[i - 1], toMs: edges[i] }));
-    track.push(...r.huntTrack); events.push(...r.huntEvents); worldEvents.push(...r.huntWorldEvents);
+    world = world ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(world)))) : null;
+    const r = M.cs.simulateHuntInstance({ world, nextSwingAtMs: next, members: inst.members }, Object.assign({}, ctx, { toMs: edges[i] }));
+    world = r.world; next = r.nextSwingAtMs;
+    track.push(...r.track); events.push(...r.events);
+    for (const m of inst.members) memberEvents.push(...r.members[m.key].huntEvents);
   }
-  const hs = state.huntSession;
-  const world = M.worldstate.encode(hs.world);
-  return JSON.stringify({ world, track, events, worldEvents, hp: state.playerHp, kills: state.stats.kills || 0,
-    swing: hs.swingIndex, next: hs.nextSwingAtMs, tally: hs.tally });
+  fx.world = world;
+  return JSON.stringify({ world: world ? M.worldstate.encode(world) : null, track, events, memberEvents, next,
+    members: inst.members.map((m) => ({ hp: m.state.playerHp, kills: m.state.stats.kills || 0, gold: m.state.gold,
+      swing: m.hs.swingIndex, next: m.hs.nextSwingAtMs, tally: m.hs.tally, falls: m.hs.falls })) });
 }
 
 /* ── REPORTING ── */

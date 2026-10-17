@@ -1,8 +1,8 @@
-// tests/hunt-core/world-step.mjs — src/core/hunt/world-step.js inside src/core/combat-sim.js's one loop
+// tests/hunt-core/world-step.mjs — src/core/hunt/world-step.js inside src/core/combat-sim.js's one loop over a hunt INSTANCE
 // (engine contract #1-#5; parity WS-02..06, TICK-1, AWAY-1). Run by run-all.mjs.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { suite, spanFixture, runSpan, T0, world, hero, groundRow, gridOf } from './fixtures/h1.js';
+import { suite, spanFixture, runSpan, member, T0, world, hero, groundRow, gridOf } from './fixtures/h1.js';
 
 /* Cut instants from a fixed LCG: arbitrary ms, never chosen to land on a boundary. */
 function cutsOf(seed, n, spanMs) {
@@ -19,7 +19,7 @@ const cases = {
     }
     const w = world(M, [hero(M, 1, 5, 8)]);
     try {
-      M.worldstep.stepSwing(w, { ground: groundRow(), grid: gridOf(M), swingMs: 2050, atMs: 0, fight: false });
+      M.worldstep.stepSwing(w, { ground: groundRow(), grid: gridOf(M), swingMs: 2050, atMs: 0 });
       return 'a world stepped a 2050 ms swing';
     } catch { return null; }
   },
@@ -34,13 +34,14 @@ const cases = {
     const ten = runSpan(M, spanFixture(M, 7), Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 10000));
     return ten === one ? null : 'ten-second windows differ from the one span';
   },
-  /* The instance never pauses for one hero: knocked out or waiting on a pull, the world still steps. */
+  /* The instance never pauses for one hero: knocked out, its hero still in the world, the world still steps
+     every boundary (and it stands up on the world's own clock). */
   'world-steps-every-boundary': (M) => {
-    const fx = spanFixture(M, 7);
+    const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, hp: 3, maxHp: 3, acc: 50, maxHit: 1 })] });
     runSpan(M, fx, []);
-    const hs = fx.state.huntSession;
-    if (!(hs.tally.waitMs > 0)) return 'the fixture never waits on a pull — the test would prove nothing';
-    return hs.world.swing === hs.swingIndex ? null : 'the world stepped ' + hs.world.swing + ' of ' + hs.swingIndex + ' boundaries';
+    const m = fx.inst.members[0];
+    if (!(m.hs.falls > 0) || !(m.hs.tally.downMs > 0) || m.hs.endedReason) return 'the fixture never knocks its hero out (or ends the hunt) — the test would prove nothing';
+    return fx.world.swing === 50 ? null : 'the world stepped ' + fx.world.swing + ' of 50 boundaries';
   },
   /* AWAY-1: there is no away path — the flag changes nothing. */
   'attended-equals-away': (M) => {
@@ -71,10 +72,11 @@ const mutants = [
   { name: 'encode drops a field (prog)', case: 'split-parity',
     edits: [['src/core/hunt/world-state.js', 'const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));',
       "const row = (part, obj) => FIELDS[part].map(([name]) => (name === 'prog' ? 0 : copy(obj[name])));"]] },
-  { name: 'the world sleeps while the hero is down or waiting', case: 'world-steps-every-boundary',
-    edits: [['src/core/combat-sim.js', '  const worldOnly = (atMs, swing) => { if (hs.world)', '  const worldOnly = (atMs, swing) => { if (false)']] },
+  { name: 'the world sleeps while every hero is down', case: 'world-steps-every-boundary',
+    edits: [['src/core/combat-sim.js', '    if (world) {\n      const sw = world.swing;',
+      '    if (world && here.some((m) => (world.units.find((x) => x.id === m.unitId) || {}).alive)) {\n      const sw = world.swing;']] },
   { name: 'the swing seed is indexed per window', case: 'split-parity',
-    edits: [['src/core/combat-sim.js', 'rng: createRng(swingSeedOf(ctx, swing)) });', 'rng: createRng(swingSeedOf(ctx, ticks)) });']] },
+    edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
   { name: 'a sub-step that is not a whole number', case: 'substeps-divide-swing',
     edits: [['src/core/hunt/world-step.js', ' || swingMs % s !== 0) {', ') {']] },
 ];

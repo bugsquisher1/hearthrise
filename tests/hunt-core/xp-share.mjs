@@ -1,8 +1,9 @@
 // tests/hunt-core/xp-share.mjs — src/core/hunt/xp-share.js + src/data/hunt-xp.js (spec §3.5; parity XP-01..05, XP-07, AB-04).
-// Both paths (CLAUDE.md §4): the ATTENDED swing (stepSwing with no world, the client tick) and the AWAY span
-// (simulateSpan, ctx.away set) pay kill XP through the one rule. Run by run-all.mjs.
+// Both paths (CLAUDE.md §4): ATTENDED (the viewed character's settle cadence: the instance span cut into
+// 2 s windows) and AWAY (one long window, ctx.away set) pay kill XP through the one rule, through
+// src/core/hunt-rewards.js — a solo hunt is a party of one, and there is no second path. Run by run-all.mjs.
 import { suite35, unit, worldOf, ctx35, steps, cut } from './fixtures/h35.js';
-import { spanFixture, T0 } from './fixtures/h1.js';
+import { spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
 
 const inst = (w) => ({ world: w, ground: null, grid: null, occ: null });
 const ofType = (sc, t) => sc.events.filter((e) => e.type === t);
@@ -14,7 +15,8 @@ function creditedKillXp(M, run) {
     let xp = 0; let monsterXp = 0; let kills = 0;
     /* Summed in integer milli-XP: hit XP is fractional (HP XP per damage), and a float sum's
        difference is not exact (33.00000000000006). Kill XP is whole, so the rule stays exact. */
-    const fx = { addXp: (sk, n) => { xp += Math.round(n * 1000); }, onKill: (info) => { kills++; monsterXp += info.monster.xp; } };
+    const fx = { addXp: (sk, n) => { xp += Math.round(n * 1000); },
+      updateQuest: (type, n, meta) => { if (type === 'kill_monster') { kills++; monsterXp += M.MONSTERS[meta.target].xp; } } };
     run(fx, () => mult);
     return { xp, monsterXp, kills };
   };
@@ -23,22 +25,20 @@ function creditedKillXp(M, run) {
   return { killXp: (two.xp - one.xp) / 1000, monsterXp: one.monsterXp, kills: one.kills };
 }
 
-/* The attended client tick: a world-less stepSwing per swing, fresh dice per swing. */
+/* A SOLO hero on the h1 ground (a party of one, so a kill's share is the whole kill and the rule is exact). */
+const solo = (M, fx, xpMultOf) => spanFixture(M, 11, { spanMs: 120000, xpMultOf,
+  members: [member(M, 'a', { unitId: 1, hp: 100000, maxHp: 100000, fx })] });
+
+/* ATTENDED: the viewed character's cadence — the span cut into 2 s windows. */
 function attended(M, fx, xpMultOf) {
-  const rat = M.MONSTERS.rat;
-  const state = { activeMonster: 'rat', playerHp: 100000, playerMaxHp: 100000, monsterHp: rat.hp, monsterMaxHp: rat.hp,
-    stats: {}, inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0 };
-  for (let i = 0; i < 120; i++) {
-    M.worldstep.stepSwing(null, { state, fx, xpMultOf, monsters: M.MONSTERS, items: M.ITEMS, bonus: () => 0,
-      weakness: () => ({ dropMult: 1 }), rng: M.rng.createRng(M.rng.hashSeed('h35-attended', i)),
-      playerRolls: () => ({ accuracy: 0.9, maxHit: 9, critChance: 0.05 }), monsterRolls: () => ({ accuracy: 0.5, maxHit: 2 }) });
-  }
+  runSpan(M, solo(M, fx, xpMultOf), Array.from({ length: 59 }, (_, i) => T0 + (i + 1) * 2000));
 }
 
-/* The away span: the h1 hunt session, one 60 s window. */
+/* AWAY: the same hunt as one window. */
 function away(M, fx, xpMultOf, awayFlag) {
-  const f = spanFixture(M, 11);
-  M.cs.simulateSpan(f.state, Object.assign({}, f.ctx, { fx, xpMultOf, away: awayFlag !== false, fromMs: T0, toMs: T0 + f.spanMs }));
+  const f = solo(M, fx, xpMultOf);
+  f.ctx.away = awayFlag !== false;
+  runSpan(M, f, []);
 }
 
 const cases = {
@@ -116,7 +116,7 @@ const cases = {
     const f = M.xpshare.magicXpFor;
     return f(10) === 15 && f(10, 2) === 30 && f(0) === 0 && f(3) === 4 ? null : 'magic XP ' + [f(10), f(10, 2), f(0), f(3)];
   },
-  /* ATTENDED: the client tick's kill XP is the one rule's (multiplier reaches it, solo = a party of one). */
+  /* ATTENDED: the 2 s cadence's kill XP is the one rule's (the multiplier reaches it, solo = a party of one). */
   'attended-kill-xp-through-the-rule': (M) => {
     const r = creditedKillXp(M, (fx, mult) => attended(M, fx, mult));
     if (r.kills < 3) return 'the attended fixture killed ' + r.kills;
@@ -142,9 +142,9 @@ const mutants = [
   { name: 'the open group is not persisted', case: 'group-survives-a-cut',
     edits: [['src/core/hunt/xp-share.js', "world: Object.freeze([['xpGroup', 'json']])", 'world: Object.freeze([])']] },
   { name: 'the attended kill bypasses the rule', case: 'attended-kill-xp-through-the-rule',
-    edits: [['src/core/hunt/world-step.js', 'killXpRoute(ctx.style, soloKillXp(m.xp, ctx), 1)', 'killXpRoute(ctx.style, m.xp, 1)']] },
+    edits: [['src/core/hunt-rewards.js', 'for (const g of killXpRoute(m.style, ev.amount, 1))', 'for (const g of killXpRoute(m.style, ev.raw, 1))']] },
   { name: 'the away kill bypasses the rule', case: 'away-kill-xp-through-the-rule',
-    edits: [['src/core/hunt/world-step.js', 'killXpRoute(ctx.style, soloKillXp(m.xp, ctx), 1)', 'killXpRoute(ctx.style, m.xp, 1)']] },
+    edits: [['src/core/hunt-rewards.js', 'for (const g of killXpRoute(m.style, ev.amount, 1))', 'for (const g of killXpRoute(m.style, ev.raw, 1))']] },
   { name: 'Magic XP drifts off 1.5', case: 'magic-xp-from-mana',
     edits: [['src/data/hunt-xp.js', 'magicXpPermillePerMana: 1500,', 'magicXpPermillePerMana: 1000,']] },
 ];

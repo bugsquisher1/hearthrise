@@ -7,9 +7,11 @@ import { hero } from './fixtures/h1.js';
 
 const casts = (sc) => sc.events.filter((e) => e.type === 'cast').map((e) => e.ability);
 const cast = (M) => (inst, sc) => M.abilities.castAbilities(inst, sc);
-/* One hero next to one rat that targets it. */
+/* One hero next to one rat that targets it — a STURDY one (500 HP): since lane S1 every
+   ability hit lands through damage.landHit, which hands off the kill, so a 10 HP rat
+   would die to the first cast and end the fight the clocks below are measured in. */
 const melee = (M, bar, over, ctx) => {
-  const x = oneHero(M, over, Object.assign({ bar }, ctx || {}), [{ x: 13, y: 3 }]);
+  const x = oneHero(M, over, Object.assign({ bar }, ctx || {}), [{ x: 13, y: 3, hp: 500, maxHp: 500 }]);
   x.sc.rng = rngOf(M, 1);
   return x;
 };

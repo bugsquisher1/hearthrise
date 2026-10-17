@@ -192,7 +192,7 @@ export function simulateHuntInstance(inst, ctx) {
           ammo: m.hero.ammo, foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground: ctx.ground, grid: ctx.grid, heroes });
+        ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);

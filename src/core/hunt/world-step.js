@@ -8,7 +8,8 @@
 // A swing is swingMs / HUNT_TUNING.stepMs sub-steps. Each sub-step runs the
 // modules in ONE fixed order (WS-02):
 //   trail → respawn → phase AI (pull cycle, targets, roles, follow) →
-//   movement → leash resets → attacks → status ticks → consumables → corpses
+//   movement → leash resets → attacks → status ticks → consumables → corpses →
+//   the closed "+XP" group
 // Every hook takes (inst, sc): `inst` = { world, ground, grid, occ }, `sc` =
 // { atMs, dtMs, swing, rng, emit(event), track(step) }. Draws come from
 // `sc.rng` (the swing's `s` stream) in that order, units in id order.
@@ -46,6 +47,7 @@ import { resolveAttacks } from './damage.js?v=589';
 import { castAbilities } from './abilities.js?v=589';
 import { tickStatuses } from './status.js?v=589';
 import { consume } from './consumables.js?v=589';
+import { soloKillXp, flushXpGroup } from './xp-share.js?v=589';
 
 export function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 export function call(fx, name, ...args) {
@@ -78,14 +80,16 @@ const SUBSTEP = Object.freeze([
   tickStatuses,
   consume,
   clearCorpses,
+  flushXpGroup,
 ]);
 
 /* Run the world's sub-steps for one swing starting at `atMs`. */
 function stepWorld(world, swingCtx, track, events) {
   if (!swingCtx.ground || !swingCtx.grid) throw new Error('world-step: a world needs its ground row and grid');
   const n = substepsOf(swingCtx.swingMs);
-  /* makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, makeUnit };
+  /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step).
+     makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, makeUnit };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   const sc = { atMs, dtMs: HUNT_TUNING.stepMs, swing: world.swing, rng: swingCtx.rng,
@@ -151,7 +155,8 @@ export function resolveKill(state, m, ctx) {
   /* BASE rewards: they run unconditionally — there is no `if (!away)` below. */
   call(fx, 'recordKill', id, rolled.dropped);
   call(fx, 'rollKillDeed', m);
-  for (const g of killXpRoute(ctx.style, m.xp, 1)) call(fx, 'addXp', g.skill, g.amount);
+  /* Kill XP is xp-share.js's rule (spec §1.1): a solo fight is a party of one. */
+  for (const g of killXpRoute(ctx.style, soloKillXp(m.xp, ctx), 1)) call(fx, 'addXp', g.skill, g.amount);
   call(fx, 'updateDaily', 'kill_any', 1);
   call(fx, 'updateQuest', 'kill_any', 1, { target: id });
   call(fx, 'updateQuest', 'kill_monster', 1, { target: id });

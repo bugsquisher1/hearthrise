@@ -207,8 +207,68 @@ const codeOnly = (src) => src.replace(/\r\n/g, '\n').split('\n')
 // dropped name is not deleted from the tracked set: it keeps being MEASURED on
 // both sides, so if production or the replay still carries it, the drop is
 // reported rather than believed (see classifyLive/classifyReplay).
-const DROP_STMT = /\bdrop\s+function\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s*(?:\([^()]*\))?\s*(?:cascade|restrict)?\s*'?\s*;/gi;
+const DROP_STMT = /\bdrop\s+function\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s*(\([^()]*\))?\s*(?:cascade|restrict)?\s*'?\s*;/gi;
 const DROP_ANY = /\bdrop\s+function\b/gi;
+
+// ── A DROP NAMES A SIGNATURE, NOT A NAME (K18, 2026-10-17) ─────────────────
+// `drop function public.x(uuid, integer)` removes ONE overload. Until this the
+// decision was by NAME, so 2026-10-22-hunt-sessions-delete-away.sql dropping the
+// pointer-era hr_hunt_analyzer(uuid, integer) marked the name DROPPED while the
+// C2 body hr_hunt_analyzer(p_slot integer, p_session uuid) lives on production:
+// --list said "no baseline entry expected" for a live, hash-pinned body. So
+// every build and every drop now carries an identity KEY (the argument TYPES,
+// canonicalised as pg_get_function_identity_arguments states them; names,
+// defaults and OUT args stripped). A drop with no argument list drops every
+// overload ('*'); a build whose signature the sweep cannot read (a proname-only
+// read) builds EVERY key, the fail-closed direction: it can keep a name
+// tracked, never retire one. A name is DROPPED only when every key the chain
+// builds is dropped after its own last build.
+const TYPE_HEADS = new Set(['double', 'character', 'timestamp', 'time', 'bit', 'interval']);
+const TYPE_ALIAS = new Map([
+  ['int', 'integer'], ['int4', 'integer'], ['int8', 'bigint'], ['int2', 'smallint'],
+  ['bool', 'boolean'], ['timestamptz', 'timestamp with time zone'],
+  ['timestamp', 'timestamp without time zone'], ['float8', 'double precision'],
+  ['float4', 'real'], ['decimal', 'numeric'], ['varchar', 'character varying'],
+  ['timetz', 'time with time zone'],
+]);
+/** Identity key of an argument list: 'p_slot int, p_at timestamptz default now()' -> 'integer,timestamp with time zone'. */
+export function argKey(list) {
+  const inner = String(list).trim().replace(/^\(/, '').replace(/\)$/, '');
+  const parts = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of inner) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; } else cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  const out = [];
+  for (let a of parts) {
+    a = a.toLowerCase().replace(/\s+/g, ' ').trim()
+      .replace(/\sdefault\s[\s\S]*$/, '').replace(/\s*=[\s\S]*$/, '').trim();
+    let toks = a.split(' ');
+    if (toks[0] === 'out') continue;                     // not part of the identity
+    if (['in', 'inout', 'variadic'].includes(toks[0])) toks = toks.slice(1);
+    if (toks.length > 1 && !TYPE_HEADS.has(toks[0].replace(/\[\]$/, ''))) toks = toks.slice(1);
+    let t = toks.join(' ').replace(/^public\./, '').replace(/\s*\([^)]*\)/g, '');
+    const arr = /\[\]$/.test(t) ? '[]' : '';
+    t = t.replace(/\[\]$/, '');
+    t = TYPE_ALIAS.get(t) || t;
+    out.push(t + arr);
+  }
+  return out.join(',');
+}
+/** The argument list opening at sql[open] === '(', balanced, so a default like now() survives. */
+function argsAt(sql, open) {
+  let depth = 0;
+  for (let i = open; i < sql.length; i += 1) {
+    if (sql[i] === '(') depth += 1;
+    else if (sql[i] === ')') { depth -= 1; if (depth === 0) return sql.slice(open, i + 1); }
+  }
+  return null;
+}
+const sigKey = (lit) => { const m = /\(([\s\S]*)\)$/.exec(lit); return m ? argKey(m[1]) : '*'; };
 
 /**
  * file -> position in the APPLY order. Files that never apply (the manifest's
@@ -346,7 +406,7 @@ export async function sweep(sources) {
   const byName = new Map();
   /** @param {boolean} [touches] does this file RESTATE the body (see ATTRIBUTION
    *  above)? A read-only pin still TRACKS the name; it never claims the install. */
-  const note = (name, rule, file, touches = true, build = true) => {
+  const note = (name, rule, file, touches = true, build = true, key = '*') => {
     if (!byName.has(name)) byName.set(name, { rules: new Set(), files: new Set() });
     const e = byName.get(name);
     e.rules.add(rule);
@@ -364,7 +424,7 @@ export async function sweep(sources) {
     // without counting as a build. The drop is still believed only as far as it
     // is MEASURED: a body either side still carries is reported (classifyLive /
     // classifyReplay, selftest cases drop_did_not_take_* / dropped_but_live_*).
-    if (file && rule === 'pin' && build) addTo(builtIn, name, file);
+    if (file && rule === 'pin' && build) addKeyed(builtIn, name, file, key);
   };
   const restated = new Map();
   const shapeless = [];
@@ -372,6 +432,8 @@ export async function sweep(sources) {
   const builtIn = new Map();   // name -> Set(file) that CREATES or PATCHES it
   const dropsIn = new Map();   // name -> Set(file) that drops it
   const addTo = (map, n, f) => map.set(n, (map.get(n) || new Set()).add(f));
+  /* name -> [{file, key}]: the signature-aware halves of the drop decision. */
+  const addKeyed = (map, n, f, key) => map.set(n, [...(map.get(n) || []), { file: f, key }]);
 
   for (const f of files) {
     const sql = codeOnly(sources ? sources.get(f) : await readFile(join(MIGDIR, f), 'utf8'));
@@ -380,8 +442,10 @@ export async function sweep(sources) {
     const authored = new Set();
     for (const m of sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z_0-9]+)\s*\(/gi)) {
       authored.add(m[1]);
+      const args = argsAt(sql, m.index + m[0].length - 1);
+      addKeyed(builtIn, m[1], f, args ? argKey(args) : '*');
     }
-    for (const n of authored) { restated.set(n, (restated.get(n) || new Set()).add(f)); addTo(builtIn, n, f); }
+    for (const n of authored) restated.set(n, (restated.get(n) || new Set()).add(f));
 
     /* (attribution) the two shapes that RESTATE a body — see ATTRIBUTION above.
        Everything the pin rules below derive is TRACKED; only a name this
@@ -392,7 +456,7 @@ export async function sweep(sources) {
     // (drop) the one shape above — read BEFORE any early `continue`, since a
     // file may drop a function without ever reading a body back.
     let dropHits = 0;
-    for (const m of sql.matchAll(DROP_STMT)) { addTo(dropsIn, m[1].toLowerCase(), f); dropHits += 1; }
+    for (const m of sql.matchAll(DROP_STMT)) { addKeyed(dropsIn, m[1].toLowerCase(), f, m[2] ? argKey(m[2]) : '*'); dropHits += 1; }
     const dropMentions = (sql.match(DROP_ANY) || []).length;
     if (dropMentions !== dropHits) {
       shapeless.push(`${f}: ${dropMentions - dropHits} of ${dropMentions} "drop function" statement(s) `
@@ -428,13 +492,13 @@ export async function sweep(sources) {
         }
         if (r[2]) {
           // inline form: `where oid = to_regprocedure('public.name(args)')`
-          if (SIGLIT.test(r[2])) { const n = r[2].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }
+          if (SIGLIT.test(r[2])) { const n = r[2].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), true, sigKey(r[2])); prosrcHits += 1; }
           continue;
         }
         // variable form: resolve ONLY the literal that feeds the oid variable,
         // not every to_regprocedure in the file — those are §-gate existence checks.
         for (const m of sql.matchAll(new RegExp(`\\b${r[1]}\\s*:=\\s*to_regprocedure\\(\\s*'(public\\.[a-z_][a-z0-9_]*\\([^']*\\))'\\s*\\)`, 'g'))) {
-          if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }
+          if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), true, sigKey(m[1])); prosrcHits += 1; }
         }
       }
       if (oidReads.length && !prosrcHits) shapeless.push(`${f}: reads prosrc from pg_proc by oid but no to_regprocedure assignment resolves the signature`);
@@ -454,7 +518,7 @@ export async function sweep(sources) {
 
     // (pin) the four shapes this repo actually uses to read a body back.
     let hits = 0;
-    const sig = (s) => { const n = s.replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); hits += 1; };
+    const sig = (s) => { const n = s.replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), true, sigKey(s)); hits += 1; };
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*'([^']+)'\s*::\s*regprocedure\s*\)/g)) sig(m[1]);
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*to_regprocedure\(\s*'([^']+)'\s*\)/g)) sig(m[1]);
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*oid\s*\)\s+from\s+pg_proc\s+where\s+proname\s*=\s*'([a-z_0-9]+)'/g)) {
@@ -518,15 +582,27 @@ export async function sweep(sources) {
      live state matters, and "it was deliberately deleted" is a live state. The
      entry stays in the map — dropped, not forgotten — so both sides keep
      measuring it. */
-  for (const [n, dfiles] of dropsIn) {
+  for (const [n, drops] of dropsIn) {
     const e = byName.get(n);
     if (!e) continue;                       // nothing tracked this name anyway
     const at = (f) => (ord.has(f) ? ord.get(f) : -1);
-    const lastDrop = [...dfiles].reduce((a, f) => Math.max(a, at(f)), -1);
-    if (lastDrop < 0) continue;             // dropped only by a file that never applies
-    const lastBuild = [...(builtIn.get(n) || [])].reduce((a, f) => Math.max(a, at(f)), -1);
-    if (lastBuild >= lastDrop) continue;    // re-created or re-patched after the drop
-    e.dropped = [...dfiles].filter((f) => at(f) === lastDrop)[0];
+    const builds = builtIn.get(n) || [];
+    /* Every overload the chain builds must be dropped after its own last build.
+       A '*' build (signature unread) builds every key; a '*' drop drops every key. */
+    const keys = new Set(builds.filter((b) => b.key !== '*').map((b) => b.key));
+    if (!keys.size) keys.add('*');
+    const hits = (x, k) => x.key === '*' || k === '*' || x.key === k;
+    let gone = true;
+    let by = null;
+    for (const k of keys) {
+      const lastDrop = drops.filter((d) => hits(d, k)).reduce((a, d) => Math.max(a, at(d.file)), -1);
+      const lastBuild = builds.filter((b) => hits(b, k)).reduce((a, b) => Math.max(a, at(b.file)), -1);
+      // dropped only by a file that never applies, or re-created / re-patched after the drop
+      if (lastDrop < 0 || lastBuild >= lastDrop) { gone = false; break; }
+      const f = drops.find((d) => hits(d, k) && at(d.file) === lastDrop).file;
+      if (!by || at(f) > at(by)) by = f;
+    }
+    if (gone) e.dropped = by;
   }
   return byName;
 }
@@ -1277,6 +1353,35 @@ async function selftest() {
         + `if to_regprocedure('public.${V}(p_slot integer)') is not null then raise exception 'still here'; end if; end $$;`]],
       want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
       why: 'expected a later over-collected mention not to count as a re-creation',
+    },
+    overload_survives_a_signature_drop: {
+      what: 'K18, the 2026-10-22 delete-away shape: the file drops the pointer-era OVERLOAD '
+          + 'hr_hunt_analyzer(uuid, integer) after C2 built hr_hunt_analyzer(p_slot integer, '
+          + 'p_session uuid). A drop names a SIGNATURE; the surviving overload keeps the name tracked',
+      files: [['9000-01-a.sql', `create or replace function public.${V}(p_user uuid, p_slot int) returns int language sql as $b$ select 1 $b$;`],
+        ['9000-02-b.sql', `create or replace function public.${V}(p_slot integer, p_session uuid default null) returns int language sql as $b$ select 2 $b$;
+select pg_get_functiondef('public.${V}(p_slot integer, p_session uuid)'::regprocedure);`],
+        ['9000-03-drop.sql', `drop function if exists public.${V}(uuid, integer);`]],
+      want: (t) => t.get(V) && !t.get(V).dropped,
+      why: 'expected the name to stay TRACKED: only one of its two overloads was dropped',
+    },
+    every_overload_dropped_retires: {
+      what: 'the other direction: both overloads dropped by signature (int vs integer, timestamptz '
+          + 'vs timestamp with time zone) after their builds; the name is genuinely gone',
+      files: [['9000-01-a.sql', `create or replace function public.${V}(p_user uuid, p_at timestamptz) returns int language sql as $b$ select 1 $b$;\n`
+        + `create or replace function public.${V}(p_slot int) returns int language sql as $b$ select 2 $b$;
+select pg_get_functiondef('public.${V}(p_slot integer)'::regprocedure);`],
+        ['9000-02-drop.sql', `drop function if exists public.${V}(uuid, timestamp with time zone);\ndrop function if exists public.${V}(integer);`]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected sweep() to mark it dropped once every built overload is dropped',
+    },
+    bare_drop_drops_every_overload: {
+      what: 'a drop with no argument list drops whatever overload exists',
+      files: [['9000-01-a.sql', `create or replace function public.${V}(p_user uuid, p_slot int) returns int language sql as $b$ select 1 $b$;
+select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedure);`],
+        ['9000-02-drop.sql', `drop function if exists public.${V};`]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected a bare drop to retire the name',
     },
     drop_then_recreate_same_file: {
       what: 'the market_v2 idiom: one file drops a signature and re-creates it a few lines later. '

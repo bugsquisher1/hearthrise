@@ -118,10 +118,10 @@ import { fetchWrite,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
   retryOnConflict,         // the one version_conflict retry policy
-} from './accrue.js?v=589';
-import { SHOP_OFFERS } from '../data/shops.js?v=589';
-import { withSettleFirstRetry } from './settle-first.js?v=589';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=589';
+} from './accrue.js?v=590';
+import { SHOP_OFFERS } from '../data/shops.js?v=590';
+import { withSettleFirstRetry } from './settle-first.js?v=590';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=590';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';

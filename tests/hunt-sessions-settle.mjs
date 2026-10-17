@@ -878,7 +878,8 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
     await db.query('savepoint c2_runs');
     const a = await run(cutsA);
     await db.query('rollback to savepoint c2_runs');
-    const b = await run(cutsB);
+    /* cutsB may read A's snapshot (BOTH-PATH places cuts inside A's recovery windows). */
+    const b = await run((f) => cutsB(f, a));
     return { a, b, sid, from };
   });
 }
@@ -974,9 +975,16 @@ const DB_ARMS = {
   },
   'BOTH-PATH': async (db, M) => {
     /* The connected client cuts the timeline wherever it presses — odd
-       instants, two within a second, one that lands on a swing boundary. */
-    const odd = (from) => [37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
-      .map((d) => from + d);
+       instants, two within a second, one that lands on a swing boundary —
+       AND twice inside every recovery window the tick run fell into, so a
+       carried recovery line is read back by a settle whatever instant the
+       dice put the falls at (P0 x H merge, 2026-10-17: with the falls moved,
+       the fixed list alone cut no window and carrierOneTickLate stayed green). */
+    const fallsOf = (snap) => (snap?.events || []).filter((e) => e[0] === 'fall').map((e) => new Date(e[1]).getTime());
+    const odd = (from, a) => [...new Set([37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
+      .map((d) => from + d)
+      .concat(fallsOf(a).flatMap((t) => [t + 17123, t + 41007]).filter((t) => t > from && t < from + SPAN_MS)))]
+      .sort((x, y) => x - y);
     const gather = await one(db, `select activity_id from public.hr_activities where kind = 'gather'
                                      and (req_lv is null or req_lv <= 1) order by activity_id limit 1`);
     const r = await compareRuns(db, M, { ...WEAK, mode: { target: 'weakest', pull: 3 }, lastActivity: { kind: 'gather', id: gather } },
@@ -989,6 +997,7 @@ const DB_ARMS = {
       problems.push(`CONTROL: the automatic end did not resume ${gather} (pointer ${r.a.active}, ${JSON.stringify(r.a.resume)})`);
     }
     if (!((r.a.deaths || []).length > 0)) problems.push('CONTROL: the weak fixture never fell — the arm proves nothing about deaths');
+    if (!(fallsOf(r.a).length > 0)) problems.push('CONTROL: no fall event carries an instant — no cut lands inside a recovery window');
     if (!Object.values(r.a.death_xp || {}).some((v) => Number(v) > 0)) {
       problems.push('CONTROL: the weak fixture\'s falls cost no XP — the death-XP half of the arm proves nothing');
     }

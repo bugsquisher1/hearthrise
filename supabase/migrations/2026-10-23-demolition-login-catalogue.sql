@@ -1,33 +1,43 @@
 -- ==========================================================================
--- 2026-10-23-demolition-login-catalogue.sql — THE DAILY LOGIN CYCLE, MINUS THE KEY
--- STAGED (lane/demo-data, demolition 2026-10-14). Security GO required: this
--- moves a claim's ITEM credit (a money surface). NOT APPLIED.
+-- 2026-10-23-demolition-login-catalogue.sql — THE DAILY LOGIN REWARD IS OFF
+-- STAGED (lane/p0-deletion-server; game CLOSED: applies on its passing §4,
+-- Security reviews it in the reopen gate). NOT APPLIED.
 --
--- Security R2 (2026-10-15): the live hr_login_catalogue() day 7 pays bone_key,
--- and 2026-10-23-demolition-catalogue.generated.sql deletes bone_key from
--- hr_items, so every straight day-7 claim would fail with unknown_item. Day 7
--- pays 300 gold and no key and no gems: the Bone Key was worth 0 and bound on
--- pickup, and gems are out of the game (account_wallet.gems drops in M2), so the
--- 270 gold + 2 gems day is restated as 300 gold.
+-- Tyler, 2026-10-17: the daily login reward is PREMIUM-ONLY, and for now it is
+-- just a training weapon. Premium does not exist on the server yet (lane S1
+-- adds it and authors that reward), so until then the reward is OFF for
+-- everyone: no gold, no items, no key, no gem, on any day of any streak.
+-- (Supersedes this file's 2026-10-15 text, Security R2: day 7 paid 300 gold
+-- because bone_key left hr_items.)
 --
--- OWNERSHIP: the body of hr_login_catalogue() only, restated from
--- 2026-10-16-login-reward.sql with the GENERATED literal re-emitted from
--- src/data/rewards.js DAILY_LOGIN_CYCLE (bound by tests/login-reward.mjs L1).
--- hr_login_price / hr_login_bonus_ready / hr_login_claim_verify read it and are
--- untouched: with no `keys` in the cycle, the bonus is the gems alone and the
--- ledger rule reads the gems arm.
+-- OWNERSHIP: two bodies, both from 2026-10-16-login-reward.sql:
+--   hr_login_catalogue()   the GENERATED literal re-emitted from
+--                          src/data/rewards.js DAILY_LOGIN_CYCLE (seven empty
+--                          days), so hr_login_price prices 0 for every streak;
+--   hr_login_claim_verify  refuses EVERY claim with hr_reject('login_reward_off')
+--                          before it reads anything. hr_apply calls it under the
+--                          character lock right after progress_claim flips
+--                          today's daily:login row, so the refusal rolls the
+--                          flip back with the rest of the apply, the intent
+--                          stores the refusal (a replay answers the same), and
+--                          hr_apply journals it in hr_rejections (aggregated per
+--                          character / code / day, never per event).
+-- hr_login_price / hr_login_streak / hr_login_bonus_ready / hr_claim_lookup are
+-- untouched. Bound by tests/login-reward-off.mjs (rewards.js == the literal;
+-- a real hr_apply claim is refused, journalled and pays nothing).
 --
 -- ORDER: apply BEFORE 2026-10-23-demolition-catalogue.generated.sql, whose §4
 -- refuses a login cycle naming an item missing from hr_items.
--- RE-RUNNABLE: create or replace; §0 accepts the 2026-10-16 body or this one.
+-- RE-RUNNABLE: create or replace.
 -- ==========================================================================
 
 -- ── 0. PRECONDITIONS - FAIL CLOSED ─────────────────────────────────────────
 do $$
 begin
   if to_regprocedure('public.hr_login_catalogue()') is null
-     or to_regprocedure('public.hr_login_price(integer,boolean)') is null then
-    raise exception 'PRECONDITION: hr_login_catalogue / hr_login_price is absent - apply 2026-10-16-login-reward.sql first';
+     or to_regprocedure('public.hr_login_price(integer,boolean)') is null
+     or to_regprocedure('public.hr_login_claim_verify(uuid,integer,text,jsonb)') is null then
+    raise exception 'PRECONDITION: hr_login_catalogue / hr_login_price / hr_login_claim_verify is absent - apply 2026-10-16-login-reward.sql first';
   end if;
   if jsonb_array_length(public.hr_login_catalogue()->'cycle') <> 7 then
     raise exception 'PRECONDITION: the login cycle is not the reviewed 7-day cycle: %', public.hr_login_catalogue();
@@ -38,41 +48,57 @@ end $$;
 create or replace function public.hr_login_catalogue()
 returns jsonb language sql immutable set search_path = pg_catalog as $fn$
   select
-  -- BEGIN GENERATED login-catalogue (src/data/rewards.js; tests/login-reward.mjs)
-  '{"cycle":[{"gold":60,"items":{"cooked_shrimp":10}},{"gold":80,"items":{"turnip_seed":10}},{"gold":100,"items":{"cooked_shrimp":15}},{"gold":130,"items":{"carrot_seed":10}},{"gold":160,"items":{"cooked_herring":10}},{"gold":200,"items":{"turnip_seed":15}},{"gold":300}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
+  -- BEGIN GENERATED login-catalogue (src/data/rewards.js; tests/login-reward-off.mjs)
+  '{"cycle":[{},{},{},{},{},{},{}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
   -- END GENERATED login-catalogue
   ::jsonb
 $fn$;
 revoke execute on function public.hr_login_catalogue() from public, anon, authenticated, service_role;
 
+-- ── 2. THE CLAIM REFUSES ───────────────────────────────────────────────────
+-- Same signature, volatility and grants as the 2026-10-16 body; the price check
+-- is gone because there is nothing to price. Premium (S1) restates this body.
+create or replace function public.hr_login_claim_verify(p_uid uuid, p_slot int, p_period text, p_delta jsonb)
+returns void language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
+  perform public.hr_reject('login_reward_off',
+    jsonb_build_object('why', 'the daily login reward is premium-only and premium is not built yet'));
+end $fn$;
+revoke execute on function public.hr_login_claim_verify(uuid, int, text, jsonb) from public, anon, authenticated, service_role;
+
 -- ── 4. SELF-CHECK (executed, not asserted by markers) ──────────────────────
 do $$
-declare v_q jsonb; v_n int;
+declare v_q jsonb; v_n int; v_s int; v_code text;
 begin
-  -- (a) every id the cycle pays is an hr_items row, and no day pays a key.
-  select count(*) into v_n
-    from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
-   cross join lateral jsonb_object_keys(coalesce(d.r->'items', '{}') || coalesce(d.r->'keys', '{}')) k
-   where not exists (select 1 from public.hr_items i where i.item_id = k);
-  if v_n > 0 then raise exception 'demolition-login-catalogue self-check (a): % cycle item(s) are not in hr_items', v_n; end if;
-  if exists (select 1 from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
-              where d.r ? 'keys') then
-    raise exception 'demolition-login-catalogue self-check (a): a cycle day still pays a key'; end if;
-  -- (a2) no day pays gems: gems are out of the game.
-  if exists (select 1 from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
-              where coalesce((d.r->>'gems')::bigint, 0) <> 0) then
-    raise exception 'demolition-login-catalogue self-check (a2): a cycle day still pays gems'; end if;
-  -- (b) the priced day 7, straight and capped: 900 gold, no gems, no item.
-  v_q := public.hr_login_price(35, true);
-  if (v_q->>'gold')::bigint <> 900 or (v_q->>'gems')::int <> 0 or v_q->'items' <> '{}'::jsonb then
-    raise exception 'demolition-login-catalogue self-check (b): a capped straight day 7 prices %', v_q; end if;
-  -- (c) a step-back day 7 pays gold only.
-  v_q := public.hr_login_price(7, false);
-  if (v_q->>'gold')::bigint <> 300 or (v_q->>'gems')::int <> 0 or v_q->'items' <> '{}'::jsonb then
-    raise exception 'demolition-login-catalogue self-check (c): a step-back day 7 prices %', v_q; end if;
-  -- (d) no client may execute the catalogue.
+  -- (a) seven days, and no day pays anything: no gold, item, key or gem.
+  if jsonb_array_length(public.hr_login_catalogue()->'cycle') <> 7 then
+    raise exception 'demolition-login-catalogue self-check (a): the cycle is not seven days'; end if;
+  select count(*) into v_n from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r)
+   where d.r <> '{}'::jsonb;
+  if v_n > 0 then raise exception 'demolition-login-catalogue self-check (a): % cycle day(s) still pay', v_n; end if;
+  -- (b) every streak, bonus due or not, prices 0 gold, 0 gems, no item.
+  for v_s in 1..40 loop
+    foreach v_q in array array[public.hr_login_price(v_s, true), public.hr_login_price(v_s, false)] loop
+      if (v_q->>'gold')::bigint <> 0 or (v_q->>'gems')::bigint <> 0 or v_q->'items' <> '{}'::jsonb then
+        raise exception 'demolition-login-catalogue self-check (b): streak % prices %', v_s, v_q; end if;
+    end loop;
+  end loop;
+  -- (c) the claim refuses login_reward_off for any caller, any period, any
+  --     delta (a zero delta included), as HR000 so hr_apply rolls back.
+  foreach v_q in array array['{}'::jsonb, '{"gold":300}'::jsonb, '{"gold":0,"gems":0,"items":{}}'::jsonb] loop
+    v_code := null;
+    begin
+      perform public.hr_login_claim_verify(gen_random_uuid(), 0, public.hr_utc_day_key(now()), v_q);
+    exception when sqlstate 'HR000' then v_code := sqlerrm;
+    end;
+    if v_code is distinct from 'login_reward_off' then
+      raise exception 'demolition-login-catalogue self-check (c): a claim of % was answered %', v_q, coalesce(v_code, 'ACCEPTED'); end if;
+  end loop;
+  -- (d) neither body is client-executable.
   if has_function_privilege('authenticated', 'public.hr_login_catalogue()', 'execute')
-     or has_function_privilege('anon', 'public.hr_login_catalogue()', 'execute') then
-    raise exception 'demolition-login-catalogue self-check (d): hr_login_catalogue is client-executable'; end if;
-  raise notice 'demolition-login-catalogue: day 7 pays 300 gold and no gems, every cycle id is an hr_items row, no key - all green';
+     or has_function_privilege('anon', 'public.hr_login_catalogue()', 'execute')
+     or has_function_privilege('authenticated', 'public.hr_login_claim_verify(uuid,integer,text,jsonb)', 'execute')
+     or has_function_privilege('anon', 'public.hr_login_claim_verify(uuid,integer,text,jsonb)', 'execute') then
+    raise exception 'demolition-login-catalogue self-check (d): a login body is client-executable'; end if;
+  raise notice 'demolition-login-catalogue: the login reward is off - every day pays nothing, every claim refuses login_reward_off - all green';
 end $$;

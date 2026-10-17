@@ -748,6 +748,16 @@ jobs:
           node tests/bounty-gems-close.mjs
           node tests/bounty-gems-close.mjs --mutate
 
+      # 2026-10-23-demolition-login-catalogue.sql (Tyler 2026-10-17: the login reward
+      # is premium-only; premium is S1's): every day pays nothing (rewards.js is the
+      # literal) and a real hr_apply claim is refused login_reward_off, journalled,
+      # replay-safe; second apply identical. --mutate: three defects refused by its §4.
+      - name: Login reward off (premium-only), second apply identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/login-reward-off.mjs
+          node tests/login-reward-off.mjs --mutate
+
       # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
       # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE
       # engine rolls the next foe from the hunt's weights on its seeded rng; the

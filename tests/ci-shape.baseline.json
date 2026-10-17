@@ -40,6 +40,8 @@
     "node tests/bounty-abandon-fee.mjs --mutate": "db-replay-4",
     "node tests/bounty-gems-close.mjs": "db-replay-4",
     "node tests/bounty-gems-close.mjs --mutate": "db-replay-4",
+    "node tests/login-reward-off.mjs": "db-replay-4",
+    "node tests/login-reward-off.mjs --mutate": "db-replay-4",
     "node tools/gen-hunts.mjs --check": "db-replay-4",
     "node tools/gen-hunts.mjs --selftest": "db-replay-4",
     "node tests/hunts-c1.mjs": "db-replay-4",

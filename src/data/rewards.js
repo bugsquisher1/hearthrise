@@ -53,25 +53,31 @@
    in 28 days against a daily player's 4), and "skip two, then day 6 and day 7"
    re-took day 7's key every four days (90 keys a year against 52).
    Every id is a real ITEMS row; tests/login-reward.mjs asserts it. */
+/* THE LOGIN REWARD IS OFF (Tyler, 2026-10-17). The daily login reward is
+   PREMIUM-ONLY, and for now it is just a training weapon. Premium is not on
+   the server yet (lane S1 adds it and authors that reward), so every day pays
+   NOTHING: no gold, no supplies, no key, no gem. The server agrees and goes
+   further: hr_login_claim_verify refuses every claim login_reward_off
+   (2026-10-23-demolition-login-catalogue.sql), journalled in hr_rejections.
+   The paid cycle above is history; nothing here may pay until S1 rules it. */
 export const DAILY_LOGIN_CYCLE = Object.freeze([
-  Object.freeze({ gold: 60, items: Object.freeze({ cooked_shrimp: 10 }) }),
-  Object.freeze({ gold: 80, items: Object.freeze({ turnip_seed: 10 }) }),
-  Object.freeze({ gold: 100, items: Object.freeze({ cooked_shrimp: 15 }) }),
-  Object.freeze({ gold: 130, items: Object.freeze({ carrot_seed: 10 }) }),
-  Object.freeze({ gold: 160, items: Object.freeze({ cooked_herring: 10 }) }),
-  Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 15 }) }),
-  Object.freeze({ gold: 300 }),   // Day 7: gold only, gems are out of the game (2026-10-15)
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
 ]);
 
 /** Each COMPLETED week scales gold and supplies by this much again... */
 export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
 /* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
-   x26, a fuse rather than a dial; this one is the dial. At the cap the richest
-   claim is day 7: 900 gold; a capped week pays 3,000
-   gold. The SERVER re-derives this price and refuses any other
-   (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
-   are bound by tests/login-reward.mjs, which runs both over every streak. */
+   x26, a fuse rather than a dial; this one is the dial. With the reward off every
+   streak prices 0. The SERVER holds its own copy of the cycle (hr_login_price,
+   generated from this file into 2026-10-23-demolition-login-catalogue.sql)
+   and refuses every claim; tests/login-reward-off.mjs binds the two. */
 export const DAILY_LOGIN_MAX_WEEK_MULT = 3;
 
 export const DAILY_LOGIN_CYCLE_DAYS = DAILY_LOGIN_CYCLE.length;

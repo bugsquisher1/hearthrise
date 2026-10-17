@@ -17,7 +17,7 @@ Applies to `prototypes/hunt-sim/combat-data.js`. Prototype-only; nothing here is
 | sorcerer.basic.mana | 4 | 2 | Wand basics cost mana (ruling) but must not drain the pool faster than abilities do |
 | druid.basic.mana | 3 | 2 | Same reason |
 | knight hp / mana | 260 / 60 | 200 / 60 | Tank should drop below 70% during a pocket, so Mend has work to do |
-| paladin hp / mana | 180 / 90 | 150 / 100 | Small mana raise covers Mark, Volley and Precision on cooldown |
+| ranger hp / mana | 180 / 90 | 150 / 100 | Small mana raise covers Mark, Volley and Precision on cooldown |
 | sorcerer hp / mana | 140 / 320 | 120 / 320 | Glass cannon; splash and King adds should threaten it |
 | druid hp / mana | 160 / 300 | 135 / 300 | Healer that can be pressured |
 | hero basic dmg (all) | as listed | keep, RULED | Party output is about 18 dps with abilities; scale is fixed by monster HP instead |
@@ -45,7 +45,7 @@ Applies to `prototypes/hunt-sim/combat-data.js`. Prototype-only; nothing here is
 | Value | Round 1 | New | Why |
 |---|---|---|---|
 | SUPPLIES.fire_rune / frost_rune price | 1 | 6 | Measured use is about 180 runes/h, not 1,900; at 6 g runes cost about 1.1k g/h and casting them is a real choice |
-| SUPPLIES.bolt price | 0.5 | 1 | About 1.6k bolts/h, so bolts cost about 1.6k g/h: the paladin's upkeep is visible |
+| SUPPLIES.bolt price | 0.5 | 1 | About 1.6k bolts/h, so bolts cost about 1.6k g/h: the ranger's upkeep is visible |
 | SUPPLIES.mana price | 0.03 | 0.06 | Doubles the mana line to about 0.8k g/h; drinks still cost little |
 | monster gp multiplier (normals) | x1.5 | x0.85 | Gold drops from 3.9k to about 2.2k g/h; income about 4.2k g/h against supply about 3.5k g/h is roughly +20% |
 | spider hp / atk | 120 / 16 | 90 / 13 | Spider-heavy pack was a 40–57 s grind with a knight wipe; this keeps it the toughest pocket without a wipe |
@@ -63,9 +63,9 @@ Headless run at the current numbers: 2 loops per composition, capped at 40 sim-m
 | Full (K+P+D+S) | 10 / 9 | 14 / 16 | 9 / 8 | 26 / 29 | 6 / 6 | 53 / 59 | 0 / 0 | 19 / 0 | 24.1k | −2.9k |
 | Knight + sorcerer | 14 / 16 | 20 / 28 | 10 / 15 | 52 / 66 | 14 / 16 | 81 / 89 | 0 / 0 | 19 / 8 | 16.6k | −1.0k |
 | Knight + druid | 36 / 58 | 31 / 40 | 28 / 40 | 57 / 77 | 20 / 26 | 238 / 250 | 0 / 0 | 22 / 0 | 9.0k | +1.7k |
-| Paladin + druid (no tank) | 29 / 33 | 33 / 35 | 27 / 29 | 51 / 72 | 19 / 29 | 185 / 256 | 0 / 0 | 28 / 0 | 10.0k | −1.7k |
+| Ranger + druid (no tank) | 29 / 33 | 33 / 35 | 27 / 29 | 51 / 72 | 19 / 29 | 185 / 256 | 0 / 0 | 28 / 0 | 10.0k | −1.7k |
 | Solo knight | 34 / 54 | 31 / 50 | 24 / 44 | 67 / 134 | 34 / 48 | 228, then 15 W | 15 / 15 | 6 / 25 | 3.0k | +0.4k |
-| Solo paladin | 33 / 33 | 39 / 43 | 29 / 25 | 77, 15 W, 35 | 35 / 61 | 173, then 12 W | 27 / 27 | 12 / 15 | 3.0k | −1.1k |
+| Solo ranger | 33 / 33 | 39 / 43 | 29 / 25 | 77, 15 W, 35 | 35 / 61 | 173, then 12 W | 27 / 27 | 12 / 15 | 3.0k | −1.1k |
 | Solo sorcerer | 19 / 25 | 77 / 75 | 23 / 23 | 57 / 61 | 27 / 23 | 155, then 24 W | 24 / 24 | 40 / 12 | 3.0k | −1.1k |
 | Solo druid | 12 W | — | — | — | — | — | 12 / 12 | 40 / 12 | 0 | −0.8k |
 

@@ -45,7 +45,7 @@ const vurl = src => src + (src.includes('?') ? '&' : '?') + 'v=' + ASSET_V;
 function loadImg(src) { const i = new Image(); i.src = vurl(src); return i; }
 IMG.map = loadImg('assets/sewer_map.png');
 IMG.cup = loadImg('assets/icons/drink_cup.png');
-for (const n of ['knight', 'paladin', 'druid', 'sorcerer', ...Object.keys(CONFIG.monsters)]) {
+for (const n of ['knight', 'ranger', 'druid', 'sorcerer', ...Object.keys(CONFIG.monsters)]) {
   IMG[n] = {}; for (const d of DIRS) IMG[n][d] = loadImg(`assets/${n}/${d}.png`);
 }
 // berserker: its own art if assets/berserker/ exists, the knight's otherwise (per direction, on load error)
@@ -77,8 +77,8 @@ function prepWalk(m) {
 // An OUTFIT is a sprite set (assets/walk/<outfit>/), independent of the ROLE (the ability/stat set). An outfit with region
 // masks (the witch: hat / robe / trim) can be recoloured per region: at load, into an offscreen canvas, never smoothed.
 // Recolour keeps each pixel's value (brightness) and swaps hue + saturation to the picked colour.
-const OUTFITS = { knight: 'Knight', berserker: 'Berserker', brute: 'Quarry Brute', paladin: 'Paladin', druid: 'Druid', sorcerer: 'Sorcerer', witch: 'Witch', dawnward: 'Dawnward Paladin' };
-const DEFAULT_OUTFIT = { knight: 'knight', berserker: 'berserker', paladin: 'paladin', sorcerer: 'sorcerer', druid: 'druid' };
+const OUTFITS = { knight: 'Knight', berserker: 'Berserker', brute: 'Quarry Brute', ranger: 'Ranger', druid: 'Druid', sorcerer: 'Sorcerer', witch: 'Witch', dawnward: 'Paladin' };
+const DEFAULT_OUTFIT = { knight: 'knight', berserker: 'berserker', ranger: 'ranger', sorcerer: 'sorcerer', druid: 'druid' };
 const outfitRegions = o => (WALK && WALK[o] && WALK[o].mask) ? Object.keys(WALK[o].mask.legend) : [];
 const RECOLOR = new Map();
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
@@ -243,12 +243,12 @@ function freeNear(x, y, r) {
 const heroById = id => S.units.find(u => u.id === id && u.side === 'hero');
 // party composition (selector). The first hero in the list is the front-most: it pulls and holds aggro.
 const COMPS = {
-  full: ['knight', 'paladin', 'druid', 'sorcerer'], k: ['knight'], p: ['paladin'], s: ['sorcerer'], d: ['druid'],
-  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['paladin', 'druid'],
-  kbds: ['knight', 'berserker', 'druid', 'sorcerer'], kb: ['knight', 'berserker'], ps: ['paladin', 'sorcerer'],
+  full: ['knight', 'ranger', 'druid', 'sorcerer'], k: ['knight'], p: ['ranger'], s: ['sorcerer'], d: ['druid'],
+  kd: ['knight', 'druid'], ks: ['knight', 'sorcerer'], pd: ['ranger', 'druid'],
+  kbds: ['knight', 'berserker', 'druid', 'sorcerer'], kb: ['knight', 'berserker'], ps: ['ranger', 'sorcerer'],
   tanks: ['knight', 'knight', 'knight', 'knight'],
 };
-const FRONT_ORDER = ['knight', 'berserker', 'paladin', 'sorcerer', 'druid'];
+const FRONT_ORDER = ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'];
 // PARTY = the 4 slots of the builder: { role, outfit, colors } (role '' = empty slot). Role = abilities + stats; outfit = sprite.
 const slotSpec = r => typeof r === 'string' ? { role: r, outfit: DEFAULT_OUTFIT[r] || r, colors: null } : { role: r.role || '', outfit: r.outfit || DEFAULT_OUTFIT[r.role] || r.role, colors: r.colors || null };
 const toParty = c => { const a = (Array.isArray(c) ? c : COMPS[c]).map(slotSpec); while (a.length < 4) a.push({ role: '', outfit: '', colors: null }); return a.slice(0, 4); };
@@ -377,7 +377,7 @@ function hurt(t, amt, src, el, abil) {
     const d = MONSTERS[t.kind];
     let m = elemMult(t, el) * (1 - d.def * COMBAT.defReductionPerPoint);
     if (S.time < t.vulnUntil) m *= COMBAT.vulnMult;
-    if (S.time < t.markUntil && src && src.kind === 'paladin') m *= ABILITIES.paladin[0].bonus;
+    if (S.time < t.markUntil && src && src.kind === 'ranger') m *= ABILITIES.ranger[0].bonus;
     if (m === 0) { pushNum(t, 'immune', '#9aa4b0'); return; }
     amt = Math.max(1, Math.round(amt * m));
   } else {
@@ -410,7 +410,7 @@ function pushNum(t, txt, col) {
 // sprite VFX (vfx.js). `vfx` pushes a sprite effect; drawn effects map to a sprite when one is loaded.
 const FX_SPRITE = { slash: 'melee_slash', heal: 'nature_heal_motes', loot: 'loot_sparkle', mark: 'hunters_mark', shield: 'arcane_barrier' };
 const BURST_SPRITE = { fire: 'flame_volley_puff', nature: 'natures_wrath', frost: 'frost_lance_shatter' };
-const CAST_SPRITE = { sorcerer: 'cast_sorcerer_runes', druid: 'cast_druid_motes', paladin: 'cast_paladin_aim_glint', knight: 'cast_knight_shield_bash' };
+const CAST_SPRITE = { sorcerer: 'cast_sorcerer_runes', druid: 'cast_druid_motes', ranger: 'cast_ranger_aim_glint', knight: 'cast_knight_shield_bash' };
 function vfx(name, x, y, opts) {
   if (!VFXLIB.ready(name)) return false;
   S.fx.push(Object.assign({ type: 'vfx', name, x, y, age: 0, life: VFXLIB.dur(name) }, opts || {}));
@@ -967,7 +967,8 @@ const cv = document.getElementById('c'), g = cv.getContext('2d');
 let view = { w: 0, h: 0 }, cam = { x: 0, y: 0 };
 function resize() { cv.width = innerWidth; cv.height = innerHeight; view.w = Math.floor(innerWidth / CONFIG.scale); view.h = Math.floor(innerHeight / CONFIG.scale); }
 addEventListener('resize', resize); resize();
-const opts = { grid: false, paths: false };
+const opts = { grid: false, paths: false, bleedBoss: true, bleedMob: false };
+try { const o = JSON.parse(localStorage.getItem('huntsim-opts') || '{}'); if (typeof o.bleedBoss === 'boolean') opts.bleedBoss = o.bleedBoss; if (typeof o.bleedMob === 'boolean') opts.bleedMob = o.bleedMob; } catch (e) { /* storage blocked: defaults */ }
 const T = CONFIG.tile;
 const cx = x => (x + 1) * T + T / 2, cy = y => (y + 1) * T + T / 2; // grid cell -> map pixel centre (map origin is cell -1)
 
@@ -1036,7 +1037,7 @@ function render(alpha, frameDt) {
       const r = u.hp / u.maxHp; g.fillStyle = r > .6 ? '#4fc65a' : r > .3 ? '#e0b040' : '#e04a3a'; g.fillRect(bx, by, Math.max(1, Math.round(bw * r)), 2);
       if (u.side === 'hero' && u.maxMana) { g.fillStyle = '#4a8cff'; g.fillRect(bx, by + 3, Math.round(bw * u.mana / u.maxMana), 1); }
     }
-    if (u.alive && u.bleeds && u.bleeds.length) {      // bleed stacks: a blood-drop badge with the stack count, right of the HP bar
+    if (u.alive && u.bleeds && u.bleeds.length && (u.side === 'hero' || (CONFIG.monsters[u.kind] && CONFIG.monsters[u.kind].boss ? opts.bleedBoss : opts.bleedMob))) {      // bosses by default, regular mobs opt-in; bleed stacks: a blood-drop badge with the stack count, right of the HP bar
       const n = u.bleeds.length, bx = Math.round(ox + cx(u.rx) + 12), by = y - 8;
       g.fillStyle = '#000'; g.fillRect(bx - 1, by - 1, 15, 12);
       g.fillStyle = '#9a1414'; g.fillRect(bx, by, 13, 10);
@@ -1151,7 +1152,7 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
 $('restart').onclick = () => reset();
 // Party builder (dev tool): 4 slots x role x outfit (+ a colour per recolourable region). Heroes are tracked by unit id,
 // so duplicate roles work (4 tanks). Front-most leads: tank Melee, then dps Melee, then Ranger, Mage, Healer (slot order within a role).
-const ROLE_NAME = { knight: 'Melee (tank)', berserker: 'Melee (dps)', paladin: 'Ranger', sorcerer: 'Mage', druid: 'Healer' };
+const ROLE_NAME = { knight: 'Melee (tank)', berserker: 'Melee (dps)', ranger: 'Ranger', sorcerer: 'Mage', druid: 'Healer' };
 const REGION_DEFAULT = { hat: '#8a5bd0', robe: '#4a8a5a', trim: '#d0a040' };
 const slotUnit = i => S.units.find(h => h.side === 'hero' && h.slot === i);
 function builderBuild() {
@@ -1183,6 +1184,10 @@ $('partyBtn').onclick = () => { $('builder').style.top = ($('bar').getBoundingCl
 window.__setComp = c => { PARTY = toParty(c); reset(); builderBuild(); };
 $('tGrid').onclick = () => { opts.grid = !opts.grid; $('tGrid').classList.toggle('on', opts.grid); };
 $('tPath').onclick = () => { opts.paths = !opts.paths; $('tPath').classList.toggle('on', opts.paths); };
+for (const [id, key] of [['tBleedBoss', 'bleedBoss'], ['tBleedMob', 'bleedMob']]) {
+  $(id).classList.toggle('on', opts[key]);
+  $(id).onclick = () => { opts[key] = !opts[key]; $(id).classList.toggle('on', opts[key]); try { localStorage.setItem('huntsim-opts', JSON.stringify({ bleedBoss: opts.bleedBoss, bleedMob: opts.bleedMob })); } catch (e) { /* storage blocked: fine */ } };
+}
 function logRender() {            // pulls log: rows appended once per pull (keyed by index), never rebuilt on a timer
   const box = $('logBody'); if (!box) return;
   if (!box._n || box._n > STATS.pulls.length) { box.textContent = ''; box._n = 0; const h = document.createElement('div'); h.textContent = 'time to clear'; box.append(h); }

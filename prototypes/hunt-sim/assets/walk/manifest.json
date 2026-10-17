@@ -545,85 +545,85 @@
     40
    ]
   },
-  "paladin": {
+  "ranger": {
    "object_id": "0934ce5c-0838-4b3e-9b53-16e9e9504489",
    "role": "hero_rp",
    "fps": 8,
    "directions": {
     "east": [
-     "paladin/walk_east_0.png",
-     "paladin/walk_east_1.png",
-     "paladin/walk_east_2.png",
-     "paladin/walk_east_3.png",
-     "paladin/walk_east_4.png",
-     "paladin/walk_east_5.png"
+     "ranger/walk_east_0.png",
+     "ranger/walk_east_1.png",
+     "ranger/walk_east_2.png",
+     "ranger/walk_east_3.png",
+     "ranger/walk_east_4.png",
+     "ranger/walk_east_5.png"
     ],
     "north-east": [
-     "paladin/walk_north-east_0.png",
-     "paladin/walk_north-east_1.png",
-     "paladin/walk_north-east_2.png",
-     "paladin/walk_north-east_3.png",
-     "paladin/walk_north-east_4.png",
-     "paladin/walk_north-east_5.png"
+     "ranger/walk_north-east_0.png",
+     "ranger/walk_north-east_1.png",
+     "ranger/walk_north-east_2.png",
+     "ranger/walk_north-east_3.png",
+     "ranger/walk_north-east_4.png",
+     "ranger/walk_north-east_5.png"
     ],
     "north-west": [
-     "paladin/walk_north-west_0.png",
-     "paladin/walk_north-west_1.png",
-     "paladin/walk_north-west_2.png",
-     "paladin/walk_north-west_3.png",
-     "paladin/walk_north-west_4.png",
-     "paladin/walk_north-west_5.png"
+     "ranger/walk_north-west_0.png",
+     "ranger/walk_north-west_1.png",
+     "ranger/walk_north-west_2.png",
+     "ranger/walk_north-west_3.png",
+     "ranger/walk_north-west_4.png",
+     "ranger/walk_north-west_5.png"
     ],
     "north": [
-     "paladin/walk_north_0.png",
-     "paladin/walk_north_1.png",
-     "paladin/walk_north_2.png",
-     "paladin/walk_north_3.png",
-     "paladin/walk_north_4.png",
-     "paladin/walk_north_5.png"
+     "ranger/walk_north_0.png",
+     "ranger/walk_north_1.png",
+     "ranger/walk_north_2.png",
+     "ranger/walk_north_3.png",
+     "ranger/walk_north_4.png",
+     "ranger/walk_north_5.png"
     ],
     "south-east": [
-     "paladin/walk_south-east_0.png",
-     "paladin/walk_south-east_1.png",
-     "paladin/walk_south-east_2.png",
-     "paladin/walk_south-east_3.png",
-     "paladin/walk_south-east_4.png",
-     "paladin/walk_south-east_5.png"
+     "ranger/walk_south-east_0.png",
+     "ranger/walk_south-east_1.png",
+     "ranger/walk_south-east_2.png",
+     "ranger/walk_south-east_3.png",
+     "ranger/walk_south-east_4.png",
+     "ranger/walk_south-east_5.png"
     ],
     "south-west": [
-     "paladin/walk_south-west_0.png",
-     "paladin/walk_south-west_1.png",
-     "paladin/walk_south-west_2.png",
-     "paladin/walk_south-west_3.png",
-     "paladin/walk_south-west_4.png",
-     "paladin/walk_south-west_5.png"
+     "ranger/walk_south-west_0.png",
+     "ranger/walk_south-west_1.png",
+     "ranger/walk_south-west_2.png",
+     "ranger/walk_south-west_3.png",
+     "ranger/walk_south-west_4.png",
+     "ranger/walk_south-west_5.png"
     ],
     "south": [
-     "paladin/walk_south_0.png",
-     "paladin/walk_south_1.png",
-     "paladin/walk_south_2.png",
-     "paladin/walk_south_3.png",
-     "paladin/walk_south_4.png",
-     "paladin/walk_south_5.png"
+     "ranger/walk_south_0.png",
+     "ranger/walk_south_1.png",
+     "ranger/walk_south_2.png",
+     "ranger/walk_south_3.png",
+     "ranger/walk_south_4.png",
+     "ranger/walk_south_5.png"
     ],
     "west": [
-     "paladin/walk_west_0.png",
-     "paladin/walk_west_1.png",
-     "paladin/walk_west_2.png",
-     "paladin/walk_west_3.png",
-     "paladin/walk_west_4.png",
-     "paladin/walk_west_5.png"
+     "ranger/walk_west_0.png",
+     "ranger/walk_west_1.png",
+     "ranger/walk_west_2.png",
+     "ranger/walk_west_3.png",
+     "ranger/walk_west_4.png",
+     "ranger/walk_west_5.png"
     ]
    },
    "idle": {
-    "east": "paladin/idle_east.png",
-    "west": "paladin/idle_west.png",
-    "north": "paladin/idle_north.png",
-    "south": "paladin/idle_south.png",
-    "north-east": "paladin/idle_north-east.png",
-    "north-west": "paladin/idle_north-west.png",
-    "south-east": "paladin/idle_south-east.png",
-    "south-west": "paladin/idle_south-west.png"
+    "east": "ranger/idle_east.png",
+    "west": "ranger/idle_west.png",
+    "north": "ranger/idle_north.png",
+    "south": "ranger/idle_south.png",
+    "north-east": "ranger/idle_north-east.png",
+    "north-west": "ranger/idle_north-west.png",
+    "south-east": "ranger/idle_south-east.png",
+    "south-west": "ranger/idle_south-west.png"
    },
    "frame_count": 6,
    "frame_size": [

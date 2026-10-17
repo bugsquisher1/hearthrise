@@ -185,11 +185,24 @@ const followers = () => S.units.filter(u => u.side === 'hero' && u.kind !== S.le
 const living = side => S.units.filter(u => u.alive && u.side === side);
 
 // ---------- movement ----------
-function leash(u) { return u.side === 'mon' ? (x, y) => !inRoom(u.pocket, x, y) : null; }
+// THE leash: the one place that decides where a unit may stand. Monsters never leave their own pack's room; during a
+// fight a kiting hero never leaves the pack's room either (no free damage from outside the leash). Every path is planned
+// with it (pathBlocked) and every single step is checked against it (tryNextStep), so no repath, queue or fallback can skip it.
+function leashRoom(u) {
+  if (u.side === 'mon') return u.pocket;
+  if (S.phase === 'fight' && S.pull && kites(u)) return S.pull.pocket;
+  return -1;
+}
+// a unit inside may never step out; one already outside (late to the fight) is free to walk in however the corridor winds
+function canStep(u, fx, fy, x, y) {
+  const i = leashRoom(u); if (i < 0) return true;
+  return inRoom(i, x, y) || !inRoom(i, fx, fy);
+}
+const pathBlocked = u => { const i = leashRoom(u); return i < 0 || !inRoom(i, u.x, u.y) ? null : (x, y) => !inRoom(i, x, y); };   // outside: plan freely; canStep stops anything inside from leaving
 function setGoal(u, gx, gy) {
   if (u.goal && u.goal[0] === gx && u.goal[1] === gy && (u.path.length || (u.x === gx && u.y === gy))) return;
   u.goal = [gx, gy];
-  u.path = astar(u.x, u.y, gx, gy, leash(u)) || [];
+  u.path = astar(u.x, u.y, gx, gy, pathBlocked(u)) || [];
 }
 // Continuous movement: a unit spends its whole per-tick travel budget, rolling straight from one tile into the
 // next without a stop at the tile centre. Walk frames advance with distance moved (u.animD, in tiles).
@@ -213,6 +226,7 @@ function stepUnit(u, dt) {
 function tryNextStep(u, dt) {
   if (!u.path.length) return false;
   const [nx, ny] = u.path[0];
+  if (!canStep(u, u.x, u.y, nx, ny)) { u.path = []; u.goal = null; return false; }   // leash choke point
   const blocker = S.occ.get(key(nx, ny));
   // Collision (Tyler 2026-10-16): heroes never block each other (party members walk through one another);
   // monsters still block heroes and monsters, and heroes still block monsters.
@@ -225,7 +239,7 @@ function tryNextStep(u, dt) {
       swap(u, blocker); return false;
     }
     if (u.wait > 0.5 && u.goal) {
-      const lf = leash(u);
+      const lf = pathBlocked(u);
       const p = astar(u.x, u.y, u.goal[0], u.goal[1], (x, y) => (S.occ.has(key(x, y)) && cheb({ x, y }, u) <= 3) || (lf && lf(x, y)));
       if (p && p.length) u.path = p;
       u.wait = 0.2;
@@ -435,10 +449,14 @@ function startPull() {
 }
 function totalWait() { let s = 0; for (const v of STATS.waits.values()) s += v; return s; }
 
+// Aggro leash: a monster whose target stands outside the pack's room drops aggro, returns home and heals to full.
+// If that is the whole pack (the aggro holder left the area) the pull is reset, never counted as a clear.
+function resetMonster(m) { m.target = null; m.hp = m.maxHp; m.queued = false; m.peeled = false; m.bleeds = []; setGoal(m, ...m.home); }
 function aiFight() {
   const k = lead();
+  for (const m of engagedMonsters()) if (!inRoom(m.pocket, m.target.x, m.target.y)) { resetMonster(m); STATS.leashResets = (STATS.leashResets || 0) + 1; }
   const mons = engagedMonsters();
-  if (!mons.length) { endPull(); return; }
+  if (!mons.length) { if (living('mon').some(m => m.pocket === S.pull.pocket)) S.pull.reset = true; endPull(); return; }
   if (kites(k)) {
     keepDistance(k, k.set.dist, mons);   // chase off + distance > 1: the leader kites at its distance setting
   } else if (!k.set.chase) {
@@ -502,6 +520,7 @@ function meleeDpsPos(u, k, mons) {
   }
   if (best) setGoal(u, ...best); else { const q = ringFree(tgt, 2, u); if (q) setGoal(u, ...q); }
 }
+const SPOT_MARGIN = 2.5;   // a new spot must beat the claimed one by this many score points to be worth the walk
 function rangedPos(u, k, mons) {
   if (!u.alive) return;
   const want = u.set.dist;
@@ -517,27 +536,39 @@ function rangedPos(u, k, mons) {
   }
   if (kites(u)) { keepDistance(u, want, mons); return; }       // chase off + distance > 1: kite, keep `want` tiles from every monster
   if (!u.set.chase) return;                                     // chase off at distance 1: hold position
-  if (u.repath > 0 && !nearMon) return;
-  u.repath = 1.0;
   const ok = (x, y) => eu({ x, y }, tgt) >= want - 1 && eu({ x, y }, tgt) <= want + 1.2;
   const score = (x, y) => {
     let s = Math.abs(eu({ x, y }, tgt) - want) * 2 + eu({ x, y }, u) * 0.35 + (inRoom(S.pull.pocket, x, y) ? 0 : 4);
     for (const m of mons) s -= Math.min(eu({ x, y }, m), 6) * 0.15;
     return s;
   };
+  const claimed = (x, y) => S.units.some(v => v !== u && v.side === 'hero' && ((v.goal && v.goal[0] === x && v.goal[1] === y) || (v.spot && v.spot[0] === x && v.spot[1] === y)));
+  // Spot reservation: the claimed spot is kept while it stays valid. En route we never re-pick; a new spot must beat the
+  // claimed one by SPOT_MARGIN score points (hysteresis), or the mage bounces between near-equal tiles.
+  const valid = s => s && walk(s[0], s[1]) && ok(s[0], s[1]) && !claimed(s[0], s[1]) && !(S.occ.get(key(s[0], s[1])) && S.occ.get(key(s[0], s[1])) !== u)
+    && !mons.some(m => cheb(m, { x: s[0], y: s[1] }) <= 1) && los({ x: s[0], y: s[1] }, tgt) && inRoom(S.pull.pocket, s[0], s[1]);
+  const held = valid(u.spot);
+  if (held) {
+    const atSpot = u.x === u.spot[0] && u.y === u.spot[1] && u.t >= 1;
+    if (!atSpot) { if (!(u.goal && u.goal[0] === u.spot[0] && u.goal[1] === u.spot[1] && u.path.length)) setGoal(u, ...u.spot); return; }
+  } else if (u.spot) u.spot = null;
+  if (u.repath > 0 && !nearMon) return;
+  u.repath = 1.0;
   const curGood = ok(u.x, u.y) && !nearMon && los(u, tgt) && u.t >= 1 && inRoom(S.pull.pocket, u.x, u.y);
-  if (curGood && !u.path.length) return;
+  if (curGood && !u.path.length && (held || !u.spot)) { if (!held) u.spot = [u.x, u.y]; return; }
   let best = null, bs = 1e9;
   for (let y = tgt.y - 8; y <= tgt.y + 8; y++) for (let x = tgt.x - 8; x <= tgt.x + 8; x++) {
     if (!walk(x, y) || !ok(x, y)) continue;
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
-    if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
+    if (claimed(x, y)) continue;
     if (mons.some(m => cheb(m, { x, y }) <= 1)) continue;
     if (!los({ x, y }, tgt)) continue;
     const s = score(x, y); if (s < bs) { bs = s; best = [x, y]; }
   }
   if (!best) { S.pull.noSpot++; return; }
-  if (!u.goal || u.goal[0] !== best[0] || u.goal[1] !== best[1]) { if (curGood && bs > score(u.x, u.y) - 0.5) return; setGoal(u, ...best); }
+  if (held && bs > score(u.spot[0], u.spot[1]) - SPOT_MARGIN) return;
+  if (!held && curGood && bs > score(u.x, u.y) - SPOT_MARGIN) { u.spot = [u.x, u.y]; return; }
+  u.spot = best; STATS.spotChanges = (STATS.spotChanges || 0) + 1; setGoal(u, ...best);
 }
 // Keep-distance (chase off): when any monster is closer than `want` tiles, step back to the reachable tile that
 // best restores the gap, keeping a line of fire to some monster and staying in the room. Holds once safe.
@@ -545,18 +576,42 @@ function rangedPos(u, k, mons) {
 const kites = u => !u.set.chase && u.set.dist > 1;
 function keepDistance(u, want, mons) {
   const gap = (x, y) => Math.min(...mons.map(m => cheb(m, { x, y })));
+  // outside the pack's area (arrived late, or knocked out): walk in first. Shooting from out here is free damage.
+  if (!inRoom(S.pull.pocket, u.x, u.y)) {
+    if (u.path.length) return;
+    let b = null, bsc = 1e9;
+    for (let y = u.y - 12; y <= u.y + 12; y++) for (let x = u.x - 12; x <= u.x + 12; x++) {
+      if (!walk(x, y) || !inRoom(S.pull.pocket, x, y)) continue;
+      const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
+      const g = gap(x, y); if (g < Math.min(want, 2)) continue;
+      const sc = eu({ x, y }, u) + (g >= want ? 0 : (want - g) * 2) + (mons.some(m => los({ x, y }, m)) ? 0 : 3);
+      if (sc < bsc) { bsc = sc; b = [x, y]; }
+    }
+    if (b) { u.spot = b; setGoal(u, ...b); }
+    return;
+  }
   // nothing in attack range (e.g. leashed monsters that can't come out to us): close in until something is,
   // stopping `want` tiles short, or a kiter and a leashed pack just stare at each other
   if (gap(u.x, u.y) >= want && !mons.some(m => inRange(u, m))) {
-    if (u.repath <= 0 || !u.path.length) {
-      const n = mons.slice().sort((a, b) => eu(a, u) - eu(b, u))[0];
-      setGoal(u, n.x, n.y); u.path = u.path.slice(0, Math.max(1, u.path.length - want)); u.repath = 0.6;
+    if (u.path.length) return;                                  // en route: committed, no re-pick
+    const n = mons.slice().sort((a, b) => eu(a, u) - eu(b, u))[0];
+    const p = astar(u.x, u.y, n.x, n.y, pathBlocked(u)) || [];
+    // stop at the FIRST tile on the way that is `want` away and already has a shot, so closing in never overshoots
+    // into the retreat band (that overshoot was the close-in / back-off bounce)
+    let stop = -1;
+    for (let i = 0; i < p.length; i++) {
+      const t = { x: p[i][0], y: p[i][1], kind: u.kind };
+      if (gap(t.x, t.y) >= want && mons.some(m => eu(m, t) <= HEROES[u.kind].range && los(t, m))) { stop = i; break; }
     }
+    const cut = stop >= 0 ? p.slice(0, stop + 1) : p.slice(0, Math.max(1, p.length - want));
+    if (cut.length) { u.goal = cut[cut.length - 1]; u.path = cut; u.spot = u.goal; STATS.spotChanges = (STATS.spotChanges || 0) + 1; }
     return;
   }
   if (gap(u.x, u.y) >= want && !u.path.length) return;         // far enough: hold and shoot
   // en route to a step that still restores the gap: keep going (re-picking every tick meant never arriving)
   if (u.goal && u.path.length && gap(u.goal[0], u.goal[1]) >= want) return;
+  // hysteresis: a spot picked a moment ago is kept while it is not dangerous (nothing adjacent / within 1)
+  if (S.time - (u.spotT || -9) < 1.2 && gap(u.x, u.y) >= Math.min(want, 2) + 1) return;
   // the NEAREST reachable tile that restores the gap, with a line of fire, inside the room: one short step back.
   // It must lie AWAY from the pack (farther from the pack's centre than we are now), or the "nearest safe tile"
   // can be on the far side of the monsters and the route walks straight through them.
@@ -564,7 +619,7 @@ function keepDistance(u, want, mons) {
   const away = (x, y) => Math.hypot(x - cx, y - cy) - Math.hypot(u.x - cx, u.y - cy);
   let best = null, bs = 1e9;
   for (let y = u.y - 5; y <= u.y + 5; y++) for (let x = u.x - 5; x <= u.x + 5; x++) {
-    if (!walk(x, y)) continue;
+    if (!walk(x, y) || !inRoom(S.pull.pocket, x, y)) continue;      // HARD limit: kite tiles are inside the pack's area
     const o = S.occ.get(key(x, y)); if (o && o !== u) continue;
     if (S.units.some(v => v !== u && v.side === 'hero' && v.goal && v.goal[0] === x && v.goal[1] === y)) continue;
     if (away(x, y) <= 0.5) continue;                           // retreat only, never through or past the pack
@@ -572,7 +627,7 @@ function keepDistance(u, want, mons) {
     const s = eu({ x, y }, u) + (g >= want + 1 ? 0 : (want + 1 - g) * 3)   /* aim one tile PAST the setting so the step buys time */ + (mons.some(m => los({ x, y }, m)) ? 0 : 4) + (inRoom(S.pull.pocket, x, y) ? 0 : 3);
     if (s < bs) { bs = s; best = [x, y]; }
   }
-  if (best && (best[0] !== u.x || best[1] !== u.y)) setGoal(u, ...best);
+  if (best && (best[0] !== u.x || best[1] !== u.y)) { u.spot = best; u.spotT = S.time; STATS.spotChanges = (STATS.spotChanges || 0) + 1; setGoal(u, ...best); }
 }
 function endPull() {
   const p = S.pull, name = CONFIG.pockets[p.pocket].name;
@@ -581,6 +636,10 @@ function endPull() {
   STATS.pulls.push(rec);
   S.pull = null;
   if (rec.wipe) { S.packs[p.pocket].aggro = false; logRender(); return; }
+  if (p.reset) {                          // the aggro holder left the pack's area: nothing cleared, the party regroups and pulls again
+    rec.reset = true; S.packs[p.pocket].aggro = false;
+    S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = false; logRender(); return;
+  }
   S.packs[p.pocket].alive = false; S.packs[p.pocket].respawnAt = S.time + CONFIG.respawnSec;
   S.phase = 'regroup'; S.phaseT = CONFIG.regroupSec; S.regroupNext = true;
   logRender();

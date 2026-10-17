@@ -723,7 +723,8 @@ jobs:
 
       # 2026-10-04-bounty-abandon-server-fee.sql (Security P2): the abandon fee is
       # priced from the server's active_bounty + Bounty-Hunter level, never a client
-      # number. Replays the WHOLE chain and drives the gated wrapper as
+      # number. Replays the chain up to the K4 retirement (bounty-gems-close drops
+      # these RPCs at chain end) and drives the gated wrapper as
       # `authenticated`: the file re-applies byte-identically, the retired
       # (level, reward) call does not resolve, a level-15 abandon pays 10 and ends
       # the contract, a second abandon is refused, level 9 pays 0, and the ungated
@@ -734,6 +735,18 @@ jobs:
         run: |
           node tests/bounty-abandon-fee.mjs
           node tests/bounty-abandon-fee.mjs --mutate
+
+      # 2026-10-23-demolition-bounty-gems-close.sql (BETA_PLAN K4 + K37): at chain
+      # end the bounty RPCs do not resolve for a player, and the ONE gem credit
+      # refuses gems_retired (a 1-gem start kit is refused end to end, 0 gems land).
+      # The file re-applies byte-identically. --mutate plants four defects (a paying
+      # credit, a surviving claim, a kept baseline row, a client grant) and requires
+      # each refused at install by the file's §4.
+      - name: Bounty RPCs gone, gem credit refuses (K4/K37), second apply identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bounty-gems-close.mjs
+          node tests/bounty-gems-close.mjs --mutate
 
       # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
       # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE

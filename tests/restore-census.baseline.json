@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-15",
+ "generated": "2026-10-17",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -708,7 +708,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 522,
+   "replay": 267,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bounty_board_monsters": {
@@ -748,7 +748,7 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 101,
+   "replay": 98,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it."
   },
   "hr_client_write_baseline": {
@@ -792,7 +792,7 @@
   },
   "hr_dungeon_loot": {
    "class": "seeded",
-   "replay": 38,
+   "replay": 0,
    "note": "Generated from src/data/dungeons.js by tools/gen-dungeon-catalogue.mjs (--check is a smoke preflight): the per-dungeon loot table (id, qty range, chance, bop) hr_dungeon_settle rolls from. Server-owned reference data, no player rows. Rebuilt from repo, never restored."
   },
   "hr_dungeons": {
@@ -986,7 +986,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 484,
+   "replay": 460,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunts": {
@@ -1011,7 +1011,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 506,
+   "replay": 470,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1068,7 +1068,7 @@
   },
   "hr_qm_offers": {
    "class": "seeded",
-   "replay": 19,
+   "replay": 0,
    "note": "Generated from src/data/dungeons.js QM_STOCK by tools/gen-dungeon-catalogue.mjs (--check is a smoke preflight): the Quartermaster offers (offer_id qm.<item>, item_id, scrip_cost) hr_quartermaster_buy prices from. Server-owned reference data, no player rows. Rebuilt from repo, never restored."
   },
   "hr_quest_rewards": {
@@ -1101,7 +1101,7 @@
   },
   "hr_runes": {
    "class": "seeded",
-   "replay": 3,
+   "replay": 0,
    "note": "Generated catalogue (2026-08-11-catalogue.generated.sql, tools/gen-catalogues.mjs --check): the rune definitions the enchant path validates against. Three rows — small, but it is an ALLOWLIST, so a rebuild with a different set changes what may legally be enchanted. Rebuilt from repo, never restored."
   },
   "hr_server_secrets": {
@@ -1125,7 +1125,7 @@
   },
   "hr_skills": {
    "class": "seeded",
-   "replay": 17,
+   "replay": 15,
    "note": "Generated catalogue — the skill list every XP write is validated against. 15 rows on 2026-08-15, 17 now. Rebuilt from repo, never restored."
   },
   "hr_start_equipment": {
@@ -1226,12 +1226,12 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 139,
+   "replay": 111,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 79,
+   "replay": 59,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {

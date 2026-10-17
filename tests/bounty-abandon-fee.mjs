@@ -35,6 +35,13 @@ import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-10-04-bounty-abandon-server-fee.sql';
+/* THE SUBJECT IS RETIRED AT CHAIN END (2026-10-23-demolition-bounty-gems-close.sql,
+   BETA_PLAN K4/K37). That file drops the bounty RPCs and makes hr_wallet_credit
+   refuse every gem, so the property graded here exists only on the chain that
+   ENDS before it. The plain run therefore stops at the last file before the
+   retirement; tests/bounty-gems-close.mjs grades the chain end (gone, refused). */
+const RETIRED_AFTER = '2026-10-23-demolition-hero-slots-gold.sql';
+
 const S5 = '-- ── 5. SELF-VERIFYING COMMIT GATE (CLAUDE.md §4) — EXECUTED ─────────────────\ndo $$';
 /* Every mutation also turns §5 into an UNCALLED function, so the planted defect
    reaches this file's arms instead of being refused at apply (a mutant the
@@ -64,7 +71,7 @@ const MUTATIONS = {
 async function run(mutate) {
   const patches = mutate ? new Map([[MIG, MUTATIONS[mutate].pairs]]) : undefined;
   /* --mutate stops at this file (see the header); the plain run replays it all. */
-  const { db } = await bootReplay(mutate ? { patches, upTo: MIG } : { patches });
+  const { db } = await bootReplay(mutate ? { patches, upTo: MIG } : { upTo: RETIRED_AFTER });
   const fails = [];
   const ok = (arm, cond, msg) => { if (!cond) fails.push(`${arm}: ${msg}`); };
   const q = async (sql, p) => (await db.query(sql, p)).rows;

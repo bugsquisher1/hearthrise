@@ -29,7 +29,7 @@ export const CONSUMABLE_RULES = Object.freeze({
   instantPct: 50,
   /* The other half over 6 s (week plan item 7), one tick a second. */
   overTimeMs: 6000,
-  tickMs: 1000,
+  overTimeTickMs: 1000,
   /* The one shared food-and-drink lane: 1 s (ASSUMED, Bible §9.1 PROPOSED). */
   laneMs: 1000,
   /* Food waits while a heal landed this recently (ASSUMED). */
@@ -61,8 +61,8 @@ export function validate() {
   const R = CONSUMABLE_RULES;
   for (const [k, v] of Object.entries(R)) if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v);
   if (R.instantPct > 100) out.push('instantPct is over 100');
-  if (R.overTimeMs % R.tickMs !== 0) out.push('overTimeMs is not a whole number of ticks');
-  for (const k of ['tickMs', 'laneMs', 'noHealWindowMs']) {
+  if (R.overTimeMs % R.overTimeTickMs !== 0) out.push('overTimeMs is not a whole number of ticks');
+  for (const k of ['overTimeTickMs', 'laneMs', 'noHealWindowMs']) {
     if (R[k] % HUNT_TUNING.stepMs !== 0) out.push(k + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
   for (const k of ['drinkBelowPct', 'foodBelowPct']) if (R[k] > 100) out.push(k + ' is over 100');

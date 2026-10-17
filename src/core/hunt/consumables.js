@@ -2,7 +2,7 @@
 // src/core/hunt/consumables.js — FOOD AND DRINK (spec §3.4; parity CO-01..CO-08)
 //
 // One sub-step hook, `consume(inst, sc)`, for every living hero:
-//   1. its over-time halves tick (one tick a CONSUMABLE_RULES.tickMs);
+//   1. its over-time halves tick (one tick a CONSUMABLE_RULES.overTimeTickMs);
 //   2. while the ONE food-and-drink lane is locked, nothing more;
 //   3. under the drink threshold (and no drink still ticking) it DRINKS;
 //   4. else under the food threshold, with no heal in the last noHealWindowMs
@@ -62,7 +62,7 @@ function tickOverTime(u, atMs) {
     while (n > 0 && atMs >= at) {
       const part = n === 1 ? left : Math.floor(left / n);
       raise(u, stat, part);
-      left -= part; n -= 1; at += R.tickMs;
+      left -= part; n -= 1; at += R.overTimeTickMs;
     }
     u[k] = n > 0 ? [left, at, n] : null;
   }
@@ -94,8 +94,8 @@ function use(u, hero, kind, line, sc) {
   const now = Math.floor((amount * R.instantPct) / 100);
   const landed = raise(u, stat, now);
   const later = amount - now;
-  const ticks = R.overTimeMs / R.tickMs;
-  u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.tickMs, ticks] : null;
+  const ticks = R.overTimeMs / R.overTimeTickMs;
+  u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.overTimeTickMs, ticks] : null;
   u.laneAt = sc.atMs + R.laneMs;
   sc.emit(makeEvent(kind === 'drink' ? 'drink' : 'eat', sc.atMs,
     { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed }));

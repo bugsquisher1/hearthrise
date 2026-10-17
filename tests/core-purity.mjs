@@ -23,12 +23,36 @@
 // ============================================================
 
 import { readdir, readFile } from 'node:fs/promises';
-import { join, normalize } from 'node:path';
+import { dirname, join, normalize, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const CORE_DIR = join(ROOT, 'src', 'core');
+const DATA_DIR = join(ROOT, 'src', 'data');
+
+/* Every .js under src/core, recursively, as a posix path relative to it. The
+   hunt engine lives in src/core/hunt/ (H1-H5, 2026-10-17) and is the same
+   shared, vendored core: it is scanned by the same rules, not skipped. */
+async function coreFiles(dir = CORE_DIR) {
+  const out = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...await coreFiles(p));
+    else if (e.name.endsWith('.js')) out.push(relative(CORE_DIR, p).split(sep).join('/'));
+  }
+  return out.sort();
+}
+
+/* A core import is lawful iff it is a relative path to a plain [\w-]+.js file
+   that resolves inside src/core/** or src/data/** — never src/features, the
+   legacy monolith, the network layer or a bare package. */
+export function lawfulImport(fromRel, spec) {
+  const bare = spec.replace(/\?v=\d+$/, '');
+  if (!/^\.\.?\//.test(bare) || !/(^|\/)[\w-]+\.js$/.test(bare)) return false;
+  const to = normalize(join(CORE_DIR, dirname(fromRel), bare));
+  return [CORE_DIR, DATA_DIR].some((d) => to.startsWith(d + sep));
+}
 
 /* Banned in src/core. Each entry is [regex, why] — the "why" is what the
    failure prints, because a guard that only says "forbidden" teaches nobody. */
@@ -73,7 +97,7 @@ export async function corePurityGuard() {
   const problems = [];
   let names = [];
   try {
-    names = (await readdir(CORE_DIR)).filter((n) => n.endsWith('.js')).sort();
+    names = await coreFiles();
   } catch {
     return ['could not read src/core — the shared simulation core is missing'];
   }
@@ -91,8 +115,8 @@ export async function corePurityGuard() {
        src/features or src/legacy.js would drag the browser back in. */
     for (const spec of raw.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
       const s = spec[1];
-      if (!/^\.\/[\w-]+\.js(\?v=\d+)?$/.test(s) && !/^\.\.\/data\/[\w-]+\.js(\?v=\d+)?$/.test(s)) {
-        problems.push(`src/core/${name}: imports "${s}" — core may only import ./core siblings or ../data`);
+      if (!lawfulImport(name, s)) {
+        problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
       /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
       if (!/\?v=\d+/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);

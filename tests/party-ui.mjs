@@ -329,7 +329,7 @@ const PURE_MUTANTS = [
     "  async leaveParty() {\n    if (this._closed) return { ok: false, error: 'closed' };\n    this._record = Object.freeze(Object.assign({}, this._record, { version: this._record.version }));\n"],
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
   ['a malformed seat is sent', 'src/session/character-session.js', "if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };", "if (this._closed) return { ok: false, error: 'bad_intent' };"],
-  ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, typeof s.role === 'string' ? s.role : null),", "role: typeof s.role === 'string' ? s.role : roleForWeapon(w, null),"],
+  ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
 ];
 const PAGE_MUTANTS = [
   ['Start stays on while in flight', 'src/shell/windows/party.js', "prop(start, 'disabled', sc.pending || p.anyHunting);", "prop(start, 'disabled', p.anyHunting);"],

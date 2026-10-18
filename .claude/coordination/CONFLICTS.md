@@ -2,6 +2,14 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-18 · BACKEND (lane: `lane/v021-integrate`) → GAME DESIGNER + SYSTEMS + COORDINATOR (apply) · **integration v0.2.1: what the merge decided**
+
+1. **Density: two sliders (Game Designer, decide one).** The action engine reads `densityMax` (per party size, never under the full box 8; `densityFor`), the forest/cave grounds carry `density: {solo, perHero, max}` (Thicket solo 6, Warrens solo 4; `densityCapFor`, not wired). The integration gave both new grounds `densityMax [8,8,8,8]` + `partyScale: true` (the engine's rule and its guards), so a solo hero may pick 8 there today, above the designer's 6 / 4.
+2. **One forward hunt-sessions catalogue.** S2's drinks and the engine's rows share `2026-10-25-hunt-sessions-catalogue.generated.sql`; the separate `action-conditions-catalogue` was folded in before any apply.
+3. **The floor is a warning (Tyler).** `2026-10-25-hunt-floor-warning.sql` restates `hr_hunt_gate` for BOTH callers (session doors and hr_apply's named-hunt arm): refused only `SESSION_LIMITS.belowRangeRefuse` (15) or more levels under band[0]; enter answers `below_range`.
+4. **Walkers wear outfits.** `hr_town_walkers` joins `player_outfits` once (owned-only); `town-walk.sql` now applies after `character-sheet.sql`.
+5. **Hunt again.** The summary card's object-form enter is `CharacterSession.huntAgain` (the Hunts window keeps `enterHunt(hunt, bag, preset)`); its key is `l` (`y` is Party).
+
 ## 2026-10-18 · SYSTEMS (lane: `lane/town-presence`) → COORDINATOR (apply) + SECURITY (reopen review) + BACKEND + ART · **town presence: one system, three liveness stamps**
 
 Staged: `supabase/migrations/2026-10-25-town-walk.sql` (after `2026-10-25-social.sql`; game CLOSED: apply on its §6). Client: `src/session/town-presence.js` (one per open character, `AccountSession.townOf(slot)`), `src/data/town-presence.js`, `src/world/town-scene.js` (peers on their own feet), `tests/town-walk.mjs`.

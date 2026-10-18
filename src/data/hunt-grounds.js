@@ -192,7 +192,11 @@ export const HUNT_GROUNDS = Object.freeze({
       box([3, 27, 20, 38], [10, 33], ['gray_wolf', 'gray_whelp'], ['briarcoat_wolf', 'gray_whelp', 'gray_wolf', 'gray_whelp', 'briarcoat_wolf', 'gray_whelp']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5,
+    respawnMs: 60000, pullDist: 1.5, partyScale: true,
+    /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
+       holds at the full box at least (the action engine ruling); the slider caps below are the
+       designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
+    densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box */
     density: density(6, 2, 8),
     gather: gather(9000, [
@@ -229,7 +233,11 @@ export const HUNT_GROUNDS = Object.freeze({
       box([2, 25, 14, 38], [7, 31], ['chief_coppercap', 'goblin_scavenger', 'goblin_scavenger'], ['goblin_digger', 'goblin_skulker', 'hobgoblin_foreman', 'goblin_scavenger', 'goblin_skulker']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5,
+    respawnMs: 90000, pullDist: 1.5, partyScale: true,
+    /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
+       holds at the full box at least (the action engine ruling); the slider caps below are the
+       designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
+    densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero up to 4, a pair 6, three or four the full box */
     density: density(4, 2, 8),
     gather: gather(12000, [

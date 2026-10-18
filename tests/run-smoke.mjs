@@ -2050,7 +2050,7 @@ const run = async () => {
       'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       
-      'Goal-gold retune guard',
+      /* 'Goal-gold retune guard' — REMOVED 2026-10-17: its guard left with the demolition's daily quests (c0a11d871). */
       'Clan-deposit ownership guard', 'Delta-transport guard',
       
       'Identity guard', 'CORS preflight guard', 'Migration guard',

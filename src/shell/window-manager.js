@@ -9,7 +9,8 @@
 //   phone    ONE full-height side sheet, min(400px, 48vw); opening another
 //            replaces it.
 //   Esc      closes the top window; with none open it opens the `escape` row.
-//   keys     each row's `key` toggles it; ignored while typing or with a modifier.
+//   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
+//            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
 //   motion   a close waits MOTION_MS for the slide-out; none under reduced motion.
 //   inset    the covered right-edge rect, published on every change so the World
 //            can centre its camera in what is still visible (engine `setInset`).
@@ -17,6 +18,8 @@
 // PURE: no DOM, no window, no G. The host passes the size class, the World's
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
+
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.0';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -48,13 +51,10 @@ export function validateWindowRows(rows) {
   return byId;
 }
 
-/** True when a key event must not reach the shell: typing, IME, or a modifier chord. */
+/** True when a key event must not reach the shell: typing (the one key rule), IME, or a modifier chord. */
 function isTypingEvent(ev) {
   if (!ev || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return true;
-  const t = ev.target;
-  if (!t) return false;
-  if (t.isContentEditable) return true;
-  return /^(input|textarea|select)$/i.test(t.tagName || '');
+  return keyBelongsToField(ev.target, ev.key);
 }
 
 /**

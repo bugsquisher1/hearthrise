@@ -207,7 +207,7 @@ export function createSteer(map, at) {
   };
 }
 
-/** What a map exit leads to: a hunt map opens Adventures on its hunt; a town or home switches the scene. */
+/** What a map exit leads to: a hunt map names its hunt (the pane opens Hunts on it); a town or home switches the scene. */
 function exitAction(exit, maps) {
   const to = maps && maps[exit.to];
   if (!to) return null;

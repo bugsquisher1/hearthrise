@@ -50,6 +50,7 @@ import { createWalkScene } from './walk-scene.js?v=0.2.0';
 import { homeMapFor } from './home-scene.js?v=0.2.0';
 import { runAction } from './steer-local.js?v=0.2.0';
 import { heroSprite } from '../session/hero-look.js?v=0.2.0';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.0';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -58,19 +59,9 @@ const WALK_KEYS = Object.freeze({
   KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
   KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
 });
-/* THE ONE INPUT RULE FOR THE KEYS (Tyler 10-18: "WASD stops working when a menu
-   panel is open"): the walk keys belong to the World unless the player is TYPING:
-   a text field, a text area or an editable box has focus. An open window, a menu or
-   a confirmation never takes them (the shell's windows are not modal). A focused
-   select keeps only the arrows, which change its value; letters still walk. */
-const TEXT_ENTRY = 'textarea, [contenteditable=""], [contenteditable="true"], input:not([type]), input[type="text"], '
-  + 'input[type="search"], input[type="email"], input[type="password"], input[type="number"], input[type="tel"], input[type="url"]';
-/** True when the key `code` belongs to the focused element `t`, not to the World's feet. */
-function keyIsTyped(t, code) {
-  if (!t || !t.closest) return false;
-  if (t.closest(TEXT_ENTRY)) return true;
-  return /^Arrow/.test(code) && !!t.closest('select');
-}
+/* THE KEYS belong to the World unless the player is typing (src/utils/dom.js
+   keyBelongsToField, the one rule the window shortcuts use too): an open window,
+   a menu or a confirmation never takes them; the shell's windows are not modal. */
 
 /* THE ONE INPUT RULE FOR THE POINTER (Tyler 10-18: "clicking into the inventory also
    clicks onto the map and moves the character"): the shell lays its windows and
@@ -99,7 +90,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
  * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on
  * screen as the viewer picked, and one slim line over it names where the hero
  * really is and offers the hunt that IS in the World. Null when the scene
- * speaks for itself. Its button only navigates (Adventures, the hunt picked).
+ * speaks for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
  * @param {object} G  read only
  * @param {{kind: string}} sc  the scene showing
  * @param {(id: string) => string} monsterName
@@ -350,14 +341,14 @@ export async function bootWorld(panel, opts) {
     if (!WALK_KEYS[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!live() || !walk || !scene || scene.kind === 'hunt') return;
     const t = e.target;
-    if (keyIsTyped(t, e.code)) { letGo(); return; }
+    if (keyBelongsToField(t, e.code)) { letGo(); return; }
     e.preventDefault();   // the arrows would scroll the page
     if (keys.has(e.code)) return;   // auto-repeat
     keys.add(e.code);
     steerKeys();
   }
   function onKeyUp(e) { if (keys.delete(e.code)) steerKeys(); }
-  function onFocusIn(e) { if (keyIsTyped(e.target, '')) letGo(); }
+  function onFocusIn(e) { if (keyBelongsToField(e.target, '')) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
   function frame(t) {

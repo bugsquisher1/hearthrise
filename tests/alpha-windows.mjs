@@ -436,11 +436,12 @@ async function checks(overrides, shots) {
     }
 
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
-      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; };
+      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: fresh });
       if (up) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });
         if (!ptr || !/Open Hunts/.test(ptr)) fails.push('AW-17 a fresh character sees no pointer to Hunts: ' + JSON.stringify(ptr));
+        if (shots) await shot(page, 'alpha-922x423-first-minute');
         for (const [key, id] of [['k', 'skills-combat'], ['g', 'skills-trade']]) {
           if (!(await openWin(page, key, id))) { fails.push('AW-17 ' + id + ' did not open'); continue; }
           await page.waitForTimeout(300);
@@ -484,7 +485,7 @@ const MUTANTS = [
     "runIntent(sc, repaint, () => Promise.all(shop.refill.lines.map((l) => cs.edgeIntent('shop_buy', { offer: l.offer, qty: l.buy }))).then(() => cs.refill(shop.refill.total)), 'Refilling…',"],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],
   ['a press on a window reaches the World', 'src/world/world-boot.js', "if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;", "if (!walk || !scene || scene.kind === 'hunt') return;"],
-  ['an open window takes the walk keys', 'src/world/world-boot.js', '    if (keyIsTyped(t, e.code)) { letGo(); return; }', "    if (keyIsTyped(t, e.code) || (t.closest && t.closest('[data-hs-win]'))) { letGo(); return; }"],
+  ['an open window takes the walk keys', 'src/world/world-boot.js', '    if (keyBelongsToField(t, e.code)) { letGo(); return; }', "    if (keyBelongsToField(t, e.code) || (t.closest && t.closest('[data-hs-win]'))) { letGo(); return; }"],
   ['a docked window shows the void past the map', 'src/world/core/camera.js', '    if (span >= v) c = hold(', '    if (false) c = hold('],
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
   ['a hunt carries the whole stack past its restock target', 'src/shell/hunt-list.js', 'restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty', 'r.qty'],

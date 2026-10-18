@@ -10,9 +10,10 @@
 //   regions   the parts its art's region masks define, in picker order. An outfit
 //             recolours only once its mask frames are in the art set (the picker
 //             is shown only then, src/shell/windows/character/outfit.js).
-// DYES are the colours a region may take: each is a colour of the world palette
-// (art/world/palette.json), so a dyed outfit stays inside it. A saved colour is
-// an INDEX into this list; the server checks it against hr_outfit_dyes.
+// DYES are the colours a region may take: DYE_COUNT tokens --dye-N in
+// src/styles/tokens.css, each a colour of the world palette, so a dyed outfit
+// stays inside it. A saved colour is an INDEX; the server checks it against
+// hr_outfit_dyes.
 // The rows here and the server's (supabase/migrations/2026-10-25-character-sheet.sql)
 // are compared by tests/character-window.mjs (CW-D1): edit both together.
 //
@@ -35,13 +36,9 @@ export const OUTFIT_ROWS = Object.freeze({
 /* A region's name in the picker. */
 export const REGION_LABEL = Object.freeze({ hat: 'Hat', robe: 'Robe', trim: 'Trim', head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
 
-/* Index → colour. Every one is a world palette colour (tests/character-window.mjs CW-D2). */
-export const DYES = Object.freeze([
-  '#2f2723', '#6a6865', '#e6dcbc', '#8a6440',
-  '#a8743a', '#5e1a1f', '#c23a2a', '#f2a03a',
-  '#e8c547', '#6b7a38', '#3d6234', '#7ccf4a',
-  '#4f7a80', '#2b4a6a', '#4fa8e8', '#5c6c7a',
-]);
+/* How many dyes there are. Dye N's colour is the token --dye-N (src/styles/tokens.css):
+   each a world palette colour, held equal to the server's rows by tests/character-window.mjs. */
+export const DYE_COUNT = 16;
 
 /* A region mask's colours: region i of an outfit's `regions` is painted MASK_COLOURS[i] in its mask art. */
 export const MASK_COLOURS = Object.freeze([[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]]);
@@ -60,6 +57,6 @@ export function validate() {
     for (const g of r.regions) if (!REGION_LABEL[g]) out.push(id + ': region ' + g + ' has no label');
     if (r.regions.length > MASK_COLOURS.length) out.push(id + ': more regions than mask colours');
   }
-  if (!DYES.every((h) => /^#[0-9a-f]{6}$/.test(h)) || new Set(DYES).size !== DYES.length) out.push('DYES must be distinct #rrggbb colours');
+  if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');
   return out;
 }

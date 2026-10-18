@@ -10,7 +10,7 @@
 // owns ownership and the worn look; the draft is display scratch until the
 // re-read envelope says what is worn.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYES } from '../../../data/outfits.js?v=0.2.0';
+import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYE_COUNT } from '../../../data/outfits.js?v=0.2.0';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.0';
 import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.0';
 import { outfitOf } from '../../../session/character-sections.js?v=0.2.0';
@@ -49,10 +49,13 @@ export function draftOf(cs, sc) {
   return { outfit: shown, colors: worn ? Object.assign({}, o.colors) : {} };
 }
 
-/** The dyes of a draft as the renderer wants them: per region index, a colour or null. */
-export function dyesOf(draft) {
+const DYE_IDS = Array.from({ length: DYE_COUNT }, (_, i) => i);
+/** The dyes of a draft as the renderer wants them: per region index, the dye token's colour or null. */
+export function dyesOf(draft, doc) {
   const r = OUTFIT_ROWS[draft.outfit];
-  return r ? r.regions.map((g) => (Number.isInteger(draft.colors[g]) ? DYES[draft.colors[g]] || null : null)) : [];
+  const css = doc && doc.defaultView ? doc.defaultView.getComputedStyle(doc.documentElement) : null;
+  const hex = (i) => (css && Number.isInteger(i) && i >= 0 && i < DYE_COUNT ? css.getPropertyValue('--dye-' + i).trim() || null : null);
+  return r ? r.regions.map((g) => hex(draft.colors[g])) : [];
 }
 
 export const facingOf = (sc) => TURN[sc.dir % TURN.length];
@@ -86,11 +89,10 @@ export function patchOutfit(body, ctx, sc, art, drawTile) {
       build: (g) => element(ctx.doc, '<button type="button" role="tab" class="hw-tab" data-hs-act="of-region" data-region="' + esc(g) + '">' + esc(REGION_LABEL[g] || g) + '</button>'),
       patch: (b, g) => attr(b, 'aria-selected', String(g === sc.region)),
     });
-    rows(root.querySelector('.hw-of-swatches'), DYES.map((hex, i) => ({ hex, i })), {
-      key: (s) => String(s.i),
-      build: (s) => element(ctx.doc, '<button type="button" class="hw-of-swatch" data-hs-act="of-dye" data-dye="' + s.i + '" aria-label="Dye ' + (s.i + 1) + '"></button>'),
-      /* A dye's colour is world-palette DATA (src/data/outfits.js DYES), not a UI colour. */
-      patch: (b, s) => { style(b, 'background-color', s.hex); attr(b, 'aria-pressed', String(d.colors[sc.region] === s.i)); },
+    rows(root.querySelector('.hw-of-swatches'), DYE_IDS, {
+      key: (i) => String(i),
+      build: (i) => element(ctx.doc, '<button type="button" class="hw-of-swatch" data-hs-act="of-dye" data-dye="' + i + '" aria-label="Dye ' + (i + 1) + '"></button>'),
+      patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(d.colors[sc.region] === i)); },
     });
   }
   /* The grid: search and the owned filter; premium and not-owned marked. */

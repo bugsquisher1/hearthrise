@@ -13,7 +13,7 @@
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
 // 2026-10-25-character-sheet.sql projects (built here, below).
 //   CW-D1 the outfit and dye rows of src/data/outfits.js are the migration's rows
-//   CW-D2 every dye is a world palette colour; outfits.js validate() is clean
+//   CW-D2 every dye token --dye-N is a world palette colour; outfits.js validate() is clean
 //   CW-1  C opens the Character window from the key and the launcher, with zero
 //         console errors; its three tabs are Character, Outfit and Deaths
 //   CW-2  STATS ONLY FROM THE SERVER: the combat lines show exactly the
@@ -36,7 +36,7 @@ import { launchOptions } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const MIGRATION = 'supabase/migrations/2026-10-25-character-sheet.sql';
@@ -113,19 +113,30 @@ const lines = (page) => page.evaluate(() => {
   }
   return out;
 });
+/* A new full envelope, the way the live game gets one: a skipped frame makes the client re-read. */
+async function push(page, s) {
+  const before = s.calls.length;
+  await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, s.version + 2, s.env.state]);
+  s.version += 2;
+  for (let i = 0; i < 60 && s.calls.length <= before; i++) await page.waitForTimeout(50);
+  await page.waitForTimeout(500);
+}
 const sheetAsks = (s) => s.calls.filter((c) => c.name === 'hr-accrue' && c.body.verb === 'sheet');
 
 async function pure() {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-  const { OUTFIT_ROWS, DYES, validate } = await imp('src/data/outfits.js');
+  const { OUTFIT_ROWS, DYE_COUNT, validate } = await imp('src/data/outfits.js');
+  const tokens = await readFile(join(ROOT, 'src/styles/tokens.css'), 'utf8');
+  const DYES = Array.from({ length: DYE_COUNT }, (_, i) => { const m = tokens.match(new RegExp('--dye-' + i + ':\\s*(#[0-9a-f]{6})')); return m ? m[1] : null; });
+  if (DYES.some((h) => !h)) fails.push('CW-D2 a dye has no --dye-N token in src/styles/tokens.css: ' + JSON.stringify(DYES));
   for (const p of validate()) fails.push('CW-D2 ' + p);
   const sql = await readFile(join(ROOT, MIGRATION), 'utf8');
   const rows = [...sql.matchAll(/\('([a-z_]+)',\s+(true|false),\s+'\{([a-z,]*)\}',\s+\d+\)/g)].map((m) => [m[1], m[2] === 'true', m[3] ? m[3].split(',') : []]);
   const want = Object.entries(OUTFIT_ROWS).map(([id, r]) => [id, r.premium, [...r.regions]]);
   if (JSON.stringify(rows) !== JSON.stringify(want)) fails.push('CW-D1 hr_outfits rows ' + JSON.stringify(rows) + ' are not src/data/outfits.js ' + JSON.stringify(want));
   const dyes = [...sql.matchAll(/\((\d+), '(#[0-9a-f]{6})'\)/g)].map((m) => [Number(m[1]), m[2]]);
-  if (JSON.stringify(dyes) !== JSON.stringify(DYES.map((h, i) => [i, h]))) fails.push('CW-D1 hr_outfit_dyes rows are not src/data/outfits.js DYES');
+  if (JSON.stringify(dyes) !== JSON.stringify(DYES.map((h, i) => [i, h]))) fails.push('CW-D1 hr_outfit_dyes rows ' + JSON.stringify(dyes) + ' are not the --dye-N tokens ' + JSON.stringify(DYES));
   const pal = JSON.parse(await readFile(join(ROOT, 'art/world/palette.json'), 'utf8'));
   const all = new Set(Object.values(pal.ramps).flat().map((h) => h.toLowerCase()));
   for (const h of DYES) if (!all.has(h)) fails.push('CW-D2 the dye ' + h + ' is not a world palette colour');
@@ -178,11 +189,7 @@ async function checks(overrides, shots) {
         /* CW-2b: a new envelope replaces the numbers on the same node. */
         await page.evaluate(() => { window.__dmg = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); });
         s.env.character_sheet.combat.damage.max = 31;
-        const before = s.calls.length;
-        await page.evaluate(([f, st]) => window.__hub && window.__hub.send('hr:11111111-2222-3333-4444-555555555555:0', { t: 'delta', frame: f, patch: { state: st } }), [s.version + 2, s.env.state]);
-        s.version += 2;
-        for (let i = 0; i < 60 && s.calls.length <= before; i++) await page.waitForTimeout(50);
-        await page.waitForTimeout(500);
+        await push(page, s);
         const same = await page.evaluate(() => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return { same: d === window.__dmg, t: d.textContent }; });
         if (same.t !== '1–31' || !same.same) fails.push('CW-2 after a new envelope the damage reads ' + same.t + (same.same ? '' : ' on a rebuilt node'));
         /* CW-4: try on an owned outfit, save: ONE intent. */
@@ -226,17 +233,21 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('CW-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-    { // CW-3: a stale sheet shows no combat line and asks ONCE for its version; an absent number has no line
-      const { ctx, page, errors, s, up } = await open({ sections: { fresh: false } });
+    { // CW-3: a sheet the server calls stale shows no combat line (none kept from before) and asks ONCE for its version
+      const { ctx, page, errors, s, up } = await open();
       if (up && await openWin(page, 'c', 'character')) {
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(400);
+        if ((await lines(page)).Damage !== '1–17') fails.push('CW-3 the fresh sheet did not draw before the stale one');
+        s.env.character_sheet = Object.assign({}, s.env.character_sheet, { fresh: false, combat: null, computed_at: null });
+        await push(page, s);
+        await page.waitForTimeout(1000);
         const L = await lines(page);
         for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Max mana', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
         if (L['Max health'] !== '24') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
         if (sheetAsks(s).length !== 1) fails.push('CW-3 a stale sheet asked the engine ' + sheetAsks(s).length + ' times for one version');
         const ask = sheetAsks(s)[0];
         if (ask && Object.keys(ask.body).some((k) => !['slot', 'verb', 'intentId'].includes(k))) fails.push('CW-3 the sheet ask carries ' + JSON.stringify(ask.body));
-      } else fails.push('CW-3 the stale-sheet character did not open');
+      } else fails.push('CW-3 the character did not open');
       if (errors.length) fails.push('CW-3 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -275,7 +286,7 @@ async function checks(overrides, shots) {
 
 const MUTANTS = [
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
-  ['a stale sheet still shows its numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: combatOf(s.combat || {}),'],
+  ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
   ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', c && c.maxMana !== null ? whole(c.maxMana) : null);", "line(root, '[data-vital=\"mana\"]', whole((c && c.maxMana) || 0));"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "if (!sh || sh.fresh || sc.sheetAsking || v === null || sc.sheetAsked === v) return;", "if (!sh || sh.fresh) return;"],

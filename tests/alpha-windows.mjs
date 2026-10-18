@@ -187,7 +187,8 @@ async function checks(overrides, shots) {
         const searches = [];
         for (const [key, id] of WINDOWS) {
           await openWin(page, key, id);
-          searches.push(...await page.evaluate(() => Array.from(document.querySelectorAll('input[type=search]')).map((i) => { const w = i.closest('[data-hs-win]'); return w ? w.getAttribute('data-hs-win') : 'outside'; })));
+          /* The Character window's outfit search finds outfits, not items: it is not an item search. */
+          searches.push(...await page.evaluate(() => Array.from(document.querySelectorAll('input[type=search]:not([data-hs-act="of-search"])')).map((i) => { const w = i.closest('[data-hs-win]'); return w ? w.getAttribute('data-hs-win') : 'outside'; })));
         }
         if (!searches.includes('inventory') || !searches.includes('storage') || searches.some((w) => w !== 'inventory' && w !== 'storage')) fails.push('AW-15 the item search is not exactly in Inventory and Storage: ' + searches.join(','));
         /* AW-2/AW-3: the bag patches its pockets in place and shows exactly the server's counts. */

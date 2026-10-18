@@ -17,7 +17,6 @@
 // A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.0';
-import { BUILD } from '../../../build-info.js?v=0.2.0';
 import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.0';
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.0';
 import { attr, cls } from '../../../render/paint.js?v=0.2.0';
@@ -35,7 +34,8 @@ const PORTRAIT_SCALE = 1;
 let ART = null;
 function wantArt(doc) {
   if (ART || !doc || !doc.baseURI) return;
-  outfitArt(doc, BUILD.cache).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
+  /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
+  outfitArt(doc, new URL(import.meta.url).searchParams.get('v') || '').then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
 }
 
 /** The skeleton (built once per opening). */
@@ -79,7 +79,7 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
     patchOutfit(body, ctx, sc, ART, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, []));
-    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesOf(d));
+    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesOf(d, ctx.doc));
   } else patchDeaths(body, ctx, sc);
 };
 

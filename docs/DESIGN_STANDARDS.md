@@ -4,6 +4,8 @@ Read this before designing or changing a system, a creature or hunting ground, a
 
 The aim: a thoughtfully authored indie MMORPG that players recognise from a screenshot without the logo. Quality over quantity. Intentional design over feature count.
 
+**The first principle (Tyler, 2026-10-18): players should spend their time making interesting decisions, not repeating decisions they've already made.** Any choice a player has made once (a loadout, a rule, a loot filter, a restock amount, a route, a sell list) is remembered, reusable and copyable. Repetition is a design bug, not content. Before shipping a screen or system, ask: what does the player decide here, and will they ever have to make the same decision again by hand?
+
 ## 1. Identity
 - Tibia and Huntera are **mechanical** inspirations (automated hunting, unlimited levels, bestiary, parties of four, a visible world). Their names, sprites, maps, UI layouts and text are never copied.
 - Hearthrise's own pillars: the hearth and homestead you grow, a server-run shared world, skills that feed each other (gather → craft → hunt → trade), and the road to the throne (the renown spine).

@@ -352,7 +352,7 @@ const MUTANTS = [
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
-    ['    for (const d of list.sprites) { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n', ''],
+    ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && (d.flash || d.grey)) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
 ];
 

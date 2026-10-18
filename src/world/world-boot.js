@@ -17,12 +17,8 @@
 // observer (src/render/combat-observer.js) — its snapshot every frame and every
 // beat as it happens, so swings taken while the pane was hidden are not lost.
 // The hunt's panels (analyzer, party, bars) are the shell's (src/shell/widgets/*).
-// THE LIVE HUNT (step 15): when the character's envelope carries a `hunt`
-// section, the scene is src/hunt-view/scene.js instead, played from that
-// character's timeline (the server's track and events) on the timeline's own
-// clock: every unit walks its track, each event plays once, and the snapshot's
-// numbers fill the bars. The swing staging above is only for a fight with no
-// hunt section.
+// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the character's
+// timeline on its own clock instead; the staging above is for a fight with none.
 //
 // THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
 // draws them from what the client holds from the server, read here into one
@@ -158,8 +154,7 @@ function createEnvReader(win) {
  * @param {() => object} opts.view  the ONE character's view this pane shows, read every frame
  *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
  *        character's own `_world` display scratch. There is no global state to fall back to.
- * @param {object} [opts.character]  that character's CharacterSession: its hunt sections and
- *        timeline drive the live hunt (src/hunt-view/scene.js)
+ * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
  */
 export async function bootWorld(panel, opts) {
   const win = window, doc = document;
@@ -211,7 +206,6 @@ export async function bootWorld(panel, opts) {
     });
   }
 
-  /* THE LIVE HUNT: the character's timeline on its own clock, the snapshot read every frame. */
   function liveState(sc) {
     const tl = character.timeline;
     if (!liveHunt || liveHunt.map !== sc.map) {

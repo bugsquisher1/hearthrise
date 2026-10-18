@@ -14,14 +14,20 @@
 //                      while disconnected is closed; frames apply E2/E3
 //   setResidue(f, v)   a display preference: the record's residue changes at
 //                      once, one hr_put_client_state follows per burst
+//   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
+//                      new settings arrive only in the re-read envelope
+//   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
+//   timeline           the settle responses' visual timeline (src/hunt-view/
+//                      timeline.js): tracks and events, never the record
 //   subscribe(fn)      fn(session, why) after every applied change
 //   close()            leave the topic, cancel timers, forget the record
 //
 // It authors no number: the record changes only from a server answer, and the
-// only thing it sends of its own is the allowlisted residue.
+// only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
 import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.1.0';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.1.0';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.1.0';
 import { SESSION_CONFIG } from './config.js?v=0.1.0';
 
@@ -58,6 +64,7 @@ export class CharacterSession {
    *        joins a private broadcast topic; returns the leave function
    * @param {(fn: Function, ms: number) => any} [o.setTimer]
    * @param {(t: any) => void} [o.clearTimer]
+   * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
    */
   constructor(o) {
     if (!Number.isInteger(o.slot) || o.slot < 0 || o.slot > SESSION_CONFIG.maxSlot) throw new RangeError('bad slot ' + o.slot);
@@ -77,6 +84,9 @@ export class CharacterSession {
     this._pending = {};
     this._closed = false;
     this.lastVerdict = null;
+    this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
+    this.timeline = createTimeline();
+    this.receivedAt = null;
   }
 
   /** The frozen record { version, data, residue }, or null before the first answer. */
@@ -97,8 +107,42 @@ export class CharacterSession {
     if (!r.applied) return false;
     this._record = r.record;
     this._status = 'ready';
+    this.receivedAt = this._now();
+    this._play(body);
     this._emit(why);
     return true;
+  }
+
+  /* The answer's timeline goes to the playback buffer; the snapshot's pose reconciles it gently. */
+  _play(body) {
+    if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
+      this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms }, this._now());
+    }
+    const h = this.read('hunt');
+    if (h && h.pose) this.timeline.reconcile(h.pose);
+  }
+
+  /**
+   * The hunt settings intent for one preset. Nothing changes on screen from the
+   * answer itself: on ok the character is re-read and hunt_settings replaces.
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async setHuntOptions(preset, opts) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
+  }
+
+  /** Leave the hunt (hr_hunt_leave): the server settles and ends it; the re-read shows the summary. */
+  async leaveHunt() {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() }));
+  }
+
+  /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */
+  async _settled(ans) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
+    return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
   }
 
   _answerFailed(ans) {

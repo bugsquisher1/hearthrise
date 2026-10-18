@@ -18,10 +18,13 @@
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
 //
 // The rest of the spec's catalogue (Bag B, Gear C, Skills K, Homestead H,
-// Bestiary L, Market M, Chat Enter, Settings Esc) lands with its renderer in the
-// cutover: a launcher never opens a window that does not exist yet (§1).
+// Bestiary L, Market M) lands with its renderer in the cutover: a launcher never
+// opens a window that does not exist yet (§1). Chat opens on its Combat tab.
 // ════════════════════════════════════════════════════════════════════════
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
+  Object.freeze({ id: 'hunt-settings', label: 'Hunt settings', key: 'j', glyph: 'uiTarget', width: 440, object: 'plain' }),
+  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),
+  Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 400, object: 'plain', escape: true }),
 ]);

@@ -26,7 +26,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform'];
+const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform', 'src/render', 'src/hunt-view'];
 const LINK = 'src/session/server.js';
 
 /* The client's whole RPC surface, each with what it is for. */
@@ -34,6 +34,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
   hr_create_character: 'make the character in an owned slot (AccountSession.create)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
+  hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
+  hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
 });
 
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');

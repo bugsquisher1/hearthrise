@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const CLIENT_DIRS = Object.freeze(['src/app', 'src/session', 'src/shell', 'src/net']);
+export const CLIENT_DIRS = Object.freeze(['src/app', 'src/session', 'src/shell', 'src/net', 'src/render', 'src/hunt-view']);
 export const MAX_LINES = 600;
 const MIN_FILES = 10;
 const MUST = ['src/app/boot.js', 'src/session/account-session.js', 'src/session/character-session.js'];

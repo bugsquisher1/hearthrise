@@ -15,9 +15,8 @@
 // THE HUNT (lane W3). When the server's activity is a fight a map renders, the
 // scene is that hunt: hunt-scene.js stages the fight from the one swing
 // observer (src/render/combat-observer.js) — its snapshot every frame and every
-// beat as it happens, so swings taken while the pane was hidden are not lost —
-// and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
-// Leave Hunt over the stage.
+// beat as it happens, so swings taken while the pane was hidden are not lost.
+// The hunt's panels (analyzer, party, bars) are the shell's (src/shell/widgets/*).
 //
 // THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
 // draws them from what the client holds from the server, read here into one
@@ -42,7 +41,6 @@ import { loadAtlases } from './atlas.js?v=0.1.0';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.1.0';
 import { huntOfMap } from './hunt-maps.js?v=0.1.0';
 import { createHuntScene } from './hunt-scene.js?v=0.1.0';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=0.1.0';
 import { createWalkScene } from './walk-scene.js?v=0.1.0';
 import { homeMapFor } from './home-scene.js?v=0.1.0';
 import { runAction } from './steer-local.js?v=0.1.0';
@@ -76,7 +74,6 @@ function isOpen(el) {
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
-const HUD_EVERY_MS = 250;
 
 /** The fight as the client holds it, when the observer is not installed (a bare harness). */
 function bareSnapshot(G) {
@@ -171,12 +168,8 @@ export async function bootWorld(panel, opts) {
   backend.mount(stage);
 
   const obs = win.HearthriseCombatObserver || null;
-  let hunt = null, huntMap = null, hudAt = 0, lastHunt = null;
+  let hunt = null, huntMap = null, lastHunt = null;
   const unsubscribe = obs ? obs.subscribe((b) => { if (hunt) hunt.beat(b); }) : null;
-  const hud = createHuntChrome(stage, { doc, on: {
-    eat: () => { if (typeof win.eatBestProvision === 'function') win.eatBestProvision(); },
-    leave: () => { if (typeof win.stopCombat === 'function') win.stopCombat(); },
-  } });
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
   idle.setAttribute('role', 'status');
@@ -218,10 +211,6 @@ export async function bootWorld(panel, opts) {
     const snap = obs ? obs.snapshot() : bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
-    if (now - hudAt >= HUD_EVERY_MS) {
-      hudAt = now;
-      hud.paint(hudModel({ analyzer: G._huntAnalyzer || null, title: ROWS.get(sc.map).name, down: snap.down, now }));
-    }
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
 
@@ -259,7 +248,6 @@ export async function bootWorld(panel, opts) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
       scene = sc;
       paintChrome(sc);
-      hudAt = 0;
     }
     const banner = unmappedBanner(G, sc, monsterName);
     if (banner !== lastBanner) { lastBanner = banner; idle.innerHTML = banner || ''; }
@@ -280,7 +268,6 @@ export async function bootWorld(panel, opts) {
       walk = null; lastWalk = null; keys.clear();
     } else {
       hunt = null; huntMap = null; lastHunt = null;
-      hud.paint(null);
       cast = walkState(G, map, now);
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
@@ -406,7 +393,7 @@ export async function bootWorld(panel, opts) {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
     /**
      * The shell's docked windows: the strips of the stage they cover, in CSS px
@@ -427,7 +414,6 @@ export async function bootWorld(panel, opts) {
       doc.removeEventListener('keyup', onKeyUp);
       doc.removeEventListener('focusin', onFocusIn);
       win.removeEventListener('blur', letGo);
-      hud.destroy();
       idle.remove();
       backend.destroy();
     },

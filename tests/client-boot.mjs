@@ -24,78 +24,21 @@
 //        localStorage or sessionStorage (auth key, sb-*, the tab id)
 //   B-6  a password-reset link (#type=recovery) opens the set-new-password screen
 //   B-7  a 403 hr_closed answer shows the closed notice, not the game
+//   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
+//        screen's panels (top bar, party, analyzer, bottom bar) with zero console
+//        errors; the rules of each panel are tests/hunt-screen.mjs
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
-import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
-const UID = '11111111-2222-3333-4444-555555555555';
-
-function serve(overrides) {
-  return new Promise((resolve) => {
-    const server = createServer(async (req, res) => {
-      try {
-        const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, urlPath === '/' ? '/index.html' : urlPath));
-        if (!f.startsWith(ROOT)) { res.writeHead(403).end(); return; }
-        const info = await stat(f).catch(() => null);
-        if (info && info.isDirectory()) f = join(f, 'index.html');
-        const rel = f.slice(ROOT.length + 1).split('\\').join('/');
-        const body = overrides && overrides[rel] !== undefined ? overrides[rel] : await readFile(f);
-        res.writeHead(200, { 'Content-Type': MIME[extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(body);
-      } catch { res.writeHead(404).end('not found'); }
-    });
-    server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
-  });
-}
-
-/* The fake supabase-js. Its auth keeps the session in opts.auth.storage under opts.auth.storageKey
-   (like the real one) plus one `sb-*` copy, so sign-out must clear what the client really leaves. */
-const SDK_STUB = `(function () {
-  var UID = '${UID}';
-  window.__hub = { channels: {}, send: function (topic, payload) { var c = this.channels[topic]; if (c) c.cb({ payload: payload }); } };
-  window.supabase = { createClient: function (url, key, opts) {
-    var st = opts.auth.storage, sk = opts.auth.storageKey, cbs = [];
-    function read() { var v = st.getItem(sk); return v ? JSON.parse(v) : null; }
-    function fire(ev, s) { setTimeout(function () { cbs.forEach(function (f) { f(ev, s); }); }, 0); }
-    if (/type=recovery/.test(location.hash)) {
-      var rs = { access_token: 'jwt-recovery', user: { id: UID, email: 'qa@example.test' } };
-      st.setItem(sk, JSON.stringify(rs)); fire('PASSWORD_RECOVERY', rs);
-    }
-    return {
-      auth: {
-        getSession: function () { return Promise.resolve({ data: { session: read() } }); },
-        signInWithPassword: function (c) {
-          var s = { access_token: 'jwt-' + c.email, user: { id: UID, email: c.email } };
-          st.setItem(sk, JSON.stringify(s)); localStorage.setItem('sb-stub-auth-token', '1'); fire('SIGNED_IN', s);
-          return Promise.resolve({ data: { session: s }, error: null });
-        },
-        signUp: function () { return Promise.resolve({ data: {}, error: null }); },
-        resetPasswordForEmail: function () { return Promise.resolve({ error: null }); },
-        updateUser: function () { return Promise.resolve({ data: {}, error: null }); },
-        signOut: function () { fire('SIGNED_OUT', null); return Promise.resolve({ error: null }); },
-        onAuthStateChange: function (f) { cbs.push(f); return { data: { subscription: { unsubscribe: function () {} } } }; },
-      },
-      realtime: { setAuth: function () {} },
-      channel: function (topic) {
-        var ch = { topic: topic, on: function (t, f, cb) { window.__hub.channels[topic] = { cb: cb }; return ch; },
-          subscribe: function (cb) { setTimeout(function () { cb('SUBSCRIBED'); }, 0); return ch; } };
-        return ch;
-      },
-      removeChannel: function (ch) { delete window.__hub.channels[ch.topic]; },
-    };
-  } };
-})();`;
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 function envelope(slot, version, extra) {
   return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1] }, extra || {});
 }
+
+const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 
 async function stubServer(page, o) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
@@ -103,8 +46,8 @@ async function stubServer(page, o) {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
-    if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(envelope(body.p_slot, 1)) });
-    if (url.endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, envelope(body.slot, 2))) });
+    if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1)) });
+    if (url.endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -181,6 +124,24 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-8
+      const { ctx, page, errors } = await fresh({ hunt: true });
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.click('[data-app="play"][data-slot="0"]');
+      const ids = ['hunt-topbar', 'party', 'analyzer', 'action-bar'];
+      const up = await wait(page, (w) => w.every((id) => document.querySelector('[data-hs-widget="' + id + '"] .hh-panel, [data-hs-widget="' + id + '"] .ht-bar, [data-hs-widget="' + id + '"] .hb-bar')), ids);
+      if (!up) fails.push('B-8 the hunt panels did not mount for a hunting character');
+      else if (!(await wait(page, () => document.querySelectorAll('.hp-m').length === 2))) fails.push('B-8 the party board did not list the two heroes the server sent');
+      await page.waitForTimeout(400);
+      if (errors.length) fails.push('B-8 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // B-7
       const { ctx, page } = await fresh({ closed: true });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -204,6 +165,7 @@ const MUTANTS = [
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "const shell = mountShell(stage, {", "const shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
+  ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
   ['the closed answer is ignored', 'src/app/boot.js', "account.subscribe((why) => { if (why === 'closed-game') showClosed(); });", ''],
 ];
 

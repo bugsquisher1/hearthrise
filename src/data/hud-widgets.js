@@ -18,8 +18,7 @@
 //   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
-// The spec's hunt widgets (vitals, actionbar, target, ground, analyzer, log, chat)
-// land with their renderers in B1 and the cutover.
+// The hunt widgets show only while the character's envelope carries a hunt.
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUD_WIDGETS = Object.freeze([
@@ -27,5 +26,26 @@ export const HUD_WIDGETS = Object.freeze([
     id: 'launchers', label: 'Menu icons', layer: 'screen', anchor: 'tr', dx: 0, dy: 0,
     min: Object.freeze([320, 40]), opacity: 1, visible: true, removable: false, when: 'always',
     phone: Object.freeze({}),
+  }),
+  /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
+  Object.freeze({
+    id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,
+    min: Object.freeze([300, 40]), opacity: 1, visible: true, removable: true, when: 'hunt',
+    phone: Object.freeze({ anchor: 'tr', dx: 4, dy: 4 }),
+  }),
+  Object.freeze({
+    id: 'party', label: 'Party', layer: 'world', anchor: 'tl', dx: 12, dy: 12,
+    min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    phone: Object.freeze({ dx: 4, dy: 4 }),
+  }),
+  Object.freeze({
+    id: 'analyzer', label: 'Hunt analyzer', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
+    min: Object.freeze([260, 120]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
+    phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
+  }),
+  Object.freeze({
+    id: 'action-bar', label: 'Hunt bar (bottom)', layer: 'world', anchor: 'bc', dx: 0, dy: 8,
+    min: Object.freeze([320, 64]), opacity: 1, visible: true, removable: true, when: 'hunt',
+    phone: Object.freeze({ dy: 2 }),
   }),
 ]);

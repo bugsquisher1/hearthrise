@@ -44,9 +44,38 @@ function sanitizeHudLayout(v) {
   return out;
 }
 
+const ID = /^[a-z][a-z0-9_]{0,31}$/;
+
+/** The floating-number toggles (src/data/combat-text.js FLOAT_TYPES): {type: {regular, boss}}. */
+function sanitizeCombatText(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  let n = 0;
+  for (const id of Object.keys(v)) {
+    const r = v[id];
+    if (!ID.test(id) || !isObj(r)) continue;
+    const e = {};
+    for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];
+    if (Object.keys(e).length) out[id] = e;
+    if (++n >= 32) break;
+  }
+  return out;
+}
+
+/** The combat log's filters (LOG_TYPES ids switched off) and its hero / party scope. */
+function sanitizeCombatLog(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (Array.isArray(v.off)) out.off = v.off.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 32);
+  if (v.scope === 'hero' || v.scope === 'party') out.scope = v.scope;
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
-  hudLayout: sanitizeHudLayout,   // display preference: the HUD layout; gates and spends nothing
+  hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
+  combatText: sanitizeCombatText,   // display preference: which floating numbers show; gates and spends nothing
+  combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

@@ -16,6 +16,13 @@
 // and the target in the uncovered part. World-layer widgets centre in the same
 // uncovered rect.
 //
+// COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
+// BUILT ONCE (its HTML is the skeleton, written when the box is created) and
+// then only patched in place (src/render/paint.js): on every envelope, and at
+// DISPLAY_TICK_MS for clocks and the timeline. `.act(ctx, el, action, ev)`
+// receives the box's [data-hs-act] clicks and changes. A plain renderer keeps
+// the old contract (its HTML replaces the box when it differs).
+//
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.1.0';
@@ -26,6 +33,9 @@ import { createHud, residueStore, placeWidget } from './hud.js?v=0.1.0';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.1.0';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.1.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
+
+/* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
+const DISPLAY_TICK_MS = 250;
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it
@@ -71,7 +81,12 @@ export function mountShell(root, o) {
     inHunt: opts.inHunt,
   });
   const insetListeners = new Set();
-  const ctx = { wm, hud, refresh, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null };
+  const ctx = {
+    wm, hud, refresh, doc, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null,
+    isPhone: () => phoneMq.matches,
+    now: () => host.performance.now(),
+    show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },
+  };
 
   /* ── Windows, reconciled by id ── */
   function frame(row) {
@@ -90,7 +105,11 @@ export function mountShell(root, o) {
   function refresh(id) {
     const el = layer.querySelector('[data-hs-win="' + id + '"]');
     const render = WINDOW_RENDERERS[id];
-    if (el && render) el.querySelector('[data-hs-body]').innerHTML = render(ctx);
+    if (!el || !render) return;
+    const body = el.querySelector('[data-hs-body]');
+    if (!render.patch) { body.innerHTML = render(ctx); return; }
+    if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); }
+    render.patch(body, ctx);
   }
 
   function paintWindows() {
@@ -119,14 +138,16 @@ export function mountShell(root, o) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
       if (!hud.isShown(row.id)) { if (el) el.remove(); continue; }
+      const render = WIDGET_RENDERERS[row.id];
       if (!el) {
         el = doc.createElement('div');
         el.className = 'hs-widget is-' + row.id;
         el.setAttribute('data-hs-widget', row.id);
         box.appendChild(el);
+        if (render.patch) el.innerHTML = render(ctx);
       }
-      const html = WIDGET_RENDERERS[row.id](ctx);
-      if (el.innerHTML !== html) el.innerHTML = html;
+      if (render.patch) render.patch(el, ctx);
+      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
       el.style.minWidth = row.min[0] + 'px';
@@ -161,8 +182,35 @@ export function mountShell(root, o) {
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
   const offHud = hud.subscribe((id) => { paintWidgets(); if (id === null) for (const w of wm.openIds()) refresh(w); });
 
+  /* The display tick: components patch their clocks and play the timeline's due events. */
+  function patchComponents() {
+    if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
+    for (const row of hud.rows()) {
+      const render = WIDGET_RENDERERS[row.id];
+      const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');
+      if (el) render.patch(el, ctx);
+    }
+    for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
+  }
+  const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
+
+  /* A component's own control: [data-hs-act] inside a widget or a window body. */
+  function onAct(e) {
+    const t = e.target.closest('[data-hs-act]');
+    if (!t) return false;
+    const box = t.closest('[data-hs-widget],[data-hs-win]');
+    if (!box) return false;
+    const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
+    const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
+    if (!render || !render.act) return false;
+    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
+    render.act(ctx, where, t.getAttribute('data-hs-act'), e, t);
+    return true;
+  }
+
   /* ── Input ── */
   function onClick(e) {
+    if (onAct(e)) return;
     const t = e.target.closest('[data-hs-open],[data-hs-close],[data-hs-wreset]');
     if (!t) return;
     if (t.hasAttribute('data-hs-open')) wm.toggle(t.getAttribute('data-hs-open'));
@@ -172,6 +220,7 @@ export function mountShell(root, o) {
   /* A range reports on `input` (live), a checkbox on `change`: one write per gesture. */
   function onInput(e) {
     const t = e.target;
+    if (e.type === 'change' && t.hasAttribute('data-hs-act')) { onAct(e); return; }
     if (t.hasAttribute('data-hs-wop') && e.type === 'input') {
       hud.setOpacity(t.getAttribute('data-hs-wop'), Number(t.value) / 100);
       const pct = t.nextElementSibling;
@@ -215,12 +264,13 @@ export function mountShell(root, o) {
     close: (id) => wm.close(id),
     toggle: (id) => wm.toggle(id),
     refresh,
-    /** Repaint the widgets (the cutover calls this when the envelope moves what they show). */
-    paint: paintWidgets,
+    /** Repaint the widgets and patch the open component windows (every applied envelope). */
+    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
     inset: () => wm.inset(),
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
     destroy() {
       offWm(); offHud();
+      host.clearInterval(ticker);
       doc.removeEventListener('keydown', onKey);
       phoneMq.removeEventListener('change', onSizeClass);
       host.removeEventListener('resize', onResize);

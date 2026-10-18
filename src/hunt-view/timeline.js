@@ -1,0 +1,155 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/hunt-view/timeline.js — THE HUNT'S VISUAL TIMELINE, PLAYED SMOOTHLY.
+//
+// PURE. Two things reach the client from a hunt, and they are kept apart
+// (Tyler, 2026-10-17):
+//   the SNAPSHOT  the envelope sections (src/session/hunt-sections.js), REPLACED
+//                 by every envelope. It always wins for numbers.
+//   the TIMELINE  this module: the settle response's `hunt_track` (unit tile
+//                 steps, server ms) and `hunt_events` (each with a stable `id`
+//                 and a server `atMs`), merged into one buffer and played back
+//                 at frame rate, a fixed delay behind the server.
+//
+// THE RULES
+//   T1 an event is delivered once: a batch that repeats ids (the next settle
+//      restating the window's tail) adds nothing.
+//   T2 a track step is kept once per (unit, atMs); a unit rolls from the tile it
+//      was on to the step's tile over `tileMs`, never jumping, and with no newer
+//      step it HOLDS its last tile (a window gap never invents a step).
+//   T3 the server→client clock offset is measured per batch but only ever
+//      moves `skew` of the way to a new measurement, so a new batch or a new
+//      envelope never restarts or rewinds a running animation.
+//   T4 a snapshot pose that disagrees with where the timeline left a unit adds
+//      ONE walking step toward it (reconcile gently); it never teleports a unit
+//      that is mid-step and never rewrites a step already played.
+//   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids.
+//
+// Rendering, simulation and persistence run on independent clocks: the caller
+// asks positionAt()/advance() with its own frame clock; the server ticks at its
+// own cadence; nothing here waits on the 10 s world tick.
+// ════════════════════════════════════════════════════════════════════════
+
+const DEFAULTS = Object.freeze({ delayMs: 600, tileMs: 312, skew: 0.1, maxSteps: 64, maxEvents: 4096 });
+
+const isInt = (v) => Number.isSafeInteger(v);
+
+/** The id an event is de-duplicated by: the server's, or one derived from its fields. */
+function eventKey(ev) {
+  if (ev && (typeof ev.id === 'string' || isInt(ev.id))) return 'i:' + ev.id;
+  return 'f:' + [ev.type, ev.atMs, ev.u, ev.t, ev.amount, ev.item, ev.ability, ev.status].join('|');
+}
+
+/**
+ * @param {object} [o]  overrides of DEFAULTS
+ */
+export function createTimeline(o) {
+  const cfg = Object.assign({}, DEFAULTS, o || {});
+  let offset = null;                 // clientMs - serverMs
+  const steps = new Map();           // unit -> [{x, y, atMs}] ascending
+  const seen = new Set();            // event keys, insertion order (bounded)
+  const queue = [];                  // events not yet played, ascending atMs
+  const listeners = new Set();
+
+  function measure(serverNowMs, clientNowMs) {
+    if (!isInt(serverNowMs) || !Number.isFinite(clientNowMs)) return;
+    const m = clientNowMs - serverNowMs;
+    offset = offset === null ? m : offset + (m - offset) * cfg.skew;
+  }
+
+  /** The server instant the screen shows at client time `now`. */
+  function serverAt(now) { return offset === null ? null : now - offset - cfg.delayMs; }
+
+  function addStep(u, x, y, atMs) {
+    if (![u, x, y, atMs].every(isInt)) return false;
+    let a = steps.get(u);
+    if (!a) { a = []; steps.set(u, a); }
+    if (a.some((s) => s.atMs === atMs)) return false;
+    let i = a.length;
+    while (i > 0 && a[i - 1].atMs > atMs) i--;
+    a.splice(i, 0, { x, y, atMs });
+    if (a.length > cfg.maxSteps) a.splice(0, a.length - cfg.maxSteps);
+    return true;
+  }
+
+  function remember(key) {
+    seen.add(key);
+    if (seen.size > cfg.maxEvents) seen.delete(seen.values().next().value);
+  }
+
+  /**
+   * One settle response's timeline.
+   * @param {{track?: object[], events?: object[], serverNowMs?: number}} batch
+   * @param {number} clientNowMs  the caller's clock
+   * @returns {{steps: number, events: number}} what was new
+   */
+  function ingest(batch, clientNowMs) {
+    const b = batch && typeof batch === 'object' ? batch : {};
+    measure(b.serverNowMs, clientNowMs);
+    let ns = 0, ne = 0;
+    for (const s of Array.isArray(b.track) ? b.track : []) if (s && addStep(s.u, s.x, s.y, s.atMs)) ns++;
+    for (const ev of Array.isArray(b.events) ? b.events : []) {
+      if (!ev || typeof ev.type !== 'string' || !isInt(ev.atMs)) continue;
+      const k = eventKey(ev);
+      if (seen.has(k)) continue;
+      remember(k);
+      let i = queue.length;
+      while (i > 0 && queue[i - 1].atMs > ev.atMs) i--;
+      queue.splice(i, 0, Object.freeze(Object.assign({ key: k }, ev)));
+      ne++;
+    }
+    return { steps: ns, events: ne };
+  }
+
+  /** Where unit `u` stands at client time `now`: {x, y, moving} in tiles, or null. */
+  function positionAt(u, now) {
+    const a = steps.get(u);
+    const t = serverAt(now);
+    if (!a || !a.length || t === null) return null;
+    let i = a.length - 1;
+    while (i > 0 && a[i].atMs > t) i--;
+    const cur = a[i];
+    if (cur.atMs > t || i === 0) return { x: cur.x, y: cur.y, moving: false };
+    const prev = a[i - 1];
+    const f = Math.min(1, (t - cur.atMs) / cfg.tileMs);
+    return { x: prev.x + (cur.x - prev.x) * f, y: prev.y + (cur.y - prev.y) * f, moving: f < 1 };
+  }
+
+  /**
+   * The snapshot's pose: every unit whose timeline ends somewhere else gets one
+   * step toward the pose, after its last step (T4).
+   * @param {{at_ms: number, units: {u:number, x:number, y:number}[]}} pose
+   */
+  function reconcile(pose) {
+    if (!pose || !isInt(pose.at_ms) || !Array.isArray(pose.units)) return 0;
+    let n = 0;
+    for (const p of pose.units) {
+      if (!p || ![p.u, p.x, p.y].every(isInt)) continue;
+      const a = steps.get(p.u);
+      const last = a && a[a.length - 1];
+      if (last && last.x === p.x && last.y === p.y) continue;
+      const at = last ? Math.max(pose.at_ms, last.atMs + cfg.tileMs) : pose.at_ms;
+      if (addStep(p.u, p.x, p.y, at)) n++;
+    }
+    return n;
+  }
+
+  /** Deliver every queued event whose time has come, once, to the subscribers. */
+  function advance(now) {
+    const t = serverAt(now);
+    if (t === null) return 0;
+    let n = 0;
+    while (queue.length && queue[0].atMs <= t) {
+      const ev = queue.shift();
+      n++;
+      for (const fn of Array.from(listeners)) fn(ev);
+    }
+    return n;
+  }
+
+  return {
+    ingest, reconcile, advance, positionAt,
+    units: () => Array.from(steps.keys()),
+    pending: () => queue.length,
+    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+  };
+}

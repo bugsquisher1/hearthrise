@@ -12,6 +12,7 @@
 
 import { worldViewOf } from './world-view.js?v=0.1.0';
 import { mountShell } from '../shell/shell.js?v=0.1.0';
+import { logFor } from '../hunt-view/combat-log.js?v=0.1.0';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -54,7 +55,10 @@ export async function mountWorldPane(host, character, o) {
     if (s) s.textContent = 'The world could not load. Reload the page to try again.';
   }
 
-  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt: () => !!view()._huntId });
+  /* The combat log listens to the character's timeline from the start, so no line is missed while its window is shut. */
+  logFor(character);
+  const inHunt = () => !!character.read('hunt') || !!view()._huntId;
+  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt });
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
   const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
 

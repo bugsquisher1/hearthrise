@@ -237,7 +237,7 @@ jobs:
       # screen, the World pane + shell for a character, a second character
       # beside it, sign-out clearing every session copy, the reset link and the
       # closed-game notice; plus the static notice page at /. --mutate plants
-      # five defects and requires each to go red.
+      # six defects (one: the hunt panels never mount) and requires each to go red.
       - name: Client boot (play.html, index.html)
         if: ${{ !cancelled() }}
         run: |
@@ -245,6 +245,18 @@ jobs:
           node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
           node tests/client-boot.mjs --mutate
+
+      # THE HUNT SCREEN'S PANELS (2026-10-17, week plan steps 10-14): the party
+      # board, analyzer, bottom bar, settings editor, combat log and Settings on
+      # the fixture envelope. Built once and patched in place; edits are intents
+      # with the controls off until the server confirms; the analyzer shows only
+      # the server's section and only for premium; the bleed badge defaults;
+      # each log line once. --mutate plants seven defects.
+      - name: Hunt screen panels (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen.mjs
+          node tests/hunt-screen.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -3462,6 +3474,15 @@ jobs:
         run: |
           node tests/session-core.mjs
           node tests/session-core.mjs --mutate
+
+      # The hunt screen's pure rules: the visual timeline (events once, a new
+      # envelope never restarts an animation, gaps hold, poses are walked to),
+      # sections replace, roles from weapons, float defaults, intents only.
+      - name: Hunt view core
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-view-core.mjs
+          node tests/hunt-view-core.mjs --mutate
 
       - name: Client intent surface
         if: ${{ !cancelled() }}

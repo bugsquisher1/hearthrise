@@ -745,7 +745,14 @@ body[data-theme="hearthlight"] {
   --world-bubble-line:   #2a2018;
   --world-bubble-ink:    #1c1712;
   --world-walk-mark:     rgba(242, 234, 216, .7);
-  --world-hud-bg:        rgba(11, 12, 15, .88);   /* the HUD plate over the canvas is UI chrome: charcoal */
+  --world-hud-bg:        rgba(11, 12, 15, .92);   /* the HUD plate over the canvas is UI chrome: charcoal (.92: props stop reading through the analyzer's numbers) */
+  /* HUD gauge fills (src/styles/hunt.css .hh-gauge). The number on a gauge
+     carries its own dark stroke, so a fill is chosen for its role and value,
+     not for text contrast: hp a blood red one step under the --red text ink,
+     stamina a moss one step under --green. Mana and xp reuse --gem and --gold-3. */
+  --hud-fill-hp:         #b03e2e;
+  --hud-fill-stamina:    #66843d;
+  --hud-mana-ink:        #8794e0;   /* a slot's mana cost, read on the slot well (6.8:1) */
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);

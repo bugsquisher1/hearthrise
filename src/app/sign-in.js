@@ -21,6 +21,10 @@ const FIELD = {
   confirm: '<label class="auth-field"><span>Type it again</span><input name="confirm" type="password" autocomplete="new-password" minlength="' + MIN_PASSWORD + '" required></label>',
 };
 
+/** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.1.0" alt="" width="311" height="384">'
+  + '<p class="auth-name">Hearthrise</p></header>';
+
 const SCREENS = Object.freeze({
   'sign-in': { title: 'Sign in', fields: ['email', 'password'], submit: 'Sign in',
     links: [['create', 'Create an account'], ['forgot', 'Forgot your password?']] },
@@ -40,7 +44,7 @@ const SCREENS = Object.freeze({
  */
 export function renderAuthScreen(box, auth, mode, on) {
   const s = SCREENS[mode] || SCREENS['sign-in'];
-  box.innerHTML = '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
+  box.innerHTML = AUTH_BRAND + '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
     + '<h1 class="auth-title">' + esc(s.title) + '</h1>'
     + (s.lead ? '<p class="auth-lead">' + esc(s.lead) + '</p>' : '')
     + s.fields.map((f) => FIELD[f]).join('')

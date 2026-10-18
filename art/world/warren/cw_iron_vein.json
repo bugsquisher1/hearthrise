@@ -1,0 +1,35 @@
+{
+  "id": "cw_iron_vein",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_iron_vein.png",
+  "frame": [
+    32,
+    39
+  ],
+  "anchor_px": [
+    16,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "9c5541e0-068e-402e-a88c-978c5aad1f0c",
+    "name": "S1 cw_iron_vein"
+  },
+  "notes": "Ported from PixelLab object 9c5541e0-068e-402e-a88c-978c5aad1f0c (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "cw_mine_cart",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "source": "cw_mine_cart.png",
+  "frame": [
+    48,
+    40
+  ],
+  "anchor_px": [
+    24,
+    39
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "016fd7bd-c9b8-4dca-a960-ff5b7102e24d",
+    "name": "S1 cw_mine_cart"
+  },
+  "notes": "Ported from PixelLab object 016fd7bd-c9b8-4dca-a960-ff5b7102e24d (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

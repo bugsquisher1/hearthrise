@@ -1,0 +1,35 @@
+{
+  "id": "cw_gold_seam_spent",
+  "class": "clutter",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_gold_seam_spent.png",
+  "frame": [
+    32,
+    35
+  ],
+  "anchor_px": [
+    16,
+    34
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "964c6547-036b-40aa-b32b-8c25f127c65f",
+    "name": "S1 cw_gold_seam_spent"
+  },
+  "notes": "Ported from PixelLab object 964c6547-036b-40aa-b32b-8c25f127c65f (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

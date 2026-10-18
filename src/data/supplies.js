@@ -179,6 +179,19 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_shrimp', 150),
     ranged: ranged('cooked_shrimp', 150, 'iron_bolts', 2100),
     magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'fire_rune', 1500) }),
+  /* The Meadowbrook Thicket (2026-10-18), PLAYED once on the real settle (tests/hunt-core/forest-cave.mjs
+     --play): a solo melee hero at the floor ate about 1,460 g of store heals in 30 minutes, which is about
+     180 shrimp over three hours at the kit's heal; the wolves' raw meat cooks back into the same bag. */
+  meadowbrook_thicket: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 180),
+    ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
+    magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'air_rune', 0) }),
+  /* The Coppercap Warrens (2026-10-18): its goblins are tiers 3-5, so the bag is the tier-4 guide's food;
+     the played four-hero party (combat 40) ate little because the Healer carried it. UNVERIFIED for a pair. */
+  coppercap_warrens: Object.freeze({ tier: 4,
+    melee: melee('cooked_swordfish', 60),
+    ranged: ranged('cooked_swordfish', 60, 'barbed_arrows', 5100),
+    magic: magic('cooked_swordfish', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

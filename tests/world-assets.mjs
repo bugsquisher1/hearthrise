@@ -125,9 +125,19 @@ const REQUIRED = {
   ...Object.fromEntries(['drain_rat', 'sump_slime', 'cistern_spider'].map((id) => [id, { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
   culvert_bat: { set: 'hunt', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
   kobold_tosher: { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS },
+  // the Meadowbrook Thicket's wolves and the Coppercap Warrens' goblins (2026-10-18): idle, walk and the
+  // blow (choreo.js `attack`) in all eight facings, the fall (`death`) in the four cardinals
+  ...Object.fromEntries([['gray_whelp', 'forest', 'vermin'], ['gray_wolf', 'forest', 'vermin'], ['briarcoat_wolf', 'forest', 'vermin'],
+    ['dire_gray', 'forest', 'beast'], ['grayjaw', 'forest', 'beast'], ['goblin_scavenger', 'warren', 'vermin'], ['goblin_skulker', 'warren', 'vermin'],
+    ['goblin_digger', 'warren', 'vermin'], ['hobgoblin_foreman', 'warren', 'character'], ['chief_coppercap', 'warren', 'brute']]
+    .map(([id, set, cls]) => [id, { set, class: cls, anims: ['idle', 'walk', 'attack'], dirs: FACINGS, also: { death: UNIT } }])),
+  // their gather nodes (hunt-grounds.js GROUND_NODE_KINDS): a full and a spent sprite each
+  ...Object.fromEntries(['mb_hollow_oak', 'cw_copper_vein', 'cw_iron_vein', 'cw_coal_seam', 'cw_gold_seam']
+    .map((id) => [id, { set: id.startsWith('mb_') ? 'forest' : 'warren', class: id.startsWith('mb_') ? 'sapling' : 'bulky', anims: ['idle'], dirs: PROP }])),
 };
 // every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
-const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage' };
+const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',
+  meadowbrook_ground: 'forest', warrens_ground: 'warren' };
 
 function loadAtlases(root = ROOT) {
   const dir = join(root, OUT_DIR);
@@ -161,7 +171,8 @@ function guard() {
     if (!got) { fails.push(`content: no sprite "${id}" in set ${want.set}`); continue; }
     if (got.set !== want.set) fails.push(`content: "${id}" is in set ${got.set}, the renderer loads it from ${want.set}`);
     if (got.sprite.class !== want.class) fails.push(`content: "${id}" is class ${got.sprite.class}, expected ${want.class}`);
-    for (const a of want.anims) for (const d of want.dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
+    const needs = want.anims.map((a) => [a, want.dirs]).concat(Object.entries(want.also || {}));
+    for (const [a, dirs] of needs) for (const d of dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
   }
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);

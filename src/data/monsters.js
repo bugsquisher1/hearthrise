@@ -685,6 +685,50 @@ export const MONSTERS = {
     elementResist: ['ember'],
     hp: 600, atk: 20, def: 4, xp: 600, gp: [30, 60], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .15 }] },
+
+  /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
+     Names, roles and economy: the src/data/hunt-grounds.js header. ══════════════ */
+  gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
+    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 3], speed: 3800,
+    drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'small_fang', ch: .05 }] },
+  gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
+    hp: 14, atk: 4, def: 1, xp: 11, gp: [2, 6], speed: 4200,
+    drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'wolf_pelt', ch: .2 }, { id: 'bones', ch: .5 }, { id: 'small_fang', ch: .1 },
+      { id: 'bronze_boots', ch: .003, salvage: true }] },
+  briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
+    /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
+    weaponWeak: 'hammer', weaponResist: ['ranged'],
+    hp: 16, atk: 3, def: 2, xp: 13, gp: [2, 7], speed: 2800,
+    drops: [{ id: 'wolf_pelt', ch: .35 }, { id: 'raw_wolf_meat', ch: .4 }, { id: 'bones', ch: .5 }] },
+  dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
+    hp: 28, atk: 7, def: 3, xp: 38, gp: [5, 15], speed: 3600,
+    drops: [{ id: 'wolf_pelt', ch: .6 }, { id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_fang', ch: .04 }] },
+  grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
+    /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
+    hp: 35, atk: 10, def: 4, xp: 55, gp: [10, 25], speed: 3200,
+    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'dire_fang', ch: .25 }, { id: 'alpha_fang', ch: .1 }] },
+
+  /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
+     a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. ══ */
+  goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, cls: 'humanoid', family: 'Humanoid',
+    hp: 76, atk: 22, def: 10, xp: 130, gp: [14, 34], speed: 3200,
+    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'copper_ore', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'coal', ch: .1 }] },
+  goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 4, cls: 'humanoid', family: 'Humanoid',
+    hp: 100, atk: 32, def: 13, xp: 215, gp: [38, 82], speed: 4400,
+    drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'iron_ore', ch: .2 }, { id: 'goblin_totem', ch: .03 }] },
+  goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 4, cls: 'humanoid', family: 'Humanoid',
+    /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
+    weaponWeak: 'hammer', weaponResist: ['sword'],
+    hp: 140, atk: 27, def: 22, xp: 270, gp: [38, 82], speed: 2600,
+    drops: [{ id: 'copper_ore', ch: .8 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'goblin_ear', ch: .4 }] },
+  hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 4, cls: 'humanoid', family: 'Humanoid',
+    hp: 165, atk: 40, def: 20, xp: 340, gp: [45, 100], speed: 3000,
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .6 }, { id: 'goblin_totem', ch: .08 }] },
+  chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 5, cls: 'humanoid', family: 'Humanoid',
+    /* one override (element): the polished cauldron he wears for a crown sheds frost. */
+    elementResist: ['frost'],
+    hp: 260, atk: 56, def: 30, xp: 680, gp: [90, 190], speed: 2800,
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

@@ -13,7 +13,14 @@
 //     band    combat-level band; band[0] is the SERVER-ENFORCED floor
 //             (hr_apply refuses `hunt_locked` below it), band[1] is advisory
 //     spawns  positive integer weights; every monster must exist in
-//             src/data/monsters.js (the generator refuses unknown ids)
+//             src/data/monsters.js (the generator refuses unknown ids).
+//             UNEVEN ON PURPOSE (Tyler 10-18, the Huntera model): a common majority,
+//             a couple of uncommon creatures, one or two rare ones, so the bestiary of
+//             a whole hunt takes longer than its commons. On a walked ground the weight
+//             IS the head-count of its packs (at density 4 where it has the slider),
+//             tests/hunt-core/forest-cave.mjs. A boss holds its room and is no weight.
+//     rarity  'common' | 'uncommon' | 'rare' per spawn: the label the hunt card and
+//             the bestiary show (RARITY_LABEL), never above a commoner spawn's weight
 //     family  the dominant monster family, for the picker's grouping
 //     art     the monster id whose art represents the area
 //     travelS seconds of walking from town (Hunt Sessions, HR-2026-10-14): the
@@ -47,7 +54,8 @@ export const HUNTS = Object.freeze([
   {
     id: 'mill_cellar', name: 'Mill Cellar', theme: 'Damp sacks, gnawed grain and things that buzz in the dark.',
     band: [0, 10],
-    spawns: [{ monster: 'rat', w: 5 }, { monster: 'slime', w: 3 }, { monster: 'hive_wasp', w: 2 }],
+    spawns: [{ monster: 'rat', w: 3, rarity: 'common' }, { monster: 'slime', w: 1, rarity: 'uncommon' },
+      { monster: 'hive_wasp', w: 1, rarity: 'rare' }],
     family: 'Vermin', art: 'rat', travelS: 20, pull: 1, respawnMs: 60000,
   },
   {
@@ -78,11 +86,39 @@ export const HUNTS = Object.freeze([
   {
     id: 'millrace_sewer', name: 'Millrace Sewer', theme: 'The mill race runs under the town here. The rats answer to someone.',
     band: [4, 40],
-    spawns: [{ monster: 'drain_rat', w: 6 }, { monster: 'sump_slime', w: 3 }, { monster: 'culvert_bat', w: 4 },
-      { monster: 'cistern_spider', w: 2 }, { monster: 'kobold_tosher', w: 3 }],
+    spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
+      { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
+      { monster: 'cistern_spider', w: 2, rarity: 'rare' }],
     family: 'Vermin', art: 'drain_rat', travelS: 30, pull: 4, respawnMs: 90000,
   },
+  /* THE WOOD GROUND (Tyler 10-18; workbook H-001): a ring of clearings round the
+     Meadowbrook, crossed once by a log bridge and once at the ford. Solo first (a
+     friend may come along). Floor 5, not the workbook's 1: a walked ground loops through
+     every pocket, so its floor is set by the den, and a fresh kit hero fell 3 times in its
+     first minutes (tests/hunt-core/forest-cave.mjs --play); the Mill Cellar teaches 1-5. Walked: src/data/hunt-grounds.js `meadowbrook_thicket`.
+     Weights are the pockets' head-count at density 1; Old Grayjaw holds the den. */
+  {
+    id: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', theme: 'Gray wolves den in the thicket along the brook.',
+    band: [5, 15],
+    spawns: [{ monster: 'gray_wolf', w: 10, rarity: 'common' }, { monster: 'gray_whelp', w: 8, rarity: 'common' },
+      { monster: 'briarcoat_wolf', w: 4, rarity: 'uncommon' }, { monster: 'dire_gray', w: 1, rarity: 'rare' }],
+    family: 'Mammal', art: 'gray_wolf', travelS: 40, pull: 3, respawnMs: 60000,
+  },
+  /* THE ORE GROUND (Tyler 10-18; workbook H-005): the goblins' copper diggings,
+     down over the Drop on a plank bridge and back up the ore-cart ramp. A party
+     ground. Walked: src/data/hunt-grounds.js `coppercap_warrens`. Weights are the
+     pockets' head-count at density 1; Chief Coppercap holds the last hall. */
+  {
+    id: 'coppercap_warrens', name: 'Coppercap Warrens', theme: 'Goblins dig copper here, and the pots on their heads are stolen.',
+    band: [32, 50],
+    spawns: [{ monster: 'goblin_scavenger', w: 10, rarity: 'common' }, { monster: 'goblin_digger', w: 7, rarity: 'uncommon' },
+      { monster: 'goblin_skulker', w: 5, rarity: 'uncommon' }, { monster: 'hobgoblin_foreman', w: 1, rarity: 'rare' }],
+    family: 'Humanoid', art: 'goblin_scavenger', travelS: 60, pull: 4, respawnMs: 90000,
+  },
 ]);
+
+/** The words a player reads for a spawn's rarity. */
+export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
 export const HUNT_INDEX = Object.freeze(HUNTS.reduce((acc, h) => { acc[h.id] = h; return acc; },

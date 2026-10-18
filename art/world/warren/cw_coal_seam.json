@@ -1,0 +1,35 @@
+{
+  "id": "cw_coal_seam",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_coal_seam.png",
+  "frame": [
+    32,
+    39
+  ],
+  "anchor_px": [
+    16,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "263ccf4b-c6b3-4de6-be70-ed8429323a9f",
+    "name": "S1 cw_coal_seam"
+  },
+  "notes": "Ported from PixelLab object 263ccf4b-c6b3-4de6-be70-ed8429323a9f (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

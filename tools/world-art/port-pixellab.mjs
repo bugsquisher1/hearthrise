@@ -200,10 +200,18 @@ function main() {
     const walkOf = (d) => { const out = []; for (let i = 0; existsSync(join(o.dir, 'walk', NAME[d], i + '.png')); i++) out.push(join(o.dir, 'walk', NAME[d], i + '.png')); return out; };
     const anims = [{ name: 'idle', fps: 5, loop: true, frames: Object.fromEntries(FACINGS.map((d) => [d, [rot(d)]])) }];
     if (FACINGS.every((d) => walkOf(d).length)) anims.push({ name: 'walk', fps: 10, loop: true, frames: Object.fromEntries(FACINGS.map((d) => [d, walkOf(d)])) });
-    const cols = Math.max(...anims.map((a) => Math.max(...FACINGS.map((d) => a.frames[d].length))));
-    const sheet = createImage(cols * fw, anims.length * FACINGS.length * fh);
+    /* the combat clips (choreo.js plays `attack` on a blow and `death` on a fall), in whichever facings
+       DIR holds as <clip>/<facing>/<i>.png; a facing it lacks falls back to the renderer's 's' */
+    const clipOf = (name, d) => { const out = []; for (let i = 0; existsSync(join(o.dir, name, NAME[d], i + '.png')); i++) out.push(join(o.dir, name, NAME[d], i + '.png')); return out; };
+    for (const name of ['attack', 'death']) {
+      const have = FACINGS.filter((d) => clipOf(name, d).length);
+      if (have.includes('s')) anims.push({ name, fps: 10, loop: false, frames: Object.fromEntries(have.map((d) => [d, clipOf(name, d)])) });
+    }
+    const facingsOf = (a) => FACINGS.filter((d) => a.frames[d] && a.frames[d].length);
+    const cols = Math.max(...anims.map((a) => Math.max(...facingsOf(a).map((d) => a.frames[d].length))));
+    const sheet = createImage(cols * fw, anims.reduce((n, a) => n + facingsOf(a).length, 0) * fh);
     let r = 0;
-    for (const a of anims) for (const d of FACINGS) {
+    for (const a of anims) for (const d of facingsOf(a)) {
       const imgs = a.frames[d].map((f) => decodePNG(readFileSync(f)));
       const lowest = Math.max(...imgs.map(lowestRow));
       const dy = (flier ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
@@ -218,7 +226,7 @@ function main() {
     const sc = {
       id: o.id, class: o.class, style: 's1', material: o.material || 'unit', source: o.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
       ...(flier ? { hover_px: hover } : {}),
-      anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(FACINGS.map((d) => [d, a.frames[d].length])) })),
+      anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(facingsOf(a).map((d) => [d, a.frames[d].length])) })),
       pixellab: { tool: 'create_object_pro_flash', object: o.object, n_directions: 8, ...(o.name ? { name: o.name } : {}) },
       notes: 'Ported from PixelLab object ' + o.object + ' (style 1, 48 px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.',
     };

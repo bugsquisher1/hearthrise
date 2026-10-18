@@ -1,0 +1,35 @@
+{
+  "id": "cw_tool_rack",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "cw_tool_rack.png",
+  "frame": [
+    48,
+    39
+  ],
+  "anchor_px": [
+    24,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "84d571bc-3f3c-4979-9bb7-ce7cde9943f9",
+    "name": "S1 cw_tool_rack"
+  },
+  "notes": "Ported from PixelLab object 84d571bc-3f3c-4979-9bb7-ce7cde9943f9 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

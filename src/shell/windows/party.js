@@ -23,6 +23,7 @@ import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.0';
 import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.0';
 import { nameOf } from '../../session/item-sections.js?v=0.2.0';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.0';
+import { markPlayer } from '../context-menu.js?v=0.2.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 import { glyphSvg } from '../launcher.js?v=0.2.0';
 import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.0';
@@ -83,6 +84,7 @@ function patchIn(root, ctx, p, sc) {
       cls(li.querySelector('.hw-crown'), 'is-on', s.seat === p.leader);
       text(li.querySelector('.hw-seat-state'), s.hunting ? 'Hunting' : 'Ready');
       cls(li, 'is-self', s.seat === p.me);
+      markPlayer(li, s.seat === p.me ? null : { name: s.name });   // the player menu (src/shell/context-menu.js)
       const kick = li.querySelector('.hw-kick');
       kick.setAttribute('data-seat', String(s.seat));
       cls(kick, 'is-on', p.isLeader && s.seat !== p.me);

@@ -19,6 +19,8 @@ import { reachFrom } from './core/path.js?v=0.2.0';
 import { inRect } from './core/grid.js?v=0.2.0';
 import { hash32 } from './choreo.js?v=0.2.0';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** An away peer is drawn at this alpha: there, but not at the keyboard. */
 const AWAY_ALPHA = 0.55;
 
@@ -125,6 +127,8 @@ export function townState(map, view, now, o) {
       alpha: peer.away ? AWAY_ALPHA : 1,
       /* the plate stays readable; its own colour says "away" */
       plate: { text: peer.name + (band ? ' · ' + band : ''), kind: peer.away ? 'away' : 'peer', alpha: 1 },
+      /* who this is, for the player menu: the server's account id when the town view carries one */
+      ref: { player: { id: typeof peer.user === 'string' && UUID.test(peer.user) ? peer.user : null, name: String(peer.name), slot: Number.isInteger(peer.slot) ? peer.slot : null } },
     };
   });
   const bubbles = [];

@@ -416,6 +416,7 @@
    "hr-tick-shadow-prune | 27 * * * * | select public.hr_tick_shadow_prune(20000)",
    "hr-town-refresh | 25 seconds | select public.hr_town_refresh()",
    "trim-chat-messages | 15 3 * * * | delete from public.chat_messages where created_at < now() - interval '60 days'",
+   "trim-chat-whispers | 25 3 * * * | delete from public.chat_whispers where created_at < now() - interval '30 days'",
    "trim-game-events | 0 3 * * * | select public.hr_trim_game_events(7)"
   ],
   "_retention_is_a_budget_ledger_here": [
@@ -571,7 +572,8 @@
   "hr_tick_horizon_log": "A PARKING JOURNAL, NOT A LEDGER. One row per absence that reached its presence horizon under the armed tick, keyed per (user, slot, anchor). No settle reads it to decide a number; only the lag judge reads it, to tell a parked character (paid in full, waiting) from a stuck one. Losing every row costs history and makes the lag judge call parked characters stuck until they return - loud, never value.",
   "party_hunt_tally": "Display aggregate of player_ledger rows (per-hunt xp/gold/kills per member). It carries a user_id but no value of its own: the ledger, which is restore_only, is the record and every number here is a sum of its rows. Losing every row costs the Hunt card its running totals for in-flight hunts, never a coin, item, XP point or rank; the §2 backfill of 2026-10-15-party-hunt-view.sql regenerates it from a restored ledger.",
   "hr_access_allowlist": "Closed mode's admitted accounts. Player-scoped by user_id, but it holds no value a player earned: it is an operator's access list, and losing every row closes the game to the testers (fail-closed) until an operator re-adds them. Nothing a player owns, ranks or trades is derived from it.",
-  "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched."
+  "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched.",
+  "social_presence": "A presence stamp, not progress: one row per account saying when its client last polled hr_social_state. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is a friend's online dot. Losing every row costs nobody anything."
  },
  "tables": {
   "account_gem_grants": {
@@ -618,6 +620,11 @@
    "class": "restore_only",
    "wiped_at_cutover": true,
    "note": "60-day retention job already trims this. Loss is acceptable at any time; nothing is derived from it."
+  },
+  "chat_whispers": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "2026-10-25-social.sql, ships EMPTY. Private lines between two players, written only by hr_whisper_send, read by the two participants (RLS); 30-day trim-chat-whispers job. Loss costs players their recent private messages and nothing else: nothing is derived from it."
   },
   "clan_bans": {
    "class": "restore_only",
@@ -693,6 +700,16 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "The uniqueness ledger behind 2026-08-08-unique-names.sql, 37 rows. This is IDENTITY, not progression: a wipe of progress does not take a player's name. Losing it frees every claimed name for re-registration by someone else, which is unrecoverable once a stranger takes it. Treat as must-restore."
+  },
+  "friend_links": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "2026-10-25-social.sql, ships EMPTY. Accepted friendships, one row per pair (lo < hi), written only by hr_friend_request / hr_friend_answer and ended by hr_friend_remove / hr_block_set; no client grant. A player-built social graph: lost, every player has to re-add every friend, so a restore must carry it."
+  },
+  "friend_requests": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "2026-10-25-social.sql, ships EMPTY. Pending friend asks (from -> to), written only by the hr_friend_* verbs; no client grant. Lost, every pending ask silently disappears and has to be sent again; no value at stake."
   },
   "game_events": {
    "class": "operational",
@@ -1510,6 +1527,11 @@
   "session_claims": {
    "class": "operational",
    "note": "Single-active-session heartbeat rows, keyed on the tab. 34 rows. Self-healing: a lost claim is re-taken on the next heartbeat. Losing them cannot lock a player out (save-invariant #2 — eviction requires a definitive fresh-heartbeat row, and absence is not that)."
+  },
+  "social_presence": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "2026-10-25-social.sql, ships EMPTY. When an account last had the game open (server clock) and on which character: stamped by hr_social_state's 30 s poll (floor 20 s), read only to answer a FRIEND's online state. Regenerated within one poll of the player coming back; an empty table reads everyone as offline for at most 30 seconds."
   },
   "town_snapshot": {
    "class": "regenerated",

@@ -40,6 +40,10 @@ export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu'
 /** A bag stack in a drag (the action bar and the doll read it). */
 export const DRAG_TYPE = 'application/x-hearthrise-item';
 const LONG_PRESS_MS = 500;
+/* "Link in chat": the item's id goes into the account's chat draft (ctx.account.social, src/social/chat-store.js
+   addLink — the name and rarity render from the catalogue) and the chat shows. False when chat is not connected. */
+const linkInChat = (ctx, id) => { const s = ctx.account && ctx.account.social; if (!s || !s.chat.addLink(id)) return false; ctx.show('chat'); return true; };
+const chatOpen = (ctx) => ctx.wm.openIds().includes('chat');
 const RULE_WORDS = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 
 /** Commit the "new" marks the player has now seen (the residue write is deferred out of the paint). */
@@ -142,6 +146,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
+  h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   h += '<span class="hw-menu-sub">On pickup</span><span class="hw-menu-rules" role="group" aria-label="On pickup">'
     + RULE_WORDS.map(([v, w]) => item('m-rule', w, !!st.rules, ' data-rule="' + v + '" aria-pressed="' + ((st.rules && (st.rules.loot[id] || 'keep')) === v) + '"')).join('') + '</span>';
   openFloatMenu(ctx.doc, h, at, {
@@ -281,6 +286,7 @@ function onPocket(ctx, body, st, action, ev, t, repaint) {
   if (type === 'pointerup' || type === 'pointercancel' || type === 'dragend') { clearTimeout(sc.press); return false; }
   if (type !== 'click') return false;
   if (sc.pressed) { sc.pressed = false; return true; }
+  if (ev.shiftKey && chatOpen(ctx) && linkInChat(ctx, id)) return true;   // Shift+click links it into an open chat
   if (ev.shiftKey) rangeSel(st, id);
   else if (ev.ctrlKey || ev.metaKey || sc.sel.size) toggleSel(sc, id);
   sc.cursor = id;
@@ -331,6 +337,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
     case 'm-lock': doLock(st, id, repaint); return true;
     case 'm-select': toggleSel(sc, id); sc.menu = null; repaint(); return true;
+    case 'm-link': linkInChat(ctx, id); closeMenu(ctx, st); return true;
     case 'm-rule': doRule(st, id, t.getAttribute('data-rule'), repaint); return true;
     default: return false;
   }

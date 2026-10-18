@@ -53,24 +53,22 @@ import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-09-06-realtime-publication-trim.sql';
 
-/* THE LOAD-BEARING SET. `chat_messages` is the only table with a real
-   subscriber and no fallback: src/net/supabase-chat-backend.js:150 is the ONLY
-   path by which a peer's message reaches another client — the backend has
-   fetch(channel, sinceTs) but nothing polls it. */
-const EXPECTED = ['chat_messages'];
+/* THE LOAD-BEARING SET. The chat window (src/social/realtime.js) subscribes to
+   both, and neither has a fallback: nothing polls them, so Realtime is the only
+   path by which a peer's line (chat_messages) or a whisper (chat_whispers,
+   2026-10-25-social.sql) reaches another client. */
+const EXPECTED = ['chat_messages', 'chat_whispers'];
+/* A SQL mutant replays only up to the trim file it patches (REPLAY SCOPE), where
+   the publication was exactly chat_messages: chat_whispers is added later. */
+const AT_TRIM = ['chat_messages'];
 
 /* ── A CONSUMER THAT IS COMING BACK, WITH A DATE ────────────────────────────
-   The client reset (2026-10-17) deleted the old chat client, so for now nothing
-   under src/** subscribes to chat_messages. The chat window returns with the
-   week plan (docs/planning/WEEK_PLAN_2026-10-17.md item 13); unpublishing the
-   table for those days and re-publishing it would be two migrations for a game
-   nobody can enter (it is CLOSED, so no write reaches the poller). The entry
-   EXPIRES: after `until` the table is published for nobody again and R3/R4 go
-   red until the chat client subscribes or a migration unpublishes it. It is
-   one row with a date and an owner, not a standing exemption. */
-const PENDING_CONSUMERS = {
-  chat_messages: { until: '2026-10-31', owner: 'the chat window (week plan item 13)' },
-};
+   A published table whose subscriber is being rebuilt may carry one dated row
+   here ({ until, owner }); after `until` R3/R4 go red. It held chat_messages
+   from the client reset (2026-10-17) until the chat window subscribed again
+   (lane/chat, 2026-10-18), and is empty now: one row with a date and an owner
+   when needed, never a standing exemption. */
+const PENDING_CONSUMERS = {};
 const pendingNow = (today, table) => !!PENDING_CONSUMERS[table] && today <= PENDING_CONSUMERS[table].until;
 
 const problems = [];
@@ -141,10 +139,11 @@ const MUTATIONS = {
     srcExtra: { 'src/app/market-probe.js': "export const sub = (client, onChange) => client.channel('market-listings')\n"
       + "  .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' }, () => onChange()).subscribe();\n" },
   },
-  chat_consumer_overdue: {
-    why: 'the chat consumer\'s return date passes with no subscriber — the table is published for '
-       + 'nobody again. R3 must catch it the day after `until`.',
-    today: '2099-01-01',
+  chat_consumer_removed: {
+    why: 'the chat window\'s subscriptions are deleted (src/social/realtime.js gone) while both tables '
+       + 'stay published — chat and whispers published for nobody, and no peer line ever arrives. '
+       + 'R3 and R4 must catch it.',
+    srcDrop: ['src/social/realtime.js'],
   },
 };
 
@@ -159,10 +158,13 @@ async function walk(dir, out = []) {
   return out;
 }
 
-async function subscribedTables(srcExtra) {
+async function subscribedTables(srcExtra, srcDrop) {
   const files = await walk(join(ROOT, 'src'));
   const texts = [];
-  for (const f of files) texts.push([f.slice(ROOT.length + 1).replace(/\\/g, '/'), (await readFile(f, 'utf8')).replace(/\r\n/g, '\n')]);
+  for (const f of files) {
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+    if (!(srcDrop || []).includes(rel)) texts.push([rel, (await readFile(f, 'utf8')).replace(/\r\n/g, '\n')]);
+  }
   for (const [rel, text] of Object.entries(srcExtra || {})) texts.push([rel, text]);
   const found = new Map(); // table -> [where]
   for (const [rel, text] of texts) {
@@ -197,14 +199,15 @@ async function run(mutation) {
   if (mutation && !m) { console.error(`unknown mutation "${mutation}"`); process.exit(2); }
 
   const { published, tablesAlive } = await readDatabase(m && m.sql);
-  const subs = await subscribedTables(m && m.srcExtra);
+  const subs = await subscribedTables(m && m.srcExtra, m && m.srcDrop);
+  const expected = m && m.sql ? AT_TRIM : EXPECTED;
   const subscribed = [...subs.keys()].sort();
   const today = (m && m.today) || new Date().toISOString().slice(0, 10);
   const consumed = (t) => subscribed.includes(t) || pendingNow(today, t);
 
   // R1 — the publication is exactly the load-bearing set.
-  ok(published.join(',') === EXPECTED.join(','),
-    `R1 publication supabase_realtime should publish exactly [${EXPECTED.join(', ')}], `
+  ok(published.join(',') === expected.join(','),
+    `R1 publication supabase_realtime should publish exactly [${expected.join(', ')}], `
     + `the repo chain publishes [${published.join(', ') || '(none)'}]`);
 
   // R2 — nothing is subscribed that is not published (a handler that can never fire).
@@ -228,6 +231,10 @@ async function run(mutation) {
   ok(published.includes('chat_messages') && consumed('chat_messages'),
     'R4 chat_messages must be BOTH published and consumed (subscribed, or a pending consumer within its '
     + 'date) — chat is the only peer-delivery path and nothing polls chat_messages as a fallback');
+  if (!(m && m.sql)) {
+    ok(published.includes('chat_whispers') && consumed('chat_whispers'),
+      'R4 chat_whispers must be BOTH published and consumed — a whisper reaches its recipient only through Realtime');
+  }
 
   // R5 — CONTROL. The trim must UNPUBLISH, never DROP. A migration that deleted
   // the tables would satisfy R1-R4 and destroy the market.

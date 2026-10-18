@@ -15,6 +15,8 @@ import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.0';
 import { renderActionBar } from './widgets/action-bar.js?v=0.2.0';
 import { renderHuntSettings } from './windows/hunt-settings.js?v=0.2.0';
 import { renderChat } from './windows/chat.js?v=0.2.0';
+import { renderFriends } from './windows/friends.js?v=0.2.0';
+import { renderInspect } from './windows/inspect.js?v=0.2.0';
 import { renderSettings } from './windows/settings.js?v=0.2.0';
 import { renderInventory } from './windows/inventory/index.js?v=0.2.0';
 import { renderCombatSkills, renderTradeSkills } from './windows/skills.js?v=0.2.0';
@@ -42,6 +44,8 @@ export const WINDOW_RENDERERS = Object.freeze({
   hud: renderHudSettings,
   'hunt-settings': renderHuntSettings,
   chat: renderChat,
+  friends: renderFriends,
+  inspect: renderInspect,
   settings: renderSettings,
 });
 

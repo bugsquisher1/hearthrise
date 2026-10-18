@@ -113,7 +113,7 @@ export function settingsOf(cs) {
 function memberOf(m) {
   if (!isObj(m) || int(m.unit) === null) return null;
   return {
-    unit: m.unit, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
+    unit: m.unit, seat: int(m.seat), name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),

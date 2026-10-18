@@ -23,6 +23,7 @@
 import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.0';
 import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.0';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.0';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.0';
 import { floatShown } from './float-prefs.js?v=0.2.0';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.0';
 
@@ -61,6 +62,7 @@ export function readHunt(cs) {
   return {
     units: h ? h.units : new Map(),
     heroes,
+    people: partyPeopleOf(cs),
     viewed: h && h.hero.unit !== null ? h.hero.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
@@ -238,6 +240,11 @@ export function createHuntScene(o) {
       /* VW-07: shown only when not full. */
       if (hpPct !== null && (hpPct < 1 || (mpPct !== null && mpPct < 1))) { out.bar = hpPct; out.barKind = 'pct'; if (mpPct !== null) out.mana = mpPct; }
       if (hero) out.plate = { text: (m && m.name) || 'Hero', kind: u === read.viewed ? 'self' : 'peer' };
+      /* WHO THIS IS, for the player menu (a right-click on the sprite): the server's party_people by seat. */
+      if (hero && m && u !== read.viewed) {
+        const who = Number.isInteger(m.seat) ? read.people.get(m.seat) : null;
+        out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };
+      } else if (!hero && (read.units.get(u) || {}).kind) out.ref = { monster: read.units.get(u).kind };
       else if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
       if (out.plate && !out.plate.text) delete out.plate;
       const stacks = bleed.get(u) || 0;

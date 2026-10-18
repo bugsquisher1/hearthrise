@@ -29,6 +29,11 @@
 // event (it is not passed on to the window keys or the World). A plain
 // renderer keeps the old contract (its HTML replaces the box when it differs).
 //
+// THE PLAYER MENU: one context menu (src/shell/context-menu.js) over both
+// layers, its entries answered by src/shell/menu-providers.js; `menu` is in the
+// context (a name in chat opens it on a click) and returned (the World pane
+// attaches its picked units to it).
+//
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.0';
@@ -38,6 +43,8 @@ import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.0';
 import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.2.0';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.0';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.0';
+import { mountContextMenu } from './context-menu.js?v=0.2.0';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.0';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
@@ -104,6 +111,8 @@ export function mountShell(root, o) {
     now: () => host.performance.now(),
     show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },
   };
+
+  ctx.menu = mountContextMenu(ctx, [shell, screen], () => menuProvidersOf(ctx));
 
   /* ── Windows, reconciled by id ── */
   function frame(row) {
@@ -316,8 +325,10 @@ export function mountShell(root, o) {
     paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
     inset: () => insetNow(),
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
+    menu: ctx.menu,
     destroy() {
       offWm(); offHud();
+      ctx.menu.destroy();
       host.clearInterval(ticker);
       doc.removeEventListener('keydown', onKey);
       phoneMq.removeEventListener('change', onSizeClass);

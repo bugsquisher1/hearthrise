@@ -103,7 +103,8 @@ renderSettings.act = function actSettings(ctx, body, action, ev, t) {
     write(ctx, r, r.type === 'toggle' ? t.checked : r.type === 'slider' ? Number(t.value) : t.value);
   } else if (action === 'run' && ev.type === 'click') {
     const r = SETTINGS.find((x) => x.id === t.getAttribute('data-sid'));
-    if (r && ctx.character && typeof ctx.character[r.run] === 'function') ctx.character[r.run]();
+    if (r && r.open) ctx.show(r.open);
+    else if (r && ctx.character && typeof ctx.character[r.run] === 'function') ctx.character[r.run]();
   } else return;
   renderSettings.patch(body, ctx);
 };

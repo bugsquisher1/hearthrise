@@ -18,6 +18,7 @@ import { partyOf } from '../../session/hunt-sections.js?v=0.2.0';
 import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.0';
 import { short, whole } from '../../render/format.js?v=0.2.0';
 import { glyphSvg } from '../launcher.js?v=0.2.0';
+import { markPlayer } from '../context-menu.js?v=0.2.0';
 import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.0';
 
 function memberHtml(glyphs) {
@@ -47,6 +48,7 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-state'), m.down ? 'Down' : m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
   cls(el, 'is-down', m.down);
   cls(el, 'is-self', m.unit === party.self);
+  markPlayer(el, m.unit === party.self ? null : { name: m.name });   // the player menu (src/shell/context-menu.js)
   patchGauge(el.querySelector('.is-hp'), m.hp, m.hpMax, m.hp === null ? '–' : whole(m.hp) + ' / ' + whole(m.hpMax));
   patchGauge(el.querySelector('.is-mana'), m.mana, m.manaMax, m.mana === null ? '–' : whole(m.mana) + ' / ' + whole(m.manaMax));
   text(el.querySelector('.hp-dps'), short(m.dps));

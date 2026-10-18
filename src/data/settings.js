@@ -24,7 +24,8 @@
 //                | { store: 'none' } (hotkeys, actions)
 //   options      choice: [{ value, label }];  slider: { min, max, step }
 //   key          hotkey rows: the key;  action rows: `run` names a
-//                CharacterSession method
+//                CharacterSession method, or `open` names the window it opens
+//                (a panel that owns its own reads and intents, e.g. Blocked players)
 //   visibleWhen  optional (ctx) => boolean; a row that is not visible, and a
 //                category with no visible row, is not drawn
 //
@@ -35,6 +36,7 @@ import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.0';
 import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.0';
 import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.0';
 import { HOTKEYS } from './hunt-hud.js?v=0.2.0';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.0';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -87,7 +89,7 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape).map((w) => row({
   help: 'Hunts play themselves; keys only open windows.', type: 'hotkey', key: k.key,
 })));
 
-export const SETTINGS = Object.freeze([...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS]);
+export const SETTINGS = Object.freeze([...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row)]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
@@ -106,7 +108,7 @@ export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
     if (r.type === 'choice' && !(Array.isArray(r.options) && r.options.some((o) => o.value === r.default))) throw new Error(where + ': a choice default must be one of its options');
     if (r.type === 'slider' && !(r.options && r.options.min < r.options.max && typeof r.default === 'number')) throw new Error(where + ': a slider needs min < max and a numeric default');
     if (r.type === 'hotkey' && !r.key) throw new Error(where + ': a hotkey row names its key');
-    if (r.type === 'action' && !r.run) throw new Error(where + ': an action row names what it runs');
+    if (r.type === 'action' && !r.run && !r.open) throw new Error(where + ': an action row names what it runs or opens');
   }
   return true;
 }

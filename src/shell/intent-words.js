@@ -64,6 +64,20 @@ const WORDS = Object.freeze({
   bank_full: 'Your storage is full.',
   bag_full: 'Your bag is full. Make room first.',
   insufficient_bank: 'Your storage no longer has that many.',
+  /* Chat and the social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql). */
+  empty: 'Type something first.',
+  too_long: 'That message is too long.',
+  too_many_links: 'Link at most three items in one message.',
+  bad_link: 'One of those item links is not a real item.',
+  not_in_party: 'You are not in a party.',
+  no_character: 'Pick a character first.',
+  no_player: 'No player by that name.',
+  self: 'That is you.',
+  unavailable: 'You cannot reach that player.',
+  already_friends: 'You are already friends.',
+  too_many: 'Your list is full.',
+  no_request: 'That request has gone.',
+  read_only: 'Nothing can be typed here.',
 });
 
 /** The plain-words reason for a refusal code. */

@@ -62,6 +62,7 @@ const WALK_KEYS = Object.freeze({
 /* THE INPUT RULES (Tyler 10-18). Keys: the World's unless a text field has them (dom.js
    keyBelongsToField). Presses: the shell's windows sit inside the stage, so the World
    acts only on a press whose target IS its canvas, never one on a window or widget. */
+const LONG_PRESS_MS = 500;
 const onWorld = (e) => !!(e && e.target && e.target.classList && e.target.classList.contains('world-canvas'));
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
@@ -304,7 +305,22 @@ export async function bootWorld(panel, opts) {
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },
   };
 
+  /* THE ENTITY CONTEXT: a right-click (or a long press) on the canvas names what is under it to the
+     pane as ONE 'entity' event {hits, x, y}; the pane's menu decides, the World never walks on it. */
+  let press = 0, pressAt = null, swallowUntil = 0;
+  function context(x, y) { const pick = backend.pick(x, y); if (pick) emit('entity', { hits: pick.hits, x, y }); }
+  function onContext(e) { if (!onWorld(e)) return; e.preventDefault(); context(e.clientX, e.clientY); }
+  function onPressDown(e) {
+    if (!onWorld(e) || !e.pointerType || e.pointerType === 'mouse') return;
+    pressAt = [e.clientX, e.clientY];
+    win.clearTimeout(press);
+    press = win.setTimeout(() => { swallowUntil = Date.now() + 800; context(pressAt[0], pressAt[1]); }, LONG_PRESS_MS);
+  }
+  function onPressEnd() { win.clearTimeout(press); }
+  function onPressMove(e) { if (pressAt && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 8) win.clearTimeout(press); }
+
   function onTap(e) {
+    if (Date.now() < swallowUntil) { swallowUntil = 0; return; }   // the click a long press leaves behind
     if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;
     const pick = backend.pick(e.clientX, e.clientY);
     if (!pick) return;
@@ -378,6 +394,11 @@ export async function bootWorld(panel, opts) {
   }
   chrome.addEventListener('click', onChoice);
   stage.addEventListener('click', onTap);
+  stage.addEventListener('contextmenu', onContext);
+  stage.addEventListener('pointerdown', onPressDown);
+  stage.addEventListener('pointerup', onPressEnd);
+  stage.addEventListener('pointercancel', onPressEnd);
+  stage.addEventListener('pointermove', onPressMove);
   stage.addEventListener('pointermove', onHover);
   idle.addEventListener('click', onGo);
   doc.addEventListener('visibilitychange', sync);
@@ -405,6 +426,12 @@ export async function bootWorld(panel, opts) {
       endLive();
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);
+      stage.removeEventListener('contextmenu', onContext);
+      stage.removeEventListener('pointerdown', onPressDown);
+      stage.removeEventListener('pointerup', onPressEnd);
+      stage.removeEventListener('pointercancel', onPressEnd);
+      stage.removeEventListener('pointermove', onPressMove);
+      win.clearTimeout(press);
       stage.removeEventListener('pointermove', onHover);
       idle.removeEventListener('click', onGo);
       doc.removeEventListener('visibilitychange', sync);

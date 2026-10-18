@@ -785,6 +785,15 @@ body[data-theme="hearthlight"] {
   --rar-legendary:       #f2a03a;   /* torch 1 */
   --rar-mythic:          #c23a2a;   /* blood 2 */
   --rar-unique:          #e8c547;   /* gold */
+  /* THE CHAT'S ROLE INKS (src/shell/windows/chat.js): a name in chat is coloured
+     by the role its weapon plays, so a party reads at a glance. World-palette
+     ramps, each lifted to read on the charcoal panel (all >= 4.5:1 on --bg-1);
+     never a rarity colour, so a name is never mistaken for a drop. */
+  --chat-role-tank:      #8fb3cf;   /* frost 3 */
+  --chat-role-melee:     #e3a066;   /* torch 3 */
+  --chat-role-ranger:    #a7c37a;   /* leaf 4 */
+  --chat-role-mage:      #b8a0e2;   /* arcane 3 */
+  --chat-role-healer:    #ead9a6;   /* straw 2 */
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);

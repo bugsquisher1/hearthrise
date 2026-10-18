@@ -6,7 +6,8 @@
 // mount) reads that character's view (src/app/world-view.js) every frame, and
 // the shell (src/shell/shell.js) lays its windows and widgets over it with the
 // HUD layout kept in that character's residue. A tap the World names (a
-// hunt's entrance, a station) opens its window here. Every server answer the
+// hunt's entrance, a station) opens its window here; a right-click on a unit
+// opens the shell's player / monster menu. Every server answer the
 // character applies re-syncs the frame and repaints the widgets. Nothing here
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
@@ -15,6 +16,7 @@ import { worldViewOf } from './world-view.js?v=0.2.0';
 import { mountShell } from '../shell/shell.js?v=0.2.0';
 import { logFor } from '../hunt-view/combat-log.js?v=0.2.0';
 import { pickHunt } from '../shell/windows/hunts.js?v=0.2.0';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.0';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -58,6 +60,8 @@ export async function mountWorldPane(host, character, o) {
   let shell = null;
   const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade' };
   function emit(kind, detail) {
+    /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */
+    if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
     const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
     if (!to) return false;
     if (shell.wm.isOpen(to)) shell.refresh(to); else shell.open(to);

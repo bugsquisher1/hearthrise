@@ -19,7 +19,7 @@
 //
 // The rest of the spec's catalogue (Homestead, Bestiary L, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
-// (§1). Chat opens on its Combat tab.
+// (§1). Chat opens on Global (or the tab it showed last).
 //
 // Tyler's first playtest (10-18) shaped the row: Hunts comes first (going
 // hunting must be obvious from the first minute; a hunt's door in the World
@@ -46,5 +46,9 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   Object.freeze({ id: 'hunt-settings', label: 'Hunt settings', key: 'j', glyph: 'uiTarget', width: 440, object: 'plain' }),
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),
+  /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
+     (opened from the player menu, so it takes no launcher icon). */
+  Object.freeze({ id: 'friends', label: 'Friends', key: 'n', glyph: 'navProfile', width: 380, object: 'ledger' }),
+  Object.freeze({ id: 'inspect', label: 'Inspect', key: 'i', glyph: 'navCharacter', width: 340, object: 'doll', launcher: false }),
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
 ]);

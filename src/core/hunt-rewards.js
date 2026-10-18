@@ -27,13 +27,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../data/monsters.js?v=590';
-import { rollDropTable } from './drops.js?v=590';
-import { applyGoldFind } from './pacing.js?v=590';
-import { hitXpRoute, killXpRoute } from './styles.js?v=590';
-import { resolveHearthfind } from './hearthfind.js?v=590';
-import { magicXpFor } from './hunt/xp-share.js?v=590';
-import { splitEven, itemOwner } from './party-split.js?v=590';
+import { MONSTERS } from '../data/monsters.js?v=592';
+import { rollDropTable } from './drops.js?v=592';
+import { applyGoldFind } from './pacing.js?v=592';
+import { hitXpRoute, killXpRoute } from './styles.js?v=592';
+import { resolveHearthfind } from './hearthfind.js?v=592';
+import { magicXpFor } from './hunt/xp-share.js?v=592';
+import { splitEven, itemOwner } from './party-split.js?v=592';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 

@@ -31,9 +31,9 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { STATUSES, validateStatus } from '../../data/statuses.js?v=590';
-import { makeEvent } from './events.js?v=590';
-import { landHit } from './damage.js?v=590';
+import { STATUSES, validateStatus } from '../../data/statuses.js?v=592';
+import { makeEvent } from './events.js?v=592';
+import { landHit } from './damage.js?v=592';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]), world: Object.freeze([]), pack: Object.freeze([]) });
 

@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=590';
-import { WEAPON_ROLES } from './hunt-roles.js?v=590';
-import { ACTION_SET_SKIPS } from './abilities.js?v=590';
+import { HUNT_STANCES } from './rule-subjects.js?v=592';
+import { WEAPON_ROLES } from './hunt-roles.js?v=592';
+import { ACTION_SET_SKIPS } from './abilities.js?v=592';
 
 /* Falls ends the hunt after that many knock-outs (replaces Retreat): THREE,
    for everyone (master plan row 16, 2026-10-14 — rulings S and U), so the

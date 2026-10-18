@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=590';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=590';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=590';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=590';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmDriver, on, snapshot, findUiOverlaps, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=592';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=592';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=592';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=592';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -4028,15 +4028,20 @@ export default [
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated') return;
               const meta = document.getElementById('ab-meta');
+              // The 100 ms repaint is held while a case is measured (6562c420); each case paints itself once.
+              const realRefresh = window.refreshActivityBar;
+              let held = true;
+              window.refreshActivityBar = function () { return held ? undefined : realRefresh.apply(this, arguments); };
+              const paint = (fn) => { held = false; try { return fn(); } finally { held = true; } };
               try {
                 // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
                 window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
                 window.G.combatKillsThisFoe = 5;
-                window.refreshActivityBar(); fitBar(bar);
+                paint(() => window.refreshActivityBar()); fitBar(bar);
                 earned(bar, meta, 'live sparse full width: ');
                 // Crowd, fit and measure in ONE task so the game's repaint cannot land between (BAR-FIT-2 owns the observer).
                 for (const px of [760, 680, 620, 560, 480, 420, 360]) {
-                  bar.style.maxWidth = px + 'px'; crowd(); fitBar(bar);
+                  bar.style.maxWidth = px + 'px'; paint(crowd); fitBar(bar);
                   earned(bar, meta, 'live ' + px + 'px: ');
                 }
                 const toGo = (window.xpForLevel(99) - window.xpForLevel(98)).toLocaleString();
@@ -4232,7 +4237,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=590');
+    const mod = await import('../../net/activity.js?v=592');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

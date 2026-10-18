@@ -28,15 +28,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=590';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=590';
-import { cheb, dist2, los } from './grid.js?v=590';
-import { makeEvent } from './events.js?v=590';
-import { landHit } from './damage.js?v=590';
-import { applyStatus, statusRow } from './status.js?v=590';
-import { markHealed } from './consumables.js?v=590';
-import { ammoPerShot } from '../ammo.js?v=590';
-import { ITEMS } from '../../data/items.js?v=590';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=592';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=592';
+import { cheb, dist2, los } from './grid.js?v=592';
+import { makeEvent } from './events.js?v=592';
+import { landHit } from './damage.js?v=592';
+import { applyStatus, statusRow } from './status.js?v=592';
+import { markHealed } from './consumables.js?v=592';
+import { ammoPerShot } from '../ammo.js?v=592';
+import { ITEMS } from '../../data/items.js?v=592';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],

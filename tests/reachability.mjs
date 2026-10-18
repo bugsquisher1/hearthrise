@@ -453,7 +453,17 @@ function PROBE(spec) {
       const pr = (p === doc) ? { top: 0, bottom: innerHeight } : p.getBoundingClientRect();
       const r = el.getBoundingClientRect();
       let delta = 0;
-      if (r.bottom > pr.bottom) delta = r.bottom - pr.bottom;
+      /* A SUBJECT TALLER THAN ITS WINDOW cannot have both edges in it, and the
+         two-edge rule then flips it bottom/top on alternate passes, so the
+         verdict hung on which pass ran last: a sub-pixel bottom froze the
+         flip one way (main b591, green), a whole-pixel one the other (P0 x H
+         merge, 922x423+banner: #csk-account 282px in a 255px window, red at
+         y 160..443 with 936px of travel spent going back and forth). A
+         player scrolling to the END of a list lands its bottom edge in the
+         window, so that is the edge aligned; fits() below is unchanged, and a
+         bottom no scroll can reach is still off screen. */
+      if (r.height > pr.bottom - pr.top) delta = r.bottom - pr.bottom;
+      else if (r.bottom > pr.bottom) delta = r.bottom - pr.bottom;
       else if (r.top < pr.top) delta = r.top - pr.top;
       if (!delta) continue;
       const before = p.scrollTop;

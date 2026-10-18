@@ -49,10 +49,10 @@ import { fileURLToPath } from 'node:url';
 import { COMBAT_STYLES, DEFAULT_STYLE_KEYS, resolveStyle, normaliseStyleKeys,
   hitXpRoute, killXpRoute, HIT_XP_PER_DAMAGE }
   from '../src/core/styles.js';
-import { computeAccrual, deriveTickMs } from '../supabase/functions/hr-accrue/accrual.js';
-import { onTrainingHunt } from './hunt-fixture.mjs';
+import { deriveTickMs } from '../supabase/functions/hr-accrue/accrual.js';
+import { huntAccrual } from './hunt-fixture.mjs';
 /* Lane C2: combat accrues only on a hunt session — the fixture runs as a training hunt. */
-const computeAccrualOnHunt = (inp) => computeAccrual(onTrainingHunt(inp));
+const computeAccrualOnHunt = (inp) => huntAccrual(inp);
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 

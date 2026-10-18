@@ -50,7 +50,7 @@
 import { HEARTHFIND_TABLE, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX } from '../src/data/hearthfind.js';
 import { deriveOneIn, derivedHours, actionsPerHour } from '../src/core/hearthfind.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
-import { huntOn } from './hunt-fixture.mjs';
+import { huntSpan } from './hunt-fixture.mjs';
 import { createRng } from '../src/core/rng.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
@@ -116,8 +116,7 @@ function measure(monsterId) {
   /* Lane C2: a fight is a hunt session — a training hunt on the one monster,
      no respawn wait (the fight-to-fight rate the pointer engine measured), a
      deep bag behind the default heal slot. */
-  huntOn(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000, pull: { size: 1, respawnMs: 0 } });
-  const out = simulateSpan(state, ctx);
+  const out = huntSpan(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000, pull: { size: 1, respawnMs: 0 } });
   return { kills: out.kills, deaths: out.deaths, tickMs, hp: m.hp, boss: !!m.boss };
 }
 

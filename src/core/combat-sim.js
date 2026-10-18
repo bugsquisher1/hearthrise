@@ -128,7 +128,8 @@ function endMember(m, why, atMs, world, out) {
  *        maxMana, element, settings, bar, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
  *        bonus(key), weakness(row) → { dropMult }, fx }
- * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters? }
+ * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?,
+ *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
  */
 export function simulateHuntInstance(inst, ctx) {
@@ -196,7 +197,7 @@ export function simulateHuntInstance(inst, ctx) {
       seen();
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
-      const falls = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters });
+      const falls = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind });
       for (const f of falls) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);

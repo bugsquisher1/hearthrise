@@ -54,11 +54,11 @@ import {
 } from '../src/core/perks.js';
 import { burnChance, BURN_BASE } from '../src/core/artisan.js';
 import { zeroBonus, bonusFor, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { huntAccrualInput } from './hunt-fixture.mjs';
+import { huntAccrual } from './hunt-fixture.mjs';
 /* Lane C2: combat accrues only on a hunt session (a pointer-only night answers
    hunt_required), so every P9 night runs as a training hunt on its monster with
    no respawn wait — the old pointer fight's kill rate, the same seed. */
-const huntNight = (inp) => computeAccrual(huntAccrualInput(inp, { seed: inp.seed, pull: { size: 1, respawnMs: 0 } }));
+const huntNight = (inp) => huntAccrual(inp, { seed: inp.seed, pull: { size: 1, respawnMs: 0 } });
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { xpForLevel } from '../src/core/xp.js';

@@ -46,7 +46,7 @@ import {
 } from '../src/data/hearthfind.js';
 import { indexHearthfind, rollHearthfind, deriveOneIn } from '../src/core/hearthfind.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
-import { huntOn } from './hunt-fixture.mjs';
+import { huntSpan } from './hunt-fixture.mjs';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -102,8 +102,7 @@ function span({ seed, away, monsterId, table }) {
   };
   /* Lane C2: a fight is a hunt session (training hunt, no respawn wait); its
      swings draw from the keyed per-swing seeder of the SAME seed. */
-  huntOn(state, ctx, { seed, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
-  const summary = simulateSpan(state, ctx);
+  const summary = huntSpan(state, ctx, { seed, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
   return { finds, summary, draws: ctx.rng.draws, kills: state.stats.kills || 0 };
 }
 

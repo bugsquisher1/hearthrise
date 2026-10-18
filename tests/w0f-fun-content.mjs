@@ -48,7 +48,7 @@ import {
 import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
-import { huntOn } from './hunt-fixture.mjs';
+import { huntSpan } from './hunt-fixture.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-10-16-w0f-fun-content.sql');
@@ -104,8 +104,7 @@ function fight(monsters, monsterId) {
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
   };
-  huntOn(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000 });
-  const out = simulateSpan(state, ctx);
+  const out = huntSpan(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000 });
   return { kills: out.kills, deaths: out.deaths };
 }
 

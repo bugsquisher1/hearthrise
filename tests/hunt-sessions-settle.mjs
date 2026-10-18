@@ -292,7 +292,7 @@ const ENGINE_ARMS = {
     const base = M.AC.accrueHunt(instIn(M, mk(), 900000));
     if (!base.accrued || !base.members.length) problems.push(`CONTROL: the reference window did not settle (${base.reason})`);
     const variants = {
-      accruedToMs: T0 - 7200000, activeSinceMs: T0 - 86400000, capMs: 1, combatXpAccruedToMs: T0 + 600000,
+      accruedToMs: T0 + 300000, activeSinceMs: T0 - 86400000, capMs: 1, combatXpAccruedToMs: T0 + 600000,
       lastSeenAt: new Date(T0).toISOString(), caller: 'collect', away: true,
       buffs: [{ type: 'drop_rate', magnitude: 0.5, until: new Date(T0 + 3600000).toISOString() }],
     };
@@ -382,6 +382,11 @@ const ENGINE_ARMS = {
     if (!r) return [`CONTROL: the window settled nothing (${out.reason})`];
     if (!(r.maxHp >= 10)) problems.push(`max HP fell to ${r.maxHp} on a hitpoints level-up — raise-only`);
     if (!(r.delta.xp && r.delta.xp.hitpoints > 0)) problems.push('CONTROL: no hitpoints XP was earned');
+    /* RAISED on a level-up: a hero at max HP 5 that reaches hitpoints 6 inside the window leaves at 6. */
+    const lo = memberIn(M, 'a', { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, maxHp: 5, hp: 5 });
+    const up = M.AC.accrueHunt(instIn(M, [lo], 600000)).members[0];
+    if (!(M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0)) >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
+    else if (up.maxHp !== 6) problems.push(`a hitpoints level-up to 6 left max HP at ${up.maxHp}`);
     return problems;
   },
 
@@ -396,6 +401,14 @@ const ENGINE_ARMS = {
     const r = out.outs[0] && out.outs[0].members[0];
     if (!r || !r.hunt.ended || r.hunt.ended.reason !== 'stamina' || r.hunt.swing_to !== 5) {
       problems.push(`a five-swing pool ended ${JSON.stringify(r && r.hunt.ended)} after ${r && r.hunt.swing_to} swings, not stamina after 5`);
+    }
+    /* A KNOCKED-OUT hero RESTS: over a window with falls, the pool = start − paid + down (under the cap). */
+    const ko = runCut(M, () => [memberIn(M, 'a', { stamina: 3600000, staminaMax: cap.free, empty: 'end',
+      skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4 })], 600000, []);
+    const k = ko.outs[0] && ko.outs[0].members[0];
+    if (!k || !(k.hunt.down_ms > 0)) problems.push('CONTROL: the weak hero was never knocked out');
+    else if (k.hunt.stamina !== 3600000 - k.hunt.paid_ms + k.hunt.down_ms) {
+      problems.push(`a pool of 1 h after ${k.hunt.paid_ms} ms paid and ${k.hunt.down_ms} ms down is ${k.hunt.stamina} — a knockout does not rest`);
     }
     return problems;
   },
@@ -412,6 +425,9 @@ const ENGINE_ARMS = {
     if (l1.id !== 'cooked_shrimp' || l1.source !== 'own' || l1.price !== 0) problems.push(`own food first, the smallest that covers: ${JSON.stringify(l1)}`);
     if (M.AR.lineAmount(own, l1) !== M.ITEMS.cooked_shrimp.heals && M.AR.lineAmount(own, l1) !== M.CD.CONSUMABLES.cooked_shrimp.amount) problems.push('an own food does not restore its item\'s amount');
     if (!M.AR.takeLine(own, l1, 0) || own.bag.cooked_shrimp.left !== 4 || own.tally.supplies.cooked_shrimp !== 1) problems.push('an own use did not leave the bag once');
+    /* Under supply_source `store` a carried line is STILL spent first (hunt-sessions.js SUPPLY_SOURCE). */
+    const l1s = M.AR.resolveLine(hs({ supplySource: 'store', bag: { cooked_shrimp: { loaded: 5 } } }), 'heal', sh);
+    if (l1s.source !== 'own') problems.push(`a store-sourced hero with food in its bag bought instead: ${JSON.stringify(l1s)}`);
     /* THE STORE behind an empty line, under the default switch, at the catalogue price, restoring ITS amount. */
     const store = hs({});
     const l2 = M.AR.resolveLine(store, 'heal', 5);
@@ -485,19 +501,25 @@ const ENGINE_ARMS = {
     if (last.delta.recovering_until !== new Date(d.atMs + ko).toISOString()) {
       problems.push(`a window cut mid-knockout left the line at ${last.delta.recovering_until}, want ${new Date(d.atMs + ko).toISOString()}`);
     }
-    /* The stand-up is never a free heal: the hero's HP on its feet is resumeHpFor, not max. */
-    const w = out.world || (out.outs.find((o) => o.world) || {}).world;
-    if (w) {
-      const dec = M.WS.decode(JSON.parse(w));
-      const u = dec.units.find((x) => x.side === 'hero');
-      if (u && u.alive && u.hp === u.maxHp && first.summary.deathLog.length && out.outs.length === 1) problems.push('a fallen hero stood at full HP');
+    /* The stand-up is never a free heal: a 20-HP hero's HP one swing after it stands is
+       resumeHpFor(20) give or take one swing of regen, never its max. */
+    const big = () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(20) }, maxHp: 20, hp: 20, empty: 'end' })];
+    const b0 = runCut(M, big, 900000, []).outs[0];
+    const bf = b0 && b0.members[0].summary.deathLog[0];
+    if (!bf) problems.push('CONTROL: the 20-HP hero never fell');
+    else {
+      const stood = runCut(M, big, bf.atMs - T0 + ko + 2000, []).outs;
+      const hp = stood[stood.length - 1].members[0].delta.hp;
+      const r20 = M.REC.resumeHpFor(20);
+      if (!(hp <= r20 + 3)) problems.push(`a 20-HP hero stood up at ${hp} HP, resumeHpFor is ${r20} — a free heal`);
     }
     return problems;
   },
 
   QUIVER: async (M) => {
     const problems = [];
-    const out = runCut(M, () => [memberIn(M, 'a', { role: 'ranger', bag: { bronze_arrows: { loaded: 40, left: 40, essential: true } },
+    /* The bar holds one ability that looses no shot, so every arrow is a basic's. */
+    const out = runCut(M, () => [memberIn(M, 'a', { role: 'ranger', bar: ['hunters_mark'], bag: { bronze_arrows: { loaded: 40, left: 40, essential: true } },
       equipment: { weapon: 'oak_shortbow', ammo: 'bronze_arrows' }, empty: 'end', level: 30 })], 1800000, []);
     const r = out.outs.flatMap((o) => o.members);
     const used = r.reduce((a, x) => a + (x.hunt.uses.bronze_arrows || 0), 0);
@@ -710,9 +732,9 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 }
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
-const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 0 };
+const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 100000 };
 const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 1, options: { on_empty: 'end', food_below_pct: 99 },
-  skillsXp: { attack: 400, strength: 400, magic: 1585 } };
+  skillsXp: { attack: 400, strength: 450, magic: 1585 } };
 
 const DB_ARMS = {
   'TICK-1': async (db, M) => {
@@ -734,14 +756,29 @@ const DB_ARMS = {
       cuts.push(from + SPAN_MS);
       return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
     };
-    const { a, b } = await compareRuns(db, M, WEAK, ticksOf(90000, SPAN_MS), attended);
+    const { a, b, h: hA } = await compareRuns(db, M, WEAK, ticksOf(90000, SPAN_MS), attended);
     if (!((a[0].deaths || []).length >= 1)) problems.push(`CONTROL: the weak hero never fell (${JSON.stringify(a[0].tally)})`);
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
+    /* THE CARRIED LINE: two settles inside one knockout (the second has no fall of its own)
+       leave player_state.recovering_until at the fall + KNOCKOUT_MS, read back between them. */
+    const fall = ((a[0] && a[0].events) || []).find((e) => e[0] === 'fall');
+    if (fall) {
+      await inTx(db, async () => {
+        await rewindDice(db);
+        const h = await hunter(db, M, WEAK);
+        const at = Date.parse(fall[1]) - hA.from + h.from;   // the same fall on this transaction's clock
+        await settleTo(db, M, at + 1500);
+        await settleTo(db, M, at + 31234);
+        const line = await one(db, `select floor(extract(epoch from recovering_until) * 1000)::bigint from public.player_state where user_id = $1 and slot = 0`, [UID]);
+        if (Number(line) !== at + M.HSD.KNOCKOUT_MS) problems.push(`the line carried across two settles in one knockout is ${line}, want ${at + M.HSD.KNOCKOUT_MS}`);
+        if (!h.sid) problems.push('CONTROL: no hunt');
+      });
+    }
     return problems;
   },
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid } = await hunter(db, M, STRONG);
+    const { sid } = await hunter(db, M, { ...STRONG, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
     const exec = makeExec(db);
     await db.query('savepoint parity');
     const runs = {};
@@ -807,8 +844,15 @@ const DB_ARMS = {
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
     if (!s.session.ended_at) return [`CONTROL: the hunt did not end (${JSON.stringify(s.session)})`];
-    if (s.session.end_reason !== 'heals_out' && s.session.end_reason !== 'falls') problems.push(`a dry essential heal line ended ${s.session.end_reason}, not heals_out`);
-    if (s.session.end_reason === 'heals_out' && s.bag.cooked_shrimp[1] !== 0) problems.push('heals_out ended a hunt with food left');
+    if (s.session.end_reason !== 'heals_out') problems.push(`a dry essential heal line ended ${s.session.end_reason}, not heals_out`);
+    if (s.bag.cooked_shrimp[1] !== 0) problems.push('heals_out ended a hunt with food left');
+    /* With nothing essential to run out of, the falls limit ends it — at exactly the limit. */
+    await db.query('rollback'); await db.query('begin');
+    const f = await hunter(db, M, WEAK);
+    await run(db, M, f.from, ticksOf(90000, SPAN_MS));
+    const sf = await snapshot(db, f.sid);
+    const lim = await one(db, 'select falls_limit from public.hunt_sessions where id = $1', [f.sid]);
+    if (sf.session.end_reason !== 'falls' || sf.session.falls !== lim) problems.push(`a hero with no essential line ended ${sf.session.end_reason} after ${sf.session.falls} falls (limit ${lim})`);
     return problems;
   }),
   STAMINA: async (db, M) => inTx(db, async () => {
@@ -847,16 +891,33 @@ const DB_ARMS = {
     if (!falls.length) return ['CONTROL: the weak hero never fell'];
     for (const f of falls) if (!f[2] || f[2].xp_lost === undefined) problems.push(`a fall event states no price: ${JSON.stringify(f)}`);
     const price = s.death_xp || {};
+    if (!(Object.values(price).reduce((a, n) => a + Number(n), 0) > 0)) problems.push(`${falls.length} falls cost no XP`);
     for (const [k, v] of Object.entries(price)) {
       const gained = s.tally.xp[k] || 0;
       const now = s.skills[k][0];
       if (now !== Math.floor(x0[k] + gained) - v && Math.abs(now - (x0[k] + gained - v)) > 1) problems.push(`${k}: bank ${now} != start ${x0[k]} + gains ${gained} - price ${v}`);
     }
+    /* AN OVER-CHARGE: the first fall's window re-proposed with one XP more than its permille share of
+       strength's level gap (strength sits mid-level, so only the share bound can refuse it). */
+    await db.query('rollback'); await db.query('begin');
+    const o = await hunter(db, M, WEAK);
+    let refused = null;
+    for (const t of ticksOf(90000, SPAN_MS)(o.from)) {
+      let hit = false;
+      const x = await settleTo(db, M, t, { tamper: (c) => {
+        const dx = c.members[0].hunt.death_xp;
+        if (dx.length) { hit = true; dx[0] = { ...dx[0], strength: Math.floor((M.XP.xpForLevel(6) - M.XP.xpForLevel(5)) * M.HSD.DEATH_XP_LOSS) + 1 }; }
+      } });
+      if (hit) { refused = x.res; break; }
+      if (!x.res || x.res.ok !== true) break;
+    }
+    if (!refused) problems.push('CONTROL: no window with a fall to over-charge');
+    else if (refused.error !== 'death_xp_over') problems.push(`a fall charged one XP over its share answered ${JSON.stringify(refused).slice(0, 200)}`);
     return problems;
   }),
   TALLY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, STRONG);
+    const { sid, from } = await hunter(db, M, { ...STRONG, options: { food_below_pct: 99 } });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const t = await one(db, `select to_jsonb(t) from public.hunt_session_tally t where session_id = $1`, [sid]);
     const l = await one(db, `select jsonb_build_object(
@@ -868,6 +929,7 @@ const DB_ARMS = {
     const sup = Object.values(t.supplies || {}).reduce((a, n) => a + Number(n), 0);
     if (Number(own) !== sup) problems.push(`tally supplies ${sup} != supply_own rows ${own}`);
     if (!(Number(t.kills) > 0)) problems.push('CONTROL: nothing was killed');
+    if (!(sup > 0)) problems.push('CONTROL: the hero ate nothing');
     return problems;
   }),
   ANALYZER: async (db, M) => inTx(db, async () => {
@@ -906,8 +968,12 @@ const DB_ARMS = {
   }),
   VALUE: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' } });
+    const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
+      inv: { cooked_shrimp: 300 }, bag: [{ item: 'cooked_shrimp', qty: 300, essential: true }] });
+    await settleTo(db, M, from + 60000);
     const g0 = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const back = (c) => { const w = JSON.parse(c.settle.world); c.settle.world_swing = c.worldSwingFrom - 1; w.w[1] = c.settle.world_swing; c.settle.world = JSON.stringify(w); };
+    const endAt = (why) => (c) => { m0(c).hunt.ended = { reason: why, at: m0(c).hunt.to }; };
     const m0 = (c) => c.members[0];
     const cases = [
       ['a window paying a fortune in gold', (c) => { m0(c).delta.gold = 1000000; }, 'value_over'],
@@ -915,11 +981,13 @@ const DB_ARMS = {
       ['a window dropping an item no spawn drops', (c) => { m0(c).delta.items = { ...(m0(c).delta.items || {}), dragon_scale: 1 }; }, 'value_over'],
       ['a window claiming a thousand kills', (c) => { m0(c).delta.journal.meta.kills = 1000; }, 'kills_over'],
       ['a world over the byte bound', (c) => { c.settle.world = '{' + 'x'.repeat(20000) + '}'; }, 'world_too_big'],
-      ['a world of another shape', (c) => { const w = JSON.parse(c.settle.world); w.s = 1; c.settle.world = JSON.stringify(w); }, 'bad_world'],
-      ['a world swing running backwards', (c) => { c.settle.world_swing = -1; }, 'bad_world_swing'],
+      ['a world of another version', (c) => { const w = JSON.parse(c.settle.world); w.v += 1; c.settle.world = JSON.stringify(w); }, 'bad_world'],
+      ['a world swing running backwards', back, 'bad_world_swing'],
+      ['a heals_out end with food in the bag', endAt('heals_out'), 'end_not_proven'],
+      ['a stamina end on a full pool', endAt('stamina'), 'end_not_proven'],
       ['a store buy the hero never chose', (c) => { m0(c).hunt.buys = { salted_shrimp: 1 }; }, 'store_off'],
       ['an id the store does not sell', (c) => { m0(c).hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale'],
-      ['a thousand meals in two minutes', (c) => { m0(c).hunt.uses = { cooked_shrimp: 1000 }; }, null],
+      ['two hundred meals in one minute (the bag holds them)', (c) => { m0(c).hunt.uses = { cooked_shrimp: 200 }; }, 'too_many_uses'],
     ];
     for (const [label, tamper, code] of cases) {
       const x = await settleTo(db, M, from + 120000, { tamper });
@@ -956,6 +1024,17 @@ const DB_ARMS = {
     const w = await one(db, 'select world from public.hunt_instances where id = $1', [inst]);
     const u = M.WS.decode(JSON.parse(w)).units.find((x) => x.side === 'hero');
     if (!u || u.stance !== 'defensive' || u.dist !== 1 || u.chase !== false) problems.push(`the hero's unit carries ${JSON.stringify(u && { stance: u.stance, dist: u.dist, chase: u.chase })}, not its options`);
+    /* Changed mid-hunt (settled to within the edit slack first, as the client does): the next
+       settle writes it onto the unit already standing in the world. */
+    const nowMs = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+    await settleTo(db, M, nowMs - 10000);
+    await asUser(db, UID);
+    const ch = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: 'offensive', distance: 4 }), idem()]);
+    await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+    if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
+    await settleTo(db, M, nowMs);
+    const u2 = M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
+    if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })}`);
     return problems;
   }),
   'TICK-0': async (db, M) => inTx(db, async () => {
@@ -1108,7 +1187,7 @@ const MUTANTS = [
     from: "  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),", to: '  stamina: () => false,' },
   { arm: 'STAMINA-RULE', name: 'resting lowers a pool above the cap (a lapse eats banked stamina)', file: 'src/core/action-rules.js',
     from: '  return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));', to: '  return Math.min(Math.floor(Number(maxMs) || 0), v + d);' },
-  { arm: 'STAMINA', name: '[C2 knockout rests] a knocked-out hero drains its pool', file: 'src/core/combat-sim.js',
+  { arm: 'STAMINA-RULE', name: '[C2 knockout rests] a knocked-out hero drains its pool', file: 'src/core/combat-sim.js',
     from: '        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, standing, m.hs.staminaMaxMs);', to: '        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);' },
   { arm: 'STAMINA', name: '[C2 reads no pool] the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
@@ -1177,7 +1256,7 @@ const MUTANTS = [
   { arm: 'TICK-1', name: '[C2 knocked-out foe carried] the world is not carried across a settle', file: join(FN, 'hunt-settle.js'),
     from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },',
     to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null },' },
-  { arm: 'TICK-1', name: '[maxhp-carry H1] a hitpoints level-up inside the window never raises max HP', file: join(FN, 'accrual.js'),
+  { arm: 'MAXHP', name: '[maxhp-carry H1] a hitpoints level-up inside the window never raises max HP', file: join(FN, 'accrual.js'),
     from: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;",
     to: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && false) state.playerMaxHp = ev.to;" },
   { arm: 'BOTH-PATH', name: '[resume-alignment carrierOneTickLate] the carried recovery line drifts a tick per settle', file: join(FN, 'envelope.js'),
@@ -1202,7 +1281,7 @@ const MUTANTS = [
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
   { arm: 'BESTIARY', name: '[bestiary-parity] the settle reads hr_bestiary_of and a ladder prices the hunt again', file: join(FN, 'hunt-settle.js'),
     from: '  const perks = await readTickPerks(exec, m.user, m.slot);',
-    to: "  const perks = await readTickPerks(exec, m.user, m.slot);\n  const [bk] = await exec('select coalesce(sum(kills), 0)::int as n from public.hr_bestiary_of($1::uuid, $2::int)', [m.user, m.slot]);\n  if (Number(bk && bk.n) > 0) env.state = { ...(env.state || {}), gold: Number((env.state || {}).gold || 0) + 1 };" },
+    to: "  const perks = await readTickPerks(exec, m.user, m.slot);\n  const [bk] = await exec(\"select coalesce(sum(value), 0)::bigint as n from public.player_progress where user_id = $1 and slot = $2 and kind = 'stat' and key like 'ev:kill_monster:%'\", [m.user, m.slot]);\n  if (Number(bk && bk.n) > 0) e.skills = { ...e.skills, attack: (Number(e.skills.attack) || 0) * 4 };" },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain, the arm run, the body restored. */
@@ -1252,14 +1331,14 @@ const DB_MUTANTS = [
     find: '      update public.player_skills set xp = xp - v_n where user_id = p_user and slot = p_slot and skill_id = v_k;', replace: '      null;' },
   { arm: 'STAMINA', name: 'the applier stops bounding the pool', fn: AM,
     find: '  if v_e < greatest(0, v_s0 - v_paid) or v_e > greatest(0, v_s0 - v_paid + v_down) or v_e > greatest(v_s0, v_cap) then', replace: '  if v_e < 0 then' },
-  { arm: 'STAMINA', name: 'a stamina end is proven on any pool', fn: SS,
+  { arm: 'VALUE', name: 'a stamina end is proven on any pool', fn: SS,
     find: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0", replace: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) >= 0" },
   { arm: 'STAMINA', name: 'the premium cap is everyone\'s', fn: 'public.hr_stamina_cap(uuid,integer,timestamp with time zone)',
     find: "               then public.hr_hunt_limit('stamina_premium_min') else public.hr_hunt_limit('stamina_free_min') end)::bigint * 60000",
     replace: "               then public.hr_hunt_limit('stamina_premium_min') else public.hr_hunt_limit('stamina_premium_min') end)::bigint * 60000" },
   { arm: 'RESUME', name: 'an automatic end resumes nothing', fn: AM,
     find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
-  { arm: 'END', name: 'a heals_out end is proven on a full bag', fn: SS,
+  { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },
   { arm: 'XPDOOR', name: "[combat-xp-settle-split] a hunter's client credit pays beside the settle again", fn: 'public.hr_credit_combat_xp(integer,jsonb,text)',

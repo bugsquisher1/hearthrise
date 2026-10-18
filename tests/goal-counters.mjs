@@ -65,7 +65,7 @@ import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import { indexGatherNodes } from '../src/core/skill-sim.js';
 import { MIN_ACTION_MS } from '../src/core/pacing.js';
 import { xpForLevel } from '../src/core/xp.js';
-import { huntAccrualInput } from './hunt-fixture.mjs';
+import { huntAccrual } from './hunt-fixture.mjs';
 
 const USER = '00000000-0000-4000-c000-9081a1c00000';
 const SEED = 0x9021;

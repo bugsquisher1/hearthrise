@@ -8,7 +8,7 @@
 //   I1  COMBAT_BALANCE.tickMs is 2000.
 //   I2  a bare hero's interval IS the constant, on all three readers: core
 //       swingIntervalMs, the hunt engine's deriveTickMs (hr-accrue), and a real
-//       computeAccrual hunt — whose swing count over its paid time divides out
+//       instance hunt (tests/hunt-fixture.mjs huntAccrual) — whose swing count over its paid time divides out
 //       to exactly the constant.
 //   I3  the constant is the ONLY source: moving COMBAT_BALANCE.tickMs at
 //       runtime moves the engine's swings with it (nothing else holds a copy
@@ -33,8 +33,8 @@ const WANT_MS = 2000;
 const OWNER = 'src/core/combat.js';
 
 const { COMBAT_BALANCE, swingIntervalMs, equipmentStats } = await import('../src/core/combat.js');
-const { computeAccrual, deriveTickMs } = await import('../supabase/functions/hr-accrue/accrual.js');
-const { huntAccrualInput } = await import('./hunt-fixture.mjs');
+const { deriveTickMs } = await import('../supabase/functions/hr-accrue/accrual.js');
+const { huntAccrual } = await import('./hunt-fixture.mjs');
 const { ITEMS } = await import('../src/data/items.js');
 const { MONSTERS } = await import('../src/data/monsters.js');
 
@@ -74,12 +74,12 @@ export function literalCopies(files) {
 const NOW = Date.UTC(2026, 9, 20, 9, 0, 0);
 function huntSwings(hours) {
   const FROM = NOW - hours * 3600000;
-  const out = computeAccrual(huntAccrualInput({
+  const out = huntAccrual({
     userId: '00000000-0000-4000-8000-0000000ba5e1', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
     activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 7,
     hp: 99, maxHp: 99, gold: 0, skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 },
     equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {},
-  }, { seed: 7, pull: { size: 1, respawnMs: 0 } }));
+  }, { seed: 7 });
   const h = out.hunt || {};
   const swings = Number(h.swing_to) - Number(h.swing_from);
   return { swings, paidMs: Number(h.paid_ms) + Number(h.down_ms || 0) };

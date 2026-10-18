@@ -34,7 +34,7 @@ import { readFile, writeFile, cp, mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
-import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
+import { huntSpan, huntAccrual } from './hunt-fixture.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -237,8 +237,8 @@ export async function runAll({ mutate } = {}) {
       if ((o.kind || 'combat') !== 'combat') return computeAccrual(inp);
       const bag = {};
       for (const [id, q] of Object.entries(o.inventory || {})) bag[id] = { loaded: q };
-      return computeAccrual(huntAccrualInput({ ...inp, inventory: {} },
-        { seed: o.seed || SEED, bag, pull: { size: 1, respawnMs: 0 } }));
+      return huntAccrual({ ...inp, inventory: {} },
+        { seed: o.seed || SEED, bag, pull: { size: 1, respawnMs: 0 } });
     };
 
     const RANGED = { attack: 0, hitpoints: MAX_XP, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
@@ -433,8 +433,7 @@ export async function runAll({ mutate } = {}) {
           weakness: (mm) => C.weaknessInfo(mm, eq),
           fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
         };
-        huntOn(G, ctx, { seed: SEED, fromMs: FROM_MS });
-        const s = SIM.simulateSpan(G, ctx);
+        const s = huntSpan(G, ctx, { seed: SEED, fromMs: FROM_MS });
         return { hp: G.playerHp, kills: s.kills };
       };
       const sa = spanOf(); const sb = spanOf();

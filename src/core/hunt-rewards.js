@@ -72,14 +72,14 @@ function payKill(present, killer, kind, ctx) {
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
-  resolveHearthfind(lead.state, 'monster', kind, { rng, fx: lead.fx });
+  resolveHearthfind(lead.state, 'monster', kind, { rng, fx: lead.fx, hearthfind: ctx.hearthfind });
 }
 
 /**
  * Pay one swing. `members` maps a hero unit id to its member:
  *   { state, hs, fx, style, bonus(key), weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
- * `ctx` = { rng (the swing's `r` stream), monsters? }.
+ * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent) }.
  * Answers the swing's falls: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {

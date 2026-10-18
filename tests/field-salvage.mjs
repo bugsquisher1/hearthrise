@@ -58,7 +58,7 @@ import { COMBAT_STYLES } from '../src/core/styles.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
+import { huntSpan, huntAccrual } from './hunt-fixture.mjs';
 
 let fails = [];
 const ok = (cond, rule, msg) => { if (!cond) fails.push(`(${rule}) ${msg}`); };
@@ -133,8 +133,7 @@ function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
     weakness: (mm) => weaknessInfo(mm, eq),
     fx: { ...fx },
   };
-  huntOn(state, ctx, { seed, fromMs: 0, food: FIGHT_FOOD, foodQty: 100000 });
-  const out = simulateSpan(state, ctx);
+  const out = huntSpan(state, ctx, { seed, fromMs: 0, food: FIGHT_FOOD, foodQty: 100000 });
   return { kills: out.kills, deaths: out.deaths };
 }
 
@@ -260,7 +259,7 @@ function bothPaths() {
     notes.push(`  simulateSpan (hunt) seed ${seed}: credits ${hunt.credited[PROBE_ITEM]}`);
   }
   const L = LOADOUT[1].level;
-  const run = (s) => computeAccrual(huntAccrualInput({
+  const run = (s) => huntAccrual({
     userId: '00000000-0000-4000-8000-000000000001', slot: 0,
     nowMs: 1760000000000 + 2 * 3600000, accruedToMs: 1760000000000, activeSinceMs: 1760000000000,
     activeKind: 'combat', activeId: PROBE_MONSTER, capMs: 12 * 3600000, seed: s,
@@ -268,7 +267,7 @@ function bothPaths() {
     skills: { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L), hitpoints: xpForLevel(20) },
     equipment: equipmentFor(1), inventory: {},
     items: ITEMS, monsters: MONSTERS,
-  }, { seed: s, food: FIGHT_FOOD, foodQty: 5000 }));
+  }, { seed: s, food: FIGHT_FOOD, foodQty: 5000 });
   let hit = null;
   for (let s = SEED; s < SEED + 400 && !hit; s++) {
     const out = run(s);

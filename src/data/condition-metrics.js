@@ -39,8 +39,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.1.0';
-import { STATUSES } from './statuses.js?v=0.1.0';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.0';
+import { STATUSES } from './statuses.js?v=0.2.0';
 
 /* Four, so a heal can say "HP at or below 75%, and Trapped, and Paralyzed, and mana at or below 50%"
    (Tyler's Huntera reference, 2026-10-18). The `pass` bitmask is one bit a condition. */

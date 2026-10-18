@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 382699b0954a8cd517c2bf05696a2e806ed756a6917a67ab686dd0d07ec773e5
---   53 supplies, 104 hunts (named + training), 36 limits, 10 end reasons,
+--   digest: 287efb1b87c71f1a1c771075e3ea8290663c0b8cf19771fac00d1267d5ceab85
+--   53 supplies, 104 hunts (named + training), 32 limits, 9 end reasons,
 --   462 vendor values, 18 store supplies paid per use, 5 target modes,
---   3 lanes, 14 abilities, 13 action-set options, 2 hunt grounds
+--   3 lanes, 14 abilities, 11 action-set options, 2 hunt grounds
 --
 -- SUPERSEDES 2026-10-23-demolition-hunt-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale. The C2 bar's
@@ -263,11 +263,9 @@ delete from public.hr_hunt_set_options;
 insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[], '"hunt"'::jsonb),
   ('chase', 'bool', null, null, null),
-  ('density', 'limit', 'density', null, '0'::jsonb),
   ('distance', 'limit', 'distance', null, null),
   ('drink_below_pct', 'limit', 'threshold_pct', null, '30'::jsonb),
   ('food_below_pct', 'limit', 'threshold_pct', null, '50'::jsonb),
-  ('gather_share', 'limit', 'gather_share', null, '0'::jsonb),
   ('gold_floor', 'limit', 'gold_floor', null, null),
   ('on_empty', 'enum', null, array['switch', 'end']::text[], '"switch"'::jsonb),
   ('role', 'enum', null, array['mage', 'healer']::text[], null),
@@ -504,7 +502,7 @@ insert into public.hr_hunt_roles (role, discipline) values
   ('ranger', 'ranged'),
   ('tank', 'shield');
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 2498641921, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 3852601081, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -618,15 +616,11 @@ insert into public.hr_hunt_limits (key, value) values
   ('ability_ammo_max', 3),
   ('bag_lines', 10),
   ('death_xp_permille', 20),
-  ('density_max', 16),
-  ('density_min', 0),
   ('distance_max', 8),
   ('distance_min', 1),
   ('falls_default', 3),
   ('falls_max', 3),
   ('falls_min', 3),
-  ('gather_share_max', 100),
-  ('gather_share_min', 0),
   ('gold_floor_default', 300),
   ('gold_floor_max', 100000),
   ('gold_floor_min', 0),
@@ -657,12 +651,11 @@ insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('heals_out', 2, true),
   ('ammo_out', 3, true),
   ('gold_out', 4, true),
-  ('rule', 5, true),
-  ('stamina', 6, true),
-  ('hours', 7, true),
-  ('left', 8, false),
-  ('changed', 9, false),
-  ('server', 10, true);
+  ('stamina', 5, true),
+  ('hours', 6, true),
+  ('left', 7, false),
+  ('changed', 8, false),
+  ('server', 9, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -671,7 +664,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1161,8 +1154,8 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 53
      or (select count(*) from public.hr_hunt_travel) <> 104
-     or (select count(*) from public.hr_hunt_limits) <> 36
-     or (select count(*) from public.hr_hunt_end_reasons) <> 10
+     or (select count(*) from public.hr_hunt_limits) <> 32
+     or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_vendor_value) <> 462
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -1170,7 +1163,7 @@ begin
      or (select count(*) from public.hr_hunt_target_modes) <> 5
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 3
-     or (select count(*) from public.hr_hunt_set_options) <> 13
+     or (select count(*) from public.hr_hunt_set_options) <> 11
      or (select count(*) from public.hr_hunt_kill_bounds) <> 119
      or (select count(*) from public.hr_hunt_abilities) <> 14
      or (select count(*) from public.hr_hunt_grounds) <> 2
@@ -1180,10 +1173,10 @@ begin
      or (select count(*) from public.hr_hunt_weapons) <> 49
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_roles) <> 5
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 8 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;

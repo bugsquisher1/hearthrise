@@ -22,7 +22,7 @@
 --      `slots` (the bar, written to player_action_sets.slots), `stop_rules` and
 --      `grounds` (written to options) — each through its own check; the rest
 --      as before. `density` and `gather_share` are option ROWS (the regenerated
---      2026-10-23-hunt-sessions-catalogue.generated.sql), validated in their
+--      2026-10-25-action-conditions-catalogue.generated.sql), validated in their
 --      generated range (density 0..16: the pack size, 0 = as built); the SETTLE clamps
 --      it to the ground for the party (every ground allows at least the full box of 8)
 --      (src/data/hunt-grounds.js densityFor); gather_share is stored and INERT
@@ -40,7 +40,8 @@
 --      engine places them (conditions.js placeDefaults), plus density,
 --      gather_share (+ gather_inert), stop_rules and grounds.
 -- The `rule` end reason itself (hr_hunt_end_reasons, the end_reason CHECK) is
--- END_ORDER's, in the regenerated catalogue; §0 requires it.
+-- END_ORDER's, in 2026-10-25-action-conditions-catalogue.generated.sql (the
+-- forward catalogue, applied first); §0 requires it.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- Nothing here moves gold, items or XP. A slot names catalogue rows only; a
@@ -57,7 +58,7 @@
 -- 2026-10-23-hunt-supply-ledger.sql, hr_hunt_settings_view from
 -- 2026-10-23-hunt-world-state.sql; drop hr_action_set_copy (+ its baseline
 -- row), the four catalogue tables and the five new checkers.
--- ORDER: after 2026-10-24-hunterall-119.sql. No begin/commit.
+-- ORDER: after 2026-10-25-action-conditions-catalogue.generated.sql. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ begin
   if not exists (select 1 from public.hr_hunt_end_reasons where reason = 'rule')
      or not exists (select 1 from public.hr_hunt_set_options where opt = 'density' and kind = 'limit')
      or not exists (select 1 from public.hr_hunt_set_options where opt = 'gather_share' and kind = 'limit') then
-    raise exception 'PRECONDITION: the regenerated hunt-sessions catalogue (end reason rule, the density and gather_share options) is absent';
+    raise exception 'PRECONDITION: apply 2026-10-25-action-conditions-catalogue.generated.sql first (end reason rule, the density and gather_share options)';
   end if;
 end $mig$;
 

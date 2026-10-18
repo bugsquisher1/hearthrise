@@ -58,9 +58,12 @@
 // 2026-10-23-demolition-hunt-catalogue.generated.sql (P0, applied 2026-10-17)
 // are history; lane S1's data moves (the bar retired, abilities and grounds
 // catalogued, food and drink on one 1 s lane, the switch default, premium's
-// stamina caps, the party size, the world's shape) start
-// 2026-10-23-hunt-sessions-catalogue.generated.sql, which the replay applies
-// after the P0 files and which rewrites every table it names wholesale.
+// stamina caps, the party size, the world's shape) started
+// 2026-10-23-hunt-sessions-catalogue.generated.sql (APPLIED 2026-10-18: history).
+// The action engine's data moves (END_ORDER's `rule`, the density and gathering
+// options, the world's ruleHold + density) start
+// 2026-10-25-action-conditions-catalogue.generated.sql, which the replay applies
+// after it and which rewrites every table it names wholesale.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -110,7 +113,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-23-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-25-action-conditions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -485,10 +488,10 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-23-demolition-hunt-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. The C2 bar's
--- tables (rule subjects, buff types, slot kinds and targets, the default slot
--- preset) are no longer written; 2026-10-23-hunt-settings-options.sql drops them.
+-- SUPERSEDES 2026-10-23-hunt-sessions-catalogue.generated.sql (applied 2026-10-18;
+-- history, never regenerated): every table below is rewritten wholesale (lane
+-- action-engine: END_ORDER's rule, the density / gather_share options, the world's
+-- ruleHold + density). Apply before 2026-10-25-action-conditions.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

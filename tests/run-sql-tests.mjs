@@ -625,6 +625,8 @@ const ALSO_LINTED = [
      CURRENT last toucher of hr_assert_grant_hygiene) and the party verbs: listed
      so the grant lints read every revoke-then-grant they make. */
   '2026-10-23-hunt-sessions-catalogue.generated.sql',
+  '2026-10-25-action-conditions-catalogue.generated.sql',
+  '2026-10-25-action-conditions.sql',
   '2026-10-23-character-premium.sql',
   '2026-10-23-premium-login-reward.sql',
   '2026-10-23-hunt-settings-options.sql',
@@ -1180,6 +1182,7 @@ const CLIENT_CALLABLE = new Map([
      (hr_hunt_target_modes, the pull limits rows), refused never clamped,
      rate-gated ('hunt' bucket), idempotent, baselined in §4d. Writes no value. */
   ['hr_action_set_options', ['authenticated']],
+  ['hr_action_set_copy', ['authenticated']],   // lane action-engine: copy hunt settings between the caller's own characters
   /* LANE S1 (2026-10-23-*). Each is the caller's own character only, rate-gated,
      idempotent where it writes, and baselined in hr_client_rpc_baseline by its
      file: the stored bar and per-hero options (hr_action_set_put, refused never

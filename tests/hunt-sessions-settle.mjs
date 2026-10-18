@@ -34,6 +34,8 @@
 //   WEAKNESS   a basic swing is priced against its monster (accuracy over its
 //              defence, the weapon weakness paid): a hammer on an ooze out-hits neutral.
 //   CRIT       crit is gear and buffs: crit blows land and journal the lifetime `crits`.
+//   EVENT-IDS  every playback event has a stable id (<atMs>.<k>) and its server
+//              instant, identical however the windows are cut.
 //   BUFF       a hunt READS the timed buff queue (fires none): a live buff pays,
 //              an expired one does not, one ending mid-window pays the same cut or not.
 //   STAMINA-RULE  the pool drains 1:1 hunting, rests 1:1 to the character's
@@ -140,6 +142,7 @@ async function loadEdge(root) {
     AC: await import(u(join(FN, 'accrual.js'))),
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
     TR: await import(u(join(FN, 'tick-reads.js'))),
+    HT: await import(u(join(FN, 'hunt-track.js'))),
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
@@ -458,6 +461,23 @@ const ENGINE_ARMS = {
     if (!(flagged(crit) > 5)) problems.push(`a +50% crit buff landed ${flagged(crit)} crit blows in ten minutes`);
     if (statOf(crit) !== flagged(crit)) problems.push(`the window journalled ${statOf(crit)} crits for ${flagged(crit)} crit blows`);
     if (flagged(none) !== 0 || statOf(none) !== 0) problems.push(`a hero with no crit chance critted ${flagged(none)} times`);
+    return problems;
+  },
+
+  /* EVENT-IDS (Tyler 10-18 D): every playback event carries a stable id and its
+     server instant, the same id however the windows were cut, so a client
+     de-duplicates two overlapping responses and keeps an animation running. */
+  'EVENT-IDS': async (M) => {
+    const problems = [];
+    const mk = () => [memberIn(M, 'a', { level: 20, empty: 'end' })];
+    const ids = (o) => o.outs.flatMap((x) => M.HT.huntPlayback(x.track, x.events, 0, 0).events);
+    const one = ids(runCut(M, mk, 300000, []));
+    const cut = ids(runCut(M, mk, 300000, [T0 + 33000, T0 + 90000, T0 + 91000, T0 + 200000]));
+    if (!(one.length > 20)) return [`CONTROL: only ${one.length} events`];
+    for (const e of one) if (typeof e.id !== 'string' || !Number.isInteger(e.atMs) || !e.id.startsWith(e.atMs + '.')) { problems.push(`an event without a stable id / server instant: ${JSON.stringify(e)}`); break; }
+    if (new Set(one.map((e) => e.id)).size !== one.length) problems.push('two events of one window share an id');
+    const key = (l) => canon(l.map((e) => [e.id, e.type, e.u ?? null, e.t ?? null]));
+    if (key(one) !== key(cut)) problems.push(`event ids moved with the cut ${firstDiff(key(one), key(cut))}`);
     return problems;
   },
 
@@ -1035,6 +1055,25 @@ const DB_ARMS = {
     /* A settle missing a member is refused. */
     const partial = await settleTo(db, M, h.from + 120000, { tamper: (c) => { c.members = c.members.slice(0, 1); } });
     if (!partial.res || partial.res.error !== 'member_set') problems.push(`a settle of one member of two answered ${JSON.stringify(partial.res).slice(0, 200)}`);
+    /* ONE SIMULATION OWNER (Tyler 10-18 C): both members settle the SAME window at
+       once — each read and proposal is the whole instance — and the second commit
+       answers replayed: one ledger set, nothing paid twice. A retried window too. */
+    const exec = makeExec(db);
+    const at = h.from + 120000;
+    const planA = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+    const planB = await M.HS.readHuntSettle({ exec, user: UIDS[1], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+    if (planA.answer || planB.answer) return [...problems, `CONTROL: a member's read answered ${JSON.stringify(planA.answer || planB.answer).slice(0, 200)}`];
+    const pA = await M.HS.proposeHuntSettle(planA, planA.toMs, 0);
+    const pB = await M.HS.proposeHuntSettle(planB, planB.toMs, 0);
+    if (pA.commit.members.length !== 2 || pB.commit.members.length !== 2) problems.push('a member\'s settle did not carry the whole party');
+    const rows = async () => one(db, 'select count(*)::int from public.player_ledger where session_id = any($1::uuid[])', [h.sids]);
+    const ca = await M.HS.commitHuntSettle(exec, { ...pA.commit, project: null });
+    const after = await rows();
+    const cb = await M.HS.commitHuntSettle(exec, { ...pB.commit, project: null });
+    const again = await M.HS.commitHuntSettle(exec, { ...pA.commit, project: null });
+    if (!ca || ca.ok !== true || ca.stage === 'replayed') problems.push(`the first member's settle answered ${JSON.stringify(ca).slice(0, 200)}`);
+    if (!cb || cb.stage !== 'replayed' || !again || again.stage !== 'replayed') problems.push(`a concurrent / retried settle of the same window answered ${JSON.stringify(cb).slice(0, 120)} / ${JSON.stringify(again).slice(0, 120)}, not replayed`);
+    if (await rows() !== after || !(after > 0)) problems.push(`the ledger moved ${after} -> ${await rows()} on a replayed window`);
     await run(db, M, h.from, ticksOf(90000, SPAN_MS));
     const a = await snapshot(db, h.sids[0], UIDS[0]); const b = await snapshot(db, h.sids[1], UIDS[1]);
     if (!(a.tally.kills > 0) || a.tally.kills !== b.tally.kills) problems.push(`the party journalled kills ${a.tally.kills} / ${b.tally.kills}`);
@@ -1271,6 +1310,8 @@ const MUTANTS = [
     from: '      vs ? Number(vs.critChance) || 0 : 0);', to: '      0);' },
   { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrual.js'),
     from: "  stat('crits', stats.crits);\n", to: '' },
+  { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: join(FN, 'hunt-track.js'),
+    from: '    const k = seen.get(at) || 0;', to: '    const k = seen.size;' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/action-rules.js',
     from: '  if (hunting) return Math.max(0, v - d);', to: '  if (hunting) return v;' },
   { arm: 'STAMINA-RULE', name: 'an empty pool ends nothing', file: 'src/core/action-rules.js',

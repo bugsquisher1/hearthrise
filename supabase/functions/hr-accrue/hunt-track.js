@@ -15,6 +15,14 @@
 // [u, x, y, atMs] arrays (a 4-hero party over a 10 s tick window is ~600 steps,
 // ~15 KB as JSON).
 //
+// EVERY EVENT CARRIES A STABLE ID AND ITS SERVER INSTANT (atMs, the engine's
+// server-clock millisecond): id = "<atMs>.<k>", k its order among the events of
+// that instant. Windows are cut on swing boundaries and an instant's events all
+// come from one swing, so the same event has the same id however the windows
+// were cut — the client de-duplicates on it and keeps an animation running
+// across two overlapping responses. Visual timeline only: never authority (the
+// state sections are), never stored.
+//
 // PURE ESM, Node + Deno. No `?v=` (not under src/**).
 // ============================================================================
 
@@ -31,7 +39,14 @@ export function huntPlayback(track, events, fromMs, toMs) {
   const t = Array.isArray(track) ? track : [];
   const e = Array.isArray(events) ? events : [];
   const steps = t.slice(Math.max(0, t.length - MAX_STEPS)).map((s) => [s.u, s.x, s.y, s.atMs]);
-  const ev = e.slice(Math.max(0, e.length - MAX_EVENTS));
+  const seen = new Map();
+  const withIds = e.map((x) => {
+    const at = Math.floor(Number(x && x.atMs) || 0);
+    const k = seen.get(at) || 0;
+    seen.set(at, k + 1);
+    return Object.assign({ id: at + '.' + k }, x);
+  });
+  const ev = withIds.slice(Math.max(0, withIds.length - MAX_EVENTS));
   return {
     v: EVENT_VERSION,
     from: Math.floor(Number(fromMs) || 0),

@@ -18,16 +18,16 @@
 // long press, or the ⋯ button), dragging a stack onto a gear or bar slot, and
 // the "new" marks.
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, markSeen } from '../bag-model.js?v=0.1.0';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../bar-assign.js?v=0.1.0';
-import { runIntent } from '../intent-words.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { gold } from '../../render/format.js?v=0.1.0';
-import { itemName } from '../widgets/bits.js?v=0.1.0';
-import { showTip, hideTip } from './item-tip.js?v=0.1.0';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.1.0';
-import { stateOf, scratchOf, prefsOf, seenOf, confirmFor, junkOf } from './bag-state.js?v=0.1.0';
-import { skillsOf } from '../../session/item-sections.js?v=0.1.0';
+import { kindOf, equipSlotFor, markSeen } from '../bag-model.js?v=0.2.0';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../bar-assign.js?v=0.2.0';
+import { runIntent } from '../intent-words.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { gold } from '../../render/format.js?v=0.2.0';
+import { itemName } from '../widgets/bits.js?v=0.2.0';
+import { showTip, hideTip } from './item-tip.js?v=0.2.0';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.0';
+import { stateOf, scratchOf, prefsOf, seenOf, confirmFor, junkOf } from './bag-state.js?v=0.2.0';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.0';
 
 export const BAG_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragend', 'mouseover', 'mouseout']);

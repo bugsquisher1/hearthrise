@@ -14,22 +14,22 @@
 // (Wear). A bag stack dragged onto a slot wears it. Each is ONE `equip` intent;
 // the doll changes only when the re-read envelope replaces `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.1.0';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../data/gathering.js?v=0.1.0';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.1.0';
-import { atlasPaths } from '../../data/world/art-budget.js?v=0.1.0';
-import { heroSprite } from '../../session/hero-look.js?v=0.1.0';
-import { equipmentOf, bagOf, skillsOf, roleOf, shopOf } from '../../session/item-sections.js?v=0.1.0';
-import { partyOf } from '../../session/hunt-sections.js?v=0.1.0';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { glyphSvg } from '../launcher.js?v=0.1.0';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.1.0';
-import { compare, rarityOf } from '../bag-model.js?v=0.1.0';
-import { runIntent } from '../intent-words.js?v=0.1.0';
-import { showTip, hideTip } from './item-tip.js?v=0.1.0';
-import { needOf } from '../item-lore.js?v=0.1.0';
-import { DRAG_TYPE } from './bag-act.js?v=0.1.0';
+import { ITEMS } from '../../data/items.js?v=0.2.0';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../data/gathering.js?v=0.2.0';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.0';
+import { atlasPaths } from '../../data/world/art-budget.js?v=0.2.0';
+import { heroSprite } from '../../session/hero-look.js?v=0.2.0';
+import { equipmentOf, bagOf, skillsOf, roleOf, shopOf } from '../../session/item-sections.js?v=0.2.0';
+import { partyOf } from '../../session/hunt-sections.js?v=0.2.0';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { glyphSvg } from '../launcher.js?v=0.2.0';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.0';
+import { compare, rarityOf } from '../bag-model.js?v=0.2.0';
+import { runIntent } from '../intent-words.js?v=0.2.0';
+import { showTip, hideTip } from './item-tip.js?v=0.2.0';
+import { needOf } from '../item-lore.js?v=0.2.0';
+import { DRAG_TYPE } from './bag-act.js?v=0.2.0';
 
 /* Body order: [slot, label, empty glyph, grid cell]. */
 const DOLL = Object.freeze([

@@ -19,13 +19,13 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.1.0';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.1.0';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.1.0';
-import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.1.0';
-import { huntName } from '../session/party-sections.js?v=0.1.0';
-import { itemName } from './widgets/bits.js?v=0.1.0';
-import { whole } from '../render/format.js?v=0.1.0';
+import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.0';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.0';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.0';
+import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.0';
+import { huntName } from '../session/party-sections.js?v=0.2.0';
+import { itemName } from './widgets/bits.js?v=0.2.0';
+import { whole } from '../render/format.js?v=0.2.0';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

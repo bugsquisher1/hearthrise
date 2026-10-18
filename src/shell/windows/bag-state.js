@@ -10,11 +10,11 @@
 //                     menu and confirmation, an intent in flight. Display
 //                     only: nothing reads it but this window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../session/item-sections.js?v=0.1.0';
-import { settingsOf, analyzerOf } from '../../session/hunt-sections.js?v=0.1.0';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../bag-model.js?v=0.1.0';
-import { barKind, barIndexOf } from '../bar-assign.js?v=0.1.0';
-import { itemName } from '../widgets/bits.js?v=0.1.0';
+import { bagOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../session/item-sections.js?v=0.2.0';
+import { settingsOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.0';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../bag-model.js?v=0.2.0';
+import { barKind, barIndexOf } from '../bar-assign.js?v=0.2.0';
+import { itemName } from '../widgets/bits.js?v=0.2.0';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

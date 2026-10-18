@@ -908,6 +908,11 @@
    "replay": 14,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the hunt abilities (lane, cooldown, mana, rune / ammo cost) the bar check and the instance settle read. Rebuilt from repo, never restored; nothing player-owned."
   },
+  "hr_hunt_action_ids": {
+   "class": "seeded",
+   "replay": 51,
+   "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the consume and attack_with_item ids a slot may name (condition-metrics.js CONSUME_KINDS, consumables.js own rows, supplies.js ammo). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
+  },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
    "replay": 18,
@@ -922,6 +927,16 @@
    "class": "seeded",
    "replay": 6,
    "note": "Hand-seeded by 2026-08-08-hunt.sql: the hunt boss definitions. Rebuilt from repo, never restored."
+  },
+  "hr_hunt_condition_limits": {
+   "class": "seeded",
+   "replay": 4,
+   "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition / stop-rule bounds (condition-metrics.js MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
+  },
+  "hr_hunt_condition_metrics": {
+   "class": "seeded",
+   "replay": 9,
+   "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition metrics a bar slot or stop rule may test (src/data/condition-metrics.js METRICS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_config": {
    "class": "operator_tunable",
@@ -946,7 +961,7 @@
   },
   "hr_hunt_end_reasons": {
    "class": "seeded",
-   "replay": 9,
+   "replay": 10,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_ground_spawns": {
@@ -971,13 +986,18 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 32,
+   "replay": 36,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
    "class": "seeded",
    "replay": 3,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the activity kinds an automatic hunt end may resume (hunt-sessions.js RESUMABLE_KINDS). Rebuilt from repo, never restored."
+  },
+  "hr_hunt_role_rules": {
+   "class": "seeded",
+   "replay": 15,
+   "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the role default rule sets the settings view projects (src/data/rule-subjects.js ROLE_RULES). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_roles": {
    "class": "seeded",
@@ -986,7 +1006,7 @@
   },
   "hr_hunt_set_options": {
    "class": "seeded",
-   "replay": 11,
+   "replay": 13,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the action-set option keys and their domains (hunt-sessions.js ACTION_SET_OPTIONS), read by hr_action_set_options. Rebuilt from repo, never restored."
   },
   "hr_hunt_spawns": {

@@ -180,6 +180,17 @@ export class CharacterSession {
     return this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
   }
 
+  /**
+   * Copy THIS character's hunt settings (every action set: bar, stop rules, options)
+   * onto another of the account's characters (hr_action_set_copy). The other
+   * character's own session re-reads them; nothing changes here.
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async copyHuntSettingsTo(toSlot) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
+  }
+
   /** Leave the hunt (hr_hunt_leave): the server settles and ends it; the re-read shows the summary. */
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
@@ -191,7 +202,7 @@ export class CharacterSession {
    * server takes (ground, action set, limits, bag lines of names and counts);
    * the "Hunt again" card sends the ended hunt's own. The party is the server's.
    */
-  async enterHunt(a) {
+  async huntAgain(a) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (!a || !ITEM.test(String(a.hunt)) || !Number.isInteger(a.preset) || !Array.isArray(a.bag)) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,

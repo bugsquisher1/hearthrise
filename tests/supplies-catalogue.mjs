@@ -77,8 +77,9 @@ import { isMain as isEntryModule } from './_is-main.mjs';
 /* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check) and
    'stamina' took its place (Tyler, same day: "steal the stamina system, 1:1
    like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
-   shop supply the purse cannot pay ends the hunt). */
-const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'];
+   shop supply the purse cannot pay ends the hunt). `rule` (Tyler 2026-10-18, the
+   conditional action engine): one of the hero's own stop rules held. */
+const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'stamina_low', 'cover', 'ended'];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked

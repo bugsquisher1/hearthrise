@@ -74,13 +74,23 @@ function contract(R, cs, body, tl) {
     'the timeline holds no steps from hunt_track: ' + JSON.stringify(body.hunt_track && body.hunt_track.slice(0, 2)));
   need('hunt_events', Array.isArray(body.hunt_events) && body.hunt_events.length > 0 && body.hunt_events.every((e) => typeof e.id === 'string' && Number.isSafeInteger(e.atMs)),
     'hunt_events is not [{id, type, atMs}]');
+  /* The decision events the hunt summary reads (lane action-engine): a rule id on the events a slot decided, and
+     every rule_wait as { u, t, rule, why }. */
+  const evs = Array.isArray(body.hunt_events) ? body.hunt_events : [];
+  need('hunt_events', evs.some((e) => ['cast', 'eat', 'drink', 'shot'].includes(e.type) && typeof e.rule === 'string' && e.rule.length > 0)
+    && evs.filter((e) => e.type === 'rule_wait').every((e) => [e.u, e.t].every(Number.isInteger) && typeof e.rule === 'string' && typeof e.why === 'string'),
+    'hunt_events carry no slot decision with a rule id, or a rule_wait is malformed: ' + JSON.stringify(evs.filter((e) => e.type === 'cast' || e.type === 'rule_wait').slice(0, 3)));
   need('hunt_server_now_ms', Number.isSafeInteger(body.hunt_server_now_ms) && body.hunt_server_now_ms > 0, 'hunt_server_now_ms is ' + body.hunt_server_now_ms);
   // hunt_settings
   const s = R.HS.settingsOf(cs);
   need('hunt_settings', !!s, 'settingsOf reads nothing: ' + JSON.stringify(body.hunt_settings).slice(0, 240));
   if (s) {
-    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'foodPct', 'drinkPct', 'supplySource', 'onEmpty']);
+    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'foodPct', 'drinkPct', 'supplySource', 'onEmpty', 'density', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
+    /* The action engine (2026-10-25): every slot in the wire shape, the stored density pick read back, the gathering share marked inert. */
+    need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
+      && s.slots.some((x) => !x.empty && x.action.type === 'consume') && s.density === 2 && s.gatherInert === true && s.stopRules.length === 1,
+      'settingsOf slots / density / gather / stop rules: ' + JSON.stringify({ density: s.density, inert: s.gatherInert, stops: s.stopRules, slots: s.slots.slice(0, 3) }).slice(0, 300));
   }
   // hunt_analyzer
   const a = R.HS.analyzerOf(cs);
@@ -219,7 +229,8 @@ async function readers(root) {
 
 /* The real body: a premium two-hero party, six minutes settled, then ONE player-door settle. */
 async function realBody(db, M, H) {
-  const P = { ...H.STRONG, premium: true, options: { food_below_pct: 40 } };
+  const P = { ...H.STRONG, premium: true, options: { food_below_pct: 40, density: 2, gather_share: 10,
+    stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
   const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }] });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
   const poses = [];
@@ -270,6 +281,8 @@ const DB_MUTANTS = [
   ['stamina', 'public.hr_stamina_view(uuid,integer)', "'max_ms'", "'maxms'"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'food_pct', v_eff", "'foodpct', v_eff"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
+  ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'density', v_eff->'density',", "'monster_density', v_eff->'density',"],
+  ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],
   ['premium', 'public.hr_premium_view(uuid,integer)', "'active'", "'is_active'"],

@@ -3,7 +3,9 @@
 //
 // Hunts are idle (Tyler 2026-10-16): there is no press path. Each sub-step,
 // every living hero in a fight regenerates mana, then fires the FIRST usable
-// ability in its bar order (AB-10). An ability is usable when:
+// ability SLOT in its bar order (AB-10; the condition engine,
+// src/core/hunt/conditions.js: a slot whose conditions fail falls through to
+// the next). An ability is usable when:
 //   it is active and its action set does not skip it (AB-11),
 //   its own cooldown and its lane are ready (AB-01/02),
 //   the hero has the mana (AB-12), its rune and its shots resolve — own line
@@ -20,8 +22,9 @@
 // the fields damage.js reads: `markBy`/`markUntil`, `vulnUntil`, `shield`.
 // Magic XP is H5's: each `cast` event carries `mana` and `magicXpMult`.
 //
-// INJECTED: `inst.heroes[unitId]` = { hs, bar: [abilityId…], actionSet,
-// range (tiles; 1 = Melee), ammo (the loaded ammo item id) }. A hero with no
+// INJECTED: `inst.heroes[unitId]` = { hs, slots (conditions.js heroSlots rows)
+// or bar (ability ids, the shorthand), actionSet, range (tiles; 1 = Melee),
+// ammo (the loaded ammo item id), items? (the server's item catalogue) }. A hero with no
 // entry fires nothing. Draws: the swing's stream `sc.rng`, heroes in id order,
 // one `int` per hit roll (spec §1.1 #3).
 //
@@ -37,6 +40,7 @@ import { applyStatus, statusRow } from './status.js?v=0.2.0';
 import { markHealed } from './consumables.js?v=0.2.0';
 import { ammoPerShot } from '../ammo.js?v=0.2.0';
 import { ITEMS } from '../../data/items.js?v=0.2.0';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.0';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -62,8 +66,11 @@ export function inReach(inst, hero, range, t) {
 const byPreference = (hero) => (a, b) => ((b.id === hero.target) - (a.id === hero.target))
   || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id);
 
-/* The target an ability would take now, or null (AB-03). Pure. */
-function targetFor(inst, hero, h, row, sc) {
+/* The target an ability would take now, or null (AB-03). Pure. Its trigger
+   (whenBelowPct, areaMin) is the slot's DEFAULT CONDITION (conditions.js), so
+   here a self-shield only needs a wound, an ally heal the ally its conditions
+   named (else the lowest wounded one in reach) and an area its best aim. */
+function targetFor(inst, hero, h, row, sc, cx) {
   const mons = engaged(inst);
   const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
@@ -75,14 +82,17 @@ function targetFor(inst, hero, h, row, sc) {
     }
     case 'enemy': case 'cleave': return near[0] || null;
     case 'area': {
-      const around = (c) => mons.filter((o) => cheb(o, c) <= 1).length;
-      const c = near.slice().sort((a, b) => (around(b) - around(a)) || (a.id - b.id))[0];
-      return c && around(c) >= ABILITY_RULES.areaMin ? c : null;
+      if (cx && cx.aim && cx.aim.alive) return cx.aim;
+      const b = bestAim(inst, hero, h.range, 3);
+      return b && b.count >= 1 ? b.aim : null;
     }
-    case 'self': return pct(hero) < row.whenBelowPct && !(int(hero.shield) > 0) ? hero : null;
-    case 'ally': return living(inst, 'hero').filter((a) => pct(a) < row.whenBelowPct && (a === hero || inReach(inst, hero, h.range, a)))
-      .sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
-    case 'party': return living(inst, 'hero').filter((a) => pct(a) < row.whenBelowPct).length >= row.minHurt ? hero : null;
+    case 'self': return pct(hero) < 100 && !(int(hero.shield) > 0) ? hero : null;
+    case 'ally': {
+      const ok = (a) => !!a && a.alive && a.side === 'hero' && pct(a) < 100 && (a === hero || inReach(inst, hero, h.range, a));
+      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
+      return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
+    }
+    case 'party': return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
     default: return null;
   }
 }
@@ -96,7 +106,7 @@ function suppliesFor(h, row) {
     lines.push(l);
   }
   /* The free rung (ammoPerShot 0): a loaded stack of it never depletes, so a cast needs no shot lines. */
-  const freeShot = !!h.ammo && ammoPerShot(ITEMS[h.ammo]) === 0 && int(h.hs.bag && h.hs.bag[h.ammo] && h.hs.bag[h.ammo].left) > 0;
+  const freeShot = !!h.ammo && ammoPerShot(itemRow(h, h.ammo)) === 0 && int(h.hs.bag && h.hs.bag[h.ammo] && h.hs.bag[h.ammo].left) > 0;
   if (row.ammo > 0 && !freeShot) {
     if (!h.ammo) return { why: 'no_ammo' };
     /* Own shots first, the rest from the store shot behind the line (one resolver). */
@@ -127,20 +137,30 @@ export function gateOf(hero, h, row, atMs) {
   return null;
 }
 
-/** The first usable ability in bar order for `hero`, with its target and supply lines, or null. */
+/**
+ * The first usable ability slot for `hero` (conditions.js pickSlot: slot order,
+ * then the fallback): its lane, cooldown and mana open, its conditions passing,
+ * a target, its supplies. Answers { row, target, lines, rule, mask } or null.
+ */
 export function firstUsable(inst, hero, sc) {
   const h = hero && inst.heroes && inst.heroes[hero.id];
-  if (!h || !h.hs || !Array.isArray(h.bar)) return null;
-  for (const id of h.bar) {
-    const row = ABILITIES[id];
-    if (gateOf(hero, h, row, sc.atMs)) continue;
-    const t = targetFor(inst, hero, h, row, sc);
-    if (!t) continue;
+  if (!h || !h.hs) return null;
+  /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
+     One whose conditions pass but that waits on its cooldown, mana, stock or a target
+     in reach is the lane's `rule_wait` (conditions.js noteWait). */
+  const rows = slotsFor(h, 'ability').filter((r) => gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
+  const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
+    const row = ABILITIES[slot.action.id];
+    const gate = gateOf(hero, h, row, sc.atMs);
+    if (gate === 'cooldown' || gate === 'mana') return { why: gate };
+    if (gate) return null;
+    const t = targetFor(inst, hero, h, row, sc, cx);
+    if (!t) return { why: cx && (cx.ally || cx.aim) ? 'out_of_range' : 'no_target', t: cx && cx.ally ? cx.ally.id : undefined };
     const s = suppliesFor(h, row);
-    if (s.why) { if (s.short) h.hs.goldOut = true; continue; }
+    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }
     return { row, target: t, lines: s.lines };
-  }
-  return null;
+  }, sc, 'ability');
+  return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
@@ -207,7 +227,8 @@ export function fire(inst, u, pick, sc) {
   /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. */
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
-  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult, source, gold }));
+  sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult, source, gold,
+    ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
   effect(inst, u, row, pick.target, sc);
   return true;
 }
@@ -234,11 +255,13 @@ export function payBasic(inst, hero, cost, sc) {
   }
   if (c.ammo) {
     const h = inst.heroes && inst.heroes[hero.id];
-    const l = h && h.ammo ? resolveLine(h.hs, h.ammo, 1) : { why: 'none' };
+    /* `ammo`: true = the loaded ammo; an id = the attack item a slot chose (one unit a shot). */
+    const id = typeof c.ammo === 'string' ? c.ammo : (h && h.ammo);
+    const l = h && id ? resolveLine(h.hs, id, 1) : { why: 'none' };
     if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }
     /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
        ladder): a loaded stack of it looses its shot and never depletes. */
-    if (l.source === 'own' && ammoPerShot(ITEMS[l.id]) === 0) return true;
+    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return true;
     if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
   }
   return true;

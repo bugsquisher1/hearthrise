@@ -180,13 +180,13 @@ async function runTests(M) {
     const calls = [];
     const cs = sessionOn(calls, () => endedEnv(8));
     const args = MD.huntAgainOf(MD.buildSummary(ended(), null, []));
-    const r = await cs.enterHunt(args);
+    const r = await cs.huntAgain(args);
     ok(r.ok, 'the intent was accepted');
     const enters = calls.filter((c) => c.name === 'hr_hunt_enter');
     eq(enters.length, 1, 'exactly one enter');
     eq(enters[0].args, { p_slot: 0, p_hunt: 'mill_cellar', p_bag: args.bag, p_preset: 1, p_falls: 3, p_hours: 2, p_idem: enters[0].args.p_idem }, 'the same ground, set, limits and bag');
     const before = calls.length;
-    const bad = await cs.enterHunt({ hunt: 'Bad Id', preset: 0, bag: [] });
+    const bad = await cs.huntAgain({ hunt: 'Bad Id', preset: 0, bag: [] });
     ok(!bad.ok && calls.length === before, 'a call missing its ground sends nothing');
   });
 

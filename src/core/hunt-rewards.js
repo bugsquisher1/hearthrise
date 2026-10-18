@@ -30,6 +30,7 @@
 
 import { MONSTERS } from '../data/monsters.js?v=0.2.0';
 import { rollDropTable } from './drops.js?v=0.2.0';
+import { yieldOf } from './hunt/damage.js?v=0.2.0';
 import { applyGoldFind } from './pacing.js?v=0.2.0';
 import { hitXpRoute, killXpRoute } from './styles.js?v=0.2.0';
 import { resolveHearthfind } from './hearthfind.js?v=0.2.0';
@@ -51,18 +52,21 @@ function countKill(m, kind) {
 
 /* A monster kill's gold and drops, split across `present` (members in unit-id
    order), and the Hearthfind for `killer`. */
-function payKill(present, killer, kind, ctx) {
+function payKill(present, killer, kind, ctx, yieldPm) {
   const row = (ctx.monsters || MONSTERS)[kind];
   if (!row) return;
   const rng = ctx.rng;
-  const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
+  /* THE YIELD SHARE (hunt-grounds.js yieldPermille): coin, every drop chance and the Hearthfind
+     roll pay `y` of the row's, the same draws in the same order. */
+  const y = yieldPm / 1000;
+  const gp = Array.isArray(row.gp) ? Math.round(rng.int(row.gp[0], row.gp[1]) * y) : 0;
   const shares = splitEven(Math.max(0, gp), present.length);
   present.forEach((m, i) => {
     const g = applyGoldFind(shares[i], m.bonus);
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
   const lead = killer || present[0];
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), yieldMult: y }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   rolled.events.forEach((ev, k) => {
     const m = present[itemOwner(k, present.length, offset)];
@@ -73,6 +77,11 @@ function payKill(present, killer, kind, ctx) {
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
+  /* A scaled kill's Hearthfind is THINNED, never boosted, and never inside the roll
+     (tests/hearthfind-mint-guard.mjs: rollHearthfind takes no modifier): a kill paying
+     y < 1 of its yield first passes a y chance, then makes the untouched roll, so the
+     find lands at y / oneIn. A full-yield kill draws exactly as before. */
+  if (y < 1 && !rng.chance(y)) return;
   const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
@@ -114,7 +123,7 @@ export function rewardSwing(members, events, world, ctx) {
         if (!t) break;
         if (t.side === 'mon') {
           const heroes = present();
-          if (heroes.length) payKill(heroes, members.get(ev.u) || null, t.kind, ctx);
+          if (heroes.length) payKill(heroes, members.get(ev.u) || null, t.kind, ctx, yieldOf(t));
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
           falls.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });

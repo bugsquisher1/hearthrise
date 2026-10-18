@@ -80,9 +80,10 @@ function conditionOf(c) {
    src/data/condition-metrics.js), plus its display fields (usable, mana, count). */
 function slotOf(s) {
   if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
-  const conditions = list(s.conditions, conditionOf, 3);
+  const conditions = list(s.conditions, conditionOf, 4);
   return {
-    empty: false, item: s.action.id, action: { type: s.action.type, id: s.action.id },
+    /* `id`: the rule's STABLE id (the server's; the hunt summary names a decision by it). */
+    empty: false, id: str(s.id), item: s.action.id, action: { type: s.action.type, id: s.action.id },
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
   };
@@ -106,6 +107,10 @@ export function settingsOf(cs) {
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
+    /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
+    density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
+    stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
+    grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
   };
 }

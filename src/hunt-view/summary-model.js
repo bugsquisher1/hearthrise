@@ -28,6 +28,7 @@ export const END_WORDS = Object.freeze({
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
   gold_out: 'You ran out of gold to buy supplies.',
+  rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out.',
   hours: 'The hunt reached its time limit.',
   left: 'You left the hunt.',

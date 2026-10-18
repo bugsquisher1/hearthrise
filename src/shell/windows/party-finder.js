@@ -9,7 +9,7 @@
 // answer held as window scratch — never the record, and nothing can spend them:
 // Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.0';
+import { HUNT_GROUNDS, MIN_PARTY_NOTE } from '../../data/hunt-grounds.js?v=0.2.0';
 import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.0';
 import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.0';
 import { finderRows, huntName } from '../../session/party-sections.js?v=0.2.0';
@@ -45,6 +45,8 @@ export function finderHtml() {
     + '<div class="hw-add hw-find-party"><select class="hh-select" data-hs-act="find-hunt" aria-label="Hunt"><option value="">Any hunt</option>' + grounds + '</select>'
     + '<select class="hh-select" data-hs-act="find-weapon" aria-label="Parties with"><option value="">Any party</option>' + weapons + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="find">Search</button></div>'
+    /* A ground with a party-only pocket (minParty: the Rat King) says so, from its data row. */
+    + Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.minParty)).map((g) => '<p class="hh-note">' + esc(MIN_PARTY_NOTE) + '</p>').join('')
     + '<ul class="hw-ledger hw-found"></ul><p class="hh-empty hw-found-none"></p>';
 }
 

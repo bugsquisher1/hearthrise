@@ -4,9 +4,12 @@
 // One sub-step hook, `consume(inst, sc)`, for every living hero:
 //   1. its over-time halves tick (one tick a CONSUMABLE_RULES.overTimeTickMs);
 //   2. while the ONE food-and-drink lane is locked, nothing more;
-//   3. under the drink threshold (and no drink still ticking) it DRINKS;
-//   4. else under the food threshold, with no heal in the last noHealWindowMs
-//      (and no food still ticking), it EATS.
+//   3. its consume SLOTS are walked in order (conditions.js): the first whose
+//      conditions pass and that has something to use fires. With no consume
+//      slot on its bar the defaults stand: drink under drink_below_pct, then
+//      eat under food_below_pct (the eat-at / drink-at options ARE these slots'
+//      values: one system). A drink waits while one still ticks; food also
+//      waits noHealWindowMs after a heal landed.
 // Food restores HP and drink restores mana, never both (no potions). Each use
 // lands instantPct now and the rest over overTimeMs, in whole ticks; the last
 // tick carries the remainder, so a use restores exactly its amount (capped at
@@ -19,14 +22,16 @@
 // with nothing to eat simply keeps fighting: running out never stops a hunt.
 //
 // INJECTED, never read from a global: `inst.heroes[unitId]` (from the settle's
-// swingCtx.heroes) = { hs, foodBelowPct, drinkBelowPct } — `hs` is that
+// swingCtx.heroes) = { hs, slots, foodBelowPct, drinkBelowPct } — `hs` is that
 // member's hunt session (bag, shop, purse, tally; the server's rows). A hero
 // with no entry has no supplies and eats nothing.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS } from '../../data/consumables.js?v=0.2.0';
+import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.0';
+import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.0';
+import { slotsFor, pickSlot } from './conditions.js?v=0.2.0';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.0';
 import { makeEvent } from './events.js?v=0.2.0';
 
@@ -68,26 +73,9 @@ function tickOverTime(u, atMs) {
   }
 }
 
-/* Is `u` under `pct` percent of its `stat`? Integer compare, no floats. */
-const under = (u, stat, pct) => int(u[MAX_OF[stat]]) > 0 && int(u[stat]) * 100 < pct * int(u[MAX_OF[stat]]);
-const pctOf = (v, d) => (Number.isInteger(v) && v >= 0 && v <= 100 ? v : d);
-
-/**
- * One food-or-drink decision for one hero at `atMs`: what it would use, or why
- * not. Pure: mutates nothing. `kind` is 'drink' or 'food'.
- */
-export function wants(u, hero, kind, atMs) {
-  const stat = CONSUMABLE_KINDS[kind].stat;
-  if (u[OT_KEY[stat]]) return { why: 'ticking' };
-  const below = kind === 'drink' ? pctOf(hero.drinkBelowPct, R.drinkBelowPct) : pctOf(hero.foodBelowPct, R.foodBelowPct);
-  if (!under(u, stat, below)) return { why: 'above' };
-  if (kind === 'food' && u.healedAt !== null && u.healedAt !== undefined && atMs - u.healedAt <= R.noHealWindowMs) return { why: 'healed' };
-  const line = resolveLine(hero.hs, CONSUMABLE_KINDS[kind].supply, int(u[MAX_OF[stat]]) - int(u[stat]));
-  return line.id && !line.why ? { line } : line;
-}
-
-/* Use one line: pay for it, land the instant half, queue the rest. */
-function use(u, hero, kind, line, sc) {
+/* Use one line: pay for it, land the instant half, queue the rest. `d` is the
+   decision (its rule id and the conditions that passed). */
+function use(u, hero, kind, line, sc, d) {
   if (!takeLine(hero.hs, line, sc.atMs)) return false;
   const stat = CONSUMABLE_KINDS[kind].stat;
   const amount = lineAmount(hero.hs, line);
@@ -98,11 +86,33 @@ function use(u, hero, kind, line, sc) {
   u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.overTimeTickMs, ticks] : null;
   u.laneAt = sc.atMs + R.laneMs;
   sc.emit(makeEvent(kind === 'drink' ? 'drink' : 'eat', sc.atMs,
-    { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed }));
+    { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed,
+      ...(d && typeof d.rule === 'string' ? { rule: d.rule, rule_label: d.label, pass: d.mask } : {}) }));
   return true;
 }
 
-/** Consumable hook: each hero eats or drinks by its thresholds; own stock first, then the store. */
+/* What a consume slot's action would use now (its conditions already passed), or
+   why not. `id` is a KIND ('food' | 'drink': the best line of it, own first, then
+   the store) or one own item (its own stack only: none left falls back). */
+function slotWants(u, hero, id, atMs) {
+  const kind = CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
+  if (!kind) return { why: 'none' };
+  const stat = CONSUMABLE_KINDS[kind].stat;
+  if (u[OT_KEY[stat]]) return { kind, why: 'ticking' };
+  if (kind === 'food' && u.healedAt !== null && u.healedAt !== undefined && atMs - u.healedAt <= R.noHealWindowMs) return { kind, why: 'healed' };
+  if (!CONSUME_KINDS[id]) {
+    const l = hero.hs.bag && hero.hs.bag[id];
+    return l && int(l.left) > 0 ? { kind, line: { id, source: 'own', price: 0 } } : { kind, why: 'none' };
+  }
+  const line = resolveLine(hero.hs, CONSUMABLE_KINDS[kind].supply, int(u[MAX_OF[stat]]) - int(u[stat]));
+  return line.id && !line.why ? { kind, line } : Object.assign({ kind }, line);
+}
+
+/**
+ * Consumable hook: while the ONE food-and-drink lane is free, each hero walks its
+ * consume slots in order (conditions.js; its defaults are drink-at, then eat-at)
+ * and uses the first whose conditions pass and that has something to use.
+ */
 export function consume(inst, sc) {
   const heroes = inst.heroes || null;
   for (const u of inst.world.units) {
@@ -111,14 +121,15 @@ export function consume(inst, sc) {
     if (int(u.laneAt) > sc.atMs) continue;
     const hero = heroes && heroes[u.id];
     if (!hero || !hero.hs) continue;
-    /* Drink first (spec §3.4 #4), then food; one use per lane. */
-    for (const kind of ['drink', 'food']) {
-      const w = wants(u, hero, kind, sc.atMs);
+    const got = pickSlot(inst, u, hero, slotsFor(hero, 'consume'), (slot) => {
+      const w = slotWants(u, hero, slot.action.id, sc.atMs);
       /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
          a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
          swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
-      if (w.why === 'gold_short') { if (kind === 'food') hero.hs.goldOut = true; continue; }
-      if (w.line && use(u, hero, kind, w.line, sc)) break;
-    }
+      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }
+      if (w.line) return w;
+      return { why: w.why === 'ticking' || w.why === 'healed' ? 'busy' : 'no_stock' };
+    }, sc, 'consume');
+    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
   }
 }

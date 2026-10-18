@@ -33,9 +33,13 @@ const SCRATCH = new WeakMap();   // CharacterSession -> { open: index|null, draf
 /* Where each action type's ids come from (catalogue rows; the server validates the pick). */
 const ACTION_IDS = Object.freeze({
   abilities: () => Object.keys(ABILITIES).map((id) => [id, abilityName(id)]),
-  supplies: () => Object.keys(ITEMS).filter((id) => ITEMS[id].heals > 0).concat(Object.keys(DRINK_ITEMS)).map((id) => [id, itemName(id)]),
+  /* A kind first (the best line of it: own stock, then the store), then single items. */
+  supplies: () => [['food', 'Any food'], ['drink', 'Any drink']].concat(Object.keys(ITEMS).filter((id) => ITEMS[id].heals > 0).concat(Object.keys(DRINK_ITEMS)).map((id) => [id, itemName(id)])),
   ammo: () => Object.keys(ITEMS).filter((id) => /_(arrows|rune)$/.test(id)).map((id) => [id, itemName(id)]),
 });
+
+/* A consume slot that names a kind, in words. */
+const KIND_WORDS = Object.freeze({ food: 'Any food', drink: 'Any drink' });
 
 /* Plain words for the server's validation codes. */
 const REFUSAL = Object.freeze({
@@ -45,6 +49,10 @@ const REFUSAL = Object.freeze({
   bad_op: 'That comparison does not fit this test.',
   bad_value: 'That value is out of range.',
   bad_action: 'This slot cannot do that action.',
+  bad_subject: 'That choice of whose value does not fit this test.',
+  bad_join: 'Choose all or any.',
+  bad_slot: 'The server refused this slot.',
+  too_many_slots: 'The bar is full.',
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   rate_limited: 'Too many changes at once. Try again in a moment.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
@@ -80,7 +88,7 @@ function valueWords(c) {
 function slotWords(w) {
   if (!w) return 'Empty';
   const act = (ACTION_TYPES[w.action.type] || { label: w.action.type }).label + ': '
-    + (w.action.type === 'ability' ? abilityName(w.action.id) : itemName(w.action.id));
+    + (w.action.type === 'ability' ? abilityName(w.action.id) : KIND_WORDS[w.action.id] || itemName(w.action.id));
   if (!w.conditions.length) return 'ALWAYS ' + act;
   const conds = w.conditions.map((c) => {
     const m = METRIC.get(c.metric);

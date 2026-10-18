@@ -1396,7 +1396,8 @@ function memberSide(mi, ctx) {
       bonus, weakness, rollsVs,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,
-        bar: h.bar || [], actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
+        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0,
+        actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },
   };
@@ -1446,7 +1447,7 @@ export function accrueHunt(inp) {
   const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
   const sim = simulateHuntInstance(
     { world: world0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
-    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters });
+    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];

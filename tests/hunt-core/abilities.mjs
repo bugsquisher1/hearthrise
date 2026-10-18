@@ -163,7 +163,7 @@ const mutants = [
   { name: 'an active ability names a rune no bag can hold', case: 'rows-validate',
     edits: [['src/data/abilities.js', "    dmg: [2, 4], hits: 2, status: 'bleed', active: false }),", "    dmg: [2, 4], hits: 2, status: 'bleed' }),"]] },
   { name: 'the bar fires its last usable ability', case: 'first-usable-in-order',
-    edits: [['src/core/hunt/abilities.js', '  for (const id of h.bar) {', '  for (const id of h.bar.slice().reverse()) {']] },
+    edits: [['src/core/hunt/abilities.js', "  const rows = slotsFor(h, 'ability').filter(", "  const rows = slotsFor(h, 'ability').reverse().filter("]] },
   { name: 'a cast does not lock its lane', case: 'lane-blocks-second-cast',
     edits: [['src/core/hunt/abilities.js', "  if (readyAt(hero.lanes, row.lane) > atMs) return 'lane';", '']] },
   { name: 'a cast does not set its cooldown', case: 'cd-set',

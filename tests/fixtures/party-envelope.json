@@ -300,7 +300,12 @@
           null,
           null,
           null
-        ]
+        ],
+        "density": 1,
+        "gather_share": 0,
+        "gather_inert": true,
+        "stop_rules": [],
+        "grounds": []
       },
       "party": {
         "id": "aaaaaaaa-0000-4000-8000-000000000001",

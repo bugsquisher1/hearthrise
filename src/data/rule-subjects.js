@@ -53,6 +53,26 @@ export const ROLE_DEFAULTS = Object.freeze({
   mage: Object.freeze({ dist: 6, tmode: 'follow', stance: 'balanced', chase: true }),
 });
 
+/* THE ROLE DEFAULT RULE SETS (the action engine, Tyler 2026-10-18): the ability
+   slots a hero fights with while its bar holds none of its own, in priority
+   order, in the slot wire shape (src/data/condition-metrics.js). A slot with no
+   conditions takes its ability's own trigger (src/core/hunt/conditions.js
+   defaultConditions). The HEALER attacks only when nobody needs healing (Tyler
+   P1, the solo healer): Nature's Wrath waits while any ally in reach is under
+   70%, so its mana goes to Greater Mend first; its free basic attack never
+   waits. The server projects these as the default bar (hr_hunt_role_rules,
+   2026-10-25-action-conditions.sql, pinned equal by tests/hunt-core/conditions.mjs). */
+const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id, action: Object.freeze({ type: 'ability', id }),
+  conditions: Object.freeze((conditions || []).map((c) => Object.freeze(c))), join: join || 'and' });
+export const ROLE_RULES = Object.freeze({
+  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),
+  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),
+  ranger: Object.freeze([slot('hunters_mark'), slot('flame_volley'), slot('precision_shot')]),
+  mage: Object.freeze([slot('fireball'), slot('frost_lance'), slot('arcane_barrier')]),
+  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'),
+    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),
+});
+
 /* An action set: up to `presets` per character, each a bar of up to `slots`
    ability ids (Huntera's two rows of ten) plus its options. */
 export const ACTION_SET_LIMITS = Object.freeze({ presets: 5, slots: 20 });

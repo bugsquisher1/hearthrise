@@ -33,6 +33,7 @@ import * as abilities from './abilities.js?v=0.2.0';
 import * as status from './status.js?v=0.2.0';
 import * as consumables from './consumables.js?v=0.2.0';
 import * as xpShare from './xp-share.js?v=0.2.0';
+import * as conditions from './conditions.js?v=0.2.0';
 
 export const WORLD_VERSION = 1;
 
@@ -43,7 +44,7 @@ const BASE = Object.freeze({
   pack: [['aggro', 'bool'], ['holder', 'int?']],
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
-  damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED];
+  damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED];
 
 function compose(part) {
   const out = []; const seen = new Set();

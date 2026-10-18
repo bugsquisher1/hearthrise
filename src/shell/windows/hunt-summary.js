@@ -128,7 +128,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];
     const args = huntAgainOf(cur);
-    if (args) runIntent(sc, repaint, () => cs.enterHunt(args), 'Setting out…', () => 'Setting out.');
+    if (args) runIntent(sc, repaint, () => cs.huntAgain(args), 'Setting out…', () => 'Setting out.');
     return true;
   }
   return false;

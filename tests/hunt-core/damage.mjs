@@ -102,7 +102,7 @@ const cases = {
 };
 
 const mutants = [
-  { name: 'the element is ignored', case: 'weak-resist-immune', edits: [[D, '  const el = elementOn(target, element);', '  const el = 1000;']] },
+  { name: 'the element is ignored', case: 'weak-resist-immune', edits: [[D, '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? 1000 : 1000;']] },
   { name: 'immune still takes damage', case: 'weak-resist-immune', edits: [[D, '  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };', '']] },
   { name: 'defence is ignored', case: 'def-reduction', edits: [[D, "  if (target.side === 'mon') n -= defenceReduction(MONSTERS[target.kind]);\n", '']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },
@@ -112,7 +112,7 @@ const mutants = [
   { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));", '      element: element || null, ...(crit ? { crit: true } : {}) }));']] },
   { name: 'a fallen hero is not knocked out', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', '  u.downMs = KNOCKOUT_MS;', '  u.downMs = 0;']] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
-  { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, '  u.swingLeftMs = COMBAT_BALANCE.tickMs;', '  u.swingLeftMs = 0;']] },
+  { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },
 ];
 
 await suite('hunt-core/damage', cases, mutants);

@@ -5,11 +5,13 @@
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.0';
+import { densityFor } from '../data/hunt-grounds.js?v=0.2.0';
 import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.0';
 import { ABILITIES } from '../data/abilities.js?v=0.2.0';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.0';
 import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.0';
 import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.0';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.0';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -22,13 +24,13 @@ const disciplineBar = (d) => Object.values(ABILITIES).filter((a) => a.discipline
 /**
  * A CHARACTER'S HERO IN A HUNT, from server-read values only (spec §3.2 #1,
  * §3.7): its role from the equipped weapon TYPE (never the outfit), a staff's
- * Mage / Healer pick from its options; its bar, the stored order of its
- * discipline's abilities (any other id is dropped; empty = the discipline's
- * own order); its settings, the stored options over its role's defaults for
- * this party (`partyRoles`, roles.defaultSettings). Null when the weapon has
- * no role.
+ * Mage / Healer pick from its options; its bar, the stored slots (conditions.js:
+ * an ability outside its discipline is dropped; a lane the bar leaves empty
+ * takes its defaults); its stop rules, density and settings, the stored options
+ * over its role's defaults for this party (`partyRoles`, roles.defaultSettings).
+ * Null when the weapon has no role.
  *
- * @param o { weaponType, options (player_action_sets.options), bar (ability ids), partyRoles }
+ * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles }
  */
 export function heroSetup(o) {
   const opt = (o && o.options && typeof o.options === 'object') ? o.options : {};
@@ -36,13 +38,21 @@ export function heroSetup(o) {
   if (!role) return null;
   const row = HUNT_ROLES[role];
   const allowed = disciplineBar(row.discipline);
-  const stored = Array.isArray(o.bar) ? o.bar.filter((id) => allowed.includes(id)) : [];
   const roles = Array.isArray(o.partyRoles) && o.partyRoles.length ? o.partyRoles : [role];
   const d = defaultSettings(role, roles);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
+  const stops = Array.isArray(opt.stop_rules) && !stopRulesProblem(opt.stop_rules) ? opt.stop_rules : [];
   return {
     role,
-    bar: stored.length ? stored : allowed,
+    /* THE BAR as the engine runs it (conditions.js heroSlots): the stored slots the
+       hero's discipline can act on, then each empty lane's defaults (ROLE_RULES,
+       drink-at then eat-at). */
+    slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
+    stopRules: heroStopRules(stops),
+    /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */
+    density: Number.isInteger(opt.density) ? opt.density : 0,
+    /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */
+    gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),
     range: row.range,
     maxMana: row.mana,
@@ -82,7 +92,9 @@ export function newHuntWorld(ground, grid, party) {
   const roles = party.map((h) => h.role);
   const units = party.map((h, i) => heroUnit(i + 1, h, roles, ground.start[i]));
   const world = makeWorld({ ground: ground.id, swing: 0, leader: pickLeader(units), phase: PHASE.TRAVEL,
-    routeIdx: 0, nextId: units.length + 1, packs: ground.pockets.map(() => ({ aggro: false, holder: null })) });
+    routeIdx: 0, nextId: units.length + 1, packs: ground.pockets.map(() => ({ aggro: false, holder: null })),
+    /* MONSTER DENSITY: the members' smallest pick, clamped to the ground for this party size (each hero's `density`). */
+    density: densityFor(ground, party.length, party.map((h) => h.density)) });
   world.units = units;
   const inst = { world, ground, grid, occ: null, makeUnit };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);

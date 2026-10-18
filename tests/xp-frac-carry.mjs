@@ -538,7 +538,8 @@ function slimeHunt(L, { skills, boost, sink, spanMs }) {
   const member = { key: 'x', seat: 0, unitId: null, hs: huntSessionFor({ fromMs: FROM, onEmpty: 'end' }), state, fx: ctx.fx,
     style: ctx.style, bonus: ctx.bonus, weakness: (m) => ctx.weakness(m),
     snapshot: () => { const rr = ctx.playerRolls(slime); return { acc: Math.round(rr.accuracy * 1000), maxHit: Math.max(1, rr.maxHit), def: 99 }; },
-    hero: { role: hero.role, maxMana: hero.maxMana, settings: hero.settings, bar: [], actionSet: 'hunt', range: hero.range, ammo: null } };
+    hero: { role: hero.role, maxMana: hero.maxMana, settings: hero.settings, slots: hero.slots.filter((r) => r.slot.action.type !== 'ability'),
+      actionSet: 'hunt', range: hero.range, ammo: null } };
   const sim = L.sim.simulateHuntInstance({ world: null, nextSwingAtMs: FROM, members: [member] }, {
     toMs: FROM + spanMs, tickMs: 2000, seed: seederFor(secretOf(SEED), FIXTURE_INSTANCE),
     ground: fixtureGround(['slime'], {}), grid: FIXTURE_GRID, monsters: L.MONSTERS });

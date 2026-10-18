@@ -66,6 +66,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const MIG = '2026-10-21-hunt-sessions.sql';
 const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
+/* The FORWARD catalogue the generator writes today: the applied ones are history and are
+   superseded wholesale by this one, later in the chain. */
+const { OUT_NAME: CAT_NOW } = await import('../tools/gen-hunt-sessions.mjs');
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
@@ -349,8 +352,10 @@ const ARMS = {
    reads a dropped name planted on the chain, a second apply of the file REFUSES
    ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
-const STAGED = ['2026-10-23-hunt-sessions-catalogue.generated.sql', '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
-  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'];
+const STAGED = [CAT_NOW, '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
+  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql',
+  /* lane action-engine: restates hr_hunt_bar_check / _settle_session / _open_session / _settings_view after them */
+  '2026-10-25-action-conditions.sql'];
 async function d1(db) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'

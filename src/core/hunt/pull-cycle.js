@@ -28,6 +28,7 @@ import { KNOCKOUT_MS } from '../../data/hunt-sessions.js?v=0.2.0';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.0';
 import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.0';
 import { resumeHpFor } from '../recovery.js?v=0.2.0';
+import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.0';
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.0';
 import { inArea, resetPack } from './leash.js?v=0.2.0';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.0';
@@ -36,34 +37,61 @@ import { pickLeader, kites } from './roles.js?v=0.2.0';
 
 /* downMs: knockout left. deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
+/* yieldPm: the share (permille) of its row's kill yield a monster pays: its HP scale at spawn. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['downMs', 'int'], ['deadMs', 'int'], ['hpMilli', 'int']]),
-  world: Object.freeze([['phase', 'str'], ['routeIdx', 'int'], ['phaseMs', 'int'], ['regroupNext', 'bool'], ['runs', 'int'], ['nextId', 'int']]),
+  unit: Object.freeze([['downMs', 'int'], ['deadMs', 'int'], ['hpMilli', 'int'], ['yieldPm', 'int']]),
+  world: Object.freeze([['phase', 'str'], ['routeIdx', 'int'], ['phaseMs', 'int'], ['regroupNext', 'bool'], ['runs', 'int'], ['nextId', 'int'],
+    ['density', 'int']]),
   pack: Object.freeze([['alive', 'bool'], ['respawnAtMs', 'int']]),
 });
 
 export const PHASE = Object.freeze({ TRAVEL: 'travel', FIGHT: 'fight', REGROUP: 'regroup', DOWN: 'down' });
 
 const cycling = (inst) => inst.world.phase !== '';
-const pocketNow = (inst) => inst.ground.route[inst.world.routeIdx];
+/* THE ROUTE THIS PARTY WALKS (hunt-grounds.js routeFor): a pocket whose `minParty` the
+   party misses is skipped (the Rat King wants two). The index wraps if the party shrank. */
+const routeOf = (inst) => routeFor(inst.ground, partySize(inst));
+const pocketNow = (inst) => { const r = routeOf(inst); return r[inst.world.routeIdx % r.length]; };
 const packMonsters = (inst, p) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && u.pocket === p);
 const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
 
-/** Spawn pocket `p`'s pack (PC-02). */
+/** The instance's party size: its hero units, standing or down (hunt-grounds.js scales by it). */
+export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'hero').length;
+
+/**
+ * Spawn pocket `p`'s pack (PC-02). On a ground that opts in (`partyScale`) each
+ * monster's HP is the party scale's (hunt-grounds.js packHpFor: 550 / 700 / 850 /
+ * 1000 permille for 1-4 heroes) at the size the instance has WHEN the pack spawns; a hero joining later meets the
+ * next respawn at the new size. The DENSITY (world.density, the settle's
+ * clamped pick: hunt-grounds.js densityFor) is the pack's SIZE: that many
+ * monsters, the pocket's spawn rows taken in order and round again (0 = the
+ * pocket as built), each on the first free tile near its row's own spot
+ * (deterministic). A full box is 8: every tile round the tank.
+ */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
   const pocket = inst.ground.pockets[p];
+  const heroes = partySize(inst);
+  const want = Math.floor(Number(w.density) || 0);
+  const size = want > 0 ? want : pocket.spawns.length;
   occupancy(inst);
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
-  for (const s of pocket.spawns) {
-    const at = freeNear(inst.grid, s.x, s.y, 3, taken);
-    const row = MONSTERS[s.monster];
-    if (!at || !row) continue;
-    const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp: row.hp, maxHp: row.hp,
-      target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
-    w.nextId += 1;
-    w.units.push(u);
-    inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
+  for (let i = 0; i < size; i++) {
+    {
+      const s = pocket.spawns[i % pocket.spawns.length];
+      const at = freeNear(inst.grid, s.x, s.y, 3, taken);
+      const row = MONSTERS[s.monster];
+      if (!at || !row) continue;
+      const hp = packHpFor(inst.ground, row, heroes);
+      /* SCALING IS PAID IN REWARD (designer ruling 2026-10-18): a monster at s/1000 of its HP pays s/1000
+         of its kill yield (hunt-rewards.js, damage.landHit), so yield per HOUR holds at every party size. */
+      const yieldPm = inst.ground.partyScale === true ? yieldPermille(heroes) : 1000;
+      const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp, yieldPm,
+        target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
+      w.nextId += 1;
+      w.units.push(u);
+      inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
+    }
   }
   w.packs[p].alive = true;
   w.packs[p].aggro = false;
@@ -120,7 +148,7 @@ function startPull(inst, sc, k, p) {
 function nextPocket(inst, k) {
   const w = inst.world;
   w.routeIdx += 1;
-  if (w.routeIdx >= inst.ground.route.length) { w.routeIdx = 0; w.runs += 1; }
+  if (w.routeIdx >= routeOf(inst).length) { w.routeIdx = 0; w.runs += 1; }
   w.phase = PHASE.TRAVEL;
   if (k) clearGoal(k);
 }

@@ -27,10 +27,13 @@ import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, mons
 import { cheb } from './grid.js?v=0.2.0';
 import { atRest, unitById } from './movement.js?v=0.2.0';
 import { makeEvent } from './events.js?v=0.2.0';
-import { roleOf, elementOn, inRange, peel } from './targeting.js?v=0.2.0';
-import { fallen } from './pull-cycle.js?v=0.2.0';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.0';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.0';
 import { shareKillXp } from './xp-share.js?v=0.2.0';
 import { payBasic } from './abilities.js?v=0.2.0';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.0';
+import { resolveLine } from '../action-rules.js?v=0.2.0';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.0';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, ward (the Prayer ward, %), element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
@@ -40,6 +43,8 @@ export const PERSISTED = Object.freeze({
   pack: Object.freeze([]),
 });
 
+/** The permille of its row's kill yield a monster pays (pull-cycle.js spawnPack stamps it; unstamped = all). */
+export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 
 /**
@@ -48,7 +53,10 @@ const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STAN
  */
 export function hurt(inst, target, amount, source, element, ability) {
   if (!target || !target.alive) return { dmg: 0, killed: false };
-  const el = elementOn(target, element);
+  /* THE SOLO HEALER FLOOR (hunt-grounds.js, BALANCE_RULINGS 2026-10-16): a Healer
+     alone lands every blow at least at the floor, whatever the target's profile. */
+  const el = source && source.side === 'hero'
+    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);
   if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };
   let n = Math.floor((Math.max(0, Math.floor(amount)) * el) / 1000);
   if (target.side === 'mon') n -= defenceReduction(MONSTERS[target.kind]);
@@ -82,7 +90,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: MONSTERS[target.kind].xp }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }, sc);
   }
   return r;
 }
@@ -91,8 +99,15 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
 /* A CRIT is gear (critB + the set bonus + a crit buff, combat.js playerCombatRolls
    critChance): rolled only on a landed hero blow and only when the chance is
    above zero, so a hero with no crit draws no extra number. */
+/* A unit that swings waits the one basic-attack interval for its next. */
+function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }
+
 function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
-  u.swingLeftMs = COMBAT_BALANCE.tickMs;
+  restart(u);
+  return roll(inst, sc, u, t, accuracy, maxHit, critChance);
+}
+/* The dice of one blow (a swing, or each target of an area shot), clock untouched. */
+function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
   let amount = rollAttack(sc.rng, accuracy, maxHit);
   if (amount <= 0) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
   const crit = critChance > 0 && rollCrit(sc.rng, critChance);
@@ -118,25 +133,63 @@ export function resolveAttacks(inst, sc) {
     }
     const row = roleOf(u);
     if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;
-    /* A RANGED BASIC LOOSES ONE SHOT of the loaded ammo, and a caster's basic
-       burns one of the RUNE loaded in its ammo slot (W0: runes are the mage's
-       ammo, the same slot and per-shot rule; spec §3.4 #8), own first then the
-       store (abilities.payBasic, the one supply resolver): no shot, no swing. A
-       caster with no rune loaded swings on its mana alone. Only a hero the
-       settle supplies (inst.heroes) carries a quiver; a bare fixture unit swings free. */
-    const supplied = !!(inst.heroes && inst.heroes[u.id]);
-    const shoots = supplied && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!inst.heroes[u.id].ammo));
-    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;
-    /* AGAINST THIS MONSTER (the settle's rollsVs, combat.js playerCombatRolls):
-       the accuracy over its defence with the weapon weakness, and the weakness's
-       damage factor on the unit's max hit (its defence is hurt()'s, once). A
-       bare fixture unit swings on its snapshot. */
-    const vs = supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'
-      ? inst.heroes[u.id].rollsVs(MONSTERS[t.kind]) : null;
-    swing(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
-      vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
-      vs ? Number(vs.critChance) || 0 : 0);
-    if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
+    /* THE ATTACK LANE, ONE PATH (conditions.js). The first attack slot whose
+       conditions pass and that has a shot picks the item and, by its footprint, the
+       aim; the lane's last slot is its default, d_attack: the LOADED ammo at the
+       target. A ranged basic looses one shot of it and a caster's basic burns one
+       of the rune in its ammo slot (W0: runes are the mage's ammo, spec §3.4 #8),
+       own first then the store (abilities.payBasic, the one supply resolver): no
+       shot, no swing. A caster with no rune loaded, and any melee hero, swings
+       with nothing to pay. A bare fixture unit (no settle entry) runs the default
+       with no supplies at all. ONE unit a shot, whatever it hits. */
+    const h = (inst.heroes && inst.heroes[u.id]) || null;
+    const shot = pickShot(inst, u, h, t, sc);
+    if (!shot) continue;
+    if (shot.pick.ammo !== null && !payBasic(inst, u, { ammo: shot.pick.ammo }, sc)) continue;
+    const aim = shot.pick.aim;
+    const hits = [aim].concat(engaged(inst).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
+    /* The decision event: only a player's (or role) slot, never the default swing every 2 s. */
+    if (shot.rule !== DEFAULT_ATTACK_ROW.rule) {
+      sc.emit(makeEvent('shot', sc.atMs, { u: u.id, t: aim.id, item: shot.pick.ammo || '', rule: shot.rule, rule_label: shot.label, pass: shot.mask, hits: hits.length }));
+    }
+    restart(u);
+    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);
+    if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
     peel(inst, sc, u);
   }
+}
+
+/* One hero blow at `t`. AGAINST THIS MONSTER (the settle's rollsVs, combat.js
+   playerCombatRolls): the accuracy over its defence with the weapon weakness, and
+   the weakness's damage factor on the unit's max hit (its defence is hurt()'s,
+   once). A bare fixture unit swings on its snapshot. */
+function blow(inst, sc, u, h, t) {
+  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(MONSTERS[t.kind]) : null;
+  return roll(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
+    vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
+    vs ? Number(vs.critChance) || 0 : 0);
+}
+
+/* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =
+   nothing to pay), size, aim }, rule, mask, label } or null. An item slot is a ranged
+   hero's or a caster's; one with no stock or no aim falls back to the next. */
+function pickShot(inst, u, h, t, sc) {
+  const row = roleOf(u);
+  if (!row) return null;
+  const rows = h ? slotsFor(h, 'attack') : [DEFAULT_ATTACK_ROW];
+  return pickSlot(inst, u, h, rows, (slot, cx) => {
+    const id = slot.action.id;
+    if (id === 'loaded') {
+      const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
+      /* A bow or crossbow with nothing loaded has no shot: no swing (the lane waits, no_stock). */
+      if (shoots && !h.ammo) return { why: 'no_stock' };
+      return { ammo: shoots ? h.ammo : null, size: 1, aim: t };
+    }
+    if (row.melee || !h) return null;
+    const l = resolveLine(h.hs, id, 1);
+    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
+    const size = footprintOf(slot, h);
+    const aim = cx.aim && cx.aim.alive ? cx.aim : (bestAim(inst, u, row.range, size) || {}).aim;
+    return aim && inRange(inst, u, aim) ? { ammo: id, size, aim } : { why: 'out_of_range' };
+  }, sc, 'attack');
 }

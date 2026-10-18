@@ -11,10 +11,12 @@
 // (src/render/paint.js).
 //
 // THE SHEET ASK. The combat numbers are the engine's (the `character_sheet`
-// section, fresh only while its inputs are unchanged). While this window is
-// open and the server says the sheet is not fresh, it asks the engine ONCE
-// per record version (the `sheet` verb); the answer is the re-read envelope.
-// A server without the section is never asked.
+// section, fresh only while its inputs AND its engine are current). Each
+// opening asks the engine ONCE (the `sheet` verb), so the numbers on screen
+// are always the deployed engine's: they show only after that ask has
+// answered, and the first opening after a deploy retires every older sheet.
+// While open, a stale sheet is asked for once per record version. The answer
+// is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.0';
 import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.0';
@@ -41,6 +43,7 @@ function wantArt(doc) {
 /** The skeleton (built once per opening). */
 export function renderCharacter(ctx) {
   wantArt(ctx.doc);
+  if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; }
   return '<div class="hw-cs">'
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
@@ -49,14 +52,16 @@ export function renderCharacter(ctx) {
     + '</div>';
 }
 
-/* One ask per record version while the server says the sheet is stale. */
+/* One ask per opening, then one per record version while the server says the sheet is stale. */
 function askSheet(cs, sc) {
   const sh = characterSheetOf(cs);
   const v = cs.record ? cs.record.version : null;
-  if (!sh || sh.fresh || sc.sheetAsking || v === null || sc.sheetAsked === v) return;
+  if (!sh || sc.sheetAsking || v === null) return;
+  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;
   sc.sheetAsked = v;
   sc.sheetAsking = true;
-  Promise.resolve(cs.edgeIntent('sheet', {})).catch(() => null).then(() => { sc.sheetAsking = false; });
+  if (sc.opening === 'due') sc.opening = 'asking';
+  Promise.resolve(cs.edgeIntent('sheet', {})).catch(() => null).then(() => { sc.sheetAsking = false; sc.opening = 'done'; });
 }
 
 /* Draw `sprite` into a canvas once per (sprite, facing, dyes): the canvas keeps its signature. */
@@ -75,7 +80,7 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab[data-tab]')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-cs-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   askSheet(cs, sc);
-  if (sc.tab === 'sheet') patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, []));
+  if (sc.tab === 'sheet') patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, []), sc.opening === 'done');
   else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
     patchOutfit(body, ctx, sc, ART, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, []));

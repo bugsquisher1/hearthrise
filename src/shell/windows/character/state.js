@@ -15,8 +15,8 @@ export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
     s = { tab: 'sheet', pending: false, msg: '',
-      /* the sheet ask: one per record version, never two at once */
-      sheetAsked: null, sheetAsking: false,
+      /* the sheet ask: one per opening (due → asking → done), then one per stale version, never two at once */
+      opening: 'due', sheetAsked: null, sheetAsking: false,
       /* the outfit draft (null = not started: follow the server) */
       draft: null, dir: 0, query: '', ownedOnly: false, region: null,
       openDeath: null };

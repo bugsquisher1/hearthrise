@@ -420,10 +420,11 @@ export const PATCHES = [
     'hr_character_sheet_inputs(uuid,integer)',
     -- SELF-VALIDATING: writes ONE display row (hr_character_sheets) for the
     -- (p_user, p_slot) the engine already reads, only when the fingerprint it
-    -- is handed equals the current one, bounded (an object, <= 2 KB). No fight,
+    -- is handed equals the current one, stamped with the calling engine's
+    -- payload hash, bounded (an object, <= 2 KB). No fight,
     -- price, gate or other player reads the row; it moves no value. Answers
     -- hr_state_of, which the engine already holds.
-    'hr_character_sheet_put(uuid,integer,text,jsonb)',
+    'hr_character_sheet_put(uuid,integer,text,text,jsonb)',
 `,
     where: 'after',
   },

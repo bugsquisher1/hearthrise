@@ -750,6 +750,11 @@
    "replay": 1,
    "note": "The catalogue digest row — the generator's own fingerprint, written `on conflict do update` so the repo always wins and a rebuild is always self-consistent. Rebuilt from repo."
   },
+  "hr_character_sheet_engine": {
+   "class": "regenerated",
+   "note": "OPERATIONAL STAMP (2026-10-25-character-sheet.sql): the payload hash of the engine that wrote the latest character sheet. Empty after a restore means no sheet is fresh until the next sheet verb records its engine, which every Character window opening does; nothing is lost.",
+   "replay": 0
+  },
   "hr_character_sheets": {
    "class": "regenerated",
    "note": "DERIVED DISPLAY DATA (2026-10-25-character-sheet.sql): the engine sheet verb recomputes a row from server state whenever its input fingerprint moves, and the view never shows a stale one. Empty after a restore costs one recompute per character; nothing is lost.",

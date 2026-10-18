@@ -110,9 +110,9 @@ export function xpFracChanges(before, after) {
  */
 export function grantXp(state, skillId, amt, ctx) {
   const c = ctx || {};
-  const bonusFn = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const perk = (bonusFn('allXP') || 0) + (c.xpB || 0);
-  const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? (bonusFn('combatXP') || 0) : 0;
+  const parts = xpMultiplierParts(c.xpB, c.bonus);
+  const perk = parts.all + parts.gear;
+  const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? parts.combat : 0;
 
   const rested = amt > 0 ? spendRestedCharge(state, c.restedQuantum || 0) : 0;
   const base = c.authored ? (Number(amt) || 0) : pacedXp(skillId, amt);
@@ -150,6 +150,22 @@ export function grantXp(state, skillId, amt, ctx) {
   if (newLevel > oldLevel) events.push({ type: 'levelup', skill: skillId, from: oldLevel, to: newLevel });
 
   return { gain, base, rested, oldLevel, newLevel, events };
+}
+
+/**
+ * THE XP MULTIPLIER, BY PART — the one formula. A grant is paid
+ * base × (1 + all + gear + (combat on a combat skill)); grantXp above prices
+ * every grant with it, and the Character window's experience bonuses
+ * (supabase/functions/hr-accrue/character-sheet.js) are these same parts.
+ *   gear    the worn set's xpB (equipmentStats)
+ *   all     the bonus channel `allXP` (rooms, renown, companion, buffs)
+ *   combat  the bonus channel `combatXP` (combat skills only)
+ * @param xpB    the worn set's xpB
+ * @param bonus  the engine's bonus(key) function (absent = 0 for every key)
+ */
+export function xpMultiplierParts(xpB, bonus) {
+  const b = typeof bonus === 'function' ? bonus : () => 0;
+  return { gear: Number(xpB) || 0, all: Number(b('allXP')) || 0, combat: Number(b('combatXP')) || 0 };
 }
 
 /**

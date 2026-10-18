@@ -54,12 +54,15 @@ function line(root, sel, v) {
   text(el.querySelector('dd'), v === null ? '' : v);
 }
 
-/** Patch the Character tab from the server's sections. `drawPortrait(canvas)` draws the hero. */
-export function patchSheet(body, ctx, drawPortrait) {
+/**
+ * Patch the Character tab from the server's sections. `drawPortrait(canvas)` draws the hero;
+ * `asked` is true once this opening's ask of the engine has answered (until then no combat number shows).
+ */
+export function patchSheet(body, ctx, drawPortrait, asked) {
   const cs = ctx.character;
   const root = body.querySelector('.hw-cs-sheet');
   const sh = characterSheetOf(cs);
-  const c = sh && sh.combat;
+  const c = asked && sh ? sh.combat : null;
   const v = vitalsOf(cs);
   const st = staminaOf(cs);
   const cap = bagCapOf(cs);

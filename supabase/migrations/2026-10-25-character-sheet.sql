@@ -49,7 +49,8 @@
 -- inputs/put functions and the four tables. hr_state_of is untouched.
 --
 -- ORDER: after 2026-10-24-hunterall-119.sql (the section registry, premium,
--- the hunt session events). No begin/commit (CLAUDE.md §2).
+-- the hunt session events) and 2026-10-25-outfits-catalogue.generated.sql (the
+-- outfit catalogue). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -71,50 +72,18 @@ begin
      or to_regprocedure('public.hr_intent_replay(uuid,integer,uuid,text)') is null
      or to_regprocedure('public.hr_note_rejection(text,integer,jsonb)') is null then
     raise exception 'PRECONDITION: hr_rpc_gate / hr_intent_replay / hr_note_rejection is absent'; end if;
+  if to_regclass('public.hr_outfits') is null or to_regclass('public.hr_outfit_dyes') is null
+     or not exists (select 1 from public.hr_outfits) then
+    raise exception 'PRECONDITION: no outfit catalogue — apply 2026-10-25-outfits-catalogue.generated.sql first'; end if;
   if exists (select 1 from public.hr_state_sections where key in ('outfit', 'death_log', 'character_sheet')
               and fn not in ('hr_outfit_view', 'hr_death_log_view', 'hr_character_sheet_view')) then
     raise exception 'PRECONDITION: a section key this file registers is taken by another view'; end if;
 end $mig$;
 
 -- ── §1 OUTFITS: THE CATALOGUE, THE DYES, WHAT EACH CHARACTER WEARS ───────────
--- Rows mirror src/data/outfits.js (tests/character-window.mjs CW-D1 compares them).
-create table if not exists public.hr_outfits (
-  outfit_id text primary key check (outfit_id ~ '^[a-z0-9_]{1,32}$'),
-  premium   boolean not null,
-  regions   text[]  not null default '{}' check (cardinality(regions) <= 8),
-  sort      int     not null
-);
-create table if not exists public.hr_outfit_dyes (
-  idx int  primary key check (idx between 0 and 63),
-  hex text not null check (hex ~ '^#[0-9a-f]{6}$')
-);
-do $mig$
-declare v_t text;
-begin
-  foreach v_t in array array['hr_outfits', 'hr_outfit_dyes'] loop
-    execute format('alter table public.%I enable row level security', v_t);
-    execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
-  end loop;
-end $mig$;
-
-delete from public.hr_outfits;
-insert into public.hr_outfits (outfit_id, premium, regions, sort) values
-  ('knight',    false, '{}', 1),
-  ('berserker', false, '{}', 2),
-  ('ranger',    false, '{}', 3),
-  ('sorcerer',  false, '{}', 4),
-  ('druid',     false, '{}', 5),
-  ('brute',     true,  '{}', 6),
-  ('witch',     true,  '{hat,robe,trim}', 7),
-  ('dawnward',  true,  '{}', 8);
-
-delete from public.hr_outfit_dyes;
-insert into public.hr_outfit_dyes (idx, hex) values
-  (0, '#2f2723'), (1, '#6a6865'), (2, '#e6dcbc'), (3, '#8a6440'),
-  (4, '#a8743a'), (5, '#5e1a1f'), (6, '#c23a2a'), (7, '#f2a03a'),
-  (8, '#e8c547'), (9, '#6b7a38'), (10, '#3d6234'), (11, '#7ccf4a'),
-  (12, '#4f7a80'), (13, '#2b4a6a'), (14, '#4fa8e8'), (15, '#5c6c7a');
-
+-- The catalogue (hr_outfits, hr_outfit_dyes) is GENERATED from src/data/outfits.js
+-- and the --dye-N tokens by tools/gen-outfits.mjs (--check) into
+-- 2026-10-25-outfits-catalogue.generated.sql, which applies BEFORE this file.
 create table if not exists public.player_outfits (
   user_id    uuid not null,
   slot       int  not null,
@@ -152,6 +121,127 @@ begin
     'owned', to_jsonb(v_owned));
 end $$;
 
+-- ── §2a hr_rpc_gate RESTATED WHOLE, + the `outfit` bucket ───────────────────
+-- Pinned: the restatement runs only over the chain-end body (2026-10-21-hunt-
+-- sessions.sql, md5 below), so a bucket another file added meanwhile is
+-- refused, never clobbered. A body that already IS this restatement is a no-op.
+do $mig$
+declare v_md5 text; v_src text;
+begin
+  select md5(replace(prosrc, chr(13), '')), prosrc into v_md5, v_src from pg_proc where oid = 'public.hr_rpc_gate(text)'::regprocedure;
+  if v_md5 <> '724b4e34309e06f3a585b262aa59a74a' and strpos(v_src, 'when ''outfit'' then') = 0 then
+    raise exception 'hr_rpc_gate is not the body this file restates (md5 %) — a bucket was added since 2026-10-21-hunt-sessions.sql; restate from that body instead', v_md5;
+  end if;
+end $mig$;
+
+CREATE OR REPLACE FUNCTION public.hr_rpc_gate(p_bucket text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+declare
+  c_unkeyed_limit constant int := 600;
+  v_uid    uuid := auth.uid();
+  v_limit  int;
+  v_window constant interval := interval '1 minute';
+  v_weight bigint;
+  v_ip     text;
+  v_bucket text;
+  v_key    uuid;
+begin
+  -- CLOSED MODE (2026-10-21-closed-mode.sql): a signed-in caller who is not
+  -- admitted is refused hr_closed (HTTP 403) before any bucket is spent.
+  perform public.hr_access_check();
+  case p_bucket
+    when 'clan_seat_read', 'clan_vote_read', 'hr_leaderboard',
+         'hr_rally_pledge_state', 'hr_display_name_available', 'hr_server_now',
+         'clan_invites_list',
+         'hr_goal_state'
+      then v_limit := 120;
+    when 'buy_listing', 'clan_board_claim', 'clan_board_progress', 'clan_contribute',
+         'clan_deposit', 'clan_feast_deposit', 'clan_rested_grant', 'clan_vote_cast',
+         'clan_work_complete', 'clan_work_labour', 'clan_work_supply',
+         'raid_claim', 'raid_strike',
+         'world_event_absence_claim', 'world_event_claim', 'world_event_contribute',
+         'world_event_join', 'world_event_pledge', 'world_event_pledge_settle',
+         'farm_plant', 'farm_harvest', 'farm_water',
+         'worker_hire', 'worker_assign',
+         'bank_move',
+         'hr_credit_kills', 'hr_credit_combat_xp',
+         'client_state_put'
+      then v_limit := 60;
+    when 'hr_set_style'
+      then v_limit := 30;
+    when 'bug_report_submit', 'claim_beta_invite', 'claim_display_name',
+         'clan_board_roll', 'clan_feast_call', 'clan_hunt_declare', 'clan_tier_up',
+         'clan_vice_set', 'clan_vote_close', 'clan_vote_open', 'clan_work_post',
+         'clan_create', 'clan_join', 'clan_leave', 'clan_kick',
+         'clan_invite', 'clan_invite_revoke', 'clan_join_policy_set',
+         'hr_claim_quest', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
+         'hr_accept_bounty', 'hr_claim_bounty',
+         'hr_bounty_spend',
+         'hr_trait_buy', 'hr_claim_goal'
+      then v_limit := 12;
+    when 'beta_invite_check'
+      then v_limit := 20;
+    when 'hr_buy_hero_slot' then v_limit := 12;
+    when 'hr_heartbeat' then v_limit := 6;
+    when 'hr_town_of' then v_limit := 30;
+    when 'hr_set_presence_quiet' then v_limit := 4;
+    when 'hr_world_finds_of' then v_limit := 6;
+    when 'hr_buy_gem_unlock' then v_limit := 12;
+    when 'hr_recipe_learn' then v_limit := 12;
+    when 'hr_vigour_refill' then v_limit := 6;
+    when 'party' then v_limit := 12;
+    when 'party_hunt_view' then v_limit := 20;
+    when 'hr_claim_discord_gift' then v_limit := 6;
+    when 'hr_tally_state' then v_limit := 120;
+    -- HUNT SESSIONS (2026-10-21-hunt-sessions.sql): every session / bag /
+    -- action-bar write shares `hunt`; a manual press is `hunt_use` (one per
+    -- second is the action bar's own buff cooldown); the Analyzer and the read
+    -- cursor are `hunt_read`.
+    when 'hunt' then v_limit := 30;
+    when 'hunt_use' then v_limit := 60;
+    when 'hunt_read' then v_limit := 60;
+    -- THE CHARACTER WINDOW (2026-10-25-character-sheet.sql): the outfit save.
+    when 'outfit' then v_limit := 20;
+    else return false;
+  end case;
+
+  if v_uid is not null then
+    v_key    := v_uid;
+    v_bucket := 'rpc:' || p_bucket;
+  else
+    v_ip := public.hr_request_ip();
+    if v_ip is not null then
+      v_key    := md5('anon-ip:' || v_ip)::uuid;
+      v_bucket := 'rpc:anon:' || p_bucket;
+    else
+      v_key    := md5('anon-unkeyed')::uuid;
+      v_bucket := 'rpc:anon-unkeyed:' || p_bucket;
+      v_limit  := c_unkeyed_limit;
+    end if;
+  end if;
+
+  if public.hr_rate_ok(v_key, v_bucket, v_limit, v_window) then
+    return true;
+  end if;
+
+  v_weight := public.hr_rate_sample_weight(
+                public.hr_rate_over(v_key, v_bucket) - v_limit);
+  if v_weight > 0 then
+    perform public.hr_record_rejection(v_key, 0,
+      case when v_uid is null then 'anon:' || p_bucket else p_bucket end,
+      'rate_limited',
+      jsonb_build_object('limit', v_limit, 'per', v_window::text, 'gate', 'rpc',
+                         'anon', v_uid is null), v_weight);
+  end if;
+  return false;
+end $function$;
+revoke execute on function public.hr_rpc_gate(text) from public;
+revoke execute on function public.hr_rpc_gate(text) from anon, authenticated, service_role;
+
 -- ── §2 THE ONE OUTFIT WRITE ──────────────────────────────────────────────────
 create or replace function public.hr_outfit_set(p_slot int, p_outfit text, p_colors jsonb, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
@@ -170,7 +260,7 @@ begin
   if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
-  if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  if not public.hr_rpc_gate('outfit') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   if jsonb_typeof(v_cols) <> 'object' then
@@ -219,6 +309,7 @@ create table if not exists public.hr_character_sheets (
   user_id     uuid not null,
   slot        int  not null,
   inputs_md5  text not null check (inputs_md5 ~ '^[0-9a-f]{32}$'),
+  engine_version text not null check (engine_version ~ '^([0-9a-f]{64}|unpacked)$'),
   sheet       jsonb not null check (jsonb_typeof(sheet) = 'object' and octet_length(sheet::text) <= 2048),
   computed_at timestamptz not null default now(),
   primary key (user_id, slot),
@@ -227,6 +318,24 @@ create table if not exists public.hr_character_sheets (
 );
 alter table public.hr_character_sheets enable row level security;
 revoke all on public.hr_character_sheets from public, anon, authenticated, service_role;
+
+-- THE ENGINE THE LATEST SHEET WAS COMPUTED BY (the edge payload hash,
+-- supabase/functions/hr-accrue/payload-hash.js). Every put records its engine;
+-- a sheet computed by any other engine is not fresh, so a deploy (an engine
+-- change, an item or role row) retires every older sheet at its first put.
+create table if not exists public.hr_character_sheet_engine (
+  id      boolean primary key default true check (id),
+  version text not null check (version ~ '^([0-9a-f]{64}|unpacked)$'),
+  at      timestamptz not null default now()
+);
+alter table public.hr_character_sheet_engine enable row level security;
+revoke all on public.hr_character_sheet_engine from public, anon, authenticated, service_role;
+
+-- A sheet's stamp: its inputs' fingerprint under the engine that computed it.
+create or replace function public.hr_character_sheet_stamp(p_inputs text, p_version text)
+returns text language sql immutable set search_path = public, pg_catalog as $$
+  select md5(coalesce(p_inputs, '') || ':' || coalesce(p_version, ''))
+$$;
 
 -- The fingerprint of every input the engine's sheet reads (character-sheet.js characterSheetOf).
 create or replace function public.hr_character_sheet_inputs(p_user uuid, p_slot int)
@@ -246,31 +355,42 @@ returns text language sql stable security definer set search_path = public, pg_c
     'perks', public.hr_perks_of(p_user, p_slot) - 'sources')::text)
 $$;
 
--- THE ONE WRITER (hr_engine). Stores the engine's sheet only when the inputs it
--- was computed from are still current; answers the character's envelope.
-create or replace function public.hr_character_sheet_put(p_user uuid, p_slot int, p_inputs text, p_sheet jsonb)
+-- THE ONE WRITER (hr_engine). Records the calling engine; stores the engine's
+-- sheet only when the inputs it was computed from are still current, stamped
+-- with that engine; answers the character's envelope.
+create or replace function public.hr_character_sheet_put(p_user uuid, p_slot int, p_inputs text, p_version text, p_sheet jsonb)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 begin
   if p_user is null or p_slot is null then return jsonb_build_object('ok', false, 'error', 'bad_args'); end if;
+  if p_version is null or p_version !~ '^([0-9a-f]{64}|unpacked)$' then return jsonb_build_object('ok', false, 'error', 'bad_version'); end if;
   if not exists (select 1 from public.player_state where user_id = p_user and slot = p_slot) then
     return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
   if p_sheet is null or jsonb_typeof(p_sheet) <> 'object' or octet_length(p_sheet::text) > 2048 then
     return jsonb_build_object('ok', false, 'error', 'bad_sheet'); end if;
+  insert into public.hr_character_sheet_engine (id, version, at) values (true, p_version, now())
+    on conflict (id) do update set version = excluded.version, at = now()
+    where public.hr_character_sheet_engine.version is distinct from excluded.version;
   if p_inputs is not null and p_inputs = public.hr_character_sheet_inputs(p_user, p_slot) then
-    insert into public.hr_character_sheets (user_id, slot, inputs_md5, sheet, computed_at)
-      values (p_user, p_slot, p_inputs, p_sheet, now())
-    on conflict (user_id, slot) do update set inputs_md5 = excluded.inputs_md5, sheet = excluded.sheet, computed_at = now();
+    insert into public.hr_character_sheets (user_id, slot, inputs_md5, engine_version, sheet, computed_at)
+      values (p_user, p_slot, public.hr_character_sheet_stamp(p_inputs, p_version), p_version, p_sheet, now())
+    on conflict (user_id, slot) do update set inputs_md5 = excluded.inputs_md5, engine_version = excluded.engine_version,
+      sheet = excluded.sheet, computed_at = now();
   end if;
   return public.hr_state_of(p_user, p_slot);
 end $$;
 
--- The `character_sheet` section. `combat` is the engine's sheet while fresh, else null.
+-- The `character_sheet` section. `combat` is the engine's sheet while fresh, else
+-- null: fresh = computed by the latest engine, over the inputs as they are now.
 create or replace function public.hr_character_sheet_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
-declare v_cs public.hr_character_sheets%rowtype; v_fresh boolean := false;
+declare v_cs public.hr_character_sheets%rowtype; v_fresh boolean := false; v_engine text;
 begin
   select * into v_cs from public.hr_character_sheets where user_id = p_user and slot = p_slot;
-  if found then v_fresh := v_cs.inputs_md5 = public.hr_character_sheet_inputs(p_user, p_slot); end if;
+  if found then
+    select e.version into v_engine from public.hr_character_sheet_engine e where e.id;
+    v_fresh := v_cs.engine_version = v_engine
+      and v_cs.inputs_md5 = public.hr_character_sheet_stamp(public.hr_character_sheet_inputs(p_user, p_slot), v_engine);
+  end if;
   return jsonb_build_object(
     'level', public.hr_bounty_combat_level(p_user, p_slot),
     'max_hp', (select ps.max_hp from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot),
@@ -290,7 +410,8 @@ begin
   foreach f in array array[
     'public.hr_outfit_owned(uuid, int)', 'public.hr_outfit_view(uuid, int)', 'public.hr_outfit_set(int, text, jsonb, uuid)',
     'public.hr_death_log_view(uuid, int)', 'public.hr_character_sheet_inputs(uuid, int)',
-    'public.hr_character_sheet_put(uuid, int, text, jsonb)', 'public.hr_character_sheet_view(uuid, int)'] loop
+    'public.hr_character_sheet_put(uuid, int, text, text, jsonb)', 'public.hr_character_sheet_view(uuid, int)',
+    'public.hr_character_sheet_stamp(text, text)'] loop
     execute format('revoke execute on function %s from public', f);
     foreach r in array array['anon', 'authenticated', 'service_role', 'hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = r) then execute format('revoke execute on function %s from %I', f, r); end if;
@@ -299,12 +420,12 @@ begin
 end $mig$;
 grant execute on function public.hr_outfit_set(int, text, jsonb, uuid) to authenticated;
 grant execute on function public.hr_character_sheet_inputs(uuid, int) to hr_engine;
-grant execute on function public.hr_character_sheet_put(uuid, int, text, jsonb) to hr_engine;
+grant execute on function public.hr_character_sheet_put(uuid, int, text, text, jsonb) to hr_engine;
 
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_outfit_set';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_outfit_set', 'p_slot integer, p_outfit text, p_colors jsonb, p_idem uuid', 'authenticated',
-   'added 2026-10-25 (character window): wear an owned outfit with dye indices per region; cosmetic, no value');
+   'added 2026-10-25 (character window): wear an owned outfit with dye indices per region; cosmetic, no value; rate bucket outfit');
 
 insert into public.hr_state_sections (key, fn, note) values
   ('outfit', 'hr_outfit_view', '2026-10-25-character-sheet.sql: the worn outfit (owned or null), its region dyes, the owned list'),
@@ -365,10 +486,11 @@ declare
     'hr_character_sheet_inputs(uuid,integer)',
     -- SELF-VALIDATING: writes ONE display row (hr_character_sheets) for the
     -- (p_user, p_slot) the engine already reads, only when the fingerprint it
-    -- is handed equals the current one, bounded (an object, <= 2 KB). No fight,
+    -- is handed equals the current one, stamped with the calling engine's
+    -- payload hash, bounded (an object, <= 2 KB). No fight,
     -- price, gate or other player reads the row; it moves no value. Answers
     -- hr_state_of, which the engine already holds.
-    'hr_character_sheet_put(uuid,integer,text,jsonb)',
+    'hr_character_sheet_put(uuid,integer,text,text,jsonb)',
     -- ── ADDED 2026-10-23 — THE INSTANCE SETTLE (lane S1, HUNT_SCREEN_SPEC §1.3) ──
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
     -- link with an EMPTY declared-removals list. Each claim re-derived:
@@ -1126,7 +1248,7 @@ begin
      or has_function_privilege('anon', 'public.hr_outfit_set(integer,text,jsonb,uuid)', 'execute') then
     raise exception 'VERIFY(a): hr_outfit_set grants are wrong'; end if;
   foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
-    if has_function_privilege(v_role, 'public.hr_character_sheet_put(uuid,integer,text,jsonb)', 'execute')
+    if has_function_privilege(v_role, 'public.hr_character_sheet_put(uuid,integer,text,text,jsonb)', 'execute')
        or has_function_privilege(v_role, 'public.hr_character_sheet_inputs(uuid,integer)', 'execute')
        or has_function_privilege(v_role, 'public.hr_character_sheet_view(uuid,integer)', 'execute')
        or has_function_privilege(v_role, 'public.hr_outfit_view(uuid,integer)', 'execute')
@@ -1139,7 +1261,7 @@ begin
   if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('player_outfits', 'hr_character_sheets')
               and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')) then
     raise exception 'VERIFY(a): a client write policy exists'; end if;
-  if not has_function_privilege('hr_engine', 'public.hr_character_sheet_put(uuid,integer,text,jsonb)', 'execute') then
+  if not has_function_privilege('hr_engine', 'public.hr_character_sheet_put(uuid,integer,text,text,jsonb)', 'execute') then
     raise exception 'VERIFY(a): hr_engine cannot write the sheet'; end if;
   -- (b) EXECUTED as a probe character, rolled back.
   begin
@@ -1184,13 +1306,23 @@ begin
        or (select outfit_id from public.player_outfits where user_id = v_uid and slot = 0) <> 'witch' then
       raise exception 'VERIFY(c): a lapsed premium outfit is still shown, or was dropped'; end if;
     -- (d) THE SHEET IS COMPARE-AND-SET: a stale fingerprint writes nothing; a current one is fresh until an input moves.
-    v := public.hr_character_sheet_put(v_uid, 0, md5('stale'), '{"damage": {"min": 1, "max": 9}}'::jsonb);
+    v := public.hr_character_sheet_put(v_uid, 0, md5('stale'), 'unpacked', '{"damage": {"min": 1, "max": 9}}'::jsonb);
     if (v->'character_sheet'->>'fresh')::boolean or exists (select 1 from public.hr_character_sheets where user_id = v_uid) then
       raise exception 'VERIFY(d): a sheet from stale inputs was stored'; end if;
     v_fp := public.hr_character_sheet_inputs(v_uid, 0);
-    v := public.hr_character_sheet_put(v_uid, 0, v_fp, '{"damage": {"min": 1, "max": 9}}'::jsonb);
+    v := public.hr_character_sheet_put(v_uid, 0, v_fp, 'unpacked', '{"damage": {"min": 1, "max": 9}}'::jsonb);
     if not (v->'character_sheet'->>'fresh')::boolean or (v->'character_sheet'->'combat'->'damage'->>'max')::int <> 9 then
       raise exception 'VERIFY(d): a current sheet is not projected: %', v->'character_sheet'; end if;
+    -- A NEW ENGINE (a deploy: another payload hash) retires every older sheet at its first put,
+    -- even one that wrote nothing; the old engine coming back makes the sheet fresh again.
+    perform public.hr_character_sheet_put(v_uid, 0, md5('stale'), repeat('a', 64), '{}'::jsonb);
+    if (public.hr_character_sheet_view(v_uid, 0)->>'fresh')::boolean then
+      raise exception 'VERIFY(d): a sheet from the previous engine stayed fresh after a deploy'; end if;
+    perform public.hr_character_sheet_put(v_uid, 0, md5('stale'), 'unpacked', '{}'::jsonb);
+    if not (public.hr_character_sheet_view(v_uid, 0)->>'fresh')::boolean then
+      raise exception 'VERIFY(d): the stamp is not md5(inputs || : || engine)'; end if;
+    v := public.hr_character_sheet_put(v_uid, 0, v_fp, 'not-a-version', '{}'::jsonb);
+    if v->>'error' is distinct from 'bad_version' then raise exception 'VERIFY(d): a malformed engine version was taken: %', v; end if;
     insert into public.player_skills (user_id, slot, skill_id, xp) values (v_uid, 0, 'attack', 100000)
       on conflict (user_id, slot, skill_id) do update set xp = public.player_skills.xp + 100000;
     if (public.hr_character_sheet_view(v_uid, 0)->>'fresh')::boolean then
@@ -1219,6 +1351,9 @@ begin
     raise exception 'VERIFY(f): §6 LEAKED a probe row'; end if;
   if exists (select 1 from public.hr_state_sections s where to_regprocedure('public.' || s.fn || '(uuid,integer)') is null) then
     raise exception 'VERIFY(f): a section names no (uuid, integer) view'; end if;
+  if strpos((select prosrc from pg_proc where oid = 'public.hr_outfit_set(integer,text,jsonb,uuid)'::regprocedure), 'hr_rpc_gate(''outfit'')') = 0
+     or strpos((select prosrc from pg_proc where oid = 'public.hr_rpc_gate(text)'::regprocedure), 'when ''outfit'' then v_limit := 20;') = 0 then
+    raise exception 'VERIFY(f): the outfit save is not on its own rate bucket'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'character-sheet: outfits per character (owned server-side), one write; death log; engine sheet compare-and-set; three sections registered; all green';
 end $$;

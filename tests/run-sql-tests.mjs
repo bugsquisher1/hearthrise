@@ -634,6 +634,7 @@ const ALSO_LINTED = [
   '2026-10-23-hunt-party.sql',
   /* THE CHARACTER WINDOW (lane character-window, 2026-10-25): the outfit write,
      the sheet's engine pair and link 20 of HR_GRANT_HYGIENE_CHAIN. */
+  '2026-10-25-outfits-catalogue.generated.sql',
   '2026-10-25-character-sheet.sql',
 ];
 

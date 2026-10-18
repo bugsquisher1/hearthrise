@@ -64,6 +64,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync, 
 import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const BASELINE = join(ROOT, 'tests', 'token-single-source.baseline.json');
@@ -80,7 +81,7 @@ const COMPONENT_SCOPED = {
 
 /* Root-level dials WRITTEN BY JS, never declared in CSS. */
 const RUNTIME_ROOT = {
-  '--vh': 'src/mobile.js — real viewport unit for mobile URL-bar chrome',
+  /* EMPTY since the client reset (2026-10-17): src/mobile.js wrote --vh and is deleted. */
 };
 
 const stripComments = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ');
@@ -266,7 +267,7 @@ function selftest() {
     // with only the stylesheets would report every JS-declared token as missing
     // and the proof would be measuring the harness instead of the guard.
     cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true });
-    const victim = join(tmp, 'src', 'styles', 'combat-hud.css');
+    const victim = join(tmp, 'src', 'styles', 'world.css');
     const orig = readFileSync(victim, 'utf8');
     const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
     const known = new Set((base.known_undefined || []).map((r) => r.token));
@@ -308,8 +309,13 @@ function selftest() {
     if (probe().C.length) fails.push('SELFTEST: var(--x, fallback) was reported as a failure — optional hooks must not gate (C)');
 
     // 3c · a token declared only in JS-authored style text counts as declared
+    const jsHost = join(tmp, 'src', 'app', 'world-pane.js');
+    const jsOrig = readFileSync(jsHost, 'utf8');
+    writeFileSync(jsHost, jsOrig + "\nconst __gszProbe = '<i style=\"--gsz:18px\"></i>';\n");
     writeFileSync(victim, orig + '\n.some-card { font-size: var(--gsz); }\n');
-    if (probe().C.length) fails.push('SELFTEST: a token declared only in JS-authored style text was reported as undeclared (C)');
+    const declaredInJs = probe().C.length;
+    writeFileSync(jsHost, jsOrig);
+    if (declaredInJs) fails.push('SELFTEST: a token declared only in JS-authored style text was reported as undeclared (C)');
 
     // 3b · C — an existing known-undefined token stays quiet (the ratchet holds, it does not re-fail)
     const anyKnown = [...known][0];
@@ -338,7 +344,7 @@ function selftest() {
   return 0;
 }
 
-if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   process.exit(argv.includes('--selftest') ? selftest() : run(argv));
 }

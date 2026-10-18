@@ -89,7 +89,8 @@ async function tryApply(db, sql, after) {
    answer and nothing else, so their bodies are cut out of the scan: a retired
    key read anywhere else in either file (the roster row, the screen) is still
    red, and an exempt reader that disappears or is renamed is red too. */
-const HUNT_VIEW_READERS = { 'src/render/party-panel.js': ['huntMemberRow', 'partyReceiptLine'] };
+/* EMPTY since the client reset (2026-10-17): the party panel and its two hunt-view readers are deleted. */
+const HUNT_VIEW_READERS = {};
 
 /** Cut `function name(…) { … }` out of code; null when it is not there. */
 function cutFunction(code, name) {

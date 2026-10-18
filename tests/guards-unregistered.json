@@ -38,15 +38,6 @@
         "selftest": true
       }
     },
-    "signup-door-page.mjs": {
-      "reason": "DELIBERATELY not in CI, by its own header and for a good reason: DOOR-1..7 and OPEN-3 already live in src/features/smoke-test.js and run inside the assembled in-page suite, which IS the contract. This file re-runs the SAME in-page runner filtered to one battery (window.__smokeTest({only})) so an agent proving one battery does not have to start a second multi-minute suite next to somebody else's and read the contention as a flake (b461). Registering it would duplicate the assertions and reintroduce exactly that contention. It is a development tool, not a gate.",
-      "owner": "qa-engineer",
-      "disposition": "intentional-tool",
-      "verified": {
-        "asserts": true,
-        "duplicates": "src/features/smoke-test.js DOOR-1..7, OPEN-3"
-      }
-    },
     "core-loop.mjs": {
       "reason": "A GATE THAT RUNS ONCE A DAY, NOT PER RELEASE, by Tyler's ruling (2026-10-14: \"lets not test the game on every release; lets do it like once a day\"). It plays the core loop end to end against the real edge verbs and the replayed chain, and it is registered in .github/workflows/nightly-loop.yml (06:00 UTC on main, plain run + --selftest), which guard-hygiene's REACHABILITY rule does not read because only smoke.yml gates a release. Putting it in smoke.yml would put it on the release path, the one thing the ruling forbids. Run by hand: node tests/core-loop.mjs.",
       "owner": "qa-engineer",

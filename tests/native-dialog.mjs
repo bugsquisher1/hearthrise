@@ -46,6 +46,7 @@
 
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { isMain } from './_is-main.mjs';
 
 /* A bare `confirm(`/`prompt(`/`alert(` or an explicit `window.`-prefixed one.
    `[^.\w$]` before the name rejects `x.confirm(` and `myConfirm(` alike; the
@@ -66,13 +67,8 @@ const ALLOW = [
      not a reason (admin.js's save-wipe confirm was converted for exactly that
      argument: a native call site is one the next author copies).
 
-     Two things that look like they need entries and do NOT:
-       • src/utils/dialog.js — its methods are NAMED confirm/prompt/alert so
-         call sites read naturally, but they are declared as
-         confirmDialog/promptDialog/alertDialog and only ever referenced as
-         object properties. It gets its own stricter assertions below.
-       • the b214 XSS payload `<img src=x onerror=alert(1)>` in the smoke suite
-         — a string literal, and string literals are stripped before scanning. */
+     (The old client's dialog service, src/utils/dialog.js, was deleted with
+     that client on 2026-10-17; the rebuilt client asks in the page.) */
 ];
 
 const SKIP_DIRS = new Set(['node_modules', '.git']);
@@ -128,7 +124,7 @@ export async function nativeDialogGuard(root, opts = {}) {
   for (const file of files) {
     const rel = relative(root, file).split(sep).join('/');
     let src = await readFile(file, 'utf8');
-    if (opts.mutate && rel === 'src/legacy.js') {
+    if (opts.mutate && rel === 'src/app/boot.js') {
       /* THE CONTROL: the pre-b373 rename, restored in shape. */
       src += '\nfunction __mutantRename(){ var n = prompt("Display name:", "Adventurer"); return n; }\n';
     }
@@ -143,22 +139,9 @@ export async function nativeDialogGuard(root, opts = {}) {
       const line = code.slice(0, m.index).split('\n').length;
       problems.push(`${rel}:${line} calls native ${m[1]}() — "${context.trim()}". A native dialog BLOCKS the `
         + 'renderer main thread until answered and has hard-frozen shipped builds twice (b371 slot switch, '
-        + 'b373 rename). Ask with window.HearthriseDialog.confirm/prompt/alert (src/utils/dialog.js), or add '
+        + 'b373 rename). Ask in the page (a shell window or an inline confirm), or add '
         + 'an allowlist entry with a reason to tests/native-dialog.mjs.');
     }
-  }
-
-  /* The replacement service must not quietly grow a native fallback: that is
-     the failure mode where the ban holds everywhere except the one path that
-     runs when things are already going wrong. */
-  const dialogSrc = stripComments(await readFile(join(srcDir, 'utils', 'dialog.js'), 'utf8'));
-  if (/(?:^|[^.\w$])window\s*\.\s*(confirm|prompt|alert)\s*\(/.test(dialogSrc)) {
-    problems.push('src/utils/dialog.js calls a NATIVE dialog itself — the replacement cannot fall back to the '
-      + 'thing it replaces');
-  }
-  if (!/HearthriseDialog/.test(dialogSrc)) {
-    problems.push('src/utils/dialog.js no longer publishes window.HearthriseDialog — every converted call site '
-      + 'silently degrades to "do nothing"');
   }
 
   /* A stale exemption is a hole with a comment on it. */
@@ -170,10 +153,10 @@ export async function nativeDialogGuard(root, opts = {}) {
   }
 
   if (opts.mutate) {
-    const caught = problems.some((p) => /src\/legacy\.js:\d+ calls native prompt/.test(p));
+    const caught = problems.some((p) => /src\/app\/boot\.js:\d+ calls native prompt/.test(p));
     if (caught) console.log('   [mutation caught] the injected prompt() call site was reported');
     return caught ? []
-      : ['MUTATION SURVIVED: a native prompt() call site was injected into src/legacy.js and this scan did not '
+      : ['MUTATION SURVIVED: a native prompt() call site was injected into src/app/boot.js and this scan did not '
          + 'report it. The regex is not matching anything.'];
   }
 
@@ -209,7 +192,7 @@ export default nativeDialogGuard;
 /* Standalone:
      node tests/native-dialog.mjs            (expect green)
      node tests/native-dialog.mjs --mutate   (expect green — the mutant died) */
-if (process.argv[1]?.endsWith('native-dialog.mjs')) {
+if (isMain(import.meta.url)) {
   const { fileURLToPath } = await import('node:url');
   const { normalize } = await import('node:path');
   const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));

@@ -1,0 +1,113 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   src/styles/shell.css — the World shell's windows, widgets and launcher row
+   (docs/design/WORLD_SHELL.md; ART_DIRECTION.md §9 chrome, §10 type).
+   Tokens only, not one colour literal. Frames are the iron pixel 9-slices
+   (assets/ui/frame-iron*.png, 4 and 2 art px = 8 and 4 px at the x2 density),
+   so framed boxes carry radius 0. Shadow only on windows (overlays); no glow.
+   One text style: the analyzer's (--f-label headings, --f-ui body).
+   Not linked by index.html yet: the cutover lane adds it with the mount.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.hs-shell { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
+/* A window's `width` is its whole box, frame included: the dock and the inset add the same numbers. */
+.hs-shell *, .hs-shell *::before, .hs-shell *::after { box-sizing: border-box; }
+.hs-glyph { width: 22px; height: 22px; fill: currentColor; flex: none; }
+
+/* ── Layers: world widgets (shifted clear of the dock), screen widgets, windows ── */
+.hs-hud { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 2; }
+.hs-screen { z-index: 6; }
+.hs-launchers:empty { display: none; }
+.hs-layer { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 3; }
+
+/* ── Widgets: placed by src/shell/hud.js; faded per the layout, full on hover ── */
+.hs-widget { position: absolute; pointer-events: auto; opacity: var(--hs-op, 1); transition: opacity 120ms ease-out; }
+.hs-widget:hover, .hs-widget:focus-within { opacity: 1; }
+
+/* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
+.hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
+.hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }
+.hs-launch:hover, .hs-launch:focus-visible { color: var(--ink); }
+.hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
+.hs-launch.is-open { color: var(--gold-2); }
+.hs-launch.is-open::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--gold); }
+.hs-launch::before {
+  content: attr(data-tip) "  " attr(data-key);
+  position: absolute; top: calc(100% + 6px); right: 0;
+  padding: 3px 8px; white-space: pre;
+  font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 700; color: var(--ink);
+  background: var(--world-hud-bg); border: 1px solid var(--line-soft); border-radius: var(--r);
+  opacity: 0; pointer-events: none; transition: opacity 120ms ease-out;
+}
+.hs-launch:hover::before, .hs-launch:focus-visible::before { opacity: 1; }
+
+/* ── Windows: one frame for all, docked right by the window manager ── */
+.hs-win {
+  position: absolute; top: 12px;
+  max-height: calc(100% - 24px);
+  display: flex; flex-direction: column;
+  pointer-events: auto;
+  background: var(--modal-bg);
+  border: 8px solid transparent;
+  border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch;
+  border-radius: 0;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+.hs-win.is-floating { box-shadow: 0 14px 36px color-mix(in srgb, var(--world-shadow) 65%, transparent); }
+/* Motion: a 120 ms slide and fade from the dock edge, and back out; never a bounce. */
+@keyframes hs-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes hs-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(16px); } }
+.hs-win.is-entering { animation: hs-in 120ms ease-out both; }
+.hs-win.is-leaving { animation: hs-out 120ms ease-in both; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hs-win.is-entering, .hs-win.is-leaving, .hs-widget, .hs-launch::before { animation: none; transition: none; }
+}
+.hs-win-head {
+  display: flex; align-items: center; gap: 8px;
+  height: 44px; padding: 0 4px 0 10px; flex: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--gold);
+  cursor: grab; user-select: none; touch-action: none;
+}
+.hs-win-head .hs-glyph { width: 20px; height: 20px; }
+/* The analyzer's heading style (one text style, §7): no Cinzel in window heads. */
+.hs-win-title { margin: 0; flex: 1; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hs-key { font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-3); padding: 0 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); line-height: 20px; }
+.hs-close { width: 36px; height: 36px; display: grid; place-items: center; border: 0; padding: 0; background: none; color: var(--ink-3); cursor: pointer; border-radius: var(--r); }
+.hs-close:hover { color: var(--ink); background: var(--surf-panel); }
+.hs-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hs-close .hs-glyph { width: 18px; height: 18px; }
+.hs-win-body { overflow: auto; padding: 10px 12px 12px; }
+.hs-note { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
+
+/* ── The HUD layout window: one ruled line per widget, then Reset ── */
+.hs-hudset { margin: 0; padding: 0; list-style: none; }
+.hs-hudset-row { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }
+.hs-hudset-show { flex: 1; font-size: var(--t-small); color: var(--ink-2); }
+.hs-hudset-show small { font-size: var(--t-micro); color: var(--ink-3); }
+.hs-hudset-row input { accent-color: var(--gold); }
+.hs-hudset-row input[type="range"] { width: 110px; }
+.hs-hudset-pct { width: 44px; text-align: right; font-size: var(--t-micro); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hs-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hs-quiet { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-soft); border-radius: var(--r); background: none; color: var(--ink-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); cursor: pointer; }
+.hs-quiet:hover { color: var(--ink); border-color: var(--line); }
+.hs-quiet:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+
+/* ── Phone, landscape: a scaled desktop with ONE full-height side sheet ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-launch { width: 44px; }
+  .hs-launchers { padding-left: 4px; }
+  .hs-win {
+    top: 0; bottom: 0; right: 0; left: auto;
+    width: min(400px, 48vw);
+    max-height: none;
+    border-width: 0 0 0 4px;
+    border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 0 0 0 4px stretch;
+  }
+  .hs-win-head { height: 40px; cursor: default; }
+  .hs-win-body { padding: 8px 10px 10px; }
+  .hs-hudset-row { min-height: 32px; gap: 6px; }
+  .hs-hudset-show small { display: none; }
+  .hs-hudset-row input[type="range"] { width: 72px; }
+}

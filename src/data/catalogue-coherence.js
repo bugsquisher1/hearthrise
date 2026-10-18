@@ -26,19 +26,19 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=592';
-import { ARTISAN_RECIPES } from './recipes.js?v=592';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=592';
-import { SKILLS_DEF } from './skills.js?v=592';
-import { SHOP_OFFERS } from './shops.js?v=592';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=592';
-import { HEARTHFIND_ITEMS } from './hearthfind.js?v=592';
-import { EFFECT_KINDS } from './item-effects.js?v=592';
-import { MONSTERS } from './monsters.js?v=592';
+import { ITEMS } from './items.js?v=0.1.0';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.1.0';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.1.0';
+import { SKILLS_DEF } from './skills.js?v=0.1.0';
+import { SHOP_OFFERS } from './shops.js?v=0.1.0';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.1.0';
+import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.1.0';
+import { EFFECT_KINDS } from './item-effects.js?v=0.1.0';
+import { MONSTERS } from './monsters.js?v=0.1.0';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
   shopGrantIds, goalRewardIds,
-} from './item-authority.js?v=592';
+} from './item-authority.js?v=0.1.0';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

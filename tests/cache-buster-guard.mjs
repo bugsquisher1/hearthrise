@@ -61,6 +61,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { versionQueriesIn, stripVersionQueries } from '../tools/pack-edge.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -71,12 +72,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
    non-module pins out of it — icon-swap.js's sprite pin ?v=88 is a bare query
    concatenated onto a filename, and legacy.js's `legacy.js?v=111` is prose in a
    comment, not a quoted specifier. Both are correct to leave frozen. */
-const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d+)['"`]/g;
+const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d[\d.]*)['"`]/g;
 
 /* index.html's own tags. The extension is required so the comment on line 12,
    which spells out a script tag ending in ?v=111 as an EXAMPLE, is not read as a
    real tag — the same carve-out bump-version.sh --check makes. */
-const HTML_RE = /(?:src|href)="([^"]*\.[a-z0-9]+)\?v=(\d+)"/g;
+const HTML_RE = /(?:src|href)="([^"]*\.[a-z0-9]+)\?v=(\d[\d.]*)"/g;
 
 /* A relative .js import carrying NO ?v= at all: the original b148 gap, where a
    browser serves a stale module for ~10 minutes after a deploy.
@@ -122,7 +123,7 @@ export async function cacheBusterGuard() {
   const problems = [];
 
   const buildInfo = await readFile(join(ROOT, 'src', 'build-info.js'), 'utf8');
-  const m = buildInfo.match(/cache:\s*(\d+)/);
+  const m = buildInfo.match(/cache:\s*'([^']+)'/);
   if (!m) return { problems: ['could not read BUILD.cache from src/build-info.js'], note: '', cache: null };
   const cache = m[1];
 
@@ -216,12 +217,12 @@ const Q = '?' + 'v=';
 export async function cacheBusterMutationGuard() {
   const problems = [];
   const cases = [
-    { name: 'a stale specifier', text: `fetch('src/legacy.js${Q}491')`, re: SPEC_RE, want: ['src/legacy.js', '491'] },
-    { name: 'a versioned relative import', text: `from '../net/record.js${Q}493'`, re: SPEC_RE, want: ['../net/record.js', '493'] },
+    { name: 'a stale specifier', text: `fetch('src/legacy.js${Q}0.0.9')`, re: SPEC_RE, want: ['src/legacy.js', '0.0.9'] },
+    { name: 'a versioned relative import', text: `from '../net/record.js${Q}0.1.0'`, re: SPEC_RE, want: ['../net/record.js', '0.1.0'] },
     { name: 'an unversioned relative import', text: `import { x } from './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
     { name: 'an unversioned bare import', text: `import './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
     { name: 'an unversioned dynamic import', text: `await import('./net/record.js');`, re: MISSING_RE, want: ['./net/record.js'] },
-    { name: 'a stale index.html tag', text: `<script src="src/main.js${Q}491">`, re: HTML_RE, want: ['src/main.js', '491'] },
+    { name: 'a stale index.html tag', text: `<script src="src/main.js${Q}0.0.9">`, re: HTML_RE, want: ['src/main.js', '0.0.9'] },
   ];
   for (const c of cases) {
     c.re.lastIndex = 0;
@@ -235,33 +236,25 @@ export async function cacheBusterMutationGuard() {
     }
   }
 
-  /* THE ON-DISK HALF. Four real files, each carrying a shape that MUST NOT be
-     reported. `trigger` keeps the check from going vacuous: if the line these
-     exist to protect is ever removed, the control says so instead of passing
-     because there was nothing left to find. */
+  /* THE IGNORABLE SHAPES. These were four real files until the client reset
+     (2026-10-17) deleted them; the shapes they carried are kept as fixtures so
+     the patterns stay proven NOT to report them. */
   const frozen = [
-    /* SPEC_RE cases: the file may hold ordinary versioned imports, which the
-       pattern is RIGHT to match. What it must never report is the pinned
-       version — so the assertion is on the number, not on the hit count. */
-    { file: 'src/icon-swap.js', re: SPEC_RE, trigger: 'v=88', forbidVersion: '88',
-      why: "icon-swap's sprite pin is a bare query concatenated onto a filename, not a module specifier" },
-    { file: 'src/legacy.js', re: SPEC_RE, trigger: 'v=111', forbidVersion: '111',
-      why: "legacy.js's kill-switch prose is an unquoted example in a comment" },
-    /* MISSING_RE cases: these two files must yield NO hit at all. Both were real
-       false positives of the first cut. */
-    { file: 'src/net/build-watch.js', re: MISSING_RE, trigger: 'BUILD_INFO_URL',
-      why: 'build-watch resolves a runtime URL; it is not an import and is correctly unversioned' },
-    { file: 'src/utils/showtab-registry.js', re: MISSING_RE, trigger: 'wrapShowTab',
+    { file: 'a sprite pin', re: SPEC_RE, forbidVersion: '88',
+      text: "const url = BASE + filename + '" + Q + "88';",
+      why: 'a sprite pin is a bare query concatenated onto a filename, not a module specifier' },
+    { file: 'kill-switch prose', re: SPEC_RE, forbidVersion: '111',
+      text: '// e.g. a browser stuck on legacy.js' + Q + '111 after a bad deploy',
+      why: 'kill-switch prose is an unquoted example in a comment' },
+    { file: 'a runtime URL', re: MISSING_RE,
+      text: "export const BUILD_INFO_URL = (() => new URL('../build-info.js', import.meta.url))();",
+      why: 'a runtime URL resolution is not an import and is correctly unversioned' },
+    { file: 'backtick prose', re: MISSING_RE,
+      text: '// see `./x.js` for wrapShowTab',
       why: 'prose that names a module inside backticks is not an import' },
   ];
   for (const f of frozen) {
-    let text;
-    try { text = await readFile(join(ROOT, f.file), 'utf8'); }
-    catch { problems.push(`the control cannot read ${f.file} — it is proving nothing`); continue; }
-    if (!text.includes(f.trigger)) {
-      problems.push(`${f.file} no longer contains "${f.trigger}" — this control is now vacuous, re-point or retire it`);
-      continue;
-    }
+    const text = f.text;
     f.re.lastIndex = 0;
     let hit;
     while ((hit = f.re.exec(text)) !== null) {
@@ -275,5 +268,15 @@ export async function cacheBusterMutationGuard() {
       problems.push(`the guard false-positives in ${f.file} on "${got}" — ${f.why}`);
     }
   }
-  return { problems, note: `${cases.length} mutations caught, ${frozen.length} real-file pins left alone` };
+  /* THE EDGE HALF (semver, 2026-10-18): versionQueryGuard must still see, and the
+     pack must still strip, a DOTTED query. A guard that only knew integers would
+     wave a dotted specifier into the edge payload. */
+  const edge = [
+    ['a dotted relative specifier', `import './x.js${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
+    ['a dotted bare query constant', `const V = '${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
+    ['a clean specifier', `import './x.js';`, (s) => versionQueriesIn(s).length === 0],
+    ['the pack strip on a dotted query', `import { a } from './x.js${Q}0.1.0';`, (s) => stripVersionQueries(s) === "import { a } from './x.js';"],
+  ];
+  for (const [name, text, holds] of edge) if (!holds(text)) problems.push(`pack-edge is wrong about ${name}`);
+  return { problems, note: `${cases.length} mutations caught, ${frozen.length} ignorable shapes left alone, ${edge.length} edge-pack shapes held` };
 }

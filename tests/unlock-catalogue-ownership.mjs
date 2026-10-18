@@ -74,6 +74,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 /** The file that refills public.hr_unlocks wholesale. */
 const OWNER = '2026-08-16-unlocks.generated.sql';
@@ -283,8 +284,7 @@ export async function unlockCatalogueOwnershipGuard() {
   return [...problems];
 }
 
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/unlock-catalogue-ownership.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   const selftest = process.argv.includes('--selftest');
   if (selftest) {

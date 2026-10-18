@@ -38,6 +38,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain as isEntryModule } from '../tests/_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -1247,7 +1248,7 @@ export function committedBlock(targetSql) {
 
 // ── CLI ──────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const isMain = (process.argv[1] || '').endsWith('derive-grant-hygiene.mjs');
+const isMain = isEntryModule(import.meta.url);
 
 export async function checkDerivation() {
   const problems = [];

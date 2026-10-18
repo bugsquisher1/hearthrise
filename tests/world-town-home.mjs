@@ -58,7 +58,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const V = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
@@ -75,17 +75,8 @@ async function load(base) {
     lights: terrain.LIGHTS, terrains: book.terrains };
   const rows = Object.fromEntries(maps.WORLD_MAPS.map((m) => [m.id, m]));
   return { walk, town, home, steer, store, mapc, nullb, book, bookm, manifests, tables, rows, maps, terrain, stations, layouts, perks, camera, facing, choreo,
-    residueSrc: readFileSync(join(base, 'src/net/client-state.js'), 'utf8'),
+    residue: (await import(pathToFileURL(join(base, 'src/session/residue.js')).href)).RESIDUE_FIELDS,
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
-}
-
-/** RESIDUE_FIELDS as written: [names], and whether the literal is frozen. */
-function residueFields(src) {
-  const at = src.indexOf('export const RESIDUE_FIELDS = ');
-  if (at < 0) return null;
-  const end = src.indexOf(']);', at);
-  const body = src.slice(at, end).replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-  return { frozen: /RESIDUE_FIELDS = Object\.freeze\(\[/.test(src.slice(at, at + 60)), names: [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]) };
 }
 
 const PEERS = [
@@ -157,9 +148,9 @@ function check(M) {
   });
 
   fam('P', () => {
-    const rf = residueFields(M.residueSrc);
-    ok('P', rf && rf.frozen && rf.names.length > 10, 'RESIDUE_FIELDS must be a frozen allowlist literal in src/net/client-state.js');
-    const leaked = rf ? rf.names.filter((n) => /^(_?world|pos|position|zone|plan|walk|steer|camera)$/i.test(n)) : [];
+    const rf = M.residue;
+    ok('P', Array.isArray(rf) && Object.isFrozen(rf) && rf.length > 0, 'RESIDUE_FIELDS must be a frozen allowlist in src/session/residue.js');
+    const leaked = Array.isArray(rf) ? rf.filter((n) => /^(_?world|pos|position|zone|plan|walk|steer|camera)$/i.test(n)) : [];
     ok('P', !leaked.length, 'the residue allowlist must hold no world or position field: ' + leaked.join(','));
     const G = { gold: 5, rooms: { kitchen: 1 }, homestead: { tier: 1 } };
     const before = JSON.stringify(Object.assign({}, G));
@@ -440,7 +431,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/net/client-state.js'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {

@@ -87,6 +87,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
@@ -1262,8 +1263,7 @@ async function main() {
 // whole guard — and killed the importer with process.exit(1) whenever the repo
 // was red. tests/selfcheck-no-global-dml.bypass.mjs imports both. Run only when
 // this file IS the entry point.
-const IS_ENTRY = process.argv[1]
-  && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url));
+const IS_ENTRY = isMain(import.meta.url);
 if (IS_ENTRY) {
   main().catch((e) => {
     console.error(e.message || e);

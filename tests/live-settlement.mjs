@@ -51,6 +51,7 @@ import { huntSpan } from './hunt-fixture.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -694,7 +695,7 @@ async function mutate() {
   return bad;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('Live-settlement Phase 0 — mutation harness:');
     const bad = await mutate();

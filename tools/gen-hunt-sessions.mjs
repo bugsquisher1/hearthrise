@@ -95,6 +95,7 @@ import { WORLD_VERSION, SHAPE } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
 import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_NAME = '2026-10-23-hunt-sessions-catalogue.generated.sql';
@@ -799,7 +800,7 @@ function selftest() {
   console.log('gen-hunt-sessions --selftest: every refusal bites; shipped data passes');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) {
     selftest();
   } else {

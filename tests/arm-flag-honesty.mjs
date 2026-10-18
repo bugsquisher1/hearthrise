@@ -45,6 +45,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SRC = join(ROOT, 'src');
@@ -178,7 +179,7 @@ function selftest() {
   if (!ok) { bad++; console.log(`      ${flags.length} flag(s), findings: ${findings.join(' | ')}`); }
   // …and the vacuity control: the real tree must actually contain flags.
   const real = auditSources(loadSrc());
-  const seen = real.flags.length >= 10;
+  const seen = real.flags.length >= 7;   // 7: the client reset (2026-10-17) and the P0 demolition (b592) deleted the rest
   console.log(`  ${seen ? '✓' : '✗'} not vacuous: ${real.flags.length} real arm flag(s) found under src/`);
   if (!seen) bad++;
   if (bad) { console.error(`arm-flag-honesty --selftest: ${bad} control(s) failed.`); process.exit(1); }
@@ -188,7 +189,7 @@ function selftest() {
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (argv.includes('--selftest')) selftest();
   const { findings, flags } = auditSources(loadSrc());

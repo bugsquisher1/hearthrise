@@ -68,6 +68,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT, manifest } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const FIX = '2026-09-06-companion-grant-hardening.sql';
 const AUTHOR = '2026-08-22-companion-grant.sql';
@@ -575,8 +576,7 @@ export async function companionGrantHardeningGuard() {
   return problems.map((p) => `${p.name}: ${p.msg}`);
 }
 
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/companion-grant-hardening.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   const selftest = process.argv.includes('--selftest');
   if (selftest) {

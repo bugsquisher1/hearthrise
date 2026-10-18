@@ -26,6 +26,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, normalize, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const CORE_DIR = join(ROOT, 'src', 'core');
@@ -48,7 +49,7 @@ async function coreFiles(dir = CORE_DIR) {
    that resolves inside src/core/** or src/data/** — never src/features, the
    legacy monolith, the network layer or a bare package. */
 export function lawfulImport(fromRel, spec) {
-  const bare = spec.replace(/\?v=\d+$/, '');
+  const bare = spec.replace(/\?v=\d[\d.]*$/, '');
   if (!/^\.\.?\//.test(bare) || !/(^|\/)[\w-]+\.js$/.test(bare)) return false;
   const to = normalize(join(CORE_DIR, dirname(fromRel), bare));
   return [CORE_DIR, DATA_DIR].some((d) => to.startsWith(d + sep));
@@ -119,7 +120,7 @@ export async function corePurityGuard() {
         problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
       /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
-      if (!/\?v=\d+/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
+      if (!/\?v=\d[\d.]*/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
     }
   }
 
@@ -542,8 +543,7 @@ export async function hashIntegrityGuard() {
     }
   }
   /* If every copy disappears, the guard is silently guarding nothing — say so
-     rather than pass. There are 4 known FNV sites in src/** (world-events.js, muster.js and
-     legacy.js dailySeed left with their systems on 2026-10-14). */
+     rather than pass. There are 4 known FNV sites in src/** since the client reset (2026-10-17) and the P0 demolition (b592). */
   if (sites < 4) problems.push(`only ${sites} FNV-1a prime site(s) found in src/ — expected at least 4; the guard may be scanning the wrong tree`);
 
   /* And the reference itself must still be the reference. */
@@ -579,7 +579,7 @@ export async function runAll() {
 }
 
 /* Standalone entry point. */
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const problems = await runAll();
   if (problems.length) {
     console.log('src/core guard — FAILED:');

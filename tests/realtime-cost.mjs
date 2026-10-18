@@ -59,6 +59,20 @@ const MIG = '2026-09-06-realtime-publication-trim.sql';
    fetch(channel, sinceTs) but nothing polls it. */
 const EXPECTED = ['chat_messages'];
 
+/* ── A CONSUMER THAT IS COMING BACK, WITH A DATE ────────────────────────────
+   The client reset (2026-10-17) deleted the old chat client, so for now nothing
+   under src/** subscribes to chat_messages. The chat window returns with the
+   week plan (docs/planning/WEEK_PLAN_2026-10-17.md item 13); unpublishing the
+   table for those days and re-publishing it would be two migrations for a game
+   nobody can enter (it is CLOSED, so no write reaches the poller). The entry
+   EXPIRES: after `until` the table is published for nobody again and R3/R4 go
+   red until the chat client subscribes or a migration unpublishes it. It is
+   one row with a date and an owner, not a standing exemption. */
+const PENDING_CONSUMERS = {
+  chat_messages: { until: '2026-10-31', owner: 'the chat window (week plan item 13)' },
+};
+const pendingNow = (today, table) => !!PENDING_CONSUMERS[table] && today <= PENDING_CONSUMERS[table].until;
+
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
@@ -121,21 +135,16 @@ const MUTATIONS = {
     ],
   },
   market_subscription_returns: {
-    why: 'the removed market_listings postgres_changes subscription is put back in the client without '
-       + 'the table being published — the original defect, a handler that can never fire, plus a live '
+    why: 'a market_listings postgres_changes subscription is put in the client without the table '
+       + 'being published — the original defect, a handler that can never fire, plus a live '
        + 'websocket channel per player for nothing. R2 must catch it.',
-    src: [['     Reinstating this needs the table published in the SAME change. */',
-           "     Reinstating this needs the table published in the SAME change. */\n"
-           + "  subscribe(onChange) {\n"
-           + "    this._sub = client.channel('market-listings')\n"
-           + "      .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' },\n"
-           + "        () => onChange()).subscribe();\n"
-           + "  },"]],
+    srcExtra: { 'src/app/market-probe.js': "export const sub = (client, onChange) => client.channel('market-listings')\n"
+      + "  .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' }, () => onChange()).subscribe();\n" },
   },
-  chat_subscription_lost: {
-    why: 'the chat postgres_changes subscription is deleted from the client while the table stays '
-       + 'published — chat stops working AND the publication keeps paying for it. R3 must catch it.',
-    src: [["table: 'chat_messages'", "table: 'chat_messages_REMOVED'"]],
+  chat_consumer_overdue: {
+    why: 'the chat consumer\'s return date passes with no subscriber — the table is published for '
+       + 'nobody again. R3 must catch it the day after `until`.',
+    today: '2099-01-01',
   },
 };
 
@@ -150,25 +159,16 @@ async function walk(dir, out = []) {
   return out;
 }
 
-async function subscribedTables(srcPatches) {
+async function subscribedTables(srcExtra) {
   const files = await walk(join(ROOT, 'src'));
+  const texts = [];
+  for (const f of files) texts.push([f.slice(ROOT.length + 1).replace(/\\/g, '/'), (await readFile(f, 'utf8')).replace(/\r\n/g, '\n')]);
+  for (const [rel, text] of Object.entries(srcExtra || {})) texts.push([rel, text]);
   const found = new Map(); // table -> [where]
-  for (const f of files) {
-    let text = (await readFile(f, 'utf8')).replace(/\r\n/g, '\n');
-    if (srcPatches && f.endsWith('supabase-market-backend.js')) {
-      for (const [find, repl] of srcPatches) {
-        if (text.includes(find)) text = text.split(find).join(repl);
-      }
-    }
-    if (srcPatches && f.endsWith('supabase-chat-backend.js')) {
-      for (const [find, repl] of srcPatches) {
-        if (text.includes(find)) text = text.split(find).join(repl);
-      }
-    }
+  for (const [rel, text] of texts) {
     if (!text.includes('postgres_changes')) continue;
     // every `table: '<name>'` inside a postgres_changes subscription object
     for (const m of text.matchAll(/postgres_changes'?\s*,\s*\{[^}]*table:\s*'([^']+)'/g)) {
-      const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
       if (!found.has(m[1])) found.set(m[1], []);
       found.get(m[1]).push(rel);
     }
@@ -197,8 +197,10 @@ async function run(mutation) {
   if (mutation && !m) { console.error(`unknown mutation "${mutation}"`); process.exit(2); }
 
   const { published, tablesAlive } = await readDatabase(m && m.sql);
-  const subs = await subscribedTables(m && m.src);
+  const subs = await subscribedTables(m && m.srcExtra);
   const subscribed = [...subs.keys()].sort();
+  const today = (m && m.today) || new Date().toISOString().slice(0, 10);
+  const consumed = (t) => subscribed.includes(t) || pendingNow(today, t);
 
   // R1 — the publication is exactly the load-bearing set.
   ok(published.join(',') === EXPECTED.join(','),
@@ -214,17 +216,18 @@ async function run(mutation) {
 
   // R3 — nothing is published that nobody subscribes to (pure poller cost).
   for (const t of published) {
-    ok(subscribed.includes(t),
-      `R3 publication carries "${t}" but no file under src/** subscribes to it — every published `
-      + 'table is WAL-decoded and RLS-evaluated per connected client on every poll, for nobody');
+    ok(consumed(t),
+      `R3 publication carries "${t}" but no file under src/** subscribes to it`
+      + (PENDING_CONSUMERS[t] ? ` and its pending consumer (${PENDING_CONSUMERS[t].owner}) was due by ${PENDING_CONSUMERS[t].until}` : '')
+      + ' — every published table is WAL-decoded and RLS-evaluated per connected client on every poll, for nobody');
   }
 
   // R4 — CONTROL. R1-R3 are all satisfied by an EMPTY publication and an empty
   // client: two empty sets are equal, and that database is the cheapest one
   // there is. Name the table whose absence is a broken game, not a saving.
-  ok(published.includes('chat_messages') && subscribed.includes('chat_messages'),
-    'R4 chat_messages must be BOTH published and subscribed — src/net/supabase-chat-backend.js:150 is '
-    + 'the only peer-delivery path in the game and nothing polls chat_messages as a fallback');
+  ok(published.includes('chat_messages') && consumed('chat_messages'),
+    'R4 chat_messages must be BOTH published and consumed (subscribed, or a pending consumer within its '
+    + 'date) — chat is the only peer-delivery path and nothing polls chat_messages as a fallback');
 
   // R5 — CONTROL. The trim must UNPUBLISH, never DROP. A migration that deleted
   // the tables would satisfy R1-R4 and destroy the market.

@@ -2,6 +2,16 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-10-15 — lane/s-shell-framework (World shell framework, unwired)
+- Built `src/shell/{window-manager,hud,launcher,renderers,shell}.js`, `src/data/{shell-windows,hud-widgets}.js`,
+  `src/styles/shell.css`, `assets/ui/frame-iron{,-thin}.png` (copied from the approved A/B "B" samples).
+- Rows ship only with a renderer (`hud` window, `launchers` widget): a launcher never opens an empty
+  frame, and `tests/shell-renderers.mjs` enforces the pairing. Bag/Gear/Skills/Home/Settings arrive as row+renderer.
+- The residue field is `hudLayout`, not `hud`: a unique name is what lets `tests/hud-layout-display-only.mjs`
+  confine readers by scan. ARCHITECTURE_CONTRACTS P6 updated to match.
+- Learned: a framed window must be `box-sizing: border-box`, or the dock width, the inset and the painted
+  width disagree by the frame (measured 396 vs 380 px before the fix).
+
 ## 2026-09-12 — THE DEPOT: a dormant server verb finally has a client (bank-store, b438 → b544)
 
 **Branch** `worktree-agent-a50e80b5a0c025fcb`, merged `origin/next` twice (7b45f2f8, then the
@@ -4096,6 +4106,12 @@ activity bar and the topbar.
    the WIP commit and silently dropped an edit made after it. Commit, then prove.
 5. B353-3, B353-3b and the emoji-as-icon "home DIV" red reproduce ALONE in a scratch harness boot on
    origin/main too: runner context (run-smoke's page setup), not lane regressions.
+
+## 2026-10-17 — client reset (lane/w1-client-reset)
+1. *Delete the client, keep the server guards honest.* About 60 guards read the old client; each was retired with a one-line reason (its surface is gone) or re-pointed at the new seam (envelope.js, residue.js, server.js, play.html). No server or money guard was loosened; the edge payload hash did not move.
+2. *Edge-bundled data files are frozen by the payload hash.* Editing a header comment in `src/data/shops.js` changes the deployed sha. Generator inputs that lived in legacy.js moved to a new non-bundled file (`src/data/homestead-tiers.js`).
+3. *`import.meta.url === \`file://${argv[1]}\`` never matches on Windows* — retired-capability-copy printed nothing and exited 0 locally. Use `pathToFileURL(argv[1]).href`.
+4. *Meta-guards anchor on real files:* guard-anchors' incident proof moved from envelope-frame-gate/gold.js to no-client-copy-of-projection/envelope.js; it is derived, so it follows the next move.
 
 ## 2026-10-14 — lane D3, demolition keep-strip (`lane/demo-keep-strip`)
 

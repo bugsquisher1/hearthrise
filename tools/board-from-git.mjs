@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const sh = (c) => { try { return execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
-const build = (readFileSync('src/build-info.js', 'utf8').match(/cache:\s*(\d+)/) || [])[1];
+const build = (readFileSync('src/build-info.js', 'utf8').match(/cache:\s*'([^']+)'/) || [])[1];
 const changelogHead = (readFileSync('CHANGELOG.md', 'utf8').match(/^## (v[^\n]+)/m) || [])[1] || '';
 const head = sh('git log --oneline -1');
 const originMain = sh('git rev-parse --short origin/main');

@@ -40,6 +40,7 @@
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -131,7 +132,7 @@ export const GOOD_BUT_UNRESOLVED = [
   'masons_rule_t4', 'masons_rule_t7', 'watchknight_sabatons',
 ];
 
-if (import.meta.url === url.pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const missing = [];
   for (const [id, [cat, srcName]] of Object.entries(WIRE)) {
     const src = path.join(PROC, srcName + '.png');

@@ -57,6 +57,7 @@
 // mutant-anchors: none — the proof drives the shared driver on in-memory scenarios
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { isMain } from './_is-main.mjs';
 
 export const PROVEN = 0;
 export const UNPROVEN = 1;
@@ -221,10 +222,7 @@ function firstLine(e) {
 // running the guard's own mutations — a shared driver that hijacks its callers'
 // proofs is the vacuous proof with a new face. Only run as the program.
 const argv = process.argv.slice(2);
-const IS_MAIN = (() => {
-  try { return resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1] || ''); }
-  catch { return false; }
-})();
+const IS_MAIN = isMain(import.meta.url);
 
 if (IS_MAIN && argv.includes('--selftest')) {
   const quiet = () => {};

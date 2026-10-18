@@ -62,9 +62,10 @@ import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sliceLiteral, makeDie } from './lib/slice-literal.mjs';
+import { makeDie } from './lib/slice-literal.mjs';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ITEMS } from '../src/data/items.js';
+import { PROPERTY_TIERS, ROOM_RUNGS } from '../src/data/homestead-tiers.js';
 import {
   UNLOCK_OFFERS, UNLOCK_REFUSALS, ALL_UNLOCK_OFFER_IDS,
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
@@ -78,14 +79,15 @@ const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');
 const REPORT = argv.includes('--report');
 
-const read = (rel) => readFile(join(ROOT, rel), 'utf8');
 
 /* ══════════════════════════════════════════════════════════════════════════
    1 · THE PREREQUISITES, EXTRACTED FROM THE TWO CLASSIC SCRIPTS
    ══════════════════════════════════════════════════════════════════════════ */
-const ROOMS = sliceLiteral(await read('src/legacy.js'), 'const ROOMS={', 'src/legacy.js', die);
-const TIERS = sliceLiteral(
-  await read('src/features/homestead.js'), 'var TIERS = [', 'src/features/homestead.js', die);
+/* The two tables moved out of the deleted client into src/data/homestead-tiers.js
+   (2026-10-17, verbatim). The emitted SQL still names their old homes in its
+   prose, so the committed migration stays byte-identical. */
+const ROOMS = Object.fromEntries(Object.entries(ROOM_RUNGS).map(([id, levels]) => [id, { levels }]));
+const TIERS = PROPERTY_TIERS;
 
 /** The property tier at which room `id` may first be built — homestead.js
     `roomMinTier`, which is the SAME function `upgradeRoom` gates with. */

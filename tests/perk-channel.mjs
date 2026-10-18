@@ -62,6 +62,7 @@ const huntNight = (inp) => huntAccrual(inp, { seed: inp.seed, pull: { size: 1, r
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { xpForLevel } from '../src/core/xp.js';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -638,7 +639,7 @@ export async function perkChannelGuard() {
   return problems.slice();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('perk channel — mutation run (every line must read RED):');
     const clean = await mutate();

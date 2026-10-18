@@ -24,6 +24,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { isMain } from './_is-main.mjs';
 import {
   KILL_TIME_SQL_CONSTANTS, plausibleKillCap, maxHitCeil, minTimeToKillMs,
 } from '../src/core/kill-time.js';
@@ -83,8 +84,7 @@ export async function killTimeDriftGuard() {
   return { ok: true, checks: 'kill-time cap SQL⟷core bind green' };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, '/')
-    || process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   killTimeDriftGuard().then((r) => { console.log(r.checks); })
     .catch((e) => { console.error(e.message); process.exit(1); });
 }

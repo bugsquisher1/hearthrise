@@ -77,8 +77,9 @@
 // longer be is INVISIBLY worthless.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, dirname, basename, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -224,7 +225,27 @@ export function implementsFlag(src, flag) {
 // ── THE VERDICT, as a pure function of the tree ──────────────────────────
 // Everything it reads is an argument, so --selftest can hand it a MUTATED tree
 // and require this exact code — the code CI runs — to go red.
-export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist }) {
+/** First line number (1-based) of a hand-rolled main-module compare, else 0. Comments are skipped. */
+export function handRolledIsMain(src) {
+  const lines = src.split('\n');
+  let inBlock = false;
+  for (let i = 0; i < lines.length; i++) {
+    let l = lines[i];
+    if (inBlock) {
+      if (!l.includes('*/')) continue;
+      inBlock = false; l = l.slice(l.indexOf('*/') + 2);
+    }
+    l = l.replace(/\/\*.*?\*\//g, '');
+    if (l.includes('/*')) { inBlock = true; l = l.slice(0, l.indexOf('/*')); }
+    l = l.replace(/(^|\s)\/\/.*$/, '$1');   // not the // of file://
+    if (!/process\.argv(?:\[1\]|\.at\(1\))/.test(l)) continue;
+    const win = [lines[i - 1], l, lines[i + 1]].join(' ');
+    if (/import\.meta\.url|pathToFileURL|fileURLToPath|endsWith|file:\/\//.test(win)) return i + 1;
+  }
+  return 0;
+}
+
+export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist, toolSources }) {
   const problems = [];
   const cmds = workflowCommands(workflowText);
 
@@ -325,6 +346,20 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist }
     }
   }
 
+  // ── RULE 6: ONE isMain, NEVER HAND-ROLLED (ISMAIN-1) ───────────────────
+  // import.meta.url is a file:// URL; process.argv[1] is a backslash path on Windows. A hand-rolled
+  // compare is false there, so the guard exits 0 having checked nothing (40+ files, 2026-10-17).
+  // On Linux CI it DOES run, which is exactly why nobody saw it.
+  for (const [name, src] of Object.entries({ ...(toolSources || {}), ...sources })) {
+    // guard-hygiene.mjs itself carries the planted examples in its mutation catalogue
+    if (name === '_is-main.mjs' || name === 'guard-hygiene.mjs') continue;
+    const line = handRolledIsMain(src);
+    if (line) {
+      problems.push(`HAND-ROLLED isMain: ${name} line ${line} compares the entry path to the module location by hand. `
+        + 'Use isMain(import.meta.url) from tests/_is-main.mjs; the hand-rolled forms are false on Windows.');
+    }
+  }
+
   // ── RULE 3 + 4: THE ALLOWLIST STAYS HONEST ─────────────────────────────
   for (const f of Object.keys(allowed)) {
     if (f.startsWith('$')) continue;   // $family:* notes are prose, by design
@@ -357,7 +392,16 @@ function readTree() {
   const files = guardFiles();
   const sources = {};
   for (const f of files) sources[f] = readFileSync(join(HERE, f), 'utf8');
+  const toolSources = {};
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) { if (e.name !== 'node_modules') walk(join(dir, e.name)); }
+      else if (e.name.endsWith('.mjs')) toolSources['tools/' + relative(join(ROOT, 'tools'), join(dir, e.name)).replace(/\\/g, '/')] = readFileSync(join(dir, e.name), 'utf8');
+    }
+  };
+  walk(join(ROOT, 'tools'));
   return {
+    toolSources,
     files,
     workflowText: readFileSync(WORKFLOW, 'utf8'),
     runSmokeSrc: sources['run-smoke.mjs'] || '',
@@ -472,11 +516,30 @@ const MUTATIONS = [
         + "\nawait spawn('node', [join(ROOT, 'tests', 'gold-intents.mjs'), '--selftest']);\n" }),
     expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/gold-intents\.mjs ONLY with a mutation flag/,
   },
+  {
+    id: 'M11-a-hand-rolled-isMain-compare-in-a-guard',
+    why: 'THE 2026-10-17 STATE: 40+ guards compared import.meta.url to process.argv[1] by hand; on Windows that is '
+       + 'false and the guard exited 0 having checked nothing. Planted in a test and in a tool, both must be caught',
+    mutate: (t) => ({ ...t,
+      sources: { ...t.sources, 'planted-guard.mjs':
+        "if (import.meta.url === pathToFileURL(process.argv[1] || '').href) { main(); }\n" },
+      toolSources: { ...(t.toolSources || {}), 'tools/planted-tool.mjs':
+        "const isMain = (process.argv[1] || '').endsWith('planted-tool.mjs');\n" } }),
+    expect: /HAND-ROLLED isMain: planted-guard\.mjs line 1[\s\S]*|HAND-ROLLED isMain: tools\/planted-tool\.mjs line 1/,
+  },
+  {
+    id: 'M12-a-hand-rolled-isMain-in-a-tool-alone',
+    why: 'the tool half of the rule must bite on its own, not ride on the guard half',
+    mutate: (t) => ({ ...t,
+      toolSources: { ...(t.toolSources || {}), 'tools/planted-tool.mjs':
+        "if (import.meta.url === `file://${process.argv[1]}`) { run(); }\n" } }),
+    expect: /HAND-ROLLED isMain: tools\/planted-tool\.mjs line 1/,
+  },
 ];
 
 /* The CLI runs only when this file IS the entry point: tools/guard-anchors.mjs imports
    implementsFlag so the NON-VACUITY detector and the anchor map agree on what a proof is. */
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (argv.includes('--list')) {
     for (const m of MUTATIONS) console.log(m.id + '  —  ' + m.why);
     process.exit(0);

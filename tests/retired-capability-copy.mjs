@@ -13,17 +13,20 @@
 // "Save now" toasted 'Saved.' over a function that saves nothing. Each sentence
 // was fixed one at a time and the class came back, so this is the class guard.
 //
-// WHAT IS SCANNED: shipped src/**/*.js (not src/features/smoke/**, src/vendor/**)
-// plus old-client.html. Comments are stripped; STRINGS ARE KEPT (they are the copy),
+// WHAT IS SCANNED: shipped src/**/*.js (not src/vendor/**) plus every root
+// *.html (play.html, the index.html notice). Comments are stripped; STRINGS ARE KEPT (they are the copy),
 // adjacent 'a' + 'b' literals are joined, console.*( arguments are skipped.
 // Phrase-level rules only: the bare word 'offline' is legitimate (away accrual).
 //
-// KEY CENSUS: the retired storage keys may appear only in the loadLocal purge
-// and the ALLOW-listed dead plumbing — a new reader or writer is a new rival.
+// KEY CENSUS: the retired storage keys may not appear at all — the rebuilt
+// client (2026-10-17) keeps no save, so a new reader or writer is a new rival.
+// ALLOW is empty; an entry needs a reason and is reported once it goes stale.
 // ============================================================================
 
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const RETIRED = [
   { id: 'local-save', why: 'there is no local save; the server is the only copy',
@@ -45,17 +48,7 @@ const RETIRED = [
 const RETIRED_KEYS = /hearthbound-save-v2|hearthrise:save-backup:|hearthrise:char:/g;
 
 /* Every entry: where (repo path), match (regex over ~120 chars of context), reason. */
-const DEFERRED = 'C1 deferred: consent gate pending owner decision';
-const PLUMBING = 'dead blob plumbing, follow-up';
 const ALLOW = [
-  { where: 'src/net/accrue.js', match: /replace your local progress/, reason: DEFERRED },
-  { where: 'src/net/accrue.js', match: /Keep my local save/, reason: DEFERRED },
-  { where: 'src/legacy.js', match: /SAVE_KEY\s*=\s*'hearthbound-save-v2'/, reason: 'the key the loadLocal purge removes' },
-  { where: 'src/legacy.js', match: /RETIRED_PREFIXES=\[/, reason: 'the loadLocal purge of the retired prefixes' },
-  { where: 'src/legacy.js', match: /PARK_PREFIX\s*=/, reason: PLUMBING + ' (park helpers, pinned by b318)' },
-  { where: 'src/multi-character.js', match: /SAVE_KEY = 'hearthbound-save-v2'/, reason: PLUMBING + ' (slot copy)' },
-  { where: 'src/multi-character.js', match: /function charKey/, reason: PLUMBING + ' (slot copy)' },
-  { where: 'src/net/client-state.js', match: /too much local progress to store/, reason: 'residue PUT size warning, not a save promise' },
 ];
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'vendor']);
@@ -64,7 +57,7 @@ async function walk(dir, out = []) {
   for (const e of await readdir(dir, { withFileTypes: true })) {
     if (e.name.startsWith('.') || SKIP_DIRS.has(e.name)) continue;
     const p = join(dir, e.name);
-    if (e.isDirectory()) { if (!p.endsWith(join('features', 'smoke'))) await walk(p, out); }
+    if (e.isDirectory()) { await walk(p, out); }
     else if (e.name.endsWith('.js')) out.push(p);
   }
   return out;
@@ -140,7 +133,7 @@ export async function loadFiles(root) {
 export function scanAll(files, allow = ALLOW) {
   const used = new Set();
   const problems = files.flatMap((f) => scanText(f.rel, f.text, allow, used));
-  if (files.length < 50) problems.push(`only ${files.length} files scanned — the walk is broken`);
+  if (files.length < 40) problems.push(`only ${files.length} files scanned — the walk is broken`);
   for (const a of allow) {
     if (!used.has(a)) problems.push(`stale ALLOW entry ${a.where} ${a.match} (${a.reason}) matched nothing — delete it`);
   }
@@ -149,13 +142,13 @@ export function scanAll(files, allow = ALLOW) {
 
 async function selftest(root) {
   const files = await loadFiles(root);
-  const base = files.find((f) => f.rel === 'src/settings-page.js');
+  const base = files.find((f) => f.rel === 'src/app/sign-in.js');
   const fails = [];
   const probe = (name, text, wantRed) => {
     const red = scanText(base.rel, text).length > 0;
     if (red !== wantRed) fails.push(`${name}: expected ${wantRed ? 'RED' : 'GREEN'}`);
   };
-  probe('clean settings-page.js', base.text, false);
+  probe('clean sign-in.js', base.text, false);
   const SAMPLES = ['Your local save is safe', 'Continue offline', 'Sync your save', 'Export save',
     "Erase + reload", 'Save now', 'Continue as guest', 'Buy back · 40 gp'];
   RETIRED.forEach((r, i) => {
@@ -175,12 +168,12 @@ async function selftest(root) {
     'Saved locally — will send when you\\\'re signed in']) {
     probe(`(g) negative control "${ok}"`, base.text + `\nvar __m = '${ok}';\n`, false);
   }
-  const stale = scanAll(files, [...ALLOW, { where: 'src/legacy.js', match: /__never_present__/, reason: 'x' }]);
+  const stale = scanAll(files, [...ALLOW, { where: 'src/app/sign-in.js', match: /__never_present__/, reason: 'x' }]);
   if (!stale.some((p) => /stale ALLOW entry/.test(p))) fails.push('(d) a stale ALLOW entry was not reported');
   return fails;
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   const root = process.cwd();
   if (process.argv.includes('--selftest')) {

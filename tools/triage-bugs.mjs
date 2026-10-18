@@ -59,6 +59,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const PROJECT = 'nezapsylztqbbwuwembx';
 const URL_Q = `https://api.supabase.com/v1/projects/${PROJECT}/database/query`;
@@ -397,7 +398,7 @@ const COMMANDS = { list, show, mark, stats, incidents };
    usage message and called process.exit(2) — i.e. the query could not be
    tested without a live management token, so it would not have been. A guard
    that cannot be exercised is the always-null probe with a network call. */
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (!cmd || !COMMANDS[cmd]) {
     die(`usage:
   node tools/triage-bugs.mjs list      [--status new|triaged|fixed|wontfix|all] [--limit 20]

@@ -4,7 +4,8 @@
 //
 // MUTATION PROOF for supabase/migrations/2026-08-17-bug-triage.sql, on real
 // PostgreSQL in WASM (PGlite, in-process, no Docker, production untouched),
-// plus the source-level guard on src/bug-report.js's delivery ORDER.
+// plus the relay's writer-of-record check. (The client's src/bug-report.js and its
+// delivery-order guard retired with the old client on 2026-10-17.)
 //
 // THE THREE CLAIMS UNDER TEST
 //
@@ -38,6 +39,7 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -60,7 +62,6 @@ catch { process.stderr.write('HARNESS: @electric-sql/pglite is not installed\n')
 const drBase  = LF(await readFile(MIG('2026-08-10-dr-bug-reports-base.sql'), 'utf8'));
 const relay   = LF(await readFile(MIG('2026-08-11-bug-report-relay.sql'),    'utf8'));
 const triage  = LF(await readFile(MIG('2026-08-17-bug-triage.sql'),          'utf8'));
-const clientJs = LF(await readFile(join(ROOT, 'src', 'bug-report.js'), 'utf8'));
 const triageTool = LF(await readFile(join(ROOT, 'tools', 'triage-bugs.mjs'), 'utf8'));
 
 // ── fixture: the platform floor + the two files that own bug_reports today ──
@@ -240,23 +241,8 @@ async function run() {
   await db.close();
 }
 
-// ── The source-level claim: the client must not double-file ────────────────
-function clientOrderGuard() {
-  const submit = clientJs.match(/async function submit\(\{[\s\S]*?\n\}/);
-  if (!submit) harness('could not lift submit() out of src/bug-report.js — the anchor has moved');
-  const body = submit[0];
-
-  if (/Promise\.all\s*\(\s*\[[^\]]*sendRelay/.test(body) || /Promise\.allSettled\s*\(\s*\[[^\]]*sendRelay/.test(body)) {
-    fail('submit() fans out sendRelay and sendSupabase in parallel — every report would be filed TWICE');
-  } else pass('submit() does not fan out — the two paths are ordered');
-
-  // sendSupabase must be reached only through a guard mentioning the relay result.
-  const call = body.match(/^.*sendSupabase\(payload\).*$/m);
-  if (!call) harness('submit() no longer calls sendSupabase — the fallback path is gone');
-  if (!/if\s*\(\s*!relay\.ok/.test(body)) {
-    fail('submit() calls sendSupabase without checking !relay.ok — the relay already wrote the row, so this double-files');
-  } else pass('sendSupabase is guarded by !relay.ok — it is a FALLBACK, not a second write');
-
+// ── The relay is the writer of record ──────────────────────────────────────
+function relayWriterGuard() {
   // The relay is the writer of record; a comment is not a guarantee, so assert
   // the RPC the relay calls is the one that writes.
   if (!/insert\s+into\s+public\.bug_reports/i.test(relay)) {
@@ -626,17 +612,17 @@ async function toolMutate() {
 
 export async function bugTriageGuard() {
   problems = []; quiet = true; harnessErr = null;
-  try { clientOrderGuard(); toolVocabularyGuard(); await rejectionQueueGuard(); await run(); return problems; }
+  try { relayWriterGuard(); toolVocabularyGuard(); await rejectionQueueGuard(); await run(); return problems; }
   catch (e) { return [harnessErr ? `bug-triage harness: ${harnessErr}` : `bug-triage guard failed to run — ${e?.message || e}`]; }
   finally { quiet = false; }
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('bug-triage.mjs')) {
+if (isMain(import.meta.url)) {
   let code = 0;
   try {
-    process.stdout.write('── src/bug-report.js delivery order\n');
-    clientOrderGuard();
+    process.stdout.write('── the relay writes the row\n');
+    relayWriterGuard();
     toolVocabularyGuard();
     process.stdout.write('\n── the server\'s half of the queue (hr_rejections in `list`)\n');
     await rejectionQueueGuard();

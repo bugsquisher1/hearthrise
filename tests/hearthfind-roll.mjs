@@ -315,14 +315,28 @@ async function runAll(mut) {
     /* The combat engine is the loop (combat-sim.js), its swing (hunt/world-step.js) and its payer (hunt-rewards.js, lane S1). */
     const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js')) + (await read('../src/core/hunt-rewards.js'));
     const skill = await read('../src/core/skill-sim.js');
-    const legacy = await read('../src/legacy.js');
+    /* The client's own modules (the rebuilt client, 2026-10-17): none may roll. */
+    const { readdirSync } = await import('node:fs');
+    const clientDirs = ['../src/app', '../src/session', '../src/shell', '../src/world', '../src/net'];
+    let client = '';
+    let clientFiles = 0;
+    for (const d of clientDirs) {
+      const walk = async (dir) => {
+        for (const e of readdirSync(new URL(dir, import.meta.url), { withFileTypes: true })) {
+          if (e.isDirectory()) await walk(dir + '/' + e.name);
+          else if (e.name.endsWith('.js')) { client += await read(dir + '/' + e.name); clientFiles++; }
+        }
+      };
+      await walk(d);
+    }
+    ok(clientFiles >= 10, `CONTROL: only ${clientFiles} client modules were read — the scan below is vacuous`);
     const count = (s, re) => (s.match(re) || []).length;
     ok(count(combat, /resolveHearthfind\s*\(/g) === 1,
       `the combat engine has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
     ok(count(skill, /resolveHearthfind\s*\(/g) === 1,
       `skill-sim.js has ${count(skill, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
-    ok(!/rollHearthfind|resolveHearthfind/.test(legacy),
-      'src/legacy.js rolls a hearthfind — a client-side roll is a client-authored drop (CLAUDE.md §1) '
+    ok(!/rollHearthfind|resolveHearthfind/.test(client),
+      'a client module rolls a hearthfind — a client-side roll is a client-authored drop (CLAUDE.md §1) '
       + 'and a second engine (AWAY-12)');
   }
 

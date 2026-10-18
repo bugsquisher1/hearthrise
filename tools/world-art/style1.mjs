@@ -13,6 +13,8 @@
 //   [s1-source]   a sidecar of a loaded set that is not style 1, or names no style-1 source
 //   [s1-ref]      something a player can reach names a sprite or terrain no loaded set carries
 //                 (it would draw as a stub, or as whatever old art is put back under that id)
+//   [s1-code]     client code names an atlas set the renderer does not load (`atlasPaths('hero')`,
+//                 a literal `atlas-hero.json`): a screen of its own drawing old art (the Gear doll did)
 //
 // What a player can reach (reachableRefs): every map row's ground, objects, faces and the wall
 // kit, floor and roof of every building that is not painted; every house-layout piece, trophy
@@ -73,9 +75,17 @@ export function reachableRefs(d) {
   return out;
 }
 
+/** Atlas sets a source file names: atlasPaths('<set>') and literal atlas-<set>.json/.png paths. */
+export function codeSets(src) {
+  const out = new Set();
+  for (const m of src.matchAll(/atlasPaths\(\s*['"]([a-z0-9_]+)['"]\s*\)/g)) out.add(m[1]);
+  for (const m of src.matchAll(/atlas-([a-z0-9_]+)\.(?:json|png)/g)) out.add(m[1]);
+  return [...out];
+}
+
 /**
  * @param {{atlasSets: string[], artSets: string[], builtSets: string[],
- *          sidecars: {[set: string]: object[]}, refs: object[]}} d
+ *          sidecars: {[set: string]: object[]}, refs: object[], code?: {file: string, sets: string[]}[]}} d
  *   atlasSets: ATLAS_SETS (what the renderer loads); artSets: art/world/* dirs; builtSets: assets/world atlas names
  * @returns {{rule: string, detail: string}[]}
  */
@@ -96,6 +106,7 @@ export function style1Findings(d) {
       (sc.class === 'terrain' ? terrains : sprites).set(sc.id, set);
     }
   }
+  for (const c of d.code || []) for (const s of c.sets) if (!d.atlasSets.includes(s)) bad('s1-code', c.file + ' names atlas set "' + s + '", which the renderer does not load');
   for (const r of d.refs) {
     const have = r.kind === 'terrain' ? terrains : sprites;
     if (!r.id || !have.has(r.id)) bad('s1-ref', r.what + ' names ' + r.kind + ' "' + r.id + '", which no loaded style-1 set carries');

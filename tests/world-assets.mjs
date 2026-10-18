@@ -47,7 +47,7 @@
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { decodePNG, encodePNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
@@ -55,7 +55,7 @@ import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
-import { style1Findings, reachableRefs, RETIRED_SETS } from '../tools/world-art/style1.mjs';
+import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
 import { readSidecars, listSets } from '../tools/world-art/build.mjs';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
@@ -67,13 +67,24 @@ import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
 /* ONE STYLE (tools/world-art/style1.mjs): what the renderer loads, what is in the tree, and
    everything a player can reach, read from the shipped data. */
+/* every client source that could load an atlas on its own */
+function walkJs(dir, out = []) {
+  for (const f of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, f.name);
+    if (f.isDirectory()) { if (f.name !== 'vendor') walkJs(p, out); } else if (/\.(m?js|html)$/.test(f.name)) out.push(p);
+  }
+  return out;
+}
+function codeRefs(root) {
+  return walkJs(join(root, 'src')).map((f) => ({ file: f.slice(root.length + 1).split(sep).join('/'), sets: codeSets(readFileSync(f, 'utf8')) })).filter((c) => c.sets.length);
+}
 function style1Input(root = ROOT, over = {}) {
   const built = existsSync(join(root, OUT_DIR)) ? readdirSync(join(root, OUT_DIR)).map((f) => (f.match(/^atlas-(.+)\.json$/) || [])[1]).filter(Boolean) : [];
   const atlasSets = over.atlasSets || ATLAS_SETS;
   const sidecars = {};
   for (const set of listSets(root)) sidecars[set] = readSidecars(root, set);
   return {
-    atlasSets, artSets: listSets(root), builtSets: built, sidecars,
+    atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root),
     refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: PEER_LOOKS,
       crier: CRIER_SPRITE, outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
   };
@@ -277,6 +288,8 @@ function selftest(atlases) {
   s1('the retired hero set loaded again', 's1-retired', style1Input(ROOT, { atlasSets: ATLAS_SETS.concat(['hero']) }));
   { const inp = style1Input(); inp.artSets = inp.artSets.concat(['oldkit']); s1('old art parked in a set nobody loads', 's1-orphan', inp); }
   { const inp = style1Input(); inp.builtSets = inp.builtSets.concat([RETIRED_SETS[0]]); s1('a retired atlas left in assets/world', 's1-retired', inp); }
+  s1('a window loading the retired hero atlas itself', 's1-code', style1Input(ROOT, { code: codeRefs(ROOT).concat([{ file: 'src/shell/windows/gear.js', sets: codeSets("const p = atlasPaths('hero');") }]) }));
+  s1('a literal path to a retired atlas', 's1-code', style1Input(ROOT, { code: [{ file: 'src/x.js', sets: codeSets("fetch('assets/world/atlas-town.json')") }] }));
 
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
   // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
@@ -294,7 +307,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 9} planted defects caught; ${controls.length + 1} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 11} planted defects caught; ${controls.length + 1} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

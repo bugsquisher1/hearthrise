@@ -237,7 +237,6 @@ export async function bootWorld(panel, opts) {
     const snap = obs ? obs.snapshot() : bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
-    /* The staged fight draws your hero in the same outfit the live hunt and the town do. */
     return { hero: hs.hero && Object.assign({}, hs.hero, { id: heroSprite(character) }), units: hs.units, floats: hs.floats };
   }
 

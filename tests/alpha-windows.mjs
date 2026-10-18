@@ -135,6 +135,7 @@ async function checks(overrides, shots) {
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
+    page.setDefaultTimeout(6000);
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -335,6 +336,9 @@ async function checks(overrides, shots) {
       } else fails.push('AW-1 the phone size did not mount');
       await ctx.close();
     }
+  } catch (e) {
+    /* A rule whose control never appeared is RED, not a crashed run (a planted mutant can hide one). */
+    fails.push('AW-x a step failed: ' + String(e && e.message).split('\n')[0]);
   } finally {
     await browser.close();
     server.close();

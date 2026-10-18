@@ -77,6 +77,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
+  /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time. */
+  hr_town_move: 'where this character stands and walks to in a town, or a null map to leave; display presence (TownPresence.publish)',
+  hr_town_walkers: 'who stands on a town map now, as the server names them, a read (TownPresence.read)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */

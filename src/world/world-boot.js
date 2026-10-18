@@ -27,11 +27,7 @@
 // tap sends an intent (steer-local.js runAction). On a desktop WASD / the
 // arrows walk the same feet (8 ways, stop on key-up); never while a text field
 // has focus.
-// THE TOWN'S PEOPLE: opts.town is the character's TownPresence (src/session/
-// town-presence.js). While a town map shows, the World tells it so, hands it
-// where the hero stands and walks to every frame (it publishes at its own
-// bounded rate: display presence, never an intent), and draws its walkers;
-// on the home, a hunt or destroy() it tells it the character left town.
+// THE TOWN'S PEOPLE: opts.town (src/session/town-presence.js) hears the town shown and the hero's place each frame, and gives the walkers.
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════

@@ -6,7 +6,7 @@
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
 // mutant-anchors: src/session/ src/net/auth.js
-// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
@@ -374,6 +374,8 @@ function copyTree(dst) {
   cpSync(join(ROOT, 'src/net/auth.js'), join(dst, 'src/net/auth.js'));
   mkdirSync(join(dst, 'src/hunt-view'), { recursive: true });
   cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
+  mkdirSync(join(dst, 'src/data'), { recursive: true });
+  cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
 }
 
 async function main() {

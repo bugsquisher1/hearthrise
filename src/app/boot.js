@@ -22,7 +22,7 @@ import { SESSION_CONFIG } from '../session/config.js?v=0.1.0';
 import { createServerLink } from '../session/server.js?v=0.1.0';
 import { AccountSession } from '../session/account-session.js?v=0.1.0';
 import { FRAME_EVENT } from '../session/character-session.js?v=0.1.0';
-import { renderAuthScreen } from './sign-in.js?v=0.1.0';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.1.0';
 import { mountWorldPane } from './world-pane.js?v=0.1.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
 
@@ -69,7 +69,7 @@ function startApp(win) {
   function showClosed() {
     clear();
     root.className = 'app is-auth';
-    root.innerHTML = '<main class="auth"><div class="auth-card">'
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
       + '<h1 class="auth-title">Hearthrise is closed while we rebuild it.</h1>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
@@ -94,7 +94,7 @@ function startApp(win) {
   async function showCharacters() {
     clear();
     root.className = 'app is-auth';
-    root.innerHTML = '<main class="auth"><div class="auth-card"><h1 class="auth-title">Your characters</h1>'
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
     const a = account;
     const roster = await a.roster();

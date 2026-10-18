@@ -1,6 +1,6 @@
 {
   "id": "cistern_spider",
-  "class": "critter",
+  "class": "vermin",
   "material": "unit",
   "source": "cistern_spider.png",
   "anchor_px": [

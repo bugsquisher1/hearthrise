@@ -79,8 +79,8 @@ const REQUIRED = {
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
   // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id)
-  ...Object.fromEntries(['drain_rat', 'sump_slime', 'cistern_spider'].map((id) => [id, { set: 'hunt', class: 'critter', anims: ['idle', 'walk'], dirs: FACINGS }])),
-  culvert_bat: { set: 'hunt', class: 'flier', anims: ['idle', 'walk'], dirs: FACINGS },
+  ...Object.fromEntries(['drain_rat', 'sump_slime', 'cistern_spider'].map((id) => [id, { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
+  culvert_bat: { set: 'hunt', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
   kobold_tosher: { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS },
 };
 const REQUIRED_TERRAIN = { cellar_earth: 'cellar', town_ground: 'town', plank_floor: 'home' };
@@ -191,14 +191,14 @@ function growTo(sp, target) {
 }
 
 function selftest(atlases) {
-  const find = (cls) => {
-    for (const { manifest: m, atlas } of atlases) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls) return spriteFromAtlas(m, atlas, id);
+  const find = (cls, only) => {
+    for (const { manifest: m, atlas } of atlases) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls && (!only || id === only)) return spriteFromAtlas(m, atlas, id);
     return null;
   };
-  const chest = find('box'), hero = find('character'), fx = find('vfx');
-  if (!chest || !hero || !fx) { console.error('world-assets --selftest: harness — needs a shipped box-class sprite, a character and a vfx'); process.exit(2); }
+  const chest = find('box'), hero = find('character'), fx = find('vfx'), vermin = find('vermin', 'sump_slime') || find('vermin');
+  if (!chest || !hero || !fx || !vermin) { console.error('world-assets --selftest: harness — needs a shipped box-class sprite, a character, a vermin and a vfx'); process.exit(2); }
   const ay = chest.anchor[1];
-  const controls = [['clean chest', chest], ['clean hero', hero], ['clean effect (blank frames allowed)', mapFrames(fx, (img, f) => (f.i === 0 ? createImage(img.width, img.height) : img))],
+  const controls = [['clean chest', chest], ['clean hero', hero], ['clean vermin', vermin], ['clean effect (blank frames allowed)', mapFrames(fx, (img, f) => (f.i === 0 ? createImage(img.width, img.height) : img))],
     ['palette-preserving recolour', mapFrames(chest, (img) => recolourOne(img, hex('#0b0a0c')))]];
   for (const [name, sp] of controls) {
     const f = validateSprite(sp);
@@ -207,6 +207,8 @@ function selftest(atlases) {
   const mutants = [
     ['floated chest (6 px above its anchor)', 'contact', mapFrames(chest, (img) => shiftUp(img, 6))],
     ['50 px hero', 'budget', growTo(hero, 50)],
+    ['48 px vermin (the class tops out at 40 +10%)', 'budget', growTo(vermin, 48)],
+    ['18 px vermin (a cellar critter is not a sewer monster)', 'budget', growTo(vermin, 18)],
     ['off-palette pixel', 'palette', mapFrames(chest, (img) => recolourOne(img, hex('#ff00ff')))],
     ['baked shadow under the chest', 'below-anchor', mapFrames(chest, (img) => bakeShadow(img, ay))],
     ['isometric-corner chest', 'iso-corner', mapFrames(chest, (img) => isoCorner(img))],

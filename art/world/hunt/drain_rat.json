@@ -1,6 +1,6 @@
 {
   "id": "drain_rat",
-  "class": "critter",
+  "class": "vermin",
   "material": "unit",
   "source": "drain_rat.png",
   "anchor_px": [

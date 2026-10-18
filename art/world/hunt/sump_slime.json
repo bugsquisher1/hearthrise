@@ -1,6 +1,6 @@
 {
   "id": "sump_slime",
-  "class": "critter",
+  "class": "vermin",
   "material": "unit",
   "source": "sump_slime.png",
   "anchor_px": [

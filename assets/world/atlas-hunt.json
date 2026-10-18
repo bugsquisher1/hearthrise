@@ -5,22 +5,22 @@
   "T": 32,
   "image": "atlas-hunt.png",
   "size": [2048,1532],
-  "pixels": "ed41a2a210ffdf15c6ec6cbdebce618ca5e2c6abc6cd619789de1e0c2fd2f01f",
+  "pixels": "773775b3993cd1471f1df4e7a1f974b6500b91b5489ff2fafd58857f7309c8cf",
   "sprites": {
     "cistern_spider": {
-      "class": "critter",
+      "class": "vermin",
       "layer": "unit",
       "frame": [48,48],
       "anchor": [24,40],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 13,
-      "contact": [16,31],
+      "height": 34,
+      "contact": [10,37],
       "shadow": {
         "kind": "ellipse",
-        "w": 20,
-        "h": 7,
+        "w": 26,
+        "h": 9,
         "dx": 2,
         "dy": 2
       },
@@ -56,19 +56,19 @@
       }
     },
     "culvert_bat": {
-      "class": "flier",
+      "class": "vermin_flier",
       "layer": "unit",
       "frame": [48,48],
       "anchor": [24,44],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 10,
-      "height": 14,
-      "contact": [12,35],
+      "height": 32,
+      "contact": [1,46],
       "shadow": {
         "kind": "ellipse",
-        "w": 19,
-        "h": 7,
+        "w": 26,
+        "h": 9,
         "dx": 2,
         "dy": 2
       },
@@ -104,19 +104,19 @@
       }
     },
     "drain_rat": {
-      "class": "critter",
+      "class": "vermin",
       "layer": "unit",
       "frame": [48,48],
       "anchor": [24,40],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 13,
-      "contact": [18,29],
+      "height": 29,
+      "contact": [13,35],
       "shadow": {
         "kind": "ellipse",
-        "w": 17,
-        "h": 6,
+        "w": 26,
+        "h": 9,
         "dx": 2,
         "dy": 2
       },
@@ -632,19 +632,19 @@
       }
     },
     "sump_slime": {
-      "class": "critter",
+      "class": "vermin",
       "layer": "unit",
       "frame": [48,48],
       "anchor": [24,40],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 14,
-      "contact": [17,32],
+      "height": 27,
+      "contact": [14,34],
       "shadow": {
         "kind": "ellipse",
-        "w": 17,
-        "h": 6,
+        "w": 26,
+        "h": 9,
         "dx": 2,
         "dy": 2
       },

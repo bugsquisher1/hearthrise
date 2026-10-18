@@ -47,6 +47,9 @@ export const CLASSES = Object.freeze({
   character: row({ frame: [64, 64], anchor: [32, 58], body: [36, 40], measure: 'h', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   critter: row({ frame: [48, 48], anchor: [24, 40], body: [12, 20], measure: 'max', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   flier: row({ frame: [48, 48], anchor: [24, 44], body: [12, 20], measure: 'min', contact: 'flier', hover: [6, 16], shadow: 'ellipse', layer: 'unit' }),
+  // The Sewer's full-size 48 px monsters (a drain rat, a sump slime, a cistern spider; the bat is a flier of the same frame): bigger than a cellar critter, smaller than a hero.
+  vermin: row({ frame: [48, 48], anchor: [24, 40], body: [28, 40], measure: 'max', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
+  vermin_flier: row({ frame: [48, 48], anchor: [24, 44], body: [20, 32], measure: 'min', contact: 'flier', hover: [6, 16], shadow: 'ellipse', layer: 'unit' }),
   beast: row({ frame: [64, 64], anchor: [32, 56], body: [40, 48], measure: 'w', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   box: row({ body: [12, 20], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   clutter: row({ body: [12, 22], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),

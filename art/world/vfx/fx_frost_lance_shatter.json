@@ -1,0 +1,30 @@
+{
+  "id": "fx_frost_lance_shatter",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_frost_lance_shatter.png",
+  "frame": [
+    38,
+    51
+  ],
+  "anchor_px": [
+    20,
+    18
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/frost_lance_shatter by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

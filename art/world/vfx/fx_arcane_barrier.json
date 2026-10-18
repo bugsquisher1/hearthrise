@@ -1,0 +1,30 @@
+{
+  "id": "fx_arcane_barrier",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_arcane_barrier.png",
+  "frame": [
+    37,
+    37
+  ],
+  "anchor_px": [
+    18,
+    18
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 7,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/arcane_barrier by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

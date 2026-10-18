@@ -46,10 +46,14 @@ export async function mountWorldPane(host, character, o) {
   const scratch = { choice: 'town' };
   const view = () => worldViewOf(character.record, scratch);
 
+  /* The combat log listens to the character's timeline from the start, so no line is missed while its
+     window is shut: BEFORE the World boots, because the World plays the timeline from its first frame. */
+  logFor(character);
+
   let runtime = null;
   try {
     const { bootWorld } = await import('../world/world-boot.js?v=0.1.0');
-    runtime = await bootWorld(pane, { view });
+    runtime = await bootWorld(pane, { view, character });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);
@@ -57,8 +61,6 @@ export async function mountWorldPane(host, character, o) {
     if (s) s.textContent = 'The world could not load. Reload the page to try again.';
   }
 
-  /* The combat log listens to the character's timeline from the start, so no line is missed while its window is shut. */
-  logFor(character);
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;
   const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account });
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });

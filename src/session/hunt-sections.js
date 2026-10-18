@@ -34,11 +34,12 @@ function section(cs, key) {
   return isObj(v) ? v : null;
 }
 
-/* The pose's units as unit id -> { kind, side, boss }: the combat log's names. */
+/* The pose's units as unit id -> { kind, side, boss, name, hp, hpMax }: the log's names, the scene's bars. */
 function unitsOf(pose) {
   const out = new Map();
   for (const u of isObj(pose) ? list(pose.units, (x) => x, 64) : []) {
-    if (isObj(u) && int(u.u) !== null) out.set(u.u, { kind: str(u.kind), side: u.side === 'hero' ? 'hero' : 'monster', boss: bool(u.boss), name: str(u.name) });
+    if (isObj(u) && int(u.u) !== null) out.set(u.u, { kind: str(u.kind), side: u.side === 'hero' ? 'hero' : 'monster', boss: bool(u.boss), name: str(u.name),
+      hp: num(u.hp), hpMax: num(u.hp_max) });
   }
   return out;
 }
@@ -109,7 +110,7 @@ export function settingsOf(cs) {
 function memberOf(m) {
   if (!isObj(m) || int(m.unit) === null) return null;
   return {
-    unit: m.unit, name: str(m.name) || 'Hero', level: int(m.level),
+    unit: m.unit, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),

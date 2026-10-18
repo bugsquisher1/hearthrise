@@ -1,0 +1,30 @@
+{
+  "id": "fx_melee_slash",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_melee_slash.png",
+  "frame": [
+    16,
+    25
+  ],
+  "anchor_px": [
+    1,
+    12
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 16,
+      "loop": false,
+      "dirs": {
+        "s": 5
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/melee_slash by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

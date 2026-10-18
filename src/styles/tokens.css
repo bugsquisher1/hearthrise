@@ -736,6 +736,27 @@ body[data-theme="hearthlight"] {
   --world-float-kill:    #ffb347;
   --world-float-miss:    #a9a39a;
   --world-float-hurt:    #ff6a55;
+  /* the live hunt (src/hunt-view/scene.js): float types (FX-01), HP bars by how
+     full (VW-07) with the hero's mana line, the bleed badge (VW-08), and the two
+     unit variants: the hit flash and the corpse ramp (VW-05). Palette colours
+     (art/world/palette.json), so a flashed or fallen unit never leaves it. */
+  --world-float-heal:    #7ccf4a;
+  --world-float-xp:      #e8c547;
+  --world-float-supply:  #a8e4ff;
+  --world-float-loot:    #ffd36a;
+  --world-float-ability: #e6dcbc;
+  --world-bar-high:      #7ccf4a;
+  --world-bar-mid:       #e8c547;
+  --world-bar-low:       #c23a2a;
+  --world-bar-mana:      #4fa8e8;
+  --world-bleed:         #8e1f1f;
+  --world-bleed-ink:     #e6dcbc;
+  --world-flash:         #e6dcbc;
+  --world-corpse-0:      #17141a;
+  --world-corpse-1:      #231d1f;
+  --world-corpse-2:      #3a3a3e;
+  --world-corpse-3:      #4f4e52;
+  --world-corpse-4:      #6a6865;
   /* the town and the home (src/world/{town,home}-scene.js): other players
      (dimmer when away), room signposts, the crier's bubble, the walk mark */
   --world-plate-peer:    #a6e39a;

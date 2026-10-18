@@ -319,6 +319,8 @@
     "node tests/session-core.mjs --mutate": "client-guards",
     "node tests/hunt-view-core.mjs": "client-guards",
     "node tests/hunt-view-core.mjs --mutate": "client-guards",
+    "node tests/hunt-scene.mjs": "client-guards",
+    "node tests/hunt-scene.mjs --mutate": "client-guards",
     "node tests/client-intent-surface.mjs": "client-guards",
     "node tests/client-intent-surface.mjs --selftest": "client-guards",
     "node tests/client-module-size.mjs": "client-guards",

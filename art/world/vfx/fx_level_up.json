@@ -1,0 +1,30 @@
+{
+  "id": "fx_level_up",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_level_up.png",
+  "frame": [
+    24,
+    42
+  ],
+  "anchor_px": [
+    12,
+    37
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/level_up by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

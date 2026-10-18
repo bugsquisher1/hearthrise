@@ -1,0 +1,29 @@
+{
+  "id": "fx_circle_of_renewal",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_circle_of_renewal.png",
+  "frame": [
+    38,
+    17
+  ],
+  "anchor_px": [
+    19,
+    9
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/circle_of_renewal by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

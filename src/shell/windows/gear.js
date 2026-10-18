@@ -17,7 +17,6 @@ import { ITEMS } from '../../data/items.js?v=0.1.0';
 import { EQUIP_SLOT_META, expandItemSlot } from '../../data/gathering.js?v=0.1.0';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.1.0';
 import { atlasPaths } from '../../data/world/art-budget.js?v=0.1.0';
-import { BUILD } from '../../build-info.js?v=0.1.0';
 import { equipmentOf, bagOf, skillsOf, roleOf, shopOf } from '../../session/item-sections.js?v=0.1.0';
 import { partyOf } from '../../session/hunt-sections.js?v=0.1.0';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.1.0';
@@ -47,7 +46,9 @@ let heroLoading = null;
 function loadHero(doc) {
   if (HERO || heroLoading || !doc || !doc.baseURI) return;
   const p = atlasPaths('hero');
-  const url = (path) => new URL(path + '?v=' + BUILD.cache, doc.baseURI).href;
+  /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
+  const v = new URL(import.meta.url).searchParams.get('v') || '';
+  const url = (path) => new URL(path + '?v=' + v, doc.baseURI).href;
   heroLoading = import(url(p.manifest), { with: { type: 'json' } }).then((mod) => {
     const m = mod.default, idle = m.sprites.hero.anims.idle;
     HERO = { image: url('assets/world/' + m.image), size: m.size, frames: idle.dirs.s, fps: idle.fps, frame: m.sprites.hero.frame };

@@ -133,7 +133,7 @@ async function checks(overrides) {
       await page.goto(base + '/', { waitUntil: 'load' });
       const n = await page.evaluate(() => ({ link: !!document.querySelector('a[href="https://discord.gg/eJrUSUJM3M"]'),
         text: document.body.innerText, scripts: Array.from(document.scripts).map((s) => s.getAttribute('src')) }));
-      if (!n.link || !/back soon/i.test(n.text)) fails.push('N-1 the notice page lost its copy or Discord link');
+      if (!n.link || !/Discord gets the [a-z ]*date first/i.test(n.text)) fails.push('N-1 the notice page lost its copy or Discord link');
       if (n.scripts.some((s) => !/^src\/platform\/sw-killswitch\.js\?v=\d+$/.test(String(s)))) fails.push('N-1 the notice page loads an app script: ' + n.scripts.join(', '));
       const hs = await page.request.get(base + '/prototypes/hunt-sim/');
       if (hs.status() !== 200) fails.push('N-1 /prototypes/hunt-sim/ answered ' + hs.status());

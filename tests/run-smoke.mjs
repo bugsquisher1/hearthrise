@@ -3983,7 +3983,8 @@ const run = async () => {
       'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Display-prediction guard',
-      'Goal-gold retune guard',
+      /* 'Goal-gold retune guard' — REMOVED 2026-10-17: tests/goal-gold-retune.mjs left with
+         the demolition's daily quests (c0a11d871) and the marker was missed (b592 CI). */
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',

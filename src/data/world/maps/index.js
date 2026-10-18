@@ -3,8 +3,9 @@
 import millCellar from './mill_cellar.js?v=0.1.0';
 import townCommon from './town_common.js?v=0.1.0';
 import homeCottage from './home_cottage.js?v=0.1.0';
+import millraceSewer from './millrace_sewer.js?v=0.1.0';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer]);
 
 /** The map a non-hunt scene shows: the viewer's own choice of town or home. */
 export const SCENE_MAPS = Object.freeze({ town: 'town_common', home: 'home_cottage' });

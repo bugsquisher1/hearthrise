@@ -65,7 +65,7 @@ export const SUPPLY_ROWS = Object.freeze([
   [B, 'ember_tart', false], [B, 'dragon_stew', false], [B, 'lich_soul_soup', false],
   [B, 'moonbloom_elixir', false], [B, 'void_banquet', false],
   // ammo — arrows (Crafting), runes (Runecrafting), whetstones (Stonemason)
-  [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'barbed_arrows', true],
+  [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'barbed_arrows', true], [A, 'iron_bolts', true],
   [A, 'steel_arrows', true], [A, 'mithril_arrows', true], [A, 'rune_arrows', true],
   [A, 'emberhead_arrows', true], [A, 'dawnpoint_arrows', true],
   [A, 'air_rune', true], [A, 'earth_rune', true], [A, 'water_rune', true], [A, 'fire_rune', true],
@@ -170,6 +170,15 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_trout', 35),
     ranged: ranged('cooked_trout', 40, 'barbed_arrows', 5100),
     magic: magic('cooked_trout', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
+  /* The Millrace Sewer (2026-10-18), MEASURED in the hunt core (tests/hunt-core/sewer.mjs
+     --report, 3 seeds): a full party's Ranger fires about 700 bolts and its casters about
+     700 Fire Runes an hour, and a party with a Healer eats almost nothing; a solo Melee
+     hero eats about 250 heals an hour. Three hours, rounded. Iron Bolts need Ranged 15;
+     below that the free Bronze Arrows stand in. */
+  millrace_sewer: Object.freeze({ tier: 1,
+    melee: melee('cooked_shrimp', 150),
+    ranged: ranged('cooked_shrimp', 150, 'iron_bolts', 2100),
+    magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'fire_rune', 1500) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

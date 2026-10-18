@@ -61,6 +61,7 @@ export const BASIC_SUPPLIES = Object.freeze([
   mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 33, 790, [5]),
   mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 40, 960, [6]),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
+  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
   shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 8),
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),

@@ -49,7 +49,9 @@ export default Object.freeze({
   path: Object.freeze([[6, 5], [20, 5], [20, 10], [6, 10]]),
   spawns: Object.freeze([[11, 7], [13, 6], [5, 9], [16, 8], [19, 7], [19, 6], [17, 6]]),
   stations: Object.freeze({}),
-  exits: Object.freeze([{ x: 12, y: 3, to: 'town_common' }]),
+  /* The drain in the west corner is where the cellar's rats come up from: the way
+     down into the Millrace Sewer (src/data/hunt-tutorial.js, step "go_below"). */
+  exits: Object.freeze([{ x: 12, y: 3, to: 'town_common' }, { x: 4, y: 8, to: 'millrace_sewer' }]),
   start: Object.freeze([10, 7]),
   /* The room the camera shows whole when the stage is big enough (tiles x, y, w, h):
      the floor from wall to wall, the north face's top and the south cap. */

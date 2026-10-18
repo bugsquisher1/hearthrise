@@ -3507,6 +3507,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/settings-registry.mjs
 
+      # The end-of-hunt summary and the death explanation: names the killing
+      # blows, an event id counts once, Hunt again is ONE hr_hunt_enter with
+      # the same settings, the stored history is bounded.
+      - name: Hunt summary - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-summary.mjs --selftest
+
+      - name: Hunt summary - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-summary.mjs
+
       # The `hudLayout` residue is display-only: read by the HUD and the residue
       # store alone, and the HUD talks to no server.
       - name: HUD layout display-only - mutation proof

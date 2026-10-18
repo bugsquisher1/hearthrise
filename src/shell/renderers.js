@@ -28,6 +28,7 @@ import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.0';
 import { renderParty } from './windows/party.js?v=0.2.0';
 import { renderCharacters } from './windows/characters.js?v=0.2.0';
 import { renderAlerts } from './widgets/alerts.js?v=0.2.0';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.0';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -41,6 +42,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,
+  'hunt-summary': renderHuntSummary,
   hud: renderHudSettings,
   'hunt-settings': renderHuntSettings,
   chat: renderChat,

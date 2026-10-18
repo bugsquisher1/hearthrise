@@ -11,17 +11,20 @@ import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.0';
 import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.0';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.0';
 import { clock } from '../../render/format.js?v=0.2.0';
+import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.0';
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
   return '<div class="ht-bar" role="group" aria-label="Hunt">'
     + '<b class="ht-ground"></b><span class="ht-clock" title="Time in this hunt"></span>'
     + '<button type="button" class="hh-tool" data-hs-act="details">Hunt details</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
     + '<button type="button" class="hh-tool is-leave" data-hs-act="leave">Leave hunt</button>'
     + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>';
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
+  if (takeFresh(ctx.character)) queueMicrotask(() => ctx.wm.open('hunt-summary'));
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];
@@ -35,6 +38,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (ev.type !== 'click') return;
+  if (action === 'summary') { ctx.show('hunt-summary'); return; }
   if (action === 'details') { ctx.show('analyzer'); return; }
   if (action !== 'leave' || btn.hasAttribute('data-pending')) return;
   attr(btn, 'data-pending', true);

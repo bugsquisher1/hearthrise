@@ -46,6 +46,11 @@ import { SESSION_CONFIG } from './config.js?v=0.2.0';
 import { edgeBody } from './edge-intents.js?v=0.2.0';
 
 export const FRAME_EVENT = 'frame';
+
+/* Observers handed every CharacterSession as it is made, before its first envelope (the hunt summary's recorder). */
+const OBSERVERS = new Set();
+/** Call `fn(session)` for every session made from now on; returns the stop function. */
+export function observeSessions(fn) { OBSERVERS.add(fn); return () => OBSERVERS.delete(fn); }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
@@ -105,6 +110,7 @@ export class CharacterSession {
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this.timeline = createTimeline();
     this.receivedAt = null;
+    for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
 
   /** The display clock (ms) this character's timeline plays on: every view of it reads this one. */
@@ -178,6 +184,18 @@ export class CharacterSession {
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
     return this._settled(await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() }));
+  }
+
+  /**
+   * Set out on a hunt (hr_hunt_enter): ONE intent. `a` is exactly what the
+   * server takes (ground, action set, limits, bag lines of names and counts);
+   * the "Hunt again" card sends the ended hunt's own. The party is the server's.
+   */
+  async enterHunt(a) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    if (!a || !ITEM.test(String(a.hunt)) || !Number.isInteger(a.preset) || !Array.isArray(a.bag)) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,
+      p_falls: Number.isInteger(a.falls) ? a.falls : null, p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
   }
 
   /**

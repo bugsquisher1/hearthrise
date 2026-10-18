@@ -71,6 +71,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.0';
+
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
 
@@ -122,6 +124,7 @@ const SANITIZERS = Object.freeze({
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
   bagView: sanitizeBagView,         // display preference: the Inventory's category, sort and Advanced view; gates and spends nothing
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
+  huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

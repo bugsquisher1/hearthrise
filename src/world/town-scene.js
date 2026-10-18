@@ -14,10 +14,10 @@
 // THE CRIER speaks the realm's latest find from its spot by the notice board.
 // PURE: no DOM, no window, no G — the caller passes the view and the helpers.
 // ════════════════════════════════════════════════════════════════════════
-import { STATION_FALLBACK, PEER_LOOKS, CRIER_SPRITE } from '../data/world/stations.js?v=591';
-import { reachFrom } from './core/path.js?v=591';
-import { inRect } from './core/grid.js?v=591';
-import { hash32 } from './choreo.js?v=591';
+import { STATION_FALLBACK, PEER_LOOKS, CRIER_SPRITE } from '../data/world/stations.js?v=592';
+import { reachFrom } from './core/path.js?v=592';
+import { inRect } from './core/grid.js?v=592';
+import { hash32 } from './choreo.js?v=592';
 
 /** An away peer is drawn at this alpha: there, but not at the keyboard. */
 const AWAY_ALPHA = 0.55;

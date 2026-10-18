@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=591';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=592';
 
 /* regression (quest-xp): hundred_kills paid 1,500 combat XP through
    window.addXp — client-authored XP into hr_credit_combat_xp. The server now
@@ -1968,7 +1968,7 @@ export default [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../../data/shops.js?v=591');
+    const S = await import('../../data/shops.js?v=592');
     // 86 offers after the 2026-10-14 demolition (traits, dungeons, IAP and themes left the catalogue).
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 50,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '

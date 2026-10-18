@@ -126,7 +126,7 @@ export function huntAccrual(inp, opts) {
     skills: inp.skills || {}, xpFrac: inp.xpFrac ?? null, hp: inp.hp, maxHp: inp.maxHp, gold: inp.gold || 0,
     equipment: inp.equipment || {}, combatStyle: inp.combatStyle || null, inventory: inp.inventory || {},
     recoveringUntilMs: inp.recoveringUntilMs ?? 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0,
-    hearthfindReady: inp.hearthfindReady === true, perks: inp.perks || null, hero,
+    hearthfindReady: inp.hearthfindReady === true, perks: inp.perks || null, buffs: inp.buffs ?? null, hero,
   };
   const out = eng.accrueHunt({
     instance: { id: FIXTURE_INSTANCE, nextSwingAtMs: fromMs, world: null },

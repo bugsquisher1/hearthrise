@@ -31,6 +31,8 @@
 //              pickSpawn, the single-foe swing, the hs.pull cycle, presses,
 //              src/core/hunt.js (STANCES / Vigour) — and combat-sim.js < 600 lines.
 //   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
+//   BUFF       a hunt READS the timed buff queue (fires none): a live buff pays,
+//              an expired one does not, one ending mid-window pays the same cut or not.
 //   STAMINA-RULE  the pool drains 1:1 hunting, rests 1:1 to the character's
 //              cap (8 h free / 12 h premium, one data row), a five-swing pool
 //              ends `stamina` after five, a knocked-out hero RESTS.
@@ -110,8 +112,8 @@
 //     every lane lives on the hero's unit [hunt-core/abilities clocks-survive-a-cut].
 //   SEAMS S1 (the pull cycle on the instance row): the cycle is the world's
 //     [TICK-1 compares the instance world byte for byte].
-//   TICK-1 "the buff queue at the read clock": a hunt reads no timed buff (food
-//     is HP, drink is mana — spec §3.4 #1) [ONE-PATH: accrueHunt reads no inp.buffs].
+//   TICK-1 "the buff queue at the read clock": re-homed on BUFF (the queue is
+//     re-measured at every boundary, so a cut cannot move a buff's end).
 // ════════════════════════════════════════════════════════════════════════
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -283,9 +285,9 @@ const ENGINE_ARMS = {
       return i >= 0 ? acc.slice(i, end) : '';
     }).join('\n');
     if (!body.includes('function accrueHunt(')) problems.push('accrual.js has no accrueHunt — the hunt body moved; re-point TICK-2');
-    for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /capMs/, /presence|last_seen|horizon|return_anchor/, /inp\.buffs|mi\.buffs/]) {
+    for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /capMs/, /presence|last_seen|horizon|return_anchor/]) {
       const m = body.match(re);
-      if (m) problems.push(`the hunt body contains \`${m[0]}\` — a hunt reads no ctx.away, no presence and no timed buff (TICK-2)`);
+      if (m) problems.push(`the hunt body contains \`${m[0]}\` — a hunt reads no ctx.away and no presence (TICK-2)`);
     }
     /* THE BEHAVIOUR: presence- and away-era inputs are inert for an instance. */
     const mk = (extra) => [memberIn(M, 'a', { bag: { cooked_shrimp: { loaded: 20, left: 20 } }, extra })];
@@ -294,7 +296,6 @@ const ENGINE_ARMS = {
     const variants = {
       accruedToMs: T0 + 300000, activeSinceMs: T0 - 86400000, capMs: 1, combatXpAccruedToMs: T0 + 600000,
       lastSeenAt: new Date(T0).toISOString(), caller: 'collect', away: true,
-      buffs: [{ type: 'drop_rate', magnitude: 0.5, until: new Date(T0 + 3600000).toISOString() }],
     };
     const shape = (o) => canon({ m: o.members.map((x) => ({ d: x.delta, h: x.hunt })), w: o.world });
     for (const [k, v] of Object.entries(variants)) {
@@ -387,6 +388,30 @@ const ENGINE_ARMS = {
     const up = M.AC.accrueHunt(instIn(M, [lo], 600000)).members[0];
     if (!(M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0)) >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
     else if (up.maxHp !== 6) problems.push(`a hitpoints level-up to 6 left max HP at ${up.maxHp}`);
+    return problems;
+  },
+
+  /* BUFF: a hunt READS the timed buff queue (it fires none): a live +200% damage
+     buff kills faster; one that ended before the window pays nothing; one that
+     ends mid-window pays exactly while it runs, however the window is cut. */
+  BUFF: async (M) => {
+    const problems = [];
+    const iso = (ms) => new Date(ms).toISOString();
+    const mk = (buffs) => () => [memberIn(M, 'a', { level: 5, empty: 'end', extra: { buffs } })];
+    const kills = (o) => o.outs.reduce((a, x) => a + x.members[0].delta.journal.meta.kills, 0);
+    const bare = runCut(M, mk(null), 900000, []);
+    const live = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 + 3600000), from: iso(T0 - 1000) }]), 900000, []);
+    const dead = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 - 1000), from: iso(T0 - 600000) }]), 900000, []);
+    const dealt = (o) => o.outs.reduce((x, w) => x + Number(((w.members[0].analyzer || {}).dealt || {}).total || 0), 0);
+    if (!(dealt(live) > dealt(bare) * 1.5)) problems.push(`a live +200% damage buff dealt ${dealt(live)} against ${dealt(bare)} without — a hunt does not read the buff queue`);
+    if (canon(dead.outs.map((o) => o.members[0].delta)) !== canon(bare.outs.map((o) => o.members[0].delta))) problems.push('a buff that ended before the window changed it');
+    const mid = [{ type: 'damage', magnitude: 200, until: iso(T0 + 300000), from: iso(T0 - 1000) }];
+    /* A hero that outlives the buff (level 20), so a queue frozen at a window's start shows. */
+    const mk20 = (buffs) => () => [memberIn(M, 'a', { level: 20, empty: 'end', extra: { buffs } })];
+    const one = runCut(M, mk20(mid), 900000, []);
+    const cut = runCut(M, mk20(mid), 900000, [T0 + 100000, T0 + 290000, T0 + 310000, T0 + 600000]);
+    const sum = (o) => canon({ k: kills(o), g: o.outs.reduce((a, x) => a + (x.members[0].delta.gold || 0), 0), w: o.world });
+    if (sum(one) !== sum(cut)) problems.push(`a buff ending mid-window paid differently cut and uncut ${firstDiff(sum(one), sum(cut))}`);
     return problems;
   },
 
@@ -1166,8 +1191,11 @@ const MUTANTS = [
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
     from: "import { huntPlayback } from './hunt-track.js';", to: "import { huntPlayback } from './hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
-  { arm: 'TICK-2', name: '[C2 buff queue] a timed buff prices the hunt again', file: join(FN, 'accrual.js'),
-    from: '    buffs: [],\n  };', to: '    buffs: Array.isArray(mi.buffs) ? mi.buffs : [],\n  };' },
+  { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
+    from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
+  { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: join(FN, 'accrual.js'),
+    from: '      buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },',
+    to: "      buffsAt: (atMs) => { if (!state._b) { state._b = 1; state.buffs = buffQueueFromServer(buffRows, atMs); } },"  },
   { arm: 'SEED', name: 'the per-swing seed is the 32-bit FNV text mix again', file: join(FN, 'hunt-seed.js'),
     from: "    const d = createHmac('sha256', key).update(seedLabel(instanceId, domain, i), 'utf8').digest();",
     to: "    const s = secret + seedLabel(instanceId, domain, i); let h = 0x811c9dc5; for (let k = 0; k < s.length; k++) { h ^= s.charCodeAt(k); h = Math.imul(h, 0x01000193); }\n    const d = Buffer.from([h >>> 24, (h >>> 16) & 255, (h >>> 8) & 255, h & 255]);" },

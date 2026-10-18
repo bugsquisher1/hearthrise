@@ -604,8 +604,8 @@ const ALSO_LINTED = [
   '2026-10-19-account-wallet.sql',
   /* HUNT SESSIONS (ruling HR-2026-10-14), lane C2. The settle file creates the
      engine reads, the one applier hr_hunt_apply, the fence trigger and the tick
-     roster, and is link 18 of HR_GRANT_HYGIENE_CHAIN (the CURRENT last toucher
-     of hr_assert_grant_hygiene). The arm and delete-away files grant nothing
+     roster, and is link 18 of HR_GRANT_HYGIENE_CHAIN (lane S1's world-state
+     file is link 19). The arm and delete-away files grant nothing
      new; they are listed so a later edit that does is linted. The closed-mode
      ungated-RPC splice re-grants the six RPCs it restates, so it is linted too.
      ⚠ NOT LISTED: C1's 2026-10-21-hunt-sessions.sql (APPLIED 2026-10-14). It
@@ -619,6 +619,19 @@ const ALSO_LINTED = [
   '2026-10-22-hunt-sessions-arm.sql',
   '2026-10-22-hunt-sessions-delete-away.sql',
   '2026-10-22-closed-mode-ungated-rpcs.sql',
+  /* THE HUNT INSTANCE SETTLE (lane S1, 2026-10-17). The forward catalogue, the
+     premium column and login reward, the per-hero settings, the supply ledger,
+     the analyzer, the world-state settle (link 19 of HR_GRANT_HYGIENE_CHAIN, the
+     CURRENT last toucher of hr_assert_grant_hygiene) and the party verbs: listed
+     so the grant lints read every revoke-then-grant they make. */
+  '2026-10-23-hunt-sessions-catalogue.generated.sql',
+  '2026-10-23-character-premium.sql',
+  '2026-10-23-premium-login-reward.sql',
+  '2026-10-23-hunt-settings-options.sql',
+  '2026-10-23-hunt-supply-ledger.sql',
+  '2026-10-23-hunt-analyzer-v2.sql',
+  '2026-10-23-hunt-world-state.sql',
+  '2026-10-23-hunt-party.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -941,6 +954,13 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // drop file removes the function after this link applies, and a stale TEXT
   // entry admits nothing that does not exist.)
   '2026-10-22-hunt-sessions-settle.sql',
+  // link 19 (lane S1, the hunt instance settle) — two engine grants
+  // (hr_hunt_instance_read, hr_hunt_apply_instance), INSERTED at the head of
+  // c_engine_allow by tools/derive-grant-hygiene.mjs, so its declared-removals
+  // list stays EMPTY. Its base is link 18's TARGET. It is the new last toucher.
+  // (hr_hunt_engine_read / hr_hunt_apply keep their stale TEXT entries, as
+  // link 18 kept hr_attended_kills': the file drops both functions.)
+  '2026-10-23-hunt-world-state.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -1160,6 +1180,24 @@ const CLIENT_CALLABLE = new Map([
      (hr_hunt_target_modes, the pull limits rows), refused never clamped,
      rate-gated ('hunt' bucket), idempotent, baselined in §4d. Writes no value. */
   ['hr_action_set_options', ['authenticated']],
+  /* LANE S1 (2026-10-23-*). Each is the caller's own character only, rate-gated,
+     idempotent where it writes, and baselined in hr_client_rpc_baseline by its
+     file: the stored bar and per-hero options (hr_action_set_put, refused never
+     clamped), the preset a running hunt reads (hr_hunt_set_preset), the premium
+     analyzer read, the premium-only login claim (one quest-ledger row from the
+     server catalogue), entering a hunt (the bag from the character's own stock;
+     no ground = no_ground) and the party verbs (membership only — no value). */
+  ['hr_action_set_put', ['authenticated']],
+  ['hr_hunt_set_preset', ['authenticated']],
+  ['hr_hunt_analyzer', ['authenticated']],
+  ['hr_login_claim', ['authenticated']],
+  ['hr_hunt_enter', ['authenticated']],
+  ['hr_hunt_change', ['authenticated']],
+  ['hr_hunt_party_create', ['authenticated']],
+  ['hr_hunt_party_join', ['authenticated']],
+  ['hr_hunt_party_leave', ['authenticated']],
+  ['hr_hunt_party_kick', ['authenticated']],
+  ['hr_hunt_party_finder', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

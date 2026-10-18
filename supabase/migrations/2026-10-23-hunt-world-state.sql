@@ -1665,6 +1665,7 @@ begin
   return v_report;
 end $$;
 -- ⟦/DERIVED hr_assert_grant_hygiene⟧
+revoke execute on function public.hr_assert_grant_hygiene(boolean) from public, anon, authenticated, service_role;
 
 -- ── §8 SELF-CHECK (CLAUDE.md §4) ─────────────────────────────────────────────
 do $$

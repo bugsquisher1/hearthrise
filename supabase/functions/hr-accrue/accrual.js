@@ -1319,8 +1319,13 @@ function memberSide(mi, ctx) {
     xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined,
     stats: {},
     recoveringUntilMs: nat(mi.recoveringUntilMs, 0),
+    /* THE TIMED BUFF QUEUE, re-measured at every swing boundary (buffsAt below)
+       from the server's absolute rows, so a buff pays exactly while it runs
+       however the windows are cut (TICK-1). A hunt FIRES no buff (buff foods are
+       parked; food is HP, drink is mana): it only reads the queue. */
     buffs: [],
   };
+  const buffRows = Array.isArray(mi.buffs) ? mi.buffs : [];
   const bonus = bonusFor(mi.perks, liveBuffHost(() => state.buffs));
   const goals = makeGoalCounter();
   const bestiary = makeBestiaryCounter();
@@ -1380,6 +1385,7 @@ function memberSide(mi, ctx) {
     mi, hs, state, fx, style, eq, skills0, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
       key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx, style,
+      buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness: (row) => weaknessInfo(row, eq),
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,

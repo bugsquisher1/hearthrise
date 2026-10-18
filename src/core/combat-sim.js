@@ -127,7 +127,8 @@ function endMember(m, why, atMs, world, out) {
  *        playerMaxHp, stats, gold (a delta), recoveringUntilMs }, hero { role,
  *        maxMana, element, settings, bar, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
- *        bonus(key), weakness(row) → { dropMult }, fx }; snapshot may add ward (Prayer %)
+ *        bonus(key), weakness(row) → { dropMult }, fx, buffsAt?(atMs) (re-measures the timed
+ *        buff queue the member's bonus reads, at each of its boundaries) }; snapshot may add ward
  * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?,
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
@@ -173,6 +174,7 @@ export function simulateHuntInstance(inst, ctx) {
     for (const m of here) {
       const u = world.units.find((x) => x.id === m.unitId);
       const o = out.get(m.key);
+      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);
       const standing = !!u && u.alive;
       if (m.hs.staminaMs !== null && m.hs.staminaMs !== undefined) {
         m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, standing, m.hs.staminaMaxMs);

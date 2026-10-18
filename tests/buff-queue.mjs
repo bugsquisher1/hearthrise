@@ -141,7 +141,7 @@ import * as BUFFS from '../src/core/buffs.js';
 import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, buffQueueFromServer, buffBonusFor, tickBuffs }
   from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { huntAccrualInput } from './hunt-fixture.mjs';
+import { huntAccrual } from './hunt-fixture.mjs';
 import { GATHER_CATALOGUES } from '../supabase/functions/hr-accrue/tick-gather.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
@@ -1302,7 +1302,7 @@ async function run(mutate, blind) {
          and nothing about the retry can reach it. Asserted on the engine's own
          output rather than by reading the code. */
       const AW_NOW = Date.UTC(2026, 8, 13, 12, 0, 0);
-      const awayOut = computeAccrual(huntAccrualInput({
+      const awayOut = huntAccrual({
         userId: U, slot: 0, nowMs: AW_NOW, accruedToMs: AW_NOW - 3600000,
         activeSinceMs: AW_NOW - 3600000, activeKind: 'combat', activeId: 'slime',
         capMs: 12 * 3600000, seed: 42, hp: 4, maxHp: 40, gold: 0,
@@ -1312,7 +1312,7 @@ async function run(mutate, blind) {
           until: new Date(AW_NOW + 3600000).toISOString() }],
       /* THE HUNT'S HEAL SLOT, with the buff food in the bag — the exact input that
          would emit a buff_apply if the hunt body had ever learned to. */
-      }, { seed: 42, bag: { [healBuff.item_id]: { loaded: 20 } } }));
+      }, { seed: 42, bag: { [healBuff.item_id]: { loaded: 20 } } });
       const awayDelta = JSON.stringify((awayOut && awayOut.delta) || awayOut || {});
       ok(!awayDelta.includes('buff_apply'),
         '[18d] AWAY: the accrual engine proposed a `buff_apply`. The away auto-eat must only ever DEBIT — a '
@@ -1708,7 +1708,7 @@ async function run(mutate, blind) {
   /* A fight is a hunt session (closed rebuild, lane C2): a training hunt on the
      slime, the foe back at once so the hour is damage-bound (a respawn-bound hour
      would hide what a damage buff pays). tests/hunt-fixture.mjs. */
-  const night = (buffs) => computeAccrual(huntAccrualInput({
+  const night = (buffs) => huntAccrual({
     userId: U, slot: 0,
     nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
     activeKind: 'combat', activeId: 'slime',
@@ -1717,7 +1717,7 @@ async function run(mutate, blind) {
     skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 },
     equipment: {}, items: ITEMS, monsters: MONSTERS,
     buffs,
-  }, { seed: 987654321, pull: { size: 1, respawnMs: 0 } }));
+  }, { seed: 987654321, pull: { size: 1, respawnMs: 0 } });
   const bare = JSON.stringify(night(undefined));
   ok(bare === JSON.stringify(night(null)),
     '[10] AWAY-1: an ABSENT buffs input and an explicit null produce different accruals');

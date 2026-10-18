@@ -309,7 +309,7 @@ async function memberInput(exec, m, inst) {
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
     huntSession: huntSessionFromRead(m.session, inst.id),
     skills: e.skills, xpFrac: e.xpFrac, hp: e.hp, maxHp: e.maxHp, gold: e.gold,
-    equipment: e.equipment, combatStyle: e.combatStyle, inventory: e.inventory,
+    equipment: e.equipment, combatStyle: e.combatStyle, inventory: e.inventory, buffs: e.buffs,
     recoveringUntilMs: e.recoveringUntilMs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,

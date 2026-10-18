@@ -286,16 +286,21 @@ begin
      limit 50), '[]'::jsonb));
 end $$;
 
-do $mig$
-declare v_f text;
-begin
-  foreach v_f in array array['hr_hunt_party_create(integer,text,uuid)', 'hr_hunt_party_join(integer,uuid,uuid)', 'hr_hunt_party_leave(integer,uuid)',
-                              'hr_hunt_party_kick(integer,integer,uuid)', 'hr_hunt_party_finder(integer,text,text)'] loop
-    execute format('revoke execute on function public.%s from public', v_f);
-    execute format('revoke execute on function public.%s from anon, service_role', v_f);
-    execute format('grant execute on function public.%s to authenticated', v_f);
-  end loop;
-end $mig$;
+revoke execute on function public.hr_hunt_party_create(int, text, uuid) from public;
+revoke execute on function public.hr_hunt_party_create(int, text, uuid) from anon, service_role;
+grant execute on function public.hr_hunt_party_create(int, text, uuid) to authenticated;
+revoke execute on function public.hr_hunt_party_join(int, uuid, uuid) from public;
+revoke execute on function public.hr_hunt_party_join(int, uuid, uuid) from anon, service_role;
+grant execute on function public.hr_hunt_party_join(int, uuid, uuid) to authenticated;
+revoke execute on function public.hr_hunt_party_leave(int, uuid) from public;
+revoke execute on function public.hr_hunt_party_leave(int, uuid) from anon, service_role;
+grant execute on function public.hr_hunt_party_leave(int, uuid) to authenticated;
+revoke execute on function public.hr_hunt_party_kick(int, int, uuid) from public;
+revoke execute on function public.hr_hunt_party_kick(int, int, uuid) from anon, service_role;
+grant execute on function public.hr_hunt_party_kick(int, int, uuid) to authenticated;
+revoke execute on function public.hr_hunt_party_finder(int, text, text) from public;
+revoke execute on function public.hr_hunt_party_finder(int, text, text) from anon, service_role;
+grant execute on function public.hr_hunt_party_finder(int, text, text) to authenticated;
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
    and proname in ('hr_hunt_party_create', 'hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_finder');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values

@@ -87,3 +87,40 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
 export function basicFor(kind, huntTier) {
   return BASIC_SUPPLIES.find((b) => b.kind === kind && b.tiers.includes(huntTier)) || null;
 }
+
+// ── THE SHOP'S PACKABLE SUPPLIES (lane S2, 2026-10-18; ASSUMED, Game Designer to rule) ──
+// The Bag's one-tap refill (Tyler 10-18: the player presses once, the server
+// buys up to each restock target and shows the total first; never automatic)
+// needs things a player can PACK, so the shop also sells the CRAFTED partner of
+// each basic row as an ordinary item (`supply.<item>`, bought through shop_buy
+// or the refill). A basic stays per use and is still the floor nobody is
+// ever without; the packed item is a convenience bought at a premium, and
+// making it yourself stays the cheap path. Each price holds two rules
+// (tests/alpha-server.mjs A-DATA proves both against ITEMS):
+//   price >= SUPPLY_SHOP_PREMIUM x the item's book value   so the vendor's buy-back
+//            (at most half the shop price, catalogue.js SHOP_BUYBACK_RATE) never
+//            moves and buy-then-sell can never profit;
+//   price >= ceil(basic price / BASIC_EFFECT_SHARE)       so a packed item never
+//            costs less a point than the basic it is the full version of.
+// DRINKS: none yet. The drink partners (src/data/drinks.js) are STAGED, not
+// items, so there is nothing to pack; a drink row joins here with the mana engine.
+// The server catalogue (hr_shop_supply_offers) is generated from these rows by
+// tools/gen-alpha-catalogue.mjs; src/data/shops.js lists them as `supply.*` offers.
+export const SUPPLY_SHOP_PREMIUM = 2;
+
+const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
+
+export const SUPPLY_SHOP_OFFERS = Object.freeze([
+  sell('cooked_shrimp', 'food', 'salted_shrimp', 36),
+  sell('cooked_trout', 'food', 'salted_trout', 110),
+  sell('cooked_lobster', 'food', 'salted_lobster', 480),
+  sell('cooked_swordfish', 'food', 'salted_swordfish', 1120),
+  sell('cooked_shark', 'food', 'salted_shark', 1800),
+  sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 3),
+  sell('iron_bolts', 'ammo', 'plain_iron_bolts', 3),
+  sell('steel_arrows', 'ammo', 'plain_steel_arrows', 6),
+  sell('mithril_arrows', 'ammo', 'plain_mithril_arrows', 11),
+  sell('rune_arrows', 'ammo', 'plain_rune_arrows', 16),
+  sell('emberhead_arrows', 'ammo', 'plain_emberhead_arrows', 24),
+  sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 32),
+]);

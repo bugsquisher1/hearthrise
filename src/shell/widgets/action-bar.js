@@ -7,7 +7,9 @@
 //   tablets  the active action set's 20 slots, ten either side of the emblem:
 //            an icon, mana cost top-left, count top-right, the first
 //            condition's percent; a slot the server marks unusable is greyed
-//            and struck; a press opens the slot editor on that slot
+//            and struck; a press opens the slot editor on that slot; a food,
+//            drink or ammo stack dragged from the bag onto a slot puts it
+//            there (ONE intent, the whole bar restated: src/shell/bar-assign.js)
 //   plaque   the action set's name, target, stance, chase and distance — each
 //            change an INTENT through settings-intent.js, the controls off
 //            until the server has confirmed. The full editor (thresholds,
@@ -25,6 +27,9 @@ import { gaugeHtml, patchGauge, itemIconHtml, itemName, abilityName } from './bi
 import { ITEMS } from '../../data/items.js?v=0.1.0';
 import { METRICS } from '../../data/condition-metrics.js?v=0.1.0';
 import { openSlot } from '../windows/bar-editor.js?v=0.1.0';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.1.0';
+import { DRAG_TYPE } from '../windows/bag-act.js?v=0.1.0';
+import { refusalWords } from '../intent-words.js?v=0.1.0';
 
 const METRIC_KIND = new Map(METRICS.map((m) => [m.id, m.value]));
 import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.1.0';
@@ -102,7 +107,26 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   patchControls(el.querySelector('.hb-plaque'), cs);
 };
 
+renderActionBar.events = Object.freeze(['dragover', 'dragleave', 'drop']);
+
+/* A bag stack dropped on a slot: one bar intent; the slot changes when the server's bar does. */
+function dropOnSlot(ctx, el, ev, t) {
+  const types = Array.from((ev.dataTransfer && ev.dataTransfer.types) || []);
+  if (!types.includes(DRAG_TYPE)) return false;
+  if (ev.type === 'dragleave') { cls(t, 'is-drop', false); return false; }
+  ev.preventDefault();
+  cls(t, 'is-drop', ev.type === 'dragover');
+  if (ev.type !== 'drop') return true;
+  const id = ev.dataTransfer.getData(DRAG_TYPE);
+  const msg = el.querySelector('.hb-plaque .hh-intent-msg');
+  if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
+  text(msg, 'Putting it on the bar…');
+  assignToBar(ctx.character, id, Number(t.getAttribute('data-slot'))).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
+  return true;
+}
+
 renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
+  if (action === 'slot' && ev.type !== 'click') return dropOnSlot(ctx, el, ev, t);
   if (action === 'editor' && ev.type === 'click') { ctx.show('hunt-settings'); return; }
   /* A slot opens the editor on that slot (BB-18): the bar is configured, never pressed. */
   if (action === 'slot' && ev.type === 'click') { openSlot(ctx.character, Number(t.getAttribute('data-slot'))); ctx.show('hunt-settings'); return; }

@@ -14,6 +14,8 @@
 //   create(slot)  ask the server to make a character in an empty owned slot
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
+//   findItems(q)  where an item is across this account's characters
+//                 (hr_account_items: bag, bank and worn, read by the server)
 //   signOut()     close every character, then auth.signOut() (every copy)
 // ════════════════════════════════════════════════════════════════════════
 
@@ -112,6 +114,27 @@ export class AccountSession {
     cs.connect();
     this._emit('opened', slot);
     return { ok: true, session: cs };
+  }
+
+  /**
+   * Where items matching `query` are, across every character of this account,
+   * as the server reads them: [{ slot, name, item, qty, where }]. A read, never
+   * a write; an unknown answer is an empty list with `error` set.
+   */
+  async findItems(query) {
+    const q = String(query || '').trim().toLowerCase().slice(0, 40);
+    if (q.length < 2) return { ok: true, rows: [] };
+    const ans = await this.server.rpc('hr_account_items', { p_query: q });
+    this._noteClosed(ans);
+    const b = ans.body;
+    if (!ans.ok || !b || b.ok !== true || !Array.isArray(b.rows)) return { ok: false, rows: [], error: (b && b.error) || ans.error || 'refused' };
+    const rows = [];
+    for (const r of b.rows.slice(0, 200)) {
+      if (!r || !Number.isInteger(r.slot) || typeof r.item !== 'string' || !/^[a-z0-9_]{1,64}$/.test(r.item)) continue;
+      if (!Number.isSafeInteger(r.qty) || r.qty < 1 || !['bag', 'bank', 'worn'].includes(r.where)) continue;
+      rows.push({ slot: r.slot, name: typeof r.name === 'string' ? r.name.slice(0, 40) : null, item: r.item, qty: r.qty, where: r.where });
+    }
+    return { ok: true, rows };
   }
 
   close(slot) {

@@ -1,0 +1,108 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/shell/windows/bag-state.js — THE BAG WINDOW'S READING OF ONE CHARACTER.
+//
+// What the bag draws, gathered in one place for its skeleton, its patch and
+// its actions (bag.js, bag-act.js):
+//   from the server   the bag, the worn set, the bag rules, the shop's bids,
+//                     the action bar, this hunt's loot (src/session/*-sections.js)
+//   residue           the remembered category and sort, the "new" marks
+//   scratch           the search text, the selection, the cursor, the open
+//                     menu and confirmation, an intent in flight. Display
+//                     only: nothing reads it but this window, nothing spends it.
+// ════════════════════════════════════════════════════════════════════════
+import { bagOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../session/item-sections.js?v=0.1.0';
+import { settingsOf, analyzerOf } from '../../session/hunt-sections.js?v=0.1.0';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../bag-model.js?v=0.1.0';
+import { barKind, barIndexOf } from '../bar-assign.js?v=0.1.0';
+import { itemName } from '../widgets/bits.js?v=0.1.0';
+
+const SCRATCH = new WeakMap();
+const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
+const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));
+
+/** This character's bag scratch (made on first use). */
+export function scratchOf(cs) {
+  let s = SCRATCH.get(cs);
+  if (!s) {
+    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, confirm: null,
+      pending: false, msg: '', shownNew: new Set(), press: null, pressed: false };
+    SCRATCH.set(cs, s);
+  }
+  return s;
+}
+
+/** The remembered category and sort (residue `bagView`), falling back to All / Type. */
+export function prefsOf(cs) {
+  const v = cs && cs.record && cs.record.residue ? cs.record.residue.bagView : null;
+  return { cat: v && CAT_IDS.has(v.cat) ? v.cat : 'all', sort: v && SORT_IDS.has(v.sort) ? v.sort : 'type' };
+}
+
+/** The "new" marks (residue `bagSeen`); null when this character has never had any. */
+export function seenOf(cs) {
+  const r = cs && cs.record && cs.record.residue;
+  return r && r.bagSeen && typeof r.bagSeen === 'object' ? r.bagSeen : null;
+}
+
+/** Everything the bag window draws for this character, read once per paint. */
+export function stateOf(ctx) {
+  const cs = ctx.character;
+  const items = bagOf(cs);
+  const shop = shopOf(cs);
+  const prefs = prefsOf(cs);
+  const sc = scratchOf(cs);
+  const list = items || [];
+  /* A character with no marks yet starts with everything already in the bag seen:
+     "new" means new since the player last looked, not "never marked". */
+  const stored = seenOf(cs);
+  const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
+  const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
+  return { cs, items: list, loaded: !!items, rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {}, bar: settingsOf(cs),
+    prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])) };
+}
+
+/** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */
+export function huntLoot(cs) {
+  const l = huntLootOf(cs);
+  if (l) return l;
+  const a = analyzerOf(cs);
+  return a ? a.hero.loot.map((x) => ({ item: x.item, count: x.count })) : null;
+}
+
+/** The one primary action for a stack: [verb, label], or null. */
+export function primaryOf(st, id) {
+  if (!id || !st.qty.has(id)) return null;
+  const k = kindOf(id);
+  if (k === 'gear') return equipSlotFor(id, st.eq) ? ['equip', 'Equip'] : null;
+  if (k === 'food') return ['eat', 'Eat'];
+  if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
+  if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];
+  return null;
+}
+
+/**
+ * A confirmation for selling `ids` whole: { label, plan } (the server's bids,
+ * locked stacks kept), or null when nothing could be sold.
+ */
+export function confirmFor(st, ids, label) {
+  if (!st.shop) return null;
+  const plan = sellPlan(st.items, ids, { locked: st.rules ? st.rules.locked : null, bids: st.shop.bids });
+  if (!plan.lines.length) return { label, plan, empty: true };
+  return { label, plan, empty: false };
+}
+
+/** The stacks "Sell junk" names: the loot filter's "sell" rule. */
+export function junkOf(st) {
+  return junkIds(st.items, st.rules);
+}
+
+/** The words for a confirmation: the question, then what is kept and why. */
+export function confirmWords(c) {
+  const p = c.plan;
+  const n = p.lines.length;
+  const lines = [];
+  if (c.empty) lines.push(p.kept.length ? 'Everything chosen is locked, so nothing will be sold.' : 'The shop has no price for these yet.');
+  else lines.push('Sell ' + (n === 1 ? itemName(p.lines[0].item) + ' ×' + p.lines[0].qty : n + ' stacks') + '?');
+  if (p.kept.length) lines.push(p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.');
+  if (p.unpriced.length) lines.push(p.unpriced.length + (p.unpriced.length === 1 ? ' stack has' : ' stacks have') + ' no shop price and stays.');
+  return lines;
+}

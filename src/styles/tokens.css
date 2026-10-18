@@ -774,6 +774,17 @@ body[data-theme="hearthlight"] {
   --hud-fill-hp:         #b03e2e;
   --hud-fill-stamina:    #66843d;
   --hud-mana-ink:        #8794e0;   /* a slot's mana cost, read on the slot well (6.8:1) */
+  /* THE RARITY LADDER (ART_DIRECTION §8): world-palette colours, so the light
+     column over a drop and the pocket's border in the bag are one colour.
+     Epic is the proposed arcane ramp (Asset Director). Colour is never the only
+     cue: a framed pocket also carries rank pips. */
+  --rar-common:          #aaa49a;   /* stone 5 */
+  --rar-uncommon:        #73944c;   /* leaf 6 */
+  --rar-rare:            #4fa8e8;   /* frost 1 */
+  --rar-epic:            #9b72d0;   /* arcane 1 (proposed) */
+  --rar-legendary:       #f2a03a;   /* torch 1 */
+  --rar-mythic:          #c23a2a;   /* blood 2 */
+  --rar-unique:          #e8c547;   /* gold */
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);

@@ -71,11 +71,43 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
+const ITEM_ID = /^[a-z0-9_]{1,64}$/;
+export const BAG_SEEN_MAX = 512;
+
+/** The bag's "seen" marks: item -> [the count last seen, the order it was first seen in]. */
+function sanitizeBagSeen(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  const rows = [];
+  for (const id of Object.keys(v)) {
+    const r = v[id];
+    if (!ITEM_ID.test(id) || !Array.isArray(r) || r.length !== 2) continue;
+    const [n, at] = r;
+    if (!Number.isSafeInteger(n) || n < 0 || !Number.isSafeInteger(at) || at < 0) continue;
+    rows.push([id, n, at]);
+  }
+  /* Over the cap, the marks seen longest ago go first. */
+  rows.sort((a, b) => b[2] - a[2]);
+  for (const [id, n, at] of rows.slice(0, BAG_SEEN_MAX)) out[id] = [n, at];
+  return out;
+}
+
+/** The bag's remembered view: the category row and the sort (src/shell/bag-model.js ids). */
+function sanitizeBagView(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (typeof v.cat === 'string' && ID.test(v.cat)) out.cat = v.cat;
+  if (typeof v.sort === 'string' && ID.test(v.sort)) out.sort = v.sort;
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
   combatText: sanitizeCombatText,   // display preference: which floating numbers show; gates and spends nothing
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
+  bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
+  bagView: sanitizeBagView,         // display preference: the bag's category and sort; gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

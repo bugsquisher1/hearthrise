@@ -272,7 +272,7 @@ async function clientScan(over = {}) {
   const get = async (p) => (p in over ? over[p] : await read(p));
   const out = [];
   const html = await get('play.html');
-  const inc = html.match(/<script type="module" src="src\/app\/boot\.js\?v=\d+"><\/script>/g) || [];
+  const inc = html.match(/<script type="module" src="src\/app\/boot\.js\?v=\d[\d.]*"><\/script>/g) || [];
   if (inc.length !== 1) out.push(`D-CLIENT: play.html loads src/app/boot.js ${inc.length} time(s), expected 1`);
   const js = await get('src/session/server.js');
   const code = (js.match(/export const CLOSED_CODE\s*=\s*'([a-z_]+)';/) || [])[1];
@@ -368,7 +368,7 @@ const js = await read('src/session/server.js');
 const html = await read('play.html');
 const SCAN = [
   { name: 'clientCodeDrifts', why: 'the client listens for a different code', over: { 'src/session/server.js': js.replace("export const CLOSED_CODE = 'hr_closed';", "export const CLOSED_CODE = 'closed';") } },
-  { name: 'clientNotIncluded', why: 'play.html never loads the client', over: { 'play.html': html.replace(/\s*<script type="module" src="src\/app\/boot\.js\?v=\d+"><\/script>/, '') } },
+  { name: 'clientNotIncluded', why: 'play.html never loads the client', over: { 'play.html': html.replace(/\s*<script type="module" src="src\/app\/boot\.js\?v=\d[\d.]*"><\/script>/, '') } },
 ];
 console.log(`\nclosed-rebuild --mutate: every mutant must go RED on its named arm\n[mutants] ${MUTANTS.length + SCAN.length}`);
 let survived = 0;

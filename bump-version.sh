@@ -27,8 +27,8 @@
 # Widening this script would also make every bump move the Edge Function's
 # payload hash and demand a redeploy for a change that alters no behaviour.
 #
-# Usage:  ./bump-version.sh <new-cache-number>
-#   e.g.  ./bump-version.sh 149
+# Usage:  ./bump-version.sh <MAJOR.MINOR.PATCH>  (the cache buster IS the semver string: patch per release, minor per milestone, 1.0.0 = full release)
+#   e.g.  ./bump-version.sh 0.1.1
 #
 #         ./bump-version.sh --check
 #   Verifies the invariant WITHOUT changing anything: build-info's cache
@@ -71,7 +71,7 @@ new="${1:-}"
 # browser-loaded reference agrees with it. Exits 0 clean / 1 dirty.
 check_invariant() {
   local cur
-  cur="$(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js | grep -oE '[0-9]+')"
+  cur="$(grep -oE "cache:[[:space:]]*'[0-9]+\.[0-9]+\.[0-9]+'" src/build-info.js | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
   if [[ -z "$cur" ]]; then
     echo "FAIL: could not read cache number from src/build-info.js" >&2; return 1
   fi
@@ -103,14 +103,14 @@ check_invariant() {
   bad_html=""
   for page in *.html; do
     [[ -f "$page" ]] || continue
-    b="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9]+' "$page" || true; } \
-      | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+    b="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9][0-9.]*' "$page" || true; } \
+      | grep -oE '\?v=[0-9][0-9.]*$' | { grep -vE "\?v=${cur//./\\.}\$" || true; } | sort -u | tr '\n' ' ')"
     if [[ -n "$b" ]]; then bad_html="${bad_html}  FAIL ${page} has stale versions: ${b}"$'\n'; fi
   done
-  bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
-    | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
-  bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9]+" src --include='*.js' || true; } \
-    | { grep -vE "\?v=${cur}\$" || true; })"
+  bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+    | grep -oE '\?v=[0-9][0-9.]*$' | { grep -vE "\?v=${cur//./\\.}\$" || true; } | sort -u | tr '\n' ' ')"
+  bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+    | { grep -vE "\?v=${cur//./\\.}\$" || true; })"
   # A relative .js import with no ?v= at all is the gap that lets a stale
   # module run for ~10 min after deploy.
   missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' || true; } | { grep -vE '\?v=' || true; })"
@@ -120,8 +120,8 @@ check_invariant() {
   if [[ -n "$bad_html" ]]; then printf '%s' "$bad_html" >&2; ok=1; fi
   if [[ -n "$bad_js"   ]]; then
     echo "  FAIL src/**/*.js has stale versions: ${bad_js}" >&2
-    { grep -rnE "['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
-      | { grep -vE "\?v=${cur}[\"']" || true; } | sed 's/^/      /' >&2
+    { grep -rnE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+      | { grep -vE "\?v=${cur//./\\.}[\"']" || true; } | sed 's/^/      /' >&2
     echo "      ^ a module reachable at TWO versions is loaded TWICE, with two copies" >&2
     echo "        of its module state. See tests/cache-buster-guard.mjs (b493)." >&2
     ok=1
@@ -164,7 +164,7 @@ check_invariant() {
 selftest() {
   local orig scratch bad=0 cur
   orig="$PWD"
-  cur="$(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js | grep -oE '[0-9]+')"
+  cur="$(grep -oE "cache:[[:space:]]*'[0-9]+\.[0-9]+\.[0-9]+'" src/build-info.js | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
   echo "bump-version --selftest: each mutation must turn --check RED (current build ${cur})"
   echo
 
@@ -208,7 +208,7 @@ selftest() {
 
   run_case "B1-stale-index-tag" \
     "a merge brings index.html in at the branch's build number; the browser then loads that file stale for ~10 min after deploy" \
-    "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9]+\"/s//\\1=\"\\2?v=1\"/' index.html" \
+    "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9][0-9.]*\"/s//\\1=\"\\2?v=1\"/' index.html" \
     "index.html has stale versions"
 
   # A page BESIDE index.html (the client entry) is served too.
@@ -217,7 +217,7 @@ selftest() {
   if [[ -n "$second" ]]; then
     run_case "B1b-stale-second-page-tag" \
       "the client page beside index.html is a served entry; a check that reads only index.html lets it ship stale" \
-      "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9]+\"/s//\\1=\"\\2?v=1\"/' ${second}" \
+      "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9][0-9.]*\"/s//\\1=\"\\2?v=1\"/' ${second}" \
       "${second} has stale versions"
   else
     echo "  FAIL  B1b — no second root page to plant into"; bad=$((bad+1))
@@ -240,12 +240,12 @@ selftest() {
 
   run_case "B5-build-info-moved-alone" \
     "somebody edits BUILD.cache by hand instead of running this script: build-info claims a build the tree is not at, which is the half-stale release the whole invariant exists to prevent" \
-    "sed -i -E \"s/(cache:[[:space:]]*)[0-9]+,/\\19999,/\" src/build-info.js" \
+    "sed -i -E \"s/(cache:[[:space:]]*)'[0-9.]+',/\\1'9.9.9',/\" src/build-info.js" \
     "index.html has stale versions"
 
   run_case "B6-build-info-unreadable" \
     "the shape of build-info.js changes and the number cannot be read. This must be a LOUD failure: a check that silently compares against an empty string would call every version stale, or nothing" \
-    "sed -i -E 's/cache:[[:space:]]*[0-9]+,/cacheNumber: undefined,/' src/build-info.js" \
+    "sed -i -E \"s/cache:[[:space:]]*'[0-9.]+',/cacheNumber: undefined,/\" src/build-info.js" \
     "could not read cache number"
 
   # ── THE OTHER HALF: the scoping must not have been narrowed into blindness,
@@ -297,13 +297,13 @@ if [[ "$new" == "--check" ]]; then
   exit "$?"
 fi
 
-if ! [[ "$new" =~ ^[0-9]+$ ]]; then
-  echo "usage: ./bump-version.sh <new-cache-number>   (integer)" >&2
+if ! [[ "$new" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+  echo "usage: ./bump-version.sh <MAJOR.MINOR.PATCH>   (semver, e.g. 0.1.1)" >&2
   echo "       ./bump-version.sh --check              (verify only)" >&2
   exit 1
 fi
 
-old="$(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js | grep -oE '[0-9]+')"
+old="$(grep -oE "cache:[[:space:]]*'[0-9]+\.[0-9]+\.[0-9]+'" src/build-info.js | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 if [[ -z "$old" ]]; then
   echo "could not read current cache number from src/build-info.js" >&2
   exit 1
@@ -322,13 +322,13 @@ else
 fi
 
 # 1. build-info.js
-sed -i -E "s/(cache:[[:space:]]*)${old},/\1${new},/" src/build-info.js
+sed -i -E "s/(cache:[[:space:]]*')${old//./\\.}',/\1${new}',/; s/(version:[[:space:]]*')[0-9.]+',/\1${new}',/" src/build-info.js
 
 # 2. every root page's script/link tags (index.html and the client page)
-for page in *.html; do if [[ -f "$page" ]]; then sed -i "s/?v=${old}/?v=${new}/g" "$page"; fi; done
+for page in *.html; do if [[ -f "$page" ]]; then sed -i "s/?v=${old//./\\.}/?v=${new}/g" "$page"; fi; done
 
 # 3. Every ?v= on ESM import specifiers under src/
-find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old}/?v=${new}/g"
+find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old//./\\.}/?v=${new}/g"
 
 # 3b. ── THE b493 PASS: NORMALISE, don't just rewrite the previous number ──────
 # Step 3 only knows about `?v=${old}`. A branch cut at build N and integrated at
@@ -345,7 +345,7 @@ find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old}/?v=${new}/g"
 #   here and invisible to the old --check. It sat at build 88 for 400+ builds.
 #   The pin is gone (icon-swap.js derives the version now) and check_invariant
 #   grew a `bad_lit` rule so a bare quoted `?v=<n>` can never come back silently.
-find src -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9]+/\1?v=${new}/g"
+find src -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9][0-9.]*/\1?v=${new}/g"
 
 # --- Verify: the SAME rule --check uses, so the two can never disagree ---
 # (b493: this used to check only for leftover `?v=${old}`, which is why fourteen
@@ -357,10 +357,10 @@ if ! check_invariant; then
   exit 1
 fi
 
-new_html="$({ cat ./*.html | grep -oE "\?v=${new}\b" || true; } | wc -l | tr -d ' ')"
+new_html="$({ cat ./*.html | grep -oE "\?v=${new//./\\.}\b" || true; } | wc -l | tr -d ' ')"
 new_js="$({ grep -roE "\?v=${new}\b" src --include='*.js' || true; } | wc -l | tr -d ' ')"
 
-echo "  build-info.cache : $(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js)"
+echo "  build-info.cache : $(grep -oE "cache:[[:space:]]*'[0-9.]+'" src/build-info.js)"
 echo "  *.html ?v=${new}     : ${new_html} tags"
 echo "  src ?v=${new}        : ${new_js} import specifiers"
 echo "OK. Now: bump the date in src/build-info.js, add a CHANGELOG.md entry, then commit & push."

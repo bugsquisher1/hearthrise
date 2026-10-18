@@ -5,11 +5,11 @@
 // path), from the engine's own seeded `ctx.rng` — never Math.random.
 // `huntFor` resolves a combat pointer: a named hunt id, or null for a monster id
 // (a training fight, which keeps its pre-hunt pricing byte for byte).
-import { HUNT_INDEX } from '../data/hunts.js?v=592';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=592';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=592';
-import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=592';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=592';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.1.0';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.1.0';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.1.0';
+import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.1.0';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.1.0';
 
 /**
  * Weighted pick from `spawns` ([{ monster, w }]). A single spawn returns its

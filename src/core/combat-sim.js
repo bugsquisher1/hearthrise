@@ -59,18 +59,18 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=592';
-import { resumeHpFor } from './recovery.js?v=592';
-import { runActionBar, endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=592';
-import { createRng } from './rng.js?v=592';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=592';
-import { stepSwing, OUTCOME, fxOf, call } from './hunt/world-step.js?v=592';
-import { makeEvent } from './hunt/events.js?v=592';
+import { COMBAT_BALANCE } from './combat.js?v=0.1.0';
+import { resumeHpFor } from './recovery.js?v=0.1.0';
+import { runActionBar, endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.1.0';
+import { createRng } from './rng.js?v=0.1.0';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=0.1.0';
+import { stepSwing, OUTCOME, fxOf, call } from './hunt/world-step.js?v=0.1.0';
+import { makeEvent } from './hunt/events.js?v=0.1.0';
 
 /* The swing's outcomes and its kill / death hand-offs live with the swing;
    published here too, because this module is the engine's front door
    (src/core/index.js `combatSim`). */
-export { stepSwing, OUTCOME, resolveKill, resolveDeath } from './hunt/world-step.js?v=592';
+export { stepSwing, OUTCOME, resolveKill, resolveDeath } from './hunt/world-step.js?v=0.1.0';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE ABSENCE DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.

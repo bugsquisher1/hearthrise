@@ -25,9 +25,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=592';
-import { HUNT_INDEX } from './hunts.js?v=592';
-import { MONSTERS } from './monsters.js?v=592';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.1.0';
+import { HUNT_INDEX } from './hunts.js?v=0.1.0';
+import { MONSTERS } from './monsters.js?v=0.1.0';
 
 export const HUNT_GROUNDS = Object.freeze({});
 

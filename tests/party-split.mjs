@@ -118,7 +118,7 @@ const HUNT_URL = pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href;
 /* party-split.js's own import of hunt.js carries bump-version.sh's CURRENT
    ?v= (src/ is walked and bumped; this file is not) — named by digits, not
    pinned to one, so a bump never rots this anchor the way ?v=552 rotted here. */
-const HUNT_ANCHOR_RE = /'\.\/hunt\.js\?v=\d+'/g;
+const HUNT_ANCHOR_RE = /'\.\/hunt\.js\?v=\d[\d.]*'/g;
 
 let TMP = null;
 let planted = 0;
@@ -414,7 +414,7 @@ function battery(api) {
     if (dryMultBp() !== Math.round(HUNT_VIGOUR_DRY_MULT * BP)) {
       note('S-DRY', `dryMultBp() = ${dryMultBp()}, hunt.js's VIGOUR_DRY_MULT derives ${Math.round(HUNT_VIGOUR_DRY_MULT * BP)} — the multiplier was retyped instead of derived`);
     }
-    if (!/import\s*\{[^}]*\bVIGOUR_DRY_MULT\b[^}]*\}\s*from\s*'\.\/hunt\.js\?v=\d+'/.test(SRC_TEXT || '')
+    if (!/import\s*\{[^}]*\bVIGOUR_DRY_MULT\b[^}]*\}\s*from\s*'\.\/hunt\.js\?v=\d[\d.]*'/.test(SRC_TEXT || '')
       || !/function dryMultBp\(\)\s*\{[^}]*\bVIGOUR_DRY_MULT\b/.test(SRC_TEXT || '')) {
       note('S-DRY', 'dryMultBp() does not derive its value from the VIGOUR_DRY_MULT it imports from hunt.js — §18.1: derived and not retyped, "precisely so dry means a quarter is learned once and true twice"');
     }

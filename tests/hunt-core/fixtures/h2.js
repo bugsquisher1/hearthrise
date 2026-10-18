@@ -7,7 +7,7 @@ import { hero, mon, world, groundRow, gridOf, loadCore, plant, makeReport, ROOT 
 
 export { groundRow, gridOf, subStep, mon, world } from './h1.js';
 
-const V = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 
 /** h1's loadCore plus what lane H2 also reads: hunt-spawn, hunt-roles, combat-sim's MONSTERS row helpers. */
 async function loadCore2(root) {

@@ -61,6 +61,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { versionQueriesIn, stripVersionQueries } from '../tools/pack-edge.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -71,12 +72,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
    non-module pins out of it — icon-swap.js's sprite pin ?v=88 is a bare query
    concatenated onto a filename, and legacy.js's `legacy.js?v=111` is prose in a
    comment, not a quoted specifier. Both are correct to leave frozen. */
-const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d+)['"`]/g;
+const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d[\d.]*)['"`]/g;
 
 /* index.html's own tags. The extension is required so the comment on line 12,
    which spells out a script tag ending in ?v=111 as an EXAMPLE, is not read as a
    real tag — the same carve-out bump-version.sh --check makes. */
-const HTML_RE = /(?:src|href)="([^"]*\.[a-z0-9]+)\?v=(\d+)"/g;
+const HTML_RE = /(?:src|href)="([^"]*\.[a-z0-9]+)\?v=(\d[\d.]*)"/g;
 
 /* A relative .js import carrying NO ?v= at all: the original b148 gap, where a
    browser serves a stale module for ~10 minutes after a deploy.
@@ -122,7 +123,7 @@ export async function cacheBusterGuard() {
   const problems = [];
 
   const buildInfo = await readFile(join(ROOT, 'src', 'build-info.js'), 'utf8');
-  const m = buildInfo.match(/cache:\s*(\d+)/);
+  const m = buildInfo.match(/cache:\s*'([^']+)'/);
   if (!m) return { problems: ['could not read BUILD.cache from src/build-info.js'], note: '', cache: null };
   const cache = m[1];
 
@@ -216,12 +217,12 @@ const Q = '?' + 'v=';
 export async function cacheBusterMutationGuard() {
   const problems = [];
   const cases = [
-    { name: 'a stale specifier', text: `fetch('src/legacy.js${Q}491')`, re: SPEC_RE, want: ['src/legacy.js', '491'] },
-    { name: 'a versioned relative import', text: `from '../net/record.js${Q}493'`, re: SPEC_RE, want: ['../net/record.js', '493'] },
+    { name: 'a stale specifier', text: `fetch('src/legacy.js${Q}0.0.9')`, re: SPEC_RE, want: ['src/legacy.js', '0.0.9'] },
+    { name: 'a versioned relative import', text: `from '../net/record.js${Q}0.1.0'`, re: SPEC_RE, want: ['../net/record.js', '0.1.0'] },
     { name: 'an unversioned relative import', text: `import { x } from './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
     { name: 'an unversioned bare import', text: `import './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
     { name: 'an unversioned dynamic import', text: `await import('./net/record.js');`, re: MISSING_RE, want: ['./net/record.js'] },
-    { name: 'a stale index.html tag', text: `<script src="src/main.js${Q}491">`, re: HTML_RE, want: ['src/main.js', '491'] },
+    { name: 'a stale index.html tag', text: `<script src="src/main.js${Q}0.0.9">`, re: HTML_RE, want: ['src/main.js', '0.0.9'] },
   ];
   for (const c of cases) {
     c.re.lastIndex = 0;
@@ -267,5 +268,15 @@ export async function cacheBusterMutationGuard() {
       problems.push(`the guard false-positives in ${f.file} on "${got}" — ${f.why}`);
     }
   }
-  return { problems, note: `${cases.length} mutations caught, ${frozen.length} ignorable shapes left alone` };
+  /* THE EDGE HALF (semver, 2026-10-18): versionQueryGuard must still see, and the
+     pack must still strip, a DOTTED query. A guard that only knew integers would
+     wave a dotted specifier into the edge payload. */
+  const edge = [
+    ['a dotted relative specifier', `import './x.js${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
+    ['a dotted bare query constant', `const V = '${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
+    ['a clean specifier', `import './x.js';`, (s) => versionQueriesIn(s).length === 0],
+    ['the pack strip on a dotted query', `import { a } from './x.js${Q}0.1.0';`, (s) => stripVersionQueries(s) === "import { a } from './x.js';"],
+  ];
+  for (const [name, text, holds] of edge) if (!holds(text)) problems.push(`pack-edge is wrong about ${name}`);
+  return { problems, note: `${cases.length} mutations caught, ${frozen.length} ignorable shapes left alone, ${edge.length} edge-pack shapes held` };
 }

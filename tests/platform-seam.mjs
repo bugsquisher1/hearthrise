@@ -208,8 +208,8 @@ function selftest() {
     ['negative control: storage named in a comment and inside prose', plant('src/app/sign-in.js', (s) => s + "\n// localStorage.setItem(k, v)\nvar __p = 'kept in localStorage for now';\n"), null],
     ['negative control: the seam may reach beneath itself', plant(SEAM, (s) => s + '\nfunction __rawProbe() { return window.localStorage; }\n'), null],
     ['the seam loaded after the glyphs', html((h) => {
-      const m = h.match(/[ \t]*<script src="src\/platform\/storage\.js\?v=\d+"><\/script>\r?\n/);
-      return h.replace(m[0], '').replace(/([ \t]*<script src="src\/data\/glyphs\.js\?v=\d+"><\/script>\r?\n)/, '$1' + m[0]);
+      const m = h.match(/[ \t]*<script src="src\/platform\/storage\.js\?v=\d[\d.]*"><\/script>\r?\n/);
+      return h.replace(m[0], '').replace(/([ \t]*<script src="src\/data\/glyphs\.js\?v=\d[\d.]*"><\/script>\r?\n)/, '$1' + m[0]);
     }), 'PS-2'],
     ['the seam deferred', html((h) => h.replace(SEAM_TAG, '<script defer src="src/platform/storage.js?v=')), 'PS-2'],
     ['the tab id moved to the device store', swap(BOOT, 'tab: HS.session, channel', 'tab: HS, channel'), 'PS-3'],

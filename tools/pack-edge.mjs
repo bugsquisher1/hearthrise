@@ -217,7 +217,7 @@ function vendorFor(absPath) {
    an asset URL. Total and mechanical, so `packed === strip(disk)` is a property
    `--check` can assert rather than a claim it has to take on faith. */
 export function stripVersionQueries(src) {
-  return src.replace(/(from\s*['"]\.[^'"]*?)\?v=\d+(['"])/g, '$1$2');
+  return src.replace(/(from\s*['"]\.[^'"]*?)\?v=\d[\d.]*(['"])/g, '$1$2');
 }
 
 /* THE GUARD THE FAILED DEPLOY BOUGHT. Broader than the transform, deliberately:
@@ -232,7 +232,7 @@ export function stripVersionQueries(src) {
    straight past a specifier-shaped regex: `const V = '?v=328'` followed by
    an `import()` of a template literal ending in that constant, which is exactly
    what tests/conservation-fuzz.mjs was doing, frozen three builds back. */
-const PACKED_QUERY_RE = /['"](\.[^'"]*\?v=\d+|\?v=\d+)['"]/g;
+const PACKED_QUERY_RE = /['"](\.[^'"]*\?v=\d[\d.]*|\?v=\d[\d.]*)['"]/g;
 
 export function versionQueriesIn(src) {
   const out = [];

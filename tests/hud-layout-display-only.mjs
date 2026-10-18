@@ -27,7 +27,7 @@ const STORE = 'src/session/residue.js';
 const ALLOWED = new Set([HUD, STORE]);
 const TEST_DIR = 'src/features/smoke/';
 const NAME = /\bhudLayout\b/;
-const HUD_IMPORT_OK = /^\.\.\/utils\/dom\.js(\?v=\d+)?$/;
+const HUD_IMPORT_OK = /^\.\.\/utils\/dom\.js(\?v=\d[\d.]*)?$/;
 const HUD_FORBIDDEN = /\b(fetch|sendIntent|sendActivity|putClientState|rpc|supabase|XMLHttpRequest|WebSocket|Hearthrise(?:Accrual|Gold|Sync|Net|Intent)\w*)\b/;
 
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');

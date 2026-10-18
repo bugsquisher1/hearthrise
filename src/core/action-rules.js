@@ -16,13 +16,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=592';
+import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=0.1.0';
 import { RULE_SUBJECTS, COOLDOWN_LANES, LANE_OF_KIND, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
-  SLOT_TARGETS } from '../data/rule-subjects.js?v=592';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=592';
-import { applyBuffSegment } from './buffs.js?v=592';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=592';
-import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=592';
+  SLOT_TARGETS } from '../data/rule-subjects.js?v=0.1.0';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.1.0';
+import { applyBuffSegment } from './buffs.js?v=0.1.0';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.1.0';
+import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=0.1.0';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };

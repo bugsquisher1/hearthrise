@@ -48,7 +48,7 @@ async function coreFiles(dir = CORE_DIR) {
    that resolves inside src/core/** or src/data/** — never src/features, the
    legacy monolith, the network layer or a bare package. */
 export function lawfulImport(fromRel, spec) {
-  const bare = spec.replace(/\?v=\d+$/, '');
+  const bare = spec.replace(/\?v=\d[\d.]*$/, '');
   if (!/^\.\.?\//.test(bare) || !/(^|\/)[\w-]+\.js$/.test(bare)) return false;
   const to = normalize(join(CORE_DIR, dirname(fromRel), bare));
   return [CORE_DIR, DATA_DIR].some((d) => to.startsWith(d + sep));
@@ -119,7 +119,7 @@ export async function corePurityGuard() {
         problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
       /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
-      if (!/\?v=\d+/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
+      if (!/\?v=\d[\d.]*/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
     }
   }
 

@@ -227,7 +227,7 @@ function memberIn(M, key, o) {
       cover: x.cover || {}, fallsLimit: 3 },
     skills, xpFrac: null, hp: x.hp ?? maxHp, maxHp, gold: x.gold ?? 0, equipment: x.equipment || {}, combatStyle: null,
     inventory: {}, recoveringUntilMs: 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ ranger: 'ranged', mage: 'magic', healer: 'magic' }[role] || 'sword'),
+    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'magic', healer: 'magic' }[role] || 'sword'),
       options: Object.assign({}, x.options || {}, role === 'healer' ? { role: 'healer' } : {}), bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
     ...(x.extra || {}),
   };

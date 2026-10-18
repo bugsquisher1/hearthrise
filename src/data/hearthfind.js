@@ -82,6 +82,8 @@
 //   fixture pocket (tests/hunt-fixture.mjs) — 111 / 139 / 100 kills/h. Hours
 //   stay as ruled; one_in rises with the rate
 //   (2026-10-23-hearthfind-catalogue.generated.sql carries the new odds).
+//   RE-MEASURED 2026-10-18 (designer; was 111 / 139 / 100): a sword is the Tank
+//   (hunt-roles.js WEAPON_ROLES), which holds instead of chasing: 102 / 129 / 92.
 //
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
@@ -177,9 +179,9 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 111 }),
-  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 139 }),
-  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 100 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 102 }),
+  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 129 }),
+  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 92 }),
 
   // ── Woodcutting. Door / gate / cap.
   Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),

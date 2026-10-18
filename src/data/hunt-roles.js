@@ -43,13 +43,16 @@ export const WEAPON_ROLES = Object.freeze({
   bow: Object.freeze(['ranger']),
   crossbow: Object.freeze(['ranger']),
   staff: Object.freeze(['mage', 'healer']),
-  /* THE WEAPON TYPES src/data/items.js SHIPS TODAY (lane S1, 2026-10-17: the
-     server settle needs a role for every equippable weapon, and the weapon-style
-     content of week plan item 16 has not landed). A sword, a two-handed hammer
-     or no weapon fights as Melee DPS, a `ranged` weapon as a Ranger, a `magic`
-     one as a staff. ASSUMED; the Game Designer re-homes these when the shield /
-     axes / club / bow / staff rows exist (CONFLICTS 2026-10-17, S1). */
-  sword: Object.freeze(['melee_dps']),
+  /* THE WEAPON TYPES src/data/items.js SHIPS (designer 2026-10-18). This table is
+     the ONE weapon -> role source: the server (hr_hunt_weapon_roles, generated),
+     hunt-spawn heroSetup and the client (import roleForWeapon, never a copy).
+     items.js weaponType stays the COMBAT style (accuracy skill, weakness), so the
+     rows are mapped here, not renamed. A sword is a one-hand blade with a shield
+     arm: the anchor, Tank (the sewer lane's Bronze Sword ruling). A two-hand
+     hammer crushes: the club's Melee DPS. Bows and crossbows ship as `ranged`
+     until bow = AoE / crossbow = single target is ruled; magic weapons are
+     staves (Mage, or Healer if picked). No weapon fights as Melee DPS. */
+  sword: Object.freeze(['tank']),
   hammer: Object.freeze(['melee_dps']),
   neutral: Object.freeze(['melee_dps']),
   ranged: Object.freeze(['ranger']),

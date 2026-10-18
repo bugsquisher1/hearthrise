@@ -107,6 +107,12 @@
   }
   .hs-win-head { height: 40px; cursor: default; }
   .hs-win-body { padding: 8px 10px 10px; }
+  .st .st-tabs { width: 100%; border-right: 0; }
+  .st-body { display: block; }
+  .st-tab { min-height: 44px; border-left: 0; border-top: 1px solid var(--line-soft); }
+  .st[data-view="list"] .st-pages, .st[data-view="page"] .st-tabs { display: none; }
+  .st[data-view="page"] .st-back { display: block; min-height: 40px; padding: 0; border: 0; background: none; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; }
+  .st-row .st-help { display: block; }
   .hs-hudset-row { min-height: 32px; gap: 6px; }
   .hs-hudset-show small { display: none; }
   .hs-hudset-row input[type="range"] { width: 72px; }

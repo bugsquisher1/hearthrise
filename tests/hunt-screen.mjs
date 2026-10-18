@@ -273,6 +273,14 @@ async function checks(overrides, shots) {
         await page.keyboard.press('j');
         await page.waitForTimeout(400);
         await page.screenshot({ path: join(shots, 'hunt-922x423-settings.png') });
+        await page.keyboard.press('j');   // the phone sheet: the category list, then one page
+        await page.keyboard.press('Escape');
+        await wait(page, () => document.querySelector('[data-hs-win="settings"] .st-tab'));
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: join(shots, 'hunt-922x423-settings-list.png') });
+        await page.click('[data-hs-win="settings"] .st-tab[data-cat="combat_text"]');
+        await page.waitForTimeout(200);
+        await page.screenshot({ path: join(shots, 'hunt-922x423-settings-page.png') });
       } else fails.push('HS-1 the phone size did not mount');
       await ctx.close();
     }

@@ -37,5 +37,5 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   Object.freeze({ id: 'hunt-settings', label: 'Hunt settings', key: 'j', glyph: 'uiTarget', width: 440, object: 'plain' }),
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),
-  Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 400, object: 'plain', escape: true }),
+  Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
 ]);

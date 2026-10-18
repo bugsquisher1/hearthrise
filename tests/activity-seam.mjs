@@ -89,15 +89,16 @@ export async function runAll() {
       + 'const shut = Object.keys(idx).find((id) => !s.recipePayable(idx, id)) || null;'
       + 'if (!shut) { console.log(JSON.stringify({ shut: null })); process.exit(0); }'
       + `const a = await import(${JSON.stringify(mod('supabase/functions/hr-accrue/set-activity.js'))});`
-      + "const r = await a.runSetActivity({ exec: async () => { throw new Error('reached the database'); },"
-      + ` user: '${USER}', slot: 0, intentId: '${KEY}', activity: { kind: 'artisan', id: shut } });`
-      + 'console.log(JSON.stringify({ shut, status: r.status, error: r.body && r.body.error }));';
+      + 'let reached = false; let r = null;'
+      + "try { r = await a.runSetActivity({ exec: async () => { reached = true; throw new Error('reached the database'); },"
+      + ` user: '${USER}', slot: 0, intentId: '${KEY}', activity: { kind: 'artisan', id: shut } }); } catch { r = null; }`
+      + 'console.log(JSON.stringify({ shut, reached, status: r && r.status, error: r && r.body && r.body.error }));';
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
     let got = null;
     try { got = JSON.parse(String(r.stdout || '').trim().split('\n').pop()); } catch { got = null; }
     if (!got) fail(`S6d: the disarmed probe did not answer (${String(r.stderr || '').trim().slice(0, 160)})`);
     else if (!got.shut) fail('S6d: with the cooking settlement disarmed no recipe is unpayable — the refusal is untestable.');
-    else if (got.status !== 409 || got.error !== 'activity_unsupported') {
+    else if (got.reached || got.status !== 409 || got.error !== 'activity_unsupported') {
       fail(`S6d: with its bench unpayable, set_activity answered ${JSON.stringify(got)}. It must be 409 `
         + 'activity_unsupported, or the pointer can hold a bench the engine refuses — the switch lockout.');
     }

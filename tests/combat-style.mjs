@@ -109,7 +109,8 @@ const MUTATIONS = {
     why: 'THE ORIGINAL P0: the engine goes back to resolveStyle(weaponType, null), so every '
        + 'styled grant routes to Attack whatever the player picked.',
     file: 'accrual.js',
-    find: 'resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(inp.combatStyle || {}) }))',
+    /* Re-anchored lane S1: the style is resolved in accrual.js memberSide. */
+    find: 'resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(mi.combatStyle || {}) }))',
     replace: 'resolveStyle(eq.weaponType, null)',
   },
   /* 2026-09-23: the five arms below re-pin section C to where the read ACTUALLY

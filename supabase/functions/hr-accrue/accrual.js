@@ -1492,13 +1492,13 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   /* THE ITEM DELTA is the loot (store uses and own bag uses are the session
      half's). Unknown ids are dropped and reported; a recipe scroll is an
      UNLOCK row, never an inventory row. */
-  const cat = s.catalogue || {};
+  const items = s.catalogue || {};
   const items_ = {};
   let itemKinds = 0;
   const recipeOps = [];
   for (const id in s.itemDelta) {
-    if (!catalogueHas(cat, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    if (cat[id] && cat[id].recipe) {
+    if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    if (items[id] && items[id].recipe) {
       const got = Math.floor(s.itemDelta[id]);
       if (got > 0) recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
       continue;

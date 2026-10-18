@@ -58,7 +58,7 @@ import { pathToFileURL } from 'node:url';
 
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { onTrainingHunt } from './hunt-fixture.mjs';
+import { huntAccrual } from './hunt-fixture.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
 import { makeBonus } from '../src/core/perks.js';
 import { burnChance, BURN_BASE, KITCHEN_NO_BURN, recipeInputs } from '../src/core/artisan.js';
@@ -78,6 +78,8 @@ const USER = '00000000-0000-4000-c000-a5a5a5a5a5a5';
    the SQL arms below patch migration text through bootReplay, and a JS defect
    needs the same treatment or the engine half is untested against failure. */
 let computeAccrualFn = computeAccrual;
+/* The engine MODULE a fight runs on (lane S1: a fight is accrueHunt's); null = the shipped one. */
+let engineMod = null;
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -565,7 +567,7 @@ async function run(patches) {
          the RED message names both and diagnoses neither. */
       let asLoot = 0;
       for (const seed of SEEDS) {
-        const r = computeAccrualFn(onTrainingHunt({ ...base, seed }));   // lane C2: a training hunt
+        const r = huntAccrual({ ...base, seed }, { seed, engine: engineMod || undefined });   // lane S1: a hunt instance
         if (!r.accrued) continue;
         if ((r.delta.items || {})[fixture.scroll]) asLoot++;
         const found = (r.delta.progress || []).find((x) => x && x.key === scrollKey);
@@ -874,7 +876,7 @@ async function loadRevertedEngine() {
   if (typeof mod.computeAccrual !== 'function') {
     throw new Error('M13 HARNESS: the mutant exports no computeAccrual');
   }
-  return mod.computeAccrual;
+  return mod;
 }
 
 async function mutate() {
@@ -886,7 +888,8 @@ async function mutate() {
     if (m.engine) {
       /* A harness failure here must NOT read as a caught mutation, so it is
          thrown before `run` rather than folded into `problems`. */
-      computeAccrualFn = await loadRevertedEngine();
+      engineMod = await loadRevertedEngine();
+      computeAccrualFn = engineMod.computeAccrual;
     }
     if (m.adapter) {
       // eslint-disable-next-line no-func-assign
@@ -906,7 +909,7 @@ async function mutate() {
     } finally {
       // eslint-disable-next-line no-func-assign
       if (m.adapter) forwardEnvelope = realForward;
-      if (m.engine) computeAccrualFn = realEngine;
+      if (m.engine) { computeAccrualFn = realEngine; engineMod = null; }
     }
     const caught = problems.length > 0;
     console.log(`  ${caught ? 'RED  ' : 'GREEN'}  ${m.name}${caught ? ` (${problems.length})` : ''}`);

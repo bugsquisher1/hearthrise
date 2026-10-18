@@ -308,8 +308,8 @@ const MUTATIONS = {
        + 'rolls them (ruling §7: the roll reads only source_kind, source_id and the server seed)',
     apply: (V) => {
       V.sites = V.sites.map(([label, src]) => [label, src.replace(
-        /resolveHearthfind\(state, 'monster', id, ctx\)/,
-        "resolveHearthfind(state, 'monster', id, ctx, bonus('dropRate'))")]);
+        /resolveHearthfind\(lead\.state, 'monster', kind, roll\)/,
+        "resolveHearthfind(lead.state, 'monster', kind, roll, lead.bonus('dropRate'))")]);
     },
   },
   call_site_luck_ctx: {
@@ -317,8 +317,8 @@ const MUTATIONS = {
        + 'place to put a luck term, and the next person to touch it will',
     apply: (V) => {
       V.sites = V.sites.map(([label, src]) => [label, src.replace(
-        /resolveHearthfind\(state, 'monster', id, ctx\)/,
-        "resolveHearthfind(state, 'monster', id, { ...ctx, luck: 2 })")]);
+        /resolveHearthfind\(lead\.state, 'monster', kind, roll\)/,
+        "resolveHearthfind(lead.state, 'monster', kind, { ...roll, luck: 2 })")]);
     },
   },
   second_roll_site: {
@@ -326,8 +326,8 @@ const MUTATIONS = {
        + 'a different number of times for the same span, and AWAY-1 parity is gone',
     apply: (V) => {
       V.sites = V.sites.map(([label, src]) => [label, src.replace(
-        /resolveHearthfind\(state, 'monster', id, ctx\)/,
-        "resolveHearthfind(state, 'monster', id, ctx) || resolveHearthfind(state, 'monster', id, ctx)")]);
+        /resolveHearthfind\(lead\.state, 'monster', kind, roll\)/,
+        "resolveHearthfind(lead.state, 'monster', kind, roll) || resolveHearthfind(lead.state, 'monster', kind, roll)")]);
     },
   },
   vacuous_flag: {

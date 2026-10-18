@@ -12,19 +12,21 @@
 //   R ROOFS: outside, every roof is drawn; inside the cottage its roof is gone
 //     and the neighbour's stays; a peer standing inside a building never lifts
 //     its roof (peers are units, never the hero); the inside view's south wall
-//     is the stub kit with the doorway open
-//   C IN THE CLEAR: forty peers drawn as units share no pixel of their body with
-//     a prop, tree, wall or roof (read off compose's frame, not the overlap grid
-//     placement uses), and every station is in plain view
+//     is the stub kit with the doorway open; a walker the server reports on a
+//     blocked tile is drawn on open ground beside it
+//   C IN THE CLEAR: every station is in plain view, and the bench row reads as
+//     occupied in the overlap grid
 //   P NOT SAVED: tap-to-walk moves only G._world.pos, the residue allowlist
 //     (RESIDUE_FIELDS, read from src/net/client-state.js) is frozen and holds no
 //     world/position field, and nothing else in G changes
-//   T PEERS: three fixture peers stand at their own activity's station (combat
-//     at the hatch, gathering at the woodpile, artisan at the anvil), ranked by
-//     sorted name whatever order the server sent them; nobody stacks, nobody is
-//     placed inside a building; away is dimmed; a stale view, the viewer and a
-//     duplicate name are not drawn; zero peers is an empty plaza that says
-//     nothing about how many are online
+//   T PEERS WALK (src/world/town-scene.js over the TownPresence walkers): each
+//     walker wears its role's style-1 outfit with a "name · level" plate and is
+//     stamped ref.player (id, name, slot); it walks from its tile toward its goal
+//     on its own feet; a new server answer re-aims it from where it is drawn —
+//     no jump, and the walk clip runs on (its age never goes back); it turns to
+//     the server's facing when it arrives; one drawn too far from the server's
+//     tile jumps there; a walker the server stops naming is gone; zero walkers
+//     is an empty plaza that prints nothing
 //   F FURNITURE: replaced, never merged — Kitchen 2 → 3 → {} shows the rung-2
 //     set, the rung-3 set, then a signpost and no kitchen piece (also through a
 //     live walk scene, mask included); every room of ROOM_PERKS has one layout
@@ -79,14 +81,10 @@ async function load(base) {
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
 }
 
-const PEERS = [
-  { name: 'Wren', kind: 'gather', band: 10, away: false },
-  { name: 'Brannoc', kind: 'combat', band: 30, away: false },
-  { name: 'Ilsa', kind: 'artisan', band: 20, away: true },
-];
-const viewOf = (peers, at, crier) => ({ status: 'ok', at, peers, crier: crier || [] });
-const ENV = (extra) => Object.assign({ kind: 'idle', rooms: {}, trophies: null, roomName: (id) => id, town: null, pollMs: 25000, you: 'Tyler',
-  canon: (n) => String(n).toLowerCase(), band: (b) => 'Lv ' + b, crierLine: (c) => c.name + ' found ' + c.itemId }, extra);
+/* A walker as src/session/town-presence.js hands it on (walkerOf). */
+const uidN = (n) => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
+const WALKER = (o) => Object.assign({ slot: 0, level: null, role: null, dir: 's' }, o);
+const ENV = (extra) => Object.assign({ kind: 'idle', rooms: {}, trophies: null, roomName: (id) => id, walkers: [] }, extra);
 
 function check(M) {
   const fails = [];
@@ -114,15 +112,15 @@ function check(M) {
     ok('R', inside.heroBuilding === 'cottage' && slices(inside, 'cottage') === 0, 'inside the cottage the hero is in it, and nothing lifts');
     const kit = inside.sprites.filter((d) => ['stub', 'wall', 'door'].includes(d.kind));
     ok('R', kit.length === 0, 'the painted cottage must draw no wall kit inside or out: ' + kit.map((d) => d.id + '@' + d.tx + ',' + d.ty).join(' '));
-    const peerIn = frame(cottage, { hero: { x: 15, y: 12 }, units: [{ id: M.stations.PEER_LOOKS[0], x: 7, y: 4 }] });
+    const peerIn = frame(cottage, { hero: { x: 15, y: 12 }, units: [{ id: 'outfit_knight', x: 7, y: 4 }] });
     ok('R', peerIn.heroBuilding === null, 'a PEER inside the cottage must never count as the hero being in it');
-    const onSprite = (p) => town.objects.some((o) => M.book.sprite(o.id).class === 'building' && p.x >= o.x && p.y >= o.y && p.x < o.x + o.fw && p.y < o.y + o.fh);
-    const placed = M.town.placePeers(town, Array.from({ length: 40 }, (_, i) => ({ name: 'p' + i, kind: ['combat', 'gather', 'artisan', 'idle'][i % 4] })));
-    const inCottage = (p) => p.x >= 2 && p.y >= 1 && p.x < 14 && p.y < 11;
-    const home = M.town.placePeers(cottage, Array.from({ length: 5 }, (_, i) => ({ name: 'h' + i, kind: 'idle' })));
-    ok('R', home.length === 5 && !home.some(inCottage), 'a peer is never placed inside a building, even beside a station that is: ' + JSON.stringify(home.map((p) => [p.x, p.y])));
-    ok('R', placed.length === 40 && placed.every((p) => !onSprite(p) && !town.buildings.some((b) => p.x >= b.rect.x && p.y >= b.rect.y && p.x < b.rect.x + b.rect.w && p.y < b.rect.y + b.rect.h)),
-      'forty peers must all be placed, none inside a building or on the smithy or the mill');
+    /* a walker reported on every tile of the town: none is drawn on a blocked tile (the smithy, the mill, a hedge) */
+    const cast = M.town.createTownCast(town, { sprites: M.book.sprites });
+    const all = [];
+    for (let y = 0; y < town.h; y++) for (let x = 0; x < town.w; x++) all.push(WALKER({ id: uidN(all.length), name: 'p' + all.length, x, y, gx: x, gy: y }));
+    const units = cast.frame(all, 0);
+    const blocked = units.filter((u) => town.mask[Math.round(u.y) * town.w + Math.round(u.x)]);
+    ok('R', units.length === all.length && !blocked.length, 'a walker reported on a blocked tile must be drawn on open ground, but ' + blocked.slice(0, 4).map((u) => u.x + ',' + u.y).join(' '));
   });
 
   /* C — IN THE CLEAR, read off the DRAWN frame (compose.js is the oracle, not the
@@ -130,22 +128,7 @@ function check(M) {
      shares a pixel of its body with a prop, a tree, a wall or a roof, in front
      of it or behind it. Odo on the bench row (live 2026-10-14) was the case. */
   fam('C', () => {
-    const placed = M.town.placePeers(town, Array.from({ length: 40 }, (_, i) => ({ name: 'p' + i, kind: ['combat', 'gather', 'artisan', 'idle', 'unheard_of'][i % 5] })));
-    const units = placed.map((p, i) => ({ id: M.stations.PEER_LOOKS[i % M.stations.PEER_LOOKS.length], x: p.x, y: p.y, ref: { peer: i } }));
-    const f = frame(town, { hero: null, units });
-    const isPeer = (d) => !!(d.ref && d.ref.peer != null);
-    const drawn = f.sprites.concat(f.raised).filter((d) => !isPeer(d) && d.kind !== 'void');
-    const hit = [];
-    for (const d of f.sprites.filter(isPeer)) {
-      const s = M.book.sprite(d.id);
-      const cx = d.x + s.anchor[0], foot = d.y + s.anchor[1];
-      const body = { x: cx - 12, y: foot - 38, w: 24, h: 38 };
-      const touch = drawn.find((q) => q.x < body.x + body.w && q.x + q.w > body.x && q.y < body.y + body.h && q.y + q.h > body.y);
-      if (touch) hit.push(d.tx + ',' + d.ty + ' touches ' + touch.id + '@' + touch.tx + ',' + touch.ty);
-    }
-    ok('C', placed.length === 40 && f.sprites.filter(isPeer).length === 40, 'forty peers must be placed and drawn, got ' + placed.length);
-    ok('C', !hit.length, 'a peer must stand in the clear, but ' + hit.slice(0, 4).join('; '));
-    ok('C', placed.every((p) => town.overlap[p.y * town.w + p.x] === 0) && town.overlap[11 * town.w + 3] !== 0, 'the bench row (3,11) must read as occupied in the overlap grid');
+    ok('C', town.overlap[11 * town.w + 3] !== 0, 'the bench row (3,11) must read as occupied in the overlap grid');
     for (const [k, at] of Object.entries(town.stations)) ok('C', !(town.overlap[at[1] * town.w + at[0]] & M.mapc.OVER), 'the ' + k + ' station must be in plain view');
   });
 
@@ -168,40 +151,52 @@ function check(M) {
   });
 
   fam('T', () => {
-    const st = (n) => M.town.stationOf(town, n);
-    const now = 1e6;
-    const a = M.town.townState(town, viewOf(PEERS, now), now, ENV({}));
-    const b = M.town.townState(town, viewOf(PEERS.slice().reverse(), now), now, ENV({}));
-    ok('T', a.units.length === 3, 'three fresh peers must give three units, got ' + a.units.length);
-    for (const p of PEERS) {
-      const u = a.units.find((x) => x.plate.text.startsWith(p.name + ' '));
-      const nearest = Object.keys(town.stations).sort((k1, k2) => dist2([u.x, u.y], st(k1)) - dist2([u.x, u.y], st(k2)))[0];
-      ok('T', u && nearest === p.kind && dist2([u.x, u.y], st(p.kind)) <= 2, p.name + ' (' + p.kind + ') must stand at the ' + p.kind + ' station, stood at ' + JSON.stringify(u && [u.x, u.y]));
-      ok('T', u && u.plate.text === p.name + ' · Lv ' + p.band, 'a plate is the name and the level band, got ' + (u && u.plate.text));
-      ok('T', u && (p.away ? u.alpha < 1 && u.plate.kind === 'away' : u.alpha === 1 && u.plate.kind === 'peer'), p.name + ' away=' + p.away + ' must be drawn ' + (p.away ? 'dimmed' : 'whole'));
-    }
-    ok('T', JSON.stringify(a.units) === JSON.stringify(b.units), 'placement must not depend on the order the server listed peers in');
-    const canon = { canon: (n) => n.toLowerCase() };
-    const two = M.town.placePeers(town, [{ name: 'Zed', kind: 'combat' }, { name: 'abe', kind: 'combat' }], canon);
-    const owt = M.town.placePeers(town, [{ name: 'abe', kind: 'combat' }, { name: 'Zed', kind: 'combat' }], canon);
-    const first = M.town.placePeers(town, [{ name: 'Zed', kind: 'combat' }], canon)[0];
-    const tileOf = (list, n) => { const p = list.find((q) => q.peer.name === n); return p ? p.x + ',' + p.y : null; };
-    ok('T', tileOf(two, 'abe') === first.x + ',' + first.y && tileOf(owt, 'abe') === tileOf(two, 'abe') && tileOf(owt, 'Zed') === tileOf(two, 'Zed') && tileOf(two, 'Zed') !== tileOf(two, 'abe'),
-      'the first name in sorted order takes the first slot whatever order they came in, and nobody stacks');
-    ok('T', !two.some((p) => p.x === st('combat')[0] && p.y === st('combat')[1]), 'the station\'s own tile is kept for the local hero');
-    const odd = M.town.townState(town, viewOf([{ name: 'Mara', kind: 'smelting_new', band: 0 }], now), now, ENV({}));
-    ok('T', odd.units.length === 1 && dist2([odd.units[0].x, odd.units[0].y], st('idle')) <= 2, 'a kind this build does not know stands at the bench');
-    const self = M.town.townState(town, viewOf([{ name: 'TYLER', kind: 'idle' }, { name: 'Odo', kind: 'idle' }, { name: 'odo', kind: 'combat' }], now), now, ENV({}));
-    ok('T', self.units.length === 1, 'the viewer and a duplicate name are drawn once, as the hero and one peer: ' + self.units.length);
-    const stale = M.town.townState(town, viewOf(PEERS, now - 3 * 25000), now, ENV({}));
-    ok('T', stale.units.length === 0, 'a view older than two polls must show nobody');
-    const empty = M.town.townState(town, viewOf([], now), now, ENV({}));
-    ok('T', empty.units.length === 0 && empty.bubbles.length === 0, 'zero peers (and no crier line) must be an empty plaza');
-    const said = JSON.stringify(empty) + JSON.stringify(M.town.townState(town, null, now, ENV({})));
+    const cast = M.town.createTownCast(town, { sprites: M.book.sprites });
+    const A = uidN(1), B = uidN(2), C = uidN(3);
+    const t0 = 1e6;
+    const w1 = [WALKER({ id: A, name: 'Wren', level: 12, role: 'healer', x: 5, y: 9, gx: 9, gy: 9, dir: 'e' }),
+      WALKER({ id: B, name: 'Brannoc', level: 30, role: 'tank', x: 12, y: 9, gx: 12, gy: 9, dir: 's' }),
+      WALKER({ id: C, name: 'Ilsa', level: null, role: null, x: 3, y: 9, gx: 3, gy: 9, dir: 'w' })];
+    const u0 = cast.frame(w1, t0);
+    const by = (list, id) => list.find((u) => u.ref && u.ref.player && u.ref.player.id === id) || null;
+    ok('T', u0.length === 3, 'three walkers must give three units, got ' + u0.length);
+    const wren = by(u0, A);
+    ok('T', !!wren && wren.id === 'outfit_druid' && u0.filter((u) => u.id === 'outfit_knight').length === 2,
+      'a walker wears its role\'s style-1 outfit (healer: druid; tank and none: knight), got ' + u0.map((u) => u.id).join(','));
+    ok('T', !!wren && wren.plate.text === 'Wren · 12' && u0.some((u) => u.plate.text === 'Ilsa') && wren.plate.kind === 'peer', 'a plate is the name and the level: ' + u0.map((u) => u.plate.text).join(' / '));
+    ok('T', !!wren && wren.ref.player.name === 'Wren' && wren.ref.player.slot === 0, 'a peer is stamped with the server\'s id, name and slot for the player menu');
+    ok('T', !!wren && wren.x === 5 && wren.y === 9, 'a new walker is drawn on its reported tile first, got ' + (wren && [wren.x, wren.y]));
+    if (!wren) return;
+    /* walking toward its goal on its own feet */
+    const mid = by(cast.frame(w1, t0 + 600), A);
+    ok('T', mid.anim === 'walk' && mid.x > 5 && mid.x < 9 && mid.dir === 'e', 'half a second later Wren walks east toward 9,9: ' + JSON.stringify([mid.x, mid.anim, mid.dir]));
+    /* the server answers again, a little behind her, with a new goal: she re-aims from where she is drawn */
+    const before = by(cast.frame(w1, t0 + 1000), A);
+    const w2 = [WALKER({ id: A, name: 'Wren', level: 12, role: 'healer', x: 7, y: 9, gx: 14, gy: 9, dir: 'e' }), w1[1], w1[2]];
+    const after = by(cast.frame(w2, t0 + 1016), A);
+    ok('T', Math.abs(after.x - before.x) < 0.2 && after.anim === 'walk', 'a new answer must not jump the peer: ' + before.x + ' -> ' + after.x);
+    ok('T', after.age > before.age, 'the walk clip runs on through a re-aim (age ' + before.age + ' -> ' + after.age + ')');
+    let end = null;
+    for (let t = t0 + 1016; t <= t0 + 6000; t += 100) end = by(cast.frame(w2, t), A);
+    ok('T', end.x === 14 && end.y === 9 && end.anim === 'idle' && end.dir === 'e', 'she arrives at 14,9 and stands facing the server\'s way: ' + JSON.stringify([end.x, end.y, end.anim, end.dir]));
+    const turned = by(cast.frame([WALKER({ id: A, name: 'Wren', level: 12, role: 'healer', x: 14, y: 9, gx: 14, gy: 9, dir: 'n' }), w1[1], w1[2]], t0 + 6100), A);
+    ok('T', turned.dir === 'n' && turned.anim === 'idle', 'a standing peer turns to a new facing without walking');
+    /* far behind the server: jump */
+    const far = by(cast.frame([WALKER({ id: A, name: 'Wren', level: 12, role: 'healer', x: 1, y: 9, gx: 1, gy: 9, dir: 'w' }), w1[1], w1[2]], t0 + 6200), A);
+    ok('T', far.x === 1 && far.y === 9, 'a peer drawn more than snapTiles from the server\'s tile jumps there: ' + [far.x, far.y]);
+    /* the server stops naming two of them */
+    const left = cast.frame([w1[1]], t0 + 6300);
+    ok('T', left.length === 1 && by(left, B) && cast.size() === 1, 'walkers the server stops naming are gone: ' + left.map((u) => u.plate.text).join(','));
+    const empty = cast.frame([], t0 + 6400);
+    ok('T', empty.length === 0 && cast.size() === 0, 'zero walkers is an empty plaza');
+    /* through the walk scene: the walkers are the units, no bubble prints a count, and the hero's place is handed back */
+    const ws = M.walk.createWalkScene(town, { sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
+    const f = ws.frame(ENV({ walkers: w1 }), t0);
+    ok('T', f.units.length === 3 && f.bubbles.length === 0, 'the walk scene draws the walkers and no bubble: ' + f.units.length + '/' + f.bubbles.length);
+    const said = JSON.stringify(ws.frame(ENV({ walkers: [] }), t0 + 10).bubbles);
     ok('T', !/online|\b0\b/i.test(said), 'an empty plaza must never print a count: ' + said);
-    const crier = M.town.townState(town, viewOf([], now, [{ name: 'Wren', itemId: 'rat_tail' }]), now, ENV({}));
-    const npc = town.objects.find((o) => o.id === M.stations.CRIER_SPRITE);
-    ok('T', crier.bubbles.length === 1 && crier.bubbles[0].text === 'Wren found rat_tail' && npc && crier.bubbles[0].x === npc.x, 'the crier speaks the latest find from its spot');
+    ok('T', !!f.place && f.place.map === 'town_common' && Number.isInteger(f.place.x) && Number.isInteger(f.place.gx) && ['n', 's', 'e', 'w'].includes(f.place.dir),
+      'the walk scene hands back where the hero stands and walks to, in whole tiles: ' + JSON.stringify(f.place));
   });
 
   fam('F', () => {
@@ -438,7 +433,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {
@@ -462,14 +457,15 @@ function plantIn(dir, rel, edits) {
 /* [family that must go red, the defect, file, [[anchor, replacement], …]] */
 const MUTANTS = [
   ['R', 'the roof lifts for the first unit inside', 'src/world/core/compose.js', [['const heroId = heroBuilding(map.buildings, hero);', 'const heroId = heroBuilding(map.buildings, (state.units || []).find((u) => heroBuilding(map.buildings, u)) || hero);']]],
-  ['R', 'peers placed inside buildings', 'src/world/town-scene.js', [['if (map.buildings.some((b) => inRect(b.rect, x, y))) continue;', '']]],
-  ['C', 'peers placed on tiles a prop or tree shares', 'src/world/town-scene.js', [['if (!seen[y * map.w + x] || (map.overlap && map.overlap[y * map.w + x])) continue;', 'if (!seen[y * map.w + x]) continue;']]],
+  ['R', 'a walker drawn where the server put it, hedge or not', 'src/world/town-scene.js', [['const at = standOn(map, [w.x, w.y]);', 'const at = [w.x, w.y];']]],
   ['C', 'the overlap grid blind to trees and props', 'src/world/core/map-compile.js', [["    if (!s || s.layer === 'decal') continue;\n    const air", "    if (!s || s.layer !== 'decal') continue;\n    const air"]]],
   ['P', 'the position written onto G', 'src/world/store.js', [['export function notePos(G, map, x, y) {', 'export function notePos(G, map, x, y) {\n  G.pos = { map, x, y };']]],
-  ['T', 'every peer at the bench', 'src/world/town-scene.js', [["const key = (map.stations || {})[p.kind] ? p.kind : STATION_FALLBACK;", 'const key = STATION_FALLBACK;']]],
-  ['T', 'ranked in the order the server listed them', 'src/world/town-scene.js', [['const x = canon(a.name), y = canon(b.name); return x < y ? -1 : x > y ? 1 : 0;', 'return 0;']]],
-  ['T', 'a stale view still shows people', 'src/world/town-scene.js', [['=> !!view && view.status === \'ok\' && Math.abs(Number(now) - Number(view.at)) <= 2 * pollMs;', '=> !!view && view.status === \'ok\';']]],
-  ['T', 'an empty plaza announces its count', 'src/world/town-scene.js', [['  return { units, bubbles };', "  if (!units.length && crier) bubbles.push({ text: '0 online', x: crier.x, y: crier.y });\n  return { units, bubbles };"]]],
+  ['T', 'every answer re-places the peer on the server\'s tile (a jump)', 'src/world/town-scene.js', [['else aim(p, w, now);', 'else p = null;']]],
+  ['T', 'a peer never walks: it stands on each answer\'s tile', 'src/world/town-scene.js', [["if (!p.goal || p.goal[0] !== goal[0] || p.goal[1] !== goal[1]) { p.goal = goal; p.steer.walkTo(goal, now, false); }", 'p.goal = goal;']]],
+  ['T', 'a re-aim restarts the walk clip', 'src/world/town-scene.js', [['const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);', "const { anim } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing); const age = p.steer.restMs(now);"]]],
+  ['T', 'a walker the server stopped naming stays', 'src/world/town-scene.js', [['if (!live.has(id)) people.delete(id);', 'void live;']]],
+  ['T', 'peers wear one outfit', 'src/world/town-scene.js', [['const id = outfitSprite(null, p.w.role);', "const id = outfitSprite(null, 'tank');"]]],
+  ['T', 'a peer is not stamped for the player menu', 'src/world/town-scene.js', [['ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },', 'ref: null,']]],
   ['F', 'furniture merged across envelopes', 'src/world/home-scene.js', [['export function furnish(mapId, rooms, trophies, nameOf) {', 'const KEPT = new Map();\nexport function furnish(mapId, rooms, trophies, nameOf) {\n  const out0 = furnish0(mapId, rooms, trophies, nameOf);\n  for (const p of out0) if (p.ref && p.ref.room) KEPT.set(p.id + p.x + "," + p.y, p);\n  return out0.filter((p) => !(p.ref && p.ref.room)).concat([...KEPT.values()]);\n}\nfunction furnish0(mapId, rooms, trophies, nameOf) {']]],
   ['F', 'a room with a rung missing from its layout', 'src/data/world/house-layouts.js', [[", [p('basket', 6, 3)]]),", ']),']]],
   ['H', 'the hatch also moves the hero', 'src/world/steer-local.js', [["if (act.kind === 'hunt') return nav.hunt(act.hunt);", "if (act.kind === 'hunt') { nav.walk([0, 0]); return nav.hunt(act.hunt); }"]]],
@@ -483,7 +479,7 @@ const MUTANTS = [
   ['K', 'letting go does not stop the hero', 'src/world/steer-local.js', [['if (!dx && !dy) { held = null; return; }', 'if (!dx && !dy) return;']]],
   ['M', 'a diagonal step faces by its own sign (b585)', 'src/world/steer-local.js', [['dir = facingFor(next[0] - fx, next[1] - fy, trip, dir);', "dir = Math.abs(next[0] - fx) >= Math.abs(next[1] - fy) ? (next[0] > fx ? 'e' : 'w') : (next[1] > fy ? 's' : 'n');"]]],
   ['M', 'the camera led by the fractional position (b585)', 'src/world/walk-scene.js', [['const hx = onPixel(at.x), hy = onPixel(at.y);', 'const hx = at.x, hy = at.y;']]],
-  ['M', 'the walk clip played by the wall clock (b585)', 'src/world/walk-scene.js', [["anim: at.moving ? 'walk' : 'idle', age },", "anim: at.moving ? 'walk' : 'idle' },"]]],
+  ['M', 'the walk clip played by the wall clock (b585)', 'src/world/steer-local.js', [["return { anim: 'walk', age: ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps };", "return { anim: 'walk' };"]]],
   ['D', 'the draw ignores the diagonal (four facings forever)', 'src/world/core/compose.js', [["const dir = book.facing(u.id, anim, u.dir || 's', u.diag);", "const dir = u.dir || 's';"]]],
   ['D', 'a diagonal step forgets its diagonal', 'src/world/steer-local.js', [['diag = diagonalOf(next[0] - fx, next[1] - fy);', 'diag = null;']]],
   ['D', 'a missing diagonal falls to its east/west half, not to facingFor\'s cardinal', 'src/world/core/facing.js', [['if (diag && dirs[diag]) return diag;', 'if (diag) return dirs[diag] ? diag : diag[1];']]],
@@ -522,5 +518,5 @@ else {
     console.error('world-town-home: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-town-home: green — roofs, nothing saved, peers at their stations, furniture replaced, the hatch only navigates, steering, the keys, smooth walking, eight facings');
+  console.log('world-town-home: green — roofs, nothing saved, peers walking where the server says, furniture replaced, the hatch only navigates, steering, the keys, smooth walking, eight facings');
 }

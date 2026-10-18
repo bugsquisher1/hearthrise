@@ -304,6 +304,19 @@ jobs:
           node tests/chat-social.mjs
           node tests/chat-social.mjs --mutate
 
+      # TOWN PRESENCE (2026-10-18, lane/town-presence): two accounts in The
+      # Common see each other (the server's id, name, level, role, tiles), the
+      # position publish is capped, blocks are hidden at once, leaving leaves
+      # (Home, close, an in-flight publish), each answer replaces the list, a
+      # stale one shows nobody, and in the page a peer walks beside the hero
+      # with the one player menu. The server half is 2026-10-25-town-walk.sql's
+      # §6. The walking itself is world-town-home family T. --mutate plants 13.
+      - name: Town presence (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-walk.mjs
+          node tests/town-walk.mjs --mutate
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

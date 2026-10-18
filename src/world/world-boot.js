@@ -22,11 +22,12 @@
 //
 // THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
 // draws them from what the client holds from the server, read here into one
-// `env` per frame. A tap on the canvas walks the local hero (display only:
-// G._world.pos) or names what it hit for the pane (opts.emit: a hunt's entrance,
-// a station); no tap sends an intent (steer-local.js runAction). On a desktop
-// WASD / the arrows walk the same feet (8 ways, stop on key-up); never while a
-// text field has focus, and never sent either.
+// `env` per frame. A tap on the canvas walks the local hero (G._world.pos) or
+// names what it hit for the pane (opts.emit: a hunt's entrance, a station); no
+// tap sends an intent (steer-local.js runAction). On a desktop WASD / the
+// arrows walk the same feet (8 ways, stop on key-up); never while a text field
+// has focus.
+// THE TOWN'S PEOPLE: opts.town (src/session/town-presence.js) hears the town shown and the hero's place each frame, and gives the walkers.
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
@@ -105,7 +106,7 @@ function unmappedBanner(G, sc, monsterName) {
  * unknown trophy set hangs nothing, an absent town view shows nobody. The
  * claimed-trophy wall is re-read only when the trophy mirror is replaced.
  */
-function createEnvReader(win) {
+function createEnvReader(win, town) {
   let wallOf = null, wall = null;
   return function readEnv(G, kind) {
     const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
@@ -120,11 +121,7 @@ function createEnvReader(win) {
       env.trophies = wall;
       env.roomName = (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id;
     } else {
-      const Town = win.HearthriseTown, TP = win.HearthriseTownPanel;
-      env.town = fn(Town, 'readTown') ? Town.readTown() : null;
-      env.pollMs = (Town && Town.TOWN_POLL_MS) || 25000;
-      env.band = fn(TP, 'bandText');
-      env.crierLine = fn(TP, 'crierLine');
+      env.walkers = town ? town.walkers() : [];
     }
     return env;
   };
@@ -144,6 +141,7 @@ function createEnvReader(win) {
  *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
  *        character's own `_world` display scratch. There is no global state to fall back to.
  * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
+ * @param {object} [opts.town]  that character's TownPresence (account.townOf(slot)): the town's people
  * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names: 'entrance' {hunt},
  *        'station' {skill}, 'room' {room}, 'house' {room}; true when the pane opened something
  */
@@ -183,7 +181,8 @@ export async function bootWorld(panel, opts) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
-  const readEnv = createEnvReader(win);
+  const town = opts.town || null;
+  const readEnv = createEnvReader(win, town);
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
@@ -237,6 +236,10 @@ export async function bootWorld(panel, opts) {
     }
     const f = walk.frame(readEnv(G, map.kind), now);
     notePos(G, map.id, f.hero.x, f.hero.y);
+    if (town) {
+      town.show(map.kind === 'town' ? map.id : null);
+      if (map.kind === 'town') town.publish(f.place);
+    }
     lastWalk = f;
     return f;
   }
@@ -245,7 +248,9 @@ export async function bootWorld(panel, opts) {
   function walkStats() {
     const f = lastWalk;
     return f && { hero: f.hero, cell: walk.cell(), mark: f.mark, bubbles: f.bubbles.map((b) => b.text), stations: walk.map.stations,
-      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha })),
+      units: f.units.map((u) => ({ id: u.id, x: u.x, y: u.y, plate: u.plate.text, alpha: u.alpha, anim: u.anim, age: u.age, dir: u.dir,
+        player: u.ref && u.ref.player ? u.ref.player.id : null })),
+      place: f.place,
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })) };
   }
 
@@ -282,6 +287,7 @@ export async function bootWorld(panel, opts) {
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
       walk = null; lastWalk = null; keys.clear();
+      if (town) town.show(null);
     } else {
       hunt = null; huntMap = null; lastHunt = null; endLive();
       cast = walkState(G, map, now);
@@ -424,6 +430,7 @@ export async function bootWorld(panel, opts) {
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
       endLive();
+      if (town) town.show(null);
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);
       stage.removeEventListener('contextmenu', onContext);

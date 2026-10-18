@@ -2,20 +2,21 @@
 // src/world/walk-scene.js — THE TOWN AND YOUR HOME, ONE FRAME AT A TIME.
 //
 // The scenes you can walk in (map kinds 'town' and 'home'). Each frame takes
-// what the client holds from the server — the town view, your room rungs and
-// trophy claims, what your hero is doing — and returns the draw state: your
-// hero on its local feet (steer-local.js), the peers (town-scene.js), the
-// furniture (home-scene.js), the crier's line, the walk mark and where the
-// camera looks.
+// what the client holds from the server — the town's walkers, your room rungs
+// and trophy claims, what your hero is doing — and returns the draw state: your
+// hero on its local feet (steer-local.js), the peers walking on theirs
+// (town-scene.js), the furniture (home-scene.js), the walk mark and where the
+// camera looks, plus `place`: where the hero stands and walks to, for the
+// town presence to publish.
 // Derived pieces are rebuilt whenever their input changes and REPLACE what was
-// there (a new town view re-places every peer; new rungs re-furnish the home
-// and re-block the hero's mask), never merged into it.
+// there (new rungs re-furnish the home and re-block the hero's mask), never
+// merged into it; the peers follow each new walker list (town-scene.js).
 // A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
 import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=0.2.0';
-import { createSteer, tapAction } from './steer-local.js?v=0.2.0';
-import { townState, stationOf } from './town-scene.js?v=0.2.0';
+import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.0';
+import { createTownCast, stationOf } from './town-scene.js?v=0.2.0';
 import { furnish, maskWith } from './home-scene.js?v=0.2.0';
 import { T } from './core/grid.js?v=0.2.0';
 import { pickFacing } from './core/facing.js?v=0.2.0';
@@ -25,15 +26,6 @@ import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.0';
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
    in view while it idles at the edge. */
 const CAMERA_LEAN = 0.5;
-
-/* ONE WALK CYCLE PER TILE. The hero's walk clip is played by DISTANCE, not by
-   the clock: its frame comes from the tiles walked since it last stood still,
-   so every walk starts on the clip's first frame and the feet keep pace with
-   the ground. Measured on the pre-style-1 hero's walk e/w (2026-10-14): a planted foot
-   travels about 11-12 art px per step, ~24 per two-step cycle, so one cycle per
-   tile (32 px) slides the feet a little; the clip's authored 10 fps at
-   WALK_TILES_PER_S slid them 82 px per cycle, over three times the stride. */
-const WALK_CYCLE_TILES = 1;
 
 /** A tile coordinate on the whole art pixel the draw snaps it to. */
 const onPixel = (v) => Math.round(v * T) / T;
@@ -46,7 +38,8 @@ const onPixel = (v) => Math.round(v * T) / T;
  */
 export function createWalkScene(map, o) {
   const steer = createSteer(map, o.at || map.start);
-  let propsKey = null, props = [], townKey = null, townView = null, cast = { units: [], bubbles: [] };
+  let propsKey = null, props = [];
+  const cast = map.kind === 'town' ? createTownCast(map, { sprites: o.sprites }) : null;
   let sentTo = null;
 
   function furnishing(env) {
@@ -59,24 +52,16 @@ export function createWalkScene(map, o) {
     steer.setMask(maskWith(map, props, o.sprites, o.openClasses));
   }
 
-  function people(env, now) {
-    if (map.kind !== 'town') return;
-    const key = Math.floor(now / 1000);   // freshness ages by the second; placement only moves with the view
-    if (env.town === townView && key === townKey) return;
-    townView = env.town; townKey = key;
-    cast = townState(map, env.town, now, env);
-  }
-
   return {
     map,
     /**
      * @param {{kind: string, rooms?: object, trophies?: {rows: object[]}|null, roomName?: Function,
-     *          town?: object|null, pollMs?: number, you?: string|null, canon?: Function, band?: Function, crierLine?: Function}} env
+     *          walkers?: object[]}} env  walkers: the town's people (TownPresence.walkers())
      * @param {number} now  ms
      */
     frame(env, now) {
       furnishing(env);
-      people(env, now);
+      const units = cast ? cast.frame(env.walkers, now) : [];
       const station = stationOf(map, env.kind);
       const cell = steer.cell();
       if (steer.restMs(now) >= IDLE_TO_STATION_MS && (cell[0] !== station[0] || cell[1] !== station[1])) {
@@ -85,6 +70,7 @@ export function createWalkScene(map, o) {
       }
       const at = steer.step(now);
       const goal = steer.goal();
+      const here = steer.cell();
       const f = map.focus;
       /* The hero is drawn on whole art pixels and the camera is led by THAT
          pixel, not by the fraction, so the hero and the ground under it move
@@ -93,17 +79,14 @@ export function createWalkScene(map, o) {
          on screen the hero stepped 0, 1, 3, 4 px on alternate frames. */
       const hx = onPixel(at.x), hy = onPixel(at.y);
       const heroId = (o.heroSprite && o.heroSprite()) || OUTFITS.knight;
-      const look = o.sprites[heroId];
-      const clip = look && look.anims && look.anims.walk;
-      const shown = clip && clip.dirs ? clip.dirs[pickFacing(clip.dirs, at.dir, at.diag)] : null;
-      const fps = (clip && clip.fps) || 10, n = (shown && shown.length) || 1;
-      /* walking: the age at which the clip shows the frame for the distance covered; standing: time since it stopped */
-      const age = at.moving ? ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps : steer.restMs(now);
+      const { anim, age } = walkClip(o.sprites[heroId], at, steer.restMs(now), pickFacing);
       return {
-        hero: { id: heroId, x: hx, y: hy, dir: at.dir, diag: at.diag, anim: at.moving ? 'walk' : 'idle', age },
+        hero: { id: heroId, x: hx, y: hy, dir: at.dir, diag: at.diag, anim, age },
         camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
-        units: cast.units, bubbles: cast.bubbles, props,
+        units, bubbles: [], props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,
+        /* where the hero stands and is walking to, in whole tiles, for the town presence */
+        place: { map: map.id, x: here[0], y: here[1], gx: goal ? goal.x : here[0], gy: goal ? goal.y : here[1], dir: at.dir },
       };
     },
     /** A tap ({tile, hits}) → the action it means; a walk is started here. */

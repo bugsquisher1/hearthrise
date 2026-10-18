@@ -2,9 +2,11 @@
 // src/world/steer-local.js — THE LOCAL HERO'S FEET, AND WHAT A TAP DOES.
 //
 // TAP TO WALK IS DISPLAY ONLY. Where your hero stands in the town or your home
-// is never sent and never saved: world-boot.js mirrors it into G._world.pos
-// (display scratch, `_`-prefixed, so it is outside the residue allowlist) and a
-// reload starts you at the map's start. Walking pays nothing and decides
+// is never an intent and never saved: world-boot.js mirrors it into
+// G._world.pos (display scratch, `_`-prefixed, so it is outside the residue
+// allowlist) and a reload starts you at the map's start. In a town the
+// character's TownPresence shows it to the other players there (display
+// presence, src/session/town-presence.js). Walking pays nothing and decides
 // nothing — leaving the hero alone gives exactly the same game.
 //
 // createSteer plans 8-way A* paths (core/path.js, no corner cutting) over the
@@ -40,6 +42,38 @@ function nearestReachable(mask, w, h, from, to) {
     }
   }
   return best;
+}
+
+/** The tile a body reported at `at` stands on: `at` when open and reachable from the map's start, else the nearest such tile. */
+export function standOn(map, at) {
+  return nearestReachable(map.mask, map.w, map.h, map.start, [at[0], at[1]]) || map.start;
+}
+
+/* ONE WALK CYCLE PER TILE. A walk clip is played by DISTANCE, not by the
+   clock: its frame comes from the tiles walked since the body last stood
+   still, so every walk starts on the clip's first frame and the feet keep pace
+   with the ground. Measured on the pre-style-1 hero's walk e/w (2026-10-14): a
+   planted foot travels about 11-12 art px per step, ~24 per two-step cycle, so
+   one cycle per tile (32 px) slides the feet a little; the clip's authored
+   10 fps at WALK_TILES_PER_S slid them 82 px per cycle, over three times the stride. */
+const WALK_CYCLE_TILES = 1;
+
+/**
+ * How far into its clip a body is drawn ({anim, age}): walking, the age at which
+ * the walk clip shows the frame for the distance covered; standing, the time
+ * since it stopped. The hero and every peer use this one rule, so a walk that is
+ * re-aimed never restarts its clip.
+ * @param {object|undefined} look  the sprite (book entry) the body wears
+ * @param {{moving: boolean, walked: number, dir: string, diag?: string|null}} at  createSteer().step()
+ * @param {number} restMs
+ * @param {(dirs: object, dir: string, diag?: string|null) => string} pick  core/facing.js pickFacing
+ */
+export function walkClip(look, at, restMs, pick) {
+  if (!at.moving) return { anim: 'idle', age: restMs };
+  const clip = look && look.anims && look.anims.walk;
+  const shown = clip && clip.dirs ? clip.dirs[pick(clip.dirs, at.dir, at.diag)] : null;
+  const fps = (clip && clip.fps) || 10, n = (shown && shown.length) || 1;
+  return { anim: 'walk', age: ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps };
 }
 
 const SIDE = (dx) => (dx > 0 ? 'e' : 'w');

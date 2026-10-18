@@ -17,6 +17,8 @@
     "node tests/party-ui.mjs --mutate": "in-page",
     "node tests/chat-social.mjs": "in-page",
     "node tests/chat-social.mjs --mutate": "in-page",
+    "node tests/town-walk.mjs": "in-page",
+    "node tests/town-walk.mjs --mutate": "in-page",
     "node tests/pglite-template.mjs --verify --for=db-replay": "db-replay",
     "node tests/schema-drift.mjs": "db-replay",
     "node tests/schema-drift.mjs --mutate": "db-replay",

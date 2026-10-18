@@ -26,10 +26,14 @@
 //                 `social` factory made for it (src/social/social-session.js,
 //                 handed in by src/app/boot.js), started once a character is
 //                 open, ended on sign-out
+//   townOf(slot)  that character's TownPresence (src/session/town-presence.js):
+//                 who else stands in its town and where, made when it opens,
+//                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
 import { SESSION_CONFIG } from './config.js?v=0.2.0';
 import { CharacterSession } from './character-session.js?v=0.2.0';
+import { TownPresence } from './town-presence.js?v=0.2.0';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -62,7 +66,7 @@ export class AccountSession {
    * @param {object} [o.tab]       the tab store (HearthriseStorage.session)
    * @param {Function} [o.channel] (topic, onMessage, onStatus) => leave
    * @param {object} [o.config]
-   * @param {object} [o.timers]    { setTimer, clearTimer } for tests
+   * @param {object} [o.timers]    { setTimer, clearTimer, setInterval, clearInterval } for tests
    * @param {(account: AccountSession) => object} [o.social]  makes this account's social side
    */
   constructor(o) {
@@ -73,6 +77,7 @@ export class AccountSession {
     this._channel = o.channel || null;
     this._timers = o.timers || {};
     this._chars = new Map();
+    this._towns = new Map();
     this._listeners = new Set();
     this.closedGame = false;
     this._limit = null;
@@ -84,6 +89,8 @@ export class AccountSession {
   /** The open characters, in slot order. */
   characters() { return Array.from(this._chars.values()).sort((a, b) => a.slot - b.slot); }
   character(slot) { return this._chars.get(slot) || null; }
+  /** The open character's TownPresence, or null. */
+  townOf(slot) { return this._towns.get(slot) || null; }
 
   /**
    * How many characters may play at once: the server's `account.max_concurrent`
@@ -153,6 +160,9 @@ export class AccountSession {
       return { ok: false, reason };
     }
     cs.connect();
+    this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
+      hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
+      timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);
     if (this.social) this.social.start();
@@ -184,6 +194,8 @@ export class AccountSession {
     const cs = this._chars.get(slot);
     if (!cs) return false;
     this._chars.delete(slot);
+    const town = this._towns.get(slot);
+    if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
     if (this.viewed === slot) this.viewed = this._chars.size ? this.characters()[0].slot : null;
     this._emit('closed', slot);

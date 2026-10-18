@@ -42,9 +42,10 @@ import { isMain } from './_is-main.mjs';
 const MUTATE = process.argv.includes('--mutate');
 const FN = join('supabase', 'functions', 'hr-accrue');
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
-export const S2_FILES = Object.freeze(['2026-10-25-alpha-catalogue.generated.sql', '2026-10-25-bag-rules.sql', '2026-10-25-shop-supplies.sql',
+export const S2_FILES = Object.freeze(['2026-10-25-drinks-catalogue.generated.sql', '2026-10-25-hunt-sessions-catalogue.generated.sql',
+  '2026-10-25-alpha-catalogue.generated.sql', '2026-10-25-bag-rules.sql', '2026-10-25-shop-supplies.sql',
   '2026-10-25-hunt-presets.sql', '2026-10-25-account-items.sql', '2026-10-25-stamina-refill.sql', '2026-10-25-blessings.sql',
-  '2026-10-25-party-invites.sql']);
+  '2026-10-25-party-invites.sql', '2026-10-25-settle-hooks.sql']);
 const idem = () => crypto.randomUUID();
 
 async function harness() {
@@ -355,10 +356,11 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  { arm: 'A-LOCK', file: '2026-10-25-bag-rules.sql', why: 'hr_apply no longer refuses a locked sale',
-    find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)'", repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)'" },
-  { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the settle no longer runs the loot filter',
-    find: "  perform public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_delta->'items', v_to);\n  v_cons", repl: "  perform 1;\n  v_cons" },
+  { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
+    find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
+    repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
+  { arm: 'A-LOOT-AWAY', file: '2026-10-25-settle-hooks.sql', why: 'the settle no longer runs the loot filter',
+    find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
   { arm: 'A-LOOT-ATTENDED', file: '2026-10-25-bag-rules.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
   { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
@@ -366,14 +368,14 @@ const MUTANTS = [
   { arm: 'A-REFILL', file: '2026-10-25-shop-supplies.sql', why: 'the quote prices one unit short',
     find: "  l as (select t.*, greatest(0, t.target - t.have) as buy from t)", repl: "  l as (select t.*, greatest(0, t.target - t.have - 1) as buy from t)" },
   { arm: 'A-DATA', file: '2026-10-25-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
-    find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 36),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 35)," },
+    find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
   { arm: 'A-DATA', file: '2026-10-25-stamina-refill.sql', why: 'the SQL refill skips the escalation',
     find: '* (r.step_den + r.step_num * (v_n - 1)) * v_min)', repl: '* (r.step_den) * v_min)' },
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  { arm: 'A-BLESS-AWAY', file: '2026-10-25-blessings.sql', why: 'the death no longer applies blessings',
-    find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;  -- hr_blessing_take( (mutant)' },
+  { arm: 'A-BLESS-AWAY', file: '2026-10-25-settle-hooks.sql', why: 'the death no longer applies blessings',
+    find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   { arm: 'A-BLESS-AWAY', file: '2026-10-25-blessings.sql', why: 'every fall of the window is protected, not the first',
     find: "  v_dx := jsonb_set(p_dx, '{0}', v_first);", repl: "  v_dx := (select jsonb_agg(v_first) from jsonb_array_elements(p_dx));" },
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
@@ -423,7 +425,13 @@ async function main() {
   for (const mu of MUTANTS) {
     let db;
     try {
-      ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), [mu.find, mu.repl]]]]), upTo: LAST_PATCHED }));
+      /* A hook in a feature file is reached only through 2026-10-25-settle-hooks.sql (its caller, the
+         LAST S2 file), so every mutant replays the whole chain: stopping at the patched file would
+         leave the hook uncalled and the arm red for the wrong reason. */
+      const last = mu.file === S2_FILES[S2_FILES.length - 1];
+      ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), [mu.find, mu.repl]]]]),
+        upTo: last ? LAST_PATCHED : undefined,
+        fullChain: last ? undefined : 'the S2 hooks are called by 2026-10-25-settle-hooks.sql, which must run after the patched file for its arm to see the defect' }));
     } catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): the patched chain would not boot: ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }
     await ctx.H.pinDice(db);
     const [r] = await runArms(db, ctx, [mu.arm]);

@@ -204,7 +204,7 @@ begin
   end loop;
   for v_k in select x.key from jsonb_each(v_p.restock) x
               where jsonb_typeof(x.value) = 'number' and (x.value #>> '{}')::numeric between 1 and 1000
-                and exists (select 1 from public.hr_shop_supply_offers o where o.item_id = x.key) order by x.key loop
+                and exists (select 1 from public.hr_shop_supply_offers o where o.item_id = x.key and o.kind <> 'tool') order by x.key loop
     select r.locked, r.loot_rule into v_row from public.player_item_rules r where r.user_id = v_uid and r.slot = p_slot and r.item_id = v_k;
     perform public.hr_item_rule_put(v_uid, p_slot, v_k, v_row.locked, v_row.loot_rule, (v_p.restock->>v_k)::numeric::int);
   end loop;

@@ -19,7 +19,7 @@
 --   (authenticated, rate bucket `party`, idempotent; `name_taken`).
 -- THE SECTION `name`: the string above (src/session/item-sections.js nameOf).
 -- The party panel, the party finder and the hunt hero read the same function
--- now (three anchored, marker-skipped one-line edits of S1's views), so a name
+-- (S1's three views restated whole in 2026-10-25-settle-hooks.sql), so a name
 -- is per character everywhere it crosses to another player.
 -- hr_account_items(p_query 2..40): where items whose catalogue name or id
 --   matches are, across THIS account's characters: bag, bank, worn
@@ -33,9 +33,8 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Drop the two verbs (+ baseline rows), the section row + view, the two name
--- functions, the table; re-apply hr_hunt_party_view / hr_hunt_party_finder from
--- 2026-10-23-hunt-party.sql and hr_hunt_section_view from
--- 2026-10-23-hunt-world-state.sql. ORDER: after 2026-10-25-hunt-presets.sql.
+-- functions, the table, AFTER reverting 2026-10-25-settle-hooks.sql (it names
+-- characters with them). ORDER: after 2026-10-25-hunt-presets.sql.
 -- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -138,34 +137,6 @@ end $$;
 revoke execute on function public.hr_character_name_set(int, text, uuid) from public;
 revoke execute on function public.hr_character_name_set(int, text, uuid) from anon, service_role;
 grant  execute on function public.hr_character_name_set(int, text, uuid) to authenticated;
-
--- The three places a name crosses to another player read the per-character name.
-do $mig$
-declare
-  v_def text; v_n int; v_e record;
-begin
-  for v_e in select * from (values
-      ('public.hr_hunt_party_view(uuid,integer)',
-       $a$'name', coalesce((select pr.display_name from public.profiles pr where pr.id = v_r.user_id), 'Adventurer'),$a$,
-       $a$'name', public.hr_character_name(v_r.user_id, v_r.slot),$a$),
-      ('public.hr_hunt_party_finder(integer,text,text)',
-       $a$'name', coalesce((select pr.display_name from public.profiles pr where pr.id = m.user_id), 'Adventurer'))$a$,
-       $a$'name', public.hr_character_name(m.user_id, m.slot))$a$),
-      ('public.hr_hunt_section_view(uuid,integer)',
-       $a$'name', coalesce((select pr.display_name from public.profiles pr where pr.id = p_user), 'Adventurer'),$a$,
-       $a$'name', public.hr_character_name(p_user, p_slot),$a$)) t(fn, old, new) loop
-    v_def := replace(pg_get_functiondef(v_e.fn::regprocedure), chr(13), '');
-    if strpos(v_def, 'hr_character_name(') > 0 then raise notice '% already names characters - edit skipped', v_e.fn; continue; end if;
-    v_n := (length(v_def) - length(replace(v_def, v_e.old, ''))) / length(v_e.old);
-    if v_n <> 1 then raise exception '%: the name anchor matched % times (need 1) - the body moved', v_e.fn, v_n; end if;
-    execute replace(v_def, v_e.old, v_e.new);
-  end loop;
-end $mig$;
-revoke execute on function public.hr_hunt_party_view(uuid, int) from public, anon, authenticated, service_role;
-revoke execute on function public.hr_hunt_section_view(uuid, int) from public, anon, authenticated, service_role;
-revoke execute on function public.hr_hunt_party_finder(int, text, text) from public;
-revoke execute on function public.hr_hunt_party_finder(int, text, text) from anon, service_role;
-grant  execute on function public.hr_hunt_party_finder(int, text, text) to authenticated;
 
 -- ── §2 WHERE IS MY ITEM ──────────────────────────────────────────────────────
 create or replace function public.hr_account_items(p_query text)
@@ -272,10 +243,6 @@ begin
        or has_function_privilege(v_role, 'public.hr_character_name_view(uuid,integer)', 'execute') then
       raise exception 'VERIFY(e): % reaches a name table or internal', v_role; end if;
   end loop;
-  if strpos(pg_get_functiondef('public.hr_hunt_party_view(uuid,integer)'::regprocedure), 'hr_character_name(') = 0
-     or strpos(pg_get_functiondef('public.hr_hunt_party_finder(integer,text,text)'::regprocedure), 'hr_character_name(') = 0
-     or strpos(pg_get_functiondef('public.hr_hunt_section_view(uuid,integer)'::regprocedure), 'hr_character_name(') = 0 then
-    raise exception 'VERIFY(e): a party / hunt view still names the account, not the character'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'account-items: per-character names (unique, validated, everywhere a name crosses), self-only item search; all green';
 end $$;

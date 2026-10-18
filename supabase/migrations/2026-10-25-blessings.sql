@@ -16,7 +16,8 @@
 --   price is not the one shown; a paid tier is ONE hr_apply {gold: -price}
 --   journalled kind shop, intent blessing_buy:<tier>; a free one journals the
 --   same intent at 0 gold. Idempotent.
--- THE DEATH (S1's death-XP rule, ONE marked call in hr_hunt_apply_member §6):
+-- THE DEATH HOOK (called by name from S1's death-XP rule, restated whole in
+-- 2026-10-25-settle-hooks.sql's hr_hunt_apply_member §6):
 --   hr_blessing_take(user, slot, session, falls' xp, window start) — when a
 --   settled window holds a fall, the FIRST fall's loss per skill keeps only
 --   loss − floor(loss x permille / 1000) (permille = the highest tier held
@@ -24,7 +25,8 @@
 --   and journalled (kind hunt, intent blessing_used, the XP it saved). Later
 --   falls in the window are unprotected. The edge still proposes the
 --   unblessed loss (it does not know blessings) and SQL bounds it as before;
---   the debit and the fall events carry the blessed loss.
+--   the debit, the stored fall events and the settle's answer (death_xp) carry
+--   the blessed loss. (The edge's live timeline carries no XP: falls are member events.)
 --   A tier bought DURING a window protects from the next one: a blessing
 --   cannot be bought after a death to cover it.
 --
@@ -35,8 +37,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Drop hr_blessing_buy (+ baseline row), the section row + view, the helpers,
--- the table; re-apply hr_hunt_apply_member from 2026-10-23-hunt-world-state.sql
--- with 2026-10-25-bag-rules.sql §5 (it loses one marked block).
+-- the table, AFTER reverting 2026-10-25-settle-hooks.sql (its caller).
 -- ORDER: after 2026-10-25-stamina-refill.sql. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -44,7 +45,7 @@
 do $mig$
 begin
   if to_regclass('public.hr_blessing_tiers') is null or to_regclass('public.hr_blessing_rule') is null
-     or to_regprocedure('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)') is null then
+     or to_regclass('public.player_state') is null then
     raise exception 'PRECONDITION: the alpha catalogue and the S1 member settle are absent'; end if;
 end $mig$;
 
@@ -188,34 +189,6 @@ begin
 end $$;
 revoke execute on function public.hr_blessing_take(uuid, int, uuid, jsonb, timestamptz) from public, anon, authenticated, service_role;
 
--- ONE marked call in S1's death-XP rule (hr_hunt_apply_member §6), before the
--- debit; plus its one declaration.
-do $mig$
-declare
-  v_def text; v_n int; v_m int;
-  c_old_decl constant text := $a$  v_unit_id int;
-$a$;
-  c_new_decl constant text := $a$  v_unit_id int;
-  v_bless jsonb;  -- 2026-10-25-blessings.sql
-$a$;
-  c_old constant text := $a$  -- (6) THE PRICE OF THE FALLS, RE-CHECKED AND DEBITED: each fall's share is at$a$;
-  c_new constant text := $a$  -- 2026-10-25-blessings.sql: BLESSINGS. The first fall of the window keeps only the
-  -- unprotected share of its loss; the tiers it used are used up (src/data/blessings.js).
-  if v_nd > 0 then
-    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);
-    if v_bless is not null then v_dx := v_bless->'dx'; v_lost := v_bless->'lost'; end if;
-  end if;
-  -- (6) THE PRICE OF THE FALLS, RE-CHECKED AND DEBITED: each fall's share is at$a$;
-begin
-  v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, 'hr_blessing_take(') > 0 then raise notice 'hr_hunt_apply_member already applies blessings - edit skipped'; return; end if;
-  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
-  v_m := (length(v_def) - length(replace(v_def, c_old_decl, ''))) / length(c_old_decl);
-  if v_n <> 1 or v_m <> 1 then raise exception 'hr_hunt_apply_member: the death anchors matched %/% times (need 1/1) - the body moved', v_n, v_m; end if;
-  execute replace(replace(v_def, c_old_decl, c_new_decl), c_old, c_new);
-end $mig$;
-revoke execute on function public.hr_hunt_apply_member(uuid, uuid, int, uuid, uuid, jsonb, jsonb, jsonb) from public;
-revoke execute on function public.hr_hunt_apply_member(uuid, uuid, int, uuid, uuid, jsonb, jsonb, jsonb) from anon, authenticated, service_role, hr_engine, hr_tick;
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 do $$
@@ -274,8 +247,6 @@ begin
     v := public.hr_blessing_take(v_u, 0, null, '[{"attack": 100}]'::jsonb, now() - interval '1 minute');
     if v is not null or not exists (select 1 from public.player_blessings where user_id = v_u and tier = 1) then
       raise exception 'VERIFY(d): a blessing bought mid-window covered the window: %', v; end if;
-    if strpos(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), 'hr_blessing_take(') = 0 then
-      raise exception 'VERIFY(d): the member settle does not apply blessings'; end if;
     if v_t3 <> (select permille from public.hr_blessing_tiers order by tier desc limit 1) then raise exception 'VERIFY(d): the top tier is not the strongest'; end if;
     raise exception using errcode = 'HR876', message = 'blessings §4 complete - rolling back';
   exception when sqlstate 'HR876' then

@@ -16,15 +16,15 @@
 // REFUSES (throws, nothing written): a supply offer for an unknown item, for an
 // item that is not a packable hunt supply (src/data/supplies.js), whose kind is
 // not the item's own, whose basic row is unknown or not its partner, a price
-// under SUPPLY_SHOP_PREMIUM x book value (buy-then-vendor would profit) or
-// under the basic's price a point, a duplicate item; and any refill or
+// that is not the designer's rate (designerPrice: the basic's gold a point x the
+// item's own points; a shot at its basic's price), a duplicate item; and any refill or
 // blessing table its own validate() rejects.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { SUPPLY_SHOP_OFFERS, SUPPLY_SHOP_PREMIUM, BASIC_INDEX, BASIC_EFFECT_SHARE } from '../src/data/supply-basics.js';
+import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_TOOL_PREMIUM } from '../src/data/supply-basics.js';
 import { SUPPLIES } from '../src/data/supplies.js';
 import { ITEMS } from '../src/data/items.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
@@ -37,6 +37,15 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
 const SHOP_KIND = Object.freeze({ heal: 'food', mana: 'drink', ammo: 'ammo' });
 
+/** The designer's rate for a packed item: its basic's gold per point times the item's own
+    points (heal or mana); a shot costs its basic's per-shot price. */
+export function designerPrice(b, item) {
+  if (b.kind === 'ammo') return b.price;
+  const per = b.kind === 'heal' ? b.heals : b.mana;
+  const own = b.kind === 'heal' ? Number(item.heals) : Number(item.mana);
+  return Math.ceil(b.price * own / per);
+}
+
 /** Validated supply offer rows, or throw. */
 export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX } = {}) {
   const seen = new Set();
@@ -45,14 +54,20 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
     if (seen.has(o.item)) throw new Error(`supply offer ${o.item} is listed twice`);
     seen.add(o.item);
     if (!own(items, o.item)) throw new Error(`supply offer ${o.item} names no item`);
+    if (o.kind === 'tool') {
+      /* A tier-1 gathering tool (Tyler 10-18), at the premium floor over its book value. */
+      const it = items[o.item];
+      if (it.type !== 'tool' || it.toolTier !== 1 || o.basic !== null) throw new Error(`tool offer ${o.item} is not a tier-1 gathering tool with no basic`);
+      if (o.price !== SHOP_TOOL_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_TOOL_PREMIUM} x its book value ${it.v}`);
+      return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
+    }
     if (!own(supplies, o.item)) throw new Error(`supply offer ${o.item} is not a packable hunt supply (src/data/supplies.js)`);
     if (SHOP_KIND[supplies[o.item].kind] !== o.kind) throw new Error(`supply offer ${o.item} is filed as ${o.kind}, the item is a ${supplies[o.item].kind}`);
     const b = basics[o.basic];
     if (!b || b.partner !== o.item) throw new Error(`supply offer ${o.item} names basic ${o.basic}, which is not its partner`);
     if (!Number.isSafeInteger(o.price) || o.price < 1) throw new Error(`supply offer ${o.item} has no positive integer price`);
-    const v = Number(items[o.item].v) || 0;
-    if (o.price < SUPPLY_SHOP_PREMIUM * v) throw new Error(`supply offer ${o.item} at ${o.price} g is under ${SUPPLY_SHOP_PREMIUM} x its book value ${v}: buy-then-vendor would profit`);
-    if (o.price < Math.ceil(b.price / BASIC_EFFECT_SHARE)) throw new Error(`supply offer ${o.item} at ${o.price} g costs less a point than ${b.id} (${b.price} g per use)`);
+    const want = designerPrice(b, items[o.item]);
+    if (o.price !== want) throw new Error(`supply offer ${o.item} at ${o.price} g is not the designer's rate (${b.id}: ${want} g)`);
     return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
   });
 }
@@ -94,7 +109,7 @@ end $pre$;
 create table if not exists public.hr_shop_supply_offers (
   offer_id text primary key check (offer_id ~ '^supply\\.[a-z0-9_]{1,64}$'),
   item_id  text not null unique check (item_id ~ '^[a-z0-9_]{1,64}$'),
-  kind     text not null check (kind in ('food', 'drink', 'ammo')),
+  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool')),
   price    bigint not null check (price between 1 and 1000000000),
   constraint hr_shop_supply_offers_id_ck check (offer_id = 'supply.' || item_id)
 );
@@ -149,8 +164,8 @@ begin
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
-                 or not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id)) then
-    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply'; end if;
+                 or (o.kind <> 'tool' and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))) then
+    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool)'; end if;
   if exists (select 1 from public.hr_blessing_tiers a join public.hr_blessing_tiers b on b.tier = a.tier + 1
               where b.permille <= a.permille or b.base <= a.base) then
     raise exception 'VERIFY: a blessing tier does not protect more and cost more than the one below it'; end if;
@@ -174,7 +189,7 @@ function selftest() {
     ['not packable', one({ item: 'bronze_sword', offer: 'supply.bronze_sword' })],
     ['wrong kind', one({ kind: 'ammo' })],
     ['basic not its partner', one({ basic: 'salted_trout' })],
-    ['under 2x book (vendor arbitrage)', one({ price: 35 })],
+    ['off the designer rate', one({ price: 18 })],
     ['offer id not supply.<item>', one({ offer: 'equip.cooked_shrimp' })],
     ['duplicate item', base.concat([base[0]])],
   ];

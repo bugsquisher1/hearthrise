@@ -6,7 +6,7 @@
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
 --   hr_blessing_rule        src/data/blessings.js BLESSING_RULES
 --   hr_blessing_tiers       src/data/blessings.js BLESSING_TIERS
---   digest 303f523bc2166fe63b9975b13deba2c6364993149842b172e833d678592e7b53
+--   digest 8d6c4f150f98e38fc6d08e16e50a4afb47003c2a8e2d241f295227d9be372900
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
@@ -24,7 +24,7 @@ end $pre$;
 create table if not exists public.hr_shop_supply_offers (
   offer_id text primary key check (offer_id ~ '^supply\.[a-z0-9_]{1,64}$'),
   item_id  text not null unique check (item_id ~ '^[a-z0-9_]{1,64}$'),
-  kind     text not null check (kind in ('food', 'drink', 'ammo')),
+  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool')),
   price    bigint not null check (price between 1 and 1000000000),
   constraint hr_shop_supply_offers_id_ck check (offer_id = 'supply.' || item_id)
 );
@@ -56,18 +56,26 @@ revoke all on public.hr_shop_supply_offers, public.hr_stamina_refill_rule, publi
 
 delete from public.hr_shop_supply_offers;
 insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
-  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 36),
-  ('supply.cooked_trout', 'cooked_trout', 'food', 110),
-  ('supply.cooked_lobster', 'cooked_lobster', 'food', 480),
-  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 1120),
-  ('supply.cooked_shark', 'cooked_shark', 'food', 1800),
-  ('supply.barbed_arrows', 'barbed_arrows', 'ammo', 3),
-  ('supply.iron_bolts', 'iron_bolts', 'ammo', 3),
-  ('supply.steel_arrows', 'steel_arrows', 'ammo', 6),
-  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 11),
-  ('supply.rune_arrows', 'rune_arrows', 'ammo', 16),
-  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 24),
-  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 32);
+  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),
+  ('supply.cooked_trout', 'cooked_trout', 'food', 56),
+  ('supply.cooked_lobster', 'cooked_lobster', 'food', 250),
+  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 576),
+  ('supply.cooked_shark', 'cooked_shark', 'food', 924),
+  ('supply.turnip_juice', 'turnip_juice', 'drink', 8),
+  ('supply.carrot_juice', 'carrot_juice', 'drink', 16),
+  ('supply.tomato_juice', 'tomato_juice', 'drink', 38),
+  ('supply.pumpkin_cider', 'pumpkin_cider', 'drink', 64),
+  ('supply.goldenroot_tea', 'goldenroot_tea', 'drink', 111),
+  ('supply.emberfruit_cordial', 'emberfruit_cordial', 'drink', 189),
+  ('supply.barbed_arrows', 'barbed_arrows', 'ammo', 2),
+  ('supply.iron_bolts', 'iron_bolts', 'ammo', 2),
+  ('supply.steel_arrows', 'steel_arrows', 'ammo', 4),
+  ('supply.mithril_arrows', 'mithril_arrows', 'ammo', 8),
+  ('supply.rune_arrows', 'rune_arrows', 'ammo', 12),
+  ('supply.emberhead_arrows', 'emberhead_arrows', 'ammo', 18),
+  ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 24),
+  ('supply.bronze_axe', 'bronze_axe', 'tool', 120),
+  ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 120);
 
 delete from public.hr_stamina_refill_rule;
 insert into public.hr_stamina_refill_rule (id, base, per_level, max_min, per_day, step_num, step_den)
@@ -86,14 +94,14 @@ insert into public.hr_blessing_tiers (tier, permille, base, per_level) values
 do $chk$
 declare v_role text;
 begin
-  if (select count(*) from public.hr_shop_supply_offers) <> 12
+  if (select count(*) from public.hr_shop_supply_offers) <> 20
      or (select count(*) from public.hr_blessing_tiers) <> 3
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
-                 or not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id)) then
-    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply'; end if;
+                 or (o.kind <> 'tool' and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))) then
+    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool)'; end if;
   if exists (select 1 from public.hr_blessing_tiers a join public.hr_blessing_tiers b on b.tier = a.tier + 1
               where b.permille <= a.permille or b.base <= a.base) then
     raise exception 'VERIFY: a blessing tier does not protect more and cost more than the one below it'; end if;
@@ -104,5 +112,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_blessing_tiers', 'select,insert,update,delete') then
       raise exception 'VERIFY: % reaches an alpha catalogue table', v_role; end if;
   end loop;
-  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 12, 3;
+  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 20, 3;
 end $chk$;

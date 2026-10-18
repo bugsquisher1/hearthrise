@@ -73,15 +73,14 @@ export const SUPPLY_ROWS = Object.freeze([
   [A, 'coarse_whetstone', false], [A, 'copper_whetstone', false], [A, 'iron_whetstone', false],
   [A, 'steel_whetstone', false], [A, 'mithril_whetstone', false], [A, 'rune_whetstone', false],
   [A, 'dawn_whetstone', false],
-]);
-
-/* mana — STAGED with the drinks (src/data/drinks.js): these join SUPPLY_ROWS
-   in the commit that ships the mana engine. Not essential: with no mana a
-   mage loses spells, not the hunt, and the shop drink is the fallback. */
-export const MANA_SUPPLY_ROWS = Object.freeze([
+  // mana — the six drinks (src/data/drinks.js). Not essential: with no mana a mage
+  // loses spells, not the hunt, and the shop drink is the fallback.
   [M, 'turnip_juice', false], [M, 'carrot_juice', false], [M, 'tomato_juice', false],
   [M, 'pumpkin_cider', false], [M, 'goldenroot_tea', false], [M, 'emberfruit_cordial', false],
 ]);
+
+/* Staged mana rows: none since lane S2 (2026-10-18) moved the six drinks into SUPPLY_ROWS. */
+export const MANA_SUPPLY_ROWS = Object.freeze([]);
 
 /** The kind an item IS, from its own data: what the guard compares rows to. */
 export function supplyKindOf(item) {

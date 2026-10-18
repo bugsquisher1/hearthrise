@@ -8,6 +8,7 @@ import { SLOT_DESC } from './slot-ladders.js?v=0.2.0';
 import { LIB2_DESC } from './library2-items.js?v=0.2.0';
 import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.0';
 import { CHAMPION_DESC } from './champions.js?v=0.2.0';
+import { DRINK_DESC } from './drinks.js?v=0.2.0';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
@@ -15,6 +16,7 @@ export const ITEM_DESC = {
   ...LIB2_DESC,  // b356: the approved review-book catalogue (Library 2)
   ...BOSS_FORGE_DESC, // W0: the three boss-forged body pieces
   ...CHAMPION_DESC,   // W0: the five field champions' relics
+  ...DRINK_DESC,      // lane S2: the six mana drinks
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'adept_belt': 'An adept\'s sash, finer cloth cinched for a caster steadier in their craft',

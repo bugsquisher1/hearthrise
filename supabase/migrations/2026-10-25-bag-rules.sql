@@ -22,20 +22,25 @@
 -- THE SECTION `bag_rules` {locked: [item], loot: {item: sell|ignore}, restock: {item: n}}
 -- (src/session/item-sections.js rulesOf).
 --
--- ── THE LOOT FILTER RUNS IN THE SETTLE, ONLINE OR NOT ──────────────────────
--- hr_hunt_apply_member (2026-10-23-hunt-world-state.sql) gains ONE marked call,
--- after the value bounds and the sell-to-cover step and before the store:
--- hr_hunt_loot_rules(user, slot, session, the window's loot, at). For each item
--- the window picked up whose rule is sell/ignore and that is NOT locked, at most
--- min(picked up, held) units leave the bag: `sell` credits units x the vendor's
--- bid (hr_hunt_vendor_value, the same vendorPriceOf vendor_sell prices with) as
--- ONE ledger row (kind hunt, intent loot_sell, gold_in stamped, so it counts in
--- the SAME daily gold budget as vendor_sell); `ignore` journals the units left
--- behind (intent loot_ignore). If the day's gold budget cannot take the sale,
--- the window KEEPS the items (a sale is never forced, and a settle is never
--- refused for it: a refused settle would stop the hunt). The tally's loot (what
--- the hunt picked up, `hunt.loot`) is unchanged: it is what the hunt found.
--- Runs after the cover step so a loot rule can never leave cover_over behind.
+-- ── THE TWO HOOKS (called by name from 2026-10-25-settle-hooks.sql) ─────────
+-- hr_item_locked(user, slot, item): the one answer to "is it locked?". hr_apply
+--   refuses `item_locked` on a vendor sale of one; hr_hunt_member_read leaves
+--   locked items out of what sell-to-cover may sell, and hr_hunt_apply_member
+--   refuses a cover line naming one: NOTHING sells a locked item.
+-- hr_hunt_loot_rules(user, slot, session, intent, the window's loot, at): the
+--   loot filter, run by the member settle after the value bounds and the
+--   sell-to-cover step, online or not. For each picked-up item whose rule is
+--   sell/ignore and that is NOT locked, at most min(picked up, held) units leave
+--   the bag, each half through ONE hr_apply (the one gold credit path): `sell`
+--   {gold: units x the vendor's bid (hr_hunt_vendor_value = vendorPriceOf),
+--   items: -units} kind shop, intent loot_sell, so hr_apply stamps gold_in and
+--   applies the SAME daily gold budget as vendor_sell; `ignore` {items: -units}
+--   intent loot_ignore. A refused half (over the budget) leaves the items in
+--   the bag: a sale is never forced and a settle is never refused for it. The
+--   rows carry the session in meta and are NOT stamped with it, so the tally's
+--   loot (`hunt.loot`, what the hunt found) is unchanged. Keys are derived from
+--   the settle's own intent, so a replayed settle (which returns before the
+--   hook) can never sell twice.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- No client value prices anything: the bid is the server catalogue's, the qty
@@ -45,10 +50,9 @@
 -- it mints nothing vendor_sell could not; the daily budget is shared.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Drop the three verbs (+ baseline rows), the section row + view, the helper,
--- the table; re-apply hr_apply from 2026-10-22-hunt-sessions-delete-away.sql and
--- hr_hunt_apply_member from 2026-10-23-hunt-world-state.sql (each loses one
--- marked block). ORDER: after 2026-10-25-alpha-catalogue.generated.sql.
+-- Drop the three verbs (+ baseline rows), the section row + view, the hooks
+-- and the table, AFTER reverting 2026-10-25-settle-hooks.sql (its callers).
+-- ORDER: after 2026-10-25-alpha-catalogue.generated.sql.
 -- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -202,7 +206,7 @@ begin
   if v_r is not null then return public.hr_note_rejection('restock_set', p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   select x.key into v_k from jsonb_each(p_targets) x
-   where (x.value #>> '{}')::int > 0 and not exists (select 1 from public.hr_shop_supply_offers o where o.item_id = x.key)
+   where (x.value #>> '{}')::int > 0 and not exists (select 1 from public.hr_shop_supply_offers o where o.item_id = x.key and o.kind <> 'tool')
    order by x.key limit 1;
   if v_k is not null then
     return public.hr_note_rejection('restock_set', p_slot, jsonb_build_object('ok', false, 'error', 'not_for_sale', 'item', v_k)); end if;
@@ -245,50 +249,29 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_restock_set', 'p_slot integer, p_targets jsonb, p_idem uuid', 'authenticated',
    'added 2026-10-25 (lane S2): the one-tap refill''s targets {item: 0..1000}, supply-offer items only; counts, never a price');
 
--- ── §4 LOCKS HOLD AT THE NPC COUNTER (hr_apply, one marked block) ───────────
--- A vendor sale (journal.intent vendor_sell / vendor_sell_many) that debits a
--- locked item is refused `item_locked`, under the character lock, by the one
--- function every sale goes through. Anchored exactly once on the item debit's
--- ownership check; a body that already carries the block is left alone.
-do $mig$
-declare
-  v_def text; v_n int;
-  c_old constant text := $a$            jsonb_build_object('item_id', k, 'have', v_have, 'need', -v_n));
-        end if;
-        if v_have + v_n = 0 then$a$;
-  c_new constant text := $a$            jsonb_build_object('item_id', k, 'have', v_have, 'need', -v_n));
-        end if;
-        -- 2026-10-25-bag-rules.sql: A LOCKED ITEM IS NEVER SOLD TO THE NPC.
-        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)'
-           and exists (select 1 from public.player_item_rules r
-                        where r.user_id = v_uid and r.slot = v_slot and r.item_id = k and r.locked) then
-          perform public.hr_reject('item_locked', jsonb_build_object('item_id', k));
-        end if;
-        if v_have + v_n = 0 then$a$;
-begin
-  v_def := replace(pg_get_functiondef('public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, '''item_locked''') > 0 then raise notice 'hr_apply already refuses a locked sale - edit skipped'; return; end if;
-  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
-  if v_n <> 1 then raise exception 'hr_apply: the item-debit anchor matched % times (need 1) - the body moved', v_n; end if;
-  execute replace(v_def, c_old, c_new);
-end $mig$;
-revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from public;
-revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from anon, authenticated, service_role;
-grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr_engine;
+-- ── §4 THE HOOKS (called by name from 2026-10-25-settle-hooks.sql) ──────────
+-- Is it locked? The one answer every seller asks.
+create or replace function public.hr_item_locked(p_user uuid, p_slot int, p_item text)
+returns boolean language sql stable set search_path = public, pg_catalog as $$
+  select exists (select 1 from public.player_item_rules r
+                  where r.user_id = p_user and r.slot = p_slot and r.item_id = p_item and r.locked)
+$$;
+revoke execute on function public.hr_item_locked(uuid, int, text) from public, anon, authenticated, service_role;
 
--- ── §5 THE LOOT FILTER IN THE SETTLE ─────────────────────────────────────────
--- Owner-only; called by hr_hunt_apply_member under the character lock, after
--- hr_apply credited the window's loot. Never raises for a player's rule: a sale
--- the day budget cannot take is simply not made (the items stay).
-create or replace function public.hr_hunt_loot_rules(p_user uuid, p_slot int, p_session uuid, p_items jsonb, p_at timestamptz)
-returns void language plpgsql set search_path = public, pg_catalog as $$
+-- THE LOOT FILTER. Owner-only; called by hr_hunt_apply_member under the
+-- character lock, after hr_apply credited the window's loot and after
+-- sell-to-cover. Never raises for a player's rule: a half hr_apply refuses
+-- (the day budget) is simply not made and the items stay in the bag.
+create or replace function public.hr_hunt_loot_rules(p_user uuid, p_slot int, p_session uuid, p_intent uuid,
+  p_items jsonb, p_at timestamptz)
+returns jsonb language plpgsql set search_path = public, pg_catalog as $$
 declare
   v_r record; v_have bigint; v_q bigint;
-  v_sold jsonb := '{}'::jsonb; v_gold bigint := 0; v_sunits bigint := 0;
-  v_left jsonb := '{}'::jsonb; v_lunits bigint := 0;
-  v_k text; v_v jsonb;
+  v_sold jsonb := '{}'::jsonb; v_sitems jsonb := '{}'::jsonb; v_gold bigint := 0;
+  v_left jsonb := '{}'::jsonb; v_litems jsonb := '{}'::jsonb;
+  v_a jsonb; v_b jsonb;
 begin
-  if p_items is null or jsonb_typeof(p_items) <> 'object' then return; end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'object' or p_intent is null then return null; end if;
   for v_r in
     select e.key as item, (e.value #>> '{}')::numeric::bigint as n, r.loot_rule as rule, vv.unit
       from jsonb_each(p_items) e
@@ -299,62 +282,40 @@ begin
      order by e.key
   loop
     continue when v_r.rule = 'sell' and v_r.unit is null;
-    select qty into v_have from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_r.item for update;
+    select qty into v_have from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_r.item;
     v_q := least(v_r.n, coalesce(v_have, 0));
     continue when v_q <= 0;
     if v_r.rule = 'sell' then
       v_sold := v_sold || jsonb_build_object(v_r.item, jsonb_build_object('qty', v_q, 'unit', v_r.unit));
-      v_gold := v_gold + v_q * v_r.unit; v_sunits := v_sunits + v_q;
+      v_sitems := v_sitems || jsonb_build_object(v_r.item, -v_q);
+      v_gold := v_gold + v_q * v_r.unit;
     else
       v_left := v_left || jsonb_build_object(v_r.item, v_q);
-      v_lunits := v_lunits + v_q;
+      v_litems := v_litems || jsonb_build_object(v_r.item, -v_q);
     end if;
   end loop;
-  -- THE SAME DAILY GOLD BUDGET AS vendor_sell: over it, nothing is sold this window.
-  if v_gold > 0 and public.hr_day_budget_check(p_user, p_slot, v_gold, 0, 0, 0) is not null then
-    v_sold := '{}'::jsonb; v_gold := 0; v_sunits := 0;
-  end if;
-  for v_k, v_v in select key, value from jsonb_each(v_sold) loop
-    delete from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_k and qty = (v_v->>'qty')::bigint;
-    update public.player_inventory set qty = qty - (v_v->>'qty')::bigint where user_id = p_user and slot = p_slot and item_id = v_k;
-  end loop;
-  for v_k, v_v in select key, value from jsonb_each(v_left) loop
-    delete from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_k and qty = (v_v #>> '{}')::bigint;
-    update public.player_inventory set qty = qty - (v_v #>> '{}')::bigint where user_id = p_user and slot = p_slot and item_id = v_k;
-  end loop;
+  -- SELL: the one gold credit path (hr_apply stamps gold_in; its day budget refuses past the ceiling).
   if v_gold > 0 then
-    update public.player_state set gold = gold + v_gold where user_id = p_user and slot = p_slot;
-    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, qty, meta, session_id)
-      values (p_user, p_slot, 'hunt', 'loot_sell', v_gold, v_gold, -v_sunits,
-              jsonb_build_object('reason', 'loot_sell', 'items', v_sold, 'gold', v_gold, 'at', p_at), p_session);
+    v_a := public.hr_apply(p_user, p_slot, (select version from public.player_state where user_id = p_user and slot = p_slot),
+             md5(p_intent::text || ':loot_sell')::uuid,
+             jsonb_build_object('gold', v_gold, 'items', v_sitems,
+               'journal', jsonb_build_object('kind', 'shop', 'intent', 'loot_sell',
+                 'meta', jsonb_build_object('reason', 'loot_sell', 'items', v_sold, 'gold', v_gold, 'session', p_session, 'at', p_at))));
   end if;
-  if v_lunits > 0 then
-    insert into public.player_ledger (user_id, slot, kind, intent, qty, meta, session_id)
-      values (p_user, p_slot, 'hunt', 'loot_ignore', -v_lunits,
-              jsonb_build_object('reason', 'loot_ignore', 'items', v_left, 'at', p_at), p_session);
+  if v_litems <> '{}'::jsonb then
+    v_b := public.hr_apply(p_user, p_slot, (select version from public.player_state where user_id = p_user and slot = p_slot),
+             md5(p_intent::text || ':loot_ignore')::uuid,
+             jsonb_build_object('items', v_litems,
+               'journal', jsonb_build_object('kind', 'admin', 'intent', 'loot_ignore',
+                 'meta', jsonb_build_object('reason', 'loot_ignore', 'items', v_left, 'session', p_session, 'at', p_at))));
   end if;
+  return jsonb_build_object('sold', case when coalesce(v_a->>'ok', '') = 'true' then v_sold else '{}'::jsonb end,
+                            'left', case when coalesce(v_b->>'ok', '') = 'true' then v_left else '{}'::jsonb end,
+                            'refused', coalesce(v_a->>'error', v_b->>'error'));
 end $$;
-revoke execute on function public.hr_hunt_loot_rules(uuid, int, uuid, jsonb, timestamptz) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_hunt_loot_rules(uuid, int, uuid, uuid, jsonb, timestamptz) from public, anon, authenticated, service_role;
 
--- ONE marked call in the member settle, after sell-to-cover and before the store.
-do $mig$
-declare
-  v_def text; v_n int;
-  c_old constant text := $a$  v_cons := (select l.ms from public.hr_hunt_lanes l where l.lane = 'consumable' and l.active);$a$;
-  c_new constant text := $a$  -- 2026-10-25-bag-rules.sql: THE LOOT FILTER (sell / ignore on pickup), online or not.
-  perform public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_delta->'items', v_to);
-  v_cons := (select l.ms from public.hr_hunt_lanes l where l.lane = 'consumable' and l.active);$a$;
-begin
-  v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, 'hr_hunt_loot_rules(') > 0 then raise notice 'hr_hunt_apply_member already runs the loot filter - edit skipped'; return; end if;
-  v_n := (length(v_def) - length(replace(v_def, c_old, ''))) / length(c_old);
-  if v_n <> 1 then raise exception 'hr_hunt_apply_member: the store anchor matched % times (need 1) - the body moved', v_n; end if;
-  execute replace(v_def, c_old, c_new);
-end $mig$;
-revoke execute on function public.hr_hunt_apply_member(uuid, uuid, int, uuid, uuid, jsonb, jsonb, jsonb) from public;
-revoke execute on function public.hr_hunt_apply_member(uuid, uuid, int, uuid, uuid, jsonb, jsonb, jsonb) from anon, authenticated, service_role, hr_engine, hr_tick;
-
--- ── §6 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
+-- ── §5 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 do $$
 declare
   v_u constant uuid := '000000c0-0000-0000-0000-00005e2a0001';
@@ -363,7 +324,7 @@ begin
   begin
     perform set_config('request.jwt.claim.sub', v_u::text, true);
     insert into auth.users (id) values (v_u) on conflict (id) do nothing;
-    insert into public.hr_access_allowlist (user_id, note) values (v_u, 'bag-rules §6 probe') on conflict (user_id) do nothing;
+    insert into public.hr_access_allowlist (user_id, note) values (v_u, 'bag-rules §5 probe') on conflict (user_id) do nothing;
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a): hr_create_character refused: %', v; end if;
     v_item := (select v.item_id from public.hr_hunt_vendor_value v order by v.unit desc, v.item_id limit 1);
@@ -391,20 +352,15 @@ begin
     if v->>'error' is distinct from 'item_not_sellable' then raise exception 'VERIFY(c): selling an unpriced item answered %', v; end if;
     v := public.hr_restock_set(0, '{"x": 1001}'::jsonb, '000000c0-0000-4000-a000-00005e2a0106');
     if v->>'error' is distinct from 'bad_targets' then raise exception 'VERIFY(c): a target over 1000 answered %', v; end if;
-    -- (d) THE LOCK HOLDS AT THE COUNTER: hr_apply refuses a vendor sale of the locked item, and sells it once unlocked.
-    insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 0, v_item, 5)
-      on conflict (user_id, slot, item_id) do update set qty = 5;
-    v := public.hr_apply(v_u, 0, (select version from public.player_state where user_id = v_u and slot = 0), gen_random_uuid(),
-           jsonb_build_object('gold', 1, 'items', jsonb_build_object(v_item, -1),
-                              'journal', jsonb_build_object('kind', 'shop', 'intent', 'vendor_sell_many:probe')));
-    if v->>'error' is distinct from 'item_locked' then raise exception 'VERIFY(d): selling a locked item answered %', v; end if;
-    v := public.hr_apply(v_u, 0, (select version from public.player_state where user_id = v_u and slot = 0), gen_random_uuid(),
-           jsonb_build_object('items', jsonb_build_object(v_item, -1), 'journal', jsonb_build_object('kind', 'admin', 'intent', 'probe_spend')));
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(d): a non-sale debit of a locked item answered %', v; end if;
+    -- (d) THE LOCK IS ONE ANSWER: hr_item_locked (hr_apply's counter refusal is 2026-10-25-settle-hooks.sql's to prove).
+    insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 0, v_item, 4)
+      on conflict (user_id, slot, item_id) do update set qty = 4;
+    if not public.hr_item_locked(v_u, 0, v_item) or public.hr_item_locked(v_u, 0, v_offer) then
+      raise exception 'VERIFY(d): hr_item_locked does not answer the rule rows'; end if;
     -- (e) THE LOOT FILTER: a sell rule sells min(picked, held) at the bid, journalled with gold_in; ignore leaves it; keep keeps.
     v := public.hr_item_lock(0, v_item, false, '000000c0-0000-4000-a000-00005e2a0107');
     select gold into v_gold from public.player_state where user_id = v_u and slot = 0;
-    perform public.hr_hunt_loot_rules(v_u, 0, null, jsonb_build_object(v_item, 9), now());
+    perform public.hr_hunt_loot_rules(v_u, 0, null, gen_random_uuid(), jsonb_build_object(v_item, 9), now());
     if exists (select 1 from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_item)
        or (select gold from public.player_state where user_id = v_u and slot = 0)
           <> v_gold + 4 * (select unit from public.hr_hunt_vendor_value where item_id = v_item)
@@ -413,12 +369,12 @@ begin
       raise exception 'VERIFY(e): the sell rule did not sell 4 held units at the bid'; end if;
     v := public.hr_loot_rule_set(0, v_item, 'ignore', '000000c0-0000-4000-a000-00005e2a0108');
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 0, v_item, 3);
-    perform public.hr_hunt_loot_rules(v_u, 0, null, jsonb_build_object(v_item, 2), now());
+    perform public.hr_hunt_loot_rules(v_u, 0, null, gen_random_uuid(), jsonb_build_object(v_item, 2), now());
     if (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_item) is distinct from 1::bigint then
       raise exception 'VERIFY(e): the ignore rule did not leave the 2 picked units behind'; end if;
     -- a locked item is kept whatever its rule.
     v := public.hr_item_lock(0, v_item, true, '000000c0-0000-4000-a000-00005e2a0109');
-    perform public.hr_hunt_loot_rules(v_u, 0, null, jsonb_build_object(v_item, 1), now());
+    perform public.hr_hunt_loot_rules(v_u, 0, null, gen_random_uuid(), jsonb_build_object(v_item, 1), now());
     if (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_item) is distinct from 1::bigint then
       raise exception 'VERIFY(e): a locked item was taken by its loot rule'; end if;
     -- (f) forgetting everything deletes the row (no row says nothing).
@@ -426,26 +382,25 @@ begin
     v := public.hr_loot_rule_set(0, v_item, 'keep', '000000c0-0000-4000-a000-00005e2a0111');
     if exists (select 1 from public.player_item_rules where user_id = v_u and item_id = v_item) then
       raise exception 'VERIFY(f): a rule row that says nothing was kept'; end if;
-    raise exception using errcode = 'HR870', message = 'bag-rules §6 complete - rolling back';
+    raise exception using errcode = 'HR870', message = 'bag-rules §5 complete - rolling back';
   exception when sqlstate 'HR870' then
     null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.player_item_rules where user_id = v_u) then
-    raise exception 'VERIFY(g): §6 LEAKED a probe row'; end if;
+    raise exception 'VERIFY(g): §5 LEAKED a probe row'; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.player_item_rules', 'select,insert,update,delete')
        or has_function_privilege(v_role, 'public.hr_bag_rules_view(uuid,integer)', 'execute')
+       or has_function_privilege(v_role, 'public.hr_item_locked(uuid,integer,text)', 'execute')
        or has_function_privilege(v_role, 'public.hr_item_rule_put(uuid,integer,text,boolean,text,integer)', 'execute')
-       or has_function_privilege(v_role, 'public.hr_hunt_loot_rules(uuid,integer,uuid,jsonb,timestamp with time zone)', 'execute')
+       or has_function_privilege(v_role, 'public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', 'execute')
        or has_function_privilege(v_role, 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'execute') then
       raise exception 'VERIFY(g): % reaches a bag-rules table or internal', v_role; end if;
   end loop;
   if has_function_privilege('anon', 'public.hr_item_lock(integer,text,boolean,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_item_lock(integer,text,boolean,uuid)', 'execute') then
     raise exception 'VERIFY(g): hr_item_lock grants are wrong'; end if;
-  if strpos(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), 'hr_hunt_loot_rules(') = 0 then
-    raise exception 'VERIFY(g): the member settle does not run the loot filter'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'bag-rules: locks hold at the counter, the loot filter sells at the bid inside the day budget, rules remembered; all green';
+  raise notice 'bag-rules: one lock answer, the loot filter sells at the bid through hr_apply inside the day budget, rules remembered; all green';
 end $$;

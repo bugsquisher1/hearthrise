@@ -22,11 +22,11 @@
 // 2026-10-15), so nothing ships only to be deleted. The free tier-1 rungs
 // (Bronze Arrows, Air Rune, Coarse Whetstone) stay ordinary packed items.
 //
-// PRICES (MEASURED, the table in src/data/supplies.js): a basic heal costs 15 g
-// a heal point at tier 1, so an entry-level melee hunt on basics roughly
-// breaks even against gold plus common drops, rising to 24 g a point at tier 6
-// (a small heal cannot carry tiers 5-6, so the bigger ones may cost more per
-// point).
+// PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
+// supplies). A basic heal costs just above its cooked partner's book value a
+// point (2.3 g at tier 1 to 21 g at tier 6; B1 is the floor). Was 15-24 g a
+// point: a solo Melee in the Millrace Sewer bought 240 heals an hour, 21,600 g
+// (tests/hunt-core/sewer.mjs --report), now 3,360 g.
 //
 // DRINKS ARE PRICED FOR THE ABILITY BAR (designer, 2026-10-17, measured on the
 // S1 instance engine). A drink is not a danger cost like food: every hero's bar
@@ -59,11 +59,11 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
 /* id -> row. `tiers` are the hunt tiers whose "shop heal" / "shop drink" slot
    resolves to this row; `price` is gold per use (per shot for ammo). */
 export const BASIC_SUPPLIES = Object.freeze([
-  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 6, 90, [1]),
-  heal('salted_trout', 'Salted Trout', 'cooked_trout', 10, 160, [2]),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 325, [3]),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 505, [4, 5]),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 790, [6]),
+  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 6, 14, [1]),
+  heal('salted_trout', 'Salted Trout', 'cooked_trout', 10, 40, [2]),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 180, [3]),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 432, [4, 5]),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 693, [6]),
   mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 6, [1]),
   mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 11, [2]),
   mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 27, [3]),

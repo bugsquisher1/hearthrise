@@ -273,7 +273,7 @@ const mutants = [
   { name: 'a sewer monster with no walk art', case: 'formation-rows',
     edits: [['src/data/monster-art.js', "kobold_tosher: 'kobold', ", "kobold_tosher: 'kobold_unported', "]] },
   { name: 'the Rat King loses his boss flag', case: 'formation-rows',
-    edits: [['src/data/monsters.js', 'formation: true, boss: true,', 'formation: true,']] },
+    edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, boss: true,", "family: 'Vermin', formation: true,"]] },
   { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
   { name: 'the party scale is flat', case: 'party-scale',

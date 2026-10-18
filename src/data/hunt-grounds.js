@@ -74,11 +74,16 @@
 // anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
 // of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
 // sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
-// 10-16 party test). ECONOMY (Tyler 2026-10-14: coin + common drops pay the supplies,
-// the rares are the profit): coin and drop chances put a full party's coin + commons
-// within ~6% of its measured supply bill at the ruled prices, and the rares (the Crown
-// Shard first) add ~19% (tests/hunt-core/sewer.mjs --report). The coin is final in the
-// rows: no engine multiplies it again (parity DM-16).
+// 10-16 party test). ECONOMY (Tyler 2026-10-18, superseding 10-14's break-even: every hunt
+// is a decent profit inside its range; store prices stay, income rises): coin + commons
+// (vendor bid) land at +30% over the store bill, the designer's pick inside Tyler's
+// 25-35%: a three-hour bag then returns about an hour of supplies, enough to feel and
+// too little to farm past the range. Rares (the Crown Shard, the Alpha Fang, the totems)
+// are upside on top. ONE real-settle play per hunt, store-only supplies, per hero-hour
+// (tests/hunt-core/forest-cave.mjs --play): Sewer +26% (party of four at ~20), Thicket
+// +31% (solo ~10), Warrens +30% (four at ~40); the Mill Cellar +166% on a 1.2k bill (its
+// rows are the game's shared tier-1 rows; unchanged). Below the range every hunt LOSES
+// gold (-36% to -45%). The coin is final in the rows: no engine multiplies it (DM-16).
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is

@@ -235,6 +235,8 @@ const BASE_RECIPES = {
        the same iron-tier arrow, properly costed, at a supply rate ten times
        this one — so this rung is now strictly dominated and is a retire-or-merge
        candidate. Deliberately NOT done here: that is a content decision. */
+    /* Iron Bolts: Barbed Arrows' inputs and level, so the choice is accuracy against weight. */
+    {id:'fletch_iron_bolts',      name:'Fletch Iron Bolts ×50',   icon:'🏹', inputs:{iron_bar:2, oak_plank:2},             output:'iron_bolts', outputQty:50, xp:150, req:18, ms:3400},
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     /* b215: the last two planks — crafting stopped at 78 before this. */
     {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', input:'runewood_log', output:'runewood_plank', xp:260, req:75, ms:6500},
@@ -295,6 +297,8 @@ const BASE_RECIPES = {
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
+    /* The Crown Shard: 100 Bones of Prayer, or 150 g sold (UNVERIFIED balance; the choice is the point). */
+    {id:'offer_crown_shard',      name:'Offer a Crown Shard',      icon:'👑',  input:'crown_shard',  output:null, xp:450,  req:10, ms:2400},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
     {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},

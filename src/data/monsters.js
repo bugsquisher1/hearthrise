@@ -118,22 +118,22 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
     drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 },
-      { id: 'wolfbone_torc', ch: .0008, lucky: true }] },
+      { id: 'wolfbone_torc', ch: .0006, lucky: true }] },   // .0008 -> .0006 (S1 instance engine, 310 kills/h at the T1 loadout): 3.5 -> 4.7 h, inside lucky-finds' [4, 30]
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
     drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 },
-      { id: 'bramble_blade', ch: .0006, lucky: true }] },
+      { id: 'bramble_blade', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 490 kills/h): 3.4 -> 4.5 h
   goblin: { name: 'Goblin', icon: '👺', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 },
-      { id: 'banded_signet', ch: .0006, lucky: true }] },
+      { id: 'banded_signet', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 463 kills/h): 3.6 -> 4.8 h
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },
-      { id: 'adept_body', ch: .0006, lucky: true }] },
+      { id: 'adept_body', ch: .0005, lucky: true }] },   // .0006 -> .0005 (S1 instance engine, 439 kills/h): 3.8 -> 4.6 h
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 },
@@ -162,7 +162,7 @@ export const MONSTERS = {
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
-      { id: 'fang_studs', ch: .0007, lucky: true }] },   // .0008 -> .0007 (lane C2): at the 2.0 s swing the bat dies 1.2x as often; 4.0 -> 4.6 expected hours, back inside lucky-finds' [4, 30] band
+      { id: 'fang_studs', ch: .0005, lucky: true }] },   // .0007 -> .0005 (S1 instance engine, 397 kills/h at the T2 loadout): 3.6 -> 5.0 h, inside lucky-finds' [4, 30]
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },
@@ -658,33 +658,6 @@ export const MONSTERS = {
     hp: 360, atk: 70, def: 38, xp: 880, gp: [210, 430],
     drops: [{ id: 'troll_hide', ch: 1 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .5 }, { id: 'frostfin', ch: .5 },
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
-
-  /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
-     Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
-  drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 45, atk: 5, def: 0, xp: 24, gp: [1, 4], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .7 }, { id: 'bones', ch: .35 }, { id: 'small_fang', ch: .06 }] },
-  sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): the sump shrugs off every element. */
-    elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
-    hp: 50, atk: 4, def: 0, xp: 22, gp: [1, 3], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
-  culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 70, atk: 9, def: 1, xp: 45, gp: [3, 9], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'night_fang', ch: .025 }] },
-  cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): venomous, so poison is a resist, not an immunity. */
-    elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 13, def: 6, xp: 110, gp: [10, 26], speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 }, { id: 'spider_eye', ch: .035 }] },
-  kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 55, atk: 7, def: 1, xp: 30, gp: [2, 6], speed: 3200,
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
-  rat_king: { name: 'Rat King', icon: '👑', tier: 1, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
-    /* one override (element): fire glances off the knot; frost is the exam's answer. */
-    elementResist: ['ember'],
-    hp: 600, atk: 20, def: 4, xp: 600, gp: [30, 60], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .15 }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

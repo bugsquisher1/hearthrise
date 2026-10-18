@@ -22,11 +22,21 @@
 // 2026-10-15), so nothing ships only to be deleted. The free tier-1 rungs
 // (Bronze Arrows, Air Rune, Coarse Whetstone) stay ordinary packed items.
 //
-// PRICES (MEASURED, the table in src/data/supplies.js): a basic heal costs 15 g
-// a heal point at tier 1, so an entry-level melee hunt on basics roughly
-// breaks even against gold plus common drops, rising to 24 g a point at tier 6
-// (a small heal cannot carry tiers 5-6, so the bigger ones may cost more per
-// point). A basic drink costs the same per mana point as the heal of its tier.
+// PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
+// supplies). A basic heal costs just above its cooked partner's book value a
+// point (2.3 g at tier 1 to 21 g at tier 6; B1 is the floor). Was 15-24 g a
+// point: a solo Melee in the Millrace Sewer bought 240 heals an hour, 21,600 g
+// (tests/hunt-core/sewer.mjs --report), now 3,360 g.
+//
+// DRINKS ARE PRICED FOR THE ABILITY BAR (designer, 2026-10-17, measured on the
+// S1 instance engine). A drink is not a danger cost like food: every hero's bar
+// spends mana all hunt, so the store sells it at about 1.2-1.4x the crafted
+// drink's book value a point (1.0 g at tier 1 rising to 3.5 g at tier 6; B1 and
+// B3 hold). Measured, a fresh melee hero (Bronze Sword, 0 gold, the kit's 20
+// cooked shrimp, mill_cellar fixture, 1 h): it drinks 101 Thin Turnip Juice an
+// hour against 691 g of coins and 793 g of common drops. At the old 90 g (15 g a
+// point, the heal's rate) that was 9,090 g an hour and the hunt ended gold_out
+// at 1:54; at 6 g it is 606 g an hour and the hunt runs the full hour.
 //
 // The server catalogue (lane C) is generated from BASIC_SUPPLIES; the client
 // shows `price` on the slot. tests/supplies-catalogue.mjs proves every rule
@@ -49,19 +59,18 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
 /* id -> row. `tiers` are the hunt tiers whose "shop heal" / "shop drink" slot
    resolves to this row; `price` is gold per use (per shot for ammo). */
 export const BASIC_SUPPLIES = Object.freeze([
-  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 6, 90, [1]),
-  heal('salted_trout', 'Salted Trout', 'cooked_trout', 10, 160, [2]),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 325, [3]),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 505, [4, 5]),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 790, [6]),
-  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 90, [1]),
-  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 160, [2]),
-  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 325, [3]),
-  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 24, 505, [4]),
-  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 33, 790, [5]),
-  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 40, 960, [6]),
+  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 6, 14, [1]),
+  heal('salted_trout', 'Salted Trout', 'cooked_trout', 10, 40, [2]),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 180, [3]),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 432, [4, 5]),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 693, [6]),
+  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 6, [1]),
+  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 11, [2]),
+  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 27, [3]),
+  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 24, 48, [4]),
+  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 33, 83, [5]),
+  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 40, 140, [6]),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
-  shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
   shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 8),
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),

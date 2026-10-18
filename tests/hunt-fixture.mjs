@@ -160,7 +160,12 @@ export function huntSpan(state, ctx, opts) {
   const hs = huntSessionFor({ ...o, fromMs });
   const rolls = (st) => {
     const r = ctx.playerRolls ? ctx.playerRolls(row) : { accuracy: 0.8, maxHit: 5 };
-    const def = ctx.def ?? Math.floor(Number(levelsOf(st.skills || {}).defense) || 1);
+    /* The settle's heroSnapshot rule (accrual.js): Defence level + the worn
+       armour's defB + any defence bonus. A caller that hands its `eq` gets its
+       armour counted; one that does not fights in its skin, as before. */
+    const bonus = ctx.bonus || (() => 0);
+    const def = ctx.def ?? Math.floor((Number(levelsOf(st.skills || {}).defense) || 1)
+      + (Number((ctx.eq || {}).defB) || 0) + (Number(bonus('defense')) || 0));
     return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def,
       ward: Math.floor(ctx.ward ?? prayerWardPct(st.skills || {})) };
   };

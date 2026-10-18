@@ -46,6 +46,8 @@
 //              `switch`, never under `end`; a store row restores ITS amount;
 //              a dry purse ends `gold_out`; the coins a kill drops reach the
 //              purse; sell-to-cover sells junk only, cheapest first, above the floor.
+//   ECON-1     a fresh melee hero (0 gold, the kit's food) hunts a T1 hour on store
+//              drinks without gold_out; its kill coins pay every drink.
 //   SPLIT      party-split.js: gold even with the remainder to the first, items
 //              round-robin; a two-hero hunt pays both, neither more than its
 //              share plus the remainders.
@@ -225,7 +227,7 @@ function memberIn(M, key, o) {
       cover: x.cover || {}, fallsLimit: 3 },
     skills, xpFrac: null, hp: x.hp ?? maxHp, maxHp, gold: x.gold ?? 0, equipment: x.equipment || {}, combatStyle: null,
     inventory: {}, recoveringUntilMs: 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ ranger: 'ranged', mage: 'magic', healer: 'magic', tank: 'sword' }[role] || 'hammer'),
+    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'magic', healer: 'magic' }[role] || 'sword'),
       options: Object.assign({}, x.options || {}, role === 'healer' ? { role: 'healer' } : {}), bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
     ...(x.extra || {}),
   };
@@ -395,8 +397,11 @@ const ENGINE_ARMS = {
     /* RAISED on a level-up: a hero at max HP 5 that reaches hitpoints 6 inside the window leaves at 6. */
     const lo = memberIn(M, 'a', { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, maxHp: 5, hp: 5 });
     const up = M.AC.accrueHunt(instIn(M, [lo], 600000)).members[0];
-    if (!(M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0)) >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
-    else if (up.maxHp !== M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0))) problems.push(`a hitpoints level-up to ${M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0))} left max HP at ${up.maxHp}`);
+    /* The level REACHED, not a literal 6: a hero the store keeps in mana (cheap drinks,
+       designer 2026-10-17) hunts the whole window and may level past 6. */
+    const reached = M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0));
+    if (!(reached >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
+    else if (up.maxHp !== reached) problems.push(`a hitpoints level-up to ${reached} left max HP at ${up.maxHp}`);
     return problems;
   },
 
@@ -553,18 +558,45 @@ const ENGINE_ARMS = {
        food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out. */
     const out = runCut(M, () => [memberIn(M, 'a', { level: 12, gold: row.price - 1 })], 1800000, []);
     const ms = out.outs.flatMap((o) => o.members);
-    const tl = ms.reduce((a, x) => a + Object.values(x.hunt.buys).reduce((s, n) => s + n, 0), 0);
+    /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
+    const tl = ms.reduce((a, x) => a + ((x.hunt.buys || {})[t.shop.heal] || 0), 0);
     const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
     const end = ms.find((x) => x.hunt.ended);
     /* A DRINK THE PURSE CANNOT BUY ONLY GOES WITHOUT: a broke hero that wants to drink
        but never needs food hunts on (spec §3.4 #7); only an unaffordable FOOD ends gold_out.
-       And a melee hero's default buys no drink at all (ROLE_DEFAULTS drinkBelowPct 0). */
+ */
     const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, options: { drink_below_pct: 99 } })], 600000, []);
     const tEnd = thirsty.outs.flatMap((o) => o.members).find((x) => x.hunt.ended);
     if (tEnd && tEnd.hunt.ended.reason === 'gold_out') problems.push('a broke hero that only wanted a drink ended gold_out');
-    if (M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank'] }).drinkBelowPct !== 0) problems.push('a tank buys drinks by default');
     if (!(kills > 0)) problems.push('CONTROL: the poor hero killed nothing');
     else if (!(tl > 0)) problems.push(`a hero one coin short bought no food after ${kills} kills (ended ${JSON.stringify(end && end.hunt.ended)}) — kill coins do not reach the purse`);
+    return problems;
+  },
+
+  /* ECON-1 (designer 2026-10-17, Tyler's rule: gold + common drops pay the supplies,
+     profit comes from rares). A FRESH melee hero (Bronze Sword, Hitpoints 10, 0 gold,
+     the kit's 20 cooked shrimp) hunts the mill_cellar fixture for an hour on the store's
+     drinks: it never ends gold_out, and the coins its kills drop pay every drink it buys.
+     At the old 90 g Thin Turnip Juice it ended gold_out at 1:54. */
+  'ECON-1': async (M) => {
+    const problems = [];
+    const fresh = () => [memberIn(M, 'a', { skills: { hitpoints: M.XP.xpForLevel(10) }, gold: 0,
+      bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' } })];
+    const cuts = Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 600000);
+    const out = runCut(M, fresh, 3600000, cuts);
+    const ms = out.outs.flatMap((o) => o.members);
+    const price = (id) => (M.SB.BASIC_INDEX[id] || {}).price || 0;
+    let drinks = 0; let drinkGold = 0; let coins = 0; let kills = 0;
+    for (const x of ms) {
+      for (const [id, n] of Object.entries(x.hunt.buys || {})) if ((M.SB.BASIC_INDEX[id] || {}).kind === 'mana') { drinks += n; drinkGold += n * price(id); }
+      coins += x.delta.gold || 0;
+      kills += x.delta.journal.meta.kills;
+    }
+    const end = ms.find((x) => x.hunt.ended);
+    if (!(kills > 0)) problems.push('CONTROL: the fresh hero killed nothing');
+    if (!(drinks > 0)) problems.push('CONTROL: the fresh melee hero bought no drink (its bar spends no mana?)');
+    if (end) problems.push(`a fresh melee hero's hour ended ${JSON.stringify(end.hunt.ended)} after ${kills} kills (${drinks} drinks, ${drinkGold} g)`);
+    if (!(drinkGold <= coins)) problems.push(`a fresh melee hero's drinks cost ${drinkGold} g an hour against ${coins} g of kill coins`);
     return problems;
   },
 
@@ -1323,6 +1355,8 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'a hitpoints level-up sets max HP to the level', file: join(FN, 'accrual.js'),
     from: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;",
     to: "if (ev.type === 'levelup' && ev.skill === 'hitpoints') state.playerMaxHp = ev.to;" },
+  { arm: 'ECON-1', name: 'the T1 store drink back at 90 g (the heal\'s 15 g a point): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
+    from: "'turnip_juice', 6, 6, [1]", to: "'turnip_juice', 6, 90, [1]" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
     from: "    const vs = supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'",
     to: "    const vs = false && supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'" },

@@ -338,11 +338,11 @@ function selftest() {
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
     ['B2', 'a shop rune ships again', (d) => { d.basics = d.basics.concat([{ id: 'plain_fire_rune', kind: 'ammo', n: 'Plain Fire Rune', partner: 'fire_rune', price: 24, tiers: [] }]); }],
     ['B2', 'a monster tier with no shop drink', (d) => { d.basics = d.basics.filter((b) => b.id !== 'thin_emberfruit_cordial'); }],
-    ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 150 g for 5)', (d) => {
+    ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 50 g for 5: 1.25 g a point under the 2.3 g Salted Shrimp)', (d) => {
       d.offers = [...d.offers, { id: 'seed.cooked_shrimp', table: 'seed',
-        cost: [{ kind: 'currency', id: 'gold', amount: 150 }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];
+        cost: [{ kind: 'currency', id: 'gold', amount: 50 }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];
     }],
-    ['B3', 'a big shop heal cheaper per point than a small one', (d) => { withBasic(d, 'salted_lobster', { price: 200 }); }],
+    ['B3', 'a big shop heal cheaper per point than a small one (Lobster 3.3 g vs Trout 4.0 g)', (d) => { withBasic(d, 'salted_lobster', { price: 60 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
     ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],
     ['L1', 'the food lane back at the C2 2 s', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, laneMs: 2000 }); }],

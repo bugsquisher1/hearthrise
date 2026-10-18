@@ -7,7 +7,6 @@
 import { HUNT_INDEX } from '../data/hunts.js?v=0.1.0';
 import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.1.0';
 import { ABILITIES } from '../data/abilities.js?v=0.1.0';
-import { ROLE_DEFAULTS } from '../data/rule-subjects.js?v=0.1.0';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.1.0';
 import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.1.0';
 import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.1.0';
@@ -51,7 +50,7 @@ export function heroSetup(o) {
     settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
       stance: pick('stance', d.stance) },
     foodBelowPct: pick('food_below_pct', undefined),
-    drinkBelowPct: pick('drink_below_pct', ROLE_DEFAULTS[role] ? ROLE_DEFAULTS[role].drinkBelowPct : undefined),
+    drinkBelowPct: pick('drink_below_pct', undefined),
   };
 }
 

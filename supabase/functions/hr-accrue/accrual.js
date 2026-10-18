@@ -1818,47 +1818,6 @@ export function normaliseToolCarry(raw) {
   return out;
 }
 
-/* ── THE IN-FLIGHT FIGHT, NORMALISED (Phase 0, docs/design/live-settlement.md) ─
-   `player_state.fight` is jsonb the database CHECKs is an object. Empty object
-   = no fight in flight. A populated one is `{ monster, hp, kills }` — the state
-   of the fight AT `accrued_to`, so the next span can resume it instead of
-   restarting it.
-
-   ⚠ WHY THIS EXISTS. Without it every span starts a FRESH monster at full HP,
-     which means any target whose time-to-kill exceeds the span pays ZERO,
-     forever, at every cadence. Measured (tools/probe-live-settle.mjs P3): a
-     520 HP dragon against mediocre offence is ~488 ticks — about 20 minutes —
-     for one kill. One 60-minute window pays 1 kill / 575 gold; sixty 60-second
-     windows pay 0 kills / 0 gold / 0 XP. It is a total confiscation, not a
-     rounding loss, and it is live TODAY on every set_activity collect.
-
-   Returns null when the input is null/absent, and that null is load-bearing —
-   exactly the `tool_carry` self-configuring switch: a database without the
-   column yields null, the engine starts fresh and OMITS `fight` from the delta,
-   because hr_apply refuses an unknown delta key and that refusal costs a whole
-   window. There is no flag to forget to flip.
-
-   A CORRUPT FIGHT READS AS NO FIGHT ({}), never as a repaired one. The only
-   direction that can be wrong here is a small under-payment (one restarted
-   fight); silently repairing an impossible value is how a compromised engine's
-   bug becomes the server's opinion. hr_apply re-derives the ceiling from the
-   catalogue anyway and REFUSES an out-of-range proposal — this is the engine's
-   own promise, that is the database's verification of it. */
-export function normaliseFight(raw) {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const monster = raw.monster;
-  if (typeof monster !== 'string' || !/^[a-z0-9_]{1,64}$/.test(monster)) return {};
-  const hp = Number(raw.hp);
-  if (!Number.isFinite(hp) || hp <= 0 || Math.floor(hp) !== hp) return {};
-  const kills = Number(raw.kills);
-  return {
-    monster,
-    hp,
-    kills: (Number.isFinite(kills) && kills >= 0) ? Math.floor(kills) : 0,
-  };
-}
-
 /**
  * THE GATHER ACCRUAL. Same envelope, same rules, a different simulation.
  *

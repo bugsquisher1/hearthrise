@@ -149,9 +149,9 @@ const EQUIPMENT = pickEquipment();
 // credited window, Auto-Eat, the recovery ladder, the Retreat, the receipt
 // level-ups, the charm and the away-ammo arms) left with the combat path it
 // compared against: closed rebuild, lane C2. A fight is a hunt session, priced
-// by ONE engine (simulateHuntSpan) and guarded by tests/hunt-session-engine.mjs
-// and tests/hunt-sessions-settle.mjs (TICK-1 split-settle parity, attended and
-// away). What stays here is the gather / artisan / crew engine and the shell.
+// by ONE engine (combat-sim.js simulateHuntInstance, lane S1) and guarded by
+// tests/hunt-sessions-settle.mjs (TICK-1 split-settle parity, attended and away)
+// and tests/hunt-core/*. What stays here is the gather / artisan / crew engine and the shell.
 
 // ── Server call helper ──────────────────────────────────────────────────────
 /* A GATHERING night (closed rebuild, lane C2): a fight outside a hunt session
@@ -1241,16 +1241,22 @@ async function shellGuard() {
     'callerAuthority',  // an imported object identity
     'items', 'monsters', 'nodes', 'recipes',  // the generated catalogues
     'companionXpBacked',                      // a deploy-time constant
-    /* HUNT SESSIONS (lane C2). The session, its window and its seed key come
-       from hr_hunt_engine_read (hunt_sessions / hunt_bag / player_action_sets
-       + hr_seed) in the settle's own read, never from hr_state_of; `huntOpen`
-       is hr_hunt_open_of on the accrue/collect paths. */
-    'huntSession', 'huntWindow', 'huntSecret', 'huntOpen',
+    /* HUNT INSTANCES (lane S1). accrueHunt's input is the instance read
+       (hr_hunt_instance_read: the instance, its window and seed key, each
+       member's session) and the ground the edge builds, never hr_state_of;
+       `huntOpen` is hr_hunt_open_of on the accrue/collect paths. */
+    'instance', 'window', 'secret', 'ground', 'grid', 'members', 'huntOpen',
   ]);
   /* Declared by the map and NOT read by the engine. One entry, and it is
      honest: both call sites have always passed `gold` and accrual.js has never
-     read it. Listed rather than deleted so removing it is a deliberate edit. */
-  const PASSED_BUT_UNREAD = new Set(['gold']);
+     read it. Listed rather than deleted so removing it is a deliberate edit.
+     LANE S1: only a fight read the combat keys, and a fight is a hunt instance
+     now — hunt-settle.js memberInput reads hp / maxHp / combatStyle / the death
+     anchors from this same map for its member. `fight` and `ammoCarry` were
+     the single-foe span's carries: nothing reads them, and the columns retire
+     with the Early Access wipe (logged in CONFLICTS 2026-10-17, S1). */
+  const PASSED_BUT_UNREAD = new Set(['gold', 'hp', 'maxHp', 'combatStyle', 'deathsTodayBefore', 'deathsLifetimeBefore',
+    'fight', 'ammoCarry']);
   const declared = new Set([...envCode.matchAll(
     /export const ENGINE_(?:POINTER|STATE)_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/g)]
     .flatMap((m) => [...m[1].matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1])));

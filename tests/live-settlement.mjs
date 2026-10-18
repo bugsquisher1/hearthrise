@@ -25,12 +25,17 @@
 // player HP pool large enough to outlast the hour. Nothing else is tuned.
 //
 // ── WHAT IT ASSERTS ─────────────────────────────────────────────────────
-//   SETTLE-1   an hour of 90 s windows pays the SAME kills as one 60-minute
-//              window (3, not 0), at four cadences. Mutation-proven.
-//   SETTLE-1a  a null `fight` input (a database with no column) is byte-for-byte
-//              the pre-Phase-0 behaviour, and OMITS the delta key — the
-//              self-configuring switch, which is what makes the migration and
-//              the deploy safe in either order.
+//   SETTLE-1   an hour of 60/90/120/300 s windows pays the SAME kills as one
+//              60-minute window (3, not 0). Since lane S1 a fight is a hunt
+//              INSTANCE and the in-flight monster is a unit of its WORLD, carried
+//              across every window (src/core/combat-sim.js; the database half,
+//              through hunt_instances.world, is hunt-sessions-settle TICK-1).
+//              Mutation-proven: a world dropped at a window boundary goes red.
+//   RETIRED (lane S1): SETTLE-1a / 1d / 1e and the engine half of 1c graded the
+//              pointer-era `fight` checkpoint (normaliseFight, the no-column
+//              switch, the monster-id read guard). The hunt engine reads and
+//              writes no `fight` key; the world's shape, ground and swing are
+//              re-proved by hr_hunt_apply_instance (hunt-sessions-settle VALUE).
 //   SETTLE-1b  a fight is VOIDED by an activity change, in hr_apply, on real
 //              PostgreSQL — including a switch back to the SAME monster. This
 //              is "can you bank a nearly-dead boss?", answered.
@@ -38,17 +43,11 @@
 //              a different monster, a gathering node, a non-integer, an unknown
 //              key, a huge kill count) are REFUSED by hr_apply against the
 //              GENERATED catalogue — not by the engine, and not clamped.
-//   SETTLE-1d  AWAY-1 PARITY: a span that starts at full monster HP produces a
-//              byte-identical delta with the fight carry present and absent. A
-//              carried fight must be the only divergence.
-//   SETTLE-1e  the engine's own fail-closed read guard: a carried fight naming
-//              a monster the pointer does not name starts fresh.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { computeAccrual, normaliseFight } from '../supabase/functions/hr-accrue/accrual.js';
-import { onTrainingHunt, secretOf } from './hunt-fixture.mjs';
+import { huntSpan } from './hunt-fixture.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
@@ -60,154 +59,43 @@ const NOW = Date.UTC(2026, 2, 15, 12, 0, 0);
 const HOUR = 3600000;
 const TARGET = 'dragon';
 
-/* Mediocre offence, a body that outlasts the hour. See the header for why the
-   survival term is a fixture property and not a thumb on the scale. */
-const SLOW = {
-  activeId: TARGET, hp: 200000, maxHp: 200000,
-  skills: { attack: 60000, strength: 60000, defence: 20000000, hitpoints: 40000000 },
-};
-
-/* Lane C2: combat accrues only on a hunt session, so every window is a
-   training hunt on its monster (no respawn wait) carrying the same `fight`
-   checkpoint input the pointer era did — the carry lives in accrueHunt now. */
-function mk(fromMs, toMs, seed, fight, over) {
-  return onTrainingHunt({
-    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
-    nowMs: toMs, accruedToMs: fromMs, activeSinceMs: NOW - HOUR,
-    activeKind: 'combat', activeId: TARGET, capMs: 12 * HOUR,
-    seed, gold: 0, equipment: {}, items: ITEMS, monsters: MONSTERS, inventory: {},
-    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
-    ...SLOW, fight, ...(over || {}),
-  });
+/* Mediocre offence, a body that outlasts the hour (a defence the dragon rarely
+   lands on). See the header for why the survival term is a fixture property. */
+function hourOf(windowMs) {
+  const st = { activeMonster: TARGET, playerHp: 200000, playerMaxHp: 200000, gold: 0, skills: {}, stats: {} };
+  let gold = 0;
+  const out = huntSpan(st, {
+    fromMs: NOW - HOUR, toMs: NOW, monsters: MONSTERS, items: ITEMS, style: null, def: 2000,
+    playerRolls: () => ({ accuracy: 0.6, maxHit: 4 }),
+    fx: { onLoot(g) { gold += g; } },
+  }, { seed: 42, windowMs });
+  return { kills: out.kills, deaths: out.deaths, gold };
 }
 
-/* One hour, settled at `slice`, carrying the engine's own end-of-window
-   checkpoint forward exactly as hr_apply would store it and hr_state_of would
-   return it. The seed VARIES per window because it really does in production —
-   hr_seed is salted with `accrue:<accrued_to>` — so this measures the property
-   under the real seeding, not under a convenient one. */
-function settleHour(slice, fight0) {
-  let kills = 0; let gold = 0; let fight = fight0;
-  /* THE SESSION'S SWING CLOCK CARRIES TOO, exactly as hr_hunt_apply stores
-     swing_index / next_swing_at: a window that restarted the swing index would
-     replay the first swings' keyed rolls and measure the fixture, not the carry. */
-  let swingIndex = 0; let nextSwingAtMs = null;
-  for (let i = 0; i < HOUR / slice; i++) {
-    const inp = mk(NOW - HOUR + i * slice, NOW - HOUR + (i + 1) * slice, 43 + i, fight);
-    inp.huntSession.swingIndex = swingIndex;
-    /* ONE session, ONE secret (hr_seed('hunt:'||session) never changes inside
-       a session): with the index carried, every swing rolls exactly what it
-       rolls inside the one long window, so equality is exact, not statistical. */
-    inp.huntSecret = secretOf(42);
-    if (nextSwingAtMs !== null) inp.huntSession.nextSwingAtMs = nextSwingAtMs;
-    const r = computeAccrual(inp);
-    if (!r.accrued) continue;
-    swingIndex = Number(r.hunt.swing_to);
-    nextSwingAtMs = Date.parse(r.hunt.next_swing_at);
-    kills += r.summary.kills;
-    gold += r.delta.gold || 0;
-    if (fight0 !== null) fight = r.delta.fight;
-  }
-  return { kills, gold };
-}
-
-// ── SETTLE-1 + 1a + 1e — the engine half ───────────────────────────────────
+// ── SETTLE-1 — the engine half ───────────────────────────────────────────────
 export function engineGuard() {
-  const whole = computeAccrual(mk(NOW - HOUR, NOW, 42, {}));
-  ok(whole.accrued === true, 'SETTLE-1: the 60-minute reference window did not accrue');
-  ok(whole.summary.died === false,
-    'SETTLE-1: the reference fixture DIED inside the hour, so every later window is unpayable and '
-    + 'this guard would measure the death check instead of the carry. Fix the fixture, not the test.');
-  const ref = whole.summary.kills;
+  const whole = hourOf(0);
+  ok(whole.deaths === 0,
+    'SETTLE-1: the reference fixture DIED inside the hour, so this guard would measure the knockout '
+    + 'instead of the carry. Fix the fixture, not the test.');
+  const ref = whole.kills;
   ok(ref >= 3,
     `SETTLE-1: the reference window pays ${ref} kills. The fixture must be a fight the WINDOW cannot `
     + 'finish and the HOUR can, or there is nothing to carry and the guard is vacuous.');
-
   const CADENCES = [60000, 90000, 120000, 300000];
+  const at = {};
   for (const slice of CADENCES) {
-    const carried = settleHour(slice, {});
+    const carried = hourOf(slice);
+    at[slice] = carried.kills;
     ok(carried.kills === ref,
       `SETTLE-1: an hour settled every ${slice / 1000}s pays ${carried.kills} kills against the `
-      + `60-minute window's ${ref}. A settled span must be the SAME simulation started from a `
-      + 'checkpoint — if these differ, the checkpoint is losing or inventing progress.');
-    ok(carried.gold > 0,
-      `SETTLE-1: an hour settled every ${slice / 1000}s paid ${carried.gold} gold`);
-
-    // SETTLE-1a — THE MUTATION IS BUILT IN. `null` is not a mutant: it is the
-    // real behaviour of a database with no `fight` column, and it is exactly
-    // the defect. If this ever stops being 0, the carry has become unconditional
-    // and the migration/deploy ordering is no longer safe in either order.
-    const bare = settleHour(slice, null);
-    ok(bare.kills === 0,
-      `SETTLE-1a: with no fight column, an hour settled every ${slice / 1000}s pays ${bare.kills} `
-      + 'kills. It must pay ZERO — that is the defect being fixed, and a carry that works without '
-      + 'the column means the engine is reading state from somewhere it does not own.');
+      + `60-minute window's ${ref}. A settled span must be the SAME simulation carried across its `
+      + 'cuts — if these differ, the world is losing or inventing progress at a boundary.');
+    ok(carried.gold > 0, `SETTLE-1: an hour settled every ${slice / 1000}s paid ${carried.gold} gold`);
   }
-
-  const noCol = computeAccrual(mk(NOW - HOUR, NOW, 42, null));
-  ok(!('fight' in noCol.delta),
-    'SETTLE-1a: the engine proposed a `fight` key with no column to write it to. hr_apply answers '
-    + 'unknown_delta_key with a 409, which costs the player the whole window — the null input is the '
-    + 'switch and it is not being read.');
-  const withCol = computeAccrual(mk(NOW - HOUR, NOW, 42, {}));
-  ok(withCol.delta.fight && typeof withCol.delta.fight === 'object',
-    'SETTLE-1a: with the column present the engine wrote no checkpoint back, so the next window '
-    + 'restarts the fight and the column is decoration');
-
-  // SETTLE-1d — PARITY. A span that starts at FULL monster HP must be
-  // byte-identical with the carry present and absent. A carried fight is the
-  // ONLY thing Phase 0 is allowed to change.
-  const stripFight = (r) => {
-    const d = { ...r.delta }; delete d.fight;
-    return JSON.stringify({ delta: d, summary: r.summary, grantMs: r.grantMs, tickMs: r.tickMs });
-  };
-  ok(stripFight(noCol) === stripFight(withCol),
-    'SETTLE-1d PARITY: a span that starts at full monster HP produced a DIFFERENT delta depending on '
-    + 'whether the fight column exists. Phase 0 must be invisible to every span that was already '
-    + 'correct — anything else is a balance change wearing a bug-fix label.');
-
-  // ...and the same on the AWAY-1 fixture's shape: a fresh fight, seeded.
-  const freshA = computeAccrual(mk(NOW - HOUR, NOW, 777, null, { activeId: 'goblin' }));
-  const freshB = computeAccrual(mk(NOW - HOUR, NOW, 777, {}, { activeId: 'goblin' }));
-  ok(stripFight(freshA) === stripFight(freshB),
-    'SETTLE-1d PARITY: the goblin fixture diverges between a database with and without the fight '
-    + 'column, on a span that starts fresh either way');
-
-  // SETTLE-1e — the engine's fail-closed READ guard. A checkpoint naming a
-  // monster the pointer does not name must start fresh, not resume.
-  const wrongFoe = computeAccrual(mk(NOW - HOUR, NOW, 42, { monster: 'goblin', hp: 1, kills: 0 }));
-  ok(stripFight(wrongFoe) === stripFight(withCol),
-    'SETTLE-1e: a carried fight naming a DIFFERENT monster was resumed against the current target. '
-    + 'It must fail closed and start fresh — otherwise 1 HP of a goblin is 1 HP of a dragon, and the '
-    + 'delta key becomes a mint.');
-  const resumed = computeAccrual(mk(NOW - HOUR, NOW, 42, { monster: TARGET, hp: 1, kills: 0 }));
-  ok(resumed.summary.kills > ref,
-    `SETTLE-1e: resuming the CORRECT monster at 1 HP paid ${resumed.summary.kills} kills against a `
-    + `fresh window's ${ref}. If it does not pay more, the seeding is not being read at all and the `
-    + 'mismatch assertion above is vacuous.');
-
-  // The normaliser refuses every dishonest shape rather than repairing it.
-  for (const [what, raw] of [
-    ['a negative hp', { monster: TARGET, hp: -5, kills: 0 }],
-    ['a zero hp', { monster: TARGET, hp: 0, kills: 0 }],
-    ['a fractional hp', { monster: TARGET, hp: 1.5, kills: 0 }],
-    ['a non-string monster', { monster: 42, hp: 5, kills: 0 }],
-    ['an id with punctuation', { monster: 'dra gon;', hp: 5, kills: 0 }],
-    ['an array', [1, 2, 3]],
-  ]) {
-    const n = normaliseFight(raw);
-    ok(n !== null && Object.keys(n).length === 0,
-      `SETTLE-1c(engine): normaliseFight repaired ${what} into ${JSON.stringify(n)} instead of `
-      + 'reading it as "no fight". A corrupt checkpoint must cost one restarted fight, never become '
-      + 'the server\'s opinion of the truth.');
-  }
-  ok(normaliseFight(null) === null && normaliseFight(undefined) === null,
-    'SETTLE-1a: normaliseFight lost the null — the no-column switch depends on it');
-
   engineGuard.report = [
-    `dragon (${MONSTERS[TARGET].hp} hp), 60 min: one window ${ref} kills / ${whole.delta.gold}g · `
-    + CADENCES.map((s) => `${s / 1000}s ${settleHour(s, {}).kills}k`).join(' · ')
-    + ` · no column ${settleHour(90000, null).kills}k`,
+    `dragon (${MONSTERS[TARGET].hp} hp), 60 min: one window ${ref} kills / ${whole.gold}g · `
+    + CADENCES.map((x) => `${x / 1000}s ${at[x]}k`).join(' · '),
   ];
 }
 
@@ -646,33 +534,13 @@ export async function runAll({ engineOnly = false } = {}) {
 // ── The mutation harness — a guard that cannot fail is not a guard ─────────
 const MUTANTS = [
   {
-    id: 'no-seed',
-    what: 'the engine ignores the carried checkpoint (the shipped defect)',
-    file: 'supabase/functions/hr-accrue/accrual.js',
-    from: '    monsterHp: resumed ? resumed.hp : 0,',
-    to: '    monsterHp: 0,',
-  },
-  {
-    id: 'no-emit',
-    what: 'the engine never writes a checkpoint back',
-    file: 'supabase/functions/hr-accrue/accrual.js',
-    /* Re-anchored lane C2: the checkpoint is written once, by accrueHunt. */
-    from: '  if (fight0) {\n    const m = state.activeMonster && monsters[state.activeMonster];',
-    to: '  if (false) {\n    const m = state.activeMonster && monsters[state.activeMonster];',
-  },
-  {
-    id: 'unconditional-carry',
-    what: 'the carry ignores the no-column switch',
-    file: 'supabase/functions/hr-accrue/accrual.js',
-    from: '  const fight0 = normaliseFight(inp.fight);',
-    to: '  const fight0 = normaliseFight(inp.fight) || {};',
-  },
-  {
-    id: 'trusting-foe',
-    what: 'the read guard drops the monster-id agreement',
-    file: 'supabase/functions/hr-accrue/accrual.js',
-    from: "  const resumed = (fight0 && fight0.monster === openId",
-    to: '  const resumed = (fight0 && fight0.monster',
+    /* Re-anchored lane S1: the in-flight fight is the instance WORLD; drop it at
+       a window boundary and every window starts fresh monsters (the P3 defect). */
+    id: 'world-not-carried',
+    what: 'the engine drops the instance world at a window boundary (the shipped P3 defect, instance-shaped)',
+    file: 'src/core/combat-sim.js',
+    from: '  let world = inst.world || null;',
+    to: '  let world = null; for (const m of inst.members) m.unitId = null;',
   },
   {
     id: 'no-void',

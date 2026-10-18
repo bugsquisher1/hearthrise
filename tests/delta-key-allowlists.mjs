@@ -188,9 +188,9 @@ export function proposable({ accrual, ticks }) {
     escapes(b, 'delta', name, bad);
     return new Set([...literalKeys(b, 'delta', bad), ...assignedKeys(b, 'delta')]);
   };
-  /* LANE C2 (hunt sessions): the combat body is `accrueHunt` — a fight is a
-     hunt session — so the combat delta is built there. Both bodies are read. */
-  const combat = new Set([...of('computeAccrual'), ...of('accrueHunt')]);
+  /* LANE S1 (hunt instances): a fight is a hunt instance, and each member's
+     combat delta is built by accrual.js `memberDelta`. Both bodies are read. */
+  const combat = new Set([...of('computeAccrual'), ...of('memberDelta')]);
   const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
   /* THE TICK LAYER rewrites a settled delta in place in three shapes —
@@ -243,7 +243,8 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   const ok = sqlArray(settleDef, 'c_delta_ok');
   const stamp = sqlArray(settleDef, 'c_stamp');
   if (!apply || !ok || !stamp) { fail('K0', 'an allowlist could not be read out of an installed body'); return { red, P }; }
-  const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'fight', 'deaths', 'xp_frac'],
+  /* (`fight` left the combat set with the single-foe span, lane S1: the world carries the fight.) */
+  const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'deaths', 'xp_frac'],
                  gather: ['items', 'xp', 'xp_frac', 'tool_carry', 'progress'], artisan: ['items', 'xp', 'xp_frac'] };
   for (const [eng, keys] of Object.entries(need)) {
     const miss = keys.filter((k) => !P[eng].has(k));

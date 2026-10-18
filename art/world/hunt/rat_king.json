@@ -1,0 +1,47 @@
+{
+  "id": "rat_king",
+  "class": "beast",
+  "material": "unit",
+  "source": "rat_king.png",
+  "anchor_px": [
+    32,
+    56
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 8,
+        "e": 8,
+        "n": 8,
+        "w": 8,
+        "se": 8,
+        "sw": 8,
+        "ne": 8,
+        "nw": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/rat_king (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels."
+}

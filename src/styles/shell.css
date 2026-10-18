@@ -88,7 +88,7 @@
 .hs-hudset-show small { font-size: var(--t-micro); color: var(--ink-3); }
 .hs-hudset-row input { accent-color: var(--gold); }
 .hs-hudset-row input[type="range"] { width: 110px; }
-.hs-hudset-pct { width: 44px; text-align: right; font-size: var(--t-micro); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hs-hudset-pct { width: 44px; text-align: right; font-size: var(--t-micro); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .hs-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .hs-quiet { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-soft); border-radius: var(--r); background: none; color: var(--ink-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); cursor: pointer; }
 .hs-quiet:hover { color: var(--ink); border-color: var(--line); }

@@ -1,0 +1,48 @@
+{
+  "id": "culvert_bat",
+  "class": "vermin_flier",
+  "material": "unit",
+  "source": "culvert_bat.png",
+  "anchor_px": [
+    24,
+    44
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "hover_px": 10,
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 12,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/giant_bat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels."
+}

@@ -14,7 +14,13 @@
 // deliberate edit to the list below, never a line that slipped in:
 //   IS-1  every RPC the client names (`rpc('<name>'`) is on CLIENT_RPCS;
 //   IS-2  the edge is called with the character's slot and nothing else
-//         (`accrue({ slot: this.slot })`) — no amount, item, price or count;
+//         (`accrue({ slot: this.slot })`), or — in CharacterSession.edgeIntent
+//         only — with the body src/session/edge-intents.js builds;
+//   IS-5  that builder's EDGE_INTENTS is exactly CLIENT_EDGE_INTENTS below
+//         (each verb with the only fields it may carry: names and counts), no
+//         field is named like a value (price, gold, cost, total, amount, ask),
+//         every edgeIntent('<verb>' call names a pinned verb, and every pinned
+//         verb is called somewhere (a stale entry is a standing permission);
 //   IS-3  ONE server link: `fetch(` appears only in src/session/server.js, and no
 //         client module reaches PostgREST tables or RPCs through supabase-js
 //         (`.from(`, `.rpc(`) — the client's only use of supabase-js is auth and
@@ -26,7 +32,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform'];
+const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform', 'src/render', 'src/hunt-view'];
 const LINK = 'src/session/server.js';
 
 /* The client's whole RPC surface, each with what it is for. */
@@ -34,7 +40,38 @@ export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
   hr_create_character: 'make the character in an owned slot (AccountSession.create)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
+  hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
+  hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
+  /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
+  hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
+  hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
+  hr_restock_set: 'the remembered restock targets, counts only (CharacterSession.setRestock)',
+  hr_shop_refill: 'the one-tap refill at server prices, refused if the quoted total moved (CharacterSession.refill)',
+  hr_hunt_preset_save: 'snapshot the action set, gear and restock targets as a setup (CharacterSession.savePreset)',
+  hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
+  hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
 });
+
+/* The engine's item intents the client may send, each with the ONLY fields it may carry. */
+export const CLIENT_EDGE_INTENTS = Object.freeze({
+  equip: ['equip'],
+  vendor_sell_many: ['lines'],
+  shop_buy: ['offer', 'qty'],
+  eat: ['item'],
+});
+const EDGE = 'src/session/edge-intents.js';
+const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;
+
+/* EDGE_INTENTS as the builder spells it: one `verb: Object.freeze([...])` line per verb. */
+function edgeTable(text) {
+  const block = (text || '').match(/export const EDGE_INTENTS = Object\.freeze\(\{([\s\S]*?)\}\);/);
+  if (!block) return null;
+  const out = {};
+  for (const m of block[1].matchAll(/^\s*([a-z_]+): Object\.freeze\(\[([^\]]*)\]\),?\s*$/gm)) {
+    out[m[1]] = m[2].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+  }
+  return out;
+}
 
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');
 
@@ -51,6 +88,7 @@ function walk(dir, out = {}) {
 export function check(files) {
   const problems = [];
   const named = new Set();
+  const edgeCalled = new Set();
   for (const [f, raw] of Object.entries(files)) {
     const code = strip(raw);
     for (const m of code.matchAll(/\brpc\(\s*'([a-z0-9_]+)'/g)) {
@@ -59,7 +97,14 @@ export function check(files) {
     }
     for (const m of code.matchAll(/\.accrue\(([^)]*)\)/g)) {
       if (f === LINK) continue;
-      if (m[1].replace(/\s+/g, '') !== '{slot:this.slot}') problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot and nothing else`);
+      const arg = m[1].replace(/\s+/g, '');
+      const built = arg === 'body' && f === 'src/session/character-session.js'
+        && /constbody=edgeBody\(this\.slot,verb,fields,newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
+      if (arg !== '{slot:this.slot}' && !built) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
+    }
+    for (const m of code.matchAll(/\bedgeIntent\(\s*'([a-z_]+)'/g)) {
+      edgeCalled.add(m[1]);
+      if (!Object.prototype.hasOwnProperty.call(CLIENT_EDGE_INTENTS, m[1])) problems.push(`IS-5 ${f} sends the engine intent ${m[1]}, which is not on CLIENT_EDGE_INTENTS`);
     }
     if (f !== LINK && /\bfetch\s*\(/.test(code)) problems.push(`IS-3 ${f} calls fetch — the client has ONE server link (${LINK})`);
     if (/\.from\(\s*['"`]/.test(code)) problems.push(`IS-3 ${f} reads or writes a table through supabase-js (.from) — every value comes from an RPC answer`);
@@ -68,6 +113,13 @@ export function check(files) {
   const n = Object.keys(files).length;
   if (n < 10 || !files[LINK]) problems.push(`IS-4 only ${n} client module(s) read — the scan is reading the wrong tree`);
   for (const r of Object.keys(CLIENT_RPCS)) if (!named.has(r)) problems.push(`IS-4 CLIENT_RPCS lists ${r} and no client module calls it — a stale entry is a standing permission`);
+  const table = edgeTable(files[EDGE]);
+  if (!table) problems.push(`IS-5 ${EDGE} has no readable EDGE_INTENTS table`);
+  else {
+    if (JSON.stringify(table) !== JSON.stringify(CLIENT_EDGE_INTENTS)) problems.push(`IS-5 ${EDGE} EDGE_INTENTS ${JSON.stringify(table)} is not the pinned ${JSON.stringify(CLIENT_EDGE_INTENTS)} — a new verb or field is a reviewed edit here too`);
+    for (const [v, fields] of Object.entries(table)) for (const k of fields) if (VALUE_FIELD.test(k)) problems.push(`IS-5 the engine intent ${v} carries ${k}, a value field — the client sends names and counts only`);
+  }
+  for (const v of Object.keys(CLIENT_EDGE_INTENTS)) if (!edgeCalled.has(v)) problems.push(`IS-5 CLIENT_EDGE_INTENTS lists ${v} and no client module sends it — a stale entry is a standing permission`);
   return problems;
 }
 
@@ -80,6 +132,11 @@ if (process.argv.includes('--selftest')) {
     ['clean tree', real, null],
     ['a new RPC the list does not name', plant('src/app/boot.js', "server.rpc('hr_vendor_sell', { p_item: 'ore', p_qty: 9 });"), 'IS-1'],
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
+    ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
+    ['an engine intent the pin does not name', plant('src/shell/windows/bag-act.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],
+    ['the builder grew a price field', { ...real, [EDGE]: real[EDGE].replace("shop_buy: Object.freeze(['offer', 'qty']),", "shop_buy: Object.freeze(['offer', 'qty', 'price']),") }, 'IS-5'],
+    ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  market_buy: Object.freeze(['listing', 'qty']),") }, 'IS-5'],
+    ['a pinned engine intent nobody sends', { ...real, 'src/shell/windows/bag-act.js': real['src/shell/windows/bag-act.js'].split("edgeIntent('eat'").join("edgeIntentX('eat'") }, 'IS-5'],
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],
     ['a table read through supabase-js', plant('src/app/boot.js', "client.from('player_state').select('*');"), 'IS-3'],
     ['an RPC through supabase-js', plant('src/app/boot.js', "client.rpc('hr_load', { p_slot: 0 });"), 'IS-3'],
@@ -100,4 +157,4 @@ if (process.argv.includes('--selftest')) {
 const problems = check(files());
 for (const p of problems) console.error('✗ ' + p);
 if (problems.length) process.exit(1);
-console.log(`✓ client-intent-surface: the client names ${Object.keys(CLIENT_RPCS).length} RPCs (${Object.keys(CLIENT_RPCS).join(', ')}), sends the edge its slot only, through one link`);
+console.log(`✓ client-intent-surface: the client names ${Object.keys(CLIENT_RPCS).length} RPCs (${Object.keys(CLIENT_RPCS).join(', ')}), sends the edge its slot or ${Object.keys(CLIENT_EDGE_INTENTS).length} pinned item intents (names and counts), through one link`);

@@ -262,6 +262,17 @@ async function runTests(mods) {
     eq(HUD.placeWidget({ anchor: 'mc', dx: 0, dy: 0 }, box, size), { left: 400, top: 275 }, 'mc');
     eq(HUD.placeWidget({ anchor: 'tc', dx: 0, dy: 0 }, { width: 150, height: 600 }, size), { left: 0, top: 0 }, 'too wide pins left');
   });
+  t('H9 a docked bottom bar of height h moves the World inset by h (and the dock adds its strip)', () => {
+    const box = { width: 1000, height: 600 };
+    const bar = (h) => ({ anchor: 'bc', rect: { left: 300, top: 600 - 8 - h, width: 400, height: h } });
+    const a = HUD.hudInsetOf([bar(82)], box, 0), b = HUD.hudInsetOf([bar(122)], box, 0);
+    eq(a.bottom, 90, 'the bar and its 8 px offset are covered');
+    eq(b.bottom - a.bottom, 40, 'a 40 px taller bar moves the inset by 40');
+    eq(HUD.hudInsetOf([], box, 0), { left: 0, right: 0, top: 0, bottom: 0 }, 'no widget, no inset');
+    const all = HUD.hudInsetOf([bar(82), { anchor: 'tc', rect: { left: 400, top: 8, width: 200, height: 40 } },
+      { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box, 420);
+    eq(all, { left: 262, right: 420, top: 48, bottom: 90 }, 'top bar, party, analyzer beside a wider dock');
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -312,6 +323,7 @@ const MUTANTS = [
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
+  { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
 ];

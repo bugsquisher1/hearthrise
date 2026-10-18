@@ -5,28 +5,28 @@
 //   node tests/world-hunt.mjs             the guard
 //   node tests/world-hunt.mjs --selftest  every planted defect must be caught
 //
-// The World pane's hunt (src/world/{choreo,hunt-scene,hunt-chrome}.js) is fed
+// The World pane's hunt (src/world/{choreo,hunt-scene}.js) is fed
 // by beats (src/world/beat.js: one per swing, a fight diff). These run the REAL
 // engine's attended tick (src/core/hunt/world-step.js stepSwing, the same code
 // the live tick calls) against the Mill Cellar map and assert the plan's
 // choreography and fences (world-slice-plan §2):
-//   RETIRED (lane S1): H1 ATTENDED, H4 NO ITEM NAME, H8 FACING and H9 BAG BESIDE drove the
-//      scene off the old client's world-less attended tick (stepSwing(null, …)), deleted with
-//      the single-foe engine; the new client plays the settle's track and events instead.
+//   RETIRED (lane S1): H1 ATTENDED and H8 FACING drove the scene off the old client's
+//      world-less attended tick (stepSwing(null, …)), deleted with the single-foe engine; the
+//      new client plays the settle's track and events instead. H4 and H9 survive, fed a fixed
+//      kill-beat stream (beats()) instead of that tick.
 //   H1 ATTENDED: at every swing, for tickMs 600..3600, the shown foe IS
 //      G.activeMonster and stands on a tile next to the hero — a training rat
 //      and the cellar hunt rolling rat/slime/wasp alike
 //   H2 KNOCKOUT: an envelope fight {slime, hp 3, kills 2} with a future
 //      recovering_until puts the hero down with zero floats, also when a swing
-//      is reported; a fall the server has not priced shows a pending mark and
-//      no clock
+//      is reported, and up again once it has passed
 //   H3 FOE SWAP: a foe the server swaps breaks off — it walks away fading,
 //      leaves no corpse and plays no death; a kill is read off the fight's own
 //      counter (state.fight's kills) or a foe change, never off G.stats
 //   H4 NO ITEM NAME: kills that dropped real items leave a generic loot bag;
-//      no dropped item's name is anywhere in the scene or the overlay
-//   H5 ANALYZER: the overlay's numbers are the settled Analyzer's, printed as
-//      sent, labelled "settled N s ago"; nothing settled is em-dashes, not 0
+//      no dropped item's name is anywhere in the scene
+//   (H5, the old overlay's Analyzer, retired 2026-10-17 with the overlay module:
+//      the hunt screen's analyzer is src/shell/widgets/analyzer.js, tests/hunt-screen.mjs HS-4)
 //   H6 CAMERA: the cellar at the one density (x2, never a fitted zoom); on each
 //      axis the room is centred with darkness around it when it fits and the
 //      camera follows the hero inside the room when it does not
@@ -50,8 +50,8 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
-  const [sim, rng, obs, scene, chrome, camera, mapc, maps, terrain, hunts, monsters, items, sets, bookm] = await Promise.all([
-    'src/core/combat-sim.js', 'src/core/rng.js', 'src/world/beat.js', 'src/world/hunt-scene.js', 'src/world/hunt-chrome.js',
+  const [sim, rng, obs, scene, camera, mapc, maps, terrain, hunts, monsters, items, sets, bookm] = await Promise.all([
+    'src/core/combat-sim.js', 'src/core/rng.js', 'src/world/beat.js', 'src/world/hunt-scene.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/data/world/maps/index.js', 'src/data/world/terrain.js',
     'src/data/hunts.js', 'src/data/monsters.js', 'src/data/items.js', 'src/data/world/atlas-sets.js', 'src/world/core/book.js',
   ].map(imp));
@@ -62,8 +62,24 @@ async function load(base) {
   const tables = { materials: terrain.MATERIALS, sprites, openClasses: terrain.OPEN_CLASSES, lights: terrain.LIGHTS };
   const row = maps.WORLD_MAPS.find((m) => m.id === 'mill_cellar');
   const src = (p) => readFileSync(join(base, p), 'utf8');
-  return { sim, rng, obs, scene, chrome, camera, map: mapc.compileMap(row, tables), row, hunts, MON: monsters.MONSTERS, ITEMS: items.ITEMS,
-    sources: { beat: src('src/world/beat.js'), choreo: src('src/world/choreo.js'), scene: src('src/world/hunt-scene.js'), chrome: src('src/world/hunt-chrome.js') } };
+  return { sim, rng, obs, scene, camera, map: mapc.compileMap(row, tables), row, hunts, MON: monsters.MONSTERS, ITEMS: items.ITEMS,
+    sources: { beat: src('src/world/beat.js'), choreo: src('src/world/choreo.js'), scene: src('src/world/hunt-scene.js') } };
+}
+
+/** Kill beats as the playback delivers them: every third swing kills a rat (a little faster than the
+ *  deleted attended fixture: 9 hp against max hit 5 at 80% took about four), the next steps in.
+ *  The scene is fed beats, never an engine tick (H7), so a fixed beat stream is the honest input. */
+function beats(M, o) {
+  const hp = M.MON[o.foe].hp;
+  const G = { activeMonster: o.foe, monsterHp: hp, monsterMaxHp: hp, combatKillsThisFoe: 0, playerHp: 30, playerMaxHp: 30, stats: {} };
+  let n = 0;
+  const tick = () => {
+    const killed = (n++ % 3) === 2;
+    const foeDmg = killed ? G.monsterHp : Math.max(1, Math.floor(hp / 3));
+    if (killed) { G.combatKillsThisFoe++; G.monsterHp = hp; } else G.monsterHp -= foeDmg;
+    return { at: 0, tickMs: o.tickMs, foe: o.foe, next: o.foe, killed, foeDmg, crit: false, miss: false, heroDmg: 0, downAfter: false };
+  };
+  return { G, tick };
 }
 
 const snapOf = (M, G, tickMs, down) => Object.assign(M.obs.fightOf(G), { tickMs, down: down || null });
@@ -89,10 +105,6 @@ function check(M) {
     ok('H2', st.hero.anim === 'down' && st2.hero.anim === 'down', 'knocked out, the hero must lie down (got ' + st.hero.anim + ', ' + st2.hero.anim + ')');
     ok('H2', st.floats.length === 0 && st2.floats.length === 0, 'knocked out, no floats may draw (got ' + st.floats.length + ', ' + st2.floats.length + ')');
     ok('H2', st.foe === 'slime', 'the carried foe stays the slime (' + st.foe + ')');
-    const m = M.chrome.hudModel({ analyzer: null, title: 'Mill Cellar', down: { phase: 'recovering', until }, now: t });
-    ok('H2', m.status && m.status.kind === 'down' && /1:30/.test(m.status.text), 'the knockout line must count down the SERVER\'s recovering_until (' + JSON.stringify(m.status) + ')');
-    const p = M.chrome.hudModel({ analyzer: null, title: 'Mill Cellar', down: { phase: 'pending', until: 0 }, now: t });
-    ok('H2', p.status && p.status.kind === 'pending' && !/\d/.test(p.status.text) && /whud-pending/.test(M.chrome.hudHtml(p)), 'an unpriced fall shows a pending mark, never a guessed clock (' + JSON.stringify(p.status) + ')');
     const after = sc.state(snapOf(M, G, 2400, { phase: 'recovering', until }), until + 1, 'Tyler');
     ok('H2', after.hero.anim !== 'down', 'past recovering_until the hero is back on his feet');
   }
@@ -123,15 +135,53 @@ function check(M) {
     ok('H3', notKill && !notKill.killed, 'G.stats.kills moving alone is not a kill the world may show');
   }
 
-  // H5 — the overlay prints the settled Analyzer, never its own count.
+  // H4 — loot bags, no item names. Driven by kill beats as the settle's events deliver them
+  // (the world-less attended tick that used to feed this is deleted with the single-foe engine).
   {
-    const now = Date.parse('2026-10-14T12:00:00Z');
-    const m = M.chrome.hudModel({ analyzer: { kills: 41, xp_per_h: 1180, loot_value: 96, profit_per_h: 212, settled_at: '2026-10-14T11:59:48Z' }, title: 'Mill Cellar', down: null, now });
-    const rows = Object.fromEntries(m.analyzer.rows);
-    ok('H5', rows.Kills === '41' && rows['XP / hour'] === '1,180' && rows['Loot value'] === '96 gp' && rows['Profit / hour'] === '+212 gp', 'the Analyzer rows must be the server\'s numbers as sent: ' + JSON.stringify(rows));
-    ok('H5', m.analyzer.honesty === 'settled 12 s ago', 'the honesty line must say how long ago it settled: ' + m.analyzer.honesty);
-    const e = M.chrome.hudModel({ analyzer: null, title: 'Mill Cellar', down: null, now });
-    ok('H5', e.analyzer.rows.every(([, v]) => v === '—') && e.analyzer.honesty === 'nothing settled yet', 'nothing settled is em-dashes, never zeroes: ' + JSON.stringify(e.analyzer));
+    const drops = M.MON.rat.drops.map((d) => d.id);
+    const names = [...new Set(drops.map((id) => M.ITEMS[id] && (M.ITEMS[id].name || M.ITEMS[id].n)).filter(Boolean))];
+    let k = 0;
+    const f = beats(M, { foe: 'rat', tickMs: 2400 });
+    const sc = newScene({ itemOf: () => names[k++ % names.length] });
+    let t = 1000, bagSeen = false;
+    const texts = [];
+    for (let i = 0; i < 60; i++) {
+      const b = f.tick();
+      b.at = t; sc.beat(b);
+      const st = sc.state(snapOf(M, f.G, 2400), t + 50, 'Tyler');
+      if (st.units.some((u) => u.id === 'loot_bag')) bagSeen = true;
+      for (const u of st.units.concat([st.hero])) if (u.plate) texts.push(u.plate.text);
+      for (const fl of st.floats) texts.push(fl.text);
+      t += 2400;
+    }
+    ok('H4', names.length >= 2, 'the fixture must name real drops (' + names.join(', ') + ')');
+    ok('H4', bagSeen, 'a kill must leave a generic loot bag');
+    const leak = names.filter((n) => texts.some((x) => x.includes(n)));
+    ok('H4', !leak.length, 'an item was named before its settled receipt: ' + leak.join(', '));
+  }
+
+  // H9 — the loot bag lands beside the body, never on it (a bag on a corpse vanishes into it).
+  for (const tickMs of [900, 2400]) {
+    const f = beats(M, { foe: 'rat', tickMs });
+    const sc = newScene();
+    let t = 1000, kills = 0, bad = null;
+    for (let i = 0; i < 80 && !bad; i++) {
+      const b = f.tick();
+      b.at = t; sc.beat(b);
+      if (b.killed) {
+        kills++;
+        const st = sc.state(snapOf(M, f.G, tickMs), t + 20, 'Tyler');
+        const tile = (u) => Math.round(u.x) + ',' + Math.round(u.y);
+        const bodies = st.units.filter((u) => u.anim === 'death' || u.anim === 'corpse');
+        const bags = st.units.filter((u) => u.id === 'loot_bag');
+        const fresh = bodies.find((u) => u.anim === 'death' && u.age <= 20);
+        if (bags.some((g) => bodies.some((c) => tile(c) === tile(g)))) bad = 'kill ' + kills + ': a bag lies on a body at ' + bags.map(tile).join(' ');
+        else if (!fresh || !bags.some((g) => near(g, { x: Math.round(fresh.x), y: Math.round(fresh.y) }))) bad = 'kill ' + kills + ': no bag on a tile beside the new body';
+      }
+      t += tickMs;
+    }
+    ok('H9', !bad, 'tickMs ' + tickMs + ': ' + bad);
+    ok('H9', kills >= 5, 'tickMs ' + tickMs + ': the bag fixture killed only ' + kills + ' times');
   }
 
   // H6 — the cellar at the one density: centred when it fits, followed when it does not.
@@ -174,7 +224,8 @@ const MUTANTS = [
   ['H2', 'floats drawn while knocked out', 'src/world/choreo.js', [['floats: down ? [] : floats.map(', 'floats: floats.map('], ['const quiet = down || b.downAfter;', 'const quiet = false;']]],
   ['H3', 'a swap kills the shown foe', 'src/world/choreo.js', [['else if (foe.id !== f.foe) { breakOff(t);', 'else if (foe.id !== f.foe) { kill({ tickMs: 0, next: null }, t);']]],
   ['H3', 'kills read off the G.stats residue', 'src/world/beat.js', [['kills: n(g.combatKillsThisFoe),', 'kills: n(g.stats && g.stats.kills),']]],
-  ['H5', 'nothing settled reads as zero', 'src/world/hunt-chrome.js', [['const num = (v) => (v != null && Number.isFinite(Number(v))', 'const num = (v) => (Number.isFinite(Number(v))']]],
+  ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
+  ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H6', 'a room that fits is pinned to its corner, not centred', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo;']]],
   ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    c = Math.min(hi - u, Math.max(lo, c));\n', '']]],
   ['H7', 'the scene rolls its own swing', 'src/world/hunt-scene.js', [['    beat(b) { ch.beat(b, b.at); },', '    beat(b) { ch.beat(b, b.at); },\n    roll(r) { return rollAttack(r, 1, 2); },']]],
@@ -228,5 +279,5 @@ else {
   const fails = check(await load(ROOT));
   for (const f of fails) console.log('  ✗ ' + f.id + '  ' + f.msg);
   if (fails.length) { console.log('world-hunt: ' + fails.length + ' failure(s)'); process.exit(1); }
-  console.log('world-hunt: green — knockout, foe swap, settled Analyzer, room camera, one engine');
+  console.log('world-hunt: green — knockout, foe swap, no item names, room camera, one engine, bags beside the body');
 }

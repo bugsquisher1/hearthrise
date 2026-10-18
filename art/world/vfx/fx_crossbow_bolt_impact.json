@@ -1,0 +1,30 @@
+{
+  "id": "fx_crossbow_bolt_impact",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_crossbow_bolt_impact.png",
+  "frame": [
+    23,
+    20
+  ],
+  "anchor_px": [
+    10,
+    10
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 16,
+      "loop": false,
+      "dirs": {
+        "s": 5
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/crossbow_bolt_impact by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

@@ -1,0 +1,29 @@
+{
+  "id": "fx_hunters_mark",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_hunters_mark.png",
+  "frame": [
+    22,
+    10
+  ],
+  "anchor_px": [
+    11,
+    5
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/hunters_mark by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

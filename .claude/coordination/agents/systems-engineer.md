@@ -4107,6 +4107,13 @@ activity bar and the topbar.
 5. B353-3, B353-3b and the emoji-as-icon "home DIV" red reproduce ALONE in a scratch harness boot on
    origin/main too: runner context (run-smoke's page setup), not lane regressions.
 
+## 2026-10-18 — alpha windows (lane/alpha-windows)
+1. *Shell events are opt-in per renderer (`.events`).* Routing keydown/contextmenu/drag to every `.act` would have let a keypress on the bar's stance button send an intent (its act treats any non-change event on a button as a press).
+2. *A `position: fixed` popover inside a window that slid in with a filled transform animation is placed against the WINDOW*, and focusing it scrolled the stage sideways. Menus and tooltips float at page level (float-menu.js, item-tip.js).
+3. *A full envelope REPLACES the residue from `client_state`.* A stub server that does not echo `hr_put_client_state` makes display state look lost on the next envelope; page-test stubs echo it like the server does.
+4. *Python `open(...,'w')` on Windows writes CRLF.* Mutant anchors with `\n` then report "anchor not found"; normalise to LF before proving.
+5. *Data conflict found, not mine:* items.js weaponType (sword/hammer/ranged/magic) never matches hunt-roles WEAPON_ROLES keys, so no catalogue weapon yields a role (CONFLICTS 2026-10-18 #6).
+
 ## 2026-10-17 — client reset (lane/w1-client-reset)
 1. *Delete the client, keep the server guards honest.* About 60 guards read the old client; each was retired with a one-line reason (its surface is gone) or re-pointed at the new seam (envelope.js, residue.js, server.js, play.html). No server or money guard was loosened; the edge payload hash did not move.
 2. *Edge-bundled data files are frozen by the payload hash.* Editing a header comment in `src/data/shops.js` changes the deployed sha. Generator inputs that lived in legacy.js moved to a new non-bundled file (`src/data/homestead-tiers.js`).
@@ -4155,3 +4162,20 @@ companions/pets/BotD/night plan/enchant/Stonemason and the Auto-Eat surface; leg
 5. *Crossings found, not fixed (not mine):* accrue.js still refuses to arm inventory authority
    without `window.DUNGEONS` (C2); D2 left gear items with no recipe (b243/b247/LUCKY-7) and
    `bone_key`/`oak_rod` unclassified in item-authority.
+
+
+## 2026-10-18 — lane/hunt-scene: the hunt lives in the World pane
+
+src/hunt-view/scene.js plays the character's timeline; 8-facing pipeline (FACINGS); vfx class + set;
+guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
+
+1. *A new subscriber to a shared timeline is an ordering hazard.* The World now advances the
+   timeline from its first frame, so the combat log (subscribed after the World booted) missed
+   the first events. hunt-screen HS-6 caught it; the log now subscribes before the World boots.
+2. *Make animation a function of time and the server's data, never of frames drawn.* The walk
+   frame comes from an odometer stored on each track step and effects start at clientAt(atMs);
+   the 30-vs-144 fps rule then compares whole frames byte for byte.
+3. *Python text-mode writes on Windows turn LF into CRLF.* Mutant anchors stopped matching; edit
+   repo files with node or the Edit tool.
+4. *A scene that reads the snapshot lazily stays right under any caller.* Events delivered by the
+   shell's display tick were staged against an empty read until the scene pulled readHunt itself.

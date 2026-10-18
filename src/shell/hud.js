@@ -94,6 +94,31 @@ export function placeWidget(L, box, size) {
 }
 
 /**
+ * The World edges the docked HUD widgets cover, so the camera frames the
+ * playable area above and beside them (the bottom bar must not sit over the
+ * bottom row of a hunt). Each widget is { anchor, rect } in the World box's
+ * px: a bottom-anchored widget covers `bottom` up to its top edge; a top-centre
+ * one covers `top` down to its bottom edge; a side-anchored one covers that
+ * side to its inner edge. `right` starts from the docked windows' strip.
+ * @param {{anchor:string, rect:{left:number, top:number, width:number, height:number}}[]} widgets
+ * @param {{width:number, height:number}} box
+ * @param {number} [windowsRight]
+ */
+export function hudInsetOf(widgets, box, windowsRight) {
+  const out = { left: 0, right: Math.max(0, windowsRight || 0), top: 0, bottom: 0 };
+  for (const w of widgets) {
+    const v = w.anchor[0], h = w.anchor[1], r = w.rect;
+    if (!(r.width > 0 && r.height > 0)) continue;
+    if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);
+    else if (v === 't' && h === 'c') out.top = Math.max(out.top, r.top + r.height);
+    else if (h === 'l') out.left = Math.max(out.left, r.left + r.width);
+    else if (h === 'r') out.right = Math.max(out.right, box.width - r.left);
+  }
+  for (const k of Object.keys(out)) out[k] = Math.round(Math.max(0, Math.min(out[k], k === 'left' || k === 'right' ? box.width : box.height)));
+  return out;
+}
+
+/**
  * The residue adapter for ONE character: reads its record's `hudLayout` and
  * writes through CharacterSession.setResidue (which persists it, debounced).
  * Display-only by contract.

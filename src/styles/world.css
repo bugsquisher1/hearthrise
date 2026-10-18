@@ -60,7 +60,7 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--line-soft);
   background: var(--world-void);
@@ -86,97 +86,6 @@
 }
 
 #panel-world .world-stage.is-hot { cursor: pointer; }
-
-/* ── The hunt overlay (src/world/hunt-chrome.js): the settled Analyzer top-left,
-   the knockout line, and Eat / Leave Hunt along the bottom. ── */
-#panel-world .world-hud { position: absolute; inset: 0; pointer-events: none; }
-#panel-world .world-hud[hidden] { display: none; }
-
-#panel-world .whud-analyzer {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  min-width: 210px;
-  padding: 10px 14px 8px;
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: var(--world-hud-bg);
-  color: var(--ink-2);
-  font-family: var(--f-ui);
-  font-size: calc(13px * var(--ui-scale, 1));
-  pointer-events: auto;
-}
-
-#panel-world .whud-title {
-  margin: 0 0 6px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--line-soft);
-  font-family: var(--f-display);
-  font-size: calc(15px * var(--ui-scale, 1));
-  color: var(--gold-2);
-}
-
-#panel-world .whud-rows { margin: 0; }
-#panel-world .whud-row { display: flex; justify-content: space-between; gap: 18px; padding: 2px 0; }
-#panel-world .whud-row dt { margin: 0; }
-#panel-world .whud-row dd { margin: 0; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-#panel-world .whud-honesty { margin: 6px 0 0; font-size: calc(11.5px * var(--ui-scale, 1)); color: var(--ink-3); }
-
-#panel-world .whud-status {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 6px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 99px;
-  background: var(--world-hud-bg);
-  color: var(--ink);
-  font-family: var(--f-ui);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-#panel-world .whud-pending {
-  display: inline-block;
-  width: .8em;
-  height: .8em;
-  margin-right: 8px;
-  border: 2px solid var(--ink-3);
-  border-top-color: transparent;
-  border-radius: 50%;
-  vertical-align: -1px;
-  animation: whud-spin 1s linear infinite;
-}
-@keyframes whud-spin { to { transform: rotate(360deg); } }
-
-#panel-world .whud-actions {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 14px;
-  pointer-events: auto;
-}
-
-#panel-world .whud-btn {
-  min-width: 150px;
-  min-height: 40px;
-  padding: 6px 18px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--world-hud-bg);
-  color: var(--ink);
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: calc(14.5px * var(--ui-scale, 1));
-  cursor: pointer;
-}
-#panel-world .whud-btn:hover { color: var(--gold-2); }
-#panel-world .whud-btn.is-leave { border-color: var(--red); }
-
 /* A fight the World has no map for: one slim line along the foot of the town or
    home, clear of the plaza, the crier and the names along the top. */
 #panel-world .world-idle {
@@ -221,11 +130,4 @@
   #panel-world .world-scene { min-height: var(--tap); min-width: 64px; padding: 2px 10px; }
   #panel-world .world-idle { bottom: 4px; gap: 8px; padding: 2px 4px 2px 10px; font-size: 11px; }
   #panel-world .world-idle-go { min-height: var(--tap); padding: 2px 10px; font-size: 11px; }
-  #panel-world .whud-analyzer { top: 4px; left: 4px; min-width: 0; padding: 4px 8px; font-size: 11px; }
-  #panel-world .whud-title { display: none; }
-  #panel-world .whud-row { gap: 10px; padding: 0; }
-  #panel-world .whud-honesty { margin-top: 2px; font-size: 10px; }
-  #panel-world .whud-status { top: 4px; padding: 3px 10px; font-size: 11px; }
-  #panel-world .whud-actions { bottom: 4px; gap: 8px; }
-  #panel-world .whud-btn { min-width: 96px; min-height: var(--tap); padding: 2px 10px; font-size: 12px; }
 }

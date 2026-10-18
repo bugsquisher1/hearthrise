@@ -12,6 +12,7 @@
 
 import { worldViewOf } from './world-view.js?v=0.1.0';
 import { mountShell } from '../shell/shell.js?v=0.1.0';
+import { logFor } from '../hunt-view/combat-log.js?v=0.1.0';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -26,6 +27,8 @@ const PANE_HTML = '<div class="world-chrome">'
  * @param {object} character            a CharacterSession (status 'ready')
  * @param {object} [o]
  * @param {HTMLElement} [o.screen]      the whole-screen box for the shell's screen widgets
+ * @param {() => object[]} [o.peers]    the account's open characters (hunt prep, the item finder)
+ * @param {object} [o.account]          the AccountSession
  * @returns {Promise<{runtime: object|null, shell: object, destroy(): void}>}
  */
 export async function mountWorldPane(host, character, o) {
@@ -43,10 +46,14 @@ export async function mountWorldPane(host, character, o) {
   const scratch = { choice: 'town' };
   const view = () => worldViewOf(character.record, scratch);
 
+  /* The combat log listens to the character's timeline from the start, so no line is missed while its
+     window is shut: BEFORE the World boots, because the World plays the timeline from its first frame. */
+  logFor(character);
+
   let runtime = null;
   try {
     const { bootWorld } = await import('../world/world-boot.js?v=0.1.0');
-    runtime = await bootWorld(pane, { view });
+    runtime = await bootWorld(pane, { view, character });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);
@@ -54,7 +61,8 @@ export async function mountWorldPane(host, character, o) {
     if (s) s.textContent = 'The world could not load. Reload the page to try again.';
   }
 
-  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt: () => !!view()._huntId });
+  const inHunt = () => !!character.read('hunt') || !!view()._huntId;
+  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account });
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
   const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
 

@@ -10,11 +10,24 @@
 // another; a body re-renders on refresh(id). The World never pauses: windows
 // are not modal and have no backdrop.
 //
-// THE CAMERA INSET: every change to the covered right-edge rect is handed to
-// onInset(fn) subscribers and dispatched as `hearthrise:shell-inset` on the
-// host, so the World can call its engine's setInset({right}) and keep the hero
-// and the target in the uncovered part. World-layer widgets centre in the same
-// uncovered rect.
+// THE CAMERA INSET: every change to the World edges the shell covers — the
+// docked windows' right strip AND each docked HUD widget's edge (the bottom
+// bar, the top bar, the side panels; hud.js hudInsetOf) — is handed to
+// onInset(fn) subscribers as {left, right, top, bottom} and dispatched as
+// `hearthrise:shell-inset` on the host, so the World calls its engine's
+// setInset and frames the hero and the target in the uncovered part.
+// World-layer widgets centre beside the docked windows.
+//
+// COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
+// BUILT ONCE (its HTML is the skeleton, written when the box is created) and
+// then only patched in place (src/render/paint.js): on every envelope, and at
+// DISPLAY_TICK_MS for clocks and the timeline. `.act(ctx, el, action, ev)`
+// receives the box's [data-hs-act] clicks and changes. A renderer that lists
+// more DOM events in `.events` (input, keydown, contextmenu, the pointer and
+// drag events, mouseover) gets those too, and only those: a renderer that did
+// not ask never sees a keydown. An act that returns true has consumed the
+// event (it is not passed on to the window keys or the World). A plain
+// renderer keeps the old contract (its HTML replaces the box when it differs).
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
@@ -22,10 +35,16 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.1.0';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.1.0';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.1.0';
 import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.1.0';
-import { createHud, residueStore, placeWidget } from './hud.js?v=0.1.0';
+import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.1.0';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.1.0';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.1.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
+
+/* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
+const DISPLAY_TICK_MS = 250;
+/* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
+const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
+  'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it
@@ -33,6 +52,8 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
  * @param {object} o.character   the CharacterSession this shell belongs to (its HUD layout is that character's residue)
  * @param {HTMLElement} [o.screen]    the whole-screen box (strip included) for screen widgets; default body
  * @param {() => boolean} [o.inHunt]   true while a hunt runs ('hunt' widgets)
+ * @param {() => object[]} [o.peers]   every CharacterSession this account has open (hunt prep reads each one)
+ * @param {object} [o.account]         the AccountSession (the item finder's account-wide read)
  * @param {Window} [o.host]            defaults to window
  */
 export function mountShell(root, o) {
@@ -71,7 +92,14 @@ export function mountShell(root, o) {
     inHunt: opts.inHunt,
   });
   const insetListeners = new Set();
-  const ctx = { wm, hud, refresh, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null };
+  const ctx = {
+    wm, hud, refresh, doc, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null,
+    peers: () => (opts.peers ? opts.peers() : (opts.character ? [opts.character] : [])),
+    account: opts.account || null,
+    isPhone: () => phoneMq.matches,
+    now: () => host.performance.now(),
+    show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },
+  };
 
   /* ── Windows, reconciled by id ── */
   function frame(row) {
@@ -90,7 +118,11 @@ export function mountShell(root, o) {
   function refresh(id) {
     const el = layer.querySelector('[data-hs-win="' + id + '"]');
     const render = WINDOW_RENDERERS[id];
-    if (el && render) el.querySelector('[data-hs-body]').innerHTML = render(ctx);
+    if (!el || !render) return;
+    const body = el.querySelector('[data-hs-body]');
+    if (!render.patch) { body.innerHTML = render(ctx); return; }
+    if (!body.hasAttribute('data-hs-built')) { body.innerHTML = render(ctx); body.setAttribute('data-hs-built', ''); }
+    render.patch(body, ctx);
   }
 
   function paintWindows() {
@@ -119,14 +151,16 @@ export function mountShell(root, o) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
       if (!hud.isShown(row.id)) { if (el) el.remove(); continue; }
+      const render = WIDGET_RENDERERS[row.id];
       if (!el) {
         el = doc.createElement('div');
         el.className = 'hs-widget is-' + row.id;
         el.setAttribute('data-hs-widget', row.id);
         box.appendChild(el);
+        if (render.patch) el.innerHTML = render(ctx);
       }
-      const html = WIDGET_RENDERERS[row.id](ctx);
-      if (el.innerHTML !== html) el.innerHTML = html;
+      if (render.patch) render.patch(el, ctx);
+      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
       el.style.minWidth = row.min[0] + 'px';
@@ -148,21 +182,78 @@ export function mountShell(root, o) {
         if (hit && hit.right + DOCK_EDGE + r.width <= b.right) e.style.left = Math.round(hit.right - b.left + DOCK_EDGE) + 'px';
       }
     }
+    publishInset();
   }
 
-  function onWm(ev) {
+  /* The World edges the docked windows AND the docked HUD widgets cover ({left, right, top, bottom}),
+     published only when they change, so the camera frames the playable area beside them. */
+  let lastInset = '';
+  function insetNow() {
+    const b = shell.getBoundingClientRect();
+    const widgets = [];
+    for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
+      const r = el.getBoundingClientRect();
+      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left: r.left - b.left, top: r.top - b.top, width: r.width, height: r.height } });
+    }
+    return hudInsetOf(widgets, { width: b.width, height: b.height }, wm.inset().right);
+  }
+  function publishInset() {
+    const inset = insetNow();
+    const sig = JSON.stringify(inset);
+    if (sig === lastInset) return;
+    lastInset = sig;
+    for (const fn of insetListeners) fn(inset);
+    host.dispatchEvent(new host.CustomEvent('hearthrise:shell-inset', { detail: inset }));
+  }
+  function onWm() {
     paintWindows();
     paintWidgets();
-    if (!ev.insetChanged) return;
-    for (const fn of insetListeners) fn(ev.inset);
-    host.dispatchEvent(new host.CustomEvent('hearthrise:shell-inset', { detail: ev.inset }));
   }
   const offWm = wm.subscribe(onWm);
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
   const offHud = hud.subscribe((id) => { paintWidgets(); if (id === null) for (const w of wm.openIds()) refresh(w); });
 
+  /* The display tick: components patch their clocks and play the timeline's due events. */
+  function patchComponents() {
+    if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
+    for (const row of hud.rows()) {
+      const render = WIDGET_RENDERERS[row.id];
+      const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');
+      if (el) render.patch(el, ctx);
+    }
+    for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id);
+  }
+  const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);
+
+  /* A component's own control: [data-hs-act] inside a widget or a window body. */
+  function onAct(e) {
+    const t = e.target.closest('[data-hs-act]');
+    if (!t) return false;
+    const box = t.closest('[data-hs-widget],[data-hs-win]');
+    if (!box) return false;
+    const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
+    const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
+    if (!render || !render.act) return false;
+    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
+    render.act(ctx, where, t.getAttribute('data-hs-act'), e, t);
+    return true;
+  }
+
+  /* Opt-in events: routed only to a renderer whose `.events` names the type. */
+  function onExtra(e) {
+    const t = e.target && e.target.closest ? e.target.closest('[data-hs-act]') : null;
+    const box = t && t.closest('[data-hs-widget],[data-hs-win]');
+    if (!box) return;
+    const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
+    const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
+    if (!render || !render.act || !Array.isArray(render.events) || !render.events.includes(e.type)) return;
+    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
+    if (render.act(ctx, where, t.getAttribute('data-hs-act'), e, t) === true) { e.preventDefault(); e.stopPropagation(); }
+  }
+
   /* ── Input ── */
   function onClick(e) {
+    if (onAct(e)) return;
     const t = e.target.closest('[data-hs-open],[data-hs-close],[data-hs-wreset]');
     if (!t) return;
     if (t.hasAttribute('data-hs-open')) wm.toggle(t.getAttribute('data-hs-open'));
@@ -172,6 +263,7 @@ export function mountShell(root, o) {
   /* A range reports on `input` (live), a checkbox on `change`: one write per gesture. */
   function onInput(e) {
     const t = e.target;
+    if (e.type === 'change' && t.hasAttribute('data-hs-act')) { onAct(e); return; }
     if (t.hasAttribute('data-hs-wop') && e.type === 'input') {
       hud.setOpacity(t.getAttribute('data-hs-wop'), Number(t.value) / 100);
       const pct = t.nextElementSibling;
@@ -201,6 +293,7 @@ export function mountShell(root, o) {
 
   shell.addEventListener('click', onClick);
   screen.addEventListener('click', onClick);
+  for (const type of EXTRA_EVENTS) { shell.addEventListener(type, onExtra); screen.addEventListener(type, onExtra); }
   shell.addEventListener('input', onInput);
   shell.addEventListener('change', onInput);
   layer.addEventListener('pointerdown', onPointerDown);
@@ -215,12 +308,13 @@ export function mountShell(root, o) {
     close: (id) => wm.close(id),
     toggle: (id) => wm.toggle(id),
     refresh,
-    /** Repaint the widgets (the cutover calls this when the envelope moves what they show). */
-    paint: paintWidgets,
-    inset: () => wm.inset(),
+    /** Repaint the widgets and patch the open component windows (every applied envelope). */
+    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
+    inset: () => insetNow(),
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
     destroy() {
       offWm(); offHud();
+      host.clearInterval(ticker);
       doc.removeEventListener('keydown', onKey);
       phoneMq.removeEventListener('change', onSizeClass);
       host.removeEventListener('resize', onResize);

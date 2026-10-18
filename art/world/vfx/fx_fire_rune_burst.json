@@ -1,0 +1,30 @@
+{
+  "id": "fx_fire_rune_burst",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_fire_rune_burst.png",
+  "frame": [
+    56,
+    30
+  ],
+  "anchor_px": [
+    28,
+    15
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 9,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/fire_rune_burst by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

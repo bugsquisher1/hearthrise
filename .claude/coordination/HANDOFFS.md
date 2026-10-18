@@ -3335,6 +3335,15 @@ re-lock. (4) At the cutover the iron 9-slices (prototypes/world-shell/samples/ma
 docs/PIXELLAB_WORKFLOW.md §5 is the exact batch (R0 preflight, R1 south walk, R2 diagonals, R3 rat and slime
 readability, R4 loot bag; about 30–90 generations, most in R3). The edit-first rows are free. NOW-10 needs a yes:
 hide the action bar in town on the phone (WORLD_SHELL §2 says `when: always`); it takes 21% of the phone there.
+
+## 2026-10-18 art-director → asset-director: hunt HUD emblem medallion
+The bottom bar's hearth emblem (src/shell/widgets/action-bar.js .hb-emblem) is a CSS circle with a 3 px gold
+border, the last web mark on the HUD. Wanted: a 32x32 art-px (64 px at x2) pixel medallion in the iron ramp with
+a gold rim, lit upper-left, hollow centre for the level number; in assets/ui/ beside frame-iron*.png.
+
+## 2026-10-18 asset-director: DONE hunt HUD emblem and the six held sprites
+assets/ui/emblem-hearth.png (32x32 art px, drawn by tools/make-hud-emblem.mjs from the iron/bronze/gold ramps, lit upper-left, hollow centre) replaces the CSS circle in src/styles/hunt.css (x2 desktop, x1 on the phone). Druid is now the healer default. The six HELD units are re-cut in tools/world-art/port-hunt-sim.mjs (druid/kobold stretched 2-3 waist rows, strips read clean in art/review/held-sprites; rat, slime, spider at full 48 px art in the new `vermin` class, the bat in `vermin_flier`).
+
 ## 2026-10-18 · game-designer -> asset-director · the sewer atlas (lane/sewer-content)
 src/data/world/maps/millrace_sewer.js is the sim's walkable grid (60x40) on the shipped cellar kit: water draws
 as the void (material `sewage`, flat), nests are straw + bones, the bridge is bare flagstone. Build

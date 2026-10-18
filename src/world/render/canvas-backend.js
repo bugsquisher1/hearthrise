@@ -27,6 +27,7 @@ import { paintStub } from '../stub-atlas.js?v=0.1.0';
 
 const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
+const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
@@ -92,6 +93,89 @@ export function createCanvasBackend(o) {
     if (d.kind === 'void') { g.fillStyle = tone('void'); g.fillRect(d.x - view.ox, d.y - view.oy, d.w, d.h); return; }
     const s = source(d);
     g.drawImage(s.img, s.sx, s.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
+  }
+
+  /* THE TWO UNIT VARIANTS of an atlas, built once per set on first use: `flash`, the
+     silhouette in --world-flash (a hit), and `corpse`, each pixel's lightness laid onto
+     the --world-corpse-0..4 ramp (VW-05). Both are palette colours from tokens, so the
+     art never leaves the palette; neither is ever smoothed. */
+  const variants = new Map();
+  function variant(set, kind) {
+    const key = set + ':' + kind;
+    if (variants.has(key)) return variants.get(key);
+    const img = images[set];
+    let c = null;
+    if (img) {
+      c = doc.createElement('canvas');
+      c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+      const v = c.getContext('2d');
+      v.imageSmoothingEnabled = false;
+      v.drawImage(img, 0, 0);
+      if (kind === 'flash') {
+        v.globalCompositeOperation = 'source-in';
+        v.fillStyle = tone('flash');
+        v.fillRect(0, 0, c.width, c.height);
+      } else {
+        const ramp = [0, 1, 2, 3, 4].map((i) => rgbOf(tone('corpse-' + i)));
+        const px = v.getImageData(0, 0, c.width, c.height);
+        const a = px.data;
+        for (let i = 0; i < a.length; i += 4) {
+          if (!a[i + 3]) continue;
+          const L = (a[i] * 299 + a[i + 1] * 587 + a[i + 2] * 114) / 255000;
+          const r = ramp[Math.min(ramp.length - 1, Math.floor(L * ramp.length))];
+          a[i] = r[0]; a[i + 1] = r[1]; a[i + 2] = r[2];
+        }
+        v.putImageData(px, 0, 0);
+      }
+    }
+    variants.set(key, c);
+    return c;
+  }
+  /* A token's colour as [r, g, b]: the browser parses it, so any CSS colour form works. */
+  function rgbOf(value) {
+    const c = doc.createElement('canvas');
+    c.width = c.height = 1;
+    const g = c.getContext('2d');
+    g.fillStyle = value || 'transparent';
+    g.fillRect(0, 0, 1, 1);
+    const d = g.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  }
+
+  /* A unit: its colour frame, crossfaded to its corpse tone by `grey`, or its hit flash. */
+  function blitUnit(g, d, view) {
+    const base = d.alpha == null ? 1 : d.alpha;
+    const alt = d.set ? (d.flash ? variant(d.set, 'flash') : variant(d.set, 'corpse')) : null;
+    if (!alt) { g.globalAlpha = base; blit(g, d, view); return; }
+    if (d.flash) {
+      /* the frame, then its silhouette over it: bright, with the shape still readable */
+      g.globalAlpha = base; blit(g, d, view);
+      g.globalAlpha = base * FLASH_ALPHA;
+      g.drawImage(alt, d.sx, d.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
+      return;
+    }
+    if (d.grey < 1) { g.globalAlpha = base * (1 - d.grey); blit(g, d, view); }
+    g.globalAlpha = base * d.grey;
+    g.drawImage(alt, d.sx, d.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
+  }
+
+  /* EFFECTS, after the light (a spell is its own light): at the anchor, rotated for a
+     projectile, additively when the manifest says so. Art resolution, no smoothing. */
+  function effects(g, list, view) {
+    for (const e of list.fx || []) {
+      if (!e.set || !images[e.set]) continue;
+      g.globalCompositeOperation = e.blend === 'add' ? 'lighter' : 'source-over';
+      if (e.angle) {
+        g.save();
+        g.translate(e.cx - view.ox, e.cy - view.oy);
+        g.rotate(e.angle);
+        g.drawImage(images[e.set], e.sx, e.sy, e.w, e.h, -e.ax, -e.ay, e.w, e.h);
+        g.restore();
+      } else {
+        g.drawImage(images[e.set], e.sx, e.sy, e.w, e.h, e.x - view.ox, e.y - view.oy, e.w, e.h);
+      }
+    }
+    g.globalCompositeOperation = 'source-over';
   }
 
   function shadows(g, list, view) {
@@ -177,17 +261,35 @@ export function createCanvasBackend(o) {
     for (const b of list.bars || []) {
       const [x, y] = at(b.x - b.w / 2, b.y);
       const w = b.w * z, h = Math.max(3, Math.round(1.5 * z));
+      const mh = b.mana == null ? 0 : Math.max(2, Math.round(0.75 * z));
       ctx.fillStyle = tone('bar-back');
-      ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-      ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : 'bar-foe');
+      ctx.fillRect(x - 1, y - 1, w + 2, h + 2 + (mh ? mh + 1 : 0));
+      ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : b.kind === 'foe' ? 'bar-foe' : 'bar-' + b.kind);
       ctx.fillRect(x, y, Math.round(w * b.pct), h);
+      if (mh) { ctx.fillStyle = tone('bar-mana'); ctx.fillRect(x, y + h + 1, Math.round(w * b.mana), mh); }
+    }
+    /* VW-08: a bleed badge with its stack count, right of the bar. */
+    for (const k of list.badges || []) {
+      const [x, y] = at(k.x, k.y);
+      const px = Math.max(Math.round(4.5 * z), Math.round(11 * dpr));
+      ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
+      const text = '×' + k.n, w = Math.ceil(ctx.measureText(text).width) + Math.round(px * 0.6), h = px + 2;
+      ctx.fillStyle = tone('bar-back');
+      ctx.fillRect(x - 1, y - h - 1, w + 2, h + 2);
+      ctx.fillStyle = tone('bleed');
+      ctx.fillRect(x, y - h, w, h);
+      ctx.fillStyle = tone('bleed-ink');
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + w / 2, y - h / 2);
     }
     const font = (k) => Math.max(Math.round(k * z), Math.round(12 * dpr));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.lineJoin = 'round';
     for (const f of list.floats || []) {
-      const px = Math.max(Math.round((f.kind === 'kill' ? 9 : 8) * z), Math.round((f.kind === 'kill' ? 20 : 16) * dpr));
+      const big = f.kind === 'kill' || f.big;
+      const px = Math.max(Math.round((big ? 9 : 8) * z), Math.round((big ? 20 : 16) * dpr));
       ctx.font = '800 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
       ctx.lineWidth = Math.max(2, Math.round(px / 5));
       ctx.globalAlpha = f.alpha;
@@ -285,11 +387,15 @@ export function createCanvasBackend(o) {
     }
     for (const d of list.decals) blit(g, d, view);
     shadows(g, list, view);
-    for (const d of list.sprites) { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }
+    for (const d of list.sprites) {
+      if (d.kind === 'unit' && (d.flash || d.grey)) blitUnit(g, d, view);
+      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }
+    }
     g.globalAlpha = 1;
     for (const d of list.raised) { g.globalAlpha = d.alpha; blit(g, d, view); }
     g.globalAlpha = 1;
     light(g, list, view, fv);
+    effects(g, list, view);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(comp.c, plan.dx, plan.dy, view.w * z, view.h * z);

@@ -237,7 +237,7 @@ jobs:
       # screen, the World pane + shell for a character, a second character
       # beside it, sign-out clearing every session copy, the reset link and the
       # closed-game notice; plus the static notice page at /. --mutate plants
-      # five defects and requires each to go red.
+      # six defects (one: the hunt panels never mount) and requires each to go red.
       - name: Client boot (play.html, index.html)
         if: ${{ !cancelled() }}
         run: |
@@ -245,6 +245,30 @@ jobs:
           node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
           node tests/client-boot.mjs --mutate
+
+      # THE HUNT SCREEN'S PANELS (2026-10-17, week plan steps 10-14): the party
+      # board, analyzer, bottom bar, settings editor, combat log and Settings on
+      # the fixture envelope. Built once and patched in place; edits are intents
+      # with the controls off until the server confirms; the analyzer shows only
+      # the server's section and only for premium; the bleed badge defaults;
+      # each log line once. --mutate plants ten defects; HS-7 is the bar slot editor.
+      - name: Hunt screen panels (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen.mjs
+          node tests/hunt-screen.mjs --mutate
+
+      # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
+      # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
+      # patched in place; the server's counts win; every action one intent with
+      # its controls off until the server answers; a locked stack never reaches
+      # a bulk sale; a sale and the one-tap refill show their total first; the
+      # new sections missing fail safe. --mutate plants nine defects.
+      - name: Alpha windows (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/alpha-windows.mjs
+          node tests/alpha-windows.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -3412,6 +3436,25 @@ jobs:
         run: |
           node tests/session-core.mjs
           node tests/session-core.mjs --mutate
+
+      # The hunt screen's pure rules: the visual timeline (events once, a new
+      # envelope never restarts an animation, gaps hold, poses are walked to),
+      # sections replace, roles from weapons, float defaults, intents only.
+      - name: Hunt view core
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-view-core.mjs
+          node tests/hunt-view-core.mjs --mutate
+
+      # The live hunt in the World pane: a new envelope never restarts an
+      # animation, each event plays once, units stay inside their track, the
+      # same instant draws the same at any frame rate, every event type mapped
+      # to the shipped vfx atlas.
+      - name: Hunt scene
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-scene.mjs
+          node tests/hunt-scene.mjs --mutate
 
       - name: Client intent surface
         if: ${{ !cancelled() }}

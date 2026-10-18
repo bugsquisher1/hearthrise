@@ -15,9 +15,10 @@
 // THE HUNT (lane W3). When the server's activity is a fight a map renders, the
 // scene is that hunt: hunt-scene.js stages the fight from the one swing
 // observer (src/render/combat-observer.js) — its snapshot every frame and every
-// beat as it happens, so swings taken while the pane was hidden are not lost —
-// and hunt-chrome.js paints the settled Analyzer, the knockout line and Eat /
-// Leave Hunt over the stage.
+// beat as it happens, so swings taken while the pane was hidden are not lost.
+// The hunt's panels (analyzer, party, bars) are the shell's (src/shell/widgets/*).
+// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the character's
+// timeline on its own clock instead; the staging above is for a fight with none.
 //
 // THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
 // draws them from what the client holds from the server, read here into one
@@ -42,7 +43,8 @@ import { loadAtlases } from './atlas.js?v=0.1.0';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.1.0';
 import { huntOfMap } from './hunt-maps.js?v=0.1.0';
 import { createHuntScene } from './hunt-scene.js?v=0.1.0';
-import { createHuntChrome, hudModel } from './hunt-chrome.js?v=0.1.0';
+import { createHuntScene as createLiveHunt, readHunt } from '../hunt-view/scene.js?v=0.1.0';
+import { huntOf } from '../session/hunt-sections.js?v=0.1.0';
 import { createWalkScene } from './walk-scene.js?v=0.1.0';
 import { homeMapFor } from './home-scene.js?v=0.1.0';
 import { runAction } from './steer-local.js?v=0.1.0';
@@ -76,7 +78,6 @@ function isOpen(el) {
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
-const HUD_EVERY_MS = 250;
 
 /** The fight as the client holds it, when the observer is not installed (a bare harness). */
 function bareSnapshot(G) {
@@ -153,6 +154,7 @@ function createEnvReader(win) {
  * @param {() => object} opts.view  the ONE character's view this pane shows, read every frame
  *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
  *        character's own `_world` display scratch. There is no global state to fall back to.
+ * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
  */
 export async function bootWorld(panel, opts) {
   const win = window, doc = document;
@@ -171,12 +173,11 @@ export async function bootWorld(panel, opts) {
   backend.mount(stage);
 
   const obs = win.HearthriseCombatObserver || null;
-  let hunt = null, huntMap = null, hudAt = 0, lastHunt = null;
+  let hunt = null, huntMap = null, lastHunt = null;
+  const character = opts.character || null;
+  let liveHunt = null;   // { map, scene, off }: the live hunt of `character`, while it hunts
+  function endLive() { if (liveHunt) { liveHunt.off(); liveHunt = null; } }
   const unsubscribe = obs ? obs.subscribe((b) => { if (hunt) hunt.beat(b); }) : null;
-  const hud = createHuntChrome(stage, { doc, on: {
-    eat: () => { if (typeof win.eatBestProvision === 'function') win.eatBestProvision(); },
-    leave: () => { if (typeof win.stopCombat === 'function') win.stopCombat(); },
-  } });
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
   idle.setAttribute('role', 'status');
@@ -205,7 +206,24 @@ export async function bootWorld(panel, opts) {
     });
   }
 
+  function liveState(sc) {
+    const tl = character.timeline;
+    if (!liveHunt || liveHunt.map !== sc.map) {
+      endLive();
+      const scene = createLiveHunt({ timeline: tl, book, read: () => readHunt(character) });
+      liveHunt = { map: sc.map, scene, off: tl.subscribe((ev) => scene.onEvent(ev, character.now())) };
+    }
+    const now = character.now();
+    tl.advance(now);
+    const f = liveHunt.scene.frame(now);
+    lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),
+      hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), stats: liveHunt.scene.stats() };
+    return { hero: f.hero, units: f.units, floats: f.floats, fx: f.fx };
+  }
+
   function huntState(G, sc, map, name, now) {
+    if (character && huntOf(character)) return liveState(sc);
+    endLive();
     if (!hunt || huntMap !== sc.map) {
       const h = huntOfMap(ROWS.get(sc.map));
       const a = G._huntAnalyzer;
@@ -218,10 +236,6 @@ export async function bootWorld(panel, opts) {
     const snap = obs ? obs.snapshot() : bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
-    if (now - hudAt >= HUD_EVERY_MS) {
-      hudAt = now;
-      hud.paint(hudModel({ analyzer: G._huntAnalyzer || null, title: ROWS.get(sc.map).name, down: snap.down, now }));
-    }
     return { hero: hs.hero, units: hs.units, floats: hs.floats };
   }
 
@@ -259,7 +273,6 @@ export async function bootWorld(panel, opts) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
       scene = sc;
       paintChrome(sc);
-      hudAt = 0;
     }
     const banner = unmappedBanner(G, sc, monsterName);
     if (banner !== lastBanner) { lastBanner = banner; idle.innerHTML = banner || ''; }
@@ -279,8 +292,7 @@ export async function bootWorld(panel, opts) {
       cast = huntState(G, sc, map, name, now);
       walk = null; lastWalk = null; keys.clear();
     } else {
-      hunt = null; huntMap = null; lastHunt = null;
-      hud.paint(null);
+      hunt = null; huntMap = null; lastHunt = null; endLive();
       cast = walkState(G, map, now);
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
@@ -406,7 +418,7 @@ export async function bootWorld(panel, opts) {
     sync,
     /** Paint one frame now, loop or not (a test reads the frame it just caused). */
     step: () => step(0),
-    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats(), hud: hud.text() }, backend.snapshot()),
+    stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
     /**
      * The shell's docked windows: the strips of the stage they cover, in CSS px
@@ -418,6 +430,7 @@ export async function bootWorld(panel, opts) {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
+      endLive();
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);
       stage.removeEventListener('pointermove', onHover);
@@ -427,7 +440,6 @@ export async function bootWorld(panel, opts) {
       doc.removeEventListener('keyup', onKeyUp);
       doc.removeEventListener('focusin', onFocusIn);
       win.removeEventListener('blur', letGo);
-      hud.destroy();
       idle.remove();
       backend.destroy();
     },

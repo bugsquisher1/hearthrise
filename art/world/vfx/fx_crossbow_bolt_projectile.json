@@ -1,0 +1,29 @@
+{
+  "id": "fx_crossbow_bolt_projectile",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_crossbow_bolt_projectile.png",
+  "frame": [
+    13,
+    4
+  ],
+  "anchor_px": [
+    11,
+    2
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": true,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/crossbow_bolt_projectile by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

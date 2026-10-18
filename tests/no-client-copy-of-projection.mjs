@@ -176,11 +176,11 @@ async function selftest() {
     ['a projected key back on the residue (skills)', 'RESIDUE-COPY', async () => audit(base.projection, fakeResidue('skills'))],
     ['a projected state key, camelCased, on the residue (combatStyle)', 'RESIDUE-COPY', async () => audit(base.projection, fakeResidue('combatStyle'))],
     ['the applier keeps only an allowlist of keys', 'KEEP-DROPPED',
-      () => planted('src/session/envelope.js', "if (!META.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
+      () => planted('src/session/envelope.js', "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
         "if (['state', 'skills', 'inventory'].includes(k)) data[k] = copy(env[k]);")],
     ['the applier drops a nested state key', 'KEEP-DROPPED',
-      () => planted('src/session/envelope.js', "if (!META.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
-        "if (!META.includes(k) && k !== 'client_state') data[k] = copy(k === 'state' ? Object.assign({}, env[k], { gold: undefined }) : env[k]);")],
+      () => planted('src/session/envelope.js', "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
+        "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(k === 'state' ? Object.assign({}, env[k], { gold: undefined }) : env[k]);")],
     ['the pinned key set emptied', 'PROJ-PIN', async () => audit({ top: [], state: [] }, real)],
   ];
   let bad = 0;

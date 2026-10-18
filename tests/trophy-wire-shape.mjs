@@ -166,8 +166,8 @@ const MUTATIONS = {
   client_fills_the_key: {
     what: 'the client applier fills a missing trophies key with [] — "did not say" becomes "none"',
     file: 'envelope',
-    find: "if (!META.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
-    repl: "if (!META.includes(k) && k !== 'client_state') data[k] = copy(k === 'bestiary' ? Object.assign({ trophies: [] }, env[k]) : env[k]);",
+    find: "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
+    repl: "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(k === 'bestiary' ? Object.assign({ trophies: [] }, env[k]) : env[k]);",
     expect: 'W4',
   },
   control_comment_only: {

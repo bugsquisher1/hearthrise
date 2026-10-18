@@ -82,6 +82,13 @@
       "ratio": 1.2461538461538462,
       "bnum": 7
     },
+    "src/world/render/canvas-backend.js": {
+      "total": 485,
+      "comment": 61,
+      "code": 406,
+      "ratio": 0.15024630541871922,
+      "bnum": 0
+    },
     "src/core/hunt.js": {
       "total": 479,
       "comment": 278,
@@ -97,10 +104,10 @@
       "bnum": 10
     },
     "src/world/world-boot.js": {
-      "total": 436,
-      "comment": 95,
-      "code": 317,
-      "ratio": 0.2996845425867508,
+      "total": 448,
+      "comment": 97,
+      "code": 326,
+      "ratio": 0.29754601226993865,
       "bnum": 0
     },
     "src/core/buffs.js": {
@@ -109,13 +116,6 @@
       "code": 150,
       "ratio": 1.7,
       "bnum": 4
-    },
-    "src/core/auto-eat.js": {
-      "total": 428,
-      "comment": 282,
-      "code": 108,
-      "ratio": 2.611111111111111,
-      "bnum": 2
     }
   }
 }

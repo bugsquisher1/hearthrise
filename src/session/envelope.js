@@ -31,6 +31,9 @@ import { residueOf } from './residue.js?v=0.1.0';
 
 /** Envelope keys that describe the answer, not the character. */
 const META = Object.freeze(['ok', 'error', 'accrued']);
+/* The settle response's visual timeline (HUNT_SCREEN_SPEC §1.5): transient,
+   played back by src/hunt-view/timeline.js, never part of the record. */
+export const TIMELINE_KEYS = Object.freeze(['hunt_track', 'hunt_events', 'hunt_server_now_ms']);
 /** The keys hr_frame_send may state (2026-09-22-frame-push-channel.sql). */
 const FRAME_KEYS = Object.freeze(['state', 'skills', 'buffs', 'place', 'dungeon_cooldowns',
   'inventory', 'bank', 'equipment', 'enchant', 'workers', 'farm', 'progress', 'inventory_complete']);
@@ -64,7 +67,7 @@ export function applyEnvelope(current, env) {
   if (!isObj(env.state)) return keep('incomplete');
   if (current && env.version < current.version) return keep('stale');
   const data = {};
-  for (const k of Object.keys(env)) if (!META.includes(k) && k !== 'client_state') data[k] = copy(env[k]);
+  for (const k of Object.keys(env)) if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);
   return { applied: true, verdict: 'replaced', record: record(env.version, data, residueOf(env.client_state)) };
 }
 

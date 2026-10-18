@@ -32,3 +32,7 @@ src/** text eol=lf
 tests/** text eol=lf
 tools/** text eol=lf
 index.html text eol=lf
+
+# Coordination logs are append-only, one dated section per lane; two lanes appending
+# at the same tail is not a conflict. Union keeps both sides (2026-10-18).
+.claude/coordination/*.md merge=union

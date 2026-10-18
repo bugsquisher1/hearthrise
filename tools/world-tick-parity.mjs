@@ -44,6 +44,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { judgeRead } from '../services/world-tick/parity-bar.js';
+import { isMain as isEntryModule } from '../tests/_is-main.mjs';
 
 const ARGV = process.argv.slice(2);
 const arg = (k, d) => { const i = ARGV.indexOf(k); return i >= 0 && ARGV[i + 1] ? ARGV[i + 1] : d; };
@@ -285,7 +286,7 @@ async function productionRead() {
 
 /* A module the guard imports (tests/world-tick-parity-probe.mjs PP-8 runs QUERY
    on the replayed chain), so the read runs only when invoked directly. */
-const isMain = (process.argv[1] || '').replace(/\\/g, '/').endsWith('tools/world-tick-parity.mjs');
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (SELFTEST) await selftest();
   else if (process.env.CI || process.env.GITHUB_ACTIONS) {

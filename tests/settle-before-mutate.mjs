@@ -57,6 +57,7 @@ import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
 import { settleGatherSession, intentValue, atSpan, GATHER_CATALOGUES }
   from '../services/world-tick/gather.js';
 import { seedFor } from '../services/world-tick/shadow.js';
+import { isMain } from './_is-main.mjs';
 
 const MIG_SBM = '2026-09-28-settle-before-mutate.sql';
 const MIG_FROM = '2026-09-28-buff-segment-from.sql';
@@ -378,8 +379,7 @@ async function run(mutate, { only } = {}) {
 
 // ── CLI ────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/settle-before-mutate.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 const argOf = (name) => {
   const i = argv.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
   if (i < 0) return undefined;

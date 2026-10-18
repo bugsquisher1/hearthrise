@@ -31,6 +31,7 @@ import { dirname, join } from 'node:path';
 
 import { QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 import { chainEndMigration } from './quest-reward-parity.mjs';
+import { isMain } from './_is-main.mjs';
 
 /* The quest body's chain end — see the header. */
 export const QUEST_BODY_RE = /create\s+or\s+replace\s+function\s+public\.hr_claim_quest__ungated\b/i;
@@ -135,7 +136,7 @@ async function selftest() {
 }
 
 // Standalone
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('goal-catalogue-drift.mjs')) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest') || process.argv.includes('--mutate')) {
     selftest().then((code) => process.exit(code));
   } else {

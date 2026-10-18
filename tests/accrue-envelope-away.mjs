@@ -137,7 +137,8 @@ export async function accrueEnvelopeAwayGuard() {
 
 // Allow standalone execution: `node tests/accrue-envelope-away.mjs`
 import { pathToFileURL } from 'node:url';
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+import { isMain } from './_is-main.mjs';
+if (isMain(import.meta.url)) {
   accrueEnvelopeAwayGuard().then((p) => {
     if (p.length) { for (const m of p) console.error('  ✗ ' + m); process.exit(1); }
     console.log('accrue-envelope-away: OK — every accrued:true response carries a well-formed away receipt.');

@@ -41,6 +41,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG_DIR = join(ROOT, 'supabase', 'migrations');
@@ -153,7 +154,7 @@ async function selftest() {
 }
 
 // CLI: node tests/clan-feast-catalogue-drift.mjs [--report|--selftest]
-if (process.argv[1]?.endsWith('clan-feast-catalogue-drift.mjs')) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (argv.includes('--selftest')) {
     selftest().then((bad) => {

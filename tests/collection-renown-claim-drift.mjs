@@ -35,6 +35,7 @@ import { dirname, join } from 'node:path';
 import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -225,7 +226,7 @@ async function selftest() {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('collection-renown-claim-drift.mjs')) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) {
     selftest().then((c) => process.exit(c), (e) => { console.error('harness:', e); process.exit(2); });
   } else {

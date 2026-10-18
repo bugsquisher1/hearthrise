@@ -32,6 +32,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
@@ -415,8 +416,7 @@ end $$;
 `;
 }
 
-const SELF = process.argv[1]
-  && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
+const SELF = isMain(import.meta.url);
 if (SELF) {
   const stateOf = await deriveStateOf();
   const rpcGate = await deriveRpcGate();

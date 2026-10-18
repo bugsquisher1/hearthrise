@@ -59,6 +59,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
+import { isMain } from './_is-main.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 // HR_MIGRATIONS_DIR points a replay at a COPY of the chain. It exists so a
@@ -605,8 +606,7 @@ export async function inventory(db) {
 }
 
 // ── CLI: diagnostics ───────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`
-    || process.argv[1]?.endsWith('schema-replay.mjs')) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   const run = async () => {
     if (argv.includes('--list')) {

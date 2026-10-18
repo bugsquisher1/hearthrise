@@ -26,6 +26,7 @@ import {
   refusalCarriesState, INTENT_ERRORS,
 } from '../supabase/functions/hr-accrue/intents.js';
 import { VERBS } from '../supabase/functions/hr-accrue/request.js';
+import { isMain } from './_is-main.mjs';
 /* The player-facing half of this verb's refusals — pure, so it is graded here
    rather than only in a browser. */
 
@@ -248,7 +249,7 @@ export async function runAll() {
   return problems;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('eat-intent.mjs')) {
+if (isMain(import.meta.url)) {
   const fails = await runAll();
   if (fails.length) { console.error('EAT-INTENT RED:\n  ' + fails.join('\n  ')); process.exit(1); }
   console.log('eat-intent: all guards green');

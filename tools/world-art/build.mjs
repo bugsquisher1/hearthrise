@@ -34,6 +34,7 @@ import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } f
 import { pack } from './pack.mjs';
 import { CLASSES, DIRS, T, SHADOW, MANIFEST_VERSION, atlasPaths } from '../../src/data/world/art-budget.js';
 import { PALETTE_ID } from './palette.mjs';
+import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const ART_DIR = 'art/world';
@@ -221,7 +222,7 @@ function report(b) {
   }
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   const argv = process.argv.slice(2);
   try {

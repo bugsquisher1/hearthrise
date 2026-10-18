@@ -80,6 +80,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import { availableParallelism } from 'node:os';
+import { isMain } from './_is-main.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 export const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
@@ -633,6 +634,6 @@ function report(results, t0, mode) {
   process.exitCode = red.length ? 1 : 0;
 }
 
-if (process.argv[1]?.replace(/\\/g, '/').endsWith('tests/run-ci-local.mjs')) {
+if (isMain(import.meta.url)) {
   await main();
 }

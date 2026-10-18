@@ -39,6 +39,7 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -774,7 +775,7 @@ async function mutate() {
   return bad;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('leaderboard server source — mutation harness:');
     const bad = await mutate();

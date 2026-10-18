@@ -14,6 +14,7 @@
 
 import { analyse } from '../tools/gen-art-colors.mjs';
 import { PALETTE } from '../tools/lib/art-palette.mjs';
+import { isMain } from './_is-main.mjs';
 
 const ITEMS = 'docs/design/item-art-prompts.md';
 const MONSTERS = 'docs/design/monster-art-prompts.md';
@@ -101,7 +102,7 @@ export async function artPaletteGuard() {
 
 export async function runAll() { return artPaletteGuard(); }
 
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/art-palette.mjs')) {
+if (isMain(import.meta.url)) {
   const fails = await artPaletteGuard();
   if (fails.length) { for (const f of fails) console.error('  ✗ ' + f); process.exit(1); }
   console.log('✓ art palette guard: 597/597 lines mapped, tier identity distinct, strip manifest joins');

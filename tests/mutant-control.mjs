@@ -32,6 +32,7 @@ import { writeFileSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir, availableParallelism, totalmem } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -154,7 +155,7 @@ async function selftest() {
   return bad;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) {
     console.log('mutant-control --selftest — every lie a control can tell is judged RED');
     const bad = await selftest();

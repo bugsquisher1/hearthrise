@@ -47,6 +47,7 @@ import { EQUIP_SLOT_INDEX, ITEM_EQUIP_SLOTS } from '../supabase/functions/hr-acc
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -467,8 +468,7 @@ export async function runAll() {
   return problems.slice();
 }
 
-const SELF = process.argv[1] && import.meta.url.endsWith(
-  process.argv[1].replace(/\\/g, '/').split('/').pop());
+const SELF = isMain(import.meta.url);
 if (SELF) {
   const fails = await runAll();
   for (const f of fails) console.error('  ✗ ' + f);

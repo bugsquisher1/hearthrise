@@ -67,6 +67,7 @@ import { makeBonus } from '../src/core/perks.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { isMain } from './_is-main.mjs';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -1549,10 +1550,10 @@ async function selftest() {
   finish(0);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href
+if (isMain(import.meta.url)
     && process.argv.includes('--selftest')) {
   await selftest();
-} else if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+} else if (isMain(import.meta.url)) {
   const found = await runAll();
   if (found.length) {
     console.log('Artisan accrual guard — FAILED:');
